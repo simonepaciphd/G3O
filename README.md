@@ -1,9 +1,8 @@
 # G3O Shared Repository
 
 ## Global Government GenAI Observatory (G3O)
-**Collaboration Module: Search & Collection**
 
-This repository contains the search and scraping components for G3O. Note that "QuantSearch" is an internal legacy name for the engine, but this repo focuses on the "Observatory" data collection.
+This repository contains the search and scraping components for G3O. 
 
 ## Setup
 
