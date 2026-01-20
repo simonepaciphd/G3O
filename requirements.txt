@@ -1,0 +1,6 @@
+requests
+beautifulsoup4
+tenacity
+python-dotenv
+pdfplumber
+python-docx
