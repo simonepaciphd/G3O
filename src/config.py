@@ -11,8 +11,9 @@ def get_env_var(key, default=None, required=False):
     return val
 
 # API Keys
-# The assistant will need to provide their own Serper key or use the one in Github Secrets
-SERPER_API_KEY = get_env_var("SERPER_API_KEY", required=True)
+# Note: SERPER_API_KEY is required for search operations but not at import time
+SERPER_API_KEY = get_env_var("SERPER_API_KEY", default=None)
+OPENAI_API_KEY = get_env_var("OPENAI_API_KEY", default=None)
 
 # Configuration
 SERPER_ENDPOINT = get_env_var("SERPER_ENDPOINT", default="https://google.serper.dev/search")

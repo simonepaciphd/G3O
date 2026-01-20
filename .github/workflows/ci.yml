@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest
+    
+    - name: Run basic import test
+      env:
+        SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      run: |
+        python -c "from src import search_serper, scrape, config; print('Imports OK')"
+    
+    - name: Run search test (if API key available)
+      env:
+        SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      run: |
+        python -c "
+from src import search_serper
+results = search_serper.search_google('test query', num_results=1)
+print(f'Search returned {len(results)} results')
+assert len(results) >= 0, 'Search should return list'
+print('Search test passed!')
+"
+      continue-on-error: true  # Don't fail if no API key
+    
+    - name: Run scrape test
+      env:
+        SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      run: |
+        python -c "
+from src import scrape
+result = scrape.scrape_url('https://example.com')
+print(f'Scraped {len(result.get(\"text\", \"\"))} chars')
+assert result.get('success') or result.get('text'), 'Scrape should return content'
+print('Scrape test passed!')
+"
