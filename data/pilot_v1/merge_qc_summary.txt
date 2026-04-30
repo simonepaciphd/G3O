@@ -1,0 +1,33 @@
+G3O Automatic Search v1 merge QC
+
+Per-source row counts:
+pilot_web: 485 rows
+ra_amber: 55 rows
+ra_ella: 36 rows
+ra_litong_aut: 117 rows
+ra_litong_dem: 68 rows
+existing_gpt_convenience: 103 rows
+existing_policy_lab: 2 rows
+existing_us_federal: 336 rows
+existing_pstw: 134 rows
+
+Total merged rows: 1336
+Total merged institutions: 917
+Institutions with has_genai_activity=yes: 343
+Activity-confirming rows: 705
+
+Blank required field counts:
+run_id: 0
+batch_id: 0
+institution_id: 0
+institution_name: 0
+country: 0
+branch_of_government: 0
+level_of_government: 0
+source_url: 0
+source_type: 0
+source_access_date: 0
+genai_evidence: 0
+run_model: 0
+run_tool: 0
+run_date: 0

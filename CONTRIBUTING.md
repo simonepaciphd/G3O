@@ -1,125 +1,57 @@
 # Contributing to G3O
 
-Welcome! This document outlines the development roadmap and contribution guidelines for the G3O (Global Government GenAI Observatory) data collection system.
+Thank you for your interest in G3O. This document covers the development setup, the layout of the production pipeline, and the ground rules for contributions.
 
 ## Setup
 
-1. Clone the repo and install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. Copy `.env.template` to `.env` and add your API key:
-   ```bash
-   cp .env.template .env
-   # Edit .env with your SERPER_API_KEY
-   ```
-
-3. Test the setup:
-   ```bash
-   python -m src.collection_driver --query "UK AI policy" --limit 3
-   ```
-
----
-
-## Development Roadmap
-
-### Priority 1: Search Improvements
-
-| Task | Description | Status |
-|------|-------------|--------|
-| ✅ Full metadata extraction | Date, position, sitelinks from Serper | Done |
-| ✅ Search operators | `site:`, `filetype:pdf` support | Done |
-| ✅ Homepage discovery | Find official website for entity | Done |
-| ✅ Multi-strategy search | Try multiple query patterns | Done |
-| 🔲 LLM query refinement | Use GPT to suggest better search terms | TODO |
-| 🔲 Date range filtering | Search within specific time periods | TODO |
-
-### Priority 2: Scraping Improvements
-
-| Task | Description | Status |
-|------|-------------|--------|
-| ✅ PDF extraction | Extract text from PDF documents | Done |
-| ✅ Boilerplate removal | Remove nav, footer, ads, cookies | Done |
-| ✅ Link extraction with context | Anchor text + surrounding paragraph | Done |
-| 🔲 Dynamic page support | Add Playwright for JS-rendered pages | TODO |
-| 🔲 Readability algorithm | Port Mozilla Readability for cleaner text | TODO |
-| 🔲 Language detection | Identify page language | TODO |
-
-### Priority 3: Quality & Testing
-
-| Task | Description | Status |
-|------|-------------|--------|
-| 🔲 GitHub Actions CI | Auto-run tests on push | TODO |
-| 🔲 Test fixtures | Sample pages for regression testing | TODO |
-| 🔲 Scrape quality scoring | Heuristic to rate extraction quality | TODO |
-
----
-
-## How to Contribute
-
-### Pick a Task
-1. Check the roadmap above for `TODO` items
-2. Open an issue or comment on existing one to claim it
-3. Create a feature branch: `git checkout -b feature/my-improvement`
-
-### Code Guidelines
-- Keep functions focused and documented
-- Add type hints where possible
-- Test with real URLs before submitting
-
-### Testing Locally
 ```bash
-# Run the collection driver
-python -m src.collection_driver --query "test query" --limit 5
+git clone https://github.com/simonepaciphd/G3O.git
+cd G3O
+python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
 
-# Test specific functions in Python REPL
-python
->>> from src import search_serper, scrape
->>> results = search_serper.search_google("test")
->>> page = scrape.scrape_url("https://example.com")
+cp .env.template .env
+# fill in SERPER_API_KEY (required for live discovery)
+# OPENAI_API_KEY is needed once the extract layer lands in Push #2
 ```
 
-### Pull Requests
-1. Ensure code works locally
-2. Push to your branch
-3. Open PR with description of changes
-4. GitHub Actions will run tests (if configured)
+Run the test suite and linter before submitting changes:
 
----
-
-## Architecture Overview
-
-```
-src/
-├── config.py           # Environment variables and settings
-├── search_serper.py    # Google Search via Serper API
-├── scrape.py           # URL fetching and text extraction
-└── collection_driver.py  # CLI entry point
+```bash
+ruff check
+pytest -q
 ```
 
-### Key Functions
+## Architecture
 
-**search_serper.py**
-- `search_google(query)` - Basic search
-- `search_entity_homepage(entity_name)` - Find official website
-- `multi_strategy_search(entity, topic)` - Combined search strategies
+The pipeline lives under `g3o/` and is organized as four modules that mirror the paper:
 
-**scrape.py**
-- `scrape_url(url)` - Fetch and extract text + links
-- Supports HTML, PDF, DOCX automatically
+```
+discovery → scrape → extract → validate
+```
 
----
+- `g3o.discovery` — institution-driven Serper queries (multilingual).
+- `g3o.scrape` — HTTP fetch + HTML/PDF content extraction.
+- `g3o.extract` — schema-first LLM extraction (Push #2 — see module README).
+- `g3o.validate` — cross-source merge and consolidation (Push #2).
 
-## Environment Variables
+The schema-of-record is `g3o/extract/prompts/output_contract.md`. The CSV header for the production database lives in `g3o.common.schema.DATA_COLUMNS`. These two must stay in sync.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SERPER_API_KEY` | Yes | API key for Google Search |
-| `OPENAI_API_KEY` | No | For LLM features (future) |
+## Ground rules
 
----
+- **No secrets in commits.** `.env` is gitignored; the template lives at `.env.template`. If you find a key in a diff, remove it before opening a PR.
+- **Schema stability.** Changes to `output_contract.md` or `DATA_COLUMNS` are versioned and require maintainer sign-off.
+- **Pilot data is read-only.** `data/pilot_v1/` is a fixed snapshot. Future versions land as `data/pilot_v2/`, `data/v2/`, etc., never overwrites.
+- **Researcher control.** Substantive design choices (typology, validation, sampling) are reserved for the project authors. Pull requests that touch typology or coding rules need explicit sign-off in the issue first.
 
-## Questions?
+## How to contribute
 
-Open an issue on GitHub or contact the maintainer.
+1. Open an issue describing the change. For non-trivial work, get sign-off on the approach before writing code.
+2. Branch from `main`: `git checkout -b feature/your-change`.
+3. Make the change. Add tests under `tests/`.
+4. Run `ruff check && pytest -q` locally.
+5. Open a PR. CI runs the same checks plus an optional Serper smoke test.
+
+## Reporting issues
+
+Open a GitHub issue. For data-quality concerns about specific records in `data/pilot_v1/`, please include the institution name and the source URL — not a raw row dump — so issues stay readable.

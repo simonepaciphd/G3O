@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+title: "G3O — Global Government GenAI Observatory"
+message: "If you use this software or the accompanying dataset, please cite the working paper below."
+type: software
+authors:
+  - family-names: Paci
+    given-names: Simone
+    affiliation: Stanford University
+  - family-names: Pressly
+    given-names: Lowry
+    affiliation: Stanford University
+  - family-names: Feldman
+    given-names: Nathan
+    affiliation: Rochester University
+repository-code: "https://github.com/simonepaciphd/G3O"
+license: MIT
+version: 0.1.0
+date-released: 2026-04-30
+preferred-citation:
+  type: unpublished
+  title: "The G3O Initiative: Building a Global Panel of Government GenAI Use"
+  authors:
+    - family-names: Paci
+      given-names: Simone
+    - family-names: Pressly
+      given-names: Lowry
+    - family-names: Feldman
+      given-names: Nathan
+  year: 2026
+  notes: "Working paper, preliminary draft. Please do not circulate without the authors' consent."

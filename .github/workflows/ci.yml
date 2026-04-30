@@ -9,48 +9,38 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pytest
-    
-    - name: Run basic import test
-      env:
-        SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
-      run: |
-        python -c "from src import search_serper, scrape, config; print('Imports OK')"
-    
-    - name: Run search test (if API key available)
-      env:
-        SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
-      run: |
-        python -c "
-from src import search_serper
-results = search_serper.search_google('test query', num_results=1)
-print(f'Search returned {len(results)} results')
-assert len(results) >= 0, 'Search should return list'
-print('Search test passed!')
-"
-      continue-on-error: true  # Don't fail if no API key
-    
-    - name: Run scrape test
-      env:
-        SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
-      run: |
-        python -c "
-from src import scrape
-result = scrape.scrape_url('https://example.com')
-print(f'Scraped {len(result.get(\"text\", \"\"))} chars')
-assert result.get('success') or result.get('text'), 'Scrape should return content'
-print('Scrape test passed!')
-"
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Test (pytest)
+        run: pytest -q -m "not network"
+
+      - name: Network test (example.com scrape) — best-effort
+        run: pytest -q -m network
+        continue-on-error: true
+
+      - name: Serper smoke (live API) — best-effort
+        env:
+          SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+        run: |
+          python -c "
+          from g3o.discovery.serper_client import search_google
+          results = search_google('test query', num_results=1, force_refresh=True)
+          print(f'Serper returned {len(results)} result(s)')
+          "
+        continue-on-error: true

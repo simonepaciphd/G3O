@@ -1,6 +1,27 @@
-__pycache__/
+# Secrets
 .env
 .env.txt
+.env.local
+
+# Python
+__pycache__/
 *.pyc
-data/
+*.pyo
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Pipeline runtime artifacts (cache, ad-hoc outputs)
 cache/
+runs/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

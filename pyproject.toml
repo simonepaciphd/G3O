@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "g3o"
+version = "0.1.0"
+description = "Production data-collection pipeline for the Global Government GenAI Observatory."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Simone Paci", email = "spaci@stanford.edu" },
+    { name = "Lowry Pressly" },
+    { name = "Nathan Feldman" },
+]
+keywords = ["government", "AI", "GenAI", "public sector", "research", "open data"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "requests>=2.31",
+    "tenacity>=8.2",
+    "beautifulsoup4>=4.12",
+    "pdfplumber>=0.10",
+    "python-docx>=1.0",
+    "python-dotenv>=1.0",
+    "openai>=1.30",
+    "pydantic>=2.5",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+g3o = "g3o.cli:main"
+
+[project.urls]
+Repository = "https://github.com/simonepaciphd/G3O"
+Website = "https://simonepaciphd.github.io/g3o-website/"
+
+[tool.setuptools.packages.find]
+include = ["g3o*"]
+
+[tool.setuptools.package-data]
+"g3o.extract.prompts" = ["*.md"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+    "network: tests that hit the live network",
+]

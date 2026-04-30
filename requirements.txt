@@ -1,6 +1,14 @@
-requests
-beautifulsoup4
-tenacity
-python-dotenv
-pdfplumber
-python-docx
+# Runtime dependencies for the G3O production pipeline.
+
+# Discovery + scrape
+requests>=2.31
+tenacity>=8.2
+beautifulsoup4>=4.12
+pdfplumber>=0.10
+python-docx>=1.0
+python-dotenv>=1.0
+
+# Extract (Push #2 — kept here so Push #1 install matches CI matrix)
+openai>=1.30
+pydantic>=2.5
+pyyaml>=6.0
