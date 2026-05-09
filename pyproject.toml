@@ -11,8 +11,6 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [
     { name = "Simone Paci", email = "spaci@stanford.edu" },
-    { name = "Lowry Pressly" },
-    { name = "Nathan Feldman" },
 ]
 keywords = ["government", "AI", "GenAI", "public sector", "research", "open data"]
 classifiers = [

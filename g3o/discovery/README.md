@@ -1,6 +1,6 @@
 # `g3o.discovery` — Stage 1: candidate source discovery
 
-Stage 1 of the seven-stage pipeline (see [`docs/budget/pipeline-spec-2026-05-08.md`](../../../../docs/budget/pipeline-spec-2026-05-08.md)). Maps institutions to candidate URLs via the Google Search API (Serper).
+Stage 1 of the seven-stage pipeline (see [`docs/architecture.md`](../../docs/architecture.md)). Maps institutions to candidate URLs via the Google Search API (Serper).
 
 ## Modules
 

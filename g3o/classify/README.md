@@ -1,10 +1,10 @@
 # `g3o.classify` — Stages 2 + 3: LLM filtering of candidate URLs
 
-**Status:** scaffold. Implementation lands in **Session A** of Push #2.
+**Status:** implemented.
 
 ## Role in the pipeline
 
-Two LLM stages of the seven-stage pipeline (see [`docs/budget/pipeline-spec-2026-05-08.md`](../../../../docs/budget/pipeline-spec-2026-05-08.md)) that filter the Serper output before any page text is fetched. Both call OpenAI Batch API on `gpt-5-nano` and use `response_format=json_schema` for Pydantic-validated output.
+Two LLM stages of the seven-stage pipeline (see [`docs/architecture.md`](../../docs/architecture.md)) that filter the Serper output before any page text is fetched. Both call OpenAI Batch API on `gpt-5-nano` and use `response_format=json_schema` for Pydantic-validated output.
 
 ## Stage 2 — Official-site classification (`official_site.py`)
 
@@ -20,8 +20,18 @@ Two LLM stages of the seven-stage pipeline (see [`docs/budget/pipeline-spec-2026
 - **Why.** Cuts the ~40 candidate URLs per institution to a tractable set for Stage 4 scrape and Stage 5 extract, where per-page costs add up.
 - **Per-call shape.** ~6k input tokens.
 
-## What lands in Session A
+## Modules
 
 - `official_site.py`, `url_triage.py` — both stages, calling `g3o.common.batch_client`.
-- Pydantic-validated output schemas (defined in `g3o.common.contract`).
-- CLI: `python -m g3o classify official-site --institution-id ...` and `python -m g3o classify triage --institution-id ...`.
+- Pydantic-validated output schemas defined in `g3o.common.contract`.
+
+## CLI
+
+```bash
+python -m g3o classify official-site --institution-id <id> --institution-row <row.json> --candidate-urls <urls.json>
+python -m g3o classify triage        --institution-id <id> --institution-row <row.json> --candidate-urls <urls.json> --official-site <url>
+```
+
+In production these classifiers are submitted by `g3o.run.presweep` as part
+of the per-institution DAG; the per-institution invocations above are useful
+for targeted debugging.

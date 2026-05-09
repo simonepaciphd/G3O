@@ -9,7 +9,7 @@ python-docx>=1.0
 python-dotenv>=1.0
 playwright>=1.40  # Stage 4 headless render adapter (g3o.scrape.render)
 
-# Extract (Push #2 — kept here so Push #1 install matches CI matrix)
+# Classify / extract / validate (LLM stages)
 openai>=1.30
 pydantic>=2.5
 pyyaml>=6.0

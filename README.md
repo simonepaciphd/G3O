@@ -2,10 +2,11 @@
 
 > **Status: preliminary research infrastructure.** The accompanying paper is
 > in preparation. This repository ships the production data-collection
-> pipeline and the pilot v1 results that already feed
-> [`g3o-website`](https://github.com/simonepaciphd/g3o-website). The full
-> institutional universe (~675k institutions) and the v2 dataset will land
-> in subsequent releases.
+> pipeline and the pilot v1 results that back the live observatory at
+> [`simonepaciphd.github.io/g3o-website`](https://simonepaciphd.github.io/g3o-website/)
+> (source: [`g3o-website`](https://github.com/simonepaciphd/g3o-website)).
+> The full institutional universe (~675k institutions) and the v2 dataset
+> will land in subsequent releases.
 
 G3O builds an open, auditable, versioned panel of public-sector generative-AI
 activity across ~675,000 government institutions worldwide. The pipeline runs
@@ -15,31 +16,53 @@ and cross-validates across sources. A complementary multilingual staff
 survey covers internal use that is not publicly documented (separate repo,
 to come).
 
-This repository contains the **automated discovery + extraction pipeline**.
-The institutional universe is built in a separate workflow and released
-alongside future versions of the dataset.
-
 ## Pipeline architecture
 
 ```
-┌─────────────┐    ┌────────────┐    ┌──────────────┐    ┌────────────────┐
-│  discovery  │ -> │   scrape   │ -> │   extract    │ -> │    validate    │
-│  (Serper)   │    │  (HTML/PDF)│    │ (OpenAI LLM) │    │ (cross-source) │
-└─────────────┘    └────────────┘    └──────────────┘    └────────────────┘
-   institution         retrieved        structured            deduplicated
-   × language ×        sources          records               panel
-   GenAI terms                          (G3O Output           (institution
-                                         Contract v2.0)        × quarter)
+1a  discovery_general            (Serper queries; cached on disk)
+        │
+        ▼
+2   classify_official_site       (LLM, Batch API, gpt-5-nano)
+        │
+        ▼
+1b  discovery_site_restricted    (Serper site:<official_site>)
+        │
+        ▼
+3   classify_url_triage          (LLM, Batch API)
+        │
+        ▼
+4   scrape                       (HTTP + HTML / PDF / headless-render)
+        │
+        ▼
+5   extract                      (LLM, Batch API; one call per page)
+        │
+        ▼
+6   validate                     (LLM, Batch API; one call per institution)
+        │
+        ▼
+7   persist                      (deterministic CSV writer)
 ```
 
-Modules under `g3o/`:
+Stages 2, 3, 5, and 6 call the OpenAI Batch API on `gpt-5-nano`. Stages 1a,
+1b, 4, and 7 are deterministic. End-to-end orchestration lives in
+`g3o.run.presweep`.
 
-| Module           | Status (Push #1)              | Push #2 |
-|------------------|-------------------------------|---------|
-| `g3o.discovery`  | implemented (Serper + queries)| —       |
-| `g3o.scrape`     | implemented (HTML + PDF)      | —       |
-| `g3o.extract`    | scaffold + prompts            | OpenAI client, validators, batch driver |
-| `g3o.validate`   | scaffold                      | merge, dedup, QC                        |
+Per-institution artifacts land at
+`runs/<run_id>/<inst>/{1_discovery,2_official_site,3_triage,4_scrape,5_extract,6_validate}.json`
+(gitignored). Stage 7 assembles
+`runs/<run_id>/final/g3o_full_database_v{N}.csv` and
+`g3o_institution_summary_v{N}.csv`.
+
+| Module          | Stage   | Description                                                  |
+|-----------------|---------|--------------------------------------------------------------|
+| `g3o.discovery` | 1a / 1b | Serper queries + multilingual builder + on-disk cache        |
+| `g3o.classify`  | 2 + 3   | LLM official-site picker + URL triage (Batch API)            |
+| `g3o.scrape`    | 4       | HTTP fetch with HTML / PDF / headless-render routing + cache |
+| `g3o.extract`   | 5       | Per-page LLM extraction to G3O Output Contract v2.0 rows     |
+| `g3o.validate`  | 6       | Per-institution LLM consolidation + deterministic QC         |
+| `g3o.persist`   | 7       | Deterministic CSV writer (full database + summary)           |
+| `g3o.run`       | —       | Orchestration: `presweep`, `verify-model`                    |
+| `g3o.common`    | —       | Schema, contract validators, batch client, run state         |
 
 See [`docs/architecture.md`](docs/architecture.md) for the mapping to the
 paper, and [`docs/data_dictionary.md`](docs/data_dictionary.md) for the
@@ -50,13 +73,23 @@ output schema (G3O Output Contract v2.0).
 ```
 G3O/
 ├── g3o/                  # Python package — the production pipeline
+│   ├── discovery/        # Stage 1a / 1b
+│   ├── classify/         # Stages 2 + 3
+│   ├── scrape/           # Stage 4
+│   ├── extract/          # Stage 5
+│   ├── validate/         # Stage 6
+│   ├── persist/          # Stage 7
+│   ├── run/              # Orchestration: presweep, verify-model
+│   └── common/           # Schema, contract, batch client, run state
 ├── data/pilot_v1/        # Pilot v1 results (~1k institutions; CC-BY 4.0)
-├── docs/                 # architecture, data dictionary, replication
+├── docs/                 # Architecture, data dictionary, replication, working draft
 ├── tests/                # pytest test suite
+├── runs/                 # Per-run artifacts (gitignored)
+├── cache/                # On-disk fetch cache (gitignored)
 ├── .github/workflows/    # CI
-├── pyproject.toml        # editable install + package metadata
-├── requirements.txt      # runtime deps
-├── .env.template         # required environment variables
+├── pyproject.toml        # Editable install + package metadata
+├── requirements.txt      # Runtime deps
+├── .env.template         # Required environment variables
 ├── LICENSE               # MIT (code)
 └── data/LICENSE          # CC-BY 4.0 (data)
 ```
@@ -70,35 +103,51 @@ python -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\ac
 pip install -e .
 
 cp .env.template .env
-# edit .env: at minimum SERPER_API_KEY for live discovery; OPENAI_API_KEY
-# is not required until extract/validate land in Push #2.
+# edit .env:
+#   SERPER_API_KEY  — Stage 1 discovery (mock results without it)
+#   OPENAI_API_KEY  — Stages 2, 3, 5, 6 (LLM via Batch API)
 
-# Discover candidate sources for one institution:
+# One-off: discover candidate sources for a single institution
 python -m g3o discover --institution "City of Helsinki" --languages en,fi --limit 5
 
-# Scrape one URL:
+# One-off: scrape a single URL
 python -m g3o scrape --url https://example.com --text-only
+
+# Confirm the OpenAI Batch model id is reachable
+python -m g3o verify-model --model gpt-5-nano
+
+# End-to-end: stratified pre-sweep over a sample of the institution master
+python -m g3o presweep \
+  --run-id 20260509-presweep \
+  --master-csv path/to/master_institutions.csv \
+  --sample-size 1000 \
+  --execute --stop-after validate
+
+# Stage 7 only: write the final CSVs from an existing run-dir
+python -m g3o persist --run-dir runs/20260509-presweep --run-id 20260509-presweep
 ```
 
 Without `SERPER_API_KEY`, `discover` returns mock results so you can exercise
-the pipeline shape without API credentials. The cache lives under `cache/`
-(git-ignored); delete it to force re-fetches.
+the pipeline shape without API credentials. The on-disk fetch cache lives
+under `cache/` (gitignored); per-run artifacts live under `runs/<run_id>/`
+(gitignored). Delete either to force re-fetches.
 
 ## Pilot v1 dataset
 
 `data/pilot_v1/` ships the 1k-institution pilot dataset that backs the
-[`g3o-website`](https://github.com/simonepaciphd/g3o-website). It was
+[live observatory](https://simonepaciphd.github.io/g3o-website/). It was
 collected with ChatGPT-web search prior to the API-driven pipeline and is
-**a snapshot, not a panel** — the production pipeline (Push #2) will
-produce v2 under different methodology. See
-[`data/pilot_v1/README.md`](data/pilot_v1/README.md) for provenance, model,
-date, and caveats.
+**a snapshot, not a panel** — the production pipeline will produce v2 under
+different methodology. See [`data/pilot_v1/README.md`](data/pilot_v1/README.md)
+for provenance, model, date, and caveats.
 
 ## Citing G3O
 
-The accompanying paper is in preparation and not yet circulated. For
-current citation metadata see [`CITATION.cff`](CITATION.cff). Please do not
-circulate the draft without the authors' consent.
+Working paper: **The G3O Initiative: Building a Global Panel of Government
+GenAI Use** (Paci, Pressly, Feldman & Vannutelli, May 2026). Current draft:
+[`docs/introducing-g3o-current-draft.pdf`](docs/introducing-g3o-current-draft.pdf).
+For citation metadata, see [`CITATION.cff`](CITATION.cff). The draft is
+preliminary; please contact the authors before circulating beyond the repo.
 
 ## License
 
@@ -107,4 +156,5 @@ Data (anything under `data/`): [CC-BY 4.0](data/LICENSE).
 
 ## Authors
 
-Simone Paci (Stanford), Lowry Pressly (Stanford), Nathan Feldman (Rochester).
+Simone Paci (Stanford), Lowry Pressly (Stanford), Nathan Feldman (Rochester),
+Silvia Vannutelli (Northwestern, NBER).

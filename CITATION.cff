@@ -6,13 +6,8 @@ authors:
   - family-names: Paci
     given-names: Simone
     affiliation: Stanford University
-  - family-names: Pressly
-    given-names: Lowry
-    affiliation: Stanford University
-  - family-names: Feldman
-    given-names: Nathan
-    affiliation: Rochester University
 repository-code: "https://github.com/simonepaciphd/G3O"
+url: "https://simonepaciphd.github.io/g3o-website/"
 license: MIT
 version: 0.1.0
 date-released: 2026-04-30
@@ -22,9 +17,16 @@ preferred-citation:
   authors:
     - family-names: Paci
       given-names: Simone
+      affiliation: Stanford University
     - family-names: Pressly
       given-names: Lowry
+      affiliation: Stanford University
     - family-names: Feldman
       given-names: Nathan
+      affiliation: Rochester University
+    - family-names: Vannutelli
+      given-names: Silvia
+      affiliation: Northwestern University
   year: 2026
+  month: 5
   notes: "Working paper, preliminary draft. Please do not circulate without the authors' consent."

@@ -15,50 +15,82 @@ cp .env.template .env
 
 Fill in `.env`:
 
-| Variable          | When required                       |
-|-------------------|--------------------------------------|
-| `SERPER_API_KEY`  | Live Serper queries; without it, `discover` returns mock data. |
-| `OPENAI_API_KEY`  | Push #2: `extract` and `validate`. Not needed for Push #1.     |
+| Variable          | When required                                                  |
+|-------------------|----------------------------------------------------------------|
+| `SERPER_API_KEY`  | Stages 1a / 1b (discovery). Without it, `discover` returns mock data. |
+| `OPENAI_API_KEY`  | Stages 2, 3, 5, 6 (LLM via Batch API). Required end-to-end.    |
 
-## Push #1 — discover and scrape
+## One-off operations
 
 ```bash
-# 1. Discover candidate sources for one institution
+# Discover candidate sources for one institution
 python -m g3o discover \
   --institution "City of Helsinki" \
   --languages en,fi \
-  --limit 5 \
-  > runs/helsinki_hits.json
+  --limit 5
 
-# 2. Scrape one URL
-python -m g3o scrape \
-  --url https://example.com \
-  --text-only \
-  > runs/example_text.txt
+# Scrape one URL
+python -m g3o scrape --url https://example.com --text-only
+
+# Confirm the OpenAI Batch model id is reachable
+python -m g3o verify-model --model gpt-5-nano
 ```
 
-Both commands cache to `cache/` (gitignored). Re-running the same query
-or URL is idempotent.
+`discover` and `scrape` cache to `cache/` (gitignored). Re-running the same
+query or URL is idempotent.
 
-## Push #2 — extract and validate
+## End-to-end run
 
-Coming with the next plan. The interface will be:
+The production entrypoint is `g3o presweep`, which orchestrates Stages 1a/2/1b/3/4/5
+(and Stage 6 with `--stop-after validate`) over a stratified sample of the
+institution master, persisting per-stage artifacts into `runs/<run_id>/<inst>/`.
 
 ```bash
-# 3. Extract structured records from scraped pages
-python -m g3o extract \
-  --batch institutions.csv \
-  --pages runs/<run_id>/pages.jsonl \
-  --out runs/<run_id>/records.csv
-
-# 4. Cross-validate and merge into a versioned release
-python -m g3o validate \
-  --inputs runs/<run_id>/records.csv \
-  --out data/v2/
+python -m g3o presweep \
+  --run-id 20260509-presweep \
+  --master-csv path/to/master_institutions.csv \
+  --sample-size 1000 \
+  --seed 22294 \
+  --stratification equal \
+  --discovery-languages en \
+  --discovery-results-per-query 5 \
+  --execute --stop-after validate \
+  --model gpt-5-nano
 ```
 
-Both will respect prompt caching where available and will be deterministic
-given their inputs.
+Without `--execute`, `presweep` runs in dry-run mode (no live submits). Resume
+is auto-inferred from `_state/` files in `runs/<run_id>/`.
+
+After Stage 6 completes, write the canonical CSVs:
+
+```bash
+python -m g3o persist \
+  --run-dir runs/20260509-presweep \
+  --run-id 20260509-presweep \
+  --model gpt-5-nano \
+  --version 2
+```
+
+This produces `runs/20260509-presweep/final/g3o_full_database_v2.csv` and
+`g3o_institution_summary_v2.csv`.
+
+## Stage-by-stage invocation
+
+The Stage 6 consolidator can be re-run independently over an existing run
+directory:
+
+```bash
+python -m g3o validate \
+  --run-dir runs/20260509-presweep \
+  --model gpt-5-nano \
+  --notes "re-run with updated consolidation prompt"
+```
+
+The Stage 2 / Stage 3 classifiers can be invoked one institution at a time
+for targeted debugging — see [`g3o/classify/README.md`](../g3o/classify/README.md).
+Stage 5 extraction is library-only at the CLI level; it is invoked via
+`presweep` (the per-institution DAG runner submits the Batch API jobs). See
+[`g3o/extract/README.md`](../g3o/extract/README.md) for the library API.
 
 ## Reproducing pilot v1
 
@@ -66,8 +98,8 @@ The dataset under `data/pilot_v1/` was produced by an earlier, manual
 ChatGPT-web pipeline plus retrofitted external databases — see
 [`../data/pilot_v1/README.md`](../data/pilot_v1/README.md). It is **not**
 reproducible from this repository as currently shipped. The production
-pipeline (Push #2) will produce v2 by re-running the institutional
-universe through the API-driven flow; v2 supersedes v1.
+pipeline above will produce v2 by re-running the institutional universe
+through the API-driven flow; v2 supersedes v1.
 
 If you need to reproduce v1 specifically (e.g., to audit a row), the
 upstream prompt assets live at
