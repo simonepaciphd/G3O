@@ -1,24 +1,23 @@
-# `g3o.validate` — cross-source merge and consolidation
+# `g3o.validate` — Stage 6: per-institution LLM consolidation
 
-**Status:** scaffold (Push #1). Implementation lands in Push #2.
+**Status:** scaffold. Implementation lands in **Session C** of Push #2.
 
-The validate layer takes structured records from `g3o.extract` (one
-per institution × activity × source) and produces:
+## Role in the pipeline
 
-- a deduplicated `g3o_full_database_v{N}.csv` (one row per
-  institution × activity × source after consolidation), and
-- an `g3o_institution_summary_v{N}.csv` (one row per institution with
-  rolled-up activity and tool fields).
+Stage 6 of the seven-stage pipeline (see [`docs/budget/pipeline-spec-2026-05-08.md`](../../../../docs/budget/pipeline-spec-2026-05-08.md)). Takes all extract-stage rows for one institution and consolidates them into a final per-institution record.
 
-Conservative merge rules (per the paper): primary sources outrank secondary
-reporting; uncertainty flags propagate forward; disagreements between
-sources surface in `uncertainty_flags` rather than silent overwrites.
+- **Input.** All Stage 5 rows for one institution (one row per `(institution × activity × source)` triple, possibly conflicting across pages).
+- **Output.** Canonical (institution × activity × source) rows for that institution + a per-institution summary row in the `SUMMARY_COLUMNS` shape.
+- **Operations performed by the LLM.** Activity dedup within institution (same activity reported by multiple pages → one canonical activity, multiple sources). Conflict resolution via the source-credibility hierarchy in Output Contract §4.8 (high-credibility government domain wins over a vendor blog). Uncertainty flag propagation per §4.10 (flags accumulate across sources rather than overwriting).
+- **Mode.** OpenAI Batch API, `response_format=json_schema`, prompt caching enabled. One LLM call per institution.
+- **Default model.** `gpt-5-nano` (per the cost model in `docs/budget/budget-draft-05-08-26.md`).
+- **Per-call shape.** ~14k input tokens (system prompt + contract + ~12 pages worth of extract rows), ~4k output tokens.
 
-## What lands in Push #2
+Deterministic QC (`qc.py`) runs after the LLM pass and reports counts only — row totals, blank-required-field counts, source-family breakdowns. No silent overwrites; QC surfaces anomalies, the LLM does the consolidation.
 
-- `merge.py` — institution × activity dedup, source-family precedence,
-  uncertainty flag propagation.
-- `qc.py` — per-run QC summary (row counts, blank-required-field counts,
-  source-family breakdown), mirroring the local pilot's
-  `merge_qc_summary.txt` artifact.
-- CLI: `python -m g3o validate --inputs <extract.jsonl> --out <final/>`.
+## What lands in Session C
+
+- `client.py` — OpenAI Batch API wrapper for the consolidation call, built on `g3o.common.batch_client`.
+- `consolidate.py` — per-institution batch driver: assembles inputs from `runs/<run_id>/<inst>/extract/*.json`, calls the model, persists `runs/<run_id>/<inst>/6_validate.json`, surfaces conflicts.
+- `qc.py` — deterministic QC summary (mirroring the local pilot's `merge_qc_summary.txt` artifact).
+- CLI: `python -m g3o validate --run <run_id>`.

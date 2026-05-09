@@ -2,6 +2,12 @@
 
 Both invariants are cheap to verify and the test suite is the right place
 to fail loudly if they ever drift.
+
+Note (Session C, 2026-05-09): The Stage 7 production summary schema migrated
+from the original 13-column shape (preserved here as
+``PILOT_V1_SUMMARY_COLUMNS``) to a 21-column normalized shape. The pilot v1
+CSV remains a frozen historical artifact and is now checked against its own
+schema, not the live ``SUMMARY_COLUMNS``.
 """
 
 from __future__ import annotations
@@ -9,11 +15,30 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from g3o.common.schema import DATA_COLUMNS, SUMMARY_COLUMNS
+from g3o.common.schema import DATA_COLUMNS
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PILOT_FULL = REPO_ROOT / "data" / "pilot_v1" / "g3o_full_database_v1.csv"
 PILOT_SUMMARY = REPO_ROOT / "data" / "pilot_v1" / "g3o_institution_summary_v1.csv"
+
+# Frozen historical schema for pilot v1's institution-summary CSV. Do not edit
+# unless the pilot v1 CSV is also regenerated. The live Stage 7 summary schema
+# is `g3o.common.schema.SUMMARY_COLUMNS`.
+PILOT_V1_SUMMARY_COLUMNS = [
+    "institution_id",
+    "institution_name",
+    "country",
+    "branch_of_government",
+    "level_of_government",
+    "has_genai_activity",
+    "n_total_rows",
+    "n_runs_covered",
+    "runs",
+    "n_activity_source_rows",
+    "activities_found",
+    "tools_found",
+    "best_summary",
+]
 
 CONTRACT_COLUMNS = [
     "row_id",
@@ -65,11 +90,13 @@ def test_pilot_v1_full_header_matches_data_columns():
     assert header == DATA_COLUMNS
 
 
-def test_pilot_v1_summary_header_matches_summary_columns():
+def test_pilot_v1_summary_header_matches_pilot_v1_schema():
+    """Pilot v1 froze the 13-column summary shape; the live SUMMARY_COLUMNS has
+    since migrated to 21 normalized columns (Session C, 2026-05-09)."""
     assert PILOT_SUMMARY.exists(), f"Pilot v1 summary file missing: {PILOT_SUMMARY}"
     with PILOT_SUMMARY.open(encoding="utf-8") as f:
         header = next(csv.reader(f))
-    assert header == SUMMARY_COLUMNS
+    assert header == PILOT_V1_SUMMARY_COLUMNS
 
 
 def test_contract_columns_are_subset_of_data_columns():

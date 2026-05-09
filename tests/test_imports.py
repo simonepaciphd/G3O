@@ -13,7 +13,9 @@ def test_common_imports():
     from g3o.common import config, schema  # noqa: F401
 
     assert len(schema.DATA_COLUMNS) == 44
-    assert len(schema.SUMMARY_COLUMNS) == 13
+    assert len(schema.ACTIVITY_COLUMNS) == 35
+    assert len(schema.ACTIVITY_SOURCE_COLUMNS) == 17
+    assert len(schema.SUMMARY_COLUMNS) == 21
 
 
 def test_discovery_imports():
@@ -29,9 +31,13 @@ def test_discovery_imports():
 
 def test_scrape_imports():
     from g3o.scrape import (  # noqa: F401
+        FetchMetadata,
+        RenderedPage,
         check_keyword_proximity,
         fetcher,
         html,
         pdf,
+        render,
+        render_url,
         scrape_url,
     )
