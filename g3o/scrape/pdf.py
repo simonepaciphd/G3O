@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import re
 
 try:
@@ -11,6 +12,8 @@ try:
     PDF_SUPPORT = True
 except ImportError:
     PDF_SUPPORT = False
+
+logger = logging.getLogger(__name__)
 
 
 def extract_text(content: bytes) -> str:
@@ -26,7 +29,7 @@ def extract_text(content: bytes) -> str:
                 if t:
                     parts.append(t)
     except Exception as exc:
-        print(f"PDF extraction error: {exc}")
+        logger.warning("PDF extraction error: %s", exc)
     return "\n\n".join(parts)
 
 
@@ -72,5 +75,5 @@ def extract_links(content: bytes) -> list[dict]:
                             }
                         )
     except Exception as exc:
-        print(f"PDF link extraction error: {exc}")
+        logger.warning("PDF link extraction error: %s", exc)
     return out

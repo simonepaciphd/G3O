@@ -134,7 +134,12 @@ def parse_official_site_result(result: BatchResult) -> OfficialSiteResult:
         raise RuntimeError(
             f"Stage 2 batch result {result.custom_id!r}: empty assistant content"
         )
-    payload = json.loads(content)
+    try:
+        payload = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"Stage 2 parse failed for custom_id={result.custom_id}: {exc}"
+        ) from exc
     return OfficialSiteResult.model_validate(payload)
 
 

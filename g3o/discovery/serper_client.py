@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 from urllib.parse import urlparse
 
@@ -17,6 +18,12 @@ import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from g3o.common import config
+
+logger = logging.getLogger(__name__)
+
+# One-shot flag: warn the operator the first time we silently fall back to
+# mock results because SERPER_API_KEY is unset. Repeats would just spam logs.
+_warned_mock = False
 
 
 def _cache_key(query: str) -> str:
@@ -42,6 +49,12 @@ def _save_cache(query: str, data: list[dict]) -> None:
 def _execute(query: str, num_results: int = 10) -> dict:
     """POST to Serper with retry. Returns mock data when SERPER_API_KEY is unset."""
     if not config.SERPER_API_KEY:
+        global _warned_mock
+        if not _warned_mock:
+            logger.warning(
+                "SERPER_API_KEY unset — returning MOCK results; live discovery is OFF"
+            )
+            _warned_mock = True
         return {
             "organic": [
                 {"title": "Mock Result 1", "link": "https://example.com/g3o-mock", "snippet": "Mock GenAI policy."},
@@ -78,7 +91,7 @@ def search_google(query: str, num_results: int = 10, force_refresh: bool = False
     try:
         data = _execute(query, num_results)
     except Exception as exc:  # network / Serper error
-        print(f"Search failed: {exc}")
+        logger.warning("Search failed: %s", exc)
         return []
 
     results: list[dict] = []

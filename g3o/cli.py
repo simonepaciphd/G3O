@@ -42,6 +42,24 @@ from g3o.discovery.serper_client import search_google
 from g3o.scrape.fetcher import scrape_url
 
 
+def _existing_file(arg: str) -> Path:
+    """argparse `type=` callable: resolve `arg` to an existing file or fail
+    with a parser-level error before the subcommand body runs."""
+    p = Path(arg)
+    if not p.is_file():
+        raise argparse.ArgumentTypeError(f"file does not exist: {arg}")
+    return p
+
+
+def _existing_dir(arg: str) -> Path:
+    """argparse `type=` callable: resolve `arg` to an existing directory or
+    fail with a parser-level error before the subcommand body runs."""
+    p = Path(arg)
+    if not p.is_dir():
+        raise argparse.ArgumentTypeError(f"directory does not exist: {arg}")
+    return p
+
+
 def _cmd_discover(args: argparse.Namespace) -> int:
     languages = [s.strip() for s in args.languages.split(",") if s.strip()]
     queries = build_queries(args.institution, languages)
@@ -73,7 +91,10 @@ def _cmd_scrape(args: argparse.Namespace) -> int:
     else:
         sys.stdout.write(result.model_dump_json(indent=2))
         sys.stdout.write("\n")
-    return 0 if result.text else 1
+    if not result.text:
+        print(f"scrape returned empty content for {args.url}", file=sys.stderr)
+        return 1
+    return 0
 
 
 # ---------------------------------------------------------------------------
@@ -212,10 +233,8 @@ def _cmd_extract(_args: argparse.Namespace) -> int:
 def _cmd_validate(args: argparse.Namespace) -> int:
     from g3o.validate import run_consolidate
 
+    # --run-dir existence is enforced by `type=_existing_dir` in build_parser.
     run_dir = Path(args.run_dir)
-    if not run_dir.is_dir():
-        sys.stderr.write(f"--run-dir does not exist or is not a directory: {run_dir}\n")
-        return 2
     summary = run_consolidate(
         run_dir,
         model=args.model,
@@ -231,10 +250,8 @@ def _cmd_validate(args: argparse.Namespace) -> int:
 def _cmd_persist(args: argparse.Namespace) -> int:
     from g3o.persist import write_run_csvs
 
+    # --run-dir existence is enforced by `type=_existing_dir` in build_parser.
     run_dir = Path(args.run_dir)
-    if not run_dir.is_dir():
-        sys.stderr.write(f"--run-dir does not exist or is not a directory: {run_dir}\n")
-        return 2
     summary = write_run_csvs(
         run_dir,
         run_id=args.run_id,
@@ -396,6 +413,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument(
         "--run-dir",
         required=True,
+        type=_existing_dir,
         help="Path to runs/<run_id>/ directory containing per-institution Stage 5 outputs.",
     )
     validate.add_argument("--model", default=DEFAULT_MODEL)
@@ -420,6 +438,7 @@ def build_parser() -> argparse.ArgumentParser:
     persist.add_argument(
         "--run-dir",
         required=True,
+        type=_existing_dir,
         help="Path to runs/<run_id>/ directory containing per-institution 6_validate.json.",
     )
     persist.add_argument(
@@ -451,7 +470,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     presweep.add_argument("--run-id", required=True, help="Run identifier (e.g. 20260509-presweep).")
     presweep.add_argument(
-        "--master-csv", required=True,
+        "--master-csv", required=True, type=_existing_file,
         help="Path to master_institutions.csv (read-only).",
     )
     presweep.add_argument(

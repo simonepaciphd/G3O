@@ -181,6 +181,14 @@ def test_parse_official_site_invalid_payload_raises():
         parse_official_site_result(result)
 
 
+def test_parse_official_site_malformed_json_raises_descriptive_runtime_error():
+    """Malformed assistant JSON must surface stage + custom_id in the error
+    so consolidate.py / presweep.py logs identify which institution failed."""
+    result = _make_result("inst-0042-stage2", "{not valid json at all")
+    with pytest.raises(RuntimeError, match=r"Stage 2 parse failed for custom_id=inst-0042-stage2"):
+        parse_official_site_result(result)
+
+
 # ---------------------------------------------------------------------------
 # Stage 3 — URLDecision / URLTriageResult models
 # ---------------------------------------------------------------------------
@@ -314,6 +322,14 @@ def test_parse_triage_failure_raises():
     )
     with pytest.raises(RuntimeError, match="Stage 3"):
         parse_triage_result(bad)
+
+
+def test_parse_triage_malformed_json_raises_descriptive_runtime_error():
+    """Malformed assistant JSON must surface stage + custom_id in the error
+    so consolidate.py / presweep.py logs identify which institution failed."""
+    result = _make_result("inst-0042-stage3", "{not valid json at all")
+    with pytest.raises(RuntimeError, match=r"Stage 3 parse failed for custom_id=inst-0042-stage3"):
+        parse_triage_result(result, expected_urls=CANDIDATE_URLS)
 
 
 # ---------------------------------------------------------------------------
