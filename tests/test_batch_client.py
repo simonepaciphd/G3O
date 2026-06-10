@@ -16,7 +16,9 @@ from g3o.common import batch_client
 from g3o.common.batch_client import (
     BatchJob,
     fetch_results,
+    find_batches_by_metadata,
     poll_batch,
+    split_jobs_into_chunks,
     submit_batch,
 )
 
@@ -285,9 +287,15 @@ def test_fetch_results_refuses_non_terminal_batch():
 
 @pytest.fixture
 def fast_retry(monkeypatch):
-    """Disable retry waits so the retry tests run quickly."""
-    for fn in (submit_batch, poll_batch):
+    """Disable retry waits so the retry tests run quickly.
+
+    Session F.1: retries are per-call — ``_create_input_file`` (tenacity) and
+    ``_create_batch_with_reconcile`` (hand-rolled, ``_retry_sleep``) — never
+    around the whole upload+create pair (review F6a).
+    """
+    for fn in (batch_client._create_input_file, poll_batch):
         monkeypatch.setattr(fn.retry, "wait", wait_none())
+    monkeypatch.setattr(batch_client, "_retry_sleep", lambda attempt: None)
 
 
 def _rate_limit() -> RateLimitError:
@@ -319,6 +327,189 @@ def test_poll_retries_on_connection_error(fast_retry):
     s = poll_batch("batch-xyz789", client=client)
     assert s.status == "in_progress"
     assert client.batches.retrieve.call_count == 2
+
+
+# ---------------------------------------------------------------------------
+# split_jobs_into_chunks (Session F.1, review F2)
+# ---------------------------------------------------------------------------
+
+
+def _line_size(job: BatchJob) -> int:
+    return len(
+        batch_client._serialize_job_line(
+            job, model="gpt-5-nano", response_format=None,
+            endpoint=batch_client.DEFAULT_ENDPOINT,
+        )
+    )
+
+
+def test_split_by_size_cap_is_deterministic_and_order_preserving():
+    jobs = [_job(f"job-{i}") for i in range(10)]
+    per_line = max(_line_size(j) for j in jobs)
+    chunks = split_jobs_into_chunks(jobs, model="gpt-5-nano", max_bytes=3 * per_line)
+    assert [len(c) for c in chunks] == [3, 3, 3, 1]
+    flat = [j.custom_id for c in chunks for j in c]
+    assert flat == [f"job-{i}" for i in range(10)]  # input order preserved
+    again = split_jobs_into_chunks(jobs, model="gpt-5-nano", max_bytes=3 * per_line)
+    assert [[j.custom_id for j in c] for c in again] == [
+        [j.custom_id for j in c] for c in chunks
+    ]
+
+
+def test_split_by_request_count_cap():
+    jobs = [_job(f"job-{i}") for i in range(10)]
+    chunks = split_jobs_into_chunks(jobs, model="gpt-5-nano", max_requests=4)
+    assert [len(c) for c in chunks] == [4, 4, 2]
+
+
+def test_split_single_fits_in_one_chunk_at_default_caps():
+    jobs = [_job(f"job-{i}") for i in range(5)]
+    chunks = split_jobs_into_chunks(jobs, model="gpt-5-nano")
+    assert len(chunks) == 1
+    assert len(chunks[0]) == 5
+
+
+def test_split_oversized_single_job_raises_naming_job_and_f3():
+    big = _job("oversized")
+    big.messages[1]["content"] = "x" * 5000
+    with pytest.raises(ValueError) as exc_info:
+        split_jobs_into_chunks([big], model="gpt-5-nano", max_bytes=1024)
+    msg = str(exc_info.value)
+    assert "oversized" in msg
+    assert "F3" in msg
+
+
+def test_split_rejects_duplicate_custom_id_and_empty_list():
+    with pytest.raises(ValueError, match="duplicate custom_id"):
+        split_jobs_into_chunks([_job("d"), _job("d")], model="gpt-5-nano")
+    with pytest.raises(ValueError, match="empty"):
+        split_jobs_into_chunks([], model="gpt-5-nano")
+
+
+def test_submit_refuses_payload_over_documented_file_limit(monkeypatch):
+    client = _stub_openai()
+    monkeypatch.setattr(batch_client, "BATCH_MAX_INPUT_FILE_BYTES", 64)
+    with pytest.raises(ValueError, match="split_jobs_into_chunks"):
+        submit_batch([_job("too-big")], client=client)
+    client.files.create.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# find_batches_by_metadata (Session F.1, review F6)
+# ---------------------------------------------------------------------------
+
+
+def _batch_obj(
+    batch_id: str, *, status: str = "in_progress", metadata: dict | None = None
+) -> MagicMock:
+    b = MagicMock()
+    b.id = batch_id
+    b.status = status
+    b.metadata = metadata or {}
+    b.output_file_id = None
+    b.error_file_id = None
+    b.created_at = None
+    b.completed_at = None
+    b.request_counts = None
+    return b
+
+
+def _page(batches: list, *, has_more: bool = False) -> MagicMock:
+    page = MagicMock()
+    page.data = batches
+    page.has_more = has_more
+    return page
+
+
+_CHUNK_MD = {"g3o_run_id": "run-1", "g3o_stage": "extract", "g3o_chunk": "1"}
+
+
+def test_find_batches_by_metadata_exact_match_only():
+    near_miss = dict(_CHUNK_MD, g3o_chunk="2")
+    client = MagicMock()
+    client.batches.list.return_value = _page(
+        [
+            _batch_obj("b-yes", metadata=_CHUNK_MD),
+            _batch_obj("b-no", metadata=near_miss),
+            _batch_obj("b-none", metadata=None),
+        ]
+    )
+    matches = find_batches_by_metadata(_CHUNK_MD, client=client)
+    assert [m.batch_id for m in matches] == ["b-yes"]
+
+
+def test_find_batches_by_metadata_paginates_until_has_more_false():
+    client = MagicMock()
+    page1 = _page([_batch_obj("b-other", metadata={})], has_more=True)
+    page2 = _page([_batch_obj("b-match", metadata=_CHUNK_MD)], has_more=False)
+    client.batches.list.side_effect = [page1, page2]
+    matches = find_batches_by_metadata(_CHUNK_MD, client=client)
+    assert [m.batch_id for m in matches] == ["b-match"]
+    assert client.batches.list.call_count == 2
+    # Second call cursors after the last batch of page 1.
+    assert client.batches.list.call_args.kwargs["after"] == "b-other"
+
+
+def test_find_batches_by_metadata_bounded_pages():
+    client = MagicMock()
+    client.batches.list.return_value = _page(
+        [_batch_obj("b-x", metadata={})], has_more=True
+    )
+    find_batches_by_metadata(_CHUNK_MD, client=client, max_pages=3)
+    assert client.batches.list.call_count == 3
+
+
+# ---------------------------------------------------------------------------
+# batches.create reconcile-on-retry (Session F.1, review F6a)
+# ---------------------------------------------------------------------------
+
+
+def test_create_lost_response_reconciles_instead_of_double_creating(fast_retry):
+    """A retryable failure of batches.create with identifying metadata must
+    reconcile by metadata and adopt — never blindly re-create."""
+    client = _stub_openai()
+    client.batches.create.side_effect = _conn_error()
+    client.batches.list.return_value = _page(
+        [_batch_obj("batch-already-live", metadata=_CHUNK_MD)]
+    )
+    handle = submit_batch([_job()], metadata=_CHUNK_MD, client=client)
+    assert handle.batch_id == "batch-already-live"
+    assert client.batches.create.call_count == 1  # no second create
+
+
+def test_create_retries_fresh_when_reconcile_finds_nothing(fast_retry):
+    client = _stub_openai()
+    good = client.batches.create.return_value
+    client.batches.create.side_effect = [_conn_error(), good]
+    client.batches.list.return_value = _page([])
+    handle = submit_batch([_job()], metadata=_CHUNK_MD, client=client)
+    assert handle.batch_id == "batch-xyz789"
+    assert client.batches.create.call_count == 2
+
+
+def test_create_without_identifying_metadata_plain_retry(fast_retry):
+    """Metadata-less callers (standalone CLI) keep plain per-call retry and
+    never hit the list endpoint."""
+    client = _stub_openai()
+    good = client.batches.create.return_value
+    client.batches.create.side_effect = [_conn_error(), good]
+    handle = submit_batch([_job()], client=client)
+    assert handle.batch_id == "batch-xyz789"
+    assert client.batches.create.call_count == 2
+    client.batches.list.assert_not_called()
+
+
+def test_create_reconcile_ambiguous_duplicates_raise(fast_retry):
+    client = _stub_openai()
+    client.batches.create.side_effect = _conn_error()
+    client.batches.list.return_value = _page(
+        [
+            _batch_obj("b-dup-1", metadata=_CHUNK_MD),
+            _batch_obj("b-dup-2", metadata=_CHUNK_MD),
+        ]
+    )
+    with pytest.raises(RuntimeError, match="cancel the duplicates"):
+        submit_batch([_job()], metadata=_CHUNK_MD, client=client)
 
 
 # ---------------------------------------------------------------------------

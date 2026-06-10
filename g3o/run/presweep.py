@@ -34,26 +34,18 @@ from g3o.classify.official_site import (
     parse_official_site_result,
 )
 from g3o.classify.url_triage import build_triage_job, parse_triage_result
-from g3o.common.batch_client import (
-    DEFAULT_MODEL,
-    fetch_results,
-    submit_batch,
-)
+from g3o.common.batch_client import DEFAULT_MODEL, BatchResult
 from g3o.common.run_state import (
     is_done,
     load_state,
     mark_done,
-    state_path,
-    wait_for_terminal_with_state,
-    write_active,
+    run_chunked_stage,
 )
 from g3o.discovery.query_builder import build_queries
 from g3o.discovery.serper_client import build_site_query, search_google
 from g3o.extract import (
     build_extract_jobs,
-    fetch_extract_results,
     parse_extract_result,
-    submit_extract_batch,
 )
 from g3o.scrape.fetcher import scrape_url
 from g3o.scrape.render import RenderedPage
@@ -320,20 +312,22 @@ def write_run_layout(
 # Stage runners (--execute mode)
 # ---------------------------------------------------------------------------
 #
-# Resume semantics (Session E, 2026-05-09):
+# Resume semantics (Session E, 2026-05-09; chunked Session F.1, 2026-06-10):
 #
 # Each ``_run_*`` runner is state-aware (Q7=c — auto-inferred from disk):
 #
 # 1. ``is_done(run_dir, stage)`` → reconstruct the runner's return dict from
 #    per-institution artifacts on disk and skip the stage entirely (Q3=e2).
-# 2. Active state file present (LLM stages only) → trust state's ``batch_id``
-#    (Q4=ii), skip ``submit_batch``, rejoin polling via
-#    ``wait_for_terminal_with_state``, fetch + persist + ``mark_done``.
+# 2. Active state file present (LLM stages only) → the chunk plan in the
+#    state file is canonical (Q4=ii): fetched chunks are skipped, in-flight
+#    chunks rejoin polling, not-yet-submitted chunks reconcile-then-submit.
+#    All of this lives in ``g3o.common.run_state.run_chunked_stage``; the
+#    runners just build the deterministic job list and a persist callback.
 # 3. No state, no done marker → fresh run; deterministic stages also support
 #    per-artifact skip-if-exists for partial-recovery without a ``.done`` marker.
 #
 # Failed/cancelled/expired batches do NOT auto-resubmit (Q3=d). The active
-# state file remains and the runner raises with the path to the file.
+# state file remains and the orchestrator raises with the path to the file.
 
 
 # ---------------------------------------------------------------------------
@@ -563,6 +557,7 @@ def _run_classify_official_site(
     sample: list[dict[str, Any]],
     discovery: dict[str, list[dict[str, Any]]],
     *,
+    run_id: str,
     model: str,
     poll_interval: int,
     max_wait: int,
@@ -577,11 +572,12 @@ def _run_classify_official_site(
     master. Pre-rollout the column is null everywhere, so every row falls
     through to the LLM path (current production behavior).
 
-    Resume (Session E):
+    Resume (Session E; chunked Session F.1):
       - ``.done/classify_official_site.json`` present → reconstruct ``out`` from
         per-institution ``2_official_site.json`` files and return.
-      - Active state file present → trust state's ``batch_id`` (Q4=ii); skip
-        ``submit_batch``; rejoin polling and fetch.
+      - Otherwise the jobs are rebuilt deterministically and handed to
+        :func:`run_chunked_stage`, which owns chunking, reconciliation,
+        polling, and resume (bypass envelopes rewritten idempotently).
       - All-bypassed sample → no batch submitted; ``mark_done(no_batch=True)``.
       - Mixed bypass + LLM → state file covers the LLM subset only;
         ``bypass_count`` recorded.
@@ -591,87 +587,64 @@ def _run_classify_official_site(
         logger.info("Stage 2: .done marker present — skipping (resume from disk)")
         return _read_existing_official_sites(run_dir, sample)
 
-    state = load_state(run_dir, stage)
     out: dict[str, str | None] = {}
-
-    if state is None:
-        # Fresh run: walk sample, write bypass envelopes, build LLM jobs.
-        jobs = []
-        bypass_count = 0
-        for row in sample:
-            institution = institution_record(row)
-            inst_id = institution["institution_id"]
-            bypass_url = institution.get("official_site_url")
-            if bypass_url:
-                out[inst_id] = bypass_url
-                bypass_count += 1
-                inst_dir = run_dir / inst_id
-                if inst_dir.exists():
-                    (inst_dir / "2_official_site.json").write_text(
-                        json.dumps(
-                            {"bypassed": True, "source": "master_csv", "url": bypass_url},
-                            ensure_ascii=False,
-                            indent=2,
-                        ),
-                        encoding="utf-8",
-                    )
-                continue
-            candidate_urls = [r.get("link", "") for r in discovery.get(inst_id, [])]
-            candidate_urls = [u for u in candidate_urls if u]
-            if not candidate_urls:
-                continue
-            jobs.append(
-                build_official_site_job(
-                    institution, candidate_urls, custom_id=inst_id
+    jobs = []
+    bypass_count = 0
+    for row in sample:
+        institution = institution_record(row)
+        inst_id = institution["institution_id"]
+        bypass_url = institution.get("official_site_url")
+        if bypass_url:
+            out[inst_id] = bypass_url
+            bypass_count += 1
+            inst_dir = run_dir / inst_id
+            if inst_dir.exists():
+                (inst_dir / "2_official_site.json").write_text(
+                    json.dumps(
+                        {"bypassed": True, "source": "master_csv", "url": bypass_url},
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                    encoding="utf-8",
                 )
-            )
-        if not jobs:
-            mark_done(run_dir, stage, no_batch=True)
-            return out
-        handle = submit_batch(jobs, model=model)
-        logger.info(
-            "Stage 2 batch submitted: %s (n_jobs=%d, bypassed=%d)",
-            handle.batch_id, handle.n_jobs, bypass_count,
-        )
-        write_active(
-            run_dir, stage,
-            batch_id=handle.batch_id, model=model, n_jobs=handle.n_jobs,
-            custom_ids=[j.custom_id for j in jobs], bypass_count=bypass_count,
-        )
-        batch_id = handle.batch_id
-    else:
-        # Resume (Q4=ii): trust state's batch_id; reconstruct out from disk
-        # (bypass envelopes from prior run remain authoritative).
-        out = _read_existing_official_sites(run_dir, sample)
-        batch_id = state["batch_id"]
-        logger.info("Stage 2 resuming: batch_id=%s", batch_id)
-
-    status = wait_for_terminal_with_state(
-        batch_id,
-        poll_interval=poll_interval, max_wait=max_wait,
-        run_dir=run_dir, stage=stage,
-    )
-    if not status.is_completed:
-        raise RuntimeError(
-            f"Stage 2 batch {batch_id} ended in non-completed state: "
-            f"{status.status}. State file: {state_path(run_dir, stage)}. "
-            f"Auto-resubmit disabled (Q3=d); investigate before retrying."
-        )
-    for result in fetch_results(batch_id, status=status):
-        try:
-            parsed = parse_official_site_result(result)
-        except Exception as exc:
-            logger.warning("Stage 2 parse failed for %s: %s", result.custom_id, exc)
             continue
-        out[result.custom_id] = parsed.url
-        inst_dir = run_dir / result.custom_id
-        if inst_dir.exists():
-            (inst_dir / "2_official_site.json").write_text(
-                json.dumps(parsed.model_dump(), ensure_ascii=False, indent=2),
-                encoding="utf-8",
+        candidate_urls = [r.get("link", "") for r in discovery.get(inst_id, [])]
+        candidate_urls = [u for u in candidate_urls if u]
+        if not candidate_urls:
+            continue
+        jobs.append(
+            build_official_site_job(
+                institution, candidate_urls, custom_id=inst_id
             )
-    mark_done(run_dir, stage)
-    return out
+        )
+    if not jobs and load_state(run_dir, stage) is None:
+        mark_done(run_dir, stage, no_batch=True)
+        return out
+
+    def _persist(results: Iterator[BatchResult]) -> None:
+        for result in results:
+            try:
+                parsed = parse_official_site_result(result)
+            except Exception as exc:
+                logger.warning("Stage 2 parse failed for %s: %s", result.custom_id, exc)
+                continue
+            out[result.custom_id] = parsed.url
+            inst_dir = run_dir / result.custom_id
+            if inst_dir.exists():
+                (inst_dir / "2_official_site.json").write_text(
+                    json.dumps(parsed.model_dump(), ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+
+    run_chunked_stage(
+        run_dir, stage, jobs,
+        run_id=run_id, model=model,
+        poll_interval=poll_interval, max_wait=max_wait,
+        process_chunk_results=_persist, bypass_count=bypass_count,
+    )
+    # Disk is authoritative for chunks fetched by a prior (crashed) invocation;
+    # this invocation's parses and bypasses override with identical content.
+    return {**_read_existing_official_sites(run_dir, sample), **out}
 
 
 def _candidate_urls_union(
@@ -705,6 +678,7 @@ def _run_classify_triage(
     discovery_site_restricted: dict[str, list[dict[str, Any]]],
     official_sites: dict[str, str | None],
     *,
+    run_id: str,
     model: str,
     poll_interval: int,
     max_wait: int,
@@ -716,15 +690,15 @@ def _run_classify_triage(
     strip trailing slash on non-root paths, drop fragment; query string left
     intact). When 1b skipped (no official site), only 1a URLs are seen.
 
-    Resume (Session E): same shape as Stage 2 — done-marker short-circuit,
-    state-file-aware polling, no auto-resubmit on terminal-but-not-completed.
+    Resume (Session E; chunked Session F.1): same shape as Stage 2 —
+    done-marker short-circuit, then :func:`run_chunked_stage` owns chunking,
+    reconciliation, polling, and no-auto-resubmit semantics.
     """
     stage = "classify_triage"
     if is_done(run_dir, stage):
         logger.info("Stage 3: .done marker present — skipping (resume from disk)")
         return _read_existing_triaged(run_dir, sample)
 
-    state = load_state(run_dir, stage)
     candidates_by_inst: dict[str, list[str]] = {}
     # Always rebuild the candidates_by_inst lookup so parse_triage_result can
     # validate expected_urls round-trip; it's cheap (in-memory dedup union).
@@ -737,67 +711,53 @@ def _run_classify_triage(
         if candidate_urls:
             candidates_by_inst[inst_id] = candidate_urls
 
-    if state is None:
-        jobs = []
-        for row in sample:
-            institution = institution_record(row)
-            inst_id = institution["institution_id"]
-            candidate_urls = candidates_by_inst.get(inst_id)
-            if not candidate_urls:
-                continue
-            jobs.append(
-                build_triage_job(
-                    institution,
-                    candidate_urls,
-                    official_site=official_sites.get(inst_id),
-                    custom_id=inst_id,
-                )
-            )
-        if not jobs:
-            mark_done(run_dir, stage, no_batch=True)
-            return {}
-        handle = submit_batch(jobs, model=model)
-        logger.info("Stage 3 batch submitted: %s (n_jobs=%d)", handle.batch_id, handle.n_jobs)
-        write_active(
-            run_dir, stage,
-            batch_id=handle.batch_id, model=model, n_jobs=handle.n_jobs,
-            custom_ids=[j.custom_id for j in jobs],
-        )
-        batch_id = handle.batch_id
-    else:
-        batch_id = state["batch_id"]
-        logger.info("Stage 3 resuming: batch_id=%s", batch_id)
-
-    status = wait_for_terminal_with_state(
-        batch_id,
-        poll_interval=poll_interval, max_wait=max_wait,
-        run_dir=run_dir, stage=stage,
-    )
-    if not status.is_completed:
-        raise RuntimeError(
-            f"Stage 3 batch {batch_id} ended in non-completed state: "
-            f"{status.status}. State file: {state_path(run_dir, stage)}. "
-            f"Auto-resubmit disabled (Q3=d); investigate before retrying."
-        )
-    kept: dict[str, list[str]] = _read_existing_triaged(run_dir, sample) if state is not None else {}
-    for result in fetch_results(batch_id, status=status):
-        try:
-            parsed = parse_triage_result(
-                result, expected_urls=candidates_by_inst.get(result.custom_id)
-            )
-        except Exception as exc:
-            logger.warning("Stage 3 parse failed for %s: %s", result.custom_id, exc)
+    jobs = []
+    for row in sample:
+        institution = institution_record(row)
+        inst_id = institution["institution_id"]
+        candidate_urls = candidates_by_inst.get(inst_id)
+        if not candidate_urls:
             continue
-        kept_urls = [d.url for d in parsed.decisions if d.decision == "keep"]
-        kept[result.custom_id] = kept_urls
-        inst_dir = run_dir / result.custom_id
-        if inst_dir.exists():
-            (inst_dir / "3_triage.json").write_text(
-                json.dumps(parsed.model_dump(), ensure_ascii=False, indent=2),
-                encoding="utf-8",
+        jobs.append(
+            build_triage_job(
+                institution,
+                candidate_urls,
+                official_site=official_sites.get(inst_id),
+                custom_id=inst_id,
             )
-    mark_done(run_dir, stage)
-    return kept
+        )
+    if not jobs and load_state(run_dir, stage) is None:
+        mark_done(run_dir, stage, no_batch=True)
+        return {}
+
+    kept: dict[str, list[str]] = {}
+
+    def _persist(results: Iterator[BatchResult]) -> None:
+        for result in results:
+            try:
+                parsed = parse_triage_result(
+                    result, expected_urls=candidates_by_inst.get(result.custom_id)
+                )
+            except Exception as exc:
+                logger.warning("Stage 3 parse failed for %s: %s", result.custom_id, exc)
+                continue
+            kept_urls = [d.url for d in parsed.decisions if d.decision == "keep"]
+            kept[result.custom_id] = kept_urls
+            inst_dir = run_dir / result.custom_id
+            if inst_dir.exists():
+                (inst_dir / "3_triage.json").write_text(
+                    json.dumps(parsed.model_dump(), ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+
+    run_chunked_stage(
+        run_dir, stage, jobs,
+        run_id=run_id, model=model,
+        poll_interval=poll_interval, max_wait=max_wait,
+        process_chunk_results=_persist,
+    )
+    # Disk covers chunks fetched by a prior invocation (resume).
+    return {**_read_existing_triaged(run_dir, sample), **kept}
 
 
 def _run_scrape(
@@ -864,9 +824,11 @@ def _run_extract(
 ) -> int:
     """Stage 5 — per-page LLM extraction, batched across (institution × page).
 
-    Resume (Session E): same shape as Stages 2/3. Returns the count of newly
-    parsed results from this invocation; on a fully-done resume, returns the
-    on-disk count of ``<inst>/extract/*.json`` files.
+    Resume (Session E; chunked Session F.1): same shape as Stages 2/3.
+    Returns the on-disk count of ``<inst>/extract/*.json`` files once the
+    stage is complete (equals the parsed-result count on a clean fresh run,
+    and stays truthful across chunked resumes where earlier invocations
+    already persisted some chunks).
     """
     from g3o.extract.batch import make_custom_id, url_hash
 
@@ -875,7 +837,6 @@ def _run_extract(
         logger.info("Stage 5: .done marker present — skipping (resume from disk)")
         return _count_existing_extracts(run_dir, sample)
 
-    state = load_state(run_dir, stage)
     page_lookup: dict[str, tuple[str, RenderedPage]] = {}
     pairs: list[tuple[dict[str, Any], RenderedPage]] = []
     for row in sample:
@@ -885,62 +846,44 @@ def _run_extract(
             pairs.append((institution, page))
             page_lookup[cid] = (institution["institution_id"], page)
 
-    if state is None:
-        if not pairs:
-            mark_done(run_dir, stage, no_batch=True)
-            return 0
-        jobs = build_extract_jobs(
-            pairs,
-            batch_id=f"{run_id}-extract",
-            institution_search_languages=institution_search_languages,
-        )
-        handle = submit_extract_batch(jobs, model=model)
-        logger.info(
-            "Stage 5 batch submitted: %s (n_jobs=%d)", handle.batch_id, handle.n_jobs
-        )
-        write_active(
-            run_dir, stage,
-            batch_id=handle.batch_id, model=model, n_jobs=handle.n_jobs,
-            custom_ids=[j.custom_id for j in jobs],
-        )
-        batch_id = handle.batch_id
-    else:
-        batch_id = state["batch_id"]
-        logger.info("Stage 5 resuming: batch_id=%s", batch_id)
-
-    status = wait_for_terminal_with_state(
-        batch_id,
-        poll_interval=poll_interval, max_wait=max_wait,
-        run_dir=run_dir, stage=stage,
+    if not pairs and load_state(run_dir, stage) is None:
+        mark_done(run_dir, stage, no_batch=True)
+        return 0
+    jobs = build_extract_jobs(
+        pairs,
+        batch_id=f"{run_id}-extract",
+        institution_search_languages=institution_search_languages,
     )
-    if not status.is_completed:
-        raise RuntimeError(
-            f"Stage 5 batch {batch_id} ended in non-completed state: "
-            f"{status.status}. State file: {state_path(run_dir, stage)}. "
-            f"Auto-resubmit disabled (Q3=d); investigate before retrying."
-        )
-    n_parsed = 0
-    for result in fetch_extract_results(batch_id, status=status):
-        institution_id, page = page_lookup.get(result.custom_id, (None, None))
-        if institution_id is None or page is None:
-            logger.warning("Stage 5 result %s did not match any input pair", result.custom_id)
-            continue
-        try:
-            parsed = parse_extract_result(
-                result, scrape_access_date=page.fetch_metadata.access_date
+
+    def _persist(results: Iterator[BatchResult]) -> None:
+        for result in results:
+            institution_id, page = page_lookup.get(result.custom_id, (None, None))
+            if institution_id is None or page is None:
+                logger.warning(
+                    "Stage 5 result %s did not match any input pair", result.custom_id
+                )
+                continue
+            try:
+                parsed = parse_extract_result(
+                    result, scrape_access_date=page.fetch_metadata.access_date
+                )
+            except Exception as exc:
+                logger.warning("Stage 5 parse failed for %s: %s", result.custom_id, exc)
+                continue
+            extract_dir = run_dir / institution_id / "extract"
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            (extract_dir / f"{url_hash(page.url)}.json").write_text(
+                json.dumps(parsed.model_dump(), ensure_ascii=False, indent=2),
+                encoding="utf-8",
             )
-        except Exception as exc:
-            logger.warning("Stage 5 parse failed for %s: %s", result.custom_id, exc)
-            continue
-        extract_dir = run_dir / institution_id / "extract"
-        extract_dir.mkdir(parents=True, exist_ok=True)
-        (extract_dir / f"{url_hash(page.url)}.json").write_text(
-            json.dumps(parsed.model_dump(), ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
-        n_parsed += 1
-    mark_done(run_dir, stage)
-    return n_parsed
+
+    run_chunked_stage(
+        run_dir, stage, jobs,
+        run_id=run_id, model=model,
+        poll_interval=poll_interval, max_wait=max_wait,
+        process_chunk_results=_persist,
+    )
+    return _count_existing_extracts(run_dir, sample)
 
 
 def _run_validate(
@@ -1009,7 +952,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
     Default ``config.dry_run=True`` writes the planning artifacts and returns;
     the per-stage ``--execute`` path runs Stages 1a/2/1b/3/4/5 (and 6 when
     ``stop_after="validate"``) live, blocking on each Batch API stage's
-    terminal state via :func:`g3o.common.run_state.wait_for_terminal_with_state`.
+    terminal state via :func:`g3o.common.run_state.run_chunked_stage`.
 
     Resume (Session E, Q7=c): if ``--execute`` is invoked against an existing
     ``runs/<run_id>/`` with state files present, each stage runner auto-detects
@@ -1044,6 +987,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
         plan.run_dir,
         plan.sample,
         discovery_general,
+        run_id=config.run_id,
         model=config.model,
         poll_interval=config.poll_interval,
         max_wait=config.max_wait_per_stage,
@@ -1076,6 +1020,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
         discovery_general,
         discovery_site_restricted,
         official_sites,
+        run_id=config.run_id,
         model=config.model,
         poll_interval=config.poll_interval,
         max_wait=config.max_wait_per_stage,
@@ -1112,7 +1057,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
     )
     summary["n_consolidated"] = validate_summary.get("n_consolidated", 0)
     summary["n_validate_failed"] = validate_summary.get("n_failed", 0)
-    summary["validate_batch_id"] = validate_summary.get("batch_id")
+    summary["validate_batch_ids"] = validate_summary.get("batch_ids")
     return summary
 
 

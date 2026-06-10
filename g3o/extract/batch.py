@@ -86,8 +86,15 @@ def submit_extract_batch(
     metadata: dict[str, Any] | None = None,
     client: Any | None = None,
 ) -> BatchHandle:
-    """Submit a Stage 5 batch via the single-owner OpenAI client."""
-    base_metadata = {"stage": "5_extract"}
+    """Submit a Stage 5 batch via the single-owner OpenAI client.
+
+    Convenience wrapper for standalone use. The presweep orchestrator does
+    not route through it — :func:`g3o.common.run_state.run_chunked_stage`
+    submits chunked batches with full ``{g3o_run_id, g3o_stage, g3o_chunk}``
+    metadata; this wrapper tags only ``g3o_stage`` (same key convention) and
+    its batches are never adopted by reconciliation.
+    """
+    base_metadata = {"g3o_stage": "extract"}
     if metadata:
         base_metadata.update(metadata)
     return submit_batch(

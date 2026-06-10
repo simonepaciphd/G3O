@@ -457,8 +457,11 @@ def _write_master_csv_with_bypass_col(path: Path, rows: list[dict[str, Any]]) ->
     return path
 
 
-def test_classify_official_site_bypass_writes_envelope_and_skips_submit(tmp_path: Path):
+def test_classify_official_site_bypass_writes_envelope_and_skips_submit(
+    tmp_path: Path, monkeypatch,
+):
     """Master row with non-null official_site_url → write bypass envelope, skip LLM."""
+    from g3o.common import batch_client
     from g3o.run import presweep as ps
 
     row_a = _row(master_row_id=1, country="A", government_level="national",
@@ -475,19 +478,14 @@ def test_classify_official_site_bypass_writes_envelope_and_skips_submit(tmp_path
     # job); row_b has no candidate URLs and no bypass → no envelope, no job.
     discovery: dict[str, list[dict[str, Any]]] = {}
 
-    monkey = ps.submit_batch
-
     def _fail_submit(*a: Any, **kw: Any) -> None:
         raise AssertionError("submit_batch must not be called for fully-bypassed sample")
 
-    ps.submit_batch = _fail_submit  # type: ignore[assignment]
-    try:
-        result = ps._run_classify_official_site(
-            plan.run_dir, plan.sample, discovery,
-            model="gpt-5-nano", poll_interval=1, max_wait=1,
-        )
-    finally:
-        ps.submit_batch = monkey  # type: ignore[assignment]
+    monkeypatch.setattr(batch_client, "submit_batch", _fail_submit)
+    result = ps._run_classify_official_site(
+        plan.run_dir, plan.sample, discovery,
+        run_id=config.run_id, model="gpt-5-nano", poll_interval=1, max_wait=1,
+    )
 
     assert result.get("INST-0000001") == "https://ministry.a.gov/"
     envelope_path = plan.run_dir / "INST-0000001" / "2_official_site.json"
@@ -643,9 +641,10 @@ def test_stages_includes_validate(tmp_path: Path):
     )
 
 
-def test_stage2_all_bypassed_writes_done_marker_no_state(tmp_path: Path):
+def test_stage2_all_bypassed_writes_done_marker_no_state(tmp_path: Path, monkeypatch):
     """Q1=a, Q4(a): all rows bypassed → no batch, no _state/{stage}.json,
     .done/{stage}.json marker recorded with no_batch=True."""
+    from g3o.common import batch_client
     from g3o.common.run_state import done_path, state_path
     from g3o.run import presweep as ps
 
@@ -659,17 +658,16 @@ def test_stage2_all_bypassed_writes_done_marker_no_state(tmp_path: Path):
     config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=2)
     plan = ps.plan_run(config)
 
-    monkey = ps.submit_batch
-    ps.submit_batch = lambda *a, **kw: pytest.fail(  # type: ignore[assignment]
-        "submit_batch must not be called when all rows are bypassed"
+    monkeypatch.setattr(
+        batch_client, "submit_batch",
+        lambda *a, **kw: pytest.fail(
+            "submit_batch must not be called when all rows are bypassed"
+        ),
     )
-    try:
-        out = ps._run_classify_official_site(
-            plan.run_dir, plan.sample, {},
-            model="gpt-5-nano", poll_interval=1, max_wait=1,
-        )
-    finally:
-        ps.submit_batch = monkey  # type: ignore[assignment]
+    out = ps._run_classify_official_site(
+        plan.run_dir, plan.sample, {},
+        run_id=config.run_id, model="gpt-5-nano", poll_interval=1, max_wait=1,
+    )
 
     # Both bypass envelopes written.
     assert out["INST-0000001"] == "https://a.gov/"
@@ -682,9 +680,12 @@ def test_stage2_all_bypassed_writes_done_marker_no_state(tmp_path: Path):
     assert payload["no_batch"] is True
 
 
-def test_stage2_mixed_bypass_writes_state_file_with_bypass_count(tmp_path: Path):
+def test_stage2_mixed_bypass_writes_state_file_with_bypass_count(
+    tmp_path: Path, monkeypatch,
+):
     """Q4(b): mixed bypass + LLM → state file covers LLM subset only;
     bypass_count recorded; submit_batch called once with the LLM jobs."""
+    from g3o.common import batch_client
     from g3o.common.run_state import load_state
     from g3o.run import presweep as ps
 
@@ -709,23 +710,20 @@ def test_stage2_mixed_bypass_writes_state_file_with_bypass_count(tmp_path: Path)
         submit_calls.append(jobs)
         return _batch_handle(batch_id="batch-stage2", n_jobs=len(jobs))
 
-    monkey_submit = ps.submit_batch
-    ps.submit_batch = _capture_submit  # type: ignore[assignment]
-    # Stub poll_batch to return immediately-completed; fetch_results yields nothing.
-    import g3o.common.run_state as rs
-    monkey_poll = rs.poll_batch
-    rs.poll_batch = lambda batch_id: _batch_status("completed", batch_id=batch_id)  # type: ignore[assignment]
-    monkey_fetch = ps.fetch_results
-    ps.fetch_results = lambda batch_id, status=None: iter([])  # type: ignore[assignment]
-    try:
-        ps._run_classify_official_site(
-            plan.run_dir, plan.sample, discovery,
-            model="gpt-5-nano", poll_interval=0, max_wait=1,
-        )
-    finally:
-        ps.submit_batch = monkey_submit  # type: ignore[assignment]
-        rs.poll_batch = monkey_poll  # type: ignore[assignment]
-        ps.fetch_results = monkey_fetch  # type: ignore[assignment]
+    monkeypatch.setattr(batch_client, "submit_batch", _capture_submit)
+    monkeypatch.setattr(batch_client, "find_batches_by_metadata", lambda md, **kw: [])
+    monkeypatch.setattr(
+        batch_client, "poll_batch",
+        lambda batch_id, client=None: _batch_status("completed", batch_id=batch_id),
+    )
+    monkeypatch.setattr(
+        batch_client, "fetch_results",
+        lambda batch_id, client=None, status=None: iter([]),
+    )
+    ps._run_classify_official_site(
+        plan.run_dir, plan.sample, discovery,
+        run_id=config.run_id, model="gpt-5-nano", poll_interval=0, max_wait=1,
+    )
 
     assert len(submit_calls) == 1
     assert len(submit_calls[0]) == 1  # only the non-bypassed institution
@@ -738,16 +736,18 @@ def test_stage2_mixed_bypass_writes_state_file_with_bypass_count(tmp_path: Path)
         done_path(plan.run_dir, "classify_official_site").read_text(encoding="utf-8")
     )
     assert done_payload["bypass_count"] == 1
-    assert done_payload["custom_ids"] == ["INST-0000002"]
+    assert done_payload["n_chunks"] == 1
+    assert done_payload["chunks"]["1"]["custom_ids"] == ["INST-0000002"]
+    assert done_payload["chunks"]["1"]["batch_id"] == "batch-stage2"
     assert "fetched_at" in done_payload
     # Active file gone.
     assert load_state(plan.run_dir, "classify_official_site") is None
 
 
-def test_stage2_resume_after_crash_does_not_resubmit(tmp_path: Path):
+def test_stage2_resume_after_crash_does_not_resubmit(tmp_path: Path, monkeypatch):
     """Q6=a gate test: mid-poll crash → state file persists batch_id; on
     resume, submit_batch is NOT called, polling rejoins, fetch runs once."""
-    import g3o.common.run_state as rs
+    from g3o.common import batch_client
     from g3o.common.run_state import is_done, load_state, state_path
     from g3o.run import presweep as ps
 
@@ -767,31 +767,26 @@ def test_stage2_resume_after_crash_does_not_resubmit(tmp_path: Path):
 
     poll_calls: list[str] = []
 
-    def _crash_on_second_poll(batch_id):
+    def _crash_on_second_poll(batch_id, client=None):
         poll_calls.append(batch_id)
         if len(poll_calls) == 1:
             return _batch_status("in_progress", batch_id=batch_id)
         raise KeyboardInterrupt("simulated mid-poll crash")
 
-    monkey_submit = ps.submit_batch
-    monkey_poll = rs.poll_batch
-    ps.submit_batch = _ok_submit  # type: ignore[assignment]
-    rs.poll_batch = _crash_on_second_poll  # type: ignore[assignment]
-    try:
-        with pytest.raises(KeyboardInterrupt):
-            ps._run_classify_official_site(
-                plan.run_dir, plan.sample, discovery,
-                model="gpt-5-nano", poll_interval=0, max_wait=10,
-            )
-    finally:
-        ps.submit_batch = monkey_submit  # type: ignore[assignment]
-        rs.poll_batch = monkey_poll  # type: ignore[assignment]
+    monkeypatch.setattr(batch_client, "submit_batch", _ok_submit)
+    monkeypatch.setattr(batch_client, "find_batches_by_metadata", lambda md, **kw: [])
+    monkeypatch.setattr(batch_client, "poll_batch", _crash_on_second_poll)
+    with pytest.raises(KeyboardInterrupt):
+        ps._run_classify_official_site(
+            plan.run_dir, plan.sample, discovery,
+            run_id=config.run_id, model="gpt-5-nano", poll_interval=0, max_wait=10,
+        )
 
     # State file persisted; .done not present yet.
     state = load_state(plan.run_dir, "classify_official_site")
     assert state is not None
-    assert state["batch_id"] == "batch-resume-1"
-    assert state["last_status"] == "in_progress"
+    assert state["chunks"]["1"]["batch_id"] == "batch-resume-1"
+    assert state["chunks"]["1"]["last_status"] == "in_progress"
     assert not is_done(plan.run_dir, "classify_official_site")
     assert len(submit_calls) == 1
 
@@ -800,9 +795,14 @@ def test_stage2_resume_after_crash_does_not_resubmit(tmp_path: Path):
     def _fail_submit(*a, **kw):
         raise AssertionError("submit_batch must not be called on resume")
 
+    def _fail_reconcile(*a, **kw):
+        raise AssertionError(
+            "reconciliation must not run for a chunk that already has a batch_id"
+        )
+
     fetch_calls: list[str] = []
 
-    def _yield_one_result(batch_id, status=None):
+    def _yield_one_result(batch_id, client=None, status=None):
         fetch_calls.append(batch_id)
         from g3o.common.batch_client import BatchResult
 
@@ -829,19 +829,17 @@ def test_stage2_resume_after_crash_does_not_resubmit(tmp_path: Path):
             error=None,
         )
 
-    ps.submit_batch = _fail_submit  # type: ignore[assignment]
-    rs.poll_batch = lambda batch_id: _batch_status("completed", batch_id=batch_id)  # type: ignore[assignment]
-    monkey_fetch = ps.fetch_results
-    ps.fetch_results = _yield_one_result  # type: ignore[assignment]
-    try:
-        out = ps._run_classify_official_site(
-            plan.run_dir, plan.sample, discovery,
-            model="gpt-5-nano", poll_interval=0, max_wait=10,
-        )
-    finally:
-        ps.submit_batch = monkey_submit  # type: ignore[assignment]
-        rs.poll_batch = monkey_poll  # type: ignore[assignment]
-        ps.fetch_results = monkey_fetch  # type: ignore[assignment]
+    monkeypatch.setattr(batch_client, "submit_batch", _fail_submit)
+    monkeypatch.setattr(batch_client, "find_batches_by_metadata", _fail_reconcile)
+    monkeypatch.setattr(
+        batch_client, "poll_batch",
+        lambda batch_id, client=None: _batch_status("completed", batch_id=batch_id),
+    )
+    monkeypatch.setattr(batch_client, "fetch_results", _yield_one_result)
+    out = ps._run_classify_official_site(
+        plan.run_dir, plan.sample, discovery,
+        run_id=config.run_id, model="gpt-5-nano", poll_interval=0, max_wait=10,
+    )
 
     # Resume completed: state file moved to .done; only one fetch happened.
     assert is_done(plan.run_dir, "classify_official_site")
@@ -850,9 +848,10 @@ def test_stage2_resume_after_crash_does_not_resubmit(tmp_path: Path):
     assert fetch_calls == ["batch-resume-1"]
 
 
-def test_stage2_done_marker_short_circuits(tmp_path: Path):
+def test_stage2_done_marker_short_circuits(tmp_path: Path, monkeypatch):
     """Q3=e2: when .done/classify_official_site.json is present, the runner
     skips the stage and reconstructs ``out`` from disk envelopes."""
+    from g3o.common import batch_client
     from g3o.common.run_state import mark_done
     from g3o.run import presweep as ps
 
@@ -871,17 +870,16 @@ def test_stage2_done_marker_short_circuits(tmp_path: Path):
     mark_done(plan.run_dir, "classify_official_site", no_batch=True)
 
     # submit_batch must not fire on a done-marker short-circuit.
-    monkey_submit = ps.submit_batch
-    ps.submit_batch = lambda *a, **kw: pytest.fail(  # type: ignore[assignment]
-        "submit_batch must not be called when .done marker is present"
+    monkeypatch.setattr(
+        batch_client, "submit_batch",
+        lambda *a, **kw: pytest.fail(
+            "submit_batch must not be called when .done marker is present"
+        ),
     )
-    try:
-        out = ps._run_classify_official_site(
-            plan.run_dir, plan.sample, {},
-            model="gpt-5-nano", poll_interval=1, max_wait=1,
-        )
-    finally:
-        ps.submit_batch = monkey_submit  # type: ignore[assignment]
+    out = ps._run_classify_official_site(
+        plan.run_dir, plan.sample, {},
+        run_id=config.run_id, model="gpt-5-nano", poll_interval=1, max_wait=1,
+    )
 
     assert out["INST-0000001"] == "https://a.gov/"
 

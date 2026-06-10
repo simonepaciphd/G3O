@@ -2,8 +2,9 @@
 
 Walks ``runs/<run_id>/<inst>/extract/*.json`` for each institution in a run,
 flattens the Stage 5 ``ContractRow`` outputs into a single per-institution
-input list, submits one consolidation job per institution as a single OpenAI
-Batch API batch, polls to terminal state, parses the results, and persists
+input list, submits one consolidation job per institution (chunked into
+size-capped OpenAI Batch API batches, Session F.1 2026-06-10), polls to
+terminal state, parses the results, and persists
 ``runs/<run_id>/<inst>/6_validate.json``.
 
 The single owner of OpenAI Batch API access remains
@@ -36,12 +37,12 @@ from g3o.common.contract import (
     ContractRow,
 )
 from g3o.common.run_state import (
+    done_path,
     is_done,
+    iter_chunks,
     load_state,
     mark_done,
-    state_path,
-    wait_for_terminal_with_state,
-    write_active,
+    run_chunked_stage,
 )
 from g3o.validate.client import RESPONSE_FORMAT, build_consolidate_job
 
@@ -95,8 +96,15 @@ def submit_consolidate_batch(
     metadata: dict[str, Any] | None = None,
     client: Any | None = None,
 ) -> BatchHandle:
-    """Submit a Stage 6 batch via the single-owner OpenAI client."""
-    base_metadata = {"stage": "6_validate"}
+    """Submit a Stage 6 batch via the single-owner OpenAI client.
+
+    Convenience wrapper for standalone use. ``run_consolidate`` does not
+    route through it — :func:`g3o.common.run_state.run_chunked_stage`
+    submits chunked batches with full ``{g3o_run_id, g3o_stage, g3o_chunk}``
+    metadata; this wrapper tags only ``g3o_stage`` (same key convention) and
+    its batches are never adopted by reconciliation.
+    """
+    base_metadata = {"g3o_stage": "validate"}
     if metadata:
         base_metadata.update(metadata)
     return submit_batch(
@@ -247,14 +255,18 @@ def run_consolidate(
     """End-to-end Stage 6 driver for one run directory.
 
     Reads ``manifest.json`` if ``institution_ids`` is None, assembles per-
-    institution inputs, submits one batch, blocks until terminal, persists
-    each ``6_validate.json``, and returns a summary.
+    institution inputs, submits size-capped batch chunks, blocks until
+    terminal, persists each ``6_validate.json``, and returns a summary.
 
-    Resume (Session E, 2026-05-09):
+    Resume (Session E, 2026-05-09; chunked Session F.1, 2026-06-10):
       - ``.done/validate.json`` present → reconstruct count from disk; skip.
-      - Active ``_state/validate.json`` present → trust state's ``batch_id``
-        (Q4=ii); skip ``submit_batch``; rejoin polling and fetch.
+      - Otherwise jobs are rebuilt deterministically and handed to
+        :func:`g3o.common.run_state.run_chunked_stage`, which owns chunking,
+        metadata reconciliation, polling, and resume.
       - Failed/cancelled/expired terminal → raise; no auto-resubmit (Q3=d).
+
+    The summary's ``batch_ids`` lists every chunk's batch id in chunk order
+    (Session F.1 — replaces the single-batch ``batch_id`` key).
     """
     stage = "validate"
     if institution_ids is None:
@@ -267,6 +279,7 @@ def run_consolidate(
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         institution_ids = manifest.get("institutions", [])
     institution_ids = list(institution_ids)
+    run_id = _manifest_run_id(run_dir)
 
     if is_done(run_dir, stage):
         logger.info("Stage 6: .done marker present — skipping (resume from disk)")
@@ -275,73 +288,72 @@ def run_consolidate(
             "n_institutions": len(institution_ids),
             "n_consolidated": _count_existing_validates(run_dir, institution_ids),
             "n_failed": 0,
-            "batch_id": None,
+            "batch_ids": None,
             "skipped": True,
         }
 
-    state = load_state(run_dir, stage)
-    if state is None:
-        inputs = assemble_per_institution_inputs(run_dir, institution_ids)
-        if not inputs:
-            mark_done(run_dir, stage, no_batch=True)
-            return {
-                "run_dir": str(run_dir),
-                "n_institutions": 0,
-                "n_consolidated": 0,
-                "n_failed": 0,
-                "batch_id": None,
-            }
-        jobs = build_consolidate_jobs(inputs, model_label=model, notes=notes)
-        handle = submit_consolidate_batch(jobs, model=model, client=client)
-        logger.info(
-            "Stage 6 batch submitted: %s (n_jobs=%d)", handle.batch_id, handle.n_jobs
-        )
-        write_active(
-            run_dir, stage,
-            batch_id=handle.batch_id, model=model, n_jobs=handle.n_jobs,
-            custom_ids=[j.custom_id for j in jobs],
-        )
-        batch_id = handle.batch_id
-        n_jobs = handle.n_jobs
-    else:
-        batch_id = state["batch_id"]
-        n_jobs = state.get("n_jobs", 0)
-        logger.info("Stage 6 resuming: batch_id=%s", batch_id)
+    inputs = assemble_per_institution_inputs(run_dir, institution_ids)
+    if not inputs and load_state(run_dir, stage) is None:
+        mark_done(run_dir, stage, no_batch=True)
+        return {
+            "run_dir": str(run_dir),
+            "n_institutions": 0,
+            "n_consolidated": 0,
+            "n_failed": 0,
+            "batch_ids": None,
+        }
+    jobs = build_consolidate_jobs(inputs, model_label=model, notes=notes)
 
-    status = wait_for_terminal_with_state(
-        batch_id,
-        poll_interval=poll_interval, max_wait=max_wait,
-        run_dir=run_dir, stage=stage,
-    )
-    if not status.is_completed:
-        raise RuntimeError(
-            f"Stage 6 batch {batch_id} ended in non-completed state: "
-            f"{status.status}. State file: {state_path(run_dir, stage)}. "
-            f"Auto-resubmit disabled (Q3=d); investigate before retrying."
-        )
-
-    n_consolidated = 0
     n_failed = 0
-    for result in fetch_consolidate_results(batch_id, client=client, status=status):
-        try:
-            response = parse_consolidate_result(result)
-        except Exception as exc:
-            logger.warning(
-                "Stage 6 parse failed for %s: %s", result.custom_id, exc
-            )
-            n_failed += 1
-            continue
-        write_consolidated_output(run_dir, result.custom_id, response)
-        n_consolidated += 1
 
-    mark_done(run_dir, stage)
+    def _persist(results: Iterator[BatchResult]) -> None:
+        nonlocal n_failed
+        for result in results:
+            try:
+                response = parse_consolidate_result(result)
+            except Exception as exc:
+                logger.warning(
+                    "Stage 6 parse failed for %s: %s", result.custom_id, exc
+                )
+                n_failed += 1
+                continue
+            write_consolidated_output(run_dir, result.custom_id, response)
+
+    run_chunked_stage(
+        run_dir, stage, jobs,
+        run_id=run_id, model=model,
+        poll_interval=poll_interval, max_wait=max_wait,
+        process_chunk_results=_persist,
+        client=client,
+    )
+
+    done_payload = json.loads(
+        done_path(run_dir, stage).read_text(encoding="utf-8")
+    )
+    batch_ids = [entry["batch_id"] for _, entry in iter_chunks(done_payload)]
     return {
         "run_dir": str(run_dir),
-        "n_institutions": n_jobs,
-        "n_consolidated": n_consolidated,
+        "n_institutions": len(jobs),
+        "n_consolidated": _count_existing_validates(run_dir, institution_ids),
         "n_failed": n_failed,
-        "batch_id": batch_id,
+        "batch_ids": batch_ids,
     }
+
+
+def _manifest_run_id(run_dir: Path) -> str:
+    """Resolve the run_id for batch metadata: manifest first, dirname fallback.
+
+    ``run_dir`` is ``runs/<run_id>/`` by construction, so the fallback only
+    differs when ``run_consolidate`` is pointed at a hand-built directory
+    with no manifest — still a stable, unique-enough reconciliation key.
+    """
+    manifest_path = run_dir / "manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        run_id = manifest.get("run_id")
+        if run_id:
+            return str(run_id)
+    return run_dir.name
 
 
 __all__ = [
