@@ -30,10 +30,72 @@ from g3o.common.batch_client import (
 from g3o.extract.client import RESPONSE_FORMAT, build_extract_job
 from g3o.scrape.render import RenderedPage
 
+# Page-text handling at the Stage 5 LLM boundary (Session F.2, 2026-06-10).
+#
+# DEFAULT_TEXT_CAP_CHARS / DEFAULT_TEXT_CAP_RULE: the D3 methodology decision
+# (researcher, 2026-06-10) — cap each page's text at 60,000 chars, head+tail
+# (first 30k + last 30k). The cap is applied here, at job construction, NOT at
+# scrape time: the on-disk scrape artifacts keep full text (audit /
+# reproducibility) and only the LLM input is bounded. This is the single point
+# that covers html/pdf/render uniformly because every path produces a
+# RenderedPage whose .text feeds build_extract_jobs. After this cap, Session 1's
+# oversized-job refusal in split_jobs_into_chunks (which names F3) is unreachable
+# in practice but stays as a backstop.
+#
+# EMPTY_PAGE_MIN_CHARS: pages with fewer than this many non-whitespace chars are
+# dropped before job construction (review F5) — an engineering parameter, not a
+# methodology surface (cf. D3). The contract's data:min_length=1 would otherwise
+# pressure the model to fabricate a row from an empty page.
+DEFAULT_TEXT_CAP_CHARS = 60_000
+DEFAULT_TEXT_CAP_RULE = "head_tail"
+EMPTY_PAGE_MIN_CHARS = 50
+
+_TRUNC_MARKER = (
+    "\n\n[... G3O: {omitted:,} chars of page text omitted to fit the "
+    "{cap:,}-char Stage 5 extraction cap ...]\n\n"
+)
+
 
 def url_hash(url: str) -> str:
     """Stable per-URL hash used in the Stage 5 ``custom_id`` and the on-disk artifact tree."""
     return hashlib.md5(url.encode("utf-8")).hexdigest()
+
+
+def is_near_empty(text: str, *, min_chars: int = EMPTY_PAGE_MIN_CHARS) -> bool:
+    """True if ``text`` has fewer than ``min_chars`` non-whitespace characters."""
+    return len(text.strip()) < min_chars
+
+
+def cap_page_text(
+    text: str,
+    *,
+    max_chars: int = DEFAULT_TEXT_CAP_CHARS,
+    rule: str = DEFAULT_TEXT_CAP_RULE,
+) -> tuple[str, bool]:
+    """Cap ``text`` at ``max_chars`` original characters (review F3 / D3).
+
+    Returns ``(capped_text, was_truncated)``. When truncation occurs, exactly
+    ``max_chars`` characters of the original are kept (plus a short, fixed
+    omission marker that names how many chars were dropped):
+
+    - ``rule="head"``: the first ``max_chars`` chars.
+    - ``rule="head_tail"``: the first ``max_chars // 2`` and the last
+      ``max_chars - max_chars // 2`` chars, marker between them.
+
+    Deterministic: identical input always yields identical output.
+    """
+    n = len(text)
+    if n <= max_chars:
+        return text, False
+    omitted = n - max_chars
+    marker = _TRUNC_MARKER.format(omitted=omitted, cap=max_chars)
+    if rule == "head":
+        return text[:max_chars] + marker, True
+    if rule == "head_tail":
+        head = max_chars // 2
+        tail = max_chars - head
+        return text[:head] + marker + text[n - tail:], True
+    raise ValueError(f"unknown truncation rule {rule!r}; expected 'head' or 'head_tail'")
 
 
 def make_custom_id(institution_id: str, url: str) -> str:
@@ -122,8 +184,13 @@ def fetch_extract_results(
 
 
 __all__ = [
+    "DEFAULT_TEXT_CAP_CHARS",
+    "DEFAULT_TEXT_CAP_RULE",
+    "EMPTY_PAGE_MIN_CHARS",
     "build_extract_jobs",
+    "cap_page_text",
     "fetch_extract_results",
+    "is_near_empty",
     "make_custom_id",
     "poll_extract_batch",
     "submit_extract_batch",

@@ -52,6 +52,12 @@ def _cache_path(url: str) -> str:
 
 
 def _save(page: RenderedPage) -> None:
+    # Don't cache empty-text pages (review F17, 2026-06-10): a render fallback
+    # that yields no text should be re-attempted on the next run rather than
+    # frozen into the shared cache and never refetched cross-run. Download-
+    # failure pages already bypass the cache via _failure_page.
+    if not page.text:
+        return
     os.makedirs(config.CACHE_DIR, exist_ok=True)
     with open(_cache_path(page.url), "w", encoding="utf-8") as f:
         f.write(page.model_dump_json())

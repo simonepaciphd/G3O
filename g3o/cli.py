@@ -291,6 +291,25 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         max_wait_per_stage=args.max_wait_per_stage,
         model=args.model,
     )
+    if args.preflight:
+        from g3o.run.preflight import PreflightAssumptions, run_preflight
+
+        summary = run_preflight(
+            config,
+            assumptions=PreflightAssumptions(
+                pages_per_institution=args.assume_pages_per_institution,
+                page_chars=args.assume_page_chars,
+                output_tokens_per_job=args.assume_output_tokens_per_job,
+            ),
+            verify_model_live=args.verify_model,
+            cost_ceiling_usd=args.cost_ceiling,
+        )
+        json.dump(summary, sys.stdout, ensure_ascii=False, indent=2, default=str)
+        sys.stdout.write("\n")
+        # Exit non-zero only on a hard readiness failure (keys); the cost ceiling
+        # is informational (D7 print-only, 2026-06-10).
+        return 0 if summary.get("keys_ok") else 1
+
     summary = run_presweep(config)
     json.dump(summary, sys.stdout, ensure_ascii=False, indent=2, default=str)
     sys.stdout.write("\n")
@@ -525,6 +544,37 @@ def build_parser() -> argparse.ArgumentParser:
         help="Max seconds to wait per Batch API stage (default: 25h ~ SLA + jitter).",
     )
     presweep.add_argument("--model", default=DEFAULT_MODEL)
+    presweep.add_argument(
+        "--preflight", action="store_true",
+        help=(
+            "Run no-submit pre-flight checks (keys, planned sample, Stage-5 "
+            "chunk/size projection, cost preview) and exit. No state writes, no "
+            "production submits. Exits non-zero if a required key is missing."
+        ),
+    )
+    presweep.add_argument(
+        "--verify-model", action="store_true",
+        help="With --preflight: also run a live 1-job verify-model round-trip "
+             "(submits a batch; off by default).",
+    )
+    presweep.add_argument(
+        "--cost-ceiling", type=float, default=None,
+        help="With --preflight: report whether the estimated OpenAI Batch cost "
+             "exceeds this USD figure (informational; no abort wired — D7).",
+    )
+    presweep.add_argument(
+        "--assume-pages-per-institution", type=int, default=12,
+        help="Preflight assumption for the Stage-5 job/chunk projection (default: 12).",
+    )
+    presweep.add_argument(
+        "--assume-page-chars", type=int, default=8000,
+        help="Preflight assumption: extracted chars per page, capped at the "
+             "text cap (default: 8000).",
+    )
+    presweep.add_argument(
+        "--assume-output-tokens-per-job", type=int, default=600,
+        help="Preflight assumption for the cost estimate (default: 600).",
+    )
     presweep.set_defaults(func=_cmd_presweep)
 
     verify = sub.add_parser(

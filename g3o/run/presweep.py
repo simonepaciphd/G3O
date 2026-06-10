@@ -34,18 +34,33 @@ from g3o.classify.official_site import (
     parse_official_site_result,
 )
 from g3o.classify.url_triage import build_triage_job, parse_triage_result
+from g3o.common import attrition
+from g3o.common import config as _config
 from g3o.common.batch_client import DEFAULT_MODEL, BatchResult
 from g3o.common.run_state import (
     is_done,
     load_state,
     mark_done,
     run_chunked_stage,
+    state_dir,
 )
 from g3o.discovery.query_builder import build_queries
-from g3o.discovery.serper_client import build_site_query, search_google
+from g3o.discovery.serper_client import (
+    SerperRequestError,
+    build_site_query,
+    search_google,
+    set_live_mode,
+)
 from g3o.extract import (
     build_extract_jobs,
     parse_extract_result,
+)
+from g3o.extract.batch import (
+    DEFAULT_TEXT_CAP_CHARS,
+    DEFAULT_TEXT_CAP_RULE,
+    EMPTY_PAGE_MIN_CHARS,
+    cap_page_text,
+    is_near_empty,
 )
 from g3o.scrape.fetcher import scrape_url
 from g3o.scrape.render import RenderedPage
@@ -96,6 +111,13 @@ class PresweepConfig:
     poll_interval: int = 60
     max_wait_per_stage: int = 25 * 60 * 60  # 25h: SLA + jitter
     model: str = DEFAULT_MODEL
+    # Stage 5 page-text handling (Session F.2, 2026-06-10). The cap is the D3
+    # methodology decision (60k chars, head+tail); the empty-page floor is an
+    # engineering parameter (review F5). Surfaced as config so both are
+    # documented and overridable rather than buried as literals.
+    extract_text_cap_chars: int = DEFAULT_TEXT_CAP_CHARS
+    extract_text_cap_rule: str = DEFAULT_TEXT_CAP_RULE
+    empty_page_min_chars: int = EMPTY_PAGE_MIN_CHARS
 
 
 # ---------------------------------------------------------------------------
@@ -456,7 +478,19 @@ def _run_discovery_general(
         seen: set[str] = set()
         records: list[dict[str, Any]] = []
         for query, lang in queries:
-            for r in search_google(query, num_results=num_results):
+            try:
+                hits = search_google(query, num_results=num_results)
+            except SerperRequestError as exc:
+                # Honest failure (review F1): record and abort the stage rather
+                # than persist a partial artifact that looks like "found
+                # nothing". The institution's 1a file is NOT written and the
+                # stage is NOT marked done, so resume retries this institution.
+                attrition.record(
+                    run_dir, institution_id=inst_id, stage=stage,
+                    reason="serper_request_failed", url=query, detail=str(exc),
+                )
+                raise
+            for r in hits:
                 url = r.get("link", "")
                 if url and url not in seen:
                     seen.add(url)
@@ -522,13 +556,25 @@ def _run_discovery_site_restricted(
             logger.warning(
                 "Stage 1b: %s skipped — official_site_url=%r unparseable", inst_id, site_url
             )
+            attrition.record(
+                run_dir, institution_id=inst_id, stage=stage,
+                reason="official_site_unparseable", url=site_url,
+            )
             continue
         base_queries = build_queries(institution["institution_name"], list(languages))
         wrapped = [(build_site_query(q, domain), lang) for q, lang in base_queries]
         seen: set[str] = set()
         records: list[dict[str, Any]] = []
         for query, lang in wrapped:
-            for r in search_google(query, num_results=num_results):
+            try:
+                hits = search_google(query, num_results=num_results)
+            except SerperRequestError as exc:
+                attrition.record(
+                    run_dir, institution_id=inst_id, stage=stage,
+                    reason="serper_request_failed", url=query, detail=str(exc),
+                )
+                raise
+            for r in hits:
                 url = r.get("link", "")
                 if url and url not in seen:
                     seen.add(url)
@@ -627,6 +673,10 @@ def _run_classify_official_site(
                 parsed = parse_official_site_result(result)
             except Exception as exc:
                 logger.warning("Stage 2 parse failed for %s: %s", result.custom_id, exc)
+                attrition.record(
+                    run_dir, institution_id=result.custom_id, stage=stage,
+                    reason="parse_failed", detail=str(exc),
+                )
                 continue
             out[result.custom_id] = parsed.url
             inst_dir = run_dir / result.custom_id
@@ -740,6 +790,10 @@ def _run_classify_triage(
                 )
             except Exception as exc:
                 logger.warning("Stage 3 parse failed for %s: %s", result.custom_id, exc)
+                attrition.record(
+                    run_dir, institution_id=result.custom_id, stage=stage,
+                    reason="parse_failed", detail=str(exc),
+                )
                 continue
             kept_urls = [d.url for d in parsed.decisions if d.decision == "keep"]
             kept[result.custom_id] = kept_urls
@@ -803,6 +857,10 @@ def _run_scrape(
                 page = scrape_url(url)
             except Exception as exc:
                 logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
+                attrition.record(
+                    run_dir, institution_id=inst_id, stage=stage,
+                    reason="scrape_failed", url=url, detail=str(exc),
+                )
                 continue
             output_path.write_text(page.model_dump_json(indent=2), encoding="utf-8")
             pages.append(page)
@@ -821,6 +879,9 @@ def _run_extract(
     poll_interval: int,
     max_wait: int,
     run_id: str,
+    text_cap_chars: int = DEFAULT_TEXT_CAP_CHARS,
+    text_cap_rule: str = DEFAULT_TEXT_CAP_RULE,
+    empty_page_min_chars: int = EMPTY_PAGE_MIN_CHARS,
 ) -> int:
     """Stage 5 — per-page LLM extraction, batched across (institution × page).
 
@@ -841,10 +902,33 @@ def _run_extract(
     pairs: list[tuple[dict[str, Any], RenderedPage]] = []
     for row in sample:
         institution = institution_record(row)
-        for page in scraped.get(institution["institution_id"], []):
-            cid = make_custom_id(institution["institution_id"], page.url)
+        inst_id = institution["institution_id"]
+        for page in scraped.get(inst_id, []):
+            # Empty-page filter (review F5): a page with no usable text must not
+            # become a Stage 5 job — the contract's data:min_length=1 would
+            # otherwise pressure the model to fabricate a row from nothing.
+            if is_near_empty(page.text, min_chars=empty_page_min_chars):
+                attrition.record(
+                    run_dir, institution_id=inst_id, stage=stage,
+                    reason="empty_page_dropped", url=page.url,
+                    detail=f"stripped_len={len(page.text.strip())}",
+                )
+                continue
+            # Page-text cap (review F3 / D3): bound the LLM input; the on-disk
+            # scrape artifact keeps full text. Record the truncation for audit.
+            capped, truncated = cap_page_text(
+                page.text, max_chars=text_cap_chars, rule=text_cap_rule
+            )
+            if truncated:
+                attrition.record(
+                    run_dir, institution_id=inst_id, stage=stage,
+                    reason="page_text_truncated", url=page.url,
+                    detail=f"rule={text_cap_rule}", original_length=len(page.text),
+                )
+                page = page.model_copy(update={"text": capped})
+            cid = make_custom_id(inst_id, page.url)
             pairs.append((institution, page))
-            page_lookup[cid] = (institution["institution_id"], page)
+            page_lookup[cid] = (inst_id, page)
 
     if not pairs and load_state(run_dir, stage) is None:
         mark_done(run_dir, stage, no_batch=True)
@@ -869,6 +953,10 @@ def _run_extract(
                 )
             except Exception as exc:
                 logger.warning("Stage 5 parse failed for %s: %s", result.custom_id, exc)
+                attrition.record(
+                    run_dir, institution_id=institution_id, stage=stage,
+                    reason="parse_failed", url=page.url, detail=str(exc),
+                )
                 continue
             extract_dir = run_dir / institution_id / "extract"
             extract_dir.mkdir(parents=True, exist_ok=True)
@@ -927,8 +1015,81 @@ class RunPlan:
     manifest: dict[str, Any] = field(default_factory=dict)
 
 
+# Config fields whose change between the original launch and a resume would make
+# the on-disk artifacts and ``_state/`` inconsistent with a fresh projection
+# (review F7). The drawn institution list already captures master-CSV drift and
+# sample/seed/stratification changes; these cover the job-semantics args that do
+# not alter the sample but would still diverge a resumed run.
+_GUARDED_CONFIG_KEYS: tuple[str, ...] = (
+    "master_csv",
+    "sample_size",
+    "seed",
+    "stratification",
+    "stratify_keys",
+    "discovery_languages",
+    "discovery_results_per_query",
+    "institution_search_languages",
+    "model",
+)
+
+
+def _assert_manifest_matches_on_resume(
+    run_dir: Path, new_manifest: dict[str, Any]
+) -> None:
+    """Abort a resume whose fresh projection diverges from the on-disk manifest.
+
+    Resume is signalled by the presence of ``_state/`` (review F7). Before
+    :func:`write_run_layout` overwrites ``manifest.json`` and every
+    ``institution.json``, compare the freshly drawn institution list and the
+    guarded config fields against the existing manifest; on any mismatch raise
+    with a readable diff (master CSV drifted — WS3 round 2 actively appends rows
+    — or CLI args differ). A fresh run (no ``_state/``) and the seeded dry-run
+    layout (manifest present, no ``_state/``) are unaffected: the guard is a
+    no-op when ``_state/`` is absent.
+    """
+    if not state_dir(run_dir).exists():
+        return  # fresh run or seeded dry-run layout — nothing to guard
+    existing_path = run_dir / "manifest.json"
+    if not existing_path.exists():
+        return  # state without a manifest is anomalous; nothing to compare
+    existing = json.loads(existing_path.read_text(encoding="utf-8"))
+    diffs: list[str] = []
+    if existing.get("institutions") != new_manifest["institutions"]:
+        old_set = set(existing.get("institutions", []))
+        new_set = set(new_manifest["institutions"])
+        removed = sorted(old_set - new_set)
+        added = sorted(new_set - old_set)
+        diffs.append(
+            f"institution sample changed: n {len(old_set)}→{len(new_set)}, "
+            f"{len(removed)} removed, {len(added)} added "
+            f"(e.g. removed={removed[:3]}, added={added[:3]})"
+        )
+    old_cfg = existing.get("config", {})
+    new_cfg = new_manifest["config"]
+    for key in _GUARDED_CONFIG_KEYS:
+        if old_cfg.get(key) != new_cfg.get(key):
+            diffs.append(
+                f"config.{key}: {old_cfg.get(key)!r} (manifest) "
+                f"!= {new_cfg.get(key)!r} (this run)"
+            )
+    if diffs:
+        raise RuntimeError(
+            "Resume aborted: _state/ is present under "
+            f"{state_dir(run_dir)} but the freshly drawn run does not match the "
+            "existing manifest.json. This usually means the master CSV drifted "
+            "(WS3 round-2 appends rows) or the CLI args differ from the original "
+            "launch. Investigate and resolve before retrying:\n  - "
+            + "\n  - ".join(diffs)
+        )
+
+
 def plan_run(config: PresweepConfig) -> RunPlan:
-    """Read master, draw sample, write manifest + per-institution dirs. No live calls."""
+    """Read master, draw sample, write manifest + per-institution dirs. No live calls.
+
+    On resume (``_state/`` present) the freshly drawn sample + guarded config are
+    checked against the existing manifest *before* anything is overwritten
+    (review F7); a mismatch aborts with a diff.
+    """
     rows = list(_read_master(config.master_csv))
     if not rows:
         raise RuntimeError(f"master CSV is empty: {config.master_csv}")
@@ -942,8 +1103,31 @@ def plan_run(config: PresweepConfig) -> RunPlan:
         stratify_keys=config.stratify_keys,
     )
     manifest = build_manifest(config, sample, n_strata_observed=n_strata_observed)
+    _assert_manifest_matches_on_resume(config.runs_dir / config.run_id, manifest)
     run_dir = write_run_layout(config, sample, manifest=manifest)
     return RunPlan(run_dir=run_dir, sample=sample, manifest=manifest)
+
+
+def _assert_live_keys(config: PresweepConfig) -> None:
+    """Hard-fail before a live run if a required API key is unset (review F1).
+
+    Stage 1 discovery always needs Serper; Stages 2/3/5/6 need OpenAI. Failing
+    fast at startup beats discovering a missing key after Serper spend (or, worse
+    for Serper, silently returning mock results). The OpenAI check is skipped
+    when ``--stop-after discovery_general`` means no LLM stage will run.
+    """
+    if not _config.SERPER_API_KEY:
+        raise RuntimeError(
+            "SERPER_API_KEY is not set, but --execute requires a live Serper key "
+            "for Stage 1 discovery. Refusing to run with mock discovery. Set the "
+            "key, or run without --execute (dry run)."
+        )
+    if config.stop_after != "discovery_general" and not _config.OPENAI_API_KEY:
+        raise RuntimeError(
+            "OPENAI_API_KEY is not set, but --execute beyond Stage 1a requires a "
+            "live OpenAI key (Stages 2/3/5/6). Set the key, pass "
+            "--stop-after discovery_general, or run a dry run."
+        )
 
 
 def run_presweep(config: PresweepConfig) -> dict[str, Any]:
@@ -958,7 +1142,16 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
     ``runs/<run_id>/`` with state files present, each stage runner auto-detects
     them and rejoins polling without re-submitting. Per-URL scrape idempotency
     (Q5=a) covers Stage 4 partial recovery.
+
+    Live-mode gate (review F1, 2026-06-10): ``--execute`` hard-fails at startup
+    if the required API keys are unset (no silent mock discovery), and switches
+    the Serper client into live mode (no mock results, request failures raise
+    rather than degrade to an empty artifact). The key assertion runs before the
+    mode switch so a failed gate leaves global state untouched.
     """
+    if not config.dry_run:
+        _assert_live_keys(config)
+    set_live_mode(not config.dry_run)
     plan = plan_run(config)
     summary: dict[str, Any] = {
         "run_id": config.run_id,
@@ -972,6 +1165,10 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             f"--sample-size {config.sample_size} --seed {config.seed}"
         )
         return summary
+
+    # Guarantee the attrition ledger exists for a live run (empty ⇒ nothing
+    # dropped/degraded, a stronger signal than a missing file). Review F4/F15.
+    attrition.ensure_ledger(plan.run_dir)
 
     discovery_general = _run_discovery_general(
         plan.run_dir,
@@ -1043,6 +1240,9 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
         poll_interval=config.poll_interval,
         max_wait=config.max_wait_per_stage,
         run_id=config.run_id,
+        text_cap_chars=config.extract_text_cap_chars,
+        text_cap_rule=config.extract_text_cap_rule,
+        empty_page_min_chars=config.empty_page_min_chars,
     )
     summary["n_extracted"] = n_extracted
     if config.stop_after == "extract":

@@ -25,43 +25,92 @@ logger = logging.getLogger(__name__)
 # mock results because SERPER_API_KEY is unset. Repeats would just spam logs.
 _warned_mock = False
 
+# Sentinel substring embedded in the mock-result URLs. The cache guard refuses
+# to write any payload containing it so a mock result can never poison the
+# shared on-disk cache again (review F1c, 2026-06-10).
+_MOCK_LINK_SENTINEL = "g3o-mock"
 
-def _cache_key(query: str) -> str:
-    return hashlib.md5(query.encode("utf-8")).hexdigest()
+# Live (``--execute``) mode. When True, the mock fallback is disabled and a
+# missing key or a failed request is a hard error rather than a silent mock or
+# empty-result — an empty artifact must mean the search actually ran and found
+# nothing (review F1, 2026-06-10). The presweep orchestrator sets this at
+# ``--execute`` startup; it stays False for dev/CLI use and dry runs.
+_live_mode = False
 
 
-def _cached(query: str) -> list[dict] | None:
-    path = os.path.join(config.CACHE_DIR, f"serp_{_cache_key(query)}.json")
+class SerperConfigError(RuntimeError):
+    """SERPER_API_KEY is unset while live (``--execute``) mode is active."""
+
+
+class SerperRequestError(RuntimeError):
+    """A Serper request failed (quota/403/network) after retries in live mode.
+
+    Distinct from "searched, found nothing": callers persist this as an
+    explicit failure (attrition ledger + error marker), never as an empty
+    result artifact.
+    """
+
+
+def set_live_mode(enabled: bool) -> None:
+    """Enable/disable live mode (no mock, honest failures). Set by presweep."""
+    global _live_mode
+    _live_mode = enabled
+
+
+def _contains_mock(data: list[dict]) -> bool:
+    return any(_MOCK_LINK_SENTINEL in (r.get("link") or "") for r in data)
+
+
+def _cache_key(query: str, num_results: int) -> str:
+    # num_results is part of the key: two queries differing only in result count
+    # are not interchangeable cache hits (review F17, 2026-06-10).
+    return hashlib.md5(f"{num_results}:{query}".encode()).hexdigest()
+
+
+def _cached(query: str, num_results: int) -> list[dict] | None:
+    path = os.path.join(config.CACHE_DIR, f"serp_{_cache_key(query, num_results)}.json")
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
             return json.load(f)
     return None
 
 
-def _save_cache(query: str, data: list[dict]) -> None:
+def _save_cache(query: str, num_results: int, data: list[dict]) -> None:
+    if _contains_mock(data):
+        # Belt-and-suspenders: in live mode mock is never produced, but a dev
+        # session must not seed the shared cache with mock URLs (review F1c).
+        logger.debug("Refusing to cache mock SERP results for query %r", query)
+        return
     os.makedirs(config.CACHE_DIR, exist_ok=True)
-    path = os.path.join(config.CACHE_DIR, f"serp_{_cache_key(query)}.json")
+    path = os.path.join(config.CACHE_DIR, f"serp_{_cache_key(query, num_results)}.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
 
 
+def _mock_response() -> dict:
+    """Dev-mode mock payload (one-shot warning). Never cached (see _save_cache)."""
+    global _warned_mock
+    if not _warned_mock:
+        logger.warning(
+            "SERPER_API_KEY unset — returning MOCK results; live discovery is OFF"
+        )
+        _warned_mock = True
+    return {
+        "organic": [
+            {"title": "Mock Result 1", "link": "https://example.com/g3o-mock", "snippet": "Mock GenAI policy."},
+            {"title": "Mock Result 2", "link": "https://example.org/g3o-mock.pdf", "snippet": "Mock guidelines."},
+        ]
+    }
+
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
 def _execute(query: str, num_results: int = 10) -> dict:
-    """POST to Serper with retry. Returns mock data when SERPER_API_KEY is unset."""
-    if not config.SERPER_API_KEY:
-        global _warned_mock
-        if not _warned_mock:
-            logger.warning(
-                "SERPER_API_KEY unset — returning MOCK results; live discovery is OFF"
-            )
-            _warned_mock = True
-        return {
-            "organic": [
-                {"title": "Mock Result 1", "link": "https://example.com/g3o-mock", "snippet": "Mock GenAI policy."},
-                {"title": "Mock Result 2", "link": "https://example.org/g3o-mock.pdf", "snippet": "Mock guidelines."},
-            ]
-        }
+    """POST to Serper with retry. Assumes a key is present (callers gate on it).
 
+    The retry wraps only the network call — the missing-key / mock decision
+    lives in :func:`search_google`, so a config error is never retried or
+    wrapped in a tenacity ``RetryError``.
+    """
     headers = {"X-API-KEY": config.SERPER_API_KEY, "Content-Type": "application/json"}
     payload = json.dumps({"q": query, "num": num_results})
     response = requests.post(
@@ -84,15 +133,31 @@ def search_google(query: str, num_results: int = 10, force_refresh: bool = False
     Each result dict has keys: title, link, snippet, domain, position, date, sitelinks.
     """
     if not force_refresh:
-        cached = _cached(query)
+        cached = _cached(query, num_results)
         if cached is not None:
             return cached
 
-    try:
-        data = _execute(query, num_results)
-    except Exception as exc:  # network / Serper error
-        logger.warning("Search failed: %s", exc)
-        return []
+    if not config.SERPER_API_KEY:
+        if _live_mode:
+            # Missing key in live mode is a hard error — never degrade to mock.
+            raise SerperConfigError(
+                "SERPER_API_KEY is unset but live (--execute) discovery is active. "
+                "Refusing to return mock results. Set SERPER_API_KEY before running "
+                "--execute, or run a dry run."
+            )
+        data = _mock_response()
+    else:
+        try:
+            data = _execute(query, num_results)
+        except Exception as exc:  # network / Serper error (quota, 403, timeout)
+            if _live_mode:
+                # Honest failure: an empty artifact must mean "searched, found
+                # nothing", so a failed request raises rather than returning [].
+                raise SerperRequestError(
+                    f"Serper request failed for query {query!r}: {exc}"
+                ) from exc
+            logger.warning("Search failed: %s", exc)
+            return []
 
     results: list[dict] = []
     for idx, item in enumerate(data.get("organic", [])):
@@ -108,7 +173,7 @@ def search_google(query: str, num_results: int = 10, force_refresh: bool = False
             }
         )
 
-    _save_cache(query, results)
+    _save_cache(query, num_results, results)
     return results
 
 

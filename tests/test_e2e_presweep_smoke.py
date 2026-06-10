@@ -17,9 +17,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from g3o.common import batch_client
+from g3o.common import attrition, batch_client
+from g3o.common import config as g3o_config
 from g3o.common.batch_client import BatchHandle, BatchResult, BatchStatus
 from g3o.common.run_state import done_path, state_dir
+from g3o.discovery import serper_client
 from g3o.extract.batch import make_custom_id, url_hash
 from g3o.run import presweep as ps
 from g3o.run.presweep import STAGES, PresweepConfig, institution_record, run_presweep
@@ -205,6 +207,14 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
         max_wait_per_stage=10,
     )
 
+    # --- Live-mode startup gate (review F1): --execute now hard-fails without
+    # keys. Provide dummy keys (the network is fully stubbed below) and reset the
+    # Serper live-mode global via monkeypatch so run_presweep's set_live_mode(True)
+    # cannot leak into other tests (monkeypatch restores the attribute on teardown).
+    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "test-serper-key")
+    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setattr(serper_client, "_live_mode", False, raising=False)
+
     # --- Serper stub: same canned organic results for every query.
     monkeypatch.setattr(
         ps, "search_google",
@@ -217,8 +227,15 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
 
     # --- Scrape stub: deterministic RenderedPage per URL, no network.
     def _scrape(url: str) -> RenderedPage:
+        # Text must clear the empty-page filter (>= 50 non-whitespace chars,
+        # review F5) so Stage 5 builds a job for it.
         return RenderedPage(
-            url=url, text=f"smoke text for {url}", title="Smoke page",
+            url=url,
+            text=(
+                "This smoke-test page describes the institution's public "
+                f"activities and contains enough text to clear the filter. {url}"
+            ),
+            title="Smoke page",
             content_type="html",
             fetch_metadata=FetchMetadata(
                 access_date=ACCESS_DATE, http_status=200, final_url=url,
@@ -334,6 +351,12 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
         assert done_path(run_dir, stage).exists(), f"missing .done for {stage}"
     leftovers = [p.name for p in state_dir(run_dir).glob("*.json")]
     assert leftovers == []
+
+    # --- Attrition ledger present and empty on the happy path (review F4/F15):
+    # non-empty, short page text → no Serper/scrape failures, no empty-page
+    # drops, no truncations, no parse failures.
+    assert attrition.ledger_path(run_dir).exists()
+    assert attrition.read_records(run_dir) == []
 
     # --- Extract custom_ids round-tripped (institution × page).
     extract_jobs = batches["batch-extract-1"]["jobs"]
