@@ -37,10 +37,15 @@ from tenacity import (
     wait_random_exponential,
 )
 
+from g3o.common import config
+
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_MODEL = "gpt-5-nano"
+# Default model id for every LLM stage. Sourced from ``config.OPENAI_MODEL`` so
+# a single ``OPENAI_MODEL`` env var (or .env entry) overrides the pipeline-wide
+# default; falls back to ``gpt-5-nano`` when unset (review F9, 2026-06-10).
+DEFAULT_MODEL = config.OPENAI_MODEL
 DEFAULT_COMPLETION_WINDOW = "24h"
 DEFAULT_ENDPOINT = "/v1/chat/completions"
 

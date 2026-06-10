@@ -54,6 +54,7 @@ include = ["g3o*"]
 
 [tool.setuptools.package-data]
 "g3o.extract.prompts" = ["*.md"]
+"g3o.validate.prompts" = ["*.md"]
 
 [tool.ruff]
 line-length = 100

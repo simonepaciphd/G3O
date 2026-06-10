@@ -27,7 +27,11 @@ SERPER_API_KEY: str | None = _env("SERPER_API_KEY")
 SERPER_ENDPOINT: str = _env("SERPER_ENDPOINT", "https://google.serper.dev/search") or ""
 
 OPENAI_API_KEY: str | None = _env("OPENAI_API_KEY")
-OPENAI_MODEL: str = _env("OPENAI_MODEL", "gpt-4.1") or "gpt-4.1"
+# Pipeline-wide default model id for every LLM stage. Wired into
+# ``batch_client.DEFAULT_MODEL`` (review F9, 2026-06-10), so setting
+# ``OPENAI_MODEL`` in the environment / .env overrides the default everywhere;
+# the per-invocation ``--model`` CLI flag overrides this in turn.
+OPENAI_MODEL: str = _env("OPENAI_MODEL", "gpt-5-nano") or "gpt-5-nano"
 
 REQUEST_TIMEOUT: int = int(_env("REQUEST_TIMEOUT", "30") or "30")
 USER_AGENT: str = _env("USER_AGENT", "G3O-Observatory/0.1") or "G3O-Observatory/0.1"

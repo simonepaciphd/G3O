@@ -48,7 +48,7 @@ independent.
 | Discovery         | `g3o.scrape`      | Stage 4. Fetches each kept URL; routes between HTML, PDF, and a headless-browser fallback for JS-shell pages.                                                    |
 | Extraction        | `g3o.extract`     | Stage 5. Schema-first per-page LLM extraction into the G3O Output Contract v2.0.                                                                                  |
 | Cross-validation  | `g3o.validate`    | Stage 6. Per-institution LLM consolidation of Stage 5 rows: dedup within institution, source-credibility resolution, uncertainty-flag propagation.                |
-| Cross-validation  | `g3o.persist`     | Stage 7. Deterministic CSV writer that assembles the per-run full-database and institution-summary tables.                                                        |
+| Cross-validation  | `g3o.persist`     | Stage 7. Deterministic CSV writer that assembles the three normalized per-run tables (activities, activity-sources, institution-summary).                          |
 
 ## Implementation status
 
@@ -59,7 +59,7 @@ independent.
 | `g3o.scrape`    | Implemented: HTML, PDF, and Playwright-backed headless render adapter; on-disk cache.                    |
 | `g3o.extract`   | Implemented: Batch API client, batch driver, contract-validating parser; orchestrated via `presweep`.    |
 | `g3o.validate`  | Implemented: per-institution consolidation driver, deterministic QC, prompts.                            |
-| `g3o.persist`   | Implemented: walks per-institution Stage 6 outputs, emits the two canonical CSVs with provenance.        |
+| `g3o.persist`   | Implemented: walks per-institution Stage 6 outputs, emits the three canonical normalized CSVs with provenance. |
 | `g3o.run`       | Implemented: `presweep` orchestrator (resume-aware), `verify_model` Batch-API smoke test.                |
 | `g3o.common`    | Implemented: schema, contract validators, Batch API client, run-state tracking.                          |
 
@@ -69,14 +69,14 @@ All run-local artifacts live under `runs/<run_id>/` (gitignored):
 
 | Boundary               | Path                                                  |
 |------------------------|-------------------------------------------------------|
-| Stage 1a → Stage 2     | `runs/<run_id>/<inst>/1_discovery.json`               |
+| Stage 1a → Stage 2     | `runs/<run_id>/<inst>/1a_discovery_general.json`      |
 | Stage 2 → Stage 1b     | `runs/<run_id>/<inst>/2_official_site.json`           |
-| Stage 1b → Stage 3     | `runs/<run_id>/<inst>/1_discovery.json` (extended)    |
+| Stage 1b → Stage 3     | `runs/<run_id>/<inst>/1b_discovery_site_restricted.json` |
 | Stage 3 → Stage 4      | `runs/<run_id>/<inst>/3_triage.json`                  |
-| Stage 4 → Stage 5      | `runs/<run_id>/<inst>/4_scrape/<url_hash>.json`       |
-| Stage 5 → Stage 6      | `runs/<run_id>/<inst>/5_extract/*.json`               |
+| Stage 4 → Stage 5      | `runs/<run_id>/<inst>/scrape/<url_hash>.json`         |
+| Stage 5 → Stage 6      | `runs/<run_id>/<inst>/extract/*.json`                 |
 | Stage 6 → Stage 7      | `runs/<run_id>/<inst>/6_validate.json`                |
-| Stage 7 → release      | `runs/<run_id>/final/g3o_full_database_v{N}.csv`, `runs/<run_id>/final/g3o_institution_summary_v{N}.csv` |
+| Stage 7 → release      | `runs/<run_id>/final/g3o_activities_v{N}.csv`, `g3o_activity_sources_v{N}.csv`, `g3o_institution_summary_v{N}.csv` |
 
 Validated releases checked into the repo live under `data/v<N>/` (currently
 only the pilot at `data/pilot_v1/`).

@@ -47,11 +47,12 @@ Stages 2, 3, 5, and 6 call the OpenAI Batch API on `gpt-5-nano`. Stages 1a,
 1b, 4, and 7 are deterministic. End-to-end orchestration lives in
 `g3o.run.presweep`.
 
-Per-institution artifacts land at
-`runs/<run_id>/<inst>/{1_discovery,2_official_site,3_triage,4_scrape,5_extract,6_validate}.json`
-(gitignored). Stage 7 assembles
-`runs/<run_id>/final/g3o_full_database_v{N}.csv` and
-`g3o_institution_summary_v{N}.csv`.
+Per-institution artifacts land under `runs/<run_id>/<inst>/` (gitignored):
+`1a_discovery_general.json`, `2_official_site.json`,
+`1b_discovery_site_restricted.json`, `3_triage.json`, `scrape/<url_hash>.json`,
+`extract/<url_hash>.json`, and `6_validate.json`. Stage 7 assembles three
+normalized CSVs under `runs/<run_id>/final/`: `g3o_activities_v{N}.csv`,
+`g3o_activity_sources_v{N}.csv`, and `g3o_institution_summary_v{N}.csv`.
 
 | Module          | Stage   | Description                                                  |
 |-----------------|---------|--------------------------------------------------------------|
@@ -60,7 +61,7 @@ Per-institution artifacts land at
 | `g3o.scrape`    | 4       | HTTP fetch with HTML / PDF / headless-render routing + cache |
 | `g3o.extract`   | 5       | Per-page LLM extraction to G3O Output Contract v2.0 rows     |
 | `g3o.validate`  | 6       | Per-institution LLM consolidation + deterministic QC         |
-| `g3o.persist`   | 7       | Deterministic CSV writer (full database + summary)           |
+| `g3o.persist`   | 7       | Deterministic CSV writer (three normalized tables)           |
 | `g3o.run`       | —       | Orchestration: `presweep`, `verify-model`                    |
 | `g3o.common`    | —       | Schema, contract validators, batch client, run state         |
 

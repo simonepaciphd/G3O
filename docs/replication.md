@@ -71,8 +71,12 @@ python -m g3o persist \
   --version 2
 ```
 
-This produces `runs/20260509-presweep/final/g3o_full_database_v2.csv` and
-`g3o_institution_summary_v2.csv`.
+This produces three normalized CSVs in `runs/20260509-presweep/final/`:
+`g3o_activities_v2.csv` (one row per institution × activity),
+`g3o_activity_sources_v2.csv` (one row per source page), and
+`g3o_institution_summary_v2.csv` (one row per institution). Column orders are
+pinned in `g3o.common.schema` and documented in
+[`data_dictionary.md`](data_dictionary.md).
 
 ## Stage-by-stage invocation
 
@@ -121,6 +125,13 @@ Two assertions must always hold; CI checks them:
    pipeline-derived columns (`global_row_id`, `run_id`, `run_model`,
    `run_tool`, `run_date`) wrap the contract columns in published
    files.
+
+These two invariants govern the legacy 44-column full-database format
+(`DATA_COLUMNS`), retained as the frozen schema of the published pilot v1 CSV.
+The live Stage 7 output is the three normalized CSVs above; their column orders
+are pinned separately in `g3o.common.schema` (`ACTIVITY_COLUMNS`,
+`ACTIVITY_SOURCE_COLUMNS`, `SUMMARY_COLUMNS`) — see
+[`data_dictionary.md`](data_dictionary.md).
 
 ## Versioning policy
 

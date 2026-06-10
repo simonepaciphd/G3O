@@ -1,23 +1,110 @@
 # Data dictionary
 
-This dictionary enumerates the 44 columns of the production database
-(`g3o.common.schema.DATA_COLUMNS` and the published
-`data/v<N>/g3o_full_database_v<N>.csv`).
+This dictionary describes the **three normalized CSVs** the Stage 7 writer
+emits for a run (`g3o.persist.writer`), with column orders pinned in
+`g3o.common.schema`:
 
-The schema-of-record for the model-produced columns (1–39) is the **G3O
-Output Contract v2.0** at
+| CSV                              | Column constant            | Cols | Grain                              |
+|----------------------------------|----------------------------|------|------------------------------------|
+| `g3o_activities_v{N}.csv`        | `ACTIVITY_COLUMNS`         | 35   | one row per (institution × activity) |
+| `g3o_activity_sources_v{N}.csv`  | `ACTIVITY_SOURCE_COLUMNS`  | 17   | one row per source page             |
+| `g3o_institution_summary_v{N}.csv`| `SUMMARY_COLUMNS`         | 21   | one row per institution per run     |
+
+The schema-of-record for the model-produced fields (controlled vocabularies,
+character limits, coding rules, edge cases, self-validation checks) is the
+**G3O Output Contract v2.0** at
 [`../g3o/extract/prompts/output_contract.md`](../g3o/extract/prompts/output_contract.md).
-That document specifies controlled vocabularies, character limits,
-coding rules, edge cases, and self-validation checks. This file is a
-quick-reference index; for any disagreement, the contract wins.
+This file is a quick-reference index keyed to the shipped column constants; for
+any disagreement on field semantics, the contract wins.
+
+The legacy 44-column flat surface (`DATA_COLUMNS`) is retained at the end of
+this document as a **historical** reference — it is the Stage 5 row-level
+debug surface and the frozen schema of the published pilot v1 CSV, not the
+current Stage 7 product.
 
 ## Grain
 
-Each row represents one **(institution × activity × source)** triple.
-An institution with no GenAI activity is still represented (one or more
-rows with all activity fields set to `_NA_`).
+Each CSV has its own grain, stated in the table above:
 
-## Columns
+- **Activities** — one row per `(institution × activity)` pair the Stage 6
+  consolidator emitted for the institution.
+- **Activity-sources** — one row per source page, keyed back to the activity
+  it supports via `activity_id` (or `_NA_` for sources whose `genai_evidence`
+  is `confirms_absence` / `ambiguous` / `background_only`).
+- **Institution-summary** — one row per institution per run, rolling up its
+  activities and sources.
+
+How institutions that the pipeline never reached (no discovery hits, no kept
+URLs, no scrapeable pages), or that produced no activity, are represented in
+the final product is a pending methodology decision and is **not** asserted
+here. The machine-readable `runs/<run_id>/_attrition.jsonl` ledger records,
+per institution and stage, where coverage was lost.
+
+## `g3o_activities_v{N}.csv` — `ACTIVITY_COLUMNS` (35)
+
+One row per `(institution × activity)`.
+
+| Group              | Columns                                                                                                                                                                                                                                                       |
+|--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Provenance (5)     | `global_row_id`, `run_id`, `run_model`, `run_tool`, `run_date`                                                                                                                                                                                                |
+| Institution + verdict (8) | `institution_id`, `institution_name`, `country`, `branch_of_government`, `level_of_government`, `has_genai_activity`, `institution_summary`, `institution_search_languages`                                                                              |
+| Activity key (1)   | `activity_id`                                                                                                                                                                                                                                                  |
+| Activity fields (18) | `activity_name`, `activity_type`, `adoption_stage`, `access_type`, `interaction_type`, `tool_name`, `vendor`, `deployment_mode`, `target_users`, `year_announced`, `year_deployed`, `has_human_oversight`, `has_transparency_notice`, `has_data_classification`, `has_risk_assessment`, `reported_outcomes`, `reported_incidents`, `scope_notes` |
+| Aggregates (3)     | `n_sources` (sources supporting this activity), `confidence`, `uncertainty_flags`                                                                                                                                                                              |
+
+Provenance: `global_row_id` is `{run_id}::{institution_id}::{activity_id}`;
+`run_model` is the model id (e.g. `gpt-5-nano`); `run_tool` is the emitting
+module; `run_date` is `YYYY-MM-DD`. The activity-field semantics
+(controlled vocabularies, `_NA_` rules, char limits) are governed by the
+Output Contract.
+
+## `g3o_activity_sources_v{N}.csv` — `ACTIVITY_SOURCE_COLUMNS` (17)
+
+One row per source page.
+
+| Group           | Columns                                                                                                                                            |
+|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| Provenance (5)  | `global_row_id`, `run_id`, `run_model`, `run_tool`, `run_date`                                                                                     |
+| Foreign keys (3)| `institution_id`, `activity_id`, `source_id`                                                                                                       |
+| Source fields (9)| `source_url`, `source_title`, `source_publication_date`, `source_access_date`, `source_type`, `source_language`, `source_credibility`, `genai_evidence`, `source_snippet` |
+
+`source_id` is unique per `(run_id, institution_id)`. `activity_id` is the FK
+to the activities table, or `_NA_` when the source confirms absence, is
+ambiguous, or is background-only. `genai_evidence` is one of
+`confirms_activity` / `confirms_absence` / `ambiguous` / `background_only`;
+`source_credibility` is `high` / `medium` / `low`. Full field semantics are in
+the Output Contract.
+
+## `g3o_institution_summary_v{N}.csv` — `SUMMARY_COLUMNS` (21)
+
+One row per institution per run (current-run-only roll-up, per the Session C
+decision of 2026-05-09).
+
+| Group                         | Columns                                                                                                          |
+|-------------------------------|------------------------------------------------------------------------------------------------------------------|
+| Identity (5)                  | `institution_id`, `institution_name`, `country`, `branch_of_government`, `level_of_government`                   |
+| Run scope (2)                 | `run_id`, `run_date`                                                                                             |
+| Institution-level verdict (3) | `has_genai_activity`, `institution_summary`, `institution_search_languages`                                     |
+| Counts (6)                    | `n_pages_extracted`, `n_activities`, `n_sources`, `n_high_credibility_sources`, `n_medium_credibility_sources`, `n_low_credibility_sources` |
+| Distinct lists (3)            | `activities_found`, `tools_found`, `vendors_found` (each pipe-delimited, ` \| `-joined)                          |
+| Aggregated confidence + flags (2) | `best_confidence`, `consolidated_uncertainty_flags`                                                          |
+
+`tools_found` and `vendors_found` exclude the literal `unknown`.
+`best_confidence` is the highest activity-level confidence (`high` > `medium` >
+`low`, or `_NA_` when there are no activities). `consolidated_uncertainty_flags`
+is the de-duplicated, sorted union of activity-level flags (or `none`).
+
+---
+
+## Historical: the legacy 44-column flat surface (`DATA_COLUMNS`)
+
+**Legacy as of Session C.** The 44 columns below are
+`g3o.common.schema.DATA_COLUMNS`: the Stage 5 row-level debug surface (one row
+per `institution × activity × source` triple) and the frozen header of the
+published `data/pilot_v1/g3o_full_database_v1.csv`. The current Stage 7 product
+is the three normalized CSVs above; this section is retained only for auditing
+pilot v1 and reading raw Stage 5 output. The model-produced columns (1–39) are
+governed by the same Output Contract v2.0.
 
 | #  | Column                          | Source                | Description                                               |
 |----|---------------------------------|-----------------------|-----------------------------------------------------------|
@@ -62,19 +149,10 @@ rows with all activity fields set to `_NA_`).
 | 39 | `source_snippet`                | extract (#37)         | Verbatim excerpt up to 300 chars.                         |
 | 40 | `confidence`                    | extract (#38)         | Row-level confidence: `high` / `medium` / `low`.          |
 | 41 | `uncertainty_flags`             | extract (#39)         | Semicolon-separated flags or `none`.                      |
-| 42 | `run_model`                     | pipeline              | Model that produced the row (e.g., `gpt-4.1`).            |
+| 42 | `run_model`                     | pipeline              | Model that produced the row (e.g., `gpt-5-nano`).         |
 | 43 | `run_tool`                      | pipeline              | Tool name (e.g., `OpenAI API`).                           |
 | 44 | `run_date`                      | pipeline              | When the run executed (`YYYY-MM-DD`).                     |
 
 For controlled vocabularies, edge cases, and the "policy vs pilot" /
 "country-wide program" coding rules, see
 [`../g3o/extract/prompts/output_contract.md`](../g3o/extract/prompts/output_contract.md).
-
-## Institution-summary table
-
-`g3o_institution_summary_v<N>.csv` is a roll-up to the institution level.
-Columns: `institution_id`, `institution_name`, `country`,
-`branch_of_government`, `level_of_government`, `has_genai_activity`,
-`n_total_rows`, `n_runs_covered`, `runs`, `n_activity_source_rows`,
-`activities_found`, `tools_found`, `best_summary`. Order in
-`g3o.common.schema.SUMMARY_COLUMNS`.
