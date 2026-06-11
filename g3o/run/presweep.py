@@ -63,7 +63,12 @@ from g3o.extract.batch import (
     is_near_empty,
 )
 from g3o.scrape.fetcher import scrape_url
-from g3o.scrape.render import RenderedPage
+from g3o.scrape.politeness import (
+    DEFAULT_HOST_DELAY_SECONDS,
+    HostThrottle,
+    RobotsCache,
+)
+from g3o.scrape.render import RenderedPage, RenderSession
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +123,17 @@ class PresweepConfig:
     extract_text_cap_chars: int = DEFAULT_TEXT_CAP_CHARS
     extract_text_cap_rule: str = DEFAULT_TEXT_CAP_RULE
     empty_page_min_chars: int = EMPTY_PAGE_MIN_CHARS
+    # Stage 4 scrape politeness (review F14 / Decision D4, 2026-06-10).
+    # ``scrape_respect_robots`` = D4 (respect robots.txt; Disallow'd URLs are
+    # skipped and logged to the attrition ledger). ``scrape_host_delay_seconds``
+    # is the per-host courtesy delay (robots Crawl-delay raises it per host).
+    # ``scrape_render_on_download_failure`` keeps the dead-URL render fallback
+    # off by default (review F14): rendering every failed GET is an
+    # IP-reputation + wall-clock cost. All three are engineering parameters,
+    # not methodology surfaces.
+    scrape_respect_robots: bool = True
+    scrape_host_delay_seconds: float = DEFAULT_HOST_DELAY_SECONDS
+    scrape_render_on_download_failure: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -818,6 +834,11 @@ def _run_scrape(
     run_dir: Path,
     sample: list[dict[str, Any]],
     triaged: dict[str, list[str]],
+    *,
+    respect_robots: bool = True,
+    host_delay_seconds: float = DEFAULT_HOST_DELAY_SECONDS,
+    render_on_download_failure: bool = False,
+    robots: RobotsCache | None = None,
 ) -> dict[str, list[RenderedPage]]:
     """Stage 4 — synchronous scrape per (institution × kept URL).
 
@@ -828,6 +849,17 @@ def _run_scrape(
     cross-run reuse below this layer; the runner-side guard protects partial
     crash-recovery within a run, where a partial scrape loop may have written
     some files before crashing.
+
+    Politeness (review F14 / Decision D4, 2026-06-10): the runner owns the
+    scrape-ethics policy that the low-level fetcher stays agnostic of. When
+    ``respect_robots`` is True, each URL is checked against its host's
+    robots.txt for the G3O user-agent; a ``Disallow`` skips the URL and records
+    a ``robots_disallowed`` attrition entry (so coverage stays auditable). A
+    per-host courtesy delay (``host_delay_seconds``, raised by any robots
+    ``Crawl-delay``) throttles same-host requests, and a single reused
+    :class:`RenderSession` serves every render fallback in the loop instead of
+    launching a browser per URL. ``robots`` may be injected (tests); otherwise
+    a run-scoped :class:`RobotsCache` is built when ``respect_robots``.
     """
     from g3o.extract.batch import url_hash
 
@@ -835,36 +867,55 @@ def _run_scrape(
     if is_done(run_dir, stage):
         logger.info("Stage 4: .done marker present — skipping (resume from disk)")
         return _read_existing_scraped(run_dir, sample)
+    if respect_robots and robots is None:
+        robots = RobotsCache(_config.USER_AGENT)
+    throttle = HostThrottle(host_delay_seconds)
     out: dict[str, list[RenderedPage]] = {}
-    for row in sample:
-        institution = institution_record(row)
-        inst_id = institution["institution_id"]
-        urls = triaged.get(inst_id, [])
-        scrape_dir = run_dir / inst_id / "scrape"
-        scrape_dir.mkdir(parents=True, exist_ok=True)
-        pages: list[RenderedPage] = []
-        for url in urls:
-            output_path = scrape_dir / f"{url_hash(url)}.json"
-            if output_path.exists():
-                # Q5=a per-run skip: load existing RenderedPage; no refetch.
-                pages.append(
-                    RenderedPage.model_validate_json(
-                        output_path.read_text(encoding="utf-8")
+    with RenderSession() as render_session:
+        for row in sample:
+            institution = institution_record(row)
+            inst_id = institution["institution_id"]
+            urls = triaged.get(inst_id, [])
+            scrape_dir = run_dir / inst_id / "scrape"
+            scrape_dir.mkdir(parents=True, exist_ok=True)
+            pages: list[RenderedPage] = []
+            for url in urls:
+                output_path = scrape_dir / f"{url_hash(url)}.json"
+                if output_path.exists():
+                    # Q5=a per-run skip: load existing RenderedPage; no refetch.
+                    pages.append(
+                        RenderedPage.model_validate_json(
+                            output_path.read_text(encoding="utf-8")
+                        )
                     )
+                    continue
+                if robots is not None and not robots.allowed(url):
+                    logger.info("Stage 4: robots.txt disallows %s — skipping", url)
+                    attrition.record(
+                        run_dir, institution_id=inst_id, stage=stage,
+                        reason="robots_disallowed", url=url,
+                    )
+                    continue
+                throttle.wait(
+                    url,
+                    extra_delay=robots.crawl_delay(url) if robots is not None else None,
                 )
-                continue
-            try:
-                page = scrape_url(url)
-            except Exception as exc:
-                logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
-                attrition.record(
-                    run_dir, institution_id=inst_id, stage=stage,
-                    reason="scrape_failed", url=url, detail=str(exc),
-                )
-                continue
-            output_path.write_text(page.model_dump_json(indent=2), encoding="utf-8")
-            pages.append(page)
-        out[inst_id] = pages
+                try:
+                    page = scrape_url(
+                        url,
+                        render_session=render_session,
+                        prefer_render_on_download_failure=render_on_download_failure,
+                    )
+                except Exception as exc:
+                    logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
+                    attrition.record(
+                        run_dir, institution_id=inst_id, stage=stage,
+                        reason="scrape_failed", url=url, detail=str(exc),
+                    )
+                    continue
+                output_path.write_text(page.model_dump_json(indent=2), encoding="utf-8")
+                pages.append(page)
+            out[inst_id] = pages
     mark_done(run_dir, stage, no_batch=True)
     return out
 
@@ -937,6 +988,11 @@ def _run_extract(
         pairs,
         batch_id=f"{run_id}-extract",
         institution_search_languages=institution_search_languages,
+        # Provenance accuracy (review F18a): pass the run's actual model so
+        # batch_metadata.model_label reflects it, instead of the literal
+        # "gpt-5-nano" fallback in _user_prompt. Mirrors Stage 6's
+        # build_consolidate_jobs(model_label=model).
+        model_label=model,
     )
 
     def _persist(results: Iterator[BatchResult]) -> None:
@@ -1226,7 +1282,14 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
     if config.stop_after == "classify_triage":
         return summary
 
-    scraped = _run_scrape(plan.run_dir, plan.sample, triaged)
+    scraped = _run_scrape(
+        plan.run_dir,
+        plan.sample,
+        triaged,
+        respect_robots=config.scrape_respect_robots,
+        host_delay_seconds=config.scrape_host_delay_seconds,
+        render_on_download_failure=config.scrape_render_on_download_failure,
+    )
     summary["n_pages_scraped"] = sum(len(v) for v in scraped.values())
     if config.stop_after == "scrape":
         return summary

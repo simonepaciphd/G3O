@@ -300,7 +300,9 @@ def test_scrape_url_force_render_dispatches_to_render(
 
     captured: dict[str, Any] = {}
 
-    def _stub_render(url: str, *, timeout: int, wait_for: str | None = None) -> RenderedPage:
+    def _stub_render(
+        url: str, *, timeout: int, wait_for: str | None = None, session: object = None
+    ) -> RenderedPage:
         captured["url"] = url
         captured["timeout"] = timeout
         return RenderedPage(
@@ -344,7 +346,9 @@ def test_scrape_url_falls_back_to_render_on_empty_html(
 
     rendered_called: dict[str, Any] = {"count": 0}
 
-    def _stub_render(url: str, *, timeout: int, wait_for: str | None = None) -> RenderedPage:
+    def _stub_render(
+        url: str, *, timeout: int, wait_for: str | None = None, session: object = None
+    ) -> RenderedPage:
         rendered_called["count"] += 1
         return RenderedPage(
             url=url,
@@ -423,3 +427,143 @@ def test_scrape_url_caches_rendered_page(
     assert call_count["n"] == 1
     assert first == second
     assert isinstance(second, RenderedPage)
+
+
+# ---------------------------------------------------------------------------
+# RenderSession — reusable browser across renders (review F14)
+# ---------------------------------------------------------------------------
+
+
+class _SessionStubPage:
+    def __init__(self, status=200, text="sess body", title="Sess", final_url="https://e/"):
+        self._status = status
+        self._text = text
+        self._title = title
+        self.url = final_url
+        self.closed = False
+
+    def goto(self, url, *, timeout, wait_until):
+        return _StubResponse(self._status)
+
+    def wait_for_selector(self, selector, *, timeout):
+        pass
+
+    def wait_for_load_state(self, state, *, timeout):
+        pass
+
+    def inner_text(self, _selector):
+        return self._text
+
+    def title(self):
+        return self._title
+
+    def close(self):
+        self.closed = True
+
+
+class _SessionStubContext:
+    def __init__(self):
+        self.pages: list[_SessionStubPage] = []
+        self.closed = False
+
+    def new_page(self):
+        page = _SessionStubPage()
+        self.pages.append(page)
+        return page
+
+    def close(self):
+        self.closed = True
+
+
+class _SessionStubBrowser:
+    def __init__(self, context):
+        self._context = context
+        self.closed = False
+
+    def new_context(self):
+        return self._context
+
+    def close(self):
+        self.closed = True
+
+
+class _SessionStubChromium:
+    def __init__(self, browser):
+        self._browser = browser
+        self.launch_count = 0
+
+    def launch(self, **_kwargs):
+        self.launch_count += 1
+        return self._browser
+
+
+class _SessionStubPlaywright:
+    def __init__(self, chromium):
+        self.chromium = chromium
+        self.stopped = False
+
+    def stop(self):
+        self.stopped = True
+
+
+class _SessionStarter:
+    """Object returned by ``sync_playwright()``; ``.start()`` yields the
+    persistent Playwright (mirrors playwright's manual start/stop API)."""
+
+    def __init__(self, pw):
+        self._pw = pw
+
+    def start(self):
+        return self._pw
+
+
+def _build_session_stub():
+    context = _SessionStubContext()
+    browser = _SessionStubBrowser(context)
+    chromium = _SessionStubChromium(browser)
+    pw = _SessionStubPlaywright(chromium)
+
+    def factory():
+        return _SessionStarter(pw)
+
+    return factory, pw, browser, context, chromium
+
+
+def test_render_session_reuses_one_browser_across_calls(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    factory, pw, browser, context, chromium = _build_session_stub()
+    monkeypatch.setattr(render, "_import_sync_playwright", lambda: factory)
+
+    from g3o.scrape.render import RenderSession, render_url
+
+    with RenderSession() as session:
+        r1 = render_url("https://a.gov/", session=session)
+        r2 = render_url("https://b.gov/", session=session)
+        # One browser launched for both renders; not yet torn down.
+        assert chromium.launch_count == 1
+        assert browser.closed is False
+
+    assert r1.content_type == "render"
+    assert r2.text == "sess body"
+    # One page opened + closed per render.
+    assert len(context.pages) == 2
+    assert all(p.closed for p in context.pages)
+    # Session teardown closes context + browser and stops playwright.
+    assert context.closed is True
+    assert browser.closed is True
+    assert pw.stopped is True
+
+
+def test_render_session_lazy_no_launch_without_render(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    factory, _pw, _browser, _context, chromium = _build_session_stub()
+    monkeypatch.setattr(render, "_import_sync_playwright", lambda: factory)
+
+    from g3o.scrape.render import RenderSession
+
+    with RenderSession():
+        pass  # no render_url call → Chromium must never launch
+
+    assert chromium.launch_count == 0

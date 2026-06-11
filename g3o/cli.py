@@ -247,6 +247,26 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_date_from_manifest(run_dir: Path) -> str | None:
+    """Stage 7 provenance ``run_date`` default, read from the run's manifest.
+
+    Review F18b: ``persist`` previously stamped ``run_date`` = day-of-writing,
+    which drifts from the run's actual date whenever CSVs are (re)written on a
+    later day. The manifest records the authoritative ``run_date`` at plan time;
+    prefer it. Falls back to ``None`` (→ writer uses UTC today, the prior
+    behavior) when no manifest or no usable date is present.
+    """
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.exists():
+        return None
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    run_date = manifest.get("run_date")
+    return run_date if isinstance(run_date, str) and run_date else None
+
+
 def _cmd_persist(args: argparse.Namespace) -> int:
     from g3o.persist import write_run_csvs
 
@@ -258,6 +278,9 @@ def _cmd_persist(args: argparse.Namespace) -> int:
         run_model=args.model,
         version=args.version,
         overwrite=args.overwrite,
+        # Provenance accuracy (review F18b): default the date from the manifest
+        # rather than today; writer still falls back to UTC today when absent.
+        run_date=_run_date_from_manifest(run_dir),
     )
     json.dump(summary, sys.stdout, ensure_ascii=False, indent=2, default=str)
     sys.stdout.write("\n")

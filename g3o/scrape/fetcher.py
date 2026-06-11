@@ -27,6 +27,7 @@ from g3o.scrape import pdf as pdf_mod
 from g3o.scrape.render import (
     FetchMetadata,
     RenderedPage,
+    RenderSession,
     render_url,
     utc_today_iso,
 )
@@ -136,6 +137,8 @@ def scrape_url(
     force_refresh: bool = False,
     force_render: bool = False,
     prefer_render_on_empty: bool = True,
+    prefer_render_on_download_failure: bool = False,
+    render_session: RenderSession | None = None,
 ) -> RenderedPage:
     """Fetch a URL and return a ``RenderedPage``.
 
@@ -145,6 +148,17 @@ def scrape_url(
     - Otherwise the deterministic path (HTML or PDF) runs first; if it returns
       empty text and ``prefer_render_on_empty`` is True, ``render_url`` is
       invoked as a fallback.
+    - If the HTTP GET itself fails (e.g., 403 bot block, network error), a
+      render fallback runs **only** when ``prefer_render_on_download_failure``
+      is True. This defaults to False (review F14): rendering every dead URL —
+      a full headless-browser launch + navigation per failure — is an
+      IP-reputation risk on government hosts and a multi-hour wall-clock tax at
+      ~12k URLs. The Stage 4 runner leaves it off by default
+      (``PresweepConfig.scrape_render_on_download_failure``).
+
+    When ``render_session`` is supplied, every render reuses that
+    :class:`RenderSession`'s browser instead of launching a fresh Chromium per
+    call (review F14 browser reuse).
 
     The supplied ``url`` is preserved as ``RenderedPage.url`` regardless of
     redirects (pipeline-spec §1: "do not silently redirect-and-attribute").
@@ -156,17 +170,22 @@ def scrape_url(
             return cached
 
     if force_render:
-        page = render_url(url, timeout=config.REQUEST_TIMEOUT * 1000)
+        page = render_url(
+            url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session
+        )
         _save(page)
         return page
 
     try:
         content, ctype, status, final_url, elapsed_ms = _download(url)
     except Exception:
-        # Optional render fallback when even the HTTP GET failed (e.g., 403 bot block).
-        if prefer_render_on_empty:
+        # Render fallback on a failed GET is opt-in (review F14): only when the
+        # caller accepts the per-dead-URL browser-launch cost.
+        if prefer_render_on_download_failure:
             try:
-                page = render_url(url, timeout=config.REQUEST_TIMEOUT * 1000)
+                page = render_url(
+                    url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session
+                )
                 _save(page)
                 return page
             except Exception:
@@ -187,7 +206,9 @@ def scrape_url(
 
     if not text and prefer_render_on_empty:
         try:
-            page = render_url(url, timeout=config.REQUEST_TIMEOUT * 1000)
+            page = render_url(
+                url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session
+            )
             _save(page)
             return page
         except Exception:

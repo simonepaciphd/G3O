@@ -205,6 +205,10 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
         stop_after="validate",
         poll_interval=0,
         max_wait_per_stage=10,
+        # Offline smoke: skip robots.txt fetches + per-host sleeps (review F14
+        # politeness is unit-tested in test_politeness.py).
+        scrape_respect_robots=False,
+        scrape_host_delay_seconds=0,
     )
 
     # --- Live-mode startup gate (review F1): --execute now hard-fails without
@@ -226,7 +230,7 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
     )
 
     # --- Scrape stub: deterministic RenderedPage per URL, no network.
-    def _scrape(url: str) -> RenderedPage:
+    def _scrape(url: str, **kwargs) -> RenderedPage:
         # Text must clear the empty-page filter (>= 50 non-whitespace chars,
         # review F5) so Stage 5 builds a job for it.
         return RenderedPage(

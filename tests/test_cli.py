@@ -55,6 +55,38 @@ def test_existing_dir_rejects_file(tmp_path):
 
 
 # ---------------------------------------------------------------------------
+# _run_date_from_manifest (review F18b — persist provenance date)
+# ---------------------------------------------------------------------------
+
+
+def _write_manifest(run_dir, content):
+    import json
+
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / "manifest.json").write_text(json.dumps(content), encoding="utf-8")
+
+
+def test_run_date_from_manifest_reads_date(tmp_path):
+    _write_manifest(tmp_path, {"run_date": "2026-05-09", "run_id": "R1"})
+    assert cli._run_date_from_manifest(tmp_path) == "2026-05-09"
+
+
+def test_run_date_from_manifest_missing_manifest_returns_none(tmp_path):
+    assert cli._run_date_from_manifest(tmp_path) is None
+
+
+def test_run_date_from_manifest_no_date_key_returns_none(tmp_path):
+    _write_manifest(tmp_path, {"run_id": "R1"})
+    assert cli._run_date_from_manifest(tmp_path) is None
+
+
+def test_run_date_from_manifest_malformed_returns_none(tmp_path):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "manifest.json").write_text("{not json", encoding="utf-8")
+    assert cli._run_date_from_manifest(tmp_path) is None
+
+
+# ---------------------------------------------------------------------------
 # Subcommand routing
 # ---------------------------------------------------------------------------
 

@@ -85,10 +85,16 @@ only the pilot at `data/pilot_v1/`).
 
 - `discovery` and `scrape` cache by hash on disk under `cache/` (gitignored).
   Re-running with the same query or URL is idempotent and free of API cost.
-- `classify`, `extract`, and `validate` rely on OpenAI prompt caching at the
-  model level and on Batch API for the 50% bulk discount. The pipeline does
-  not re-cache LLM outputs separately; per-stage results in
-  `runs/<run_id>/<inst>/` are the cache.
+- `classify`, `extract`, and `validate` use the Batch API for the documented
+  50% bulk discount, and their shared system messages are prompt-cache-eligible
+  (identical ≥1,024-token prefix per batch). **Caveat (review F20, verified
+  2026-06-11):** whether prompt-caching discounts *stack* with the Batch
+  discount is **not stated in OpenAI's current docs** — do not assume the
+  cached-input rate applies inside Batch when budgeting. The cost model takes
+  the conservative no-stack figure and validates against the first live run's
+  cached-token telemetry (see `docs/budget/`). The pipeline does not re-cache
+  LLM outputs separately; per-stage results in `runs/<run_id>/<inst>/` are the
+  cache.
 - `presweep` infers resume points from the presence of `_state/` files in
   `runs/<run_id>/` and skips stages that have already completed.
 - `persist` is fully deterministic given its inputs.

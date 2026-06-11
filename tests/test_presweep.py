@@ -916,7 +916,7 @@ def test_stage4_skips_refetch_when_url_hash_file_exists(tmp_path: Path):
 
     fetched: list[str] = []
 
-    def _capture_scrape(url):
+    def _capture_scrape(url, **kwargs):
         fetched.append(url)
         return RenderedPage(
             url=url, text=f"fresh-{url}", title="",
@@ -930,7 +930,12 @@ def test_stage4_skips_refetch_when_url_hash_file_exists(tmp_path: Path):
     monkey = ps.scrape_url
     ps.scrape_url = _capture_scrape  # type: ignore[assignment]
     try:
-        out = ps._run_scrape(plan.run_dir, plan.sample, triaged)
+        # respect_robots=False + zero delay keep this idempotency test offline
+        # and fast (the F14 politeness path is covered in test_politeness.py).
+        out = ps._run_scrape(
+            plan.run_dir, plan.sample, triaged,
+            respect_robots=False, host_delay_seconds=0,
+        )
     finally:
         ps.scrape_url = monkey  # type: ignore[assignment]
 
@@ -975,7 +980,7 @@ def test_stage4_done_marker_short_circuits_no_scrape_calls(tmp_path: Path):
     mark_done(plan.run_dir, "scrape", no_batch=True)
 
     monkey = ps.scrape_url
-    ps.scrape_url = lambda url: pytest.fail(  # type: ignore[assignment]
+    ps.scrape_url = lambda url, **kw: pytest.fail(  # type: ignore[assignment]
         "scrape_url must not be called when .done/scrape.json is present"
     )
     try:
@@ -986,6 +991,96 @@ def test_stage4_done_marker_short_circuits_no_scrape_calls(tmp_path: Path):
     pages = out[inst_id]
     assert len(pages) == 1
     assert pages[0].text == "cached"
+
+
+def test_stage4_robots_disallow_skips_url_and_records_attrition(tmp_path: Path):
+    """Review F14 / D4: a robots.txt Disallow skips the URL and writes a
+    ``robots_disallowed`` attrition record; allowed URLs still scrape."""
+    from g3o.common import attrition
+    from g3o.run import presweep as ps
+    from g3o.scrape.render import FetchMetadata, RenderedPage
+
+    attrition._reset_cache()
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+    inst_id = plan.manifest["institutions"][0]
+    triaged = {inst_id: ["https://x.example/ok", "https://x.example/private"]}
+
+    class _Robots:
+        def allowed(self, url: str) -> bool:
+            return "private" not in url
+
+        def crawl_delay(self, url: str):
+            return None
+
+    scraped_urls: list[str] = []
+
+    def _scrape(url, **kwargs):
+        scraped_urls.append(url)
+        return RenderedPage(
+            url=url, text="body text long enough to be kept", title="",
+            content_type="html",
+            fetch_metadata=FetchMetadata(
+                access_date="2026-05-09", http_status=200, final_url=url,
+                fetch_method="html", elapsed_ms=1, wait_for=None,
+            ),
+        )
+
+    monkey = ps.scrape_url
+    ps.scrape_url = _scrape  # type: ignore[assignment]
+    try:
+        out = ps._run_scrape(
+            plan.run_dir, plan.sample, triaged,
+            respect_robots=True, robots=_Robots(), host_delay_seconds=0,
+        )
+    finally:
+        ps.scrape_url = monkey  # type: ignore[assignment]
+
+    assert scraped_urls == ["https://x.example/ok"]
+    assert [p.url for p in out[inst_id]] == ["https://x.example/ok"]
+    reasons = [(r["reason"], r.get("url")) for r in attrition.read_records(plan.run_dir)]
+    assert ("robots_disallowed", "https://x.example/private") in reasons
+
+
+def test_stage5_extract_threads_run_model_into_jobs(tmp_path: Path, monkeypatch):
+    """Review F18a: presweep threads the run's model into build_extract_jobs so
+    ``batch_metadata.model_label`` reflects it, not the literal ``gpt-5-nano``."""
+    from g3o.run import presweep as ps
+    from g3o.scrape.render import FetchMetadata, RenderedPage
+
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+    inst_id = plan.manifest["institutions"][0]
+    page = RenderedPage(
+        url="https://x.example/a",
+        text="This page has well over fifty non-whitespace characters of body text.",
+        title="A", content_type="html",
+        fetch_metadata=FetchMetadata(
+            access_date="2026-05-09", http_status=200, final_url="https://x.example/a",
+            fetch_method="html", elapsed_ms=1, wait_for=None,
+        ),
+    )
+
+    captured: dict[str, Any] = {}
+
+    def _capture_build(pairs, *, batch_id, institution_search_languages,
+                       model_label=None, chat_type="web"):
+        captured["model_label"] = model_label
+        return []
+
+    monkeypatch.setattr(ps, "build_extract_jobs", _capture_build)
+    monkeypatch.setattr(ps, "run_chunked_stage", lambda *a, **k: None)
+
+    ps._run_extract(
+        plan.run_dir, plan.sample, {inst_id: [page]},
+        institution_search_languages="en", model="gpt-5-mini-xyz",
+        poll_interval=1, max_wait=1, run_id=config.run_id,
+    )
+    assert captured["model_label"] == "gpt-5-mini-xyz"
 
 
 def test_stage1a_writes_done_marker_at_end(tmp_path: Path):

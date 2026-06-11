@@ -83,11 +83,90 @@ def _import_sync_playwright():
     return sync_playwright
 
 
+def _drive_page(
+    page: object, url: str, *, timeout: int, wait_for: str | None
+) -> tuple[str, str, str | None, int | None]:
+    """Navigate ``page`` to ``url`` and read out (text, title, final_url, status).
+
+    The single point that drives a playwright page, shared by the ephemeral
+    per-call browser path and the reusable :class:`RenderSession` path so both
+    behave identically.
+    """
+    response = page.goto(url, timeout=timeout, wait_until="domcontentloaded")
+    if wait_for:
+        page.wait_for_selector(wait_for, timeout=timeout)
+    else:
+        try:
+            page.wait_for_load_state("networkidle", timeout=timeout)
+        except Exception:
+            # networkidle is best-effort; some pages keep long-poll connections open.
+            pass
+    text = page.inner_text("body")
+    title = page.title()
+    final_url = page.url
+    status = response.status if response is not None else None
+    return text, title, final_url, status
+
+
+class RenderSession:
+    """Reusable headless-Chromium browser for a batch of renders (review F14).
+
+    Launch the browser once and render many pages through a single shared
+    context, instead of launching a fresh Chromium per URL (the prior behavior
+    — a multi-hour wall-clock + resource tax across ~12k URLs). Use as a
+    context manager around a scrape loop and pass it to ``render_url``::
+
+        with RenderSession() as session:
+            page = render_url(url, session=session)
+
+    The browser is launched **lazily** on the first ``new_page`` call, so a
+    scrape run that never needs a render never starts Chromium (and an
+    environment without the browser binary is unaffected unless a render
+    actually fires). One playwright ``page`` is created and closed per render;
+    the browser + context persist for the session's lifetime.
+    """
+
+    def __init__(self) -> None:
+        self._pw: object | None = None
+        self._browser: object | None = None
+        self._context: object | None = None
+
+    def __enter__(self) -> RenderSession:
+        return self
+
+    def _context_obj(self) -> object:
+        if self._context is None:
+            sync_playwright = _import_sync_playwright()
+            self._pw = sync_playwright().start()
+            self._browser = self._pw.chromium.launch(headless=True)
+            self._context = self._browser.new_context()
+        return self._context
+
+    def new_page(self) -> object:
+        return self._context_obj().new_page()
+
+    def close(self) -> None:
+        try:
+            if self._context is not None:
+                self._context.close()
+            if self._browser is not None:
+                self._browser.close()
+        finally:
+            if self._pw is not None:
+                self._pw.stop()
+            self._pw = self._browser = self._context = None
+
+    def __exit__(self, *_exc: object) -> bool:
+        self.close()
+        return False
+
+
 def render_url(
     url: str,
     *,
     timeout: int = 30000,
     wait_for: str | None = None,
+    session: RenderSession | None = None,
 ) -> RenderedPage:
     """Headless-Chromium fetch.
 
@@ -95,35 +174,35 @@ def render_url(
     optional CSS selector that must appear before the page is considered
     rendered; if ``None``, waits for ``networkidle`` (best-effort).
 
+    When ``session`` is supplied (review F14), the render reuses that
+    :class:`RenderSession`'s browser context (one page opened + closed per
+    call); otherwise a fresh browser is launched and torn down for this call
+    alone (the prior behavior, kept for standalone use).
+
     Redirects are recorded in ``fetch_metadata.final_url`` only — the supplied
     ``url`` is the canonical ``RenderedPage.url`` per pipeline-spec §1.
     """
-    sync_playwright = _import_sync_playwright()
     started = time.monotonic()
-    status: int | None = None
-    final_url: str | None = None
-    text = ""
-    title = ""
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+    if session is not None:
+        page = session.new_page()
         try:
-            context = browser.new_context()
-            page = context.new_page()
-            response = page.goto(url, timeout=timeout, wait_until="domcontentloaded")
-            if wait_for:
-                page.wait_for_selector(wait_for, timeout=timeout)
-            else:
-                try:
-                    page.wait_for_load_state("networkidle", timeout=timeout)
-                except Exception:
-                    # networkidle is best-effort; some pages keep long-poll connections open.
-                    pass
-            text = page.inner_text("body")
-            title = page.title()
-            final_url = page.url
-            status = response.status if response is not None else None
+            text, title, final_url, status = _drive_page(
+                page, url, timeout=timeout, wait_for=wait_for
+            )
         finally:
-            browser.close()
+            page.close()
+    else:
+        sync_playwright = _import_sync_playwright()
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            try:
+                context = browser.new_context()
+                page = context.new_page()
+                text, title, final_url, status = _drive_page(
+                    page, url, timeout=timeout, wait_for=wait_for
+                )
+            finally:
+                browser.close()
     elapsed_ms = int((time.monotonic() - started) * 1000)
     return RenderedPage(
         url=url,
@@ -145,6 +224,7 @@ __all__ = [
     "ContentType",
     "FetchMethod",
     "FetchMetadata",
+    "RenderSession",
     "RenderedPage",
     "render_url",
     "utc_today_iso",

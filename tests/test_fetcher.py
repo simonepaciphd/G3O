@@ -96,7 +96,9 @@ def test_force_refresh_bypasses_cache(monkeypatch):
 def test_force_render_uses_renderer_not_download(monkeypatch):
     url = "https://js.gov/p"
     monkeypatch.setattr(fetcher, "_download", _boom)
-    monkeypatch.setattr(fetcher, "render_url", lambda u, timeout: _rendered_page(u))
+    monkeypatch.setattr(
+        fetcher, "render_url", lambda u, timeout, session=None: _rendered_page(u)
+    )
 
     page = fetcher.scrape_url(url, force_refresh=True, force_render=True)
 
@@ -157,14 +159,36 @@ def test_pdf_routing_by_url_suffix(monkeypatch):
 
 
 def test_download_failure_falls_back_to_render(monkeypatch):
+    # Review F14: render-on-download-failure is now opt-in via
+    # prefer_render_on_download_failure (default off). With it enabled, a failed
+    # GET still falls back to a render.
     url = "https://blocked.gov"
     monkeypatch.setattr(fetcher, "_download", _download_raising())
-    monkeypatch.setattr(fetcher, "render_url", lambda u, timeout: _rendered_page(u))
+    monkeypatch.setattr(
+        fetcher, "render_url", lambda u, timeout, session=None: _rendered_page(u)
+    )
 
-    page = fetcher.scrape_url(url, force_refresh=True, prefer_render_on_empty=True)
+    page = fetcher.scrape_url(
+        url, force_refresh=True, prefer_render_on_download_failure=True
+    )
 
     assert page.text == "RENDERED"
     assert page.fetch_metadata.fetch_method == "render"
+
+
+def test_download_failure_no_render_by_default(monkeypatch):
+    # Review F14: with the default (prefer_render_on_download_failure=False), a
+    # failed GET must NOT launch a render — it returns the failure page even
+    # when prefer_render_on_empty is True.
+    url = "https://blocked.gov"
+    monkeypatch.setattr(fetcher, "_download", _download_raising())
+    monkeypatch.setattr(fetcher, "render_url", _boom)
+
+    page = fetcher.scrape_url(url, force_refresh=True, prefer_render_on_empty=True)
+
+    assert page.text == ""
+    assert page.content_type == "unknown"
+    assert page.fetch_metadata.fetch_method == "html"
 
 
 def test_download_failure_returns_failure_page_when_render_disabled(monkeypatch):
@@ -183,7 +207,9 @@ def test_download_failure_returns_failure_page_when_render_disabled(monkeypatch)
 def test_empty_text_triggers_render_fallback(monkeypatch):
     monkeypatch.setattr(fetcher, "_download", _download_returning())
     monkeypatch.setattr(fetcher.html_mod, "extract_text", lambda soup: "")
-    monkeypatch.setattr(fetcher, "render_url", lambda u, timeout: _rendered_page(u))
+    monkeypatch.setattr(
+        fetcher, "render_url", lambda u, timeout, session=None: _rendered_page(u)
+    )
 
     page = fetcher.scrape_url("https://x.gov", force_refresh=True, prefer_render_on_empty=True)
 
