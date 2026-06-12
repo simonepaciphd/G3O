@@ -21,6 +21,7 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import os
 import random
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field
@@ -36,8 +37,13 @@ from g3o.classify.official_site import (
 from g3o.classify.url_triage import build_triage_job, parse_triage_result
 from g3o.common import attrition
 from g3o.common import config as _config
-from g3o.common.batch_client import DEFAULT_MODEL, BatchResult
+from g3o.common.batch_client import (
+    DEFAULT_MODEL,
+    DEFAULT_REASONING_EFFORT,
+    BatchResult,
+)
 from g3o.common.run_state import (
+    done_dir,
     is_done,
     load_state,
     mark_done,
@@ -302,6 +308,11 @@ def build_manifest(
         "run_date": _utc_today(),
         "run_timestamp": _utc_iso(),
         "run_model": config.model,
+        # Request-side generation parameters pinned by the serializer (T1,
+        # 2026-06-11). Recorded at plan time so the manifest states what every
+        # LLM job in this run sends; the response side lands in
+        # ``llm_provenance`` once stages fetch.
+        "run_generation_parameters": {"reasoning_effort": DEFAULT_REASONING_EFFORT},
         "run_tool": "g3o.run.presweep",
         "config": config_dict,
         "n_institutions_drawn": len(sample),
@@ -1128,6 +1139,17 @@ def _assert_manifest_matches_on_resume(
                 f"config.{key}: {old_cfg.get(key)!r} (manifest) "
                 f"!= {new_cfg.get(key)!r} (this run)"
             )
+    # Pinned generation parameters are part of run identity (T1): a resume on
+    # code whose pin differs from the original launch would mix generation
+    # regimes within one run. Only compared when the original manifest recorded
+    # them (manifests written before 2026-06-11 did not).
+    old_gen = existing.get("run_generation_parameters")
+    new_gen = new_manifest.get("run_generation_parameters")
+    if old_gen is not None and old_gen != new_gen:
+        diffs.append(
+            f"run_generation_parameters: {old_gen!r} (manifest) "
+            f"!= {new_gen!r} (this run)"
+        )
     if diffs:
         raise RuntimeError(
             "Resume aborted: _state/ is present under "
@@ -1137,6 +1159,68 @@ def _assert_manifest_matches_on_resume(
             "launch. Investigate and resolve before retrying:\n  - "
             + "\n  - ".join(diffs)
         )
+
+
+def update_manifest_llm_provenance(run_dir: Path) -> dict[str, Any]:
+    """Fold response-side LLM provenance from stage state files into the manifest.
+
+    T1 reproducibility floor (2026-06-11): the chunk entries written by
+    :func:`g3o.common.run_state.run_chunked_stage` record, per fetched chunk,
+    the versioned model id(s) and ``system_fingerprint``(s) the server actually
+    answered with, plus the batch ids. This helper aggregates them per stage —
+    reading both the active ``_state/{stage}.json`` files (stages interrupted
+    mid-flight) and the terminal ``.done/{stage}.json`` markers — and rewrites
+    ``manifest.json`` atomically with an ``llm_provenance`` block. The state
+    files remain the ground truth; the manifest block is a derived view so the
+    run's reproducibility record lives in one researcher-visible artifact.
+
+    Returns the block. No-op returning ``{}`` when there is no manifest or no
+    batch-bearing state (dry runs, discovery-only runs).
+    """
+    manifest_path = run_dir / "manifest.json"
+    if not manifest_path.exists():
+        return {}
+    provenance: dict[str, Any] = {}
+    candidates: list[Path] = []
+    for directory in (state_dir(run_dir), done_dir(run_dir)):
+        if directory.is_dir():
+            candidates.extend(sorted(directory.glob("*.json")))
+    for path in candidates:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        stage = payload.get("stage")
+        chunks = payload.get("chunks")
+        if not stage or not isinstance(chunks, dict):
+            continue  # no-batch done markers carry no provenance
+        models: set[str] = set()
+        fingerprints: set[str] = set()
+        batch_ids: list[str] = []
+        n_fetched = 0
+        for _, entry in sorted(chunks.items(), key=lambda kv: int(kv[0])):
+            if entry.get("batch_id"):
+                batch_ids.append(entry["batch_id"])
+            if entry.get("fetched_at"):
+                n_fetched += 1
+            models.update(entry.get("response_models") or [])
+            fingerprints.update(entry.get("system_fingerprints") or [])
+        # A stage present in both _state/ and .done/ (crash between the done
+        # write and the state unlink) resolves to the .done copy: done_dir is
+        # scanned second and overwrites the entry.
+        provenance[stage] = {
+            "request_model": payload.get("model"),
+            "response_models": sorted(models),
+            "system_fingerprints": sorted(fingerprints),
+            "batch_ids": batch_ids,
+            "n_chunks_planned": len(chunks),
+            "n_chunks_fetched": n_fetched,
+        }
+    if not provenance:
+        return {}
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["llm_provenance"] = provenance
+    tmp = manifest_path.with_name(manifest_path.name + ".tmp")
+    tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, manifest_path)
+    return provenance
 
 
 def plan_run(config: PresweepConfig) -> RunPlan:
@@ -1226,102 +1310,110 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
     # dropped/degraded, a stronger signal than a missing file). Review F4/F15.
     attrition.ensure_ledger(plan.run_dir)
 
-    discovery_general = _run_discovery_general(
-        plan.run_dir,
-        plan.sample,
-        languages=config.discovery_languages,
-        num_results=config.discovery_results_per_query,
-    )
-    summary["n_discovery_general"] = sum(len(v) for v in discovery_general.values())
-    if config.stop_after == "discovery_general":
-        return summary
+    # The finally-clause folds response-side LLM provenance into the manifest
+    # (T1) on success, on every --stop-after early return, and best-effort on
+    # a crash; the state files it reads remain the ground truth either way.
+    try:
+        discovery_general = _run_discovery_general(
+            plan.run_dir,
+            plan.sample,
+            languages=config.discovery_languages,
+            num_results=config.discovery_results_per_query,
+        )
+        summary["n_discovery_general"] = sum(
+            len(v) for v in discovery_general.values()
+        )
+        if config.stop_after == "discovery_general":
+            return summary
 
-    official_sites = _run_classify_official_site(
-        plan.run_dir,
-        plan.sample,
-        discovery_general,
-        run_id=config.run_id,
-        model=config.model,
-        poll_interval=config.poll_interval,
-        max_wait=config.max_wait_per_stage,
-    )
-    summary["n_official_sites"] = sum(1 for v in official_sites.values() if v)
-    summary["n_official_sites_bypassed"] = sum(
-        1
-        for row in plan.sample
-        if institution_record(row).get("official_site_url")
-    )
-    if config.stop_after == "classify_official_site":
-        return summary
+        official_sites = _run_classify_official_site(
+            plan.run_dir,
+            plan.sample,
+            discovery_general,
+            run_id=config.run_id,
+            model=config.model,
+            poll_interval=config.poll_interval,
+            max_wait=config.max_wait_per_stage,
+        )
+        summary["n_official_sites"] = sum(1 for v in official_sites.values() if v)
+        summary["n_official_sites_bypassed"] = sum(
+            1
+            for row in plan.sample
+            if institution_record(row).get("official_site_url")
+        )
+        if config.stop_after == "classify_official_site":
+            return summary
 
-    discovery_site_restricted = _run_discovery_site_restricted(
-        plan.run_dir,
-        plan.sample,
-        official_sites,
-        languages=config.discovery_languages,
-        num_results=config.discovery_results_per_query,
-    )
-    summary["n_discovery_site_restricted"] = sum(
-        len(v) for v in discovery_site_restricted.values()
-    )
-    if config.stop_after == "discovery_site_restricted":
-        return summary
+        discovery_site_restricted = _run_discovery_site_restricted(
+            plan.run_dir,
+            plan.sample,
+            official_sites,
+            languages=config.discovery_languages,
+            num_results=config.discovery_results_per_query,
+        )
+        summary["n_discovery_site_restricted"] = sum(
+            len(v) for v in discovery_site_restricted.values()
+        )
+        if config.stop_after == "discovery_site_restricted":
+            return summary
 
-    triaged = _run_classify_triage(
-        plan.run_dir,
-        plan.sample,
-        discovery_general,
-        discovery_site_restricted,
-        official_sites,
-        run_id=config.run_id,
-        model=config.model,
-        poll_interval=config.poll_interval,
-        max_wait=config.max_wait_per_stage,
-    )
-    summary["n_triaged_kept"] = sum(len(v) for v in triaged.values())
-    if config.stop_after == "classify_triage":
-        return summary
+        triaged = _run_classify_triage(
+            plan.run_dir,
+            plan.sample,
+            discovery_general,
+            discovery_site_restricted,
+            official_sites,
+            run_id=config.run_id,
+            model=config.model,
+            poll_interval=config.poll_interval,
+            max_wait=config.max_wait_per_stage,
+        )
+        summary["n_triaged_kept"] = sum(len(v) for v in triaged.values())
+        if config.stop_after == "classify_triage":
+            return summary
 
-    scraped = _run_scrape(
-        plan.run_dir,
-        plan.sample,
-        triaged,
-        respect_robots=config.scrape_respect_robots,
-        host_delay_seconds=config.scrape_host_delay_seconds,
-        render_on_download_failure=config.scrape_render_on_download_failure,
-    )
-    summary["n_pages_scraped"] = sum(len(v) for v in scraped.values())
-    if config.stop_after == "scrape":
-        return summary
+        scraped = _run_scrape(
+            plan.run_dir,
+            plan.sample,
+            triaged,
+            respect_robots=config.scrape_respect_robots,
+            host_delay_seconds=config.scrape_host_delay_seconds,
+            render_on_download_failure=config.scrape_render_on_download_failure,
+        )
+        summary["n_pages_scraped"] = sum(len(v) for v in scraped.values())
+        if config.stop_after == "scrape":
+            return summary
 
-    n_extracted = _run_extract(
-        plan.run_dir,
-        plan.sample,
-        scraped,
-        institution_search_languages=config.institution_search_languages,
-        model=config.model,
-        poll_interval=config.poll_interval,
-        max_wait=config.max_wait_per_stage,
-        run_id=config.run_id,
-        text_cap_chars=config.extract_text_cap_chars,
-        text_cap_rule=config.extract_text_cap_rule,
-        empty_page_min_chars=config.empty_page_min_chars,
-    )
-    summary["n_extracted"] = n_extracted
-    if config.stop_after == "extract":
-        return summary
+        n_extracted = _run_extract(
+            plan.run_dir,
+            plan.sample,
+            scraped,
+            institution_search_languages=config.institution_search_languages,
+            model=config.model,
+            poll_interval=config.poll_interval,
+            max_wait=config.max_wait_per_stage,
+            run_id=config.run_id,
+            text_cap_chars=config.extract_text_cap_chars,
+            text_cap_rule=config.extract_text_cap_rule,
+            empty_page_min_chars=config.empty_page_min_chars,
+        )
+        summary["n_extracted"] = n_extracted
+        if config.stop_after == "extract":
+            return summary
 
-    validate_summary = _run_validate(
-        plan.run_dir,
-        plan.sample,
-        model=config.model,
-        poll_interval=config.poll_interval,
-        max_wait=config.max_wait_per_stage,
-    )
-    summary["n_consolidated"] = validate_summary.get("n_consolidated", 0)
-    summary["n_validate_failed"] = validate_summary.get("n_failed", 0)
-    summary["validate_batch_ids"] = validate_summary.get("batch_ids")
-    return summary
+        validate_summary = _run_validate(
+            plan.run_dir,
+            plan.sample,
+            model=config.model,
+            poll_interval=config.poll_interval,
+            max_wait=config.max_wait_per_stage,
+        )
+        summary["n_consolidated"] = validate_summary.get("n_consolidated", 0)
+        summary["n_validate_failed"] = validate_summary.get("n_failed", 0)
+        summary["validate_batch_ids"] = validate_summary.get("batch_ids")
+        return summary
+    finally:
+        update_manifest_llm_provenance(plan.run_dir)
 
 
 __all__ = [
@@ -1335,5 +1427,6 @@ __all__ = [
     "run_presweep",
     "stratified_sample",
     "synth_institution_id",
+    "update_manifest_llm_provenance",
     "write_run_layout",
 ]

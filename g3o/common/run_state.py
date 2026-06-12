@@ -153,6 +153,8 @@ def write_active_chunked(
             "last_polled_at": None,
             "last_status": None,
             "fetched_at": None,
+            "response_models": None,
+            "system_fingerprints": None,
         }
         total += len(ids_sorted)
     payload: dict[str, Any] = {
@@ -221,6 +223,24 @@ def mark_done(run_dir: Path, stage: str, *, no_batch: bool = False) -> Path:
 def _chunk_metadata(run_id: str, stage: str, chunk: int | str) -> dict[str, str]:
     """Unique batch identity carried as OpenAI batch metadata (review F6)."""
     return {"g3o_run_id": run_id, "g3o_stage": stage, "g3o_chunk": str(chunk)}
+
+
+def _observe_provenance(
+    results: Iterator[BatchResult],
+    models: set[str],
+    fingerprints: set[str],
+) -> Iterator[BatchResult]:
+    """Pass results through, collecting response-side provenance (T1).
+
+    Records the versioned model id and ``system_fingerprint`` each response
+    carries without buffering the stream the persist callback consumes.
+    """
+    for result in results:
+        if result.response_model:
+            models.add(result.response_model)
+        if result.system_fingerprint:
+            fingerprints.add(result.system_fingerprint)
+        yield result
 
 
 def run_chunked_stage(
@@ -396,12 +416,26 @@ def run_chunked_stage(
                 last_polled_at=_utc_iso(), last_status=status.status,
             )
             if status.is_completed:
+                # Response provenance (T1, 2026-06-11): recorded per chunk
+                # alongside fetched_at; an empty fingerprint list means the
+                # server returned none (normal on newer models).
+                models: set[str] = set()
+                fingerprints: set[str] = set()
                 process_chunk_results(
-                    batch_client.fetch_results(
-                        entry["batch_id"], client=client, status=status
+                    _observe_provenance(
+                        batch_client.fetch_results(
+                            entry["batch_id"], client=client, status=status
+                        ),
+                        models,
+                        fingerprints,
                     )
                 )
-                update_chunk(run_dir, stage, key, fetched_at=_utc_iso())
+                update_chunk(
+                    run_dir, stage, key,
+                    fetched_at=_utc_iso(),
+                    response_models=sorted(models),
+                    system_fingerprints=sorted(fingerprints),
+                )
             elif status.is_terminal:
                 failed[key] = status.status
                 logger.warning(

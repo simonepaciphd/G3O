@@ -1,0 +1,26 @@
+{
+  "fixture": "tests/fixtures/frozen_master.csv",
+  "sample_seed": 22294,
+  "sample_size": 12,
+  "sample_institution_ids": [
+    "INST-0000008",
+    "INST-0000018",
+    "INST-0000014",
+    "INST-0000003",
+    "INST-0000016",
+    "INST-0000012",
+    "INST-0000010",
+    "INST-0000022",
+    "INST-0000024",
+    "INST-0000002",
+    "INST-0000006",
+    "INST-0000029"
+  ],
+  "sample_hash": "8df8ec7489473e3d",
+  "job_line_sha256": {
+    "classify_official_site": "54552caec7b6ff7e7f13d9af79c824e9b8b1e9aba279f9a7052d2eac86654542",
+    "classify_triage": "7aaf65a7df0b091abd32f44f1738bb5c463411642ef26cacc7490e0270d71d9c",
+    "extract": "4d566f4c58b8a1afa0298956a7d42ca064d47f11973d7b311d4afa04ee9bf430",
+    "validate": "0981b3d57c34efc59c1694ad0e3fb7c1d0726d2e5d777dc67ec8572d3f805764"
+  }
+}

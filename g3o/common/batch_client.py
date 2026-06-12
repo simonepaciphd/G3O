@@ -49,6 +49,18 @@ DEFAULT_MODEL = config.OPENAI_MODEL
 DEFAULT_COMPLETION_WINDOW = "24h"
 DEFAULT_ENDPOINT = "/v1/chat/completions"
 
+# Pinned generation parameter for every LLM stage (T1 reproducibility floor,
+# researcher sign-off 2026-06-11). The GPT-5 reasoning family rejects any
+# non-default ``temperature`` with a 400 ("Only the default (1) value is
+# supported" — verified 2026-06-11 against OpenAI community/integration
+# reports), so the one generation parameter available to pin is
+# ``reasoning_effort``. It is pinned at the documented current default
+# ("medium") so a server-side default change cannot silently alter outputs —
+# OpenAI has drifted this default across model versions (gpt-5.1 changed it
+# to "none"). Live acceptance by the Batch endpoint is confirmed by the
+# ``verify-model`` preflight, which submits through this same serializer.
+DEFAULT_REASONING_EFFORT = "medium"
+
 # Documented OpenAI Batch API limits, verified 2026-06-10 against
 # https://developers.openai.com/api/docs/guides/batch ("A single batch may
 # include up to 50,000 requests, and a batch input file can be up to 200 MB
@@ -143,6 +155,25 @@ class BatchResult:
             return None
         return choices[0].get("message", {}).get("content")
 
+    @property
+    def response_model(self) -> str | None:
+        """The versioned model id the server answered with (e.g.
+        ``gpt-5-nano-2025-08-07``) — the provenance anchor for T1."""
+        if self.response is None:
+            return None
+        return self.response.get("body", {}).get("model")
+
+    @property
+    def system_fingerprint(self) -> str | None:
+        """The response ``system_fingerprint``, when the server returns one.
+
+        Newer models often return null/omit it; callers must treat absence as
+        normal and record it honestly rather than fabricate a value.
+        """
+        if self.response is None:
+            return None
+        return self.response.get("body", {}).get("system_fingerprint")
+
 
 # ---------------------------------------------------------------------------
 # Client construction
@@ -203,9 +234,12 @@ def _serialize_job_line(
     model: str,
     response_format: dict[str, Any] | None,
     endpoint: str,
+    reasoning_effort: str | None = DEFAULT_REASONING_EFFORT,
 ) -> bytes:
     """Serialize one job to its JSONL line (including the trailing newline)."""
     body: dict[str, Any] = {"model": model, "messages": job.messages}
+    if reasoning_effort is not None:
+        body["reasoning_effort"] = reasoning_effort
     rf = job.response_format if job.response_format is not None else response_format
     if rf is not None:
         body["response_format"] = rf
@@ -226,6 +260,7 @@ def _build_jsonl_payload(
     model: str,
     response_format: dict[str, Any] | None,
     endpoint: str,
+    reasoning_effort: str | None = DEFAULT_REASONING_EFFORT,
 ) -> bytes:
     """Serialize jobs to the OpenAI Batch API JSONL format."""
     if not jobs:
@@ -238,7 +273,8 @@ def _build_jsonl_payload(
         seen.add(job.custom_id)
         buf.write(
             _serialize_job_line(
-                job, model=model, response_format=response_format, endpoint=endpoint
+                job, model=model, response_format=response_format,
+                endpoint=endpoint, reasoning_effort=reasoning_effort,
             )
         )
     return buf.getvalue()
@@ -252,6 +288,7 @@ def split_jobs_into_chunks(
     endpoint: str = DEFAULT_ENDPOINT,
     max_bytes: int = CHUNK_MAX_BYTES,
     max_requests: int = CHUNK_MAX_REQUESTS,
+    reasoning_effort: str | None = DEFAULT_REASONING_EFFORT,
 ) -> list[list[BatchJob]]:
     """Split jobs into size-capped sub-batches for chunked submission (review F2).
 
@@ -279,7 +316,8 @@ def split_jobs_into_chunks(
         seen.add(job.custom_id)
         size = len(
             _serialize_job_line(
-                job, model=model, response_format=response_format, endpoint=endpoint
+                job, model=model, response_format=response_format,
+                endpoint=endpoint, reasoning_effort=reasoning_effort,
             )
         )
         if size > max_bytes:
@@ -378,17 +416,20 @@ def submit_batch(
     endpoint: str = DEFAULT_ENDPOINT,
     metadata: dict[str, Any] | None = None,
     client: OpenAI | None = None,
+    reasoning_effort: str | None = DEFAULT_REASONING_EFFORT,
 ) -> BatchHandle:
     """Upload a JSONL of jobs and create a Batch API job.
 
     `response_format` (a JSON schema dict) applies to every job unless the
-    individual `BatchJob.response_format` overrides it. Retries are per-call
+    individual `BatchJob.response_format` overrides it. Every job body carries
+    the pinned `reasoning_effort` (T1; pass None to omit). Retries are per-call
     (`_create_input_file`, `_create_batch_with_reconcile`), never around the
     whole upload+create pair (review F6a).
     """
     cli = client or _default_client()
     payload = _build_jsonl_payload(
-        jobs, model=model, response_format=response_format, endpoint=endpoint
+        jobs, model=model, response_format=response_format, endpoint=endpoint,
+        reasoning_effort=reasoning_effort,
     )
     if len(payload) > BATCH_MAX_INPUT_FILE_BYTES:
         raise ValueError(
@@ -584,6 +625,7 @@ __all__ = [
     "DEFAULT_MODEL",
     "DEFAULT_COMPLETION_WINDOW",
     "DEFAULT_ENDPOINT",
+    "DEFAULT_REASONING_EFFORT",
     "TERMINAL_STATUSES",
     "find_batches_by_metadata",
     "split_jobs_into_chunks",

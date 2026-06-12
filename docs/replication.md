@@ -78,6 +78,37 @@ This produces three normalized CSVs in `runs/20260509-presweep/final/`:
 pinned in `g3o.common.schema` and documented in
 [`data_dictionary.md`](data_dictionary.md).
 
+## Reproducibility floor
+
+What an identical re-run does and does not hold fixed (T1, 2026-06-11):
+
+- **Sampling is deterministic.** The stratified draw depends only on the
+  master CSV contents, `--seed`, `--sample-size`, and the stratification
+  keys (`g3o.run.presweep.stratified_sample`). The same inputs reproduce the
+  same institution list, byte for byte.
+- **Every LLM request pins its generation parameters.** All four LLM stages
+  serialize through one path (`g3o.common.batch_client._serialize_job_line`),
+  which pins `reasoning_effort` (`DEFAULT_REASONING_EFFORT`, currently
+  `"medium"`) on every job. The GPT-5 model family does not accept a
+  non-default `temperature`, so client-side output determinism is **not**
+  achievable; the pin instead freezes the one generation parameter the
+  provider exposes, so a server-side default change cannot silently alter
+  outputs. LLM responses themselves remain non-deterministic.
+- **The manifest records both sides of each call.**
+  `run_generation_parameters` is written at plan time;
+  after batches fetch, an `llm_provenance` block records, per stage, the
+  versioned model id(s) the server answered with (e.g.
+  `gpt-5-nano-2025-08-07`), `system_fingerprint`(s) when returned (newer
+  models often return none), and the batch ids. A resume whose pinned
+  generation parameters differ from the original launch aborts with a diff,
+  alongside the existing sample/config guards.
+- **Frozen-input regression tests run in CI.**
+  `tests/test_reproducibility_regression.py` pins the stratified draw and the
+  serialized Batch API request line for each LLM stage against goldens
+  computed from frozen inputs; any change to a prompt, response schema,
+  generation parameter, sampler, or the serializer fails CI until the goldens
+  are regenerated deliberately (`G3O_REGEN_GOLDENS=1`).
+
 ## Stage-by-stage invocation
 
 The Stage 6 consolidator can be re-run independently over an existing run
