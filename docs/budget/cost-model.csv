@@ -1,0 +1,13 @@
+component,line_item,cost_type,scaling,cost_1k_usd,cost_100k_usd,cost_675k_usd,scenario,notes
+Serper,discovery_search,per_sweep,linear_with_institutions,2.24,224.03,1512.18,scenario_invariant,~4 queries/institution (site + generalized) at the budget's per-call rates
+OpenAI Batch,official_site_classifier,per_sweep,linear_with_institutions,0.13,13.25,89.42,scenario_invariant,1 call/institution; gpt-5-nano Batch
+OpenAI Batch,url_triage,per_sweep,linear_with_institutions,0.40,40.00,270.00,scenario_invariant,1 call/institution; gpt-5-nano Batch
+OpenAI Batch,information_extraction,per_sweep,linear_with_institutions,11.86,1185.84,8004.45,conservative_no_cache_stack,~12 pages/institution; per-call system message NOT cache-discounted
+OpenAI Batch,information_extraction,per_sweep,linear_with_institutions,6.59,658.96,4447.99,optimistic_cache_stack,if prompt caching stacks inside the Batch API (UNVERIFIED)
+OpenAI Batch,information_validation,per_sweep,linear_with_institutions,1.39,139.09,938.86,scenario_invariant,1 consolidation call/institution; gpt-5-nano Batch
+Infra,headless_render_fleet,per_sweep,linear_with_rendered_urls,1.50,149.61,1009.87,scenario_invariant,~2.4 rendered URLs/institution; DO droplets sized for the sweep window; floors at ~1 droplet-month at small N
+Infra,orchestration_vm_postgres,per_year,fixed,1019,1019,1019,scenario_invariant,App VM + managed Postgres; standing capacity independent of institution count
+Infra,database_storage,per_year,scales_with_retained_text,60,60,63,scenario_invariant,DO Spaces; ~$60/yr floor (<=250 GB included); ~$72/yr at the full ~300 GB universe
+TOTAL,per_sweep_variable_conservative,per_sweep,sum,17.52,1751.82,11824.78,conservative_no_cache_stack,Serper + OpenAI Batch + render fleet (extraction not cache-discounted)
+TOTAL,per_sweep_variable_optimistic,per_sweep,sum,12.25,1224.94,8268.32,optimistic_cache_stack,same but extraction cache-discounted (UNVERIFIED stacking)
+TOTAL,standing_infra_per_year,per_year,sum,1079,1079,1082,scenario_invariant,orchestration + storage; near-flat across scale

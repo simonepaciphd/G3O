@@ -39,6 +39,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=5",
     "ruff>=0.4",
 ]
 
@@ -70,3 +71,13 @@ addopts = "-q"
 markers = [
     "network: tests that hit the live network",
 ]
+
+# Coverage is invoked explicitly in CI (the `coverage` job), not via addopts, so
+# the documented baseline command `pytest -q -m "not network"` stays unchanged
+# for local/dev runs. The CI gate floor (--cov-fail-under) lives in the workflow.
+[tool.coverage.run]
+source = ["g3o"]
+branch = false
+
+[tool.coverage.report]
+show_missing = true
