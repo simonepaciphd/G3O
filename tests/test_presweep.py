@@ -514,14 +514,14 @@ def test_run_discovery_general_writes_1a_artifact_filename(tmp_path: Path):
     config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=2)
     plan = ps.plan_run(config)
 
-    monkey = ps.search_google
-    ps.search_google = lambda *a, **kw: []  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google
+    ps.stage_discovery.search_google = lambda *a, **kw: []  # type: ignore[assignment]
     try:
         ps._run_discovery_general(
             plan.run_dir, plan.sample, languages=("en",), num_results=5,
         )
     finally:
-        ps.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
 
     for inst_id in plan.manifest["institutions"]:
         assert (plan.run_dir / inst_id / "1a_discovery_general.json").exists()
@@ -546,15 +546,15 @@ def test_run_discovery_site_restricted_skips_when_no_site(tmp_path: Path):
         seen_queries.append(query)
         return []
 
-    monkey = ps.search_google
-    ps.search_google = _capture  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google
+    ps.stage_discovery.search_google = _capture  # type: ignore[assignment]
     try:
         out = ps._run_discovery_site_restricted(
             plan.run_dir, plan.sample, official_sites,
             languages=("en",), num_results=5,
         )
     finally:
-        ps.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
 
     # Inst A: queries fired, 1b file written. Inst B: skipped — no queries, no file.
     assert (plan.run_dir / inst_a / "1b_discovery_site_restricted.json").exists()
@@ -580,15 +580,15 @@ def test_run_discovery_site_restricted_records_carry_site_domain(tmp_path: Path)
          "domain": "example.gov", "position": 1, "date": None, "sitelinks": []},
     ]
 
-    monkey = ps.search_google
-    ps.search_google = lambda *a, **kw: canned  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google
+    ps.stage_discovery.search_google = lambda *a, **kw: canned  # type: ignore[assignment]
     try:
         out = ps._run_discovery_site_restricted(
             plan.run_dir, plan.sample, {inst_id: "https://example.gov/"},
             languages=("en",), num_results=5,
         )
     finally:
-        ps.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
 
     payload = json.loads(
         (plan.run_dir / inst_id / "1b_discovery_site_restricted.json").read_text(
@@ -927,8 +927,8 @@ def test_stage4_skips_refetch_when_url_hash_file_exists(tmp_path: Path):
             ),
         )
 
-    monkey = ps.scrape_url
-    ps.scrape_url = _capture_scrape  # type: ignore[assignment]
+    monkey = ps.stage_scrape.scrape_url
+    ps.stage_scrape.scrape_url = _capture_scrape  # type: ignore[assignment]
     try:
         # respect_robots=False + zero delay keep this idempotency test offline
         # and fast (the F14 politeness path is covered in test_politeness.py).
@@ -937,7 +937,7 @@ def test_stage4_skips_refetch_when_url_hash_file_exists(tmp_path: Path):
             respect_robots=False, host_delay_seconds=0,
         )
     finally:
-        ps.scrape_url = monkey  # type: ignore[assignment]
+        ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
 
     # Only the second URL was fetched; the first was loaded from disk.
     assert fetched == ["https://x.example/b"]
@@ -979,14 +979,14 @@ def test_stage4_done_marker_short_circuits_no_scrape_calls(tmp_path: Path):
     )
     mark_done(plan.run_dir, "scrape", no_batch=True)
 
-    monkey = ps.scrape_url
-    ps.scrape_url = lambda url, **kw: pytest.fail(  # type: ignore[assignment]
+    monkey = ps.stage_scrape.scrape_url
+    ps.stage_scrape.scrape_url = lambda url, **kw: pytest.fail(  # type: ignore[assignment]
         "scrape_url must not be called when .done/scrape.json is present"
     )
     try:
         out = ps._run_scrape(plan.run_dir, plan.sample, triaged)
     finally:
-        ps.scrape_url = monkey  # type: ignore[assignment]
+        ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
 
     pages = out[inst_id]
     assert len(pages) == 1
@@ -1028,15 +1028,15 @@ def test_stage4_robots_disallow_skips_url_and_records_attrition(tmp_path: Path):
             ),
         )
 
-    monkey = ps.scrape_url
-    ps.scrape_url = _scrape  # type: ignore[assignment]
+    monkey = ps.stage_scrape.scrape_url
+    ps.stage_scrape.scrape_url = _scrape  # type: ignore[assignment]
     try:
         out = ps._run_scrape(
             plan.run_dir, plan.sample, triaged,
             respect_robots=True, robots=_Robots(), host_delay_seconds=0,
         )
     finally:
-        ps.scrape_url = monkey  # type: ignore[assignment]
+        ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
 
     assert scraped_urls == ["https://x.example/ok"]
     assert [p.url for p in out[inst_id]] == ["https://x.example/ok"]
@@ -1072,8 +1072,8 @@ def test_stage5_extract_threads_run_model_into_jobs(tmp_path: Path, monkeypatch)
         captured["model_label"] = model_label
         return []
 
-    monkeypatch.setattr(ps, "build_extract_jobs", _capture_build)
-    monkeypatch.setattr(ps, "run_chunked_stage", lambda *a, **k: None)
+    monkeypatch.setattr(ps.stage_extract, "build_extract_jobs", _capture_build)
+    monkeypatch.setattr(ps.stage_extract, "run_chunked_stage", lambda *a, **k: None)
 
     ps._run_extract(
         plan.run_dir, plan.sample, {inst_id: [page]},
@@ -1093,13 +1093,13 @@ def test_stage1a_writes_done_marker_at_end(tmp_path: Path):
     config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=2)
     plan = ps.plan_run(config)
 
-    monkey = ps.search_google
-    ps.search_google = lambda *a, **kw: []  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google
+    ps.stage_discovery.search_google = lambda *a, **kw: []  # type: ignore[assignment]
     try:
         ps._run_discovery_general(
             plan.run_dir, plan.sample, languages=("en",), num_results=5,
         )
     finally:
-        ps.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
 
     assert is_done(plan.run_dir, "discovery_general")

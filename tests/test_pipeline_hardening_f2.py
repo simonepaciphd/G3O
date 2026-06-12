@@ -288,7 +288,7 @@ def test_empty_page_filtered_before_stage5(tmp_path, monkeypatch):
     def _fake_chunked(rd, stage, jobs, **kw):
         captured["jobs"] = jobs  # don't submit anything
 
-    monkeypatch.setattr(ps, "run_chunked_stage", _fake_chunked)
+    monkeypatch.setattr(ps.stage_extract, "run_chunked_stage", _fake_chunked)
 
     scraped = {
         inst_id: [
@@ -317,7 +317,7 @@ def test_oversized_page_truncated_and_ledgered(tmp_path, monkeypatch):
     (run_dir / inst_id).mkdir(parents=True)
 
     captured = {}
-    monkeypatch.setattr(ps, "run_chunked_stage",
+    monkeypatch.setattr(ps.stage_extract, "run_chunked_stage",
                         lambda rd, stage, jobs, **kw: captured.update(jobs=jobs))
 
     big = "z" * 200_000

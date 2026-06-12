@@ -221,7 +221,7 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
 
     # --- Serper stub: same canned organic results for every query.
     monkeypatch.setattr(
-        ps, "search_google",
+        ps.stage_discovery, "search_google",
         lambda query, num_results=5, **kw: [
             {"link": u, "title": "Smoke", "snippet": "s", "domain": "example.gov",
              "position": i + 1, "date": None, "sitelinks": []}
@@ -247,7 +247,7 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
             ),
         )
 
-    monkeypatch.setattr(ps, "scrape_url", _scrape)
+    monkeypatch.setattr(ps.stage_scrape, "scrape_url", _scrape)
 
     # --- Batch API stub: record every submit; answer per recorded stage.
     institutions: dict[str, dict[str, Any]] = {}

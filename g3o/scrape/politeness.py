@@ -5,7 +5,7 @@ Stage 4 scrape loop hits same-host government URLs back-to-back and previously
 ignored robots.txt entirely; D4 resolved to **respect robots.txt** (the
 conservative research-ethics posture). This module owns both policies as
 small, injectable, network-light helpers used by the Stage 4 runner
-(:func:`g3o.run.presweep._run_scrape`). The low-level fetcher
+(:func:`g3o.run.presweep.stage_scrape._run_scrape`). The low-level fetcher
 (:func:`g3o.scrape.fetcher.scrape_url`) stays a robots-agnostic primitive so
 standalone/CLI fetches and the unit suite are unaffected.
 

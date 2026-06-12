@@ -1,0 +1,148 @@
+"""Stage 5 runner — per-page LLM extraction, batched across (institution × page)."""
+
+from __future__ import annotations
+
+import json
+import logging
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
+
+from g3o.common import attrition
+from g3o.common.batch_client import BatchResult
+from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
+from g3o.extract import (
+    build_extract_jobs,
+    parse_extract_result,
+)
+from g3o.extract.batch import (
+    DEFAULT_TEXT_CAP_CHARS,
+    DEFAULT_TEXT_CAP_RULE,
+    EMPTY_PAGE_MIN_CHARS,
+    cap_page_text,
+    is_near_empty,
+)
+from g3o.run.presweep.records import institution_record, synth_institution_id
+from g3o.scrape.render import RenderedPage
+
+logger = logging.getLogger(__name__)
+
+
+def _count_existing_extracts(run_dir: Path, sample: list[dict[str, Any]]) -> int:
+    n = 0
+    for row in sample:
+        inst_id = synth_institution_id(row)
+        extract_dir = run_dir / inst_id / "extract"
+        if extract_dir.is_dir():
+            n += sum(1 for _ in extract_dir.glob("*.json"))
+    return n
+
+
+def _run_extract(
+    run_dir: Path,
+    sample: list[dict[str, Any]],
+    scraped: dict[str, list[RenderedPage]],
+    *,
+    institution_search_languages: str,
+    model: str,
+    poll_interval: int,
+    max_wait: int,
+    run_id: str,
+    text_cap_chars: int = DEFAULT_TEXT_CAP_CHARS,
+    text_cap_rule: str = DEFAULT_TEXT_CAP_RULE,
+    empty_page_min_chars: int = EMPTY_PAGE_MIN_CHARS,
+) -> int:
+    """Stage 5 — per-page LLM extraction, batched across (institution × page).
+
+    Resume (Session E; chunked Session F.1): same shape as Stages 2/3.
+    Returns the on-disk count of ``<inst>/extract/*.json`` files once the
+    stage is complete (equals the parsed-result count on a clean fresh run,
+    and stays truthful across chunked resumes where earlier invocations
+    already persisted some chunks).
+    """
+    from g3o.extract.batch import make_custom_id, url_hash
+
+    stage = "extract"
+    if is_done(run_dir, stage):
+        logger.info("Stage 5: .done marker present — skipping (resume from disk)")
+        return _count_existing_extracts(run_dir, sample)
+
+    page_lookup: dict[str, tuple[str, RenderedPage]] = {}
+    pairs: list[tuple[dict[str, Any], RenderedPage]] = []
+    for row in sample:
+        institution = institution_record(row)
+        inst_id = institution["institution_id"]
+        for page in scraped.get(inst_id, []):
+            # Empty-page filter (review F5): a page with no usable text must not
+            # become a Stage 5 job — the contract's data:min_length=1 would
+            # otherwise pressure the model to fabricate a row from nothing.
+            if is_near_empty(page.text, min_chars=empty_page_min_chars):
+                attrition.record(
+                    run_dir, institution_id=inst_id, stage=stage,
+                    reason="empty_page_dropped", url=page.url,
+                    detail=f"stripped_len={len(page.text.strip())}",
+                )
+                continue
+            # Page-text cap (review F3 / D3): bound the LLM input; the on-disk
+            # scrape artifact keeps full text. Record the truncation for audit.
+            capped, truncated = cap_page_text(
+                page.text, max_chars=text_cap_chars, rule=text_cap_rule
+            )
+            if truncated:
+                attrition.record(
+                    run_dir, institution_id=inst_id, stage=stage,
+                    reason="page_text_truncated", url=page.url,
+                    detail=f"rule={text_cap_rule}", original_length=len(page.text),
+                )
+                page = page.model_copy(update={"text": capped})
+            cid = make_custom_id(inst_id, page.url)
+            pairs.append((institution, page))
+            page_lookup[cid] = (inst_id, page)
+
+    if not pairs and load_state(run_dir, stage) is None:
+        mark_done(run_dir, stage, no_batch=True)
+        return 0
+    jobs = build_extract_jobs(
+        pairs,
+        batch_id=f"{run_id}-extract",
+        institution_search_languages=institution_search_languages,
+        # Provenance accuracy (review F18a): pass the run's actual model so
+        # batch_metadata.model_label reflects it, instead of the literal
+        # "gpt-5-nano" fallback in _user_prompt. Mirrors Stage 6's
+        # build_consolidate_jobs(model_label=model).
+        model_label=model,
+    )
+
+    def _persist(results: Iterator[BatchResult]) -> None:
+        for result in results:
+            institution_id, page = page_lookup.get(result.custom_id, (None, None))
+            if institution_id is None or page is None:
+                logger.warning(
+                    "Stage 5 result %s did not match any input pair", result.custom_id
+                )
+                continue
+            try:
+                parsed = parse_extract_result(
+                    result, scrape_access_date=page.fetch_metadata.access_date
+                )
+            except Exception as exc:
+                logger.warning("Stage 5 parse failed for %s: %s", result.custom_id, exc)
+                attrition.record(
+                    run_dir, institution_id=institution_id, stage=stage,
+                    reason="parse_failed", url=page.url, detail=str(exc),
+                )
+                continue
+            extract_dir = run_dir / institution_id / "extract"
+            extract_dir.mkdir(parents=True, exist_ok=True)
+            (extract_dir / f"{url_hash(page.url)}.json").write_text(
+                json.dumps(parsed.model_dump(), ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+
+    run_chunked_stage(
+        run_dir, stage, jobs,
+        run_id=run_id, model=model,
+        poll_interval=poll_interval, max_wait=max_wait,
+        process_chunk_results=_persist,
+    )
+    return _count_existing_extracts(run_dir, sample)
