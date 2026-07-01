@@ -26,6 +26,38 @@ GENAI_TERMS_BY_LANG: dict[str, list[str]] = {
     "fi": ["generatiivinen tekoäly", "ChatGPT", "tekoälyn periaatteet"],
 }
 
+# Batch 5 (2026-07): proposed English term expansion, NOT active in
+# GENAI_TERMS_BY_LANG. Adding search terms changes what the pipeline
+# collects (working agreement, "Decision authority" -- escalate before
+# coding), so this stays inert until Simone reviews and promotes it into
+# GENAI_TERMS_BY_LANG["en"] in the GitHub issue first.
+#
+# Rationale: `g3o/extract/prompts/system_prompt.md` explicitly instructs the
+# extractor to recognize Copilot, Gemini, Claude, LLaMA, CodeWhisperer, and
+# "GenAI-powered chatbots" as in-scope GenAI evidence, and the output
+# contract's own worked examples (Edge cases B and D) use "Microsoft 365
+# Copilot" and a public chatbot as the flagship illustrations of what this
+# pipeline is built to find. None of that vocabulary appears in the Stage 1a/1b
+# *discovery* query terms below -- an institution whose only public coverage
+# says "deployed Microsoft Copilot" or "launched an AI chatbot" (and never the
+# literal phrases "generative AI", "ChatGPT", "AI policy", or "AI pilot") is
+# never even discovered, so Stage 5/6 never gets a chance to classify it.
+# This is a discovery-stage recall gap, not an extraction-stage one.
+#
+# Not yet validated against a live run (no SERPER_API_KEY/OPENAI_API_KEY were
+# configured this session -- see Batch 5 deliverable writeup). Confirm with a
+# live smoke run before promoting.
+PROPOSED_GENAI_TERMS_EN: list[str] = [
+    "generative AI",
+    "ChatGPT",
+    "AI policy",
+    "AI pilot",
+    "Copilot",
+    "AI chatbot",
+    "AI assistant",
+    "large language model",
+]
+
 
 def build_queries(
     institution_name: str,

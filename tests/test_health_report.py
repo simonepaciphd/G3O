@@ -15,7 +15,16 @@ from typing import Any
 import pytest
 
 from g3o.common import attrition as _attrition
-from g3o.report import HealthThresholds, compute_health_report, render_text_report
+from g3o.extract.batch import url_hash
+from g3o.report import (
+    HealthThresholds,
+    LanguageReadinessBar,
+    assess_language_readiness,
+    compute_health_report,
+    compute_language_breakdown,
+    detect_languages,
+    render_text_report,
+)
 
 # ---------------------------------------------------------------------------
 # Fixture helpers
@@ -442,3 +451,274 @@ def test_cli_presweep_report(fixture_run: Path) -> None:
     assert args.run_dir == fixture_run
     assert args.json is False
     assert args.thresholds is None
+    assert args.language is None
+    assert args.language_breakdown is False
+
+
+def test_cli_presweep_report_language_flags(fixture_run: Path) -> None:
+    from g3o.cli import build_parser
+
+    parser = build_parser()
+    args = parser.parse_args(
+        ["presweep-report", "--run-dir", str(fixture_run), "--language", "fr"]
+    )
+    assert args.language == "fr"
+
+    args2 = parser.parse_args(
+        ["presweep-report", "--run-dir", str(fixture_run), "--language-breakdown"]
+    )
+    assert args2.language_breakdown is True
+
+
+# ---------------------------------------------------------------------------
+# Per-language slicing (Batch 5) — a small two-institution, two-language
+# fixture layered on top of the funnel machinery above.
+#
+# INST-en-fr:
+#   1a: 2 "en" URLs (p1, p2) + 1 "fr" URL (p3).
+#   3_triage: p1, p2 kept; p3 (fr) dropped — models a language gap where
+#             French candidates survive discovery but not triage.
+#   scrape/extract: only p1, p2 (the kept URLs) get artifacts.
+#   6_validate sources: one "en" confirms_activity, one "fr" confirms_absence
+#             (independent of which URL each came from — content-language,
+#             not query-provenance).
+# INST-en-only:
+#   1a: 1 "en" URL (q1), kept/scraped/extracted; no French queries at all
+#             (so French's institution-level eligibility denominator differs
+#             from English's).
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def fixture_multilang_run(tmp_path: Path) -> Path:
+    run_dir = tmp_path / "test-multilang-run"
+    run_dir.mkdir()
+    _attrition._reset_cache()
+
+    manifest = {
+        "run_id": "test-multilang-run",
+        "run_date": "2026-06-30",
+        "institutions": ["INST-en-fr", "INST-en-only"],
+    }
+    _write(run_dir / "manifest.json", manifest)
+
+    p1, p2, p3 = (
+        "https://inst-ef.gov/p1",
+        "https://inst-ef.gov/p2",
+        "https://inst-ef.gov/p3",
+    )
+    inst1 = run_dir / "INST-en-fr"
+    _write(
+        inst1 / "1a_discovery_general.json",
+        {
+            "queries": [
+                {"query": "q-en", "language": "en"},
+                {"query": "q-fr", "language": "fr"},
+            ],
+            "records": [
+                {"link": p1, "language": "en"},
+                {"link": p2, "language": "en"},
+                {"link": p3, "language": "fr"},
+            ],
+        },
+    )
+    _write(
+        inst1 / "3_triage.json",
+        {
+            "decisions": [
+                {"url": p1, "decision": "keep"},
+                {"url": p2, "decision": "keep"},
+                {"url": p3, "decision": "drop"},
+            ]
+        },
+    )
+    scrape_dir = inst1 / "scrape"
+    for url in (p1, p2):
+        _write(scrape_dir / f"{url_hash(url)}.json", {"url": url, "text": "genai text"})
+    extract_dir = inst1 / "extract"
+    for url in (p1, p2):
+        _write(extract_dir / f"{url_hash(url)}.json", {"page_url": url})
+    _write(
+        inst1 / "6_validate.json",
+        {
+            "institution": {"institution_id": "INST-en-fr", "has_genai_activity": "yes"},
+            "sources": [
+                {"source_url": p1, "source_language": "en", "genai_evidence": "confirms_activity"},
+                {"source_url": p2, "source_language": "fr", "genai_evidence": "confirms_absence"},
+            ],
+        },
+    )
+
+    q1 = "https://inst-eo.gov/q1"
+    inst2 = run_dir / "INST-en-only"
+    _write(
+        inst2 / "1a_discovery_general.json",
+        {
+            "queries": [{"query": "q-en", "language": "en"}],
+            "records": [{"link": q1, "language": "en"}],
+        },
+    )
+    _write(inst2 / "3_triage.json", {"decisions": [{"url": q1, "decision": "keep"}]})
+    _write((inst2 / "scrape" / f"{url_hash(q1)}.json"), {"url": q1, "text": "genai text"})
+    _write((inst2 / "extract" / f"{url_hash(q1)}.json"), {"page_url": q1})
+    _write(
+        inst2 / "6_validate.json",
+        {
+            "institution": {"institution_id": "INST-en-only", "has_genai_activity": "no"},
+            "sources": [
+                {"source_url": q1, "source_language": "en", "genai_evidence": "confirms_absence"},
+            ],
+        },
+    )
+
+    return run_dir
+
+
+def test_detect_languages(fixture_multilang_run: Path) -> None:
+    assert detect_languages(fixture_multilang_run) == ["en", "fr"]
+
+
+def test_language_filter_restricts_stage_1a(fixture_multilang_run: Path) -> None:
+    report_en = compute_health_report(fixture_multilang_run, language="en")
+    report_fr = compute_health_report(fixture_multilang_run, language="fr")
+
+    # Both institutions contributed >=1 English URL; only INST-en-fr has French.
+    assert report_en["stages"]["1a_discovery_general"]["n_institutions_with_urls"] == 2
+    assert report_en["stages"]["1a_discovery_general"]["total_candidate_urls"] == 3
+    assert report_fr["stages"]["1a_discovery_general"]["n_institutions_with_urls"] == 1
+    assert report_fr["stages"]["1a_discovery_general"]["total_candidate_urls"] == 1
+
+
+def test_language_filter_restricts_triage_and_downstream(
+    fixture_multilang_run: Path,
+) -> None:
+    report_en = compute_health_report(fixture_multilang_run, language="en")
+    report_fr = compute_health_report(fixture_multilang_run, language="fr")
+
+    s3_en = report_en["stages"]["3_classify_triage"]
+    s3_fr = report_fr["stages"]["3_classify_triage"]
+    assert s3_en["n_total_candidate_urls"] == 3  # p1, p2 (INST-en-fr) + q1 (INST-en-only)
+    assert s3_en["n_urls_kept"] == 3
+    assert s3_fr["n_total_candidate_urls"] == 1  # p3 only
+    assert s3_fr["n_urls_kept"] == 0  # French URL was dropped by triage
+
+    # Downstream stages inherit the gap: French has nothing scraped/extracted.
+    assert report_en["stages"]["4_scrape"]["n_pages_scraped"] == 3
+    assert report_fr["stages"]["4_scrape"]["n_pages_scraped"] == 0
+    assert report_en["stages"]["5_extract"]["n_extracts"] == 3
+    assert report_fr["stages"]["5_extract"]["n_extracts"] == 0
+    assert report_fr["stages"]["5_extract"]["flag"] == "not_run"
+
+
+def test_unfiltered_report_matches_language_none_totals(
+    fixture_multilang_run: Path,
+) -> None:
+    """Sanity check: language=None must reproduce the original unrestricted counts."""
+    report = compute_health_report(fixture_multilang_run)
+    assert report["language_filter"] is None
+    assert "language_caveats" not in report
+    assert report["stages"]["1a_discovery_general"]["total_candidate_urls"] == 4
+    assert report["stages"]["3_classify_triage"]["n_urls_kept"] == 3
+
+
+def test_language_caveats_present_when_filtered(fixture_multilang_run: Path) -> None:
+    report = compute_health_report(fixture_multilang_run, language="en")
+    assert report["language_filter"] == "en"
+    assert len(report["language_caveats"]) == 3
+
+
+def test_sources_by_language_is_content_language_not_query_language(
+    fixture_multilang_run: Path,
+) -> None:
+    """p2 was discovered by an EN query but its validated source is tagged fr —
+    sources_by_language must reflect the source's own language, not the query's."""
+    report = compute_health_report(fixture_multilang_run)  # unfiltered is enough
+    sbl = report["stages"]["6_validate"]["sources_by_language"]
+    assert sbl["en"] == {"confirms_activity": 1, "confirms_absence": 1}
+    assert sbl["fr"] == {"confirms_absence": 1}
+
+
+def test_compute_language_breakdown_table(fixture_multilang_run: Path) -> None:
+    breakdown = compute_language_breakdown(fixture_multilang_run)
+    assert breakdown["languages_detected"] == ["en", "fr"]
+    en = breakdown["languages"]["en"]
+    fr = breakdown["languages"]["fr"]
+    assert en["pct_institutions_with_urls_1a"] == pytest.approx(1.0)
+    assert fr["pct_institutions_with_urls_1a"] == pytest.approx(0.5)
+    assert en["pct_institutions_with_kept_url"] == pytest.approx(1.0)
+    assert fr["pct_institutions_with_kept_url"] == pytest.approx(0.0)
+    # sources_by_language slice is the content-language tally for that language.
+    assert en["sources_by_language"] == {"confirms_activity": 1, "confirms_absence": 1}
+    assert fr["sources_by_language"] == {"confirms_absence": 1}
+
+
+def test_compute_language_breakdown_json_serialisable(
+    fixture_multilang_run: Path,
+) -> None:
+    breakdown = compute_language_breakdown(fixture_multilang_run)
+    json.loads(json.dumps(breakdown))
+
+
+# ---------------------------------------------------------------------------
+# Language-readiness bar (Batch 5)
+# ---------------------------------------------------------------------------
+
+
+def test_readiness_fails_without_measured_recall(fixture_multilang_run: Path) -> None:
+    """Funnel percentages alone can never certify readiness -- a language
+    that looks perfect on the funnel but never actually finds anything real
+    must not pass silently by omitting the recall figure."""
+    breakdown = compute_language_breakdown(fixture_multilang_run)
+    verdict = assess_language_readiness(breakdown, "en", reference="en")
+    assert verdict["ready"] is False
+    assert any("known_positive_recall" in f for f in verdict["failures"])
+
+
+def test_readiness_english_vs_itself_passes_funnel_with_recall(
+    fixture_multilang_run: Path,
+) -> None:
+    breakdown = compute_language_breakdown(fixture_multilang_run)
+    verdict = assess_language_readiness(
+        breakdown, "en", reference="en", known_positive_recall=0.9
+    )
+    assert verdict["ready"] is True
+    assert all(g["ok"] in (True, None) for g in verdict["gaps"].values())
+
+
+def test_readiness_french_fails_funnel_gap_vs_english(
+    fixture_multilang_run: Path,
+) -> None:
+    """French's discovery gap (1a URLs) and total triage/scrape washout in the
+    fixture must fail the default bar even with a generous recall figure."""
+    breakdown = compute_language_breakdown(fixture_multilang_run)
+    verdict = assess_language_readiness(
+        breakdown, "fr", reference="en", known_positive_recall=1.0
+    )
+    assert verdict["ready"] is False
+    assert verdict["gaps"]["pct_institutions_with_kept_url"]["ok"] is False
+    # A None percentage (stage never ran for fr) must be treated as a 0%
+    # worst case, not skipped -- the gap must be reported as unwritten "None".
+    assert verdict["gaps"]["pct_scrape_success"]["reference"] == pytest.approx(1.0)
+    assert verdict["gaps"]["pct_scrape_success"]["value"] is None
+    assert verdict["gaps"]["pct_scrape_success"]["ok"] is False
+
+
+def test_readiness_custom_bar_is_pi_tunable(fixture_multilang_run: Path) -> None:
+    breakdown = compute_language_breakdown(fixture_multilang_run)
+    loose_bar = LanguageReadinessBar(
+        max_gap_pct_institutions_with_urls_1a=1.0,
+        max_gap_pct_institutions_with_kept_url=1.0,
+        max_gap_pct_scrape_success=1.0,
+        max_gap_pct_extracted_of_eligible=1.0,
+        min_known_positive_recall=0.0,
+    )
+    verdict = assess_language_readiness(
+        breakdown, "fr", reference="en", bar=loose_bar, known_positive_recall=0.0
+    )
+    assert verdict["ready"] is True
+
+
+def test_readiness_unknown_language_raises(fixture_multilang_run: Path) -> None:
+    breakdown = compute_language_breakdown(fixture_multilang_run)
+    with pytest.raises(ValueError):
+        assess_language_readiness(breakdown, "de", reference="en")

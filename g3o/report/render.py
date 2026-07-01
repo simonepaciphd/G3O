@@ -39,6 +39,9 @@ def render_text_report(report: dict[str, Any]) -> str:
     w(f"  Dir    : {report.get('run_dir', '?')}")
     w(f"  N inst : {n_inst}")
     w(f"  Overall: {_icon(overall)}  {overall.upper()}")
+    lang = report.get("language_filter")
+    if lang:
+        w(f"  Filtered to language: {lang!r} (Stages 1a/1b/3/4/5 only — see caveats below)")
     w("=" * 70)
     w("")
     w("Stage funnel")
@@ -192,6 +195,21 @@ def render_text_report(report: dict[str, Any]) -> str:
         rl = _reasons_line(s.get("top_drop_reasons", []))
         if rl:
             w(rl)
+        sbl = s.get("sources_by_language") or {}
+        if sbl:
+            w("  Sources by (content) language:")
+            for src_lang in sorted(sbl):
+                counts = ", ".join(f"{k}={v}" for k, v in sorted(sbl[src_lang].items()))
+                w(f"    {src_lang}: {counts}")
+
+    # ── Language caveats ──
+    caveats = report.get("language_caveats")
+    if caveats:
+        w("")
+        w("─" * 70)
+        w("Language-filter caveats")
+        for c in caveats:
+            w(f"  - {c}")
 
     # ── Attrition summary ──
     top = report.get("attrition_top_reasons", [])
