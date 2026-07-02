@@ -3,16 +3,180 @@
 Counts only — no silent overwrites, no inferences. Surfaces anomalies that a
 researcher can decide to investigate; the LLM does the consolidation, this
 module just reports what landed.
+
+Batch 2 (definition-adherence enforcement, 2026-07) adds two heuristic,
+audit-only flags that surface candidate over-coding for human review. They
+are keyword screens over free-text ``source_snippet`` fields — deliberately
+crude, definitely both under- and over-inclusive — and they never change a
+persisted value or reject a response. They exist to make it cheap to sample
+the institutions most likely to carry the two failure modes named in the
+June validation report (automation/RPA coded as GenAI; speculative "might
+adopt" language coded as a confirmed activity), not to redefine what counts
+as GenAI. The definition and enum values remain exactly as specified in
+``output_contract.md`` / ``g3o.common.contract``.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
 from g3o.common.contract import ConsolidatedInstitutionResponse
+
+# ---------------------------------------------------------------------------
+# Heuristic keyword screens (audit-only — see module docstring)
+# ---------------------------------------------------------------------------
+
+# Mirrors the "positive generative signal" list in
+# g3o/extract/prompts/system_prompt.md. Presence of any of these in a
+# confirms_activity source's snippet is treated as a real generative-AI
+# signal; absence across every supporting source is a flag for review, not
+# a rejection — the LLM may have correctly seen a signal not on this list.
+GENERATIVE_SIGNAL_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "generative",
+        "genai",
+        "gen ai",
+        "gen-ai",
+        "gpt",
+        "chatgpt",
+        "copilot",
+        "gemini",
+        "claude",
+        "llama",
+        "mistral",
+        "large language model",
+        "llm",
+        "foundation model",
+        "albert",
+        "codewhisperer",
+        "text-to-image",
+        "image generation",
+        "code generation",
+    }
+)
+
+# Mirrors the "exploratory/aspirational language" list added to the extract
+# and validate system prompts. Presence — without an accompanying firm
+# commitment marker — is a flag for review on `announced` activities.
+SPECULATIVE_LANGUAGE_MARKERS: frozenset[str] = frozenset(
+    {
+        "is considering",
+        "are considering",
+        "is exploring",
+        "are exploring",
+        "studying the feasibility",
+        "may adopt",
+        "might adopt",
+        "may explore",
+        "might explore",
+        "in early discussions",
+        "potential use case",
+        "potential use cases",
+        "eager to",
+        "looking into",
+        "anticipated",
+    }
+)
+
+FIRM_COMMITMENT_MARKERS: frozenset[str] = frozenset(
+    {
+        "plans to introduce",
+        "will deploy",
+        "will launch",
+        "signed a memorandum",
+        "signed an mou",
+        "budget of",
+        "allocated $",
+        "allocated €",
+        "procurement",
+        "contract award",
+        "contract was awarded",
+        "policy was adopted",
+        "strategy was published",
+        "launched in",
+    }
+)
+
+
+def _normalize(text: str) -> str:
+    return re.sub(r"\s+", " ", text.lower())
+
+
+def _has_generative_signal(snippet: str) -> bool:
+    text = _normalize(snippet)
+    return any(kw in text for kw in GENERATIVE_SIGNAL_KEYWORDS)
+
+
+def _has_speculative_language(snippet: str) -> bool:
+    text = _normalize(snippet)
+    return any(marker in text for marker in SPECULATIVE_LANGUAGE_MARKERS)
+
+
+def _has_firm_commitment(snippet: str) -> bool:
+    text = _normalize(snippet)
+    return any(marker in text for marker in FIRM_COMMITMENT_MARKERS)
+
+
+def weak_generative_signal_activities(
+    response: ConsolidatedInstitutionResponse,
+) -> list[str]:
+    """``activity_id``s whose confirming sources never use a generative-AI term.
+
+    Candidate automation-coded-as-GenAI cases (failure mode (a)): every
+    `confirms_activity` source backing this activity lacks any keyword in
+    ``GENERATIVE_SIGNAL_KEYWORDS`` in its snippet, and the activity has not
+    already been flagged ``genai_vs_traditional_ai``. Audit-only — a real
+    generative signal may be present in text this keyword list doesn't cover.
+    """
+    by_activity: dict[str, list[str]] = {}
+    for s in response.sources:
+        if s.genai_evidence == "confirms_activity" and s.activity_id != "_NA_":
+            by_activity.setdefault(s.activity_id, []).append(s.source_snippet)
+
+    flagged: list[str] = []
+    for activity in response.activities:
+        snippets = by_activity.get(activity.activity_id, [])
+        if not snippets:
+            continue
+        if "genai_vs_traditional_ai" in activity.uncertainty_flags.split(";"):
+            continue
+        if not any(_has_generative_signal(sn) for sn in snippets):
+            flagged.append(activity.activity_id)
+    return flagged
+
+
+def speculative_adoption_activities(
+    response: ConsolidatedInstitutionResponse,
+) -> list[str]:
+    """``activity_id``s coded ``announced`` on hedged/exploratory language only.
+
+    Candidate potential-as-confirmed cases (failure mode (b)): the activity's
+    `adoption_stage` is `announced`, every supporting source's snippet
+    contains a speculative marker, and none contains a firm-commitment
+    marker. Audit-only — a firm commitment may be documented in language this
+    keyword list doesn't cover.
+    """
+    by_activity: dict[str, list[str]] = {}
+    for s in response.sources:
+        if s.genai_evidence == "confirms_activity" and s.activity_id != "_NA_":
+            by_activity.setdefault(s.activity_id, []).append(s.source_snippet)
+
+    flagged: list[str] = []
+    for activity in response.activities:
+        if activity.adoption_stage != "announced":
+            continue
+        snippets = by_activity.get(activity.activity_id, [])
+        if not snippets:
+            continue
+        if any(_has_firm_commitment(sn) for sn in snippets):
+            continue
+        if all(_has_speculative_language(sn) for sn in snippets):
+            flagged.append(activity.activity_id)
+    return flagged
 
 
 def qc_per_institution(
@@ -34,6 +198,8 @@ def qc_per_institution(
     high_confidence_activities = [
         a.activity_id for a in activities if a.confidence == "high"
     ]
+    weak_generative_signal = weak_generative_signal_activities(response)
+    speculative_adoption = speculative_adoption_activities(response)
 
     return {
         "institution_id": response.institution.institution_id,
@@ -49,6 +215,8 @@ def qc_per_institution(
         "distinct_vendors": distinct_vendors,
         "activities_with_uncertainty_flags": activities_with_flags,
         "high_confidence_activities": high_confidence_activities,
+        "weak_generative_signal_activities": weak_generative_signal,
+        "speculative_adoption_activities": speculative_adoption,
     }
 
 
@@ -117,6 +285,17 @@ def qc_per_run(run_dir: Path) -> dict[str, Any]:
         for vendor in q["distinct_vendors"]:
             all_vendors[vendor] += 1
 
+    weak_generative_signal_flags = [
+        (q["institution_id"], activity_id)
+        for q in per_inst
+        for activity_id in q["weak_generative_signal_activities"]
+    ]
+    speculative_adoption_flags = [
+        (q["institution_id"], activity_id)
+        for q in per_inst
+        for activity_id in q["speculative_adoption_activities"]
+    ]
+
     return {
         "run_dir": str(run_dir),
         "n_institutions_in_dir": n_seen,
@@ -131,7 +310,19 @@ def qc_per_run(run_dir: Path) -> dict[str, Any]:
         "genai_evidence": dict(evidence_counter),
         "top_tools": all_tools.most_common(20),
         "top_vendors": all_vendors.most_common(20),
+        "n_weak_generative_signal_flags": len(weak_generative_signal_flags),
+        "weak_generative_signal_flags": weak_generative_signal_flags,
+        "n_speculative_adoption_flags": len(speculative_adoption_flags),
+        "speculative_adoption_flags": speculative_adoption_flags,
     }
 
 
-__all__ = ["qc_per_institution", "qc_per_run"]
+__all__ = [
+    "GENERATIVE_SIGNAL_KEYWORDS",
+    "SPECULATIVE_LANGUAGE_MARKERS",
+    "FIRM_COMMITMENT_MARKERS",
+    "weak_generative_signal_activities",
+    "speculative_adoption_activities",
+    "qc_per_institution",
+    "qc_per_run",
+]

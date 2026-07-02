@@ -34,7 +34,12 @@ from g3o.validate.consolidate import (
     submit_consolidate_batch,
     write_consolidated_output,
 )
-from g3o.validate.qc import qc_per_institution, qc_per_run
+from g3o.validate.qc import (
+    qc_per_institution,
+    qc_per_run,
+    speculative_adoption_activities,
+    weak_generative_signal_activities,
+)
 
 __all__ = [
     "OUTPUT_CONTRACT_TEXT",
@@ -53,6 +58,8 @@ __all__ = [
     "qc_per_institution",
     "qc_per_run",
     "run_consolidate",
+    "speculative_adoption_activities",
     "submit_consolidate_batch",
+    "weak_generative_signal_activities",
     "write_consolidated_output",
 ]
