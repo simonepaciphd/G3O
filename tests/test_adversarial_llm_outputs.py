@@ -8,7 +8,8 @@ reaches the caller), not silently accepted into a downstream artifact.
 
 "Caught" is sufficient for pipeline safety because every presweep call site
 wraps its parse in ``try/except Exception`` and records a ``parse_failed``
-attrition entry (``g3o/run/presweep.py`` Stages 2/3/5;
+attrition entry (``g3o/run/presweep/`` Stages 2/3/5 —
+``stage_classify.py`` and ``stage_extract.py``;
 ``g3o/validate/consolidate.py`` Stage 6) — any raise here means flagged,
 skipped, and auditable rather than persisted.
 
