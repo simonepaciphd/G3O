@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-from g3o.discovery.query_builder import (
-    GENAI_TERMS_BY_LANG,
-    PROPOSED_GENAI_TERMS_EN,
-    build_queries,
-)
+from g3o.discovery.query_builder import GENAI_TERMS_BY_LANG, build_queries
 
 
 def test_build_queries_one_per_term() -> None:
@@ -31,25 +27,23 @@ def test_build_queries_extra_terms_appended_per_language() -> None:
     assert any('"AI strategy"' in q for q in en_queries)
 
 
-def test_proposed_english_terms_are_inert_by_default() -> None:
-    """PROPOSED_GENAI_TERMS_EN (Batch 5) must stay out of GENAI_TERMS_BY_LANG
-    until Simone signs off -- adding search terms changes what the pipeline
-    collects (working-agreement escalation gate). This guards against
-    accidentally wiring it in unreviewed."""
-    assert GENAI_TERMS_BY_LANG["en"] == ["generative AI", "ChatGPT", "AI policy", "AI pilot"]
-
-
-def test_proposed_english_terms_are_well_formed_superset() -> None:
-    assert len(PROPOSED_GENAI_TERMS_EN) == len(set(PROPOSED_GENAI_TERMS_EN))  # no duplicates
-    assert all(isinstance(t, str) and t.strip() for t in PROPOSED_GENAI_TERMS_EN)
-    assert set(GENAI_TERMS_BY_LANG["en"]).issubset(set(PROPOSED_GENAI_TERMS_EN))
-
-
-def test_proposed_english_terms_usable_with_build_queries() -> None:
-    """Sanity-check the proposed roster is a drop-in-compatible term list
-    (not wired live -- see test_proposed_english_terms_are_inert_by_default)."""
-    queries = build_queries("Test Institution", ["en"], extra_terms=[])
-    queries_with_proposed = [
-        (f'"Test Institution" "{term}"', "en") for term in PROPOSED_GENAI_TERMS_EN
+def test_english_roster_is_the_promoted_expansion() -> None:
+    """The Batch-5 term expansion was PI-promoted 2026-07-04. This pins the
+    live English roster so any future change to what discovery collects is a
+    deliberate, reviewed edit (working-agreement escalation gate), not drift."""
+    assert GENAI_TERMS_BY_LANG["en"] == [
+        "generative AI",
+        "ChatGPT",
+        "AI policy",
+        "AI pilot",
+        "Copilot",
+        "AI chatbot",
+        "AI assistant",
+        "large language model",
     ]
-    assert len(queries_with_proposed) > len(queries)
+
+
+def test_roster_terms_are_well_formed() -> None:
+    for lang, terms in GENAI_TERMS_BY_LANG.items():
+        assert len(terms) == len(set(terms)), lang  # no duplicates
+        assert all(isinstance(t, str) and t.strip() for t in terms), lang

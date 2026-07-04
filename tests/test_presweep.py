@@ -560,8 +560,10 @@ def test_run_discovery_site_restricted_skips_when_no_site(tmp_path: Path):
     assert (plan.run_dir / inst_a / "1b_discovery_site_restricted.json").exists()
     assert not (plan.run_dir / inst_b / "1b_discovery_site_restricted.json").exists()
     assert all(q.startswith("site:a.gov ") for q in seen_queries)
-    # Q1=a: same per-language query count as Stage 1a (4 English GenAI terms).
-    assert len(seen_queries) == 4
+    # Q1=a: same per-language query count as Stage 1a (the English GenAI roster).
+    from g3o.discovery.query_builder import GENAI_TERMS_BY_LANG
+
+    assert len(seen_queries) == len(GENAI_TERMS_BY_LANG["en"])
     assert inst_a in out and inst_b not in out
 
 
