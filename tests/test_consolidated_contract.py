@@ -561,3 +561,10 @@ def test_persisted_source_handles_na_activity_id() -> None:
     row = ps.to_csv_dict()
     assert row["activity_id"] == NA
     assert row["genai_evidence"] == "confirms_absence"
+
+
+def test_proposed_adoption_stage_validates_consolidated() -> None:
+    """`proposed` is a valid consolidated stage (introduced 2026-07, PI decision)."""
+    ConsolidatedInstitutionResponse.model_validate(
+        _yes_response(activities=[_activity(adoption_stage="proposed")])
+    )

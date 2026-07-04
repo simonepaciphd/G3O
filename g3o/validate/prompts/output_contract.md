@@ -76,7 +76,7 @@ Each activity object has the following keys (all required):
 | 1 | activity_id | string | `^A[1-9]\d*$` | `A1`, `A2`, `A3`, ... -- per-institution, gapless, in input-row-appearance order |
 | 2 | activity_name | string | Max 120 chars; NOT `_NA_` | Canonical name; use most authoritative input wording |
 | 3 | activity_type | enum | `policy_guidance` / `pilot_experiment` / `program_initiative` / `internal_operational` / `public_facing_service` | NO `_NA_` |
-| 4 | adoption_stage | enum | `announced` / `pilot` / `production` / `discontinued` / `unknown` | NO `_NA_` |
+| 4 | adoption_stage | enum | `proposed` / `announced` / `pilot` / `production` / `discontinued` / `unknown` | NO `_NA_` |
 | 5 | access_type | enum | `proprietary_vendor` / `open_source` / `sovereign_model` / `in_house` / `mixed` / `unknown` | NO `_NA_` |
 | 6 | interaction_type | enum | `chatbot` / `document_processing` / `code_generation` / `decision_support` / `translation` / `content_creation` / `search_retrieval` / `multiple` / `not_applicable` / `unknown` | NO `_NA_` |
 | 7 | tool_name | string | Max 100 chars; default `unknown`; NOT `_NA_` | Tool/model/platform name |

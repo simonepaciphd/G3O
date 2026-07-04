@@ -97,7 +97,7 @@ When `has_genai_activity` = `no` or `unclear`, OR the row's source is `confirms_
 |---|--------|------|----------------|-------------|
 | 11 | `activity_name` | string | Max 120 chars / `_NA_` | Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platform"). Otherwise descriptive (e.g., "Internal Copilot pilot for document drafting"). |
 | 12 | `activity_type` | enum | `policy_guidance` / `pilot_experiment` / `program_initiative` / `internal_operational` / `public_facing_service` / `_NA_` | G3O activity typology. See definitions below. |
-| 13 | `adoption_stage` | enum | `announced` / `pilot` / `production` / `discontinued` / `unknown` / `_NA_` | Current stage. See coding rules below. |
+| 13 | `adoption_stage` | enum | `proposed` / `announced` / `pilot` / `production` / `discontinued` / `unknown` / `_NA_` | Current stage. See coding rules below. |
 | 14 | `access_type` | enum | `proprietary_vendor` / `open_source` / `sovereign_model` / `in_house` / `mixed` / `unknown` / `_NA_` | How the GenAI capability is sourced. |
 | 15 | `interaction_type` | enum | `chatbot` / `document_processing` / `code_generation` / `decision_support` / `translation` / `content_creation` / `search_retrieval` / `multiple` / `not_applicable` / `unknown` / `_NA_` | Primary mode of human-AI interaction. |
 | 16 | `tool_name` | string | Max 100 chars / `unknown` / `_NA_` | Specific tool, model, or platform name (e.g., "Microsoft 365 Copilot", "ChatGPT", "Albert"). |
@@ -167,7 +167,8 @@ When `has_genai_activity` = `no` or `unclear`, OR the row's source is `confirms_
 
 | Value | Criteria |
 |-------|----------|
-| `announced` | Publicly stated intent to deploy but no evidence of actual use. Includes: MoUs, budget allocations without deployment, strategy timelines. |
+| `proposed` | Exploratory or hedged intent with no concrete commitment: "considering," "exploring," "studying feasibility," early discussions, unfunded or undated ideas. The text must still be explicitly generative-AI and tied to this institution. No named tool tied to a timeline, no signed MoU or contract, no budget line, no adopted policy. |
+| `announced` | Publicly stated intent to deploy with a concrete, documented commitment but no evidence of actual use. Includes: MoUs, budget allocations without deployment, strategy timelines. |
 | `pilot` | Limited deployment: subset of users/departments/use cases; described as trial/pilot/PoC/experiment; time-bounded. |
 | `production` | Fully operational: available to intended user base, no longer experimental, in routine operations. |
 | `discontinued` | Previously deployed but explicitly ended, cancelled, or suspended. |
@@ -247,7 +248,7 @@ Use these exact strings. Multiple flags: join with semicolons, no surrounding sp
 
 | Flag | Meaning |
 |------|---------|
-| `stage_ambiguous` | Cannot determine whether announced, pilot, or production |
+| `stage_ambiguous` | Cannot determine whether proposed, announced, pilot, or production |
 | `genai_vs_traditional_ai` | Source mentions "AI" but unclear whether generative AI specifically |
 | `institution_attribution` | Activity may belong to a parent ministry, sibling agency, or country-wide program rather than this specific institution |
 | `date_uncertain` | Year of announcement or deployment could not be reliably determined |
@@ -304,7 +305,7 @@ Your output is Markdown pipe tables, but this schema governs allowed values:
           "institution_search_languages": {"type":"string","pattern":"^[a-z]{2}(,[a-z]{2})*$"},
           "activity_name": {"type":"string","maxLength":120},
           "activity_type": {"enum":["policy_guidance","pilot_experiment","program_initiative","internal_operational","public_facing_service","_NA_"]},
-          "adoption_stage": {"enum":["announced","pilot","production","discontinued","unknown","_NA_"]},
+          "adoption_stage": {"enum":["proposed","announced","pilot","production","discontinued","unknown","_NA_"]},
           "access_type": {"enum":["proprietary_vendor","open_source","sovereign_model","in_house","mixed","unknown","_NA_"]},
           "interaction_type": {"enum":["chatbot","document_processing","code_generation","decision_support","translation","content_creation","search_retrieval","multiple","not_applicable","unknown","_NA_"]},
           "tool_name": {"type":"string","maxLength":100},

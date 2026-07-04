@@ -177,11 +177,13 @@ def speculative_adoption_activities(
 ) -> list[str]:
     """``activity_id``s coded ``announced`` on hedged/exploratory language only.
 
-    Candidate potential-as-confirmed cases (failure mode (b)): the activity's
+    Candidate ``proposed``-coded-as-``announced`` cases (failure mode (b),
+    recast after the ``proposed`` stage landed 2026-07): the activity's
     `adoption_stage` is `announced`, every supporting source's snippet
     contains a speculative marker, and none contains a firm-commitment
-    marker. Audit-only — a firm commitment may be documented in language this
-    keyword list doesn't cover.
+    marker — i.e. downgrade-to-`proposed` review candidates. Audit-only — a
+    firm commitment may be documented in language this keyword list doesn't
+    cover.
     """
     by_activity: dict[str, list[str]] = {}
     for s in response.sources:
