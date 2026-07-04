@@ -624,7 +624,7 @@ def test_unfiltered_report_matches_language_none_totals(
 def test_language_caveats_present_when_filtered(fixture_multilang_run: Path) -> None:
     report = compute_health_report(fixture_multilang_run, language="en")
     assert report["language_filter"] == "en"
-    assert len(report["language_caveats"]) == 3
+    assert len(report["language_caveats"]) == 4
 
 
 def test_sources_by_language_is_content_language_not_query_language(
@@ -722,3 +722,121 @@ def test_readiness_unknown_language_raises(fixture_multilang_run: Path) -> None:
     breakdown = compute_language_breakdown(fixture_multilang_run)
     with pytest.raises(ValueError):
         assess_language_readiness(breakdown, "de", reference="en")
+
+
+# ---------------------------------------------------------------------------
+# Regression tests — PI review fixes (2026-07-04)
+# ---------------------------------------------------------------------------
+
+
+def test_language_filter_stage2_shares_population(fixture_multilang_run: Path) -> None:
+    """Filtered Stage 2 pct must use one population for numerator and denominator.
+
+    Regression: with both institutions holding official sites but only one
+    contributing a French URL, the French-filtered pct was 2/1 = 200%.
+    """
+    for inst_id in ("INST-en-fr", "INST-en-only"):
+        _write(
+            fixture_multilang_run / inst_id / "2_official_site.json",
+            {"url": f"https://{inst_id.lower()}.gov", "confidence": "high", "rationale": "ok"},
+        )
+    report_fr = compute_health_report(fixture_multilang_run, language="fr")
+    s2 = report_fr["stages"]["2_classify_official_site"]
+    assert s2["n_institutions_in"] == 1  # only INST-en-fr has a French URL
+    assert s2["n_official_site_found"] == 1  # counted among that same population
+    assert s2["pct_official_site_found"] == 1.0
+
+
+def test_language_attrition_counts_restricted_to_language(tmp_path: Path) -> None:
+    """An English page's empty-drop must not poison the French Stage-5 math.
+
+    Regression: attrition counts were pooled across languages while scrape/
+    extract counts were filtered, yielding eligible=0, extracts=1, flag=fail
+    for a language whose own page extracted fine.
+    """
+    run_dir = tmp_path / "att-lang-run"
+    run_dir.mkdir()
+    _attrition._reset_cache()
+    u_en, u_fr = "https://x.gov/en-page", "https://x.gov/fr-page"
+    inst = run_dir / "INST-1"
+    _write(run_dir / "manifest.json", {"run_id": "att-lang-run", "institutions": ["INST-1"]})
+    _write(
+        inst / "1a_discovery_general.json",
+        {
+            "queries": [{"query": "q-en", "language": "en"}, {"query": "q-fr", "language": "fr"}],
+            "records": [{"link": u_en, "language": "en"}, {"link": u_fr, "language": "fr"}],
+        },
+    )
+    _write(
+        inst / "3_triage.json",
+        {"decisions": [{"url": u_en, "decision": "keep"}, {"url": u_fr, "decision": "keep"}]},
+    )
+    for u in (u_en, u_fr):
+        _write(inst / "scrape" / f"{url_hash(u)}.json", {"url": u, "text": "text"})
+    _write(inst / "extract" / f"{url_hash(u_fr)}.json", {"page_url": u_fr})
+    _attrition.record(
+        run_dir, institution_id="INST-1", stage="extract",
+        reason="empty_page_dropped", url=u_en, detail="stripped_len=0",
+    )
+
+    s5_fr = compute_health_report(run_dir, language="fr")["stages"]["5_extract"]
+    assert s5_fr["n_pages_in"] == 1
+    assert s5_fr["n_empty_dropped"] == 0
+    assert s5_fr["n_pages_eligible"] == 1
+    assert s5_fr["n_extracts"] == 1
+    assert s5_fr["pct_extracted_of_eligible"] == 1.0
+    assert s5_fr["flag"] == "green"
+
+    s5_en = compute_health_report(run_dir, language="en")["stages"]["5_extract"]
+    assert s5_en["n_empty_dropped"] == 1
+    assert s5_en["n_extracts"] == 0
+
+
+def test_partial_run_stages_flag_not_run(tmp_path: Path) -> None:
+    """A run stopped after Stage 1a reports downstream stages as not_run, not fail."""
+    run_dir = tmp_path / "partial-run"
+    run_dir.mkdir()
+    _attrition._reset_cache()
+    _write(run_dir / "manifest.json", {"run_id": "partial-run", "institutions": ["INST-1"]})
+    _write(
+        run_dir / "INST-1" / "1a_discovery_general.json",
+        {
+            "queries": [{"query": "q", "language": "en"}],
+            "records": [{"link": "https://x.gov/p", "language": "en"}],
+        },
+    )
+    report = compute_health_report(run_dir)
+    stages = report["stages"]
+    assert stages["1a_discovery_general"]["flag"] == "green"
+    for key in (
+        "2_classify_official_site",
+        "1b_discovery_site_restricted",
+        "3_classify_triage",
+        "4_scrape",
+        "5_extract",
+        "6_validate",
+    ):
+        assert stages[key]["flag"] == "not_run", key
+    assert report["overall_flag"] == "green"
+
+
+def test_stage_with_done_marker_but_no_output_still_flags(tmp_path: Path) -> None:
+    """A stage that ran (done marker) yet found nothing must flag fail, not not_run."""
+    run_dir = tmp_path / "honest-zero-run"
+    run_dir.mkdir()
+    _attrition._reset_cache()
+    _write(run_dir / "manifest.json", {"run_id": "honest-zero-run", "institutions": ["INST-1"]})
+    _write(
+        run_dir / "INST-1" / "1a_discovery_general.json",
+        {
+            "queries": [{"query": "q", "language": "en"}],
+            "records": [{"link": "https://x.gov/p", "language": "en"}],
+        },
+    )
+    _write(run_dir / "_state" / ".done" / "classify_official_site.json", {"n_jobs": 1})
+    report = compute_health_report(run_dir)
+    s2 = report["stages"]["2_classify_official_site"]
+    assert s2["n_institutions_in"] == 1
+    assert s2["n_official_site_found"] == 0
+    assert s2["pct_official_site_found"] == 0.0
+    assert s2["flag"] == "fail"

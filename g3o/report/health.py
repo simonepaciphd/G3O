@@ -98,6 +98,32 @@ def _load_manifest(run_dir: Path) -> dict[str, Any]:
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
 
+def _stage_ran(
+    run_dir: Path,
+    stage: str,
+    *,
+    has_artifacts: bool,
+    att: dict[tuple[str, str], int],
+) -> bool:
+    """True iff the pipeline stage left any trace on disk.
+
+    A stage counts as executed when any institution has its artifact, when it
+    recorded attrition, or when its ``_state/{stage}.json`` (active) or
+    ``_state/.done/{stage}.json`` (terminal) file exists. Distinguishes a
+    stage that ran and produced nothing from one that never ran, so partial
+    runs (``--stop-after``, crash-resume) report ``not_run`` instead of a
+    spurious ``fail``.
+    """
+    if has_artifacts:
+        return True
+    if any(s == stage for (s, _r) in att):
+        return True
+    state_dir = run_dir / "_state"
+    return (state_dir / ".done" / f"{stage}.json").exists() or (
+        state_dir / f"{stage}.json"
+    ).exists()
+
+
 def _merge_url_langs(
     into: dict[str, set[str]], records: list[dict[str, Any]]
 ) -> None:
@@ -217,6 +243,10 @@ def _collect_institution(
     else:
         d["n_extracts"] = 0
 
+    # Expose the URL→languages attribution map so run-level passes (e.g.
+    # attrition filtering under a language restriction) reuse it.
+    d["_url_langs"] = url_langs
+
     # Stage 6
     p = inst_dir / "6_validate.json"
     d["sources_by_language"] = Counter()
@@ -296,6 +326,29 @@ def compute_health_report(
         for iid in institution_ids
     ]
 
+    # URLs attributed to the language filter (union over institutions). Used
+    # to restrict URL-keyed attrition counts (scrape/extract) to the filtered
+    # language, so per-language Stage 4/5 arithmetic never mixes pooled drops
+    # with filtered successes.
+    lang_urls: set[str] = set()
+    if language is not None:
+        for d in inst_data:
+            for url, langs in d["_url_langs"].items():
+                if language in langs:
+                    lang_urls.add(url)
+
+    def _att_count(stage: str, reason: str) -> int:
+        """Attrition count for (stage, reason), respecting the language filter."""
+        if language is None:
+            return att.get((stage, reason), 0)
+        return sum(
+            1
+            for rec in ledger
+            if rec.get("stage") == stage
+            and rec.get("reason") == reason
+            and rec.get("url") in lang_urls
+        )
+
     # ── Stage 1a ──────────────────────────────────────────────────────────────
     n_1a_with_urls = sum(1 for d in inst_data if d["n_urls_1a"] > 0)
     total_urls_1a = sum(d["n_urls_1a"] for d in inst_data)
@@ -319,10 +372,27 @@ def compute_health_report(
     }
 
     # ── Stage 2 ───────────────────────────────────────────────────────────────
-    n_2_in = n_1a_with_urls or n_institutions  # only institutions with URLs get jobs
-    n_official_site = sum(1 for d in inst_data if d["official_site"])
+    # Eligible for a Stage 2 decision: institutions whose 1a discovery produced
+    # candidates (LLM path), plus master-bypassed ones (bypass skips 1a). Under
+    # a language filter, eligibility narrows to institutions with >=1 URL in
+    # that language, and the numerator counts official sites only among them —
+    # numerator and denominator always share a population.
+    if language is None:
+        eligible_2 = [
+            d for d in inst_data if d["n_urls_1a"] > 0 or d["stage2_bypassed"]
+        ]
+    else:
+        eligible_2 = [d for d in inst_data if d["n_urls_1a"] > 0]
+    n_2_in = len(eligible_2)
+    n_official_site = sum(1 for d in eligible_2 if d["official_site"])
     n_bypassed = sum(1 for d in inst_data if d["stage2_bypassed"])
-    pct_official = _pct(n_official_site, n_2_in)
+    stage2_ran = _stage_ran(
+        run_dir,
+        "classify_official_site",
+        has_artifacts=any(d["has_2"] for d in inst_data),
+        att=att,
+    )
+    pct_official = _pct(n_official_site, n_2_in) if stage2_ran else None
 
     stage_2: dict[str, Any] = {
         "n_institutions_in": n_2_in,
@@ -377,8 +447,14 @@ def compute_health_report(
     n_institutions_with_kept = sum(1 for d in inst_data if d["n_urls_kept"] > 0)
     total_urls_triaged = sum(d["n_urls_triaged"] for d in inst_data)
     total_urls_kept = sum(d["n_urls_kept"] for d in inst_data)
-    pct_inst_kept = _pct(n_institutions_with_kept, n_3_eligible)
-    pct_url_keep = _pct(total_urls_kept, total_urls_triaged)
+    stage3_ran = _stage_ran(
+        run_dir,
+        "classify_triage",
+        has_artifacts=any(d["has_3"] for d in inst_data),
+        att=att,
+    )
+    pct_inst_kept = _pct(n_institutions_with_kept, n_3_eligible) if stage3_ran else None
+    pct_url_keep = _pct(total_urls_kept, total_urls_triaged) if stage3_ran else None
 
     flag_3_inst = _flag_low_is_bad(
         pct_inst_kept,
@@ -410,30 +486,33 @@ def compute_health_report(
     n_urls_attempted = total_urls_kept
     n_scraped = sum(d["n_pages_scraped"] for d in inst_data)
     n_institutions_with_pages = sum(1 for d in inst_data if d["n_pages_scraped"] > 0)
-    pct_scrape = _pct(n_scraped, n_urls_attempted)
+    stage4_ran = _stage_ran(
+        run_dir, "scrape", has_artifacts=n_scraped > 0, att=att
+    )
+    pct_scrape = (
+        _pct(n_scraped, n_urls_attempted)
+        if stage4_ran and n_urls_attempted
+        else None
+    )
 
     stage_4: dict[str, Any] = {
         "n_urls_attempted": n_urls_attempted,
         "n_pages_scraped": n_scraped,
-        "n_robots_disallowed": att.get(("scrape", "robots_disallowed"), 0),
-        "n_scrape_failed": att.get(("scrape", "scrape_failed"), 0),
+        "n_robots_disallowed": _att_count("scrape", "robots_disallowed"),
+        "n_scrape_failed": _att_count("scrape", "scrape_failed"),
         "pct_scrape_success": pct_scrape,
         "n_institutions_with_pages": n_institutions_with_pages,
         "top_drop_reasons": _top_reasons(att, "scrape"),
-        "flag": (
-            _flag_low_is_bad(
-                pct_scrape,
-                warn=thresholds.scrape_success_warn_pct,
-                fail=thresholds.scrape_success_fail_pct,
-            )
-            if n_urls_attempted
-            else "not_run"
+        "flag": _flag_low_is_bad(
+            pct_scrape,
+            warn=thresholds.scrape_success_warn_pct,
+            fail=thresholds.scrape_success_fail_pct,
         ),
     }
 
     # ── Stage 5 ───────────────────────────────────────────────────────────────
-    n_empty_dropped = att.get(("extract", "empty_page_dropped"), 0)
-    n_page_truncated = att.get(("extract", "page_text_truncated"), 0)
+    n_empty_dropped = _att_count("extract", "empty_page_dropped")
+    n_page_truncated = _att_count("extract", "page_text_truncated")
     n_extract_eligible = max(0, n_scraped - n_empty_dropped)
     total_extracts = sum(d["n_extracts"] for d in inst_data)
     n_institutions_with_extracts = sum(1 for d in inst_data if d["n_extracts"] > 0)
@@ -457,7 +536,7 @@ def compute_health_report(
         "n_pages_eligible": n_extract_eligible,
         "n_pages_truncated": n_page_truncated,
         "n_extracts": total_extracts,
-        "n_parse_failed": att.get(("extract", "parse_failed"), 0),
+        "n_parse_failed": _att_count("extract", "parse_failed"),
         "pct_empty_dropped": pct_empty,
         "pct_extracted_of_eligible": pct_extracted,
         "n_institutions_with_extracts": n_institutions_with_extracts,
@@ -566,6 +645,9 @@ def compute_health_report(
             "per-language evidence tally instead.",
             "A URL discovered by queries in more than one language counts "
             "toward every language it was found under (Stages 3-5).",
+            "Scrape/extract attrition *counts* (robots, failures, empty/"
+            "truncated/parse drops) are restricted to this language's URLs; "
+            "top_drop_reasons and attrition_top_reasons remain pooled.",
         ]
     return report
 
