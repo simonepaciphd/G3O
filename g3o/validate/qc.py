@@ -106,19 +106,42 @@ def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text.lower())
 
 
+def _compile_keyword_pattern(keywords: frozenset[str]) -> re.Pattern[str]:
+    """One alternation over the list, bounded only at word-character edges.
+
+    Bare substring matching let short keywords fire inside unrelated words
+    ('llm' in "Wellman", 'albert' in "Alberta", 'claude' in personal names),
+    silently suppressing audit flags. A blanket ``\\b`` is wrong for keywords
+    whose edge is already a non-word character ('allocated $' must still match
+    "allocated $5M"), so boundaries are asserted per-edge, with an optional
+    plural 's' so "LLMs" / "foundation models" keep matching.
+    """
+    parts: list[str] = []
+    for kw in sorted(keywords):
+        p = re.escape(kw)
+        if kw[0].isalnum() or kw[0] == "_":
+            p = r"(?<!\w)" + p
+        if kw[-1].isalnum() or kw[-1] == "_":
+            p = p + r"s?(?!\w)"
+        parts.append(p)
+    return re.compile("|".join(parts))
+
+
+_GENERATIVE_SIGNAL_PATTERN = _compile_keyword_pattern(GENERATIVE_SIGNAL_KEYWORDS)
+_SPECULATIVE_LANGUAGE_PATTERN = _compile_keyword_pattern(SPECULATIVE_LANGUAGE_MARKERS)
+_FIRM_COMMITMENT_PATTERN = _compile_keyword_pattern(FIRM_COMMITMENT_MARKERS)
+
+
 def _has_generative_signal(snippet: str) -> bool:
-    text = _normalize(snippet)
-    return any(kw in text for kw in GENERATIVE_SIGNAL_KEYWORDS)
+    return _GENERATIVE_SIGNAL_PATTERN.search(_normalize(snippet)) is not None
 
 
 def _has_speculative_language(snippet: str) -> bool:
-    text = _normalize(snippet)
-    return any(marker in text for marker in SPECULATIVE_LANGUAGE_MARKERS)
+    return _SPECULATIVE_LANGUAGE_PATTERN.search(_normalize(snippet)) is not None
 
 
 def _has_firm_commitment(snippet: str) -> bool:
-    text = _normalize(snippet)
-    return any(marker in text for marker in FIRM_COMMITMENT_MARKERS)
+    return _FIRM_COMMITMENT_PATTERN.search(_normalize(snippet)) is not None
 
 
 def weak_generative_signal_activities(

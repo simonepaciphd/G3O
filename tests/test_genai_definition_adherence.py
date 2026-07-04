@@ -317,3 +317,44 @@ def test_qc_per_institution_surfaces_both_flags() -> None:
     qc = qc_per_institution(resp)
     assert qc["weak_generative_signal_activities"] == ["A1"]
     assert qc["speculative_adoption_activities"] == ["A1"]
+
+
+# ---------------------------------------------------------------------------
+# Regression tests — keyword screens must match on word boundaries
+# (PI review fix, 2026-07-04: bare substring matching let 'llm' fire inside
+#  "Wellman", 'albert' inside "Alberta", 'claude' inside personal names,
+#  silently suppressing audit flags.)
+# ---------------------------------------------------------------------------
+
+from g3o.validate.qc import (  # noqa: E402
+    _has_firm_commitment,
+    _has_generative_signal,
+    _has_speculative_language,
+)
+
+
+def test_generative_signal_not_triggered_inside_words() -> None:
+    assert not _has_generative_signal(
+        "The Government of Alberta deployed workflow automation"
+    )
+    assert not _has_generative_signal(
+        "The Wellman Institute deployed workflow automation"
+    )
+    assert not _has_generative_signal("Ms. Claudette announced the program")
+
+
+def test_generative_signal_still_matches_plurals_and_hyphenation() -> None:
+    assert _has_generative_signal("Uses LLMs for internal drafting")
+    assert _has_generative_signal("large language models power the tool")
+    assert _has_generative_signal("a GPT-4 based assistant")
+    assert _has_generative_signal("the Albert assistant for civil servants")
+
+
+def test_firm_commitment_nonword_edge_keywords_still_match() -> None:
+    assert _has_firm_commitment("with a budget of allocated $5 million")
+    assert _has_firm_commitment("a procurement notice was issued")
+
+
+def test_speculative_marker_not_triggered_inside_words() -> None:
+    assert not _has_speculative_language("reconsidering the plan entirely")
+    assert _has_speculative_language("the agency is considering adopting AI")
