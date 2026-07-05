@@ -14,6 +14,7 @@ The returned dict is JSON-serialisable and mirrors the schema documented in
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections import Counter
 from dataclasses import asdict
@@ -26,6 +27,12 @@ from g3o.report.thresholds import HealthThresholds
 # Flag literals: green = within normal bounds, warn = below warn threshold,
 # fail = below fail threshold, not_run = stage was not executed.
 _Flag = str  # "green" | "warn" | "fail" | "not_run"
+
+
+def _url_hash(url: str) -> str:
+    """Same algorithm as ``g3o.extract.batch.url_hash`` (kept local to avoid a
+    report -> extract import; report reads disk artifacts only)."""
+    return hashlib.md5(url.encode("utf-8")).hexdigest()
 
 
 def _flag_low_is_bad(value: float | None, *, warn: float, fail: float) -> _Flag:
@@ -91,16 +98,76 @@ def _load_manifest(run_dir: Path) -> dict[str, Any]:
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
 
-def _collect_institution(inst_dir: Path, inst_id: str) -> dict[str, Any]:
-    """Read disk artifacts for one institution; return a metrics dict."""
+def _stage_ran(
+    run_dir: Path,
+    stage: str,
+    *,
+    has_artifacts: bool,
+    att: dict[tuple[str, str], int],
+) -> bool:
+    """True iff the pipeline stage left any trace on disk.
+
+    A stage counts as executed when any institution has its artifact, when it
+    recorded attrition, or when its ``_state/{stage}.json`` (active) or
+    ``_state/.done/{stage}.json`` (terminal) file exists. Distinguishes a
+    stage that ran and produced nothing from one that never ran, so partial
+    runs (``--stop-after``, crash-resume) report ``not_run`` instead of a
+    spurious ``fail``.
+    """
+    if has_artifacts:
+        return True
+    if any(s == stage for (s, _r) in att):
+        return True
+    state_dir = run_dir / "_state"
+    return (state_dir / ".done" / f"{stage}.json").exists() or (
+        state_dir / f"{stage}.json"
+    ).exists()
+
+
+def _merge_url_langs(
+    into: dict[str, set[str]], records: list[dict[str, Any]]
+) -> None:
+    for r in records:
+        url = r.get("link")
+        lang = r.get("language")
+        if url and lang:
+            into.setdefault(url, set()).add(lang)
+
+
+def _collect_institution(
+    inst_dir: Path, inst_id: str, *, language: str | None = None
+) -> dict[str, Any]:
+    """Read disk artifacts for one institution; return a metrics dict.
+
+    ``language``, when given, restricts URL-keyed stages (1a, 1b, 3, 4, 5) to
+    URLs discovered by a query tagged with that language (the ``language``
+    field ``g3o.discovery.query_builder.build_queries`` attaches to every 1a/1b
+    record). Stage 2 (official-site) and Stage 6 (has_genai_activity) are
+    single per-institution decisions made over the *pooled* candidate/evidence
+    set, not per-language — restricting only narrows *eligibility* for those
+    stages to institutions this language actually contributed URLs for; see
+    ``stage_6["sources_by_language"]`` for a decision-level per-language signal
+    (each source's own recorded ``source_language``, independent of which
+    query found it).
+    """
     d: dict[str, Any] = {"institution_id": inst_id}
+    url_langs: dict[str, set[str]] = {}
+
+    def _in_lang(url_langs_set: set[str] | None) -> bool:
+        return language is None or bool(url_langs_set and language in url_langs_set)
 
     # Stage 1a
     p = inst_dir / "1a_discovery_general.json"
     if p.exists():
         payload = json.loads(p.read_text(encoding="utf-8"))
+        records_1a = payload.get("records", [])
+        _merge_url_langs(url_langs, records_1a)
         d["has_1a"] = True
-        d["n_urls_1a"] = len(payload.get("records", []))
+        d["n_urls_1a"] = (
+            len(records_1a)
+            if language is None
+            else sum(1 for r in records_1a if r.get("language") == language)
+        )
     else:
         d["has_1a"] = False
         d["n_urls_1a"] = 0
@@ -121,39 +188,68 @@ def _collect_institution(inst_dir: Path, inst_id: str) -> dict[str, Any]:
     p = inst_dir / "1b_discovery_site_restricted.json"
     if p.exists():
         payload = json.loads(p.read_text(encoding="utf-8"))
+        records_1b = payload.get("records", [])
+        _merge_url_langs(url_langs, records_1b)
         d["has_1b"] = True
-        d["n_urls_1b"] = len(payload.get("records", []))
+        d["n_urls_1b"] = (
+            len(records_1b)
+            if language is None
+            else sum(1 for r in records_1b if r.get("language") == language)
+        )
     else:
         d["has_1b"] = False
         d["n_urls_1b"] = 0
 
-    # Stage 3
+    # Stage 3 — decisions are per-URL; attribute via the 1a/1b language map.
     p = inst_dir / "3_triage.json"
     if p.exists():
         payload = json.loads(p.read_text(encoding="utf-8"))
         decisions = payload.get("decisions", [])
+        if language is not None:
+            decisions = [d_ for d_ in decisions if _in_lang(url_langs.get(d_.get("url")))]
         d["has_3"] = True
         d["n_urls_triaged"] = len(decisions)
         d["n_urls_kept"] = sum(1 for dec in decisions if dec.get("decision") == "keep")
+        d["_kept_urls"] = [dec["url"] for dec in decisions if dec.get("decision") == "keep"]
     else:
         d["has_3"] = False
         d["n_urls_triaged"] = 0
         d["n_urls_kept"] = 0
+        d["_kept_urls"] = []
 
-    # Stage 4: scrape/*.json files
+    # Stage 4: scrape/*.json files — attribute via url_hash of language-kept URLs.
     scrape_dir = inst_dir / "scrape"
-    d["n_pages_scraped"] = (
-        sum(1 for _ in scrape_dir.glob("*.json")) if scrape_dir.is_dir() else 0
-    )
+    if scrape_dir.is_dir():
+        if language is None:
+            d["n_pages_scraped"] = sum(1 for _ in scrape_dir.glob("*.json"))
+        else:
+            wanted_hashes = {_url_hash(u) for u in d["_kept_urls"]}
+            d["n_pages_scraped"] = sum(
+                1 for f in scrape_dir.glob("*.json") if f.stem in wanted_hashes
+            )
+    else:
+        d["n_pages_scraped"] = 0
 
-    # Stage 5: extract/*.json files
+    # Stage 5: extract/*.json files — same hash attribution as Stage 4.
     extract_dir = inst_dir / "extract"
-    d["n_extracts"] = (
-        sum(1 for _ in extract_dir.glob("*.json")) if extract_dir.is_dir() else 0
-    )
+    if extract_dir.is_dir():
+        if language is None:
+            d["n_extracts"] = sum(1 for _ in extract_dir.glob("*.json"))
+        else:
+            wanted_hashes = {_url_hash(u) for u in d["_kept_urls"]}
+            d["n_extracts"] = sum(
+                1 for f in extract_dir.glob("*.json") if f.stem in wanted_hashes
+            )
+    else:
+        d["n_extracts"] = 0
+
+    # Expose the URL→languages attribution map so run-level passes (e.g.
+    # attrition filtering under a language restriction) reuse it.
+    d["_url_langs"] = url_langs
 
     # Stage 6
     p = inst_dir / "6_validate.json"
+    d["sources_by_language"] = Counter()
     if p.exists():
         try:
             payload = json.loads(p.read_text(encoding="utf-8"))
@@ -161,6 +257,10 @@ def _collect_institution(inst_dir: Path, inst_id: str) -> dict[str, Any]:
             d["has_genai_activity"] = payload.get("institution", {}).get(
                 "has_genai_activity"
             )
+            for src in payload.get("sources", []):
+                src_lang = src.get("source_language")
+                if src_lang:
+                    d["sources_by_language"][(src_lang, src.get("genai_evidence"))] += 1
         except (json.JSONDecodeError, KeyError, AttributeError):
             d["has_6"] = False
             d["has_genai_activity"] = None
@@ -174,6 +274,7 @@ def _collect_institution(inst_dir: Path, inst_id: str) -> dict[str, Any]:
 def compute_health_report(
     run_dir: str | Path,
     thresholds: HealthThresholds | None = None,
+    language: str | None = None,
 ) -> dict[str, Any]:
     """Compute a stage-by-stage funnel health report.
 
@@ -183,6 +284,13 @@ def compute_health_report(
         Path to ``runs/<run_id>/`` produced by ``g3o presweep --execute``.
     thresholds:
         PI-tunable thresholds.  Defaults to :class:`HealthThresholds` defaults.
+    language:
+        Optional ISO 639-1 code (e.g. ``"en"``). When given, Stages 1a, 1b, 3,
+        4, and 5 are restricted to URLs discovered by a query tagged with this
+        language. Stage 2 and Stage 6's ``has_genai_activity`` are single
+        per-institution decisions over the pooled candidate/evidence set and
+        are *not* restricted — see ``language_caveats`` and
+        ``stages["6_validate"]["sources_by_language"]``.
 
     Returns
     -------
@@ -214,8 +322,32 @@ def compute_health_report(
 
     # Per-institution artifact pass
     inst_data = [
-        _collect_institution(run_dir / iid, iid) for iid in institution_ids
+        _collect_institution(run_dir / iid, iid, language=language)
+        for iid in institution_ids
     ]
+
+    # URLs attributed to the language filter (union over institutions). Used
+    # to restrict URL-keyed attrition counts (scrape/extract) to the filtered
+    # language, so per-language Stage 4/5 arithmetic never mixes pooled drops
+    # with filtered successes.
+    lang_urls: set[str] = set()
+    if language is not None:
+        for d in inst_data:
+            for url, langs in d["_url_langs"].items():
+                if language in langs:
+                    lang_urls.add(url)
+
+    def _att_count(stage: str, reason: str) -> int:
+        """Attrition count for (stage, reason), respecting the language filter."""
+        if language is None:
+            return att.get((stage, reason), 0)
+        return sum(
+            1
+            for rec in ledger
+            if rec.get("stage") == stage
+            and rec.get("reason") == reason
+            and rec.get("url") in lang_urls
+        )
 
     # ── Stage 1a ──────────────────────────────────────────────────────────────
     n_1a_with_urls = sum(1 for d in inst_data if d["n_urls_1a"] > 0)
@@ -240,10 +372,27 @@ def compute_health_report(
     }
 
     # ── Stage 2 ───────────────────────────────────────────────────────────────
-    n_2_in = n_1a_with_urls or n_institutions  # only institutions with URLs get jobs
-    n_official_site = sum(1 for d in inst_data if d["official_site"])
+    # Eligible for a Stage 2 decision: institutions whose 1a discovery produced
+    # candidates (LLM path), plus master-bypassed ones (bypass skips 1a). Under
+    # a language filter, eligibility narrows to institutions with >=1 URL in
+    # that language, and the numerator counts official sites only among them —
+    # numerator and denominator always share a population.
+    if language is None:
+        eligible_2 = [
+            d for d in inst_data if d["n_urls_1a"] > 0 or d["stage2_bypassed"]
+        ]
+    else:
+        eligible_2 = [d for d in inst_data if d["n_urls_1a"] > 0]
+    n_2_in = len(eligible_2)
+    n_official_site = sum(1 for d in eligible_2 if d["official_site"])
     n_bypassed = sum(1 for d in inst_data if d["stage2_bypassed"])
-    pct_official = _pct(n_official_site, n_2_in)
+    stage2_ran = _stage_ran(
+        run_dir,
+        "classify_official_site",
+        has_artifacts=any(d["has_2"] for d in inst_data),
+        att=att,
+    )
+    pct_official = _pct(n_official_site, n_2_in) if stage2_ran else None
 
     stage_2: dict[str, Any] = {
         "n_institutions_in": n_2_in,
@@ -298,8 +447,14 @@ def compute_health_report(
     n_institutions_with_kept = sum(1 for d in inst_data if d["n_urls_kept"] > 0)
     total_urls_triaged = sum(d["n_urls_triaged"] for d in inst_data)
     total_urls_kept = sum(d["n_urls_kept"] for d in inst_data)
-    pct_inst_kept = _pct(n_institutions_with_kept, n_3_eligible)
-    pct_url_keep = _pct(total_urls_kept, total_urls_triaged)
+    stage3_ran = _stage_ran(
+        run_dir,
+        "classify_triage",
+        has_artifacts=any(d["has_3"] for d in inst_data),
+        att=att,
+    )
+    pct_inst_kept = _pct(n_institutions_with_kept, n_3_eligible) if stage3_ran else None
+    pct_url_keep = _pct(total_urls_kept, total_urls_triaged) if stage3_ran else None
 
     flag_3_inst = _flag_low_is_bad(
         pct_inst_kept,
@@ -331,30 +486,33 @@ def compute_health_report(
     n_urls_attempted = total_urls_kept
     n_scraped = sum(d["n_pages_scraped"] for d in inst_data)
     n_institutions_with_pages = sum(1 for d in inst_data if d["n_pages_scraped"] > 0)
-    pct_scrape = _pct(n_scraped, n_urls_attempted)
+    stage4_ran = _stage_ran(
+        run_dir, "scrape", has_artifacts=n_scraped > 0, att=att
+    )
+    pct_scrape = (
+        _pct(n_scraped, n_urls_attempted)
+        if stage4_ran and n_urls_attempted
+        else None
+    )
 
     stage_4: dict[str, Any] = {
         "n_urls_attempted": n_urls_attempted,
         "n_pages_scraped": n_scraped,
-        "n_robots_disallowed": att.get(("scrape", "robots_disallowed"), 0),
-        "n_scrape_failed": att.get(("scrape", "scrape_failed"), 0),
+        "n_robots_disallowed": _att_count("scrape", "robots_disallowed"),
+        "n_scrape_failed": _att_count("scrape", "scrape_failed"),
         "pct_scrape_success": pct_scrape,
         "n_institutions_with_pages": n_institutions_with_pages,
         "top_drop_reasons": _top_reasons(att, "scrape"),
-        "flag": (
-            _flag_low_is_bad(
-                pct_scrape,
-                warn=thresholds.scrape_success_warn_pct,
-                fail=thresholds.scrape_success_fail_pct,
-            )
-            if n_urls_attempted
-            else "not_run"
+        "flag": _flag_low_is_bad(
+            pct_scrape,
+            warn=thresholds.scrape_success_warn_pct,
+            fail=thresholds.scrape_success_fail_pct,
         ),
     }
 
     # ── Stage 5 ───────────────────────────────────────────────────────────────
-    n_empty_dropped = att.get(("extract", "empty_page_dropped"), 0)
-    n_page_truncated = att.get(("extract", "page_text_truncated"), 0)
+    n_empty_dropped = _att_count("extract", "empty_page_dropped")
+    n_page_truncated = _att_count("extract", "page_text_truncated")
     n_extract_eligible = max(0, n_scraped - n_empty_dropped)
     total_extracts = sum(d["n_extracts"] for d in inst_data)
     n_institutions_with_extracts = sum(1 for d in inst_data if d["n_extracts"] > 0)
@@ -378,7 +536,7 @@ def compute_health_report(
         "n_pages_eligible": n_extract_eligible,
         "n_pages_truncated": n_page_truncated,
         "n_extracts": total_extracts,
-        "n_parse_failed": att.get(("extract", "parse_failed"), 0),
+        "n_parse_failed": _att_count("extract", "parse_failed"),
         "pct_empty_dropped": pct_empty,
         "pct_extracted_of_eligible": pct_extracted,
         "n_institutions_with_extracts": n_institutions_with_extracts,
@@ -413,6 +571,18 @@ def compute_health_report(
         fail=thresholds.validate_unclear_fail_pct,
     )
 
+    # Per-language, per-evidence source tally — a *content*-level signal (each
+    # source's own recorded source_language) independent of the funnel's
+    # query-provenance `language` restriction above. Always computed across
+    # every language present, regardless of the `language` argument, so a
+    # single unrestricted call already yields the cross-language comparison
+    # `compute_language_breakdown` needs.
+    sources_by_language: dict[str, dict[str, int]] = {}
+    for d in inst_data:
+        for (lang, evidence), count in d["sources_by_language"].items():
+            bucket = sources_by_language.setdefault(lang, {})
+            bucket[evidence or "unknown"] = bucket.get(evidence or "unknown", 0) + count
+
     stage_6: dict[str, Any] = {
         "n_institutions_in": n_6_eligible,
         "n_consolidated": n_6_consolidated,
@@ -420,6 +590,7 @@ def compute_health_report(
         "pct_consolidated": pct_consolidated,
         "has_genai_activity": {"yes": n_6_yes, "no": n_6_no, "unclear": n_6_unclear},
         "pct_unclear": pct_unclear,
+        "sources_by_language": sources_by_language,
         "top_drop_reasons": _top_reasons(att, "validate"),
         "flag": (
             _worst(flag_6_consol, flag_6_unclear) if n_6_eligible else "not_run"
@@ -446,7 +617,7 @@ def compute_health_report(
         key=lambda x: -x["count"],
     )[:15]
 
-    return {
+    report: dict[str, Any] = {
         "run_id": manifest.get("run_id", run_dir.name),
         "run_dir": str(run_dir),
         "run_date": manifest.get("run_date"),
@@ -461,7 +632,94 @@ def compute_health_report(
             "(~10 institutions). Pass a custom HealthThresholds instance or "
             "--thresholds <json-file> to override."
         ),
+        "language_filter": language,
     }
+    if language is not None:
+        report["language_caveats"] = [
+            "Stage 2 (official-site) is one pooled decision per institution over "
+            "all candidate URLs regardless of language; only eligibility "
+            f"(institutions with >=1 {language!r} URL from Stage 1a) is restricted here.",
+            "Stage 6 has_genai_activity is a per-institution rollup over all "
+            "evidence, not restricted to this language; see "
+            "stages['6_validate']['sources_by_language'] for the per-source, "
+            "per-language evidence tally instead.",
+            "A URL discovered by queries in more than one language counts "
+            "toward every language it was found under (Stages 3-5).",
+            "Scrape/extract attrition *counts* (robots, failures, empty/"
+            "truncated/parse drops) are restricted to this language's URLs; "
+            "top_drop_reasons and attrition_top_reasons remain pooled.",
+        ]
+    return report
 
 
-__all__ = ["compute_health_report"]
+__all__ = ["compute_health_report", "compute_language_breakdown", "detect_languages"]
+
+
+def detect_languages(run_dir: str | Path) -> list[str]:
+    """Scan a run's 1a/1b discovery artifacts for every language actually queried.
+
+    Reads only the ``queries`` list (present even for institutions with zero
+    hits), so a language with no results still shows up as "attempted."
+    """
+    run_dir = Path(run_dir)
+    langs: set[str] = set()
+    for inst_dir in run_dir.iterdir():
+        if not inst_dir.is_dir() or inst_dir.name.startswith("_") or inst_dir.name == ".done":
+            continue
+        for fname in ("1a_discovery_general.json", "1b_discovery_site_restricted.json"):
+            p = inst_dir / fname
+            if not p.exists():
+                continue
+            payload = json.loads(p.read_text(encoding="utf-8"))
+            for q in payload.get("queries", []):
+                lang = q.get("language")
+                if lang:
+                    langs.add(lang)
+    return sorted(langs)
+
+
+def compute_language_breakdown(
+    run_dir: str | Path,
+    thresholds: HealthThresholds | None = None,
+    languages: list[str] | None = None,
+) -> dict[str, Any]:
+    """Run :func:`compute_health_report` once per language for side-by-side comparison.
+
+    Returns a compact table keyed by language, each holding the key funnel
+    percentages plus the ``sources_by_language`` evidence tally, so Batch 5
+    ("mirror English's quality into the other languages") can diff a candidate
+    language against the English reference standard without re-deriving the
+    per-stage math.
+    """
+    run_dir = Path(run_dir)
+    languages = languages if languages is not None else detect_languages(run_dir)
+
+    per_language: dict[str, Any] = {}
+    for lang in languages:
+        r = compute_health_report(run_dir, thresholds=thresholds, language=lang)
+        s = r["stages"]
+        per_language[lang] = {
+            "overall_flag": r["overall_flag"],
+            "pct_institutions_with_urls_1a": s["1a_discovery_general"][
+                "pct_institutions_with_urls"
+            ],
+            "pct_official_site_found": s["2_classify_official_site"][
+                "pct_official_site_found"
+            ],
+            "pct_institutions_with_1b_urls": s["1b_discovery_site_restricted"][
+                "pct_institutions_with_1b_urls"
+            ],
+            "pct_institutions_with_kept_url": s["3_classify_triage"][
+                "pct_institutions_with_kept_url"
+            ],
+            "pct_urls_kept": s["3_classify_triage"]["pct_urls_kept"],
+            "pct_scrape_success": s["4_scrape"]["pct_scrape_success"],
+            "pct_extracted_of_eligible": s["5_extract"]["pct_extracted_of_eligible"],
+            "sources_by_language": s["6_validate"]["sources_by_language"].get(lang, {}),
+        }
+
+    return {
+        "run_id": _load_manifest(run_dir).get("run_id", run_dir.name),
+        "languages_detected": languages,
+        "languages": per_language,
+    }

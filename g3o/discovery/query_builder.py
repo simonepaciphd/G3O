@@ -14,7 +14,21 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 GENAI_TERMS_BY_LANG: dict[str, list[str]] = {
-    "en": ["generative AI", "ChatGPT", "AI policy", "AI pilot"],
+    # English roster expanded 2026-07-04 (PI sign-off): +Copilot, AI chatbot,
+    # AI assistant, large language model — closes the discovery-recall gap vs
+    # the extraction prompt's vocabulary (Copilot/chatbot deployments were
+    # codeable but never searched for). Non-English rosters not yet expanded;
+    # translate + promote per-language after the readiness-bar comparison.
+    "en": [
+        "generative AI",
+        "ChatGPT",
+        "AI policy",
+        "AI pilot",
+        "Copilot",
+        "AI chatbot",
+        "AI assistant",
+        "large language model",
+    ],
     "fr": ["IA générative", "ChatGPT", "politique IA", "pilote IA"],
     "es": ["IA generativa", "ChatGPT", "política de IA", "piloto de IA"],
     "de": ["generative KI", "ChatGPT", "KI-Richtlinie", "KI-Pilot"],
@@ -25,7 +39,6 @@ GENAI_TERMS_BY_LANG: dict[str, list[str]] = {
     "ar": ["الذكاء الاصطناعي التوليدي", "ChatGPT", "سياسة الذكاء الاصطناعي"],
     "fi": ["generatiivinen tekoäly", "ChatGPT", "tekoälyn periaatteet"],
 }
-
 
 def build_queries(
     institution_name: str,

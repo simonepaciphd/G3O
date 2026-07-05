@@ -346,18 +346,37 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
 
 
 def _cmd_presweep_report(args: argparse.Namespace) -> int:
-    from g3o.report import HealthThresholds, compute_health_report, render_text_report
+    from g3o.report import (
+        HealthThresholds,
+        compute_health_report,
+        compute_language_breakdown,
+        render_text_report,
+    )
 
     run_dir = Path(args.run_dir)
     thresholds = None
     if args.thresholds:
         thresholds = HealthThresholds.from_json(args.thresholds)
 
-    report = compute_health_report(run_dir, thresholds=thresholds)
+    if args.language_breakdown:
+        breakdown = compute_language_breakdown(run_dir, thresholds=thresholds)
+        json_path = run_dir / "_health_report_by_language.json"
+        json_path.write_text(
+            json.dumps(breakdown, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        json.dump(breakdown, sys.stdout, ensure_ascii=False, indent=2)
+        sys.stdout.write("\n")
+        sys.stderr.write(f"Per-language JSON report written to: {json_path}\n")
+        return 0
+
+    report = compute_health_report(run_dir, thresholds=thresholds, language=args.language)
 
     # Always write JSON to <run_dir>/_health_report.json (underscore prefix
-    # keeps it alongside other run metadata like _attrition.jsonl).
-    json_path = run_dir / "_health_report.json"
+    # keeps it alongside other run metadata like _attrition.jsonl). A language
+    # filter gets its own suffixed file so repeated per-language runs don't
+    # clobber each other or the unrestricted report.
+    suffix = f"_{args.language}" if args.language else ""
+    json_path = run_dir / f"_health_report{suffix}.json"
     json_path.write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -652,6 +671,25 @@ def build_parser() -> argparse.ArgumentParser:
             "Path to a JSON file with PI-tunable threshold overrides.  "
             "Partial overrides are accepted; unspecified fields use defaults.  "
             "All threshold defaults are documented in g3o.report.HealthThresholds."
+        ),
+    )
+    presweep_report.add_argument(
+        "--language",
+        default=None,
+        help=(
+            "Restrict Stages 1a/1b/3/4/5 to URLs discovered by a query tagged "
+            "with this ISO 639-1 code (e.g. 'en'). Stage 2 and Stage 6's "
+            "has_genai_activity remain pooled across languages; see "
+            "language_caveats in the output."
+        ),
+    )
+    presweep_report.add_argument(
+        "--language-breakdown",
+        action="store_true",
+        help=(
+            "Print a compact per-language comparison table (one "
+            "compute_health_report call per detected language) instead of a "
+            "single report. Overrides --language and --json."
         ),
     )
     presweep_report.set_defaults(func=_cmd_presweep_report)
