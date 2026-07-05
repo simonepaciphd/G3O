@@ -368,3 +368,10 @@ def test_persistedrow_to_csv_dict_matches_data_columns():
     assert csv_dict["global_row_id"] == "run-001-row-0001"
     assert csv_dict["run_model"] == "gpt-5-nano"
     assert csv_dict["activity_name"] == "Internal Copilot pilot"
+
+
+def test_proposed_adoption_stage_validates():
+    """`proposed` (exploratory intent, no concrete commitment) is a valid stage
+    — introduced 2026-07 (PI decision) so hedged GenAI intentions are captured
+    below `announced` instead of dropped to `unclear`."""
+    ContractRow.model_validate(active_row(adoption_stage="proposed"))

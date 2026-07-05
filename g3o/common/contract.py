@@ -98,7 +98,7 @@ ActivityType = Literal[
     "_NA_",
 ]
 AdoptionStage = Literal[
-    "announced", "pilot", "production", "discontinued", "unknown", "_NA_"
+    "proposed", "announced", "pilot", "production", "discontinued", "unknown", "_NA_"
 ]
 AccessType = Literal[
     "proprietary_vendor",
@@ -439,7 +439,7 @@ ActivityTypeNoNA = Literal[
     "public_facing_service",
 ]
 AdoptionStageNoNA = Literal[
-    "announced", "pilot", "production", "discontinued", "unknown"
+    "proposed", "announced", "pilot", "production", "discontinued", "unknown"
 ]
 AccessTypeNoNA = Literal[
     "proprietary_vendor",
