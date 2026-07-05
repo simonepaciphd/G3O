@@ -29,3 +29,6 @@ runs/
 Thumbs.db
 .idea/
 .vscode/
+
+# Claude Code local session state (ra-mode marker)
+.claude/.ra-session.json

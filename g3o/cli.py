@@ -9,6 +9,7 @@ Subcommands:
   validate                — Stage 6 per-institution LLM consolidation.
   persist                 — Stage 7 deterministic CSV writer.
   presweep                — Phase 3 of Session B: stratified pre-sweep runner.
+  presweep-report         — Stage-by-stage funnel health report for a finished run.
   verify-model            — One-job Batch API submit to confirm the model id (Q4).
 
 Push #1 implemented `discover` and `scrape`. Session A of Push #2 added the
@@ -344,6 +345,35 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
+def _cmd_presweep_report(args: argparse.Namespace) -> int:
+    from g3o.report import HealthThresholds, compute_health_report, render_text_report
+
+    run_dir = Path(args.run_dir)
+    thresholds = None
+    if args.thresholds:
+        thresholds = HealthThresholds.from_json(args.thresholds)
+
+    report = compute_health_report(run_dir, thresholds=thresholds)
+
+    # Always write JSON to <run_dir>/_health_report.json (underscore prefix
+    # keeps it alongside other run metadata like _attrition.jsonl).
+    json_path = run_dir / "_health_report.json"
+    json_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    if args.json:
+        json.dump(report, sys.stdout, ensure_ascii=False, indent=2)
+        sys.stdout.write("\n")
+    else:
+        sys.stdout.write(render_text_report(report))
+        sys.stdout.write("\n")
+        sys.stderr.write(f"JSON report written to: {json_path}\n")
+
+    overall = report.get("overall_flag", "green")
+    return 2 if overall == "fail" else (1 if overall == "warn" else 0)
+
+
 def _cmd_verify_model(args: argparse.Namespace) -> int:
     from g3o.run.verify_model import verify_model
 
@@ -599,6 +629,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="Preflight assumption for the cost estimate (default: 600).",
     )
     presweep.set_defaults(func=_cmd_presweep)
+
+    presweep_report = sub.add_parser(
+        "presweep-report",
+        help="Stage-by-stage funnel health report for a finished presweep run.",
+    )
+    presweep_report.add_argument(
+        "--run-dir",
+        required=True,
+        type=_existing_dir,
+        help="Path to runs/<run_id>/ directory produced by `g3o presweep --execute`.",
+    )
+    presweep_report.add_argument(
+        "--json",
+        action="store_true",
+        help="Print JSON to stdout instead of the human-readable text summary.",
+    )
+    presweep_report.add_argument(
+        "--thresholds",
+        default=None,
+        help=(
+            "Path to a JSON file with PI-tunable threshold overrides.  "
+            "Partial overrides are accepted; unspecified fields use defaults.  "
+            "All threshold defaults are documented in g3o.report.HealthThresholds."
+        ),
+    )
+    presweep_report.set_defaults(func=_cmd_presweep_report)
 
     verify = sub.add_parser(
         "verify-model",
