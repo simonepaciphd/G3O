@@ -138,6 +138,31 @@ ACTIVITY_SOURCE_COLUMNS: list[str] = [
     "source_snippet",
 ]
 
+INSTITUTION_REPORT_COLUMNS: list[str] = [
+    # Identity + final verdict (5)
+    "institution_id",
+    "final_status",
+    "stage_reached",
+    "stopped_after_stage",
+    "reason",
+    # Failure detail, nullable (1)
+    "error",
+    # Funnel counts (5) -- extracted_row_count / consolidated_row_count are
+    # flattened ROW counts (ContractRow / ConsolidatedActivity), distinct from
+    # g3o.report.health's n_extracts (a FILE count).
+    "urls_discovered",
+    "urls_kept",
+    "pages_scraped",
+    "extracted_row_count",
+    "consolidated_row_count",
+    # Stage 6 outcome (1)
+    "validation_status",
+    # Timing (3) -- derived from g3o.common.timing's per-institution timing.json
+    "start_timestamp",
+    "end_timestamp",
+    "total_runtime_seconds",
+]
+
 SUMMARY_COLUMNS: list[str] = [
     # Identity (5)
     "institution_id",

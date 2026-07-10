@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from g3o.common import attrition
 from g3o.common import config as _config
+from g3o.common.institution_report import write_institution_report
 from g3o.discovery.serper_client import set_live_mode
 from g3o.run.presweep.config import PresweepConfig
 from g3o.run.presweep.planning import plan_run, update_manifest_llm_provenance
@@ -21,6 +23,8 @@ from g3o.run.presweep.stage_discovery import (
 from g3o.run.presweep.stage_extract import _run_extract
 from g3o.run.presweep.stage_scrape import _run_scrape
 from g3o.run.presweep.stage_validate import _run_validate
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Resume semantics (Session E, 2026-05-09; chunked Session F.1, 2026-06-10):
@@ -208,3 +212,14 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
         return summary
     finally:
         update_manifest_llm_provenance(plan.run_dir)
+        # Best-effort (Feature 1): compute + persist institution_report.{jsonl,csv}
+        # on every stop_after early return and on a crash, same as the
+        # provenance fold above. Guarded so a bug here can never mask the
+        # stage exception this finally block is already propagating.
+        try:
+            write_institution_report(plan.run_dir)
+        except Exception:
+            logger.exception(
+                "institution_report generation failed for %s (non-fatal)",
+                plan.run_dir,
+            )
