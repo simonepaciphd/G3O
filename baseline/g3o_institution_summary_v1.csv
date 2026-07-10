@@ -1,0 +1,4 @@
+institution_id,institution_name,country,branch_of_government,level_of_government,run_id,run_date,has_genai_activity,institution_summary,institution_search_languages,n_pages_extracted,n_activities,n_sources,n_high_credibility_sources,n_medium_credibility_sources,n_low_credibility_sources,activities_found,tools_found,vendors_found,best_confidence,consolidated_uncertainty_flags
+INST-0000001,Ministry 0,COUNTRY-0,executive,national,baseline-smoke-1,2026-07-10,no,No GenAI evidence in supplied texts.,en,2,0,1,1,0,0,,,,_NA_,none
+INST-0000002,Ministry 1,COUNTRY-1,executive,national,baseline-smoke-1,2026-07-10,no,No GenAI evidence in supplied texts.,en,2,0,1,1,0,0,,,,_NA_,none
+INST-0000003,Ministry 2,COUNTRY-2,executive,national,baseline-smoke-1,2026-07-10,no,No GenAI evidence in supplied texts.,en,2,0,1,1,0,0,,,,_NA_,none
