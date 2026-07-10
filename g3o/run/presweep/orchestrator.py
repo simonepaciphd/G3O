@@ -9,6 +9,7 @@ from g3o.common import attrition
 from g3o.common import config as _config
 from g3o.common.institution_report import write_institution_report
 from g3o.discovery.serper_client import set_live_mode
+from g3o.report.run_summary import render_run_summary_text, write_run_summary
 from g3o.run.presweep.config import PresweepConfig
 from g3o.run.presweep.planning import plan_run, update_manifest_llm_provenance
 from g3o.run.presweep.records import institution_record
@@ -222,4 +223,13 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             logger.exception(
                 "institution_report generation failed for %s (non-fatal)",
                 plan.run_dir,
+            )
+        # Feature 3: human-readable run summary, stdout + persisted JSON.
+        # Depends on institution_report.jsonl above; same best-effort guard.
+        try:
+            run_summary = write_run_summary(plan.run_dir)
+            print(render_run_summary_text(run_summary))
+        except Exception:
+            logger.exception(
+                "run_summary generation failed for %s (non-fatal)", plan.run_dir
             )
