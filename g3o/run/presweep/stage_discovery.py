@@ -9,6 +9,7 @@ from typing import Any
 
 from g3o.common import attrition
 from g3o.common.run_state import is_done, mark_done
+from g3o.common.timing import stage_timer
 from g3o.discovery.query_builder import build_queries
 from g3o.discovery.serper_client import (
     SerperRequestError,
@@ -80,39 +81,40 @@ def _run_discovery_general(
             payload = json.loads(path.read_text(encoding="utf-8"))
             out[inst_id] = payload.get("records", [])
             continue
-        queries = build_queries(institution["institution_name"], list(languages))
-        seen: set[str] = set()
-        records: list[dict[str, Any]] = []
-        for query, lang in queries:
-            try:
-                hits = search_google(query, num_results=num_results)
-            except SerperRequestError as exc:
-                # Honest failure (review F1): record and abort the stage rather
-                # than persist a partial artifact that looks like "found
-                # nothing". The institution's 1a file is NOT written and the
-                # stage is NOT marked done, so resume retries this institution.
-                attrition.record(
-                    run_dir, institution_id=inst_id, stage=stage,
-                    reason="serper_request_failed", url=query, detail=str(exc),
-                )
-                raise
-            for r in hits:
-                url = r.get("link", "")
-                if url and url not in seen:
-                    seen.add(url)
-                    records.append({**r, "query": query, "language": lang})
-        out[inst_id] = records
-        path.write_text(
-            json.dumps(
-                {
-                    "queries": [{"query": q, "language": lang} for q, lang in queries],
-                    "records": records,
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
+        with stage_timer(run_dir, inst_id, stage):
+            queries = build_queries(institution["institution_name"], list(languages))
+            seen: set[str] = set()
+            records: list[dict[str, Any]] = []
+            for query, lang in queries:
+                try:
+                    hits = search_google(query, num_results=num_results)
+                except SerperRequestError as exc:
+                    # Honest failure (review F1): record and abort the stage rather
+                    # than persist a partial artifact that looks like "found
+                    # nothing". The institution's 1a file is NOT written and the
+                    # stage is NOT marked done, so resume retries this institution.
+                    attrition.record(
+                        run_dir, institution_id=inst_id, stage=stage,
+                        reason="serper_request_failed", url=query, detail=str(exc),
+                    )
+                    raise
+                for r in hits:
+                    url = r.get("link", "")
+                    if url and url not in seen:
+                        seen.add(url)
+                        records.append({**r, "query": query, "language": lang})
+            out[inst_id] = records
+            path.write_text(
+                json.dumps(
+                    {
+                        "queries": [{"query": q, "language": lang} for q, lang in queries],
+                        "records": records,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
     mark_done(run_dir, stage, no_batch=True)
     return out
 
@@ -167,38 +169,39 @@ def _run_discovery_site_restricted(
                 reason="official_site_unparseable", url=site_url,
             )
             continue
-        base_queries = build_queries(institution["institution_name"], list(languages))
-        wrapped = [(build_site_query(q, domain), lang) for q, lang in base_queries]
-        seen: set[str] = set()
-        records: list[dict[str, Any]] = []
-        for query, lang in wrapped:
-            try:
-                hits = search_google(query, num_results=num_results)
-            except SerperRequestError as exc:
-                attrition.record(
-                    run_dir, institution_id=inst_id, stage=stage,
-                    reason="serper_request_failed", url=query, detail=str(exc),
-                )
-                raise
-            for r in hits:
-                url = r.get("link", "")
-                if url and url not in seen:
-                    seen.add(url)
-                    records.append(
-                        {**r, "query": query, "language": lang, "site_domain": domain}
+        with stage_timer(run_dir, inst_id, stage):
+            base_queries = build_queries(institution["institution_name"], list(languages))
+            wrapped = [(build_site_query(q, domain), lang) for q, lang in base_queries]
+            seen: set[str] = set()
+            records: list[dict[str, Any]] = []
+            for query, lang in wrapped:
+                try:
+                    hits = search_google(query, num_results=num_results)
+                except SerperRequestError as exc:
+                    attrition.record(
+                        run_dir, institution_id=inst_id, stage=stage,
+                        reason="serper_request_failed", url=query, detail=str(exc),
                     )
-        out[inst_id] = records
-        path.write_text(
-            json.dumps(
-                {
-                    "site_domain": domain,
-                    "queries": [{"query": q, "language": lang} for q, lang in wrapped],
-                    "records": records,
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            encoding="utf-8",
-        )
+                    raise
+                for r in hits:
+                    url = r.get("link", "")
+                    if url and url not in seen:
+                        seen.add(url)
+                        records.append(
+                            {**r, "query": query, "language": lang, "site_domain": domain}
+                        )
+            out[inst_id] = records
+            path.write_text(
+                json.dumps(
+                    {
+                        "site_domain": domain,
+                        "queries": [{"query": q, "language": lang} for q, lang in wrapped],
+                        "records": records,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
     mark_done(run_dir, stage, no_batch=True)
     return out

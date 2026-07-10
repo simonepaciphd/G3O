@@ -9,6 +9,7 @@ from typing import Any
 from g3o.common import attrition
 from g3o.common import config as _config
 from g3o.common.run_state import is_done, mark_done
+from g3o.common.timing import stage_timer
 from g3o.run.presweep.records import institution_record, synth_institution_id
 from g3o.scrape.fetcher import scrape_url
 from g3o.scrape.politeness import (
@@ -86,42 +87,43 @@ def _run_scrape(
             scrape_dir = run_dir / inst_id / "scrape"
             scrape_dir.mkdir(parents=True, exist_ok=True)
             pages: list[RenderedPage] = []
-            for url in urls:
-                output_path = scrape_dir / f"{url_hash(url)}.json"
-                if output_path.exists():
-                    # Q5=a per-run skip: load existing RenderedPage; no refetch.
-                    pages.append(
-                        RenderedPage.model_validate_json(
-                            output_path.read_text(encoding="utf-8")
+            with stage_timer(run_dir, inst_id, stage):
+                for url in urls:
+                    output_path = scrape_dir / f"{url_hash(url)}.json"
+                    if output_path.exists():
+                        # Q5=a per-run skip: load existing RenderedPage; no refetch.
+                        pages.append(
+                            RenderedPage.model_validate_json(
+                                output_path.read_text(encoding="utf-8")
+                            )
                         )
-                    )
-                    continue
-                if robots is not None and not robots.allowed(url):
-                    logger.info("Stage 4: robots.txt disallows %s — skipping", url)
-                    attrition.record(
-                        run_dir, institution_id=inst_id, stage=stage,
-                        reason="robots_disallowed", url=url,
-                    )
-                    continue
-                throttle.wait(
-                    url,
-                    extra_delay=robots.crawl_delay(url) if robots is not None else None,
-                )
-                try:
-                    page = scrape_url(
+                        continue
+                    if robots is not None and not robots.allowed(url):
+                        logger.info("Stage 4: robots.txt disallows %s — skipping", url)
+                        attrition.record(
+                            run_dir, institution_id=inst_id, stage=stage,
+                            reason="robots_disallowed", url=url,
+                        )
+                        continue
+                    throttle.wait(
                         url,
-                        render_session=render_session,
-                        prefer_render_on_download_failure=render_on_download_failure,
+                        extra_delay=robots.crawl_delay(url) if robots is not None else None,
                     )
-                except Exception as exc:
-                    logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
-                    attrition.record(
-                        run_dir, institution_id=inst_id, stage=stage,
-                        reason="scrape_failed", url=url, detail=str(exc),
-                    )
-                    continue
-                output_path.write_text(page.model_dump_json(indent=2), encoding="utf-8")
-                pages.append(page)
-            out[inst_id] = pages
+                    try:
+                        page = scrape_url(
+                            url,
+                            render_session=render_session,
+                            prefer_render_on_download_failure=render_on_download_failure,
+                        )
+                    except Exception as exc:
+                        logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
+                        attrition.record(
+                            run_dir, institution_id=inst_id, stage=stage,
+                            reason="scrape_failed", url=url, detail=str(exc),
+                        )
+                        continue
+                    output_path.write_text(page.model_dump_json(indent=2), encoding="utf-8")
+                    pages.append(page)
+                out[inst_id] = pages
     mark_done(run_dir, stage, no_batch=True)
     return out

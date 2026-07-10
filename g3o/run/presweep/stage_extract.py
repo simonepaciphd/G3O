@@ -11,6 +11,7 @@ from typing import Any
 from g3o.common import attrition
 from g3o.common.batch_client import BatchResult
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
+from g3o.common.timing import llm_stage_timer
 from g3o.extract import (
     build_extract_jobs,
     parse_extract_result,
@@ -139,10 +140,12 @@ def _run_extract(
                 encoding="utf-8",
             )
 
-    run_chunked_stage(
-        run_dir, stage, jobs,
-        run_id=run_id, model=model,
-        poll_interval=poll_interval, max_wait=max_wait,
-        process_chunk_results=_persist,
-    )
+    custom_id_to_institution = {cid: inst_id for cid, (inst_id, _page) in page_lookup.items()}
+    with llm_stage_timer(run_dir, stage, custom_id_to_institution):
+        run_chunked_stage(
+            run_dir, stage, jobs,
+            run_id=run_id, model=model,
+            poll_interval=poll_interval, max_wait=max_wait,
+            process_chunk_results=_persist,
+        )
     return _count_existing_extracts(run_dir, sample)

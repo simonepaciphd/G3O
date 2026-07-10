@@ -44,6 +44,7 @@ from g3o.common.run_state import (
     mark_done,
     run_chunked_stage,
 )
+from g3o.common.timing import llm_stage_timer
 from g3o.validate.client import RESPONSE_FORMAT, build_consolidate_job
 
 logger = logging.getLogger(__name__)
@@ -319,13 +320,16 @@ def run_consolidate(
                 continue
             write_consolidated_output(run_dir, result.custom_id, response)
 
-    run_chunked_stage(
-        run_dir, stage, jobs,
-        run_id=run_id, model=model,
-        poll_interval=poll_interval, max_wait=max_wait,
-        process_chunk_results=_persist,
-        client=client,
-    )
+    # custom_id == institution_id for this stage (make_consolidate_custom_id),
+    # so the identity fallback in llm_stage_timer needs no explicit mapping.
+    with llm_stage_timer(run_dir, stage, {}):
+        run_chunked_stage(
+            run_dir, stage, jobs,
+            run_id=run_id, model=model,
+            poll_interval=poll_interval, max_wait=max_wait,
+            process_chunk_results=_persist,
+            client=client,
+        )
 
     done_payload = json.loads(
         done_path(run_dir, stage).read_text(encoding="utf-8")
