@@ -72,6 +72,9 @@ from g3o.run.presweep.stage_discovery import (
     _run_discovery_site_restricted as _run_discovery_site_restricted,
 )
 from g3o.run.presweep.stage_extract import _run_extract as _run_extract
+from g3o.run.presweep.stage_filter import (
+    _run_filter_eligibility as _run_filter_eligibility,
+)
 from g3o.run.presweep.stage_scrape import _run_scrape as _run_scrape
 from g3o.run.presweep.stage_validate import _run_validate as _run_validate
 

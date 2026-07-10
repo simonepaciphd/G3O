@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition as _attrition
+from g3o.report.filter_eligibility import compute_filter_block
 from g3o.report.thresholds import HealthThresholds
 
 # Flag literals: green = within normal bounds, warn = below warn threshold,
@@ -633,6 +634,10 @@ def compute_health_report(
             "--thresholds <json-file> to override."
         ),
         "language_filter": language,
+        # Additive Stage 1c block (design memo 2026-07-06). Kept as its own
+        # top-level key rather than inside ``stages`` so it never perturbs the
+        # funnel's overall_flag — in shadow mode the filter is informational.
+        "filter_eligibility": compute_filter_block(run_dir, language=language),
     }
     if language is not None:
         report["language_caveats"] = [

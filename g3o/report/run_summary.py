@@ -27,6 +27,7 @@ _STAGE_ORDER: tuple[str, ...] = (
     "discovery_general",
     "classify_official_site",
     "discovery_site_restricted",
+    "filter_eligibility",
     "classify_triage",
     "scrape",
     "extract",
