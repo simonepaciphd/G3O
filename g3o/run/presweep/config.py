@@ -19,6 +19,7 @@ STAGES: tuple[str, ...] = (
     "discovery_general",
     "classify_official_site",
     "discovery_site_restricted",
+    "filter_eligibility",
     "classify_triage",
     "scrape",
     "extract",
@@ -28,6 +29,7 @@ StageName = Literal[
     "discovery_general",
     "classify_official_site",
     "discovery_site_restricted",
+    "filter_eligibility",
     "classify_triage",
     "scrape",
     "extract",
@@ -49,6 +51,11 @@ class PresweepConfig:
     discovery_results_per_query: int = 5
     dry_run: bool = True
     stop_after: StageName = "extract"
+    # Stage 1c eligibility pre-filter mode (design memo 2026-07-06, decision 2).
+    # ``off``: bypassed. ``shadow``: artifact written, nothing dropped (default
+    # for the first smoke run). ``enforce``: only ``pass`` URLs reach Stage 3.
+    # Enabling ``enforce`` is a PI decision made on measured shadow recall.
+    filter_mode: Literal["off", "shadow", "enforce"] = "shadow"
     poll_interval: int = 60
     max_wait_per_stage: int = 25 * 60 * 60  # 25h: SLA + jitter
     model: str = DEFAULT_MODEL

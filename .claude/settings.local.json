@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git check-ignore *)",
+      "WebSearch",
+      "WebFetch(domain:serper.dev)",
+      "Bash(gh auth *)",
+      "Bash(gh issue *)",
+      "Bash(python -m pytest tests/test_filter_eligibility.py -q)",
+      "Bash(python -m pytest -q)",
+      "Bash(python -)",
+      "Bash(ruff check *)",
+      "Bash(python -c \"from g3o.run.presweep import STAGES; print\\(STAGES\\)\")",
+      "Bash(python -m g3o.cli presweep --help)",
+      "Bash(grep -iA6 \"stop-after\")"
+    ]
+  }
+}

@@ -311,6 +311,7 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         discovery_results_per_query=args.discovery_results_per_query,
         dry_run=not args.execute,
         stop_after=args.stop_after,
+        filter_mode=args.filter_mode,
         poll_interval=args.poll_interval,
         max_wait_per_stage=args.max_wait_per_stage,
         model=args.model,
@@ -380,6 +381,15 @@ def _cmd_presweep_report(args: argparse.Namespace) -> int:
     json_path.write_text(
         json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+
+    # Run-level Stage 1c summary (the shadow-recall metric's home — kept out of
+    # the per-institution 1c artifacts so those stay byte-reproducible; design
+    # memo 2026-07-06). Only written when the filter actually ran.
+    filter_block = report.get("filter_eligibility", {})
+    if filter_block.get("ran"):
+        (run_dir / f"_filter_eligibility_summary{suffix}.json").write_text(
+            json.dumps(filter_block, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
     if args.json:
         json.dump(report, sys.stdout, ensure_ascii=False, indent=2)
@@ -598,6 +608,7 @@ def build_parser() -> argparse.ArgumentParser:
             "discovery_general",
             "classify_official_site",
             "discovery_site_restricted",
+            "filter_eligibility",
             "classify_triage",
             "scrape",
             "extract",
@@ -608,6 +619,17 @@ def build_parser() -> argparse.ArgumentParser:
             "Stop after this stage (only meaningful with --execute). "
             "Default 'extract' preserves Session B/D launch behavior; pass "
             "'validate' to also run Stage 6 (per Q8=ii Session E fold)."
+        ),
+    )
+    presweep.add_argument(
+        "--filter-mode",
+        choices=["off", "shadow", "enforce"],
+        default="shadow",
+        help=(
+            "Stage 1c eligibility pre-filter mode. 'shadow' (default) writes the "
+            "would-drop artifact but drops nothing; 'enforce' sends Stage 3 only "
+            "the URLs that pass; 'off' bypasses the filter entirely. Enabling "
+            "'enforce' is a PI decision made on measured shadow recall."
         ),
     )
     presweep.add_argument("--poll-interval", type=int, default=60)

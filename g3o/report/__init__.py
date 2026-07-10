@@ -1,5 +1,6 @@
 """Pipeline health report — stage-by-stage funnel KPIs for a presweep run."""
 
+from g3o.report.filter_eligibility import compute_filter_block
 from g3o.report.health import (
     compute_health_report,
     compute_language_breakdown,
@@ -13,6 +14,7 @@ from g3o.report.render import render_text_report
 from g3o.report.thresholds import HealthThresholds
 
 __all__ = [
+    "compute_filter_block",
     "compute_health_report",
     "compute_language_breakdown",
     "detect_languages",

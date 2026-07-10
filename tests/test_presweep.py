@@ -629,13 +629,19 @@ def _batch_handle(batch_id: str = "batch-test", n_jobs: int = 1):
 
 
 def test_stages_includes_validate(tmp_path: Path):
-    """Q8=ii (Session E): Stage 6 (validate) is folded into STAGES."""
+    """Q8=ii (Session E): Stage 6 (validate) is folded into STAGES.
+
+    Updated 2026-07-07: Stage 1c ``filter_eligibility`` inserted between
+    ``discovery_site_restricted`` and ``classify_triage`` (eligibility-filter
+    design memo, PI sign-off 2026-07-06).
+    """
     from g3o.run.presweep import STAGES
 
     assert STAGES == (
         "discovery_general",
         "classify_official_site",
         "discovery_site_restricted",
+        "filter_eligibility",
         "classify_triage",
         "scrape",
         "extract",

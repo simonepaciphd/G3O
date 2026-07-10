@@ -19,6 +19,7 @@ from g3o.run.presweep.stage_discovery import (
     _run_discovery_site_restricted,
 )
 from g3o.run.presweep.stage_extract import _run_extract
+from g3o.run.presweep.stage_filter import _run_filter_eligibility
 from g3o.run.presweep.stage_scrape import _run_scrape
 from g3o.run.presweep.stage_validate import _run_validate
 
@@ -151,11 +152,29 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
         if config.stop_after == "discovery_site_restricted":
             return summary
 
-        triaged = _run_classify_triage(
+        # Stage 1c — deterministic eligibility pre-filter (design memo
+        # 2026-07-06). Screens the 1a+1b union and, under ``enforce``, hands
+        # Stage 3 only the ``pass`` URLs; ``shadow`` (default) writes the
+        # would-drop artifact but leaves the union intact. The 1a/1b artifacts
+        # are never mutated — pruning is applied to in-memory copies only.
+        filter_general, filter_site_restricted, filter_stats = _run_filter_eligibility(
             plan.run_dir,
             plan.sample,
             discovery_general,
             discovery_site_restricted,
+            mode=config.filter_mode,
+        )
+        summary["filter_mode"] = filter_stats["mode"]
+        summary["n_filter_would_drop"] = filter_stats["n_would_drop"]
+        summary["n_filter_enforced_drop"] = filter_stats["n_enforced_drop"]
+        if config.stop_after == "filter_eligibility":
+            return summary
+
+        triaged = _run_classify_triage(
+            plan.run_dir,
+            plan.sample,
+            filter_general,
+            filter_site_restricted,
             official_sites,
             run_id=config.run_id,
             model=config.model,
