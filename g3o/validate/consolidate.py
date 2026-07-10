@@ -19,6 +19,7 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
+from g3o.common import attrition
 from g3o.common.batch_client import (
     DEFAULT_COMPLETION_WINDOW,
     DEFAULT_ENDPOINT,
@@ -315,6 +316,10 @@ def run_consolidate(
             except Exception as exc:
                 logger.warning(
                     "Stage 6 parse failed for %s: %s", result.custom_id, exc
+                )
+                attrition.record(
+                    run_dir, institution_id=result.custom_id, stage=stage,
+                    reason="parse_failed", detail=str(exc),
                 )
                 n_failed += 1
                 continue
