@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import os
 import time
+from collections.abc import Callable
 
 import requests
 from bs4 import BeautifulSoup
@@ -42,6 +43,14 @@ _session.headers = {
 # Cache file prefix; bumped from `page_` when RenderedPage replaced the legacy
 # {text, links, url, content_type, success} dict shape (Session B, 2026-05-09).
 _CACHE_PREFIX = "page_v2_"
+
+# A render-attempt telemetry hook. Called once per render attempt with keyword
+# args ``url``, ``trigger`` ("download_failure" | "empty_after_strip"),
+# ``outcome`` ("rendered" | "render_failed"), and ``result_len`` (non-whitespace
+# length of the rendered text, or None when the render itself raised). The
+# fetcher stays agnostic of the run context; the Stage 4 runner supplies a hook
+# that records the attempt to the attrition ledger.
+RenderAttemptCallback = Callable[..., None]
 
 
 def _cache_key(url: str) -> str:
@@ -113,6 +122,25 @@ def _extract_pdf_title(content: bytes) -> str:
         return ""
 
 
+def _notify_render_attempt(
+    callback: RenderAttemptCallback | None,
+    *,
+    url: str,
+    trigger: str,
+    outcome: str,
+    result_len: int | None,
+) -> None:
+    """Fire the render-attempt telemetry hook, if one was supplied.
+
+    Called on *every* render attempt — download-failure- or empty-after-strip-
+    triggered, success or failure — so the caller can account for the render
+    rate and its cost without a silent retry. A no-op when ``callback`` is None,
+    which keeps the low-level fetcher usable without a run context.
+    """
+    if callback is not None:
+        callback(url=url, trigger=trigger, outcome=outcome, result_len=result_len)
+
+
 def _failure_page(url: str, *, attempted_method: str) -> RenderedPage:
     """Build a no-text RenderedPage for download failures. Not cached."""
     return RenderedPage(
@@ -138,16 +166,24 @@ def scrape_url(
     force_render: bool = False,
     prefer_render_on_empty: bool = True,
     prefer_render_on_download_failure: bool = False,
+    empty_page_min_chars: int = 1,
     render_session: RenderSession | None = None,
+    on_render_attempt: RenderAttemptCallback | None = None,
 ) -> RenderedPage:
     """Fetch a URL and return a ``RenderedPage``.
 
     Dispatch policy:
 
     - ``force_render=True`` always uses ``render_url``.
-    - Otherwise the deterministic path (HTML or PDF) runs first; if it returns
-      empty text and ``prefer_render_on_empty`` is True, ``render_url`` is
-      invoked as a fallback.
+    - Otherwise the deterministic path (HTML or PDF) runs first; if its stripped
+      text is below ``empty_page_min_chars`` and ``prefer_render_on_empty`` is
+      True, ``render_url`` is invoked as a fallback. ``empty_page_min_chars``
+      defaults to 1 (render only on empty/whitespace-only text) for standalone
+      callers; the Stage 4 runner raises it to ``PresweepConfig.
+      empty_page_min_chars`` so a JS-shell page that strips to near-zero chars
+      is rendered rather than passed through to Stage 5 as a silent
+      ``empty_page_dropped``. The floor mirrors Stage 5's ``is_near_empty`` drop
+      test so the render fires for exactly the pages the extractor would discard.
     - If the HTTP GET itself fails (e.g., 403 bot block, network error), a
       render fallback runs **only** when ``prefer_render_on_download_failure``
       is True. This defaults to False (review F14): rendering every dead URL —
@@ -155,6 +191,10 @@ def scrape_url(
       IP-reputation risk on government hosts and a multi-hour wall-clock tax at
       ~12k URLs. The Stage 4 runner leaves it off by default
       (``PresweepConfig.scrape_render_on_download_failure``).
+
+    Every render attempt (either trigger, success or failure) invokes
+    ``on_render_attempt`` when supplied, so the caller can account for the
+    render rate/cost; the fetcher itself never silently retries.
 
     When ``render_session`` is supplied, every render reuses that
     :class:`RenderSession`'s browser instead of launching a fresh Chromium per
@@ -186,10 +226,20 @@ def scrape_url(
                 page = render_url(
                     url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session
                 )
-                _save(page)
-                return page
             except Exception:
+                _notify_render_attempt(
+                    on_render_attempt, url=url,
+                    trigger="download_failure", outcome="render_failed",
+                    result_len=None,
+                )
                 return _failure_page(url, attempted_method="html")
+            _notify_render_attempt(
+                on_render_attempt, url=url,
+                trigger="download_failure", outcome="rendered",
+                result_len=len(page.text.strip()),
+            )
+            _save(page)
+            return page
         return _failure_page(url, attempted_method="html")
 
     if "pdf" in ctype or url.lower().endswith(".pdf"):
@@ -204,16 +254,31 @@ def scrape_url(
         method = "html"
         content_type = "html"
 
-    if not text and prefer_render_on_empty:
+    # Render fallback when the deterministic path yields text below the empty-
+    # page floor. JS-shell government pages return 200 + near-zero stripped text
+    # and would otherwise pass through to Stage 5 as a silent empty_page_dropped;
+    # ``len(strip) < empty_page_min_chars`` mirrors Stage 5's is_near_empty drop
+    # test so the render fires for exactly the pages the extractor would discard.
+    if prefer_render_on_empty and len(text.strip()) < empty_page_min_chars:
         try:
             page = render_url(
                 url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session
             )
-            _save(page)
-            return page
         except Exception:
             # Render fallback failed; surface the deterministic-path empty result.
-            pass
+            _notify_render_attempt(
+                on_render_attempt, url=url,
+                trigger="empty_after_strip", outcome="render_failed",
+                result_len=None,
+            )
+        else:
+            _notify_render_attempt(
+                on_render_attempt, url=url,
+                trigger="empty_after_strip", outcome="rendered",
+                result_len=len(page.text.strip()),
+            )
+            _save(page)
+            return page
 
     page = RenderedPage(
         url=url,
