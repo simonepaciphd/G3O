@@ -22,6 +22,7 @@ from g3o.classify.url_triage import (
     URLDecision,
     URLTriageResult,
     build_triage_job,
+    match_triage_decisions,
     parse_triage_result,
 )
 from g3o.common.batch_client import BatchResult
@@ -220,16 +221,27 @@ def test_url_triage_rejects_bad_decision_enum():
         )
 
 
-def test_url_triage_rejects_duplicate_urls():
-    with pytest.raises(ValidationError, match="duplicate URL"):
-        URLTriageResult.model_validate(
-            {
-                "decisions": [
-                    {"url": "https://x.gov/", "decision": "keep", "rationale": "a"},
-                    {"url": "https://x.gov/", "decision": "drop", "rationale": "b"},
-                ]
-            }
-        )
+def test_url_triage_duplicate_urls_allowed_and_salvaged():
+    """Duplicates are no longer a fatal model-level error. The structural model
+    accepts them; index matching salvages the clean position and records the
+    duplicate as one per-URL ``duplicate_url`` casualty."""
+    triage = URLTriageResult.model_validate(
+        {
+            "decisions": [
+                {"url": "https://x.gov/", "decision": "keep", "rationale": "a"},
+                {"url": "https://x.gov/", "decision": "drop", "rationale": "b"},
+            ]
+        }
+    )
+    assert len(triage.decisions) == 2  # model no longer rejects the dupe
+
+    match = match_triage_decisions(["https://x.gov/", "https://y.gov/"], triage)
+    # Position 0 (x.gov) matches its candidate and is salvaged.
+    assert [d.url for d in match.decisions] == ["https://x.gov/"]
+    # Position 1 echoes x.gov again where y.gov was expected → duplicate_url.
+    assert len(match.attrition) == 1
+    cas = match.attrition[0]
+    assert (cas.url, cas.reason) == ("https://y.gov/", "duplicate_url")
 
 
 # ---------------------------------------------------------------------------
@@ -291,26 +303,46 @@ def test_parse_triage_success():
 
 
 def test_parse_triage_detects_missing_url():
-    """When expected_urls is supplied, missing decisions raise."""
+    """A short response (1 decision for 4 candidates) is salvaged, not raised:
+    the one matching decision is kept and the three unmatched candidates each
+    get a ``missing_decision`` casualty."""
     payload = {
         "decisions": [
             {"url": CANDIDATE_URLS[0], "decision": "keep", "rationale": "r"}
         ]
     }
     result = _make_result("inst-0042-stage3", payload)
-    with pytest.raises(RuntimeError, match="missing decisions"):
-        parse_triage_result(result, expected_urls=CANDIDATE_URLS)
+    match = match_triage_decisions(CANDIDATE_URLS, parse_triage_result(result))
+
+    assert [d.url for d in match.decisions] == [CANDIDATE_URLS[0]]
+    assert [(c.url, c.reason) for c in match.attrition] == [
+        (u, "missing_decision") for u in CANDIDATE_URLS[1:]
+    ]
 
 
 def test_parse_triage_detects_invented_url():
+    """An invented URL at position 0 mismatches its candidate and is dropped
+    (never salvaged, so never scraped); the remaining candidates have no
+    decision at all. Nothing is kept and the invented string never surfaces as
+    a candidate — it lives only in the mismatch casualty's detail."""
     payload = {
         "decisions": [
             {"url": "https://invented.gov/", "decision": "keep", "rationale": "r"}
         ]
     }
     result = _make_result("inst-0042-stage3", payload)
-    with pytest.raises(RuntimeError, match="unexpected URLs"):
-        parse_triage_result(result, expected_urls=CANDIDATE_URLS)
+    match = match_triage_decisions(CANDIDATE_URLS, parse_triage_result(result))
+
+    assert match.decisions == []
+    assert match.kept_urls == []
+    assert "https://invented.gov/" not in match.kept_urls
+    assert [(c.url, c.reason) for c in match.attrition] == [
+        (CANDIDATE_URLS[0], "url_mismatch"),
+        (CANDIDATE_URLS[1], "missing_decision"),
+        (CANDIDATE_URLS[2], "missing_decision"),
+        (CANDIDATE_URLS[3], "missing_decision"),
+    ]
+    assert "corruption_or_fabrication" in match.attrition[0].detail
 
 
 def test_parse_triage_failure_raises():

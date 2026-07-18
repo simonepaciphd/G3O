@@ -43,7 +43,7 @@ import pytest
 from pydantic import ValidationError
 
 from g3o.classify.official_site import parse_official_site_result
-from g3o.classify.url_triage import parse_triage_result
+from g3o.classify.url_triage import match_triage_decisions, parse_triage_result
 from g3o.common.batch_client import BatchResult
 from g3o.extract.parser import parse_extract_result
 from g3o.validate.consolidate import parse_consolidate_result
@@ -334,31 +334,70 @@ def test_stage3_prose_refusal_caught():
 
 
 def test_stage3_rewritten_url_variant_caught():
-    """LLMs silently normalize URLs (here: added trailing slash). The
-    round-trip check must flag the variant as both missing and unexpected."""
+    """LLMs silently rewrite URLs (here: a trailing slash added to one entry).
+
+    The threat is unchanged from the old round-trip contract — a rewritten URL
+    must never be trusted as a valid candidate — but the blast radius is now
+    per-URL: index matching drops *only* the drifted entry (with one
+    ``url_mismatch`` casualty) and salvages the other three, instead of raising
+    and discarding the whole institution.
+    """
     urls = list(CANDIDATE_URLS)
     urls[2] = urls[2] + "/"
     result = _make_result("INST-0042", _triage_payload(urls))
-    with pytest.raises(RuntimeError) as exc_info:
-        parse_triage_result(result, expected_urls=CANDIDATE_URLS)
-    assert "missing decisions" in str(exc_info.value)
-    assert "unexpected URLs" in str(exc_info.value)
+    match = match_triage_decisions(CANDIDATE_URLS, parse_triage_result(result))
+
+    # Three clean decisions salvaged; the institution is not discarded.
+    assert [d.url for d in match.decisions] == [
+        CANDIDATE_URLS[0], CANDIDATE_URLS[1], CANDIDATE_URLS[3]
+    ]
+    # The rewritten variant is rejected — never enters the kept set.
+    assert urls[2] not in match.kept_urls
+    assert len(match.attrition) == 1
+    cas = match.attrition[0]
+    assert (cas.url, cas.reason) == (CANDIDATE_URLS[2], "url_mismatch")
+    assert "corruption_or_fabrication" in cas.detail
 
 
 def test_stage3_fabricated_extra_url_with_full_coverage_caught():
-    """All expected URLs decided AND one invented extra — distinct from the
-    single-decision invented-URL case in test_classify.py."""
-    urls = [*CANDIDATE_URLS, "https://invented.example.gov/ai-strategy"]
+    """All expected URLs decided AND one invented extra appended.
+
+    The four real candidates match by index and are salvaged; the invented URL
+    is a surplus ``extra_decision`` casualty and never enters the kept set — the
+    fabrication threat is preserved, only the blast radius shrinks to that one
+    URL.
+
+    Note the extra is *appended*: a fabricated URL inserted *mid-list* would
+    instead shift every later index by one, cascading into multiple
+    ``url_mismatch`` casualties. Still safe (nothing fabricated is scraped),
+    just noisier attrition — see match_triage_decisions' docstring.
+    """
+    invented = "https://invented.example.gov/ai-strategy"
+    urls = [*CANDIDATE_URLS, invented]
     result = _make_result("INST-0042", _triage_payload(urls))
-    with pytest.raises(RuntimeError, match="unexpected URLs"):
-        parse_triage_result(result, expected_urls=CANDIDATE_URLS)
+    match = match_triage_decisions(CANDIDATE_URLS, parse_triage_result(result))
+
+    assert [d.url for d in match.decisions] == CANDIDATE_URLS
+    assert invented not in match.kept_urls
+    assert len(match.attrition) == 1
+    cas = match.attrition[0]
+    assert (cas.url, cas.reason) == (invented, "extra_decision")
 
 
 def test_stage3_empty_decisions_with_expected_urls_caught():
-    """{"decisions": []} is structurally valid but must fail the round-trip."""
+    """``{"decisions": []}`` is structurally valid; index matching turns it into
+    one ``missing_decision`` casualty per candidate rather than a single blanket
+    institution-level failure. Nothing is salvaged (so nothing is scraped), but
+    the institution is represented with an itemised, per-URL account of the gap.
+    """
     result = _make_result("INST-0042", {"decisions": []})
-    with pytest.raises(RuntimeError, match="missing decisions"):
-        parse_triage_result(result, expected_urls=CANDIDATE_URLS)
+    match = match_triage_decisions(CANDIDATE_URLS, parse_triage_result(result))
+
+    assert match.decisions == []
+    assert match.kept_urls == []
+    assert [(c.url, c.reason) for c in match.attrition] == [
+        (u, "missing_decision") for u in CANDIDATE_URLS
+    ]
 
 
 def test_stage3_plausible_out_of_enum_decision_caught():

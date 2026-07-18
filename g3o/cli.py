@@ -31,7 +31,11 @@ from g3o.classify.official_site import (
     build_official_site_job,
     parse_official_site_result,
 )
-from g3o.classify.url_triage import build_triage_job, parse_triage_result
+from g3o.classify.url_triage import (
+    build_triage_job,
+    match_triage_decisions,
+    parse_triage_result,
+)
 from g3o.common.batch_client import (
     DEFAULT_MODEL,
     fetch_results,
@@ -215,9 +219,20 @@ def _cmd_classify_triage(args: argparse.Namespace) -> int:
         return 1 if status.is_terminal else 2
 
     results = list(fetch_results(handle.batch_id, status=status))
-    parsed = parse_triage_result(results[0], expected_urls=candidate_urls)
+    parsed = parse_triage_result(results[0])
+    match = match_triage_decisions(candidate_urls, parsed)
     json.dump(
-        {**submit_record, "result": parsed.model_dump()}, sys.stdout, indent=2
+        {
+            **submit_record,
+            "result": {"decisions": [d.model_dump() for d in match.decisions]},
+            "kept_urls": match.kept_urls,
+            "attrition": [
+                {"url": c.url, "reason": c.reason, "detail": c.detail}
+                for c in match.attrition
+            ],
+        },
+        sys.stdout,
+        indent=2,
     )
     sys.stdout.write("\n")
     return 0
