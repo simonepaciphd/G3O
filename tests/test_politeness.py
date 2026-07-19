@@ -7,6 +7,9 @@ No network and no real sleeping: ``RobotsCache`` takes an injected fetch and
 
 from __future__ import annotations
 
+import threading
+import time
+
 from g3o.scrape.politeness import HostThrottle, RobotsCache, host_key
 
 ROBOTS_TXT = """\
@@ -149,3 +152,60 @@ def test_throttle_zero_delay_is_noop():
     th.wait("https://x.gov/a")
     th.wait("https://x.gov/b")
     assert clock.slept == []
+
+
+# ---------------------------------------------------------------------------
+# HostThrottle under real concurrency (Stage 4 parallelization, 2026-07)
+#
+# Uses real time.sleep/time.monotonic (not the injected _FakeClock, which is
+# a plain object with no synchronization of its own) because these tests
+# assert on actual wall-clock interleaving across real threads.
+# ---------------------------------------------------------------------------
+
+
+def test_throttle_same_host_serializes_across_threads():
+    """N threads hitting the same host must not all pass through at once —
+    the per-host lock has to serialize them, not just avoid corrupting the
+    dict. A pre-fix race would let every thread read a stale ``last`` and
+    skip sleeping entirely."""
+    delay = 0.05
+    th = HostThrottle(delay)
+    n = 6
+
+    def worker():
+        th.wait("https://x.gov/a")
+
+    threads = [threading.Thread(target=worker) for _ in range(n)]
+    start = time.monotonic()
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    elapsed = time.monotonic() - start
+    # n calls to one host: the first is free, the remaining (n-1) each incur
+    # at least `delay` serialized against each other. Generous margin for
+    # scheduling jitter.
+    assert elapsed >= delay * (n - 1) * 0.6
+
+
+def test_throttle_different_hosts_run_concurrently():
+    """Threads hitting different hosts must not block on each other's delay —
+    a single stage-wide lock (instead of per-host) would serialize all of
+    them regardless of host, which is exactly what per-host locking avoids."""
+    delay = 0.3
+    th = HostThrottle(delay)
+    hosts = [f"https://host{i}.gov/a" for i in range(6)]
+
+    def worker(host: str) -> None:
+        th.wait(host)
+
+    threads = [threading.Thread(target=worker, args=(h,)) for h in hosts]
+    start = time.monotonic()
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    elapsed = time.monotonic() - start
+    # Each host's first call never sleeps; with true per-host concurrency this
+    # finishes almost immediately regardless of `delay`.
+    assert elapsed < delay

@@ -314,6 +314,7 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         poll_interval=args.poll_interval,
         max_wait_per_stage=args.max_wait_per_stage,
         model=args.model,
+        max_workers=args.max_workers,
     )
     if args.preflight:
         from g3o.run.preflight import PreflightAssumptions, run_preflight
@@ -616,6 +617,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Max seconds to wait per Batch API stage (default: 25h ~ SLA + jitter).",
     )
     presweep.add_argument("--model", default=DEFAULT_MODEL)
+    presweep.add_argument(
+        "--max-workers", type=int, default=1,
+        help=(
+            "Worker count for the deterministic, non-LLM stages (1a discovery, "
+            "1b site-restricted discovery, 4 scrape) — a shared "
+            "ThreadPoolExecutor size across all three. Default 1 (sequential, "
+            "matching pre-concurrency behavior). Stages 2/3/5/6 (OpenAI Batch "
+            "API) are unaffected by this flag."
+        ),
+    )
     presweep.add_argument(
         "--preflight", action="store_true",
         help=(

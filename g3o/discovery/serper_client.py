@@ -12,6 +12,8 @@ import hashlib
 import json
 import logging
 import os
+import threading
+import time
 from urllib.parse import urlparse
 
 import requests
@@ -69,9 +71,22 @@ def _cache_key(query: str, num_results: int) -> str:
 
 def _cached(query: str, num_results: int) -> list[dict] | None:
     path = os.path.join(config.CACHE_DIR, f"serp_{_cache_key(query, num_results)}.json")
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
+    # Concurrent-read retry (Stage 1a/1b concurrency, 2026-07): a reader's
+    # open() can transiently lose a Windows sharing-violation race against
+    # another thread's os.replace() landing on this exact path (the atomic
+    # write itself is still correct — the reader only ever sees a torn file
+    # or this transient error, never partial content). Bounded retry clears
+    # it; a no-op on POSIX, which doesn't raise for this reason.
+    for attempt in range(5):
+        if not os.path.exists(path):
+            return None
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f)
+        except (PermissionError, FileNotFoundError):
+            if attempt == 4:
+                raise
+            time.sleep(0.01 * (attempt + 1))
     return None
 
 
@@ -83,8 +98,29 @@ def _save_cache(query: str, num_results: int, data: list[dict]) -> None:
         return
     os.makedirs(config.CACHE_DIR, exist_ok=True)
     path = os.path.join(config.CACHE_DIR, f"serp_{_cache_key(query, num_results)}.json")
-    with open(path, "w", encoding="utf-8") as f:
+    # Atomic write (Stage 1a/1b concurrency, 2026-07): two worker threads can
+    # race on the same cache key (identical query + num_results). A plain
+    # open(path, "w") lets a concurrent reader observe a torn/partial file; a
+    # per-writer temp file + os.replace makes the swap atomic. The temp name
+    # includes pid + thread id so two concurrent writers never collide on the
+    # same temp path before either replace() lands.
+    tmp_path = f"{path}.tmp.{os.getpid()}.{threading.get_ident()}"
+    with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
+    # Windows can transiently deny os.replace with PermissionError while
+    # another thread's open(path) (a concurrent _cached() read) still holds
+    # the destination — Windows files aren't opened with FILE_SHARE_DELETE by
+    # default, unlike POSIX rename which never raises for this reason. The
+    # reader's open/read/close window is brief, so a short bounded retry
+    # clears it; this loop is a no-op (succeeds first try) on POSIX.
+    for attempt in range(5):
+        try:
+            os.replace(tmp_path, path)
+            return
+        except PermissionError:
+            if attempt == 4:
+                raise
+            time.sleep(0.01 * (attempt + 1))
 
 
 def _mock_response() -> dict:

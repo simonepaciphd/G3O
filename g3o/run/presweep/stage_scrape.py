@@ -1,4 +1,4 @@
-"""Stage 4 runner — synchronous polite scrape per (institution × kept URL)."""
+"""Stage 4 runner — polite scrape per (institution × kept URL)."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from g3o.common import attrition
 from g3o.common import config as _config
 from g3o.common.run_state import is_done, mark_done
 from g3o.common.timing import stage_timer
+from g3o.run.presweep.concurrency import run_concurrent
 from g3o.run.presweep.records import institution_record, synth_institution_id
 from g3o.scrape.fetcher import scrape_url
 from g3o.scrape.politeness import (
@@ -38,6 +39,76 @@ def _read_existing_scraped(
     return out
 
 
+def _scrape_one(
+    run_dir: Path,
+    row: dict[str, Any],
+    urls: list[str],
+    *,
+    stage: str,
+    robots: RobotsCache | None,
+    throttle: HostThrottle,
+    render_on_download_failure: bool,
+) -> tuple[str, list[RenderedPage]]:
+    """Scrape one institution's kept URLs. Factored out of :func:`_run_scrape`
+    (Stage 1a/1b/4 concurrency, 2026-07) so it can run in a worker thread.
+
+    ``RenderSession`` is instantiated here, scoped to this institution's own
+    call, rather than shared across the whole stage. Its browser launch is
+    lazy (only institutions that actually need a render fallback pay the
+    cost), and this keeps thread-confinement structural — no Playwright
+    object is ever touched from more than one thread — instead of requiring
+    thread-local storage or a session pool. ``robots``/``throttle`` remain
+    stage-scoped and shared across worker threads (``HostThrottle`` is
+    lock-protected per host; ``RobotsCache``'s worst case under a race is a
+    redundant robots.txt fetch, not a correctness issue).
+    """
+    from g3o.extract.batch import url_hash
+
+    institution = institution_record(row)
+    inst_id = institution["institution_id"]
+    scrape_dir = run_dir / inst_id / "scrape"
+    scrape_dir.mkdir(parents=True, exist_ok=True)
+    pages: list[RenderedPage] = []
+    with stage_timer(run_dir, inst_id, stage), RenderSession() as render_session:
+        for url in urls:
+            output_path = scrape_dir / f"{url_hash(url)}.json"
+            if output_path.exists():
+                # Q5=a per-run skip: load existing RenderedPage; no refetch.
+                pages.append(
+                    RenderedPage.model_validate_json(
+                        output_path.read_text(encoding="utf-8")
+                    )
+                )
+                continue
+            if robots is not None and not robots.allowed(url):
+                logger.info("Stage 4: robots.txt disallows %s — skipping", url)
+                attrition.record(
+                    run_dir, institution_id=inst_id, stage=stage,
+                    reason="robots_disallowed", url=url,
+                )
+                continue
+            throttle.wait(
+                url,
+                extra_delay=robots.crawl_delay(url) if robots is not None else None,
+            )
+            try:
+                page = scrape_url(
+                    url,
+                    render_session=render_session,
+                    prefer_render_on_download_failure=render_on_download_failure,
+                )
+            except Exception as exc:
+                logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
+                attrition.record(
+                    run_dir, institution_id=inst_id, stage=stage,
+                    reason="scrape_failed", url=url, detail=str(exc),
+                )
+                continue
+            output_path.write_text(page.model_dump_json(indent=2), encoding="utf-8")
+            pages.append(page)
+    return inst_id, pages
+
+
 def _run_scrape(
     run_dir: Path,
     sample: list[dict[str, Any]],
@@ -47,8 +118,9 @@ def _run_scrape(
     host_delay_seconds: float = DEFAULT_HOST_DELAY_SECONDS,
     render_on_download_failure: bool = False,
     robots: RobotsCache | None = None,
+    max_workers: int = 1,
 ) -> dict[str, list[RenderedPage]]:
-    """Stage 4 — synchronous scrape per (institution × kept URL).
+    """Stage 4 — scrape per (institution × kept URL).
 
     Per-URL idempotency (Q5=a, Session E 2026-05-09): when the per-run output
     file ``runs/<run_id>/<inst_id>/scrape/<url_hash>.json`` already exists, the
@@ -64,13 +136,19 @@ def _run_scrape(
     robots.txt for the G3O user-agent; a ``Disallow`` skips the URL and records
     a ``robots_disallowed`` attrition entry (so coverage stays auditable). A
     per-host courtesy delay (``host_delay_seconds``, raised by any robots
-    ``Crawl-delay``) throttles same-host requests, and a single reused
-    :class:`RenderSession` serves every render fallback in the loop instead of
-    launching a browser per URL. ``robots`` may be injected (tests); otherwise
-    a run-scoped :class:`RobotsCache` is built when ``respect_robots``.
-    """
-    from g3o.extract.batch import url_hash
+    ``Crawl-delay``) throttles same-host requests via a shared, lock-protected
+    :class:`HostThrottle`. ``robots`` may be injected (tests); otherwise a
+    run-scoped :class:`RobotsCache` is built when ``respect_robots``.
 
+    Concurrency (2026-07): institutions run through
+    :func:`g3o.run.presweep.concurrency.run_concurrent`, up to ``max_workers``
+    at a time (default 1 = sequential). Each institution's worker owns its
+    own :class:`~g3o.scrape.render.RenderSession` (see :func:`_scrape_one`);
+    ``throttle``/``robots`` remain shared across workers. Per-URL failures
+    were already non-fatal before concurrency (caught and recorded inside
+    :func:`_scrape_one`); only an unexpected exception aborts the stage, with
+    the same cancel-pending/drain-running/re-raise contract as Stages 1a/1b.
+    """
     stage = "scrape"
     if is_done(run_dir, stage):
         logger.info("Stage 4: .done marker present — skipping (resume from disk)")
@@ -79,51 +157,16 @@ def _run_scrape(
         robots = RobotsCache(_config.USER_AGENT)
     throttle = HostThrottle(host_delay_seconds)
     out: dict[str, list[RenderedPage]] = {}
-    with RenderSession() as render_session:
-        for row in sample:
-            institution = institution_record(row)
-            inst_id = institution["institution_id"]
-            urls = triaged.get(inst_id, [])
-            scrape_dir = run_dir / inst_id / "scrape"
-            scrape_dir.mkdir(parents=True, exist_ok=True)
-            pages: list[RenderedPage] = []
-            with stage_timer(run_dir, inst_id, stage):
-                for url in urls:
-                    output_path = scrape_dir / f"{url_hash(url)}.json"
-                    if output_path.exists():
-                        # Q5=a per-run skip: load existing RenderedPage; no refetch.
-                        pages.append(
-                            RenderedPage.model_validate_json(
-                                output_path.read_text(encoding="utf-8")
-                            )
-                        )
-                        continue
-                    if robots is not None and not robots.allowed(url):
-                        logger.info("Stage 4: robots.txt disallows %s — skipping", url)
-                        attrition.record(
-                            run_dir, institution_id=inst_id, stage=stage,
-                            reason="robots_disallowed", url=url,
-                        )
-                        continue
-                    throttle.wait(
-                        url,
-                        extra_delay=robots.crawl_delay(url) if robots is not None else None,
-                    )
-                    try:
-                        page = scrape_url(
-                            url,
-                            render_session=render_session,
-                            prefer_render_on_download_failure=render_on_download_failure,
-                        )
-                    except Exception as exc:
-                        logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
-                        attrition.record(
-                            run_dir, institution_id=inst_id, stage=stage,
-                            reason="scrape_failed", url=url, detail=str(exc),
-                        )
-                        continue
-                    output_path.write_text(page.model_dump_json(indent=2), encoding="utf-8")
-                    pages.append(page)
-                out[inst_id] = pages
+    results = run_concurrent(
+        sample,
+        lambda row: _scrape_one(
+            run_dir, row, triaged.get(synth_institution_id(row), []),
+            stage=stage, robots=robots, throttle=throttle,
+            render_on_download_failure=render_on_download_failure,
+        ),
+        max_workers=max_workers,
+    )
+    for inst_id, pages in results:
+        out[inst_id] = pages
     mark_done(run_dir, stage, no_batch=True)
     return out

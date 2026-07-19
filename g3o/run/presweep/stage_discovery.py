@@ -16,6 +16,7 @@ from g3o.discovery.serper_client import (
     build_site_query,
     search_google,
 )
+from g3o.run.presweep.concurrency import run_concurrent
 from g3o.run.presweep.records import (
     _site_domain,
     institution_record,
@@ -53,12 +54,71 @@ def _read_existing_discovery_site_restricted(
     return out
 
 
+def _discover_general_one(
+    run_dir: Path,
+    row: dict[str, Any],
+    *,
+    stage: str,
+    languages: tuple[str, ...],
+    num_results: int,
+) -> tuple[str, list[dict[str, Any]]]:
+    """Process Stage 1a general discovery for one institution.
+
+    Factored out of :func:`_run_discovery_general` so it can be called either
+    from a plain loop or submitted to a thread pool unchanged (Stage 1a/1b/4
+    concurrency, 2026-07). Behavior is identical to the original inline loop
+    body — same skip-if-exists check, same file written, same exception on a
+    Serper failure.
+    """
+    institution = institution_record(row)
+    inst_id = institution["institution_id"]
+    path = run_dir / inst_id / "1a_discovery_general.json"
+    if path.exists():
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return inst_id, payload.get("records", [])
+    with stage_timer(run_dir, inst_id, stage):
+        queries = build_queries(institution["institution_name"], list(languages))
+        seen: set[str] = set()
+        records: list[dict[str, Any]] = []
+        for query, lang in queries:
+            try:
+                hits = search_google(query, num_results=num_results)
+            except SerperRequestError as exc:
+                # Honest failure (review F1): record and abort rather than
+                # persist a partial artifact that looks like "found nothing".
+                # The institution's 1a file is NOT written, so resume (or,
+                # under concurrency, the stage-level abort) retries it.
+                attrition.record(
+                    run_dir, institution_id=inst_id, stage=stage,
+                    reason="serper_request_failed", url=query, detail=str(exc),
+                )
+                raise
+            for r in hits:
+                url = r.get("link", "")
+                if url and url not in seen:
+                    seen.add(url)
+                    records.append({**r, "query": query, "language": lang})
+        path.write_text(
+            json.dumps(
+                {
+                    "queries": [{"query": q, "language": lang} for q, lang in queries],
+                    "records": records,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return inst_id, records
+
+
 def _run_discovery_general(
     run_dir: Path,
     sample: list[dict[str, Any]],
     *,
     languages: tuple[str, ...],
     num_results: int,
+    max_workers: int = 1,
 ) -> dict[str, list[dict[str, Any]]]:
     """Stage 1a — general Serper queries. One ``1a_discovery_general.json`` per institution.
 
@@ -67,56 +127,103 @@ def _run_discovery_general(
     marker, per-institution skip-if-exists protects partial recovery (each
     institution whose ``1a_discovery_general.json`` already exists is loaded
     instead of re-querying Serper — a paid call).
+
+    Concurrency (2026-07): institutions run through
+    :func:`g3o.run.presweep.concurrency.run_concurrent`, up to ``max_workers``
+    at a time (default 1 = sequential, matching pre-concurrency behavior for
+    any direct caller that doesn't pass it). On the first
+    :class:`~g3o.discovery.serper_client.SerperRequestError`, in-flight
+    institutions finish naturally and not-yet-started ones are cancelled,
+    then that exception is re-raised — the stage is not marked done, so
+    resume picks up exactly the institutions that never completed.
     """
     stage = "discovery_general"
     if is_done(run_dir, stage):
         logger.info("Stage 1a: .done marker present — skipping (resume from disk)")
         return _read_existing_discovery_general(run_dir, sample)
     out: dict[str, list[dict[str, Any]]] = {}
-    for row in sample:
-        institution = institution_record(row)
-        inst_id = institution["institution_id"]
-        path = run_dir / inst_id / "1a_discovery_general.json"
-        if path.exists():
-            payload = json.loads(path.read_text(encoding="utf-8"))
-            out[inst_id] = payload.get("records", [])
-            continue
-        with stage_timer(run_dir, inst_id, stage):
-            queries = build_queries(institution["institution_name"], list(languages))
-            seen: set[str] = set()
-            records: list[dict[str, Any]] = []
-            for query, lang in queries:
-                try:
-                    hits = search_google(query, num_results=num_results)
-                except SerperRequestError as exc:
-                    # Honest failure (review F1): record and abort the stage rather
-                    # than persist a partial artifact that looks like "found
-                    # nothing". The institution's 1a file is NOT written and the
-                    # stage is NOT marked done, so resume retries this institution.
-                    attrition.record(
-                        run_dir, institution_id=inst_id, stage=stage,
-                        reason="serper_request_failed", url=query, detail=str(exc),
-                    )
-                    raise
-                for r in hits:
-                    url = r.get("link", "")
-                    if url and url not in seen:
-                        seen.add(url)
-                        records.append({**r, "query": query, "language": lang})
-            out[inst_id] = records
-            path.write_text(
-                json.dumps(
-                    {
-                        "queries": [{"query": q, "language": lang} for q, lang in queries],
-                        "records": records,
-                    },
-                    ensure_ascii=False,
-                    indent=2,
-                ),
-                encoding="utf-8",
-            )
+    results = run_concurrent(
+        sample,
+        lambda row: _discover_general_one(
+            run_dir, row, stage=stage, languages=languages, num_results=num_results,
+        ),
+        max_workers=max_workers,
+    )
+    for inst_id, records in results:
+        out[inst_id] = records
     mark_done(run_dir, stage, no_batch=True)
     return out
+
+
+def _discover_site_restricted_one(
+    run_dir: Path,
+    row: dict[str, Any],
+    official_sites: dict[str, str | None],
+    *,
+    stage: str,
+    languages: tuple[str, ...],
+    num_results: int,
+) -> tuple[str, list[dict[str, Any]]] | None:
+    """Process Stage 1b site-restricted discovery for one institution.
+
+    Factored out of :func:`_run_discovery_site_restricted` (Stage 1a/1b/4
+    concurrency, 2026-07); behavior identical to the original inline loop
+    body. Returns ``None`` for the Q2=a skip case (no usable official site)
+    so the caller writes nothing for that institution — same as today.
+    """
+    institution = institution_record(row)
+    inst_id = institution["institution_id"]
+    path = run_dir / inst_id / "1b_discovery_site_restricted.json"
+    if path.exists():
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return inst_id, payload.get("records", [])
+    site_url = official_sites.get(inst_id)
+    if not site_url:
+        return None
+    domain = _site_domain(site_url)
+    if not domain:
+        logger.warning(
+            "Stage 1b: %s skipped — official_site_url=%r unparseable", inst_id, site_url
+        )
+        attrition.record(
+            run_dir, institution_id=inst_id, stage=stage,
+            reason="official_site_unparseable", url=site_url,
+        )
+        return None
+    with stage_timer(run_dir, inst_id, stage):
+        base_queries = build_queries(institution["institution_name"], list(languages))
+        wrapped = [(build_site_query(q, domain), lang) for q, lang in base_queries]
+        seen: set[str] = set()
+        records: list[dict[str, Any]] = []
+        for query, lang in wrapped:
+            try:
+                hits = search_google(query, num_results=num_results)
+            except SerperRequestError as exc:
+                attrition.record(
+                    run_dir, institution_id=inst_id, stage=stage,
+                    reason="serper_request_failed", url=query, detail=str(exc),
+                )
+                raise
+            for r in hits:
+                url = r.get("link", "")
+                if url and url not in seen:
+                    seen.add(url)
+                    records.append(
+                        {**r, "query": query, "language": lang, "site_domain": domain}
+                    )
+        path.write_text(
+            json.dumps(
+                {
+                    "site_domain": domain,
+                    "queries": [{"query": q, "language": lang} for q, lang in wrapped],
+                    "records": records,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return inst_id, records
 
 
 def _run_discovery_site_restricted(
@@ -126,6 +233,7 @@ def _run_discovery_site_restricted(
     *,
     languages: tuple[str, ...],
     num_results: int,
+    max_workers: int = 1,
 ) -> dict[str, list[dict[str, Any]]]:
     """Stage 1b — site-restricted Serper queries (revision 2026-05-09, D1–D2).
 
@@ -142,66 +250,25 @@ def _run_discovery_site_restricted(
 
     Resume (Session E): same shape as Stage 1a — done-marker short-circuit +
     per-institution skip-if-exists protect Serper spend on partial recovery.
+
+    Concurrency (2026-07): same ``max_workers``/failure-propagation contract
+    as :func:`_run_discovery_general`, via
+    :func:`g3o.run.presweep.concurrency.run_concurrent`.
     """
     stage = "discovery_site_restricted"
     if is_done(run_dir, stage):
         logger.info("Stage 1b: .done marker present — skipping (resume from disk)")
         return _read_existing_discovery_site_restricted(run_dir, sample)
     out: dict[str, list[dict[str, Any]]] = {}
-    for row in sample:
-        institution = institution_record(row)
-        inst_id = institution["institution_id"]
-        path = run_dir / inst_id / "1b_discovery_site_restricted.json"
-        if path.exists():
-            payload = json.loads(path.read_text(encoding="utf-8"))
-            out[inst_id] = payload.get("records", [])
-            continue
-        site_url = official_sites.get(inst_id)
-        if not site_url:
-            continue
-        domain = _site_domain(site_url)
-        if not domain:
-            logger.warning(
-                "Stage 1b: %s skipped — official_site_url=%r unparseable", inst_id, site_url
-            )
-            attrition.record(
-                run_dir, institution_id=inst_id, stage=stage,
-                reason="official_site_unparseable", url=site_url,
-            )
-            continue
-        with stage_timer(run_dir, inst_id, stage):
-            base_queries = build_queries(institution["institution_name"], list(languages))
-            wrapped = [(build_site_query(q, domain), lang) for q, lang in base_queries]
-            seen: set[str] = set()
-            records: list[dict[str, Any]] = []
-            for query, lang in wrapped:
-                try:
-                    hits = search_google(query, num_results=num_results)
-                except SerperRequestError as exc:
-                    attrition.record(
-                        run_dir, institution_id=inst_id, stage=stage,
-                        reason="serper_request_failed", url=query, detail=str(exc),
-                    )
-                    raise
-                for r in hits:
-                    url = r.get("link", "")
-                    if url and url not in seen:
-                        seen.add(url)
-                        records.append(
-                            {**r, "query": query, "language": lang, "site_domain": domain}
-                        )
-            out[inst_id] = records
-            path.write_text(
-                json.dumps(
-                    {
-                        "site_domain": domain,
-                        "queries": [{"query": q, "language": lang} for q, lang in wrapped],
-                        "records": records,
-                    },
-                    ensure_ascii=False,
-                    indent=2,
-                ),
-                encoding="utf-8",
-            )
+    results = run_concurrent(
+        sample,
+        lambda row: _discover_site_restricted_one(
+            run_dir, row, official_sites,
+            stage=stage, languages=languages, num_results=num_results,
+        ),
+        max_workers=max_workers,
+    )
+    for inst_id, records in results:
+        out[inst_id] = records
     mark_done(run_dir, stage, no_batch=True)
     return out

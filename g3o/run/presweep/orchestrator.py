@@ -118,6 +118,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             plan.sample,
             languages=config.discovery_languages,
             num_results=config.discovery_results_per_query,
+            max_workers=config.max_workers,
         )
         summary["n_discovery_general"] = sum(
             len(v) for v in discovery_general.values()
@@ -149,6 +150,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             official_sites,
             languages=config.discovery_languages,
             num_results=config.discovery_results_per_query,
+            max_workers=config.max_workers,
         )
         summary["n_discovery_site_restricted"] = sum(
             len(v) for v in discovery_site_restricted.values()
@@ -178,6 +180,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             respect_robots=config.scrape_respect_robots,
             host_delay_seconds=config.scrape_host_delay_seconds,
             render_on_download_failure=config.scrape_render_on_download_failure,
+            max_workers=config.max_workers,
         )
         summary["n_pages_scraped"] = sum(len(v) for v in scraped.values())
         if config.stop_after == "scrape":

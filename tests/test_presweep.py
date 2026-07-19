@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -1105,3 +1106,205 @@ def test_stage1a_writes_done_marker_at_end(tmp_path: Path):
         ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
 
     assert is_done(plan.run_dir, "discovery_general")
+
+
+# ---------------------------------------------------------------------------
+# Stage 1a/1b/4 concurrency (2026-07) — ThreadPoolExecutor parallelization
+# ---------------------------------------------------------------------------
+
+
+def test_run_discovery_general_concurrent_matches_sequential_output(tmp_path: Path):
+    """Same institutions, same fake search results, max_workers=1 vs 4 —
+    output must be identical regardless of worker count."""
+    from g3o.run import presweep as ps
+
+    rows = _build_master(n_strata=6, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+
+    def _fake_search(query: str, num_results: int = 10, force_refresh: bool = False):
+        return [
+            {"link": f"https://example.gov/{abs(hash(query)) % 10_000}",
+             "title": "t", "snippet": "s"}
+        ]
+
+    def _run(run_id: str, max_workers: int):
+        config = PresweepConfig(
+            run_id=run_id, runs_dir=tmp_path / "runs", master_csv=master,
+            sample_size=6, seed=22294, dry_run=True,
+        )
+        plan = ps.plan_run(config)
+        monkey = ps.stage_discovery.search_google
+        ps.stage_discovery.search_google = _fake_search  # type: ignore[assignment]
+        try:
+            return ps._run_discovery_general(
+                plan.run_dir, plan.sample, languages=("en",), num_results=5,
+                max_workers=max_workers,
+            )
+        finally:
+            ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+
+    out_seq = _run("seq-run", max_workers=1)
+    out_conc = _run("conc-run", max_workers=4)
+    assert len(out_seq) == 6
+    assert out_seq == out_conc
+
+
+def test_run_discovery_general_concurrent_is_faster_than_sequential(tmp_path: Path):
+    """Real overlap check: max_workers>1 must actually run institutions in
+    parallel, not just accept the parameter. Each institution's own queries
+    stay sequential (per-institution behavior unchanged); only the
+    institutions themselves overlap."""
+    from g3o.run import presweep as ps
+
+    rows = _build_master(n_strata=6, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+
+    def _slow_search(query: str, num_results: int = 10, force_refresh: bool = False):
+        time.sleep(0.03)
+        return []
+
+    def _timed_run(run_id: str, max_workers: int) -> float:
+        config = PresweepConfig(
+            run_id=run_id, runs_dir=tmp_path / "runs", master_csv=master,
+            sample_size=6, seed=22294, dry_run=True,
+        )
+        plan = ps.plan_run(config)
+        monkey = ps.stage_discovery.search_google
+        ps.stage_discovery.search_google = _slow_search  # type: ignore[assignment]
+        try:
+            start = time.monotonic()
+            ps._run_discovery_general(
+                plan.run_dir, plan.sample, languages=("en",), num_results=5,
+                max_workers=max_workers,
+            )
+            return time.monotonic() - start
+        finally:
+            ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+
+    elapsed_seq = _timed_run("seq-timed", max_workers=1)
+    elapsed_conc = _timed_run("conc-timed", max_workers=6)
+    # Generous margin: true overlap should be well under sequential time even
+    # accounting for scheduling/GIL overhead.
+    assert elapsed_conc < elapsed_seq * 0.7
+
+
+def test_run_discovery_general_failure_cancels_pending_preserves_completed_and_resumes(
+    tmp_path: Path,
+):
+    """Preserve today's fail-fast contract under concurrency: on the first
+    SerperRequestError, the failing institution's own file is never written,
+    the stage is not marked done, and a subsequent call resumes by
+    reprocessing exactly whichever institutions never completed (existing
+    skip-if-exists logic, untouched).
+
+    Note on determinism: cancellation of not-yet-started institutions is
+    best-effort (see ``run_concurrent`` docstring) — a free worker can start
+    the next queued institution before the exception handler cancels it, so
+    this test does not assert that every *other* institution's file is
+    absent, only that the failing one's never appears and that resume
+    reaches a fully-done state afterward."""
+    from g3o.common.run_state import is_done
+    from g3o.discovery.serper_client import SerperRequestError
+    from g3o.run import presweep as ps
+
+    rows = _build_master(n_strata=4, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=4)
+    plan = ps.plan_run(config)
+
+    fail_row = plan.sample[0]
+    fail_name = ps.institution_record(fail_row)["institution_name"]
+    fail_inst_id = ps.synth_institution_id(fail_row)
+
+    def _failing_search(query: str, num_results: int = 10, force_refresh: bool = False):
+        if fail_name in query:
+            raise SerperRequestError("simulated failure")
+        return [{"link": "https://example.gov/x", "title": "t", "snippet": "s"}]
+
+    monkey = ps.stage_discovery.search_google
+    ps.stage_discovery.search_google = _failing_search  # type: ignore[assignment]
+    try:
+        with pytest.raises(SerperRequestError):
+            ps._run_discovery_general(
+                plan.run_dir, plan.sample, languages=("en",), num_results=5,
+                max_workers=1,
+            )
+    finally:
+        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+
+    # Stage not marked done; the failing institution's own artifact was never
+    # written (it raised inside its own worker, before the write).
+    assert not is_done(plan.run_dir, "discovery_general")
+    assert not (plan.run_dir / fail_inst_id / "1a_discovery_general.json").exists()
+
+    # Resume: fix the fake, re-run. Skip-if-exists reprocesses only whatever
+    # is still missing; the previously-failing institution now succeeds.
+    seen_queries: list[str] = []
+
+    def _fixed_search(query: str, num_results: int = 10, force_refresh: bool = False):
+        seen_queries.append(query)
+        return [{"link": "https://example.gov/x", "title": "t", "snippet": "s"}]
+
+    ps.stage_discovery.search_google = _fixed_search  # type: ignore[assignment]
+    try:
+        out = ps._run_discovery_general(
+            plan.run_dir, plan.sample, languages=("en",), num_results=5, max_workers=1,
+        )
+    finally:
+        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+
+    assert is_done(plan.run_dir, "discovery_general")
+    assert len(out) == 4
+    assert any(fail_name in q for q in seen_queries)
+    assert (plan.run_dir / fail_inst_id / "1a_discovery_general.json").exists()
+
+
+def test_run_scrape_concurrent_matches_sequential_output(tmp_path: Path):
+    """Same institutions/URLs, max_workers=1 vs 4 — Stage 4 output must be
+    identical (each worker owns its own RenderSession; no cross-institution
+    shared render state to diverge on)."""
+    from g3o.run import presweep as ps
+    from g3o.scrape.render import FetchMetadata, RenderedPage
+
+    rows = _build_master(n_strata=4, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+
+    def _fake_scrape(url: str, **kwargs: Any) -> RenderedPage:
+        return RenderedPage(
+            url=url, text=f"text-{url}", title="",
+            content_type="html",
+            fetch_metadata=FetchMetadata(
+                access_date="2026-07-16", http_status=200, final_url=url,
+                fetch_method="html", elapsed_ms=1, wait_for=None,
+            ),
+        )
+
+    def _run(run_id: str, max_workers: int):
+        config = PresweepConfig(
+            run_id=run_id, runs_dir=tmp_path / "runs", master_csv=master,
+            sample_size=4, seed=22294, dry_run=True,
+        )
+        plan = ps.plan_run(config)
+        triaged = {
+            ps.synth_institution_id(row): [
+                f"https://x.example/{ps.synth_institution_id(row)}/a",
+                f"https://x.example/{ps.synth_institution_id(row)}/b",
+            ]
+            for row in plan.sample
+        }
+        monkey = ps.stage_scrape.scrape_url
+        ps.stage_scrape.scrape_url = _fake_scrape  # type: ignore[assignment]
+        try:
+            return ps._run_scrape(
+                plan.run_dir, plan.sample, triaged,
+                respect_robots=False, host_delay_seconds=0, max_workers=max_workers,
+            )
+        finally:
+            ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
+
+    out_seq = _run("scrape-seq", max_workers=1)
+    out_conc = _run("scrape-conc", max_workers=4)
+    assert len(out_seq) == 4
+    seq_by_inst = {k: [p.url for p in v] for k, v in out_seq.items()}
+    conc_by_inst = {k: [p.url for p in v] for k, v in out_conc.items()}
+    assert seq_by_inst == conc_by_inst
