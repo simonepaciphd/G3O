@@ -12,6 +12,7 @@ from g3o.common import attrition
 from g3o.common.batch_client import BatchResult
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
 from g3o.extract import (
+    GroupDSalvage,
     build_extract_jobs,
     parse_extract_result,
 )
@@ -22,6 +23,7 @@ from g3o.extract.batch import (
     cap_page_text,
     is_near_empty,
 )
+from g3o.extract.salvage import REASON_SALVAGED, REASON_UNSALVAGEABLE
 from g3o.run.presweep.records import institution_record, synth_institution_id
 from g3o.scrape.render import RenderedPage
 
@@ -121,17 +123,40 @@ def _run_extract(
                     "Stage 5 result %s did not match any input pair", result.custom_id
                 )
                 continue
+            salvages: list[GroupDSalvage] = []
             try:
                 parsed = parse_extract_result(
-                    result, scrape_access_date=page.fetch_metadata.access_date
+                    result,
+                    scrape_access_date=page.fetch_metadata.access_date,
+                    salvage_sink=salvages,
                 )
             except Exception as exc:
+                # A confirms_activity row with Group-D _NA_ in an unsalvageable
+                # field (activity_type / activity_name) can't be repaired without
+                # a coding/schema decision, so the page still drops here. Tag it
+                # distinctly from a generic parse failure so the escalation rate
+                # is measurable (see salvage.py).
+                unsalvageable = any(not s.is_salvageable for s in salvages)
+                reason = REASON_UNSALVAGEABLE if unsalvageable else "parse_failed"
                 logger.warning("Stage 5 parse failed for %s: %s", result.custom_id, exc)
                 attrition.record(
                     run_dir, institution_id=institution_id, stage=stage,
-                    reason="parse_failed", url=page.url, detail=str(exc),
+                    reason=reason, url=page.url, detail=str(exc),
                 )
                 continue
+            # Group-D _NA_ salvage: a confirms_activity row's illegal _NA_ was
+            # repaired to the contract default and preserved rather than dropped.
+            # One ledger record per salvaged page (dedup key includes the url);
+            # detail carries the repaired row_ids and field names for audit.
+            salvaged = [s for s in salvages if s.is_salvageable]
+            if salvaged:
+                fields = sorted({f for s in salvaged for f in s.salvaged_fields})
+                rows = sorted(s.row_id for s in salvaged if s.row_id is not None)
+                attrition.record(
+                    run_dir, institution_id=institution_id, stage=stage,
+                    reason=REASON_SALVAGED, url=page.url,
+                    detail=f"rows={rows};fields={','.join(fields)}",
+                )
             extract_dir = run_dir / institution_id / "extract"
             extract_dir.mkdir(parents=True, exist_ok=True)
             (extract_dir / f"{url_hash(page.url)}.json").write_text(
