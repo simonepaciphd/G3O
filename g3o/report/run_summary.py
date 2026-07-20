@@ -16,12 +16,11 @@ Read-only from disk. No network calls.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from g3o.common.institution_report import read_institution_report
-from g3o.common.timing import read_timing
+from g3o.common.timing import iso_to_dt, read_timing
 
 # Canonical stage order (matches g3o.run.presweep.config.STAGES).
 _STAGE_ORDER: tuple[str, ...] = (
@@ -47,10 +46,6 @@ def _load_manifest(run_dir: Path) -> dict[str, Any]:
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
 
-def _iso_to_dt(value: str) -> datetime:
-    return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
-
-
 def compute_timing_summary(run_dir: str | Path, *, top_n: int = 10) -> dict[str, Any]:
     """Aggregate every institution's ``timing.json`` into run-level totals.
 
@@ -65,6 +60,25 @@ def compute_timing_summary(run_dir: str | Path, *, top_n: int = 10) -> dict[str,
     (start_time, end_time, duration_seconds) are the same chunk recorded once
     per institution in it; they are de-duplicated before summing so a chunk's
     wall-clock time is counted once, not once per institution.
+
+    Each stage entry also carries ``wall_clock_seconds`` -- the true elapsed
+    time the pipeline spent on that stage overall, from the earliest
+    ``start_time`` to the latest ``end_time`` across every institution that
+    hit it -- and ``institutions``, that same stage's own per-institution
+    ``duration_seconds`` list (sorted slowest-first) so a caller can see both
+    "how long did institution X take at this stage" and "how long did the
+    whole stage take" side by side. For the per_institution stages
+    (discovery_general, discovery_site_restricted, scrape), which run
+    concurrently (Stage 1a/1b/4, 2026-07), ``total_seconds`` sums each
+    institution's own duration and so overstates real elapsed time whenever
+    ``max_workers`` > 1 -- N institutions each taking 2s, run 5-way
+    concurrent, sum to 2*N seconds of ``total_seconds`` but only
+    ~2*ceil(N/5) seconds of ``wall_clock_seconds``. Use ``total_seconds`` for
+    total compute/API cost, ``wall_clock_seconds`` for how long the stage
+    actually took on the clock. Both start/end timestamps are parsed via
+    :func:`g3o.common.timing.iso_to_dt`, which keeps microsecond precision --
+    fast per-institution stages (sub-second work) get a sub-second-accurate
+    ``wall_clock_seconds`` instead of collapsing to whole-second buckets.
     """
     run_dir = Path(run_dir)
     manifest = _load_manifest(run_dir)
@@ -72,7 +86,7 @@ def compute_timing_summary(run_dir: str | Path, *, top_n: int = 10) -> dict[str,
 
     per_institution_totals: dict[str, float] = {}
     total_durations: list[float] = []
-    stage_entries: dict[str, list[tuple[str, str, float]]] = {}
+    stage_entries: dict[str, list[tuple[str, str, str, float]]] = {}
     stage_timing_type: dict[str, str] = {}
     all_starts: list[str] = []
     all_ends: list[str] = []
@@ -89,7 +103,7 @@ def compute_timing_summary(run_dir: str | Path, *, top_n: int = 10) -> dict[str,
                 entry["start_time"], entry["end_time"],
                 entry["duration_seconds"], entry["timing_type"],
             )
-            stage_entries.setdefault(stage, []).append((start, end, duration))
+            stage_entries.setdefault(stage, []).append((inst_id, start, end, duration))
             stage_timing_type[stage] = ttype
             all_starts.append(start)
             all_ends.append(end)
@@ -101,18 +115,33 @@ def compute_timing_summary(run_dir: str | Path, *, top_n: int = 10) -> dict[str,
     for stage, entries in stage_entries.items():
         ttype = stage_timing_type[stage]
         if ttype == "shared_chunk":
-            unique = {(s, e, d) for s, e, d in entries}
+            unique = {(s, e, d) for _, s, e, d in entries}
             total = sum(d for _, _, d in unique)
         else:
-            total = sum(d for _, _, d in entries)
-        stage_totals[stage] = {"timing_type": ttype, "total_seconds": round(total, 6)}
+            total = sum(d for _, _, _, d in entries)
+        wall_clock = round(
+            (
+                iso_to_dt(max(e for _, _, e, _ in entries))
+                - iso_to_dt(min(s for _, s, _, _ in entries))
+            ).total_seconds(),
+            6,
+        )
+        stage_totals[stage] = {
+            "timing_type": ttype,
+            "total_seconds": round(total, 6),
+            "wall_clock_seconds": wall_clock,
+            "institutions": [
+                {"institution_id": iid, "duration_seconds": round(d, 6)}
+                for iid, _, _, d in sorted(entries, key=lambda e: e[3], reverse=True)
+            ],
+        }
 
     slowest = sorted(per_institution_totals.items(), key=lambda kv: kv[1], reverse=True)[:top_n]
 
     total_run_duration_seconds = None
     if all_starts and all_ends:
         total_run_duration_seconds = round(
-            (_iso_to_dt(max(all_ends)) - _iso_to_dt(min(all_starts))).total_seconds(), 6
+            (iso_to_dt(max(all_ends)) - iso_to_dt(min(all_starts))).total_seconds(), 6
         )
 
     avg_runtime = round(sum(total_durations) / len(total_durations), 6) if total_durations else None
@@ -204,15 +233,20 @@ def render_run_summary_text(summary: dict[str, Any]) -> str:
         d = summary.get("per_stage_completion", {}).get(stage, {"completed": 0, "total": 0})
         w(f"  {stage:<28} {d['completed']}/{d['total']}")
     w("")
-    w("Per-stage total timing")
+    w("Per-stage timing (per institution, stage total next to it)")
     w("-" * 70)
     for stage in _STAGE_ORDER:
         d = summary.get("stage_totals_seconds", {}).get(stage)
         if d is None:
-            w(f"  {stage:<28} {'not_run':>10}")
+            w(f"  {stage} — not_run")
             continue
-        w(f"  {stage:<28} {d['total_seconds']:>10.3f}s  ({d['timing_type']})")
-    w("")
+        w(
+            f"  {stage} — stage total: {d['total_seconds']:.3f}s sum, "
+            f"{d['wall_clock_seconds']:.3f}s wall  ({d['timing_type']})"
+        )
+        for inst in d.get("institutions", []):
+            w(f"      {inst['institution_id']:<28} {inst['duration_seconds']:>10.3f}s")
+        w("")
     total_dur = summary.get("total_run_duration_seconds")
     avg_dur = summary.get("average_institution_runtime_seconds")
     w(f"  Total run duration      : {total_dur}")

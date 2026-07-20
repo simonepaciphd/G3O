@@ -47,15 +47,20 @@ def timing_path(run_dir: Path, institution_id: str) -> Path:
 
 
 def _utc_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
-def _iso_to_dt(value: str) -> datetime:
-    return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+def iso_to_dt(value: str) -> datetime:
+    """Parse a UTC 'Z'-suffixed ISO 8601 timestamp, with or without a
+    fractional-seconds component. Handles both this module's own
+    microsecond-precision stamps and :mod:`g3o.common.run_state`'s
+    whole-second ``submitted_at``/``fetched_at`` stamps, since
+    :func:`llm_stage_timer` mixes the two."""
+    return datetime.fromisoformat(value[:-1]).replace(tzinfo=timezone.utc)
 
 
 def _iso_diff_seconds(start: str, end: str) -> float:
-    return max(0.0, (_iso_to_dt(end) - _iso_to_dt(start)).total_seconds())
+    return max(0.0, (iso_to_dt(end) - iso_to_dt(start)).total_seconds())
 
 
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
@@ -228,6 +233,7 @@ def read_timing(run_dir: Path, institution_id: str) -> dict[str, Any] | None:
 __all__ = [
     "TIMING_FILENAME",
     "TimingType",
+    "iso_to_dt",
     "llm_stage_timer",
     "read_timing",
     "record_stage_timing",
