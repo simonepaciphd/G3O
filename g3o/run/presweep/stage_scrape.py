@@ -7,7 +7,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from g3o.common import attrition
+from g3o.common import attrition, scrape_telemetry
 from g3o.common import config as _config
 from g3o.common.run_state import is_done, mark_done
 from g3o.common.timing import stage_timer
@@ -135,12 +135,20 @@ def _scrape_one(
                         output_path.read_text(encoding="utf-8")
                     )
                 )
+                scrape_telemetry.record(
+                    run_dir, institution_id=inst_id, url=url,
+                    outcome=scrape_telemetry.OUTCOME_SKIPPED_CACHED,
+                )
                 continue
             if robots is not None and not robots.allowed(url):
                 logger.info("Stage 4: robots.txt disallows %s — skipping", url)
                 attrition.record(
                     run_dir, institution_id=inst_id, stage=stage,
                     reason="robots_disallowed", url=url,
+                )
+                scrape_telemetry.record(
+                    run_dir, institution_id=inst_id, url=url,
+                    outcome=scrape_telemetry.OUTCOME_ROBOTS_DISALLOWED,
                 )
                 continue
             throttle.wait(
@@ -167,8 +175,21 @@ def _scrape_one(
                     run_dir, institution_id=inst_id, stage=stage,
                     reason="scrape_failed", url=url, detail=str(exc),
                 )
+                scrape_telemetry.record(
+                    run_dir, institution_id=inst_id, url=url,
+                    outcome=scrape_telemetry.OUTCOME_SCRAPE_FAILED,
+                    detail=str(exc),
+                )
                 continue
             output_path.write_text(page.model_dump_json(indent=2), encoding="utf-8")
+            scrape_telemetry.record(
+                run_dir, institution_id=inst_id, url=url,
+                outcome=scrape_telemetry.OUTCOME_SUCCEEDED,
+                content_type=page.content_type,
+                http_status=page.fetch_metadata.http_status,
+                fetch_method=page.fetch_metadata.fetch_method,
+                elapsed_ms=page.fetch_metadata.elapsed_ms,
+            )
             pages.append(page)
     return inst_id, pages
 
@@ -201,6 +222,18 @@ def _run_scrape(
     any robots ``Crawl-delay``) throttles same-host requests via a shared,
     lock-protected :class:`HostThrottle`. ``robots`` may be injected (tests);
     otherwise a run-scoped :class:`RobotsCache` is built when ``respect_robots``.
+    The throttle spaces same-host request *starts*; it does not serialize them,
+    so two workers on a shared host may have requests in flight concurrently
+    (PI ruling 2026-08-01 on review F14b: spacing, not serialization, is the D4
+    bar — the standard ``Crawl-delay`` reading).
+
+    Telemetry (review F14b): every scrape attempt writes one record to
+    ``runs/<run_id>/_scrape_telemetry.jsonl`` regardless of outcome (succeeded /
+    skipped_cached / robots_disallowed / scrape_failed), so every
+    ``(institution, url)`` the runner touched is accounted for even when work
+    fans out. ``_attrition.jsonl`` keeps recording drops exactly as before —
+    the two ledgers are separate on purpose (see
+    :mod:`g3o.common.scrape_telemetry`).
 
     Empty-page render (render-on-empty): ``empty_page_min_chars`` is handed to
     ``scrape_url`` so a page whose deterministic text strips below the floor — a
@@ -229,6 +262,7 @@ def _run_scrape(
     if respect_robots and robots is None:
         robots = RobotsCache(_config.USER_AGENT)
     throttle = HostThrottle(host_delay_seconds)
+    scrape_telemetry.ensure_ledger(run_dir)
     sessions = _ThreadLocalRenderSessions()
     out: dict[str, list[RenderedPage]] = {}
     results = run_concurrent(
