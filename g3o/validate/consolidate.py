@@ -283,12 +283,18 @@ def run_consolidate(
 
     if is_done(run_dir, stage):
         logger.info("Stage 6: .done marker present — skipping (resume from disk)")
+        done_payload = json.loads(done_path(run_dir, stage).read_text(encoding="utf-8"))
+        batch_ids = (
+            [entry["batch_id"] for _, entry in iter_chunks(done_payload)]
+            if "chunks" in done_payload
+            else None
+        )
         return {
             "run_dir": str(run_dir),
             "n_institutions": len(institution_ids),
             "n_consolidated": _count_existing_validates(run_dir, institution_ids),
             "n_failed": 0,
-            "batch_ids": None,
+            "batch_ids": batch_ids,
             "skipped": True,
         }
 
