@@ -1,5 +1,6 @@
 """Pipeline health report — stage-by-stage funnel KPIs for a presweep run."""
 
+from g3o.report.diff import compute_run_diff, render_run_diff_text
 from g3o.report.health import (
     compute_health_report,
     compute_language_breakdown,
@@ -17,6 +18,8 @@ __all__ = [
     "compute_language_breakdown",
     "detect_languages",
     "render_text_report",
+    "compute_run_diff",
+    "render_run_diff_text",
     "HealthThresholds",
     "LanguageReadinessBar",
     "assess_language_readiness",
