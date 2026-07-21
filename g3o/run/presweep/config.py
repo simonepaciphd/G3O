@@ -70,3 +70,9 @@ class PresweepConfig:
     scrape_respect_robots: bool = True
     scrape_host_delay_seconds: float = DEFAULT_HOST_DELAY_SECONDS
     scrape_render_on_download_failure: bool = False
+    # Stage 4 scrape concurrency (review F14b). Thread-pool width for the
+    # fan-out over kept URLs. Default 1 keeps the sequential single-thread
+    # behavior; > 1 fans out across a ThreadPoolExecutor while a per-host
+    # HostScheduler preserves same-host serialization + the >=1.0s spacing
+    # (D4). An engineering parameter, not a methodology surface.
+    scrape_pool_size: int = 1

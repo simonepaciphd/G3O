@@ -2,7 +2,7 @@
 
 from g3o.scrape.fetcher import scrape_url
 from g3o.scrape.html import check_keyword_proximity
-from g3o.scrape.politeness import HostThrottle, RobotsCache
+from g3o.scrape.politeness import HostScheduler, HostThrottle, RobotsCache
 from g3o.scrape.render import (
     FetchMetadata,
     RenderedPage,
@@ -13,6 +13,7 @@ from g3o.scrape.render import (
 
 __all__ = [
     "FetchMetadata",
+    "HostScheduler",
     "HostThrottle",
     "RenderSession",
     "RenderedPage",

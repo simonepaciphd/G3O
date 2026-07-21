@@ -21,8 +21,10 @@ Both pieces are deliberately resilient:
 
 from __future__ import annotations
 
+import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from urllib import robotparser
 from urllib.parse import urlsplit, urlunsplit
 
@@ -67,6 +69,13 @@ class RobotsCache:
 
     One robots.txt fetch per host for the life of the cache (a run-scoped
     object). ``fetch`` is injectable for tests so no network is touched.
+
+    Thread-safe (concurrent Stage 4, review F14b): a single lock guards the
+    per-host populate-on-miss so each host's robots.txt is fetched exactly once
+    even when several worker threads first touch the same host at once, and
+    ``allowed`` / ``crawl_delay`` see a consistent parser. The lock is held
+    across the (one-time, per-host) fetch; steady-state lookups after warmup
+    only re-read the populated dict under the same short critical section.
     """
 
     def __init__(
@@ -80,22 +89,24 @@ class RobotsCache:
         self._fetch = fetch
         self._timeout = timeout
         self._parsers: dict[str, robotparser.RobotFileParser | None] = {}
+        self._lock = threading.Lock()
 
     def _parser_for(self, url: str) -> robotparser.RobotFileParser | None:
         host = host_key(url)
-        if host not in self._parsers:
-            body = self._fetch(
-                f"{host}/robots.txt",
-                user_agent=self.user_agent,
-                timeout=self._timeout,
-            )
-            if body is None:
-                self._parsers[host] = None  # unreachable / absent → allow-all
-            else:
-                parser = robotparser.RobotFileParser()
-                parser.parse(body.splitlines())
-                self._parsers[host] = parser
-        return self._parsers[host]
+        with self._lock:
+            if host not in self._parsers:
+                body = self._fetch(
+                    f"{host}/robots.txt",
+                    user_agent=self.user_agent,
+                    timeout=self._timeout,
+                )
+                if body is None:
+                    self._parsers[host] = None  # unreachable / absent → allow-all
+                else:
+                    parser = robotparser.RobotFileParser()
+                    parser.parse(body.splitlines())
+                    self._parsers[host] = parser
+            return self._parsers[host]
 
     def allowed(self, url: str) -> bool:
         """True if ``url`` is fetchable for the G3O user-agent per robots.txt."""
@@ -121,6 +132,22 @@ class HostThrottle:
 
     ``sleep`` and ``monotonic`` are injectable so tests assert the computed
     wait without sleeping for real.
+
+    Thread-safe (concurrent Stage 4, review F14b): an internal lock guards the
+    per-host timestamp map so concurrent ``wait`` calls for *different* hosts
+    (each releasing the lock before sleeping) cannot corrupt the shared dict.
+    The lock is held only for the check-and-record; the actual ``sleep``
+    happens outside it, so different hosts throttle independently. The slot is
+    reserved at the projected dispatch time (``now + due``) rather than after
+    the sleep, so the record is committed before the lock is released and a
+    same-host follower spaces off it correctly. With injected fake clocks this
+    is identical to recording ``monotonic()`` post-sleep (the fake clock
+    advances by exactly ``due`` during the sleep).
+
+    Same-host serialization is *not* this class's job — that is
+    :class:`HostScheduler`. Under the scheduler, all same-host ``wait`` calls
+    run under that host's serialization lock, so the check-then-sleep sequence
+    is additionally atomic per host.
     """
 
     def __init__(
@@ -134,6 +161,7 @@ class HostThrottle:
         self._sleep = sleep
         self._monotonic = monotonic
         self._last: dict[str, float] = {}
+        self._lock = threading.Lock()
 
     def wait(self, url: str, *, extra_delay: float | None = None) -> None:
         """Block until ``delay`` has elapsed since the last request to this host.
@@ -145,18 +173,75 @@ class HostThrottle:
         if extra_delay is not None:
             delay = max(delay, extra_delay)
         host = host_key(url)
-        if delay <= 0:
-            self._last[host] = self._monotonic()
-            return
-        last = self._last.get(host)
-        now = self._monotonic()
-        if last is not None and (now - last) < delay:
-            self._sleep(delay - (now - last))
-        self._last[host] = self._monotonic()
+        with self._lock:
+            if delay <= 0:
+                self._last[host] = self._monotonic()
+                return
+            last = self._last.get(host)
+            now = self._monotonic()
+            due = 0.0
+            if last is not None and (now - last) < delay:
+                due = delay - (now - last)
+            # Reserve the slot at the projected dispatch time before releasing
+            # the lock, so a same-host follower spaces off this request even if
+            # it enters wait() before this one finishes sleeping.
+            self._last[host] = now + due
+        if due > 0:
+            self._sleep(due)
+
+
+class HostScheduler:
+    """Thread-safe per-host serialization + spacing gate for concurrent Stage 4.
+
+    Wraps a :class:`HostThrottle` (the spacing source of truth) and adds a
+    per-host :class:`threading.Lock`. A worker holds a host's lock across both
+    the throttle wait *and* the fetch, which gives two guarantees at once:
+
+    1. **Serialization** — only one request per host is ever in flight, because
+       only one thread can hold a given host's lock.
+    2. **Spacing correctness** — the throttle's check-then-sleep-then-record for
+       that host is atomic (no interleaving same-host waiter).
+
+    Different hosts hold different locks and proceed concurrently. With a single
+    worker every lock is uncontended and behavior collapses to the throttle's
+    sequential semantics.
+
+    Sharding (700k+ scale): all state is instance-local, so one scheduler per
+    shard/process enforces politeness intra-shard with no distributed lock —
+    provided the shard partition is keyed by host (every URL for a host in one
+    shard). This class does not shard; it is the seam a shard runner plugs into.
+    """
+
+    def __init__(self, throttle: HostThrottle) -> None:
+        self._throttle = throttle
+        self._registry_lock = threading.Lock()
+        self._locks: dict[str, threading.Lock] = {}
+
+    def _lock_for(self, host: str) -> threading.Lock:
+        with self._registry_lock:
+            lock = self._locks.get(host)
+            if lock is None:
+                lock = self._locks[host] = threading.Lock()
+            return lock
+
+    @contextmanager
+    def slot(self, url: str, *, extra_delay: float | None = None) -> Iterator[None]:
+        """Hold this host's serialization lock across the throttle wait + fetch.
+
+        Usage::
+
+            with scheduler.slot(url, extra_delay=crawl_delay):
+                page = scrape_url(url, ...)
+        """
+        lock = self._lock_for(host_key(url))
+        with lock:
+            self._throttle.wait(url, extra_delay=extra_delay)
+            yield
 
 
 __all__ = [
     "DEFAULT_HOST_DELAY_SECONDS",
+    "HostScheduler",
     "HostThrottle",
     "RobotsCache",
     "host_key",
