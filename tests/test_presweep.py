@@ -1047,6 +1047,68 @@ def test_stage4_robots_disallow_skips_url_and_records_attrition(tmp_path: Path):
     assert ("robots_disallowed", "https://x.example/private") in reasons
 
 
+def test_stage4_browser_launches_bounded_by_max_workers_not_institutions(tmp_path: Path):
+    """Thread-local RenderSession (handoff Phase C step 7): with N institutions
+    and W workers (W < N), at most W RenderSessions are created — one per worker
+    thread, reused across institutions — NOT one per institution. Each created
+    session is closed on its owning thread (finalizer), so created == closed."""
+    import threading
+
+    from g3o.run import presweep as ps
+    from g3o.scrape.render import FetchMetadata, RenderedPage
+
+    n_institutions, max_workers = 6, 2
+    rows = _build_master(n_strata=n_institutions, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(
+        tmp_path=tmp_path, master_csv=master, sample_size=n_institutions
+    )
+    plan = ps.plan_run(config)
+    triaged = {inst: [f"https://x.example/{inst}"] for inst in plan.manifest["institutions"]}
+
+    counter = {"created": 0, "closed": 0}
+    lock = threading.Lock()
+
+    class _CountingSession:
+        def __init__(self) -> None:
+            with lock:
+                counter["created"] += 1
+
+        def close(self) -> None:
+            with lock:
+                counter["closed"] += 1
+
+    def _scrape(url, **kwargs):
+        return RenderedPage(
+            url=url, text="body text long enough to be kept", title="",
+            content_type="html",
+            fetch_metadata=FetchMetadata(
+                access_date="2026-05-09", http_status=200, final_url=url,
+                fetch_method="html", elapsed_ms=1, wait_for=None,
+            ),
+        )
+
+    saved_session = ps.stage_scrape.RenderSession
+    saved_scrape = ps.stage_scrape.scrape_url
+    ps.stage_scrape.RenderSession = _CountingSession  # type: ignore[assignment]
+    ps.stage_scrape.scrape_url = _scrape  # type: ignore[assignment]
+    try:
+        out = ps._run_scrape(
+            plan.run_dir, plan.sample, triaged,
+            respect_robots=False, host_delay_seconds=0, max_workers=max_workers,
+        )
+    finally:
+        ps.stage_scrape.RenderSession = saved_session  # type: ignore[assignment]
+        ps.stage_scrape.scrape_url = saved_scrape  # type: ignore[assignment]
+
+    # All six institutions were still scraped...
+    assert len(out) == n_institutions
+    # ...but browser sessions are bounded by the worker count, not institutions.
+    assert 1 <= counter["created"] <= max_workers < n_institutions
+    # Every created session was closed on its owning thread (no leak).
+    assert counter["closed"] == counter["created"]
+
+
 def test_stage5_extract_threads_run_model_into_jobs(tmp_path: Path, monkeypatch):
     """Review F18a: presweep threads the run's model into build_extract_jobs so
     ``batch_metadata.model_label`` reflects it, not the literal ``gpt-5-nano``."""
