@@ -339,6 +339,38 @@ def test_manifest_absent_falls_back_to_dirs(tmp_path: Path) -> None:
     assert report["n_institutions"] == 3
 
 
+def test_shared_run_id_disambiguated_by_directory(tmp_path: Path) -> None:
+    """Two dirs with the SAME run_id (the determinism-test workflow) must not
+    collapse into one report key — each run keeps a distinct, dir-labeled key."""
+    spec = _identical_spec()
+    a = _build_run(tmp_path / "x", "presweep-repro", spec)
+    b = _build_run(tmp_path / "y", "presweep-repro", spec)
+
+    report = compute_run_diff([a, b])
+
+    # Both runs survive as distinct labels, each carrying its directory.
+    assert len(report["run_ids"]) == 2
+    assert len(set(report["run_ids"])) == 2
+    assert all("presweep-repro [" in rid for rid in report["run_ids"])
+    # Per-run breakdown dicts key off the labels, so a diverging scalar stage
+    # must still show both runs rather than one overwriting the other.
+    b_spec = _identical_spec()
+    b_spec[_inst_id(1)]["final_status"] = "no"  # force a scalar divergence
+    b2 = _build_run(tmp_path / "z", "presweep-repro", b_spec)
+    report2 = compute_run_diff([a, b2])
+    diverged = report2["stages"]["final_status"]["diverged"]
+    assert diverged, "expected a final_status divergence"
+    assert len(diverged[0]["values"]) == 2  # both runs represented, none dropped
+
+
+def test_same_directory_twice_raises(tmp_path: Path) -> None:
+    """The degenerate case — the same directory passed twice — is a hard error
+    (nothing to compare), distinct from the legitimate shared-run_id case."""
+    a = _build_run(tmp_path, "run-a", _identical_spec())
+    with pytest.raises(ValueError, match="distinct run directories"):
+        compute_run_diff([a, a])
+
+
 # ---------------------------------------------------------------------------
 # CLI wiring
 # ---------------------------------------------------------------------------

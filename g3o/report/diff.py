@@ -36,6 +36,7 @@ Usage::
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -79,6 +80,33 @@ def _load_manifest(run_dir: Path) -> dict[str, Any]:
 
 def _run_id(run_dir: Path) -> str:
     return _load_manifest(run_dir).get("run_id", run_dir.name)
+
+
+def _labeled_run_ids(dirs: list[Path]) -> list[str]:
+    """Per-directory run-id labels, guaranteed unique for use as report keys.
+
+    ``compute_run_diff`` keys its per-run breakdown dicts (``sets``, ``deltas``,
+    ``values``) by these labels, so two runs sharing a run_id would silently
+    collapse to one key and drop a run from the rendered/serialized report.
+
+    Two directories may *legitimately* share a run_id: comparing same-seed,
+    same-run_id outputs written to different directories is exactly the
+    determinism test this tool exists for, so a shared run_id is disambiguated
+    by directory rather than rejected. Only the degenerate case of the same
+    directory passed more than once (nothing to compare) is a hard error.
+    """
+    resolved = [d.resolve() for d in dirs]
+    if len(set(resolved)) != len(resolved):
+        raise ValueError(
+            "run-diff requires distinct run directories; the same directory "
+            "was passed more than once"
+        )
+    run_ids = [_run_id(d) for d in dirs]
+    counts = Counter(run_ids)
+    return [
+        f"{rid} [{dirs[i]}]" if counts[rid] > 1 else rid
+        for i, rid in enumerate(run_ids)
+    ]
 
 
 def _run_institutions(run_dir: Path) -> set[str]:
@@ -274,7 +302,7 @@ def compute_run_diff(run_dirs: list[str | Path]) -> dict[str, Any]:
     if len(dirs) < 2:
         raise ValueError("run-diff requires at least two run directories")
 
-    run_ids = [_run_id(d) for d in dirs]
+    run_ids = _labeled_run_ids(dirs)
     run_insts = [_run_institutions(d) for d in dirs]
     all_insts = sorted(set().union(*run_insts))
     n = len(all_insts)
