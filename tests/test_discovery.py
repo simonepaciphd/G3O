@@ -8,6 +8,7 @@ suite runs in CI without secrets.
 from __future__ import annotations
 
 import os
+import threading
 
 import pytest
 
@@ -49,3 +50,48 @@ def test_search_google_returns_mock_when_key_missing():
     assert isinstance(results, list)
     assert len(results) >= 1
     assert "link" in results[0]
+
+
+# ---------------------------------------------------------------------------
+# Serper cache atomic write (Stage 1a/1b parallelization, 2026-07)
+# ---------------------------------------------------------------------------
+
+
+def test_save_cache_atomic_write_survives_concurrent_readers(tmp_path, monkeypatch):
+    """Concurrent writers to the same cache key must never let a reader see a
+    torn/partial file. Before the temp-file + os.replace fix, a plain
+    open(path, "w") + json.dump could be observed mid-write by another thread
+    and raise json.JSONDecodeError."""
+    from g3o.common import config
+
+    monkeypatch.setattr(config, "CACHE_DIR", str(tmp_path))
+    query, num_results = "concurrent atomic-write query", 5
+    data = [{"title": "t", "link": "https://x.gov/a", "snippet": "s"}]
+
+    errors: list[Exception] = []
+
+    def writer() -> None:
+        for _ in range(25):
+            serper_client._save_cache(query, num_results, data)
+
+    def reader() -> None:
+        for _ in range(25):
+            try:
+                cached = serper_client._cached(query, num_results)
+                if cached is not None:
+                    assert isinstance(cached, list)
+                    assert cached == data
+            except Exception as exc:  # noqa: BLE001 - a torn read is exactly what we assert against
+                errors.append(exc)
+
+    threads = [threading.Thread(target=writer) for _ in range(4)] + [
+        threading.Thread(target=reader) for _ in range(4)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert errors == []
+    # No leftover temp files after every writer finished.
+    assert list(tmp_path.glob("*.tmp.*")) == []

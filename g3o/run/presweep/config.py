@@ -69,6 +69,11 @@ class PresweepConfig:
     scrape_respect_robots: bool = True
     scrape_host_delay_seconds: float = DEFAULT_HOST_DELAY_SECONDS
     scrape_render_on_download_failure: bool = False
+    # Concurrency (2026-07): shared worker count for Stages 1a/1b/4 (the
+    # deterministic, non-LLM stages). Stages 2/3/5/6 are unaffected — their
+    # concurrency is the OpenAI Batch API's, not local threads. A single knob
+    # rather than per-stage caps until load-testing shows otherwise.
+    max_workers: int = 1
 
     @property
     def institution_search_languages(self) -> str:

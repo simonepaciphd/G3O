@@ -21,6 +21,7 @@ Both pieces are deliberately resilient:
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Callable
 from urllib import robotparser
@@ -121,6 +122,16 @@ class HostThrottle:
 
     ``sleep`` and ``monotonic`` are injectable so tests assert the computed
     wait without sleeping for real.
+
+    Thread safety (Stage 4 concurrency, 2026-07): ``wait()`` is called from
+    multiple worker threads processing different institutions. Locking is
+    per-host, not a single lock around the whole call — a single lock would
+    serialize every institution's throttle check behind whichever host
+    happens to be sleeping, defeating the point of running institutions on
+    different hosts concurrently. Two threads targeting the *same* host
+    serialize through the full read-sleep-record sequence (correct courtesy-
+    delay enforcement); two threads targeting different hosts never block
+    each other. Per-host locks are created lazily under a small map lock.
     """
 
     def __init__(
@@ -134,6 +145,16 @@ class HostThrottle:
         self._sleep = sleep
         self._monotonic = monotonic
         self._last: dict[str, float] = {}
+        self._map_lock = threading.Lock()
+        self._host_locks: dict[str, threading.Lock] = {}
+
+    def _lock_for(self, host: str) -> threading.Lock:
+        with self._map_lock:
+            lock = self._host_locks.get(host)
+            if lock is None:
+                lock = threading.Lock()
+                self._host_locks[host] = lock
+            return lock
 
     def wait(self, url: str, *, extra_delay: float | None = None) -> None:
         """Block until ``delay`` has elapsed since the last request to this host.
@@ -145,14 +166,15 @@ class HostThrottle:
         if extra_delay is not None:
             delay = max(delay, extra_delay)
         host = host_key(url)
-        if delay <= 0:
+        with self._lock_for(host):
+            if delay <= 0:
+                self._last[host] = self._monotonic()
+                return
+            last = self._last.get(host)
+            now = self._monotonic()
+            if last is not None and (now - last) < delay:
+                self._sleep(delay - (now - last))
             self._last[host] = self._monotonic()
-            return
-        last = self._last.get(host)
-        now = self._monotonic()
-        if last is not None and (now - last) < delay:
-            self._sleep(delay - (now - last))
-        self._last[host] = self._monotonic()
 
 
 __all__ = [

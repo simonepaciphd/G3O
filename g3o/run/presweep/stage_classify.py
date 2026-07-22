@@ -20,6 +20,7 @@ from g3o.classify.url_triage import (
 from g3o.common import attrition
 from g3o.common.batch_client import BatchResult
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
+from g3o.common.timing import llm_stage_timer
 from g3o.run.presweep.records import (
     _dedupe_key,
     institution_record,
@@ -152,12 +153,15 @@ def _run_classify_official_site(
                     encoding="utf-8",
                 )
 
-    run_chunked_stage(
-        run_dir, stage, jobs,
-        run_id=run_id, model=model,
-        poll_interval=poll_interval, max_wait=max_wait,
-        process_chunk_results=_persist, bypass_count=bypass_count,
-    )
+    # custom_id == institution_id for this stage, so the identity fallback in
+    # llm_stage_timer needs no explicit mapping.
+    with llm_stage_timer(run_dir, stage, {}):
+        run_chunked_stage(
+            run_dir, stage, jobs,
+            run_id=run_id, model=model,
+            poll_interval=poll_interval, max_wait=max_wait,
+            process_chunk_results=_persist, bypass_count=bypass_count,
+        )
     # Disk is authoritative for chunks fetched by a prior (crashed) invocation;
     # this invocation's parses and bypasses override with identical content.
     return {**_read_existing_official_sites(run_dir, sample), **out}
@@ -307,11 +311,14 @@ def _run_classify_triage(
             if kept_urls is not None:
                 kept[result.custom_id] = kept_urls
 
-    run_chunked_stage(
-        run_dir, stage, jobs,
-        run_id=run_id, model=model,
-        poll_interval=poll_interval, max_wait=max_wait,
-        process_chunk_results=_persist,
-    )
+    # custom_id == institution_id for this stage, so the identity fallback in
+    # llm_stage_timer needs no explicit mapping.
+    with llm_stage_timer(run_dir, stage, {}):
+        run_chunked_stage(
+            run_dir, stage, jobs,
+            run_id=run_id, model=model,
+            poll_interval=poll_interval, max_wait=max_wait,
+            process_chunk_results=_persist,
+        )
     # Disk covers chunks fetched by a prior invocation (resume).
     return {**_read_existing_triaged(run_dir, sample), **kept}
