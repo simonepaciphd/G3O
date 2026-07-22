@@ -39,6 +39,7 @@ from g3o.extract.salvage import (
 )
 from g3o.run import presweep as ps
 from g3o.run.presweep import synth_institution_id
+from g3o.run.presweep.stage_extract import _is_unsalvageable_group_d_failure
 from g3o.scrape.render import FetchMetadata, RenderedPage
 
 MCIT_ACCESS_DATE = "2026-06-10"
@@ -472,6 +473,56 @@ def test_clean_page_records_no_salvage(tmp_path, monkeypatch):
     recs = attrition.read_records(run_dir)
     assert not any(r["reason"] in (REASON_SALVAGED, REASON_UNSALVAGEABLE) for r in recs)
     assert (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# Reason attribution — the unsalvageable code must reflect the actual cause,
+# not merely the presence of an unsalvageable salvage event.
+# ---------------------------------------------------------------------------
+
+
+def _capture_exc(payload: dict[str, Any]) -> Exception:
+    sink: list[GroupDSalvage] = []
+    try:
+        parse_extract_result(
+            _make_result("INST-QA-MCIT::x", payload),
+            scrape_access_date=MCIT_ACCESS_DATE,
+            salvage_sink=sink,
+        )
+    except Exception as exc:  # noqa: BLE001 — capturing for attribution assertions
+        return exc
+    raise AssertionError("expected parse_extract_result to raise")
+
+
+def test_unsalvageable_attribution_true_on_group_d_validation_error():
+    """A ValidationError caused by the unsalvageable Group-D field is attributed
+    to the unsalvageable code."""
+    exc = _capture_exc(_mcit_payload({"activity_type": "_NA_"}))
+    event = GroupDSalvage(
+        row_id=1, source_url="u", unsalvageable_fields=("activity_type",)
+    )
+    assert _is_unsalvageable_group_d_failure(exc, [event]) is True
+
+
+def test_unsalvageable_attribution_false_on_unrelated_runtime_error():
+    """An unrelated failure (e.g. an access-date mismatch, a RuntimeError with no
+    .errors()) stays parse_failed even when an unsalvageable event coexists."""
+    event = GroupDSalvage(
+        row_id=1, source_url="u", unsalvageable_fields=("activity_type",)
+    )
+    exc = RuntimeError("Stage 5 access-date mismatch")
+    assert _is_unsalvageable_group_d_failure(exc, [event]) is False
+
+
+def test_unsalvageable_attribution_false_on_unrelated_validation_error():
+    """A ValidationError about a different field (bad access-date pattern) is not
+    attributed to the unsalvageable code just because an unsalvageable event is
+    present in the sink."""
+    exc = _capture_exc(_mcit_payload({"source_access_date": "not-a-date"}))
+    event = GroupDSalvage(
+        row_id=1, source_url="u", unsalvageable_fields=("activity_type",)
+    )
+    assert _is_unsalvageable_group_d_failure(exc, [event]) is False
 
 
 # EMPTY_PAGE_MIN_CHARS is imported to keep the near-empty page in the helper

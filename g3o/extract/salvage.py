@@ -80,9 +80,20 @@ GROUP_D_UNSALVAGEABLE: frozenset[str] = frozenset({"activity_type", "activity_na
 REASON_SALVAGED = "group_d_incomplete_salvaged"
 REASON_UNSALVAGEABLE = "group_d_incomplete_unsalvageable"
 
-# Invariant: the two partitions exactly cover the 18 Group-D fields.
-assert set(GROUP_D_SALVAGE_DEFAULTS) | GROUP_D_UNSALVAGEABLE == set(GROUP_D_FIELDS)
-assert not (set(GROUP_D_SALVAGE_DEFAULTS) & GROUP_D_UNSALVAGEABLE)
+# Invariant: the two partitions exactly cover the Group-D fields, disjointly.
+# Explicit raises (not asserts): asserts are stripped under `python -O`, which
+# would let a drifted GROUP_D_FIELDS silently disable salvage for a field.
+if set(GROUP_D_SALVAGE_DEFAULTS) | GROUP_D_UNSALVAGEABLE != set(GROUP_D_FIELDS):
+    raise RuntimeError(
+        "Group-D salvage partition does not cover GROUP_D_FIELDS: "
+        f"missing={set(GROUP_D_FIELDS) - set(GROUP_D_SALVAGE_DEFAULTS) - GROUP_D_UNSALVAGEABLE}, "
+        f"unknown={(set(GROUP_D_SALVAGE_DEFAULTS) | GROUP_D_UNSALVAGEABLE) - set(GROUP_D_FIELDS)}"
+    )
+if set(GROUP_D_SALVAGE_DEFAULTS) & GROUP_D_UNSALVAGEABLE:
+    raise RuntimeError(
+        "Group-D salvage partitions overlap: "
+        f"{set(GROUP_D_SALVAGE_DEFAULTS) & GROUP_D_UNSALVAGEABLE}"
+    )
 
 
 @dataclass(frozen=True)

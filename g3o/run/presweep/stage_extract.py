@@ -30,6 +30,39 @@ from g3o.scrape.render import RenderedPage
 logger = logging.getLogger(__name__)
 
 
+def _is_unsalvageable_group_d_failure(
+    exc: Exception, salvages: list[GroupDSalvage]
+) -> bool:
+    """True only when ``exc`` is *caused* by an unsalvageable Group-D ``_NA_``.
+
+    Attributes the true failure cause rather than firing on the mere presence of
+    an unsalvageable salvage event: a page can carry an unsalvageable event and
+    still fail for an unrelated reason (an access-date mismatch, raised as a
+    ``RuntimeError`` after model validation, has no ``.errors()``), which must
+    stay ``parse_failed``. So we require ``exc`` to be a pydantic-style
+    validation error carrying an error that actually concerns one of the
+    unsalvageable Group-D fields.
+    """
+    unsalvageable_fields = {f for s in salvages for f in s.unsalvageable_fields}
+    if not unsalvageable_fields:
+        return False
+    errors = getattr(exc, "errors", None)
+    if not callable(errors):
+        return False  # not a ValidationError (e.g. the access-date RuntimeError)
+    for err in errors():
+        loc = err.get("loc", ())
+        msg = err.get("msg", "")
+        # Field-level failure on an unsalvageable Group-D column, or the
+        # model-level confirms_activity/_NA_ rule naming such a field.
+        if loc and loc[-1] in unsalvageable_fields:
+            return True
+        if "Group D fields are _NA_" in msg and any(
+            f in msg for f in unsalvageable_fields
+        ):
+            return True
+    return False
+
+
 def _count_existing_extracts(run_dir: Path, sample: list[dict[str, Any]]) -> int:
     n = 0
     for row in sample:
@@ -135,9 +168,14 @@ def _run_extract(
                 # field (activity_type / activity_name) can't be repaired without
                 # a coding/schema decision, so the page still drops here. Tag it
                 # distinctly from a generic parse failure so the escalation rate
-                # is measurable (see salvage.py).
-                unsalvageable = any(not s.is_salvageable for s in salvages)
-                reason = REASON_UNSALVAGEABLE if unsalvageable else "parse_failed"
+                # is measurable (see salvage.py) — but only when this exception
+                # is actually caused by the unsalvageable field, not merely when
+                # an unsalvageable event coexists with an unrelated failure.
+                reason = (
+                    REASON_UNSALVAGEABLE
+                    if _is_unsalvageable_group_d_failure(exc, salvages)
+                    else "parse_failed"
+                )
                 logger.warning("Stage 5 parse failed for %s: %s", result.custom_id, exc)
                 attrition.record(
                     run_dir, institution_id=institution_id, stage=stage,
