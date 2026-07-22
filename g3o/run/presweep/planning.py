@@ -32,6 +32,10 @@ def build_manifest(
     config_dict["master_csv"] = str(config.master_csv)
     config_dict["stratify_keys"] = list(config.stratify_keys)
     config_dict["discovery_languages"] = list(config.discovery_languages)
+    # institution_search_languages is a derived property (not a dataclass
+    # field), so asdict() above doesn't pick it up — record it explicitly so
+    # the manifest and the resume guard below still see it.
+    config_dict["institution_search_languages"] = config.institution_search_languages
     stages_planned = list(STAGES[: STAGES.index(config.stop_after) + 1])
     return {
         "run_id": config.run_id,

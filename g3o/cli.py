@@ -304,7 +304,6 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         sample_size=args.sample_size,
         seed=args.seed,
         stratification=args.stratification,
-        institution_search_languages=args.institution_search_languages,
         discovery_languages=tuple(
             s.strip() for s in args.discovery_languages.split(",") if s.strip()
         ),
@@ -575,12 +574,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Equal-per-stratum (Q3=equal, 2026-05-09).",
     )
     presweep.add_argument(
-        "--institution-search-languages", default="en",
-        help="Comma-separated ISO 639-1 codes recorded into per-row institution_search_languages.",
-    )
-    presweep.add_argument(
         "--discovery-languages", default="en",
-        help="Comma-separated ISO 639-1 codes used in Stage 1 query construction.",
+        help=(
+            "Comma-separated ISO 639-1 codes used in Stage 1 query construction. "
+            "Also recorded verbatim into per-row institution_search_languages — "
+            "not independently settable, so the two can never drift apart."
+        ),
     )
     presweep.add_argument("--discovery-results-per-query", type=int, default=5)
     presweep.add_argument(

@@ -44,7 +44,6 @@ class PresweepConfig:
     seed: int = 22294
     stratification: Literal["equal"] = "equal"  # only equal in Session B
     stratify_keys: tuple[str, ...] = STRATIFY_KEYS
-    institution_search_languages: str = "en"
     discovery_languages: tuple[str, ...] = ("en",)
     discovery_results_per_query: int = 5
     dry_run: bool = True
@@ -70,3 +69,14 @@ class PresweepConfig:
     scrape_respect_robots: bool = True
     scrape_host_delay_seconds: float = DEFAULT_HOST_DELAY_SECONDS
     scrape_render_on_download_failure: bool = False
+
+    @property
+    def institution_search_languages(self) -> str:
+        """Stage 5 provenance string — always the languages Stage 1a/1b actually searched.
+
+        Not independently settable (review, 2026-07-20): a free-standing config
+        field let this drift from ``discovery_languages``, so the extraction
+        contract's ``institution_search_languages`` column could understate what
+        was searched. Deriving it removes that failure mode.
+        """
+        return ",".join(self.discovery_languages)
