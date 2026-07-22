@@ -209,3 +209,30 @@ def test_throttle_different_hosts_run_concurrently():
     # Each host's first call never sleeps; with true per-host concurrency this
     # finishes almost immediately regardless of `delay`.
     assert elapsed < delay
+
+
+def test_robots_cache_fetches_once_per_host_under_concurrency():
+    """Per-host double-checked populate: many worker threads hitting the same
+    uncached host trigger exactly one robots.txt fetch, not one per thread —
+    and no thread is convoyed behind another host's fetch."""
+    calls: list[str] = []
+    calls_lock = threading.Lock()
+
+    def _counting_fetch(robots_url, *, user_agent, timeout):
+        with calls_lock:
+            calls.append(robots_url)
+        return ROBOTS_TXT
+
+    rc = RobotsCache("G3O-Observatory/0.1", fetch=_counting_fetch)
+
+    def worker():
+        for _ in range(20):
+            rc.allowed("https://same.gov/public/page")
+
+    threads = [threading.Thread(target=worker) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert calls.count("https://same.gov/robots.txt") == 1

@@ -131,31 +131,40 @@ def run_concurrent(
 
     results: list[_R] = []
     first_exc: BaseException | None = None
-    with ThreadPoolExecutor(
+    executor = ThreadPoolExecutor(
         max_workers=max_workers,
         initializer=_thread_init if need_lifecycle else None,
-    ) as executor:
+    )
+    try:
         futures = [executor.submit(worker, item) for item in items]
-        for future in as_completed(futures):
-            try:
-                result = future.result()
-            except CancelledError:
-                continue
-            except BaseException as exc:
-                if first_exc is None:
-                    first_exc = exc
-                    for f in futures:
-                        f.cancel()
-                continue
-            if result is not None:
-                results.append(result)
-        # Work has settled; all started workers are idle. Close thread-affine
-        # resources on their owning threads before the pool joins (even on the
-        # failure path, to avoid leaks).
-        if finalizer is not None:
-            with started_lock:
-                n_started = started
-            _finalize_on_each_worker(executor, finalizer, n_started)
+        try:
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                except CancelledError:
+                    continue
+                except BaseException as exc:
+                    if first_exc is None:
+                        first_exc = exc
+                        for f in futures:
+                            f.cancel()
+                    continue
+                if result is not None:
+                    results.append(result)
+        finally:
+            # Work has settled (or was interrupted); all started workers are
+            # idle. Close thread-affine resources on their owning threads before
+            # the pool joins — in a finally so a leak is impossible even on the
+            # failure/interrupt path (else a worker's Chromium leaks).
+            if finalizer is not None:
+                with started_lock:
+                    n_started = started
+                _finalize_on_each_worker(executor, finalizer, n_started)
+    finally:
+        # cancel_futures drops any task a worker hasn't started yet, so a mid-run
+        # abort doesn't churn through the whole remaining queue for results that
+        # will be discarded anyway.
+        executor.shutdown(wait=True, cancel_futures=True)
     if first_exc is not None:
         raise first_exc
     return results

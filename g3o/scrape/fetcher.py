@@ -14,7 +14,9 @@ All paths return a ``RenderedPage`` so Stage 5 reads
 from __future__ import annotations
 
 import hashlib
+import logging
 import os
+import threading
 import time
 from collections.abc import Callable
 
@@ -33,12 +35,28 @@ from g3o.scrape.render import (
     utc_today_iso,
 )
 
-_session = requests.Session()
-_session.headers = {
+logger = logging.getLogger(__name__)
+
+_SESSION_HEADERS = {
     "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "accept-language": "en-US,en;q=0.9",
     "user-agent": config.USER_AGENT,
 }
+
+# Thread-local requests.Session (Stage-4 concurrency thread-safety, 2026-07):
+# a single shared Session is not thread-safe — its connection pool, cookie jar,
+# and redirect handling race across worker threads. Each thread gets its own
+# Session (with identical headers), created lazily on first use.
+_thread_local = threading.local()
+
+
+def _get_session() -> requests.Session:
+    session = getattr(_thread_local, "session", None)
+    if session is None:
+        session = requests.Session()
+        session.headers = dict(_SESSION_HEADERS)
+        _thread_local.session = session
+    return session
 
 # Cache file prefix; bumped from `page_` when RenderedPage replaced the legacy
 # {text, links, url, content_type, success} dict shape (Session B, 2026-05-09).
@@ -74,16 +92,63 @@ def _save(page: RenderedPage, *, min_chars: int = 1) -> None:
     if len(page.text.strip()) < min_chars:
         return
     os.makedirs(config.CACHE_DIR, exist_ok=True)
-    with open(_cache_path(page.url), "w", encoding="utf-8") as f:
+    path = _cache_path(page.url)
+    # Atomic write (Stage-4 concurrency thread-safety, 2026-07): the page cache
+    # is shared cross-run and cross-institution — two worker threads scraping the
+    # same URL race on the same cache file. A plain open(path, "w") lets a
+    # concurrent reader observe a torn/partial file, whose model_validate_json
+    # then raises and is swallowed upstream as a scrape_failed attrition (silent
+    # evidence loss). A per-writer temp file + os.replace makes the swap atomic;
+    # the temp name carries pid + thread id so two writers never collide.
+    # Mirrors serper_client._save_cache.
+    tmp_path = f"{path}.tmp.{os.getpid()}.{threading.get_ident()}"
+    with open(tmp_path, "w", encoding="utf-8") as f:
         f.write(page.model_dump_json())
+    # Windows can transiently deny os.replace while a concurrent _load() read
+    # holds the destination (no FILE_SHARE_DELETE); a bounded capped-backoff
+    # retry clears it, a no-op first-try on POSIX. A cache write is best-effort:
+    # if it never lands, log, drop the temp file, and give up rather than raise —
+    # a missed cache write costs a re-fetch, never a crashed scrape.
+    for attempt in range(12):
+        try:
+            os.replace(tmp_path, path)
+            return
+        except PermissionError:
+            if attempt == 11:
+                logger.warning("page cache write gave up after contention on %s", path)
+                try:
+                    os.remove(tmp_path)
+                except OSError:
+                    pass
+                return
+            time.sleep(min(0.01 * (2**attempt), 0.25))
 
 
 def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
     path = _cache_path(url)
     if not os.path.exists(path):
         return None
-    with open(path, encoding="utf-8") as f:
-        cached = RenderedPage.model_validate_json(f.read())
+    # Windows can transiently deny the read open while a concurrent writer's
+    # os.replace swaps the destination (Stage-4 concurrency). A bounded
+    # capped-backoff retry clears it; a persistent denial degrades to a cache
+    # miss (the caller re-fetches), never a spurious scrape_failed. No-op
+    # first-try on POSIX.
+    raw: str | None = None
+    for attempt in range(12):
+        try:
+            with open(path, encoding="utf-8") as f:
+                raw = f.read()
+            break
+        except PermissionError:
+            if attempt == 11:
+                logger.warning("page cache read gave up after contention on %s", path)
+                return None
+            time.sleep(min(0.01 * (2**attempt), 0.25))
+        except FileNotFoundError:
+            return None  # replaced away between the exists() check and the open
+    if raw is None:
+        return None
+    cached = RenderedPage.model_validate_json(raw)
     # Treat a cached below-floor page as a miss so the deterministic + render
     # path re-runs (F17: near-empty pages retry next run). Without this, a page
     # cached before this floor existed — or any short page — would short-circuit
@@ -98,7 +163,7 @@ def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
 def _download(url: str) -> tuple[bytes, str, int, str, int]:
     """Return ``(content, content_type, http_status, final_url, elapsed_ms)``."""
     started = time.monotonic()
-    r = _session.get(url, timeout=config.REQUEST_TIMEOUT)
+    r = _get_session().get(url, timeout=config.REQUEST_TIMEOUT)
     r.raise_for_status()
     elapsed_ms = int((time.monotonic() - started) * 1000)
     return (

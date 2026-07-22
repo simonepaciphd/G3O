@@ -23,6 +23,7 @@ message cannot defeat deduplication.
 from __future__ import annotations
 
 import json
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -33,6 +34,15 @@ LEDGER_NAME = "_attrition.jsonl"
 # keys already on disk. Lazily seeded from the existing file on first touch so
 # the guard survives a process restart (resume).
 _seen: dict[str, set[tuple[str, str, str, str]]] = {}
+
+# Stage-4 concurrency thread-safety (2026-07): record() is called from worker
+# threads. Without a lock two races corrupt the ledger — the lazy _load_seen
+# seeding (two threads both build and assign _seen[key]) and record()'s
+# check-then-act (two threads both pass `key not in seen`, both append →
+# double-count). A single re-entrant module lock serializes the seed, the dedup
+# check, the file append, and the seen.add so each record is atomic. Attrition
+# writes are rare next to network I/O, so serializing them is free in practice.
+_lock = threading.RLock()
 
 
 def ledger_path(run_dir: Path) -> Path:
@@ -45,30 +55,31 @@ def _dedup_key(institution_id: str, stage: str, reason: str, url: str | None) ->
 
 def _load_seen(run_dir: Path) -> set[tuple[str, str, str, str]]:
     key = str(run_dir)
-    cached = _seen.get(key)
-    if cached is not None:
-        return cached
-    seen: set[tuple[str, str, str, str]] = set()
-    path = ledger_path(run_dir)
-    if path.exists():
-        for line in path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                rec = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            seen.add(
-                _dedup_key(
-                    rec.get("institution_id", ""),
-                    rec.get("stage", ""),
-                    rec.get("reason", ""),
-                    rec.get("url"),
+    with _lock:
+        cached = _seen.get(key)
+        if cached is not None:
+            return cached
+        seen: set[tuple[str, str, str, str]] = set()
+        path = ledger_path(run_dir)
+        if path.exists():
+            for line in path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                seen.add(
+                    _dedup_key(
+                        rec.get("institution_id", ""),
+                        rec.get("stage", ""),
+                        rec.get("reason", ""),
+                        rec.get("url"),
+                    )
                 )
-            )
-    _seen[key] = seen
-    return seen
+        _seen[key] = seen
+        return seen
 
 
 def _utc_iso() -> str:
@@ -97,26 +108,30 @@ def record(
     correctness). The dedup guard prevents resume double-counting.
     """
     run_dir = Path(run_dir)
-    seen = _load_seen(run_dir)
     key = _dedup_key(institution_id, stage, reason, url)
-    if key in seen:
-        return False
-    rec: dict[str, Any] = {
-        "ts": _utc_iso(),
-        "institution_id": institution_id,
-        "stage": stage,
-        "reason": reason,
-    }
-    if url is not None:
-        rec["url"] = url
-    if detail is not None:
-        rec["detail"] = detail
-    rec.update(extra)
-    run_dir.mkdir(parents=True, exist_ok=True)
-    with open(ledger_path(run_dir), "a", encoding="utf-8") as f:
-        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
-    seen.add(key)
-    return True
+    # Hold the module lock across the whole check-then-act: dedup check, file
+    # append, and seen.add must be atomic so concurrent workers cannot both pass
+    # the `key not in seen` guard and double-write (see _lock).
+    with _lock:
+        seen = _load_seen(run_dir)
+        if key in seen:
+            return False
+        rec: dict[str, Any] = {
+            "ts": _utc_iso(),
+            "institution_id": institution_id,
+            "stage": stage,
+            "reason": reason,
+        }
+        if url is not None:
+            rec["url"] = url
+        if detail is not None:
+            rec["detail"] = detail
+        rec.update(extra)
+        run_dir.mkdir(parents=True, exist_ok=True)
+        with open(ledger_path(run_dir), "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        seen.add(key)
+        return True
 
 
 def ensure_ledger(run_dir: Path) -> Path:
@@ -151,7 +166,8 @@ def read_records(run_dir: Path) -> list[dict[str, Any]]:
 
 def _reset_cache() -> None:
     """Clear the dedup cache (test isolation only)."""
-    _seen.clear()
+    with _lock:
+        _seen.clear()
 
 
 __all__ = ["LEDGER_NAME", "ledger_path", "record", "read_records", "ensure_ledger"]

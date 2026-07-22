@@ -269,3 +269,66 @@ def test_url_preserved_despite_redirect(monkeypatch):
 
     assert page.url == url
     assert page.fetch_metadata.final_url == "https://x.gov/redirected"
+
+
+# ---------------------------------------------------------------------------
+# Stage-4 concurrency thread-safety (2026-07)
+# ---------------------------------------------------------------------------
+
+
+def test_get_session_is_thread_local():
+    """Each thread gets its own requests.Session (not the shared, unsafe one),
+    with identical headers."""
+    import threading
+
+    main_session = fetcher._get_session()
+    other: dict[str, object] = {}
+
+    def grab() -> None:
+        other["session"] = fetcher._get_session()
+
+    t = threading.Thread(target=grab)
+    t.start()
+    t.join()
+
+    assert fetcher._get_session() is main_session  # stable within a thread
+    assert other["session"] is not main_session  # distinct across threads
+    assert other["session"].headers["user-agent"] == main_session.headers["user-agent"]
+
+
+def test_save_atomic_write_survives_concurrent_readers(monkeypatch):
+    """The shared page cache must never let a reader observe a torn/partial file
+    under concurrent writers (else model_validate_json raises and is swallowed
+    upstream as scrape_failed — silent evidence loss). Atomic temp+os.replace."""
+    import threading
+
+    url = "https://x.gov/concurrent"
+    page = _rendered_page(url, text="stable body text well above the floor")
+    errors: list[Exception] = []
+
+    def writer() -> None:
+        for _ in range(25):
+            fetcher._save(page)
+
+    def reader() -> None:
+        for _ in range(25):
+            try:
+                cached = fetcher._load(url)
+                if cached is not None:
+                    assert cached.text == "stable body text well above the floor"
+            except Exception as exc:  # noqa: BLE001 - a torn read is the failure
+                errors.append(exc)
+
+    threads = [threading.Thread(target=writer) for _ in range(4)] + [
+        threading.Thread(target=reader) for _ in range(4)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert errors == []
+    # No leftover temp files after every writer finished.
+    from pathlib import Path
+
+    assert list(Path(config.CACHE_DIR).glob("*.tmp.*")) == []

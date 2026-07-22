@@ -68,6 +68,14 @@ class RobotsCache:
 
     One robots.txt fetch per host for the life of the cache (a run-scoped
     object). ``fetch`` is injectable for tests so no network is touched.
+
+    Thread safety (Stage 4 concurrency, 2026-07): ``_parser_for`` is called from
+    multiple worker threads. Locking is per-host, not a single cache-wide lock —
+    a cache-wide lock held across the (up to ``_ROBOTS_TIMEOUT_SECONDS``)
+    robots.txt GET would convoy every thread behind whichever host is slow or
+    dead. Instead a per-host lock serializes only threads fetching the *same*
+    uncached host, with a double-checked populate so each host is fetched once;
+    different hosts never block each other.
     """
 
     def __init__(
@@ -81,10 +89,26 @@ class RobotsCache:
         self._fetch = fetch
         self._timeout = timeout
         self._parsers: dict[str, robotparser.RobotFileParser | None] = {}
+        self._map_lock = threading.Lock()
+        self._host_locks: dict[str, threading.Lock] = {}
+
+    def _lock_for(self, host: str) -> threading.Lock:
+        with self._map_lock:
+            lock = self._host_locks.get(host)
+            if lock is None:
+                lock = threading.Lock()
+                self._host_locks[host] = lock
+            return lock
 
     def _parser_for(self, url: str) -> robotparser.RobotFileParser | None:
         host = host_key(url)
-        if host not in self._parsers:
+        # Fast path: already populated (a single set-once dict read is safe under
+        # the GIL). Avoids taking a lock once the host's robots.txt is cached.
+        if host in self._parsers:
+            return self._parsers[host]
+        with self._lock_for(host):
+            if host in self._parsers:  # double-check: another thread populated it
+                return self._parsers[host]
             body = self._fetch(
                 f"{host}/robots.txt",
                 user_agent=self.user_agent,
@@ -96,7 +120,7 @@ class RobotsCache:
                 parser = robotparser.RobotFileParser()
                 parser.parse(body.splitlines())
                 self._parsers[host] = parser
-        return self._parsers[host]
+            return self._parsers[host]
 
     def allowed(self, url: str) -> bool:
         """True if ``url`` is fetchable for the G3O user-agent per robots.txt."""
