@@ -20,6 +20,7 @@ against the known threshold.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import pytest
@@ -151,6 +152,59 @@ def test_download_failure_trigger_unchanged_and_records_telemetry(monkeypatch):
     assert len(events) == 1
     assert events[0]["trigger"] == "download_failure"
     assert events[0]["outcome"] == "rendered"
+
+
+# ---------------------------------------------------------------------------
+# Cache-bypass regression — below-floor pages must not freeze cross-run
+# (render-on-empty fix, 2026-07-21)
+# ---------------------------------------------------------------------------
+
+
+def test_below_floor_render_failure_not_cached_and_reattempted(monkeypatch):
+    """A near-empty page whose render fallback FAILS must not be frozen into the
+    shared cache: the next run re-downloads and re-renders rather than serving
+    the short deterministic text from disk (F17 retry-next-run). Regression for
+    the _load-before-threshold / _save-caches-short-page bypass."""
+    monkeypatch.setattr(fetcher, "_download", _download_returning())
+    monkeypatch.setattr(fetcher.html_mod, "extract_text", lambda soup: "short")  # 5 chars
+
+    calls = {"render": 0}
+
+    def _failing_render(u, timeout, session=None):
+        calls["render"] += 1
+        raise RuntimeError("render down")
+
+    monkeypatch.setattr(fetcher, "render_url", _failing_render)
+
+    # Run 1: render fails, the 5-char deterministic text surfaces but is NOT cached.
+    page1 = fetcher.scrape_url("https://x.gov", empty_page_min_chars=50)
+    assert page1.text == "short"
+    assert not os.path.exists(fetcher._cache_path("https://x.gov"))
+    assert calls["render"] == 1
+
+    # Run 2 (no force_refresh): cache miss → the render is attempted again,
+    # not short-circuited by a frozen below-floor cache entry.
+    page2 = fetcher.scrape_url("https://x.gov", empty_page_min_chars=50)
+    assert page2.text == "short"
+    assert calls["render"] == 2
+
+
+def test_pre_existing_below_floor_cache_entry_treated_as_miss(monkeypatch):
+    """A cache entry written before the floor existed (a short page cached at
+    min_chars=1) must be ignored on load when the caller's floor is higher, so
+    the page re-fetches instead of serving stale near-empty text."""
+    url = "https://y.gov"
+    fetcher._save(_rendered_page(url, text="tiny"), min_chars=1)  # 4 chars, cached
+    assert os.path.exists(fetcher._cache_path(url))
+
+    monkeypatch.setattr(fetcher, "_download", _download_returning())
+    monkeypatch.setattr(fetcher.html_mod, "extract_text", lambda soup: "A" * 60)
+    monkeypatch.setattr(fetcher, "render_url", _boom)  # real content; no render needed
+
+    page = fetcher.scrape_url(url, empty_page_min_chars=50)
+    # The stale 4-char entry is bypassed; fresh above-floor content is returned.
+    assert page.text == "A" * 60
+    assert page.fetch_metadata.fetch_method == "html"
 
 
 # ---------------------------------------------------------------------------

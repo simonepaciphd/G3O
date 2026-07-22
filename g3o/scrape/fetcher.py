@@ -61,24 +61,37 @@ def _cache_path(url: str) -> str:
     return os.path.join(config.CACHE_DIR, f"{_CACHE_PREFIX}{_cache_key(url)}.json")
 
 
-def _save(page: RenderedPage) -> None:
-    # Don't cache empty-text pages (review F17, 2026-06-10): a render fallback
-    # that yields no text should be re-attempted on the next run rather than
-    # frozen into the shared cache and never refetched cross-run. Download-
-    # failure pages already bypass the cache via _failure_page.
-    if not page.text:
+def _save(page: RenderedPage, *, min_chars: int = 1) -> None:
+    # Don't cache below-floor pages (review F17, 2026-06-10; render-on-empty
+    # fix, 2026-07-21): a page whose stripped text is under the caller's
+    # empty-page floor should be re-attempted on the next run rather than frozen
+    # into the shared cache and never refetched cross-run. ``min_chars`` defaults
+    # to 1 (skip only empty/whitespace-only text) for standalone callers; the
+    # Stage 4 path raises it to ``empty_page_min_chars`` so a near-empty JS-shell
+    # page — including one whose render fallback failed or still stripped short —
+    # cannot freeze cross-run. Download-failure pages already bypass the cache
+    # via _failure_page.
+    if len(page.text.strip()) < min_chars:
         return
     os.makedirs(config.CACHE_DIR, exist_ok=True)
     with open(_cache_path(page.url), "w", encoding="utf-8") as f:
         f.write(page.model_dump_json())
 
 
-def _load(url: str) -> RenderedPage | None:
+def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
     path = _cache_path(url)
     if not os.path.exists(path):
         return None
     with open(path, encoding="utf-8") as f:
-        return RenderedPage.model_validate_json(f.read())
+        cached = RenderedPage.model_validate_json(f.read())
+    # Treat a cached below-floor page as a miss so the deterministic + render
+    # path re-runs (F17: near-empty pages retry next run). Without this, a page
+    # cached before this floor existed — or any short page — would short-circuit
+    # here and never re-render. Pairs with _save's floor: below-floor pages are
+    # neither stored nor served.
+    if len(cached.text.strip()) < min_chars:
+        return None
+    return cached
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
@@ -204,8 +217,15 @@ def scrape_url(
     redirects (pipeline-spec §1: "do not silently redirect-and-attribute").
     Successful fetches are cached on disk under ``config.CACHE_DIR``.
     """
+    # The disk cache must neither store nor serve a below-floor page when the
+    # caller wants empty-page rendering: otherwise a near-empty page freezes
+    # cross-run and never re-renders (contradicts F17). When
+    # prefer_render_on_empty is off, a short page is legitimate content, so the
+    # floor collapses to 1 (skip only empty/whitespace-only).
+    cache_floor = empty_page_min_chars if prefer_render_on_empty else 1
+
     if not force_refresh:
-        cached = _load(url)
+        cached = _load(url, min_chars=cache_floor)
         if cached is not None:
             return cached
 
@@ -213,7 +233,7 @@ def scrape_url(
         page = render_url(
             url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session
         )
-        _save(page)
+        _save(page, min_chars=cache_floor)
         return page
 
     try:
@@ -238,7 +258,7 @@ def scrape_url(
                 trigger="download_failure", outcome="rendered",
                 result_len=len(page.text.strip()),
             )
-            _save(page)
+            _save(page, min_chars=cache_floor)
             return page
         return _failure_page(url, attempted_method="html")
 
@@ -277,7 +297,7 @@ def scrape_url(
                 trigger="empty_after_strip", outcome="rendered",
                 result_len=len(page.text.strip()),
             )
-            _save(page)
+            _save(page, min_chars=cache_floor)
             return page
 
     page = RenderedPage(
@@ -294,5 +314,5 @@ def scrape_url(
             wait_for=None,
         ),
     )
-    _save(page)
+    _save(page, min_chars=cache_floor)
     return page
