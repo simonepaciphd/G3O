@@ -10,9 +10,11 @@ per-page cost dominates the budget.
 from __future__ import annotations
 
 import json
+from collections import Counter
+from dataclasses import dataclass
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from g3o.common.batch_client import BatchJob, BatchResult
 
@@ -65,18 +67,15 @@ class URLDecision(BaseModel):
 class URLTriageResult(BaseModel):
     """Stage 3 output: one decision per input URL, in input order."""
 
+    # NOTE: keep the docstring above byte-identical — pydantic emits it as the
+    # JSON-schema ``description`` inside RESPONSE_FORMAT, which is sent to the
+    # model and pinned by the reproducibility golden. Structural container only:
+    # duplicate URLs are NOT rejected here — a duplicate is an LLM-drift failure
+    # mode that Stage 3 salvages per-URL (see :func:`match_triage_decisions`)
+    # rather than failing the whole institution.
     model_config = ConfigDict(extra="forbid")
 
     decisions: list[URLDecision]
-
-    @model_validator(mode="after")
-    def _no_duplicate_urls(self) -> URLTriageResult:
-        seen: set[str] = set()
-        for d in self.decisions:
-            if d.url in seen:
-                raise ValueError(f"duplicate URL in triage decisions: {d.url!r}")
-            seen.add(d.url)
-        return self
 
 
 def _response_format() -> dict[str, Any]:
@@ -152,10 +151,20 @@ def build_triage_job(
 def parse_triage_result(
     result: BatchResult, *, expected_urls: list[str] | None = None
 ) -> URLTriageResult:
-    """Parse a `BatchResult` from Stage 3 into a validated `URLTriageResult`.
+    """Parse a `BatchResult` from Stage 3 into a structurally-valid result.
 
-    If `expected_urls` is provided, verify that every input URL has exactly
-    one decision and no extra URLs were invented.
+    This does **structural** parsing only — it raises for the genuinely
+    unrecoverable cases (batch-level failure, empty content, malformed JSON,
+    and per-decision schema violations such as a bad ``decision`` enum or an
+    oversized ``rationale``). It does **not** enforce a URL round-trip: the
+    submitted candidate list is matched to the returned decisions positionally
+    by :func:`match_triage_decisions`, which salvages the clean decisions and
+    records the drifted/duplicate/missing ones per-URL instead of discarding
+    the whole institution.
+
+    ``expected_urls`` is accepted for backward compatibility (older callers and
+    the ``triage`` debug CLI still pass it) but is now ignored here; index-based
+    matching lives in :func:`match_triage_decisions`.
     """
     if not result.success:
         raise RuntimeError(
@@ -172,21 +181,106 @@ def parse_triage_result(
         raise RuntimeError(
             f"Stage 3 parse failed for custom_id={result.custom_id}: {exc}"
         ) from exc
-    triage = URLTriageResult.model_validate(payload)
+    return URLTriageResult.model_validate(payload)
 
-    if expected_urls is not None:
-        decided = {d.url for d in triage.decisions}
-        expected = set(expected_urls)
-        missing = expected - decided
-        extra = decided - expected
-        if missing or extra:
-            raise RuntimeError(
-                f"Stage 3 result {result.custom_id!r}: "
-                f"missing decisions for {sorted(missing)}, "
-                f"unexpected URLs {sorted(extra)}"
+
+@dataclass(frozen=True)
+class TriageAttrition:
+    """One per-URL Stage 3 salvage casualty (feeds the attrition ledger).
+
+    ``reason`` is a stable short code; ``detail`` is free text (outside the
+    ledger dedup key) carrying the diagnostic sub-classification.
+    """
+
+    url: str
+    reason: str
+    detail: str | None = None
+
+
+@dataclass(frozen=True)
+class TriageMatch:
+    """Result of matching submitted candidates against returned decisions.
+
+    ``decisions`` are the salvaged decisions in candidate order — each is kept
+    only when the echoed URL exactly equals the candidate occupying that index,
+    so a salvaged decision provably concerns its candidate URL. ``kept_urls``
+    is the ``keep`` subset of those. ``attrition`` names the casualties.
+    """
+
+    decisions: list[URLDecision]
+    kept_urls: list[str]
+    attrition: list[TriageAttrition]
+
+
+def match_triage_decisions(
+    candidate_urls: list[str], triage: URLTriageResult
+) -> TriageMatch:
+    """Match returned triage decisions to submitted candidates by **index**.
+
+    The submitted ``candidate_urls`` list (the path-aware deduped 1a+1b union,
+    so entries are pairwise-distinct) is the stable identity: the decision at
+    position *i* is matched to ``candidate_urls[i]``. A decision is salvaged
+    only when ``decisions[i].url`` exactly equals ``candidate_urls[i]`` — the
+    echoed URL is the model's own claim of identity, so requiring it to agree
+    with the positional occupant means we never mis-attribute a decision. Any
+    disagreement (URL drift, duplicate, reorder) drops **that one** decision
+    with a per-URL attrition record and salvages the rest; count drift on
+    either side is recorded too. The institution is never discarded wholesale.
+
+    Because candidates are distinct, an exact positional match uniquely
+    identifies its candidate, so a same-count reorder surfaces as per-position
+    mismatches (dropped + recorded), never as a wrong salvage.
+    """
+    decisions = triage.decisions
+    url_counts = Counter(d.url for d in decisions)
+    candidate_set = set(candidate_urls)
+    n, m = len(candidate_urls), len(decisions)
+
+    matched: list[URLDecision] = []
+    attrition: list[TriageAttrition] = []
+
+    for i, cand in enumerate(candidate_urls):
+        if i >= m:
+            attrition.append(
+                TriageAttrition(cand, "missing_decision", "fewer decisions than candidates")
+            )
+            continue
+        d = decisions[i]
+        if d.url == cand:
+            matched.append(d)
+            continue
+        if url_counts[d.url] > 1:
+            attrition.append(
+                TriageAttrition(
+                    cand,
+                    "duplicate_url",
+                    f"echoed URL repeated {url_counts[d.url]}x in response",
+                )
+            )
+        elif d.url in candidate_set:
+            attrition.append(
+                TriageAttrition(
+                    cand,
+                    "url_mismatch",
+                    "reorder_symptom: echoed URL matches another candidate position",
+                )
+            )
+        else:
+            attrition.append(
+                TriageAttrition(
+                    cand,
+                    "url_mismatch",
+                    "corruption_or_fabrication: echoed URL not in candidate set",
+                )
             )
 
-    return triage
+    for j in range(n, m):
+        attrition.append(
+            TriageAttrition(decisions[j].url, "extra_decision", "more decisions than candidates")
+        )
+
+    kept_urls = [d.url for d in matched if d.decision == "keep"]
+    return TriageMatch(decisions=matched, kept_urls=kept_urls, attrition=attrition)
 
 
 __all__ = [
@@ -195,6 +289,9 @@ __all__ = [
     "RESPONSE_FORMAT",
     "URLDecision",
     "URLTriageResult",
+    "TriageAttrition",
+    "TriageMatch",
     "build_triage_job",
     "parse_triage_result",
+    "match_triage_decisions",
 ]

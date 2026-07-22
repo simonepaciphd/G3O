@@ -12,7 +12,11 @@ from g3o.classify.official_site import (
     build_official_site_job,
     parse_official_site_result,
 )
-from g3o.classify.url_triage import build_triage_job, parse_triage_result
+from g3o.classify.url_triage import (
+    build_triage_job,
+    match_triage_decisions,
+    parse_triage_result,
+)
 from g3o.common import attrition
 from g3o.common.batch_client import BatchResult
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
@@ -183,6 +187,53 @@ def _candidate_urls_union(
     return out
 
 
+def persist_triage_result(
+    run_dir: Path,
+    result: BatchResult,
+    candidate_urls: list[str],
+    *,
+    stage: str = "classify_triage",
+) -> list[str] | None:
+    """Parse + index-match one Stage 3 result, salvaging valid decisions per-URL.
+
+    A structural parse failure (bad JSON, schema violation) is unrecoverable:
+    one institution-level ``parse_failed`` record is written and ``None`` is
+    returned so the caller leaves the institution out of the kept map. On a
+    structurally-valid result, decisions are matched to ``candidate_urls`` by
+    index (:func:`match_triage_decisions`); each drifted/duplicate/missing/extra
+    entry gets one per-URL attrition record, the salvaged decisions are written
+    to ``3_triage.json``, and the ``keep`` URLs are returned. The list may be
+    empty (every decision was a casualty) — the institution is still represented
+    rather than dropped wholesale, which is the behaviour this fix restores.
+    """
+    try:
+        parsed = parse_triage_result(result)
+    except Exception as exc:
+        logger.warning("Stage 3 parse failed for %s: %s", result.custom_id, exc)
+        attrition.record(
+            run_dir, institution_id=result.custom_id, stage=stage,
+            reason="parse_failed", detail=str(exc),
+        )
+        return None
+    match = match_triage_decisions(candidate_urls, parsed)
+    for casualty in match.attrition:
+        attrition.record(
+            run_dir, institution_id=result.custom_id, stage=stage,
+            reason=casualty.reason, url=casualty.url, detail=casualty.detail,
+        )
+    inst_dir = run_dir / result.custom_id
+    if inst_dir.exists():
+        (inst_dir / "3_triage.json").write_text(
+            json.dumps(
+                {"decisions": [d.model_dump() for d in match.decisions]},
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+    return match.kept_urls
+
+
 def _run_classify_triage(
     run_dir: Path,
     sample: list[dict[str, Any]],
@@ -212,8 +263,9 @@ def _run_classify_triage(
         return _read_existing_triaged(run_dir, sample)
 
     candidates_by_inst: dict[str, list[str]] = {}
-    # Always rebuild the candidates_by_inst lookup so parse_triage_result can
-    # validate expected_urls round-trip; it's cheap (in-memory dedup union).
+    # Always rebuild the candidates_by_inst lookup: it is the per-institution
+    # index authority that persist_triage_result matches decisions against
+    # positionally. Cheap (in-memory dedup union).
     for row in sample:
         institution = institution_record(row)
         inst_id = institution["institution_id"]
@@ -246,25 +298,14 @@ def _run_classify_triage(
 
     def _persist(results: Iterator[BatchResult]) -> None:
         for result in results:
-            try:
-                parsed = parse_triage_result(
-                    result, expected_urls=candidates_by_inst.get(result.custom_id)
-                )
-            except Exception as exc:
-                logger.warning("Stage 3 parse failed for %s: %s", result.custom_id, exc)
-                attrition.record(
-                    run_dir, institution_id=result.custom_id, stage=stage,
-                    reason="parse_failed", detail=str(exc),
-                )
-                continue
-            kept_urls = [d.url for d in parsed.decisions if d.decision == "keep"]
-            kept[result.custom_id] = kept_urls
-            inst_dir = run_dir / result.custom_id
-            if inst_dir.exists():
-                (inst_dir / "3_triage.json").write_text(
-                    json.dumps(parsed.model_dump(), ensure_ascii=False, indent=2),
-                    encoding="utf-8",
-                )
+            kept_urls = persist_triage_result(
+                run_dir,
+                result,
+                candidates_by_inst.get(result.custom_id) or [],
+                stage=stage,
+            )
+            if kept_urls is not None:
+                kept[result.custom_id] = kept_urls
 
     run_chunked_stage(
         run_dir, stage, jobs,
