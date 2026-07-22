@@ -10,6 +10,7 @@ Subcommands:
   persist                 — Stage 7 deterministic CSV writer.
   presweep                — Phase 3 of Session B: stratified pre-sweep runner.
   presweep-report         — Stage-by-stage funnel health report for a finished run.
+  run-diff                — Cross-run determinism report over 2+ run dirs (disk-only).
   verify-model            — One-job Batch API submit to confirm the model id (Q4).
 
 Push #1 implemented `discover` and `scrape`. Session A of Push #2 added the
@@ -392,6 +393,30 @@ def _cmd_presweep_report(args: argparse.Namespace) -> int:
     return 2 if overall == "fail" else (1 if overall == "warn" else 0)
 
 
+def _cmd_run_diff(args: argparse.Namespace) -> int:
+    from g3o.report import compute_run_diff, render_run_diff_text
+
+    # Each run-dir's existence is enforced by `type=_existing_dir`; require 2+.
+    run_dirs = [Path(d) for d in args.run_dirs]
+    if len(run_dirs) < 2:
+        sys.stderr.write("run-diff requires at least two run directories\n")
+        return 2
+
+    report = compute_run_diff(run_dirs)
+
+    # Machine-readable report lands in the first run dir (underscore prefix
+    # keeps it alongside other run metadata like _health_report.json).
+    json_path = run_dirs[0] / "_run_diff_report.json"
+    json_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    sys.stdout.write(render_run_diff_text(report))
+    sys.stdout.write("\n")
+    sys.stderr.write(f"JSON report written to: {json_path}\n")
+    return 0
+
+
 def _cmd_verify_model(args: argparse.Namespace) -> int:
     from g3o.run.verify_model import verify_model
 
@@ -692,6 +717,23 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     presweep_report.set_defaults(func=_cmd_presweep_report)
+
+    run_diff = sub.add_parser(
+        "run-diff",
+        help="Cross-run determinism report over 2+ run dirs (same seed, different run-ids).",
+    )
+    run_diff.add_argument(
+        "run_dirs",
+        nargs="+",
+        type=_existing_dir,
+        metavar="RUN_DIR",
+        help=(
+            "Two or more runs/<run_id>/ directories to compare. The first is "
+            "the baseline for per-institution divergence deltas. The JSON "
+            "report is written to the first run dir as _run_diff_report.json."
+        ),
+    )
+    run_diff.set_defaults(func=_cmd_run_diff)
 
     verify = sub.add_parser(
         "verify-model",
