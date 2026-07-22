@@ -173,6 +173,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             respect_robots=config.scrape_respect_robots,
             host_delay_seconds=config.scrape_host_delay_seconds,
             render_on_download_failure=config.scrape_render_on_download_failure,
+            empty_page_min_chars=config.empty_page_min_chars,
         )
         summary["n_pages_scraped"] = sum(len(v) for v in scraped.values())
         if config.stop_after == "scrape":

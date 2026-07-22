@@ -9,6 +9,7 @@ from typing import Any
 from g3o.common import attrition
 from g3o.common import config as _config
 from g3o.common.run_state import is_done, mark_done
+from g3o.extract.batch import EMPTY_PAGE_MIN_CHARS
 from g3o.run.presweep.records import institution_record, synth_institution_id
 from g3o.scrape.fetcher import scrape_url
 from g3o.scrape.politeness import (
@@ -45,6 +46,7 @@ def _run_scrape(
     respect_robots: bool = True,
     host_delay_seconds: float = DEFAULT_HOST_DELAY_SECONDS,
     render_on_download_failure: bool = False,
+    empty_page_min_chars: int = EMPTY_PAGE_MIN_CHARS,
     robots: RobotsCache | None = None,
 ) -> dict[str, list[RenderedPage]]:
     """Stage 4 — synchronous scrape per (institution × kept URL).
@@ -67,6 +69,16 @@ def _run_scrape(
     :class:`RenderSession` serves every render fallback in the loop instead of
     launching a browser per URL. ``robots`` may be injected (tests); otherwise
     a run-scoped :class:`RobotsCache` is built when ``respect_robots``.
+
+    Empty-page render (render-on-empty): ``empty_page_min_chars`` is handed to
+    ``scrape_url`` so a page whose deterministic text strips below the floor —
+    a JS-shell page returning 200 + near-zero chars — triggers a render instead
+    of passing through to Stage 5 as a silent ``empty_page_dropped``. It shares
+    the same threshold Stage 5 uses to drop empty pages, so the render fires for
+    exactly those pages. Every render attempt (this trigger or the download-
+    failure one) writes a ``render_attempted`` attrition record via the
+    ``on_render_attempt`` hook, so the render rate and its cost stay auditable
+    and no render is a silent retry.
     """
     from g3o.extract.batch import url_hash
 
@@ -86,6 +98,26 @@ def _run_scrape(
             scrape_dir = run_dir / inst_id / "scrape"
             scrape_dir.mkdir(parents=True, exist_ok=True)
             pages: list[RenderedPage] = []
+
+            def _record_render_attempt(
+                *, url: str, trigger: str, outcome: str, result_len: int | None,
+                _inst: str = inst_id,
+            ) -> None:
+                # Telemetry for every render attempt (download-failure- or
+                # empty-after-strip-triggered): one record per (inst, url) —
+                # attrition dedups on (institution_id, stage, reason, url), so a
+                # still-empty render is recorded exactly once, never a silent
+                # drop and never a duplicate. trigger/outcome/stripped_len stay
+                # out of the dedup key so the render rate + cost are queryable.
+                detail = f"trigger={trigger};outcome={outcome}"
+                if result_len is not None:
+                    detail += f";stripped_len={result_len}"
+                attrition.record(
+                    run_dir, institution_id=_inst, stage=stage,
+                    reason="render_attempted", url=url, detail=detail,
+                    trigger=trigger, outcome=outcome,
+                )
+
             for url in urls:
                 output_path = scrape_dir / f"{url_hash(url)}.json"
                 if output_path.exists():
@@ -111,7 +143,15 @@ def _run_scrape(
                     page = scrape_url(
                         url,
                         render_session=render_session,
+                        # Explicit (not relying on the fetcher default): the
+                        # empty-after-strip render is the point of this stage's
+                        # render-on-empty behavior; pin it on at the call site so
+                        # a future change to the fetcher default can't silently
+                        # disable it. The tunable surface is empty_page_min_chars.
+                        prefer_render_on_empty=True,
                         prefer_render_on_download_failure=render_on_download_failure,
+                        empty_page_min_chars=empty_page_min_chars,
+                        on_render_attempt=_record_render_attempt,
                     )
                 except Exception as exc:
                     logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
