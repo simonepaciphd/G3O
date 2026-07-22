@@ -79,8 +79,11 @@ def _triage_decisions(run_dir: Path) -> list[dict[str, Any]]:
 
 
 def test_one_corrupted_url_salvages_the_other_nine(tmp_path: Path) -> None:
-    """9 clean decisions + 1 drifted URL → keep 9, exactly 1 attrition record,
-    institution is NOT dropped from Stage 3 output."""
+    """9 clean decisions + 1 drifted URL → keep 9, institution NOT dropped.
+
+    Under URL-keyed matching the drift surfaces as two per-URL casualties: the
+    real candidate is now ``missing_decision`` (no decision echoed its URL) and
+    the drifted URL is a ``url_mismatch`` (not in the candidate set)."""
     run_dir = _run_with_inst(tmp_path)
     candidates = _candidates(10)
     echoed = list(candidates)
@@ -93,18 +96,22 @@ def test_one_corrupted_url_salvages_the_other_nine(tmp_path: Path) -> None:
     assert len(_triage_decisions(run_dir)) == 9
 
     recs = _inst_records(run_dir)
-    assert len(recs) == 1
-    assert recs[0]["reason"] == "url_mismatch"
-    assert recs[0]["url"] == candidates[4]
+    assert {(r["reason"], r["url"]) for r in recs} == {
+        ("missing_decision", candidates[4]),
+        ("url_mismatch", candidates[4] + "-CORRUPT"),
+    }
 
 
 def test_duplicate_url_salvages_the_others(tmp_path: Path) -> None:
-    """A duplicated returned URL among otherwise valid decisions → same salvage:
-    the starved candidate gets one ``duplicate_url`` record, the rest survive."""
+    """A duplicated returned URL among otherwise valid decisions → same salvage.
+
+    Under URL-keyed matching the over-echoed candidate (p0) records a
+    ``duplicate_url`` (positional winner accepted) and the starved candidate
+    (p3, echoed by nobody) records a ``missing_decision``; the rest survive."""
     run_dir = _run_with_inst(tmp_path)
     candidates = _candidates(5)
     echoed = list(candidates)
-    echoed[3] = echoed[0]  # position 3 echoes p0 again → starves candidate p3
+    echoed[3] = echoed[0]  # position 3 echoes p0 again → p0 duplicated, p3 starved
     kept = persist_triage_result(run_dir, _make_result(INST_ID, _payload(echoed)), candidates)
 
     assert kept is not None
@@ -113,9 +120,26 @@ def test_duplicate_url_salvages_the_others(tmp_path: Path) -> None:
     assert len(_triage_decisions(run_dir)) == 4
 
     recs = _inst_records(run_dir)
-    assert len(recs) == 1
-    assert recs[0]["reason"] == "duplicate_url"
-    assert recs[0]["url"] == candidates[3]
+    assert {(r["reason"], r["url"]) for r in recs} == {
+        ("duplicate_url", candidates[0]),
+        ("missing_decision", candidates[3]),
+    }
+
+
+def test_reordered_response_fully_salvaged(tmp_path: Path) -> None:
+    """A same-URL reorder (every candidate decided, but out of input order) is
+    salvaged in full with zero attrition — the URL-keyed matcher's advantage
+    over positional matching, which would have dropped every displaced decision.
+    """
+    run_dir = _run_with_inst(tmp_path)
+    candidates = _candidates(6)
+    echoed = list(reversed(candidates))  # every URL present, order scrambled
+    kept = persist_triage_result(run_dir, _make_result(INST_ID, _payload(echoed)), candidates)
+
+    assert kept is not None
+    assert set(kept) == set(candidates)  # all six salvaged
+    assert len(_triage_decisions(run_dir)) == 6
+    assert _inst_records(run_dir) == []  # no casualties
 
 
 def test_fully_clean_response_no_attrition(tmp_path: Path) -> None:
@@ -136,8 +160,12 @@ def test_fully_clean_response_no_attrition(tmp_path: Path) -> None:
 
 
 def test_all_corrupted_yields_per_url_records_not_blanket_failure(tmp_path: Path) -> None:
-    """Every decision drifted → one per-URL casualty each, NOT a single
-    institution-level ``parse_failed``; institution still represented (empty)."""
+    """Every decision drifted → per-URL casualties, NOT a single institution-
+    level ``parse_failed``; institution still represented (empty).
+
+    Under URL-keyed matching each candidate is ``missing_decision`` (no decision
+    echoed it) and each drifted URL is a ``url_mismatch`` — two casualties per
+    drifted candidate, none of them a blanket parse_failed."""
     run_dir = _run_with_inst(tmp_path)
     candidates = _candidates(4)
     echoed = [u + "-X" for u in candidates]  # every URL drifts
@@ -147,9 +175,10 @@ def test_all_corrupted_yields_per_url_records_not_blanket_failure(tmp_path: Path
     assert _triage_decisions(run_dir) == []
 
     recs = _inst_records(run_dir)
-    assert len(recs) == 4
-    assert all(r["reason"] == "url_mismatch" for r in recs)
-    assert {r["url"] for r in recs} == set(candidates)
+    missing = {r["url"] for r in recs if r["reason"] == "missing_decision"}
+    mismatch = {r["url"] for r in recs if r["reason"] == "url_mismatch"}
+    assert missing == set(candidates)
+    assert mismatch == {u + "-X" for u in candidates}
     assert not any(r["reason"] == "parse_failed" for r in recs)
 
 

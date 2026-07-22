@@ -194,15 +194,15 @@ def persist_triage_result(
     *,
     stage: str = "classify_triage",
 ) -> list[str] | None:
-    """Parse + index-match one Stage 3 result, salvaging valid decisions per-URL.
+    """Parse + URL-match one Stage 3 result, salvaging valid decisions per-URL.
 
     A structural parse failure (bad JSON, schema violation) is unrecoverable:
     one institution-level ``parse_failed`` record is written and ``None`` is
     returned so the caller leaves the institution out of the kept map. On a
     structurally-valid result, decisions are matched to ``candidate_urls`` by
-    index (:func:`match_triage_decisions`); each drifted/duplicate/missing/extra
-    entry gets one per-URL attrition record, the salvaged decisions are written
-    to ``3_triage.json``, and the ``keep`` URLs are returned. The list may be
+    URL (:func:`match_triage_decisions`); each drifted/duplicate/missing entry
+    gets one per-URL attrition record, the salvaged decisions are written to
+    ``3_triage.json``, and the ``keep`` URLs are returned. The list may be
     empty (every decision was a casualty) — the institution is still represented
     rather than dropped wholesale, which is the behaviour this fix restores.
     """
@@ -264,8 +264,8 @@ def _run_classify_triage(
 
     candidates_by_inst: dict[str, list[str]] = {}
     # Always rebuild the candidates_by_inst lookup: it is the per-institution
-    # index authority that persist_triage_result matches decisions against
-    # positionally. Cheap (in-memory dedup union).
+    # candidate authority that persist_triage_result matches returned decisions
+    # against by URL. Cheap (in-memory dedup union).
     for row in sample:
         institution = institution_record(row)
         inst_id = institution["institution_id"]

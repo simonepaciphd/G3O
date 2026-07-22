@@ -353,24 +353,25 @@ def test_stage3_rewritten_url_variant_caught():
     ]
     # The rewritten variant is rejected — never enters the kept set.
     assert urls[2] not in match.kept_urls
-    assert len(match.attrition) == 1
-    cas = match.attrition[0]
-    assert (cas.url, cas.reason) == (CANDIDATE_URLS[2], "url_mismatch")
-    assert "corruption_or_fabrication" in cas.detail
+    # Under URL-keyed matching: the real candidate is missing_decision (nobody
+    # echoed its URL) and the rewritten variant is a url_mismatch.
+    assert {(c.url, c.reason) for c in match.attrition} == {
+        (CANDIDATE_URLS[2], "missing_decision"),
+        (urls[2], "url_mismatch"),
+    }
 
 
 def test_stage3_fabricated_extra_url_with_full_coverage_caught():
     """All expected URLs decided AND one invented extra appended.
 
-    The four real candidates match by index and are salvaged; the invented URL
-    is a surplus ``extra_decision`` casualty and never enters the kept set — the
-    fabrication threat is preserved, only the blast radius shrinks to that one
-    URL.
+    The four real candidates are matched by URL and salvaged; the invented URL
+    matches no candidate and is a ``url_mismatch`` casualty that never enters
+    the kept set — the fabrication threat is preserved, the blast radius is that
+    one URL.
 
-    Note the extra is *appended*: a fabricated URL inserted *mid-list* would
-    instead shift every later index by one, cascading into multiple
-    ``url_mismatch`` casualties. Still safe (nothing fabricated is scraped),
-    just noisier attrition — see match_triage_decisions' docstring.
+    Under URL-keyed matching the extra's *position* is irrelevant: whether the
+    fabricated URL is appended or inserted mid-list, it is the sole casualty and
+    the four real candidates still match by URL — no positional cascade.
     """
     invented = "https://invented.example.gov/ai-strategy"
     urls = [*CANDIDATE_URLS, invented]
@@ -381,7 +382,7 @@ def test_stage3_fabricated_extra_url_with_full_coverage_caught():
     assert invented not in match.kept_urls
     assert len(match.attrition) == 1
     cas = match.attrition[0]
-    assert (cas.url, cas.reason) == (invented, "extra_decision")
+    assert (cas.url, cas.reason) == (invented, "url_mismatch")
 
 
 def test_stage3_empty_decisions_with_expected_urls_caught():

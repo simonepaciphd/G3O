@@ -236,12 +236,14 @@ def test_url_triage_duplicate_urls_allowed_and_salvaged():
     assert len(triage.decisions) == 2  # model no longer rejects the dupe
 
     match = match_triage_decisions(["https://x.gov/", "https://y.gov/"], triage)
-    # Position 0 (x.gov) matches its candidate and is salvaged.
+    # x.gov is echoed twice; the positional winner (position 0, "keep") is
+    # salvaged. y.gov is echoed by nobody.
     assert [d.url for d in match.decisions] == ["https://x.gov/"]
-    # Position 1 echoes x.gov again where y.gov was expected → duplicate_url.
-    assert len(match.attrition) == 1
-    cas = match.attrition[0]
-    assert (cas.url, cas.reason) == ("https://y.gov/", "duplicate_url")
+    assert match.kept_urls == ["https://x.gov/"]
+    assert {(c.url, c.reason) for c in match.attrition} == {
+        ("https://x.gov/", "duplicate_url"),
+        ("https://y.gov/", "missing_decision"),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -321,10 +323,10 @@ def test_parse_triage_detects_missing_url():
 
 
 def test_parse_triage_detects_invented_url():
-    """An invented URL at position 0 mismatches its candidate and is dropped
-    (never salvaged, so never scraped); the remaining candidates have no
-    decision at all. Nothing is kept and the invented string never surfaces as
-    a candidate — it lives only in the mismatch casualty's detail."""
+    """An invented URL matches no candidate and is never salvaged (so never
+    scraped); every real candidate is a ``missing_decision`` and the invented
+    URL is a ``url_mismatch``. Nothing is kept, and the invented string never
+    surfaces as a candidate — it lives only in the mismatch casualty."""
     payload = {
         "decisions": [
             {"url": "https://invented.gov/", "decision": "keep", "rationale": "r"}
@@ -335,14 +337,14 @@ def test_parse_triage_detects_invented_url():
 
     assert match.decisions == []
     assert match.kept_urls == []
-    assert "https://invented.gov/" not in match.kept_urls
     assert [(c.url, c.reason) for c in match.attrition] == [
-        (CANDIDATE_URLS[0], "url_mismatch"),
+        (CANDIDATE_URLS[0], "missing_decision"),
         (CANDIDATE_URLS[1], "missing_decision"),
         (CANDIDATE_URLS[2], "missing_decision"),
         (CANDIDATE_URLS[3], "missing_decision"),
+        ("https://invented.gov/", "url_mismatch"),
     ]
-    assert "corruption_or_fabrication" in match.attrition[0].detail
+    assert "not in candidate set" in match.attrition[-1].detail
 
 
 def test_parse_triage_failure_raises():

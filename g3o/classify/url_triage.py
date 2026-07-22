@@ -10,7 +10,6 @@ per-page cost dominates the budget.
 from __future__ import annotations
 
 import json
-from collections import Counter
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -157,13 +156,13 @@ def parse_triage_result(
     unrecoverable cases (batch-level failure, empty content, malformed JSON,
     and per-decision schema violations such as a bad ``decision`` enum or an
     oversized ``rationale``). It does **not** enforce a URL round-trip: the
-    submitted candidate list is matched to the returned decisions positionally
-    by :func:`match_triage_decisions`, which salvages the clean decisions and
+    submitted candidate list is matched to the returned decisions by URL in
+    :func:`match_triage_decisions`, which salvages the clean decisions and
     records the drifted/duplicate/missing ones per-URL instead of discarding
     the whole institution.
 
     ``expected_urls`` is accepted for backward compatibility (older callers and
-    the ``triage`` debug CLI still pass it) but is now ignored here; index-based
+    the ``triage`` debug CLI still pass it) but is now ignored here; URL-keyed
     matching lives in :func:`match_triage_decisions`.
     """
     if not result.success:
@@ -201,10 +200,10 @@ class TriageAttrition:
 class TriageMatch:
     """Result of matching submitted candidates against returned decisions.
 
-    ``decisions`` are the salvaged decisions in candidate order — each is kept
-    only when the echoed URL exactly equals the candidate occupying that index,
-    so a salvaged decision provably concerns its candidate URL. ``kept_urls``
-    is the ``keep`` subset of those. ``attrition`` names the casualties.
+    ``decisions`` are the salvaged decisions in candidate order — each concerns
+    a candidate whose exact URL the model echoed, so a salvaged decision
+    provably concerns its candidate URL. ``kept_urls`` is the ``keep`` subset of
+    those. ``attrition`` names the casualties.
     """
 
     decisions: list[URLDecision]
@@ -215,71 +214,84 @@ class TriageMatch:
 def match_triage_decisions(
     candidate_urls: list[str], triage: URLTriageResult
 ) -> TriageMatch:
-    """Match returned triage decisions to submitted candidates by **index**.
+    """Match returned triage decisions to submitted candidates by **URL**.
 
     The submitted ``candidate_urls`` list (the path-aware deduped 1a+1b union,
-    so entries are pairwise-distinct) is the stable identity: the decision at
-    position *i* is matched to ``candidate_urls[i]``. A decision is salvaged
-    only when ``decisions[i].url`` exactly equals ``candidate_urls[i]`` — the
-    echoed URL is the model's own claim of identity, so requiring it to agree
-    with the positional occupant means we never mis-attribute a decision. Any
-    disagreement (URL drift, duplicate, reorder) drops **that one** decision
-    with a per-URL attrition record and salvages the rest; count drift on
-    either side is recorded too. The institution is never discarded wholesale.
+    so entries are pairwise-distinct) is the stable identity. Each candidate is
+    matched to the returned decision(s) whose echoed ``url`` *exactly equals*
+    that candidate — the echoed URL is the model's own claim of identity, and
+    because candidates are distinct an exact URL match uniquely identifies its
+    candidate. A decision is salvaged only on an exact URL match, so a drifted,
+    rewritten, or fabricated URL is never mis-attributed and never scraped —
+    identical safety to strict positional matching.
 
-    Because candidates are distinct, an exact positional match uniquely
-    identifies its candidate, so a same-count reorder surfaces as per-position
-    mismatches (dropped + recorded), never as a wrong salvage.
+    URL-keyed matching salvages *strictly more* than positional matching: a
+    same-URL reorder (every candidate decided, but out of input order) is
+    salvaged in full here, whereas positional matching would drop every
+    displaced decision. The order the model emits its decisions in carries no
+    weight beyond breaking conflicts.
+
+    Casualties (each a per-URL attrition record; the institution is never
+    discarded wholesale):
+
+    - ``missing_decision`` — a candidate no returned decision echoed.
+    - ``duplicate_url`` — a candidate echoed by two or more decisions
+      (a keep/drop conflict, or a plain repeat). The **positional winner** is
+      accepted deterministically: the decision sitting at the candidate's own
+      index if the URL was echoed there, else the first (lowest-index)
+      occurrence. The candidate keeps a decision ("keep the data"); the surplus
+      occurrences are recorded.
+    - ``url_mismatch`` — a returned decision whose echoed URL is not any
+      candidate (a rewritten or fabricated URL). Recorded against the echoed URL
+      and never salvaged.
     """
     decisions = triage.decisions
-    url_counts = Counter(d.url for d in decisions)
-    candidate_set = set(candidate_urls)
-    n, m = len(candidate_urls), len(decisions)
+    candidate_index = {url: i for i, url in enumerate(candidate_urls)}
+
+    # Decision indices grouped by the URL each decision echoed, preserving
+    # emission order within a group so the tie-break below is deterministic.
+    by_url: dict[str, list[int]] = {}
+    for j, d in enumerate(decisions):
+        by_url.setdefault(d.url, []).append(j)
 
     matched: list[URLDecision] = []
+    kept_urls: list[str] = []
     attrition: list[TriageAttrition] = []
 
     for i, cand in enumerate(candidate_urls):
-        if i >= m:
+        occ = by_url.get(cand)
+        if not occ:
             attrition.append(
-                TriageAttrition(cand, "missing_decision", "fewer decisions than candidates")
+                TriageAttrition(cand, "missing_decision", "no returned decision echoed this URL")
             )
             continue
-        d = decisions[i]
-        if d.url == cand:
-            matched.append(d)
-            continue
-        if url_counts[d.url] > 1:
+        # Positional winner: the decision at this candidate's own index if the
+        # URL was echoed there, otherwise the first (lowest-index) occurrence.
+        winner_j = i if i in occ else occ[0]
+        winner = decisions[winner_j]
+        matched.append(winner)
+        if winner.decision == "keep":
+            kept_urls.append(cand)
+        if len(occ) > 1:
             attrition.append(
                 TriageAttrition(
                     cand,
                     "duplicate_url",
-                    f"echoed URL repeated {url_counts[d.url]}x in response",
-                )
-            )
-        elif d.url in candidate_set:
-            attrition.append(
-                TriageAttrition(
-                    cand,
-                    "url_mismatch",
-                    "reorder_symptom: echoed URL matches another candidate position",
-                )
-            )
-        else:
-            attrition.append(
-                TriageAttrition(
-                    cand,
-                    "url_mismatch",
-                    "corruption_or_fabrication: echoed URL not in candidate set",
+                    f"echoed {len(occ)}x in response; positional winner accepted",
                 )
             )
 
-    for j in range(n, m):
-        attrition.append(
-            TriageAttrition(decisions[j].url, "extra_decision", "more decisions than candidates")
-        )
+    # Decisions whose echoed URL is not any candidate: rewritten or fabricated.
+    for d in decisions:
+        if d.url not in candidate_index:
+            attrition.append(
+                TriageAttrition(
+                    d.url,
+                    "url_mismatch",
+                    "echoed URL not in candidate set (rewrite or fabrication)",
+                )
+            )
 
-    kept_urls = [d.url for d in matched if d.decision == "keep"]
     return TriageMatch(decisions=matched, kept_urls=kept_urls, attrition=attrition)
 
 
