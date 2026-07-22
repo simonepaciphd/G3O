@@ -29,6 +29,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from g3o.common import attrition
 from g3o.common.contract import (
     ConsolidatedInstitutionResponse,
     PersistedActivity,
@@ -40,6 +41,7 @@ from g3o.common.schema import (
     ACTIVITY_SOURCE_COLUMNS,
     SUMMARY_COLUMNS,
 )
+from g3o.extract.salvage import REASON_SALVAGED
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +123,33 @@ def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], l
     return loaded, failures
 
 
+def salvaged_fields_by_source(run_dir: Path) -> dict[tuple[str, str], str]:
+    """Map ``(institution_id, source_url) -> ';'-joined salvaged Group-D fields``.
+
+    Deterministic: reads the attrition ledger (not the LLM) for Stage-5
+    ``group_d_incomplete_salvaged`` records — each recorded against the scraped
+    page URL with ``detail='rows=[...];fields=f1,f2'`` — and returns the salvaged
+    field names per source page. Absent ledger → empty map.
+
+    Join caveat (documented, conservative): the key is the source URL. If Stage-6
+    consolidation altered a source_url, its salvage annotation will not attach
+    (the row is treated as un-salvaged) — an under-mark, never an over-mark. A
+    salvaged page always remains fully accounted for in the ledger itself.
+    """
+    out: dict[tuple[str, str], str] = {}
+    for rec in attrition.read_records(run_dir):
+        if rec.get("reason") != REASON_SALVAGED:
+            continue
+        url = rec.get("url")
+        detail = rec.get("detail", "")
+        if not url or ";fields=" not in detail:
+            continue
+        raw = detail.split(";fields=", 1)[1]
+        fields = sorted(f for f in raw.split(",") if f)
+        out[(rec.get("institution_id", ""), url)] = ";".join(fields)
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Per-row builders
 # ---------------------------------------------------------------------------
@@ -195,9 +224,16 @@ def build_source_rows(
     run_model: str,
     run_tool: str = DEFAULT_RUN_TOOL_SOURCE,
     run_date: str | None = None,
+    salvaged_by_source: dict[tuple[str, str], str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Build one CSV-shaped dict per ``SourceRecord``."""
+    """Build one CSV-shaped dict per ``SourceRecord``.
+
+    ``salvaged_by_source`` (from :func:`salvaged_fields_by_source`) annotates
+    each row's ``group_d_salvaged_fields`` from the attrition ledger keyed by
+    ``(institution_id, source_url)``; defaults to no annotation.
+    """
     run_date = run_date or _utc_today()
+    salvaged_by_source = salvaged_by_source or {}
     rows: list[dict[str, Any]] = []
     institution_id = response.institution.institution_id
     for source in response.sources:
@@ -211,7 +247,12 @@ def build_source_rows(
             run_date=run_date,
         )
         ps = PersistedSource(
-            provenance=provenance, institution_id=institution_id, source=source
+            provenance=provenance,
+            institution_id=institution_id,
+            source=source,
+            group_d_salvaged_fields=salvaged_by_source.get(
+                (institution_id, source.source_url), ""
+            ),
         )
         rows.append(ps.to_csv_dict())
     return rows
@@ -322,6 +363,7 @@ def write_run_csvs(
             )
 
     loaded, failures = load_consolidated_outputs(run_dir)
+    salvaged_by_source = salvaged_fields_by_source(run_dir)
 
     activity_rows: list[dict[str, Any]] = []
     source_rows: list[dict[str, Any]] = []
@@ -343,6 +385,7 @@ def write_run_csvs(
                 run_model=run_model,
                 run_tool=sources_tool,
                 run_date=run_date,
+                salvaged_by_source=salvaged_by_source,
             )
         )
         summary_rows.append(

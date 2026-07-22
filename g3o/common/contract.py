@@ -757,6 +757,11 @@ class PersistedSource(BaseModel):
     provenance: ValidationProvenance
     institution_id: str
     source: SourceRecord
+    # Deterministic persist-time annotation (from the attrition ledger, not the
+    # LLM): the ``;``-joined Group-D field names whose illegal ``_NA_`` was
+    # salvage-imputed to a contract default on this source page, or ``""`` when
+    # none. Lets a salvage-imputed value be excluded from analyses.
+    group_d_salvaged_fields: str = ""
 
     def to_csv_dict(self) -> dict[str, object]:
         """Return a dict ordered to match ``g3o.common.schema.ACTIVITY_SOURCE_COLUMNS``."""
@@ -766,6 +771,7 @@ class PersistedSource(BaseModel):
             **self.provenance.model_dump(),
             "institution_id": self.institution_id,
             **self.source.model_dump(),
+            "group_d_salvaged_fields": self.group_d_salvaged_fields,
         }
         missing = [c for c in ACTIVITY_SOURCE_COLUMNS if c not in merged]
         if missing:

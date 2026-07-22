@@ -207,6 +207,80 @@ def test_build_source_rows_handles_na_activity_id() -> None:
     assert all(r["genai_evidence"] == "confirms_absence" for r in rows)
 
 
+# ---------------------------------------------------------------------------
+# Group-D salvage flag (deterministic source-level annotation)
+# ---------------------------------------------------------------------------
+
+
+def test_source_rows_salvage_flag_empty_without_map() -> None:
+    """Absent a salvage map, the new column is present and empty (regression
+    guard: the column always exists, defaulting to no annotation)."""
+    rows = build_source_rows(_yes_response(), run_id="R1", run_model="gpt-5-nano")
+    assert "group_d_salvaged_fields" in rows[0]
+    assert rows[0]["group_d_salvaged_fields"] == ""
+
+
+def test_source_rows_salvage_flag_populated_from_map() -> None:
+    """A salvage map entry keyed by (institution_id, source_url) annotates the
+    matching source row; a source URL not in the map stays empty."""
+    salvaged = {("INST-0001", "https://example.gov/procurement/123"): "tool_name;vendor"}
+    rows = build_source_rows(
+        _yes_response(), run_id="R1", run_model="gpt-5-nano",
+        salvaged_by_source=salvaged,
+    )
+    assert rows[0]["group_d_salvaged_fields"] == "tool_name;vendor"
+
+    rows_no = build_source_rows(
+        _no_response(), run_id="R1", run_model="gpt-5-nano",
+        salvaged_by_source=salvaged,  # keyed to INST-0001, not INST-0002
+    )
+    assert all(r["group_d_salvaged_fields"] == "" for r in rows_no)
+
+
+def test_salvaged_fields_by_source_parses_ledger(tmp_path: Path) -> None:
+    """salvaged_fields_by_source reads the ledger, parses the salvaged-field
+    list from detail, sorts it, and ignores non-salvage reasons."""
+    from g3o.common import attrition
+    from g3o.extract.salvage import REASON_SALVAGED
+    from g3o.persist.writer import salvaged_fields_by_source
+
+    attrition._reset_cache()
+    url = "https://example.gov/procurement/123"
+    attrition.record(
+        tmp_path, institution_id="INST-0001", stage="extract",
+        reason=REASON_SALVAGED, url=url, detail="rows=[1];fields=vendor,tool_name",
+    )
+    attrition.record(
+        tmp_path, institution_id="INST-0001", stage="extract",
+        reason="parse_failed", url="https://example.gov/other", detail="boom",
+    )
+    mapping = salvaged_fields_by_source(tmp_path)
+    attrition._reset_cache()
+
+    assert mapping == {("INST-0001", url): "tool_name;vendor"}  # sorted, ; joined
+
+
+def test_write_run_csvs_source_csv_carries_salvage_flag(tmp_path: Path) -> None:
+    """End-to-end: a ledger salvage record surfaces in the written source CSV's
+    group_d_salvaged_fields column for the matching (institution, source_url)."""
+    from g3o.common import attrition
+    from g3o.extract.salvage import REASON_SALVAGED
+
+    attrition._reset_cache()
+    run_dir = _stage_run_dir(tmp_path, {"INST-0001": _yes_response()})
+    attrition.record(
+        run_dir, institution_id="INST-0001", stage="extract",
+        reason=REASON_SALVAGED,
+        url="https://example.gov/procurement/123",
+        detail="rows=[1];fields=vendor,year_deployed",
+    )
+    write_run_csvs(run_dir, run_id="R1", run_model="gpt-5-nano", version=1)
+    _, source_rows = _read_csv(run_dir / "final" / "g3o_activity_sources_v1.csv")
+    attrition._reset_cache()
+
+    assert source_rows[0]["group_d_salvaged_fields"] == "vendor;year_deployed"
+
+
 def test_build_summary_row_keys_match_schema() -> None:
     response = _yes_response(
         activities=[

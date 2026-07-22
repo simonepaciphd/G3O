@@ -14,7 +14,8 @@ def test_common_imports():
 
     assert len(schema.DATA_COLUMNS) == 44
     assert len(schema.ACTIVITY_COLUMNS) == 35
-    assert len(schema.ACTIVITY_SOURCE_COLUMNS) == 17
+    # 18 = 17 base + group_d_salvaged_fields (Group-D salvage flag, 2026-07-21).
+    assert len(schema.ACTIVITY_SOURCE_COLUMNS) == 18
     assert len(schema.SUMMARY_COLUMNS) == 21
 
 

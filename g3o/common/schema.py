@@ -12,9 +12,14 @@ Source of truth for column ordering in the production database. Two layers:
 2. **Stage 7 normalized surface** (Session C, Push #2):
    - ``ACTIVITY_COLUMNS`` (35) → ``g3o_activities_v{N}.csv``: one row per
      ``(institution × activity)`` triple from the Stage 6 consolidator.
-   - ``ACTIVITY_SOURCE_COLUMNS`` (17) → ``g3o_activity_sources_v{N}.csv``:
+   - ``ACTIVITY_SOURCE_COLUMNS`` (18) → ``g3o_activity_sources_v{N}.csv``:
      one row per source page, keyed back to the activity it supports
      (``activity_id = "_NA_"`` for absence/ambiguous/background_only sources).
+     The final column, ``group_d_salvaged_fields``, is a deterministic persist-
+     time annotation (from the attrition ledger, not the LLM): the ``;``-joined
+     Group-D field names whose illegal ``_NA_`` was salvage-imputed to a contract
+     default on this source page, or ``""`` when none — so a salvage-imputed
+     ``unknown`` is distinguishable from a model-asserted one.
    - ``SUMMARY_COLUMNS`` (21) → ``g3o_institution_summary_v{N}.csv``: one row
      per institution per run.
 
@@ -136,6 +141,9 @@ ACTIVITY_SOURCE_COLUMNS: list[str] = [
     "source_credibility",
     "genai_evidence",
     "source_snippet",
+    # Salvage provenance (1) — deterministic persist-time annotation from the
+    # attrition ledger; ``;``-joined Group-D fields salvage-imputed on this page.
+    "group_d_salvaged_fields",
 ]
 
 SUMMARY_COLUMNS: list[str] = [
