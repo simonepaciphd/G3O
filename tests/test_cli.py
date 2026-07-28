@@ -217,6 +217,22 @@ def test_persist_routing_and_required_args(tmp_path):
     assert args.overwrite is False
 
 
+def test_politeness_report_routing_and_run_dir_guard(tmp_path):
+    args = cli.build_parser().parse_args(
+        ["politeness-report", "--run-dir", str(tmp_path)]
+    )
+    assert args.func is cli._cmd_politeness_report
+    assert args.run_dir == tmp_path  # type=_existing_dir resolved it
+    assert args.json is False
+
+
+def test_politeness_report_rejects_missing_run_dir(tmp_path):
+    with pytest.raises(SystemExit):
+        cli.build_parser().parse_args(
+            ["politeness-report", "--run-dir", str(tmp_path / "absent")]
+        )
+
+
 def test_persist_requires_run_id(tmp_path):
     with pytest.raises(SystemExit):
         cli.build_parser().parse_args(["persist", "--run-dir", str(tmp_path)])

@@ -92,6 +92,23 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
         _assert_live_keys(config)
     set_live_mode(not config.dry_run)
     plan = plan_run(config)
+    # Cost report (automatic, every run): the preflight cost estimate is
+    # computed and persisted right after the run layout exists so the
+    # end-of-run cost_report always has a baseline to compare against,
+    # regardless of whether the operator ran a manual --preflight check
+    # first. Local import: g3o.run.preflight imports back through
+    # g3o.run.presweep (this package), which is still initializing the
+    # first time this module is imported — a top-level import here would
+    # be circular (mirrors the existing local-import pattern in cli.py's
+    # --preflight branch).
+    try:
+        from g3o.run.preflight import write_preflight_estimate
+
+        write_preflight_estimate(plan.run_dir, config)
+    except Exception:
+        logger.exception(
+            "preflight_estimate generation failed for %s (non-fatal)", plan.run_dir
+        )
     summary: dict[str, Any] = {
         "run_id": config.run_id,
         "run_dir": str(plan.run_dir),
@@ -236,4 +253,17 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
         except Exception:
             logger.exception(
                 "run_summary generation failed for %s (non-fatal)", plan.run_dir
+            )
+        # Cost report: estimated (preflight, written above) vs. actual
+        # (OpenAI Batch usage rolled into llm_provenance by
+        # update_manifest_llm_provenance above). Same best-effort guard;
+        # local import for the same circular-import reason as above.
+        try:
+            from g3o.report.cost_report import render_cost_report_text, write_cost_report
+
+            cost_report = write_cost_report(plan.run_dir)
+            print(render_cost_report_text(cost_report))
+        except Exception:
+            logger.exception(
+                "cost_report generation failed for %s (non-fatal)", plan.run_dir
             )

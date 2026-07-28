@@ -475,6 +475,114 @@ def test_legacy_unchunked_state_file_fails_loudly(tmp_path: Path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# run_chunked_stage — actual token usage + request-count aggregation
+# ---------------------------------------------------------------------------
+
+
+def test_usage_and_request_counts_persisted_on_completion(tmp_path: Path, monkeypatch):
+    """Real per-request usage (prompt/completion/cached tokens) and the
+    batch's request_counts must land in the chunk state, not be discarded."""
+
+    def _submit(jobs, *, model, completion_window, endpoint, metadata, client=None):
+        return BatchHandle(
+            batch_id="batch-1", input_file_id="f",
+            submitted_at=datetime.now(timezone.utc), n_jobs=len(jobs),
+        )
+
+    def _poll(batch_id, *, client=None):
+        return BatchStatus(
+            batch_id=batch_id, status="completed",
+            request_counts={"total": 2, "completed": 2, "failed": 0},
+            output_file_id="out-1", error_file_id=None,
+        )
+
+    def _fetch(batch_id, *, client=None, status=None):
+        yield BatchResult(
+            custom_id="J0", success=True,
+            response={
+                "body": {
+                    "choices": [{"message": {"content": "ok"}}],
+                    "usage": {
+                        "prompt_tokens": 100, "completion_tokens": 10,
+                        "prompt_tokens_details": {"cached_tokens": 20},
+                    },
+                }
+            },
+            error=None,
+        )
+        yield BatchResult(
+            custom_id="J1", success=True,
+            response={
+                "body": {
+                    "choices": [{"message": {"content": "ok"}}],
+                    "usage": {"prompt_tokens": 50, "completion_tokens": 5},
+                }
+            },
+            error=None,
+        )
+
+    monkeypatch.setattr(batch_client, "submit_batch", _submit)
+    monkeypatch.setattr(batch_client, "poll_batch", _poll)
+    monkeypatch.setattr(batch_client, "fetch_results", _fetch)
+    monkeypatch.setattr(batch_client, "find_batches_by_metadata", lambda md, **kw: [])
+
+    _run(tmp_path, _jobs(2))
+    done = json.loads(done_path(tmp_path, "extract").read_text(encoding="utf-8"))
+    chunk = done["chunks"]["1"]
+    assert chunk["n_requests_total"] == 2
+    assert chunk["n_requests_completed"] == 2
+    assert chunk["n_requests_failed"] == 0
+    assert chunk["total_prompt_tokens"] == 150
+    assert chunk["total_completion_tokens"] == 15
+    assert chunk["total_cached_tokens"] == 20
+    assert chunk["usage_available"] is True
+
+
+def test_usage_available_false_when_any_result_lacks_usage(tmp_path: Path, monkeypatch):
+    def _submit(jobs, *, model, completion_window, endpoint, metadata, client=None):
+        return BatchHandle(
+            batch_id="batch-1", input_file_id="f",
+            submitted_at=datetime.now(timezone.utc), n_jobs=len(jobs),
+        )
+
+    def _poll(batch_id, *, client=None):
+        return BatchStatus(
+            batch_id=batch_id, status="completed", request_counts={},
+            output_file_id="out-1", error_file_id=None,
+        )
+
+    def _fetch(batch_id, *, client=None, status=None):
+        yield BatchResult(
+            custom_id="J0", success=True,
+            response={
+                "body": {
+                    "choices": [{"message": {"content": "ok"}}],
+                    "usage": {"prompt_tokens": 100, "completion_tokens": 10},
+                }
+            },
+            error=None,
+        )
+        # Second result has no usage at all (server omitted it).
+        yield BatchResult(
+            custom_id="J1", success=True,
+            response={"body": {"choices": [{"message": {"content": "ok"}}]}},
+            error=None,
+        )
+
+    monkeypatch.setattr(batch_client, "submit_batch", _submit)
+    monkeypatch.setattr(batch_client, "poll_batch", _poll)
+    monkeypatch.setattr(batch_client, "fetch_results", _fetch)
+    monkeypatch.setattr(batch_client, "find_batches_by_metadata", lambda md, **kw: [])
+
+    _run(tmp_path, _jobs(2))
+    done = json.loads(done_path(tmp_path, "extract").read_text(encoding="utf-8"))
+    chunk = done["chunks"]["1"]
+    # Tokens still summed (0 for the missing one) but honestly flagged unavailable.
+    assert chunk["total_prompt_tokens"] == 100
+    assert chunk["usage_available"] is False
+
+
+# ---------------------------------------------------------------------------
 # run_chunked_stage — terminal failure vs timeout (Q3=d, review F16)
 # ---------------------------------------------------------------------------
 

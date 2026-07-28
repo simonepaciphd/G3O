@@ -74,6 +74,14 @@ class PresweepConfig:
     # concurrency is the OpenAI Batch API's, not local threads. A single knob
     # rather than per-stage caps until load-testing shows otherwise.
     max_workers: int = 1
+    # Cost-estimate assumptions (2026-07): drive the automatic preflight cost
+    # estimate written to runs/<run_id>/preflight_estimate.json at run start.
+    # Defaults match the standalone `g3o presweep --preflight` CLI defaults so
+    # a run's baked-in estimate matches what a manual preflight check with the
+    # same assumptions would produce.
+    assume_pages_per_institution: int = 12
+    assume_page_chars: int = 8_000
+    assume_output_tokens_per_job: int = 600
 
     @property
     def institution_search_languages(self) -> str:

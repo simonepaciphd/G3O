@@ -10,6 +10,7 @@ Subcommands:
   persist                 — Stage 7 deterministic CSV writer.
   presweep                — Phase 3 of Session B: stratified pre-sweep runner.
   presweep-report         — Stage-by-stage funnel health report for a finished run.
+  politeness-report       — Per-host request-spacing audit from real telemetry.
   run-diff                — Cross-run determinism report over 2+ run dirs (disk-only).
   verify-model            — One-job Batch API submit to confirm the model id (Q4).
 
@@ -330,6 +331,9 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         max_wait_per_stage=args.max_wait_per_stage,
         model=args.model,
         max_workers=args.max_workers,
+        assume_pages_per_institution=args.assume_pages_per_institution,
+        assume_page_chars=args.assume_page_chars,
+        assume_output_tokens_per_job=args.assume_output_tokens_per_job,
     )
     if args.preflight:
         from g3o.run.preflight import PreflightAssumptions, run_preflight
@@ -337,9 +341,9 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         summary = run_preflight(
             config,
             assumptions=PreflightAssumptions(
-                pages_per_institution=args.assume_pages_per_institution,
-                page_chars=args.assume_page_chars,
-                output_tokens_per_job=args.assume_output_tokens_per_job,
+                pages_per_institution=config.assume_pages_per_institution,
+                page_chars=config.assume_page_chars,
+                output_tokens_per_job=config.assume_output_tokens_per_job,
             ),
             verify_model_live=args.verify_model,
             cost_ceiling_usd=args.cost_ceiling,
@@ -407,6 +411,31 @@ def _cmd_presweep_report(args: argparse.Namespace) -> int:
 
     overall = report.get("overall_flag", "green")
     return 2 if overall == "fail" else (1 if overall == "warn" else 0)
+
+
+def _cmd_politeness_report(args: argparse.Namespace) -> int:
+    from g3o.report import compute_politeness_report, render_politeness_report_text
+
+    run_dir = Path(args.run_dir)
+    report = compute_politeness_report(run_dir)
+
+    # Always write JSON to <run_dir>/politeness_verification.json — the
+    # per-request evidence trail for the run's --max-workers politeness check.
+    json_path = run_dir / "politeness_verification.json"
+    json_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    if args.json:
+        json.dump(report, sys.stdout, ensure_ascii=False, indent=2)
+        sys.stdout.write("\n")
+    else:
+        sys.stdout.write(render_politeness_report_text(report))
+        sys.stdout.write("\n")
+        sys.stderr.write(f"JSON report written to: {json_path}\n")
+
+    overall = report.get("overall_result", "UNAVAILABLE")
+    return 2 if overall == "FAIL" else (1 if overall == "UNAVAILABLE" else 0)
 
 
 def _cmd_run_diff(args: argparse.Namespace) -> int:
@@ -743,6 +772,25 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     presweep_report.set_defaults(func=_cmd_presweep_report)
+
+    politeness_report = sub.add_parser(
+        "politeness-report",
+        help="Per-host politeness verification from real _scrape_telemetry.jsonl "
+             "request timestamps — checks Stage 4 kept ≥scrape_host_delay_seconds "
+             "spacing per host under --max-workers concurrency.",
+    )
+    politeness_report.add_argument(
+        "--run-dir",
+        required=True,
+        type=_existing_dir,
+        help="Path to runs/<run_id>/ directory produced by `g3o presweep --execute`.",
+    )
+    politeness_report.add_argument(
+        "--json",
+        action="store_true",
+        help="Print JSON to stdout instead of the human-readable text summary.",
+    )
+    politeness_report.set_defaults(func=_cmd_politeness_report)
 
     run_diff = sub.add_parser(
         "run-diff",

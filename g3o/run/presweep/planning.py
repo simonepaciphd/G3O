@@ -214,6 +214,12 @@ def update_manifest_llm_provenance(run_dir: Path) -> dict[str, Any]:
         fingerprints: set[str] = set()
         batch_ids: list[str] = []
         n_fetched = 0
+        n_requests_total = 0
+        n_requests_failed = 0
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        total_cached_tokens = 0
+        chunk_usage_available: list[bool] = []
         for _, entry in sorted(chunks.items(), key=lambda kv: int(kv[0])):
             if entry.get("batch_id"):
                 batch_ids.append(entry["batch_id"])
@@ -221,6 +227,12 @@ def update_manifest_llm_provenance(run_dir: Path) -> dict[str, Any]:
                 n_fetched += 1
             models.update(entry.get("response_models") or [])
             fingerprints.update(entry.get("system_fingerprints") or [])
+            n_requests_total += entry.get("n_requests_total") or 0
+            n_requests_failed += entry.get("n_requests_failed") or 0
+            total_prompt_tokens += entry.get("total_prompt_tokens") or 0
+            total_completion_tokens += entry.get("total_completion_tokens") or 0
+            total_cached_tokens += entry.get("total_cached_tokens") or 0
+            chunk_usage_available.append(bool(entry.get("usage_available")))
         # A stage present in both _state/ and .done/ (crash between the done
         # write and the state unlink) resolves to the .done copy: done_dir is
         # scanned second and overwrites the entry.
@@ -231,6 +243,16 @@ def update_manifest_llm_provenance(run_dir: Path) -> dict[str, Any]:
             "batch_ids": batch_ids,
             "n_chunks_planned": len(chunks),
             "n_chunks_fetched": n_fetched,
+            "n_requests_total": n_requests_total,
+            "n_requests_failed": n_requests_failed,
+            "total_prompt_tokens": total_prompt_tokens,
+            "total_completion_tokens": total_completion_tokens,
+            "total_cached_tokens": total_cached_tokens,
+            # True only if every chunk actually reported usage — a stage with
+            # zero chunks fetched, or any chunk missing usage data (e.g. state
+            # written before this field existed), is honestly False rather
+            # than silently under-counting.
+            "usage_available": bool(chunk_usage_available) and all(chunk_usage_available),
         }
     if not provenance:
         return {}

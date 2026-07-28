@@ -23,8 +23,11 @@ the projections are explicitly labeled ESTIMATES built on stated assumptions
 from __future__ import annotations
 
 import csv
+import json
 import math
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from g3o.common import config as _config
@@ -34,6 +37,7 @@ from g3o.common.batch_client import (
     DEFAULT_ENDPOINT,
     _serialize_job_line,
 )
+from g3o.common.pricing import GPT5_NANO_PRICING, usd_for_tokens
 from g3o.extract.batch import build_extract_jobs
 from g3o.run.presweep import (
     PresweepConfig,
@@ -41,30 +45,6 @@ from g3o.run.presweep import (
     stratified_sample,
 )
 from g3o.scrape.render import FetchMetadata, RenderedPage
-
-# ---------------------------------------------------------------------------
-# Pricing — verified 2026-06-10 against the OpenAI docs.
-# ---------------------------------------------------------------------------
-#
-# gpt-5-nano standard rates are published FACTS (model page below). The Batch
-# API rates apply OpenAI's documented 50% Batch discount — shown verbatim on the
-# same pricing page for the sibling gpt-5.4-nano ($0.20→$0.10 input) — so the
-# batch line is labeled ESTIMATE-grade: the nano model page does not print the
-# batch row itself. Note (F9 / WS4 T2): the current pricing table headlines
-# gpt-5.4-nano; gpt-5-nano persists as a distinct, cheaper line and is what the
-# pipeline pins via batch_client.DEFAULT_MODEL.
-GPT5_NANO_PRICING: dict[str, Any] = {
-    "model": "gpt-5-nano",
-    "source": "https://developers.openai.com/api/docs/models/gpt-5-nano",
-    "verified_on": "2026-06-10",
-    "standard_input_per_1m_usd": 0.05,
-    "standard_cached_input_per_1m_usd": 0.005,
-    "standard_output_per_1m_usd": 0.40,
-    "batch_discount": 0.50,
-    "batch_input_per_1m_usd": 0.025,  # estimate: 50% of standard input
-    "batch_output_per_1m_usd": 0.20,  # estimate: 50% of standard output
-    "batch_line_is_estimate": True,
-}
 
 # Rough chars→tokens heuristic for cost estimation (English-ish text). Stated as
 # an assumption in the output; not a billing-grade tokenizer.
@@ -158,10 +138,6 @@ def _project_chunks(n_jobs: int, per_job_bytes: int) -> dict[str, Any]:
     }
 
 
-def _usd(n_tokens: float, per_1m: float) -> float:
-    return (n_tokens / 1_000_000) * per_1m
-
-
 def run_preflight(
     config: PresweepConfig,
     *,
@@ -245,20 +221,34 @@ def run_preflight(
     # smaller than Stage 5, so Stage 5 dominates; they are folded in at the
     # representative per-job input size as an order-of-magnitude add.
     in_tok_per_extract_job = (per_job_bytes / _CHARS_PER_TOKEN)
-    extract_in_tokens = n_extract_jobs * in_tok_per_extract_job
-    extract_out_tokens = n_extract_jobs * a.output_tokens_per_job
-    per_inst_stage_jobs = n + n + n  # stages 2, 3, 6 ≈ one job/institution each
-    # Use a conservative per-job input proxy for the smaller stages (their system
-    # prompts are shorter than Stage 5's; reuse the Stage-5 figure as an upper
-    # bound rather than under-count).
-    other_in_tokens = per_inst_stage_jobs * in_tok_per_extract_job
-    other_out_tokens = per_inst_stage_jobs * a.output_tokens_per_job
-
-    total_in_tokens = extract_in_tokens + other_in_tokens
-    total_out_tokens = extract_out_tokens + other_out_tokens
+    # Jobs per stage: Stage 5 (extract) gets one job per kept page; Stages 2, 3, 6
+    # get ~one job per institution. Use the same per-job input proxy for all
+    # stages (their system prompts are shorter than Stage 5's; reusing the
+    # Stage-5 figure is a conservative upper bound rather than an under-count).
+    stage_jobs = {
+        "classify_official_site": n,
+        "classify_triage": n,
+        "extract": n_extract_jobs,
+        "validate": n,
+    }
     p = GPT5_NANO_PRICING
-    input_usd = _usd(total_in_tokens, p["batch_input_per_1m_usd"])
-    output_usd = _usd(total_out_tokens, p["batch_output_per_1m_usd"])
+    by_stage: dict[str, Any] = {}
+    for stage, n_jobs_stage in stage_jobs.items():
+        stage_in_tokens = n_jobs_stage * in_tok_per_extract_job
+        stage_out_tokens = n_jobs_stage * a.output_tokens_per_job
+        stage_input_usd = usd_for_tokens(stage_in_tokens, p["batch_input_per_1m_usd"])
+        stage_output_usd = usd_for_tokens(stage_out_tokens, p["batch_output_per_1m_usd"])
+        by_stage[stage] = {
+            "n_jobs": n_jobs_stage,
+            "est_input_tokens": round(stage_in_tokens),
+            "est_output_tokens": round(stage_out_tokens),
+            "est_usd": round(stage_input_usd + stage_output_usd, 2),
+        }
+
+    total_in_tokens = sum(n_jobs_stage * in_tok_per_extract_job for n_jobs_stage in stage_jobs.values())
+    total_out_tokens = sum(n_jobs_stage * a.output_tokens_per_job for n_jobs_stage in stage_jobs.values())
+    input_usd = usd_for_tokens(total_in_tokens, p["batch_input_per_1m_usd"])
+    output_usd = usd_for_tokens(total_out_tokens, p["batch_output_per_1m_usd"])
     total_usd = input_usd + output_usd
     summary["cost_preview"] = {
         "is_estimate": True,
@@ -270,6 +260,7 @@ def run_preflight(
         "est_openai_batch_input_usd": round(input_usd, 2),
         "est_openai_batch_output_usd": round(output_usd, 2),
         "est_openai_batch_total_usd": round(total_usd, 2),
+        "by_stage": by_stage,
         "note": (
             "OpenAI Batch cost only. Serper (Stage 1) is billed separately and is "
             "order-of-magnitude ~$10 per the review; not priced here. Estimate "
@@ -284,8 +275,47 @@ def run_preflight(
     return summary
 
 
+PREFLIGHT_ESTIMATE_NAME = "preflight_estimate.json"
+
+
+def write_preflight_estimate(run_dir: Path, config: PresweepConfig) -> dict[str, Any]:
+    """Compute the preflight cost estimate for ``config`` and persist it.
+
+    Called automatically at the start of every run (not just standalone
+    ``--preflight`` invocations) so ``runs/<run_id>/preflight_estimate.json``
+    is always available for the end-of-run cost report to compare against,
+    regardless of whether the operator ran a manual preflight check first.
+    Reuses :func:`run_preflight` with ``verify_model_live=False`` (no submits)
+    and the run's own assumption fields, so the estimate matches what a
+    manual ``--preflight`` check with the same assumptions would produce.
+    """
+    assumptions = PreflightAssumptions(
+        pages_per_institution=config.assume_pages_per_institution,
+        page_chars=config.assume_page_chars,
+        output_tokens_per_job=config.assume_output_tokens_per_job,
+    )
+    full_summary = run_preflight(
+        config, assumptions=assumptions, verify_model_live=False, cost_ceiling_usd=None,
+    )
+    estimate = {
+        "run_id": config.run_id,
+        "computed_at": datetime.now(timezone.utc).isoformat(),
+        "sample": full_summary.get("sample"),
+        "stage5_projection": full_summary.get("stage5_projection"),
+        "cost_preview": full_summary.get("cost_preview"),
+    }
+    run_dir = Path(run_dir)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / PREFLIGHT_ESTIMATE_NAME).write_text(
+        json.dumps(estimate, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return estimate
+
+
 __all__ = [
     "GPT5_NANO_PRICING",
+    "PREFLIGHT_ESTIMATE_NAME",
     "PreflightAssumptions",
     "run_preflight",
+    "write_preflight_estimate",
 ]

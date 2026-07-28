@@ -9,6 +9,7 @@ attrition ledger shapes/idempotence, the manifest guard on resume, and the
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 
 import pytest
@@ -428,3 +429,58 @@ def test_preflight_cost_ceiling_is_informational(tmp_path, monkeypatch):
     summary = pf.run_preflight(config, verify_model_live=False, cost_ceiling_usd=0.0)
     assert summary["cost_ceiling_usd"] == 0.0
     assert summary["cost_ceiling_exceeded"] in (True, False)
+
+
+def test_preflight_cost_preview_by_stage_sums_to_aggregate(tmp_path, monkeypatch):
+    master = _write_master(tmp_path / "m.csv", n=5)
+    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
+    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-x")
+    config = _config(tmp_path, master, sample_size=5, run_id="pf4")
+    summary = pf.run_preflight(config, verify_model_live=False)
+    cost_preview = summary["cost_preview"]
+    by_stage = cost_preview["by_stage"]
+    assert sorted(by_stage) == [
+        "classify_official_site", "classify_triage", "extract", "validate",
+    ]
+    # The four per-stage estimates must reconcile with the existing aggregate
+    # fields (additive breakdown, not a second independent estimate).
+    assert sum(s["est_input_tokens"] for s in by_stage.values()) == cost_preview["est_input_tokens"]
+    assert sum(s["est_output_tokens"] for s in by_stage.values()) == cost_preview["est_output_tokens"]
+    # extract dominates (12 jobs/institution vs 1 for the other three stages).
+    assert by_stage["extract"]["n_jobs"] == 5 * 12
+    assert by_stage["classify_official_site"]["n_jobs"] == 5
+    assert by_stage["extract"]["est_usd"] > by_stage["classify_official_site"]["est_usd"]
+
+
+def test_write_preflight_estimate_persists_estimate_file(tmp_path, monkeypatch):
+    master = _write_master(tmp_path / "m.csv", n=3)
+    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
+    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-x")
+    config = _config(tmp_path, master, sample_size=3, run_id="pf5")
+    run_dir = tmp_path / "runs" / "pf5"
+    estimate = pf.write_preflight_estimate(run_dir, config)
+
+    path = run_dir / pf.PREFLIGHT_ESTIMATE_NAME
+    assert path.exists()
+    on_disk = json.loads(path.read_text(encoding="utf-8"))
+    assert on_disk == estimate
+    assert estimate["run_id"] == "pf5"
+    assert estimate["sample"]["n_institutions"] == 3
+    assert estimate["cost_preview"]["est_openai_batch_total_usd"] >= 0
+    assert "by_stage" in estimate["cost_preview"]
+    # No key-presence/verify_model noise leaks into the persisted estimate.
+    assert "keys" not in estimate
+    assert "verify_model" not in estimate
+
+
+def test_write_preflight_estimate_honors_config_assumptions(tmp_path, monkeypatch):
+    master = _write_master(tmp_path / "m.csv", n=2)
+    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
+    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-x")
+    config = _config(
+        tmp_path, master, sample_size=2, run_id="pf6",
+        assume_pages_per_institution=1,
+    )
+    run_dir = tmp_path / "runs" / "pf6"
+    estimate = pf.write_preflight_estimate(run_dir, config)
+    assert estimate["stage5_projection"]["n_jobs"] == 2 * 1

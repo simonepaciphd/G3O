@@ -280,6 +280,60 @@ def test_fetch_results_refuses_non_terminal_batch():
         list(fetch_results("batch-xyz789", client=client))
 
 
+def test_batch_result_usage_present():
+    output_lines = [
+        {
+            "custom_id": "job-1",
+            "response": {
+                "status_code": 200,
+                "body": {
+                    "choices": [{"message": {"content": "ok"}}],
+                    "usage": {
+                        "prompt_tokens": 100,
+                        "completion_tokens": 20,
+                        "total_tokens": 120,
+                        "prompt_tokens_details": {"cached_tokens": 30},
+                    },
+                },
+            },
+            "error": None,
+        },
+    ]
+    client = _stub_openai(output_lines=output_lines)
+    result = next(iter(fetch_results("batch-xyz789", client=client)))
+    assert result.usage == {
+        "prompt_tokens": 100,
+        "completion_tokens": 20,
+        "total_tokens": 120,
+        "prompt_tokens_details": {"cached_tokens": 30},
+    }
+
+
+def test_batch_result_usage_absent_returns_none():
+    output_lines = [
+        {
+            "custom_id": "job-1",
+            "response": {
+                "status_code": 200,
+                "body": {"choices": [{"message": {"content": "ok"}}]},
+            },
+            "error": None,
+        },
+    ]
+    client = _stub_openai(output_lines=output_lines)
+    result = next(iter(fetch_results("batch-xyz789", client=client)))
+    assert result.usage is None
+
+
+def test_batch_result_usage_none_for_failed_result():
+    error_lines = [{"custom_id": "job-bad", "error": {"code": "x", "message": "y"}}]
+    client = _stub_openai(
+        output_file_id=None, error_file_id="err-1", error_lines=error_lines,
+    )
+    result = next(iter(fetch_results("batch-xyz789", client=client)))
+    assert result.usage is None
+
+
 # ---------------------------------------------------------------------------
 # Tenacity retry behavior
 # ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@ from typing import Any
 
 from g3o.common import attrition
 from g3o.common import config as _config
+from g3o.common import scrape_telemetry
 from g3o.common.run_state import is_done, mark_done
 from g3o.common.timing import stage_timer
 from g3o.extract.batch import EMPTY_PAGE_MIN_CHARS
@@ -125,6 +126,13 @@ def _scrape_one(
             trigger=trigger, outcome=outcome,
         )
 
+    def _record_request(url: str, *, _inst: str = inst_id) -> None:
+        # Per-host politeness audit trail: one record per real outbound
+        # request (see g3o.scrape.fetcher's on_request call sites), never on a
+        # fetcher-cache hit — so the ledger reflects true wire-level spacing
+        # against HostThrottle's in-memory-only enforcement above.
+        scrape_telemetry.record(run_dir, institution_id=_inst, stage=stage, url=url)
+
     with stage_timer(run_dir, inst_id, stage):
         for url in urls:
             output_path = scrape_dir / f"{url_hash(url)}.json"
@@ -160,6 +168,7 @@ def _scrape_one(
                     prefer_render_on_download_failure=render_on_download_failure,
                     empty_page_min_chars=empty_page_min_chars,
                     on_render_attempt=_record_render_attempt,
+                    on_request=_record_request,
                 )
             except Exception as exc:
                 logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
@@ -201,6 +210,11 @@ def _run_scrape(
     any robots ``Crawl-delay``) throttles same-host requests via a shared,
     lock-protected :class:`HostThrottle`. ``robots`` may be injected (tests);
     otherwise a run-scoped :class:`RobotsCache` is built when ``respect_robots``.
+    Every real outbound request (never a cache hit) is also logged to
+    ``runs/<run_id>/_scrape_telemetry.jsonl`` via ``g3o.common.scrape_telemetry``
+    — ``HostThrottle`` itself only compares against an in-memory
+    ``time.monotonic()`` clock and keeps no record, so this ledger is what a
+    per-host politeness audit reconstructs actual request spacing from.
 
     Empty-page render (render-on-empty): ``empty_page_min_chars`` is handed to
     ``scrape_url`` so a page whose deterministic text strips below the floor — a

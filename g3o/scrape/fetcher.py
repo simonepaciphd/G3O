@@ -70,6 +70,20 @@ _CACHE_PREFIX = "page_v2_"
 # that records the attempt to the attrition ledger.
 RenderAttemptCallback = Callable[..., None]
 
+# A per-request telemetry hook. Called with the URL immediately before each
+# real outbound network attempt (the deterministic ``_download`` GET, or a
+# ``render_url`` fallback) — never on a fetcher-cache hit or a call the
+# scrape layer skips. The fetcher stays agnostic of the run context; the
+# Stage 4 runner supplies a hook that appends to
+# ``g3o.common.scrape_telemetry``, the ledger a per-host politeness audit is
+# verified against.
+RequestCallback = Callable[[str], None]
+
+
+def _notify_request(callback: RequestCallback | None, url: str) -> None:
+    if callback is not None:
+        callback(url)
+
 
 def _cache_key(url: str) -> str:
     return hashlib.md5(url.encode("utf-8")).hexdigest()
@@ -247,6 +261,7 @@ def scrape_url(
     empty_page_min_chars: int = 1,
     render_session: RenderSession | None = None,
     on_render_attempt: RenderAttemptCallback | None = None,
+    on_request: RequestCallback | None = None,
 ) -> RenderedPage:
     """Fetch a URL and return a ``RenderedPage``.
 
@@ -274,6 +289,13 @@ def scrape_url(
     ``on_render_attempt`` when supplied, so the caller can account for the
     render rate/cost; the fetcher itself never silently retries.
 
+    ``on_request``, when supplied, fires once immediately before each real
+    outbound network attempt (the deterministic GET or a ``render_url``
+    fallback), never on a fetcher-cache hit. This is the hook a caller uses to
+    log per-request telemetry for a politeness audit. Internal tenacity
+    retries inside a single GET are not individually logged (the request-level
+    ledger tracks per-URL attempts, not per-retry).
+
     When ``render_session`` is supplied, every render reuses that
     :class:`RenderSession`'s browser instead of launching a fresh Chromium per
     call (review F14 browser reuse).
@@ -295,18 +317,21 @@ def scrape_url(
             return cached
 
     if force_render:
+        _notify_request(on_request, url)
         page = render_url(
             url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session
         )
         _save(page, min_chars=cache_floor)
         return page
 
+    _notify_request(on_request, url)
     try:
         content, ctype, status, final_url, elapsed_ms = _download(url)
     except Exception:
         # Render fallback on a failed GET is opt-in (review F14): only when the
         # caller accepts the per-dead-URL browser-launch cost.
         if prefer_render_on_download_failure:
+            _notify_request(on_request, url)
             try:
                 page = render_url(
                     url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session
@@ -345,6 +370,7 @@ def scrape_url(
     # ``len(strip) < empty_page_min_chars`` mirrors Stage 5's is_near_empty drop
     # test so the render fires for exactly the pages the extractor would discard.
     if prefer_render_on_empty and len(text.strip()) < empty_page_min_chars:
+        _notify_request(on_request, url)
         try:
             page = render_url(
                 url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session

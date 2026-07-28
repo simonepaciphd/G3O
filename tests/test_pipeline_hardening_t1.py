@@ -336,6 +336,78 @@ def test_update_manifest_llm_provenance_aggregates_state(tmp_path: Path):
     assert validate["response_models"] == []
 
 
+def test_update_manifest_llm_provenance_aggregates_usage_and_request_counts(
+    tmp_path: Path,
+):
+    """Actual token usage / request counts (added for the cost report) must
+    roll up per stage the same way response_models/system_fingerprints do."""
+    run_dir = tmp_path / "runs" / "t1f"
+    (run_dir / "_state" / ".done").mkdir(parents=True)
+    (run_dir / "manifest.json").write_text(
+        json.dumps({"run_id": "t1f"}), encoding="utf-8"
+    )
+    (run_dir / "_state" / ".done" / "extract.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 2, "stage": "extract", "run_id": "t1f",
+                "model": "gpt-5-nano",
+                "chunks": {
+                    "1": {
+                        "batch_id": "batch-a", "fetched_at": "2026-07-01T00:00:00Z",
+                        "response_models": ["gpt-5-nano-2025-08-07"],
+                        "system_fingerprints": [],
+                        "n_requests_total": 2, "n_requests_failed": 0,
+                        "total_prompt_tokens": 100, "total_completion_tokens": 10,
+                        "total_cached_tokens": 20, "usage_available": True,
+                    },
+                    "2": {
+                        "batch_id": "batch-b", "fetched_at": "2026-07-01T00:01:00Z",
+                        "response_models": ["gpt-5-nano-2025-08-07"],
+                        "system_fingerprints": [],
+                        "n_requests_total": 3, "n_requests_failed": 1,
+                        "total_prompt_tokens": 50, "total_completion_tokens": 5,
+                        "total_cached_tokens": 0, "usage_available": True,
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    # A stage where one chunk never reported usage — the honest rollup must
+    # be usage_available=False, not a silent undercount.
+    (run_dir / "_state" / ".done" / "validate.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 2, "stage": "validate", "run_id": "t1f",
+                "model": "gpt-5-nano",
+                "chunks": {
+                    "1": {
+                        "batch_id": "batch-c", "fetched_at": "2026-07-01T00:02:00Z",
+                        "response_models": [], "system_fingerprints": [],
+                        "n_requests_total": 1, "n_requests_failed": 0,
+                        "total_prompt_tokens": 10, "total_completion_tokens": 1,
+                        "total_cached_tokens": 0, "usage_available": False,
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    block = update_manifest_llm_provenance(run_dir)
+    extract = block["extract"]
+    assert extract["n_requests_total"] == 5
+    assert extract["n_requests_failed"] == 1
+    assert extract["total_prompt_tokens"] == 150
+    assert extract["total_completion_tokens"] == 15
+    assert extract["total_cached_tokens"] == 20
+    assert extract["usage_available"] is True
+
+    validate = block["validate"]
+    assert validate["total_prompt_tokens"] == 10
+    assert validate["usage_available"] is False
+
+
 def test_update_manifest_llm_provenance_noop_without_state(tmp_path: Path):
     run_dir = tmp_path / "runs" / "t1e"
     run_dir.mkdir(parents=True)

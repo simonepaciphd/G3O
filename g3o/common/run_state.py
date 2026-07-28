@@ -155,6 +155,13 @@ def write_active_chunked(
             "fetched_at": None,
             "response_models": None,
             "system_fingerprints": None,
+            "n_requests_total": None,
+            "n_requests_completed": None,
+            "n_requests_failed": None,
+            "total_prompt_tokens": None,
+            "total_completion_tokens": None,
+            "total_cached_tokens": None,
+            "usage_available": None,
         }
         total += len(ids_sorted)
     payload: dict[str, Any] = {
@@ -229,17 +236,31 @@ def _observe_provenance(
     results: Iterator[BatchResult],
     models: set[str],
     fingerprints: set[str],
+    usage_totals: dict[str, int],
 ) -> Iterator[BatchResult]:
-    """Pass results through, collecting response-side provenance (T1).
+    """Pass results through, collecting response-side provenance (T1) and
+    actual token usage without buffering the stream the persist callback
+    consumes.
 
-    Records the versioned model id and ``system_fingerprint`` each response
-    carries without buffering the stream the persist callback consumes.
+    ``usage_totals`` accumulates ``prompt_tokens``/``completion_tokens``/
+    ``cached_tokens`` (0 if a result's ``usage`` is absent) plus ``n_results``
+    and ``n_with_usage`` so the caller can tell whether every result in the
+    chunk actually reported usage (``n_with_usage == n_results``) versus some
+    being silently missing.
     """
     for result in results:
         if result.response_model:
             models.add(result.response_model)
         if result.system_fingerprint:
             fingerprints.add(result.system_fingerprint)
+        usage_totals["n_results"] += 1
+        usage = result.usage
+        if usage:
+            usage_totals["n_with_usage"] += 1
+            usage_totals["prompt_tokens"] += int(usage.get("prompt_tokens") or 0)
+            usage_totals["completion_tokens"] += int(usage.get("completion_tokens") or 0)
+            cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens")
+            usage_totals["cached_tokens"] += int(cached or 0)
         yield result
 
 
@@ -414,13 +435,22 @@ def run_chunked_stage(
             update_chunk(
                 run_dir, stage, key,
                 last_polled_at=_utc_iso(), last_status=status.status,
+                n_requests_total=status.request_counts.get("total"),
+                n_requests_completed=status.request_counts.get("completed"),
+                n_requests_failed=status.request_counts.get("failed"),
             )
             if status.is_completed:
                 # Response provenance (T1, 2026-06-11): recorded per chunk
                 # alongside fetched_at; an empty fingerprint list means the
-                # server returned none (normal on newer models).
+                # server returned none (normal on newer models). Actual token
+                # usage is collected the same way, for the end-of-run cost
+                # report (g3o.report.cost_report).
                 models: set[str] = set()
                 fingerprints: set[str] = set()
+                usage_totals = {
+                    "n_results": 0, "n_with_usage": 0,
+                    "prompt_tokens": 0, "completion_tokens": 0, "cached_tokens": 0,
+                }
                 process_chunk_results(
                     _observe_provenance(
                         batch_client.fetch_results(
@@ -428,13 +458,22 @@ def run_chunked_stage(
                         ),
                         models,
                         fingerprints,
+                        usage_totals,
                     )
+                )
+                usage_available = (
+                    usage_totals["n_results"] > 0
+                    and usage_totals["n_with_usage"] == usage_totals["n_results"]
                 )
                 update_chunk(
                     run_dir, stage, key,
                     fetched_at=_utc_iso(),
                     response_models=sorted(models),
                     system_fingerprints=sorted(fingerprints),
+                    total_prompt_tokens=usage_totals["prompt_tokens"],
+                    total_completion_tokens=usage_totals["completion_tokens"],
+                    total_cached_tokens=usage_totals["cached_tokens"],
+                    usage_available=usage_available,
                 )
             elif status.is_terminal:
                 failed[key] = status.status

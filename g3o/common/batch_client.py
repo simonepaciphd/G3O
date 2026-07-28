@@ -174,6 +174,17 @@ class BatchResult:
             return None
         return self.response.get("body", {}).get("system_fingerprint")
 
+    @property
+    def usage(self) -> dict[str, Any] | None:
+        """The response ``usage`` dict (``prompt_tokens``/``completion_tokens``/
+        ``total_tokens``, and ``prompt_tokens_details.cached_tokens`` when the
+        server reports a cache hit), or ``None`` if the call failed or the
+        server omitted it. This is real per-request cost data — the actual-cost
+        counterpart to the pre-run estimate in :mod:`g3o.run.preflight`."""
+        if not self.success or self.response is None:
+            return None
+        return self.response.get("body", {}).get("usage")
+
 
 # ---------------------------------------------------------------------------
 # Client construction
