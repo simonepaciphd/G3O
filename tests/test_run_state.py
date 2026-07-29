@@ -55,6 +55,7 @@ def _jobs(n: int, prefix: str = "J") -> list[BatchJob]:
 def _install_stub(
     monkeypatch,
     *,
+    run_dir: Path,
     statuses: dict[str, list[str]],
     found=None,
 ):
@@ -63,7 +64,10 @@ def _install_stub(
     ``statuses`` maps batch_id → list of status strings consumed one per
     poll (the last repeats). ``found`` is an optional callable
     ``metadata -> list[BatchStatus]`` for reconciliation; default: nothing
-    found. Returns (submits, fetches) recorders.
+    found. ``run_dir`` lets the fetch stub mirror a real completed batch by
+    returning one result per *planned* custom_id for the chunk a batch backs
+    (the canonical set on disk), rather than a single synthetic id. Returns
+    (submits, fetches) recorders.
     """
     submits: list[dict[str, Any]] = []
     fetches: list[str] = []
@@ -93,12 +97,24 @@ def _install_stub(
 
     def _fetch(batch_id, *, client=None, status=None):
         fetches.append(batch_id)
-        yield BatchResult(
-            custom_id=f"R::{batch_id}",
-            success=True,
-            response={"body": {"choices": [{"message": {"content": "ok"}}]}},
-            error=None,
-        )
+        # Mirror a real completed batch: return one result per planned
+        # custom_id for the chunk this batch backs. The plan on disk is the
+        # canonical job set (Q4=ii), so this works uniformly whether the batch
+        # was submitted through the stub, adopted, or pre-seeded by a resume test.
+        state = load_state(run_dir, "extract")
+        custom_ids: list[str] = []
+        if state is not None:
+            for entry in state["chunks"].values():
+                if entry.get("batch_id") == batch_id:
+                    custom_ids = list(entry["custom_ids"])
+                    break
+        for cid in custom_ids:
+            yield BatchResult(
+                custom_id=cid,
+                success=True,
+                response={"body": {"choices": [{"message": {"content": "ok"}}]}},
+                error=None,
+            )
 
     def _find(metadata, *, client=None, **kw):
         if found is None:
@@ -298,7 +314,9 @@ def _run(tmp_path, jobs, *, monkeypatch_args=None, **overrides):
 
 def test_single_chunk_happy_path(tmp_path: Path, monkeypatch):
     submits, fetches = _install_stub(
-        monkeypatch, statuses={"batch-1": ["validating", "in_progress", "completed"]}
+        monkeypatch,
+        run_dir=tmp_path,
+        statuses={"batch-1": ["validating", "in_progress", "completed"]},
     )
     received = _run(tmp_path, _jobs(3))
     assert len(submits) == 1
@@ -307,7 +325,7 @@ def test_single_chunk_happy_path(tmp_path: Path, monkeypatch):
         "g3o_run_id": "run-1", "g3o_stage": "extract", "g3o_chunk": "1",
     }
     assert fetches == ["batch-1"]
-    assert received == ["R::batch-1"]
+    assert received == ["J0", "J1", "J2"]
     assert is_done(tmp_path, "extract")
     assert not state_path(tmp_path, "extract").exists()
     done = json.loads(done_path(tmp_path, "extract").read_text(encoding="utf-8"))
@@ -316,12 +334,12 @@ def test_single_chunk_happy_path(tmp_path: Path, monkeypatch):
 
 
 def test_multi_chunk_split_and_distinct_metadata(tmp_path: Path, monkeypatch):
-    submits, fetches = _install_stub(monkeypatch, statuses={})
+    submits, fetches = _install_stub(monkeypatch, run_dir=tmp_path, statuses={})
     received = _run(tmp_path, _jobs(3), max_chunk_requests=1)
     assert [s["custom_ids"] for s in submits] == [["J0"], ["J1"], ["J2"]]
     assert [s["metadata"]["g3o_chunk"] for s in submits] == ["1", "2", "3"]
     assert sorted(fetches) == ["batch-1", "batch-2", "batch-3"]
-    assert sorted(received) == ["R::batch-1", "R::batch-2", "R::batch-3"]
+    assert sorted(received) == ["J0", "J1", "J2"]
     assert is_done(tmp_path, "extract")
 
 
@@ -336,14 +354,23 @@ def test_state_plan_written_before_first_submit(tmp_path: Path, monkeypatch):
             submitted_at=datetime.now(timezone.utc), n_jobs=len(jobs),
         )
 
+    def _fetch(batch_id, *, client=None, status=None):
+        # Return the chunk's complete planned set (J0, J1), as a real completed
+        # batch would; this test is about plan-before-submit, not completeness.
+        for cid in ("J0", "J1"):
+            yield BatchResult(
+                custom_id=cid,
+                success=True,
+                response={"body": {"choices": [{"message": {"content": "ok"}}]}},
+                error=None,
+            )
+
     monkeypatch.setattr(batch_client, "submit_batch", _submit)
     monkeypatch.setattr(batch_client, "find_batches_by_metadata", lambda md, **kw: [])
     monkeypatch.setattr(
         batch_client, "poll_batch", lambda b, client=None: _status("completed", b)
     )
-    monkeypatch.setattr(
-        batch_client, "fetch_results", lambda b, client=None, status=None: iter([])
-    )
+    monkeypatch.setattr(batch_client, "fetch_results", _fetch)
     _run(tmp_path, _jobs(2))
     assert len(seen_at_submit) == 1
     plan = seen_at_submit[0]
@@ -380,6 +407,7 @@ def test_resume_fetched_inflight_unsubmitted_chunks(tmp_path: Path, monkeypatch)
     update_chunk(tmp_path, "extract", 2, batch_id="batch-2", last_status="in_progress")
     submits, fetches = _install_stub(
         monkeypatch,
+        run_dir=tmp_path,
         statuses={"batch-2": ["in_progress", "completed"], "batch-3": ["completed"]},
     )
     received = _run(tmp_path, _jobs(3))
@@ -389,7 +417,7 @@ def test_resume_fetched_inflight_unsubmitted_chunks(tmp_path: Path, monkeypatch)
     assert [s["metadata"]["g3o_chunk"] for s in submits] == ["3"]
     # Chunk 3: submitted fresh after reconciliation found nothing.
     assert sorted(fetches) == ["batch-2", "batch-3"]
-    assert sorted(received) == ["R::batch-2", "R::batch-3"]
+    assert sorted(received) == ["J1", "J2"]
     assert is_done(tmp_path, "extract")
 
 
@@ -408,12 +436,15 @@ def test_resume_adopts_orphaned_live_batch_by_metadata(tmp_path: Path, monkeypat
         return [_status("in_progress", "batch-orphan")]
 
     submits, fetches = _install_stub(
-        monkeypatch, statuses={"batch-orphan": ["completed"]}, found=_found
+        monkeypatch,
+        run_dir=tmp_path,
+        statuses={"batch-orphan": ["completed"]},
+        found=_found,
     )
     received = _run(tmp_path, _jobs(1))
     assert submits == []  # adopted, never resubmitted
     assert fetches == ["batch-orphan"]
-    assert received == ["R::batch-orphan"]
+    assert received == ["J0"]
     done = json.loads(done_path(tmp_path, "extract").read_text(encoding="utf-8"))
     assert done["chunks"]["1"]["adopted"] is True
     assert done["chunks"]["1"]["batch_id"] == "batch-orphan"
@@ -422,6 +453,7 @@ def test_resume_adopts_orphaned_live_batch_by_metadata(tmp_path: Path, monkeypat
 def test_reconciliation_ambiguous_matches_raise(tmp_path: Path, monkeypatch):
     submits, _ = _install_stub(
         monkeypatch,
+        run_dir=tmp_path,
         statuses={},
         found=lambda md: [_status("in_progress", "b-1"), _status("in_progress", "b-2")],
     )
@@ -432,7 +464,10 @@ def test_reconciliation_ambiguous_matches_raise(tmp_path: Path, monkeypatch):
 
 def test_reconciliation_orphaned_failed_batch_raises(tmp_path: Path, monkeypatch):
     submits, _ = _install_stub(
-        monkeypatch, statuses={}, found=lambda md: [_status("failed", "b-dead")]
+        monkeypatch,
+        run_dir=tmp_path,
+        statuses={},
+        found=lambda md: [_status("failed", "b-dead")],
     )
     with pytest.raises(RuntimeError, match="Q3=d"):
         _run(tmp_path, _jobs(1))
@@ -444,7 +479,7 @@ def test_resume_plan_custom_id_drift_raises(tmp_path: Path, monkeypatch):
         tmp_path, "extract",
         run_id="run-1", model="gpt-5-nano", chunk_custom_ids=[["GONE"]],
     )
-    _install_stub(monkeypatch, statuses={})
+    _install_stub(monkeypatch, run_dir=tmp_path, statuses={})
     with pytest.raises(RuntimeError, match="cannot be rebuilt"):
         _run(tmp_path, _jobs(1))
 
@@ -469,7 +504,7 @@ def test_legacy_unchunked_state_file_fails_loudly(tmp_path: Path, monkeypatch):
         ),
         encoding="utf-8",
     )
-    _install_stub(monkeypatch, statuses={})
+    _install_stub(monkeypatch, run_dir=tmp_path, statuses={})
     with pytest.raises(RuntimeError, match="Legacy un-chunked state file"):
         _run(tmp_path, _jobs(1))
 
@@ -491,6 +526,7 @@ def test_failed_chunk_raises_after_completed_chunks_are_fetched(
     update_chunk(tmp_path, "extract", 2, batch_id="batch-2")
     _, fetches = _install_stub(
         monkeypatch,
+        run_dir=tmp_path,
         statuses={"batch-1": ["completed"], "batch-2": ["failed"]},
     )
     with pytest.raises(RuntimeError) as exc_info:
@@ -517,7 +553,7 @@ def test_timeout_message_is_truthful_and_state_preserved(tmp_path: Path, monkeyp
         run_id="run-1", model="gpt-5-nano", chunk_custom_ids=[["J0"]],
     )
     update_chunk(tmp_path, "extract", 1, batch_id="batch-1")
-    _install_stub(monkeypatch, statuses={"batch-1": ["in_progress"]})
+    _install_stub(monkeypatch, run_dir=tmp_path, statuses={"batch-1": ["in_progress"]})
     with pytest.raises(RuntimeError) as exc_info:
         _run(tmp_path, _jobs(1), max_wait=0)
     msg = str(exc_info.value)
