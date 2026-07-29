@@ -44,6 +44,7 @@ def build_queries(
     institution_name: str,
     languages: Iterable[str],
     extra_terms: Iterable[str] | None = None,
+    country: str | None = None,
 ) -> list[tuple[str, str]]:
     """Build (query_string, language) tuples for a given institution.
 
@@ -51,6 +52,13 @@ def build_queries(
     for that language. Languages without a known term roster fall back to
     English. `extra_terms` (if given) are appended as language-agnostic
     additions to every language.
+
+    `country` (if given and non-empty) is inserted as its own quoted phrase
+    between the institution name and the GenAI term, disambiguating
+    institutions whose name is shared by a more prominent entity elsewhere
+    (e.g. "House of Representatives" without a country qualifier is
+    dominated by US Congress results). Falls back to the unqualified
+    two-term query when no country is known.
     """
     queries: list[tuple[str, str]] = []
     extras = list(extra_terms or [])
@@ -58,6 +66,9 @@ def build_queries(
     for lang in languages:
         terms = GENAI_TERMS_BY_LANG.get(lang) or GENAI_TERMS_BY_LANG["en"]
         for term in terms + extras:
-            queries.append((f'"{institution_name}" "{term}"', lang))
+            if country:
+                queries.append((f'"{institution_name}" "{country}" "{term}"', lang))
+            else:
+                queries.append((f'"{institution_name}" "{term}"', lang))
 
     return queries

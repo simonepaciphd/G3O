@@ -529,6 +529,76 @@ def test_run_discovery_general_writes_1a_artifact_filename(tmp_path: Path):
         assert not (plan.run_dir / inst_id / "1_discovery.json").exists()
 
 
+def test_run_discovery_general_queries_include_country(tmp_path: Path):
+    """Stage 1a queries must carry the institution's country as a disambiguating
+    quoted phrase (bug: a bare "{name}" "{term}" query for a common institution
+    name like "House of Representatives" is dominated by the US Congress, and
+    classify_triage correctly — but uselessly — rejects every result)."""
+    from g3o.run import presweep as ps
+
+    rows = [
+        _row(
+            master_row_id=1, country="Belize", government_level="national",
+            institution_type="legislature", branch="legislative",
+            institution_name="House of Representatives",
+        )
+    ]
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+
+    seen_queries: list[str] = []
+
+    def _capture(query: str, num_results: int = 10, force_refresh: bool = False) -> list[dict]:
+        seen_queries.append(query)
+        return []
+
+    monkey = ps.stage_discovery.search_google
+    ps.stage_discovery.search_google = _capture  # type: ignore[assignment]
+    try:
+        ps._run_discovery_general(
+            plan.run_dir, plan.sample, languages=("en",), num_results=5,
+        )
+    finally:
+        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+
+    assert seen_queries
+    assert all('"House of Representatives"' in q for q in seen_queries)
+    assert all('"Belize"' in q for q in seen_queries)
+
+
+def test_run_discovery_general_warns_when_country_missing(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A missing country is a signal the query is unscoped and may false-negative
+    against a more prominent same-named institution — worth a log line even
+    though discovery still runs (per the suggested fix's optional warning)."""
+    from g3o.run import presweep as ps
+
+    rows = [
+        _row(
+            master_row_id=1, country="", government_level="national",
+            institution_type="legislature", branch="legislative",
+            institution_name="House of Representatives",
+        )
+    ]
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+
+    monkey = ps.stage_discovery.search_google
+    ps.stage_discovery.search_google = lambda *a, **kw: []  # type: ignore[assignment]
+    try:
+        with caplog.at_level("WARNING"):
+            ps._run_discovery_general(
+                plan.run_dir, plan.sample, languages=("en",), num_results=5,
+            )
+    finally:
+        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+
+    assert any("no country" in rec.message for rec in caplog.records)
+
+
 def test_run_discovery_site_restricted_skips_when_no_site(tmp_path: Path):
     """Q2=a (2026-05-09): when official_sites[inst_id] is None, Stage 1b is skipped."""
     from g3o.run import presweep as ps

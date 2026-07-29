@@ -76,8 +76,16 @@ def _discover_general_one(
     if path.exists():
         payload = json.loads(path.read_text(encoding="utf-8"))
         return inst_id, payload.get("records", [])
+    if not institution["country"]:
+        logger.warning(
+            "Stage 1a: %s (%r) has no country — discovery query is unscoped and "
+            "may false-negative against a more prominent same-named institution",
+            inst_id, institution["institution_name"],
+        )
     with stage_timer(run_dir, inst_id, stage):
-        queries = build_queries(institution["institution_name"], list(languages))
+        queries = build_queries(
+            institution["institution_name"], list(languages), country=institution["country"],
+        )
         seen: set[str] = set()
         records: list[dict[str, Any]] = []
         for query, lang in queries:
@@ -191,7 +199,9 @@ def _discover_site_restricted_one(
         )
         return None
     with stage_timer(run_dir, inst_id, stage):
-        base_queries = build_queries(institution["institution_name"], list(languages))
+        base_queries = build_queries(
+            institution["institution_name"], list(languages), country=institution["country"],
+        )
         wrapped = [(build_site_query(q, domain), lang) for q, lang in base_queries]
         seen: set[str] = set()
         records: list[dict[str, Any]] = []

@@ -47,3 +47,21 @@ def test_roster_terms_are_well_formed() -> None:
     for lang, terms in GENAI_TERMS_BY_LANG.items():
         assert len(terms) == len(set(terms)), lang  # no duplicates
         assert all(isinstance(t, str) and t.strip() for t in terms), lang
+
+
+def test_build_queries_includes_country_when_given() -> None:
+    queries = build_queries("House of Representatives", ["en"], country="Belize")
+    assert len(queries) == len(GENAI_TERMS_BY_LANG["en"])
+    assert all('"House of Representatives"' in q for q, _ in queries)
+    assert all('"Belize"' in q for q, _ in queries)
+
+
+def test_build_queries_omits_country_when_not_given() -> None:
+    """No country (default None, or the empty string a CSV row yields) must
+    reproduce the original two-term query — no regression for institutions
+    with no known jurisdiction."""
+    no_country = build_queries("City of Helsinki", ["en"])
+    empty_country = build_queries("City of Helsinki", ["en"], country="")
+    assert no_country == empty_country
+    for q, _ in no_country:
+        assert q.count('"') == 4  # exactly two quoted phrases: name + term
