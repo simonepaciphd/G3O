@@ -25,6 +25,7 @@ from g3o.common.run_state import (
     iter_chunks,
     load_state,
     mark_done,
+    reconcile_path,
     run_chunked_stage,
     state_path,
     update_chunk,
@@ -344,38 +345,35 @@ def test_multi_chunk_split_and_distinct_metadata(tmp_path: Path, monkeypatch):
 
 
 def test_state_plan_written_before_first_submit(tmp_path: Path, monkeypatch):
-    """The chunk plan must hit disk before submit_batch fires (F6 orphan window)."""
+    """The chunk plan must hit disk before submit_batch fires (F6 orphan window).
+
+    Reworked (Data Validation Team brief 2026-07-28): the prior version carried
+    a bespoke ``_fetch`` hand-fed the planned ids purely so the run would finish
+    — which quietly encoded "a completed batch is trusted as-is" as correct.
+    Now it leans on the shared stub, whose fetch mirrors the on-disk plan, so
+    the run genuinely passes reconciliation; the assertions cover both halves:
+    the plan is on disk at submit time AND the fetched batch reconciled and
+    persisted the full planned set.
+    """
+    submits, fetches = _install_stub(monkeypatch, run_dir=tmp_path, statuses={})
     seen_at_submit: list[dict[str, Any] | None] = []
+    stub_submit = batch_client.submit_batch
 
-    def _submit(jobs, *, model, completion_window, endpoint, metadata, client=None):
+    def _capturing_submit(jobs, **kwargs):
         seen_at_submit.append(load_state(tmp_path, "extract"))
-        return BatchHandle(
-            batch_id="batch-1", input_file_id="f",
-            submitted_at=datetime.now(timezone.utc), n_jobs=len(jobs),
-        )
+        return stub_submit(jobs, **kwargs)
 
-    def _fetch(batch_id, *, client=None, status=None):
-        # Return the chunk's complete planned set (J0, J1), as a real completed
-        # batch would; this test is about plan-before-submit, not completeness.
-        for cid in ("J0", "J1"):
-            yield BatchResult(
-                custom_id=cid,
-                success=True,
-                response={"body": {"choices": [{"message": {"content": "ok"}}]}},
-                error=None,
-            )
-
-    monkeypatch.setattr(batch_client, "submit_batch", _submit)
-    monkeypatch.setattr(batch_client, "find_batches_by_metadata", lambda md, **kw: [])
-    monkeypatch.setattr(
-        batch_client, "poll_batch", lambda b, client=None: _status("completed", b)
-    )
-    monkeypatch.setattr(batch_client, "fetch_results", _fetch)
-    _run(tmp_path, _jobs(2))
+    monkeypatch.setattr(batch_client, "submit_batch", _capturing_submit)
+    received = _run(tmp_path, _jobs(2))
+    # Plan-before-submit: the state file already carried the full chunk plan
+    # when submit_batch was first called.
     assert len(seen_at_submit) == 1
     plan = seen_at_submit[0]
     assert plan is not None and plan["schema_version"] == 2
     assert plan["chunks"]["1"]["custom_ids"] == ["J0", "J1"]
+    # Reconciled + persisted: both planned ids came back and the stage completed.
+    assert sorted(received) == ["J0", "J1"]
+    assert is_done(tmp_path, "extract")
 
 
 def test_oversized_single_job_refused_before_any_submit(tmp_path: Path, monkeypatch):
@@ -565,3 +563,213 @@ def test_timeout_message_is_truthful_and_state_preserved(tmp_path: Path, monkeyp
     state = load_state(tmp_path, "extract")
     assert state is not None
     assert state["chunks"]["1"]["last_status"] == "in_progress"
+
+
+# ---------------------------------------------------------------------------
+# run_chunked_stage — completeness reconciliation
+# (Data Validation Team brief 2026-07-28, item 1; disposition (a))
+#
+# A completed chunk's fetched result ids must reconcile one-to-one against the
+# chunk plan BEFORE the persist callback runs or fetched_at is written. On any
+# mismatch the chunk stays active, a durable record naming the affected ids is
+# written, and the runner raises — the persist callback (which commits per
+# result) must never see a missing/duplicate/empty/unexpected batch.
+# ---------------------------------------------------------------------------
+
+
+def _result(custom_id: str, *, success: bool = True) -> BatchResult:
+    return BatchResult(
+        custom_id=custom_id,
+        success=success,
+        response=(
+            {"body": {"choices": [{"message": {"content": "ok"}}]}}
+            if success
+            else None
+        ),
+        error=None if success else {"message": "boom"},
+    )
+
+
+def _install_mismatch(monkeypatch, tmp_path, batch_id, results):
+    """Pre-seed a single completed chunk whose fetch yields ``results``.
+
+    Returns ``persisted`` — the custom_ids the persist callback actually saw
+    (must stay empty on a mismatch: reconciliation gates the callback).
+    """
+    _install_stub(monkeypatch, run_dir=tmp_path, statuses={batch_id: ["completed"]})
+    monkeypatch.setattr(
+        batch_client, "fetch_results",
+        lambda b, *, client=None, status=None: iter(results),
+    )
+    persisted: list[str] = []
+
+    def _run_it(jobs):
+        run_chunked_stage(
+            tmp_path, "extract", jobs,
+            run_id="run-1", model="gpt-5-nano",
+            poll_interval=0, max_wait=10,
+            process_chunk_results=lambda rs: persisted.extend(r.custom_id for r in rs),
+        )
+
+    return persisted, _run_it
+
+
+def test_missing_id_keeps_chunk_active_and_records(tmp_path: Path, monkeypatch):
+    """A planned id that never comes back: raise, no persist, name the id."""
+    write_active_chunked(
+        tmp_path, "extract",
+        run_id="run-1", model="gpt-5-nano", chunk_custom_ids=[["J0", "J1", "J2"]],
+    )
+    update_chunk(tmp_path, "extract", 1, batch_id="batch-1")
+    persisted, run_it = _install_mismatch(
+        monkeypatch, tmp_path, "batch-1", [_result("J0"), _result("J1")]
+    )
+    with pytest.raises(RuntimeError) as exc:
+        run_it(_jobs(3))
+    msg = str(exc.value)
+    assert "reconcile" in msg
+    assert "missing" in msg
+    assert "J2" in msg
+    # Persist callback never ran — no partial write reached disk.
+    assert persisted == []
+    # Chunk stays active: no fetched_at, no .done marker, batch_id retained.
+    assert not is_done(tmp_path, "extract")
+    state = load_state(tmp_path, "extract")
+    assert state is not None
+    assert state["chunks"]["1"]["fetched_at"] is None
+    assert state["chunks"]["1"]["batch_id"] == "batch-1"
+    # Durable accounting names the affected id.
+    rec_path = reconcile_path(tmp_path, "extract", 1)
+    assert str(rec_path) in msg
+    rec = json.loads(rec_path.read_text(encoding="utf-8"))
+    assert rec["missing"] == ["J2"]
+    assert rec["batch_id"] == "batch-1"
+    assert rec["empty_result_stream"] is False
+
+
+def test_empty_completed_batch_raises(tmp_path: Path, monkeypatch):
+    """Zero results for a nonzero-job chunk: raise, record the empty stream."""
+    write_active_chunked(
+        tmp_path, "extract",
+        run_id="run-1", model="gpt-5-nano", chunk_custom_ids=[["J0"]],
+    )
+    update_chunk(tmp_path, "extract", 1, batch_id="batch-1")
+    persisted, run_it = _install_mismatch(monkeypatch, tmp_path, "batch-1", [])
+    with pytest.raises(RuntimeError) as exc:
+        run_it(_jobs(1))
+    msg = str(exc.value)
+    assert "reconcile" in msg
+    assert "empty" in msg
+    assert persisted == []
+    assert not is_done(tmp_path, "extract")
+    rec = json.loads(reconcile_path(tmp_path, "extract", 1).read_text(encoding="utf-8"))
+    assert rec["empty_result_stream"] is True
+    assert rec["missing"] == ["J0"]
+    assert rec["n_observed"] == 0
+
+
+def test_duplicate_id_raises(tmp_path: Path, monkeypatch):
+    """A planned id returned twice: raise, name it as a duplicate."""
+    write_active_chunked(
+        tmp_path, "extract",
+        run_id="run-1", model="gpt-5-nano", chunk_custom_ids=[["J0", "J1"]],
+    )
+    update_chunk(tmp_path, "extract", 1, batch_id="batch-1")
+    persisted, run_it = _install_mismatch(
+        monkeypatch, tmp_path, "batch-1",
+        [_result("J0"), _result("J1"), _result("J1")],
+    )
+    with pytest.raises(RuntimeError) as exc:
+        run_it(_jobs(2))
+    msg = str(exc.value)
+    assert "duplicate" in msg
+    assert "J1" in msg
+    assert persisted == []
+    assert not is_done(tmp_path, "extract")
+    rec = json.loads(reconcile_path(tmp_path, "extract", 1).read_text(encoding="utf-8"))
+    assert rec["duplicate"] == ["J1"]
+
+
+def test_unknown_id_not_in_plan_raises(tmp_path: Path, monkeypatch):
+    """An id not in the plan at all: raise, name it as unexpected."""
+    write_active_chunked(
+        tmp_path, "extract",
+        run_id="run-1", model="gpt-5-nano", chunk_custom_ids=[["J0"]],
+    )
+    update_chunk(tmp_path, "extract", 1, batch_id="batch-1")
+    persisted, run_it = _install_mismatch(
+        monkeypatch, tmp_path, "batch-1", [_result("J0"), _result("STRAY")]
+    )
+    with pytest.raises(RuntimeError) as exc:
+        run_it(_jobs(1))
+    msg = str(exc.value)
+    assert "unexpected" in msg
+    assert "STRAY" in msg
+    assert persisted == []
+    assert not is_done(tmp_path, "extract")
+    rec = json.loads(reconcile_path(tmp_path, "extract", 1).read_text(encoding="utf-8"))
+    assert rec["unexpected"] == ["STRAY"]
+    assert rec["missing"] == []
+
+
+def test_output_error_file_overlap_raises(tmp_path: Path, monkeypatch):
+    """Same custom_id in both the output and error files (fetch_results yields
+    it twice): a contradictory success+failure for one job — caught as a
+    duplicate, never silently collapsed to one outcome."""
+    write_active_chunked(
+        tmp_path, "extract",
+        run_id="run-1", model="gpt-5-nano", chunk_custom_ids=[["J0"]],
+    )
+    update_chunk(tmp_path, "extract", 1, batch_id="batch-1")
+    # fetch_results streams the output file first, then the error file; a job
+    # present in both surfaces as the same id yielded success then failure.
+    persisted, run_it = _install_mismatch(
+        monkeypatch, tmp_path, "batch-1",
+        [_result("J0", success=True), _result("J0", success=False)],
+    )
+    with pytest.raises(RuntimeError) as exc:
+        run_it(_jobs(1))
+    msg = str(exc.value)
+    assert "duplicate" in msg
+    assert "J0" in msg
+    assert persisted == []
+    assert not is_done(tmp_path, "extract")
+    rec = json.loads(reconcile_path(tmp_path, "extract", 1).read_text(encoding="utf-8"))
+    assert rec["duplicate"] == ["J0"]
+
+
+def test_regression_silent_completeness_loss_now_raises(tmp_path: Path, monkeypatch):
+    """Repro moved from scratchpad now that disposition (a) is confirmed.
+
+    The original defect: a completed batch that returned fewer results than
+    planned was handed straight to the persist callback and then marked done,
+    so the missing institution(s) vanished silently. Exercised over the full
+    fresh submit→poll→fetch path (not a pre-seeded batch_id): the server drops
+    J1, and the run must raise with all-or-nothing semantics — the good
+    results (J0, J2) are NOT persisted either, and no .done marker is written.
+    """
+    _install_stub(monkeypatch, run_dir=tmp_path, statuses={})
+    # Server returns only J0 and J2 for a 3-job chunk (J1 dropped).
+    monkeypatch.setattr(
+        batch_client, "fetch_results",
+        lambda b, *, client=None, status=None: iter([_result("J0"), _result("J2")]),
+    )
+    persisted: list[str] = []
+    with pytest.raises(RuntimeError, match="reconcile") as exc:
+        run_chunked_stage(
+            tmp_path, "extract", _jobs(3),
+            run_id="run-1", model="gpt-5-nano",
+            poll_interval=0, max_wait=10,
+            process_chunk_results=lambda rs: persisted.extend(r.custom_id for r in rs),
+        )
+    assert "J1" in str(exc.value)
+    # All-or-nothing: the good results were withheld from the persist callback.
+    assert persisted == []
+    assert not is_done(tmp_path, "extract")
+    state = load_state(tmp_path, "extract")
+    assert state is not None
+    assert state["chunks"]["1"]["fetched_at"] is None
+    # batch_id retained so a re-run rejoins the same batch rather than resubmits.
+    assert state["chunks"]["1"]["batch_id"] == "batch-1"
+    rec = json.loads(reconcile_path(tmp_path, "extract", 1).read_text(encoding="utf-8"))
+    assert rec["missing"] == ["J1"]

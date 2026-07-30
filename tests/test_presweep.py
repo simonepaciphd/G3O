@@ -847,16 +847,43 @@ def test_stage2_mixed_bypass_writes_state_file_with_bypass_count(
         submit_calls.append(jobs)
         return _batch_handle(batch_id="batch-stage2", n_jobs=len(jobs))
 
+    def _fetch_one(batch_id, client=None, status=None):
+        # Mirror a real completed batch: return the chunk's one planned result
+        # (INST-0000002). An empty stream here would (correctly) trip the
+        # completeness reconciliation added for the Data Validation Team brief
+        # 2026-07-28 — this test is about bypass accounting, not silent loss.
+        from g3o.common.batch_client import BatchResult
+
+        yield BatchResult(
+            custom_id="INST-0000002",
+            success=True,
+            response={
+                "body": {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": json.dumps(
+                                    {
+                                        "url": "https://b.example/official",
+                                        "confidence": "high",
+                                        "rationale": "test",
+                                    }
+                                )
+                            }
+                        }
+                    ]
+                }
+            },
+            error=None,
+        )
+
     monkeypatch.setattr(batch_client, "submit_batch", _capture_submit)
     monkeypatch.setattr(batch_client, "find_batches_by_metadata", lambda md, **kw: [])
     monkeypatch.setattr(
         batch_client, "poll_batch",
         lambda batch_id, client=None: _batch_status("completed", batch_id=batch_id),
     )
-    monkeypatch.setattr(
-        batch_client, "fetch_results",
-        lambda batch_id, client=None, status=None: iter([]),
-    )
+    monkeypatch.setattr(batch_client, "fetch_results", _fetch_one)
     ps._run_classify_official_site(
         plan.run_dir, plan.sample, discovery,
         run_id=config.run_id, model="gpt-5-nano", poll_interval=0, max_wait=1,
