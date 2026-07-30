@@ -39,9 +39,27 @@ _ROBOTS_TIMEOUT_SECONDS = 10
 
 
 def host_key(url: str) -> str:
-    """``scheme://netloc`` for ``url`` — the granularity for robots + throttle."""
+    """The ``netloc`` (host[:port]) of ``url`` — the granularity for robots +
+    throttle.
+
+    Scheme-agnostic on purpose (Finding 1, SCHEME-SPLIT fix, 2026-07): the
+    throttle and robots cache identify a *physical host*, so ``http://x.gov`` and
+    ``https://x.gov`` must map to the same key. Keying on ``scheme://netloc``
+    previously split them into separate throttle entries, letting two workers hit
+    the same host over different schemes with no per-host spacing. The scheme is
+    reconstructed where a real request URL is needed (see ``_robots_url``).
+    """
+    return urlsplit(url).netloc
+
+
+def _robots_url(url: str) -> str:
+    """The ``robots.txt`` URL for ``url``'s host, preserving ``url``'s scheme.
+
+    ``host_key`` is scheme-agnostic, so the fetch URL cannot be rebuilt from it;
+    the scheme comes from the request URL that triggered the (one-per-host) fetch.
+    """
     parts = urlsplit(url)
-    return urlunsplit((parts.scheme, parts.netloc, "", "", ""))
+    return urlunsplit((parts.scheme, parts.netloc, "/robots.txt", "", ""))
 
 
 def _fetch_robots_txt(
@@ -110,7 +128,7 @@ class RobotsCache:
             if host in self._parsers:  # double-check: another thread populated it
                 return self._parsers[host]
             body = self._fetch(
-                f"{host}/robots.txt",
+                _robots_url(url),
                 user_agent=self.user_agent,
                 timeout=self._timeout,
             )
