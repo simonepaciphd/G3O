@@ -83,8 +83,15 @@ def _discover_general_one(
             inst_id, institution["institution_name"],
         )
     with stage_timer(run_dir, inst_id, stage):
+        # `disambiguation` is read off the raw master row, not the projected
+        # institution record: that projection is serialized to institution.json
+        # and fed to the Stage 2/3/5 LLM prompts, so adding a key there would
+        # change model input as a side effect of a query change. `.get` keeps
+        # pre-rollout masters (no such column) working.
         queries = build_queries(
-            institution["institution_name"], list(languages), country=institution["country"],
+            institution["institution_name"], list(languages),
+            country=institution["country"],
+            disambiguation=row.get("disambiguation") or "",
         )
         seen: set[str] = set()
         records: list[dict[str, Any]] = []
@@ -200,7 +207,9 @@ def _discover_site_restricted_one(
         return None
     with stage_timer(run_dir, inst_id, stage):
         base_queries = build_queries(
-            institution["institution_name"], list(languages), country=institution["country"],
+            institution["institution_name"], list(languages),
+            country=institution["country"],
+            disambiguation=row.get("disambiguation") or "",
         )
         wrapped = [(build_site_query(q, domain), lang) for q, lang in base_queries]
         seen: set[str] = set()

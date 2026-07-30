@@ -33,6 +33,7 @@ def _row(
     institution_type: str,
     branch: str = "executive",
     institution_name: str | None = None,
+    disambiguation: str = "",
 ) -> dict[str, Any]:
     return {
         "master_row_id": str(master_row_id),
@@ -47,6 +48,7 @@ def _row(
         "source_file": "synth.csv",
         "retrieval_date": "",
         "notes": "synth",
+        "disambiguation": disambiguation,
     }
 
 
@@ -85,6 +87,7 @@ def _write_master_csv(path: Path, rows: list[dict[str, Any]]) -> Path:
         "source_file",
         "retrieval_date",
         "notes",
+        "disambiguation",
     ]
     with open(path, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -564,7 +567,52 @@ def test_run_discovery_general_queries_include_country(tmp_path: Path):
 
     assert seen_queries
     assert all('"House of Representatives"' in q for q in seen_queries)
-    assert all('"Belize"' in q for q in seen_queries)
+    # Country is a ranking hint, not a binding phrase (2026-07-30, reversing
+    # the quoted slot shipped in 6878d1a).
+    assert all("Belize" in q for q in seen_queries)
+    assert all('"Belize"' not in q for q in seen_queries)
+
+
+def test_run_discovery_general_queries_include_disambiguation_hint(tmp_path: Path) -> None:
+    """The master's `disambiguation` value must reach the live query as an
+    unquoted hint. Same-named units recur within and across countries, so
+    country alone cannot separate them; this is the end-to-end proof that the
+    column is read off the raw master row and threaded into Stage 1a."""
+    from g3o.run import presweep as ps
+
+    rows = [
+        _row(
+            master_row_id=1, country="Algeria", government_level="local",
+            institution_type="council", branch="executive",
+            institution_name="Ain Beida",
+            disambiguation="Oum El Bouaghi — commune",
+        )
+    ]
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+
+    seen_queries: list[str] = []
+
+    def _capture(query: str, num_results: int = 10, force_refresh: bool = False) -> list[dict]:
+        seen_queries.append(query)
+        return []
+
+    monkey = ps.stage_discovery.search_google
+    ps.stage_discovery.search_google = _capture  # type: ignore[assignment]
+    try:
+        ps._run_discovery_general(
+            plan.run_dir, plan.sample, languages=("en",), num_results=5,
+        )
+    finally:
+        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+
+    assert seen_queries
+    for q in seen_queries:
+        assert '"Ain Beida"' in q
+        assert "Oum El Bouaghi — commune" in q
+        assert '"Oum El Bouaghi — commune"' not in q
+        assert q.count('"') == 4  # only the name and the GenAI term bind
 
 
 def test_run_discovery_general_warns_when_country_missing(

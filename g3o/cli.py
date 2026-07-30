@@ -68,7 +68,12 @@ def _existing_dir(arg: str) -> Path:
 
 def _cmd_discover(args: argparse.Namespace) -> int:
     languages = [s.strip() for s in args.languages.split(",") if s.strip()]
-    queries = build_queries(args.institution, languages, country=args.country)
+    queries = build_queries(
+        args.institution,
+        languages,
+        country=args.country,
+        disambiguation=args.disambiguation,
+    )
 
     seen: set[str] = set()
     records: list[dict] = []
@@ -487,6 +492,12 @@ def build_parser() -> argparse.ArgumentParser:
     discover.add_argument("--institution", required=True, help="Institution name (verbatim).")
     discover.add_argument(
         "--country", default=None, help="Country/jurisdiction to disambiguate the query (optional)."
+    )
+    discover.add_argument(
+        "--disambiguation",
+        default=None,
+        help="Master `disambiguation` value (parent geography) to further qualify the "
+             "query; added as an unquoted ranking hint, not a binding phrase (optional).",
     )
     discover.add_argument(
         "--languages", default="en", help="Comma-separated ISO 639-1 codes (default: en)."
