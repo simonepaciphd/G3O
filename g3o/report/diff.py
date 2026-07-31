@@ -10,12 +10,62 @@ never blocks another):
 ============================  ==============================  ===============
 Stage key                     Artifact                        Compared as
 ============================  ==============================  ===============
-``official_site_pick``        ``2_official_site.json``        ``url`` scalar
+``official_site_pick``        ``2_official_site.json``        ``url`` root (Jaccard n/a)
 ``triage_keep_set``           ``3_triage.json``               kept-URL set (Jaccard)
 ``scraped_pages``             ``scrape/*.json``               URL set
 ``extract_outcomes``          ``extract/*.json``              (url, has_genai_activity) pairs
 ``final_status``              ``6_validate.json``             ``has_genai_activity`` scalar
 ============================  ==============================  ===============
+
+``official_site_pick`` compares the *root* of each pick
+(:func:`g3o.common.urlnorm.site_root`), not the raw URL: Stage 1b already
+reduces the pick to a bare host for its ``site:`` query, so two runs that chose
+different subpages of the same host were never going to search differently, and
+counting that as divergence overstates instability.
+
+Diagnostics
+-----------
+
+The five stages above answer *where* runs diverged but not *why*, and two of
+their numbers are easy to over-read. :func:`compute_run_diff` therefore also
+emits a ``diagnostics`` block (rendered under ``DIAGNOSTICS`` after the agreed
+stage report, which it leaves untouched):
+
+``discovery_candidates``
+    URL set from ``1a_discovery_general.json`` + ``1b_discovery_site_restricted.json``.
+    Without this the report cannot separate "search returned different
+    candidates" from "the triage classifier decided differently" — opposite
+    fixes. Both artifacts are already on disk; nothing new has to be run.
+    Caveat: SERP responses are cached across runs, so this stage agrees by
+    construction on a warm cache. It bounds *where* divergence enters; it does
+    not measure search-backend stability.
+
+``triage_candidate_set``
+    Every URL that reached triage (keep *and* drop). Sits between discovery and
+    ``triage_keep_set``, so it isolates the ``1c_filter_eligibility`` step.
+
+``triage_decision_flips``
+    Restricted to URLs every run saw, the share whose keep/drop decision
+    differs. This is the only clean measure of classifier determinism —
+    ``triage_keep_set`` conflates it with candidate churn.
+
+``final_status_reasons``
+    Why a run has no verdict. ``_final_status`` returns ``None`` for four
+    distinct causes (artifact absent, unreadable, no ``institution`` object,
+    null verdict), which render identically as ``(none)``; an absent artifact
+    is an unfinished run, not an instability finding.
+
+``run_completeness``
+    Per-run artifact census. ``_run_institutions`` counts any on-disk
+    subdirectory as present, so an institution whose run crashed but left a
+    stub directory reads as legitimately-empty rather than missing.
+
+``set_stage_stats``
+    Mean *pairwise* Jaccard and a presence histogram per set stage. N-way
+    Jaccard (``|∩ all| / |∪ all|``) confounds how many runs disagree with how
+    much they disagree: with three runs, two agreeing perfectly and a third
+    lacking one shared URL scores 0%. The histogram (how many runs held each
+    URL) also says directly whether majority-vote would recover a stable set.
 
 An institution that is missing from a run entirely is treated as *diverged* at
 every stage (its per-run value is the :data:`_MISSING` sentinel, unequal to any
@@ -37,8 +87,11 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from itertools import combinations
 from pathlib import Path
 from typing import Any
+
+from g3o.common.urlnorm import site_root
 
 # Stage keys in canonical display order (matches the report shape agreed with
 # Thomas).
@@ -119,11 +172,79 @@ def _run_institutions(run_dir: Path) -> set[str]:
     return insts
 
 
+def _probe_json(path: Path) -> tuple[Any | None, str]:
+    """Read a JSON artifact, distinguishing *absent* from *unreadable*.
+
+    :func:`_read_json` collapses both to ``None``, which is fine for comparison
+    but loses the distinction the diagnostics need: an absent artifact means the
+    run never got there, whereas an unreadable one means it did and the write
+    failed. Returns ``(payload, reason)`` where reason is ``"ok"``,
+    ``"artifact_absent"``, or ``"artifact_unreadable"``.
+    """
+    if not path.is_file():
+        return None, "artifact_absent"
+    try:
+        return json.loads(path.read_text(encoding="utf-8")), "ok"
+    except (OSError, json.JSONDecodeError):
+        return None, "artifact_unreadable"
+
+
 def _official_site(inst_dir: Path) -> str | None:
+    """Canonical root of this run's official-site pick (``None`` if no pick).
+
+    Normalised via :func:`site_root` so that two runs picking different
+    subpages of the same host compare equal — see the module docstring.
+    """
     payload = _read_json(inst_dir / "2_official_site.json")
     if not isinstance(payload, dict):
         return None
-    return payload.get("url")
+    return site_root(payload.get("url"))
+
+
+def _discovery_candidates(inst_dir: Path) -> frozenset[str]:
+    """Union of candidate URLs from Stage 1a and Stage 1b discovery records.
+
+    .. warning::
+       Serper responses are cached on disk by ``(query, num_results)`` in a
+       cache shared across runs (``g3o.discovery.serper_client``). On a warm
+       cache this stage agrees by construction, so agreement here is evidence
+       that divergence is *downstream of search* — **not** evidence that the
+       search backend is stable. Measuring that needs runs with a cold or
+       bypassed cache.
+    """
+    urls: set[str] = set()
+    for name in ("1a_discovery_general.json", "1b_discovery_site_restricted.json"):
+        payload = _read_json(inst_dir / name)
+        if not isinstance(payload, dict):
+            continue
+        for rec in payload.get("records", []):
+            if isinstance(rec, dict) and rec.get("link"):
+                urls.add(rec["link"])
+    return frozenset(urls)
+
+
+def _triage_decisions(inst_dir: Path) -> dict[str, str]:
+    """Every triage decision as ``{url: decision}`` — keeps *and* drops.
+
+    ``_triage_keep_set`` sees only the keeps, so it cannot tell a URL that was
+    never offered to the classifier from one the classifier rejected.
+
+    If an artifact carries duplicate rows for one URL, ``keep`` wins, so that a
+    URL reported here as kept is exactly a URL in ``_triage_keep_set``. Without
+    that tie-break the two readers could disagree on the same file and a flip
+    would be reported where none exists.
+    """
+    payload = _read_json(inst_dir / "3_triage.json")
+    if not isinstance(payload, dict):
+        return {}
+    out: dict[str, str] = {}
+    for dec in payload.get("decisions", []):
+        if not isinstance(dec, dict):
+            continue
+        url, decision = dec.get("url"), dec.get("decision")
+        if url and decision and out.get(url) != "keep":
+            out[url] = decision
+    return out
 
 
 def _triage_keep_set(inst_dir: Path) -> frozenset[str]:
@@ -182,6 +303,28 @@ def _final_status(inst_dir: Path) -> str | None:
     return institution.get("has_genai_activity")
 
 
+def _final_status_reason(inst_dir: Path) -> str:
+    """Why ``_final_status`` returned what it did, as a reason code.
+
+    ``"ok"`` when a verdict is present; otherwise ``"artifact_absent"``,
+    ``"artifact_unreadable"``, ``"no_institution_object"``, or
+    ``"verdict_null"``. The first two mean the run did not finish this
+    institution; the last two mean it finished and declined to decide. Those are
+    different findings and ``(none)`` hides the difference.
+    """
+    payload, reason = _probe_json(inst_dir / "6_validate.json")
+    if reason != "ok":
+        return reason
+    if not isinstance(payload, dict):
+        return "artifact_unreadable"
+    institution = payload.get("institution")
+    if not isinstance(institution, dict):
+        return "no_institution_object"
+    if institution.get("has_genai_activity") is None:
+        return "verdict_null"
+    return "ok"
+
+
 def _collect_institution(inst_dir: Path) -> dict[str, Any]:
     """Read all five stage values for one (present) institution in one run."""
     return {
@@ -220,6 +363,36 @@ def _nway_jaccard(sets: list[frozenset[Any]]) -> float:
     if not union:
         return 1.0
     return len(inter) / len(union)
+
+
+def _mean_pairwise_jaccard(sets: list[frozenset[Any]]) -> float:
+    """Mean Jaccard over all run pairs; 1.0 if every set is empty.
+
+    Unlike :func:`_nway_jaccard` this degrades gracefully: with three runs where
+    two agree perfectly and the third lacks one shared URL, N-way scores 0.0
+    while this scores 2/3 — which is what "two of three runs reproduce" should
+    look like.
+    """
+    scores: list[float] = []
+    for a, b in combinations(sets, 2):
+        union = a | b
+        scores.append(1.0 if not union else len(a & b) / len(union))
+    return sum(scores) / len(scores) if scores else 1.0
+
+
+def _presence_histogram(sets: list[frozenset[Any]]) -> dict[str, int]:
+    """How many distinct members were held by exactly k of the runs.
+
+    Keyed by the stringified count so the report stays JSON-round-trippable
+    (JSON object keys are always strings). A run of ``{"3": 40, "1": 12}`` over
+    three runs reads as "40 URLs unanimous, 12 seen by a single run"; anything
+    in the middle is what a majority vote would have to arbitrate.
+    """
+    counts: Counter[Any] = Counter()
+    for s in sets:
+        counts.update(s)
+    hist: Counter[int] = Counter(counts.values())
+    return {str(k): hist[k] for k in sorted(hist, reverse=True)}
 
 
 def _fmt_member(x: Any) -> str:
@@ -274,6 +447,243 @@ def _diverged_entry(
     if missing_in:
         entry["missing_in"] = missing_in
     return entry
+
+
+# ---------------------------------------------------------------------------
+# Diagnostics — why runs diverged, and which "divergence" is really an
+# unfinished run. Additive: never mutates the five agreed stages.
+# ---------------------------------------------------------------------------
+
+# Per-institution artifacts censused by ``run_completeness``, in pipeline order.
+# ``scrape`` and ``extract`` are directories and count as present when non-empty.
+_CENSUS_ARTIFACTS = [
+    "1a_discovery_general.json",
+    "1b_discovery_site_restricted.json",
+    "1c_filter_eligibility.json",
+    "2_official_site.json",
+    "3_triage.json",
+    "scrape",
+    "extract",
+    "6_validate.json",
+]
+
+
+def _set_stage_summary(
+    per_inst_sets: dict[str, list[frozenset[Any]]], run_ids: list[str]
+) -> dict[str, Any]:
+    """Agreement summary for one set-valued measurement across runs.
+
+    Same divergence accounting as the main stages, plus the pairwise/histogram
+    statistics that N-way Jaccard alone cannot express.
+    """
+    diverged: list[dict[str, Any]] = []
+    for inst, sets in per_inst_sets.items():
+        if _all_equal(list(sets)):
+            continue
+        baseline = sets[0]
+        deltas = {
+            run_ids[i]: {
+                "only": sorted(_fmt_member(x) for x in (sets[i] - baseline)),
+                "missing": sorted(_fmt_member(x) for x in (baseline - sets[i])),
+            }
+            for i in range(1, len(sets))
+            if (sets[i] - baseline) or (baseline - sets[i])
+        }
+        diverged.append(
+            {
+                "institution_id": inst,
+                "overlap": round(_nway_jaccard(sets), 4),
+                "mean_pairwise_overlap": round(_mean_pairwise_jaccard(sets), 4),
+                "presence_histogram": _presence_histogram(sets),
+                "deltas": deltas,
+            }
+        )
+    n = len(per_inst_sets)
+    n_diverged = len(diverged)
+    return {
+        "n_diverged": n_diverged,
+        "n_agree": n - n_diverged,
+        "pct_agree": _pct(n - n_diverged, n),
+        "mean_pairwise_overlap_diverged": (
+            round(sum(e["mean_pairwise_overlap"] for e in diverged) / n_diverged, 4)
+            if n_diverged
+            else None
+        ),
+        "mean_pairwise_overlap_all": (
+            round(
+                sum(_mean_pairwise_jaccard(s) for s in per_inst_sets.values()) / n, 4
+            )
+            if n
+            else None
+        ),
+        "presence_histogram": _aggregate_histogram(per_inst_sets),
+        "diverged": diverged,
+    }
+
+
+def _aggregate_histogram(
+    per_inst_sets: dict[str, list[frozenset[Any]]],
+) -> dict[str, int]:
+    """Presence histogram pooled over every institution.
+
+    Members are namespaced by institution id before pooling so that the same URL
+    appearing under two institutions is counted as two distinct members rather
+    than being conflated into one over-counted entry.
+    """
+    namespaced: list[frozenset[Any]] = []
+    for i in range(len(next(iter(per_inst_sets.values()), []))):
+        namespaced.append(
+            frozenset(
+                (inst, m) for inst, sets in per_inst_sets.items() for m in sets[i]
+            )
+        )
+    return _presence_histogram(namespaced) if namespaced else {}
+
+
+def _triage_flip_summary(
+    per_inst_decisions: dict[str, list[dict[str, str]]], run_ids: list[str]
+) -> dict[str, Any]:
+    """Keep/drop stability restricted to URLs every run actually saw.
+
+    This is the only clean read on classifier determinism: by intersecting the
+    candidate sets first, candidate churn is held constant, so a flip here is
+    the classifier changing its mind about identical input.
+    """
+    entries: list[dict[str, Any]] = []
+    total_common = 0
+    total_flipped = 0
+    for inst, dicts in per_inst_decisions.items():
+        common = set(dicts[0]).intersection(*(set(d) for d in dicts[1:])) if dicts else set()
+        flipped = {u for u in common if len({d[u] for d in dicts}) > 1}
+        total_common += len(common)
+        total_flipped += len(flipped)
+        if flipped:
+            entries.append(
+                {
+                    "institution_id": inst,
+                    "n_common": len(common),
+                    "n_flipped": len(flipped),
+                    "flip_rate": round(len(flipped) / len(common), 4) if common else None,
+                    "flips": {
+                        u: {run_ids[i]: dicts[i][u] for i in range(len(dicts))}
+                        for u in sorted(flipped)
+                    },
+                }
+            )
+    n = len(per_inst_decisions)
+    return {
+        "n_institutions_with_flips": len(entries),
+        "n_institutions": n,
+        "pct_stable": _pct(n - len(entries), n),
+        "n_common_urls": total_common,
+        "n_flipped_urls": total_flipped,
+        "flip_rate": _pct(total_flipped, total_common),
+        "institutions": entries,
+    }
+
+
+def _run_completeness(dirs: list[Path], run_ids: list[str], run_insts: list[set[str]]) -> dict[str, Any]:
+    """Per-run artifact census over the institutions that run knows about."""
+    out: dict[str, Any] = {}
+    for run_dir, rid, insts in zip(dirs, run_ids, run_insts, strict=True):
+        counts: dict[str, int] = {}
+        for name in _CENSUS_ARTIFACTS:
+            n = 0
+            for inst in insts:
+                p = run_dir / inst / name
+                if p.is_dir():
+                    n += 1 if any(p.glob("*.json")) else 0
+                elif p.is_file():
+                    n += 1
+            counts[name] = n
+        out[rid] = {"n_institutions": len(insts), "artifacts": counts}
+    return out
+
+
+def _final_status_reason_summary(
+    dirs: list[Path], run_ids: list[str], run_insts: list[set[str]], all_insts: list[str]
+) -> dict[str, Any]:
+    """Reason-code tally per run, plus the per-institution codes where they differ."""
+    per_run: dict[str, dict[str, str]] = {}
+    for run_dir, rid, insts in zip(dirs, run_ids, run_insts, strict=True):
+        per_run[rid] = {
+            inst: (
+                _final_status_reason(run_dir / inst)
+                if inst in insts
+                else "institution_absent"
+            )
+            for inst in all_insts
+        }
+    tallies = {rid: dict(Counter(codes.values())) for rid, codes in per_run.items()}
+    divergent = {
+        inst: {rid: per_run[rid][inst] for rid in run_ids}
+        for inst in all_insts
+        if len({per_run[rid][inst] for rid in run_ids}) > 1
+    }
+    return {"tallies": tallies, "divergent_institutions": divergent}
+
+
+def _compute_diagnostics(
+    dirs: list[Path],
+    run_ids: list[str],
+    run_insts: list[set[str]],
+    all_insts: list[str],
+    per_inst: dict[str, dict[str, list[Any]]],
+) -> dict[str, Any]:
+    """Build the whole diagnostics block. Reads only from disk."""
+
+    def _per_inst_reader(fn: Any) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        for inst in all_insts:
+            vals = []
+            for run_dir, insts in zip(dirs, run_insts, strict=True):
+                vals.append(fn(run_dir / inst) if inst in insts else None)
+            out[inst] = vals
+        return out
+
+    discovery = {
+        inst: [v if v is not None else frozenset() for v in vals]
+        for inst, vals in _per_inst_reader(_discovery_candidates).items()
+    }
+    decisions = {
+        inst: [v if v is not None else {} for v in vals]
+        for inst, vals in _per_inst_reader(_triage_decisions).items()
+    }
+    candidate_sets = {
+        inst: [frozenset(d) for d in dicts] for inst, dicts in decisions.items()
+    }
+
+    set_stage_stats = {}
+    for stage in sorted(_SET_STAGES):
+        sets_by_inst = {
+            inst: [
+                frozenset() if v is _MISSING else v for v in per_inst[inst][stage]
+            ]
+            for inst in all_insts
+        }
+        set_stage_stats[stage] = {
+            "mean_pairwise_overlap_all": (
+                round(
+                    sum(_mean_pairwise_jaccard(s) for s in sets_by_inst.values())
+                    / len(all_insts),
+                    4,
+                )
+                if all_insts
+                else None
+            ),
+            "presence_histogram": _aggregate_histogram(sets_by_inst),
+        }
+
+    return {
+        "discovery_candidates": _set_stage_summary(discovery, run_ids),
+        "triage_candidate_set": _set_stage_summary(candidate_sets, run_ids),
+        "triage_decision_flips": _triage_flip_summary(decisions, run_ids),
+        "final_status_reasons": _final_status_reason_summary(
+            dirs, run_ids, run_insts, all_insts
+        ),
+        "run_completeness": _run_completeness(dirs, run_ids, run_insts),
+        "set_stage_stats": set_stage_stats,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -361,6 +771,9 @@ def compute_run_diff(run_dirs: list[str | Path]) -> dict[str, Any]:
         "most_divergent_stage": most_divergent,
         "full_agreement": full_agreement,
         "n_full_agreement": len(full_agreement),
+        "diagnostics": _compute_diagnostics(
+            dirs, run_ids, run_insts, all_insts, per_inst
+        ),
     }
 
 
@@ -427,7 +840,108 @@ def render_run_diff_text(report: dict[str, Any]) -> str:
     n_full = report["n_full_agreement"]
     w(f"FULL AGREEMENT: {n_full}/{n} institutions matched on every stage")
 
+    diag = report.get("diagnostics")
+    if diag:
+        lines.extend(_render_diagnostics(diag, report["run_ids"], n))
+
     return "\n".join(lines)
 
 
+def _fmt_pct(x: float | None) -> str:
+    return "n/a" if x is None else f"{round(x * 100)}%"
+
+
+def _fmt_hist(hist: dict[str, int], n_runs: int) -> str:
+    """Render a presence histogram as ``3/3: 40  2/3: 5  1/3: 12``.
+
+    An empty histogram is reported as such rather than as agreement: no members
+    anywhere means the artifact was never written, and "100% agree" over nothing
+    would read as a clean result.
+    """
+    if not hist:
+        return "(no members — artifact absent in every run)"
+    return "  ".join(f"{k}/{n_runs}: {v}" for k, v in hist.items())
+
+
+def _render_diagnostics(diag: dict[str, Any], run_ids: list[str], n: int) -> list[str]:
+    """Render the DIAGNOSTICS block appended after the agreed stage report."""
+    lines: list[str] = []
+    w = lines.append
+    n_runs = len(run_ids)
+
+    w("")
+    w("=" * 72)
+    w("DIAGNOSTICS")
+    w("")
+
+    w("UPSTREAM LOCALISATION (is divergence injected by search or by triage?)")
+    w("  note: SERP results are cached across runs — discovery_candidates agrees by")
+    w("  construction on a warm cache; it bounds where divergence enters, and is not")
+    w("  a measurement of search-backend stability.")
+    for key, label in (
+        ("discovery_candidates", "discovery_candidates"),
+        ("triage_candidate_set", "triage_candidate_set"),
+    ):
+        st = diag[key]
+        w(
+            f"{label:<24} {_fmt_pct(st['pct_agree'])} agree "
+            f"({st['n_diverged']}/{n} diverged, "
+            f"mean pairwise {_fmt_pct(st['mean_pairwise_overlap_all'])})"
+        )
+        w(f"{'':<24}   URL presence  {_fmt_hist(st['presence_histogram'], n_runs)}")
+
+    flips = diag["triage_decision_flips"]
+    w("")
+    w("TRIAGE CLASSIFIER STABILITY (URLs every run saw — candidate churn held constant)")
+    w(
+        f"{'triage_decision_flips':<24} {_fmt_pct(flips['pct_stable'])} of institutions stable "
+        f"({flips['n_institutions_with_flips']}/{flips['n_institutions']} with >=1 flip)"
+    )
+    w(
+        f"{'':<24}   {flips['n_flipped_urls']}/{flips['n_common_urls']} shared URLs flipped "
+        f"keep/drop ({_fmt_pct(flips['flip_rate'])})"
+    )
+
+    w("")
+    w("SET-STAGE OVERLAP (N-way Jaccard understates partial agreement)")
+    for stage, st in diag["set_stage_stats"].items():
+        w(
+            f"{stage:<24} mean pairwise "
+            f"{_fmt_pct(st['mean_pairwise_overlap_all']):>4}"
+            f"   presence  {_fmt_hist(st['presence_histogram'], n_runs)}"
+        )
+
+    reasons = diag["final_status_reasons"]
+    w("")
+    w("FINAL_STATUS REASON CODES (an absent artifact is an unfinished run, not a flip)")
+    for rid in run_ids:
+        tally = reasons["tallies"].get(rid, {})
+        detail = "  ".join(f"{k}={v}" for k, v in sorted(tally.items())) or "(none)"
+        w(f"  {rid}: {detail}")
+    divergent = reasons["divergent_institutions"]
+    if divergent:
+        noun = "institution" if len(divergent) == 1 else "institutions"
+        w(f"  → {len(divergent)} {noun} differ in reason code across runs:")
+        for inst, codes in sorted(divergent.items()):
+            w(f"    {inst}: " + ", ".join(f"{rid}={codes[rid]}" for rid in run_ids))
+
+    w("")
+    w("RUN COMPLETENESS (per-run artifact census)")
+    completeness = diag["run_completeness"]
+    artifacts = _CENSUS_ARTIFACTS
+    w(f"  {'artifact':<38}" + "".join(f"{rid[:14]:>16}" for rid in run_ids))
+    for name in artifacts:
+        row = "".join(
+            f"{completeness[rid]['artifacts'].get(name, 0):>16}" for rid in run_ids
+        )
+        w(f"  {name:<38}{row}")
+    w(
+        f"  {'(institutions known)':<38}"
+        + "".join(f"{completeness[rid]['n_institutions']:>16}" for rid in run_ids)
+    )
+
+    return lines
+
+
 __all__ = ["compute_run_diff", "render_run_diff_text"]
+

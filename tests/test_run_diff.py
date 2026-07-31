@@ -219,7 +219,12 @@ def test_missing_institution_counted_as_diverged(tmp_path: Path) -> None:
 
 
 def test_output_format_matches_exact_shape(tmp_path: Path) -> None:
-    """Three-run scenario pinned to the exact agreed text shape."""
+    """Three-run scenario pinned to the exact agreed text shape.
+
+    The agreed shape is asserted as an exact *prefix*: the DIAGNOSTICS block
+    (2026-07-30) is strictly additive, so everything through the FULL AGREEMENT
+    line must still match byte-for-byte.
+    """
     base = _identical_spec()
     spec_a = _identical_spec()
     spec_b = _identical_spec()
@@ -256,7 +261,9 @@ def test_output_format_matches_exact_shape(tmp_path: Path) -> None:
         "\n"
         "FULL AGREEMENT: 2/3 institutions matched on every stage"
     )
-    assert text == expected
+    assert text.startswith(expected)
+    # Nothing but the diagnostics block may follow the agreed shape.
+    assert text[len(expected) :].lstrip("\n").startswith("=" * 72 + "\nDIAGNOSTICS")
 
 
 def test_scalar_stage_divergence_renders_per_run_values(tmp_path: Path) -> None:
@@ -369,6 +376,238 @@ def test_same_directory_twice_raises(tmp_path: Path) -> None:
     a = _build_run(tmp_path, "run-a", _identical_spec())
     with pytest.raises(ValueError, match="distinct run directories"):
         compute_run_diff([a, a])
+
+
+# ---------------------------------------------------------------------------
+# Diagnostics block (2026-07-30) — localisation, classifier stability, reason
+# codes, pairwise overlap. Additive to the five agreed stages.
+# ---------------------------------------------------------------------------
+
+
+def _write_discovery(inst_dir: Path, links: list[str]) -> None:
+    _write(
+        inst_dir / "1a_discovery_general.json",
+        {"queries": [{"query": "q", "language": "en"}],
+         "records": [{"link": u, "title": "t"} for u in links]},
+    )
+
+
+def _write_decisions(inst_dir: Path, decisions: dict[str, str]) -> None:
+    """Write a full triage artifact (keeps *and* drops)."""
+    _write(
+        inst_dir / "3_triage.json",
+        {"decisions": [{"url": u, "decision": d} for u, d in decisions.items()]},
+    )
+
+
+def test_official_site_pick_compares_roots_not_subpages(tmp_path: Path) -> None:
+    """Two runs picking different subpages of one host must not count as diverged."""
+    spec_a, spec_b = _identical_spec(), _identical_spec()
+    spec_a[_inst_id(1)]["official_site"] = "https://www.mcit.gov.qa/en/about-us"
+    spec_b[_inst_id(1)]["official_site"] = "http://mcit.gov.qa/en/news"
+
+    a = _build_run(tmp_path, "run-a", spec_a)
+    b = _build_run(tmp_path, "run-b", spec_b)
+
+    report = compute_run_diff([a, b])
+    assert report["stages"]["official_site_pick"]["n_diverged"] == 0
+
+    # A genuinely different host still diverges, and reports the canonical root.
+    spec_b[_inst_id(1)]["official_site"] = "https://other.gov.qa/en/about-us"
+    c = _build_run(tmp_path / "c", "run-c", spec_b)
+    report2 = compute_run_diff([a, c])
+    entry = report2["stages"]["official_site_pick"]["diverged"][0]
+    assert entry["values"]["run-a"] == "https://mcit.gov.qa/"
+    assert entry["values"]["run-c"] == "https://other.gov.qa/"
+
+
+def test_a_pick_of_none_still_diverges_from_a_real_pick(tmp_path: Path) -> None:
+    """Root normalisation must not turn a missing pick into agreement."""
+    spec_a, spec_b = _identical_spec(), _identical_spec()
+    spec_a[_inst_id(1)]["official_site"] = "https://mcit.gov.qa/en/about-us"
+    spec_b[_inst_id(1)]["official_site"] = None
+
+    a = _build_run(tmp_path, "run-a", spec_a)
+    b = _build_run(tmp_path, "run-b", spec_b)
+    assert compute_run_diff([a, b])["stages"]["official_site_pick"]["n_diverged"] == 1
+
+
+def test_diagnostics_localises_churn_to_discovery(tmp_path: Path) -> None:
+    """Identical triage decisions + different candidates → search is the source."""
+    spec_a, spec_b = _identical_spec(), _identical_spec()
+    a = _build_run(tmp_path, "run-a", spec_a)
+    b = _build_run(tmp_path, "run-b", spec_b)
+
+    # Same verdict on the one shared URL; run-b saw an extra candidate and kept it.
+    _write_discovery(a / _inst_id(1), ["u-shared"])
+    _write_discovery(b / _inst_id(1), ["u-shared", "u-extra"])
+    _write_decisions(a / _inst_id(1), {"u-shared": "keep"})
+    _write_decisions(b / _inst_id(1), {"u-shared": "keep", "u-extra": "keep"})
+
+    diag = compute_run_diff([a, b])["diagnostics"]
+
+    assert diag["discovery_candidates"]["n_diverged"] == 1
+    assert diag["triage_candidate_set"]["n_diverged"] == 1
+    # The classifier never changed its mind about a URL it saw in both runs.
+    assert diag["triage_decision_flips"]["n_flipped_urls"] == 0
+    assert diag["triage_decision_flips"]["n_institutions_with_flips"] == 0
+
+
+def test_diagnostics_localises_churn_to_classifier(tmp_path: Path) -> None:
+    """Identical candidates + flipped decision → the classifier is the source."""
+    spec_a, spec_b = _identical_spec(), _identical_spec()
+    a = _build_run(tmp_path, "run-a", spec_a)
+    b = _build_run(tmp_path, "run-b", spec_b)
+
+    _write_discovery(a / _inst_id(1), ["u-1", "u-2"])
+    _write_discovery(b / _inst_id(1), ["u-1", "u-2"])
+    _write_decisions(a / _inst_id(1), {"u-1": "keep", "u-2": "drop"})
+    _write_decisions(b / _inst_id(1), {"u-1": "keep", "u-2": "keep"})
+
+    diag = compute_run_diff([a, b])["diagnostics"]
+
+    assert diag["discovery_candidates"]["n_diverged"] == 0
+    assert diag["triage_candidate_set"]["n_diverged"] == 0  # same URLs offered
+    flips = diag["triage_decision_flips"]
+    assert flips["n_flipped_urls"] == 1
+    # Pooled over all three institutions: INST-1's 2 URLs plus the 1 and 2 kept
+    # URLs the shared fixture writes for INST-2 and INST-3.
+    assert flips["n_common_urls"] == 5
+    assert flips["flip_rate"] == pytest.approx(1 / 5)
+    entry = next(e for e in flips["institutions"] if e["institution_id"] == _inst_id(1))
+    assert entry["n_common"] == 2
+    assert entry["flip_rate"] == pytest.approx(0.5)
+    assert entry["flips"]["u-2"] == {"run-a": "drop", "run-b": "keep"}
+
+
+def test_triage_decisions_prefer_keep_on_duplicate_rows(tmp_path: Path) -> None:
+    """Duplicate rows for one URL must agree with _triage_keep_set (any keep wins).
+
+    Otherwise the keep-set reader and the decision reader disagree about the same
+    file and a flip is reported where none exists.
+    """
+    spec_a, spec_b = _identical_spec(), _identical_spec()
+    a = _build_run(tmp_path, "run-a", spec_a)
+    b = _build_run(tmp_path, "run-b", spec_b)
+    # Same content, opposite row order — must not read as a flip.
+    _write(a / _inst_id(1) / "3_triage.json",
+           {"decisions": [{"url": "u", "decision": "keep"},
+                          {"url": "u", "decision": "drop"}]})
+    _write(b / _inst_id(1) / "3_triage.json",
+           {"decisions": [{"url": "u", "decision": "drop"},
+                          {"url": "u", "decision": "keep"}]})
+
+    report = compute_run_diff([a, b])
+    assert report["stages"]["triage_keep_set"]["n_diverged"] == 0
+    assert report["diagnostics"]["triage_decision_flips"]["n_flipped_urls"] == 0
+
+
+def test_final_status_reason_codes_separate_unfinished_from_flip(tmp_path: Path) -> None:
+    """An absent validate artifact must not read the same as a null verdict."""
+    spec_absent, spec_null, spec_ok = (
+        _identical_spec(), _identical_spec(), _identical_spec()
+    )
+    spec_absent[_inst_id(1)].pop("final_status")  # never written
+    a = _build_run(tmp_path, "run-a", spec_absent)
+    b = _build_run(tmp_path, "run-b", spec_null)
+    c = _build_run(tmp_path, "run-c", spec_ok)
+    # run-b wrote the artifact but declined to decide.
+    _write(b / _inst_id(1) / "6_validate.json",
+           {"institution": {"has_genai_activity": None}})
+
+    reasons = compute_run_diff([a, b, c])["diagnostics"]["final_status_reasons"]
+    codes = reasons["divergent_institutions"][_inst_id(1)]
+    assert codes["run-a"] == "artifact_absent"
+    assert codes["run-b"] == "verdict_null"
+    assert codes["run-c"] == "ok"
+    assert reasons["tallies"]["run-a"]["artifact_absent"] == 1
+
+
+def test_corrupt_validate_artifact_reported_as_unreadable(tmp_path: Path) -> None:
+    a = _build_run(tmp_path, "run-a", _identical_spec())
+    b = _build_run(tmp_path, "run-b", _identical_spec())
+    (b / _inst_id(1) / "6_validate.json").write_text("{not json", encoding="utf-8")
+
+    reasons = compute_run_diff([a, b])["diagnostics"]["final_status_reasons"]
+    assert reasons["divergent_institutions"][_inst_id(1)]["run-b"] == "artifact_unreadable"
+
+
+def test_mean_pairwise_overlap_beats_nway_on_two_of_three(tmp_path: Path) -> None:
+    """Two runs agreeing perfectly and a third lacking the URL: N-way says 0%."""
+    spec_a, spec_b, spec_c = _identical_spec(), _identical_spec(), _identical_spec()
+    spec_a[_inst_id(1)]["kept_urls"] = ["u-only"]
+    spec_b[_inst_id(1)]["kept_urls"] = ["u-only"]
+    spec_c[_inst_id(1)]["kept_urls"] = []
+
+    a = _build_run(tmp_path, "run-a", spec_a)
+    b = _build_run(tmp_path, "run-b", spec_b)
+    c = _build_run(tmp_path, "run-c", spec_c)
+
+    report = compute_run_diff([a, b, c])
+    entry = report["stages"]["triage_keep_set"]["diverged"][0]
+    assert entry["overlap"] == pytest.approx(0.0)  # N-way: intersection empty
+
+    stats = report["diagnostics"]["set_stage_stats"]["triage_keep_set"]
+    # Pairs: a-b = 1.0, a-c = 0.0, b-c = 0.0 → 1/3 for this institution.
+    # The other two institutions agree, so the pooled mean is (1/3 + 1 + 1)/3.
+    assert stats["mean_pairwise_overlap_all"] == pytest.approx((1 / 3 + 2) / 3, abs=1e-3)
+    # And the histogram says the URL was held by 2 of 3 runs.
+    assert stats["presence_histogram"]["2"] >= 1
+
+
+def test_presence_histogram_does_not_conflate_urls_across_institutions(
+    tmp_path: Path,
+) -> None:
+    """The same URL under two institutions is two members, not one seen twice."""
+    spec = _identical_spec()
+    for i in (1, 2):
+        spec[_inst_id(i)]["kept_urls"] = ["u-dup"]
+    a = _build_run(tmp_path, "run-a", spec)
+    b = _build_run(tmp_path, "run-b", spec)
+
+    hist = compute_run_diff([a, b])["diagnostics"]["set_stage_stats"][
+        "triage_keep_set"
+    ]["presence_histogram"]
+    # Unanimous members: INST-1's u-dup, INST-2's u-dup (distinct members, not
+    # one URL seen four times), plus the two kept URLs the fixture gives INST-3.
+    assert hist["2"] == 4
+
+
+def test_run_completeness_census_counts_artifacts(tmp_path: Path) -> None:
+    spec_full = _identical_spec()
+    spec_thin = _identical_spec()
+    spec_thin[_inst_id(1)].pop("final_status")
+    spec_thin[_inst_id(2)].pop("final_status")
+
+    a = _build_run(tmp_path, "run-a", spec_full)
+    b = _build_run(tmp_path, "run-b", spec_thin)
+
+    census = compute_run_diff([a, b])["diagnostics"]["run_completeness"]
+    assert census["run-a"]["artifacts"]["6_validate.json"] == 3
+    assert census["run-b"]["artifacts"]["6_validate.json"] == 1
+    assert census["run-a"]["n_institutions"] == 3
+
+
+def test_empty_histogram_is_not_reported_as_agreement(tmp_path: Path) -> None:
+    """No discovery artifacts anywhere must not render as a clean 100%."""
+    a = _build_run(tmp_path, "run-a", _identical_spec())
+    b = _build_run(tmp_path, "run-b", _identical_spec())
+    text = render_run_diff_text(compute_run_diff([a, b]))
+    assert "artifact absent in every run" in text
+
+
+def test_diagnostics_json_serialisable(tmp_path: Path) -> None:
+    """Histogram keys must be strings so the report survives a JSON round-trip."""
+    spec_a, spec_b = _identical_spec(), _identical_spec()
+    spec_b[_inst_id(1)]["kept_urls"] = ["u-x"]
+    a = _build_run(tmp_path, "run-a", spec_a)
+    b = _build_run(tmp_path, "run-b", spec_b)
+
+    report = compute_run_diff([a, b])
+    loaded = json.loads(json.dumps(report))
+    assert loaded["diagnostics"]["set_stage_stats"] == (
+        report["diagnostics"]["set_stage_stats"]
+    )
 
 
 # ---------------------------------------------------------------------------

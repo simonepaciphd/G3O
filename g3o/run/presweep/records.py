@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse, urlunparse
 
+from g3o.common.urlnorm import site_host
+
 
 def synth_institution_id(row: dict[str, Any]) -> str:
     """Stable institution_id derived from ``master_row_id``."""
@@ -78,10 +80,10 @@ def _dedupe_key(url: str) -> str:
 
 
 def _site_domain(url: str) -> str | None:
-    """Domain extractor for ``site:`` query construction. ``None`` if unparseable."""
-    try:
-        parsed = urlparse(url)
-    except Exception:
-        return None
-    netloc = parsed.netloc.lower().removeprefix("www.")
-    return netloc or None
+    """Domain extractor for ``site:`` query construction. ``None`` if unparseable.
+
+    Delegates to :func:`g3o.common.urlnorm.site_host` so that Stage 1b's
+    ``site:`` domain and the Stage 2 official-site root are derived from one
+    definition and cannot drift apart.
+    """
+    return site_host(url)
