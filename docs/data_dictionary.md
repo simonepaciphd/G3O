@@ -87,7 +87,18 @@ deferred to the contract.
   Stage 5 for at least one record extracted from this source page — or `""`
   when none were. Page-level and deterministic, per the PI decision of
   2026-07-28: it says "at least one record extracted from this page had these
-  fields salvaged", not which record.
+  fields salvaged", not which record. It is a **page-level** marker — not
+  per-record and not per-event.
+- **Where the deduplication happens.** Once, at extract time: Stage 5 unions the
+  salvaged field names across every salvaged record on a page into a single
+  sorted set and writes exactly one salvage record per page to the run's
+  attrition ledger; the Stage 7 writer only reads that per-page record, it does
+  not recompute it.
+- **What the collapse costs.** Because it is a single set for the whole page, it
+  does **not** distinguish *which* record salvaged a field, nor how many records
+  or events were involved: if several records on the page each salvage different
+  fields, or the same field is salvaged more than once, they all collapse into
+  one deduplicated set of field names.
 - **Who writes it.** `g3o.persist.writer.salvaged_fields_by_source` at Stage 7,
   read from the `_attrition.jsonl` ledger's `group_d_incomplete_salvaged`
   records. It is a deterministic persist-time annotation, **not** model output.
