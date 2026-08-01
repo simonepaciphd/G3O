@@ -1,5 +1,5 @@
 component,line_item,cost_type,scaling,cost_1k_usd,cost_100k_usd,cost_675k_usd,scenario,notes
-Serper,discovery_search,per_sweep,linear_with_institutions,2.24,224.03,1512.18,scenario_invariant,~4 queries/institution (site + generalized) at the budget's per-call rates
+Serper,discovery_search,per_sweep,linear_with_institutions,2.24,224.03,1512.18,scenario_invariant,SUPERSEDED 2026-08-01 see cost-model.md correction: actual legacy mode is 16 queries/inst (8-term roster x Stage 1a + Stage 1b) not ~4; chain mode is 2; per-credit rate ($0.00056 implied here vs $0.001 in the findings memo) is an unresolved PI input
 OpenAI Batch,official_site_classifier,per_sweep,linear_with_institutions,0.13,13.25,89.42,scenario_invariant,1 call/institution; gpt-5-nano Batch
 OpenAI Batch,url_triage,per_sweep,linear_with_institutions,0.40,40.00,270.00,scenario_invariant,1 call/institution; gpt-5-nano Batch
 OpenAI Batch,information_extraction,per_sweep,linear_with_institutions,11.86,1185.84,8004.45,conservative_no_cache_stack,~12 pages/institution; per-call system message NOT cache-discounted

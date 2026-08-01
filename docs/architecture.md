@@ -43,7 +43,7 @@ independent.
 
 | Paper layer       | Code module       | What it does                                                                                          |
 |-------------------|-------------------|-------------------------------------------------------------------------------------------------------|
-| Discovery         | `g3o.discovery`   | Stages 1a/1b. Builds institution × language × GenAI-term queries; runs them via Serper, with a site-restricted second pass keyed off the Stage 2 official site. |
+| Discovery         | `g3o.discovery`   | Stages 1a/1b. Two query strategies, selected by `--discovery-mode` — see [Discovery query strategy](#discovery-query-strategy) below. |
 | Discovery         | `g3o.classify`    | Stages 2 + 3. Picks the canonical institutional homepage and applies keep/drop URL triage before any page is fetched.                                            |
 | Discovery         | `g3o.scrape`      | Stage 4. Fetches each kept URL; routes between HTML, PDF, and a headless-browser fallback for JS-shell pages.                                                    |
 | Extraction        | `g3o.extract`     | Stage 5. Schema-first per-page LLM extraction into the G3O Output Contract v2.0.                                                                                  |
@@ -62,6 +62,57 @@ independent.
 | `g3o.persist`   | Implemented: walks per-institution Stage 6 outputs, emits the three canonical normalized CSVs with provenance. |
 | `g3o.run`       | Implemented: `presweep` orchestrator (resume-aware), `verify_model` Batch-API smoke test.                |
 | `g3o.common`    | Implemented: schema, contract validators, Batch API client, run-state tracking.                          |
+
+## Discovery query strategy
+
+Stages 1a and 1b share a `--discovery-mode` switch. **`legacy` is the default**;
+`chain` is opt-in pending the confirmation run.
+
+| | `legacy` | `chain` (2026-08-01) |
+|---|---|---|
+| Stage 1a | 8 four-slot queries: `"name" country disambiguation "GenAI term"`, one per term in `GENAI_TERMS_BY_LANG` | 1 query: `<name> <country> official website` — unquoted |
+| Stage 1b | each of those 8, wrapped in `site:<domain>` | 1 query: `site:<domain> AI` — one bare token |
+| Credits / institution | 16 | 2 |
+| Measured relevant yield (n=24) | 6/24 | 14/24 |
+
+The chain exists because **Stage 1a was asking one query to do two incompatible
+jobs** — identify the institution *and* find GenAI evidence — and the four-slot
+format did neither well. Splitting them lets each leg be judged on its own job:
+leg 1 found a usable domain for 21/24 institutions, and leg 2 then searches a
+domain it already knows. Paired McNemar over the same 24 institutions: 9 gains,
+1 loss, two-sided *p* = 0.021.
+
+Three measured results are load-bearing and should not be re-litigated by
+tuning the query builders:
+
+- **Quoting the institution name is the primary failure.** Master local names
+  are abbreviated (`Polson H S`, `KELLER ISD`); an exact-phrase match on them
+  returns almost nothing, and three institutions returned zero URLs under the
+  production control. Leg 1 is therefore unquoted — but still sanitized, since
+  outside quotes a token-initial `-` is Google's exclusion operator.
+- **Dropping quotes is not by itself the fix.** Own-domain hits leap 5→20 but
+  *relevant* hits stay at 5: fifteen of those twenty are bare homepages with no
+  AI content. Score on relevance, never on domain match alone.
+- **Once site-bound, extra English terms add exactly 0 pp**, and OR-chaining
+  them is actively harmful (4/24 against 16/24 for the bare token). Legacy
+  Stage 1b's eight site-wrapped queries repeat the institution name inside a
+  query already bound to that institution's domain; **93.2% of them (179/192)
+  return zero results.**
+
+Native-language legs (a real, measured +2/24 that is unreachable any other way)
+belong to `subprojects/multilingual-pipeline/`, which owns country-conditional
+discovery-language routing and the term rosters. Do not add them here.
+
+Volume is a **reserve, not a ceiling** (PI direction, 2026-08-01): the chain
+collects fewer URLs per institution than legacy (~16 against ~23), accepted on
+the understanding that more can be collected later. Both stages union and
+dedupe over a *list* of queries precisely so adding a leg stays a config change
+rather than a refactor. Draw on the reserve against evidence from Stages 1c/3,
+not pre-emptively — and note that extra English tokens measure at 0 pp and
+should never be drawn on.
+
+Spec and measurements:
+`agent-workspace/2026-08-01-serper-discovery-yield-findings.md`.
 
 ## Boundary artifacts
 
@@ -104,7 +155,10 @@ only the pilot at `data/pilot_v1/`).
 - **Discovery is split into two passes** (general, then site-restricted)
   bracketing the official-site classifier. The site-restricted pass uses the
   classifier's output as a seed, dramatically improving recall on the
-  institution's own domain without paying for it on every Serper call.
+  institution's own domain without paying for it on every Serper call. The
+  two-query chain sharpens this split rather than replacing it: it gives each
+  pass a single job (identify the institution, then find evidence on it) and
+  leaves Stage 2 as the arbiter between them.
 - **`classify` filters before any page is fetched.** The triage stage cuts
   ~40 candidate URLs per institution down to ~12, which is what the per-page
   costs of `scrape` and `extract` add up against.

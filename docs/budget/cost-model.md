@@ -16,7 +16,8 @@ sizes — **1,000 / 100,000 / 675,000** institutions — broken out by **Serper*
 The pipeline is one call (or a fixed handful of calls) per institution at each
 LLM stage, so the **variable** cost is linear in institution count:
 
-- **Serper discovery** — ~4 queries/institution.
+- **Serper discovery** — see the correction immediately below; the modeled ~4
+  queries/institution does not match what the pipeline issues.
 - **OpenAI Batch** — official-site classify (1 call), URL triage (1 call),
   extraction (~12 pages), validation (1 consolidation call) per institution, all
   on `gpt-5-nano` via the Batch API.
@@ -32,6 +33,43 @@ than fabricating a sweep cadence — the cadence (how many full sweeps run per
 quarter/year) is a research/operations decision, not an engineering constant.
 Multiply per-sweep variable cost by your chosen cadence and add the annual
 standing infra to get a periodized figure.
+
+## Correction — the Serper line is understated (2026-08-01)
+
+**The Serper discovery figures below are wrong and are retained only until the
+confirmation run replaces them.** Two independent problems:
+
+1. **Query count.** The model assumes ~4 queries/institution. The pipeline in
+   `discovery_mode="legacy"` issues **16**: `GENAI_TERMS_BY_LANG["en"]` holds
+   eight terms (expanded from four on 2026-07-04, PI sign-off), Stage 1a emits
+   one query per term, and Stage 1b wraps each of those eight in `site:`. The
+   modeled count predates that expansion and never counted both stages.
+2. **Per-credit rate is unresolved and is a PI input, not an engineering
+   constant.** The $2.24/1,000-institution line implies ~$0.00056/query at 4
+   queries. The findings memo prices credits at **$0.001** each. Serper sells
+   credits in packs whose unit price falls with pack size, so both can be
+   defensible — but they differ by ~1.8×, and this model should not silently
+   pick one. **Flagged for the PI; not resolved here.**
+
+Order of magnitude at 719,588 institutions, holding each rate constant:
+
+| Mode | Credits/inst | At $0.00056 | At $0.001 |
+|---|---:|---:|---:|
+| Modeled (as written below) | 4 | $1,612 | $2,878 |
+| **Actual `legacy`** | **16** | **$6,448** | **$11,513** |
+| `chain` (2026-08-01) | 2 | $806 | $1,439 |
+
+So the two-query chain saves **14 credits/institution**, or ~$5,600–$10,100
+per full sweep depending on which per-credit rate is correct — against a
+*true* baseline that is roughly 4× the one this model currently reports.
+
+Do not propagate the per-intervention figure of −$5,757 that appears in the
+findings memo for interventions #1 and #2 individually: that is 8 credits ×
+719,588 × $0.001, but each change is 8 → 1, so the saving is 7 credits =
+**−$5,037** each. The memo's combined 16 → 2 figure is correct.
+
+Replace this section with measured `GET /account` balance deltas once the
+confirmation run lands.
 
 ## Per-institution unit rates (basis of the projection)
 
