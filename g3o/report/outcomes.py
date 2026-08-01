@@ -88,6 +88,8 @@ def _stage_reached(inst_dir: Path) -> str | None:
         reached = "classify_official_site"
     if (inst_dir / "1b_discovery_site_restricted.json").exists():
         reached = "discovery_site_restricted"
+    if (inst_dir / "1c_filter_eligibility.json").exists():
+        reached = "filter_eligibility"
     if (inst_dir / "3_triage.json").exists():
         reached = "classify_triage"
     scrape_dir = inst_dir / "scrape"

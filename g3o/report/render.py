@@ -104,6 +104,36 @@ def render_text_report(report: dict[str, Any]) -> str:
         if rl:
             w(rl)
 
+    # ── Stage 1c — eligibility pre-filter (additive block, design memo 2026-07-06) ──
+    fb = report.get("filter_eligibility", {})
+    if fb.get("ran"):
+        w(f"\n{_icon(fb.get('flag', '?'))}  Stage 1c — Eligibility filter [{fb.get('mode', '?')}]")
+        w(
+            f"  URLs in: {fb.get('n_urls_in')}   Pass: {fb.get('n_pass')}"
+            f" ({_pct_str(fb.get('pct_pass'))})"
+        )
+        drop_label = "Would drop" if fb.get("mode") == "shadow" else "Dropped"
+        w(f"  {drop_label}: {fb.get('n_would_drop')} ({_pct_str(fb.get('pct_would_drop'))})")
+        dr = fb.get("drop_reasons", {})
+        if dr:
+            w("  Drop reasons: " + ", ".join(f"{k}={v}" for k, v in sorted(dr.items())))
+        per_lang = fb.get("per_language", {})
+        if per_lang:
+            bar = fb.get("shadow_recall_bar")
+            bar_str = f" (bar >= {bar:.0%})" if isinstance(bar, (int, float)) else ""
+            w(
+                "  Per language (pass% | shadow recall = LLM-kept URLs that also "
+                f"pass{bar_str}; higher is better):"
+            )
+            for lang, m in per_lang.items():
+                w(
+                    f"    {lang}: pass {_pct_str(m.get('pct_pass'))}"
+                    f" ({m.get('n_pass')}/{m.get('n_in')})"
+                    f" | recall {_pct_str(m.get('shadow_recall'))}"
+                    f" ({m.get('llm_keep_and_pass')}/{m.get('llm_keep')})"
+                )
+        w(f"  Rules version: {fb.get('rules_version')}")
+
     # ── Stage 3 ──
     s = stages.get("3_classify_triage", {})
     if s:
