@@ -17,6 +17,7 @@ from g3o.run.presweep.stage_classify import (
     _run_classify_official_site,
     _run_classify_triage,
 )
+from g3o.discovery.serper_client import SerperOptions
 from g3o.run.presweep.stage_discovery import (
     _run_discovery_general,
     _run_discovery_site_restricted,
@@ -114,12 +115,15 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
     # (T1) on success, on every --stop-after early return, and best-effort on
     # a crash; the state files it reads remain the ground truth either way.
     try:
+        serper_options = SerperOptions(autocorrect=config.serper_autocorrect)
         discovery_general = _run_discovery_general(
             plan.run_dir,
             plan.sample,
             languages=config.discovery_languages,
             num_results=config.discovery_results_per_query,
             max_workers=config.max_workers,
+            mode=config.discovery_mode,
+            options=serper_options,
         )
         summary["n_discovery_general"] = sum(
             len(v) for v in discovery_general.values()
@@ -152,6 +156,9 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             languages=config.discovery_languages,
             num_results=config.discovery_results_per_query,
             max_workers=config.max_workers,
+            mode=config.discovery_mode,
+            evidence_term=config.discovery_evidence_term,
+            options=serper_options,
         )
         summary["n_discovery_site_restricted"] = sum(
             len(v) for v in discovery_site_restricted.values()

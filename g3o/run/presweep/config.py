@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 from g3o.common.batch_client import DEFAULT_MODEL
+from g3o.discovery.query_builder import DEFAULT_EVIDENCE_TERM
 from g3o.extract.batch import (
     DEFAULT_TEXT_CAP_CHARS,
     DEFAULT_TEXT_CAP_RULE,
@@ -48,6 +49,26 @@ class PresweepConfig:
     stratify_keys: tuple[str, ...] = STRATIFY_KEYS
     discovery_languages: tuple[str, ...] = ("en",)
     discovery_results_per_query: int = 5
+    # ── Two-query discovery chain (2026-08-01, PI sign-off on the approach) ──
+    # ``legacy``: Stage 1a/1b both issue the four-slot GENAI_TERMS_BY_LANG
+    #   roster (8 queries each, 16 credits/inst). Unchanged; still the default.
+    # ``chain``:  Stage 1a issues one domain-discovery query
+    #   (``<name> <country> official website``) and Stage 1b one bare
+    #   site-bound evidence query (``site:<domain> AI``) — 2 credits/inst.
+    #
+    # Default stays ``legacy`` deliberately: the branch is a pure addition and
+    # nothing changes without opting in. Flipping the default is a separate
+    # reviewed commit, to be made on the confirmation run's measured yield.
+    discovery_mode: Literal["legacy", "chain"] = "legacy"
+    # Leg 2's evidence token. One bare unquoted term by measurement: extra
+    # English terms add 0 pp once site-bound and OR-chains are actively harmful
+    # (4/24 vs 16/24). Parameterised for the multilingual subproject, which owns
+    # native-language legs — do not add English terms here.
+    discovery_evidence_term: str = DEFAULT_EVIDENCE_TERM
+    # Serper ``autocorrect``. ``None`` omits the key entirely, reproducing the
+    # historical request byte-for-byte; ``False`` stops Google silently
+    # respelling institution names. A provenance parameter, not a recall lever.
+    serper_autocorrect: bool | None = None
     dry_run: bool = True
     stop_after: StageName = "extract"
     # Stage 1c eligibility pre-filter mode (design memo 2026-07-06, decision 2).

@@ -43,7 +43,7 @@ from g3o.common.batch_client import (
     poll_batch,
     submit_batch,
 )
-from g3o.discovery.query_builder import build_queries
+from g3o.discovery.query_builder import DEFAULT_EVIDENCE_TERM, build_queries
 from g3o.discovery.serper_client import search_google
 from g3o.scrape.fetcher import scrape_url
 
@@ -329,6 +329,10 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
             s.strip() for s in args.discovery_languages.split(",") if s.strip()
         ),
         discovery_results_per_query=args.discovery_results_per_query,
+        discovery_mode=args.discovery_mode,
+        discovery_evidence_term=args.discovery_evidence_term,
+        # "omit" -> None (no key in the payload at all), "off" -> False.
+        serper_autocorrect=None if args.serper_autocorrect == "omit" else False,
         dry_run=not args.execute,
         stop_after=args.stop_after,
         filter_mode=args.filter_mode,
@@ -647,6 +651,35 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     presweep.add_argument("--discovery-results-per-query", type=int, default=5)
+    presweep.add_argument(
+        "--discovery-mode", choices=("legacy", "chain"), default="legacy",
+        help=(
+            "Stage 1a/1b query strategy. 'legacy' (default): the eight-term "
+            "four-slot GenAI roster in both stages, 16 credits/institution. "
+            "'chain': leg 1 '<name> <country> official website' in Stage 1a and "
+            "leg 2 'site:<domain> AI' in Stage 1b, 2 credits/institution. See "
+            "agent-workspace/2026-08-01-serper-discovery-yield-findings.md."
+        ),
+    )
+    presweep.add_argument(
+        "--discovery-evidence-term", default=DEFAULT_EVIDENCE_TERM,
+        help=(
+            "Leg 2's evidence token (--discovery-mode chain only). One bare "
+            "unquoted term by measurement: extra English terms add 0 pp once "
+            "site-bound and OR-chains score 4/24 against 16/24. Intended for "
+            "the multilingual subproject's native-language legs."
+        ),
+    )
+    presweep.add_argument(
+        "--serper-autocorrect", choices=("omit", "off"), default="omit",
+        help=(
+            "Serper's autocorrect parameter. 'omit' (default) sends no key, "
+            "reproducing the historical request byte-for-byte — Serper then "
+            "defaults it true and Google may silently respell institution "
+            "names. 'off' sends autocorrect=false so the query recorded in the "
+            "artifact is the query Google answered. Provenance, not recall."
+        ),
+    )
     presweep.add_argument(
         "--execute", action="store_true",
         help=(

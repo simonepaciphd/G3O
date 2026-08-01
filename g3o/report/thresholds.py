@@ -31,8 +31,21 @@ class HealthThresholds:
 
     # ── Stage 1a: discovery_general ──────────────────────────────────────────
     # % of institutions with ≥1 candidate URL returned by Serper.
+    # Applies to ``discovery_mode="legacy"`` only — see below.
     discovery_general_warn_pct: float = 0.80   # PI-tunable
     discovery_general_fail_pct: float = 0.60   # PI-tunable
+
+    # ── Stage 1a under the two-query chain (2026-08-01) ──────────────────────
+    # % of institutions where leg 1 (``<name> <country> official website``)
+    # produced a usable non-aggregator domain for Stage 2 to adjudicate.
+    #
+    # The gauge above cannot serve here: leg 1 returns results for essentially
+    # every institution, so "≥1 candidate URL" is trivially satisfied and would
+    # read green whatever the query does. Calibrated against the findings'
+    # evaluation set, which reached 21/24 = 87.5%; warn a little under that,
+    # fail where the chain is clearly not delivering domains.
+    discovery_domain_warn_pct: float = 0.80    # PI-tunable
+    discovery_domain_fail_pct: float = 0.60    # PI-tunable
 
     # ── Stage 2: classify_official_site ──────────────────────────────────────
     # % of institutions (with ≥1 candidate URL) where an official site was found.

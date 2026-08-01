@@ -60,6 +60,19 @@ def render_text_report(report: dict[str, Any]) -> str:
         )
         w(f"  Total candidate URLs: {s.get('total_candidate_urls')}")
         w(f"  Mean URLs / inst:   {s.get('mean_urls_per_institution')}")
+        if s.get("discovery_mode") == "chain":
+            # Chain mode's real recall gauge — "≥1 URL" above is trivially true
+            # for leg 1 and is retained only for line-for-line comparability
+            # with a legacy run. See health.compute_health_report.
+            w(f"  Mode:               chain (leg 1 = domain discovery)")
+            w(
+                f"  With usable domain: {s.get('n_institutions_with_domain')}"
+                f" ({_pct_str(s.get('pct_institutions_with_domain'))})   <- flagged"
+            )
+            w(
+                f"  Domain at rank 1:   {s.get('n_domain_at_rank_1')}"
+                f" ({_pct_str(s.get('pct_domain_at_rank_1'))})"
+            )
         if s.get("n_serper_failed"):
             w(f"  Serper failures:    {s['n_serper_failed']}")
         rl = _reasons_line(s.get("top_drop_reasons", []))

@@ -221,12 +221,17 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
 
     # --- Serper stub: same canned organic results for every query.
     monkeypatch.setattr(
-        ps.stage_discovery, "search_google",
-        lambda query, num_results=5, **kw: [
-            {"link": u, "title": "Smoke", "snippet": "s", "domain": "example.gov",
-             "position": i + 1, "date": None, "sitelinks": []}
-            for i, u in enumerate(CANNED_URLS)
-        ],
+        ps.stage_discovery, "search_google_detailed",
+        lambda query, num_results=5, **kw: serper_client.SerperResult(
+            results=[
+                {"link": u, "title": "Smoke", "snippet": "s", "domain": "example.gov",
+                 "position": i + 1, "date": None, "sitelinks": []}
+                for i, u in enumerate(CANNED_URLS)
+            ],
+            search_parameters={"q": query, "num": num_results},
+            from_cache=False,
+            payload={"q": query, "num": num_results},
+        ),
     )
 
     # --- Scrape stub: deterministic RenderedPage per URL, no network.
