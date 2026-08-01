@@ -14,7 +14,8 @@ import logging
 import os
 import threading
 import time
-from urllib.parse import urlparse
+from dataclasses import dataclass
+from urllib.parse import urlparse, urlsplit, urlunsplit
 
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -63,14 +64,77 @@ def _contains_mock(data: list[dict]) -> bool:
     return any(_MOCK_LINK_SENTINEL in (r.get("link") or "") for r in data)
 
 
-def _cache_key(query: str, num_results: int) -> str:
-    # num_results is part of the key: two queries differing only in result count
-    # are not interchangeable cache hits (review F17, 2026-06-10).
-    return hashlib.md5(f"{num_results}:{query}".encode()).hexdigest()
+@dataclass(frozen=True)
+class SerperOptions:
+    """Request parameters beyond ``q``/``num``, as one immutable bundle.
+
+    Every field defaults to ``None`` meaning **omit the key entirely**, so
+    ``SerperOptions()`` reproduces the pre-2026-08-01 request payload
+    byte-for-byte. A parameter only ever reaches Serper by being named here,
+    which is what keeps :func:`build_request_payload` the single place a
+    parameter can enter both the request *and* the cache key.
+
+    ``autocorrect`` (2026-08-01, PI sign-off): Serper's server-side default is
+    ``true``, so Google has been free to silently respell institution names in
+    every query G3O has run. Setting it ``False`` is a provenance fix — the
+    query recorded in the artifact becomes the query Google actually answered.
+    It is **not** a recall lever and was not measured as one.
+    """
+
+    autocorrect: bool | None = None
 
 
-def _cached(query: str, num_results: int) -> list[dict] | None:
-    path = os.path.join(config.CACHE_DIR, f"serp_{_cache_key(query, num_results)}.json")
+DEFAULT_OPTIONS = SerperOptions()
+
+
+def build_request_payload(
+    query: str, num_results: int, options: SerperOptions | None = None
+) -> dict:
+    """Build the exact JSON body POSTed to Serper — the single source of truth.
+
+    Both :func:`_execute` and :func:`_cache_key` consume the dict this returns,
+    so a parameter cannot enter the request without entering the cache key.
+    That coupling is the point: before 2026-08-01 the key was
+    ``md5(f"{num_results}:{query}")`` and ignored every other parameter, so two
+    materially different requests would have collided silently the moment any
+    parameter began to vary (review, 2026-08-01).
+
+    Key insertion order is ``q``, ``num``, then options in field order, so the
+    legacy payload serialises byte-identically to ``{"q": ..., "num": ...}``.
+    """
+    opts = options if options is not None else DEFAULT_OPTIONS
+    payload: dict = {"q": query, "num": num_results}
+    if opts.autocorrect is not None:
+        payload["autocorrect"] = opts.autocorrect
+    return payload
+
+
+def _cache_key(payload: dict) -> str:
+    """Hash the whole request payload, not a hand-picked subset.
+
+    ``sort_keys`` makes the key insensitive to insertion order (two callers
+    building the same parameters in a different order must hit the same entry);
+    ``ensure_ascii=False`` keeps non-ASCII queries from hashing differently than
+    they are sent.
+    """
+    blob = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.md5(blob.encode("utf-8")).hexdigest()
+
+
+# Cache filename prefix. Bumped ``serp_`` -> ``serp_v2_`` when the key became
+# payload-derived and the on-disk entry gained the ``searchParameters`` echo
+# (2026-08-01): the two generations are not interchangeable, and the prefix
+# bump orphans the old files rather than silently reinterpreting them. Same
+# precedent as the fetcher's ``page_v2_``.
+_CACHE_PREFIX = "serp_v2_"
+
+
+def _cache_path(payload: dict) -> str:
+    return os.path.join(config.CACHE_DIR, f"{_CACHE_PREFIX}{_cache_key(payload)}.json")
+
+
+def _cached(payload: dict) -> dict | None:
+    path = _cache_path(payload)
     # Concurrent-read retry (Stage 1a/1b concurrency, 2026-07): a reader's
     # open() can transiently lose a Windows sharing-violation race against
     # another thread's os.replace() landing on this exact path (the atomic
@@ -90,14 +154,21 @@ def _cached(query: str, num_results: int) -> list[dict] | None:
     return None
 
 
-def _save_cache(query: str, num_results: int, data: list[dict]) -> None:
-    if _contains_mock(data):
+def _save_cache(payload: dict, entry: dict) -> None:
+    """Persist one cache entry keyed by the full request ``payload``.
+
+    ``entry`` is the v2 on-disk shape: ``{"results": [...],
+    "searchParameters": {...}}``. The echo is stored alongside the results so a
+    cache hit stays as auditable as a live call — otherwise the parameters
+    Serper honoured would be recoverable only for uncached queries.
+    """
+    if _contains_mock(entry.get("results") or []):
         # Belt-and-suspenders: in live mode mock is never produced, but a dev
         # session must not seed the shared cache with mock URLs (review F1c).
-        logger.debug("Refusing to cache mock SERP results for query %r", query)
+        logger.debug("Refusing to cache mock SERP results for payload %r", payload)
         return
     os.makedirs(config.CACHE_DIR, exist_ok=True)
-    path = os.path.join(config.CACHE_DIR, f"serp_{_cache_key(query, num_results)}.json")
+    path = _cache_path(payload)
     # Atomic write (Stage 1a/1b concurrency, 2026-07): two worker threads can
     # race on the same cache key (identical query + num_results). A plain
     # open(path, "w") lets a concurrent reader observe a torn/partial file; a
@@ -106,7 +177,7 @@ def _save_cache(query: str, num_results: int, data: list[dict]) -> None:
     # same temp path before either replace() lands.
     tmp_path = f"{path}.tmp.{os.getpid()}.{threading.get_ident()}"
     with open(tmp_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False)
+        json.dump(entry, f, ensure_ascii=False)
     # Windows can transiently deny os.replace with PermissionError while
     # another thread's open(path) (a concurrent _cached() read) still holds
     # the destination — Windows files aren't opened with FILE_SHARE_DELETE by
@@ -151,20 +222,74 @@ def _mock_response() -> dict:
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def _execute(query: str, num_results: int = 10) -> dict:
-    """POST to Serper with retry. Assumes a key is present (callers gate on it).
+def _execute(payload: dict) -> dict:
+    """POST ``payload`` to Serper with retry. Assumes a key is present.
+
+    Takes the already-built payload rather than ``(query, num_results)`` so the
+    bytes on the wire and the bytes fed to :func:`_cache_key` are the same dict
+    — see :func:`build_request_payload`.
 
     The retry wraps only the network call — the missing-key / mock decision
     lives in :func:`search_google`, so a config error is never retried or
     wrapped in a tenacity ``RetryError``.
     """
     headers = {"X-API-KEY": config.SERPER_API_KEY, "Content-Type": "application/json"}
-    payload = json.dumps({"q": query, "num": num_results})
     response = requests.post(
-        config.SERPER_ENDPOINT, headers=headers, data=payload, timeout=config.REQUEST_TIMEOUT
+        config.SERPER_ENDPOINT,
+        headers=headers,
+        data=json.dumps(payload),
+        timeout=config.REQUEST_TIMEOUT,
     )
     response.raise_for_status()
     return response.json()
+
+
+def account_endpoint() -> str:
+    """Derive the ``/account`` URL from :data:`config.SERPER_ENDPOINT`.
+
+    Derived rather than hard-coded so a redirected or self-hosted endpoint
+    keeps both URLs on the same host. Verified live 2026-08-01:
+    ``GET https://google.serper.dev/account`` -> HTTP 200
+    ``{"balance":48028,"rateLimit":50}``. (``api.serper.dev`` 404s; there is no
+    prose documentation — ``docs.serper.dev`` is NXDOMAIN.)
+    """
+    parts = urlsplit(config.SERPER_ENDPOINT)
+    return urlunsplit((parts.scheme, parts.netloc, "/account", "", ""))
+
+
+def get_account() -> dict:
+    """Return Serper's live account state, e.g. ``{"balance": N, "rateLimit": 50}``.
+
+    The spend guard: credit cost is reported as a **balance delta** across a
+    run rather than as ``queries x 1`` arithmetic, so a silently-retried or
+    silently-dropped request cannot hide inside an estimate. Querying
+    ``/account`` does not itself consume a credit (balance is unchanged across
+    back-to-back calls, verified 2026-08-01).
+
+    Raises whatever ``requests`` raises; callers decide whether a missing
+    balance reading is fatal.
+    """
+    headers = {"X-API-KEY": config.SERPER_API_KEY, "Content-Type": "application/json"}
+    response = requests.get(
+        account_endpoint(), headers=headers, timeout=config.REQUEST_TIMEOUT
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def get_balance() -> int | None:
+    """Best-effort credit balance. Returns ``None`` rather than raising.
+
+    Used at run start/end where a failed balance read must not abort a run that
+    is otherwise fine — the validation report then reports the delta as
+    unavailable instead of the run dying over telemetry.
+    """
+    try:
+        value = get_account().get("balance")
+    except Exception as exc:  # network, auth, malformed JSON
+        logger.warning("Serper /account balance read failed: %s", exc)
+        return None
+    return int(value) if isinstance(value, (int, float)) else None
 
 
 def _domain(url: str) -> str:
@@ -174,15 +299,43 @@ def _domain(url: str) -> str:
         return ""
 
 
-def search_google(query: str, num_results: int = 10, force_refresh: bool = False) -> list[dict]:
-    """Run a Serper query and return normalized organic results.
+@dataclass(frozen=True)
+class SerperResult:
+    """One Serper call's outcome: results plus the provenance to audit them."""
 
-    Each result dict has keys: title, link, snippet, domain, position, date, sitelinks.
+    results: list[dict]
+    # Serper's echo of the parameters it actually honoured. Recording it makes
+    # silent parameter drops detectable: an unrecognised value (``gl='zz'``) is
+    # dropped with HTTP 200 and no error, so the only evidence that a request
+    # was not the request you wrote is the absence of the key here.
+    search_parameters: dict
+    from_cache: bool
+    payload: dict
+
+
+def search_google_detailed(
+    query: str,
+    num_results: int = 10,
+    force_refresh: bool = False,
+    options: SerperOptions | None = None,
+) -> SerperResult:
+    """Run a Serper query and return results **plus** request/echo provenance.
+
+    :func:`search_google` is the thin list-returning wrapper over this and
+    remains the pipeline's ordinary entry point; callers that persist telemetry
+    (the Stage 1a/1b runners) use this form to capture ``searchParameters``.
     """
+    payload = build_request_payload(query, num_results, options)
+
     if not force_refresh:
-        cached = _cached(query, num_results)
+        cached = _cached(payload)
         if cached is not None:
-            return cached
+            return SerperResult(
+                results=cached.get("results") or [],
+                search_parameters=cached.get("searchParameters") or {},
+                from_cache=True,
+                payload=payload,
+            )
 
     if not config.SERPER_API_KEY:
         if _live_mode:
@@ -195,7 +348,7 @@ def search_google(query: str, num_results: int = 10, force_refresh: bool = False
         data = _mock_response()
     else:
         try:
-            data = _execute(query, num_results)
+            data = _execute(payload)
         except Exception as exc:  # network / Serper error (quota, 403, timeout)
             if _live_mode:
                 # Honest failure: an empty artifact must mean "searched, found
@@ -204,7 +357,9 @@ def search_google(query: str, num_results: int = 10, force_refresh: bool = False
                     f"Serper request failed for query {query!r}: {exc}"
                 ) from exc
             logger.warning("Search failed: %s", exc)
-            return []
+            return SerperResult(
+                results=[], search_parameters={}, from_cache=False, payload=payload
+            )
 
     results: list[dict] = []
     for idx, item in enumerate(data.get("organic", [])):
@@ -219,9 +374,27 @@ def search_google(query: str, num_results: int = 10, force_refresh: bool = False
                 "sitelinks": item.get("sitelinks", []),
             }
         )
+    echo = data.get("searchParameters") or {}
 
-    _save_cache(query, num_results, results)
-    return results
+    _save_cache(payload, {"results": results, "searchParameters": echo})
+    return SerperResult(
+        results=results, search_parameters=echo, from_cache=False, payload=payload
+    )
+
+
+def search_google(
+    query: str,
+    num_results: int = 10,
+    force_refresh: bool = False,
+    options: SerperOptions | None = None,
+) -> list[dict]:
+    """Run a Serper query and return normalized organic results.
+
+    Each result dict has keys: title, link, snippet, domain, position, date, sitelinks.
+    """
+    return search_google_detailed(
+        query, num_results=num_results, force_refresh=force_refresh, options=options
+    ).results
 
 
 def build_site_query(query: str, site_domain: str) -> str:
