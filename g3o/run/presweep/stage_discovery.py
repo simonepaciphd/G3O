@@ -76,8 +76,23 @@ def _discover_general_one(
     if path.exists():
         payload = json.loads(path.read_text(encoding="utf-8"))
         return inst_id, payload.get("records", [])
+    if not institution["country"]:
+        logger.warning(
+            "Stage 1a: %s (%r) has no country — discovery query is unscoped and "
+            "may false-negative against a more prominent same-named institution",
+            inst_id, institution["institution_name"],
+        )
     with stage_timer(run_dir, inst_id, stage):
-        queries = build_queries(institution["institution_name"], list(languages))
+        # `disambiguation` is read off the raw master row, not the projected
+        # institution record: that projection is serialized to institution.json
+        # and fed to the Stage 2/3/5 LLM prompts, so adding a key there would
+        # change model input as a side effect of a query change. `.get` keeps
+        # pre-rollout masters (no such column) working.
+        queries = build_queries(
+            institution["institution_name"], list(languages),
+            country=institution["country"],
+            disambiguation=row.get("disambiguation") or "",
+        )
         seen: set[str] = set()
         records: list[dict[str, Any]] = []
         for query, lang in queries:
@@ -191,7 +206,11 @@ def _discover_site_restricted_one(
         )
         return None
     with stage_timer(run_dir, inst_id, stage):
-        base_queries = build_queries(institution["institution_name"], list(languages))
+        base_queries = build_queries(
+            institution["institution_name"], list(languages),
+            country=institution["country"],
+            disambiguation=row.get("disambiguation") or "",
+        )
         wrapped = [(build_site_query(q, domain), lang) for q, lang in base_queries]
         seen: set[str] = set()
         records: list[dict[str, Any]] = []

@@ -38,6 +38,14 @@ def test_build_queries_appends_extra_terms():
     assert len(custom) == 1
 
 
+def test_build_queries_includes_country_as_unquoted_hint():
+    queries = query_builder.build_queries(
+        "Ministry of Justice", ["en"], country="Turkmenistan"
+    )
+    assert all('"Ministry of Justice"' in q and "Turkmenistan" in q for q, _ in queries)
+    assert all('"Turkmenistan"' not in q for q, _ in queries)
+
+
 def institution_in_query(query: str) -> bool:
     return '"' in query and len(query) > 10
 
