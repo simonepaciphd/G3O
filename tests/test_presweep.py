@@ -1793,3 +1793,144 @@ def test_run_scrape_failure_cancels_pending_preserves_completed_and_resumes(
     assert is_done(plan.run_dir, "scrape")
     assert len(out) == 4
     assert list((plan.run_dir / fail_inst_id / "scrape").glob("*.json"))
+
+
+# ---------------------------------------------------------------------------
+# Stage 4 — per-attempt scrape telemetry (review F14b)
+# ---------------------------------------------------------------------------
+
+
+def _f14b_page(url: str):
+    from g3o.scrape.render import FetchMetadata, RenderedPage
+
+    return RenderedPage(
+        url=url, text=f"text-{url}", title="", content_type="html",
+        fetch_metadata=FetchMetadata(
+            access_date="2026-07-16", http_status=200, final_url=url,
+            fetch_method="html", elapsed_ms=1, wait_for=None,
+        ),
+    )
+
+
+def test_stage4_records_telemetry_for_every_attempt(tmp_path: Path):
+    """Every scrape attempt writes one ``_scrape_telemetry.jsonl`` record
+    regardless of outcome — succeeded / skipped_cached / robots_disallowed /
+    scrape_failed. The attrition ledger still records the two drop paths."""
+    from g3o.common import attrition, scrape_telemetry
+    from g3o.extract.batch import url_hash
+    from g3o.run import presweep as ps
+
+    attrition._reset_cache()
+    scrape_telemetry._reset_cache()
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+    inst_id = plan.manifest["institutions"][0]
+
+    ok_url = "https://x.example/ok"
+    cached_url = "https://x.example/cached"
+    disallowed_url = "https://x.example/private"
+    failed_url = "https://x.example/boom"
+    triaged = {inst_id: [ok_url, cached_url, disallowed_url, failed_url]}
+
+    # Pre-seed the cached URL's per-run file so it takes the skipped_cached path.
+    scrape_dir = plan.run_dir / inst_id / "scrape"
+    scrape_dir.mkdir(parents=True, exist_ok=True)
+    (scrape_dir / f"{url_hash(cached_url)}.json").write_text(
+        _f14b_page(cached_url).model_dump_json(), encoding="utf-8"
+    )
+
+    class _Robots:
+        def allowed(self, url: str) -> bool:
+            return "private" not in url
+
+        def crawl_delay(self, url: str):
+            return None
+
+    def _fake_scrape(url: str, **kwargs: Any):
+        if url == failed_url:
+            raise RuntimeError("kaboom")
+        return _f14b_page(url)
+
+    monkey = ps.stage_scrape.scrape_url
+    ps.stage_scrape.scrape_url = _fake_scrape  # type: ignore[assignment]
+    try:
+        ps._run_scrape(
+            plan.run_dir, plan.sample, triaged,
+            respect_robots=True, robots=_Robots(), host_delay_seconds=0,
+            max_workers=3,
+        )
+    finally:
+        ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
+
+    tel = scrape_telemetry.read_records(plan.run_dir)
+    by_url = {r["url"]: r["outcome"] for r in tel}
+    assert by_url == {
+        ok_url: scrape_telemetry.OUTCOME_SUCCEEDED,
+        cached_url: scrape_telemetry.OUTCOME_SKIPPED_CACHED,
+        disallowed_url: scrape_telemetry.OUTCOME_ROBOTS_DISALLOWED,
+        failed_url: scrape_telemetry.OUTCOME_SCRAPE_FAILED,
+    }
+    assert len(tel) == 4  # every attempt accounted for, exactly once
+    assert all(r["stage"] == "scrape" for r in tel)
+    drop_reasons = {
+        (r["reason"], r.get("url")) for r in attrition.read_records(plan.run_dir)
+    }
+    assert ("robots_disallowed", disallowed_url) in drop_reasons
+    assert ("scrape_failed", failed_url) in drop_reasons
+
+
+def test_stage4_robots_correct_under_concurrency(tmp_path: Path):
+    """robots.txt Disallow is respected under the thread pool — disallowed URLs
+    are never fetched, allowed ones are, across many hosts."""
+    import threading
+
+    from g3o.common import attrition, scrape_telemetry
+    from g3o.run import presweep as ps
+
+    attrition._reset_cache()
+    scrape_telemetry._reset_cache()
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+    inst_id = plan.manifest["institutions"][0]
+
+    allowed = [f"https://h{j}.gov/ok" for j in range(4)]
+    disallowed = [f"https://h{j}.gov/private" for j in range(4)]
+    triaged = {inst_id: allowed + disallowed}
+
+    class _Robots:
+        def allowed(self, url: str) -> bool:
+            return "private" not in url
+
+        def crawl_delay(self, url: str):
+            return None
+
+    fetched: list[str] = []
+    fetched_lock = threading.Lock()
+
+    def _fake_scrape(url: str, **kwargs: Any):
+        with fetched_lock:
+            fetched.append(url)
+        return _f14b_page(url)
+
+    monkey = ps.stage_scrape.scrape_url
+    ps.stage_scrape.scrape_url = _fake_scrape  # type: ignore[assignment]
+    try:
+        out = ps._run_scrape(
+            plan.run_dir, plan.sample, triaged,
+            respect_robots=True, robots=_Robots(), host_delay_seconds=0,
+            max_workers=4,
+        )
+    finally:
+        ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
+
+    assert sorted(fetched) == sorted(allowed)  # no disallowed URL ever fetched
+    assert [p.url for p in out[inst_id]] == allowed  # kept in triage order
+    tel_disallowed = {
+        r["url"] for r in scrape_telemetry.read_records(plan.run_dir)
+        if r["outcome"] == scrape_telemetry.OUTCOME_ROBOTS_DISALLOWED
+    }
+    assert tel_disallowed == set(disallowed)

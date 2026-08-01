@@ -10,7 +10,12 @@ from __future__ import annotations
 import threading
 import time
 
-from g3o.scrape.politeness import HostThrottle, RobotsCache, host_key
+from g3o.scrape.politeness import (
+    DEFAULT_HOST_DELAY_SECONDS,
+    HostThrottle,
+    RobotsCache,
+    host_key,
+)
 
 ROBOTS_TXT = """\
 User-agent: *
@@ -236,3 +241,16 @@ def test_robots_cache_fetches_once_per_host_under_concurrency():
         t.join()
 
     assert calls.count("https://same.gov/robots.txt") == 1
+
+
+def test_throttle_default_delay_is_one_second_D4():
+    """Decision D4: the default per-host courtesy delay is the research-ethics
+    1.0s floor, and it is a floor on the gap between same-host request *starts*
+    (PI ruling 2026-08-01: spacing, not serialization). Two back-to-back
+    same-host requests sleep exactly 1.0s."""
+    clock = _FakeClock()
+    th = HostThrottle(sleep=clock.sleep, monotonic=clock.monotonic)
+    assert th.delay_seconds == DEFAULT_HOST_DELAY_SECONDS == 1.0
+    th.wait("https://x.gov/a")  # t=0, no sleep
+    th.wait("https://x.gov/b")  # elapsed 0 -> sleep the full 1.0s
+    assert clock.slept == [1.0]
