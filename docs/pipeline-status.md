@@ -1,7 +1,8 @@
 # Pipeline status and measured benchmarks
 
-**Last updated: 2026-08-01** · Branch of record: `feat/discovery-chain`
-(`d568a98`, pushed, no PR) · Suite: 727 passed, 1 skipped, 2 deselected,
+**Last updated: 2026-08-02** · Branch of record: `feat/discovery-chain`
+(`c9e9f79`, pushed, no PR); instrumentation work on
+`chore/instrumentation-side-tasks`, unpushed · Suite: 766 passed, 2 deselected,
 1 xfailed · ruff clean
 
 The standing record of **what the G3O pipeline has actually been measured to
@@ -35,6 +36,17 @@ the cost model), so treat the distinction as load-bearing rather than pedantic.
 | Distinct countries in the usable pool | 219 | M |
 | Rows carrying a `disambiguation` | 217,385 (30.2%) | M |
 | Rows with both `duplicate=1` and a `website` | 0 | M |
+
+**Rebuild note, 2026-08-02.** Re-deriving the usable pool from the documented
+filter rule yields **14,130**, not 14,131 — one row, immaterial, cause not
+pinned (the residual sits in how malformed URLs like `http:///www.x.ms` parse).
+Row count 719,588, country count 219 and the 1,796 national split all reproduce
+exactly. Separately, the rule's `n/a` placeholder token is matched as a bare
+substring and so **silently drops four real institutions** whose URLs contain
+`e**n/a**bout`, `fi**n/a**ccueil` or `e**n/a**nti`: Bosnia's SIPA financial
+intelligence department, Croatia's anti-money-laundering office, France's
+TRACFIN and Romania's ASF. Left unchanged — tightening the rule changes the
+evaluation sample and is a PI call, not a cleanup.
 
 **The single most important number in this document is 1.96%.** Ground truth
 for any accuracy metric is the master's `website` column, so every accuracy
@@ -130,6 +142,17 @@ than becoming folklore.
 **No live chain run has gone past Stage 1b.** This is the largest gap in the
 project's evidence base.
 
+> **Status 2026-08-02.** The end-to-end run that would fill this table was
+> prepared and then **held at PI request**, pending a codebook rework in
+> progress in another session. The hold is on the merits, not just deference:
+> Stages 5 and 6 are two of the four Batch stages this run exists to measure,
+> and if the codebook changes their prompts then the Stage 5/6 yield, empty
+> rate and token counts would describe a superseded schema — and the OpenAI
+> cost figure, which is the whole justification for the run, moves with prompt
+> length. Nothing was spent: no Serper call, no Batch submit. The evaluation
+> sample was rebuilt and verified (see §1 note) and the instrumentation fixes
+> below landed in the interim.
+
 | Stage | Measured | Threshold (T) | Budget assumption (A) |
 |---|:--:|---:|---|
 | 1c filter_eligibility | — | pass-rate bands set | shadow mode, nothing dropped |
@@ -194,22 +217,43 @@ Session spend for the record: 2,273 credits (smoke 6, chain arm 368, legacy arm
 
 ## 5. Known weaknesses in the instrumentation itself
 
-1. **The Stage 1a health gauge cannot go red in practice.** `% with ≥1 URL`
-   reads 100% under leg 1, so chain mode reports `% with a usable domain`
-   instead — which also reads **100%**, because leg 1 nearly always returns
-   *some* non-aggregator host, just not always the right one. It catches "only
-   aggregators came back" and nothing subtler. The metric that discriminates
-   (82% recall) needs ground truth, which the health report has no access to by
-   design (it is disk-only). **The health report currently cannot detect leg-1
-   accuracy regression.**
+1. ~~**The Stage 1a health gauge cannot go red in practice.**~~ **Fixed
+   2026-08-02.** `% with ≥1 URL` reads 100% under leg 1, and `% with a usable
+   domain` also reads 100%, because leg 1 nearly always returns *some*
+   non-aggregator host. The chain now writes **leg-1 recall against the
+   master** into the Stage 1a artifact at run time — did leg 1 surface the
+   institution's own domain, and at what rank — which the health report
+   aggregates and flags. This keeps the report disk-only (it still never
+   imports the master) and is model-free, so no prompt can inflate it.
+   Coverage is still the 1.96%; it is a regression canary, not a registry
+   estimate, and it stays unflagged below 10 comparisons.
 2. **`discovery_yield.py` only runs where ground truth exists** — 1.96% of the
    registry, unrepresentatively national.
-3. **Whole-run aborts are misattributed.** A run that dies mid-flight leaves
-   queued institutions classified `NO_EVIDENCE_FOUND` rather than
-   `PROCESSING_FAILED`; nothing on disk distinguishes "never got a turn" from
-   "got a turn and found nothing" (documented in `g3o/report/outcomes.py`).
+3. ~~**Whole-run aborts are misattributed.**~~ **Fixed 2026-08-02.** The claim
+   that nothing on disk distinguishes "never got a turn" from "got a turn and
+   found nothing" was wrong: the resume machinery's `_state/.done/{stage}.json`
+   markers do. An empty result is now only read as a finding when the stage
+   that owed the institution an artifact is marked done; otherwise it reports
+   `PROCESSING_FAILED` naming the unfinished stage. Per-institution, not
+   run-wide — an institution whose triage completed and kept zero URLs stays
+   `NO_EVIDENCE_FOUND` even if the run later died.
 4. **The disambiguation slot is unmeasured.** It ships on first principles;
    zero of the 200 ground-truth institutions carry one.
+5. **The Stage 2 accuracy figures in §2 are contaminated.** *(Found
+   2026-08-02.)* `records.institution_record()` includes the master's
+   `website`, and `g3o/classify/official_site.py::_user_prompt` serialises the
+   whole record into the Stage 2 message. The classifier is handed the URL and
+   then asked to pick the official homepage from candidates — **the value the
+   accuracy metric scores it against is in its own input.** This affects
+   "correct vs master" (86.9%), "correct as a share of all" (76.5%) and the
+   conversion figure (93.3%); it plausibly explains why conversion is so high
+   and why `legacy` was 13/13 correct on the few it attempted. Leg-1 recall
+   (82.0%) is **not** affected — no model participates in it.
+
+   Removing `website` from the prompt changes model input and breaks
+   comparability with the n=200 run the chain default rests on, so it is a PI
+   decision, not a cleanup. A test pins the contamination so the day it is
+   resolved the caveat is forced to be revisited.
 
 ---
 
@@ -231,9 +275,33 @@ yield; 8–10 buy durability.
    slot (30% of the registry) and answers whether 64.5% survives contact with
    the 98% of the master nobody has measured. Without it, every yield figure
    G3O quotes carries an unquantified generalisation gap.
-3. **Diagnose why `legacy` Stage 2 finds 13/200.** The chain routes around this
-   rather than fixing it, so the defect is still live in any legacy replication
-   and its cause is unknown.
+3. ~~**Diagnose why `legacy` Stage 2 finds 13/200.**~~ **Done 2026-08-02** —
+   from the surviving `cache/serp_v2_*` entries (1,704 legacy = 200×8 Stage 1a
+   + 13×8 Stage 1b, reconciling exactly with the measured 8.52
+   credits/institution). **It is not a classifier defect. It is input
+   starvation, twice over:**
+
+   | | legacy | chain |
+   |---|---:|---:|
+   | True domain present in Stage 1a candidates | **20.0%** (40/200) | 82.0% |
+   | Stage 2 conversion of those | **32.5%** (13/40) | 93.3% |
+   | Official site found | 6.5% | 88.0% |
+
+   The ceiling is 20% — for 160 of 200 institutions the right answer was never
+   in the candidate list. And of the 40 where it was, **39 (97.5%) had it only
+   as a deep link** — a PDF, a document attachment, a news item — never as a
+   homepage. Exactly one institution got a bare homepage. Stage 2 is asked to
+   identify a *site*, and legacy Stage 1a searches for GenAI *content*, so it
+   returns content pages: `mnb.hu/letoltes/mnb-recommendation-2025-12-en.pdf`
+   is not a wrong answer to "what is the official website", it is not an
+   answer at all. 41.4% of all legacy candidate URLs are social/aggregator
+   hosts (instagram 631, facebook 564, linkedin 434).
+
+   So legacy Stage 2 declining is largely correct behaviour on the input it
+   was given, and the chain does not "route around" a bug — it fixes the
+   category error by changing what leg 1 asks for. Any repair to legacy would
+   be a design change (infer the site from a deep link's eTLD+1), not a bug
+   fix, and needs sign-off rather than a patch.
 
 ### Then buy yield — leg 1 is the binding constraint
 
@@ -258,17 +326,22 @@ yield; 8–10 buy durability.
 
 ### Then buy durability
 
-8. **Give the health report an accuracy signal.** Today it cannot detect leg-1
-   regression (§5.1). Options: persist a small held-out ground-truth set into
-   the run, or have the chain record whether Stage 2's pick matches the master's
-   `website` where one exists — cheap, and turns 2% coverage into a live
-   regression canary rather than a one-off study.
+8. ~~**Give the health report an accuracy signal.**~~ **Done 2026-08-02** —
+   see §5.1. Implemented as leg-1 recall rather than the Stage 2 comparison
+   originally proposed here, because building it surfaced §5.5: the Stage 2
+   pick cannot serve as an accuracy signal while the master's `website` sits
+   in the Stage 2 prompt. Both gauges ship; only leg-1 recall is trustworthy.
 9. **Recalibrate `thresholds.py` against measured values** once item 1 lands.
-   They are currently smoke-run guesses and will either never fire or fire
-   constantly at production scale.
-10. **Fix the whole-run-abort misattribution** (§5.3) and the `_cmd_discover`
-    cp1252 crash at `g3o/cli.py:89` (search succeeds; only the print dies —
-    work around with `PYTHONIOENCODING=utf-8`).
+   The Stage 3–6 bands are still smoke-run guesses and will either never fire
+   or fire constantly at production scale. *(The two ground-truth canary bands
+   added 2026-08-02 are already set from the n=200 measurement.)*
+10. ~~**Fix the whole-run-abort misattribution and the `_cmd_discover` cp1252
+    crash.**~~ **Done 2026-08-02.** The abort fix is in §5.3. The cp1252 crash
+    was fixed at the stream rather than at `g3o/cli.py:89`: that line is one of
+    fifteen-odd `ensure_ascii=False` writes to stdout, so `main()` now
+    reconfigures stdout/stderr to UTF-8 and `PYTHONIOENCODING=utf-8` stops
+    being load-bearing. Only non-Latin-1 scripts ever triggered it, which is
+    why it read as a Windows curiosity rather than a defect.
 
 ---
 
