@@ -10,6 +10,9 @@ a subcommand body, so no network/Batch-API calls occur.
 from __future__ import annotations
 
 import argparse
+import io
+import json
+import sys
 
 import pytest
 
@@ -226,3 +229,88 @@ def test_verify_model_routing():
     args = cli.build_parser().parse_args(["verify-model"])
     assert args.func is cli._cmd_verify_model
     assert args.model == DEFAULT_MODEL
+
+
+# ---------------------------------------------------------------------------
+# _force_utf8_stdio — non-ASCII output must not kill the process on a cp1252
+# console (status doc §6 item 10). The bare acronym for the failure is a
+# UnicodeEncodeError raised *after* the work succeeded.
+# ---------------------------------------------------------------------------
+
+# Chinese, Arabic and Cyrillic are all unencodable in cp1252; Latin-1 accents
+# are not, which is why the crash only shows up outside western Europe.
+_NON_CP1252 = "中华人民共和国中央人民政府 · وزارة · Министерство"
+
+
+def _cp1252_stream() -> io.TextIOWrapper:
+    return io.TextIOWrapper(io.BytesIO(), encoding="cp1252", newline="")
+
+
+def test_cp1252_stream_cannot_take_non_latin_text():
+    # Guards the premise of the next test: without the fix, this is the crash.
+    stream = _cp1252_stream()
+    with pytest.raises(UnicodeEncodeError):
+        stream.write(_NON_CP1252)
+        stream.flush()
+
+
+def test_force_utf8_stdio_makes_non_latin_output_writable(monkeypatch):
+    stream = _cp1252_stream()
+    monkeypatch.setattr(sys, "stdout", stream)
+    monkeypatch.setattr(sys, "stderr", _cp1252_stream())
+
+    cli._force_utf8_stdio()
+
+    assert sys.stdout.encoding.lower().replace("-", "") == "utf8"
+    assert sys.stderr.encoding.lower().replace("-", "") == "utf8"
+    # The whole point: this used to raise.
+    json.dump({"title": _NON_CP1252}, sys.stdout, ensure_ascii=False)
+    sys.stdout.flush()
+    assert _NON_CP1252.encode("utf-8") in sys.stdout.buffer.getvalue()
+
+
+def test_force_utf8_stdio_tolerates_streams_without_reconfigure(monkeypatch):
+    # pytest's capture objects and hand-rolled file-likes have no
+    # reconfigure(); the helper must leave them alone, not crash or swap them.
+    class Dumb:
+        def write(self, s):  # pragma: no cover - never called here
+            return len(s)
+
+    dumb = Dumb()
+    monkeypatch.setattr(sys, "stdout", dumb)
+    cli._force_utf8_stdio()
+    assert sys.stdout is dumb
+
+
+def test_force_utf8_stdio_swallows_unsupported_reconfigure(monkeypatch):
+    class Hostile:
+        encoding = "cp1252"
+
+        def reconfigure(self, **kwargs):
+            raise io.UnsupportedOperation("not seekable")
+
+    monkeypatch.setattr(sys, "stdout", Hostile())
+    cli._force_utf8_stdio()  # must not propagate
+
+
+def test_main_forces_utf8_before_dispatch(monkeypatch):
+    seen = {}
+
+    def fake_handler(args):
+        seen["encoding"] = sys.stdout.encoding
+        return 0
+
+    monkeypatch.setattr(sys, "stdout", _cp1252_stream())
+    parser = cli.build_parser()
+    real_parse = parser.parse_args
+
+    def parse_args(argv=None):
+        args = real_parse(["verify-model"])
+        args.func = fake_handler
+        return args
+
+    monkeypatch.setattr(parser, "parse_args", parse_args)
+    monkeypatch.setattr(cli, "build_parser", lambda: parser)
+
+    assert cli.main(["verify-model"]) == 0
+    assert seen["encoding"].lower().replace("-", "") == "utf8"

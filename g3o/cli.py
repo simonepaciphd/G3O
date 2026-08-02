@@ -864,7 +864,33 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _force_utf8_stdio() -> None:
+    """Make stdout/stderr UTF-8 so non-ASCII output cannot kill the process.
+
+    Most subcommands serialise JSON with ``ensure_ascii=False``, so one
+    non-Latin institution name — Chinese, Arabic, Cyrillic — raises
+    ``UnicodeEncodeError`` on a Windows console running the cp1252 code page.
+    The work had already succeeded at that point; only the write died. This is
+    what ``PYTHONIOENCODING=utf-8`` was doing as a manual workaround, applied
+    automatically so the workaround stops being load-bearing.
+
+    Streams that cannot be reconfigured — pytest's capture objects, or a
+    caller that replaced ``sys.stdout`` with its own file-like — are left
+    alone rather than being replaced under the caller's feet.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError, OSError):
+            # io.UnsupportedOperation subclasses both ValueError and OSError.
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _force_utf8_stdio()
     parser = build_parser()
     args = parser.parse_args(argv)
     return args.func(args)
