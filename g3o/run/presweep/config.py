@@ -53,7 +53,7 @@ class PresweepConfig:
     # ``legacy``: Stage 1a/1b both issue the four-slot GENAI_TERMS_BY_LANG
     #   roster (8 queries each, 16 credits/inst). Unchanged; still the default.
     # ``chain``:  Stage 1a issues one domain-discovery query
-    #   (``<name> <country> official website``) and Stage 1b one bare
+    #   (``<name> <country> <disambiguation> official website``) and 1b one bare
     #   site-bound evidence query (``site:<domain> AI``) — 2 credits/inst.
     #
     # Default stays ``legacy`` deliberately: the branch is a pure addition and
@@ -65,6 +65,13 @@ class PresweepConfig:
     # (4/24 vs 16/24). Parameterised for the multilingual subproject, which owns
     # native-language legs — do not add English terms here.
     discovery_evidence_term: str = DEFAULT_EVIDENCE_TERM
+    # Leg 1: bind the institution name as an exact phrase instead of a hint.
+    # Default False. The findings identify the quoted name as the primary
+    # failure of the four-slot format (abbreviated master names like
+    # "Polson H S" match almost nothing) — but that was measured where a quoted
+    # name AND a quoted GenAI term both had to match, so it does not transfer
+    # to leg 1 automatically. The flag exists to settle it by measurement.
+    discovery_domain_quote_name: bool = False
     # Serper ``autocorrect``. ``None`` omits the key entirely, reproducing the
     # historical request byte-for-byte; ``False`` stops Google silently
     # respelling institution names. A provenance parameter, not a recall lever.

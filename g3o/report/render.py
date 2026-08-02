@@ -64,7 +64,7 @@ def render_text_report(report: dict[str, Any]) -> str:
             # Chain mode's real recall gauge — "≥1 URL" above is trivially true
             # for leg 1 and is retained only for line-for-line comparability
             # with a legacy run. See health.compute_health_report.
-            w(f"  Mode:               chain (leg 1 = domain discovery)")
+            w("  Mode:               chain (leg 1 = domain discovery)")
             w(
                 f"  With usable domain: {s.get('n_institutions_with_domain')}"
                 f" ({_pct_str(s.get('pct_institutions_with_domain'))})   <- flagged"

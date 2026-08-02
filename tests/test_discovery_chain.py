@@ -19,7 +19,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from g3o.common import config as g3o_config
 from g3o.discovery import domain_pick
 from g3o.discovery.query_builder import (
     build_domain_query,
@@ -113,12 +112,37 @@ def test_domain_query_is_unquoted_name_country_suffix():
     )
 
 
-def test_domain_query_omits_absent_country():
+def test_domain_query_includes_the_disambiguation_slot():
+    """PI catch, 2026-08-01 — leg 1's first cut dropped it.
+
+    30.2% of the full master (217,385 rows) carries a disambiguation, and it is
+    the only thing separating three distinct ``Ain Beida`` bodies in Algeria.
+    Domain discovery is hardest on exactly those rows.
+    """
+    assert (
+        build_domain_query("Ain Beida", "Algeria", "Oum El Bouaghi — commune")
+        == "Ain Beida Algeria Oum El Bouaghi — commune official website"
+    )
+
+
+def test_domain_query_slot_order_is_name_country_disambiguation_suffix():
+    q = build_domain_query("N", "C", "D")
+    assert q == "N C D official website"
+    assert q.index("N") < q.index("C") < q.index("D") < q.index("official")
+
+
+def test_domain_query_omits_absent_country_and_disambiguation():
     assert build_domain_query("Polson H S", None) == "Polson H S official website"
     assert build_domain_query("Polson H S", "") == "Polson H S official website"
+    assert build_domain_query("Polson H S", "", "") == "Polson H S official website"
 
 
-def test_domain_query_does_not_quote_the_institution_name():
+def test_domain_query_skips_a_disambiguation_that_sanitises_to_nothing():
+    """``()`` must not leave a blank slot in the join."""
+    assert build_domain_query("N", "C", "()") == "N C official website"
+
+
+def test_domain_query_does_not_quote_the_institution_name_by_default():
     """The quoted name is the findings' primary failure mode.
 
     Master local names are abbreviated (``Polson H S``, ``KELLER ISD``); an
@@ -126,6 +150,21 @@ def test_domain_query_does_not_quote_the_institution_name():
     returned zero URLs under the production control because of it.
     """
     assert '"' not in build_domain_query('Comisión Municipal "B"', "Argentina")
+
+
+def test_domain_query_can_quote_the_name_on_request():
+    """Opt-in A/B arm. Only the name binds; the qualifiers stay hints."""
+    q = build_domain_query("Ain Beida", "Algeria", "Ouargla — commune", quote_name=True)
+    assert q == '"Ain Beida" Algeria Ouargla — commune official website'
+    assert q.count('"') == 2
+
+
+def test_quoted_name_drops_inner_quotes_rather_than_escaping():
+    """Google has no in-phrase escape; an embedded " would close the phrase
+    early and silently change the query (17 master rows carry one)."""
+    q = build_domain_query('Comisión Municipal "B"', "Argentina", quote_name=True)
+    assert q.startswith('"Comisión Municipal B"')
+    assert q.count('"') == 2
 
 
 def test_domain_query_neutralises_token_initial_minus():
@@ -238,6 +277,35 @@ def test_default_config_is_legacy():
     cfg = PresweepConfig(run_id="x", runs_dir=Path("."), master_csv=Path("m.csv"))
     assert cfg.discovery_mode == "legacy"
     assert cfg.serper_autocorrect is None
+    assert cfg.discovery_domain_quote_name is False
+
+
+def test_chain_leg_1_carries_the_master_disambiguation(tmp_path, monkeypatch):
+    """Read off the raw master row, not the projected institution record."""
+    rows = [{
+        "country": "Algeria", "country_iso3": "DZA",
+        "government_level": "local", "institution_type": "commune",
+        "institution_name": "Ain Beida",
+        "disambiguation": "Oum El Bouaghi — commune",
+    }]
+    plan = _plan(tmp_path, rows, discovery_mode="chain")
+    rec = _Recorder()
+    _patch_search(monkeypatch, rec)
+    ps._run_discovery_general(
+        plan.run_dir, plan.sample, languages=("en",), num_results=10, mode="chain",
+    )
+    assert rec.queries == ["Ain Beida Algeria Oum El Bouaghi — commune official website"]
+
+
+def test_chain_leg_1_quote_name_flag_reaches_the_query(tmp_path, monkeypatch):
+    plan = _plan(tmp_path, _rows(1), discovery_mode="chain")
+    rec = _Recorder()
+    _patch_search(monkeypatch, rec)
+    ps._run_discovery_general(
+        plan.run_dir, plan.sample, languages=("en",), num_results=10, mode="chain",
+        domain_quote_name=True,
+    )
+    assert rec.queries == ['"Ministry of Things 0" Country0 official website']
 
 
 # ---------------------------------------------------------------------------

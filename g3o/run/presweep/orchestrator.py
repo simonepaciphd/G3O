@@ -8,7 +8,7 @@ from typing import Any
 from g3o.common import attrition
 from g3o.common import config as _config
 from g3o.common.institution_report import write_institution_report
-from g3o.discovery.serper_client import set_live_mode
+from g3o.discovery.serper_client import SerperOptions, set_live_mode
 from g3o.report.run_summary import render_run_summary_text, write_run_summary
 from g3o.run.presweep.config import PresweepConfig
 from g3o.run.presweep.planning import plan_run, update_manifest_llm_provenance
@@ -17,7 +17,6 @@ from g3o.run.presweep.stage_classify import (
     _run_classify_official_site,
     _run_classify_triage,
 )
-from g3o.discovery.serper_client import SerperOptions
 from g3o.run.presweep.stage_discovery import (
     _run_discovery_general,
     _run_discovery_site_restricted,
@@ -124,6 +123,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             max_workers=config.max_workers,
             mode=config.discovery_mode,
             options=serper_options,
+            domain_quote_name=config.discovery_domain_quote_name,
         )
         summary["n_discovery_general"] = sum(
             len(v) for v in discovery_general.values()

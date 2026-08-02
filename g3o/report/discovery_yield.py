@@ -183,6 +183,18 @@ def score_run(run_dir: str | Path, truth: dict[str, str]) -> dict[str, Any]:
         )
         row["naive_domain"] = (a.get("naive_domain") or {}).get("domain")
         row["naive_domain_rank"] = (a.get("naive_domain") or {}).get("rank")
+        # Leg-1 *recall*: did the true domain appear anywhere in Stage 1a's
+        # results, at any rank? This is the ceiling on Stage 2 — the classifier
+        # can only pick a domain leg 1 surfaced. Separating it from the naive
+        # rule's precision is what distinguishes "the query missed the site"
+        # from "the query found it and the pick rule chose wrong".
+        truth_d = row["truth_domain"]
+        ranks = [
+            i for i, rec in enumerate(a.get("records", []), start=1)
+            if truth_d and registrable_domain(rec.get("link") or "") == truth_d
+        ]
+        row["truth_in_leg1"] = bool(ranks)
+        row["truth_leg1_rank"] = ranks[0] if ranks else None
         stage2 = _read(inst_dir / "2_official_site.json")
         row["stage2_url"] = stage2.get("url")
         row["stage2_domain"] = registrable_domain(stage2.get("url") or "")
@@ -220,6 +232,11 @@ def score_run(run_dir: str | Path, truth: dict[str, str]) -> dict[str, Any]:
         ),
         "naive_domain_attempted": naive_attempted,
         "naive_domain_correct": naive_ok,
+        # Leg-1 recall and the ceiling it puts on Stage 2.
+        "truth_in_leg1": sum(1 for r in per_inst.values() if r["truth_in_leg1"]),
+        "truth_leg1_rank_1": sum(
+            1 for r in per_inst.values() if r["truth_leg1_rank"] == 1
+        ),
         "stage2_domain_attempted": stage2_attempted,
         "stage2_domain_correct": stage2_ok,
         "per_institution": per_inst,

@@ -237,3 +237,44 @@ def test_mcnemar_with_no_discordant_pairs_is_p_one():
 def test_mcnemar_only_uses_shared_institutions():
     got = mcnemar({"i": True, "only_a": True}, {"i": False, "only_b": False})
     assert got["n_paired"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Leg-1 recall — the ceiling on Stage 2
+# ---------------------------------------------------------------------------
+
+
+def test_leg1_recall_is_separate_from_the_naive_pick(tmp_path):
+    """Distinguishes 'the query missed the site' from 'the pick rule chose wrong'.
+
+    Stage 2 can only choose a domain leg 1 surfaced, so recall is the ceiling
+    and the naive rule's accuracy is a floor beneath it.
+    """
+    run = _write_run(tmp_path, {
+        # Truth IS present, at rank 2 — naive picked the aggregator-free first hit.
+        "INST-1": ("chain",
+                   [{"link": "https://wipo.int/x", "title": "t", "snippet": ""},
+                    {"link": "https://a.gov/", "title": "Home", "snippet": ""}],
+                   [], {"domain": "wipo.int", "rank": 1}, None),
+        # Truth is absent entirely — no pick rule could have recovered it.
+        "INST-2": ("chain",
+                   [{"link": "https://wipo.int/y", "title": "t", "snippet": ""}],
+                   [], {"domain": "wipo.int", "rank": 1}, None),
+    })
+    got = score_run(run, {"INST-1": "https://a.gov", "INST-2": "https://b.gov"})
+    assert got["truth_in_leg1"] == 1          # only INST-1 surfaced its true domain
+    assert got["truth_leg1_rank_1"] == 0      # and not at rank 1
+    assert got["naive_domain_correct"] == 0   # the naive rule got neither
+    per = got["per_institution"]
+    assert per["INST-1"]["truth_leg1_rank"] == 2
+    assert per["INST-2"]["truth_in_leg1"] is False
+
+
+def test_leg1_recall_counts_rank_one_hits(tmp_path):
+    run = _write_run(tmp_path, {
+        "INST-1": ("chain", [{"link": "https://www.a.gov/", "title": "t", "snippet": ""}],
+                   [], {"domain": "a.gov", "rank": 1}, None),
+    })
+    got = score_run(run, {"INST-1": "https://a.gov"})
+    assert got["truth_in_leg1"] == 1
+    assert got["truth_leg1_rank_1"] == 1

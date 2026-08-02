@@ -109,21 +109,46 @@ DOMAIN_QUERY_SUFFIX = "official website"
 DEFAULT_EVIDENCE_TERM = "AI"
 
 
-def build_domain_query(institution_name: str, country: str | None = None) -> str:
+def build_domain_query(
+    institution_name: str,
+    country: str | None = None,
+    disambiguation: str | None = None,
+    quote_name: bool = False,
+) -> str:
     """Leg 1 — identify the institution's own domain. One credit.
 
-    ``<name> <country> official website``, every slot an unquoted hint. Found a
-    usable domain for 21/24 institutions on the evaluation set (rank 1 for 18).
+    ``<name> <country> <disambiguation> official website``. Slot order matches
+    :func:`build_queries`; any absent slot is skipped.
 
-    The institution name is sanitized through :func:`_hint` for the same reason
-    the qualifier slots are: outside quotes, a token-initial ``-`` is Google's
-    exclusion operator and a stray ``"`` opens a phrase. Unquoted here is a
-    measured choice — see the module note.
+    ``disambiguation`` is the master's parent-geography annotation (PI catch,
+    2026-08-01 — it was missing from the first cut of this function). It carries
+    **30.2% of the full master (217,385 rows)** and separates units that
+    ``country`` alone cannot: three distinct ``Ain Beida`` local bodies sit in
+    Algeria, told apart only by ``Oum El Bouaghi — commune`` vs
+    ``Ouargla — commune``. Domain discovery is hardest on exactly those rows, so
+    omitting it silently degraded the case leg 1 most needs to get right. (Only
+    4.7% of the ground-truth-eligible pool carries one, which is why the
+    2026-08-01 confirmation run barely felt it.)
+
+    ``quote_name`` binds the institution name as an exact phrase instead of a
+    hint. **Default False, and that default is evidence-backed:** the findings
+    identify the quoted name as the primary failure of the four-slot format —
+    master local names are abbreviated (``Polson H S``, ``KELLER ISD``) and
+    quoting them matches almost nothing. That evidence was gathered where a
+    quoted name *and* a quoted GenAI term both had to match, so it does not
+    transfer to leg 1 automatically; the flag exists to settle the question on
+    measurement rather than argument.
+
+    Unquoted slots are sanitized through :func:`_hint`: outside quotes a
+    token-initial ``-`` is Google's exclusion operator and a stray ``"`` opens a
+    phrase.
     """
-    slots = [_hint(institution_name)]
-    hint = _hint(country) if country else ""
-    if hint:
-        slots.append(hint)
+    name = _phrase(institution_name) if quote_name else _hint(institution_name)
+    slots = [name]
+    for qualifier in (country, disambiguation):
+        hint = _hint(qualifier) if qualifier else ""
+        if hint:
+            slots.append(hint)
     slots.append(DOMAIN_QUERY_SUFFIX)
     return " ".join(s for s in slots if s)
 

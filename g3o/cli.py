@@ -331,6 +331,7 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         discovery_results_per_query=args.discovery_results_per_query,
         discovery_mode=args.discovery_mode,
         discovery_evidence_term=args.discovery_evidence_term,
+        discovery_domain_quote_name=args.discovery_domain_quote_name,
         # "omit" -> None (no key in the payload at all), "off" -> False.
         serper_autocorrect=None if args.serper_autocorrect == "omit" else False,
         dry_run=not args.execute,
@@ -668,6 +669,17 @@ def build_parser() -> argparse.ArgumentParser:
             "unquoted term by measurement: extra English terms add 0 pp once "
             "site-bound and OR-chains score 4/24 against 16/24. Intended for "
             "the multilingual subproject's native-language legs."
+        ),
+    )
+    presweep.add_argument(
+        "--discovery-domain-quote-name", action="store_true",
+        help=(
+            "Leg 1 only (--discovery-mode chain): bind the institution name as "
+            "a Google exact phrase instead of an unquoted hint. Off by default "
+            "— the findings identify the quoted name as the primary failure of "
+            "the four-slot format, though that evidence was gathered where a "
+            "quoted name and a quoted GenAI term both had to match, so it does "
+            "not transfer to leg 1 automatically. Provided to A/B the question."
         ),
     )
     presweep.add_argument(

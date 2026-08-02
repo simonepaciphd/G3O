@@ -102,6 +102,7 @@ def _discover_general_one(
     num_results: int,
     mode: str = "legacy",
     options: SerperOptions | None = None,
+    domain_quote_name: bool = False,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Process Stage 1a general discovery for one institution.
 
@@ -113,7 +114,9 @@ def _discover_general_one(
     four-slot roster from :func:`build_queries`, 8 credits/institution.
 
     ``mode="chain"`` (2026-08-01) repurposes Stage 1a as **domain discovery** —
-    one ``<name> <country> official website`` query, 1 credit. It stops
+    one ``<name> <country> <disambiguation> official website`` query, 1 credit.
+    ``domain_quote_name`` binds the name as an exact phrase instead of a hint;
+    see :func:`build_domain_query` for why that defaults off. It stops
     emitting GenAI queries entirely; the GenAI evidence job moves to Stage 1b's
     site-bound leg, and Stage 2's ``classify_official_site`` becomes the
     arbiter it already is architecturally (it receives the same shape of
@@ -137,10 +140,15 @@ def _discover_general_one(
         )
     with stage_timer(run_dir, inst_id, stage):
         if mode == "chain":
+            # `disambiguation` off the raw master row, not the projected
+            # institution record — same reason as the legacy branch below.
             queries = [
                 (
                     build_domain_query(
-                        institution["institution_name"], institution["country"]
+                        institution["institution_name"],
+                        institution["country"],
+                        row.get("disambiguation") or "",
+                        quote_name=domain_quote_name,
                     ),
                     _CHAIN_LANG,
                 )
@@ -209,6 +217,7 @@ def _run_discovery_general(
     max_workers: int = 1,
     mode: str = "legacy",
     options: SerperOptions | None = None,
+    domain_quote_name: bool = False,
 ) -> dict[str, list[dict[str, Any]]]:
     """Stage 1a — general Serper queries. One ``1a_discovery_general.json`` per institution.
 
@@ -236,7 +245,7 @@ def _run_discovery_general(
         sample,
         lambda row: _discover_general_one(
             run_dir, row, stage=stage, languages=languages, num_results=num_results,
-            mode=mode, options=options,
+            mode=mode, options=options, domain_quote_name=domain_quote_name,
         ),
         max_workers=max_workers,
     )
