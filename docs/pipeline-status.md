@@ -1,8 +1,8 @@
 # Pipeline status and measured benchmarks
 
-**Last updated: 2026-08-02** · Branch of record: `feat/discovery-chain`
-(`c9e9f79`, pushed, no PR); instrumentation work on
-`chore/instrumentation-side-tasks`, unpushed · Suite: 766 passed, 2 deselected,
+**Last updated: 2026-08-02** · Branch of record: `main` (`8877db6`, PR #24 —
+the two-query discovery chain is now the shipped default); instrumentation work
+on `chore/instrumentation-side-tasks` · Suite: 766 passed, 2 deselected,
 1 xfailed · ruff clean
 
 The standing record of **what the G3O pipeline has actually been measured to
