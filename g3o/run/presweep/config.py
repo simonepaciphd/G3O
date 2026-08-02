@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
 from g3o.common.batch_client import DEFAULT_MODEL
-from g3o.discovery.query_builder import DEFAULT_EVIDENCE_TERM
+from g3o.discovery.query_builder import (
+    DEFAULT_EVIDENCE_TERM,
+    DOMAIN_QUERY_LANG,
+    EVIDENCE_TERMS_BY_LANG,
+    GENAI_TERMS_BY_LANG,
+    assert_languages_rostered,
+)
 from g3o.extract.batch import (
     DEFAULT_TEXT_CAP_CHARS,
     DEFAULT_TEXT_CAP_RULE,
@@ -81,6 +88,12 @@ class PresweepConfig:
     # (4/24 vs 16/24). Parameterised for the multilingual subproject, which owns
     # native-language legs — do not add English terms here.
     discovery_evidence_term: str = DEFAULT_EVIDENCE_TERM
+    # Per-language override of the token above. ``None`` (the default) means
+    # "use ``discovery_evidence_term`` for English" — see
+    # :attr:`evidence_terms`, which is the single surface the runner reads.
+    # Setting both this and a non-default ``discovery_evidence_term`` is an
+    # error rather than a silent precedence rule.
+    discovery_evidence_terms: Mapping[str, str] | None = None
     # Leg 1: bind the institution name as an exact phrase instead of a hint.
     # Default False. The findings identify the quoted name as the primary
     # failure of the four-slot format (abbreviated master names like
@@ -129,6 +142,79 @@ class PresweepConfig:
     # rather than per-stage caps until load-testing shows otherwise.
     max_workers: int = 1
 
+    def __post_init__(self) -> None:
+        """Reject a language this run could not actually query (A7, 2026-08-02).
+
+        The choke point, deliberately at construction rather than only in the
+        CLI: a programmatically built config gets the same guarantee, and the
+        run fails before it has spent a Serper credit. The roster consulted is
+        mode-specific — a language rostered for ``legacy`` is not thereby
+        runnable under ``chain``, which needs an evidence term.
+
+        This is also what makes :attr:`institution_search_languages` honest by
+        construction: a language that cannot be queried cannot be configured,
+        so the provenance column can no longer claim one that never ran.
+        """
+        if (
+            self.discovery_evidence_terms is not None
+            and self.discovery_evidence_term != DEFAULT_EVIDENCE_TERM
+        ):
+            raise ValueError(
+                "set discovery_evidence_term or discovery_evidence_terms, not "
+                f"both (got {self.discovery_evidence_term!r} and "
+                f"{dict(self.discovery_evidence_terms)!r}). The scalar is "
+                "shorthand for {'en': <term>}; a silent precedence rule here "
+                "would decide which token every leg-2 query carries."
+            )
+        if self.discovery_mode == "chain":
+            assert_languages_rostered(
+                self.discovery_languages, self.evidence_term_roster
+            )
+        else:
+            assert_languages_rostered(self.discovery_languages, GENAI_TERMS_BY_LANG)
+
+    @property
+    def evidence_term_roster(self) -> dict[str, str]:
+        """Every leg-2 token this run *could* use, keyed by language.
+
+        ``discovery_evidence_term`` is kept as CLI/config ergonomics for the
+        single-language case and desugars into ``{"en": <term>}``, so the
+        n=200 confirmation run stays byte-reproducible while there is still
+        only one internal representation to reason about.
+        """
+        if self.discovery_evidence_terms is not None:
+            return dict(self.discovery_evidence_terms)
+        return {**EVIDENCE_TERMS_BY_LANG, "en": self.discovery_evidence_term}
+
+    @property
+    def evidence_terms(self) -> dict[str, str]:
+        """The leg-2 tokens this run *will* issue — the surface the runner reads.
+
+        The roster narrowed to ``discovery_languages`` and ordered by it, so
+        the query order in an artifact matches the configured order. Safe to
+        index unguarded: ``__post_init__`` has already rejected any language
+        absent from the roster.
+        """
+        roster = self.evidence_term_roster
+        return {lang: roster[lang] for lang in self.discovery_languages}
+
+    @property
+    def chain_query_languages(self) -> tuple[str, ...]:
+        """Languages chain mode actually issues queries in, leg 1 included.
+
+        Leg 1's ``official website`` suffix stays English by PI decision
+        (2026-08-02), so **English is always searched under chain mode** even
+        when ``discovery_languages`` names only another language. Recording
+        that here rather than hiding it keeps the cost of that decision visible
+        in the run's own provenance instead of resurfacing as an unexplained
+        English result in a non-English readiness assessment.
+        """
+        ordered = [DOMAIN_QUERY_LANG]
+        for lang in self.discovery_languages:
+            if lang not in ordered:
+                ordered.append(lang)
+        return tuple(ordered)
+
     @property
     def institution_search_languages(self) -> str:
         """Stage 5 provenance string — always the languages Stage 1a/1b actually searched.
@@ -137,5 +223,13 @@ class PresweepConfig:
         field let this drift from ``discovery_languages``, so the extraction
         contract's ``institution_search_languages`` column could understate what
         was searched. Deriving it removes that failure mode.
+
+        Mode-aware since 2026-08-02. Chain mode's leg 1 is English whatever
+        ``discovery_languages`` says, so deriving this from
+        ``discovery_languages`` alone made a ``zh``-configured chain run report
+        ``zh`` while every query it issued was English — the chain-mode sibling
+        of A7, verified live before the fix. Legacy mode is unchanged.
         """
+        if self.discovery_mode == "chain":
+            return ",".join(self.chain_query_languages)
         return ",".join(self.discovery_languages)

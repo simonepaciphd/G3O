@@ -26,7 +26,12 @@ import json
 import sys
 import time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    # Runtime import stays lazy inside the subcommands (g3o.run.presweep pulls
+    # in the whole orchestrator); this is annotation-only.
+    from g3o.run.presweep import PresweepConfig
 
 from g3o.classify.official_site import (
     build_official_site_job,
@@ -316,32 +321,16 @@ def _cmd_persist(args: argparse.Namespace) -> int:
 
 def _cmd_presweep(args: argparse.Namespace) -> int:
     from g3o.common.config import RUNS_DIR
-    from g3o.run.presweep import PresweepConfig, run_presweep
+    from g3o.run.presweep import run_presweep
 
-    config = PresweepConfig(
-        run_id=args.run_id,
-        runs_dir=Path(args.runs_dir or RUNS_DIR),
-        master_csv=Path(args.master_csv),
-        sample_size=args.sample_size,
-        seed=args.seed,
-        stratification=args.stratification,
-        discovery_languages=tuple(
-            s.strip() for s in args.discovery_languages.split(",") if s.strip()
-        ),
-        discovery_results_per_query=args.discovery_results_per_query,
-        discovery_mode=args.discovery_mode,
-        discovery_evidence_term=args.discovery_evidence_term,
-        discovery_domain_quote_name=args.discovery_domain_quote_name,
-        # "omit" -> None (no key in the payload at all), "off" -> False.
-        serper_autocorrect=None if args.serper_autocorrect == "omit" else False,
-        dry_run=not args.execute,
-        stop_after=args.stop_after,
-        filter_mode=args.filter_mode,
-        poll_interval=args.poll_interval,
-        max_wait_per_stage=args.max_wait_per_stage,
-        model=args.model,
-        max_workers=args.max_workers,
-    )
+    # `PresweepConfig.__post_init__` rejects a language this run could not
+    # actually query (A7, 2026-08-02). Surface it as a CLI error rather than a
+    # traceback: it is a user-input mistake, and it fires before any spend.
+    try:
+        config = _presweep_config(args, RUNS_DIR)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
+
     if args.preflight:
         from g3o.run.preflight import PreflightAssumptions, run_preflight
 
@@ -365,6 +354,36 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
     json.dump(summary, sys.stdout, ensure_ascii=False, indent=2, default=str)
     sys.stdout.write("\n")
     return 0
+
+
+def _presweep_config(args: argparse.Namespace, runs_dir_default: Path) -> PresweepConfig:
+    """Project CLI args onto :class:`PresweepConfig`. Raises on invalid input."""
+    from g3o.run.presweep import PresweepConfig
+
+    return PresweepConfig(
+        run_id=args.run_id,
+        runs_dir=Path(args.runs_dir or runs_dir_default),
+        master_csv=Path(args.master_csv),
+        sample_size=args.sample_size,
+        seed=args.seed,
+        stratification=args.stratification,
+        discovery_languages=tuple(
+            s.strip() for s in args.discovery_languages.split(",") if s.strip()
+        ),
+        discovery_results_per_query=args.discovery_results_per_query,
+        discovery_mode=args.discovery_mode,
+        discovery_evidence_term=args.discovery_evidence_term,
+        discovery_domain_quote_name=args.discovery_domain_quote_name,
+        # "omit" -> None (no key in the payload at all), "off" -> False.
+        serper_autocorrect=None if args.serper_autocorrect == "omit" else False,
+        dry_run=not args.execute,
+        stop_after=args.stop_after,
+        filter_mode=args.filter_mode,
+        poll_interval=args.poll_interval,
+        max_wait_per_stage=args.max_wait_per_stage,
+        model=args.model,
+        max_workers=args.max_workers,
+    )
 
 
 # ---------------------------------------------------------------------------
