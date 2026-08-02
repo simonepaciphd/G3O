@@ -9,6 +9,7 @@ attrition ledger shapes/idempotence, the manifest guard on resume, and the
 from __future__ import annotations
 
 import csv
+import json
 from pathlib import Path
 
 import pytest
@@ -121,18 +122,18 @@ def test_dry_run_does_not_require_keys(tmp_path, monkeypatch):
 
 def test_search_empty_result_means_searched_found_nothing(monkeypatch):
     monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
-    monkeypatch.setattr(serper_client, "_cached", lambda q, n: None)
+    monkeypatch.setattr(serper_client, "_cached", lambda payload: None)
     monkeypatch.setattr(serper_client, "_save_cache", lambda *a, **k: None)
-    monkeypatch.setattr(serper_client, "_execute", lambda q, n=10: {"organic": []})
+    monkeypatch.setattr(serper_client, "_execute", lambda payload: {"organic": []})
     assert serper_client.search_google("q", num_results=3) == []
 
 
 def test_search_request_failure_raises_in_live_mode(monkeypatch):
     monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
     serper_client.set_live_mode(True)
-    monkeypatch.setattr(serper_client, "_cached", lambda q, n: None)
+    monkeypatch.setattr(serper_client, "_cached", lambda payload: None)
 
-    def _boom(q, n=10):
+    def _boom(payload):
         raise requests.HTTPError("403 quota")
 
     monkeypatch.setattr(serper_client, "_execute", _boom)
@@ -143,9 +144,9 @@ def test_search_request_failure_raises_in_live_mode(monkeypatch):
 def test_search_request_failure_swallowed_in_dev_mode(monkeypatch):
     monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
     # live mode False (autouse fixture)
-    monkeypatch.setattr(serper_client, "_cached", lambda q, n: None)
+    monkeypatch.setattr(serper_client, "_cached", lambda payload: None)
 
-    def _boom(q, n=10):
+    def _boom(payload):
         raise requests.HTTPError("timeout")
 
     monkeypatch.setattr(serper_client, "_execute", _boom)
@@ -155,7 +156,7 @@ def test_search_request_failure_swallowed_in_dev_mode(monkeypatch):
 def test_missing_key_in_live_mode_is_config_error(monkeypatch):
     monkeypatch.setattr(g3o_config, "SERPER_API_KEY", None)
     serper_client.set_live_mode(True)
-    monkeypatch.setattr(serper_client, "_cached", lambda q, n: None)
+    monkeypatch.setattr(serper_client, "_cached", lambda payload: None)
     with pytest.raises(serper_client.SerperConfigError):
         serper_client.search_google("q")
 
@@ -167,20 +168,164 @@ def test_mock_results_are_never_cached(tmp_path, monkeypatch):
     results = serper_client.search_google("anything", num_results=2, force_refresh=True)
     assert results and all("g3o-mock" in r["link"] for r in results)
     # Nothing written to the cache.
-    assert not (tmp_path / "cache").exists() or not list((tmp_path / "cache").glob("serp_*.json"))
+    assert not (tmp_path / "cache").exists() or not list((tmp_path / "cache").glob("serp_v2_*.json"))
+
+
+def _payload(q="q", n=5, **kw):
+    return serper_client.build_request_payload(q, n, serper_client.SerperOptions(**kw))
 
 
 def test_save_cache_refuses_mock_payload(tmp_path, monkeypatch):
     monkeypatch.setattr(g3o_config, "CACHE_DIR", tmp_path / "cache")
-    serper_client._save_cache("q", 5, [{"link": "https://x.test/g3o-mock"}])
-    assert not list((tmp_path / "cache").glob("serp_*.json")) if (tmp_path / "cache").exists() else True
-    # A real payload IS cached, under a num_results-aware key.
-    serper_client._save_cache("q", 5, [{"link": "https://real.gov/a"}])
-    assert len(list((tmp_path / "cache").glob("serp_*.json"))) == 1
+    serper_client._save_cache(
+        _payload(), {"results": [{"link": "https://x.test/g3o-mock"}], "searchParameters": {}}
+    )
+    assert not list((tmp_path / "cache").glob("serp_v2_*.json")) if (tmp_path / "cache").exists() else True
+    # A real payload IS cached, under a payload-derived key.
+    serper_client._save_cache(
+        _payload(), {"results": [{"link": "https://real.gov/a"}], "searchParameters": {}}
+    )
+    assert len(list((tmp_path / "cache").glob("serp_v2_*.json"))) == 1
+
+
+# ---------------------------------------------------------------------------
+# SERP cache key — every request parameter that can vary must be in the key
+# (2026-08-01). Before this, the key was md5(f"{num}:{query}") and ignored
+# everything else, so the first varying parameter would have collided silently.
+# ---------------------------------------------------------------------------
 
 
 def test_serp_cache_key_includes_num_results():
-    assert serper_client._cache_key("q", 5) != serper_client._cache_key("q", 10)
+    assert serper_client._cache_key(_payload(n=5)) != serper_client._cache_key(_payload(n=10))
+
+
+def test_serp_cache_key_includes_query():
+    assert serper_client._cache_key(_payload(q="a")) != serper_client._cache_key(_payload(q="b"))
+
+
+def test_serp_cache_key_covers_every_option_field():
+    """Each ``SerperOptions`` field must move the key when it moves.
+
+    Enumerated from the dataclass rather than hand-listed, so adding a field
+    without giving it a distinguishing value here fails this test instead of
+    silently entering the request but not the key.
+    """
+    import dataclasses
+
+    baseline = _payload()
+    probes = {"autocorrect": False}  # field name -> a value differing from the default
+    fields = {f.name for f in dataclasses.fields(serper_client.SerperOptions)}
+    assert fields == set(probes), (
+        f"SerperOptions fields {sorted(fields)} not all probed here; "
+        "add a distinguishing value so the cache key stays payload-complete"
+    )
+    for name, value in probes.items():
+        assert serper_client._cache_key(_payload(**{name: value})) != serper_client._cache_key(
+            baseline
+        ), f"{name} does not affect the SERP cache key"
+
+
+def test_serp_cache_key_is_insensitive_to_key_order():
+    a = {"q": "x", "num": 5, "autocorrect": False}
+    b = {"autocorrect": False, "num": 5, "q": "x"}
+    assert serper_client._cache_key(a) == serper_client._cache_key(b)
+
+
+def test_legacy_options_payload_is_byte_identical_to_pre_change_request():
+    """The default (opt-out) path must serialise exactly as it did before.
+
+    ``{"q": ..., "num": ...}`` in that key order is what ``_execute`` POSTed
+    before 2026-08-01; anything else would silently change every request the
+    legacy config path makes.
+    """
+    payload = serper_client.build_request_payload("some query", 5)
+    assert payload == {"q": "some query", "num": 5}
+    assert json.dumps(payload) == json.dumps({"q": "some query", "num": 5})
+    # And the opted-in path genuinely differs.
+    opted = serper_client.build_request_payload(
+        "some query", 5, serper_client.SerperOptions(autocorrect=False)
+    )
+    assert opted == {"q": "some query", "num": 5, "autocorrect": False}
+
+
+def test_execute_posts_exactly_the_payload_that_keys_the_cache(monkeypatch):
+    """The bytes on the wire and the bytes behind the cache key are one dict."""
+    sent: dict = {}
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"organic": [], "searchParameters": {"q": "x", "autocorrect": False}}
+
+    def _fake_post(url, headers=None, data=None, timeout=None):
+        sent["url"] = url
+        sent["body"] = data
+        return _Resp()
+
+    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
+    monkeypatch.setattr(serper_client.requests, "post", _fake_post)
+    payload = serper_client.build_request_payload(
+        "x", 10, serper_client.SerperOptions(autocorrect=False)
+    )
+    serper_client._execute(payload)
+    assert json.loads(sent["body"]) == payload
+
+
+def test_search_captures_search_parameters_echo(tmp_path, monkeypatch):
+    """The echo is captured live and survives a cache round-trip."""
+    echo = {"q": "x", "num": 10, "autocorrect": False, "type": "search", "engine": "google"}
+    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
+    monkeypatch.setattr(g3o_config, "CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setattr(
+        serper_client,
+        "_execute",
+        lambda payload: {
+            "organic": [{"title": "t", "link": "https://real.gov/a", "snippet": "s"}],
+            "searchParameters": echo,
+        },
+    )
+    opts = serper_client.SerperOptions(autocorrect=False)
+    live = serper_client.search_google_detailed("x", num_results=10, options=opts)
+    assert live.from_cache is False
+    assert live.search_parameters == echo
+
+    # Second call hits the cache and still reports the echo.
+    cached = serper_client.search_google_detailed("x", num_results=10, options=opts)
+    assert cached.from_cache is True
+    assert cached.search_parameters == echo
+    assert cached.results == live.results
+
+
+def test_autocorrect_off_and_on_do_not_share_a_cache_entry(tmp_path, monkeypatch):
+    """The regression the payload-derived key exists to prevent."""
+    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
+    monkeypatch.setattr(g3o_config, "CACHE_DIR", tmp_path / "cache")
+    calls: list[dict] = []
+
+    def _exec(payload):
+        calls.append(payload)
+        return {"organic": [{"link": f"https://real.gov/{len(calls)}"}], "searchParameters": {}}
+
+    monkeypatch.setattr(serper_client, "_execute", _exec)
+    serper_client.search_google("q", num_results=5)
+    serper_client.search_google("q", num_results=5, options=serper_client.SerperOptions(autocorrect=False))
+    assert len(calls) == 2, "differing autocorrect collided on one cache entry"
+    assert len(list((tmp_path / "cache").glob("serp_v2_*.json"))) == 2
+
+
+def test_account_endpoint_derives_from_search_endpoint(monkeypatch):
+    monkeypatch.setattr(g3o_config, "SERPER_ENDPOINT", "https://google.serper.dev/search")
+    assert serper_client.account_endpoint() == "https://google.serper.dev/account"
+
+
+def test_get_balance_returns_none_rather_than_raising(monkeypatch):
+    def _boom():
+        raise requests.HTTPError("503")
+
+    monkeypatch.setattr(serper_client, "get_account", _boom)
+    assert serper_client.get_balance() is None
 
 
 # ---------------------------------------------------------------------------

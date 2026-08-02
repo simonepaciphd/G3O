@@ -8,7 +8,7 @@ from typing import Any
 from g3o.common import attrition
 from g3o.common import config as _config
 from g3o.common.institution_report import write_institution_report
-from g3o.discovery.serper_client import set_live_mode
+from g3o.discovery.serper_client import SerperOptions, set_live_mode
 from g3o.report.run_summary import render_run_summary_text, write_run_summary
 from g3o.run.presweep.config import PresweepConfig
 from g3o.run.presweep.planning import plan_run, update_manifest_llm_provenance
@@ -114,12 +114,16 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
     # (T1) on success, on every --stop-after early return, and best-effort on
     # a crash; the state files it reads remain the ground truth either way.
     try:
+        serper_options = SerperOptions(autocorrect=config.serper_autocorrect)
         discovery_general = _run_discovery_general(
             plan.run_dir,
             plan.sample,
             languages=config.discovery_languages,
             num_results=config.discovery_results_per_query,
             max_workers=config.max_workers,
+            mode=config.discovery_mode,
+            options=serper_options,
+            domain_quote_name=config.discovery_domain_quote_name,
         )
         summary["n_discovery_general"] = sum(
             len(v) for v in discovery_general.values()
@@ -152,6 +156,9 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             languages=config.discovery_languages,
             num_results=config.discovery_results_per_query,
             max_workers=config.max_workers,
+            mode=config.discovery_mode,
+            evidence_term=config.discovery_evidence_term,
+            options=serper_options,
         )
         summary["n_discovery_site_restricted"] = sum(
             len(v) for v in discovery_site_restricted.values()

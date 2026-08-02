@@ -162,3 +162,10 @@ three CSVs' columns.
   Stage 2 LLM path runs for every institution; bypass envelopes appear once the
   column is populated.
 - The cost-model brief consumes per-stage telemetry from the run.
+- **Serper spend is measured, not estimated.** `g3o.discovery.serper_client.get_balance()`
+  reads `GET /account`; bracket a run with it and report the delta rather than
+  multiplying queries by a rate — a silently retried or dropped request cannot
+  hide inside a delta. Measured 2026-08-01: **1.84 credits/institution** under
+  the default `chain` mode, **8.52** under `legacy`. The USD-per-credit rate is
+  still an open PI input; `docs/budget/cost-model.md` carries both candidate
+  rates ($0.00056 and $0.001, ~1.8× apart) rather than picking one.

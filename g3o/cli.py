@@ -43,7 +43,7 @@ from g3o.common.batch_client import (
     poll_batch,
     submit_batch,
 )
-from g3o.discovery.query_builder import build_queries
+from g3o.discovery.query_builder import DEFAULT_EVIDENCE_TERM, build_queries
 from g3o.discovery.serper_client import search_google
 from g3o.scrape.fetcher import scrape_url
 
@@ -329,6 +329,11 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
             s.strip() for s in args.discovery_languages.split(",") if s.strip()
         ),
         discovery_results_per_query=args.discovery_results_per_query,
+        discovery_mode=args.discovery_mode,
+        discovery_evidence_term=args.discovery_evidence_term,
+        discovery_domain_quote_name=args.discovery_domain_quote_name,
+        # "omit" -> None (no key in the payload at all), "off" -> False.
+        serper_autocorrect=None if args.serper_autocorrect == "omit" else False,
         dry_run=not args.execute,
         stop_after=args.stop_after,
         filter_mode=args.filter_mode,
@@ -646,7 +651,57 @@ def build_parser() -> argparse.ArgumentParser:
             "not independently settable, so the two can never drift apart."
         ),
     )
-    presweep.add_argument("--discovery-results-per-query", type=int, default=5)
+    presweep.add_argument(
+        "--discovery-results-per-query", type=int, default=10,
+        help=(
+            "Serper 'num'. Default 10: num truncates and costs a flat 1 credit "
+            "either way, so 5 paid for ten results and discarded half. No "
+            "measured yield effect. Pass 5 to reproduce a pre-2026-08-01 run."
+        ),
+    )
+    presweep.add_argument(
+        "--discovery-mode", choices=("legacy", "chain"), default="chain",
+        help=(
+            "Stage 1a/1b query strategy. 'chain' (default since 2026-08-01): "
+            "leg 1 '<name> <country> <disambiguation> official website' in "
+            "Stage 1a and leg 2 'site:<domain> AI' in Stage 1b, 1.84 measured "
+            "credits/institution and 64.5%% of institutions with an own-domain "
+            "relevant hit. 'legacy': the eight-term four-slot GenAI roster in "
+            "both stages, 8.52 measured credits/institution and 20.0%%. See "
+            "agent-workspace/2026-08-01-discovery-chain-validation.md."
+        ),
+    )
+    presweep.add_argument(
+        "--discovery-evidence-term", default=DEFAULT_EVIDENCE_TERM,
+        help=(
+            "Leg 2's evidence token (--discovery-mode chain only). One bare "
+            "unquoted term by measurement: extra English terms add 0 pp once "
+            "site-bound and OR-chains score 4/24 against 16/24. Intended for "
+            "the multilingual subproject's native-language legs."
+        ),
+    )
+    presweep.add_argument(
+        "--discovery-domain-quote-name", action="store_true",
+        help=(
+            "Leg 1 only (--discovery-mode chain): bind the institution name as "
+            "a Google exact phrase instead of an unquoted hint. Off by default "
+            "— the findings identify the quoted name as the primary failure of "
+            "the four-slot format, though that evidence was gathered where a "
+            "quoted name and a quoted GenAI term both had to match, so it does "
+            "not transfer to leg 1 automatically. Provided to A/B the question."
+        ),
+    )
+    presweep.add_argument(
+        "--serper-autocorrect", choices=("omit", "off"), default="off",
+        help=(
+            "Serper's autocorrect parameter. 'off' (default since 2026-08-01) "
+            "sends autocorrect=false, so the query recorded in the artifact is "
+            "the query Google answered. 'omit' sends no key at all, "
+            "reproducing the historical request byte-for-byte — Serper then "
+            "defaults it true and Google may silently respell institution "
+            "names. Provenance, not recall."
+        ),
+    )
     presweep.add_argument(
         "--execute", action="store_true",
         help=(

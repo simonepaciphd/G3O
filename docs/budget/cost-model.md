@@ -1,5 +1,10 @@
 # G3O pipeline cost model
 
+> **Measured figures live in [`../pipeline-status.md`](../pipeline-status.md).**
+> This document *projects*; that one records what has been observed. Where the
+> two disagree, the measurement wins — the Serper line here was understated by
+> ~4× until 2026-08-01.
+
 **Status: provisional — order-of-magnitude, not billing-grade.** This model is a
 linear projection of the full-sweep budget recompute (review F20, 2026-06-11). It
 inherits every assumption of that recompute, including the unresolved
@@ -16,7 +21,8 @@ sizes — **1,000 / 100,000 / 675,000** institutions — broken out by **Serper*
 The pipeline is one call (or a fixed handful of calls) per institution at each
 LLM stage, so the **variable** cost is linear in institution count:
 
-- **Serper discovery** — ~4 queries/institution.
+- **Serper discovery** — see the correction immediately below; the modeled ~4
+  queries/institution does not match what the pipeline issues.
 - **OpenAI Batch** — official-site classify (1 call), URL triage (1 call),
   extraction (~12 pages), validation (1 consolidation call) per institution, all
   on `gpt-5-nano` via the Batch API.
@@ -32,6 +38,59 @@ than fabricating a sweep cadence — the cadence (how many full sweeps run per
 quarter/year) is a research/operations decision, not an engineering constant.
 Multiply per-sweep variable cost by your chosen cadence and add the annual
 standing infra to get a periodized figure.
+
+## Correction — the Serper line is understated (2026-08-01)
+
+**The Serper discovery figures below are wrong and are retained only until the
+confirmation run replaces them.** Two independent problems:
+
+1. **Query count.** The model assumes ~4 queries/institution. The pipeline in
+   `discovery_mode="legacy"` issues **16**: `GENAI_TERMS_BY_LANG["en"]` holds
+   eight terms (expanded from four on 2026-07-04, PI sign-off), Stage 1a emits
+   one query per term, and Stage 1b wraps each of those eight in `site:`. The
+   modeled count predates that expansion and never counted both stages.
+2. **Per-credit rate is unresolved and is a PI input, not an engineering
+   constant.** The $2.24/1,000-institution line implies ~$0.00056/query at 4
+   queries. The findings memo prices credits at **$0.001** each. Serper sells
+   credits in packs whose unit price falls with pack size, so both can be
+   defensible — but they differ by ~1.8×, and this model should not silently
+   pick one. **Flagged for the PI; not resolved here.**
+
+### Measured, not modeled (confirmation run, 2026-08-01)
+
+200 institutions per arm, same sample, seed 22294, drawn from master rows with
+a usable `website`. Spend is a `GET /account` **balance delta**, not arithmetic:
+
+| Mode | Design cost | **Measured credits/inst** | Total (n=200) |
+|---|---:|---:|---:|
+| `legacy` (production) | 16 | **8.52** | 1,704 |
+| `chain` | 2 | **1.84** | 368 |
+
+**Production does not actually cost 16 credits/institution — it costs ~8.5**,
+and the gap is a symptom rather than a saving. Legacy Stage 1a's GenAI-term
+queries rarely surface an institution's own homepage, so Stage 2 found an
+official site for only **13 of 200 institutions (6.5%)**, and Stage 1b — which
+runs only for institutions that have one — was skipped for the other 187.
+Production is cheaper than designed because most of it never runs. Under the
+chain, Stage 2 found a site for 176/200 (88%).
+
+So the chain's saving is **6.68 credits/institution**, not 14:
+
+| At 719,588 institutions | $0.00056/credit | $0.001/credit |
+|---|---:|---:|
+| `legacy` measured (8.52) | $3,434 | $6,131 |
+| `chain` measured (1.84) | $742 | $1,324 |
+| **Saving** | **$2,692** | **$4,807** |
+
+Do not propagate the per-intervention figure of −$5,757 from the findings memo
+for interventions #1 and #2 individually: that is 8 credits × 719,588 ×
+$0.001, but each change is 8 → 1, so the arithmetic saving is 7 credits =
+−$5,037 each. Both figures are in any case superseded by the measured rates
+above, which price the baseline as it actually behaves rather than as designed.
+
+A caveat that cuts the other way: if Stage 2's official-site rate under legacy
+were repaired *without* adopting the chain, legacy's cost would rise toward its
+16-credit design figure rather than stay at 8.5.
 
 ## Per-institution unit rates (basis of the projection)
 

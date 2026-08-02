@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Literal
 
 from g3o.common.batch_client import DEFAULT_MODEL
+from g3o.discovery.query_builder import DEFAULT_EVIDENCE_TERM
 from g3o.extract.batch import (
     DEFAULT_TEXT_CAP_CHARS,
     DEFAULT_TEXT_CAP_RULE,
@@ -47,7 +48,53 @@ class PresweepConfig:
     stratification: Literal["equal"] = "equal"  # only equal in Session B
     stratify_keys: tuple[str, ...] = STRATIFY_KEYS
     discovery_languages: tuple[str, ...] = ("en",)
-    discovery_results_per_query: int = 5
+    # 10, not 5: ``num`` truncates and costs a flat 1 credit either way, so at 5
+    # the pipeline paid for ten results and discarded half of them. A waste fix
+    # with no measured yield effect. Serper returns 9 in practice.
+    discovery_results_per_query: int = 10
+    # ── Two-query discovery chain (2026-08-01, PI sign-off) ──────────────────
+    # ``legacy``: Stage 1a/1b both issue the four-slot GENAI_TERMS_BY_LANG
+    #   roster (8 queries each). Reachable, unchanged, and byte-identical to
+    #   pre-2026-08-01 when ``serper_autocorrect`` and
+    #   ``discovery_results_per_query`` are also returned to None/5.
+    # ``chain``:  Stage 1a issues one domain-discovery query
+    #   (``<name> <country> <disambiguation> official website``) and 1b one bare
+    #   site-bound evidence query (``site:<domain> AI``) — 2 credits/inst.
+    #
+    # **Default flipped to ``chain`` on the confirmation run** (PI sign-off,
+    # 2026-08-01; report: agent-workspace/2026-08-01-discovery-chain-validation.md).
+    # 200 institutions per arm, same sample, GET /account balance deltas:
+    #
+    #                            legacy    chain
+    #   credits / institution      8.52     1.84
+    #   >=1 own-domain relevant   20.0%    64.5%
+    #   Stage 2 found a site      6.5%     88.0%
+    #
+    #   paired McNemar 94 gains / 5 losses, exact two-sided p = 2.4e-22.
+    #
+    # The three defaults below (mode, results-per-query, autocorrect) are set to
+    # exactly the configuration that produced those numbers. Keeping the default
+    # at a configuration that was never measured is the failure mode this avoids.
+    discovery_mode: Literal["legacy", "chain"] = "chain"
+    # Leg 2's evidence token. One bare unquoted term by measurement: extra
+    # English terms add 0 pp once site-bound and OR-chains are actively harmful
+    # (4/24 vs 16/24). Parameterised for the multilingual subproject, which owns
+    # native-language legs — do not add English terms here.
+    discovery_evidence_term: str = DEFAULT_EVIDENCE_TERM
+    # Leg 1: bind the institution name as an exact phrase instead of a hint.
+    # Default False. The findings identify the quoted name as the primary
+    # failure of the four-slot format (abbreviated master names like
+    # "Polson H S" match almost nothing) — but that was measured where a quoted
+    # name AND a quoted GenAI term both had to match, so it does not transfer
+    # to leg 1 automatically. The flag exists to settle it by measurement.
+    discovery_domain_quote_name: bool = False
+    # Serper ``autocorrect``. ``None`` omits the key entirely, reproducing the
+    # historical request byte-for-byte; ``False`` stops Google silently
+    # respelling institution names. A provenance parameter, not a recall lever —
+    # but the query recorded in the artifact should be the query Google
+    # answered, and ``False`` is what the confirmation run measured. Set None to
+    # reproduce a pre-2026-08-01 request exactly.
+    serper_autocorrect: bool | None = False
     dry_run: bool = True
     stop_after: StageName = "extract"
     # Stage 1c eligibility pre-filter mode (design memo 2026-07-06, decision 2).

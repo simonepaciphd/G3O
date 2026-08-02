@@ -73,22 +73,23 @@ def test_save_cache_atomic_write_survives_concurrent_readers(tmp_path, monkeypat
     from g3o.common import config
 
     monkeypatch.setattr(config, "CACHE_DIR", str(tmp_path))
-    query, num_results = "concurrent atomic-write query", 5
+    payload = serper_client.build_request_payload("concurrent atomic-write query", 5)
     data = [{"title": "t", "link": "https://x.gov/a", "snippet": "s"}]
+    entry = {"results": data, "searchParameters": {}}
 
     errors: list[Exception] = []
 
     def writer() -> None:
         for _ in range(25):
-            serper_client._save_cache(query, num_results, data)
+            serper_client._save_cache(payload, entry)
 
     def reader() -> None:
         for _ in range(25):
             try:
-                cached = serper_client._cached(query, num_results)
+                cached = serper_client._cached(payload)
                 if cached is not None:
-                    assert isinstance(cached, list)
-                    assert cached == data
+                    assert isinstance(cached, dict)
+                    assert cached["results"] == data
             except Exception as exc:  # noqa: BLE001 - a torn read is exactly what we assert against
                 errors.append(exc)
 

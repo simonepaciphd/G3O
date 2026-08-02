@@ -81,6 +81,102 @@ def _hint(value: str) -> str:
     cleaned = _TOKEN_INITIAL_MINUS.sub(r"\1", cleaned)
     return " ".join(cleaned.split())
 
+# ---------------------------------------------------------------------------
+# Two-query discovery chain (2026-08-01). Additive: `build_queries` above is
+# untouched and still serves the legacy Stage 1a/1b path.
+#
+# Findings (agent-workspace/2026-08-01-serper-discovery-yield-findings.md,
+# n=24 with hand-adjudicated ground truth): the four-slot format asks one query
+# to identify the institution *and* find GenAI evidence, and does neither well
+# (6/24 relevant at a designed 16 credits/inst). Splitting the jobs across two
+# 1-credit legs scores 14/24; paired McNemar 9 gains / 1 loss, p=0.021.
+#
+# Confirmed at n=200 and now the pipeline default (2026-08-01-discovery-chain-
+# validation.md, PI sign-off). Measured as GET /account balance deltas over 200
+# institutions per arm, same sample: 1.84 credits/inst and 64.5% of
+# institutions with an own-domain relevant hit, against legacy's 8.52 and
+# 20.0%. Paired McNemar 94 gains / 5 losses, exact two-sided p = 2.4e-22.
+# (Legacy measures below its 16-credit design cost only because Stage 2 finds
+# an official site for just 13/200, so Stage 1b is skipped for 187.)
+#
+# Two results from that work are load-bearing here and should not be
+# re-litigated by tuning these functions:
+#   - The **quoted institution name is the primary failure**. Master local names
+#     are abbreviated (`Polson H S`, `KELLER ISD`) and quoting them exactly
+#     matches almost nothing — three institutions returned zero URLs. Hence
+#     `_hint`, not `_phrase`, in leg 1.
+#   - Once site-bound, **extra English terms measure at exactly 0 pp** and
+#     OR-chains are actively harmful (4/24 vs 16/24 for the bare token). Hence
+#     leg 2 is one bare, unquoted token.
+# ---------------------------------------------------------------------------
+
+DOMAIN_QUERY_SUFFIX = "official website"
+
+# Leg 2's default evidence token. Bare and unquoted by measurement, not by
+# omission — see the module note above.
+DEFAULT_EVIDENCE_TERM = "AI"
+
+
+def build_domain_query(
+    institution_name: str,
+    country: str | None = None,
+    disambiguation: str | None = None,
+    quote_name: bool = False,
+) -> str:
+    """Leg 1 — identify the institution's own domain. One credit.
+
+    ``<name> <country> <disambiguation> official website``. Slot order matches
+    :func:`build_queries`; any absent slot is skipped.
+
+    ``disambiguation`` is the master's parent-geography annotation (PI catch,
+    2026-08-01 — it was missing from the first cut of this function). It carries
+    **30.2% of the full master (217,385 rows)** and separates units that
+    ``country`` alone cannot: three distinct ``Ain Beida`` local bodies sit in
+    Algeria, told apart only by ``Oum El Bouaghi — commune`` vs
+    ``Ouargla — commune``. Domain discovery is hardest on exactly those rows, so
+    omitting it silently degraded the case leg 1 most needs to get right. (Only
+    4.7% of the ground-truth-eligible pool carries one, which is why the
+    2026-08-01 confirmation run barely felt it.)
+
+    ``quote_name`` binds the institution name as an exact phrase instead of a
+    hint. **Default False, and that default is evidence-backed:** the findings
+    identify the quoted name as the primary failure of the four-slot format —
+    master local names are abbreviated (``Polson H S``, ``KELLER ISD``) and
+    quoting them matches almost nothing. That evidence was gathered where a
+    quoted name *and* a quoted GenAI term both had to match, so it does not
+    transfer to leg 1 automatically; the flag exists to settle the question on
+    measurement rather than argument.
+
+    Unquoted slots are sanitized through :func:`_hint`: outside quotes a
+    token-initial ``-`` is Google's exclusion operator and a stray ``"`` opens a
+    phrase.
+    """
+    name = _phrase(institution_name) if quote_name else _hint(institution_name)
+    slots = [name]
+    for qualifier in (country, disambiguation):
+        hint = _hint(qualifier) if qualifier else ""
+        if hint:
+            slots.append(hint)
+    slots.append(DOMAIN_QUERY_SUFFIX)
+    return " ".join(s for s in slots if s)
+
+
+def build_evidence_query(site_domain: str, term: str = DEFAULT_EVIDENCE_TERM) -> str:
+    """Leg 2 — find GenAI evidence on a known domain. One credit.
+
+    ``site:<domain> AI``. Deliberately *not* wrapped around
+    :func:`build_queries`: production Stage 1b wraps the whole four-slot query
+    in ``site:``, repeating the institution name inside a query already bound
+    to that institution's domain, and **93.2% of those queries (179/192) return
+    zero results.**
+
+    ``term`` stays a parameter so the multilingual subproject can pass a
+    native-language token without touching this module; it is not a knob for
+    adding English terms, which measure at 0 pp.
+    """
+    return f"site:{site_domain} {term}".strip()
+
+
 def build_queries(
     institution_name: str,
     languages: Iterable[str],

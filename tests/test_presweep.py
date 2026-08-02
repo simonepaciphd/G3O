@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+from g3o.discovery.serper_client import SerperResult
 from g3o.run.presweep import (
     PresweepConfig,
     build_manifest,
@@ -23,6 +24,15 @@ from g3o.run.presweep import (
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
+
+def _sr(links: list[dict[str, Any]]) -> SerperResult:
+    """Wrap bare result dicts as a :class:`SerperResult` for stage-runner fakes.
+
+    The Stage 1a/1b runners call ``search_google_detailed`` (2026-08-01) so they
+    can persist Serper's ``searchParameters`` echo; these fakes stand in for it.
+    """
+    return SerperResult(results=links, search_parameters={}, from_cache=False, payload={})
 
 
 def _row(
@@ -518,14 +528,14 @@ def test_run_discovery_general_writes_1a_artifact_filename(tmp_path: Path):
     config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=2)
     plan = ps.plan_run(config)
 
-    monkey = ps.stage_discovery.search_google
-    ps.stage_discovery.search_google = lambda *a, **kw: []  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google_detailed
+    ps.stage_discovery.search_google_detailed = lambda *a, **kw: _sr([])  # type: ignore[assignment]
     try:
         ps._run_discovery_general(
             plan.run_dir, plan.sample, languages=("en",), num_results=5,
         )
     finally:
-        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     for inst_id in plan.manifest["institutions"]:
         assert (plan.run_dir / inst_id / "1a_discovery_general.json").exists()
@@ -552,18 +562,18 @@ def test_run_discovery_general_queries_include_country(tmp_path: Path):
 
     seen_queries: list[str] = []
 
-    def _capture(query: str, num_results: int = 10, force_refresh: bool = False) -> list[dict]:
+    def _capture(query: str, num_results: int = 10, force_refresh: bool = False, **kw):
         seen_queries.append(query)
-        return []
+        return _sr([])
 
-    monkey = ps.stage_discovery.search_google
-    ps.stage_discovery.search_google = _capture  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google_detailed
+    ps.stage_discovery.search_google_detailed = _capture  # type: ignore[assignment]
     try:
         ps._run_discovery_general(
             plan.run_dir, plan.sample, languages=("en",), num_results=5,
         )
     finally:
-        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     assert seen_queries
     assert all('"House of Representatives"' in q for q in seen_queries)
@@ -594,18 +604,18 @@ def test_run_discovery_general_queries_include_disambiguation_hint(tmp_path: Pat
 
     seen_queries: list[str] = []
 
-    def _capture(query: str, num_results: int = 10, force_refresh: bool = False) -> list[dict]:
+    def _capture(query: str, num_results: int = 10, force_refresh: bool = False, **kw):
         seen_queries.append(query)
-        return []
+        return _sr([])
 
-    monkey = ps.stage_discovery.search_google
-    ps.stage_discovery.search_google = _capture  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google_detailed
+    ps.stage_discovery.search_google_detailed = _capture  # type: ignore[assignment]
     try:
         ps._run_discovery_general(
             plan.run_dir, plan.sample, languages=("en",), num_results=5,
         )
     finally:
-        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     assert seen_queries
     for q in seen_queries:
@@ -634,15 +644,15 @@ def test_run_discovery_general_warns_when_country_missing(
     config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
     plan = ps.plan_run(config)
 
-    monkey = ps.stage_discovery.search_google
-    ps.stage_discovery.search_google = lambda *a, **kw: []  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google_detailed
+    ps.stage_discovery.search_google_detailed = lambda *a, **kw: _sr([])  # type: ignore[assignment]
     try:
         with caplog.at_level("WARNING"):
             ps._run_discovery_general(
                 plan.run_dir, plan.sample, languages=("en",), num_results=5,
             )
     finally:
-        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     assert any("no country" in rec.message for rec in caplog.records)
 
@@ -661,19 +671,19 @@ def test_run_discovery_site_restricted_skips_when_no_site(tmp_path: Path):
 
     seen_queries: list[str] = []
 
-    def _capture(query: str, num_results: int = 10, force_refresh: bool = False) -> list[dict]:
+    def _capture(query: str, num_results: int = 10, force_refresh: bool = False, **kw):
         seen_queries.append(query)
-        return []
+        return _sr([])
 
-    monkey = ps.stage_discovery.search_google
-    ps.stage_discovery.search_google = _capture  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google_detailed
+    ps.stage_discovery.search_google_detailed = _capture  # type: ignore[assignment]
     try:
         out = ps._run_discovery_site_restricted(
             plan.run_dir, plan.sample, official_sites,
             languages=("en",), num_results=5,
         )
     finally:
-        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     # Inst A: queries fired, 1b file written. Inst B: skipped — no queries, no file.
     assert (plan.run_dir / inst_a / "1b_discovery_site_restricted.json").exists()
@@ -701,15 +711,15 @@ def test_run_discovery_site_restricted_records_carry_site_domain(tmp_path: Path)
          "domain": "example.gov", "position": 1, "date": None, "sitelinks": []},
     ]
 
-    monkey = ps.stage_discovery.search_google
-    ps.stage_discovery.search_google = lambda *a, **kw: canned  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google_detailed
+    ps.stage_discovery.search_google_detailed = lambda *a, **kw: _sr(canned)  # type: ignore[assignment]
     try:
         out = ps._run_discovery_site_restricted(
             plan.run_dir, plan.sample, {inst_id: "https://example.gov/"},
             languages=("en",), num_results=5,
         )
     finally:
-        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     payload = json.loads(
         (plan.run_dir / inst_id / "1b_discovery_site_restricted.json").read_text(
@@ -1282,14 +1292,14 @@ def test_stage1a_writes_done_marker_at_end(tmp_path: Path):
     config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=2)
     plan = ps.plan_run(config)
 
-    monkey = ps.stage_discovery.search_google
-    ps.stage_discovery.search_google = lambda *a, **kw: []  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google_detailed
+    ps.stage_discovery.search_google_detailed = lambda *a, **kw: _sr([])  # type: ignore[assignment]
     try:
         ps._run_discovery_general(
             plan.run_dir, plan.sample, languages=("en",), num_results=5,
         )
     finally:
-        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     assert is_done(plan.run_dir, "discovery_general")
 
@@ -1307,11 +1317,11 @@ def test_run_discovery_general_concurrent_matches_sequential_output(tmp_path: Pa
     rows = _build_master(n_strata=6, rows_per_stratum=1)
     master = _write_master_csv(tmp_path / "master.csv", rows)
 
-    def _fake_search(query: str, num_results: int = 10, force_refresh: bool = False):
-        return [
+    def _fake_search(query: str, num_results: int = 10, force_refresh: bool = False, **kw):
+        return _sr([
             {"link": f"https://example.gov/{abs(hash(query)) % 10_000}",
              "title": "t", "snippet": "s"}
-        ]
+        ])
 
     def _run(run_id: str, max_workers: int):
         config = PresweepConfig(
@@ -1319,15 +1329,15 @@ def test_run_discovery_general_concurrent_matches_sequential_output(tmp_path: Pa
             sample_size=6, seed=22294, dry_run=True,
         )
         plan = ps.plan_run(config)
-        monkey = ps.stage_discovery.search_google
-        ps.stage_discovery.search_google = _fake_search  # type: ignore[assignment]
+        monkey = ps.stage_discovery.search_google_detailed
+        ps.stage_discovery.search_google_detailed = _fake_search  # type: ignore[assignment]
         try:
             return ps._run_discovery_general(
                 plan.run_dir, plan.sample, languages=("en",), num_results=5,
                 max_workers=max_workers,
             )
         finally:
-            ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+            ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     out_seq = _run("seq-run", max_workers=1)
     out_conc = _run("conc-run", max_workers=4)
@@ -1345,9 +1355,9 @@ def test_run_discovery_general_concurrent_is_faster_than_sequential(tmp_path: Pa
     rows = _build_master(n_strata=6, rows_per_stratum=1)
     master = _write_master_csv(tmp_path / "master.csv", rows)
 
-    def _slow_search(query: str, num_results: int = 10, force_refresh: bool = False):
+    def _slow_search(query: str, num_results: int = 10, force_refresh: bool = False, **kw):
         time.sleep(0.03)
-        return []
+        return _sr([])
 
     def _timed_run(run_id: str, max_workers: int) -> float:
         config = PresweepConfig(
@@ -1355,8 +1365,8 @@ def test_run_discovery_general_concurrent_is_faster_than_sequential(tmp_path: Pa
             sample_size=6, seed=22294, dry_run=True,
         )
         plan = ps.plan_run(config)
-        monkey = ps.stage_discovery.search_google
-        ps.stage_discovery.search_google = _slow_search  # type: ignore[assignment]
+        monkey = ps.stage_discovery.search_google_detailed
+        ps.stage_discovery.search_google_detailed = _slow_search  # type: ignore[assignment]
         try:
             start = time.monotonic()
             ps._run_discovery_general(
@@ -1365,7 +1375,7 @@ def test_run_discovery_general_concurrent_is_faster_than_sequential(tmp_path: Pa
             )
             return time.monotonic() - start
         finally:
-            ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+            ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     elapsed_seq = _timed_run("seq-timed", max_workers=1)
     elapsed_conc = _timed_run("conc-timed", max_workers=6)
@@ -1402,13 +1412,13 @@ def test_run_discovery_general_failure_cancels_pending_preserves_completed_and_r
     fail_name = ps.institution_record(fail_row)["institution_name"]
     fail_inst_id = ps.synth_institution_id(fail_row)
 
-    def _failing_search(query: str, num_results: int = 10, force_refresh: bool = False):
+    def _failing_search(query: str, num_results: int = 10, force_refresh: bool = False, **kw):
         if fail_name in query:
             raise SerperRequestError("simulated failure")
-        return [{"link": "https://example.gov/x", "title": "t", "snippet": "s"}]
+        return _sr([{"link": "https://example.gov/x", "title": "t", "snippet": "s"}])
 
-    monkey = ps.stage_discovery.search_google
-    ps.stage_discovery.search_google = _failing_search  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google_detailed
+    ps.stage_discovery.search_google_detailed = _failing_search  # type: ignore[assignment]
     try:
         with pytest.raises(SerperRequestError):
             ps._run_discovery_general(
@@ -1416,7 +1426,7 @@ def test_run_discovery_general_failure_cancels_pending_preserves_completed_and_r
                 max_workers=1,
             )
     finally:
-        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     # Stage not marked done; the failing institution's own artifact was never
     # written (it raised inside its own worker, before the write).
@@ -1427,17 +1437,17 @@ def test_run_discovery_general_failure_cancels_pending_preserves_completed_and_r
     # is still missing; the previously-failing institution now succeeds.
     seen_queries: list[str] = []
 
-    def _fixed_search(query: str, num_results: int = 10, force_refresh: bool = False):
+    def _fixed_search(query: str, num_results: int = 10, force_refresh: bool = False, **kw):
         seen_queries.append(query)
-        return [{"link": "https://example.gov/x", "title": "t", "snippet": "s"}]
+        return _sr([{"link": "https://example.gov/x", "title": "t", "snippet": "s"}])
 
-    ps.stage_discovery.search_google = _fixed_search  # type: ignore[assignment]
+    ps.stage_discovery.search_google_detailed = _fixed_search  # type: ignore[assignment]
     try:
         out = ps._run_discovery_general(
             plan.run_dir, plan.sample, languages=("en",), num_results=5, max_workers=1,
         )
     finally:
-        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     assert is_done(plan.run_dir, "discovery_general")
     assert len(out) == 4
@@ -1507,11 +1517,11 @@ def test_run_discovery_site_restricted_concurrent_matches_sequential_output(
     rows = _build_master(n_strata=6, rows_per_stratum=1)
     master = _write_master_csv(tmp_path / "master.csv", rows)
 
-    def _fake_search(query: str, num_results: int = 10, force_refresh: bool = False):
-        return [
+    def _fake_search(query: str, num_results: int = 10, force_refresh: bool = False, **kw):
+        return _sr([
             {"link": f"https://example.gov/{abs(hash(query)) % 10_000}",
              "title": "t", "snippet": "s"}
-        ]
+        ])
 
     def _run(run_id: str, max_workers: int):
         config = PresweepConfig(
@@ -1523,15 +1533,15 @@ def test_run_discovery_site_restricted_concurrent_matches_sequential_output(
             ps.synth_institution_id(row): f"https://{ps.synth_institution_id(row).lower()}.gov/"
             for row in plan.sample
         }
-        monkey = ps.stage_discovery.search_google
-        ps.stage_discovery.search_google = _fake_search  # type: ignore[assignment]
+        monkey = ps.stage_discovery.search_google_detailed
+        ps.stage_discovery.search_google_detailed = _fake_search  # type: ignore[assignment]
         try:
             return ps._run_discovery_site_restricted(
                 plan.run_dir, plan.sample, official_sites,
                 languages=("en",), num_results=5, max_workers=max_workers,
             )
         finally:
-            ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+            ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     out_seq = _run("seq-1b-run", max_workers=1)
     out_conc = _run("conc-1b-run", max_workers=4)
@@ -1550,9 +1560,9 @@ def test_run_discovery_site_restricted_concurrent_is_faster_than_sequential(
     rows = _build_master(n_strata=6, rows_per_stratum=1)
     master = _write_master_csv(tmp_path / "master.csv", rows)
 
-    def _slow_search(query: str, num_results: int = 10, force_refresh: bool = False):
+    def _slow_search(query: str, num_results: int = 10, force_refresh: bool = False, **kw):
         time.sleep(0.03)
-        return []
+        return _sr([])
 
     def _timed_run(run_id: str, max_workers: int) -> float:
         config = PresweepConfig(
@@ -1564,8 +1574,8 @@ def test_run_discovery_site_restricted_concurrent_is_faster_than_sequential(
             ps.synth_institution_id(row): f"https://{ps.synth_institution_id(row).lower()}.gov/"
             for row in plan.sample
         }
-        monkey = ps.stage_discovery.search_google
-        ps.stage_discovery.search_google = _slow_search  # type: ignore[assignment]
+        monkey = ps.stage_discovery.search_google_detailed
+        ps.stage_discovery.search_google_detailed = _slow_search  # type: ignore[assignment]
         try:
             start = time.monotonic()
             ps._run_discovery_site_restricted(
@@ -1574,7 +1584,7 @@ def test_run_discovery_site_restricted_concurrent_is_faster_than_sequential(
             )
             return time.monotonic() - start
         finally:
-            ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+            ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     elapsed_seq = _timed_run("seq-1b-timed", max_workers=1)
     elapsed_conc = _timed_run("conc-1b-timed", max_workers=6)
@@ -1613,13 +1623,13 @@ def test_run_discovery_site_restricted_failure_cancels_pending_preserves_complet
     fail_name = ps.institution_record(fail_row)["institution_name"]
     fail_inst_id = ps.synth_institution_id(fail_row)
 
-    def _failing_search(query: str, num_results: int = 10, force_refresh: bool = False):
+    def _failing_search(query: str, num_results: int = 10, force_refresh: bool = False, **kw):
         if fail_name in query:
             raise SerperRequestError("simulated failure")
-        return [{"link": "https://example.gov/x", "title": "t", "snippet": "s"}]
+        return _sr([{"link": "https://example.gov/x", "title": "t", "snippet": "s"}])
 
-    monkey = ps.stage_discovery.search_google
-    ps.stage_discovery.search_google = _failing_search  # type: ignore[assignment]
+    monkey = ps.stage_discovery.search_google_detailed
+    ps.stage_discovery.search_google_detailed = _failing_search  # type: ignore[assignment]
     try:
         with pytest.raises(SerperRequestError):
             ps._run_discovery_site_restricted(
@@ -1627,7 +1637,7 @@ def test_run_discovery_site_restricted_failure_cancels_pending_preserves_complet
                 languages=("en",), num_results=5, max_workers=1,
             )
     finally:
-        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     # Stage not marked done; the failing institution's own artifact was never
     # written (it raised inside its own worker, before the write).
@@ -1640,18 +1650,18 @@ def test_run_discovery_site_restricted_failure_cancels_pending_preserves_complet
     # is still missing; the previously-failing institution now succeeds.
     seen_queries: list[str] = []
 
-    def _fixed_search(query: str, num_results: int = 10, force_refresh: bool = False):
+    def _fixed_search(query: str, num_results: int = 10, force_refresh: bool = False, **kw):
         seen_queries.append(query)
-        return [{"link": "https://example.gov/x", "title": "t", "snippet": "s"}]
+        return _sr([{"link": "https://example.gov/x", "title": "t", "snippet": "s"}])
 
-    ps.stage_discovery.search_google = _fixed_search  # type: ignore[assignment]
+    ps.stage_discovery.search_google_detailed = _fixed_search  # type: ignore[assignment]
     try:
         out = ps._run_discovery_site_restricted(
             plan.run_dir, plan.sample, official_sites,
             languages=("en",), num_results=5, max_workers=1,
         )
     finally:
-        ps.stage_discovery.search_google = monkey  # type: ignore[assignment]
+        ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     assert is_done(plan.run_dir, "discovery_site_restricted")
     assert len(out) == 4

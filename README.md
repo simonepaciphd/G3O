@@ -69,6 +69,12 @@ See [`docs/architecture.md`](docs/architecture.md) for the mapping to the
 paper, and [`docs/data_dictionary.md`](docs/data_dictionary.md) for the
 output schema (G3O Output Contract v2.0).
 
+For **what the pipeline has actually been measured to do** — per-stage
+benchmarks, what is still unmeasured, and the ranked improvement list — see
+[`docs/pipeline-status.md`](docs/pipeline-status.md). Figures there are labelled
+by evidence class (measured / threshold / assumption); the distinction matters,
+because an unlabelled assumption in the cost model was wrong by ~4×.
+
 ## Repository layout
 
 ```

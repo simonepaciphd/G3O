@@ -169,9 +169,23 @@ def _collect_institution(
             if language is None
             else sum(1 for r in records_1a if r.get("language") == language)
         )
+        # Two-query chain (2026-08-01). Under ``mode="chain"`` Stage 1a is
+        # domain discovery, so "did Serper return >=1 URL" is trivially true
+        # for nearly every institution and the legacy gauge below can no longer
+        # go red. The honest chain-mode recall signal is whether leg 1 produced
+        # a *usable domain*, which the stage records into the artifact (see
+        # g3o.discovery.domain_pick). Read, not recomputed: report stays
+        # disk-only and does not import the discovery package.
+        d["discovery_mode"] = payload.get("mode", "legacy")
+        naive = payload.get("naive_domain") or {}
+        d["naive_domain"] = naive.get("domain")
+        d["naive_domain_rank"] = naive.get("rank")
     else:
         d["has_1a"] = False
         d["n_urls_1a"] = 0
+        d["discovery_mode"] = "legacy"
+        d["naive_domain"] = None
+        d["naive_domain_rank"] = None
 
     # Stage 2
     p = inst_dir / "2_official_site.json"
@@ -371,6 +385,43 @@ def compute_health_report(
             fail=thresholds.discovery_general_fail_pct,
         ),
     }
+
+    # Chain mode: replace the stage flag with a gauge that can actually go red.
+    #
+    # ``pct_institutions_with_urls`` measures "Serper returned something". Under
+    # the legacy roster that was a real recall signal (3/24 institutions
+    # returned zero on the evaluation set). Under leg 1 —
+    # ``<name> <country> official website`` — essentially every institution
+    # gets results, so the legacy flag would sit permanently green while
+    # reporting nothing. What matters in chain mode is whether leg 1 found a
+    # *usable domain* for Stage 2 to adjudicate: 21/24 on the evaluation set.
+    #
+    # Both figures are always reported; only the flag switches, so a chain run
+    # and a legacy run stay comparable line-for-line.
+    if any(d["discovery_mode"] == "chain" for d in inst_data):
+        chain_data = [d for d in inst_data if d["discovery_mode"] == "chain"]
+        n_chain = len(chain_data)
+        n_with_domain = sum(1 for d in chain_data if d["naive_domain"])
+        n_rank_1 = sum(1 for d in chain_data if d["naive_domain_rank"] == 1)
+        pct_domain = _pct(n_with_domain, n_chain)
+        stage_1a.update(
+            {
+                "discovery_mode": "chain",
+                "n_institutions_chain": n_chain,
+                "n_institutions_with_domain": n_with_domain,
+                "pct_institutions_with_domain": pct_domain,
+                # Rank 1 = leg 1's very first organic result was usable. A
+                # falling rank-1 share is the early warning that the query is
+                # drifting off-target before the domain rate itself moves.
+                "n_domain_at_rank_1": n_rank_1,
+                "pct_domain_at_rank_1": _pct(n_rank_1, n_chain),
+                "flag": _flag_low_is_bad(
+                    pct_domain,
+                    warn=thresholds.discovery_domain_warn_pct,
+                    fail=thresholds.discovery_domain_fail_pct,
+                ),
+            }
+        )
 
     # ── Stage 2 ───────────────────────────────────────────────────────────────
     # Eligible for a Stage 2 decision: institutions whose 1a discovery produced
