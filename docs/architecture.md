@@ -190,6 +190,10 @@ only the pilot at `data/pilot_v1/`).
 ## See also
 
 - [`../README.md`](../README.md) — project overview and quickstart.
+- [`pipeline-status.md`](pipeline-status.md) — **what the pipeline has actually
+  been measured to do**, stage by stage, what is still unmeasured, and the
+  ranked improvement list. This file describes design; that one describes
+  evidence.
 - [`data_dictionary.md`](data_dictionary.md) — output schema.
 - [`replication.md`](replication.md) — how to reproduce / extend pilot results.
 - [`../g3o/extract/prompts/output_contract.md`](../g3o/extract/prompts/output_contract.md) — schema-of-record.

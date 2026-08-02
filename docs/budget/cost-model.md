@@ -1,5 +1,10 @@
 # G3O pipeline cost model
 
+> **Measured figures live in [`../pipeline-status.md`](../pipeline-status.md).**
+> This document *projects*; that one records what has been observed. Where the
+> two disagree, the measurement wins — the Serper line here was understated by
+> ~4× until 2026-08-01.
+
 **Status: provisional — order-of-magnitude, not billing-grade.** This model is a
 linear projection of the full-sweep budget recompute (review F20, 2026-06-11). It
 inherits every assumption of that recompute, including the unresolved
