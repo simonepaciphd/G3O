@@ -25,7 +25,11 @@ from g3o.discovery.query_builder import (
     build_evidence_query,
     build_queries,
 )
-from g3o.discovery.serper_client import SerperResult
+from g3o.discovery.serper_client import (
+    SerperOptions,
+    SerperResult,
+    build_request_payload,
+)
 from g3o.report.health import compute_health_report, detect_languages
 from g3o.run import presweep as ps
 from g3o.run.presweep import PresweepConfig, plan_run
@@ -272,12 +276,42 @@ def test_legacy_stage_1a_still_issues_the_full_roster(tmp_path, monkeypatch):
     assert len(rec.queries) == 8
 
 
-def test_default_config_is_legacy():
-    """Nothing changes without opting in (branch is a pure addition)."""
+def test_default_config_is_the_configuration_that_was_measured():
+    """PI sign-off 2026-08-01: the default is the validated configuration.
+
+    All three values below are exactly what produced the confirmation run's
+    1.84 credits/institution and 64.5% own-domain-relevant hit rate. Defaulting
+    to a configuration that was never measured is the failure mode this pins
+    against — if any of these drifts, the headline figures stop describing what
+    the pipeline actually does.
+    """
     cfg = PresweepConfig(run_id="x", runs_dir=Path("."), master_csv=Path("m.csv"))
-    assert cfg.discovery_mode == "legacy"
-    assert cfg.serper_autocorrect is None
+    assert cfg.discovery_mode == "chain"
+    assert cfg.discovery_results_per_query == 10
+    assert cfg.serper_autocorrect is False
+    # Not measured, and not on by default — the quoted name tested 17.5 pp worse
+    # on leg-1 recall (82.0% -> 64.5%, paired p = 2.8e-09).
     assert cfg.discovery_domain_quote_name is False
+
+
+def test_pre_2026_08_01_behaviour_is_still_exactly_reproducible():
+    """The old path stays reachable, byte-identical, by config alone.
+
+    Three settings, no code change: this is what a replication of any run made
+    before 2026-08-01 needs.
+    """
+    cfg = PresweepConfig(
+        run_id="x", runs_dir=Path("."), master_csv=Path("m.csv"),
+        discovery_mode="legacy", discovery_results_per_query=5,
+        serper_autocorrect=None,
+    )
+    assert cfg.discovery_mode == "legacy"
+    payload = build_request_payload(
+        "q", cfg.discovery_results_per_query,
+        SerperOptions(autocorrect=cfg.serper_autocorrect),
+    )
+    assert payload == {"q": "q", "num": 5}
+    assert json.dumps(payload) == json.dumps({"q": "q", "num": 5})
 
 
 def test_chain_leg_1_carries_the_master_disambiguation(tmp_path, monkeypatch):

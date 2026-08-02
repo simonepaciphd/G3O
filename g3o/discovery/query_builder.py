@@ -88,8 +88,16 @@ def _hint(value: str) -> str:
 # Findings (agent-workspace/2026-08-01-serper-discovery-yield-findings.md,
 # n=24 with hand-adjudicated ground truth): the four-slot format asks one query
 # to identify the institution *and* find GenAI evidence, and does neither well
-# (6/24 relevant at 16 credits/inst). Splitting the jobs across two 1-credit
-# legs scores 14/24 at 2 credits/inst; paired McNemar 9 gains / 1 loss, p=0.021.
+# (6/24 relevant at a designed 16 credits/inst). Splitting the jobs across two
+# 1-credit legs scores 14/24; paired McNemar 9 gains / 1 loss, p=0.021.
+#
+# Confirmed at n=200 and now the pipeline default (2026-08-01-discovery-chain-
+# validation.md, PI sign-off). Measured as GET /account balance deltas over 200
+# institutions per arm, same sample: 1.84 credits/inst and 64.5% of
+# institutions with an own-domain relevant hit, against legacy's 8.52 and
+# 20.0%. Paired McNemar 94 gains / 5 losses, exact two-sided p = 2.4e-22.
+# (Legacy measures below its 16-credit design cost only because Stage 2 finds
+# an official site for just 13/200, so Stage 1b is skipped for 187.)
 #
 # Two results from that work are load-bearing here and should not be
 # re-litigated by tuning these functions:

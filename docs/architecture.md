@@ -65,22 +65,33 @@ independent.
 
 ## Discovery query strategy
 
-Stages 1a and 1b share a `--discovery-mode` switch. **`legacy` is the default**;
-`chain` is opt-in pending the confirmation run.
+Stages 1a and 1b share a `--discovery-mode` switch. **`chain` is the default**
+since 2026-08-01 (PI sign-off on the confirmation run); `legacy` stays reachable
+and byte-identical for replication.
 
-| | `legacy` | `chain` (2026-08-01) |
+| | `legacy` | **`chain`** (default) |
 |---|---|---|
-| Stage 1a | 8 four-slot queries: `"name" country disambiguation "GenAI term"`, one per term in `GENAI_TERMS_BY_LANG` | 1 query: `<name> <country> official website` — unquoted |
+| Stage 1a | 8 four-slot queries: `"name" country disambiguation "GenAI term"`, one per term in `GENAI_TERMS_BY_LANG` | 1 query: `<name> <country> <disambiguation> official website` — unquoted |
 | Stage 1b | each of those 8, wrapped in `site:<domain>` | 1 query: `site:<domain> AI` — one bare token |
-| Credits / institution | 16 | 2 |
-| Measured relevant yield (n=24) | 6/24 | 14/24 |
+| Credits / institution — **measured**, n=200/arm | **8.52** | **1.84** |
+| Institutions with an own-domain *relevant* hit | 20.0% | **64.5%** |
+| Stage 2 found an official site | 6.5% | **88.0%** |
+
+Paired McNemar over 200 institutions: 94 gains, 5 losses, exact two-sided
+*p* = 2.4 × 10⁻²². Report:
+`agent-workspace/2026-08-01-discovery-chain-validation.md`.
 
 The chain exists because **Stage 1a was asking one query to do two incompatible
 jobs** — identify the institution *and* find GenAI evidence — and the four-slot
 format did neither well. Splitting them lets each leg be judged on its own job:
-leg 1 found a usable domain for 21/24 institutions, and leg 2 then searches a
-domain it already knows. Paired McNemar over the same 24 institutions: 9 gains,
-1 loss, two-sided *p* = 0.021.
+leg 1 surfaces the institution's true domain 82% of the time, and Stage 2
+converts 153 of those 164 (93%) into an official-site pick that leg 2 can then
+search.
+
+**`legacy` is cheaper than its 16-credit design cost only because most of it
+never runs.** Its GenAI-term queries rarely surface a homepage, so Stage 2 found
+an official site for just 13/200 institutions and Stage 1b — which runs only for
+those — was skipped for the other 187. Read the 8.52 as a symptom, not a saving.
 
 Three measured results are load-bearing and should not be re-litigated by
 tuning the query builders:

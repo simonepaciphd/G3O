@@ -271,9 +271,14 @@ def run_preflight(
         "est_openai_batch_output_usd": round(output_usd, 2),
         "est_openai_batch_total_usd": round(total_usd, 2),
         "note": (
-            "OpenAI Batch cost only. Serper (Stage 1) is billed separately and is "
-            "order-of-magnitude ~$10 per the review; not priced here. Estimate "
-            "scales with the pages-per-institution and page-chars assumptions."
+            "OpenAI Batch cost only; Serper (Stage 1) is billed separately and "
+            "is not priced here. Measured 2026-08-01 over 200 institutions as "
+            "GET /account balance deltas: 1.84 credits/institution under "
+            "discovery_mode='chain' (the default), 8.52 under 'legacy'. The "
+            "USD-per-credit rate is an unresolved PI input — docs/budget/"
+            "cost-model.md tabulates both $0.00056 and $0.001, which differ "
+            "~1.8x. Estimate scales with the pages-per-institution and "
+            "page-chars assumptions."
         ),
     }
     summary["cost_ceiling_usd"] = cost_ceiling_usd

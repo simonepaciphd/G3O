@@ -53,13 +53,39 @@ python -m g3o presweep \
   --seed 22294 \
   --stratification equal \
   --discovery-languages en \
-  --discovery-results-per-query 5 \
+  --discovery-results-per-query 10 \
+  --discovery-mode chain \
   --execute --stop-after validate \
   --model gpt-5-nano
 ```
 
 Without `--execute`, `presweep` runs in dry-run mode (no live submits). Resume
 is auto-inferred from `_state/` files in `runs/<run_id>/`.
+
+### Discovery defaults changed 2026-08-01
+
+PI sign-off on the confirmation run
+(`agent-workspace/2026-08-01-discovery-chain-validation.md`). `--discovery-mode`
+now defaults to `chain`, `--discovery-results-per-query` to `10`, and
+`--serper-autocorrect` to `off`. Measured over 200 institutions per arm, same
+sample, as `GET /account` balance deltas:
+
+| | `legacy` | `chain` |
+|---|---:|---:|
+| Serper credits / institution | 8.52 | **1.84** |
+| Institutions with an own-domain *relevant* hit | 20.0% | **64.5%** |
+| Stage 2 found an official site | 6.5% | **88.0%** |
+
+Paired McNemar: 94 gains, 5 losses, exact two-sided *p* = 2.4 × 10⁻²².
+
+**To replicate a run made before 2026-08-01**, pin all three explicitly. The
+request payload is then byte-identical to what that run sent:
+
+```bash
+  --discovery-mode legacy \
+  --discovery-results-per-query 5 \
+  --serper-autocorrect omit
+```
 
 After Stage 6 completes, write the canonical CSVs:
 
