@@ -9,6 +9,9 @@ statuses:
                           institution was genuinely evaluated that far (or ran
                           out of legitimate upstream input, e.g. zero URLs
                           kept by triage) but no qualifying evidence surfaced.
+                          Requires positive on-disk proof that the stage which
+                          would have produced the missing artifact actually
+                          completed — see "Whole-run aborts" below.
 - ``PROCESSING_FAILED`` — a technical failure (an attrition-recorded parse /
                           scrape failure for this institution, or an
                           unreadable ``6_validate.json``) prevented a
@@ -18,16 +21,46 @@ statuses:
                           evaluated for evidence, independent of what its
                           partial artifacts look like.
 
-Known limitation (not fixed here): an institution that never gets its turn
-because the *whole run* aborts mid-flight on an unrelated fatal error (e.g. a
-``SerperRequestError`` that aborts Stage 1a for every institution still queued
-behind the one that hit it) has no attrition record of its own and no
-``6_validate.json`` — it is classified ``NO_EVIDENCE_FOUND`` here rather than
-``PROCESSING_FAILED``, because nothing on disk distinguishes "never got a
-turn" from "got a turn and found nothing." This mirrors a pre-existing
-pipeline property (single-institution failures already routed through
-``attrition.record`` are correctly attributed; whole-run aborts are not
-scoped to an institution) and is out of scope for this task.
+Whole-run aborts
+----------------
+
+An institution that never gets its turn because the *whole run* aborts
+mid-flight on an unrelated fatal error (e.g. a ``SerperRequestError`` that
+aborts Stage 1a for every institution still queued behind the one that hit
+it) has no attrition record of its own and no ``6_validate.json``. It used to
+be reported as ``NO_EVIDENCE_FOUND`` — an assertion that the pipeline looked
+and found nothing, when in fact it never looked.
+
+Something on disk *does* distinguish the two cases: the resume machinery's
+``_state/.done/{stage}.json`` markers, written by every stage on completion.
+So an empty result is only read as a finding when the stage that would have
+produced the missing artifact is marked done; otherwise the institution's
+absence is unexplained and it is reported ``PROCESSING_FAILED``.
+
+Note this is per-institution, not run-wide. An institution whose triage
+completed and kept zero URLs is a genuine ``NO_EVIDENCE_FOUND`` even if the
+run later died during scrape — it got its turn and legitimately produced
+nothing. Only institutions still waiting on a stage the run never finished
+are reclassified.
+
+Two limits remain, deliberately:
+
+- If ``_state/`` is absent entirely (a run predating the state machinery, or
+  a hand-built fixture), there is no evidence either way and the permissive
+  reading is kept rather than inventing a failure.
+- A run configured with ``--stop-after`` short of ``validate`` reports
+  ``RUN_TRUNCATED`` whether or not it also aborted. That status already says
+  the institution was never evaluated, so it asserts nothing false; splitting
+  it further was not worth a fifth status.
+
+**Scope of the guarantee.** This is the *report-side* half: it stops a loudly
+aborted run — one that left a stage without its marker — from being read off
+disk as a substantive no-evidence finding. It does **not** detect silent loss
+*inside* a stage that completed and wrote its marker (Batch results lost
+between fetch and persistence, say). Catching that needs run-time
+reconciliation at the ``run_state`` / ``batch_client`` layer and is a separate,
+unimplemented work item. So a clean report here means "no abort was visible on
+disk", not "nothing was lost".
 
 No network calls. Mirrors :mod:`g3o.report.health`'s disk-only-read
 convention.
@@ -41,6 +74,7 @@ from typing import Any
 
 from g3o.common import attrition as _attrition
 from g3o.common.contract import BatchResponse
+from g3o.common.run_state import is_done, state_dir
 from g3o.common.timing import read_timing
 from g3o.persist.writer import load_consolidated_outputs
 
@@ -55,6 +89,30 @@ _FAILURE_REASONS: frozenset[str] = frozenset(
 def _load_manifest(run_dir: Path) -> dict[str, Any]:
     p = run_dir / "manifest.json"
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+
+
+# Stages whose completion marker gates an "empty result" reading. Mirrors the
+# tail of g3o.run.presweep.config.STAGES; only the stages that can leave an
+# institution with nothing to show are listed.
+_STAGES_WITH_MARKERS: tuple[str, ...] = (
+    "classify_triage",
+    "scrape",
+    "extract",
+    "validate",
+)
+
+
+def _stage_completion(run_dir: Path) -> dict[str, bool] | None:
+    """Which stages the *run* finished, per ``_state/.done/`` (Q3=e2).
+
+    Returns ``None`` when the run carries no ``_state/`` directory at all —
+    a run predating the state machinery, or a hand-built fixture. That is an
+    absence of evidence, not evidence of an abort, so callers fall back to the
+    permissive reading rather than manufacturing a failure.
+    """
+    if not state_dir(run_dir).exists():
+        return None
+    return {stage: is_done(run_dir, stage) for stage in _STAGES_WITH_MARKERS}
 
 
 def _extracted_row_count(extract_dir: Path) -> int:
@@ -142,6 +200,8 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
     _, validate_parse_failures = load_consolidated_outputs(run_dir)
     validate_parse_failures = set(validate_parse_failures)
 
+    stage_completion = _stage_completion(run_dir)
+
     records: list[dict[str, Any]] = []
     for inst_id in institution_ids:
         inst_dir = run_dir / inst_id
@@ -197,17 +257,41 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
                 reason = f"has_genai_activity={has_genai_activity!r}, 0 qualifying activities"
         else:
             # stop_after == "validate" but nothing reached Stage 6 for this
-            # institution, and no failure was recorded — a legitimate empty
-            # result (ran out of upstream input), not a technical failure.
-            final_status = "NO_EVIDENCE_FOUND"
+            # institution, and no failure was recorded. Either it ran out of
+            # legitimate upstream input, or the whole run died before the
+            # stage that owed it an artifact ever finished. Which one is
+            # decided by that stage's .done marker, not assumed.
             if urls_kept == 0:
-                reason = "zero URLs passed triage"
+                blocking_stage, reason = (
+                    "classify_triage",
+                    "zero URLs passed triage",
+                )
             elif pages_scraped == 0:
-                reason = "no pages scraped from kept URLs"
+                blocking_stage, reason = (
+                    "scrape",
+                    "no pages scraped from kept URLs",
+                )
             elif extracted_row_count == 0:
-                reason = "pages scraped but nothing extracted"
+                blocking_stage, reason = (
+                    "extract",
+                    "pages scraped but nothing extracted",
+                )
             else:
-                reason = "extracted rows present but nothing reached Stage 6 consolidation"
+                blocking_stage, reason = (
+                    "validate",
+                    "extracted rows present but nothing reached Stage 6 consolidation",
+                )
+
+            if stage_completion is not None and not stage_completion[blocking_stage]:
+                final_status = "PROCESSING_FAILED"
+                reason = (
+                    f"run aborted before stage {blocking_stage!r} completed; this "
+                    "institution was still queued and was never evaluated "
+                    "(no attrition record of its own)"
+                )
+                error = reason
+            else:
+                final_status = "NO_EVIDENCE_FOUND"
 
         timing = read_timing(run_dir, inst_id) or {}
         stages_timing = timing.get("stages", {})

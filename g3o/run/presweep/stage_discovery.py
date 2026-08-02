@@ -23,6 +23,7 @@ from g3o.discovery.serper_client import (
     build_site_query,
     search_google_detailed,
 )
+from g3o.report.discovery_yield import registrable_domain
 from g3o.run.presweep.concurrency import run_concurrent
 from g3o.run.presweep.records import (
     _site_domain,
@@ -31,6 +32,52 @@ from g3o.run.presweep.records import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def leg1_recall_block(
+    master_website: str | None, records: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """Did leg 1 surface the institution's own domain, and at what rank?
+
+    This is the health report's one **uncontaminated** accuracy signal, and
+    the metric docs/pipeline-status.md §5.1 says the report cannot reach:
+    ``% with a usable domain`` reads ~100% because leg 1 nearly always returns
+    *some* non-aggregator host, just not the right one. Recall against the
+    master is the figure that actually moves when a query regresses — measured
+    82.0% on n=200, 2026-08-01.
+
+    It is computed here, at run time, for two reasons. The health report is
+    disk-only by design and must not import the master. And no model is
+    involved in this comparison, so unlike the Stage 2 pick (see
+    ``stage_classify.ground_truth_block``) it cannot be inflated by the
+    institution's ``website`` being visible in a prompt.
+
+    Rank is leg 1's own result position, so a rising rank is the early warning
+    that fires before recall itself moves.
+
+    Coverage is the master's ``website`` column: ~2% of the registry, and
+    national-institution-heavy. A regression canary, not a registry estimate.
+    """
+    if not master_website:
+        return None
+    master_domain = registrable_domain(master_website)
+    if not master_domain:
+        return None
+    found = False
+    rank: int | None = None
+    for r in records:
+        if registrable_domain(r.get("link", "")) == master_domain:
+            found = True
+            position = r.get("position")
+            rank = position if isinstance(position, int) else None
+            break
+    return {
+        "master_website": master_website,
+        "master_domain": master_domain,
+        "leg1_surfaced_domain": found,
+        "leg1_rank": rank,
+    }
+
 
 # Language tag carried by both legs of the two-query chain.
 #
@@ -201,6 +248,11 @@ def _discover_general_one(
             # baseline without paying for a second discovery pass. See
             # g3o.discovery.domain_pick.
             artifact["naive_domain"] = pick_domain(records)
+            # Leg-1 recall against the master, read off the raw row for the
+            # same reason `disambiguation` is above.
+            truth = leg1_recall_block(row.get("website"), records)
+            if truth is not None:
+                artifact["ground_truth"] = truth
         path.write_text(
             json.dumps(artifact, ensure_ascii=False, indent=2),
             encoding="utf-8",

@@ -21,6 +21,7 @@ from g3o.common import attrition
 from g3o.common.batch_client import BatchResult
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
 from g3o.common.timing import llm_stage_timer
+from g3o.report.discovery_yield import registrable_domain
 from g3o.run.presweep.records import (
     _dedupe_key,
     institution_record,
@@ -28,6 +29,41 @@ from g3o.run.presweep.records import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def ground_truth_block(
+    master_website: str | None, picked_url: str | None
+) -> dict[str, Any] | None:
+    """Compare Stage 2's pick against the master's ``website``, or ``None``.
+
+    This exists to give the health report its only accuracy signal. The Stage
+    1a gauge cannot provide one: it reads ~100% whatever leg 1 returns,
+    because leg 1 nearly always yields *some* non-aggregator host — just not
+    always the right one (see docs/pipeline-status.md §5.1). Recording the
+    comparison here, at run time, is what keeps :mod:`g3o.report.health`
+    disk-only; the report must never import the master.
+
+    Compared at the registrable domain rather than the exact URL, so a pick of
+    ``https://www.example.gov/en/`` still matches a master value of
+    ``example.gov`` — the question is whether Stage 2 identified the right
+    *institution*, not whether it landed on the same path.
+
+    Coverage is the master's ``website`` column: ~2% of the registry, and
+    national-institution-heavy. This is a **regression canary, not an accuracy
+    estimate** for the registry, and the health report labels it as such.
+    """
+    if not master_website:
+        return None
+    master_domain = registrable_domain(master_website)
+    if not master_domain:
+        return None
+    picked_domain = registrable_domain(picked_url or "")
+    return {
+        "master_website": master_website,
+        "master_domain": master_domain,
+        "picked_domain": picked_domain or None,
+        "domain_match": bool(picked_domain) and picked_domain == master_domain,
+    }
 
 
 def _read_existing_official_sites(
@@ -103,6 +139,15 @@ def _run_classify_official_site(
     out: dict[str, str | None] = {}
     jobs = []
     bypass_count = 0
+    # Ground truth for the accuracy canary, read off the RAW master row.
+    # Deliberately not routed through institution_record(): that dict is
+    # serialised to institution.json and fed to the Stage 2/3/5/6 prompts, so
+    # adding a key there would change model input as a side effect of a
+    # telemetry change.
+    truth_by_inst: dict[str, str] = {
+        synth_institution_id(row): (row.get("website") or "").strip()
+        for row in sample
+    }
     for row in sample:
         institution = institution_record(row)
         inst_id = institution["institution_id"]
@@ -148,8 +193,17 @@ def _run_classify_official_site(
             out[result.custom_id] = parsed.url
             inst_dir = run_dir / result.custom_id
             if inst_dir.exists():
+                payload = parsed.model_dump()
+                # Additive; every reader of this artifact uses .get(). Recorded
+                # only on the LLM path — a master-bypassed pick would match the
+                # master by construction and would inflate the canary.
+                truth = ground_truth_block(
+                    truth_by_inst.get(result.custom_id), parsed.url
+                )
+                if truth is not None:
+                    payload["ground_truth"] = truth
                 (inst_dir / "2_official_site.json").write_text(
-                    json.dumps(parsed.model_dump(), ensure_ascii=False, indent=2),
+                    json.dumps(payload, ensure_ascii=False, indent=2),
                     encoding="utf-8",
                 )
 

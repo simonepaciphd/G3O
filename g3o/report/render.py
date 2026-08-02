@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-_ICON = {"green": "[OK  ]", "warn": "[WARN]", "fail": "[FAIL]", "not_run": "[----]"}
+_ICON = {
+    "green": "[OK  ]",
+    "warn": "[WARN]",
+    "fail": "[FAIL]",
+    "not_run": "[----]",
+    # Too few ground-truth institutions to judge; deliberately not a colour,
+    # so it can never be misread as "accuracy checked and fine".
+    "insufficient_ground_truth": "[n/gt]",
+}
 
 
 def _icon(flag: str) -> str:
@@ -73,6 +81,16 @@ def render_text_report(report: dict[str, Any]) -> str:
                 f"  Domain at rank 1:   {s.get('n_domain_at_rank_1')}"
                 f" ({_pct_str(s.get('pct_domain_at_rank_1'))})"
             )
+            # The accuracy signal. Everything above it measures whether leg 1
+            # returned *a* domain; this measures whether it was the right one.
+            n_gt = s.get("n_ground_truth_available")
+            if n_gt:
+                w(
+                    f"  {_icon(s.get('leg1_recall_flag', '?'))}"
+                    f" Leg-1 recall:  {s.get('n_leg1_surfaced_true_domain')}/{n_gt}"
+                    f" ({_pct_str(s.get('pct_leg1_recall'))})"
+                    "  [vs master; ~2% of registry, national-heavy]"
+                )
         if s.get("n_serper_failed"):
             w(f"  Serper failures:    {s['n_serper_failed']}")
         rl = _reasons_line(s.get("top_drop_reasons", []))
@@ -95,6 +113,18 @@ def render_text_report(report: dict[str, Any]) -> str:
             w(f"  Bypassed (master):  {s['n_bypassed_from_master']}")
         if s.get("n_parse_failed"):
             w(f"  Parse failures:     {s['n_parse_failed']}")
+        # Liveness check, NOT an accuracy measurement — the master's `website`
+        # is inside the Stage 2 prompt, so the classifier can read the value
+        # this line scores it against. Labelled inline so the caveat travels
+        # with the number instead of living only in a doc.
+        n_gt = s.get("n_ground_truth_available")
+        if n_gt:
+            w(
+                f"  {_icon(s.get('ground_truth_flag', '?'))} Matches master:"
+                f"  {s.get('n_official_site_matches_master'):>3}/{n_gt}"
+                f" ({_pct_str(s.get('pct_official_site_matches_master'))})"
+                "  [CONTAMINATED: master website is in the Stage 2 prompt]"
+            )
         rl = _reasons_line(s.get("top_drop_reasons", []))
         if rl:
             w(rl)
