@@ -52,6 +52,35 @@ class HealthThresholds:
     official_site_warn_pct: float = 0.70       # PI-tunable
     official_site_fail_pct: float = 0.40       # PI-tunable
 
+    # ── Accuracy canaries against the master (2026-08-02) ────────────────────
+    # Two gauges scored only where the master supplies a `website`. Unlike most
+    # defaults in this file they are NOT smoke-run guesses — both are set from
+    # the 2026-08-01 n=200 measurement.
+    #
+    # Shared minimum sample. Ground truth covers ~2% of the registry, so a
+    # 10-institution smoke run typically yields 0-1 comparisons. A canary that
+    # fires on n=1 is noise, and noise trains you to ignore the gauge. Below
+    # this the report emits ``insufficient_ground_truth`` rather than a colour.
+    ground_truth_min_n: int = 10               # PI-tunable
+
+    # Leg-1 recall: % of institutions where leg 1 surfaced the master's own
+    # domain at any rank. Measured 82.0%. THIS is the leg-1 regression signal
+    # (§5.1) — model-free, so nothing in a prompt can inflate it.
+    leg1_recall_warn_pct: float = 0.72         # PI-tunable
+    leg1_recall_fail_pct: float = 0.55         # PI-tunable
+
+    # Stage 2 pick vs the master, at the registrable domain. Measured 86.9%
+    # (153/176).
+    #
+    # CAVEAT, 2026-08-02: `institution_record()` puts the master's `website`
+    # into the Stage 2 prompt, so the classifier can read the value this gauge
+    # scores it against. Until that is resolved (a PI call — removing it
+    # changes model input and breaks comparability with the 2026-08-01
+    # numbers), read this as a liveness check, not an accuracy measurement,
+    # and rely on the leg-1 gauge above for regression detection.
+    official_site_accuracy_warn_pct: float = 0.80   # PI-tunable
+    official_site_accuracy_fail_pct: float = 0.65   # PI-tunable
+
     # ── Stage 1b: discovery_site_restricted ──────────────────────────────────
     # % of institutions (with an official site) that got ≥1 site-restricted URL.
     discovery_site_restricted_warn_pct: float = 0.60  # PI-tunable

@@ -180,12 +180,18 @@ def _collect_institution(
         naive = payload.get("naive_domain") or {}
         d["naive_domain"] = naive.get("domain")
         d["naive_domain_rank"] = naive.get("rank")
+        # Leg-1 recall against the master, written at run time by the chain.
+        leg1_truth = payload.get("ground_truth") or {}
+        d["has_leg1_truth"] = bool(leg1_truth)
+        d["leg1_surfaced_domain"] = bool(leg1_truth.get("leg1_surfaced_domain"))
     else:
         d["has_1a"] = False
         d["n_urls_1a"] = 0
         d["discovery_mode"] = "legacy"
         d["naive_domain"] = None
         d["naive_domain_rank"] = None
+        d["has_leg1_truth"] = False
+        d["leg1_surfaced_domain"] = False
 
     # Stage 2
     p = inst_dir / "2_official_site.json"
@@ -194,10 +200,18 @@ def _collect_institution(
         d["has_2"] = True
         d["official_site"] = payload.get("url")  # None if LLM found nothing
         d["stage2_bypassed"] = bool(payload.get("bypassed"))
+        # Accuracy canary (§5.1). Written at run time by the Stage 2 runner
+        # where the master supplies a `website`; absent otherwise, which is the
+        # ~98% of the registry that has no ground truth.
+        truth = payload.get("ground_truth") or {}
+        d["has_ground_truth"] = bool(truth)
+        d["ground_truth_match"] = bool(truth.get("domain_match"))
     else:
         d["has_2"] = False
         d["official_site"] = None
         d["stage2_bypassed"] = False
+        d["has_ground_truth"] = False
+        d["ground_truth_match"] = False
 
     # Stage 1b
     p = inst_dir / "1b_discovery_site_restricted.json"
@@ -422,6 +436,34 @@ def compute_health_report(
                 ),
             }
         )
+        # ── Leg-1 recall canary (§5.1, added 2026-08-02) ──────────────────
+        # The gauge above cannot go red in practice: leg 1 nearly always
+        # returns *some* non-aggregator host, so pct_institutions_with_domain
+        # reads ~100% whatever the query does. This is the metric that moves
+        # when leg 1 regresses — whether the host it returned is the RIGHT
+        # one — and it is model-free, so nothing in a prompt can inflate it.
+        # Unflagged below a minimum sample: ground truth covers ~2% of the
+        # registry, so a small run yields too few comparisons to judge.
+        leg1_data = [d for d in chain_data if d["has_leg1_truth"]]
+        n_leg1 = len(leg1_data)
+        n_leg1_hit = sum(1 for d in leg1_data if d["leg1_surfaced_domain"])
+        pct_leg1 = _pct(n_leg1_hit, n_leg1) if n_leg1 else None
+        stage_1a.update(
+            {
+                "n_ground_truth_available": n_leg1,
+                "n_leg1_surfaced_true_domain": n_leg1_hit,
+                "pct_leg1_recall": pct_leg1,
+                "leg1_recall_flag": (
+                    _flag_low_is_bad(
+                        pct_leg1,
+                        warn=thresholds.leg1_recall_warn_pct,
+                        fail=thresholds.leg1_recall_fail_pct,
+                    )
+                    if n_leg1 >= thresholds.ground_truth_min_n
+                    else "insufficient_ground_truth"
+                ),
+            }
+        )
 
     # ── Stage 2 ───────────────────────────────────────────────────────────────
     # Eligible for a Stage 2 decision: institutions whose 1a discovery produced
@@ -459,6 +501,39 @@ def compute_health_report(
             fail=thresholds.official_site_fail_pct,
         ),
     }
+
+    # ── Stage 2 accuracy canary (§5.1, added 2026-08-02) ──────────────────────
+    # Every other Stage 1a/2 gauge measures whether the pipeline produced
+    # *something*. This is the only one that measures whether it produced the
+    # *right* thing, and it is the only defence against a leg-1 query
+    # regression that keeps the volume gauges green.
+    #
+    # Two properties are deliberate. It is scored only where the master
+    # supplies a `website` (~2% of the registry, national-heavy), so it is a
+    # regression canary and NOT an accuracy estimate for a full sweep. And it
+    # stays unflagged below a minimum sample — at 2% coverage a 10-institution
+    # smoke run yields 0-1 comparisons, and a canary that fires on n=1 is
+    # noise that trains you to ignore it.
+    gt_data = [d for d in inst_data if d["has_ground_truth"]]
+    n_gt = len(gt_data)
+    n_gt_match = sum(1 for d in gt_data if d["ground_truth_match"])
+    pct_gt = _pct(n_gt_match, n_gt) if n_gt else None
+    stage_2.update(
+        {
+            "n_ground_truth_available": n_gt,
+            "n_official_site_matches_master": n_gt_match,
+            "pct_official_site_matches_master": pct_gt,
+            "ground_truth_flag": (
+                _flag_low_is_bad(
+                    pct_gt,
+                    warn=thresholds.official_site_accuracy_warn_pct,
+                    fail=thresholds.official_site_accuracy_fail_pct,
+                )
+                if n_gt >= thresholds.ground_truth_min_n
+                else "insufficient_ground_truth"
+            ),
+        }
+    )
 
     # ── Stage 1b ──────────────────────────────────────────────────────────────
     n_1b_eligible = n_official_site  # only those with an official site get 1b queries
