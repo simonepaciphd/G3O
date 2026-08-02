@@ -51,25 +51,41 @@ confirmation run replaces them.** Two independent problems:
    defensible — but they differ by ~1.8×, and this model should not silently
    pick one. **Flagged for the PI; not resolved here.**
 
-Order of magnitude at 719,588 institutions, holding each rate constant:
+### Measured, not modeled (confirmation run, 2026-08-01)
 
-| Mode | Credits/inst | At $0.00056 | At $0.001 |
+200 institutions per arm, same sample, seed 22294, drawn from master rows with
+a usable `website`. Spend is a `GET /account` **balance delta**, not arithmetic:
+
+| Mode | Design cost | **Measured credits/inst** | Total (n=200) |
 |---|---:|---:|---:|
-| Modeled (as written below) | 4 | $1,612 | $2,878 |
-| **Actual `legacy`** | **16** | **$6,448** | **$11,513** |
-| `chain` (2026-08-01) | 2 | $806 | $1,439 |
+| `legacy` (production) | 16 | **8.52** | 1,704 |
+| `chain` | 2 | **1.84** | 368 |
 
-So the two-query chain saves **14 credits/institution**, or ~$5,600–$10,100
-per full sweep depending on which per-credit rate is correct — against a
-*true* baseline that is roughly 4× the one this model currently reports.
+**Production does not actually cost 16 credits/institution — it costs ~8.5**,
+and the gap is a symptom rather than a saving. Legacy Stage 1a's GenAI-term
+queries rarely surface an institution's own homepage, so Stage 2 found an
+official site for only **13 of 200 institutions (6.5%)**, and Stage 1b — which
+runs only for institutions that have one — was skipped for the other 187.
+Production is cheaper than designed because most of it never runs. Under the
+chain, Stage 2 found a site for 176/200 (88%).
 
-Do not propagate the per-intervention figure of −$5,757 that appears in the
-findings memo for interventions #1 and #2 individually: that is 8 credits ×
-719,588 × $0.001, but each change is 8 → 1, so the saving is 7 credits =
-**−$5,037** each. The memo's combined 16 → 2 figure is correct.
+So the chain's saving is **6.68 credits/institution**, not 14:
 
-Replace this section with measured `GET /account` balance deltas once the
-confirmation run lands.
+| At 719,588 institutions | $0.00056/credit | $0.001/credit |
+|---|---:|---:|
+| `legacy` measured (8.52) | $3,434 | $6,131 |
+| `chain` measured (1.84) | $742 | $1,324 |
+| **Saving** | **$2,692** | **$4,807** |
+
+Do not propagate the per-intervention figure of −$5,757 from the findings memo
+for interventions #1 and #2 individually: that is 8 credits × 719,588 ×
+$0.001, but each change is 8 → 1, so the arithmetic saving is 7 credits =
+−$5,037 each. Both figures are in any case superseded by the measured rates
+above, which price the baseline as it actually behaves rather than as designed.
+
+A caveat that cuts the other way: if Stage 2's official-site rate under legacy
+were repaired *without* adopting the chain, legacy's cost would rise toward its
+16-credit design figure rather than stay at 8.5.
 
 ## Per-institution unit rates (basis of the projection)
 
