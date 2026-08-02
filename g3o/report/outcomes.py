@@ -53,6 +53,15 @@ Two limits remain, deliberately:
   the institution was never evaluated, so it asserts nothing false; splitting
   it further was not worth a fifth status.
 
+**Scope of the guarantee.** This is the *report-side* half: it stops a loudly
+aborted run — one that left a stage without its marker — from being read off
+disk as a substantive no-evidence finding. It does **not** detect silent loss
+*inside* a stage that completed and wrote its marker (Batch results lost
+between fetch and persistence, say). Catching that needs run-time
+reconciliation at the ``run_state`` / ``batch_client`` layer and is a separate,
+unimplemented work item. So a clean report here means "no abort was visible on
+disk", not "nothing was lost".
+
 No network calls. Mirrors :mod:`g3o.report.health`'s disk-only-read
 convention.
 """
