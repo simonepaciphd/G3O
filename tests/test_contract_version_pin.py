@@ -1,0 +1,272 @@
+"""Versioning *enforcement*: no machine-readable contract change ships under an
+unchanged version header.
+
+The failure this exists for is on the record. Commit ``25e544e`` (2026-07-04)
+added ``proposed`` to the ``adoption_stage`` enum — a change to a controlled
+vocabulary, which ``CONTRIBUTING.md`` says is versioned and needs maintainer
+sign-off — and shipped it under an unchanged "v2.0" header. The frozen-goldens
+suite did notice the contract text moved, but its remedy is *regenerate*, so a
+regen commit carried the change through with the header untouched. Nothing tied
+the content to the version.
+
+This pins both together. ``tests/goldens/contract_version_pin.json`` records,
+per contract, ``(version, sha256 of the machine-readable surface)``. A content
+change with an unchanged version fails CI, and — the part that closes the
+``25e544e`` hole — the regeneration path **refuses to write** in that case
+rather than laundering it into the golden.
+
+What "machine-readable surface" means here, deliberately narrower than the
+whole document (prose edits to an edge-case narrative should not demand a
+version bump; the frozen-goldens suite already catches those as instrument
+changes):
+
+- **Stage 5** — the §5 JSON Schema block parsed out of the markdown and
+  canonically re-serialized, so indentation and key order cannot fire it; every
+  ``Literal`` enum alias as ``g3o.common.contract`` actually loads them; and
+  the four sign-off-gated column lists named in ``CONTRIBUTING.md``.
+- **Stage 6** — ``ConsolidatedInstitutionResponse.model_json_schema()``, which
+  the Validation Contract itself names as its source of truth, plus the same
+  enum aliases.
+
+Enum aliases are *discovered* (any ``Literal`` in the module), not listed, so a
+new one is covered the day it is written rather than the day someone remembers
+to add it here.
+
+Deliberately **not** in scope: what the versioning rule should be — semver
+semantics, a changelog, where the schema of record lives. Those are open
+decisions. This test is compatible with any of them; it only requires that the
+version string differ.
+
+Regenerating, after the change is confirmed intended and recorded::
+
+    G3O_REGEN_GOLDENS=1 python -m pytest tests/test_contract_version_pin.py
+
+and commit ``tests/goldens/contract_version_pin.json`` alongside the change.
+No network, no API keys.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+from pathlib import Path
+from typing import Any, Literal, get_args, get_origin
+
+import pytest
+
+from g3o.common import contract as _contract
+from g3o.common import schema as _schema
+from g3o.common.contract import ConsolidatedInstitutionResponse
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+EXTRACT_CONTRACT = REPO_ROOT / "g3o" / "extract" / "prompts" / "output_contract.md"
+VALIDATE_CONTRACT = REPO_ROOT / "g3o" / "validate" / "prompts" / "output_contract.md"
+PIN_PATH = Path(__file__).parent / "goldens" / "contract_version_pin.json"
+REGEN_ENV = "G3O_REGEN_GOLDENS"
+
+# Column lists CONTRIBUTING.md names as versioned + sign-off-gated alongside
+# the contract itself.
+_GATED_COLUMN_LISTS = (
+    "DATA_COLUMNS",
+    "ACTIVITY_COLUMNS",
+    "ACTIVITY_SOURCE_COLUMNS",
+    "SUMMARY_COLUMNS",
+)
+
+_SIGNOFF_POINTER = (
+    "Changes to output_contract.md and the g3o.common.schema column lists are "
+    "versioned and require maintainer sign-off (CONTRIBUTING.md, 'Schema "
+    "stability'). Bump the version in the contract's H1 header in the same "
+    "change, then regenerate this pin with G3O_REGEN_GOLDENS=1."
+)
+
+
+# ---------------------------------------------------------------------------
+# Surface extraction
+# ---------------------------------------------------------------------------
+
+
+def _parse_version(path: Path) -> str:
+    """The version token out of the document's H1, e.g. ``v2.0``."""
+    first_line = path.read_text(encoding="utf-8").splitlines()[0]
+    m = re.search(r"\bv(\d+(?:\.\d+)*)\b", first_line)
+    assert m, f"no version token in the H1 of {path.name}: {first_line!r}"
+    return f"v{m.group(1)}"
+
+
+def _extract_json_schema_block(path: Path) -> dict[str, Any]:
+    """The document's ```json fenced block, parsed. Asserts there is exactly one
+    so a second block added later cannot silently escape the pin."""
+    blocks = re.findall(
+        r"^```json\n(.*?)^```", path.read_text(encoding="utf-8"), re.S | re.M
+    )
+    assert len(blocks) == 1, (
+        f"expected exactly 1 ```json block in {path.name}, found {len(blocks)}; "
+        "the pin covers one block and must be updated deliberately"
+    )
+    return json.loads(blocks[0])
+
+
+def _literal_enums() -> dict[str, list[str]]:
+    """Every ``Literal`` alias in ``g3o.common.contract``, discovered not listed."""
+    out: dict[str, list[str]] = {}
+    for name, obj in vars(_contract).items():
+        if name.startswith("_"):
+            continue
+        if get_origin(obj) is Literal:
+            out[name] = [str(v) for v in get_args(obj)]
+    assert out, "no Literal enum aliases found in g3o.common.contract"
+    return dict(sorted(out.items()))
+
+
+def _gated_column_lists() -> dict[str, list[str]]:
+    return {name: list(getattr(_schema, name)) for name in _GATED_COLUMN_LISTS}
+
+
+def _sha256(payload: Any) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _current() -> dict[str, dict[str, str]]:
+    return {
+        "extract": {
+            "path": "g3o/extract/prompts/output_contract.md",
+            "version": _parse_version(EXTRACT_CONTRACT),
+            "sha256": _sha256(
+                {
+                    "json_schema_block": _extract_json_schema_block(EXTRACT_CONTRACT),
+                    "enums": _literal_enums(),
+                    "columns": _gated_column_lists(),
+                }
+            ),
+        },
+        "validate": {
+            "path": "g3o/validate/prompts/output_contract.md",
+            "version": _parse_version(VALIDATE_CONTRACT),
+            "sha256": _sha256(
+                {
+                    "model_json_schema": ConsolidatedInstitutionResponse.model_json_schema(),
+                    "enums": _literal_enums(),
+                }
+            ),
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# The pin, and the refusal that makes it enforcement rather than a golden
+# ---------------------------------------------------------------------------
+
+
+def _refusal(name: str, pinned: dict[str, str], current: dict[str, str]) -> str:
+    return (
+        f"{current['path']}: its machine-readable surface changed "
+        f"({pinned['sha256'][:12]}… → {current['sha256'][:12]}…) but the version "
+        f"header is still {current['version']}. {_SIGNOFF_POINTER}\n"
+        f"(This is the {name} contract; the failure mode is commit 25e544e, "
+        "which shipped an enum change under an unchanged v2.0.)"
+    )
+
+
+def _pin() -> dict[str, dict[str, str]]:
+    if os.environ.get(REGEN_ENV):
+        current = _current()
+        if PIN_PATH.exists():
+            previous = json.loads(PIN_PATH.read_text(encoding="utf-8"))
+            blocked = [
+                _refusal(name, previous[name], cur)
+                for name, cur in current.items()
+                if name in previous
+                and previous[name]["sha256"] != cur["sha256"]
+                and previous[name]["version"] == cur["version"]
+            ]
+            if blocked:
+                raise AssertionError(
+                    "refusing to regenerate the contract version pin:\n\n"
+                    + "\n\n".join(blocked)
+                )
+        PIN_PATH.parent.mkdir(exist_ok=True)
+        PIN_PATH.write_text(
+            json.dumps(current, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        pytest.skip(
+            "contract version pin regenerated; review and commit "
+            "tests/goldens/contract_version_pin.json alongside the change"
+        )
+    assert PIN_PATH.exists(), (
+        f"pin file missing at {PIN_PATH}; regenerate deliberately with {REGEN_ENV}=1"
+    )
+    return json.loads(PIN_PATH.read_text(encoding="utf-8"))
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+
+CONTRACTS = ("extract", "validate")
+
+
+@pytest.mark.parametrize("name", CONTRACTS)
+def test_contract_change_carries_a_version_bump(name: str):
+    """The gate. Content moved + header did not ⇒ the sign-off gate was bypassed."""
+    pinned, current = _pin()[name], _current()[name]
+    if pinned["sha256"] == current["sha256"]:
+        return
+    assert pinned["version"] != current["version"], _refusal(name, pinned, current)
+    pytest.fail(
+        f"{current['path']} moved to {current['version']} — an intended change. "
+        f"Regenerate the pin with {REGEN_ENV}=1 and commit it with the change."
+    )
+
+
+@pytest.mark.parametrize("name", CONTRACTS)
+def test_contract_version_matches_its_pin(name: str):
+    """A version bump with no content change is still a deliberate act and must
+    be recorded, so the pin does not quietly fall behind the header."""
+    pinned, current = _pin()[name], _current()[name]
+    assert pinned["version"] == current["version"], (
+        f"{current['path']} header is {current['version']}, pin says "
+        f"{pinned['version']}. Regenerate with {REGEN_ENV}=1."
+    )
+
+
+def test_both_contracts_carry_a_parseable_version_header():
+    assert _parse_version(EXTRACT_CONTRACT).startswith("v")
+    assert _parse_version(VALIDATE_CONTRACT).startswith("v")
+
+
+def test_surface_is_stable_across_invocations():
+    assert _current() == _current()
+
+
+def test_the_pinned_surface_covers_the_enum_that_slipped_through():
+    """``adoption_stage``'s ``proposed`` is the concrete value ``25e544e``
+    shipped unversioned. If it ever stops being inside the hashed surface, this
+    test is guarding nothing."""
+    enums = _literal_enums()
+    assert "proposed" in enums["AdoptionStage"]
+    assert "AdoptionStage" in enums
+
+
+def test_a_changed_enum_moves_the_hash(monkeypatch: pytest.MonkeyPatch):
+    """Proves the hash is actually sensitive to the thing it claims to pin,
+    rather than being a constant that happens to match."""
+    before = _current()["extract"]["sha256"]
+    monkeypatch.setattr(
+        _contract,
+        "AdoptionStage",
+        Literal["proposed", "announced", "pilot", "production", "sunsetting"],
+    )
+    assert _current()["extract"]["sha256"] != before
+
+
+def test_a_changed_column_list_moves_the_hash(monkeypatch: pytest.MonkeyPatch):
+    before = _current()["extract"]["sha256"]
+    monkeypatch.setattr(
+        _schema, "ACTIVITY_SOURCE_COLUMNS", [*_schema.ACTIVITY_SOURCE_COLUMNS, "x"]
+    )
+    assert _current()["extract"]["sha256"] != before
