@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from typing import Any
 
 GENAI_TERMS_BY_LANG: dict[str, list[str]] = {
     # English roster expanded 2026-07-04 (PI sign-off): +Copilot, AI chatbot,
@@ -110,11 +111,70 @@ def _hint(value: str) -> str:
 #     leg 2 is one bare, unquoted token.
 # ---------------------------------------------------------------------------
 
+# Leg 1's suffix. Deliberately **not** per-language (PI decision, 2026-08-02).
+# Localizing it would change the domain-discovery instrument for every
+# institution, against a measured 82.0% recall on the n=200 truth pool and with
+# no measurement on the other side. Settling it needs its own A/B on the
+# existing harness, not a default flip — so there is no per-language mapping
+# here to tempt one.
 DOMAIN_QUERY_SUFFIX = "official website"
+
+# The language tag leg 1's queries honestly carry. A constant, not a config
+# value, precisely because the suffix above is not localized: the tag must
+# describe the query that was issued, not the language the run was configured
+# for. Change this only together with DOMAIN_QUERY_SUFFIX.
+DOMAIN_QUERY_LANG = "en"
 
 # Leg 2's default evidence token. Bare and unquoted by measurement, not by
 # omission — see the module note above.
 DEFAULT_EVIDENCE_TERM = "AI"
+
+# Leg 2's evidence token, per language. The chain-mode counterpart of
+# ``GENAI_TERMS_BY_LANG``, and deliberately **seeded with English only**.
+#
+# A row here is a methodology surface, not a translation: it silently changes
+# every leg-2 query a run issues for that language. Rows are curated and
+# signed off row by row by the PI through
+# ``subprojects/multilingual-pipeline/`` (roadmap A2/B3) — for Chinese the
+# ecosystem is largely disjoint from English (``ChatGPT`` is not a viable
+# mainland term) and the formal register differs, so translating ``AI`` would
+# be wrong rather than merely incomplete.
+#
+# One term per language, not a list: extra terms measure at exactly 0 pp once
+# site-bound and OR-chains are actively harmful (4/24 vs 16/24). If a language
+# ever needs two, that is a measured decision and changes leg-2's credit cost.
+EVIDENCE_TERMS_BY_LANG: dict[str, str] = {"en": DEFAULT_EVIDENCE_TERM}
+
+
+class UnknownLanguageError(ValueError):
+    """A configured language has no roster entry for the mode being run.
+
+    Fail-loud replaces the silent English fallback (roadmap A7, PI decision
+    2026-08-02). The fallback was safe while only English ran; under language
+    expansion it is actively misleading — a run configured ``ru`` would issue
+    **English** queries, record ``institution_search_languages = ru``, and
+    produce a "Russian readiness assessment" computed on English data, silently
+    at every stage and all the way into a published per-country figure.
+    """
+
+
+def assert_languages_rostered(languages: Iterable[str], roster: dict[str, Any]) -> None:
+    """Raise :class:`UnknownLanguageError` for any language absent from ``roster``.
+
+    ``roster`` is ``GENAI_TERMS_BY_LANG`` under ``legacy`` and
+    ``EVIDENCE_TERMS_BY_LANG`` under ``chain`` — the two are not
+    interchangeable, and a language rostered for one is not thereby runnable
+    under the other.
+    """
+    unknown = [lang for lang in languages if lang not in roster]
+    if not unknown:
+        return
+    raise UnknownLanguageError(
+        f"no roster entry for language(s) {unknown!r}; "
+        f"rostered: {sorted(roster)!r}. Adding one is a PI-signed roster "
+        f"decision routed through subprojects/multilingual-pipeline/, not a "
+        f"config change — see roadmap A2/A7."
+    )
 
 
 def build_domain_query(
@@ -187,9 +247,11 @@ def build_queries(
     """Build (query_string, language) tuples for a given institution.
 
     For each language in `languages`, emit one query per GenAI term known
-    for that language. Languages without a known term roster fall back to
-    English. `extra_terms` (if given) are appended as language-agnostic
-    additions to every language.
+    for that language. A language with no roster entry raises
+    :class:`UnknownLanguageError`; it does **not** fall back to English
+    (roadmap A7, PI decision 2026-08-02 — see that class's docstring for why
+    the fallback was worse than an error). `extra_terms` (if given) are
+    appended as language-agnostic additions to every language.
 
     Only two slots are binding: the institution name and the GenAI term stay
     quoted exact phrases. The two qualifier slots are **unquoted hints** —
@@ -224,9 +286,15 @@ def build_queries(
     """
     queries: list[tuple[str, str]] = []
     extras = list(extra_terms or [])
+    languages = list(languages)
+    # Fail loud rather than fall back to English (A7, PI decision 2026-08-02).
+    # This is the defect line itself: the old `.get(lang) or ...["en"]` issued
+    # English queries and then labelled them with the *requested* code, so the
+    # misattribution was invisible from the artifact onward.
+    assert_languages_rostered(languages, GENAI_TERMS_BY_LANG)
 
     for lang in languages:
-        terms = GENAI_TERMS_BY_LANG.get(lang) or GENAI_TERMS_BY_LANG["en"]
+        terms = GENAI_TERMS_BY_LANG[lang]
         for term in terms + extras:
             slots = [_phrase(institution_name)]
             for qualifier in (country, disambiguation):

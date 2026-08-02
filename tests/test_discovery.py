@@ -22,12 +22,10 @@ def test_build_queries_emits_known_languages():
     assert all(institution_in_query(q) for q, _ in queries)
 
 
-def test_build_queries_falls_back_to_english_for_unknown_language():
-    queries = query_builder.build_queries("Some Ministry", ["xx"])
-    assert all(lang == "xx" for _, lang in queries)
-    assert all(institution_in_query(q) for q, _ in queries)
-    en_queries = query_builder.build_queries("Some Ministry", ["en"])
-    assert len(queries) == len(en_queries)
+def test_build_queries_raises_for_unknown_language():
+    """A7 (PI decision 2026-08-02): unrostered codes fail loud, not to English."""
+    with pytest.raises(query_builder.UnknownLanguageError):
+        query_builder.build_queries("Some Ministry", ["xx"])
 
 
 def test_build_queries_appends_extra_terms():

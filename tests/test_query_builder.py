@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from g3o.discovery.query_builder import GENAI_TERMS_BY_LANG, build_queries
+import pytest
+
+from g3o.discovery.query_builder import (
+    GENAI_TERMS_BY_LANG,
+    UnknownLanguageError,
+    build_queries,
+)
 
 
 def test_build_queries_one_per_term() -> None:
@@ -12,10 +18,27 @@ def test_build_queries_one_per_term() -> None:
     assert all('"City of Helsinki"' in q for q, _ in queries)
 
 
-def test_build_queries_unknown_language_falls_back_to_english() -> None:
-    queries = build_queries("Test Institution", ["xx"])
-    assert len(queries) == len(GENAI_TERMS_BY_LANG["en"])
-    assert all(lang == "xx" for _, lang in queries)
+def test_build_queries_unknown_language_raises() -> None:
+    """A7 (PI decision 2026-08-02): fail loud, never fall back to English.
+
+    The old behaviour issued English queries and labelled them ``xx``, so a
+    run configured for an unrostered language produced English results under
+    that language's name — invisible from the artifact all the way to a
+    published per-country figure.
+    """
+    with pytest.raises(UnknownLanguageError) as exc:
+        build_queries("Test Institution", ["xx"])
+    assert "xx" in str(exc.value)
+
+
+def test_build_queries_rejects_the_whole_call_not_just_the_bad_language() -> None:
+    """One unrostered code fails the call; it does not silently emit the rest.
+
+    A partial result would be worse than either alternative: the run would
+    proceed, under-searched, with nothing on disk saying so.
+    """
+    with pytest.raises(UnknownLanguageError):
+        build_queries("Test Institution", ["en", "xx"])
 
 
 def test_build_queries_extra_terms_appended_per_language() -> None:
