@@ -10,6 +10,7 @@ a subcommand body, so no network/Batch-API calls occur.
 from __future__ import annotations
 
 import argparse
+import io
 
 import pytest
 
@@ -226,3 +227,44 @@ def test_verify_model_routing():
     args = cli.build_parser().parse_args(["verify-model"])
     assert args.func is cli._cmd_verify_model
     assert args.model == DEFAULT_MODEL
+
+
+# ---------------------------------------------------------------------------
+# stdout encoding (the cp1252 crash: work succeeds, only the print dies)
+# ---------------------------------------------------------------------------
+
+
+def _cp1252_stream():
+    """A stdout that behaves like a Windows console at the default codepage."""
+    return io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+
+
+def test_non_ascii_output_would_crash_a_cp1252_stream():
+    """Pins the failure mode the fix exists for; if this stops raising, the
+    encoding fix below is no longer testing anything."""
+    stream = _cp1252_stream()
+    with pytest.raises(UnicodeEncodeError):
+        stream.write("Ministerstvo pro místní rozvoj — 数字政府")
+        stream.flush()
+
+
+def test_main_reconfigures_stdout_and_stderr_to_utf8(monkeypatch):
+    out, err = _cp1252_stream(), _cp1252_stream()
+    monkeypatch.setattr(cli.sys, "stdout", out)
+    monkeypatch.setattr(cli.sys, "stderr", err)
+
+    cli._force_utf8_streams()
+
+    assert out.encoding == "utf-8"
+    assert err.encoding == "utf-8"
+    out.write("Ministerstvo pro místní rozvoj — 数字政府")
+    out.flush()  # would raise UnicodeEncodeError before the reconfigure
+
+
+def test_force_utf8_streams_tolerates_streams_without_reconfigure(monkeypatch):
+    """pytest's own capture buffers do not expose ``reconfigure``; the guard
+    must not turn a working stream into an AttributeError at CLI entry."""
+    monkeypatch.setattr(cli.sys, "stdout", io.StringIO())
+    monkeypatch.setattr(cli.sys, "stderr", io.StringIO())
+
+    cli._force_utf8_streams()  # must not raise

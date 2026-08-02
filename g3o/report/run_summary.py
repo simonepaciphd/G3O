@@ -34,10 +34,13 @@ _STAGE_ORDER: tuple[str, ...] = (
     "validate",
 )
 
+# Must stay in sync with the statuses g3o.report.outcomes can emit: a status
+# missing here is silently dropped from the breakdown (see compute_run_summary).
 _FINAL_STATUSES: tuple[str, ...] = (
     "EVIDENCE_FOUND",
     "NO_EVIDENCE_FOUND",
     "PROCESSING_FAILED",
+    "PROCESSING_INCOMPLETE",
     "RUN_TRUNCATED",
 )
 

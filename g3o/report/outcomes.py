@@ -1,33 +1,53 @@
 """Institution-level final outcome determination — read-only from disk.
 
-Walks a presweep run and assigns each institution exactly one of four final
+Walks a presweep run and assigns each institution exactly one of five final
 statuses:
 
 - ``EVIDENCE_FOUND``    — reached Stage 6; ``has_genai_activity == "yes"``
                           with >=1 consolidated activity.
-- ``NO_EVIDENCE_FOUND`` — the run was configured to reach Stage 6 and this
-                          institution was genuinely evaluated that far (or ran
-                          out of legitimate upstream input, e.g. zero URLs
-                          kept by triage) but no qualifying evidence surfaced.
+- ``NO_EVIDENCE_FOUND`` — the run was configured to reach Stage 6, **every
+                          configured stage completed**, and this institution
+                          was genuinely evaluated that far (or ran out of
+                          legitimate upstream input, e.g. zero URLs kept by
+                          triage) but no qualifying evidence surfaced.
 - ``PROCESSING_FAILED`` — a technical failure (an attrition-recorded parse /
                           scrape failure for this institution, or an
                           unreadable ``6_validate.json``) prevented a
                           conclusion.
+- ``PROCESSING_INCOMPLETE`` — the run was configured to reach Stage 6 but
+                          died before completing it, and this institution has
+                          no verdict of its own: it may never have got a turn
+                          at all, or got one and was still queued behind a
+                          stage the run never finished. Distinct from
+                          ``NO_EVIDENCE_FOUND``, which is a substantive
+                          result about the institution, and from
+                          ``PROCESSING_FAILED``, which names a failure
+                          attributed to *this* institution.
 - ``RUN_TRUNCATED``     — the run itself was configured to stop before Stage 6
                           (``--stop-after``); this institution was never
                           evaluated for evidence, independent of what its
                           partial artifacts look like.
 
-Known limitation (not fixed here): an institution that never gets its turn
-because the *whole run* aborts mid-flight on an unrelated fatal error (e.g. a
-``SerperRequestError`` that aborts Stage 1a for every institution still queued
-behind the one that hit it) has no attrition record of its own and no
-``6_validate.json`` — it is classified ``NO_EVIDENCE_FOUND`` here rather than
-``PROCESSING_FAILED``, because nothing on disk distinguishes "never got a
-turn" from "got a turn and found nothing." This mirrors a pre-existing
-pipeline property (single-institution failures already routed through
-``attrition.record`` are correctly attributed; whole-run aborts are not
-scoped to an institution) and is out of scope for this task.
+Whole-run aborts (fixed here). A run that dies mid-flight on an error not
+scoped to any one institution — e.g. a ``SerperRequestError`` that aborts
+Stage 1a for every institution still queued behind the one that hit it —
+leaves those institutions with no attrition record and no ``6_validate.json``.
+They used to fall through to ``NO_EVIDENCE_FOUND``. The disk *does* carry a
+positive completion record: :func:`g3o.common.run_state.mark_done` writes
+``_state/.done/{stage}.json`` when — and only when — a stage finishes for the
+whole run, and every one of the eight stages writes one. So a
+``NO_EVIDENCE_FOUND`` verdict is only issued when every configured stage
+carries its marker; otherwise the institution is ``PROCESSING_INCOMPLETE``,
+naming the first stage that never completed.
+
+Scope of the guarantee. This is the *report-side* half: it prevents a
+loudly-aborted run from being read off disk as substantive no-evidence. It
+does **not** detect silent loss inside a stage that completed and wrote its
+marker (e.g. Batch results lost between fetch and persistence) — that needs
+run-time reconciliation at the ``run_state`` / ``batch_client`` layer, which
+is a separate, unimplemented work item. An institution that *does* carry a
+readable ``6_validate.json`` keeps its substantive verdict even in an aborted
+run: it was evaluated, and the abort happened elsewhere.
 
 No network calls. Mirrors :mod:`g3o.report.health`'s disk-only-read
 convention.
@@ -41,8 +61,23 @@ from typing import Any
 
 from g3o.common import attrition as _attrition
 from g3o.common.contract import BatchResponse
+from g3o.common.run_state import is_done
 from g3o.common.timing import read_timing
 from g3o.persist.writer import load_consolidated_outputs
+
+# Canonical stage order. Duplicated from g3o.run.presweep.config.STAGES for the
+# same reason g3o.report.run_summary._STAGE_ORDER duplicates it: the report
+# layer reads runs off disk and must not import the orchestrator.
+_STAGE_ORDER: tuple[str, ...] = (
+    "discovery_general",
+    "classify_official_site",
+    "discovery_site_restricted",
+    "filter_eligibility",
+    "classify_triage",
+    "scrape",
+    "extract",
+    "validate",
+)
 
 # Attrition reasons that represent a genuine technical failure, as opposed to
 # expected/normal filtering (robots_disallowed, empty_page_dropped,
@@ -126,6 +161,24 @@ def _pages_scraped(inst_dir: Path) -> int:
     return sum(1 for _ in scrape_dir.glob("*.json")) if scrape_dir.is_dir() else 0
 
 
+def _first_incomplete_stage(run_dir: Path, stopped_after_stage: str | None) -> str | None:
+    """First configured stage with no ``.done`` marker, or None if all completed.
+
+    The configured set is ``_STAGE_ORDER`` up to and including
+    ``stopped_after_stage``; an unrecognised (or missing) value is treated as
+    the full ladder, which is the conservative reading — an unknown
+    ``stop_after`` must not license a substantive no-evidence verdict.
+    """
+    if stopped_after_stage in _STAGE_ORDER:
+        configured = _STAGE_ORDER[: _STAGE_ORDER.index(stopped_after_stage) + 1]
+    else:
+        configured = _STAGE_ORDER
+    for stage in configured:
+        if not is_done(run_dir, stage):
+            return stage
+    return None
+
+
 def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
     """Compute one final-outcome record per institution in the run's sample."""
     run_dir = Path(run_dir)
@@ -141,6 +194,11 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
 
     _, validate_parse_failures = load_consolidated_outputs(run_dir)
     validate_parse_failures = set(validate_parse_failures)
+
+    # Run-level, institution-independent: the first configured stage the run
+    # never finished. None ⇒ the run completed everything it was configured to
+    # do, so an empty result is a substantive one.
+    incomplete_stage = _first_incomplete_stage(run_dir, stopped_after_stage)
 
     records: list[dict[str, Any]] = []
     for inst_id in institution_ids:
@@ -195,10 +253,27 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
             else:
                 final_status = "NO_EVIDENCE_FOUND"
                 reason = f"has_genai_activity={has_genai_activity!r}, 0 qualifying activities"
+        elif incomplete_stage is not None:
+            # The run was configured to reach Stage 6 but never completed
+            # every configured stage, and this institution produced no verdict
+            # of its own. Nothing here is a statement about the institution;
+            # it is a statement about the run.
+            final_status = "PROCESSING_INCOMPLETE"
+            never_started = stage_reached is None
+            reason = (
+                f"run did not complete stage {incomplete_stage!r} (no "
+                f"'_state/.done/{incomplete_stage}.json' marker); institution "
+                + (
+                    "left no artifacts at all — never got a turn"
+                    if never_started
+                    else f"reached {stage_reached!r} and has no Stage 6 verdict"
+                )
+            )
         else:
-            # stop_after == "validate" but nothing reached Stage 6 for this
-            # institution, and no failure was recorded — a legitimate empty
-            # result (ran out of upstream input), not a technical failure.
+            # stop_after == "validate", every configured stage completed, but
+            # nothing reached Stage 6 for this institution and no failure was
+            # recorded — a legitimate empty result (ran out of upstream input),
+            # not a technical failure.
             final_status = "NO_EVIDENCE_FOUND"
             if urls_kept == 0:
                 reason = "zero URLs passed triage"

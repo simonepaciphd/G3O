@@ -204,10 +204,15 @@ Session spend for the record: 2,273 credits (smoke 6, chain arm 368, legacy arm
    accuracy regression.**
 2. **`discovery_yield.py` only runs where ground truth exists** — 1.96% of the
    registry, unrepresentatively national.
-3. **Whole-run aborts are misattributed.** A run that dies mid-flight leaves
-   queued institutions classified `NO_EVIDENCE_FOUND` rather than
-   `PROCESSING_FAILED`; nothing on disk distinguishes "never got a turn" from
-   "got a turn and found nothing" (documented in `g3o/report/outcomes.py`).
+3. **Whole-run aborts — fixed report-side, 2026-08-02.** A run that died
+   mid-flight used to leave queued institutions classified `NO_EVIDENCE_FOUND`.
+   `g3o/report/outcomes.py` now reads the `_state/.done/{stage}.json` markers
+   and issues `NO_EVIDENCE_FOUND` only when every configured stage completed;
+   otherwise the institution is `PROCESSING_INCOMPLETE`, naming the stage the
+   run never finished. **Residual:** this catches a loud abort (no marker). It
+   cannot see silent loss inside a stage that completed and wrote its marker —
+   that needs run-time reconciliation in `run_state` / `batch_client`, which is
+   a separate, unimplemented work item.
 4. **The disambiguation slot is unmeasured.** It ships on first principles;
    zero of the 200 ground-truth institutions carry one.
 
@@ -266,9 +271,11 @@ yield; 8–10 buy durability.
 9. **Recalibrate `thresholds.py` against measured values** once item 1 lands.
    They are currently smoke-run guesses and will either never fire or fire
    constantly at production scale.
-10. **Fix the whole-run-abort misattribution** (§5.3) and the `_cmd_discover`
-    cp1252 crash at `g3o/cli.py:89` (search succeeds; only the print dies —
-    work around with `PYTHONIOENCODING=utf-8`).
+10. ~~**Fix the whole-run-abort misattribution** (§5.3) and the `_cmd_discover`
+    cp1252 crash (search succeeds; only the print dies).~~ **Both done
+    2026-08-02.** The abort fix is report-side only — see §5.3 for the residual.
+    The CLI now forces UTF-8 on stdout/stderr at entry (`cli._force_utf8_streams`),
+    so `PYTHONIOENCODING=utf-8` is no longer needed as a workaround.
 
 ---
 

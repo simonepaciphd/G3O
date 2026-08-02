@@ -864,7 +864,24 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _force_utf8_streams() -> None:
+    """Make stdout/stderr UTF-8 regardless of the console's default codepage.
+
+    Every command here emits institution names, URLs and page text verbatim,
+    so on a Windows cp1252 console the *print* raises ``UnicodeEncodeError``
+    after the work already succeeded — ``g3o discover`` losing a completed
+    search to an un-encodable character in a result title being the reported
+    case. Widening the encoding cannot change ASCII output. No-op on streams
+    that do not expose ``reconfigure`` (e.g. a pytest capture buffer).
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
+    _force_utf8_streams()
     parser = build_parser()
     args = parser.parse_args(argv)
     return args.func(args)
