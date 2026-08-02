@@ -34,6 +34,10 @@ dependencies = [
     "pydantic>=2.5",
     "pyyaml>=6.0",
     "playwright>=1.40",
+    # eTLD+1 for the own-domain-relevant-hit metric (g3o.report.discovery_yield).
+    # Configured offline there (suffix_list_urls=()), so it never fetches the
+    # public-suffix list at runtime and a score stays reproducible.
+    "tldextract>=5.1",
 ]
 
 [project.optional-dependencies]
