@@ -157,7 +157,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             num_results=config.discovery_results_per_query,
             max_workers=config.max_workers,
             mode=config.discovery_mode,
-            evidence_term=config.discovery_evidence_term,
+            evidence_terms=config.evidence_terms,
             options=serper_options,
         )
         summary["n_discovery_site_restricted"] = sum(

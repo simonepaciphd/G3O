@@ -115,6 +115,18 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "discovery_languages",
     "discovery_results_per_query",
     "institution_search_languages",
+    # Chain-mode query surface (added 2026-08-02). These were written to the
+    # manifest by ``asdict`` from the day the chain shipped but never compared,
+    # so a run started in ``chain`` could be resumed in ``legacy`` — a
+    # different instrument, different credit cost, and a silently mixed run —
+    # without the F7 guard noticing. ``discovery_evidence_terms`` decides which
+    # token every leg-2 query carries, which is the same class of methodology
+    # surface as the roster A4 covers.
+    "discovery_mode",
+    "discovery_evidence_term",
+    "discovery_evidence_terms",
+    "discovery_domain_quote_name",
+    "serper_autocorrect",
     "model",
 )
 

@@ -527,6 +527,7 @@ def test_evidence_term_is_configurable_end_to_end(tmp_path, monkeypatch):
     _patch_search(monkeypatch, rec)
     ps._run_discovery_site_restricted(
         plan.run_dir, plan.sample, official,
-        languages=("en",), num_results=10, mode="chain", evidence_term="IA",
+        languages=("en",), num_results=10, mode="chain",
+        evidence_terms={"en": "IA"},
     )
     assert rec.queries == ["site:example.gov IA"]

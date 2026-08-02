@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ from g3o.common.timing import stage_timer
 from g3o.discovery.domain_pick import pick_domain
 from g3o.discovery.query_builder import (
     DEFAULT_EVIDENCE_TERM,
+    DOMAIN_QUERY_LANG,
     build_domain_query,
     build_evidence_query,
     build_queries,
@@ -79,7 +81,7 @@ def leg1_recall_block(
     }
 
 
-# Language tag carried by both legs of the two-query chain.
+# Language tagging in chain mode.
 #
 # Load-bearing, not cosmetic. ``g3o.report.health`` and
 # ``g3o.report.language_readiness`` attribute every URL to the language of the
@@ -88,11 +90,16 @@ def leg1_recall_block(
 # zero out every language-filtered health figure and the readiness bar the
 # multilingual subproject depends on.
 #
-# ``"en"`` is the honest value for what this module builds: leg 1's
-# ``official website`` suffix and leg 2's bare ``AI`` token are both English,
-# whatever ``discovery_languages`` is set to. Native-language legs belong to
-# ``subprojects/multilingual-pipeline/`` and must carry their own tag.
-_CHAIN_LANG = "en"
+# The two legs are tagged differently and that asymmetry is the point.
+# Leg 1's ``official website`` suffix is not localized (PI decision,
+# 2026-08-02), so it is always ``DOMAIN_QUERY_LANG`` — English. Leg 2 carries
+# **its own** language per query, taken from the evidence-term roster, which is
+# what makes a multi-language chain run honest at row level rather than
+# collapsing to a single run-level claim.
+#
+# Until 2026-08-02 both legs shared one ``"en"`` constant. That was honest
+# about the queries but left ``institution_search_languages`` free to claim a
+# language that was never issued; see ``PresweepConfig`` for the other half.
 
 
 def _query_provenance(query: str, lang: str, leg: str, result) -> dict[str, Any]:
@@ -197,7 +204,7 @@ def _discover_general_one(
                         row.get("disambiguation") or "",
                         quote_name=domain_quote_name,
                     ),
-                    _CHAIN_LANG,
+                    DOMAIN_QUERY_LANG,
                 )
             ]
         else:
@@ -316,7 +323,7 @@ def _discover_site_restricted_one(
     languages: tuple[str, ...],
     num_results: int,
     mode: str = "legacy",
-    evidence_term: str = DEFAULT_EVIDENCE_TERM,
+    evidence_terms: Mapping[str, str] | None = None,
     options: SerperOptions | None = None,
 ) -> tuple[str, list[dict[str, Any]]] | None:
     """Process Stage 1b site-restricted discovery for one institution.
@@ -356,7 +363,19 @@ def _discover_site_restricted_one(
         return None
     with stage_timer(run_dir, inst_id, stage):
         if mode == "chain":
-            wrapped = [(build_evidence_query(domain, evidence_term), _CHAIN_LANG)]
+            # One query per configured language, each tagged with **its own**
+            # code. Credit cost scales linearly: n languages = n leg-2 credits
+            # per institution, against the 1.84 credits/institution measured
+            # for the single-language chain.
+            terms = (
+                dict(evidence_terms)
+                if evidence_terms is not None
+                else {DOMAIN_QUERY_LANG: DEFAULT_EVIDENCE_TERM}
+            )
+            wrapped = [
+                (build_evidence_query(domain, term), lang)
+                for lang, term in terms.items()
+            ]
         else:
             base_queries = build_queries(
                 institution["institution_name"], list(languages),
@@ -412,7 +431,7 @@ def _run_discovery_site_restricted(
     num_results: int,
     max_workers: int = 1,
     mode: str = "legacy",
-    evidence_term: str = DEFAULT_EVIDENCE_TERM,
+    evidence_terms: Mapping[str, str] | None = None,
     options: SerperOptions | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Stage 1b — site-restricted Serper queries (revision 2026-05-09, D1–D2).
@@ -445,7 +464,7 @@ def _run_discovery_site_restricted(
         lambda row: _discover_site_restricted_one(
             run_dir, row, official_sites,
             stage=stage, languages=languages, num_results=num_results,
-            mode=mode, evidence_term=evidence_term, options=options,
+            mode=mode, evidence_terms=evidence_terms, options=options,
         ),
         max_workers=max_workers,
     )
