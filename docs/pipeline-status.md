@@ -168,23 +168,56 @@ than becoming folklore.
 
 | Stage | Measured (n=100, 2026-08-02) | Threshold (T) | Budget assumption (A) |
 |---|:--|---:|---|
-| 1c filter_eligibility | **2.2% pass** (36/1,648); would-drop 97.8%; **shadow recall 3.9%** vs a 70% bar | pass-rate bands set | shadow mode, nothing dropped ✓ |
+| 1c filter_eligibility | as measured: **2.2% pass** (36/1,648), **shadow recall 3.9%** vs a 70% bar → **snippet screen retired same day**, giving 94.8% pass / **99.5% recall** | pass-rate bands set | shadow mode, nothing dropped ✓ |
 | 3 classify_triage | **51.6% URL keep** (831/1,610); **96%** of institutions with a keep | 70% / 40% institutions with a keep; 30% / 15% URL keep-rate | ~40 URLs → ~12 kept |
 | 4 scrape | **99.4% success** (826/831); 0 errors; 5 robots-disallowed; 83 render fallbacks | 70% / 40% success | ~2.4 rendered URLs / institution |
 | 5 extract | — *(not run — codebook open)* | 70% / 40% success; 30% / 60% empty | ~12 pages / institution |
 | 6 validate | — *(not run — codebook open)* | 80% / 60% consolidated; 40% / 70% unclear | 1 call / institution |
 | 7 persist | — *(not run)* | n/a (deterministic) | n/a |
 
-Stages 3 and 4 clear their thresholds comfortably. **Stage 1c does not, and the
-gap is not a threshold-calibration problem.** Of the 831 URLs Stage 3's triage
-kept, only 32 also pass the 1c draft rules — 3.9% against PI decision 6's
-provisional bar of ≥70%. Switching `filter_mode` to `enforce` on these rules
-would discard ~96% of what the pipeline currently considers worth reading. The
-dominant drop reason is `no_genai_signal` (1,527 of 1,612), which is what a
-URL-string GenAI test does to homepages and about-pages: leg 1 is *supposed* to
-return the homepage, so the filter is penalising the chain for working. Whether
-to redesign the 1c rules, restrict them to the 1b leg, or retire the stage is a
-design decision, not a recalibration — flagged, not acted on.
+Stages 3 and 4 clear their thresholds comfortably. **Stage 1c did not, and the
+gap was not a threshold-calibration problem.** Of the 831 URLs Stage 3's triage
+kept, only 32 also passed the 1c draft rules — 3.9% against PI decision 6's
+provisional bar of ≥70%. Switching `filter_mode` to `enforce` on those rules
+would have discarded ~96% of what the pipeline considers worth reading.
+
+### Decision 2026-08-02 (PI): the 1c snippet screen is retired
+
+`has_genai_signal` is no longer called from `eligibility.evaluate()`. Stage 1c is
+now a **URL-hygiene screen only** (path patterns, shorteners, social profiles).
+`RULES_VERSION` moves `1c-draft-2026-08-01` → `1c-url-hygiene-2026-08-02` so no
+artifact can be misread as having been produced by rules that no longer run. The
+function and its lexicon tests are retained, unreachable, for whatever replaces
+it.
+
+**Correcting the first write-up of this finding**, which mis-stated the
+mechanism. The GenAI screen is **not** a URL-string test — `has_genai_signal`
+reads the SERP **title ∪ snippet**; only `url_pattern_hits` looks at the URL. The
+real mechanism is that a SERP snippet is not a statement about the page's topic.
+That distinction matters because it changes which fix works, and two plausible
+fixes turn out not to:
+
+| 1c variant (replayed over the run's 1,648 URLs) | pass | shadow recall | vs 70% bar |
+|---|---:|---:|---|
+| as run — patterns + snippet screen | 2.2% | 3.9% | fails |
+| exempt homepages from the screen | 10.5% | 13.8% | still fails |
+| restrict the screen to the 1b leg | — | — | rejected, see below |
+| **screen removed (shipped)** | **94.8%** | **99.5%** | **passes** |
+
+Leg 1 asks `<name> <country> official website`, so its snippets describe the
+institution and never AI — every homepage failed, which was expected. What was
+not expected: **leg 2 fails almost as badly.** Although it asks
+`site:<domain> AI`, Google returns the page's generic meta description rather
+than an AI-matching excerpt, so 762 of ~802 leg-2 URLs were dropped too — and
+*every one* of the 36 survivors was a leg-2 URL. So "restrict 1c to the 1b leg",
+floated in the first write-up, would have fixed almost nothing.
+
+**The trade-off, stated plainly:** 1c now removes 5.2% of candidate URLs rather
+than 97.8%, so it is a correctness/hygiene stage and **no longer a cost-saving
+one**. Any Stage 3 volume reduction that the budget attributed to 1c should be
+removed from the model. Screening on page *text* after Stage 4, or on a
+better-calibrated lexicon, remains open; the vocabulary machinery is intact for
+it, and retuning it belongs to `subprojects/multilingual-pipeline/`.
 
 Thresholds were calibrated for a ~10-institution smoke run and are explicitly
 PI-tunable; they were **not** derived from observation. They have deliberately
@@ -380,8 +413,8 @@ yield; 8–10 buy durability.
    `--max-workers 4`, of which scrape was ~80%. Resuming for 5–7 costs only the
    two remaining Batch stages — `--execute` against the same `--run-id` reuses
    the completed stages off `_state/`.
-   **New highest-value item from this run: the Stage 1c rule set (§3), which
-   would discard ~96% of triage keeps if enforced.**
+   The Stage 1c rule set, this run's other headline finding, was **fixed the
+   same day** — snippet screen retired, 3.9% → 99.5% shadow recall (§3).
 2. **Build a subnational ground-truth set.** ~200 hand-verified websites for US
    local government and non-US subnational units. Unblocks the disambiguation
    slot (30% of the registry) and answers whether 64.5% survives contact with
