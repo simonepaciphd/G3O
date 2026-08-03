@@ -34,13 +34,19 @@ from g3o.run.presweep.stage_filter import ARTIFACT_NAME
 INST1 = "INST-0000001"
 INST2 = "INST-0000002"
 
-# INST1 1a: one pass (signal), one url-pattern drop (robots.txt), one
-# no-signal drop. INST1 1b: one pass. INST2 1a: one pass.
+# INST1 1a: two passes and two url-pattern drops. `/minutes` carries no GenAI
+# signal at all and passes anyway — that is the point of it since the snippet
+# screen was retired (2026-08-02). The two drops are deliberately different
+# url-pattern rules (a path rule and a host rule) so drop-reason tallies and
+# shadow-recall math stay non-trivial now that only one screen remains.
+# INST1 1b: one pass. INST2 1a: one pass.
 _1A = {
     INST1: [
         {"link": "https://a.gov/ai-news", "title": "City adopts ChatGPT",
          "snippet": "a generative AI pilot", "language": "en"},
         {"link": "https://a.gov/robots.txt", "title": "", "snippet": "", "language": "en"},
+        {"link": "https://www.facebook.com/CityDept", "title": "City Dept",
+         "snippet": "our generative AI pilot", "language": "en"},
         {"link": "https://a.gov/minutes", "title": "Budget meeting",
          "snippet": "roads and parks funding", "language": "en"},
     ],
@@ -57,8 +63,13 @@ _1B = {
     ],
 }
 
-_DROP_URLS = {"https://a.gov/robots.txt", "https://a.gov/minutes"}
-_PASS_URLS = {"https://a.gov/ai-news", "https://a.gov/ai-policy", "https://b.gov/genai"}
+_DROP_URLS = {"https://a.gov/robots.txt", "https://www.facebook.com/CityDept"}
+_PASS_URLS = {
+    "https://a.gov/ai-news",
+    "https://a.gov/ai-policy",
+    "https://b.gov/genai",
+    "https://a.gov/minutes",  # no GenAI signal; passes since the screen retired
+}
 
 
 def _sample() -> list[dict[str, Any]]:
@@ -118,8 +129,9 @@ def test_shadow_drops_nothing(run_dir: Path) -> None:
     assert payload["rules_version"] == E.RULES_VERSION
     decisions = {d["url"]: d["decision"] for d in payload["decisions"]}
     assert decisions["https://a.gov/robots.txt"] == "drop"
-    assert decisions["https://a.gov/minutes"] == "drop"
+    assert decisions["https://www.facebook.com/CityDept"] == "drop"
     assert decisions["https://a.gov/ai-news"] == "pass"
+    assert decisions["https://a.gov/minutes"] == "pass"
 
     # Nothing dropped: no attrition, stats show would-drop but zero enforced.
     assert _attrition.read_records(run_dir) == []
@@ -141,7 +153,7 @@ def test_enforce_drops_and_excludes_from_triage(run_dir: Path) -> None:
     by_url = {r["url"]: r for r in recs}
     assert by_url["https://a.gov/robots.txt"]["reason"] == E.REASON_URL_PATTERN
     assert by_url["https://a.gov/robots.txt"]["stage"] == "filter_eligibility"
-    assert by_url["https://a.gov/minutes"]["reason"] == E.REASON_NO_SIGNAL
+    assert by_url["https://www.facebook.com/CityDept"]["reason"] == E.REASON_URL_PATTERN
     assert stats["n_enforced_drop"] == 2
 
     # The dropped URLs never reach Stage 3; the passing ones do.
@@ -209,7 +221,7 @@ def test_report_block_shadow_recall(run_dir: Path) -> None:
     # LLM (Stage 3) keeps one would-drop URL and one pass URL for INST1.
     (run_dir / INST1 / "3_triage.json").write_text(
         json.dumps({"decisions": [
-            {"url": "https://a.gov/minutes", "decision": "keep", "rationale": "x"},
+            {"url": "https://www.facebook.com/CityDept", "decision": "keep", "rationale": "x"},
             {"url": "https://a.gov/ai-news", "decision": "keep", "rationale": "x"},
         ]}),
         encoding="utf-8",
@@ -219,14 +231,13 @@ def test_report_block_shadow_recall(run_dir: Path) -> None:
     assert block["ran"] is True
     assert block["mode"] == "shadow"
     assert block["n_would_drop"] == 2
-    assert block["drop_reasons"] == {
-        E.REASON_URL_PATTERN: 1,
-        E.REASON_NO_SIGNAL: 1,
-    }
+    # Both drops are url-pattern drops now that the snippet screen is retired.
+    assert block["drop_reasons"] == {E.REASON_URL_PATTERN: 2}
     en = block["per_language"]["en"]
-    # llm_keep = {/minutes, /ai-news}; the filter would drop /minutes and keeps
-    # /ai-news. shadow_recall is stated in PI decision 6's direction — the share
-    # of LLM-kept URLs that ALSO pass — so it is 1/2, not the complement.
+    # llm_keep = {facebook, /ai-news}; the filter would drop the facebook
+    # profile and keeps /ai-news. shadow_recall is stated in PI decision 6's
+    # direction — the share of LLM-kept URLs that ALSO pass — so 1/2, not the
+    # complement.
     assert en["llm_keep"] == 2
     assert en["llm_keep_and_pass"] == 1
     assert en["llm_keep_and_would_drop"] == 1
@@ -248,7 +259,7 @@ def test_shadow_recall_is_stated_in_decision_6_direction(run_dir: Path) -> None:
         json.dumps({"decisions": [
             {"url": "https://a.gov/ai-news", "decision": "keep", "rationale": "x"},
             {"url": "https://a.gov/ai-policy", "decision": "keep", "rationale": "x"},
-            {"url": "https://a.gov/minutes", "decision": "keep", "rationale": "x"},
+            {"url": "https://www.facebook.com/CityDept", "decision": "keep", "rationale": "x"},
         ]}),
         encoding="utf-8",
     )
@@ -256,7 +267,7 @@ def test_shadow_recall_is_stated_in_decision_6_direction(run_dir: Path) -> None:
     en = compute_filter_block(run_dir)["per_language"]["en"]
     assert en["llm_keep"] == 3
     assert en["llm_keep_and_pass"] == 2      # ai-news + ai-policy survive
-    assert en["llm_keep_and_would_drop"] == 1  # minutes has no GenAI signal
+    assert en["llm_keep_and_would_drop"] == 1  # the facebook profile is dropped
     assert en["shadow_recall"] == round(2 / 3, 4)
     # Higher is better: the reported value must exceed the complement here.
     assert en["shadow_recall"] > 0.5
@@ -476,6 +487,45 @@ def test_host_rules_match_subdomains_and_strip_www() -> None:
     assert E.host_rule_hits("https://www.bit.ly/abc") == ["url_shortener"]
     assert E.host_rule_hits("https://m.facebook.com/Dept") == ["social_media_profile"]
     assert E.host_rule_hits("https://bit.ly:443/abc") == ["url_shortener"]
+
+
+def test_snippet_screen_is_retired_from_evaluate() -> None:
+    """PI decision 2026-08-02: 1c no longer screens title/snippet for GenAI.
+
+    It measured 3.9% shadow recall against a >=70% bar on run
+    20260802-e2e-100 — enforcing it would have discarded ~96% of the funnel.
+    An institution's own homepage is the canonical casualty: leg 1 asks
+    "<name> <country> official website", so the snippet describes the
+    institution and never AI.
+    """
+    homepage = E.evaluate(
+        {"link": "https://a.gov/", "title": "Ministry of Finance",
+         "snippet": "Official website of the Ministry of Finance."}
+    )
+    assert homepage["decision"] == "pass"
+    assert homepage["matched_rules"] == []
+    assert homepage["reason"] is None
+
+    # Nothing about the text matters any more — not even obvious non-content.
+    assert E.evaluate(
+        {"link": "https://a.gov/minutes", "title": "Budget meeting",
+         "snippet": "roads and parks funding"}
+    )["decision"] == "pass"
+
+    # The screen itself is retained (and still correct) for whatever replaces
+    # it; it is simply no longer reachable from evaluate().
+    assert E.has_genai_signal("Ministry of Finance", "Official website.") is False
+    assert E.has_genai_signal("AI strategy", "generative AI") is True
+
+
+def test_retirement_is_recorded_in_the_rules_version() -> None:
+    """A 1c decision must always be traceable to the rules that produced it.
+
+    Artifacts written before 2026-08-02 carry `1c-draft-2026-08-01` and were
+    produced by a screen that no longer runs, so the version must not still
+    claim to be that rule set.
+    """
+    assert E.RULES_VERSION == "1c-url-hygiene-2026-08-02"
 
 
 def test_host_rule_drop_flows_through_evaluate() -> None:
