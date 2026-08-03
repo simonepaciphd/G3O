@@ -46,14 +46,15 @@ def _isolate(tmp_path, monkeypatch):
 
 
 def _download_returning(*, content=HTML_BYTES, ctype="text/html", status=200, final_url="https://x.gov", ms=5):
-    def _f(url):
+    # Mirror the real _download signature (Stage 4 passes on_redirect_hop).
+    def _f(url, *, on_redirect_hop=None):
         return (content, ctype, status, final_url, ms)
 
     return _f
 
 
 def _download_raising():
-    def _f(url):
+    def _f(url, *, on_redirect_hop=None):
         raise RuntimeError("simulated download failure")
 
     return _f

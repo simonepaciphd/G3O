@@ -19,6 +19,7 @@ import os
 import threading
 import time
 from collections.abc import Callable
+from urllib.parse import urljoin, urlsplit
 
 import requests
 from bs4 import BeautifulSoup
@@ -159,19 +160,66 @@ def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
     return cached
 
 
+# HTTP redirect statuses that carry a Location (per RFC 9110 / requests'
+# REDIRECT_STATI). Followed manually below so each cross-host hop can be
+# throttled at the boundary it crosses.
+_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
+_MAX_REDIRECTS = 20  # loop guard; mirrors requests' default ceiling
+
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def _download(url: str) -> tuple[bytes, str, int, str, int]:
-    """Return ``(content, content_type, http_status, final_url, elapsed_ms)``."""
+def _download(
+    url: str, *, on_redirect_hop: Callable[[str], None] | None = None
+) -> tuple[bytes, str, int, str, int]:
+    """Return ``(content, content_type, http_status, final_url, elapsed_ms)``.
+
+    Redirects are followed **manually** (``allow_redirects=False``) rather than
+    inside the session, so a cross-host redirect can be throttled at the point
+    it crosses hosts: *before* issuing the GET for a hop that lands on a
+    different host, ``on_redirect_hop`` is called with that destination URL.
+    Stage 4 wires it to :meth:`HostThrottle.wait`, so a hop onto a host another
+    worker is currently throttled against **waits its turn** — the same per-host
+    contract a direct request to that host would get — instead of racing in
+    (the redirect-destination finding). A same-host redirect (path-only, or
+    ``http``->``https`` on one host) does not re-throttle: it is one logical
+    request already covered by the origin's throttle entry. ``on_redirect_hop``
+    defaults to None, so standalone/CLI fetches and the unit suite follow
+    redirects with no throttle coupling.
+    """
     started = time.monotonic()
-    r = _get_session().get(url, timeout=config.REQUEST_TIMEOUT)
-    r.raise_for_status()
-    elapsed_ms = int((time.monotonic() - started) * 1000)
-    return (
-        r.content,
-        r.headers.get("content-type", "").lower(),
-        r.status_code,
-        r.url,
-        elapsed_ms,
+    session = _get_session()
+    current = url
+    for _ in range(_MAX_REDIRECTS + 1):
+        r = session.get(
+            current, timeout=config.REQUEST_TIMEOUT, allow_redirects=False
+        )
+        location = (
+            r.headers.get("location")
+            if r.status_code in _REDIRECT_STATUSES
+            else None
+        )
+        if location:
+            destination = urljoin(current, location)
+            # Throttle the destination host BEFORE the hop's GET, but only when
+            # the host actually changes — a same-host hop is the same physical
+            # server the origin request already spaced against.
+            if on_redirect_hop is not None and (
+                urlsplit(destination).hostname != urlsplit(current).hostname
+            ):
+                on_redirect_hop(destination)
+            current = destination
+            continue
+        r.raise_for_status()
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        return (
+            r.content,
+            r.headers.get("content-type", "").lower(),
+            r.status_code,
+            r.url,
+            elapsed_ms,
+        )
+    raise requests.TooManyRedirects(
+        f"Exceeded {_MAX_REDIRECTS} redirects starting from {url}"
     )
 
 
@@ -247,6 +295,7 @@ def scrape_url(
     empty_page_min_chars: int = 1,
     render_session: RenderSession | None = None,
     on_render_attempt: RenderAttemptCallback | None = None,
+    on_redirect_hop: Callable[[str], None] | None = None,
 ) -> RenderedPage:
     """Fetch a URL and return a ``RenderedPage``.
 
@@ -281,6 +330,14 @@ def scrape_url(
     The supplied ``url`` is preserved as ``RenderedPage.url`` regardless of
     redirects (pipeline-spec §1: "do not silently redirect-and-attribute").
     Successful fetches are cached on disk under ``config.CACHE_DIR``.
+
+    ``on_redirect_hop`` keeps this fetcher robots/throttle-agnostic while still
+    letting a polite caller (Stage 4) close the redirect-throttle gap. It is
+    forwarded to ``_download``, which follows redirects manually and calls it
+    with each cross-host destination *before* issuing that hop's GET — so a
+    redirect landing on a host another worker is throttled against waits its
+    turn instead of racing in. Defaults to None (standalone/CLI fetches and the
+    unit suite follow redirects with no throttle coupling).
     """
     # The disk cache must neither store nor serve a below-floor page when the
     # caller wants empty-page rendering: otherwise a near-empty page freezes
@@ -302,7 +359,13 @@ def scrape_url(
         return page
 
     try:
-        content, ctype, status, final_url, elapsed_ms = _download(url)
+        # Only pass the hop callback through when set, so callers/tests that
+        # monkeypatch a url-only ``_download`` stay compatible.
+        content, ctype, status, final_url, elapsed_ms = (
+            _download(url, on_redirect_hop=on_redirect_hop)
+            if on_redirect_hop is not None
+            else _download(url)
+        )
     except Exception:
         # Render fallback on a failed GET is opt-in (review F14): only when the
         # caller accepts the per-dead-URL browser-launch cost.
