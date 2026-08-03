@@ -171,6 +171,10 @@ def write_active_chunked(
             "fetched_at": None,
             "response_models": None,
             "system_fingerprints": None,
+            # Batch ids an operator has explicitly adjudicated as disregardable
+            # (see `abandon_chunk_batch`). Additive and read defensively, so
+            # state files written before 2026-08-03 stay loadable unchanged.
+            "abandoned_batch_ids": [],
         }
         total += len(ids_sorted)
     payload: dict[str, Any] = {
@@ -203,6 +207,57 @@ def update_chunk(run_dir: Path, stage: str, chunk: int | str, **fields: Any) -> 
     payload = json.loads(p.read_text(encoding="utf-8"))
     payload["chunks"][str(chunk)].update(fields)
     _write_json_atomic(p, payload)
+
+
+def abandon_chunk_batch(
+    run_dir: Path,
+    stage: str,
+    chunk: int | str,
+    batch_id: str,
+    *,
+    reason: str,
+) -> None:
+    """Record an operator decision to disregard one batch for a chunk.
+
+    Reconciliation raises when it finds a batch matching a chunk's metadata in
+    a terminal non-completed state, because a prior attempt going bad is an
+    operator decision, not something to paper over by resubmitting (Q3=d). That
+    guard has no release valve, so a batch that failed *at submission* — zero
+    requests run, zero spend, no results anywhere — blocks the chunk forever:
+    the batch cannot be deleted server-side and keeps matching the metadata.
+
+    This records the adjudication in the state file instead of weakening the
+    guard: the named batch is thereafter ignored for that chunk, every other
+    batch still raises, and the decision plus its reason stay in the run's
+    audit trail. Clears ``batch_id`` if it names the abandoned batch, so the
+    chunk returns to the un-submitted pool.
+
+    First use (2026-08-03): Stage 5 of run ``20260802-e2e-100``, whose single
+    681-job chunk was rejected with ``token_limit_exceeded`` before any job
+    ran, then replanned into token-sized chunks.
+    """
+    payload = load_state(run_dir, stage)
+    if payload is None:
+        raise FileNotFoundError(f"no active state for stage {stage!r} in {run_dir}")
+    entry = payload["chunks"][str(chunk)]
+    abandoned = list(entry.get("abandoned_batch_ids") or [])
+    if batch_id not in abandoned:
+        abandoned.append(batch_id)
+    entry["abandoned_batch_ids"] = abandoned
+    entry["abandon_reasons"] = {
+        **(entry.get("abandon_reasons") or {}),
+        batch_id: reason,
+    }
+    if entry.get("batch_id") == batch_id:
+        entry["batch_id"] = None
+        entry["submitted_at"] = None
+        entry["last_status"] = None
+        entry["last_polled_at"] = None
+    _write_json_atomic(state_path(run_dir, stage), payload)
+    logger.warning(
+        "Stage %s chunk %s: batch %s abandoned by operator decision (%s)",
+        stage, chunk, batch_id, reason,
+    )
 
 
 def iter_chunks(state: dict[str, Any]) -> Iterator[tuple[str, dict[str, Any]]]:
@@ -342,6 +397,7 @@ def run_chunked_stage(
     endpoint: str = batch_client.DEFAULT_ENDPOINT,
     max_chunk_bytes: int = batch_client.CHUNK_MAX_BYTES,
     max_chunk_requests: int = batch_client.CHUNK_MAX_REQUESTS,
+    enqueued_budget: int | None = None,
     client: Any | None = None,
 ) -> None:
     """Submit, poll, and fetch one LLM stage as size-capped batch chunks.
@@ -354,10 +410,25 @@ def run_chunked_stage(
     an error, not a silent drop).
 
     Fresh run: split jobs into chunks, persist the full plan (atomic), then
-    for each chunk reconcile-then-submit. Resume: chunks with ``fetched_at``
-    are skipped (their results were fetched and persisted exactly once);
-    chunks with a ``batch_id`` rejoin polling without resubmitting; chunks
-    without one go through reconciliation before any fresh submit.
+    release chunks in waves under ``enqueued_budget`` (see below). Resume:
+    chunks with ``fetched_at`` are skipped (their results were fetched and
+    persisted exactly once); chunks with a ``batch_id`` rejoin polling without
+    resubmitting; chunks without one go through reconciliation before any fresh
+    submit.
+
+    **Enqueued-token waves (2026-08-03).** OpenAI caps the tokens an org may
+    have enqueued at once per model, counting each queued request's full prompt
+    whether or not it prompt-caches. Chunking alone does not satisfy that cap,
+    because the cap is on concurrent enqueue: releasing every chunk up front
+    put ~10.6M tokens in the queue against a 2M ceiling and Stage 5 at n=100
+    died with ``token_limit_exceeded`` before running a single job. So chunks
+    are sized by estimated tokens (:func:`batch_client.split_jobs_into_chunks`)
+    and released only while the in-flight estimate stays inside
+    ``enqueued_budget``; capacity frees as chunks reach a terminal state. A
+    chunk larger than the entire budget is released alone rather than raising,
+    so it cannot deadlock the stage. Estimates are offline and conservative
+    (:data:`batch_client.BYTES_PER_TOKEN`) — an overestimate costs one extra
+    wave, an underestimate costs a failed submit.
 
     Reconciliation decision tree, per (run_id, stage, chunk), evaluated
     before every fresh submit (review F6b — orphaned live batches):
@@ -398,11 +469,29 @@ def run_chunked_stage(
     if state is not None:
         assert_chunked_state(state, path=state_path(run_dir, stage))
 
+    if enqueued_budget is None:
+        enqueued_budget = batch_client.enqueued_token_budget()
+
     jobs_by_id: dict[str, BatchJob] = {}
     for job in jobs:
         if job.custom_id in jobs_by_id:
             raise ValueError(f"duplicate custom_id in stage jobs: {job.custom_id!r}")
         jobs_by_id[job.custom_id] = job
+
+    # Per-job token estimates, keyed by custom_id, for scheduling against the
+    # enqueued-token budget. Costs one extra serialization pass and no API calls.
+    job_tokens = batch_client.job_token_estimates(
+        jobs, model=model, endpoint=endpoint
+    )
+
+    def chunk_tokens(key: str) -> int:
+        """Estimated enqueued tokens of a planned chunk, from its custom_ids.
+
+        Reads the plan rather than the chunking pass, so it is correct on resume
+        too — where the plan is canonical and chunks may already be in flight.
+        """
+        entry = state["chunks"][key] if state else {}
+        return sum(job_tokens.get(cid, 0) for cid in entry.get("custom_ids", ()))
 
     if state is None:
         chunked = batch_client.split_jobs_into_chunks(
@@ -411,6 +500,7 @@ def run_chunked_stage(
             endpoint=endpoint,
             max_bytes=max_chunk_bytes,
             max_requests=max_chunk_requests,
+            max_tokens=enqueued_budget,
         )
         write_active_chunked(
             run_dir, stage,
@@ -425,12 +515,15 @@ def run_chunked_stage(
             stage, len(jobs), state["n_chunks"],
         )
 
-    # --- Submit phase: reconcile-then-submit every chunk without a batch_id.
-    for key, entry in iter_chunks(state):
-        if entry["fetched_at"] is not None or entry["batch_id"] is not None:
-            continue
+    def _submit_one(key: str, entry: dict[str, Any]) -> bool:
+        """Reconcile-then-submit one chunk. True if it is now in flight."""
         metadata = _chunk_metadata(run_id, stage, key)
         existing = batch_client.find_batches_by_metadata(metadata, client=client)
+        # Drop batches an operator has explicitly adjudicated for this chunk
+        # (see `abandon_chunk_batch`); every other match still counts.
+        abandoned = set(entry.get("abandoned_batch_ids") or ())
+        if abandoned:
+            existing = [s for s in existing if s.batch_id not in abandoned]
         if len(existing) > 1:
             raise RuntimeError(
                 f"Stage {stage} chunk {key}: found {len(existing)} batches matching "
@@ -458,7 +551,7 @@ def run_chunked_stage(
                 batch_id=found.batch_id, submitted_at=_utc_iso(),
                 adopted=True, last_status=found.status,
             )
-            continue
+            return True
         missing = [cid for cid in entry["custom_ids"] if cid not in jobs_by_id]
         if missing:
             raise RuntimeError(
@@ -478,26 +571,74 @@ def run_chunked_stage(
             client=client,
         )
         logger.info(
-            "Stage %s chunk %s submitted: %s (n_jobs=%d)",
-            stage, key, handle.batch_id, handle.n_jobs,
+            "Stage %s chunk %s submitted: %s (n_jobs=%d, ~%s est. enqueued tokens)",
+            stage, key, handle.batch_id, handle.n_jobs, f"{chunk_tokens(key):,}",
         )
         update_chunk(
             run_dir, stage, key,
             batch_id=handle.batch_id, submitted_at=_utc_iso(),
         )
+        return True
 
-    # --- Poll phase: round-robin all unfetched chunks to terminal state.
+    # --- Submit + poll, interleaved under the enqueued-token budget.
+    #
+    # Submitting every chunk up front (the pre-2026-08-03 shape) breaks the
+    # moment a stage's total enqueued tokens exceed the org/model ceiling: the
+    # ceiling is on what is enqueued *concurrently*, so chunking alone does not
+    # help — Stage 5 at n=100 needs ~10.6M against a 2M ceiling and failed with
+    # `token_limit_exceeded` before a single job ran. Chunks are therefore
+    # released in waves: submit while the budget allows, then wait for in-flight
+    # chunks to finish and free capacity before releasing more.
+    #
+    # Resume semantics are unchanged. The chunk plan is still persisted in full
+    # before the first submit, chunks with `fetched_at` are still skipped, and
+    # chunks already carrying a `batch_id` still rejoin polling without
+    # resubmitting — they simply count against the budget while in flight.
     deadline = time.monotonic() + max_wait
     failed: dict[str, str] = {}
+    budget = enqueued_budget
+    logger.info(
+        "Stage %s: %d chunk(s) to release under a %s-token enqueued budget",
+        stage, state["n_chunks"], f"{budget:,}",
+    )
     while True:
+        state = load_state(run_dir, stage)
+        assert state is not None
+        in_flight_tokens = sum(
+            chunk_tokens(key)
+            for key, entry in iter_chunks(state)
+            if entry["batch_id"] is not None
+            and entry["fetched_at"] is None
+            and key not in failed
+        )
+        # Release as many un-submitted chunks as the remaining budget allows.
+        # A chunk larger than the whole budget goes out alone, once nothing else
+        # is in flight, so an oversized chunk cannot deadlock the stage.
+        for key, entry in iter_chunks(state):
+            if entry["fetched_at"] is not None or entry["batch_id"] is not None:
+                continue
+            need = chunk_tokens(key)
+            if in_flight_tokens and in_flight_tokens + need > budget:
+                continue
+            if _submit_one(key, entry):
+                in_flight_tokens += need
         state = load_state(run_dir, stage)
         assert state is not None
         pending = [
             (key, entry)
             for key, entry in iter_chunks(state)
-            if entry["fetched_at"] is None and key not in failed
+            if entry["fetched_at"] is None
+            and key not in failed
+            and entry["batch_id"] is not None
         ]
-        if not pending:
+        unsubmitted = [
+            key
+            for key, entry in iter_chunks(state)
+            if entry["fetched_at"] is None
+            and key not in failed
+            and entry["batch_id"] is None
+        ]
+        if not pending and not unsubmitted:
             break
         for key, entry in pending:
             status = batch_client.poll_batch(entry["batch_id"], client=client)
@@ -566,9 +707,18 @@ def run_chunked_stage(
         in_flight = [
             key
             for key, entry in iter_chunks(state)
-            if entry["fetched_at"] is None and key not in failed
+            if entry["fetched_at"] is None
+            and key not in failed
+            and entry["batch_id"] is not None
         ]
-        if not in_flight:
+        waiting = [
+            key
+            for key, entry in iter_chunks(state)
+            if entry["fetched_at"] is None
+            and key not in failed
+            and entry["batch_id"] is None
+        ]
+        if not in_flight and not waiting:
             break
         if time.monotonic() >= deadline:
             detail = ", ".join(
@@ -576,14 +726,24 @@ def run_chunked_stage(
                 f"last status {state['chunks'][key]['last_status']})"
                 for key in in_flight
             )
+            held = (
+                f" {len(waiting)} further chunk(s) were still held behind the "
+                f"{budget:,}-token enqueued budget and were never submitted."
+                if waiting
+                else ""
+            )
             raise RuntimeError(
-                f"Stage {stage}: timed out after {max_wait}s with {detail} still "
-                f"in flight. The batch(es) have NOT ended — an in-progress batch "
-                f"is healthy; do not cancel it. Re-run the same command to rejoin "
-                f"polling without re-submitting. State file: "
+                f"Stage {stage}: timed out after {max_wait}s with {detail or 'no batch'} "
+                f"still in flight.{held} The batch(es) have NOT ended — an "
+                f"in-progress batch is healthy; do not cancel it. Re-run the same "
+                f"command to rejoin polling without re-submitting. State file: "
                 f"{state_path(run_dir, stage)}."
             )
-        time.sleep(poll_interval)
+        # Only sleep when something is genuinely in flight. If chunks are merely
+        # waiting on budget and none is in flight, the loop above will release
+        # one immediately on the next pass rather than idling a poll interval.
+        if in_flight:
+            time.sleep(poll_interval)
 
     if failed:
         detail = ", ".join(
@@ -601,6 +761,7 @@ def run_chunked_stage(
 
 __all__ = [
     "STATE_SCHEMA_VERSION",
+    "abandon_chunk_batch",
     "assert_chunked_state",
     "done_path",
     "done_dir",
