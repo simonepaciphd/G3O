@@ -20,6 +20,7 @@ import pytest
 from g3o.common import batch_client
 from g3o.common.batch_client import BatchHandle, BatchJob, BatchResult, BatchStatus
 from g3o.common.run_state import (
+    abandon_chunk_batch,
     done_path,
     is_done,
     iter_chunks,
@@ -773,3 +774,194 @@ def test_regression_silent_completeness_loss_now_raises(tmp_path: Path, monkeypa
     assert state["chunks"]["1"]["batch_id"] == "batch-1"
     rec = json.loads(reconcile_path(tmp_path, "extract", 1).read_text(encoding="utf-8"))
     assert rec["missing"] == ["J1"]
+# Enqueued-token waves (2026-08-03)
+#
+# OpenAI caps concurrently-enqueued tokens per org+model. Releasing every chunk
+# up front put ~10.6M tokens in the queue against a 2M ceiling and killed
+# Stage 5 at n=100 with `token_limit_exceeded` before a single job ran, so
+# chunks are now sized by estimated tokens and released in waves.
+# ---------------------------------------------------------------------------
+
+
+def test_token_cap_splits_chunks_that_byte_cap_would_not(tmp_path: Path, monkeypatch):
+    """The token cap must bind where the byte and request caps are miles away."""
+    submits, _ = _install_stub(monkeypatch, statuses={})
+    # Three jobs of ~400 bytes each; a budget of ~100 tokens (=400 bytes at the
+    # 4.0 bytes/token estimate) admits exactly one job per chunk.
+    jobs = [
+        BatchJob(custom_id=f"J{i}", messages=[{"role": "user", "content": "x" * 380}])
+        for i in range(3)
+    ]
+    _run(tmp_path, jobs, enqueued_budget=110)
+    assert [s["custom_ids"] for s in submits] == [["J0"], ["J1"], ["J2"]], (
+        "each job should have become its own chunk under the token budget"
+    )
+
+
+def test_waves_hold_chunks_until_capacity_frees(tmp_path: Path):
+    """A second chunk must not be submitted while the first is still in flight.
+
+    The budget admits one chunk at a time, so the submit of chunk 2 may only
+    happen after chunk 1 reaches a terminal state — that is the whole point of
+    the change, and the assertion is on the interleaving, not just the outcome.
+    """
+    events: list[str] = []
+    poll_counts: dict[str, int] = {}
+
+    def _submit(jobs, *, model, completion_window, endpoint, metadata, client=None):
+        batch_id = f"batch-{metadata['g3o_chunk']}"
+        events.append(f"submit:{batch_id}")
+        return BatchHandle(
+            batch_id=batch_id,
+            input_file_id="file-x",
+            submitted_at=datetime.now(timezone.utc),
+            n_jobs=len(jobs),
+        )
+
+    def _poll(batch_id, *, client=None):
+        # Each batch needs two polls before completing, giving the scheduler a
+        # window in which it could wrongly release the next chunk.
+        poll_counts[batch_id] = poll_counts.get(batch_id, 0) + 1
+        state = "completed" if poll_counts[batch_id] >= 2 else "in_progress"
+        return _status(state, batch_id)
+
+    def _fetch(batch_id, *, client=None, status=None):
+        events.append(f"fetch:{batch_id}")
+        yield BatchResult(
+            custom_id=f"R::{batch_id}", success=True,
+            response={"body": {"choices": [{"message": {"content": "ok"}}]}},
+            error=None,
+        )
+
+    monkeypatch = pytest.MonkeyPatch()
+    try:
+        monkeypatch.setattr(batch_client, "submit_batch", _submit)
+        monkeypatch.setattr(batch_client, "poll_batch", _poll)
+        monkeypatch.setattr(batch_client, "fetch_results", _fetch)
+        monkeypatch.setattr(
+            batch_client, "find_batches_by_metadata", lambda md, **kw: []
+        )
+        jobs = [
+            BatchJob(custom_id=f"J{i}", messages=[{"role": "user", "content": "x" * 380}])
+            for i in range(3)
+        ]
+        _run(tmp_path, jobs, enqueued_budget=110)
+    finally:
+        monkeypatch.undo()
+
+    assert events == [
+        "submit:batch-1", "fetch:batch-1",
+        "submit:batch-2", "fetch:batch-2",
+        "submit:batch-3", "fetch:batch-3",
+    ], f"chunks were not released one wave at a time: {events}"
+    assert is_done(tmp_path, "extract")
+
+
+def test_chunk_larger_than_budget_is_released_alone(tmp_path: Path, monkeypatch):
+    """An oversized chunk must go out rather than deadlock the stage.
+
+    Unlike the byte cap, the enqueued ceiling is not a limit on one request, so
+    a solo oversized chunk is submittable — and refusing it would strand the
+    stage forever with nothing in flight and nothing releasable.
+    """
+    submits, _ = _install_stub(monkeypatch, statuses={})
+    jobs = [BatchJob(custom_id="BIG", messages=[{"role": "user", "content": "x" * 8000}])]
+    _run(tmp_path, jobs, enqueued_budget=10)
+    assert [s["custom_ids"] for s in submits] == [["BIG"]]
+    assert is_done(tmp_path, "extract")
+
+
+def test_resume_counts_in_flight_chunk_against_the_budget(tmp_path: Path, monkeypatch):
+    """On resume, an already-live chunk occupies budget and must gate the rest.
+
+    Without this the wave logic would happily pile a fresh submit on top of a
+    batch a crashed attempt left running — reintroducing the overrun.
+    """
+    write_active_chunked(
+        tmp_path, "extract",
+        run_id="run-1", model="gpt-5-nano",
+        chunk_custom_ids=[["J0"], ["J1"]],
+    )
+    update_chunk(tmp_path, "extract", 1, batch_id="batch-1")
+    submits, _ = _install_stub(
+        monkeypatch,
+        statuses={"batch-1": ["in_progress", "completed"], "batch-2": ["completed"]},
+    )
+    jobs = [
+        BatchJob(custom_id=f"J{i}", messages=[{"role": "user", "content": "x" * 380}])
+        for i in range(2)
+    ]
+    _run(tmp_path, jobs, enqueued_budget=110)
+    # Chunk 1 was adopted from state (never re-submitted); only chunk 2 submits,
+    # and only once chunk 1 had finished.
+    assert [s["metadata"]["g3o_chunk"] for s in submits] == ["2"]
+    assert is_done(tmp_path, "extract")
+
+
+def test_estimate_is_conservative_relative_to_serialized_bytes():
+    """The estimator must never read below the bytes/BYTES_PER_TOKEN floor."""
+    assert batch_client.estimate_job_tokens(0) == 0
+    assert batch_client.estimate_job_tokens(1) == 1  # rounds up, never to zero
+    assert batch_client.estimate_job_tokens(400) == 100
+    assert batch_client.estimate_job_tokens(401) == 101
+
+
+def test_enqueued_budget_leaves_headroom_under_the_ceiling():
+    """The pipeline must not plan to occupy the whole org ceiling."""
+    budget = batch_client.enqueued_token_budget()
+    assert budget < batch_client.ENQUEUED_TOKEN_LIMIT
+    assert budget == int(
+        batch_client.ENQUEUED_TOKEN_LIMIT * batch_client.ENQUEUED_BUDGET_UTILISATION
+    )
+
+
+def test_abandoned_batch_is_ignored_by_reconciliation(tmp_path: Path, monkeypatch):
+    """An adjudicated failed batch must stop blocking its chunk.
+
+    A batch rejected at submission (zero requests run, zero spend) cannot be
+    deleted server-side and keeps matching the chunk metadata, so without an
+    explicit release valve the chunk is unrecoverable.
+    """
+    write_active_chunked(
+        tmp_path, "extract",
+        run_id="run-1", model="gpt-5-nano", chunk_custom_ids=[["J0"]],
+    )
+    update_chunk(tmp_path, "extract", 1, batch_id="batch-dead")
+    dead = _status("failed", "batch-dead")
+
+    # Before adjudication: reconciliation finds the corpse and refuses.
+    submits, _ = _install_stub(
+        monkeypatch, statuses={"batch-1": ["completed"]}, found=lambda md, **kw: [dead]
+    )
+    update_chunk(tmp_path, "extract", 1, batch_id=None)
+    with pytest.raises(RuntimeError, match="orphaned batch batch-dead"):
+        _run(tmp_path, _jobs(1))
+    assert submits == []
+
+    # After adjudication: the chunk submits fresh, and the record persists.
+    abandon_chunk_batch(
+        tmp_path, "extract", 1, "batch-dead",
+        reason="token_limit_exceeded at submit; 0 requests ran, 0 spend",
+    )
+    received = _run(tmp_path, _jobs(1))
+    assert [s["metadata"]["g3o_chunk"] for s in submits] == ["1"]
+    assert received == ["R::batch-1"]
+    done = json.loads(done_path(tmp_path, "extract").read_text(encoding="utf-8"))
+    assert done["chunks"]["1"]["abandoned_batch_ids"] == ["batch-dead"]
+    assert "token_limit_exceeded" in done["chunks"]["1"]["abandon_reasons"]["batch-dead"]
+
+
+def test_abandoning_does_not_excuse_other_failed_batches(tmp_path: Path, monkeypatch):
+    """Adjudicating one batch must not blanket-disable the guard for a chunk."""
+    write_active_chunked(
+        tmp_path, "extract",
+        run_id="run-1", model="gpt-5-nano", chunk_custom_ids=[["J0"]],
+    )
+    abandon_chunk_batch(tmp_path, "extract", 1, "batch-dead", reason="adjudicated")
+    other = _status("expired", "batch-other")
+    submits, _ = _install_stub(
+        monkeypatch, statuses={}, found=lambda md, **kw: [other]
+    )
+    with pytest.raises(RuntimeError, match="orphaned batch batch-other"):
+        _run(tmp_path, _jobs(1))
+    assert submits == []

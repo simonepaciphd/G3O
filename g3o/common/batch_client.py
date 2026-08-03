@@ -15,6 +15,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import math
 import os
 import random
 import time
@@ -76,6 +77,34 @@ BATCH_MAX_REQUESTS = 50_000
 # hundred MB splits into single-digit chunks).
 CHUNK_MAX_BYTES = 100 * 1024 * 1024
 CHUNK_MAX_REQUESTS = 25_000
+
+# Enqueued-token ceiling (2026-08-03). Distinct from the two caps above, and
+# the binding one in practice: OpenAI limits the tokens an organization may
+# have *enqueued at once* per model, counting the full prompt of every queued
+# request whether or not it prompt-caches. Stage 5 at n=100 first hit this —
+# 681 jobs needing ~10.6M enqueued against a 2M ceiling — because the ~10.4k-
+# token output contract is re-sent per page, so the ceiling binds on
+# (job count x shared prefix), not on page content.
+#
+# ENQUEUED_TOKEN_LIMIT is the org/model ceiling as reported by the API's
+# `token_limit_exceeded` error. It is a property of the account tier, not of
+# this code: raise it here only to match a raised account limit.
+ENQUEUED_TOKEN_LIMIT = 2_000_000
+
+# Fraction of the ceiling this pipeline will occupy. Headroom matters because
+# the estimator below is approximate and because other work in the same org
+# competes for the same ceiling.
+ENQUEUED_BUDGET_UTILISATION = 0.8
+
+# Serialized JSONL bytes per token, for the offline estimate in
+# `estimate_job_tokens`. Deliberately *below* the measured ratio so the
+# estimate runs high: an overestimate costs an extra wave, an underestimate
+# costs a failed submit. Calibrated 2026-08-03 against tiktoken `o200k_base`
+# over the 681 real Stage-5 jobs of run 20260802-e2e-100 — aggregate 4.54
+# bytes/token, per-job p05 3.83, per-job min 2.55. tiktoken is not a declared
+# runtime dependency, which is why this is a calibrated constant rather than a
+# live tokenizer call.
+BYTES_PER_TOKEN = 4.0
 
 # Metadata keys that uniquely identify a pipeline batch chunk. When all three
 # are present on a submit, lost-response retries and resume paths can
@@ -280,6 +309,60 @@ def _build_jsonl_payload(
     return buf.getvalue()
 
 
+def enqueued_token_budget(
+    *,
+    limit: int = ENQUEUED_TOKEN_LIMIT,
+    utilisation: float = ENQUEUED_BUDGET_UTILISATION,
+) -> int:
+    """Tokens this pipeline will keep enqueued at once (2026-08-03).
+
+    The usable slice of the org/model enqueued-token ceiling. Doubles as the
+    per-chunk token cap, so one chunk can always fill a wave on its own and the
+    wave scheduler in :func:`g3o.common.run_state.run_chunked_stage` can never
+    deadlock on a chunk too large to submit.
+    """
+    return max(1, int(limit * utilisation))
+
+
+def estimate_job_tokens(serialized_bytes: int) -> int:
+    """Approximate the enqueued-token cost of one serialized job line.
+
+    Offline and deliberately conservative — see :data:`BYTES_PER_TOKEN`. Used
+    only for scheduling against the enqueued-token ceiling; never for billing,
+    which is measured from the response's ``usage`` block.
+    """
+    return math.ceil(serialized_bytes / BYTES_PER_TOKEN)
+
+
+def job_token_estimates(
+    jobs: list[BatchJob],
+    *,
+    model: str,
+    response_format: dict[str, Any] | None = None,
+    endpoint: str = DEFAULT_ENDPOINT,
+    reasoning_effort: str | None = DEFAULT_REASONING_EFFORT,
+) -> dict[str, int]:
+    """Estimated enqueued tokens per ``custom_id``, for wave scheduling.
+
+    Serializes each job exactly as :func:`submit_batch` will upload it, so the
+    estimate tracks the same payload the ceiling is charged against.
+    """
+    return {
+        job.custom_id: estimate_job_tokens(
+            len(
+                _serialize_job_line(
+                    job,
+                    model=model,
+                    response_format=response_format,
+                    endpoint=endpoint,
+                    reasoning_effort=reasoning_effort,
+                )
+            )
+        )
+        for job in jobs
+    }
+
+
 def split_jobs_into_chunks(
     jobs: list[BatchJob],
     *,
@@ -288,14 +371,20 @@ def split_jobs_into_chunks(
     endpoint: str = DEFAULT_ENDPOINT,
     max_bytes: int = CHUNK_MAX_BYTES,
     max_requests: int = CHUNK_MAX_REQUESTS,
+    max_tokens: int | None = None,
     reasoning_effort: str | None = DEFAULT_REASONING_EFFORT,
 ) -> list[list[BatchJob]]:
     """Split jobs into size-capped sub-batches for chunked submission (review F2).
 
     Deterministic greedy packing in input order: a chunk closes when adding
-    the next job would exceed ``max_bytes`` of serialized JSONL or
-    ``max_requests`` jobs. Sizes are computed on the exact bytes
-    ``submit_batch`` will upload.
+    the next job would exceed ``max_bytes`` of serialized JSONL, ``max_tokens``
+    of estimated enqueued tokens, or ``max_requests`` jobs. Sizes are computed
+    on the exact bytes ``submit_batch`` will upload.
+
+    ``max_tokens`` defaults to :func:`enqueued_token_budget` and is the cap
+    that binds on the LLM-heavy stages (2026-08-03): the byte and request caps
+    are orders of magnitude away from a real Stage-5 chunk, while the
+    enqueued-token ceiling is reached at a few hundred jobs.
 
     Raises:
         ValueError: on an empty job list, a duplicate ``custom_id`` anywhere
@@ -306,10 +395,13 @@ def split_jobs_into_chunks(
     """
     if not jobs:
         raise ValueError("split_jobs_into_chunks: jobs list is empty")
+    if max_tokens is None:
+        max_tokens = enqueued_token_budget()
     seen: set[str] = set()
     chunks: list[list[BatchJob]] = []
     current: list[BatchJob] = []
     current_bytes = 0
+    current_tokens = 0
     for job in jobs:
         if job.custom_id in seen:
             raise ValueError(f"duplicate custom_id in batch: {job.custom_id!r}")
@@ -328,12 +420,24 @@ def split_jobs_into_chunks(
                 f"F3 — page-text truncation, scheduled for the next hardening "
                 f"session); cap the page feeding this job before resubmitting."
             )
-        if current and (current_bytes + size > max_bytes or len(current) >= max_requests):
+        tokens = estimate_job_tokens(size)
+        # A lone job above the token cap still has to go somewhere: it becomes
+        # its own chunk (and its own wave) rather than an error. Unlike the byte
+        # cap this is not a hard API limit on a single request — the ceiling is
+        # on what may be enqueued concurrently, so a solo oversized chunk is
+        # submittable, just not alongside anything else.
+        if current and (
+            current_bytes + size > max_bytes
+            or current_tokens + tokens > max_tokens
+            or len(current) >= max_requests
+        ):
             chunks.append(current)
             current = []
             current_bytes = 0
+            current_tokens = 0
         current.append(job)
         current_bytes += size
+        current_tokens += tokens
     chunks.append(current)
     return chunks
 
@@ -623,9 +727,15 @@ __all__ = [
     "BatchResult",
     "BATCH_MAX_INPUT_FILE_BYTES",
     "BATCH_MAX_REQUESTS",
+    "BYTES_PER_TOKEN",
     "CHUNK_MAX_BYTES",
     "CHUNK_MAX_REQUESTS",
     "CHUNK_METADATA_KEYS",
+    "ENQUEUED_BUDGET_UTILISATION",
+    "ENQUEUED_TOKEN_LIMIT",
+    "enqueued_token_budget",
+    "estimate_job_tokens",
+    "job_token_estimates",
     "DEFAULT_MODEL",
     "DEFAULT_COMPLETION_WINDOW",
     "DEFAULT_ENDPOINT",
