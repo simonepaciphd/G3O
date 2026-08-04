@@ -168,6 +168,11 @@ def _scrape_one(
                     prefer_render_on_download_failure=render_on_download_failure,
                     empty_page_min_chars=empty_page_min_chars,
                     on_render_attempt=_record_render_attempt,
+                    # Throttle each cross-host redirect destination *before* the
+                    # hop's GET, so a request that redirects onto a host another
+                    # worker is throttled against waits its per-host turn instead
+                    # of racing in.
+                    on_redirect_hop=throttle.wait,
                 )
             except Exception as exc:
                 logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
@@ -259,9 +264,12 @@ def _run_scrape(
     if is_done(run_dir, stage):
         logger.info("Stage 4: .done marker present — skipping (resume from disk)")
         return _read_existing_scraped(run_dir, sample)
-    if respect_robots and robots is None:
-        robots = RobotsCache(_config.USER_AGENT)
     throttle = HostThrottle(host_delay_seconds)
+    # The robots.txt GET counts toward the per-host delay: inject the shared
+    # throttle so the (one-per-host) robots fetch spaces/registers the same way
+    # a page fetch does, instead of firing back-to-back before the page GET.
+    if respect_robots and robots is None:
+        robots = RobotsCache(_config.USER_AGENT, throttle=throttle)
     scrape_telemetry.ensure_ledger(run_dir)
     sessions = _ThreadLocalRenderSessions()
     out: dict[str, list[RenderedPage]] = {}
