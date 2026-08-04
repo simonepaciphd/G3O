@@ -125,8 +125,30 @@ def _scrape_one(
             trigger=trigger, outcome=outcome,
         )
 
+    # Per-URL hard-failure sink. ``scrape_url`` keeps returning a no-text Q10
+    # failure page on a failed fetch; this hook fires alongside it so we record
+    # a durable scrape_failed entry (carrying both underlying exception
+    # messages) and can drop the page rather than writing it as a normal
+    # successful scrape. ``failed`` is reset per URL in the loop below.
+    fetch_failure = {"failed": False}
+
+    def _record_scrape_failure(
+        *, url: str, download_error: BaseException,
+        render_error: BaseException | None,
+        _inst: str = inst_id,
+    ) -> None:
+        fetch_failure["failed"] = True
+        detail = f"download_error={download_error}"
+        if render_error is not None:
+            detail += f"; render_error={render_error}"
+        attrition.record(
+            run_dir, institution_id=_inst, stage=stage,
+            reason="scrape_failed", url=url, detail=detail,
+        )
+
     with stage_timer(run_dir, inst_id, stage):
         for url in urls:
+            fetch_failure["failed"] = False
             output_path = scrape_dir / f"{url_hash(url)}.json"
             if output_path.exists():
                 # Q5=a per-run skip: load existing RenderedPage; no refetch.
@@ -168,6 +190,7 @@ def _scrape_one(
                     prefer_render_on_download_failure=render_on_download_failure,
                     empty_page_min_chars=empty_page_min_chars,
                     on_render_attempt=_record_render_attempt,
+                    on_scrape_failure=_record_scrape_failure,
                 )
             except Exception as exc:
                 logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
@@ -180,6 +203,12 @@ def _scrape_one(
                     outcome=scrape_telemetry.OUTCOME_SCRAPE_FAILED,
                     detail=str(exc),
                 )
+                continue
+            if fetch_failure["failed"]:
+                # A hard fetch failure already recorded a scrape_failed entry via
+                # the hook; drop the Q10 no-text failure page rather than writing
+                # it as a normal successful scrape (no artifact, not counted).
+                logger.warning("Stage 4 fetch failed for %s (%s) — dropped", inst_id, url)
                 continue
             output_path.write_text(page.model_dump_json(indent=2), encoding="utf-8")
             scrape_telemetry.record(
