@@ -29,9 +29,13 @@ Crawl-delay: 2
 # ---------------------------------------------------------------------------
 
 
-def test_host_key_strips_path_and_query():
-    assert host_key("https://x.gov/a/b?c=d#e") == "https://x.gov"
-    assert host_key("http://sub.x.gov:8080/p") == "http://sub.x.gov:8080"
+def test_host_key_strips_path_query_and_scheme():
+    # host_key is hostname-level and scheme-agnostic (Finding 1 fix): http:// and
+    # https:// to the same physical host share one key so the throttle and robots
+    # cache treat them as one host. Port is retained (a distinct service).
+    assert host_key("https://x.gov/a/b?c=d#e") == "x.gov"
+    assert host_key("http://x.gov/other") == "x.gov"
+    assert host_key("http://sub.x.gov:8080/p") == "sub.x.gov:8080"
 
 
 # ---------------------------------------------------------------------------
@@ -157,6 +161,20 @@ def test_throttle_zero_delay_is_noop():
     th.wait("https://x.gov/a")
     th.wait("https://x.gov/b")
     assert clock.slept == []
+
+
+def test_throttle_same_host_different_scheme_shares_one_entry():
+    """Finding 1 (SCHEME-SPLIT): http:// and https:// to the *same physical host*
+    must share one throttle entry. A request to http://x.gov followed by one to
+    https://x.gov has to be spaced by the full per-host delay — otherwise two
+    workers reaching the same host over different schemes both fire immediately
+    and defeat the >=1.0s per-host floor. Keying on ``scheme://netloc`` splits
+    them into two entries, so the second call sees no prior timestamp and does
+    not sleep."""
+    th, clock = _throttle(1.0)
+    th.wait("http://x.gov/a")   # t=0, first hit to this physical host
+    th.wait("https://x.gov/b")  # SAME host over https — must sleep the full delay
+    assert clock.slept == [1.0]
 
 
 # ---------------------------------------------------------------------------
