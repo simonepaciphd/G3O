@@ -26,7 +26,6 @@ from g3o.extract.batch import (
 )
 from g3o.extract.parser import SalvageEvent
 from g3o.extract.salvage import (
-    REASON_FLAGS_SALVAGED,
     REASON_SALVAGED,
     REASON_UNSALVAGEABLE,
     UncertaintyFlagsSalvage,
@@ -210,22 +209,29 @@ def _run_extract(
                     reason=REASON_SALVAGED, url=page.url,
                     detail=f"rows={rows};fields={','.join(fields)}",
                 )
-            # uncertainty_flags _NA_ salvage: an illegal whole-value `_NA_` was
-            # rewritten to the contract's `none` and the page preserved. Recorded
-            # only on the success path (as above) — a page that still failed for
-            # an unrelated reason is reported by its actual failure, not as a
-            # salvage that did not save it.
+            # uncertainty_flags salvage: an illegal value was rewritten to the
+            # contract's `none` (or to a cleaned flag list) and the page preserved.
+            # Recorded only on the success path (as above) — a page that still
+            # failed for an unrelated reason is reported by its actual failure, not
+            # as a salvage that did not save it.
+            #
+            # One record per repair *shape*, not one per page: the shapes are
+            # different model errors with different audit weight (a `_NA_` synonym
+            # rewrite versus inferring `none` from silence), and the dedup key
+            # includes the reason, so they do not collide.
             flags_salvaged = [
                 s for s in salvages if isinstance(s, UncertaintyFlagsSalvage)
             ]
-            if flags_salvaged:
-                rows = sorted(
-                    s.row_id for s in flags_salvaged if s.row_id is not None
-                )
+            by_reason: dict[str, list[UncertaintyFlagsSalvage]] = {}
+            for s in flags_salvaged:
+                by_reason.setdefault(s.reason, []).append(s)
+            for reason, group in sorted(by_reason.items()):
+                rows = sorted(s.row_id for s in group if s.row_id is not None)
+                originals = sorted({s.original for s in group})
                 attrition.record(
                     run_dir, institution_id=institution_id, stage=stage,
-                    reason=REASON_FLAGS_SALVAGED, url=page.url,
-                    detail=f"rows={rows}",
+                    reason=reason, url=page.url,
+                    detail=f"rows={rows};originals={originals}",
                 )
             extract_dir = run_dir / institution_id / "extract"
             extract_dir.mkdir(parents=True, exist_ok=True)

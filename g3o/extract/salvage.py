@@ -47,8 +47,8 @@ Scope and boundaries (deliberate, not accidental):
   tracking issue). The ledger reason code ``group_d_incomplete_salvaged`` (keyed
   by institution + source_url) is the auditable marker.
 
-``uncertainty_flags`` ``_NA_``
-------------------------------
+``uncertainty_flags`` malformed empty values
+--------------------------------------------
 
 Background. ``uncertainty_flags`` (column 39) is a Group-F field with its own
 closed vocabulary whose prescribed empty value is ``none``; ``_NA_`` is not in
@@ -62,24 +62,58 @@ taking the whole page down (observed: ``INST-0000580`` / windowsforum.com in run
 validation logic, so Stage 6 has the same exposure.
 
 The prompt is the primary fix, and it is version-gated (CONTRIBUTING.md, "Schema
-stability") and held for PI sign-off. This is the defence in depth: rewrite the
-literal ``_NA_`` to ``none``, which is the value the contract already prescribes.
+stability"). This is the defence in depth: rewrite the malformed value to
+``none``, which is the value the contract already prescribes.
+
+Scope widened on PI decision 2026-08-04. The original repair took only the exact
+whole-value ``_NA_``. Classifying all 65 ``parse_failed`` records in the archived
+n=100 run (``agent-workspace/runs/20260802-e2e-100/``) showed that ``_NA_`` is the
+*minority* shape of this one failure: 18 records against 27 for a bare empty
+string, plus single cases of a space-separated list and of ``none`` appended to
+real flags. 32 of the run's 43 ``PROCESSING_FAILED`` institutions carried an
+``uncertainty_flags`` failure; 28 carried nothing else. Repairing ``_NA_`` alone
+recovers 9 of 43; repairing every shape below recovers 28.
+
+Three repairs, each with its own ledger reason code so the shapes stay countable:
+
+- ``_NA_`` → ``none`` (``uncertainty_flags_na_salvaged``). The Group-D sentinel
+  applied by analogy.
+- empty or whitespace-only → ``none`` (``uncertainty_flags_empty_salvaged``). The
+  model omitted the field rather than filling it. This one *infers* "no flags
+  apply" from silence, which is a shade weaker than the ``_NA_`` synonym rewrite —
+  recorded as a distinct code precisely so the inference can be counted and
+  audited separately rather than hidden inside a single total.
+- token-list cleanup → (``uncertainty_flags_list_normalized``). Strips whitespace
+  around separators and drops redundant empty-sentinel tokens (``none``, ``_NA_``)
+  from a list that also carries at least one real flag. ``"a; b"`` → ``"a;b"``;
+  ``"a;none"`` → ``"a"``; ``"_NA_;_NA_"`` → ``"none"``.
+
+Boundaries, deliberate:
 
 - **Evidence-agnostic.** Unlike Group-D salvage, this fires on every row
   regardless of ``genai_evidence``. ``none`` is the field's only legal empty
-  value in *every* branch of the contract, and ``_NA_`` and ``none`` both mean
-  "no flags apply" — so the substitution is faithful on a ``confirms_activity``
-  row too. It encodes no coding decision, so nothing here is unsalvageable and
-  there is no counterpart to ``GROUP_D_UNSALVAGEABLE``.
-- **The exact literal, and the whole value, only.** ``"NA"``, ``""``, ``"n/a"``
-  and mixed values such as ``"stage_ambiguous;_NA_"`` are left to hard-fail:
-  those are genuine drift rather than the documented sentinel applied by
-  analogy, and in the mixed case the model supplied real flags, so the stray
-  ``_NA_`` should stay visible rather than be silently dropped.
-- **Ledger, not row.** As above — ``uncertainty_flags_na_salvaged``. No new
-  column, and emphatically no new flag value: adding ``_NA_`` to
-  ``UNCERTAINTY_FLAG_VOCAB`` would relax the contract rather than repair the row,
-  and would leave two synonymous empty values in the published vocabulary.
+  value in *every* branch of the contract, so the substitution is faithful on a
+  ``confirms_activity`` row too. It encodes no coding decision, so nothing here
+  is unsalvageable and there is no counterpart to ``GROUP_D_UNSALVAGEABLE``.
+- **An unrecognised token is never repaired.** If any surviving token is outside
+  ``UNCERTAINTY_FLAG_VOCAB`` the row is returned untouched and hard-fails —
+  ``"NA"``, ``"n/a"``, ``"_na_"``, ``"stage ambiguous"``. Those are genuine model
+  drift, not a documented sentinel misapplied, and the whole value of atomic
+  validation is that drift stays loud. This is the line between repair and
+  relaxation: we normalise values whose meaning the contract already fixes, and
+  refuse to guess at values it does not.
+- **Order is preserved, not canonicalised.** The contract asks Stage 6 to order
+  flags alphabetically but the validator does not enforce it, so reordering would
+  be normalisation beyond repair.
+- **Ledger, not row.** No new column, and emphatically no new flag value: adding
+  ``_NA_`` to ``UNCERTAINTY_FLAG_VOCAB`` would relax the contract rather than
+  repair the row, and would leave two synonymous empty values in the published
+  vocabulary.
+
+Note what this does *not* address: page-level validation atomicity, which is why
+one bad cell costs a whole page in the first place. Tracked as issue #44 and
+deliberately deferred — every repair here is a patch on a symptom whose cause is
+architectural.
 """
 
 from __future__ import annotations
@@ -123,11 +157,26 @@ GROUP_D_UNSALVAGEABLE: frozenset[str] = frozenset({"activity_type", "activity_na
 # supplying flags, which is why the vocabulary check short-circuits on it.
 UNCERTAINTY_FLAGS_EMPTY = "none"
 
+# Tokens that carry no information inside a semicolon-joined flag list: the
+# contract's own empty value and the Group-D sentinel it invited by analogy.
+# Dropping either from a list that also holds a real flag is lossless.
+UNCERTAINTY_FLAGS_EMPTY_TOKENS: frozenset[str] = frozenset({NA, UNCERTAINTY_FLAGS_EMPTY})
+
 # Stable attrition reason codes (see attrition.py). Kept here so callers and
 # tests reference one definition.
 REASON_SALVAGED = "group_d_incomplete_salvaged"
 REASON_UNSALVAGEABLE = "group_d_incomplete_unsalvageable"
 REASON_FLAGS_SALVAGED = "uncertainty_flags_na_salvaged"
+REASON_FLAGS_EMPTY_SALVAGED = "uncertainty_flags_empty_salvaged"
+REASON_FLAGS_LIST_NORMALIZED = "uncertainty_flags_list_normalized"
+
+# Repair kind -> ledger reason code. One code per model error shape, so the
+# ledger stays countable by shape rather than collapsing to a single total.
+UNCERTAINTY_FLAGS_REASONS: dict[str, str] = {
+    "na": REASON_FLAGS_SALVAGED,
+    "empty": REASON_FLAGS_EMPTY_SALVAGED,
+    "list": REASON_FLAGS_LIST_NORMALIZED,
+}
 
 # Invariant: the two partitions exactly cover the Group-D fields, disjointly.
 # Explicit raises (not asserts): asserts are stripped under `python -O`, which
@@ -183,21 +232,35 @@ class GroupDSalvage:
 
 @dataclass(frozen=True)
 class UncertaintyFlagsSalvage:
-    """One ``uncertainty_flags`` ``_NA_`` → ``none`` repair on one row.
+    """One ``uncertainty_flags`` repair on one row.
 
     There is deliberately no ``unsalvageable`` counterpart: ``none`` is the
-    contract's prescribed value for this field on every row, so the repair never
-    requires a coding decision and never has to give up.
+    contract's prescribed value for this field on every row, so a repair this
+    module *attempts* never requires a coding decision. A value it declines to
+    touch (an unrecognised token) produces no event at all — it is left to
+    hard-fail rather than recorded as a failed salvage.
 
     The identity fields differ by stage and only one is ever populated:
     ``row_id`` + ``source_url`` at Stage 5 (``ContractRow``), ``activity_id`` at
     Stage 6 (``ConsolidatedActivity`` aggregates across pages, so it has neither
     a row number nor a single source URL).
+
+    ``kind`` is one of ``UNCERTAINTY_FLAGS_REASONS``; ``original`` is the value as
+    the model emitted it, kept so the ledger can show what was rewritten rather
+    than only that something was.
     """
 
     row_id: int | None = None
     activity_id: str | None = None
     source_url: str = ""
+    kind: str = "na"
+    original: str = ""
+    repaired: str = UNCERTAINTY_FLAGS_EMPTY
+
+    @property
+    def reason(self) -> str:
+        """The ledger reason code for this repair's shape."""
+        return UNCERTAINTY_FLAGS_REASONS[self.kind]
 
     @property
     def ref(self) -> str:
@@ -273,17 +336,53 @@ def salvage_group_d_na(payload: object) -> list[GroupDSalvage]:
     return events
 
 
-def salvage_uncertainty_flags_na(rows: object) -> list[UncertaintyFlagsSalvage]:
-    """Rewrite ``uncertainty_flags`` ``_NA_`` to ``none`` in place, on any row.
+def repair_uncertainty_flags(raw: object) -> tuple[str, str] | None:
+    """Return ``(repaired_value, kind)`` for one ``uncertainty_flags`` value.
+
+    ``None`` means "leave alone": either the value is already legal, or it is not
+    a repair this module will attempt. Pure function — the caller writes the row.
+
+    The three repairable shapes and the one refusal, in order:
+
+    - exactly ``_NA_`` → ``none``, kind ``na``.
+    - empty or whitespace-only → ``none``, kind ``empty``.
+    - a semicolon list needing only whitespace trimming and/or removal of
+      redundant empty-sentinel tokens → the cleaned list, kind ``list``.
+    - anything leaving a token outside ``UNCERTAINTY_FLAG_VOCAB`` → ``None``.
+      Unrecognised tokens are model drift, and drift must stay loud.
+    """
+    if not isinstance(raw, str):
+        return None
+    if raw == UNCERTAINTY_FLAGS_EMPTY:
+        return None
+    if raw == NA:
+        return UNCERTAINTY_FLAGS_EMPTY, "na"
+    if not raw.strip():
+        return UNCERTAINTY_FLAGS_EMPTY, "empty"
+
+    kept = [
+        tok
+        for tok in (t.strip() for t in raw.split(";"))
+        if tok and tok not in UNCERTAINTY_FLAGS_EMPTY_TOKENS
+    ]
+    if any(tok not in UNCERTAINTY_FLAG_VOCAB for tok in kept):
+        return None
+    repaired = ";".join(kept) if kept else UNCERTAINTY_FLAGS_EMPTY
+    if repaired == raw:
+        return None
+    return repaired, "list"
+
+
+def salvage_uncertainty_flags(rows: object) -> list[UncertaintyFlagsSalvage]:
+    """Repair malformed ``uncertainty_flags`` values in place, on any row.
 
     Takes the row list rather than the enclosing payload so each stage can pass
     its own container: ``payload["data"]`` at Stage 5, ``payload["activities"]``
     at Stage 6. Structurally malformed input is left for the validator to reject —
     anything that is not a list of dicts yields ``[]``.
 
-    Only the exact, whole-value literal ``_NA_`` is repaired. ``"NA"``, ``""`` and
-    mixed values such as ``"stage_ambiguous;_NA_"`` are deliberately left to
-    hard-fail; see the module docstring.
+    See :func:`repair_uncertainty_flags` for the shapes repaired and the one
+    refused, and the module docstring for why the line sits where it does.
     """
     events: list[UncertaintyFlagsSalvage] = []
     if not isinstance(rows, list):
@@ -292,9 +391,12 @@ def salvage_uncertainty_flags_na(rows: object) -> list[UncertaintyFlagsSalvage]:
     for row in rows:
         if not isinstance(row, dict):
             continue
-        if row.get("uncertainty_flags") != NA:
+        original = row.get("uncertainty_flags")
+        outcome = repair_uncertainty_flags(original)
+        if outcome is None:
             continue
-        row["uncertainty_flags"] = UNCERTAINTY_FLAGS_EMPTY
+        repaired, kind = outcome
+        row["uncertainty_flags"] = repaired
         rid = row.get("row_id")
         aid = row.get("activity_id")
         src = row.get("source_url")
@@ -303,6 +405,9 @@ def salvage_uncertainty_flags_na(rows: object) -> list[UncertaintyFlagsSalvage]:
                 row_id=rid if isinstance(rid, int) else None,
                 activity_id=aid if isinstance(aid, str) else None,
                 source_url=src if isinstance(src, str) else "",
+                kind=kind,
+                original=original if isinstance(original, str) else "",
+                repaired=repaired,
             )
         )
 
@@ -313,11 +418,16 @@ __all__ = [
     "GROUP_D_SALVAGE_DEFAULTS",
     "GROUP_D_UNSALVAGEABLE",
     "UNCERTAINTY_FLAGS_EMPTY",
+    "UNCERTAINTY_FLAGS_EMPTY_TOKENS",
+    "UNCERTAINTY_FLAGS_REASONS",
     "REASON_SALVAGED",
     "REASON_UNSALVAGEABLE",
     "REASON_FLAGS_SALVAGED",
+    "REASON_FLAGS_EMPTY_SALVAGED",
+    "REASON_FLAGS_LIST_NORMALIZED",
     "GroupDSalvage",
     "UncertaintyFlagsSalvage",
     "salvage_group_d_na",
-    "salvage_uncertainty_flags_na",
+    "repair_uncertainty_flags",
+    "salvage_uncertainty_flags",
 ]

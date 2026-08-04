@@ -18,7 +18,7 @@ writes one stable-reason attrition record per affected unit.
 
 Layers covered:
   • ``salvage_group_d_na`` unit behaviour (repair / skip / unsalvageable / malformed).
-  • ``salvage_uncertainty_flags_na`` unit behaviour (repair / boundaries / malformed).
+  • ``salvage_uncertainty_flags`` unit behaviour (repair / boundaries / malformed).
   • ``parse_extract_result`` integration (salvaged row survives; targeted; sink).
   • ``_run_extract`` → ``_persist`` telemetry (one ledger record, stable code).
   • ``parse_consolidate_result`` + ``run_consolidate`` → ``_persist`` at Stage 6.
@@ -45,14 +45,17 @@ from g3o.extract.parser import SalvageEvent
 from g3o.extract.salvage import (
     GROUP_D_SALVAGE_DEFAULTS,
     GROUP_D_UNSALVAGEABLE,
+    REASON_FLAGS_EMPTY_SALVAGED,
+    REASON_FLAGS_LIST_NORMALIZED,
     REASON_FLAGS_SALVAGED,
     REASON_SALVAGED,
     REASON_UNSALVAGEABLE,
     UNCERTAINTY_FLAGS_EMPTY,
     GroupDSalvage,
     UncertaintyFlagsSalvage,
+    repair_uncertainty_flags,
     salvage_group_d_na,
-    salvage_uncertainty_flags_na,
+    salvage_uncertainty_flags,
 )
 from g3o.run import presweep as ps
 from g3o.run.presweep import synth_institution_id
@@ -588,7 +591,7 @@ def _absence_payload(row_overrides: dict[str, Any] | None = None) -> dict[str, A
 
 
 # ---------------------------------------------------------------------------
-# salvage_uncertainty_flags_na — unit behaviour
+# salvage_uncertainty_flags — unit behaviour
 # ---------------------------------------------------------------------------
 
 
@@ -603,7 +606,7 @@ def test_flags_salvage_module_invariants_hold():
 
 def test_flags_salvage_rewrites_na_to_none():
     rows = [{"row_id": 1, "source_url": "u", "uncertainty_flags": NA}]
-    events = salvage_uncertainty_flags_na(rows)
+    events = salvage_uncertainty_flags(rows)
     assert rows[0]["uncertainty_flags"] == "none"
     assert len(events) == 1
     assert events[0].row_id == 1
@@ -619,7 +622,7 @@ def test_flags_salvage_is_evidence_agnostic(evidence: str):
     `none` is the field's only legal empty value in every branch of the contract,
     so the substitution is faithful on a positive row too."""
     rows = [{"row_id": 1, "genai_evidence": evidence, "uncertainty_flags": NA}]
-    assert len(salvage_uncertainty_flags_na(rows)) == 1
+    assert len(salvage_uncertainty_flags(rows)) == 1
     assert rows[0]["uncertainty_flags"] == "none"
 
 
@@ -629,29 +632,96 @@ def test_flags_salvage_is_evidence_agnostic(evidence: str):
 )
 def test_flags_salvage_leaves_legal_values_untouched(value: str):
     rows = [{"row_id": 1, "uncertainty_flags": value}]
-    assert salvage_uncertainty_flags_na(rows) == []
+    assert salvage_uncertainty_flags(rows) == []
     assert rows[0]["uncertainty_flags"] == value
 
 
 @pytest.mark.parametrize(
     "value",
     [
-        "NA",                       # the report's transcription; never a legal token
-        "",                         # has its own dedicated contract error
+        "NA",                   # the bug report's transcription; never a legal token
         "n/a",
-        "_na_",                      # case matters
-        " _NA_ ",                   # whitespace is not the documented sentinel
-        "stage_ambiguous;_NA_",     # mixed: real flags supplied, stray _NA_ stays visible
-        "_NA_;_NA_",
+        "_na_",                 # case matters
+        "bogus_flag",
+        "stage ambiguous",      # a space *inside* a token, not around a separator
+        "stage_ambiguous;bogus_flag",
+        "stage_ambiguous;NA",   # a real flag plus an unrecognised token
     ],
 )
-def test_flags_salvage_repairs_only_the_exact_whole_literal(value: str):
-    """Targeted, not blanket. Anything other than the exact whole-value `_NA_` is
-    genuine drift rather than the documented sentinel applied by analogy, and is
-    left for the validator to reject."""
+def test_flags_salvage_refuses_values_holding_an_unrecognised_token(value: str):
+    """The repair/relaxation line. We normalise values whose meaning the contract
+    already fixes; we refuse to guess at a token the contract does not define, so
+    genuine model drift still hard-fails loudly instead of being quietly rewritten.
+    """
     rows = [{"row_id": 1, "uncertainty_flags": value}]
-    assert salvage_uncertainty_flags_na(rows) == []
+    assert salvage_uncertainty_flags(rows) == []
     assert rows[0]["uncertainty_flags"] == value
+
+
+@pytest.mark.parametrize(
+    ("value", "expected", "kind"),
+    [
+        (NA, "none", "na"),
+        ("", "none", "empty"),
+        ("   ", "none", "empty"),
+        (" _NA_ ", "none", "list"),
+        ("_NA_;_NA_", "none", "list"),
+        ("none;none", "none", "list"),
+        ("stage_ambiguous;_NA_", "stage_ambiguous", "list"),
+        ("genai_vs_traditional_ai;none", "genai_vs_traditional_ai", "list"),
+        ("genai_vs_traditional_ai; date_uncertain",
+         "genai_vs_traditional_ai;date_uncertain", "list"),
+        ("stage_ambiguous;", "stage_ambiguous", "list"),
+    ],
+)
+def test_flags_salvage_repairs_every_observed_shape(
+    value: str, expected: str, kind: str
+):
+    """Every `uncertainty_flags` failure shape seen in the n=100 run, plus the
+    near neighbours of each. `_NA_` was the minority shape (18 records against 27
+    for a bare empty string) — see the module docstring in salvage.py."""
+    rows = [{"row_id": 1, "uncertainty_flags": value}]
+    events = salvage_uncertainty_flags(rows)
+    assert rows[0]["uncertainty_flags"] == expected
+    assert len(events) == 1
+    assert events[0].kind == kind
+    assert events[0].original == value
+    assert events[0].repaired == expected
+
+
+def test_flags_salvage_reason_code_differs_per_shape():
+    """Each shape gets its own ledger code so the shapes stay countable — in
+    particular, inferring `none` from an empty string is a weaker inference than
+    the `_NA_` synonym rewrite and must be auditable separately."""
+    codes = {
+        k: UncertaintyFlagsSalvage(kind=k).reason
+        for k in ("na", "empty", "list")
+    }
+    assert codes == {
+        "na": REASON_FLAGS_SALVAGED,
+        "empty": REASON_FLAGS_EMPTY_SALVAGED,
+        "list": REASON_FLAGS_LIST_NORMALIZED,
+    }
+    assert len(set(codes.values())) == 3
+
+
+def test_flags_salvage_preserves_flag_order():
+    """The contract asks Stage 6 to order flags alphabetically but the validator
+    does not enforce it, so reordering would be normalisation beyond repair."""
+    rows = [{"row_id": 1, "uncertainty_flags": "vendor_undisclosed;date_uncertain;none"}]
+    assert len(salvage_uncertainty_flags(rows)) == 1
+    assert rows[0]["uncertainty_flags"] == "vendor_undisclosed;date_uncertain"
+
+
+def test_repair_uncertainty_flags_is_pure():
+    """The row-writing and the decision are separable: repair_uncertainty_flags
+    mutates nothing and returns None for "leave alone"."""
+    assert repair_uncertainty_flags("none") is None
+    assert repair_uncertainty_flags("stage_ambiguous") is None
+    assert repair_uncertainty_flags("bogus") is None
+    assert repair_uncertainty_flags(None) is None
+    assert repair_uncertainty_flags(7) is None
+    assert repair_uncertainty_flags(NA) == ("none", "na")
 
 
 @pytest.mark.parametrize(
@@ -659,7 +729,7 @@ def test_flags_salvage_repairs_only_the_exact_whole_literal(value: str):
 )
 def test_flags_salvage_malformed_input_returns_empty(bad: Any):
     """Structurally malformed input is left for the validator; salvage no-ops."""
-    assert salvage_uncertainty_flags_na(bad) == []
+    assert salvage_uncertainty_flags(bad) == []
 
 
 def test_flags_salvage_repairs_every_affected_row():
@@ -668,7 +738,7 @@ def test_flags_salvage_repairs_every_affected_row():
         {"row_id": 2, "uncertainty_flags": "stage_ambiguous"},
         {"row_id": 3, "uncertainty_flags": NA},
     ]
-    events = salvage_uncertainty_flags_na(rows)
+    events = salvage_uncertainty_flags(rows)
     assert [e.row_id for e in events] == [1, 3]
     assert [r["uncertainty_flags"] for r in rows] == [
         "none", "stage_ambiguous", "none",
@@ -685,7 +755,7 @@ def test_flags_salvage_ref_prefers_row_id_then_activity_id():
 
 def test_flags_salvage_captures_activity_id_at_stage_6_shape():
     rows = [{"activity_id": "A1", "uncertainty_flags": NA}]
-    events = salvage_uncertainty_flags_na(rows)
+    events = salvage_uncertainty_flags(rows)
     assert events[0].activity_id == "A1"
     assert events[0].row_id is None
     assert events[0].source_url == ""
@@ -789,7 +859,7 @@ def test_both_salvages_compose_on_one_row():
     assert {type(e) for e in sink} == {GroupDSalvage, UncertaintyFlagsSalvage}
 
 
-@pytest.mark.parametrize("value", ["NA", "stage_ambiguous;_NA_", "bogus_flag"])
+@pytest.mark.parametrize("value", ["NA", "stage_ambiguous;bogus", "bogus_flag"])
 def test_flags_drift_other_than_the_sentinel_still_hard_fails(value: str):
     """Repair, not relaxation: the vocabulary check still bites on anything that
     is not the exact documented sentinel."""
@@ -845,6 +915,61 @@ def test_both_salvage_codes_recorded_when_both_fired(tmp_path, monkeypatch):
     assert REASON_SALVAGED in reasons
     assert REASON_FLAGS_SALVAGED in reasons
     assert "parse_failed" not in reasons
+
+
+@pytest.mark.parametrize(
+    ("value", "reason_name"),
+    [
+        ("", "REASON_FLAGS_EMPTY_SALVAGED"),
+        ("genai_vs_traditional_ai;none", "REASON_FLAGS_LIST_NORMALIZED"),
+        ("genai_vs_traditional_ai; date_uncertain", "REASON_FLAGS_LIST_NORMALIZED"),
+    ],
+)
+def test_widened_shapes_reach_the_ledger_under_their_own_code(
+    tmp_path, monkeypatch, value: str, reason_name: str
+):
+    """The three shapes the original repair declined — the empty string (the most
+    common one in the n=100 run), `none` appended to real flags, and a space after
+    a separator — now parse, and each lands in the ledger under its own code."""
+    expected = {
+        "REASON_FLAGS_EMPTY_SALVAGED": REASON_FLAGS_EMPTY_SALVAGED,
+        "REASON_FLAGS_LIST_NORMALIZED": REASON_FLAGS_LIST_NORMALIZED,
+    }[reason_name]
+    payload = _mcit_payload({**_SALVAGEABLE_NA_ROW, "uncertainty_flags": value})
+    run_dir, inst_id, url = _run_one_page_extract(
+        tmp_path, monkeypatch, payload, f"widened{abs(hash(value)) % 997}"
+    )
+    recs = attrition.read_records(run_dir)
+    hits = [r for r in recs if r["reason"] == expected]
+    assert len(hits) == 1, [r["reason"] for r in recs]
+    assert hits[0]["url"] == url
+    assert "rows=[1]" in hits[0]["detail"]
+    assert "parse_failed" not in {r["reason"] for r in recs}
+    assert (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+
+
+@pytest.mark.parametrize(
+    "value", ["", "genai_vs_traditional_ai;none", "genai_vs_traditional_ai; x"]
+)
+def test_widened_shapes_would_have_failed_without_the_repair(value: str):
+    """Keeps the test above honest: the same payloads still raise when validated
+    directly, so the parse succeeds because of the repair and not because the
+    validator was weakened. (`; x` carries an unrecognised token and must raise in
+    both places — the refusal boundary, checked in the same breath.)"""
+    from g3o.common.contract import BatchResponse
+
+    payload = _mcit_payload({**_SALVAGEABLE_NA_ROW, "uncertainty_flags": value})
+    with pytest.raises(ValidationError, match="uncertainty_flags|uncertainty flag"):
+        BatchResponse.model_validate(payload)
+
+
+def test_stage6_widened_shape_preserved(tmp_path, monkeypatch):
+    """Stage 6 gets the widened repair too: an empty-string `uncertainty_flags` on
+    one activity no longer drops the whole institution's consolidation."""
+    events = salvage_uncertainty_flags([{"activity_id": "A1", "uncertainty_flags": ""}])
+    assert len(events) == 1
+    assert events[0].reason == REASON_FLAGS_EMPTY_SALVAGED
+    assert events[0].activity_id == "A1"
 
 
 def test_clean_page_records_no_flags_salvage(tmp_path, monkeypatch):

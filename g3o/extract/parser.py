@@ -17,9 +17,9 @@ that would otherwise corrupt provenance.
 - ``salvage_group_d_na`` repairs ``confirms_activity`` rows whose Group-D fields
   carry the illegal literal ``_NA_``, substituting the contract's prescribed
   defaults so a real positive finding is not dropped over a schema imperfection.
-- ``salvage_uncertainty_flags_na`` rewrites a whole-value ``uncertainty_flags``
-  of ``_NA_`` to the contract's ``none`` on any row, whatever its
-  ``genai_evidence``.
+- ``salvage_uncertainty_flags`` rewrites a malformed ``uncertainty_flags`` to
+  the contract's ``none`` (or to a cleaned flag list) on any row, whatever its
+  ``genai_evidence``. It declines any value holding an unrecognised token.
 
 When a ``salvage_sink`` list is supplied, the parser appends one event per
 affected row — ``GroupDSalvage`` or ``UncertaintyFlagsSalvage``, so callers should
@@ -37,7 +37,7 @@ from g3o.extract.salvage import (
     GroupDSalvage,
     UncertaintyFlagsSalvage,
     salvage_group_d_na,
-    salvage_uncertainty_flags_na,
+    salvage_uncertainty_flags,
 )
 
 SalvageEvent = GroupDSalvage | UncertaintyFlagsSalvage
@@ -56,7 +56,7 @@ def parse_extract_result(
             to it: a ``GroupDSalvage`` for every ``confirms_activity`` row with
             Group-D ``_NA_`` (both repaired and unsalvageable), and an
             ``UncertaintyFlagsSalvage`` for every row whose ``uncertainty_flags``
-            was ``_NA_``. Populated before validation, so it is available to the
+            was repaired. Populated before validation, so it is available to the
             caller even when this call raises.
 
     Raises:
@@ -77,7 +77,7 @@ def parse_extract_result(
     payload = json.loads(content)
     events: list[SalvageEvent] = [*salvage_group_d_na(payload)]
     if isinstance(payload, dict):
-        events.extend(salvage_uncertainty_flags_na(payload.get("data")))
+        events.extend(salvage_uncertainty_flags(payload.get("data")))
     if salvage_sink is not None:
         salvage_sink.extend(events)
     response = BatchResponse.model_validate(payload)
@@ -108,5 +108,5 @@ __all__ = [
     "GroupDSalvage",
     "UncertaintyFlagsSalvage",
     "salvage_group_d_na",
-    "salvage_uncertainty_flags_na",
+    "salvage_uncertainty_flags",
 ]
