@@ -205,6 +205,35 @@ both were invisible before this run:
   Only the latter 3 are defects; the 16 are institutions with nothing readable to
   read, which is a finding about the web, not the pipeline.
 
+### The published outcome: 1 / 56 / 43, and why 43 is the number to fix
+
+`institution_report.csv` for the finished run:
+
+| `final_status` | `validation_status` | n |
+|---|---|---:|
+| `EVIDENCE_FOUND` | consolidated | **1** |
+| `NO_EVIDENCE_FOUND` | consolidated | 42 |
+| `NO_EVIDENCE_FOUND` | not_run | 14 |
+| `PROCESSING_FAILED` | consolidated | **38** |
+| `PROCESSING_FAILED` | not_run | 5 |
+
+**All 43 `PROCESSING_FAILED` rows cite `extract:parse_failed`** — every one traces
+to the contract-adherence defect in §5.6. And 38 of those 43 **already have a
+Stage-6 verdict**: they are withheld not because the pipeline failed to reach a
+conclusion but because the no-evidence publishing rule (PI, 2026-07-28) refuses
+to publish "no publicly available information" for an institution whose
+processing was incomplete. That rule is working exactly as designed; the defect
+is what trips it.
+
+**So a 9.1% page-level defect produces a 43% institution-level suppression.** One
+unparseable page is enough to disqualify an institution, so the amplification is
+structural, not incidental. That makes fixing `uncertainty_flags` the highest-
+value change available to this pipeline by a wide margin — it could return up to
+38 institutions to substantive verdicts without any change to the instrument's
+judgement. **Do not read 1/56/43 as a prevalence estimate**; read it as one
+confirmed positive, 56 defensible negatives, and 43 institutions the pipeline
+declined to report on.
+
 **Stage 6's unclear rate is the one gauge that misses, and it is the substantive
 result of this run.** Of 81 consolidated institutions, 41 (50.6%) came back
 `unclear` on `has_genai_activity`, against 30 `no` (37.0%) and just 10 `yes`
@@ -479,10 +508,15 @@ cached on disk) and **$0.97 of OpenAI spend** for Stages 5+6, plus $0.06 for the
    or an empty string into `uncertainty_flags`, both of which the contract
    forbids (`""` is barred by the "never emit null or an empty string" rule;
    `_NA_` is not in the allowed flag set). A smaller number returned empty
-   assistant content. Each failure **silently drops that page's evidence rows
-   before consolidation**, so it is measurement contamination, not just yield
-   loss — a page that failed to parse is indistinguishable downstream from a
-   page that genuinely found nothing.
+   assistant content. Each failure drops that page's evidence rows before
+   consolidation.
+
+   **Its cost is far larger than 9.1% suggests: it accounts for all 43
+   `PROCESSING_FAILED` institutions (43% of the sample), 38 of which already
+   hold a Stage-6 verdict** (§3). One unparseable page disqualifies an entire
+   institution under the no-evidence publishing rule, so a page-level defect
+   amplifies into an institution-level suppression. This is the highest-value
+   fix available to the pipeline.
 
    Deliberately **not** fixed here: repairing it means touching either the
    contract (gated by `CONTRIBUTING.md` §Schema stability) or the validator, and
