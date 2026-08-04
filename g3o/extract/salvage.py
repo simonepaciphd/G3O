@@ -1,6 +1,6 @@
-"""Stage 5 / Stage 6 ``_NA_`` salvage.
+"""Stage 5 / Stage 6 pre-validation salvage.
 
-Two independent repairs, each applied to the raw payload before Pydantic
+Three independent repairs, each applied to the raw payload before Pydantic
 validation, so that neither a page (Stage 5) nor an institution's consolidation
 (Stage 6) is dropped whole over a value the contract itself invited the model to
 write. They share the philosophy set out below and nothing else: different
@@ -30,11 +30,11 @@ Scope and boundaries (deliberate, not accidental):
   row *to* the contract; it does not change contract semantics, the extraction
   prompt, or what ``has_genai_activity`` / ``genai_evidence`` mean. No rows are
   added or removed, so the batch-level metadata-count invariants are unaffected.
-- **Targeted, not blanket.** Salvage touches Group-D ``_NA_`` on
-  ``confirms_activity`` rows only. ``_NA_`` in Group C/E/F, out-of-enum values,
-  missing fields, the Q1=a access-date contract, and the reverse Group-D rule
-  (non-``confirms_activity`` rows carrying non-``_NA_`` Group D) all still
-  hard-fail, untouched.
+- **Targeted, not blanket.** This repair touches Group-D ``_NA_`` on
+  ``confirms_activity`` rows only. ``_NA_`` in Group C/E, out-of-enum values,
+  missing fields and the Q1=a access-date contract all still hard-fail,
+  untouched. (Group F and the reverse Group-D rule have their own repairs below,
+  added later and on their own terms; neither is an extension of this one.)
 - **Two fields cannot be salvaged.** ``activity_type`` is an enum with no
   ``unknown`` member, and ``activity_name`` has no sanctioned sentinel; supplying
   a value for either would be a typology/naming decision (researcher-control) or
@@ -110,7 +110,40 @@ Boundaries, deliberate:
   repair the row, and would leave two synonymous empty values in the published
   vocabulary.
 
-Note what this does *not* address: page-level validation atomicity, which is why
+Group D filled on a negative-evidence row (the inverse direction)
+----------------------------------------------------------------
+
+Background. The Group-D repair above handles ``_NA_`` where a value belongs. The
+mirror error also occurs: ``genai_evidence`` is ``confirms_absence`` /
+``ambiguous`` / ``background_only``, where §3.2 requires every Group-D column to
+be ``_NA_``, but the model filled one in anyway — 8 records across 6 institutions
+in the n=100 run, with ``scope_notes`` implicated in every one of them (the model
+adding a remark on a page it had just declared negative).
+
+The repair blanks the offending fields to ``_NA_``. Unlike the two above, this one
+*discards* model output rather than rewriting it to a synonym, so the escalation
+rule matters more than the repair does:
+
+- **Existence-asserting fields are never blanked.** If ``activity_name``,
+  ``activity_type``, ``tool_name`` or ``vendor`` is filled on a negative row, the
+  model contradicted itself about whether a finding exists. Blanking would resolve
+  that contradiction silently in favour of "no activity" — a substantive coding
+  decision, and exactly the kind this module refuses to make. The row is left to
+  fail, reported as ``group_d_negative_row_contradictory``. (One of the 8 observed
+  records is this case: ``tool_name`` and ``vendor`` both filled.)
+- **Everything else is stray annotation** on a row whose negative status the model
+  itself asserted, so blanking loses no finding. Reported as
+  ``group_d_negative_row_blanked``, with the discarded values recorded in the
+  ledger ``detail`` — the point is that a blanking is reconstructible from the
+  record, not merely counted.
+
+The asymmetry with ``GROUP_D_UNSALVAGEABLE`` is deliberate and the two sets are
+not interchangeable: that set is about fields with no sanctioned
+"could-not-determine" value, this one about fields whose content is evidence of a
+finding. ``activity_name`` and ``activity_type`` happen to be in both, for
+different reasons.
+
+Note what none of this addresses: page-level validation atomicity, which is why
 one bad cell costs a whole page in the first place. Tracked as issue #44 and
 deliberately deferred — every repair here is a patch on a symptom whose cause is
 architectural.
@@ -157,6 +190,17 @@ GROUP_D_UNSALVAGEABLE: frozenset[str] = frozenset({"activity_type", "activity_na
 # supplying flags, which is why the vocabulary check short-circuits on it.
 UNCERTAINTY_FLAGS_EMPTY = "none"
 
+# Group-D fields whose presence on a *negative-evidence* row asserts that an
+# activity exists. If one of these is filled where the model also said
+# confirms_absence / ambiguous / background_only, the model contradicted itself
+# about the thing that matters most — whether there is a finding at all — and
+# blanking it would silently resolve that contradiction in favour of "no". Such a
+# row is escalated, not repaired. Everything else in Group D is descriptive of an
+# activity already asserted, so on a negative row it is stray annotation.
+GROUP_D_EXISTENCE_ASSERTING: frozenset[str] = frozenset(
+    {"activity_name", "activity_type", "tool_name", "vendor"}
+)
+
 # Tokens that carry no information inside a semicolon-joined flag list: the
 # contract's own empty value and the Group-D sentinel it invited by analogy.
 # Dropping either from a list that also holds a real flag is lossless.
@@ -169,6 +213,8 @@ REASON_UNSALVAGEABLE = "group_d_incomplete_unsalvageable"
 REASON_FLAGS_SALVAGED = "uncertainty_flags_na_salvaged"
 REASON_FLAGS_EMPTY_SALVAGED = "uncertainty_flags_empty_salvaged"
 REASON_FLAGS_LIST_NORMALIZED = "uncertainty_flags_list_normalized"
+REASON_NEGATIVE_ROW_BLANKED = "group_d_negative_row_blanked"
+REASON_NEGATIVE_ROW_CONTRADICTORY = "group_d_negative_row_contradictory"
 
 # Repair kind -> ledger reason code. One code per model error shape, so the
 # ledger stays countable by shape rather than collapsing to a single total.
@@ -270,6 +316,105 @@ class UncertaintyFlagsSalvage:
         if self.activity_id:
             return f"activity_id={self.activity_id}"
         return "row_ref=?"
+
+
+@dataclass(frozen=True)
+class NegativeRowSalvage:
+    """One Group-D-on-a-negative-row decision for one row.
+
+    ``blanked_fields`` names the Group-D fields rewritten to ``_NA_``;
+    ``contradictory_fields`` names existence-asserting fields that were filled,
+    in which case nothing was rewritten and the row is left to fail. Exactly one
+    of the two is ever non-empty.
+
+    ``discarded`` maps each blanked field to the value that was thrown away, so
+    the ledger can carry what a blanking actually cost.
+    """
+
+    row_id: int | None
+    source_url: str
+    blanked_fields: tuple[str, ...] = ()
+    contradictory_fields: tuple[str, ...] = ()
+    discarded: tuple[tuple[str, str], ...] = ()
+
+    @property
+    def is_salvageable(self) -> bool:
+        """True when the row was repaired rather than escalated."""
+        return not self.contradictory_fields
+
+    @property
+    def reason(self) -> str:
+        """The ledger reason code for this decision."""
+        return (
+            REASON_NEGATIVE_ROW_BLANKED
+            if self.is_salvageable
+            else REASON_NEGATIVE_ROW_CONTRADICTORY
+        )
+
+
+def salvage_negative_row_group_d(payload: object) -> list[NegativeRowSalvage]:
+    """Blank stray Group-D values on negative-evidence rows in place.
+
+    The mirror of :func:`salvage_group_d_na`: that one fills ``_NA_`` where a
+    value belongs, this one blanks a value where ``_NA_`` belongs. Mutates
+    ``payload["data"]`` rows directly and returns one :class:`NegativeRowSalvage`
+    per affected row. Structurally malformed payloads yield ``[]``.
+
+    A row is affected only when ``genai_evidence`` is *not* ``confirms_activity``
+    and at least one Group-D field is not ``_NA_``. If any offender is
+    existence-asserting (``GROUP_D_EXISTENCE_ASSERTING``) the row is left untouched
+    and reported as contradictory; otherwise every offender is rewritten to ``_NA_``
+    and the discarded values are carried on the event. See the module docstring for
+    why that line is drawn there.
+    """
+    events: list[NegativeRowSalvage] = []
+    if not isinstance(payload, dict):
+        return events
+    data = payload.get("data")
+    if not isinstance(data, list):
+        return events
+
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        evidence = row.get("genai_evidence")
+        if not isinstance(evidence, str) or evidence == "confirms_activity":
+            continue
+        # A field absent from the row is a schema failure, not a salvage case —
+        # only a field that is present and not `_NA_` counts as an offender.
+        offenders = [f for f in GROUP_D_FIELDS if f in row and row.get(f) != NA]
+        if not offenders:
+            continue
+
+        rid = row.get("row_id")
+        row_id = rid if isinstance(rid, int) else None
+        src = row.get("source_url")
+        source_url = src if isinstance(src, str) else ""
+
+        contradictory = tuple(f for f in offenders if f in GROUP_D_EXISTENCE_ASSERTING)
+        if contradictory:
+            events.append(
+                NegativeRowSalvage(
+                    row_id=row_id,
+                    source_url=source_url,
+                    contradictory_fields=contradictory,
+                )
+            )
+            continue
+
+        discarded = tuple((f, str(row[f])) for f in offenders)
+        for f in offenders:
+            row[f] = NA
+        events.append(
+            NegativeRowSalvage(
+                row_id=row_id,
+                source_url=source_url,
+                blanked_fields=tuple(offenders),
+                discarded=discarded,
+            )
+        )
+
+    return events
 
 
 def salvage_group_d_na(payload: object) -> list[GroupDSalvage]:
@@ -417,6 +562,7 @@ def salvage_uncertainty_flags(rows: object) -> list[UncertaintyFlagsSalvage]:
 __all__ = [
     "GROUP_D_SALVAGE_DEFAULTS",
     "GROUP_D_UNSALVAGEABLE",
+    "GROUP_D_EXISTENCE_ASSERTING",
     "UNCERTAINTY_FLAGS_EMPTY",
     "UNCERTAINTY_FLAGS_EMPTY_TOKENS",
     "UNCERTAINTY_FLAGS_REASONS",
@@ -425,9 +571,13 @@ __all__ = [
     "REASON_FLAGS_SALVAGED",
     "REASON_FLAGS_EMPTY_SALVAGED",
     "REASON_FLAGS_LIST_NORMALIZED",
+    "REASON_NEGATIVE_ROW_BLANKED",
+    "REASON_NEGATIVE_ROW_CONTRADICTORY",
     "GroupDSalvage",
+    "NegativeRowSalvage",
     "UncertaintyFlagsSalvage",
     "salvage_group_d_na",
+    "salvage_negative_row_group_d",
     "repair_uncertainty_flags",
     "salvage_uncertainty_flags",
 ]

@@ -114,6 +114,19 @@ deferred to the contract.
   salvage remains fully accounted for in the attrition ledger itself.
 - **Not on the activities CSV.** Promoting the flag to the activity grain is an
   open schema decision, not an omission.
+- **The other repairs have no column at all.** `g3o/extract/salvage.py` runs three
+  further pre-validation repairs, and none is surfaced in any CSV — they exist only
+  as `_attrition.jsonl` reason codes: `uncertainty_flags_na_salvaged`,
+  `uncertainty_flags_empty_salvaged`, `uncertainty_flags_list_normalized` and
+  `group_d_negative_row_blanked`, plus two escalation codes marking pages that
+  still dropped (`group_d_incomplete_unsalvageable`,
+  `group_d_negative_row_contradictory`). Adding a column for any of them would
+  edit the version-pinned schema of record, so the ledger is the record.
+  Consequence for analysts: unlike Group-D salvage, these repairs are **not**
+  visible from the published CSVs alone — reconstructing them needs the run's
+  attrition ledger. `group_d_negative_row_blanked` is the one that discards model
+  output rather than rewriting it to a synonym, so its ledger `detail` carries the
+  discarded values verbatim.
 
 ## `g3o_institution_summary_v{N}.csv` — `SUMMARY_COLUMNS` (21)
 

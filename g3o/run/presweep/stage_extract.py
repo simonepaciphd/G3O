@@ -26,8 +26,11 @@ from g3o.extract.batch import (
 )
 from g3o.extract.parser import SalvageEvent
 from g3o.extract.salvage import (
+    REASON_NEGATIVE_ROW_BLANKED,
+    REASON_NEGATIVE_ROW_CONTRADICTORY,
     REASON_SALVAGED,
     REASON_UNSALVAGEABLE,
+    NegativeRowSalvage,
     UncertaintyFlagsSalvage,
 )
 from g3o.run.presweep.records import institution_record, synth_institution_id
@@ -71,6 +74,36 @@ def _is_unsalvageable_group_d_failure(
             return True
         if "Group D fields are _NA_" in msg and any(
             f in msg for f in unsalvageable_fields
+        ):
+            return True
+    return False
+
+
+def _is_contradictory_negative_row_failure(
+    exc: Exception, salvages: list[SalvageEvent]
+) -> bool:
+    """True only when ``exc`` is *caused* by a self-contradictory negative row.
+
+    Mirror of :func:`_is_unsalvageable_group_d_failure`, and guarded the same way:
+    a page can carry a contradictory event and still fail for an unrelated reason,
+    which must stay ``parse_failed``. The validator's message for this rule names
+    the offending fields, so we require it to name one of ours.
+    """
+    fields = {
+        f
+        for s in salvages
+        if isinstance(s, NegativeRowSalvage)
+        for f in s.contradictory_fields
+    }
+    if not fields:
+        return False
+    errors = getattr(exc, "errors", None)
+    if not callable(errors):
+        return False
+    for err in errors():
+        msg = err.get("msg", "")
+        if "requires every Group D field to be _NA_" in msg and any(
+            f in msg for f in fields
         ):
             return True
     return False
@@ -184,11 +217,18 @@ def _run_extract(
                 # is measurable (see salvage.py) — but only when this exception
                 # is actually caused by the unsalvageable field, not merely when
                 # an unsalvageable event coexists with an unrelated failure.
-                reason = (
-                    REASON_UNSALVAGEABLE
-                    if _is_unsalvageable_group_d_failure(exc, salvages)
-                    else "parse_failed"
-                )
+                #
+                # A negative-evidence row carrying an existence-asserting Group-D
+                # value is escalated on the same principle: the model contradicted
+                # itself about whether a finding exists, and resolving that is a
+                # coding decision. Same guard — attribute only when the exception
+                # actually names one of those fields.
+                if _is_unsalvageable_group_d_failure(exc, salvages):
+                    reason = REASON_UNSALVAGEABLE
+                elif _is_contradictory_negative_row_failure(exc, salvages):
+                    reason = REASON_NEGATIVE_ROW_CONTRADICTORY
+                else:
+                    reason = "parse_failed"
                 logger.warning("Stage 5 parse failed for %s: %s", result.custom_id, exc)
                 attrition.record(
                     run_dir, institution_id=institution_id, stage=stage,
@@ -232,6 +272,25 @@ def _run_extract(
                     run_dir, institution_id=institution_id, stage=stage,
                     reason=reason, url=page.url,
                     detail=f"rows={rows};originals={originals}",
+                )
+            # Negative-evidence row carrying stray Group-D values: blanked to _NA_
+            # and the page preserved. This repair *discards* model output, so the
+            # detail carries the discarded values verbatim — a blanking has to be
+            # reconstructible from the ledger, not merely counted.
+            blanked = [
+                s
+                for s in salvages
+                if isinstance(s, NegativeRowSalvage) and s.is_salvageable
+            ]
+            if blanked:
+                rows = sorted(s.row_id for s in blanked if s.row_id is not None)
+                dropped = sorted(
+                    {f"{f}={v!r}" for s in blanked for f, v in s.discarded}
+                )
+                attrition.record(
+                    run_dir, institution_id=institution_id, stage=stage,
+                    reason=REASON_NEGATIVE_ROW_BLANKED, url=page.url,
+                    detail=f"rows={rows};discarded={dropped}",
                 )
             extract_dir = run_dir / institution_id / "extract"
             extract_dir.mkdir(parents=True, exist_ok=True)
