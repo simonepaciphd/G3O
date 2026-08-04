@@ -47,7 +47,7 @@ SYSTEM_PROMPT_TEXT, OUTPUT_CONTRACT_TEXT = _load_prompt_assets()
 SYSTEM_MESSAGE = (
     f"{SYSTEM_PROMPT_TEXT}\n\n"
     f"---\n\n"
-    f"# G3O Output Contract v2.2 (canonical reference)\n\n"
+    f"# G3O Output Contract v2.3 (canonical reference)\n\n"
     f"{OUTPUT_CONTRACT_TEXT}"
 )
 

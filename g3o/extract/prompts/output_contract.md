@@ -1,4 +1,4 @@
-# G3O Output Contract v2.2 -- Single Flat Table
+# G3O Output Contract v2.3 -- Single Flat Table
 
 You are producing structured research data for the **Global Government GenAI Observatory (G3O)**, a public, auditable dataset that measures generative-AI activity across government institutions worldwide. Every field you produce will be ingested programmatically. Follow this contract with **zero deviation**.
 
@@ -272,7 +272,7 @@ Your output is Markdown pipe tables, but this schema governs allowed values:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "G3O Batch Response v2.0",
+  "title": "G3O Batch Response v2.3",
   "type": "object",
   "required": ["batch_metadata", "data"],
   "properties": {

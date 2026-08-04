@@ -1034,7 +1034,7 @@ def test_stage6_flags_salvage_writes_attrition_record(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# The prompt-side fix (Output Contract v2.2)
+# The prompt-side fix (Output Contract v2.2, carried forward to v2.3)
 #
 # The salvage above is defence in depth; the contract carve-out is the primary
 # fix, and until these tests existed it had no coverage at all — the version pin
@@ -1092,7 +1092,7 @@ def test_worked_example_shows_uncertainty_flags_none_on_an_absence_row():
 def test_system_message_version_header_matches_the_contract_h1():
     """The SYSTEM_MESSAGE header hardcodes the contract version separately from
     the document's own H1 (client.py), so the two can silently drift — they did,
-    and the v2.2 bump had to fix both by hand. Pin them together."""
+    and the v2.2/v2.3 bumps had to fix both by hand. Pin them together."""
     from g3o.extract.client import OUTPUT_CONTRACT_TEXT, SYSTEM_MESSAGE
 
     h1 = OUTPUT_CONTRACT_TEXT.splitlines()[0]
