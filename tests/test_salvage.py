@@ -44,15 +44,20 @@ from g3o.extract import make_custom_id, parse_extract_result, url_hash
 from g3o.extract.batch import EMPTY_PAGE_MIN_CHARS
 from g3o.extract.parser import SalvageEvent
 from g3o.extract.salvage import (
+    GROUP_D_EXISTENCE_ASSERTING,
     GROUP_D_SALVAGE_DEFAULTS,
     GROUP_D_UNSALVAGEABLE,
     REASON_FLAGS_SALVAGED,
+    REASON_NEGATIVE_ROW_BLANKED,
+    REASON_NEGATIVE_ROW_CONTRADICTORY,
     REASON_SALVAGED,
     REASON_UNSALVAGEABLE,
     UNCERTAINTY_FLAGS_EMPTY,
     GroupDSalvage,
+    NegativeRowSalvage,
     UncertaintyFlagsSalvage,
     salvage_group_d_na,
+    salvage_negative_row_group_d,
     salvage_uncertainty_flags_na,
 )
 from g3o.run import presweep as ps
@@ -1160,3 +1165,205 @@ def test_system_message_announces_the_contract_version_exactly_once():
 # EMPTY_PAGE_MIN_CHARS is imported to keep the near-empty page in the helper
 # comfortably above the Stage 5 empty-page floor without hard-coding the number.
 assert len("GenAI citizen assistant announcement. " * 5) >= EMPTY_PAGE_MIN_CHARS
+
+
+# ---------------------------------------------------------------------------
+# Group D filled on a negative-evidence row (the inverse direction)
+# ---------------------------------------------------------------------------
+
+
+def _negative_row(**overrides: Any) -> dict[str, Any]:
+    """A contract-clean confirms_absence row: every Group-D field `_NA_`."""
+    row = _mcit_row()
+    row.update({f: NA for f in GROUP_D_FIELDS})
+    row.update(
+        {
+            "has_genai_activity": "no",
+            "genai_evidence": "confirms_absence",
+            "uncertainty_flags": "none",
+        }
+    )
+    row.update(overrides)
+    return row
+
+
+def _negative_payload(**overrides: Any) -> dict[str, Any]:
+    return {
+        "batch_metadata": _mcit_meta(n_institutions_with_genai=0),
+        "data": [_negative_row(**overrides)],
+    }
+
+
+def test_negative_row_scope_notes_blanked():
+    """The shape seen in all 8 of the n=100 run's records: the model appends a
+    remark on a page it has just declared negative."""
+    payload = _negative_payload(scope_notes="No GenAI mentioned on this page.")
+    events = salvage_negative_row_group_d(payload)
+    assert len(events) == 1
+    assert events[0].is_salvageable
+    assert events[0].blanked_fields == ("scope_notes",)
+    assert events[0].discarded == (("scope_notes", "No GenAI mentioned on this page."),)
+    assert events[0].reason == REASON_NEGATIVE_ROW_BLANKED
+    assert payload["data"][0]["scope_notes"] == NA
+
+
+@pytest.mark.parametrize(
+    "evidence", ["confirms_absence", "ambiguous", "background_only"]
+)
+def test_negative_row_blanking_covers_every_negative_evidence_value(evidence: str):
+    payload = _negative_payload(genai_evidence=evidence, year_announced="2024")
+    assert len(salvage_negative_row_group_d(payload)) == 1
+    assert payload["data"][0]["year_announced"] == NA
+
+
+def test_negative_row_blanks_every_offender_and_records_each():
+    payload = _negative_payload(
+        scope_notes="a note", year_announced="2024", has_risk_assessment="yes"
+    )
+    events = salvage_negative_row_group_d(payload)
+    assert set(events[0].blanked_fields) == {
+        "scope_notes",
+        "year_announced",
+        "has_risk_assessment",
+    }
+    assert dict(events[0].discarded) == {
+        "scope_notes": "a note",
+        "year_announced": "2024",
+        "has_risk_assessment": "yes",
+    }
+    assert all(payload["data"][0][f] == NA for f in GROUP_D_FIELDS)
+
+
+@pytest.mark.parametrize(
+    "field", ["activity_name", "activity_type", "tool_name", "vendor"]
+)
+def test_negative_row_with_existence_asserting_field_is_escalated(field: str):
+    """The line that matters. A negative row naming an activity, a type, a tool or
+    a vendor contradicts itself about whether a finding exists. Blanking it would
+    resolve that contradiction in favour of no-activity — a coding decision this
+    module refuses to make — so the row is left to fail and reported instead."""
+    original = {"activity_type": "public_facing_service"}.get(field, "Some Tool")
+    payload = _negative_payload(**{field: original, "scope_notes": "a note"})
+    events = salvage_negative_row_group_d(payload)
+    assert len(events) == 1
+    assert not events[0].is_salvageable
+    assert events[0].contradictory_fields == (field,)
+    assert events[0].reason == REASON_NEGATIVE_ROW_CONTRADICTORY
+    # Nothing was rewritten — not even the innocent scope_notes on the same row.
+    assert payload["data"][0][field] == original
+    assert payload["data"][0]["scope_notes"] == "a note"
+
+
+def test_negative_row_escalation_set_is_not_the_unsalvageable_set():
+    """The two sets overlap but mean different things, and conflating them would
+    silently change behaviour: GROUP_D_UNSALVAGEABLE is about fields with no
+    sanctioned could-not-determine value, GROUP_D_EXISTENCE_ASSERTING about fields
+    whose content asserts a finding exists."""
+    assert GROUP_D_EXISTENCE_ASSERTING != GROUP_D_UNSALVAGEABLE
+    assert GROUP_D_UNSALVAGEABLE < GROUP_D_EXISTENCE_ASSERTING
+    assert GROUP_D_EXISTENCE_ASSERTING <= set(GROUP_D_FIELDS)
+
+
+def test_negative_row_clean_payload_is_untouched():
+    payload = _negative_payload()
+    assert salvage_negative_row_group_d(payload) == []
+
+
+def test_negative_row_salvage_ignores_positive_rows():
+    """A confirms_activity row is the other repair's business, not this one's."""
+    payload = _mcit_payload()
+    assert salvage_negative_row_group_d(payload) == []
+
+
+def test_negative_row_absent_field_is_not_an_offender():
+    """A missing Group-D key is a schema failure, not a salvage case — repairing it
+    would paper over a structurally malformed row."""
+    row = _negative_row()
+    del row["scope_notes"]
+    payload = {
+        "batch_metadata": _mcit_meta(n_institutions_with_genai=0),
+        "data": [row],
+    }
+    assert salvage_negative_row_group_d(payload) == []
+
+
+@pytest.mark.parametrize("bad", [None, 7, "data", {}, {"data": {}}, {"data": [7]}])
+def test_negative_row_salvage_malformed_input_returns_empty(bad: Any):
+    assert salvage_negative_row_group_d(bad) == []
+
+
+def test_negative_row_blanked_page_parses_at_stage_5():
+    """End to end: the page survives instead of dropping the institution."""
+    result = _make_result(
+        "INST-QA-MCIT::neg", _negative_payload(scope_notes="No GenAI mentioned.")
+    )
+    sink: list[Any] = []
+    parsed = parse_extract_result(
+        result, scrape_access_date=MCIT_ACCESS_DATE, salvage_sink=sink
+    )
+    assert parsed.data[0].scope_notes == NA
+    assert [type(e) for e in sink] == [NegativeRowSalvage]
+
+
+def test_negative_row_blanked_payload_would_have_failed_without_the_repair():
+    """Keeps the test above honest."""
+    from g3o.common.contract import BatchResponse
+
+    payload = _negative_payload(scope_notes="No GenAI mentioned.")
+    with pytest.raises(ValidationError, match="requires every Group D field"):
+        BatchResponse.model_validate(payload)
+
+
+def test_negative_row_contradictory_page_still_fails_at_stage_5():
+    """Escalation is not repair: the page still drops."""
+    result = _make_result("INST-QA-MCIT::contra", _negative_payload(tool_name="Copilot"))
+    sink: list[Any] = []
+    with pytest.raises(ValidationError, match="requires every Group D field"):
+        parse_extract_result(
+            result, scrape_access_date=MCIT_ACCESS_DATE, salvage_sink=sink
+        )
+    assert len(sink) == 1
+    assert not sink[0].is_salvageable
+
+
+def test_negative_row_ledger_record_carries_the_discarded_value(tmp_path, monkeypatch):
+    """This repair discards model output, so the ledger has to say what was lost —
+    a blanking must be reconstructible from the record, not merely counted."""
+    payload = _negative_payload(scope_notes="No GenAI mentioned on this page.")
+    run_dir, inst_id, url = _run_one_page_extract(
+        tmp_path, monkeypatch, payload, "negblank"
+    )
+    recs = attrition.read_records(run_dir)
+    hits = [r for r in recs if r["reason"] == REASON_NEGATIVE_ROW_BLANKED]
+    assert len(hits) == 1
+    assert hits[0]["url"] == url
+    assert "rows=[1]" in hits[0]["detail"]
+    assert "No GenAI mentioned on this page." in hits[0]["detail"]
+    assert "parse_failed" not in {r["reason"] for r in recs}
+    assert artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
+
+
+def test_negative_row_contradiction_is_tagged_distinctly_in_the_ledger(
+    tmp_path, monkeypatch
+):
+    """A contradictory row drops the page, but not as a generic parse_failed — the
+    escalation rate has to be measurable."""
+    payload = _negative_payload(tool_name="Copilot")
+    run_dir, _inst_id, _url = _run_one_page_extract(
+        tmp_path, monkeypatch, payload, "negcontra"
+    )
+    reasons = {r["reason"] for r in attrition.read_records(run_dir)}
+    assert REASON_NEGATIVE_ROW_CONTRADICTORY in reasons
+    assert "parse_failed" not in reasons
+
+
+def test_negative_row_unrelated_failure_stays_parse_failed(tmp_path, monkeypatch):
+    """The attribution guard: a contradictory event coexisting with an unrelated
+    failure must not steal the reason code."""
+    payload = _negative_payload(tool_name="Copilot", source_credibility="bogus_tier")
+    run_dir, _inst_id, _url = _run_one_page_extract(
+        tmp_path, monkeypatch, payload, "negunrel"
+    )
+    reasons = {r["reason"] for r in attrition.read_records(run_dir)}
+    assert "parse_failed" in reasons
+    assert REASON_NEGATIVE_ROW_CONTRADICTORY not in reasons
