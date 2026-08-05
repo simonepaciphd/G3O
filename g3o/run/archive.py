@@ -119,6 +119,27 @@ class VerificationError(ArchiveError):
     """A tar did not match its source; nothing was deleted."""
 
 
+class IncompleteSourceError(ArchiveError):
+    """A pre-existing tar is a strict superset of its source.
+
+    The signature of a delete that died partway: an earlier pass wrote and
+    verified the tar, then removal of the source tree stopped in the middle.
+    The tar — not the residual source — is the complete copy, so it is left
+    under its own name and the operator is told to restore from it. Renaming it
+    ``.FAILED`` (the treatment every other mismatch gets) would put the only
+    intact copy of the shard behind a name that means "do not trust this".
+    """
+
+
+class DeleteFailedError(ArchiveError):
+    """``rmtree`` failed after a tar verified; the source may be half-removed.
+
+    Raised in place of the bare ``OSError`` so the operator gets the recovery
+    path rather than a traceback: this is the exact state
+    :class:`IncompleteSourceError` exists to recognise on the next pass.
+    """
+
+
 @dataclass(frozen=True)
 class SourceStat:
     """A fresh walk of one shard directory."""
@@ -319,6 +340,39 @@ def read_tar_stat(tar_path: Path) -> TarStat:
     return TarStat(n_files=n_files, n_bytes=n_bytes)
 
 
+def tar_member_names(tar_path: Path) -> set[str]:
+    """Relative paths of the regular-file members, with the shard root stripped.
+
+    Only read on the *failure* path, where the count/byte comparison has already
+    mismatched and the question is which side lost files. Comparable to
+    :func:`source_member_names` on the same shard.
+
+    Raises:
+        VerificationError: when the tar cannot be opened or read as a tar.
+    """
+    names: set[str] = set()
+    try:
+        with tarfile.open(tar_path, mode="r:") as tar:
+            for member in tar:
+                if member.isfile():
+                    # Members are stored as ``<shard>/<inst_id>/...`` (see
+                    # _write_tar's arcname); drop the shard component so both
+                    # sides speak in shard-relative paths.
+                    names.add(member.name.split("/", 1)[-1])
+    except (tarfile.TarError, OSError) as exc:
+        raise VerificationError(f"{tar_path} could not be read as a tar: {exc}") from exc
+    return names
+
+
+def source_member_names(shard_dir: Path) -> set[str]:
+    """Shard-relative paths of every file under ``shard_dir``, POSIX-separated."""
+    return {
+        p.relative_to(shard_dir).as_posix()
+        for p in shard_dir.rglob("*")
+        if p.is_file()
+    }
+
+
 def projected_tar_bytes(stat: SourceStat) -> int:
     """Estimated on-disk size of the tar for a shard with ``stat``.
 
@@ -420,6 +474,73 @@ def _fail_tar(tar_path: Path) -> Path:
     return dest
 
 
+def _refuse_on_incomplete_source(tar_path: Path, source: Path, n_done: int) -> None:
+    """Raise :class:`IncompleteSourceError` when the source, not the tar, is short.
+
+    Called only when a *pre-existing* tar fails verification. Two things can
+    produce that, and they want opposite handling:
+
+    - the tar is wrong (truncated, stale, hand-placed) — the normal case, and
+      ``.FAILED`` is right;
+    - the **source** is wrong, because an earlier ``--apply`` verified this tar
+      and then died partway through ``rmtree`` — in which case the tar is the
+      only complete copy of the shard, and renaming it ``.FAILED`` files the
+      good data under a name that means "do not trust this", while the abort
+      message tells the operator the source is intact when it is not.
+
+    The second is recognised by containment: every remaining source file also
+    lives in the tar, at the same size, and the tar holds strictly more. Names
+    and sizes are compared rather than counts, because equal counts are exactly
+    what the caller already found unequal — the question here is *which side*
+    lost files.
+
+    Returns normally when the tar is not a strict superset, leaving the caller
+    to take the ``.FAILED`` path.
+    """
+    tar_names = tar_member_names(tar_path)
+    src_names = source_member_names(source)
+    if not src_names < tar_names:  # not a strict subset -> not a partial delete
+        return
+
+    sizes = {m: s for m, s in _tar_member_sizes(tar_path).items()}
+    divergent = sorted(
+        name for name in src_names
+        if sizes.get(name) != (source / name).stat().st_size
+    )
+    if divergent:
+        # Same names, different bytes: the source was modified, not truncated.
+        # That is a real anomaly and the tar earns no special treatment.
+        return
+
+    missing = len(tar_names) - len(src_names)
+    raise IncompleteSourceError(
+        f"{tar_path} verifies as a strict superset of its source {source}: every "
+        f"one of the {len(src_names)} remaining source file(s) is in the tar at "
+        f"the same size, and the tar holds {missing} more.\n"
+        f"This is a delete that stopped partway, not a bad tar. The tar is the "
+        f"complete copy and has deliberately NOT been renamed .FAILED — the "
+        f"source tree is the incomplete side.\n"
+        f"To finish: confirm the tar reads "
+        f"(`tar -tf {tar_path} | Measure-Object -Line`), remove the residual "
+        f"{source}, then re-run `archive --apply` — the shard will read as "
+        f"already archived. Nothing was deleted by this pass; {n_done} shard(s) "
+        f"archived before this one stay archived."
+    )
+
+
+def _tar_member_sizes(tar_path: Path) -> dict[str, int]:
+    """Shard-relative member path -> size, for the regular files in a tar."""
+    sizes: dict[str, int] = {}
+    try:
+        with tarfile.open(tar_path, mode="r:") as tar:
+            for member in tar:
+                if member.isfile():
+                    sizes[member.name.split("/", 1)[-1]] = member.size
+    except (tarfile.TarError, OSError) as exc:
+        raise VerificationError(f"{tar_path} could not be read as a tar: {exc}") from exc
+    return sizes
+
+
 def verify_tar(tar_path: Path, source: Path) -> TarStat:
     """Compare a tar against a fresh walk of its source.
 
@@ -453,6 +574,13 @@ def archive_run(run_dir: Path, *, apply: bool = False) -> ArchiveResult:
     archived (they verified), the failing tar is renamed ``.FAILED``, and its
     source is left intact.
 
+    One mismatch is exempt from the ``.FAILED`` rename: a *pre-existing* tar
+    that is a strict superset of its source is a delete that died partway, not
+    a bad tar, so it keeps its name and
+    :class:`IncompleteSourceError` says how to finish
+    (:func:`_refuse_on_incomplete_source`). No path here deletes on a failed
+    verification.
+
     Idempotent: a shard whose tar exists and verifies is not rewritten, and a
     shard whose source is already gone is skipped, so re-running after an
     interruption finishes the remainder.
@@ -481,17 +609,34 @@ def archive_run(run_dir: Path, *, apply: bool = False) -> ArchiveResult:
         try:
             tar_stat = verify_tar(tar_path, source)
         except VerificationError as exc:
+            if not rewritten:
+                # The tar predates this pass, so a mismatch has two possible
+                # causes and they call for opposite handling. Ask the members
+                # which one it is before touching anything.
+                _refuse_on_incomplete_source(tar_path, source, len(outcomes))
             failed_path = _fail_tar(tar_path)
             raise VerificationError(
                 f"{exc}\n"
-                f"Aborting: nothing was deleted for this shard and no further "
-                f"shard is processed. The unverified tar is kept at "
-                f"{failed_path} and the source tree at {source} is intact. "
-                f"{len(outcomes)} shard(s) were archived before this one and "
-                f"stay archived — each verified against its own source."
+                f"Aborting: this command deleted nothing for this shard and no "
+                f"further shard is processed. The unverified tar is kept at "
+                f"{failed_path}; the source tree at {source} was not touched by "
+                f"this pass. {len(outcomes)} shard(s) were archived before this "
+                f"one and stay archived — each verified against its own source."
             ) from exc
 
-        shutil.rmtree(source)
+        try:
+            shutil.rmtree(source)
+        except OSError as exc:
+            raise DeleteFailedError(
+                f"{tar_path} verified, but removing its source {source} failed "
+                f"partway: {exc}\n"
+                f"The tar is complete and is now the authoritative copy of this "
+                f"shard — it is NOT renamed. Clear whatever holds the residual "
+                f"files (an open handle, a read-only attribute) and re-run "
+                f"`archive --apply`; the next pass recognises the half-removed "
+                f"source and resumes. {len(outcomes)} shard(s) archived before "
+                f"this one stay archived."
+            ) from exc
         outcomes.append(
             ShardOutcome(
                 shard=shard,
@@ -574,6 +719,8 @@ __all__ = [
     "ArchiveError",
     "ArchivePlan",
     "ArchiveResult",
+    "DeleteFailedError",
+    "IncompleteSourceError",
     "PreconditionError",
     "ShardOutcome",
     "ShardPlan",
@@ -589,6 +736,8 @@ __all__ = [
     "render_plan",
     "render_result",
     "shard_tar_path",
+    "source_member_names",
+    "tar_member_names",
     "verify_tar",
     "walk_shard",
 ]

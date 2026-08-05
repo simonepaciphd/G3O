@@ -17,6 +17,7 @@ return values alone.
 
 from __future__ import annotations
 
+import shutil
 import tarfile
 from pathlib import Path
 
@@ -26,6 +27,9 @@ from g3o.common import run_state
 from g3o.common.paths import institution_shard, institutions_root
 from g3o.run.archive import (
     FAILED_SUFFIX,
+    ArchiveError,
+    DeleteFailedError,
+    IncompleteSourceError,
     PreconditionError,
     VerificationError,
     archive_root,
@@ -253,7 +257,13 @@ def test_verification_failure_aborts_keeps_failed_tar_and_intact_source(
 
     message = str(excinfo.value)
     assert "does not match its source" in message
-    assert "intact" in message
+    # The message says what this pass did, not what state the source is in: the
+    # tar was written this pass, so "not touched by this pass" is checkable,
+    # where a flat claim of intactness would be a guess (see
+    # test_partial_delete_keeps_the_good_tar_under_its_own_name, where the same
+    # claim would have been false).
+    assert "not touched by this pass" in message
+    assert "deleted nothing" in message
 
     source = institutions_root(complete_run) / target_shard
     assert source.is_dir(), "the source shard must survive a failed verification"
@@ -485,3 +495,162 @@ def test_cli_precondition_failure_exits_2_without_traceback(tmp_path: Path, caps
     assert code == 2
     assert "run-level report" in capsys.readouterr().err
     assert institutions_root(run_dir).is_dir()
+
+
+# ---------------------------------------------------------------------------
+# Interrupted delete: the tar outlives a half-removed source
+# ---------------------------------------------------------------------------
+
+
+def _tar_one_shard(run_dir: Path) -> tuple[str, Path, Path]:
+    """Write and verify a tar for one shard, leaving its source in place."""
+    from g3o.run.archive import _write_tar
+
+    shard = sorted(institution_shard(i) for i in INSTS)[0]
+    source = institutions_root(run_dir) / shard
+    tar_path = shard_tar_path(run_dir, shard)
+    _write_tar(source, tar_path, shard)
+    return shard, source, tar_path
+
+
+def test_partial_delete_keeps_the_good_tar_under_its_own_name(complete_run: Path):
+    """A tar that outlives a half-removed source is the complete copy.
+
+    Reproduces the state an ``rmtree`` that dies partway leaves behind. Treating
+    it as a bad tar would file the shard's only intact copy under ``.FAILED``
+    and tell the operator the source is intact, which it is not.
+    """
+    _shard, source, tar_path = _tar_one_shard(complete_run)
+    good = read_tar_stat(tar_path)
+    victim = next(p for p in sorted(source.rglob("*")) if p.is_file())
+    victim.unlink()
+
+    with pytest.raises(IncompleteSourceError) as exc:
+        archive_run(complete_run, apply=True)
+
+    assert tar_path.is_file(), "the complete tar must keep its own name"
+    assert not tar_path.with_name(tar_path.name + FAILED_SUFFIX).exists()
+    assert read_tar_stat(tar_path) == good, "the tar must not be rewritten"
+    assert source.is_dir(), "the residual source is left for the operator"
+    assert not victim.exists()
+    message = str(exc.value)
+    assert "strict superset" in message
+    assert "NOT been renamed" in message
+    assert "is intact" not in message, "must not claim an incomplete source is intact"
+
+
+def test_partial_delete_does_not_delete_anything(complete_run: Path):
+    _shard, source, _tar = _tar_one_shard(complete_run)
+    next(p for p in sorted(source.rglob("*")) if p.is_file()).unlink()
+    before = {p for p in complete_run.rglob("*") if p.is_file()}
+
+    with pytest.raises(IncompleteSourceError):
+        archive_run(complete_run, apply=True)
+
+    assert {p for p in complete_run.rglob("*") if p.is_file()} == before
+
+
+def test_documented_recovery_finishes_the_shard(complete_run: Path):
+    """The recovery the error prescribes: drop the residual source, re-run."""
+    shard, source, tar_path = _tar_one_shard(complete_run)
+    next(p for p in sorted(source.rglob("*")) if p.is_file()).unlink()
+    with pytest.raises(IncompleteSourceError):
+        archive_run(complete_run, apply=True)
+
+    shutil.rmtree(source)  # the operator's one manual step
+    result = archive_run(complete_run, apply=True)
+
+    by_shard = {o.shard: o for o in result.outcomes}
+    assert by_shard[shard].action == "skipped"
+    assert tar_path.is_file()
+    assert not any(institutions_root(complete_run).iterdir())
+
+
+def test_modified_source_file_is_still_a_failed_tar(complete_run: Path):
+    """Same names, different bytes is a real anomaly, not an interrupted delete."""
+    _shard, source, tar_path = _tar_one_shard(complete_run)
+    victim = next(p for p in sorted(source.rglob("*")) if p.is_file())
+    victim.write_bytes(victim.read_bytes() + b"tampered")
+
+    with pytest.raises(VerificationError):
+        archive_run(complete_run, apply=True)
+
+    assert tar_path.with_name(tar_path.name + FAILED_SUFFIX).is_file()
+    assert not tar_path.exists()
+
+
+def test_extra_source_file_is_still_a_failed_tar(complete_run: Path):
+    """A source with a file the tar lacks is not a subset — .FAILED applies."""
+    _shard, source, tar_path = _tar_one_shard(complete_run)
+    (next(d for d in sorted(source.iterdir()) if d.is_dir()) / "stray.json").write_text(
+        "{}", encoding="utf-8"
+    )
+
+    with pytest.raises(VerificationError):
+        archive_run(complete_run, apply=True)
+
+    assert tar_path.with_name(tar_path.name + FAILED_SUFFIX).is_file()
+
+
+def test_freshly_written_tar_that_mismatches_still_fails_closed(complete_run: Path):
+    """The superset exemption is for pre-existing tars only.
+
+    A tar written this pass that does not match was produced against a source
+    mutating underneath it; it earns no trust, and the .FAILED path applies.
+    """
+    import g3o.run.archive as archive_mod
+
+    real_walk = archive_mod.walk_shard
+    calls = {"n": 0}
+
+    def _shrinking_walk(shard_dir: Path):
+        # First call is _write_tar's plan walk; the verification walk that
+        # follows sees one fewer file, as a concurrent deleter would produce.
+        calls["n"] += 1
+        stat = real_walk(shard_dir)
+        if calls["n"] > 1 and stat.n_files:
+            return type(stat)(
+                n_files=stat.n_files - 1, n_bytes=stat.n_bytes, n_dirs=stat.n_dirs
+            )
+        return stat
+
+    shard = sorted(institution_shard(i) for i in INSTS)[0]
+    tar_path = shard_tar_path(complete_run, shard)
+    archive_mod.walk_shard = _shrinking_walk
+    try:
+        with pytest.raises(VerificationError):
+            archive_run(complete_run, apply=True)
+    finally:
+        archive_mod.walk_shard = real_walk
+
+    assert tar_path.with_name(tar_path.name + FAILED_SUFFIX).is_file()
+
+
+def test_delete_failure_reports_the_recovery_path(complete_run: Path, monkeypatch):
+    """rmtree blowing up gives an actionable ArchiveError, not a traceback."""
+    import g3o.run.archive as archive_mod
+
+    def _boom(path):
+        raise PermissionError("file in use")
+
+    monkeypatch.setattr(archive_mod.shutil, "rmtree", _boom)
+
+    with pytest.raises(DeleteFailedError) as exc:
+        archive_run(complete_run, apply=True)
+
+    message = str(exc.value)
+    assert "NOT renamed" in message
+    assert "re-run" in message
+    assert isinstance(exc.value, ArchiveError), "the CLI catches ArchiveError"
+
+
+def test_cli_reports_an_interrupted_delete_as_exit_2(complete_run: Path, capsys):
+    from g3o.cli import main
+
+    _shard, source, _tar = _tar_one_shard(complete_run)
+    next(p for p in sorted(source.rglob("*")) if p.is_file()).unlink()
+
+    code = main(["archive", "--run-dir", str(complete_run), "--apply"])
+
+    assert code == 2
+    assert "strict superset" in capsys.readouterr().err
