@@ -11,6 +11,7 @@ from typing import Any
 from g3o.common.batch_client import DEFAULT_REASONING_EFFORT
 from g3o.common.paths import LAYOUT_VERSION, institution_dir
 from g3o.common.run_state import done_dir, state_dir
+from g3o.discovery.query_builder import genai_terms_roster_hash
 from g3o.run.presweep.config import STAGES, PresweepConfig
 from g3o.run.presweep.records import (
     _read_master,
@@ -37,6 +38,13 @@ def build_manifest(
     # field), so asdict() above doesn't pick it up — record it explicitly so
     # the manifest and the resume guard below still see it.
     config_dict["institution_search_languages"] = config.institution_search_languages
+    # The GenAI-term roster is a module constant in discovery/query_builder.py,
+    # not a config field, so asdict() above never saw it and the resume guard
+    # had nothing to compare: a run could be resumed against an edited roster —
+    # a different query surface, and so a different discovery instrument — with
+    # nothing noticing. Recorded explicitly here for the same reason
+    # institution_search_languages is, and guarded below.
+    config_dict["genai_terms_roster_hash"] = genai_terms_roster_hash()
     stages_planned = list(STAGES[: STAGES.index(config.stop_after) + 1])
     return {
         "run_id": config.run_id,
@@ -138,7 +146,40 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "discovery_domain_quote_name",
     "serper_autocorrect",
     "model",
+    # Scrape/extract job semantics (added 2026-08-04). Same class of gap as the
+    # chain keys above: written to the manifest by ``asdict`` since they
+    # shipped, never compared. Flipping any of them across a resume leaves the
+    # artifacts already on disk inconsistent with a fresh projection — the cap
+    # pair decides how much of a page the extractor ever sees and which end
+    # survives, ``empty_page_min_chars`` decides what was dropped as empty, and
+    # the three scrape knobs decide which URLs were fetched at all and under
+    # what politeness regime.
+    "empty_page_min_chars",
+    "extract_text_cap_chars",
+    "extract_text_cap_rule",
+    "scrape_respect_robots",
+    "scrape_host_delay_seconds",
+    "scrape_render_on_download_failure",
+    # Roster fingerprint (A4) — see build_manifest. Not a dataclass field; the
+    # manifest carries it because the guard needs something to compare.
+    "genai_terms_roster_hash",
 )
+
+# Guarded keys whose *absence* from the on-disk manifest is tolerated: a run
+# launched before the key existed cannot carry it, so it is compared only when
+# recorded. This is the same concession
+# :func:`_assert_manifest_matches_on_resume` already makes for
+# ``run_generation_parameters``; a key that is recorded and differs still
+# aborts.
+#
+# Membership is a resume-semantics decision, not a refactor (PI, 2026-08-04):
+# it trades one unchecked field on pre-existing runs against forcing a fresh
+# launch, and the alternative quietly pressures operators into hand-editing
+# manifests — strictly worse, because that defeats every other key too.
+# Deliberately does **not** cover the chain keys above: those stay strict, so a
+# manifest predating the chain still refuses to resume rather than let a mode
+# flip through unchecked.
+_ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset({"genai_terms_roster_hash"})
 
 
 def _assert_manifest_matches_on_resume(
@@ -175,6 +216,8 @@ def _assert_manifest_matches_on_resume(
     old_cfg = existing.get("config", {})
     new_cfg = new_manifest["config"]
     for key in _GUARDED_CONFIG_KEYS:
+        if key not in old_cfg and key in _ABSENT_TOLERATED_CONFIG_KEYS:
+            continue  # manifest predates the key — nothing to compare
         if old_cfg.get(key) != new_cfg.get(key):
             diffs.append(
                 f"config.{key}: {old_cfg.get(key)!r} (manifest) "
