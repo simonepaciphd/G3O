@@ -39,6 +39,7 @@ from g3o.discovery.query_builder import (
 from g3o.run import presweep as ps
 from g3o.run.presweep import PresweepConfig, plan_run
 from g3o.run.presweep.planning import _GUARDED_CONFIG_KEYS
+from tests._layout import inst_dir as inst_dir_of
 from tests.test_discovery_chain import _patch_search, _Recorder, _rows
 
 _COLUMNS = [
@@ -245,7 +246,7 @@ def test_leg_2_issues_one_tagged_query_per_language(tmp_path, monkeypatch):
 
     import json
     artifact = json.loads(
-        (plan.run_dir / inst_id / "1b_discovery_site_restricted.json").read_text(
+        (inst_dir_of(plan.run_dir, inst_id) / "1b_discovery_site_restricted.json").read_text(
             encoding="utf-8"
         )
     )
@@ -293,7 +294,7 @@ def test_a_url_found_by_two_languages_is_attributed_to_the_first_only(
     )
 
     artifact = json.loads(
-        (plan.run_dir / inst_id / "1b_discovery_site_restricted.json").read_text(
+        (inst_dir_of(plan.run_dir, inst_id) / "1b_discovery_site_restricted.json").read_text(
             encoding="utf-8"
         )
     )
@@ -346,7 +347,7 @@ def test_leg_1_stays_one_english_query_whatever_the_languages(tmp_path, monkeypa
 
     import json
     artifact = json.loads(
-        (plan.run_dir / inst_id / "1a_discovery_general.json").read_text(
+        (inst_dir_of(plan.run_dir, inst_id) / "1a_discovery_general.json").read_text(
             encoding="utf-8"
         )
     )

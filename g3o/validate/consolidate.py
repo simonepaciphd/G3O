@@ -37,6 +37,7 @@ from g3o.common.contract import (
     ConsolidatedInstitutionResponse,
     ContractRow,
 )
+from g3o.common.paths import institution_dir, require_layout
 from g3o.common.run_state import (
     done_path,
     is_done,
@@ -158,10 +159,10 @@ def parse_consolidate_result(result: BatchResult) -> ConsolidatedInstitutionResp
 # ---------------------------------------------------------------------------
 
 
-def load_extract_outputs(institution_dir: Path) -> tuple[list[ContractRow], int]:
+def load_extract_outputs(inst_dir: Path) -> tuple[list[ContractRow], int]:
     """Load all Stage 5 extract outputs for one institution.
 
-    Walks ``institution_dir/extract/*.json`` (each file holds one validated
+    Walks ``inst_dir/extract/*.json`` (each file holds one validated
     ``BatchResponse``), flattens the ``data`` arrays into a single list of
     ``ContractRow`` objects, and returns the count of distinct source pages.
 
@@ -169,7 +170,7 @@ def load_extract_outputs(institution_dir: Path) -> tuple[list[ContractRow], int]
         (rows, n_pages) where ``rows`` is the concatenated list and
         ``n_pages`` is the count of extract JSON files that produced rows.
     """
-    extract_dir = institution_dir / "extract"
+    extract_dir = inst_dir / "extract"
     if not extract_dir.exists():
         return [], 0
     rows: list[ContractRow] = []
@@ -195,15 +196,15 @@ def assemble_per_institution_inputs(
     """
     out: list[tuple[dict[str, Any], list[dict[str, Any]], int]] = []
     for inst_id in institution_ids:
-        institution_dir = run_dir / inst_id
-        institution_path = institution_dir / "institution.json"
+        inst_dir = institution_dir(run_dir, inst_id)
+        institution_path = inst_dir / "institution.json"
         if not institution_path.exists():
             logger.warning(
                 "Stage 6: institution.json missing for %s; skipping", inst_id
             )
             continue
         institution_row = json.loads(institution_path.read_text(encoding="utf-8"))
-        rows, n_pages = load_extract_outputs(institution_dir)
+        rows, n_pages = load_extract_outputs(inst_dir)
         if not rows:
             logger.warning(
                 "Stage 6: no Stage 5 rows for %s; skipping consolidation", inst_id
@@ -221,9 +222,9 @@ def write_consolidated_output(
     response: ConsolidatedInstitutionResponse,
 ) -> Path:
     """Persist ``runs/<run_id>/<inst>/6_validate.json``."""
-    institution_dir = run_dir / institution_id
-    institution_dir.mkdir(parents=True, exist_ok=True)
-    out_path = institution_dir / "6_validate.json"
+    inst_dir = institution_dir(run_dir, institution_id)
+    inst_dir.mkdir(parents=True, exist_ok=True)
+    out_path = inst_dir / "6_validate.json"
     out_path.write_text(
         json.dumps(response.model_dump(), ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -239,7 +240,7 @@ def write_consolidated_output(
 def _count_existing_validates(run_dir: Path, institution_ids: Iterable[str]) -> int:
     n = 0
     for inst_id in institution_ids:
-        if (run_dir / inst_id / "6_validate.json").exists():
+        if (institution_dir(run_dir, inst_id) / "6_validate.json").exists():
             n += 1
     return n
 
@@ -271,6 +272,7 @@ def run_consolidate(
     (Session F.1 — replaces the single-batch ``batch_id`` key).
     """
     stage = "validate"
+    require_layout(run_dir)
     if institution_ids is None:
         manifest_path = run_dir / "manifest.json"
         if not manifest_path.exists():

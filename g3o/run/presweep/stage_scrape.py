@@ -9,6 +9,7 @@ from typing import Any
 
 from g3o.common import attrition, scrape_telemetry
 from g3o.common import config as _config
+from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, mark_done
 from g3o.common.timing import stage_timer
 from g3o.extract.batch import EMPTY_PAGE_MIN_CHARS
@@ -31,7 +32,7 @@ def _read_existing_scraped(
     out: dict[str, list[RenderedPage]] = {}
     for row in sample:
         inst_id = synth_institution_id(row)
-        scrape_dir = run_dir / inst_id / "scrape"
+        scrape_dir = institution_dir(run_dir, inst_id) / "scrape"
         if not scrape_dir.is_dir():
             continue
         pages: list[RenderedPage] = []
@@ -101,7 +102,7 @@ def _scrape_one(
 
     institution = institution_record(row)
     inst_id = institution["institution_id"]
-    scrape_dir = run_dir / inst_id / "scrape"
+    scrape_dir = institution_dir(run_dir, inst_id) / "scrape"
     scrape_dir.mkdir(parents=True, exist_ok=True)
     pages: list[RenderedPage] = []
     render_session = sessions.session()

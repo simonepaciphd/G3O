@@ -20,6 +20,7 @@ from g3o.run.presweep import (
     stratified_sample,
     synth_institution_id,
 )
+from tests._layout import inst_dir as inst_dir_of
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -307,7 +308,7 @@ def test_plan_run_writes_layout(tmp_path: Path):
     assert manifest["n_institutions_drawn"] == 7
     assert len(manifest["institutions"]) == 7
     for inst_id in manifest["institutions"]:
-        inst_dir = run_dir / inst_id
+        inst_dir = inst_dir_of(run_dir, inst_id)
         assert inst_dir.is_dir()
         inst_json = inst_dir / "institution.json"
         assert inst_json.exists()
@@ -502,7 +503,7 @@ def test_classify_official_site_bypass_writes_envelope_and_skips_submit(
     )
 
     assert result.get("INST-0000001") == "https://ministry.a.gov/"
-    envelope_path = plan.run_dir / "INST-0000001" / "2_official_site.json"
+    envelope_path = inst_dir_of(plan.run_dir, "INST-0000001") / "2_official_site.json"
     assert envelope_path.exists()
     payload = json.loads(envelope_path.read_text(encoding="utf-8"))
     assert payload == {
@@ -511,7 +512,7 @@ def test_classify_official_site_bypass_writes_envelope_and_skips_submit(
         "url": "https://ministry.a.gov/",
     }
     # The non-bypassed row got nothing (empty discovery → no envelope).
-    assert not (plan.run_dir / "INST-0000002" / "2_official_site.json").exists()
+    assert not (inst_dir_of(plan.run_dir, "INST-0000002") / "2_official_site.json").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -538,8 +539,8 @@ def test_run_discovery_general_writes_1a_artifact_filename(tmp_path: Path):
         ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     for inst_id in plan.manifest["institutions"]:
-        assert (plan.run_dir / inst_id / "1a_discovery_general.json").exists()
-        assert not (plan.run_dir / inst_id / "1_discovery.json").exists()
+        assert (inst_dir_of(plan.run_dir, inst_id) / "1a_discovery_general.json").exists()
+        assert not (inst_dir_of(plan.run_dir, inst_id) / "1_discovery.json").exists()
 
 
 def test_run_discovery_general_queries_include_country(tmp_path: Path):
@@ -686,8 +687,8 @@ def test_run_discovery_site_restricted_skips_when_no_site(tmp_path: Path):
         ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     # Inst A: queries fired, 1b file written. Inst B: skipped — no queries, no file.
-    assert (plan.run_dir / inst_a / "1b_discovery_site_restricted.json").exists()
-    assert not (plan.run_dir / inst_b / "1b_discovery_site_restricted.json").exists()
+    assert (inst_dir_of(plan.run_dir, inst_a) / "1b_discovery_site_restricted.json").exists()
+    assert not (inst_dir_of(plan.run_dir, inst_b) / "1b_discovery_site_restricted.json").exists()
     assert all(q.startswith("site:a.gov ") for q in seen_queries)
     # Q1=a: same per-language query count as Stage 1a (the English GenAI roster).
     from g3o.discovery.query_builder import GENAI_TERMS_BY_LANG
@@ -722,7 +723,7 @@ def test_run_discovery_site_restricted_records_carry_site_domain(tmp_path: Path)
         ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     payload = json.loads(
-        (plan.run_dir / inst_id / "1b_discovery_site_restricted.json").read_text(
+        (inst_dir_of(plan.run_dir, inst_id) / "1b_discovery_site_restricted.json").read_text(
             encoding="utf-8"
         )
     )
@@ -1026,7 +1027,7 @@ def test_stage2_done_marker_short_circuits(tmp_path: Path, monkeypatch):
     config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
     plan = ps.plan_run(config)
     # Pre-write a bypass envelope as if a prior run had completed Stage 2.
-    inst_dir = plan.run_dir / "INST-0000001"
+    inst_dir = inst_dir_of(plan.run_dir, "INST-0000001")
     (inst_dir / "2_official_site.json").write_text(
         json.dumps({"bypassed": True, "source": "master_csv", "url": "https://a.gov/"}),
         encoding="utf-8",
@@ -1064,7 +1065,7 @@ def test_stage4_skips_refetch_when_url_hash_file_exists(tmp_path: Path):
     # Pre-seed one URL's per-run output file.
     from g3o.extract.batch import url_hash
 
-    scrape_dir = plan.run_dir / inst_id / "scrape"
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
     scrape_dir.mkdir(parents=True, exist_ok=True)
     cached = RenderedPage(
         url="https://x.example/a", text="cached", title="A",
@@ -1128,7 +1129,7 @@ def test_stage4_done_marker_short_circuits_no_scrape_calls(tmp_path: Path):
 
     from g3o.extract.batch import url_hash
 
-    scrape_dir = plan.run_dir / inst_id / "scrape"
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
     scrape_dir.mkdir(parents=True, exist_ok=True)
     cached = RenderedPage(
         url="https://x.example/a", text="cached", title="A",
@@ -1458,7 +1459,7 @@ def test_run_discovery_general_failure_cancels_pending_preserves_completed_and_r
     # Stage not marked done; the failing institution's own artifact was never
     # written (it raised inside its own worker, before the write).
     assert not is_done(plan.run_dir, "discovery_general")
-    assert not (plan.run_dir / fail_inst_id / "1a_discovery_general.json").exists()
+    assert not (inst_dir_of(plan.run_dir, fail_inst_id) / "1a_discovery_general.json").exists()
 
     # Resume: fix the fake, re-run. Skip-if-exists reprocesses only whatever
     # is still missing; the previously-failing institution now succeeds.
@@ -1479,7 +1480,7 @@ def test_run_discovery_general_failure_cancels_pending_preserves_completed_and_r
     assert is_done(plan.run_dir, "discovery_general")
     assert len(out) == 4
     assert any(fail_name in q for q in seen_queries)
-    assert (plan.run_dir / fail_inst_id / "1a_discovery_general.json").exists()
+    assert (inst_dir_of(plan.run_dir, fail_inst_id) / "1a_discovery_general.json").exists()
 
 
 def test_run_scrape_concurrent_matches_sequential_output(tmp_path: Path):
@@ -1670,7 +1671,7 @@ def test_run_discovery_site_restricted_failure_cancels_pending_preserves_complet
     # written (it raised inside its own worker, before the write).
     assert not is_done(plan.run_dir, "discovery_site_restricted")
     assert not (
-        plan.run_dir / fail_inst_id / "1b_discovery_site_restricted.json"
+        inst_dir_of(plan.run_dir, fail_inst_id) / "1b_discovery_site_restricted.json"
     ).exists()
 
     # Resume: fix the fake, re-run. Skip-if-exists reprocesses only whatever
@@ -1694,7 +1695,7 @@ def test_run_discovery_site_restricted_failure_cancels_pending_preserves_complet
     assert len(out) == 4
     assert any(fail_name in q for q in seen_queries)
     assert (
-        plan.run_dir / fail_inst_id / "1b_discovery_site_restricted.json"
+        inst_dir_of(plan.run_dir, fail_inst_id) / "1b_discovery_site_restricted.json"
     ).exists()
 
 
@@ -1818,7 +1819,7 @@ def test_run_scrape_failure_cancels_pending_preserves_completed_and_resumes(
     # Stage not marked done; the failing institution's scrape directory has
     # no per-URL output file (it raised before ever calling scrape_url).
     assert not is_done(plan.run_dir, "scrape")
-    assert not list((plan.run_dir / fail_inst_id / "scrape").glob("*.json"))
+    assert not list((inst_dir_of(plan.run_dir, fail_inst_id) / "scrape").glob("*.json"))
 
     # Resume: drop robots entirely (already proven separately in
     # test_stage4_robots_disallow_skips_url_and_records_attrition), re-run.
@@ -1835,7 +1836,7 @@ def test_run_scrape_failure_cancels_pending_preserves_completed_and_resumes(
 
     assert is_done(plan.run_dir, "scrape")
     assert len(out) == 4
-    assert list((plan.run_dir / fail_inst_id / "scrape").glob("*.json"))
+    assert list((inst_dir_of(plan.run_dir, fail_inst_id) / "scrape").glob("*.json"))
 
 
 # ---------------------------------------------------------------------------
@@ -1878,7 +1879,7 @@ def test_stage4_records_telemetry_for_every_attempt(tmp_path: Path):
     triaged = {inst_id: [ok_url, cached_url, disallowed_url, failed_url]}
 
     # Pre-seed the cached URL's per-run file so it takes the skipped_cached path.
-    scrape_dir = plan.run_dir / inst_id / "scrape"
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
     scrape_dir.mkdir(parents=True, exist_ok=True)
     (scrape_dir / f"{url_hash(cached_url)}.json").write_text(
         _f14b_page(cached_url).model_dump_json(), encoding="utf-8"

@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common.contract import ConsolidatedInstitutionResponse
+from g3o.common.paths import iter_institution_dirs, require_layout
 
 # ---------------------------------------------------------------------------
 # Heuristic keyword screens (audit-only — see module docstring)
@@ -264,13 +265,19 @@ def _aggregate_evidence(per_inst: list[dict[str, Any]]) -> Counter[str]:
 def qc_per_run(run_dir: Path) -> dict[str, Any]:
     """Aggregate QC across every ``6_validate.json`` in a run directory.
 
-    Walks ``run_dir/<institution_id>/6_validate.json``; institutions without
-    a consolidated output are skipped (with a count surfaced). No exceptions
-    raised on parse failure — failed institutions are counted, not surfaced
-    as runtime errors.
+    Walks ``institutions/<shard>/<institution_id>/6_validate.json`` via
+    :func:`g3o.common.paths.iter_institution_dirs` (storage layout v2);
+    institutions without a consolidated output are skipped (with a count
+    surfaced). No exceptions raised on parse failure — failed institutions are
+    counted, not surfaced as runtime errors.
+
+    ``n_institutions_seen`` counts institution directories only. Before v2 this
+    walked ``run_dir.iterdir()`` and incremented before any filtering, so
+    ``_state/`` and ``final/`` inflated the count by two on every completed run.
     """
     if not run_dir.exists():
         raise FileNotFoundError(f"run_dir does not exist: {run_dir}")
+    require_layout(run_dir)
 
     per_inst: list[dict[str, Any]] = []
     n_seen = 0
@@ -278,11 +285,9 @@ def qc_per_run(run_dir: Path) -> dict[str, Any]:
     n_parse_failed = 0
     parse_failures: list[str] = []
 
-    for institution_dir in sorted(run_dir.iterdir()):
-        if not institution_dir.is_dir():
-            continue
+    for inst_dir in iter_institution_dirs(run_dir):
         n_seen += 1
-        validate_path = institution_dir / "6_validate.json"
+        validate_path = inst_dir / "6_validate.json"
         if not validate_path.exists():
             continue
         try:
@@ -290,7 +295,7 @@ def qc_per_run(run_dir: Path) -> dict[str, Any]:
             response = ConsolidatedInstitutionResponse.model_validate(payload)
         except Exception:
             n_parse_failed += 1
-            parse_failures.append(institution_dir.name)
+            parse_failures.append(inst_dir.name)
             continue
         per_inst.append(qc_per_institution(response))
         n_consolidated += 1

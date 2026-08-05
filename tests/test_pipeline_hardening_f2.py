@@ -23,6 +23,7 @@ from g3o.run import preflight as pf
 from g3o.run import presweep as ps
 from g3o.run.presweep import PresweepConfig, plan_run, run_presweep, synth_institution_id
 from g3o.scrape.render import FetchMetadata, RenderedPage
+from tests._layout import inst_dir as inst_dir_of
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
@@ -426,7 +427,7 @@ def test_empty_page_filtered_before_stage5(tmp_path, monkeypatch):
     rows = list(csv.DictReader(open(master, encoding="utf-8")))
     inst_id = synth_institution_id(rows[0])
     run_dir = tmp_path / "runs" / "ext"
-    (run_dir / inst_id).mkdir(parents=True)
+    (inst_dir_of(run_dir, inst_id)).mkdir(parents=True)
 
     captured = {}
 
@@ -459,7 +460,7 @@ def test_oversized_page_truncated_and_ledgered(tmp_path, monkeypatch):
     rows = list(csv.DictReader(open(master, encoding="utf-8")))
     inst_id = synth_institution_id(rows[0])
     run_dir = tmp_path / "runs" / "ext2"
-    (run_dir / inst_id).mkdir(parents=True)
+    (inst_dir_of(run_dir, inst_id)).mkdir(parents=True)
 
     captured = {}
     monkeypatch.setattr(ps.stage_extract, "run_chunked_stage",

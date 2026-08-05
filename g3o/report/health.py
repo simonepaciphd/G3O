@@ -22,6 +22,11 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition as _attrition
+from g3o.common.paths import (
+    institution_dir,
+    iter_institution_dirs,
+    require_layout,
+)
 from g3o.report.filter_eligibility import compute_filter_block
 from g3o.report.thresholds import HealthThresholds
 
@@ -330,18 +335,17 @@ def compute_health_report(
         :func:`g3o.report.render.render_text_report`.
     """
     run_dir = Path(run_dir)
+    require_layout(run_dir)
     thresholds = thresholds or HealthThresholds()
 
     manifest = _load_manifest(run_dir)
     institution_ids: list[str] = manifest.get("institutions", [])
 
-    # Fallback if manifest absent: infer from non-underscore subdirs.
+    # Fallback if manifest absent: infer from the institutions/ level. Under
+    # storage layout v2 that level holds nothing but institution dirs, so the
+    # pre-v2 name filtering (which never excluded final/) is gone.
     if not institution_ids:
-        institution_ids = [
-            d.name
-            for d in sorted(run_dir.iterdir())
-            if d.is_dir() and not d.name.startswith("_") and d.name != ".done"
-        ]
+        institution_ids = [d.name for d in iter_institution_dirs(run_dir)]
 
     n_institutions = len(institution_ids)
 
@@ -351,7 +355,7 @@ def compute_health_report(
 
     # Per-institution artifact pass
     inst_data = [
-        _collect_institution(run_dir / iid, iid, language=language)
+        _collect_institution(institution_dir(run_dir, iid), iid, language=language)
         for iid in institution_ids
     ]
 
@@ -793,10 +797,9 @@ def detect_languages(run_dir: str | Path) -> list[str]:
     hits), so a language with no results still shows up as "attempted."
     """
     run_dir = Path(run_dir)
+    require_layout(run_dir)
     langs: set[str] = set()
-    for inst_dir in run_dir.iterdir():
-        if not inst_dir.is_dir() or inst_dir.name.startswith("_") or inst_dir.name == ".done":
-            continue
+    for inst_dir in iter_institution_dirs(run_dir):
         for fname in ("1a_discovery_general.json", "1b_discovery_site_restricted.json"):
             p = inst_dir / fname
             if not p.exists():
@@ -823,6 +826,7 @@ def compute_language_breakdown(
     per-stage math.
     """
     run_dir = Path(run_dir)
+    require_layout(run_dir)
     languages = languages if languages is not None else detect_languages(run_dir)
 
     per_language: dict[str, Any] = {}

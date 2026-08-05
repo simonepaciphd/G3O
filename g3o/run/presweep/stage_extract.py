@@ -10,6 +10,7 @@ from typing import Any
 
 from g3o.common import attrition
 from g3o.common.batch_client import BatchResult
+from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
 from g3o.common.timing import llm_stage_timer
 from g3o.extract import (
@@ -68,7 +69,7 @@ def _count_existing_extracts(run_dir: Path, sample: list[dict[str, Any]]) -> int
     n = 0
     for row in sample:
         inst_id = synth_institution_id(row)
-        extract_dir = run_dir / inst_id / "extract"
+        extract_dir = institution_dir(run_dir, inst_id) / "extract"
         if extract_dir.is_dir():
             n += sum(1 for _ in extract_dir.glob("*.json"))
     return n
@@ -196,7 +197,7 @@ def _run_extract(
                     reason=REASON_SALVAGED, url=page.url,
                     detail=f"rows={rows};fields={','.join(fields)}",
                 )
-            extract_dir = run_dir / institution_id / "extract"
+            extract_dir = institution_dir(run_dir, institution_id) / "extract"
             extract_dir.mkdir(parents=True, exist_ok=True)
             (extract_dir / f"{url_hash(page.url)}.json").write_text(
                 json.dumps(parsed.model_dump(), ensure_ascii=False, indent=2),

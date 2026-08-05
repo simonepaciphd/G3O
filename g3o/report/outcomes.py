@@ -74,6 +74,7 @@ from typing import Any
 
 from g3o.common import attrition as _attrition
 from g3o.common.contract import BatchResponse
+from g3o.common.paths import institution_dir, require_layout
 from g3o.common.run_state import is_done, state_dir
 from g3o.common.timing import read_timing
 from g3o.persist.writer import load_consolidated_outputs
@@ -187,6 +188,7 @@ def _pages_scraped(inst_dir: Path) -> int:
 def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
     """Compute one final-outcome record per institution in the run's sample."""
     run_dir = Path(run_dir)
+    require_layout(run_dir)
     manifest = _load_manifest(run_dir)
     institution_ids: list[str] = manifest.get("institutions", [])
     stopped_after_stage = manifest.get("config", {}).get("stop_after")
@@ -204,7 +206,7 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
 
     records: list[dict[str, Any]] = []
     for inst_id in institution_ids:
-        inst_dir = run_dir / inst_id
+        inst_dir = institution_dir(run_dir, inst_id)
         stage_reached = _stage_reached(inst_dir)
         urls_discovered = _urls_discovered(inst_dir)
         urls_kept = _urls_kept(inst_dir)

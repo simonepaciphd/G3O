@@ -91,6 +91,11 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
+from g3o.common.paths import (
+    institution_dir,
+    iter_institution_dirs,
+    require_layout,
+)
 from g3o.common.urlnorm import site_root
 
 # Stage keys in canonical display order (matches the report shape agreed with
@@ -163,12 +168,17 @@ def _labeled_run_ids(dirs: list[Path]) -> list[str]:
 
 
 def _run_institutions(run_dir: Path) -> set[str]:
-    """Institutions this run knows about: manifest list ∪ on-disk subdirs."""
+    """Institutions this run knows about: manifest list, plus on-disk institution dirs.
+
+    The on-disk half goes through :func:`g3o.common.paths.iter_institution_dirs`
+    (storage layout v2). Before v2 this walked ``run_dir.iterdir()`` filtering
+    only ``_``-prefixed names and ``.done``; ``final/`` is a real direct child of
+    a run dir, so every run that had reached Stage 7 silently counted ``final``
+    as an institution here.
+    """
     insts: set[str] = set(_load_manifest(run_dir).get("institutions", []))
-    if run_dir.is_dir():
-        for d in run_dir.iterdir():
-            if d.is_dir() and not d.name.startswith("_") and d.name != ".done":
-                insts.add(d.name)
+    for d in iter_institution_dirs(run_dir):
+        insts.add(d.name)
     return insts
 
 
@@ -590,7 +600,7 @@ def _run_completeness(dirs: list[Path], run_ids: list[str], run_insts: list[set[
         for name in _CENSUS_ARTIFACTS:
             n = 0
             for inst in insts:
-                p = run_dir / inst / name
+                p = institution_dir(run_dir, inst) / name
                 if p.is_dir():
                     n += 1 if any(p.glob("*.json")) else 0
                 elif p.is_file():
@@ -608,7 +618,7 @@ def _final_status_reason_summary(
     for run_dir, rid, insts in zip(dirs, run_ids, run_insts, strict=True):
         per_run[rid] = {
             inst: (
-                _final_status_reason(run_dir / inst)
+                _final_status_reason(institution_dir(run_dir, inst))
                 if inst in insts
                 else "institution_absent"
             )
@@ -637,7 +647,7 @@ def _compute_diagnostics(
         for inst in all_insts:
             vals = []
             for run_dir, insts in zip(dirs, run_insts, strict=True):
-                vals.append(fn(run_dir / inst) if inst in insts else None)
+                vals.append(fn(institution_dir(run_dir, inst)) if inst in insts else None)
             out[inst] = vals
         return out
 
@@ -711,6 +721,8 @@ def compute_run_diff(run_dirs: list[str | Path]) -> dict[str, Any]:
     dirs = [Path(d) for d in run_dirs]
     if len(dirs) < 2:
         raise ValueError("run-diff requires at least two run directories")
+    for d in dirs:
+        require_layout(d)
 
     run_ids = _labeled_run_ids(dirs)
     run_insts = [_run_institutions(d) for d in dirs]
@@ -723,7 +735,7 @@ def compute_run_diff(run_dirs: list[str | Path]) -> dict[str, Any]:
         stage_values: dict[str, list[Any]] = {s: [] for s in _STAGES}
         for run_dir, insts in zip(dirs, run_insts, strict=True):
             if inst in insts:
-                collected = _collect_institution(run_dir / inst)
+                collected = _collect_institution(institution_dir(run_dir, inst))
             else:
                 collected = {s: _MISSING for s in _STAGES}
             for s in _STAGES:

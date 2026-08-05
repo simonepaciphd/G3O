@@ -31,6 +31,7 @@ from g3o.extract.batch import url_hash
 from g3o.run import presweep as ps
 from g3o.scrape import fetcher
 from g3o.scrape.render import FetchMetadata, RenderedPage, utc_today_iso
+from tests._layout import inst_dir as inst_dir_of
 
 HTML_BYTES = b"<html><head><title>T</title></head><body>hi</body></html>"
 
@@ -246,7 +247,7 @@ def test_empty_then_rendered_writes_artifact_not_drop(tmp_path, monkeypatch):
     assert pages[0].content_type == "render"
 
     # A real scrape artifact is on disk (not silently dropped).
-    artifact = run_dir / _INST_ID / "scrape" / f"{url_hash(_URL)}.json"
+    artifact = inst_dir_of(run_dir, _INST_ID) / "scrape" / f"{url_hash(_URL)}.json"
     assert artifact.exists()
     assert "RENDERED BODY" in artifact.read_text(encoding="utf-8")
 
@@ -267,7 +268,7 @@ def test_still_empty_after_render_records_exactly_one_attrition(tmp_path, monkey
 
     # The page is not silently dropped — it is still emitted as an artifact.
     assert len(out[_INST_ID]) == 1
-    artifact = run_dir / _INST_ID / "scrape" / f"{url_hash(_URL)}.json"
+    artifact = inst_dir_of(run_dir, _INST_ID) / "scrape" / f"{url_hash(_URL)}.json"
     assert artifact.exists()
 
     # Exactly one render_attempted record for this URL — no duplicate.

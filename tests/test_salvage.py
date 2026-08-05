@@ -41,6 +41,7 @@ from g3o.run import presweep as ps
 from g3o.run.presweep import synth_institution_id
 from g3o.run.presweep.stage_extract import _is_unsalvageable_group_d_failure
 from g3o.scrape.render import FetchMetadata, RenderedPage
+from tests._layout import inst_dir as inst_dir_of
 
 MCIT_ACCESS_DATE = "2026-06-10"
 
@@ -410,7 +411,7 @@ def _run_one_page_extract(tmp_path: Path, monkeypatch, payload: dict[str, Any], 
     rows = list(csv.DictReader(open(master, encoding="utf-8")))
     inst_id = synth_institution_id(rows[0])
     run_dir = tmp_path / "runs" / run_id
-    (run_dir / inst_id).mkdir(parents=True)
+    (inst_dir_of(run_dir, inst_id)).mkdir(parents=True)
 
     url = "https://www.mcit.gov.qa/en/genai-assistant"
     page = _make_page(url, "GenAI citizen assistant announcement. " * 5)
@@ -441,7 +442,7 @@ def test_salvage_writes_one_attrition_record_with_stable_code(tmp_path, monkeypa
     assert salvaged[0]["stage"] == "extract"
     assert "year_deployed" in salvaged[0]["detail"]
     # The confirmed finding was preserved on disk for Stage 6.
-    assert (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+    assert (inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json").exists()
 
 
 def test_unsalvageable_page_records_distinct_code_and_drops(tmp_path, monkeypatch):
@@ -456,7 +457,7 @@ def test_unsalvageable_page_records_distinct_code_and_drops(tmp_path, monkeypatc
     assert "parse_failed" not in reasons
     assert REASON_SALVAGED not in reasons
     # The page dropped — no extract artifact written.
-    assert not (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+    assert not (inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json").exists()
 
 
 def test_clean_page_records_no_salvage(tmp_path, monkeypatch):
@@ -472,7 +473,7 @@ def test_clean_page_records_no_salvage(tmp_path, monkeypatch):
     run_dir, inst_id, url = _run_one_page_extract(tmp_path, monkeypatch, clean, "clean")
     recs = attrition.read_records(run_dir)
     assert not any(r["reason"] in (REASON_SALVAGED, REASON_UNSALVAGEABLE) for r in recs)
-    assert (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+    assert (inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json").exists()
 
 
 # ---------------------------------------------------------------------------

@@ -26,6 +26,7 @@ from g3o.extract.batch import make_custom_id, url_hash
 from g3o.run import presweep as ps
 from g3o.run.presweep import STAGES, PresweepConfig, institution_record, run_presweep
 from g3o.scrape.render import FetchMetadata, RenderedPage
+from tests._layout import inst_dir as inst_dir_of
 
 ACCESS_DATE = "2026-06-10"
 CANNED_URLS = ["https://example.gov/ai-policy", "https://example.gov/news"]
@@ -330,7 +331,7 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
 
     # --- Per-institution artifact tree.
     for inst_id in institutions:
-        inst_dir = run_dir / inst_id
+        inst_dir = inst_dir_of(run_dir, inst_id)
         assert (inst_dir / "institution.json").exists()
         assert (inst_dir / "1a_discovery_general.json").exists()
         assert (inst_dir / "2_official_site.json").exists()

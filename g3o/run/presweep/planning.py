@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common.batch_client import DEFAULT_REASONING_EFFORT
+from g3o.common.paths import LAYOUT_VERSION, institution_dir
 from g3o.common.run_state import done_dir, state_dir
 from g3o.run.presweep.config import STAGES, PresweepConfig
 from g3o.run.presweep.records import (
@@ -40,6 +41,11 @@ def build_manifest(
     return {
         "run_id": config.run_id,
         "run_kind": "pre-sweep",
+        # Storage layout marker (docs/storage-layout-v2.md §B2). Every reader
+        # calls g3o.common.paths.require_layout on entry and refuses a tree
+        # that does not declare this exact version — there is no dual-layout
+        # read support.
+        "layout_version": LAYOUT_VERSION,
         "run_date": _utc_today(),
         "run_timestamp": _utc_iso(),
         "run_model": config.model,
@@ -65,6 +71,10 @@ def write_run_layout(
 ) -> Path:
     """Create ``runs/<run_id>/`` with manifest + per-institution dirs.
 
+    Institution dirs are sharded under ``institutions/<shard>/`` (storage
+    layout v2, ``docs/storage-layout-v2.md`` §B1); the shard level is created
+    on demand by :func:`g3o.common.paths.institution_dir` + ``parents=True``.
+
     Idempotent: existing directories are preserved; ``manifest.json`` is
     overwritten. ``inputs/`` is never touched.
     """
@@ -75,8 +85,8 @@ def write_run_layout(
     )
     for row in sample:
         institution = institution_record(row)
-        inst_dir = run_dir / institution["institution_id"]
-        inst_dir.mkdir(exist_ok=True)
+        inst_dir = institution_dir(run_dir, institution["institution_id"])
+        inst_dir.mkdir(parents=True, exist_ok=True)
         (inst_dir / "institution.json").write_text(
             json.dumps(institution, ensure_ascii=False, indent=2), encoding="utf-8"
         )
