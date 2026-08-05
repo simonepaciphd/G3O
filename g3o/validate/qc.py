@@ -271,8 +271,8 @@ def qc_per_run(run_dir: Path) -> dict[str, Any]:
     surfaced). No exceptions raised on parse failure — failed institutions are
     counted, not surfaced as runtime errors.
 
-    ``n_institutions_seen`` counts institution directories only. Before v2 this
-    walked ``run_dir.iterdir()`` and incremented before any filtering, so
+    ``n_institutions_in_dir`` counts institution directories only. Before v2
+    this walked ``run_dir.iterdir()`` and incremented before any filtering, so
     ``_state/`` and ``final/`` inflated the count by two on every completed run.
     """
     if not run_dir.exists():

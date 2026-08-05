@@ -1,4 +1,4 @@
-**Handoff copy for the Data Validation Team (Thomas), issued 2026-07-28.** Canonical location until it is committed to the repo: `agent-workspace/storage-layout-v2-spec-2026-07-28.md`. Once committed as `docs/storage-layout-v2.md` in Phase 1, the repo copy is authoritative and this copy is reference-only.
+> **Repo copy — authoritative.** Committed in Phase 1 per the 2026-07-28 brief, so the design is versioned with the code it governs. The handoff copy at `RAs/Data Validation Team/` and the drafting copy at `agent-workspace/storage-layout-v2-spec-2026-07-28.md` are reference-only from this commit on. Text below is unchanged from the signed-off spec.
 
 # Spec — Pipeline Run-Storage Layout v2 (compression, retention, sharding)
 
