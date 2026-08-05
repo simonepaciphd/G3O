@@ -48,7 +48,13 @@ from g3o.common.batch_client import (
     poll_batch,
     submit_batch,
 )
-from g3o.discovery.query_builder import DEFAULT_EVIDENCE_TERM, build_queries
+from g3o.discovery.query_builder import (
+    DEFAULT_EVIDENCE_TERM,
+    DOMAIN_QUERY_LANG,
+    build_domain_query,
+    build_evidence_query,
+    build_queries,
+)
 from g3o.discovery.serper_client import search_google
 from g3o.scrape.fetcher import scrape_url
 
@@ -73,12 +79,28 @@ def _existing_dir(arg: str) -> Path:
 
 def _cmd_discover(args: argparse.Namespace) -> int:
     languages = [s.strip() for s in args.languages.split(",") if s.strip()]
-    queries = build_queries(
-        args.institution,
-        languages,
-        country=args.country,
-        disambiguation=args.disambiguation,
-    )
+    
+    if args.discovery_mode == "chain":
+        # Chain mode: leg 1 (domain discovery) + leg 2 (site-restricted evidence)
+        queries = [
+            (
+                build_domain_query(
+                    args.institution,
+                    country=args.country,
+                    disambiguation=args.disambiguation,
+                    quote_name=args.discovery_domain_quote_name,
+                ),
+                DOMAIN_QUERY_LANG,
+            )
+        ]
+    else:
+        # Legacy mode: one query per GenAI term
+        queries = build_queries(
+            args.institution,
+            languages,
+            country=args.country,
+            disambiguation=args.disambiguation,
+        )
 
     seen: set[str] = set()
     records: list[dict] = []
@@ -90,6 +112,23 @@ def _cmd_discover(args: argparse.Namespace) -> int:
                 r["query"] = query
                 r["language"] = lang
                 records.append(r)
+    
+    # In chain mode, run leg 2 on the discovered domain
+    if args.discovery_mode == "chain":
+        from g3o.discovery.domain_pick import pick_domain
+
+        picked = pick_domain(records)
+        domain = picked.get("domain")
+        if domain:
+            query = build_evidence_query(domain, args.discovery_evidence_term)
+            for r in search_google(query, num_results=args.limit):
+                url = r.get("link", "")
+                if url and url not in seen:
+                    seen.add(url)
+                    r["query"] = query
+                    r["language"] = DOMAIN_QUERY_LANG
+                    r["site_domain"] = domain
+                    records.append(r)
 
     json.dump(records, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
@@ -538,6 +577,30 @@ def build_parser() -> argparse.ArgumentParser:
     )
     discover.add_argument(
         "--limit", type=int, default=5, help="Max results per query (default: 5)."
+    )
+    discover.add_argument(
+        "--discovery-mode", choices=("legacy", "chain"), default="chain",
+        help=(
+            "Query strategy. 'chain' (default): leg 1 '<name> <country> <disambiguation> "
+            "official website' (1 credit) + leg 2 'site:<domain> <evidence-term>' for each "
+            "discovered domain (1 credit each). Chain mode matches the production pipeline. "
+            "'legacy': one query per GenAI term from the roster, N credits/institution."
+        ),
+    )
+    discover.add_argument(
+        "--discovery-evidence-term", default=DEFAULT_EVIDENCE_TERM,
+        help=(
+            f"Leg 2's evidence token (--discovery-mode chain only). Default: {DEFAULT_EVIDENCE_TERM}. "
+            "One bare unquoted term by measurement."
+        ),
+    )
+    discover.add_argument(
+        "--discovery-domain-quote-name", action="store_true",
+        help=(
+            "Leg 1 only (--discovery-mode chain): bind the institution name as a Google exact phrase "
+            "instead of an unquoted hint. Off by default — the quoted name was identified as the primary "
+            "failure of the four-slot format."
+        ),
     )
     discover.set_defaults(func=_cmd_discover)
 
