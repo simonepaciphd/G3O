@@ -122,14 +122,14 @@ runs/<run-id>/
 │       ├── classify_official_site.json     # moved here once Stage 2 fetch succeeded
 │       ├── …                               # …one per completed stage
 │       └── validate.json
-├── INST-XXXXXXX/
+├── institutions/<shard>/INST-XXXXXXX/      # <shard> = md5(inst_id)[:2]
 │   ├── institution.json
 │   ├── 1a_discovery_general.json
 │   ├── 2_official_site.json
 │   ├── 1b_discovery_site_restricted.json   # absent if no usable official site
 │   ├── 3_triage.json
-│   ├── scrape/<url_hash>.json              # one per fetched page
-│   ├── extract/<url_hash>.json             # one per Stage 5 result
+│   ├── scrape/<url_hash>.json.gz           # one per fetched page (gzipped)
+│   ├── extract/<url_hash>.json.gz          # one per Stage 5 result (gzipped)
 │   └── 6_validate.json
 └── final/                                  # written by `g3o persist` after Stage 6
     ├── g3o_activities_v{N}.csv

@@ -25,6 +25,7 @@ import pytest
 from pydantic import ValidationError
 
 from g3o.common import attrition
+from g3o.common.artifact_io import artifact_exists
 from g3o.common.batch_client import BatchResult
 from g3o.common.contract import GROUP_D_FIELDS
 from g3o.extract import make_custom_id, parse_extract_result, url_hash
@@ -442,7 +443,7 @@ def test_salvage_writes_one_attrition_record_with_stable_code(tmp_path, monkeypa
     assert salvaged[0]["stage"] == "extract"
     assert "year_deployed" in salvaged[0]["detail"]
     # The confirmed finding was preserved on disk for Stage 6.
-    assert (inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json").exists()
+    assert artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
 
 
 def test_unsalvageable_page_records_distinct_code_and_drops(tmp_path, monkeypatch):
@@ -456,8 +457,9 @@ def test_unsalvageable_page_records_distinct_code_and_drops(tmp_path, monkeypatc
     assert REASON_UNSALVAGEABLE in reasons
     assert "parse_failed" not in reasons
     assert REASON_SALVAGED not in reasons
-    # The page dropped — no extract artifact written.
-    assert not (inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json").exists()
+    # The page dropped — no extract artifact written, in either encoding
+    # (a plain-.json check would pass vacuously once writes are gzipped).
+    assert not artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
 
 
 def test_clean_page_records_no_salvage(tmp_path, monkeypatch):
@@ -473,7 +475,7 @@ def test_clean_page_records_no_salvage(tmp_path, monkeypatch):
     run_dir, inst_id, url = _run_one_page_extract(tmp_path, monkeypatch, clean, "clean")
     recs = attrition.read_records(run_dir)
     assert not any(r["reason"] in (REASON_SALVAGED, REASON_UNSALVAGEABLE) for r in recs)
-    assert (inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json").exists()
+    assert artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
 
 
 # ---------------------------------------------------------------------------

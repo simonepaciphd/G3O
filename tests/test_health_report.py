@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 
 from g3o.common import attrition as _attrition
+from g3o.common.artifact_io import write_artifact
 from g3o.extract.batch import url_hash
 from g3o.report import (
     HealthThresholds,
@@ -802,6 +803,61 @@ def test_language_attrition_counts_restricted_to_language(tmp_path: Path) -> Non
     s5_en = compute_health_report(run_dir, language="en")["stages"]["5_extract"]
     assert s5_en["n_empty_dropped"] == 1
     assert s5_en["n_extracts"] == 0
+
+
+def test_language_filtered_counts_survive_gzipped_artifacts(tmp_path: Path) -> None:
+    """Storage-layout-v2 Phase 2: the hash attribution must use ``artifact_stem``.
+
+    Regression guard for a silent-zero bug, not a crash. The language-restricted
+    branch matches an artifact filename against a set of url hashes; it used
+    ``Path.stem``, which strips exactly one suffix, so on a gzipped
+    ``<hash>.json.gz`` it produced ``<hash>.json`` and matched nothing.
+    ``n_pages_scraped`` and ``n_extracts`` both fell to zero with no error and no
+    failing assertion anywhere — a wrong number, reported confidently.
+
+    Every other fixture in this module writes plain ``.json`` (which the read
+    duality still accepts, and which the buggy ``.stem`` happened to handle), so
+    this test is the only thing standing on the gzip path.
+    """
+    run_dir = tmp_path / "gz-lang-run"
+    run_dir.mkdir()
+    _attrition._reset_cache()
+    u_en, u_fr = "https://x.gov/en-page", "https://x.gov/fr-page"
+    inst = inst_dir_of(run_dir, "INST-1")
+    write_manifest(run_dir, {"run_id": "gz-lang-run", "institutions": ["INST-1"]})
+    _write(
+        inst / "1a_discovery_general.json",
+        {
+            "queries": [{"query": "q-en", "language": "en"}, {"query": "q-fr", "language": "fr"}],
+            "records": [{"link": u_en, "language": "en"}, {"link": u_fr, "language": "fr"}],
+        },
+    )
+    _write(
+        inst / "3_triage.json",
+        {"decisions": [{"url": u_en, "decision": "keep"}, {"url": u_fr, "decision": "keep"}]},
+    )
+    # Gzipped exactly as Stage 4/5 now write them.
+    for u in (u_en, u_fr):
+        write_artifact(
+            inst / "scrape" / f"{url_hash(u)}.json",
+            json.dumps({"url": u, "text": "text"}),
+        )
+    write_artifact(
+        inst / "extract" / f"{url_hash(u_fr)}.json", json.dumps({"page_url": u_fr})
+    )
+
+    s4_fr = compute_health_report(run_dir, language="fr")["stages"]["4_scrape"]
+    s5_fr = compute_health_report(run_dir, language="fr")["stages"]["5_extract"]
+    assert s4_fr["n_pages_scraped"] == 1
+    assert s5_fr["n_extracts"] == 1
+
+    s5_en = compute_health_report(run_dir, language="en")["stages"]["5_extract"]
+    assert s5_en["n_extracts"] == 0  # the English page has no extract artifact
+
+    # Unfiltered counts are a plain length and never depended on the stem, so
+    # they pin that this fixture really does hold two scrape artifacts.
+    s4_all = compute_health_report(run_dir)["stages"]["4_scrape"]
+    assert s4_all["n_pages_scraped"] == 2
 
 
 def test_partial_run_stages_flag_not_run(tmp_path: Path) -> None:

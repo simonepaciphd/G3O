@@ -19,6 +19,7 @@ from typing import Any
 
 from g3o.common import attrition, batch_client
 from g3o.common import config as g3o_config
+from g3o.common.artifact_io import ARTIFACT_SUFFIX, glob_artifacts
 from g3o.common.batch_client import BatchHandle, BatchResult, BatchStatus
 from g3o.common.run_state import done_path, state_dir
 from g3o.discovery import serper_client
@@ -337,13 +338,15 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
         assert (inst_dir / "2_official_site.json").exists()
         assert (inst_dir / "1b_discovery_site_restricted.json").exists()
         assert (inst_dir / "3_triage.json").exists()
-        scrape_files = sorted((inst_dir / "scrape").glob("*.json"))
-        extract_files = sorted((inst_dir / "extract").glob("*.json"))
-        assert [p.name for p in scrape_files] == sorted(
-            f"{h}.json" for h in URL_BY_HASH
+        # Stage 4/5 artifacts are gzipped from Phase 2 on. Asserting the
+        # concrete ``.json.gz`` name (not just the stem) keeps this test pinning
+        # *which* format the pipeline writes, so a silent regression to plain
+        # JSON — or a second, uncompressed twin — still fails here.
+        assert [p.name for p in glob_artifacts(inst_dir / "scrape")] == sorted(
+            f"{h}{ARTIFACT_SUFFIX}" for h in URL_BY_HASH
         )
-        assert [p.name for p in extract_files] == sorted(
-            f"{h}.json" for h in URL_BY_HASH
+        assert [p.name for p in glob_artifacts(inst_dir / "extract")] == sorted(
+            f"{h}{ARTIFACT_SUFFIX}" for h in URL_BY_HASH
         )
         validate_payload = json.loads(
             (inst_dir / "6_validate.json").read_text(encoding="utf-8")

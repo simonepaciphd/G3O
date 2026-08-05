@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition
+from g3o.common.artifact_io import glob_artifacts, write_artifact
 from g3o.common.batch_client import BatchResult
 from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
@@ -70,8 +71,7 @@ def _count_existing_extracts(run_dir: Path, sample: list[dict[str, Any]]) -> int
     for row in sample:
         inst_id = synth_institution_id(row)
         extract_dir = institution_dir(run_dir, inst_id) / "extract"
-        if extract_dir.is_dir():
-            n += sum(1 for _ in extract_dir.glob("*.json"))
+        n += len(glob_artifacts(extract_dir))
     return n
 
 
@@ -92,7 +92,7 @@ def _run_extract(
     """Stage 5 — per-page LLM extraction, batched across (institution × page).
 
     Resume (Session E; chunked Session F.1): same shape as Stages 2/3.
-    Returns the on-disk count of ``<inst>/extract/*.json`` files once the
+    Returns the on-disk count of ``<inst>/extract/`` artifacts once the
     stage is complete (equals the parsed-result count on a clean fresh run,
     and stays truthful across chunked resumes where earlier invocations
     already persisted some chunks).
@@ -198,10 +198,11 @@ def _run_extract(
                     detail=f"rows={rows};fields={','.join(fields)}",
                 )
             extract_dir = institution_dir(run_dir, institution_id) / "extract"
-            extract_dir.mkdir(parents=True, exist_ok=True)
-            (extract_dir / f"{url_hash(page.url)}.json").write_text(
-                json.dumps(parsed.model_dump(), ensure_ascii=False, indent=2),
-                encoding="utf-8",
+            # Gzipped, compact (no indent=2), atomic, deterministic — see
+            # g3o.common.artifact_io. Writes <url_hash>.json.gz.
+            write_artifact(
+                extract_dir / f"{url_hash(page.url)}.json",
+                json.dumps(parsed.model_dump(), ensure_ascii=False),
             )
 
     custom_id_to_institution = {cid: inst_id for cid, (inst_id, _page) in page_lookup.items()}

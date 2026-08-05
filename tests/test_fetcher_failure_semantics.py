@@ -28,6 +28,7 @@ import pytest
 
 from g3o.common import attrition
 from g3o.common import config as _config
+from g3o.common.artifact_io import artifact_exists
 from g3o.extract.batch import url_hash
 from g3o.run import presweep as ps
 from g3o.scrape import fetcher
@@ -85,7 +86,7 @@ def test_download_failure_records_scrape_failed_not_phantom_success(tmp_path, mo
     # Not surfaced as a normal successful scrape.
     assert out[_INST_ID] == []
     artifact = inst_dir_of(run_dir, _INST_ID) / "scrape" / f"{url_hash(_URL)}.json"
-    assert not artifact.exists()
+    assert not artifact_exists(artifact)
 
 
 def test_download_then_render_both_fail_preserve_both_exceptions(tmp_path, monkeypatch):

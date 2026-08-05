@@ -90,7 +90,12 @@ def _frozen_rows() -> list[dict[str, Any]]:
 
 
 def _sample_hash(ids: list[str]) -> str:
-    """Same mechanism as the live dry-run gate: sha256(json.dumps(ids))[:16]."""
+    """Hash the draw the way the live dry-run gate does: sha256(json.dumps(ids))[:16].
+
+    Same hashing approach, different input: this runs over the frozen fixture
+    master, never the real one. It pins the sampler; it is not the live gate and
+    carries no claim about the production master's hash.
+    """
     return hashlib.sha256(json.dumps(ids).encode("utf-8")).hexdigest()[:16]
 
 

@@ -27,6 +27,7 @@ import pytest
 
 from g3o.common import attrition
 from g3o.common import config as _config
+from g3o.common.artifact_io import artifact_exists, read_artifact
 from g3o.extract.batch import url_hash
 from g3o.run import presweep as ps
 from g3o.scrape import fetcher
@@ -248,8 +249,8 @@ def test_empty_then_rendered_writes_artifact_not_drop(tmp_path, monkeypatch):
 
     # A real scrape artifact is on disk (not silently dropped).
     artifact = inst_dir_of(run_dir, _INST_ID) / "scrape" / f"{url_hash(_URL)}.json"
-    assert artifact.exists()
-    assert "RENDERED BODY" in artifact.read_text(encoding="utf-8")
+    assert artifact_exists(artifact)
+    assert "RENDERED BODY" in read_artifact(artifact)
 
     # Exactly one render-attempt telemetry record, with the rendered outcome.
     renders = [r for r in attrition.read_records(run_dir) if r["reason"] == "render_attempted"]
@@ -269,7 +270,7 @@ def test_still_empty_after_render_records_exactly_one_attrition(tmp_path, monkey
     # The page is not silently dropped — it is still emitted as an artifact.
     assert len(out[_INST_ID]) == 1
     artifact = inst_dir_of(run_dir, _INST_ID) / "scrape" / f"{url_hash(_URL)}.json"
-    assert artifact.exists()
+    assert artifact_exists(artifact)
 
     # Exactly one render_attempted record for this URL — no duplicate.
     renders = [r for r in attrition.read_records(run_dir) if r["reason"] == "render_attempted"]

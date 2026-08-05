@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition as _attrition
+from g3o.common.artifact_io import artifact_stem, glob_artifacts
 from g3o.common.paths import (
     institution_dir,
     iter_institution_dirs,
@@ -251,31 +252,21 @@ def _collect_institution(
         d["n_urls_kept"] = 0
         d["_kept_urls"] = []
 
-    # Stage 4: scrape/*.json files — attribute via url_hash of language-kept URLs.
-    scrape_dir = inst_dir / "scrape"
-    if scrape_dir.is_dir():
+    # Stage 4/5 artifact counts — attribute via url_hash of language-kept URLs.
+    #
+    # The filename→hash comparison must go through
+    # :func:`g3o.common.artifact_io.artifact_stem`, never ``Path.stem``:
+    # ``stem`` strips one suffix, so on a Phase-2 ``<hash>.json.gz`` artifact it
+    # yields ``<hash>.json``, which matches no url hash and silently zeroes both
+    # counters. That failure mode is a wrong number, not an exception, so no test
+    # would announce it as anything but a quietly-off count.
+    for key, subdir in (("n_pages_scraped", "scrape"), ("n_extracts", "extract")):
+        artifacts = glob_artifacts(inst_dir / subdir)
         if language is None:
-            d["n_pages_scraped"] = sum(1 for _ in scrape_dir.glob("*.json"))
+            d[key] = len(artifacts)
         else:
             wanted_hashes = {_url_hash(u) for u in d["_kept_urls"]}
-            d["n_pages_scraped"] = sum(
-                1 for f in scrape_dir.glob("*.json") if f.stem in wanted_hashes
-            )
-    else:
-        d["n_pages_scraped"] = 0
-
-    # Stage 5: extract/*.json files — same hash attribution as Stage 4.
-    extract_dir = inst_dir / "extract"
-    if extract_dir.is_dir():
-        if language is None:
-            d["n_extracts"] = sum(1 for _ in extract_dir.glob("*.json"))
-        else:
-            wanted_hashes = {_url_hash(u) for u in d["_kept_urls"]}
-            d["n_extracts"] = sum(
-                1 for f in extract_dir.glob("*.json") if f.stem in wanted_hashes
-            )
-    else:
-        d["n_extracts"] = 0
+            d[key] = sum(1 for f in artifacts if artifact_stem(f) in wanted_hashes)
 
     # Expose the URL→languages attribution map so run-level passes (e.g.
     # attrition filtering under a language restriction) reuse it.

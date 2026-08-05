@@ -73,6 +73,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition as _attrition
+from g3o.common.artifact_io import glob_artifacts, read_artifact
 from g3o.common.contract import BatchResponse
 from g3o.common.paths import institution_dir, require_layout
 from g3o.common.run_state import is_done, state_dir
@@ -123,12 +124,10 @@ def _extracted_row_count(extract_dir: Path) -> int:
     n_extracts is the file count; this is a different, complementary metric
     named extracted_row_count to avoid confusion between the two).
     """
-    if not extract_dir.is_dir():
-        return 0
     total = 0
-    for path in extract_dir.glob("*.json"):
+    for path in glob_artifacts(extract_dir):
         try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
+            payload = json.loads(read_artifact(path))
             total += len(BatchResponse.model_validate(payload).data)
         except Exception:
             # An unreadable extract file doesn't inflate the count; the
@@ -151,11 +150,9 @@ def _stage_reached(inst_dir: Path) -> str | None:
         reached = "filter_eligibility"
     if (inst_dir / "3_triage.json").exists():
         reached = "classify_triage"
-    scrape_dir = inst_dir / "scrape"
-    if scrape_dir.is_dir() and any(scrape_dir.glob("*.json")):
+    if glob_artifacts(inst_dir / "scrape"):
         reached = "scrape"
-    extract_dir = inst_dir / "extract"
-    if extract_dir.is_dir() and any(extract_dir.glob("*.json")):
+    if glob_artifacts(inst_dir / "extract"):
         reached = "extract"
     if (inst_dir / "6_validate.json").exists():
         reached = "validate"
@@ -181,8 +178,7 @@ def _urls_kept(inst_dir: Path) -> int:
 
 
 def _pages_scraped(inst_dir: Path) -> int:
-    scrape_dir = inst_dir / "scrape"
-    return sum(1 for _ in scrape_dir.glob("*.json")) if scrape_dir.is_dir() else 0
+    return len(glob_artifacts(inst_dir / "scrape"))
 
 
 def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:

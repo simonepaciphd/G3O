@@ -1,11 +1,12 @@
 """Stage 6 driver — per-institution consolidation orchestrator.
 
-Walks ``runs/<run_id>/<inst>/extract/*.json`` for each institution in a run,
-flattens the Stage 5 ``ContractRow`` outputs into a single per-institution
-input list, submits one consolidation job per institution (chunked into
-size-capped OpenAI Batch API batches, Session F.1 2026-06-10), polls to
-terminal state, parses the results, and persists
-``runs/<run_id>/<inst>/6_validate.json``.
+Walks the ``extract/`` artifacts of each institution in a run (see
+:mod:`g3o.common.paths` for the institution path and
+:mod:`g3o.common.artifact_io` for the artifact encoding), flattens the Stage 5
+``ContractRow`` outputs into a single per-institution input list, submits one
+consolidation job per institution (chunked into size-capped OpenAI Batch API
+batches, Session F.1 2026-06-10), polls to terminal state, parses the results,
+and persists ``6_validate.json`` next to them.
 
 The single owner of OpenAI Batch API access remains
 ``g3o.common.batch_client``; this module is a thin wrapper around it.
@@ -20,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition
+from g3o.common.artifact_io import glob_artifacts, read_artifact
 from g3o.common.batch_client import (
     DEFAULT_COMPLETION_WINDOW,
     DEFAULT_ENDPOINT,
@@ -162,21 +164,23 @@ def parse_consolidate_result(result: BatchResult) -> ConsolidatedInstitutionResp
 def load_extract_outputs(inst_dir: Path) -> tuple[list[ContractRow], int]:
     """Load all Stage 5 extract outputs for one institution.
 
-    Walks ``inst_dir/extract/*.json`` (each file holds one validated
+    Walks ``inst_dir/extract/`` (each artifact holds one validated
     ``BatchResponse``), flattens the ``data`` arrays into a single list of
     ``ContractRow`` objects, and returns the count of distinct source pages.
 
+    Artifacts are ``.json.gz`` from Phase 2 on and may be plain ``.json`` in an
+    older or hand-built tree; :func:`g3o.common.artifact_io.glob_artifacts`
+    resolves both and orders by url-hash stem, so row order does not depend on
+    which files happen to be compressed.
+
     Returns:
         (rows, n_pages) where ``rows`` is the concatenated list and
-        ``n_pages`` is the count of extract JSON files that produced rows.
+        ``n_pages`` is the count of extract artifacts that produced rows.
     """
-    extract_dir = inst_dir / "extract"
-    if not extract_dir.exists():
-        return [], 0
     rows: list[ContractRow] = []
     n_pages = 0
-    for path in sorted(extract_dir.glob("*.json")):
-        payload = json.loads(path.read_text(encoding="utf-8"))
+    for path in glob_artifacts(inst_dir / "extract"):
+        payload = json.loads(read_artifact(path))
         response = BatchResponse.model_validate(payload)
         if not response.data:
             continue

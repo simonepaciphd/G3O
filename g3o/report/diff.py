@@ -91,6 +91,7 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
+from g3o.common.artifact_io import glob_artifacts, read_artifact
 from g3o.common.paths import (
     institution_dir,
     iter_institution_dirs,
@@ -128,6 +129,20 @@ def _read_json(path: Path) -> Any | None:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _read_artifact_json(path: Path) -> Any | None:
+    """Same tolerant contract as :func:`_read_json`, for a gzipped artifact.
+
+    Kept separate rather than folded into ``_read_json``: that helper also reads
+    the plain run-level and stage files (``manifest.json``, ``3_triage.json``,
+    ``6_validate.json``), which are never gzipped, and routing those through the
+    artifact layer would blur which files Phase 2 actually compresses.
+    """
+    try:
+        return json.loads(read_artifact(path))
+    except (OSError, ValueError):
         return None
 
 
@@ -269,12 +284,9 @@ def _triage_keep_set(inst_dir: Path) -> frozenset[str]:
 
 
 def _scraped_pages(inst_dir: Path) -> frozenset[str]:
-    scrape_dir = inst_dir / "scrape"
-    if not scrape_dir.is_dir():
-        return frozenset()
     urls: set[str] = set()
-    for f in scrape_dir.glob("*.json"):
-        payload = _read_json(f)
+    for f in glob_artifacts(inst_dir / "scrape"):
+        payload = _read_artifact_json(f)
         if isinstance(payload, dict) and payload.get("url"):
             urls.add(payload["url"])
     return frozenset(urls)
@@ -283,17 +295,14 @@ def _scraped_pages(inst_dir: Path) -> frozenset[str]:
 def _extract_outcomes(inst_dir: Path) -> frozenset[tuple[str, Any]]:
     """Set of (source_url, has_genai_activity) pairs across every extract row.
 
-    Each ``extract/*.json`` is a dumped ``BatchResponse`` (a ``data`` array of
+    Each ``extract/`` artifact is a dumped ``BatchResponse`` (a ``data`` array of
     contract rows); every row carries ``source_url`` plus the institution-level
     ``has_genai_activity`` verdict.  We read just those two fields, tolerant of
     any row subset.
     """
-    extract_dir = inst_dir / "extract"
-    if not extract_dir.is_dir():
-        return frozenset()
     pairs: set[tuple[str, Any]] = set()
-    for f in extract_dir.glob("*.json"):
-        payload = _read_json(f)
+    for f in glob_artifacts(inst_dir / "extract"):
+        payload = _read_artifact_json(f)
         if not isinstance(payload, dict):
             continue
         for row in payload.get("data", []):
@@ -602,7 +611,7 @@ def _run_completeness(dirs: list[Path], run_ids: list[str], run_insts: list[set[
             for inst in insts:
                 p = institution_dir(run_dir, inst) / name
                 if p.is_dir():
-                    n += 1 if any(p.glob("*.json")) else 0
+                    n += 1 if glob_artifacts(p) else 0
                 elif p.is_file():
                     n += 1
             counts[name] = n

@@ -151,14 +151,21 @@ single owner of this layout: every institution path is built by
 `layout_version: 2` — there is no dual-layout read support, so a pre-v2 run is
 read by checking out a pre-v2 commit.
 
+The two page-level artifact classes (`scrape/`, `extract/`) are gzipped and
+written compact; every other per-institution file stays plain, indented JSON.
+`g3o.common.artifact_io` is the single owner of that encoding — writers emit
+`.json.gz` only, readers accept `.json` or `.json.gz` with `.gz` winning, and
+the gzip header is pinned (`mtime=0`, no `FNAME`) so identical input yields
+byte-identical output.
+
 | Boundary               | Path                                                  |
 |------------------------|-------------------------------------------------------|
 | Stage 1a → Stage 2     | `runs/<run_id>/<inst>/1a_discovery_general.json`      |
 | Stage 2 → Stage 1b     | `runs/<run_id>/<inst>/2_official_site.json`           |
 | Stage 1b → Stage 3     | `runs/<run_id>/<inst>/1b_discovery_site_restricted.json` |
 | Stage 3 → Stage 4      | `runs/<run_id>/<inst>/3_triage.json`                  |
-| Stage 4 → Stage 5      | `runs/<run_id>/<inst>/scrape/<url_hash>.json`         |
-| Stage 5 → Stage 6      | `runs/<run_id>/<inst>/extract/*.json`                 |
+| Stage 4 → Stage 5      | `runs/<run_id>/<inst>/scrape/<url_hash>.json.gz`      |
+| Stage 5 → Stage 6      | `runs/<run_id>/<inst>/extract/*.json.gz`              |
 | Stage 6 → Stage 7      | `runs/<run_id>/<inst>/6_validate.json`                |
 | Stage 7 → release      | `runs/<run_id>/final/g3o_activities_v{N}.csv`, `g3o_activity_sources_v{N}.csv`, `g3o_institution_summary_v{N}.csv` |
 
