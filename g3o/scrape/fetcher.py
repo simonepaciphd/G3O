@@ -219,6 +219,62 @@ def _notify_render_attempt(
         callback(url=url, trigger=trigger, outcome=outcome, result_len=result_len)
 
 
+def _format_download_error(url: str, err: Exception) -> str:
+    """Format a download error into an actionable message for operators.
+
+    Inspects the exception type and provides context-specific guidance:
+    - Timeouts: suggests site may be blocking automated requests
+    - HTTP errors (403, 401): suggests bot detection or auth requirements
+    - Connection errors: suggests network or DNS issues
+    - Other: generic message with the exception
+    """
+    err_type = type(err).__name__
+    err_msg = str(err)
+
+    # Timeout detection (requests.exceptions.Timeout, ReadTimeout, ConnectTimeout)
+    if "Timeout" in err_type or "timeout" in err_msg.lower():
+        return (
+            f"Scrape timeout for {url} after {config.REQUEST_TIMEOUT}s. "
+            f"Site may be blocking automated requests or experiencing high latency. "
+            f"Consider checking if the site requires JavaScript rendering or has "
+            f"rate limiting in place."
+        )
+
+    # HTTP status code errors
+    if hasattr(err, "response") and err.response is not None:
+        status_code = err.response.status_code
+        if status_code == 403:
+            return (
+                f"HTTP 403 Forbidden for {url}. The site is blocking automated requests. "
+                f"This may be bot detection (Cloudflare, Akamai, etc.) or geographic restriction. "
+                f"Consider using the headless renderer or checking if the site requires authentication."
+            )
+        elif status_code == 401:
+            return (
+                f"HTTP 401 Unauthorized for {url}. The site requires authentication. "
+                f"This URL may not be publicly accessible."
+            )
+        elif status_code == 404:
+            return f"HTTP 404 Not Found for {url}. The page does not exist or has been moved."
+        elif status_code >= 500:
+            return (
+                f"HTTP {status_code} server error for {url}. The remote server is experiencing "
+                f"issues. This is transient and should resolve on retry."
+            )
+        else:
+            return f"HTTP {status_code} error for {url}: {err_msg}"
+
+    # Connection errors (DNS, network, SSL)
+    if "Connection" in err_type or "Connection" in err_msg:
+        return (
+            f"Connection failed for {url}: {err_msg}. "
+            f"Check network connectivity, DNS resolution, or whether the site is reachable."
+        )
+
+    # Generic fallback
+    return f"Download failed for {url}: {err_type}: {err_msg}"
+
+
 def _failure_page(url: str, *, attempted_method: str) -> RenderedPage:
     """Build a no-text RenderedPage for download failures. Not cached."""
     return RenderedPage(
@@ -303,7 +359,10 @@ def scrape_url(
 
     try:
         content, ctype, status, final_url, elapsed_ms = _download(url)
-    except Exception:
+    except Exception as err:
+        # Provide actionable error message for download failures
+        error_msg = _format_download_error(url, err)
+        logger.debug("Download failed for %s: %s", url, error_msg)
         # Render fallback on a failed GET is opt-in (review F14): only when the
         # caller accepts the per-dead-URL browser-launch cost.
         if prefer_render_on_download_failure:
@@ -311,12 +370,13 @@ def scrape_url(
                 page = render_url(
                     url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session
                 )
-            except Exception:
+            except Exception as render_err:
                 _notify_render_attempt(
                     on_render_attempt, url=url,
                     trigger="download_failure", outcome="render_failed",
                     result_len=None,
                 )
+                logger.debug("Render fallback also failed for %s: %s", url, render_err)
                 return _failure_page(url, attempted_method="html")
             _notify_render_attempt(
                 on_render_attempt, url=url,

@@ -54,9 +54,10 @@ and are left to the caller.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 # ---------------------------------------------------------------------------
 # Tokens, vocabularies, and regex patterns
@@ -201,6 +202,18 @@ class BatchMetadata(BaseModel):
     search_strategy_summary: Annotated[str, StringConstraints(max_length=300)]
     notes: str
 
+    @field_validator("response_timestamp")
+    @classmethod
+    def validate_response_timestamp(cls, v: str) -> str:
+        """Validate response_timestamp is a valid ISO 8601 datetime."""
+        if v:
+            try:
+                # Parse ISO format datetime (handles various timezone formats)
+                datetime.fromisoformat(v.replace("Z", "+00:00"))
+            except ValueError:
+                raise ValueError(f"Invalid datetime format: {v!r} (must be valid ISO 8601 datetime)")
+        return v
+
 
 class ContractRow(BaseModel):
     """One row of the `## data` table — an (institution × activity × source) triple."""
@@ -261,6 +274,63 @@ class ContractRow(BaseModel):
     # Group F — Row-level confidence and provenance metadata
     confidence: Confidence
     uncertainty_flags: str
+
+    @field_validator("source_access_date")
+    @classmethod
+    def validate_source_access_date(cls, v: str) -> str:
+        """Validate source_access_date is a valid YYYY-MM-DD date or '_NA_'."""
+        if v and v != "_NA_":
+            try:
+                datetime.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD or '_NA_')")
+        return v
+
+    @field_validator("source_publication_date")
+    @classmethod
+    def validate_source_publication_date(cls, v: str) -> str:
+        """Validate source_publication_date is YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown'."""
+        if not v or v == "unknown":
+            return v
+        # Try full date first (YYYY-MM-DD)
+        if len(v) == 10:
+            try:
+                datetime.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+        # Try year-month (YYYY-MM)
+        elif len(v) == 7:
+            try:
+                datetime.strptime(v, "%Y-%m")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+        # Try year only (YYYY)
+        elif len(v) == 4:
+            try:
+                datetime.strptime(v, "%Y")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+        else:
+            raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+        return v
+
+    @field_validator("year_announced", "year_deployed")
+    @classmethod
+    def validate_year_fields(cls, v: str) -> str:
+        """Validate year fields are valid 4-digit years, 'unknown', or '_NA_'."""
+        if v and v not in ("unknown", "_NA_"):
+            if len(v) == 4:
+                try:
+                    year = int(v)
+                    if year < 1900 or year > 2100:
+                        raise ValueError(f"Year {v!r} out of reasonable range (1900-2100)")
+                except ValueError as e:
+                    if "out of reasonable range" in str(e):
+                        raise
+                    raise ValueError(f"Invalid year format: {v!r} (must be valid 4-digit year, 'unknown', or '_NA_')")
+            else:
+                raise ValueError(f"Invalid year format: {v!r} (must be valid 4-digit year, 'unknown', or '_NA_')")
+        return v
 
     @model_validator(mode="after")
     def _validate_na_vs_group_d(self) -> ContractRow:
@@ -392,6 +462,17 @@ class RunProvenance(BaseModel):
     run_tool: str
     run_date: Annotated[str, StringConstraints(pattern=ISO_DATE_PATTERN)]
 
+    @field_validator("run_date")
+    @classmethod
+    def validate_run_date(cls, v: str) -> str:
+        """Validate run_date is a valid YYYY-MM-DD date."""
+        if v:
+            try:
+                datetime.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD)")
+        return v
+
 
 class PersistedRow(BaseModel):
     """A `ContractRow` plus its `RunProvenance`, used at CSV write time."""
@@ -478,6 +559,18 @@ class ConsolidationMetadata(BaseModel):
     model_label: str
     notes: str
 
+    @field_validator("response_timestamp")
+    @classmethod
+    def validate_response_timestamp(cls, v: str) -> str:
+        """Validate response_timestamp is a valid ISO 8601 datetime."""
+        if v:
+            try:
+                # Parse ISO format datetime (handles various timezone formats)
+                datetime.fromisoformat(v.replace("Z", "+00:00"))
+            except ValueError:
+                raise ValueError(f"Invalid datetime format: {v!r} (must be valid ISO 8601 datetime)")
+        return v
+
 
 class ConsolidatedInstitution(BaseModel):
     """The institution-level metadata block (one per response)."""
@@ -527,6 +620,24 @@ class ConsolidatedActivity(BaseModel):
     n_sources: int = Field(ge=1)
     confidence: Confidence
     uncertainty_flags: str
+
+    @field_validator("year_announced", "year_deployed")
+    @classmethod
+    def validate_year_fields(cls, v: str) -> str:
+        """Validate year fields are valid 4-digit years or 'unknown'."""
+        if v and v != "unknown":
+            if len(v) == 4:
+                try:
+                    year = int(v)
+                    if year < 1900 or year > 2100:
+                        raise ValueError(f"Year {v!r} out of reasonable range (1900-2100)")
+                except ValueError as e:
+                    if "out of reasonable range" in str(e):
+                        raise
+                    raise ValueError(f"Invalid year format: {v!r} (must be valid 4-digit year or 'unknown')")
+            else:
+                raise ValueError(f"Invalid year format: {v!r} (must be valid 4-digit year or 'unknown')")
+        return v
 
     @model_validator(mode="after")
     def _validate_no_na_in_group_d(self) -> ConsolidatedActivity:
@@ -583,6 +694,45 @@ class SourceRecord(BaseModel):
     source_credibility: SourceCredibility
     genai_evidence: GenAIEvidence
     source_snippet: Annotated[str, StringConstraints(max_length=300)]
+
+    @field_validator("source_access_date")
+    @classmethod
+    def validate_source_access_date(cls, v: str) -> str:
+        """Validate source_access_date is a valid YYYY-MM-DD date or '_NA_'."""
+        if v and v != "_NA_":
+            try:
+                datetime.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD or '_NA_')")
+        return v
+
+    @field_validator("source_publication_date")
+    @classmethod
+    def validate_source_publication_date(cls, v: str) -> str:
+        """Validate source_publication_date is YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown'."""
+        if not v or v == "unknown":
+            return v
+        # Try full date first (YYYY-MM-DD)
+        if len(v) == 10:
+            try:
+                datetime.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+        # Try year-month (YYYY-MM)
+        elif len(v) == 7:
+            try:
+                datetime.strptime(v, "%Y-%m")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+        # Try year only (YYYY)
+        elif len(v) == 4:
+            try:
+                datetime.strptime(v, "%Y")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+        else:
+            raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+        return v
 
 
 class ConsolidatedInstitutionResponse(BaseModel):
@@ -721,6 +871,17 @@ class ValidationProvenance(BaseModel):
     run_model: str
     run_tool: str
     run_date: Annotated[str, StringConstraints(pattern=ISO_DATE_PATTERN)]
+
+    @field_validator("run_date")
+    @classmethod
+    def validate_run_date(cls, v: str) -> str:
+        """Validate run_date is a valid YYYY-MM-DD date."""
+        if v:
+            try:
+                datetime.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD)")
+        return v
 
 
 class PersistedActivity(BaseModel):

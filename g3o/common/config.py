@@ -41,3 +41,9 @@ LOG_LEVEL: str = _env("LOG_LEVEL", "INFO") or "INFO"
 BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
 CACHE_DIR: Path = Path(_env("G3O_CACHE_DIR", str(BASE_DIR / "cache")) or str(BASE_DIR / "cache"))
 RUNS_DIR: Path = Path(_env("G3O_RUNS_DIR", str(BASE_DIR / "runs")) or str(BASE_DIR / "runs"))
+
+# Cost circuit breaker: abort the pipeline if projected spend exceeds this limit.
+# Read from G3O_BUDGET_LIMIT_USD environment variable. None means no limit is set.
+BUDGET_LIMIT_USD: float | None = (
+    float(_env("G3O_BUDGET_LIMIT_USD")) if _env("G3O_BUDGET_LIMIT_USD") else None
+)
