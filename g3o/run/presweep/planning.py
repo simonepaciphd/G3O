@@ -179,6 +179,18 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
 # Deliberately does **not** cover the chain keys above: those stay strict, so a
 # manifest predating the chain still refuses to resume rather than let a mode
 # flip through unchecked.
+#
+# What it buys *today* is nothing, and that is worth stating so the next person
+# does not over-read it (verified 2026-08-05, review session). ``build_manifest``
+# writes ``layout_version`` and this key together, so the only manifest lacking
+# the roster hash also lacks the layout marker — and ``require_layout`` refuses
+# that tree a few lines later in ``run_presweep`` regardless. Without the
+# tolerance the same run still cannot proceed; only which line reports the
+# refusal changes. The one manifest where it is load-bearing is a run launched
+# off an unmerged storage-v2 phase branch and resumed after the merge, and no
+# such run exists. It is kept as the precedent mechanism for the *next* guarded
+# key added to a manifest that predates it (the key-contract work adds several),
+# not as protection for this one.
 _ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset({"genai_terms_roster_hash"})
 
 
