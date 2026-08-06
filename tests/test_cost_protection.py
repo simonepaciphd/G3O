@@ -239,7 +239,7 @@ def test_cli_execute_aborts_on_budget_limit_exceeded(tmp_path, monkeypatch, caps
     ]
 
     # Mock run_presweep to avoid actual execution
-    with patch("g3o.cli.run_presweep") as mock_run:
+    with patch("g3o.run.presweep.run_presweep") as mock_run:
         exit_code = cli.main(args)
         captured = capsys.readouterr()
 
@@ -275,7 +275,7 @@ def test_cli_execute_proceeds_under_budget_limit(tmp_path, monkeypatch, capsys):
     ]
 
     # Mock run_presweep to return immediately
-    with patch("g3o.cli.run_presweep") as mock_run:
+    with patch("g3o.run.presweep.run_presweep") as mock_run:
         mock_run.return_value = {"status": "completed"}
         exit_code = cli.main(args)
         captured = capsys.readouterr()
