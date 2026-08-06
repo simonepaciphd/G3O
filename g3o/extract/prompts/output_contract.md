@@ -272,7 +272,7 @@ Your output is Markdown pipe tables, but this schema governs allowed values:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "G3O Batch Response v2.0",
+  "title": "G3O Batch Response v2.2",
   "type": "object",
   "required": ["batch_metadata", "data"],
   "properties": {

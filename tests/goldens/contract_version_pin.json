@@ -2,7 +2,7 @@
   "extract": {
     "path": "g3o/extract/prompts/output_contract.md",
     "version": "v2.2",
-    "sha256": "682ff3076f3b593e4527387a3a6dd52519776f95c98b1e615b6d3117a5ad0118"
+    "sha256": "bf187c043107211cc2581fc819866ce7d097898b583001d96b99c3a76266e736"
   },
   "validate": {
     "path": "g3o/validate/prompts/output_contract.md",
