@@ -332,8 +332,8 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         raise SystemExit(str(exc)) from exc
 
     if args.preflight:
-        from g3o.run.preflight import PreflightAssumptions, run_preflight
         from g3o.common.config import BUDGET_LIMIT_USD
+        from g3o.run.preflight import PreflightAssumptions, run_preflight
 
         # Determine effective budget limit: CLI flag takes precedence over env var
         effective_budget = args.cost_ceiling if args.cost_ceiling is not None else BUDGET_LIMIT_USD

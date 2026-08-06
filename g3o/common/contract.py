@@ -57,7 +57,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 # ---------------------------------------------------------------------------
 # Tokens, vocabularies, and regex patterns
@@ -211,7 +218,7 @@ class BatchMetadata(BaseModel):
                 # Parse ISO format datetime (handles various timezone formats)
                 datetime.fromisoformat(v.replace("Z", "+00:00"))
             except ValueError:
-                raise ValueError(f"Invalid datetime format: {v!r} (must be valid ISO 8601 datetime)")
+                raise ValueError(f"Invalid datetime format: {v!r} (must be valid ISO 8601 datetime)") from None
         return v
 
 
@@ -283,7 +290,7 @@ class ContractRow(BaseModel):
             try:
                 datetime.strptime(v, "%Y-%m-%d")
             except ValueError:
-                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD or '_NA_')")
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD or '_NA_')") from None
         return v
 
     @field_validator("source_publication_date")
@@ -297,19 +304,19 @@ class ContractRow(BaseModel):
             try:
                 datetime.strptime(v, "%Y-%m-%d")
             except ValueError:
-                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')") from None
         # Try year-month (YYYY-MM)
         elif len(v) == 7:
             try:
                 datetime.strptime(v, "%Y-%m")
             except ValueError:
-                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')") from None
         # Try year only (YYYY)
         elif len(v) == 4:
             try:
                 datetime.strptime(v, "%Y")
             except ValueError:
-                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')") from None
         else:
             raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
         return v
@@ -327,7 +334,7 @@ class ContractRow(BaseModel):
                 except ValueError as e:
                     if "out of reasonable range" in str(e):
                         raise
-                    raise ValueError(f"Invalid year format: {v!r} (must be valid 4-digit year, 'unknown', or '_NA_')")
+                    raise ValueError(f"Invalid year format: {v!r} (must be valid 4-digit year, 'unknown', or '_NA_')") from None
             else:
                 raise ValueError(f"Invalid year format: {v!r} (must be valid 4-digit year, 'unknown', or '_NA_')")
         return v
@@ -470,7 +477,7 @@ class RunProvenance(BaseModel):
             try:
                 datetime.strptime(v, "%Y-%m-%d")
             except ValueError:
-                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD)")
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD)") from None
         return v
 
 
@@ -568,7 +575,7 @@ class ConsolidationMetadata(BaseModel):
                 # Parse ISO format datetime (handles various timezone formats)
                 datetime.fromisoformat(v.replace("Z", "+00:00"))
             except ValueError:
-                raise ValueError(f"Invalid datetime format: {v!r} (must be valid ISO 8601 datetime)")
+                raise ValueError(f"Invalid datetime format: {v!r} (must be valid ISO 8601 datetime)") from None
         return v
 
 
@@ -634,7 +641,7 @@ class ConsolidatedActivity(BaseModel):
                 except ValueError as e:
                     if "out of reasonable range" in str(e):
                         raise
-                    raise ValueError(f"Invalid year format: {v!r} (must be valid 4-digit year or 'unknown')")
+                    raise ValueError(f"Invalid year format: {v!r} (must be valid 4-digit year or 'unknown')") from None
             else:
                 raise ValueError(f"Invalid year format: {v!r} (must be valid 4-digit year or 'unknown')")
         return v
@@ -703,7 +710,7 @@ class SourceRecord(BaseModel):
             try:
                 datetime.strptime(v, "%Y-%m-%d")
             except ValueError:
-                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD or '_NA_')")
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD or '_NA_')") from None
         return v
 
     @field_validator("source_publication_date")
@@ -717,19 +724,19 @@ class SourceRecord(BaseModel):
             try:
                 datetime.strptime(v, "%Y-%m-%d")
             except ValueError:
-                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')") from None
         # Try year-month (YYYY-MM)
         elif len(v) == 7:
             try:
                 datetime.strptime(v, "%Y-%m")
             except ValueError:
-                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')") from None
         # Try year only (YYYY)
         elif len(v) == 4:
             try:
                 datetime.strptime(v, "%Y")
             except ValueError:
-                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')") from None
         else:
             raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD, YYYY-MM, YYYY, or 'unknown')")
         return v
@@ -880,7 +887,7 @@ class ValidationProvenance(BaseModel):
             try:
                 datetime.strptime(v, "%Y-%m-%d")
             except ValueError:
-                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD)")
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD)") from None
         return v
 
 

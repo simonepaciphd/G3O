@@ -13,16 +13,12 @@ These tests ensure operators cannot accidentally spend beyond their budget.
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from g3o.common import config as g3o_config
 from g3o.run import preflight as pf
 from g3o.run.presweep import PresweepConfig
-
 
 # ---------------------------------------------------------------------------
 # Helpers
