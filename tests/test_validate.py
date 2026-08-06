@@ -206,7 +206,10 @@ def test_prompt_assets_loaded() -> None:
     assert "G3O Validation Agent" in SYSTEM_PROMPT_TEXT
     assert "Consolidation rules" in SYSTEM_PROMPT_TEXT
     # Markers from output_contract.md
-    assert "G3O Validation Contract v1.0" in OUTPUT_CONTRACT_TEXT
+    # Version-agnostic on purpose: this asserts the contract text is LOADED, and
+    # the version is pinned properly by tests/test_contract_version_pin.py. A
+    # literal "v1.0" here just fails every legitimate bump (it failed on v1.1).
+    assert "G3O Validation Contract v" in OUTPUT_CONTRACT_TEXT
     assert "consolidation_metadata" in OUTPUT_CONTRACT_TEXT
     # System message concatenation worked
     assert SYSTEM_PROMPT_TEXT in SYSTEM_MESSAGE

@@ -100,7 +100,7 @@ When `has_genai_activity` = `no` or `unclear`, OR the row's source is `confirms_
 | # | Column | Type | Allowed values | Description |
 |---|--------|------|----------------|-------------|
 | 11 | `activity_name` | string | Max 120 chars / `_NA_` | Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platform"). Otherwise descriptive (e.g., "Internal Copilot pilot for document drafting"). |
-| 12 | `activity_type` | enum | `policy_guidance` / `pilot_experiment` / `program_initiative` / `internal_operational` / `public_facing_service` / `_NA_` | G3O activity typology. See definitions below. |
+| 12 | `activity_type` | enum | `policy_guidance` / `pilot_experiment` / `program_initiative` / `internal_operational` / `public_facing_service` / `unknown` / `_NA_` | G3O activity typology. See definitions below. |
 | 13 | `adoption_stage` | enum | `proposed` / `announced` / `pilot` / `production` / `discontinued` / `unknown` / `_NA_` | Current stage. See coding rules below. |
 | 14 | `access_type` | enum | `proprietary_vendor` / `open_source` / `sovereign_model` / `in_house` / `mixed` / `unknown` / `_NA_` | How the GenAI capability is sourced. |
 | 15 | `interaction_type` | enum | `chatbot` / `document_processing` / `code_generation` / `decision_support` / `translation` / `content_creation` / `search_retrieval` / `multiple` / `not_applicable` / `unknown` / `_NA_` | Primary mode of human-AI interaction. |
@@ -162,6 +162,7 @@ When `has_genai_activity` = `no` or `unclear`, OR the row's source is `confirms_
 | `program_initiative` | Cross-agency programs, governance bodies, training programs, or platform rollouts spanning multiple units. | Program charters, budget lines, cross-agency announcements. |
 | `internal_operational` | Routine internal use for drafting, summarization, knowledge search, translation, internal helpdesks, or developer tooling. | Approved-tool lists, internal-tool announcements, procurement records. |
 | `public_facing_service` | Citizen- or business-facing chatbots, service navigation, translation, complaint handling, case triage. | Live service portals, official releases, procurement tied to a named service channel. |
+| `unknown` | Evidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate from the available sources. Use only after the five kinds above have been considered and none is supportable -- never as a default. | A procurement award or vendor register naming a GenAI product and this institution, with nothing stating what it is used for. |
 
 **Rule: policy vs. pilot.** If an institution has issued a GenAI policy AND is running a pilot, these are **two distinct activities**. Produce separate rows for each (with their respective sources).
 
@@ -310,7 +311,7 @@ Your output is Markdown pipe tables, but this schema governs allowed values:
           "institution_summary": {"type":"string","maxLength":300},
           "institution_search_languages": {"type":"string","pattern":"^[a-z]{2}(,[a-z]{2})*$"},
           "activity_name": {"type":"string","maxLength":120},
-          "activity_type": {"enum":["policy_guidance","pilot_experiment","program_initiative","internal_operational","public_facing_service","_NA_"]},
+          "activity_type": {"enum":["policy_guidance","pilot_experiment","program_initiative","internal_operational","public_facing_service","unknown","_NA_"]},
           "adoption_stage": {"enum":["proposed","announced","pilot","production","discontinued","unknown","_NA_"]},
           "access_type": {"enum":["proprietary_vendor","open_source","sovereign_model","in_house","mixed","unknown","_NA_"]},
           "interaction_type": {"enum":["chatbot","document_processing","code_generation","decision_support","translation","content_creation","search_retrieval","multiple","not_applicable","unknown","_NA_"]},

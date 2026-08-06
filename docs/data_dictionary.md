@@ -161,7 +161,7 @@ governed by the same Output Contract v2.0.
 | 11 | `institution_summary`           | extract (#9)          | One-sentence institution-level summary.                   |
 | 12 | `institution_search_languages`  | extract (#10)         | ISO 639-1 codes actually searched.                        |
 | 13 | `activity_name`                 | extract (#11)         | Activity name; official if available.                     |
-| 14 | `activity_type`                 | extract (#12)         | G3O typology (5-way enum); `_NA_` when no activity.       |
+| 14 | `activity_type`                 | extract (#12)         | G3O typology (6-way enum); `_NA_` when no activity.       |
 | 15 | `adoption_stage`                | extract (#13)         | `proposed` / `announced` / `pilot` / `production` / `discontinued` / `unknown` / `_NA_`. |
 | 16 | `access_type`                   | extract (#14)         | `proprietary_vendor` / `open_source` / `sovereign_model` / `in_house` / `mixed` / `unknown` / `_NA_`. |
 | 17 | `interaction_type`              | extract (#15)         | `chatbot` / `document_processing` / `code_generation` / `decision_support` / `translation` / `content_creation` / `search_retrieval` / `multiple` / `not_applicable` / `unknown` / `_NA_`. |

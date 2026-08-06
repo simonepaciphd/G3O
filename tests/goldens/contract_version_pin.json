@@ -2,11 +2,11 @@
   "extract": {
     "path": "g3o/extract/prompts/output_contract.md",
     "version": "v2.2",
-    "sha256": "bf187c043107211cc2581fc819866ce7d097898b583001d96b99c3a76266e736"
+    "sha256": "bca25d8cc1962c96e889fee22f9f3b096ac8700ecb42f5fa97caaddeca9cc910"
   },
   "validate": {
     "path": "g3o/validate/prompts/output_contract.md",
-    "version": "v1.0",
-    "sha256": "5aa24cb91d31985884b256ba3024c22d5753e1bf7a5097629da91fd6ae0238c5"
+    "version": "v1.1",
+    "sha256": "a69444835445bfb51fc72346d155c8c07a4d64133d4258d6eee55044825cf3e2"
   }
 }
