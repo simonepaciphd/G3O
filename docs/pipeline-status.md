@@ -30,23 +30,35 @@ the cost model), so treat the distinction as load-bearing rather than pedantic.
 |---|---:|:--:|
 | Institution master rows | 719,588 | M (2026-08-01) |
 | Rows with a non-empty `website` | 14,670 (2.04%) | M |
-| …usable after placeholder filtering | 14,131 (1.96%) | M |
-| — of which national / local | 1,796 / 12,335 | M |
+| …usable after placeholder filtering | 14,134 (1.96%) | M (2026-08-02) |
+| — of which national | 1,800 | M (2026-08-02) |
 | — United States share of the usable pool | 12,351 (87.4%) | M |
 | Distinct countries in the usable pool | 219 | M |
 | Rows carrying a `disambiguation` | 217,385 (30.2%) | M |
 | Rows with both `duplicate=1` and a `website` | 0 | M |
 
-**Rebuild note, 2026-08-02.** Re-deriving the usable pool from the documented
-filter rule yields **14,130**, not 14,131 — one row, immaterial, cause not
-pinned (the residual sits in how malformed URLs like `http:///www.x.ms` parse).
-Row count 719,588, country count 219 and the 1,796 national split all reproduce
-exactly. Separately, the rule's `n/a` placeholder token is matched as a bare
-substring and so **silently drops four real institutions** whose URLs contain
-`e**n/a**bout`, `fi**n/a**ccueil` or `e**n/a**nti`: Bosnia's SIPA financial
-intelligence department, Croatia's anti-money-laundering office, France's
-TRACFIN and Romania's ASF. Left unchanged — tightening the rule changes the
-evaluation sample and is a PI call, not a cleanup.
+**Rebuild note, 2026-08-02 — the frame is now code, and the `n/a` rule is fixed.**
+The filter that defines this pool lived only in session scratchpads and was
+re-typed each session, which is how the count drifted (14,131 → 14,130 across
+two rebuilds of the same rule; the residual sits in how malformed URLs like
+`http:///www.x.ms` parse). It is now
+`g3o/run/presweep/eval_frame.py`, with tests, so the frame every rate below is
+computed against is reproducible rather than re-derived.
+
+With PI sign-off, `n/a` is now matched as a **delimited token** rather than a
+bare substring. The substring rule **silently dropped four real institutions**
+whose URL *paths* contain those characters across a segment boundary —
+`e`**`n/a`**`bout`, `fi`**`n/a`**`ccueil`, `e`**`n/a`**`nti`: Bosnia's SIPA
+financial intelligence department, Croatia's anti-money-laundering office,
+France's TRACFIN and Romania's ASF. All four are national bodies, which is why
+the national count moves 1,796 → 1,800 and the pool 14,130 → **14,134**.
+`tbd` and `none` were checked against the full 719,588-row master at the same
+time and have **zero** such collisions, so they remain substring matches rather
+than being changed on speculation.
+
+Consequence for comparability: seed 22294 now draws a different sample than it
+did before 2026-08-02. Cross-run comparisons of head-of-funnel rates (§3) must
+account for that.
 
 **The single most important number in this document is 1.96%.** Ground truth
 for any accuracy metric is the master's `website` column, so every accuracy
@@ -137,34 +149,97 @@ than becoming folklore.
 
 ---
 
-## 3. Stages 1c–7 — not measured
+## 3. Stages 1c–7 — measured through Stage 4
 
-**No live chain run has gone past Stage 1b.** This is the largest gap in the
-project's evidence base.
+> **Status 2026-08-02 (superseding the hold below).** Run
+> `20260802-e2e-100` — 100 institutions, `--stop-after scrape`,
+> `--filter-mode shadow`, seed 22294, chain defaults, code at `191803c` — is
+> complete. Stages 1c, 3 and 4 are now class **M**. Stages 5–7 remain unrun
+> **deliberately**: the codebook is still an open decision register, so their
+> yield, empty rate and token counts would describe a schema about to change.
+> Stopping after scrape was a PI decision taken on the reasoning below, and it
+> still answered the cost model's dominant uncertainty (§4) off the Stage 2 and
+> Stage 3 Batch responses.
+>
+> *Prior hold, 2026-08-02 (resolved):* the run was first prepared and held
+> pending the codebook rework, because Stages 5 and 6 are two of the four Batch
+> stages the run exists to measure. That reasoning is why 5–7 are still blank;
+> it did not apply to 1c/3/4, which no codebook change can touch.
 
-> **Status 2026-08-02.** The end-to-end run that would fill this table was
-> prepared and then **held at PI request**, pending a codebook rework in
-> progress in another session. The hold is on the merits, not just deference:
-> Stages 5 and 6 are two of the four Batch stages this run exists to measure,
-> and if the codebook changes their prompts then the Stage 5/6 yield, empty
-> rate and token counts would describe a superseded schema — and the OpenAI
-> cost figure, which is the whole justification for the run, moves with prompt
-> length. Nothing was spent: no Serper call, no Batch submit. The evaluation
-> sample was rebuilt and verified (see §1 note) and the instrumentation fixes
-> below landed in the interim.
+| Stage | Measured (n=100, 2026-08-02) | Threshold (T) | Budget assumption (A) |
+|---|:--|---:|---|
+| 1c filter_eligibility | as measured: **2.2% pass** (36/1,648), **shadow recall 3.9%** vs a 70% bar → **snippet screen retired same day**, giving 94.8% pass / **99.5% recall** | pass-rate bands set | shadow mode, nothing dropped ✓ |
+| 3 classify_triage | **51.6% URL keep** (831/1,610); **96%** of institutions with a keep | 70% / 40% institutions with a keep; 30% / 15% URL keep-rate | ~40 URLs → ~12 kept |
+| 4 scrape | **99.4% success** (826/831); 0 errors; 5 robots-disallowed; 83 render fallbacks | 70% / 40% success | ~2.4 rendered URLs / institution |
+| 5 extract | — *(not run — codebook open)* | 70% / 40% success; 30% / 60% empty | ~12 pages / institution |
+| 6 validate | — *(not run — codebook open)* | 80% / 60% consolidated; 40% / 70% unclear | 1 call / institution |
+| 7 persist | — *(not run)* | n/a (deterministic) | n/a |
 
-| Stage | Measured | Threshold (T) | Budget assumption (A) |
-|---|:--:|---:|---|
-| 1c filter_eligibility | — | pass-rate bands set | shadow mode, nothing dropped |
-| 3 classify_triage | — | 70% / 40% institutions with a keep; 30% / 15% URL keep-rate | ~40 URLs → ~12 kept |
-| 4 scrape | — | 70% / 40% success | ~2.4 rendered URLs / institution |
-| 5 extract | — | 70% / 40% success; 30% / 60% empty | ~12 pages / institution |
-| 6 validate | — | 80% / 60% consolidated; 40% / 70% unclear | 1 call / institution |
-| 7 persist | — | n/a (deterministic) | n/a |
+Stages 3 and 4 clear their thresholds comfortably. **Stage 1c did not, and the
+gap was not a threshold-calibration problem.** Of the 831 URLs Stage 3's triage
+kept, only 32 also passed the 1c draft rules — 3.9% against PI decision 6's
+provisional bar of ≥70%. Switching `filter_mode` to `enforce` on those rules
+would have discarded ~96% of what the pipeline considers worth reading.
 
-Thresholds are calibrated for a ~10-institution smoke run and are explicitly
-PI-tunable; they were **not** derived from observation and should not be read
-as expectations.
+### Decision 2026-08-02 (PI): the 1c snippet screen is retired
+
+`has_genai_signal` is no longer called from `eligibility.evaluate()`. Stage 1c is
+now a **URL-hygiene screen only** (path patterns, shorteners, social profiles).
+`RULES_VERSION` moves `1c-draft-2026-08-01` → `1c-url-hygiene-2026-08-02` so no
+artifact can be misread as having been produced by rules that no longer run. The
+function and its lexicon tests are retained, unreachable, for whatever replaces
+it.
+
+**Correcting the first write-up of this finding**, which mis-stated the
+mechanism. The GenAI screen is **not** a URL-string test — `has_genai_signal`
+reads the SERP **title ∪ snippet**; only `url_pattern_hits` looks at the URL. The
+real mechanism is that a SERP snippet is not a statement about the page's topic.
+That distinction matters because it changes which fix works, and two plausible
+fixes turn out not to:
+
+| 1c variant (replayed over the run's 1,648 URLs) | pass | shadow recall | vs 70% bar |
+|---|---:|---:|---|
+| as run — patterns + snippet screen | 2.2% | 3.9% | fails |
+| exempt homepages from the screen | 10.5% | 13.8% | still fails |
+| restrict the screen to the 1b leg | — | — | rejected, see below |
+| **screen removed (shipped)** | **94.8%** | **99.5%** | **passes** |
+
+Leg 1 asks `<name> <country> official website`, so its snippets describe the
+institution and never AI — every homepage failed, which was expected. What was
+not expected: **leg 2 fails almost as badly.** Although it asks
+`site:<domain> AI`, Google returns the page's generic meta description rather
+than an AI-matching excerpt, so 762 of ~802 leg-2 URLs were dropped too — and
+*every one* of the 36 survivors was a leg-2 URL. So "restrict 1c to the 1b leg",
+floated in the first write-up, would have fixed almost nothing.
+
+**The trade-off, stated plainly:** 1c now removes 5.2% of candidate URLs rather
+than 97.8%, so it is a correctness/hygiene stage and **no longer a cost-saving
+one**. Any Stage 3 volume reduction that the budget attributed to 1c should be
+removed from the model. Screening on page *text* after Stage 4, or on a
+better-calibrated lexicon, remains open; the vocabulary machinery is intact for
+it, and retuning it belongs to `subprojects/multilingual-pipeline/`.
+
+Thresholds were calibrated for a ~10-institution smoke run and are explicitly
+PI-tunable; they were **not** derived from observation. They have deliberately
+**not** been recalibrated to the values above: n=100 is one sample, Stages 5–7
+are still unmeasured, and fitting the gauges to this run is the failure mode the
+measurement task was written to avoid.
+
+Also measured on this run, against the master's `website` (~2% of the registry,
+national-heavy — a regression canary, not a registry accuracy estimate):
+
+| Head-of-funnel | n=100, 2026-08-02 | n=200, 2026-08-01 |
+|---|---:|---:|
+| Leg-1 recall (master domain surfaced by leg 1) | 77.0% (59 at rank 1) | 82.0% |
+| Stage 2 official site found | 90.0% | — |
+| Stage 2 correct vs master, `website` **in** prompt | 72.0% | 86.9% |
+| Stage 2 correct vs master, `website` **stripped** | **69.0%** | — |
+
+The two runs are **not** the same sample: the evaluation frame changed by four
+rows on 2026-08-02 (§1 note), so seed 22294 draws a different 100. Read the
+77.0% vs 82.0% gap as sample variation, not regression.
+
+The stripped-prompt row settles §5.5. See §4 for what it cost to find out.
 
 ### What is *not* a substitute for these measurements
 
@@ -184,10 +259,43 @@ as expectations.
 
 | Line | Value | Class |
 |---|---:|:--:|
-| Serper, `chain` | **1.84 credits / institution** | M (n=200) |
+| Serper, `chain` | **1.84 credits / institution** | M (n=200 **and** n=100) |
 | Serper, `legacy` | 8.52 credits / institution | M (n=200) |
-| OpenAI Batch, all LLM stages | — | A only |
+| OpenAI Batch, Stages 2 + 3 | **$1.34 / 1,000 institutions** | M (n=100) |
+| OpenAI Batch, Stages 5 + 6 | — | A only (not run) |
 | Render fleet | — | A only |
+
+Run `20260802-e2e-100` spent **184 Serper credits for 100 institutions —
+1.84/institution, reproducing the n=200 figure exactly** as an independent
+`get_balance()` delta (45,727 → 45,543).
+
+### The dominant uncertainty is resolved: prompt caching does **not** stack with the Batch discount
+
+Measured off the Batch responses, not assumed. `prompt_tokens_details.cached_tokens`
+is **0 on all 300 batched jobs** across three independent batches (Stage 2,
+Stage 3, and the §5.5 control arm). Budget lines must therefore price batched
+input at the full uncached rate, halved once by the Batch discount and not
+again.
+
+| Stage (n=100) | jobs | input | cached | output | *of which reasoning* | USD |
+|---|---:|---:|---:|---:|---:|---:|
+| 2 classify_official_site | 100 | 74,817 | **0** | 129,844 | 123,648 | $0.0278 |
+| 3 classify_triage | 100 | 111,162 | **0** | 516,621 | 421,952 | $0.1061 |
+| **total** | **200** | **185,979** | **0** | **646,465** | **545,600** | **$0.1339** |
+
+**The cost driver is reasoning, not prompt length.** Reasoning tokens are 84.4%
+of all output tokens, and input is only 22% of total tokens, at the pinned
+`reasoning_effort="medium"`. This has two consequences worth carrying:
+
+1. `reasoning_effort` is a larger cost lever than any prompt-length edit, and it
+   is currently pinned in `batch_client.py` rather than being a run parameter.
+2. It **weakens** the cost half of the Stage 5/6 codebook hold (§3): a codebook
+   prompt-length change moves cost far less than feared. The yield and
+   empty-rate half of that argument is untouched and still stands on its own.
+
+Stages 5 and 6 are the expensive ones and remain unmeasured, so the $1.34 /
+1,000 figure is **not** a whole-pipeline cost and must not be compared against
+the cost model's $17.52 / 1,000 as though it were.
 
 **Serper at full-registry scale (719,588 institutions):**
 
@@ -255,6 +363,37 @@ Session spend for the record: 2,273 credits (smoke 6, chain arm 368, legacy arm
    decision, not a cleanup. A test pins the contamination so the day it is
    resolved the caveat is forced to be revisited.
 
+   **Measured 2026-08-02: the leak is worth +3.0 pp, not the large effect
+   feared.** Rather than decide blind, Stage 2 was replayed over the *same*
+   candidate URL sets from run `20260802-e2e-100` with `website` set to `None`
+   and nothing else changed (control batch
+   `batch_6a6fe83a…`; production code untouched, the strip happens in the
+   harness; the two prompt-building files verified byte-identical between the
+   checkout that built the control arm and the run's own).
+
+   | Stage 2 correct vs master, n=100 | |
+   |---|---:|
+   | `website` in prompt (production) | 72.0% |
+   | `website` stripped | 69.0% |
+   | leak-attributable delta | **+3.0 pp** |
+   | the two picks agree | 96/100 |
+
+   Only four institutions moved, reconciling exactly: Denmark and Solomon
+   Islands match→null, Malta match→`gov.mt` (a portal), Bahrain null→wrong.
+   Three losses, no gains — stripping the field makes the classifier *worse*,
+   not merely less informed, which is itself an argument for keeping it in
+   production.
+
+   **So the contamination is a caveat, not an invalidation.** Stage 2 accuracy
+   is not mostly an echo of its own input; the affected figures are overstated
+   by roughly three points. Two limits on that conclusion: this is n=100 on a
+   fresh sample (72.0% contaminated here vs 86.9% on record at n=200 — a sample
+   difference sits on top of the leak and the two must not be conflated), and it
+   is measured at `reasoning_effort="medium"` on `gpt-5-nano-2025-08-07`, with no
+   test of whether a stronger model leans on the leak more or less. The
+   production-behaviour question — keep the field or drop it — is still the PI's,
+   now with the effect size known.
+
 ---
 
 ## 6. Avenues for improvement
@@ -264,12 +403,18 @@ yield; 8–10 buy durability.
 
 ### Buy evidence first
 
-1. **End-to-end run through Stage 6 on ~100 institutions.** Produces the first
-   measured Stage 3–7 numbers *and* the first measured OpenAI cost, resolving
-   the prompt-cache-stacking question that 68% of the budget hangs on. Cost:
-   ~200 Serper credits plus real Batch spend; wall-clock in hours, since Stage 2
-   alone took 208 s for three institutions. **This is the highest-value action
-   available and nothing downstream should be tuned before it.**
+1. ~~**End-to-end run through Stage 6 on ~100 institutions.**~~ **Partly done
+   2026-08-02** — run `20260802-e2e-100` went through Stage 4 (§3). It resolved
+   the prompt-cache-stacking question that 68% of the budget hung on (it does
+   **not** stack, §4) and produced measured 1c/3/4 numbers. **Still open: Stages
+   5–7**, held until the codebook decision register closes, since their yield and
+   empty rate would describe a superseded schema. Actuals for the part that ran:
+   184 Serper credits, $0.13 OpenAI, 2 h 15 min wall-clock at
+   `--max-workers 4`, of which scrape was ~80%. Resuming for 5–7 costs only the
+   two remaining Batch stages — `--execute` against the same `--run-id` reuses
+   the completed stages off `_state/`.
+   The Stage 1c rule set, this run's other headline finding, was **fixed the
+   same day** — snippet screen retired, 3.9% → 99.5% shadow recall (§3).
 2. **Build a subnational ground-truth set.** ~200 hand-verified websites for US
    local government and non-US subnational units. Unblocks the disambiguation
    slot (30% of the registry) and answers whether 64.5% survives contact with

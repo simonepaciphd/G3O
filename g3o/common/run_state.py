@@ -57,6 +57,7 @@ logger = logging.getLogger(__name__)
 
 _STATE_DIR = "_state"
 _DONE_DIR = ".done"
+_RECONCILE_DIR = ".reconcile"
 
 STATE_SCHEMA_VERSION = 2
 
@@ -86,6 +87,21 @@ def state_path(run_dir: Path, stage: str) -> Path:
 
 def done_path(run_dir: Path, stage: str) -> Path:
     return done_dir(run_dir) / f"{stage}.json"
+
+
+def reconcile_dir(run_dir: Path) -> Path:
+    return state_dir(run_dir) / _RECONCILE_DIR
+
+
+def reconcile_path(run_dir: Path, stage: str, chunk: int | str) -> Path:
+    """Durable per-chunk completeness-mismatch incident record.
+
+    Written when a completed chunk's fetched results fail to reconcile
+    one-to-one against its plan (Data Validation Team brief 2026-07-28,
+    item 1). Distinct from the ``.done`` marker: the chunk is NOT done — the
+    active state file stays put so a re-run rejoins the same batch.
+    """
+    return reconcile_dir(run_dir) / f"{stage}.chunk-{chunk}.json"
 
 
 def is_done(run_dir: Path, stage: str) -> bool:
@@ -225,22 +241,90 @@ def _chunk_metadata(run_id: str, stage: str, chunk: int | str) -> dict[str, str]
     return {"g3o_run_id": run_id, "g3o_stage": stage, "g3o_chunk": str(chunk)}
 
 
-def _observe_provenance(
-    results: Iterator[BatchResult],
-    models: set[str],
-    fingerprints: set[str],
-) -> Iterator[BatchResult]:
-    """Pass results through, collecting response-side provenance (T1).
+def _reconcile_custom_ids(
+    planned: list[str], observed: list[str]
+) -> dict[str, list[str]]:
+    """Categorize how a chunk's fetched result ids diverge from its plan.
 
-    Records the versioned model id and ``system_fingerprint`` each response
-    carries without buffering the stream the persist callback consumes.
+    ``planned`` is the chunk's canonical job set (``entry["custom_ids"]``,
+    deduplicated + sorted on disk). ``observed`` is the ordered list of
+    ``custom_id``s actually yielded by :func:`batch_client.fetch_results`
+    (order-preserving, so a value returned twice — e.g. a job present in both
+    the output and error files — is caught as a duplicate).
+
+    Returns a dict with only the non-empty categories among ``missing``,
+    ``duplicate``, and ``unexpected`` (each a sorted id list). An empty dict
+    means an exact one-to-one match — the only case in which the chunk may be
+    persisted and marked fetched. An empty ``observed`` for a non-empty
+    ``planned`` (an "empty completed batch") surfaces here as every planned id
+    ``missing``.
     """
-    for result in results:
-        if result.response_model:
-            models.add(result.response_model)
-        if result.system_fingerprint:
-            fingerprints.add(result.system_fingerprint)
-        yield result
+    planned_set = set(planned)
+    seen: set[str] = set()
+    duplicate: set[str] = set()
+    for cid in observed:
+        if cid in seen:
+            duplicate.add(cid)
+        seen.add(cid)
+    problems: dict[str, list[str]] = {}
+    missing = sorted(planned_set - seen)
+    unexpected = sorted(seen - planned_set)
+    if missing:
+        problems["missing"] = missing
+    if duplicate:
+        problems["duplicate"] = sorted(duplicate)
+    if unexpected:
+        problems["unexpected"] = unexpected
+    return problems
+
+
+def _write_reconcile_record(
+    run_dir: Path,
+    stage: str,
+    chunk: int | str,
+    *,
+    batch_id: str | None,
+    planned: list[str],
+    observed: list[str],
+    problems: dict[str, list[str]],
+) -> Path:
+    """Persist a durable accounting record naming the affected ids (atomic)."""
+    d = reconcile_dir(run_dir)
+    d.mkdir(parents=True, exist_ok=True)
+    path = reconcile_path(run_dir, stage, chunk)
+    payload: dict[str, Any] = {
+        "stage": stage,
+        "chunk": str(chunk),
+        "batch_id": batch_id,
+        "recorded_at": _utc_iso(),
+        "n_planned": len(planned),
+        "n_observed": len(observed),
+        "empty_result_stream": not observed,
+        "missing": problems.get("missing", []),
+        "duplicate": problems.get("duplicate", []),
+        "unexpected": problems.get("unexpected", []),
+        "planned": planned,
+        "observed": observed,
+    }
+    _write_json_atomic(path, payload)
+    return path
+
+
+def _reconcile_detail(problems: dict[str, list[str]], *, empty: bool) -> str:
+    """One-line human summary of a mismatch for the raised error message."""
+    parts: list[str] = []
+    if empty:
+        parts.append("the result stream was empty")
+    labels = {
+        "missing": "missing",
+        "duplicate": "duplicate",
+        "unexpected": "unexpected (not in the plan)",
+    }
+    for key, label in labels.items():
+        ids = problems.get(key)
+        if ids:
+            parts.append(f"{len(ids)} {label} custom_id(s) (first: {ids[0]!r})")
+    return "; ".join(parts)
 
 
 def run_chunked_stage(
@@ -291,9 +375,15 @@ def run_chunked_stage(
        already exists server-side; the operator must cancel the duplicates.
 
     Polling: all in-flight chunks are polled round-robin each cycle. A chunk
-    that completes is fetched and handed to ``process_chunk_results``, and
-    only then marked ``fetched_at`` — a crash mid-persist re-fetches that
-    chunk, never a fetched one. A chunk that ends failed/cancelled/expired
+    that completes has its full result stream buffered and reconciled
+    one-to-one against the chunk plan (``entry["custom_ids"]``) *before*
+    ``process_chunk_results`` runs — any missing, duplicate, empty, or
+    unexpected id keeps the chunk active (no ``fetched_at``, no persist),
+    writes a durable :func:`reconcile_path` incident record naming the
+    affected ids, and raises (Data Validation Team brief 2026-07-28, item 1).
+    Only a clean match is handed to ``process_chunk_results`` and then marked
+    ``fetched_at`` — a crash mid-persist re-fetches that chunk, never a
+    fetched one. A chunk that ends failed/cancelled/expired
     is recorded and reported *after* the remaining chunks finish fetching
     (maximizes preserved work), then raises per Q3=d — no auto-resubmit; the
     active state file remains, naming the failed chunk. If ``max_wait``
@@ -416,20 +506,47 @@ def run_chunked_stage(
                 last_polled_at=_utc_iso(), last_status=status.status,
             )
             if status.is_completed:
-                # Response provenance (T1, 2026-06-11): recorded per chunk
-                # alongside fetched_at; an empty fingerprint list means the
-                # server returned none (normal on newer models).
+                # Completeness gate (Data Validation Team brief 2026-07-28,
+                # item 1; disposition (a)): buffer the whole result stream and
+                # reconcile the fetched custom_ids one-to-one against the chunk
+                # plan BEFORE the persistence callback runs or fetched_at is
+                # written. The callback commits per result (e.g. Stage 5 writes
+                # one extract file + ledger row each), so a batch that is
+                # missing, duplicating, empty, or returning unexpected ids must
+                # never reach it — otherwise a partial batch persists silently
+                # and the chunk is marked done. Response provenance (T1) is
+                # collected in the same pass; recorded only on a clean match.
                 models: set[str] = set()
                 fingerprints: set[str] = set()
-                process_chunk_results(
-                    _observe_provenance(
-                        batch_client.fetch_results(
-                            entry["batch_id"], client=client, status=status
-                        ),
-                        models,
-                        fingerprints,
+                fetched: list[BatchResult] = []
+                for result in batch_client.fetch_results(
+                    entry["batch_id"], client=client, status=status
+                ):
+                    if result.response_model:
+                        models.add(result.response_model)
+                    if result.system_fingerprint:
+                        fingerprints.add(result.system_fingerprint)
+                    fetched.append(result)
+                planned = entry["custom_ids"]
+                observed = [r.custom_id for r in fetched]
+                problems = _reconcile_custom_ids(planned, observed)
+                if problems:
+                    record_path = _write_reconcile_record(
+                        run_dir, stage, key,
+                        batch_id=entry["batch_id"],
+                        planned=planned, observed=observed, problems=problems,
                     )
-                )
+                    raise RuntimeError(
+                        f"Stage {stage} chunk {key}: batch {entry['batch_id']} "
+                        f"results do not reconcile one-to-one against the chunk "
+                        f"plan — {_reconcile_detail(problems, empty=not observed)}. "
+                        f"Refusing to persist the batch or mark the chunk "
+                        f"fetched/done; it stays active (re-run rejoins the same "
+                        f"batch, no resubmit). Durable accounting naming the "
+                        f"affected id(s): {record_path}. State file: "
+                        f"{state_path(run_dir, stage)}."
+                    )
+                process_chunk_results(iter(fetched))
                 update_chunk(
                     run_dir, stage, key,
                     fetched_at=_utc_iso(),
@@ -491,6 +608,8 @@ __all__ = [
     "iter_chunks",
     "load_state",
     "mark_done",
+    "reconcile_dir",
+    "reconcile_path",
     "run_chunked_stage",
     "state_dir",
     "state_path",

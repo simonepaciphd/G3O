@@ -70,6 +70,20 @@ _CACHE_PREFIX = "page_v2_"
 # that records the attempt to the attrition ledger.
 RenderAttemptCallback = Callable[..., None]
 
+# A scrape-failure accounting hook. Called once when a fetch fails hard — the
+# HTTP GET raised after all retries and either the render fallback was off or it
+# also raised — with keyword args ``url``, ``download_error`` (the download
+# exception), and ``render_error`` (the render exception, or None when no render
+# was attempted). Decision Q10 keeps ``scrape_url`` returning a no-text
+# ``RenderedPage`` on every path so Stage 5 reads ``access_date`` uniformly;
+# without this hook a hard failure is indistinguishable from a normal empty
+# scrape and no ``scrape_failed`` attrition is created. The fetcher stays
+# agnostic of the run context; the Stage 4 runner supplies a hook that records
+# the failure (carrying both exception messages) to the attrition ledger and
+# drops the page. A no-op when None, so standalone callers keep the Q10
+# failure-page return unchanged.
+ScrapeFailureCallback = Callable[..., None]
+
 
 def _cache_key(url: str) -> str:
     return hashlib.md5(url.encode("utf-8")).hexdigest()
@@ -219,60 +233,24 @@ def _notify_render_attempt(
         callback(url=url, trigger=trigger, outcome=outcome, result_len=result_len)
 
 
-def _format_download_error(url: str, err: Exception) -> str:
-    """Format a download error into an actionable message for operators.
+def _notify_scrape_failure(
+    callback: ScrapeFailureCallback | None,
+    *,
+    url: str,
+    download_error: BaseException,
+    render_error: BaseException | None,
+) -> None:
+    """Fire the scrape-failure accounting hook, if one was supplied.
 
-    Inspects the exception type and provides context-specific guidance:
-    - Timeouts: suggests site may be blocking automated requests
-    - HTTP errors (403, 401): suggests bot detection or auth requirements
-    - Connection errors: suggests network or DNS issues
-    - Other: generic message with the exception
+    Called on a hard fetch failure (download raised after retries; render
+    fallback off or also raised) so the caller can record a durable
+    ``scrape_failed`` attrition entry carrying both underlying exceptions.
+    Both exception objects are passed so the caller controls formatting and no
+    message is lost. A no-op when ``callback`` is None, which preserves the
+    Q10 failure-page return for standalone callers.
     """
-    err_type = type(err).__name__
-    err_msg = str(err)
-
-    # Timeout detection (requests.exceptions.Timeout, ReadTimeout, ConnectTimeout)
-    if "Timeout" in err_type or "timeout" in err_msg.lower():
-        return (
-            f"Scrape timeout for {url} after {config.REQUEST_TIMEOUT}s. "
-            f"Site may be blocking automated requests or experiencing high latency. "
-            f"Consider checking if the site requires JavaScript rendering or has "
-            f"rate limiting in place."
-        )
-
-    # HTTP status code errors
-    if hasattr(err, "response") and err.response is not None:
-        status_code = err.response.status_code
-        if status_code == 403:
-            return (
-                f"HTTP 403 Forbidden for {url}. The site is blocking automated requests. "
-                f"This may be bot detection (Cloudflare, Akamai, etc.) or geographic restriction. "
-                f"Consider using the headless renderer or checking if the site requires authentication."
-            )
-        elif status_code == 401:
-            return (
-                f"HTTP 401 Unauthorized for {url}. The site requires authentication. "
-                f"This URL may not be publicly accessible."
-            )
-        elif status_code == 404:
-            return f"HTTP 404 Not Found for {url}. The page does not exist or has been moved."
-        elif status_code >= 500:
-            return (
-                f"HTTP {status_code} server error for {url}. The remote server is experiencing "
-                f"issues. This is transient and should resolve on retry."
-            )
-        else:
-            return f"HTTP {status_code} error for {url}: {err_msg}"
-
-    # Connection errors (DNS, network, SSL)
-    if "Connection" in err_type or "Connection" in err_msg:
-        return (
-            f"Connection failed for {url}: {err_msg}. "
-            f"Check network connectivity, DNS resolution, or whether the site is reachable."
-        )
-
-    # Generic fallback
-    return f"Download failed for {url}: {err_type}: {err_msg}"
+    if callback is not None:
+        callback(url=url, download_error=download_error, render_error=render_error)
 
 
 def _failure_page(url: str, *, attempted_method: str) -> RenderedPage:
@@ -303,6 +281,7 @@ def scrape_url(
     empty_page_min_chars: int = 1,
     render_session: RenderSession | None = None,
     on_render_attempt: RenderAttemptCallback | None = None,
+    on_scrape_failure: ScrapeFailureCallback | None = None,
 ) -> RenderedPage:
     """Fetch a URL and return a ``RenderedPage``.
 
@@ -329,6 +308,15 @@ def scrape_url(
     Every render attempt (either trigger, success or failure) invokes
     ``on_render_attempt`` when supplied, so the caller can account for the
     render rate/cost; the fetcher itself never silently retries.
+
+    A hard fetch failure — the HTTP GET raises after all retries and the render
+    fallback is either off or also raises — invokes ``on_scrape_failure`` when
+    supplied, carrying both the download and (if attempted) the render
+    exception. Decision Q10 still returns a no-text ``RenderedPage`` on this
+    path so Stage 5 reads ``access_date`` uniformly; the hook is how the Stage 4
+    runner records a ``scrape_failed`` attrition entry and drops the page rather
+    than writing the empty failure page as a normal successful scrape. Without a
+    hook the Q10 failure-page return is unchanged (standalone callers).
 
     When ``render_session`` is supplied, every render reuses that
     :class:`RenderSession`'s browser instead of launching a fresh Chromium per
@@ -359,10 +347,7 @@ def scrape_url(
 
     try:
         content, ctype, status, final_url, elapsed_ms = _download(url)
-    except Exception as err:
-        # Provide actionable error message for download failures
-        error_msg = _format_download_error(url, err)
-        logger.debug("Download failed for %s: %s", url, error_msg)
+    except Exception as download_exc:
         # Render fallback on a failed GET is opt-in (review F14): only when the
         # caller accepts the per-dead-URL browser-launch cost.
         if prefer_render_on_download_failure:
@@ -370,13 +355,21 @@ def scrape_url(
                 page = render_url(
                     url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session
                 )
-            except Exception as render_err:
+            except Exception as render_exc:
+                # Both the download and the render failed. Bind both so neither
+                # exception is lost (the bare `except Exception` here previously
+                # discarded both), report the failed render attempt for render-
+                # rate accounting, then account the hard scrape failure carrying
+                # both messages before returning the Q10 failure page.
                 _notify_render_attempt(
                     on_render_attempt, url=url,
                     trigger="download_failure", outcome="render_failed",
                     result_len=None,
                 )
-                logger.debug("Render fallback also failed for %s: %s", url, render_err)
+                _notify_scrape_failure(
+                    on_scrape_failure, url=url,
+                    download_error=download_exc, render_error=render_exc,
+                )
                 return _failure_page(url, attempted_method="html")
             _notify_render_attempt(
                 on_render_attempt, url=url,
@@ -385,6 +378,13 @@ def scrape_url(
             )
             _save(page, min_chars=cache_floor)
             return page
+        # Render fallback off (the Stage 4 default): account the hard download
+        # failure so the caller can record scrape_failed and drop the page,
+        # rather than writing the empty Q10 failure page as a normal scrape.
+        _notify_scrape_failure(
+            on_scrape_failure, url=url,
+            download_error=download_exc, render_error=None,
+        )
         return _failure_page(url, attempted_method="html")
 
     if "pdf" in ctype or url.lower().endswith(".pdf"):

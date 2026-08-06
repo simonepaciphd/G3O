@@ -131,6 +131,17 @@ def salvaged_fields_by_source(run_dir: Path) -> dict[tuple[str, str], str]:
     page URL with ``detail='rows=[...];fields=f1,f2'`` — and returns the salvaged
     field names per source page. Absent ledger → empty map.
 
+    The value is **page-level**, not per-record or per-event: it is the
+    deduplicated set of field names for which *at least one record* on the page
+    was salvaged. This function does not compute that dedup — it only reads it.
+    Stage-5 (``run.presweep.stage_extract``) does the work: for each page it
+    unions the field names across every salvaged record via a sorted set
+    (``sorted({f for s in salvaged for f in s.salvaged_fields})``) and writes
+    exactly one ``group_d_incomplete_salvaged`` ledger record per page. Because
+    that single record already carries the collapsed set, this map does not —
+    and cannot — distinguish which record salvaged which field, or how many
+    times a field was salvaged; all of that is folded in upstream.
+
     Join caveat (documented, conservative): the key is the source URL. If Stage-6
     consolidation altered a source_url, its salvage annotation will not attach
     (the row is treated as un-salvaged) — an under-mark, never an over-mark. A

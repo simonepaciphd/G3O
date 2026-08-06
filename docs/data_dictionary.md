@@ -7,7 +7,7 @@ emits for a run (`g3o.persist.writer`), with column orders pinned in
 | CSV                              | Column constant            | Cols | Grain                              |
 |----------------------------------|----------------------------|------|------------------------------------|
 | `g3o_activities_v{N}.csv`        | `ACTIVITY_COLUMNS`         | 35   | one row per (institution × activity) |
-| `g3o_activity_sources_v{N}.csv`  | `ACTIVITY_SOURCE_COLUMNS`  | 17   | one row per source page             |
+| `g3o_activity_sources_v{N}.csv`  | `ACTIVITY_SOURCE_COLUMNS`  | 18   | one row per source page             |
 | `g3o_institution_summary_v{N}.csv`| `SUMMARY_COLUMNS`         | 21   | one row per institution per run     |
 
 The schema-of-record for the model-produced fields (controlled vocabularies,
@@ -58,7 +58,7 @@ module; `run_date` is `YYYY-MM-DD`. The activity-field semantics
 (controlled vocabularies, `_NA_` rules, char limits) are governed by the
 Output Contract.
 
-## `g3o_activity_sources_v{N}.csv` — `ACTIVITY_SOURCE_COLUMNS` (17)
+## `g3o_activity_sources_v{N}.csv` — `ACTIVITY_SOURCE_COLUMNS` (18)
 
 One row per source page.
 
@@ -67,6 +67,7 @@ One row per source page.
 | Provenance (5)  | `global_row_id`, `run_id`, `run_model`, `run_tool`, `run_date`                                                                                     |
 | Foreign keys (3)| `institution_id`, `activity_id`, `source_id`                                                                                                       |
 | Source fields (9)| `source_url`, `source_title`, `source_publication_date`, `source_access_date`, `source_type`, `source_language`, `source_credibility`, `genai_evidence`, `source_snippet` |
+| Salvage provenance (1) | `group_d_salvaged_fields`                                                                                                                   |
 
 `source_id` is unique per `(run_id, institution_id)`. `activity_id` is the FK
 to the activities table, or `_NA_` when the source confirms absence, is
@@ -74,6 +75,45 @@ ambiguous, or is background-only. `genai_evidence` is one of
 `confirms_activity` / `confirms_absence` / `ambiguous` / `background_only`;
 `source_credibility` is `high` / `medium` / `low`. Full field semantics are in
 the Output Contract.
+
+### `group_d_salvaged_fields` — the imputation trace
+
+Added 2026-07-21. **This is the only mark of imputation anywhere on the
+analysis surface**, which is why it is documented here in full rather than
+deferred to the contract.
+
+- **What it holds.** The `;`-joined, alphabetically sorted names of the Group-D
+  activity fields whose illegal `_NA_` was rewritten to a contract default at
+  Stage 5 for at least one record extracted from this source page — or `""`
+  when none were. Page-level and deterministic, per the PI decision of
+  2026-07-28: it says "at least one record extracted from this page had these
+  fields salvaged", not which record. It is a **page-level** marker — not
+  per-record and not per-event.
+- **Where the deduplication happens.** Once, at extract time: Stage 5 unions the
+  salvaged field names across every salvaged record on a page into a single
+  sorted set and writes exactly one salvage record per page to the run's
+  attrition ledger; the Stage 7 writer only reads that per-page record, it does
+  not recompute it.
+- **What the collapse costs.** Because it is a single set for the whole page, it
+  does **not** distinguish *which* record salvaged a field, nor how many records
+  or events were involved: if several records on the page each salvage different
+  fields, or the same field is salvaged more than once, they all collapse into
+  one deduplicated set of field names.
+- **Who writes it.** `g3o.persist.writer.salvaged_fields_by_source` at Stage 7,
+  read from the `_attrition.jsonl` ledger's `group_d_incomplete_salvaged`
+  records. It is a deterministic persist-time annotation, **not** model output.
+- **Why it matters.** Salvage rewrites `_NA_` in place to fixed in-band
+  defaults (`unknown` / `not_documented` / `none_reported` / `none` —
+  `g3o/extract/salvage.py`). On the activities CSV a model-coded `unknown` and
+  a code-imputed `unknown` are therefore indistinguishable; this column on the
+  sources CSV is the only way to tell them apart, and only by joining back.
+- **Known under-mark.** The join key is `(institution_id, source_url)`. If
+  Stage 6 altered a `source_url`, the annotation does not attach and the row
+  reads as un-salvaged (`writer.py`, `salvaged_fields_by_source` docstring).
+  The error is one-directional — an under-mark, never an over-mark — and the
+  salvage remains fully accounted for in the attrition ledger itself.
+- **Not on the activities CSV.** Promoting the flag to the activity grain is an
+  open schema decision, not an omission.
 
 ## `g3o_institution_summary_v{N}.csv` — `SUMMARY_COLUMNS` (21)
 
@@ -122,9 +162,9 @@ governed by the same Output Contract v2.0.
 | 12 | `institution_search_languages`  | extract (#10)         | ISO 639-1 codes actually searched.                        |
 | 13 | `activity_name`                 | extract (#11)         | Activity name; official if available.                     |
 | 14 | `activity_type`                 | extract (#12)         | G3O typology (5-way enum); `_NA_` when no activity.       |
-| 15 | `adoption_stage`                | extract (#13)         | `announced` / `pilot` / `production` / `discontinued` / `unknown`. |
-| 16 | `access_type`                   | extract (#14)         | `proprietary_vendor` / `open_source` / `sovereign_model` / `in_house` / `mixed`. |
-| 17 | `interaction_type`              | extract (#15)         | `chatbot` / `document_processing` / `decision_support` / etc. |
+| 15 | `adoption_stage`                | extract (#13)         | `proposed` / `announced` / `pilot` / `production` / `discontinued` / `unknown` / `_NA_`. |
+| 16 | `access_type`                   | extract (#14)         | `proprietary_vendor` / `open_source` / `sovereign_model` / `in_house` / `mixed` / `unknown` / `_NA_`. |
+| 17 | `interaction_type`              | extract (#15)         | `chatbot` / `document_processing` / `code_generation` / `decision_support` / `translation` / `content_creation` / `search_retrieval` / `multiple` / `not_applicable` / `unknown` / `_NA_`. |
 | 18 | `tool_name`                     | extract (#16)         | Specific tool, model, or platform.                        |
 | 19 | `vendor`                        | extract (#17)         | Vendor or provider; institution itself for in-house.      |
 | 20 | `deployment_mode`               | extract (#18)         | `standalone` / `integrated`.                              |
@@ -152,6 +192,21 @@ governed by the same Output Contract v2.0.
 | 42 | `run_model`                     | pipeline              | Model that produced the row (e.g., `gpt-5-nano`).         |
 | 43 | `run_tool`                      | pipeline              | Tool name (e.g., `OpenAI API`).                           |
 | 44 | `run_date`                      | pipeline              | When the run executed (`YYYY-MM-DD`).                     |
+
+Enum values above are the **current** contract's, synced verbatim from
+`output_contract.md` §3.2. The columns are the pilot's; the vocabularies are
+the contract's, and the two are not the same vintage — `adoption_stage =
+proposed` entered the enum in commit `25e544e` (2026-07-04), after pilot v1 was
+frozen.
+
+Five of the values listed above have **zero** observations across pilot v1's
+1,336 rows (counted from `data/pilot_v1/g3o_full_database_v1.csv`, 2026-08-02):
+`adoption_stage = proposed`, and `no` on each of the four guardrail fields
+(`has_human_oversight`, `has_transparency_notice`, `has_data_classification`,
+`has_risk_assessment`). Every other listed value is observed. The first is
+explained by the freeze date; what the other four mean for how the guardrail
+fields should be read is an open question for the project authors, recorded
+here as a count and deliberately not interpreted.
 
 For controlled vocabularies, edge cases, and the "policy vs pilot" /
 "country-wide program" coding rules, see

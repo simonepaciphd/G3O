@@ -1,4 +1,4 @@
-# G3O Output Contract v2.0 -- Single Flat Table
+# G3O Output Contract v2.1 -- Single Flat Table
 
 You are producing structured research data for the **Global Government GenAI Observatory (G3O)**, a public, auditable dataset that measures generative-AI activity across government institutions worldwide. Every field you produce will be ingested programmatically. Follow this contract with **zero deviation**.
 
@@ -42,6 +42,8 @@ The `batch_metadata` object. Every key MUST appear:
 ### 3.1 Grain / unit of observation
 
 Each row represents one **(institution x activity x source)** triple.
+
+This grain governs **Stage-5 extraction output** — the array specified by this document — and is enforced by `g3o.common.contract.ContractRow`. It is not the grain of the shipped product: since the Session C decision of 2026-05-09 the pipeline's Stage-7 output is three normalized CSVs (activities, activity-sources, institution-summary) whose grains and column orders are pinned in `g3o/common/schema.py` and documented in `docs/data_dictionary.md`. The `(institution × activity × source)` triple survives there as the legacy `DATA_COLUMNS` debug surface and as the frozen schema of the published pilot v1 CSV.
 
 **What this means in practice:**
 

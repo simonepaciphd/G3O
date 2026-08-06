@@ -109,16 +109,27 @@ def build_request_payload(
     return payload
 
 
-def _cache_key(payload: dict) -> str:
-    """Hash the whole request payload, not a hand-picked subset.
+def _cache_key(payload: dict, engine: str = "serper") -> str:
+    """Hash the whole request payload, namespaced by search backend.
 
     ``sort_keys`` makes the key insensitive to insertion order (two callers
     building the same parameters in a different order must hit the same entry);
     ``ensure_ascii=False`` keeps non-ASCII queries from hashing differently than
     they are sent.
+
+    ``engine`` namespaces the key by search backend and is prefixed onto the
+    hashed blob rather than folded into ``payload``: it is a cache-partition
+    tag, **not** a request parameter, so it must never reach the wire or the
+    stored ``searchParameters`` provenance (that is what keeps ``payload``
+    byte-faithful to what Serper received — see :func:`build_request_payload`).
+    Two backends issuing the *same* query at the *same* result count must not
+    collide on one on-disk entry and silently serve each other's results.
+    Inert while Serper is the sole backend; defaulting to ``"serper"`` keeps
+    every current call site unchanged.
     """
     blob = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.md5(blob.encode("utf-8")).hexdigest()
+    namespaced = f"{engine}:{blob}"
+    return hashlib.md5(namespaced.encode("utf-8")).hexdigest()
 
 
 # Cache filename prefix. Bumped ``serp_`` -> ``serp_v2_`` when the key became
@@ -129,12 +140,12 @@ def _cache_key(payload: dict) -> str:
 _CACHE_PREFIX = "serp_v2_"
 
 
-def _cache_path(payload: dict) -> str:
-    return os.path.join(config.CACHE_DIR, f"{_CACHE_PREFIX}{_cache_key(payload)}.json")
+def _cache_path(payload: dict, engine: str = "serper") -> str:
+    return os.path.join(config.CACHE_DIR, f"{_CACHE_PREFIX}{_cache_key(payload, engine)}.json")
 
 
-def _cached(payload: dict) -> dict | None:
-    path = _cache_path(payload)
+def _cached(payload: dict, engine: str = "serper") -> dict | None:
+    path = _cache_path(payload, engine)
     # Concurrent-read retry (Stage 1a/1b concurrency, 2026-07): a reader's
     # open() can transiently lose a Windows sharing-violation race against
     # another thread's os.replace() landing on this exact path (the atomic
@@ -154,13 +165,16 @@ def _cached(payload: dict) -> dict | None:
     return None
 
 
-def _save_cache(payload: dict, entry: dict) -> None:
+def _save_cache(payload: dict, entry: dict, engine: str = "serper") -> None:
     """Persist one cache entry keyed by the full request ``payload``.
 
     ``entry`` is the v2 on-disk shape: ``{"results": [...],
     "searchParameters": {...}}``. The echo is stored alongside the results so a
     cache hit stays as auditable as a live call — otherwise the parameters
     Serper honoured would be recoverable only for uncached queries.
+
+    ``engine`` namespaces the on-disk entry by backend (see :func:`_cache_key`)
+    so a write under one backend is never read back under another.
     """
     if _contains_mock(entry.get("results") or []):
         # Belt-and-suspenders: in live mode mock is never produced, but a dev
@@ -168,7 +182,7 @@ def _save_cache(payload: dict, entry: dict) -> None:
         logger.debug("Refusing to cache mock SERP results for payload %r", payload)
         return
     os.makedirs(config.CACHE_DIR, exist_ok=True)
-    path = _cache_path(payload)
+    path = _cache_path(payload, engine)
     # Atomic write (Stage 1a/1b concurrency, 2026-07): two worker threads can
     # race on the same cache key (identical query + num_results). A plain
     # open(path, "w") lets a concurrent reader observe a torn/partial file; a

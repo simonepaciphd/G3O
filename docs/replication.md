@@ -134,6 +134,16 @@ What an identical re-run does and does not hold fixed (T1, 2026-06-11):
   computed from frozen inputs; any change to a prompt, response schema,
   generation parameter, sampler, or the serializer fails CI until the goldens
   are regenerated deliberately (`G3O_REGEN_GOLDENS=1`).
+- **A contract change cannot ship under an unchanged version header.**
+  `tests/test_contract_version_pin.py` pins `(version, sha256 of the
+  machine-readable surface)` for both contract documents in
+  `tests/goldens/contract_version_pin.json`. The goldens above detect that the
+  contract text moved, but their remedy is *regenerate* — so a regen commit can
+  carry a controlled-vocabulary change through with the header untouched, which
+  is what commit `25e544e` did on 2026-07-04. This test fails CI in that case
+  **and refuses to regenerate**, pointing at the `CONTRIBUTING.md` sign-off
+  gate. Same protocol (`G3O_REGEN_GOLDENS=1`, separate commit, reviewed diff);
+  bumping the version in the contract's H1 is what unblocks it.
 
 ## Stage-by-stage invocation
 
