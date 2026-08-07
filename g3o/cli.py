@@ -48,6 +48,7 @@ from g3o.common.batch_client import (
     poll_batch,
     submit_batch,
 )
+from g3o.discovery.domain_pick import pick_domain
 from g3o.discovery.query_builder import (
     DEFAULT_EVIDENCE_TERM,
     DOMAIN_QUERY_LANG,
@@ -79,8 +80,13 @@ def _existing_dir(arg: str) -> Path:
 
 def _cmd_discover(args: argparse.Namespace) -> int:
     languages = [s.strip() for s in args.languages.split(",") if s.strip()]
-    
+
     if args.discovery_mode == "chain":
+        if args.languages != "en":
+            sys.stderr.write(
+                "warning: --languages is ignored in chain mode "
+                "(leg 1 always uses 'en')\n"
+            )
         # Chain mode: leg 1 (domain discovery) + leg 2 (site-restricted evidence)
         queries = [
             (
@@ -95,6 +101,16 @@ def _cmd_discover(args: argparse.Namespace) -> int:
         ]
     else:
         # Legacy mode: one query per GenAI term
+        if args.discovery_evidence_term != DEFAULT_EVIDENCE_TERM:
+            sys.stderr.write(
+                "warning: --discovery-evidence-term is ignored in legacy mode "
+                "(chain only)\n"
+            )
+        if args.discovery_domain_quote_name:
+            sys.stderr.write(
+                "warning: --discovery-domain-quote-name is ignored in legacy mode "
+                "(chain only)\n"
+            )
         queries = build_queries(
             args.institution,
             languages,
@@ -111,12 +127,11 @@ def _cmd_discover(args: argparse.Namespace) -> int:
                 seen.add(url)
                 r["query"] = query
                 r["language"] = lang
+                r["site_domain"] = None
                 records.append(r)
-    
+
     # In chain mode, run leg 2 on the discovered domain
     if args.discovery_mode == "chain":
-        from g3o.discovery.domain_pick import pick_domain
-
         picked = pick_domain(records)
         domain = picked.get("domain")
         if domain:
@@ -129,6 +144,10 @@ def _cmd_discover(args: argparse.Namespace) -> int:
                     r["language"] = DOMAIN_QUERY_LANG
                     r["site_domain"] = domain
                     records.append(r)
+        else:
+            sys.stderr.write(
+                "chain: no usable domain found in leg 1; skipping leg 2\n"
+            )
 
     json.dump(records, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
@@ -582,8 +601,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--discovery-mode", choices=("legacy", "chain"), default="chain",
         help=(
             "Query strategy. 'chain' (default): leg 1 '<name> <country> <disambiguation> "
-            "official website' (1 credit) + leg 2 'site:<domain> <evidence-term>' for each "
-            "discovered domain (1 credit each). Chain mode matches the production pipeline. "
+            "official website' (1 credit) + leg 2 'site:<domain> <evidence-term>' for the "
+            "top-ranked discovered domain (1 credit; total 2 credits). "
+            "Uses search_google (not search_google_detailed used by presweep), so results "
+            "lack sitelinks/date/position fields. "
+            "Chain mode matches the production pipeline. "
             "'legacy': one query per GenAI term from the roster, N credits/institution."
         ),
     )

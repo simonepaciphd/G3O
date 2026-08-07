@@ -314,3 +314,173 @@ def test_main_forces_utf8_before_dispatch(monkeypatch):
 
     assert cli.main(["verify-model"]) == 0
     assert seen["encoding"].lower().replace("-", "") == "utf8"
+
+
+# ---------------------------------------------------------------------------
+# _cmd_discover — chain-mode integration through the CLI handler
+# ---------------------------------------------------------------------------
+
+
+def _make_discover_args(**overrides):
+    """Build a Namespace matching `discover` subcommand defaults."""
+    defaults = dict(
+        institution="Ministère de la Santé",
+        country="France",
+        disambiguation=None,
+        languages="en",
+        limit=5,
+        discovery_mode="chain",
+        discovery_evidence_term="AI",
+        discovery_domain_quote_name=False,
+    )
+    defaults.update(overrides)
+    return argparse.Namespace(**defaults)
+
+
+def test_cmd_discover_chain_runs_two_legs(monkeypatch, capsys):
+    """Chain mode: leg 1 finds a domain, leg 2 runs site-restricted query."""
+    leg1_calls = []
+    leg2_calls = []
+
+    def fake_search(query, num_results=5):
+        if "official website" in query:
+            leg1_calls.append(query)
+            return [
+                {"link": "https://sante.gouv.fr", "title": "Ministère", "snippet": "..."},
+                {"link": "https://example.com/agg", "title": "Agg", "snippet": "..."},
+            ]
+        else:
+            leg2_calls.append(query)
+            return [
+                {"link": "https://sante.gouv.fr/ai", "title": "AI page", "snippet": "..."},
+                # Duplicate of leg 1 result — must be deduplicated via seen set.
+                {"link": "https://sante.gouv.fr", "title": "Dup", "snippet": "..."},
+            ]
+
+    def fake_pick_domain(records):
+        return {"domain": "sante.gouv.fr"}
+
+    monkeypatch.setattr(cli, "search_google", fake_search)
+    monkeypatch.setattr(cli, "pick_domain", fake_pick_domain)
+
+    args = _make_discover_args()
+    rc = cli._cmd_discover(args)
+    assert rc == 0
+
+    captured = capsys.readouterr()
+    records = json.loads(captured.out)
+
+    # Leg 1 query should have been made
+    assert len(leg1_calls) == 1
+    assert "official website" in leg1_calls[0]
+
+    # Leg 2 query should be site-restricted on the picked domain
+    assert len(leg2_calls) == 1
+    assert "site:sante.gouv.fr" in leg2_calls[0]
+    assert "AI" in leg2_calls[0]
+
+    # Deduplication: sante.gouv.fr from leg 1 should NOT appear again from leg 2
+    urls = [r["link"] for r in records]
+    assert len(urls) == len(set(urls))
+    assert "https://sante.gouv.fr" in urls
+    assert "https://example.com/agg" in urls
+    assert "https://sante.gouv.fr/ai" in urls
+
+    # Schema consistency: all records have site_domain field
+    for r in records:
+        assert "site_domain" in r
+
+    # Leg 1 records have site_domain=None, leg 2 records have the domain
+    leg1_records = [r for r in records if r["site_domain"] is None]
+    leg2_records = [r for r in records if r["site_domain"] == "sante.gouv.fr"]
+    assert len(leg1_records) == 2  # sante.gouv.fr + example.com/agg
+    assert len(leg2_records) == 1  # only sante.gouv.fr/ai (deduped)
+
+
+def test_cmd_discover_chain_no_usable_domain_warns(monkeypatch, capsys):
+    """When pick_domain returns no domain, leg 2 is skipped with a stderr warning."""
+    def fake_search(query, num_results=5):
+        return [
+            {"link": "https://en.wikipedia.org/wiki/X", "title": "Wiki", "snippet": "..."},
+        ]
+
+    def fake_pick_domain(records):
+        return {"domain": None, "reason": "all aggregators"}
+
+    monkeypatch.setattr(cli, "search_google", fake_search)
+    monkeypatch.setattr(cli, "pick_domain", fake_pick_domain)
+
+    args = _make_discover_args()
+    rc = cli._cmd_discover(args)
+    assert rc == 0
+
+    captured = capsys.readouterr()
+    records = json.loads(captured.out)
+
+    # Only leg 1 results
+    assert len(records) == 1
+    assert records[0]["link"] == "https://en.wikipedia.org/wiki/X"
+    assert records[0]["site_domain"] is None
+
+    # Stderr should mention leg 2 was skipped
+    assert "no usable domain" in captured.err
+    assert "skipping leg 2" in captured.err
+
+
+def test_cmd_discover_chain_warns_on_non_default_languages(monkeypatch, capsys):
+    """--languages is ignored in chain mode; a stderr warning is emitted."""
+    monkeypatch.setattr(cli, "search_google", lambda q, num_results=5: [])
+    monkeypatch.setattr(cli, "pick_domain", lambda records: {"domain": None})
+
+    args = _make_discover_args(languages="fr")
+    rc = cli._cmd_discover(args)
+    assert rc == 0
+
+    captured = capsys.readouterr()
+    assert "--languages is ignored in chain mode" in captured.err
+
+
+def test_cmd_discover_chain_no_warn_on_default_languages(monkeypatch, capsys):
+    """Default languages='en' should NOT trigger a warning in chain mode."""
+    monkeypatch.setattr(cli, "search_google", lambda q, num_results=5: [])
+    monkeypatch.setattr(cli, "pick_domain", lambda records: {"domain": None})
+
+    args = _make_discover_args(languages="en")
+    rc = cli._cmd_discover(args)
+    assert rc == 0
+
+    captured = capsys.readouterr()
+    assert "--languages" not in captured.err
+
+
+def test_cmd_discover_legacy_warns_on_chain_only_flags(monkeypatch, capsys):
+    """Legacy mode warns when chain-only flags are passed with non-default values."""
+    monkeypatch.setattr(cli, "search_google", lambda q, num_results=5: [])
+
+    args = _make_discover_args(
+        discovery_mode="legacy",
+        discovery_evidence_term="blockchain",
+        discovery_domain_quote_name=True,
+    )
+    rc = cli._cmd_discover(args)
+    assert rc == 0
+
+    captured = capsys.readouterr()
+    assert "--discovery-evidence-term is ignored in legacy mode" in captured.err
+    assert "--discovery-domain-quote-name is ignored in legacy mode" in captured.err
+
+
+def test_cmd_discover_legacy_no_warn_on_defaults(monkeypatch, capsys):
+    """Legacy mode with default chain-only flags should NOT warn."""
+    monkeypatch.setattr(cli, "search_google", lambda q, num_results=5: [])
+
+    args = _make_discover_args(
+        discovery_mode="legacy",
+        discovery_evidence_term="AI",  # DEFAULT_EVIDENCE_TERM
+        discovery_domain_quote_name=False,
+    )
+    rc = cli._cmd_discover(args)
+    assert rc == 0
+
+    captured = capsys.readouterr()
+    assert "ignored in legacy mode" not in captured.err
