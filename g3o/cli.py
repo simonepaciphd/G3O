@@ -319,6 +319,23 @@ def _cmd_persist(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
+def _parse_budget_limit(budget_str: str | None) -> float | None:
+    """Parse BUDGET_LIMIT_USD from string to float with clear error message.
+    
+    Called at use time (not import time) to avoid taking down the whole CLI
+    on a malformed env var value.
+    """
+    if budget_str is None:
+        return None
+    try:
+        return float(budget_str)
+    except ValueError as e:
+        raise SystemExit(
+            f"G3O_BUDGET_LIMIT_USD={budget_str!r} is not a valid number. "
+            f"Set it to a USD amount (e.g., 10.00) or unset it to disable the budget gate."
+        ) from e
+
+
 def _cmd_presweep(args: argparse.Namespace) -> int:
     from g3o.common.config import RUNS_DIR
     from g3o.run.presweep import run_presweep
@@ -332,7 +349,14 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         raise SystemExit(str(exc)) from exc
 
     if args.preflight:
+        from g3o.common.config import BUDGET_LIMIT_USD
         from g3o.run.preflight import PreflightAssumptions, run_preflight
+
+        # Parse env var lazily (not at import time) with clear error message
+        budget_limit = _parse_budget_limit(BUDGET_LIMIT_USD)
+        
+        # Determine effective budget limit: CLI flag takes precedence over env var
+        effective_budget = args.cost_ceiling if args.cost_ceiling is not None else budget_limit
 
         summary = run_preflight(
             config,
@@ -342,13 +366,76 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
                 output_tokens_per_job=args.assume_output_tokens_per_job,
             ),
             verify_model_live=args.verify_model,
-            cost_ceiling_usd=args.cost_ceiling,
+            cost_ceiling_usd=effective_budget,
         )
         json.dump(summary, sys.stdout, ensure_ascii=False, indent=2, default=str)
         sys.stdout.write("\n")
-        # Exit non-zero only on a hard readiness failure (keys); the cost ceiling
-        # is informational (D7 print-only, 2026-06-10).
+
+        # Cost circuit breaker abort gate
+        # If projected cost exceeds budget limit, abort before any batches are submitted
+        if summary.get("cost_ceiling_exceeded") and effective_budget is not None:
+            estimated_cost = summary.get("cost_preview", {}).get("est_openai_batch_total_usd", 0)
+            sys.stderr.write(
+                f"\n{'='*70}\n"
+                f"COST CIRCUIT BREAKER TRIGGERED\n"
+                f"{'='*70}\n"
+                f"Projected OpenAI Batch cost: ${estimated_cost:.2f} USD\n"
+                f"Budget limit: ${effective_budget:.2f} USD\n"
+                f"Overrun: ${estimated_cost - effective_budget:.2f} USD\n"
+                f"\n"
+                f"Aborting before batch submission to prevent budget overrun.\n"
+                f"To proceed, either:\n"
+                f"  1. Increase budget: export G3O_BUDGET_LIMIT_USD=<higher_value>\n"
+                f"  2. Use --cost-ceiling <higher_value> to override\n"
+                f"  3. Reduce sample size or scope to lower projected cost\n"
+                f"{'='*70}\n"
+            )
+            return 3  # Distinct exit code for budget abort
+
+        # Exit non-zero only on a hard readiness failure (keys)
         return 0 if summary.get("keys_ok") else 1
+
+    # Cost circuit breaker: execute path runs full preflight before presweep
+    # This ensures the budget gate is enforced even when --preflight is not used.
+    # The preflight is a dry-run projection (no actual batch submission), so it's
+    # safe to run before every presweep. CLI flag takes precedence over env var.
+    from g3o.common.config import BUDGET_LIMIT_USD
+    if args.execute:
+        budget_limit = _parse_budget_limit(BUDGET_LIMIT_USD)
+        # CLI flag gates execute path too (fix: previously only env var was used)
+        effective_budget = args.cost_ceiling if args.cost_ceiling is not None else budget_limit
+        
+        if effective_budget is not None:
+            from g3o.run.preflight import PreflightAssumptions, run_preflight
+
+            preflight_summary = run_preflight(
+                config,
+                assumptions=PreflightAssumptions(
+                    pages_per_institution=args.assume_pages_per_institution,
+                    page_chars=args.assume_page_chars,
+                    output_tokens_per_job=args.assume_output_tokens_per_job,
+                ),
+                cost_ceiling_usd=effective_budget,
+            )
+
+            if preflight_summary.get("cost_ceiling_exceeded"):
+                estimated_cost = preflight_summary.get("cost_preview", {}).get("est_openai_batch_total_usd", 0)
+                sys.stderr.write(
+                    f"\n{'='*70}\n"
+                    f"COST CIRCUIT BREAKER TRIGGERED\n"
+                    f"{'='*70}\n"
+                    f"Projected OpenAI Batch cost: ${estimated_cost:.2f} USD\n"
+                    f"Budget limit: ${effective_budget:.2f} USD\n"
+                    f"Overrun: ${estimated_cost - effective_budget:.2f} USD\n"
+                    f"\n"
+                    f"Aborting before batch submission to prevent budget overrun.\n"
+                    f"To proceed, either:\n"
+                    f"  1. Increase budget: export G3O_BUDGET_LIMIT_USD=<higher_value>\n"
+                    f"  2. Use --cost-ceiling <higher_value> to override\n"
+                    f"  3. Reduce sample size or scope to lower projected cost\n"
+                    f"{'='*70}\n"
+                )
+                return 3  # Distinct exit code for budget abort
 
     summary = run_presweep(config)
     json.dump(summary, sys.stdout, ensure_ascii=False, indent=2, default=str)
@@ -791,8 +878,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     presweep.add_argument(
         "--cost-ceiling", type=float, default=None,
-        help="With --preflight: report whether the estimated OpenAI Batch cost "
-             "exceeds this USD figure (informational; no abort wired — D7).",
+        help="Abort (exit 3) if the estimated OpenAI Batch cost exceeds this "
+             "USD figure. Overrides G3O_BUDGET_LIMIT_USD on both --preflight "
+             "and --execute paths.",
     )
     presweep.add_argument(
         "--assume-pages-per-institution", type=int, default=12,
