@@ -6,7 +6,7 @@
   },
   "validate": {
     "path": "g3o/validate/prompts/output_contract.md",
-    "version": "v1.0",
-    "sha256": "5aa24cb91d31985884b256ba3024c22d5753e1bf7a5097629da91fd6ae0238c5"
+    "version": "v1.1",
+    "sha256": "9a0a4a34b8df143021e82fdca34816bb85f7155d27c40199bf29b8167b94c902"
   }
 }

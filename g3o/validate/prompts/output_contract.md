@@ -1,4 +1,4 @@
-# G3O Validation Contract v1.0 -- Per-Institution Consolidation
+# G3O Validation Contract v1.1 -- Per-Institution Consolidation
 
 You are producing the consolidated, deduplicated, conflict-resolved record for one institution as the Stage 6 (Validation) output of the G3O production pipeline. Every field is ingested programmatically. Follow this contract with **zero deviation**.
 
