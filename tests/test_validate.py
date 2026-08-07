@@ -206,7 +206,7 @@ def test_prompt_assets_loaded() -> None:
     assert "G3O Validation Agent" in SYSTEM_PROMPT_TEXT
     assert "Consolidation rules" in SYSTEM_PROMPT_TEXT
     # Markers from output_contract.md
-    assert "G3O Validation Contract v1.0" in OUTPUT_CONTRACT_TEXT
+    assert "G3O Validation Contract v1.1" in OUTPUT_CONTRACT_TEXT
     assert "consolidation_metadata" in OUTPUT_CONTRACT_TEXT
     # System message concatenation worked
     assert SYSTEM_PROMPT_TEXT in SYSTEM_MESSAGE
