@@ -30,6 +30,7 @@ from typing import Any
 
 from g3o.classify.eligibility import RULES_VERSION, evaluate
 from g3o.common import attrition
+from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, mark_done
 from g3o.common.timing import stage_timer
 from g3o.run.presweep.records import _dedupe_key, institution_record, synth_institution_id
@@ -78,7 +79,7 @@ def _read_existing_filter(
     out: dict[str, list[dict[str, Any]]] = {}
     for row in sample:
         inst_id = synth_institution_id(row)
-        path = run_dir / inst_id / ARTIFACT_NAME
+        path = institution_dir(run_dir, inst_id) / ARTIFACT_NAME
         if not path.exists():
             continue
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -112,7 +113,7 @@ def _write_artifact(
     run_dir: Path, inst_id: str, mode: str, decisions: list[dict[str, Any]]
 ) -> None:
     """Write one ``1c_filter_eligibility.json`` (deterministic; no timestamps)."""
-    inst_dir = run_dir / inst_id
+    inst_dir = institution_dir(run_dir, inst_id)
     if not inst_dir.exists():
         return
     (inst_dir / ARTIFACT_NAME).write_text(
@@ -167,7 +168,7 @@ def _run_filter_eligibility(
         decisions_by_inst = {}
         for row in sample:
             inst_id = institution_record(row)["institution_id"]
-            path = run_dir / inst_id / ARTIFACT_NAME
+            path = institution_dir(run_dir, inst_id) / ARTIFACT_NAME
             if path.exists():
                 # Partial-recovery skip-if-exists (no .done marker yet).
                 decisions = json.loads(path.read_text(encoding="utf-8")).get(

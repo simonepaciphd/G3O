@@ -1,7 +1,8 @@
 """Stage 7 — Deterministic CSV writer.
 
-Walks ``runs/<run_id>/<institution_id>/6_validate.json`` for every institution
-in a run, validates each payload against
+Walks ``runs/<run_id>/institutions/<shard>/<institution_id>/6_validate.json``
+for every institution in a run (storage layout v2 — see
+``docs/storage-layout-v2.md``), validates each payload against
 ``g3o.common.contract.ConsolidatedInstitutionResponse``, and writes three
 canonical CSVs to ``runs/<run_id>/final/``:
 
@@ -36,6 +37,7 @@ from g3o.common.contract import (
     PersistedSource,
     ValidationProvenance,
 )
+from g3o.common.paths import iter_institution_dirs, require_layout
 from g3o.common.schema import (
     ACTIVITY_COLUMNS,
     ACTIVITY_SOURCE_COLUMNS,
@@ -85,7 +87,12 @@ class LoadedInstitution:
 
 
 def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], list[str]]:
-    """Walk ``run_dir/<inst>/6_validate.json``; validate each.
+    """Walk ``institutions/<shard>/<inst>/6_validate.json``; validate each.
+
+    Institution discovery goes through :func:`g3o.common.paths.iter_institution_dirs`
+    (storage layout v2), which yields only institution directories in ``inst_id``
+    order — so no run-level entry (``_state``, ``final``, reports) can reach this
+    loop and the pre-v2 name filtering is gone.
 
     Returns:
         (loaded, failures) where ``loaded`` is a list of ``LoadedInstitution``
@@ -98,20 +105,16 @@ def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], l
 
     loaded: list[LoadedInstitution] = []
     failures: list[str] = []
-    for institution_dir in sorted(run_dir.iterdir()):
-        if not institution_dir.is_dir():
-            continue
-        path = institution_dir / "6_validate.json"
+    for inst_dir in iter_institution_dirs(run_dir):
+        path = inst_dir / "6_validate.json"
         if not path.exists():
             continue
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
             response = ConsolidatedInstitutionResponse.model_validate(payload)
         except Exception as exc:
-            logger.warning(
-                "Stage 7: %s failed to load: %s", institution_dir.name, exc
-            )
-            failures.append(institution_dir.name)
+            logger.warning("Stage 7: %s failed to load: %s", inst_dir.name, exc)
+            failures.append(inst_dir.name)
             continue
         loaded.append(
             LoadedInstitution(
@@ -360,6 +363,7 @@ def write_run_csvs(
     Returns:
         Summary dict with output paths and row counts.
     """
+    require_layout(run_dir)
     final_dir = run_dir / "final"
     activities_path = final_dir / f"g3o_activities_v{version}.csv"
     sources_path = final_dir / f"g3o_activity_sources_v{version}.csv"

@@ -20,6 +20,12 @@ from typing import Any
 from g3o.common import attrition as _attrition
 from g3o.common.batch_client import BatchResult
 from g3o.run.presweep.stage_classify import persist_triage_result
+from tests._layout import (
+    inst_dir as inst_dir_of,
+)
+from tests._layout import (
+    make_inst_dir,
+)
 
 INST_ID = "INST-0000001"
 
@@ -60,7 +66,7 @@ def _payload(urls: list[str], *, keep: bool = True) -> dict[str, Any]:
 def _run_with_inst(tmp_path: Path, tag: str = "run") -> Path:
     _attrition._reset_cache()
     run_dir = tmp_path / tag
-    (run_dir / INST_ID).mkdir(parents=True)
+    make_inst_dir(run_dir, INST_ID)
     return run_dir
 
 
@@ -69,7 +75,7 @@ def _inst_records(run_dir: Path) -> list[dict[str, Any]]:
 
 
 def _triage_decisions(run_dir: Path) -> list[dict[str, Any]]:
-    payload = json.loads((run_dir / INST_ID / "3_triage.json").read_text(encoding="utf-8"))
+    payload = json.loads((inst_dir_of(run_dir, INST_ID) / "3_triage.json").read_text(encoding="utf-8"))
     return payload["decisions"]
 
 
@@ -196,7 +202,7 @@ def test_salvage_output_is_deterministic(tmp_path: Path) -> None:
     def run_once(tag: str) -> tuple[bytes, list[tuple[str, str, str | None]]]:
         run_dir = _run_with_inst(tmp_path, tag=tag)
         persist_triage_result(run_dir, _make_result(INST_ID, _payload(echoed)), candidates)
-        triage_bytes = (run_dir / INST_ID / "3_triage.json").read_bytes()
+        triage_bytes = (inst_dir_of(run_dir, INST_ID) / "3_triage.json").read_bytes()
         casualties = [
             (r["reason"], r["url"], r.get("detail")) for r in _inst_records(run_dir)
         ]

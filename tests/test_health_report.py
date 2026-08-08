@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 
 from g3o.common import attrition as _attrition
+from g3o.common.artifact_io import write_artifact
 from g3o.extract.batch import url_hash
 from g3o.report import (
     HealthThresholds,
@@ -24,6 +25,13 @@ from g3o.report import (
     compute_language_breakdown,
     detect_languages,
     render_text_report,
+)
+from tests._layout import (
+    inst_dir as inst_dir_of,
+)
+from tests._layout import (
+    make_inst_dir,
+    write_manifest,
 )
 
 # ---------------------------------------------------------------------------
@@ -69,7 +77,7 @@ def _build_fixture_run(run_dir: Path, n: int = 10) -> None:
         ],
         "institutions": [_inst_id(i) for i in range(1, n + 1)],
     }
-    _write(run_dir / "manifest.json", manifest)
+    write_manifest(run_dir, manifest)
 
     # ── attrition ledger ──────────────────────────────────────────────────────
     # Reset the in-process dedup cache so repeated test calls don't collide.
@@ -110,8 +118,7 @@ def _build_fixture_run(run_dir: Path, n: int = 10) -> None:
     # ── per-institution artifacts ─────────────────────────────────────────────
     for i in range(1, n + 1):
         inst_id = _inst_id(i)
-        inst_dir = run_dir / inst_id
-        inst_dir.mkdir(parents=True, exist_ok=True)
+        inst_dir = make_inst_dir(run_dir, inst_id)
 
         # Stage 1a: all 10 get artifacts; institutions 9, 10 return 0 records.
         n_1a_records = 0 if i >= 9 else 5
@@ -415,15 +422,21 @@ def test_render_text_shows_overall_flag(fixture_run: Path) -> None:
     assert overall in text
 
 
-def test_manifest_absent_falls_back_to_dirs(tmp_path: Path) -> None:
-    """compute_health_report should work even without manifest.json."""
-    run_dir = tmp_path / "no-manifest-run"
+def test_institution_list_absent_falls_back_to_dirs(tmp_path: Path) -> None:
+    """compute_health_report infers institutions from disk when the manifest omits them.
+
+    Storage layout v2 requires *a* manifest (it carries ``layout_version``), so
+    the pre-v2 "no manifest at all" case is now a loud refusal — see
+    :func:`test_health_report_refuses_a_tree_without_a_layout_marker`. What is
+    still worth covering is the fallback itself: a manifest with no
+    ``institutions`` list falls back to walking the ``institutions/`` level.
+    """
+    run_dir = tmp_path / "no-institution-list-run"
     run_dir.mkdir()
+    write_manifest(run_dir, {"run_id": "no-institution-list-run"})
     _attrition._reset_cache()
-    # Create two institution dirs without a manifest
     for i in (1, 2):
-        inst_dir = run_dir / _inst_id(i)
-        inst_dir.mkdir()
+        inst_dir = make_inst_dir(run_dir, _inst_id(i))
         _write(
             inst_dir / "1a_discovery_general.json",
             {"queries": [], "records": [{"link": f"https://inst{i}.gov"}]},
@@ -500,14 +513,14 @@ def fixture_multilang_run(tmp_path: Path) -> Path:
         "run_date": "2026-06-30",
         "institutions": ["INST-en-fr", "INST-en-only"],
     }
-    _write(run_dir / "manifest.json", manifest)
+    write_manifest(run_dir, manifest)
 
     p1, p2, p3 = (
         "https://inst-ef.gov/p1",
         "https://inst-ef.gov/p2",
         "https://inst-ef.gov/p3",
     )
-    inst1 = run_dir / "INST-en-fr"
+    inst1 = inst_dir_of(run_dir, "INST-en-fr")
     _write(
         inst1 / "1a_discovery_general.json",
         {
@@ -550,7 +563,7 @@ def fixture_multilang_run(tmp_path: Path) -> Path:
     )
 
     q1 = "https://inst-eo.gov/q1"
-    inst2 = run_dir / "INST-en-only"
+    inst2 = inst_dir_of(run_dir, "INST-en-only")
     _write(
         inst2 / "1a_discovery_general.json",
         {
@@ -737,7 +750,7 @@ def test_language_filter_stage2_shares_population(fixture_multilang_run: Path) -
     """
     for inst_id in ("INST-en-fr", "INST-en-only"):
         _write(
-            fixture_multilang_run / inst_id / "2_official_site.json",
+            inst_dir_of(fixture_multilang_run, inst_id) / "2_official_site.json",
             {"url": f"https://{inst_id.lower()}.gov", "confidence": "high", "rationale": "ok"},
         )
     report_fr = compute_health_report(fixture_multilang_run, language="fr")
@@ -758,8 +771,8 @@ def test_language_attrition_counts_restricted_to_language(tmp_path: Path) -> Non
     run_dir.mkdir()
     _attrition._reset_cache()
     u_en, u_fr = "https://x.gov/en-page", "https://x.gov/fr-page"
-    inst = run_dir / "INST-1"
-    _write(run_dir / "manifest.json", {"run_id": "att-lang-run", "institutions": ["INST-1"]})
+    inst = inst_dir_of(run_dir, "INST-1")
+    write_manifest(run_dir, {"run_id": "att-lang-run", "institutions": ["INST-1"]})
     _write(
         inst / "1a_discovery_general.json",
         {
@@ -792,14 +805,69 @@ def test_language_attrition_counts_restricted_to_language(tmp_path: Path) -> Non
     assert s5_en["n_extracts"] == 0
 
 
+def test_language_filtered_counts_survive_gzipped_artifacts(tmp_path: Path) -> None:
+    """Storage-layout-v2 Phase 2: the hash attribution must use ``artifact_stem``.
+
+    Regression guard for a silent-zero bug, not a crash. The language-restricted
+    branch matches an artifact filename against a set of url hashes; it used
+    ``Path.stem``, which strips exactly one suffix, so on a gzipped
+    ``<hash>.json.gz`` it produced ``<hash>.json`` and matched nothing.
+    ``n_pages_scraped`` and ``n_extracts`` both fell to zero with no error and no
+    failing assertion anywhere — a wrong number, reported confidently.
+
+    Every other fixture in this module writes plain ``.json`` (which the read
+    duality still accepts, and which the buggy ``.stem`` happened to handle), so
+    this test is the only thing standing on the gzip path.
+    """
+    run_dir = tmp_path / "gz-lang-run"
+    run_dir.mkdir()
+    _attrition._reset_cache()
+    u_en, u_fr = "https://x.gov/en-page", "https://x.gov/fr-page"
+    inst = inst_dir_of(run_dir, "INST-1")
+    write_manifest(run_dir, {"run_id": "gz-lang-run", "institutions": ["INST-1"]})
+    _write(
+        inst / "1a_discovery_general.json",
+        {
+            "queries": [{"query": "q-en", "language": "en"}, {"query": "q-fr", "language": "fr"}],
+            "records": [{"link": u_en, "language": "en"}, {"link": u_fr, "language": "fr"}],
+        },
+    )
+    _write(
+        inst / "3_triage.json",
+        {"decisions": [{"url": u_en, "decision": "keep"}, {"url": u_fr, "decision": "keep"}]},
+    )
+    # Gzipped exactly as Stage 4/5 now write them.
+    for u in (u_en, u_fr):
+        write_artifact(
+            inst / "scrape" / f"{url_hash(u)}.json",
+            json.dumps({"url": u, "text": "text"}),
+        )
+    write_artifact(
+        inst / "extract" / f"{url_hash(u_fr)}.json", json.dumps({"page_url": u_fr})
+    )
+
+    s4_fr = compute_health_report(run_dir, language="fr")["stages"]["4_scrape"]
+    s5_fr = compute_health_report(run_dir, language="fr")["stages"]["5_extract"]
+    assert s4_fr["n_pages_scraped"] == 1
+    assert s5_fr["n_extracts"] == 1
+
+    s5_en = compute_health_report(run_dir, language="en")["stages"]["5_extract"]
+    assert s5_en["n_extracts"] == 0  # the English page has no extract artifact
+
+    # Unfiltered counts are a plain length and never depended on the stem, so
+    # they pin that this fixture really does hold two scrape artifacts.
+    s4_all = compute_health_report(run_dir)["stages"]["4_scrape"]
+    assert s4_all["n_pages_scraped"] == 2
+
+
 def test_partial_run_stages_flag_not_run(tmp_path: Path) -> None:
     """A run stopped after Stage 1a reports downstream stages as not_run, not fail."""
     run_dir = tmp_path / "partial-run"
     run_dir.mkdir()
     _attrition._reset_cache()
-    _write(run_dir / "manifest.json", {"run_id": "partial-run", "institutions": ["INST-1"]})
+    write_manifest(run_dir, {"run_id": "partial-run", "institutions": ["INST-1"]})
     _write(
-        run_dir / "INST-1" / "1a_discovery_general.json",
+        inst_dir_of(run_dir, "INST-1") / "1a_discovery_general.json",
         {
             "queries": [{"query": "q", "language": "en"}],
             "records": [{"link": "https://x.gov/p", "language": "en"}],
@@ -825,9 +893,9 @@ def test_stage_with_done_marker_but_no_output_still_flags(tmp_path: Path) -> Non
     run_dir = tmp_path / "honest-zero-run"
     run_dir.mkdir()
     _attrition._reset_cache()
-    _write(run_dir / "manifest.json", {"run_id": "honest-zero-run", "institutions": ["INST-1"]})
+    write_manifest(run_dir, {"run_id": "honest-zero-run", "institutions": ["INST-1"]})
     _write(
-        run_dir / "INST-1" / "1a_discovery_general.json",
+        inst_dir_of(run_dir, "INST-1") / "1a_discovery_general.json",
         {
             "queries": [{"query": "q", "language": "en"}],
             "records": [{"link": "https://x.gov/p", "language": "en"}],

@@ -8,6 +8,7 @@ from typing import Any
 from g3o.common import attrition
 from g3o.common import config as _config
 from g3o.common.institution_report import write_institution_report
+from g3o.common.paths import require_layout
 from g3o.discovery.serper_client import SerperOptions, set_live_mode
 from g3o.report.run_summary import render_run_summary_text, write_run_summary
 from g3o.run.presweep.config import PresweepConfig
@@ -93,6 +94,10 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
         _assert_live_keys(config)
     set_live_mode(not config.dry_run)
     plan = plan_run(config)
+    # Storage layout v2 gate (docs/storage-layout-v2.md §B2). plan_run has just
+    # written the manifest, so this asserts the tree this process is about to
+    # write into is the layout this code knows how to read.
+    require_layout(plan.run_dir)
     summary: dict[str, Any] = {
         "run_id": config.run_id,
         "run_dir": str(plan.run_dir),

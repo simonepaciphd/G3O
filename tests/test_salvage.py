@@ -36,6 +36,7 @@ import pytest
 from pydantic import ValidationError
 
 from g3o.common import attrition
+from g3o.common.artifact_io import artifact_exists
 from g3o.common.batch_client import BatchResult
 from g3o.common.contract import GROUP_D_FIELDS, NA, UNCERTAINTY_FLAG_VOCAB
 from g3o.common.run_state import mark_done
@@ -60,6 +61,8 @@ from g3o.run.presweep.stage_extract import _is_unsalvageable_group_d_failure
 from g3o.scrape.render import FetchMetadata, RenderedPage
 from g3o.validate import consolidate as vc
 from g3o.validate.consolidate import parse_consolidate_result
+from tests._layout import inst_dir as inst_dir_of
+from tests._layout import make_inst_dir, write_manifest
 
 MCIT_ACCESS_DATE = "2026-06-10"
 
@@ -429,7 +432,7 @@ def _run_one_page_extract(tmp_path: Path, monkeypatch, payload: dict[str, Any], 
     rows = list(csv.DictReader(open(master, encoding="utf-8")))
     inst_id = synth_institution_id(rows[0])
     run_dir = tmp_path / "runs" / run_id
-    (run_dir / inst_id).mkdir(parents=True)
+    (inst_dir_of(run_dir, inst_id)).mkdir(parents=True)
 
     url = "https://www.mcit.gov.qa/en/genai-assistant"
     page = _make_page(url, "GenAI citizen assistant announcement. " * 5)
@@ -460,7 +463,7 @@ def test_salvage_writes_one_attrition_record_with_stable_code(tmp_path, monkeypa
     assert salvaged[0]["stage"] == "extract"
     assert "year_deployed" in salvaged[0]["detail"]
     # The confirmed finding was preserved on disk for Stage 6.
-    assert (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+    assert artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
 
 
 def test_unsalvageable_page_records_distinct_code_and_drops(tmp_path, monkeypatch):
@@ -474,8 +477,9 @@ def test_unsalvageable_page_records_distinct_code_and_drops(tmp_path, monkeypatc
     assert REASON_UNSALVAGEABLE in reasons
     assert "parse_failed" not in reasons
     assert REASON_SALVAGED not in reasons
-    # The page dropped — no extract artifact written.
-    assert not (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+    # The page dropped — no extract artifact written, in either encoding
+    # (a plain-.json check would pass vacuously once writes are gzipped).
+    assert not artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
 
 
 def test_clean_page_records_no_salvage(tmp_path, monkeypatch):
@@ -491,7 +495,7 @@ def test_clean_page_records_no_salvage(tmp_path, monkeypatch):
     run_dir, inst_id, url = _run_one_page_extract(tmp_path, monkeypatch, clean, "clean")
     recs = attrition.read_records(run_dir)
     assert not any(r["reason"] in (REASON_SALVAGED, REASON_UNSALVAGEABLE) for r in recs)
-    assert (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+    assert artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
 
 
 # ---------------------------------------------------------------------------
@@ -833,7 +837,7 @@ def test_flags_salvage_writes_one_attrition_record_with_stable_code(tmp_path, mo
     assert "rows=[1]" in salvaged[0]["detail"]
     # No Group-D record: Group D was fully coded on this page.
     assert not any(r["reason"] == REASON_SALVAGED for r in recs)
-    assert (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+    assert artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
 
 
 def test_both_salvage_codes_recorded_when_both_fired(tmp_path, monkeypatch):
@@ -988,7 +992,8 @@ def test_stage6_flags_salvage_writes_attrition_record(tmp_path, monkeypatch):
     run_id = "stage6flags"
     inst_id = "INST-0000580"
     run_dir = tmp_path / "runs" / run_id
-    inst_dir = run_dir / inst_id
+    write_manifest(run_dir, {"run_id": run_id})
+    inst_dir = make_inst_dir(run_dir, inst_id)
     (inst_dir / "extract").mkdir(parents=True)
     # Stage 6 assembles its input from institution.json + Stage 5 extract outputs.
     (inst_dir / "institution.json").write_text(

@@ -11,6 +11,8 @@ universe.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from collections.abc import Iterable
 from typing import Any
@@ -41,6 +43,32 @@ GENAI_TERMS_BY_LANG: dict[str, list[str]] = {
     "ar": ["الذكاء الاصطناعي التوليدي", "ChatGPT", "سياسة الذكاء الاصطناعي"],
     "fi": ["generatiivinen tekoäly", "ChatGPT", "tekoälyn periaatteet"],
 }
+
+
+def genai_terms_roster_hash() -> str:
+    """Stable fingerprint of the whole GenAI-term roster.
+
+    Hashed over the **entire** mapping rather than the subset a given run's
+    ``discovery_languages`` selects: the roster is one instrument, versioned as
+    a whole, and a run resumed after an edit to any language is running against
+    a different instrument than it launched with.
+
+    Determinism: keys are sorted, so the source-literal order cannot leak in.
+    Per-language term lists deliberately keep their source order — reordering a
+    language's terms is still a roster edit, and sorting the lists here would
+    hash it identically and hide it from the resume guard.
+
+    Reads the module constant at call time (not at import), so a test that
+    monkeypatches ``GENAI_TERMS_BY_LANG`` sees the fingerprint move.
+    """
+    payload = json.dumps(
+        GENAI_TERMS_BY_LANG,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
 
 def _phrase(value: str) -> str:
     """Quote `value` as a single Google exact-phrase slot — a binding match.
