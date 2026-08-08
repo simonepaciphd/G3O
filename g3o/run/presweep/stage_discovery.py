@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition
+from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, mark_done
 from g3o.common.timing import stage_timer
 from g3o.discovery.domain_pick import pick_domain
@@ -125,7 +126,7 @@ def _read_existing_discovery_general(
     out: dict[str, list[dict[str, Any]]] = {}
     for row in sample:
         inst_id = synth_institution_id(row)
-        path = run_dir / inst_id / "1a_discovery_general.json"
+        path = institution_dir(run_dir, inst_id) / "1a_discovery_general.json"
         if not path.exists():
             continue
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -139,7 +140,7 @@ def _read_existing_discovery_site_restricted(
     out: dict[str, list[dict[str, Any]]] = {}
     for row in sample:
         inst_id = synth_institution_id(row)
-        path = run_dir / inst_id / "1b_discovery_site_restricted.json"
+        path = institution_dir(run_dir, inst_id) / "1b_discovery_site_restricted.json"
         if not path.exists():
             continue
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -182,7 +183,7 @@ def _discover_general_one(
     """
     institution = institution_record(row)
     inst_id = institution["institution_id"]
-    path = run_dir / inst_id / "1a_discovery_general.json"
+    path = institution_dir(run_dir, inst_id) / "1a_discovery_general.json"
     if path.exists():
         payload = json.loads(path.read_text(encoding="utf-8"))
         return inst_id, payload.get("records", [])
@@ -344,7 +345,7 @@ def _discover_site_restricted_one(
     """
     institution = institution_record(row)
     inst_id = institution["institution_id"]
-    path = run_dir / inst_id / "1b_discovery_site_restricted.json"
+    path = institution_dir(run_dir, inst_id) / "1b_discovery_site_restricted.json"
     if path.exists():
         payload = json.loads(path.read_text(encoding="utf-8"))
         return inst_id, payload.get("records", [])

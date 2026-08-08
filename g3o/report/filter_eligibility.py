@@ -34,6 +34,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from g3o.common.paths import (
+    institution_dir,
+    iter_institution_dirs,
+    require_layout,
+)
+
 # Would-drop-rate thresholds (PI-tunable). The 1c block is informational in
 # shadow mode, so these never escalate to "fail" and never feed the run's
 # overall flag — they only surface an unusually aggressive draft rule set.
@@ -51,12 +57,8 @@ def _iter_inst_dirs(run_dir: Path) -> list[Path]:
     if manifest.exists():
         ids = json.loads(manifest.read_text(encoding="utf-8")).get("institutions", [])
         if ids:
-            return [run_dir / i for i in ids]
-    return [
-        d
-        for d in sorted(run_dir.iterdir())
-        if d.is_dir() and not d.name.startswith("_") and d.name != ".done"
-    ]
+            return [institution_dir(run_dir, i) for i in ids]
+    return list(iter_institution_dirs(run_dir))
 
 
 def _url_languages(inst_dir: Path) -> dict[str, set[str]]:
@@ -96,6 +98,7 @@ def compute_filter_block(
     cross-language comparison).
     """
     run_dir = Path(run_dir)
+    require_layout(run_dir)
 
     mode: str | None = None
     rules_version: str | None = None

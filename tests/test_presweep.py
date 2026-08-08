@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+from g3o.common.artifact_io import artifact_exists, glob_artifacts, write_artifact
 from g3o.discovery.serper_client import SerperResult
 from g3o.run.presweep import (
     PresweepConfig,
@@ -20,6 +21,7 @@ from g3o.run.presweep import (
     stratified_sample,
     synth_institution_id,
 )
+from tests._layout import inst_dir as inst_dir_of
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -307,7 +309,7 @@ def test_plan_run_writes_layout(tmp_path: Path):
     assert manifest["n_institutions_drawn"] == 7
     assert len(manifest["institutions"]) == 7
     for inst_id in manifest["institutions"]:
-        inst_dir = run_dir / inst_id
+        inst_dir = inst_dir_of(run_dir, inst_id)
         assert inst_dir.is_dir()
         inst_json = inst_dir / "institution.json"
         assert inst_json.exists()
@@ -502,7 +504,7 @@ def test_classify_official_site_bypass_writes_envelope_and_skips_submit(
     )
 
     assert result.get("INST-0000001") == "https://ministry.a.gov/"
-    envelope_path = plan.run_dir / "INST-0000001" / "2_official_site.json"
+    envelope_path = inst_dir_of(plan.run_dir, "INST-0000001") / "2_official_site.json"
     assert envelope_path.exists()
     payload = json.loads(envelope_path.read_text(encoding="utf-8"))
     assert payload == {
@@ -511,7 +513,7 @@ def test_classify_official_site_bypass_writes_envelope_and_skips_submit(
         "url": "https://ministry.a.gov/",
     }
     # The non-bypassed row got nothing (empty discovery → no envelope).
-    assert not (plan.run_dir / "INST-0000002" / "2_official_site.json").exists()
+    assert not (inst_dir_of(plan.run_dir, "INST-0000002") / "2_official_site.json").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -538,8 +540,8 @@ def test_run_discovery_general_writes_1a_artifact_filename(tmp_path: Path):
         ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     for inst_id in plan.manifest["institutions"]:
-        assert (plan.run_dir / inst_id / "1a_discovery_general.json").exists()
-        assert not (plan.run_dir / inst_id / "1_discovery.json").exists()
+        assert (inst_dir_of(plan.run_dir, inst_id) / "1a_discovery_general.json").exists()
+        assert not (inst_dir_of(plan.run_dir, inst_id) / "1_discovery.json").exists()
 
 
 def test_run_discovery_general_queries_include_country(tmp_path: Path):
@@ -686,8 +688,8 @@ def test_run_discovery_site_restricted_skips_when_no_site(tmp_path: Path):
         ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     # Inst A: queries fired, 1b file written. Inst B: skipped — no queries, no file.
-    assert (plan.run_dir / inst_a / "1b_discovery_site_restricted.json").exists()
-    assert not (plan.run_dir / inst_b / "1b_discovery_site_restricted.json").exists()
+    assert (inst_dir_of(plan.run_dir, inst_a) / "1b_discovery_site_restricted.json").exists()
+    assert not (inst_dir_of(plan.run_dir, inst_b) / "1b_discovery_site_restricted.json").exists()
     assert all(q.startswith("site:a.gov ") for q in seen_queries)
     # Q1=a: same per-language query count as Stage 1a (the English GenAI roster).
     from g3o.discovery.query_builder import GENAI_TERMS_BY_LANG
@@ -722,7 +724,7 @@ def test_run_discovery_site_restricted_records_carry_site_domain(tmp_path: Path)
         ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     payload = json.loads(
-        (plan.run_dir / inst_id / "1b_discovery_site_restricted.json").read_text(
+        (inst_dir_of(plan.run_dir, inst_id) / "1b_discovery_site_restricted.json").read_text(
             encoding="utf-8"
         )
     )
@@ -1026,7 +1028,7 @@ def test_stage2_done_marker_short_circuits(tmp_path: Path, monkeypatch):
     config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
     plan = ps.plan_run(config)
     # Pre-write a bypass envelope as if a prior run had completed Stage 2.
-    inst_dir = plan.run_dir / "INST-0000001"
+    inst_dir = inst_dir_of(plan.run_dir, "INST-0000001")
     (inst_dir / "2_official_site.json").write_text(
         json.dumps({"bypassed": True, "source": "master_csv", "url": "https://a.gov/"}),
         encoding="utf-8",
@@ -1064,7 +1066,7 @@ def test_stage4_skips_refetch_when_url_hash_file_exists(tmp_path: Path):
     # Pre-seed one URL's per-run output file.
     from g3o.extract.batch import url_hash
 
-    scrape_dir = plan.run_dir / inst_id / "scrape"
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
     scrape_dir.mkdir(parents=True, exist_ok=True)
     cached = RenderedPage(
         url="https://x.example/a", text="cached", title="A",
@@ -1112,6 +1114,131 @@ def test_stage4_skips_refetch_when_url_hash_file_exists(tmp_path: Path):
     assert by_url["https://x.example/b"] == "fresh-https://x.example/b"
 
 
+def _stage4_resume_fixture(tmp_path: Path, urls: list[str]):
+    """A planned one-institution run plus its triage list, for the resume tests."""
+    from g3o.run import presweep as ps
+
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+    inst_id = plan.manifest["institutions"][0]
+    return plan, inst_id, {inst_id: urls}
+
+
+def _fresh_page(url: str):
+    from g3o.scrape.render import FetchMetadata, RenderedPage
+
+    return RenderedPage(
+        url=url, text=f"fresh-{url}", title="", content_type="html",
+        fetch_metadata=FetchMetadata(
+            access_date="2026-05-09", http_status=200, final_url=url,
+            fetch_method="html", elapsed_ms=10, wait_for=None,
+        ),
+    )
+
+
+def test_stage4_skips_refetch_when_gzipped_artifact_exists(tmp_path: Path):
+    """Q5=a resume off a Phase-2 ``<url_hash>.json.gz`` artifact.
+
+    The plain-``.json`` half of the duality is covered by
+    :func:`test_stage4_skips_refetch_when_url_hash_file_exists`, which is now
+    also the pre-Phase-2 partial-run resume case.
+    """
+    from g3o.extract.batch import url_hash
+    from g3o.run import presweep as ps
+
+    url = "https://x.example/a"
+    plan, inst_id, triaged = _stage4_resume_fixture(tmp_path, [url])
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
+    cached = _fresh_page(url).model_copy(update={"text": "cached"})
+    write_artifact(scrape_dir / f"{url_hash(url)}.json", cached.model_dump_json())
+
+    monkey = ps.stage_scrape.scrape_url
+    ps.stage_scrape.scrape_url = lambda u, **kw: pytest.fail(  # type: ignore[assignment]
+        "scrape_url must not be called when a gzipped artifact is on disk"
+    )
+    try:
+        out = ps._run_scrape(
+            plan.run_dir, plan.sample, triaged,
+            respect_robots=False, host_delay_seconds=0,
+        )
+    finally:
+        ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
+
+    assert [p.text for p in out[inst_id]] == ["cached"]
+
+
+def test_stage4_quarantines_corrupt_artifact_and_refetches(tmp_path: Path):
+    """Review F7: a torn artifact is corrupt evidence, not completed work.
+
+    Before this, the resume guard read the existing artifact with no error
+    handling, so one file truncated by a crash mid-write raised straight out of
+    the worker and took the rest of the pass down with it. Now the artifact is
+    quarantined, recorded once in the ledger, and the URL is refetched — while a
+    healthy artifact in the same institution is still honored.
+    """
+    from g3o.common import attrition
+    from g3o.common.artifact_io import CORRUPT_SUFFIX, gz_path
+    from g3o.common.run_state import is_done
+    from g3o.extract.batch import url_hash
+    from g3o.run import presweep as ps
+    from g3o.run.presweep.stage_scrape import REASON_ARTIFACT_CORRUPT
+
+    bad, good = "https://x.example/bad", "https://x.example/good"
+    plan, inst_id, triaged = _stage4_resume_fixture(tmp_path, [bad, good])
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
+
+    bad_path = scrape_dir / f"{url_hash(bad)}.json"
+    good_path = scrape_dir / f"{url_hash(good)}.json"
+    write_artifact(good_path, _fresh_page(good).model_copy(
+        update={"text": "cached-good"}).model_dump_json())
+    # A write that died partway: the .gz name exists but the bytes are garbage.
+    gz_path(bad_path).write_bytes(b"\x1f\x8b\x08\x00 truncated-midway")
+
+    fetched: list[str] = []
+
+    def _capture(url, **kwargs):
+        fetched.append(url)
+        return _fresh_page(url)
+
+    monkey = ps.stage_scrape.scrape_url
+    ps.stage_scrape.scrape_url = _capture  # type: ignore[assignment]
+    try:
+        out = ps._run_scrape(
+            plan.run_dir, plan.sample, triaged,
+            respect_robots=False, host_delay_seconds=0,
+        )
+    finally:
+        ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
+
+    # The corrupt URL was refetched; the healthy one was not.
+    assert fetched == [bad]
+    by_url = {p.url: p.text for p in out[inst_id]}
+    assert by_url == {bad: f"fresh-{bad}", good: "cached-good"}
+
+    # The bad bytes were moved aside, not deleted, and a fresh artifact landed.
+    quarantined = gz_path(bad_path).with_name(gz_path(bad_path).name + CORRUPT_SUFFIX)
+    assert quarantined.exists()
+    assert quarantined.read_bytes() == b"\x1f\x8b\x08\x00 truncated-midway"
+    assert artifact_exists(bad_path)
+    # Ordered by url-hash stem, not by triage order — so compare as a set.
+    assert set(glob_artifacts(scrape_dir)) == {gz_path(bad_path), gz_path(good_path)}
+
+    # Exactly one ledger record, naming the quarantine.
+    corrupt = [
+        r for r in attrition.read_records(plan.run_dir)
+        if r["reason"] == REASON_ARTIFACT_CORRUPT
+    ]
+    assert len(corrupt) == 1
+    assert corrupt[0]["url"] == bad
+    assert corrupt[0]["stage"] == "scrape"
+    assert CORRUPT_SUFFIX in corrupt[0]["detail"]
+
+    # The stage completed rather than aborting the worker.
+    assert is_done(plan.run_dir, "scrape")
+
+
 def test_stage4_done_marker_short_circuits_no_scrape_calls(tmp_path: Path):
     """Q3=e2: ``.done/scrape.json`` present → no scrape_url calls; pages
     reconstructed from per-URL files on disk."""
@@ -1128,7 +1255,7 @@ def test_stage4_done_marker_short_circuits_no_scrape_calls(tmp_path: Path):
 
     from g3o.extract.batch import url_hash
 
-    scrape_dir = plan.run_dir / inst_id / "scrape"
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
     scrape_dir.mkdir(parents=True, exist_ok=True)
     cached = RenderedPage(
         url="https://x.example/a", text="cached", title="A",
@@ -1458,7 +1585,7 @@ def test_run_discovery_general_failure_cancels_pending_preserves_completed_and_r
     # Stage not marked done; the failing institution's own artifact was never
     # written (it raised inside its own worker, before the write).
     assert not is_done(plan.run_dir, "discovery_general")
-    assert not (plan.run_dir / fail_inst_id / "1a_discovery_general.json").exists()
+    assert not (inst_dir_of(plan.run_dir, fail_inst_id) / "1a_discovery_general.json").exists()
 
     # Resume: fix the fake, re-run. Skip-if-exists reprocesses only whatever
     # is still missing; the previously-failing institution now succeeds.
@@ -1479,7 +1606,7 @@ def test_run_discovery_general_failure_cancels_pending_preserves_completed_and_r
     assert is_done(plan.run_dir, "discovery_general")
     assert len(out) == 4
     assert any(fail_name in q for q in seen_queries)
-    assert (plan.run_dir / fail_inst_id / "1a_discovery_general.json").exists()
+    assert (inst_dir_of(plan.run_dir, fail_inst_id) / "1a_discovery_general.json").exists()
 
 
 def test_run_scrape_concurrent_matches_sequential_output(tmp_path: Path):
@@ -1670,7 +1797,7 @@ def test_run_discovery_site_restricted_failure_cancels_pending_preserves_complet
     # written (it raised inside its own worker, before the write).
     assert not is_done(plan.run_dir, "discovery_site_restricted")
     assert not (
-        plan.run_dir / fail_inst_id / "1b_discovery_site_restricted.json"
+        inst_dir_of(plan.run_dir, fail_inst_id) / "1b_discovery_site_restricted.json"
     ).exists()
 
     # Resume: fix the fake, re-run. Skip-if-exists reprocesses only whatever
@@ -1694,7 +1821,7 @@ def test_run_discovery_site_restricted_failure_cancels_pending_preserves_complet
     assert len(out) == 4
     assert any(fail_name in q for q in seen_queries)
     assert (
-        plan.run_dir / fail_inst_id / "1b_discovery_site_restricted.json"
+        inst_dir_of(plan.run_dir, fail_inst_id) / "1b_discovery_site_restricted.json"
     ).exists()
 
 
@@ -1818,7 +1945,7 @@ def test_run_scrape_failure_cancels_pending_preserves_completed_and_resumes(
     # Stage not marked done; the failing institution's scrape directory has
     # no per-URL output file (it raised before ever calling scrape_url).
     assert not is_done(plan.run_dir, "scrape")
-    assert not list((plan.run_dir / fail_inst_id / "scrape").glob("*.json"))
+    assert not glob_artifacts(inst_dir_of(plan.run_dir, fail_inst_id) / "scrape")
 
     # Resume: drop robots entirely (already proven separately in
     # test_stage4_robots_disallow_skips_url_and_records_attrition), re-run.
@@ -1835,7 +1962,7 @@ def test_run_scrape_failure_cancels_pending_preserves_completed_and_resumes(
 
     assert is_done(plan.run_dir, "scrape")
     assert len(out) == 4
-    assert list((plan.run_dir / fail_inst_id / "scrape").glob("*.json"))
+    assert glob_artifacts(inst_dir_of(plan.run_dir, fail_inst_id) / "scrape")
 
 
 # ---------------------------------------------------------------------------
@@ -1878,7 +2005,7 @@ def test_stage4_records_telemetry_for_every_attempt(tmp_path: Path):
     triaged = {inst_id: [ok_url, cached_url, disallowed_url, failed_url]}
 
     # Pre-seed the cached URL's per-run file so it takes the skipped_cached path.
-    scrape_dir = plan.run_dir / inst_id / "scrape"
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
     scrape_dir.mkdir(parents=True, exist_ok=True)
     (scrape_dir / f"{url_hash(cached_url)}.json").write_text(
         _f14b_page(cached_url).model_dump_json(), encoding="utf-8"

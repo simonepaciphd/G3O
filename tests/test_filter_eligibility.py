@@ -26,6 +26,12 @@ from g3o.common import attrition as _attrition
 from g3o.report import compute_filter_block
 from g3o.run.presweep import _candidate_urls_union, _run_filter_eligibility
 from g3o.run.presweep.stage_filter import ARTIFACT_NAME
+from tests._layout import (
+    inst_dir as inst_dir_of,
+)
+from tests._layout import (
+    write_manifest,
+)
 
 # ---------------------------------------------------------------------------
 # Fixture helpers
@@ -79,7 +85,7 @@ def _sample() -> list[dict[str, Any]]:
 def _write_discovery(run_dir: Path) -> None:
     """Write the 1a/1b discovery artifacts to disk (so inst dirs exist)."""
     for inst_id, records in _1A.items():
-        p = run_dir / inst_id / "1a_discovery_general.json"
+        p = inst_dir_of(run_dir, inst_id) / "1a_discovery_general.json"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
             json.dumps({"queries": [{"query": "q", "language": "en"}],
@@ -87,7 +93,7 @@ def _write_discovery(run_dir: Path) -> None:
             encoding="utf-8",
         )
     for inst_id, records in _1B.items():
-        p = run_dir / inst_id / "1b_discovery_site_restricted.json"
+        p = inst_dir_of(run_dir, inst_id) / "1b_discovery_site_restricted.json"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
             json.dumps({"site_domain": "a.gov", "queries": [], "records": records},
@@ -100,6 +106,7 @@ def _write_discovery(run_dir: Path) -> None:
 def run_dir(tmp_path: Path) -> Path:
     d = tmp_path / "run"
     d.mkdir()
+    write_manifest(d, {"run_id": "run", "institutions": [INST1, INST2]})
     _write_discovery(d)
     _attrition._reset_cache()
     return d
@@ -124,7 +131,7 @@ def test_shadow_drops_nothing(run_dir: Path) -> None:
     )
 
     # Artifact written per institution, mode recorded.
-    payload = json.loads((run_dir / INST1 / ARTIFACT_NAME).read_text())
+    payload = json.loads((inst_dir_of(run_dir, INST1) / ARTIFACT_NAME).read_text())
     assert payload["mode"] == "shadow"
     assert payload["rules_version"] == E.RULES_VERSION
     decisions = {d["url"]: d["decision"] for d in payload["decisions"]}
@@ -166,7 +173,7 @@ def test_off_is_noop(run_dir: Path) -> None:
     gen, site, stats = _run_filter_eligibility(
         run_dir, _sample(), _general(), _site(), mode="off"
     )
-    assert not (run_dir / INST1 / ARTIFACT_NAME).exists()
+    assert not (inst_dir_of(run_dir, INST1) / ARTIFACT_NAME).exists()
     assert _attrition.read_records(run_dir) == []
     assert stats["n_would_drop"] == 0
     # Union unchanged.
@@ -182,16 +189,16 @@ def test_two_runs_byte_identical(tmp_path: Path) -> None:
         _write_discovery(d)
         _attrition._reset_cache()
         _run_filter_eligibility(d, _sample(), _general(), _site(), mode="enforce")
-        outputs.append((d / INST1 / ARTIFACT_NAME).read_bytes())
+        outputs.append((inst_dir_of(d, INST1) / ARTIFACT_NAME).read_bytes())
     assert outputs[0] == outputs[1]
 
 
 def test_1a_1b_artifacts_untouched(run_dir: Path) -> None:
     """The filter never mutates the discovery artifacts it reads."""
     targets = [
-        run_dir / INST1 / "1a_discovery_general.json",
-        run_dir / INST1 / "1b_discovery_site_restricted.json",
-        run_dir / INST2 / "1a_discovery_general.json",
+        inst_dir_of(run_dir, INST1) / "1a_discovery_general.json",
+        inst_dir_of(run_dir, INST1) / "1b_discovery_site_restricted.json",
+        inst_dir_of(run_dir, INST2) / "1a_discovery_general.json",
     ]
     before = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in targets}
     _run_filter_eligibility(run_dir, _sample(), _general(), _site(), mode="enforce")
@@ -219,7 +226,7 @@ def test_resume_skips_but_still_enforces(run_dir: Path) -> None:
 def test_report_block_shadow_recall(run_dir: Path) -> None:
     _run_filter_eligibility(run_dir, _sample(), _general(), _site(), mode="shadow")
     # LLM (Stage 3) keeps one would-drop URL and one pass URL for INST1.
-    (run_dir / INST1 / "3_triage.json").write_text(
+    (inst_dir_of(run_dir, INST1) / "3_triage.json").write_text(
         json.dumps({"decisions": [
             {"url": "https://www.facebook.com/CityDept", "decision": "keep", "rationale": "x"},
             {"url": "https://a.gov/ai-news", "decision": "keep", "rationale": "x"},
@@ -255,7 +262,7 @@ def test_shadow_recall_is_stated_in_decision_6_direction(run_dir: Path) -> None:
     (passing), not 1/3 (discarded).
     """
     _run_filter_eligibility(run_dir, _sample(), _general(), _site(), mode="shadow")
-    (run_dir / INST1 / "3_triage.json").write_text(
+    (inst_dir_of(run_dir, INST1) / "3_triage.json").write_text(
         json.dumps({"decisions": [
             {"url": "https://a.gov/ai-news", "decision": "keep", "rationale": "x"},
             {"url": "https://a.gov/ai-policy", "decision": "keep", "rationale": "x"},
@@ -274,10 +281,19 @@ def test_shadow_recall_is_stated_in_decision_6_direction(run_dir: Path) -> None:
 
 
 def test_report_block_not_run(tmp_path: Path) -> None:
+    """A layout-v2 run with no Stage-1c artifacts reports not_run (not a refusal)."""
     d = tmp_path / "empty"
     d.mkdir()
+    write_manifest(d, {"run_id": "empty"})
     block = compute_filter_block(d)
     assert block == {"ran": False, "flag": "not_run"}
+
+
+def test_report_block_refuses_a_tree_without_a_layout_marker(tmp_path: Path) -> None:
+    d = tmp_path / "pre-v2"
+    d.mkdir()
+    with pytest.raises(RuntimeError, match="storage-layout-v2"):
+        compute_filter_block(d)
 
 
 # ---------------------------------------------------------------------------
