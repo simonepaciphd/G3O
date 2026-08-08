@@ -49,6 +49,11 @@ from g3o.common.run_state import (
     run_chunked_stage,
 )
 from g3o.common.timing import llm_stage_timer
+from g3o.extract.salvage import (
+    REASON_FLAGS_SALVAGED,
+    UncertaintyFlagsSalvage,
+    salvage_uncertainty_flags_na,
+)
 from g3o.validate.client import RESPONSE_FORMAT, build_consolidate_job
 
 logger = logging.getLogger(__name__)
@@ -136,8 +141,25 @@ def fetch_consolidate_results(
     return fetch_results(batch_id, client=client, status=status)
 
 
-def parse_consolidate_result(result: BatchResult) -> ConsolidatedInstitutionResponse:
+def parse_consolidate_result(
+    result: BatchResult,
+    *,
+    salvage_sink: list[UncertaintyFlagsSalvage] | None = None,
+) -> ConsolidatedInstitutionResponse:
     """Parse a Stage 6 ``BatchResult`` into a validated ``ConsolidatedInstitutionResponse``.
+
+    ``uncertainty_flags`` ``_NA_`` salvage runs before validation, for the same
+    reason it does at Stage 5: ``ConsolidatedActivity._validate_uncertainty_flags``
+    is byte-identical to the Stage 5 rule, and ``model_validate`` is atomic over
+    the institution, so one activity carrying the illegal literal would drop the
+    whole consolidation. See ``g3o.extract.salvage`` for the reasoning (the module
+    is shared rather than duplicated; ``g3o.persist.writer`` already imports its
+    reason codes across the same boundary).
+
+    Args:
+        salvage_sink: if provided, one ``UncertaintyFlagsSalvage`` per repaired
+            activity is appended. Populated before validation, so it is available
+            to the caller even when this call raises.
 
     Raises:
         RuntimeError: if the underlying API call failed or returned no content.
@@ -153,6 +175,10 @@ def parse_consolidate_result(result: BatchResult) -> ConsolidatedInstitutionResp
             f"Stage 6 batch result {result.custom_id!r}: empty assistant content"
         )
     payload = json.loads(content)
+    if isinstance(payload, dict):
+        events = salvage_uncertainty_flags_na(payload.get("activities"))
+        if salvage_sink is not None:
+            salvage_sink.extend(events)
     return ConsolidatedInstitutionResponse.model_validate(payload)
 
 
@@ -317,8 +343,11 @@ def run_consolidate(
     def _persist(results: Iterator[BatchResult]) -> None:
         nonlocal n_failed
         for result in results:
+            flags_salvaged: list[UncertaintyFlagsSalvage] = []
             try:
-                response = parse_consolidate_result(result)
+                response = parse_consolidate_result(
+                    result, salvage_sink=flags_salvaged
+                )
             except Exception as exc:
                 logger.warning(
                     "Stage 6 parse failed for %s: %s", result.custom_id, exc
@@ -329,6 +358,17 @@ def run_consolidate(
                 )
                 n_failed += 1
                 continue
+            # An illegal whole-value `uncertainty_flags` of `_NA_` was rewritten to
+            # the contract's `none` and the consolidation preserved. Recorded on the
+            # success path only, mirroring Stage 5: a consolidation that still
+            # failed is reported by its actual failure, not as a salvage that did
+            # not save it.
+            if flags_salvaged:
+                refs = sorted(s.ref for s in flags_salvaged)
+                attrition.record(
+                    run_dir, institution_id=result.custom_id, stage=stage,
+                    reason=REASON_FLAGS_SALVAGED, detail=f"activities={refs}",
+                )
             write_consolidated_output(run_dir, result.custom_id, response)
 
     # custom_id == institution_id for this stage (make_consolidate_custom_id),
