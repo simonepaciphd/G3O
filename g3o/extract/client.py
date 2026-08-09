@@ -47,7 +47,10 @@ SYSTEM_PROMPT_TEXT, OUTPUT_CONTRACT_TEXT = _load_prompt_assets()
 SYSTEM_MESSAGE = (
     f"{SYSTEM_PROMPT_TEXT}\n\n"
     f"---\n\n"
-    f"# G3O Output Contract v2.2 (canonical reference)\n\n"
+    # No version here: the contract's own H1 follows immediately and carries it.
+    # A second copy of the version string is exactly the drift #58 removed and the
+    # drift that made the embedded §5 schema self-title "v2.0" through two bumps.
+    f"# G3O Output Contract (canonical reference)\n\n"
     f"{OUTPUT_CONTRACT_TEXT}"
 )
 

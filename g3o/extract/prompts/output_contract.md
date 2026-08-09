@@ -1,4 +1,4 @@
-# G3O Output Contract v2.2 -- Single Flat Table
+# G3O Output Contract v2.3 -- Single Flat Table
 
 You are producing structured research data for the **Global Government GenAI Observatory (G3O)**, a public, auditable dataset that measures generative-AI activity across government institutions worldwide. Every field you produce will be ingested programmatically. Follow this contract with **zero deviation**.
 
@@ -8,32 +8,23 @@ You are producing structured research data for the **Global Government GenAI Obs
 
 | Rule | Detail |
 |------|--------|
-| Document type | Return exactly ONE JSON object conforming to the schema in §5. No commentary, no preamble, no Markdown, no code fences — only the raw JSON object. |
+| Document type | Return exactly ONE JSON object conforming to the JSON Schema supplied with this request. No commentary, no preamble, no Markdown, no code fences — only the raw JSON object. |
 | Top-level keys | The object MUST have exactly two keys: `batch_metadata` (object) and `data` (array of row objects). No other keys are permitted. |
 | Field names | Use the exact field names listed in §3.2 (Column specification) — those names are the JSON keys. Institution-level fields take the same value on every row for the same institution. |
 | Strings | Plain JSON strings. Do not use Markdown link syntax (`[text](url)`); emit the bare URL. Pipe characters and newlines inside string values are permitted (no escaping needed beyond standard JSON escaping). |
-| Empty / missing values | Use the exact prescribed default for each field (e.g., `unknown`, `none`, `_NA_`). **Never emit `null` or an empty string** unless the schema in §5 explicitly allows it. |
+| Empty / missing values | Use the exact prescribed default for each field (e.g., `unknown`, `none`, `_NA_`). **Never emit `null` or an empty string** unless the supplied JSON Schema explicitly allows it. |
 | Character limits | Respect per-field max-length limits. Truncate gracefully if needed. |
 | Encoding | UTF-8. Preserve diacritics in institution names. |
 
 ---
 
-## 2. `batch_metadata`
+## 2. *(removed at v2.3)*
 
-The `batch_metadata` object. Every key MUST appear:
-
-| Key | Value |
-|-----|-------|
-| batch_id | (from user message) |
-| chat_type | `web` or `deep` |
-| model_label | (from user message) |
-| response_timestamp | ISO-8601 UTC when you begin your response, e.g. `2026-03-08T14:30:00Z` |
-| n_institutions_in_batch | Integer: how many institutions were provided in the input |
-| n_institutions_with_genai | Integer: how many you coded as `has_genai_activity` = `yes` |
-| n_data_rows | Integer: total rows in the `## data` table |
-| search_languages | Comma-separated ISO 639-1 codes of ALL languages used to discover URLs across the batch (provided in the input metadata), e.g. `en,fr,de,ja` |
-| search_strategy_summary | 1-2 sentences describing the discovery approach that produced the supplied URLs (provided in the input metadata; max 300 chars) |
-| notes | Batch-level notes (e.g., "3 institutions had no web presence"). Use `none` if nothing to report. |
+The `batch_metadata` specification lived here. It is still a required key of the
+response object and the supplied JSON Schema still governs it; what was removed is
+the prose restatement, which described a multi-institution batch this pipeline
+never sends. Section numbers below are unchanged so that existing references to
+§3.2, §4.10, §6 and §7 stay valid.
 
 ---
 
@@ -47,16 +38,19 @@ This grain governs **Stage-5 extraction output** — the array specified by this
 
 **What this means in practice:**
 
+You are given **one institution and one page** per request, so the source fields are
+the same on every row you produce and the row count is decided entirely by how many
+activities that one page documents:
+
 | Situation | Rows produced |
 |-----------|---------------|
-| Institution has 0 GenAI activities and was given 2 source pages | 2 rows (one per supplied page), with all activity columns set to `_NA_` |
-| Institution has 1 activity backed by 3 supplied pages | 3 rows (same activity fields, different source fields) |
-| Institution has 2 activities: activity A backed by 2 pages, activity B backed by 1 page | 3 rows total |
-| Institution has 1 activity-bearing page and 1 supplied page that mentions no GenAI | 2 rows: 1 for the activity+source, 1 for the negative-evidence source with activity columns `_NA_` |
+| The page documents no GenAI activity | 1 row, with all activity columns set to `_NA_` |
+| The page documents 1 activity | 1 row |
+| The page documents 2 or more activities | 1 row per activity, all citing this same page |
 
 **Key rules:**
-- Every institution in the input MUST produce **at least one row**. Every supplied page produces at least one row.
-- Every row has exactly **one source**. If an activity is supported by multiple sources, repeat the activity fields across multiple rows (one per source).
+- The supplied page MUST produce **at least one row**, even when it shows no GenAI activity.
+- Every row has exactly **one source**, which is always the supplied page.
 - Sources that confirm absence of GenAI (`genai_evidence` = `confirms_absence`) get rows with activity columns set to `_NA_`.
 - Sources providing only background context (`genai_evidence` = `background_only`) get rows with activity columns set to `_NA_`.
 
@@ -95,7 +89,7 @@ When `has_genai_activity` = `yes` AND this row's source supports a specific acti
 
 When `has_genai_activity` = `no` or `unclear`, OR the row's source is `confirms_absence` / `ambiguous` / `background_only`, set **every field in Group D** to the exact string `_NA_`.
 
-**"Every field in Group D" means columns 11-28 and nothing else.** It does not reach Group E (source fields) or Group F (`confidence`, `uncertainty_flags`), which are always filled with their own values on every row. In particular: **`uncertainty_flags` (column 39) is not a Group D field. Even when every Group D field is `_NA_`, `uncertainty_flags` must be `none` unless a specific flag from the §4.10 vocabulary applies. `_NA_` is never a valid value for `uncertainty_flags`.**
+**"Every field in Group D" means columns 11-28 and nothing else.** It does not reach Group E (source fields) or Group F (`confidence`, `uncertainty_flags`), which are always filled with their own values on every row. In particular: **`uncertainty_flags` (column 39) is not a Group D field. Even when every Group D field is `_NA_`, `uncertainty_flags` must be the empty array `[]` unless a specific flag from the §4.10 vocabulary applies. `_NA_` is never a valid value for `uncertainty_flags`.**
 
 | # | Column | Type | Allowed values | Description |
 |---|--------|------|----------------|-------------|
@@ -137,7 +131,7 @@ When `has_genai_activity` = `no` or `unclear`, OR the row's source is `confirms_
 | # | Column | Type | Allowed values | Description |
 |---|--------|------|----------------|-------------|
 | 38 | `confidence` | enum | `high` / `medium` / `low` | Confidence in the coded values on THIS row. See criteria below. |
-| 39 | `uncertainty_flags` | string | Semicolon-separated flags / `none` | See flag vocabulary below. |
+| 39 | `uncertainty_flags` | array | Zero or more flags from the §4.10 vocabulary | JSON array, e.g. `[]` or `["stage_ambiguous","vendor_undisclosed"]`. See §4.10. |
 
 **Total: 39 columns.**
 
@@ -249,9 +243,21 @@ When sources conflict on coded values, the higher-credibility source wins:
 
 ### 4.10 `uncertainty_flags` vocabulary
 
-Use these exact strings. Multiple flags: join with semicolons, no surrounding spaces (e.g., `stage_ambiguous;vendor_undisclosed`).
+`uncertainty_flags` is a **JSON array** of zero or more of the exact strings below —
+not a string. Two or more flags: `["stage_ambiguous","vendor_undisclosed"]`.
 
-If no flag applies, emit exactly `none`. **Do not emit `_NA_` here** — this field is Group F, not Group D, and the Group D `_NA_` rule of §3.2 does not apply to it. `none` is the correct value on a `confirms_absence` / `ambiguous` / `background_only` row just as it is on a `confirms_activity` row.
+**If no flag applies, emit the empty array `[]`.** That is the only way to say "no
+flags apply", and it is the normal, expected answer: most rows carry no flags. Do
+not reach for a flag merely because the array would otherwise be empty — an empty
+array is not a gap in your work, it is a finding.
+
+**Do not emit `_NA_` here** — this field is Group F, not Group D, and the Group D
+`_NA_` rule of §3.2 does not apply to it. Because the field is an array, none of
+`""`, `"none"`, `"_NA_"` or a semicolon-joined string is a legal value and the
+schema will not accept them. `[]` is correct on a `confirms_absence` / `ambiguous`
+/ `background_only` row just as it is on a `confirms_activity` row.
+
+Flag only what you actually could not resolve from the supplied page.
 
 | Flag | Meaning |
 |------|---------|
@@ -266,85 +272,13 @@ If no flag applies, emit exactly `none`. **Do not emit `_NA_` here** — this fi
 
 ---
 
-## 5. JSON Schema (for programmatic validation)
+## 5. *(removed at v2.3)*
 
-Your output is Markdown pipe tables, but this schema governs allowed values:
-
-```json
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "G3O Batch Response v2.2",
-  "type": "object",
-  "required": ["batch_metadata", "data"],
-  "properties": {
-    "batch_metadata": {
-      "type": "object",
-      "required": ["batch_id","chat_type","model_label","response_timestamp","n_institutions_in_batch","n_institutions_with_genai","n_data_rows","search_languages","search_strategy_summary","notes"],
-      "properties": {
-        "batch_id": {"type":"string"},
-        "chat_type": {"enum":["web","deep"]},
-        "model_label": {"type":"string"},
-        "response_timestamp": {"type":"string","format":"date-time"},
-        "n_institutions_in_batch": {"type":"integer","minimum":1},
-        "n_institutions_with_genai": {"type":"integer","minimum":0},
-        "n_data_rows": {"type":"integer","minimum":1},
-        "search_languages": {"type":"string","pattern":"^[a-z]{2}(,[a-z]{2})*$"},
-        "search_strategy_summary": {"type":"string","maxLength":300},
-        "notes": {"type":"string"}
-      }
-    },
-    "data": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "object",
-        "required": ["row_id","batch_id","institution_id","institution_name","country","branch_of_government","level_of_government","has_genai_activity","institution_summary","institution_search_languages","activity_name","activity_type","adoption_stage","access_type","interaction_type","tool_name","vendor","deployment_mode","target_users","year_announced","year_deployed","has_human_oversight","has_transparency_notice","has_data_classification","has_risk_assessment","reported_outcomes","reported_incidents","scope_notes","source_url","source_title","source_publication_date","source_access_date","source_type","source_language","source_credibility","genai_evidence","source_snippet","confidence","uncertainty_flags"],
-        "properties": {
-          "row_id": {"type":"integer","minimum":1},
-          "batch_id": {"type":"string"},
-          "institution_id": {"type":"string"},
-          "institution_name": {"type":"string"},
-          "country": {"type":"string"},
-          "branch_of_government": {"type":"string"},
-          "level_of_government": {"type":"string"},
-          "has_genai_activity": {"enum":["yes","no","unclear"]},
-          "institution_summary": {"type":"string","maxLength":300},
-          "institution_search_languages": {"type":"string","pattern":"^[a-z]{2}(,[a-z]{2})*$"},
-          "activity_name": {"type":"string","maxLength":120},
-          "activity_type": {"enum":["policy_guidance","pilot_experiment","program_initiative","internal_operational","public_facing_service","unknown","_NA_"]},
-          "adoption_stage": {"enum":["proposed","announced","pilot","production","discontinued","unknown","_NA_"]},
-          "access_type": {"enum":["proprietary_vendor","open_source","sovereign_model","in_house","mixed","unknown","_NA_"]},
-          "interaction_type": {"enum":["chatbot","document_processing","code_generation","decision_support","translation","content_creation","search_retrieval","multiple","not_applicable","unknown","_NA_"]},
-          "tool_name": {"type":"string","maxLength":100},
-          "vendor": {"type":"string","maxLength":100},
-          "deployment_mode": {"enum":["standalone","integrated","unknown","_NA_"]},
-          "target_users": {"enum":["internal_staff","public","both","unknown","_NA_"]},
-          "year_announced": {"type":"string","pattern":"^(\\d{4}|unknown|_NA_)$"},
-          "year_deployed": {"type":"string","pattern":"^(\\d{4}|unknown|_NA_)$"},
-          "has_human_oversight": {"enum":["yes","no","unclear","not_documented","_NA_"]},
-          "has_transparency_notice": {"enum":["yes","no","unclear","not_documented","_NA_"]},
-          "has_data_classification": {"enum":["yes","no","unclear","not_documented","_NA_"]},
-          "has_risk_assessment": {"enum":["yes","no","unclear","not_documented","_NA_"]},
-          "reported_outcomes": {"type":"string","maxLength":200},
-          "reported_incidents": {"type":"string","maxLength":200},
-          "scope_notes": {"type":"string","maxLength":300},
-          "source_url": {"type":"string","format":"uri"},
-          "source_title": {"type":"string","maxLength":200},
-          "source_publication_date": {"type":"string"},
-          "source_access_date": {"type":"string","format":"date"},
-          "source_type": {"enum":["official_gov","procurement_tender","news_major","news_trade","vendor","academic","policy_org","social_media","archive","other"]},
-          "source_language": {"type":"string","pattern":"^[a-z]{2}$"},
-          "source_credibility": {"enum":["high","medium","low"]},
-          "genai_evidence": {"enum":["confirms_activity","confirms_absence","ambiguous","background_only"]},
-          "source_snippet": {"type":"string","maxLength":300},
-          "confidence": {"enum":["high","medium","low"]},
-          "uncertainty_flags": {"type":"string"}
-        }
-      }
-    }
-  }
-}
-```
+A copy of the JSON Schema lived here. The schema is supplied with the request
+and enforced by the API during generation, so the copy added no enforcement --
+only a second definition that could drift from the first, which it already had:
+it self-titled "v2.0" until `84d4493`, having survived the v2.0 -> v2.1 bump
+unchanged. The supplied schema is the definition of record.
 
 ---
 
@@ -352,15 +286,13 @@ Your output is Markdown pipe tables, but this schema governs allowed values:
 
 Before you output your response, verify ALL of the following. If any check fails, fix it before responding.
 
-1. **Institution coverage**: Every `institution_id` from the input appears in at least one row.
-2. **`_NA_` consistency**: On every row where `genai_evidence` is `confirms_absence`, `ambiguous`, or `background_only`, ALL Group D columns (columns 11-28) MUST be `_NA_`. On every row where `genai_evidence` = `confirms_activity`, NO Group D column may be `_NA_` (use `unknown`, `none_reported`, `none`, or `not_documented` as appropriate instead). **No column outside 11-28 may ever be `_NA_`** — check columns 29-39 specifically, and `uncertainty_flags` above all, where the correct empty value is `none`.
-3. **`has_genai_activity` consistency**: If an institution has `has_genai_activity` = `no`, then NONE of its rows may have `genai_evidence` = `confirms_activity`. If `yes`, at least one row MUST have `genai_evidence` = `confirms_activity`.
-4. **Repeated institution fields**: For all rows sharing the same `institution_id`, the values of `institution_name`, `country`, `branch_of_government`, `level_of_government`, `has_genai_activity`, `institution_summary`, and `institution_search_languages` must be identical.
-5. **Repeated activity fields**: For all rows sharing the same `institution_id` AND `activity_name`, the Group D columns (11-28) must be identical (only the source columns and `row_id` differ).
-6. **Metadata counts**: `n_institutions_in_batch` matches the number of distinct `institution_id` values. `n_institutions_with_genai` matches the count of distinct `institution_id` values where `has_genai_activity` = `yes`. `n_data_rows` matches total row count.
+2. **`_NA_` consistency**: On every row where `genai_evidence` is `confirms_absence`, `ambiguous`, or `background_only`, ALL Group D columns (columns 11-28) MUST be `_NA_`. On every row where `genai_evidence` = `confirms_activity`, NO Group D column may be `_NA_` (use `unknown`, `none_reported`, `none`, or `not_documented` as appropriate instead). **No column outside 11-28 may ever be `_NA_`** — check columns 29-39 specifically, and `uncertainty_flags` above all, where the correct empty value is the empty array `[]`.
+3. **`has_genai_activity` consistency**: If `has_genai_activity` = `no`, then NONE of your rows may have `genai_evidence` = `confirms_activity`. If `yes`, at least one row MUST have `genai_evidence` = `confirms_activity`.
+4. **Repeated institution fields**: Across all rows, the values of `institution_name`, `country`, `branch_of_government`, `level_of_government`, `has_genai_activity`, `institution_summary`, and `institution_search_languages` must be identical.
+5. **Repeated activity fields**: For all rows sharing the same `activity_name`, the Group D columns (11-28) must be identical (only `row_id` differs).
+6. **Metadata counts**: `n_institutions_in_batch` is `1`. `n_institutions_with_genai` is `1` if `has_genai_activity` = `yes`, otherwise `0`. `n_data_rows` matches your total row count.
 7. **No fabricated URLs**: Every `source_url` exactly matches the URL of the page supplied in the input. Never substitute or alter URLs.
 8. **Enum compliance**: Every enum field uses ONLY values from the allowed set. No variations, no capitalization changes, no synonyms.
-9. **At least one source per institution**: Every institution has at least one row, and that row's `source_url` is one of the URLs supplied for that institution.
 
 ---
 
@@ -370,18 +302,17 @@ All examples below show how specific situations map to rows in the flat table. C
 
 ### Edge case A: Institution with no GenAI activity found
 
-> Two pages were supplied for the Parliament of Belize (institution homepage and a parliamentary news-archive page). Neither contains GenAI evidence.
+> The supplied page is the Parliament of Belize institution homepage. It contains no GenAI evidence.
 
-**Produces 2 rows:**
+**Produces 1 row:**
 
 | row | institution_id | has_genai_activity | activity_name | ... (all Group D) | source_url | genai_evidence | confidence | uncertainty_flags | source_snippet |
 |-----|---------------|--------------------|---------------|-------------------|------------|----------------|------------|-------------------|----------------|
-| 1 | INST-0030 | no | _NA_ | _NA_ | https://www.nationalassembly.gov.bz/ | confirms_absence | high | none | The supplied page text contains no mention of generative AI, LLM, ChatGPT, or related terms. |
-| 2 | INST-0030 | no | _NA_ | _NA_ | https://www.nationalassembly.gov.bz/news/ | confirms_absence | high | none | The supplied page text contains no mention of generative AI activity by the Parliament of Belize. |
+| 1 | INST-0030 | no | _NA_ | _NA_ | https://www.nationalassembly.gov.bz/ | confirms_absence | high | [] | The supplied page text contains no mention of generative AI, LLM, ChatGPT, or related terms. |
 
-Note: each row's `source_url` is the URL provided alongside the supplied page text. Never substitute a different URL or fabricate one.
+Note: the row's `source_url` is the URL provided alongside the supplied page text. Never substitute a different URL or fabricate one.
 
-Note the Group F columns on these rows. Every Group D column is `_NA_`, but `confidence` and `uncertainty_flags` are **not** — they carry their own values (`high` and `none` here). `uncertainty_flags` is `none`, never `_NA_`, however much of Group D is blanked out.
+Note the Group F columns on this row. Every Group D column is `_NA_`, but `confidence` and `uncertainty_flags` are **not** — they carry their own values (`high` and `[]` here). `uncertainty_flags` is `[]`, never `_NA_`, however much of Group D is blanked out.
 
 ### Edge case B: Procurement notice for Microsoft 365 Copilot
 
@@ -401,7 +332,7 @@ Note the Group F columns on these rows. Every Group D column is `_NA_`, but `con
 
 | row | has_genai_activity | activity_name | genai_evidence | uncertainty_flags | source_snippet |
 |-----|-------------------|---------------|----------------|-------------------|----------------|
-| 1 | unclear | _NA_ | ambiguous | institution_attribution | "Pair is available government-wide but no source names the Ministry of Health as an active user." |
+| 1 | unclear | _NA_ | ambiguous | ["institution_attribution"] | "Pair is available government-wide but no source names the Ministry of Health as an active user." |
 
 If a source DOES name the Ministry of Health, then `has_genai_activity` = `yes`, `genai_evidence` = `confirms_activity`, and fill all Group D fields.
 
@@ -433,7 +364,7 @@ Rows 1 and 2 share identical Group D values; only source columns differ.
 
 | row | has_genai_activity | activity_name | genai_evidence | source_type | source_credibility | confidence | uncertainty_flags | scope_notes |
 |-----|-------------------|---------------|----------------|-------------|-------------------|------------|-------------------|-------------|
-| 1 | yes | [Vendor] GenAI deployment | confirms_activity | vendor | medium | low | institution_attribution | Based on vendor claim only; no official government confirmation found. |
+| 1 | yes | [Vendor] GenAI deployment | confirms_activity | vendor | medium | low | ["institution_attribution"] | Based on vendor claim only; no official government confirmation found. |
 
 ### Edge case G: Non-English sources
 
@@ -453,16 +384,10 @@ Rows 1 and 2 share identical Group D values; only source columns differ.
 
 Historical activity counts as `has_genai_activity` = `yes`.
 
-### Edge case I: Same source covers two institutions in the batch
-
-> A news article discusses GenAI adoption at both Ministry A and Ministry B.
-
-**Produce separate rows** for each institution, each citing the same source URL. The source fields will be identical but the institution and activity fields will differ.
-
 ### Edge case J: Source is ambiguous about GenAI vs. traditional AI
 
 > Ministry's website says "We are leveraging artificial intelligence to improve service delivery" without specifying generative AI.
 
 | row | has_genai_activity | activity_name | genai_evidence | uncertainty_flags |
 |-----|-------------------|---------------|----------------|-------------------|
-| 1 | unclear | _NA_ | ambiguous | genai_vs_traditional_ai |
+| 1 | unclear | _NA_ | ambiguous | ["genai_vs_traditional_ai"] |
