@@ -43,7 +43,10 @@ query or URL is idempotent.
 
 The production entrypoint is `g3o presweep`, which orchestrates Stages 1a/2/1b/3/4/5
 (and Stage 6 with `--stop-after validate`) over a stratified sample of the
-institution master, persisting per-stage artifacts into `runs/<run_id>/<inst>/`.
+institution master, persisting per-stage artifacts into
+`runs/<run_id>/institutions/<shard>/<inst>/`, where `<shard>` is
+`md5(inst_id)[:2]` (storage layout v2 — see
+[`storage-layout-v2.md`](storage-layout-v2.md)).
 
 ```bash
 python -m g3o presweep \

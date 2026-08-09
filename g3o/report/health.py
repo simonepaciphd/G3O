@@ -22,6 +22,12 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition as _attrition
+from g3o.common.artifact_io import artifact_stem, glob_artifacts
+from g3o.common.paths import (
+    institution_dir,
+    iter_institution_dirs,
+    require_layout,
+)
 from g3o.report.filter_eligibility import compute_filter_block
 from g3o.report.thresholds import HealthThresholds
 
@@ -246,31 +252,21 @@ def _collect_institution(
         d["n_urls_kept"] = 0
         d["_kept_urls"] = []
 
-    # Stage 4: scrape/*.json files — attribute via url_hash of language-kept URLs.
-    scrape_dir = inst_dir / "scrape"
-    if scrape_dir.is_dir():
+    # Stage 4/5 artifact counts — attribute via url_hash of language-kept URLs.
+    #
+    # The filename→hash comparison must go through
+    # :func:`g3o.common.artifact_io.artifact_stem`, never ``Path.stem``:
+    # ``stem`` strips one suffix, so on a Phase-2 ``<hash>.json.gz`` artifact it
+    # yields ``<hash>.json``, which matches no url hash and silently zeroes both
+    # counters. That failure mode is a wrong number, not an exception, so no test
+    # would announce it as anything but a quietly-off count.
+    for key, subdir in (("n_pages_scraped", "scrape"), ("n_extracts", "extract")):
+        artifacts = glob_artifacts(inst_dir / subdir)
         if language is None:
-            d["n_pages_scraped"] = sum(1 for _ in scrape_dir.glob("*.json"))
+            d[key] = len(artifacts)
         else:
             wanted_hashes = {_url_hash(u) for u in d["_kept_urls"]}
-            d["n_pages_scraped"] = sum(
-                1 for f in scrape_dir.glob("*.json") if f.stem in wanted_hashes
-            )
-    else:
-        d["n_pages_scraped"] = 0
-
-    # Stage 5: extract/*.json files — same hash attribution as Stage 4.
-    extract_dir = inst_dir / "extract"
-    if extract_dir.is_dir():
-        if language is None:
-            d["n_extracts"] = sum(1 for _ in extract_dir.glob("*.json"))
-        else:
-            wanted_hashes = {_url_hash(u) for u in d["_kept_urls"]}
-            d["n_extracts"] = sum(
-                1 for f in extract_dir.glob("*.json") if f.stem in wanted_hashes
-            )
-    else:
-        d["n_extracts"] = 0
+            d[key] = sum(1 for f in artifacts if artifact_stem(f) in wanted_hashes)
 
     # Expose the URL→languages attribution map so run-level passes (e.g.
     # attrition filtering under a language restriction) reuse it.
@@ -330,18 +326,17 @@ def compute_health_report(
         :func:`g3o.report.render.render_text_report`.
     """
     run_dir = Path(run_dir)
+    require_layout(run_dir)
     thresholds = thresholds or HealthThresholds()
 
     manifest = _load_manifest(run_dir)
     institution_ids: list[str] = manifest.get("institutions", [])
 
-    # Fallback if manifest absent: infer from non-underscore subdirs.
+    # Fallback if manifest absent: infer from the institutions/ level. Under
+    # storage layout v2 that level holds nothing but institution dirs, so the
+    # pre-v2 name filtering (which never excluded final/) is gone.
     if not institution_ids:
-        institution_ids = [
-            d.name
-            for d in sorted(run_dir.iterdir())
-            if d.is_dir() and not d.name.startswith("_") and d.name != ".done"
-        ]
+        institution_ids = [d.name for d in iter_institution_dirs(run_dir)]
 
     n_institutions = len(institution_ids)
 
@@ -351,7 +346,7 @@ def compute_health_report(
 
     # Per-institution artifact pass
     inst_data = [
-        _collect_institution(run_dir / iid, iid, language=language)
+        _collect_institution(institution_dir(run_dir, iid), iid, language=language)
         for iid in institution_ids
     ]
 
@@ -793,10 +788,9 @@ def detect_languages(run_dir: str | Path) -> list[str]:
     hits), so a language with no results still shows up as "attempted."
     """
     run_dir = Path(run_dir)
+    require_layout(run_dir)
     langs: set[str] = set()
-    for inst_dir in run_dir.iterdir():
-        if not inst_dir.is_dir() or inst_dir.name.startswith("_") or inst_dir.name == ".done":
-            continue
+    for inst_dir in iter_institution_dirs(run_dir):
         for fname in ("1a_discovery_general.json", "1b_discovery_site_restricted.json"):
             p = inst_dir / fname
             if not p.exists():
@@ -823,6 +817,7 @@ def compute_language_breakdown(
     per-stage math.
     """
     run_dir = Path(run_dir)
+    require_layout(run_dir)
     languages = languages if languages is not None else detect_languages(run_dir)
 
     per_language: dict[str, Any] = {}

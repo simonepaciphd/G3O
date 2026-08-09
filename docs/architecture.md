@@ -3,7 +3,7 @@
 The G3O production pipeline is a seven-stage flow that mirrors the data
 collection design described in the paper. Each stage is a separate Python
 package; the boundary between them is a serializable artifact persisted on
-disk under `runs/<run_id>/<inst>/`.
+disk under `runs/<run_id>/institutions/<shard>/<inst>/`.
 
 ```
 1a  discovery_general            (Serper queries; cached on disk)
@@ -127,7 +127,36 @@ Spec and measurements:
 
 ## Boundary artifacts
 
-All run-local artifacts live under `runs/<run_id>/` (gitignored):
+All run-local artifacts live under `runs/<run_id>/` (gitignored). Institution
+directories are sharded 256 ways beneath an `institutions/` level — **storage
+layout v2**, specified in [`storage-layout-v2.md`](storage-layout-v2.md):
+
+```
+runs/<run_id>/
+  manifest.json            # run-level; carries "layout_version": 2
+  _state/                  # batch-chunk state + .done/ markers
+  attrition.jsonl          # run-level ledger
+  final/                   # Stage-7 CSVs
+  institutions/
+    <shard>/               # md5(inst_id)[:2] -> 256 shards
+      <inst_id>/           # the per-institution artifacts in the table below
+```
+
+In the table, `<inst>` abbreviates `institutions/<shard>/<inst_id>` with
+`<shard> = md5(inst_id)[:2]`. The shard is derived from `inst_id` alone (no
+master-row lookup, nothing keyed on `master_row_id`). `g3o.common.paths` is the
+single owner of this layout: every institution path is built by
+`institution_dir()`, every walk goes through `iter_institution_dirs()`, and
+`require_layout()` refuses at entry any run tree that does not declare
+`layout_version: 2` — there is no dual-layout read support, so a pre-v2 run is
+read by checking out a pre-v2 commit.
+
+The two page-level artifact classes (`scrape/`, `extract/`) are gzipped and
+written compact; every other per-institution file stays plain, indented JSON.
+`g3o.common.artifact_io` is the single owner of that encoding — writers emit
+`.json.gz` only, readers accept `.json` or `.json.gz` with `.gz` winning, and
+the gzip header is pinned (`mtime=0`, no `FNAME`) so identical input yields
+byte-identical output.
 
 | Boundary               | Path                                                  |
 |------------------------|-------------------------------------------------------|
@@ -135,8 +164,8 @@ All run-local artifacts live under `runs/<run_id>/` (gitignored):
 | Stage 2 → Stage 1b     | `runs/<run_id>/<inst>/2_official_site.json`           |
 | Stage 1b → Stage 3     | `runs/<run_id>/<inst>/1b_discovery_site_restricted.json` |
 | Stage 3 → Stage 4      | `runs/<run_id>/<inst>/3_triage.json`                  |
-| Stage 4 → Stage 5      | `runs/<run_id>/<inst>/scrape/<url_hash>.json`         |
-| Stage 5 → Stage 6      | `runs/<run_id>/<inst>/extract/*.json`                 |
+| Stage 4 → Stage 5      | `runs/<run_id>/<inst>/scrape/<url_hash>.json.gz`      |
+| Stage 5 → Stage 6      | `runs/<run_id>/<inst>/extract/*.json.gz`              |
 | Stage 6 → Stage 7      | `runs/<run_id>/<inst>/6_validate.json`                |
 | Stage 7 → release      | `runs/<run_id>/final/g3o_activities_v{N}.csv`, `g3o_activity_sources_v{N}.csv`, `g3o_institution_summary_v{N}.csv` |
 
@@ -155,8 +184,8 @@ only the pilot at `data/pilot_v1/`).
   cached-input rate applies inside Batch when budgeting. The cost model takes
   the conservative no-stack figure and validates against the first live run's
   cached-token telemetry (see `docs/budget/`). The pipeline does not re-cache
-  LLM outputs separately; per-stage results in `runs/<run_id>/<inst>/` are the
-  cache.
+  LLM outputs separately; per-stage results in
+  `runs/<run_id>/institutions/<shard>/<inst>/` are the cache.
 - `presweep` infers resume points from the presence of `_state/` files in
   `runs/<run_id>/` and skips stages that have already completed.
 - `persist` is fully deterministic given its inputs.
@@ -184,8 +213,8 @@ only the pilot at `data/pilot_v1/`).
   fully deterministic. Holding it separate lets us re-run merges over an
   extended record set without re-issuing per-page API calls.
 - **Persist is non-LLM.** The CSV assembler doesn't touch the model — it
-  walks `runs/<run_id>/<inst>/6_validate.json` files, validates against the
-  contract, and writes the canonical tables.
+  walks `runs/<run_id>/institutions/<shard>/<inst_id>/6_validate.json` files,
+  validates against the contract, and writes the canonical tables.
 
 ## See also
 

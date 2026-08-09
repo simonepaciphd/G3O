@@ -9,7 +9,9 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition
+from g3o.common.artifact_io import glob_artifacts, write_artifact
 from g3o.common.batch_client import BatchResult
+from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
 from g3o.common.timing import llm_stage_timer
 from g3o.extract import (
@@ -24,7 +26,13 @@ from g3o.extract.batch import (
     cap_page_text,
     is_near_empty,
 )
-from g3o.extract.salvage import REASON_SALVAGED, REASON_UNSALVAGEABLE
+from g3o.extract.parser import SalvageEvent
+from g3o.extract.salvage import (
+    REASON_FLAGS_SALVAGED,
+    REASON_SALVAGED,
+    REASON_UNSALVAGEABLE,
+    UncertaintyFlagsSalvage,
+)
 from g3o.run.presweep.records import institution_record, synth_institution_id
 from g3o.scrape.render import RenderedPage
 
@@ -32,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 def _is_unsalvageable_group_d_failure(
-    exc: Exception, salvages: list[GroupDSalvage]
+    exc: Exception, salvages: list[SalvageEvent]
 ) -> bool:
     """True only when ``exc`` is *caused* by an unsalvageable Group-D ``_NA_``.
 
@@ -44,7 +52,14 @@ def _is_unsalvageable_group_d_failure(
     validation error carrying an error that actually concerns one of the
     unsalvageable Group-D fields.
     """
-    unsalvageable_fields = {f for s in salvages for f in s.unsalvageable_fields}
+    # The sink is heterogeneous (Group-D and uncertainty_flags events share it),
+    # and only Group-D events carry `unsalvageable_fields` — narrow before reading.
+    unsalvageable_fields = {
+        f
+        for s in salvages
+        if isinstance(s, GroupDSalvage)
+        for f in s.unsalvageable_fields
+    }
     if not unsalvageable_fields:
         return False
     errors = getattr(exc, "errors", None)
@@ -68,9 +83,8 @@ def _count_existing_extracts(run_dir: Path, sample: list[dict[str, Any]]) -> int
     n = 0
     for row in sample:
         inst_id = synth_institution_id(row)
-        extract_dir = run_dir / inst_id / "extract"
-        if extract_dir.is_dir():
-            n += sum(1 for _ in extract_dir.glob("*.json"))
+        extract_dir = institution_dir(run_dir, inst_id) / "extract"
+        n += len(glob_artifacts(extract_dir))
     return n
 
 
@@ -91,7 +105,7 @@ def _run_extract(
     """Stage 5 — per-page LLM extraction, batched across (institution × page).
 
     Resume (Session E; chunked Session F.1): same shape as Stages 2/3.
-    Returns the on-disk count of ``<inst>/extract/*.json`` files once the
+    Returns the on-disk count of ``<inst>/extract/`` artifacts once the
     stage is complete (equals the parsed-result count on a clean fresh run,
     and stays truthful across chunked resumes where earlier invocations
     already persisted some chunks).
@@ -157,7 +171,7 @@ def _run_extract(
                     "Stage 5 result %s did not match any input pair", result.custom_id
                 )
                 continue
-            salvages: list[GroupDSalvage] = []
+            salvages: list[SalvageEvent] = []
             try:
                 parsed = parse_extract_result(
                     result,
@@ -187,7 +201,8 @@ def _run_extract(
             # repaired to the contract default and preserved rather than dropped.
             # One ledger record per salvaged page (dedup key includes the url);
             # detail carries the repaired row_ids and field names for audit.
-            salvaged = [s for s in salvages if s.is_salvageable]
+            group_d = [s for s in salvages if isinstance(s, GroupDSalvage)]
+            salvaged = [s for s in group_d if s.is_salvageable]
             if salvaged:
                 fields = sorted({f for s in salvaged for f in s.salvaged_fields})
                 rows = sorted(s.row_id for s in salvaged if s.row_id is not None)
@@ -196,11 +211,29 @@ def _run_extract(
                     reason=REASON_SALVAGED, url=page.url,
                     detail=f"rows={rows};fields={','.join(fields)}",
                 )
-            extract_dir = run_dir / institution_id / "extract"
-            extract_dir.mkdir(parents=True, exist_ok=True)
-            (extract_dir / f"{url_hash(page.url)}.json").write_text(
-                json.dumps(parsed.model_dump(), ensure_ascii=False, indent=2),
-                encoding="utf-8",
+            # uncertainty_flags _NA_ salvage: an illegal whole-value `_NA_` was
+            # rewritten to the contract's `none` and the page preserved. Recorded
+            # only on the success path (as above) — a page that still failed for
+            # an unrelated reason is reported by its actual failure, not as a
+            # salvage that did not save it.
+            flags_salvaged = [
+                s for s in salvages if isinstance(s, UncertaintyFlagsSalvage)
+            ]
+            if flags_salvaged:
+                rows = sorted(
+                    s.row_id for s in flags_salvaged if s.row_id is not None
+                )
+                attrition.record(
+                    run_dir, institution_id=institution_id, stage=stage,
+                    reason=REASON_FLAGS_SALVAGED, url=page.url,
+                    detail=f"rows={rows}",
+                )
+            extract_dir = institution_dir(run_dir, institution_id) / "extract"
+            # Gzipped, compact (no indent=2), atomic, deterministic — see
+            # g3o.common.artifact_io. Writes <url_hash>.json.gz.
+            write_artifact(
+                extract_dir / f"{url_hash(page.url)}.json",
+                json.dumps(parsed.model_dump(), ensure_ascii=False),
             )
 
     custom_id_to_institution = {cid: inst_id for cid, (inst_id, _page) in page_lookup.items()}

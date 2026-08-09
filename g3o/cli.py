@@ -11,6 +11,7 @@ Subcommands:
   presweep                — Phase 3 of Session B: stratified pre-sweep runner.
   presweep-report         — Stage-by-stage funnel health report for a finished run.
   run-diff                — Cross-run determinism report over 2+ run dirs (disk-only).
+  archive                 — Tar a completed run's institution shards (retention, layout v2).
   verify-model            — One-job Batch API submit to confirm the model id (Q4).
 
 Push #1 implemented `discover` and `scrape`. Session A of Push #2 added the
@@ -559,6 +560,42 @@ def _cmd_run_diff(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_archive(args: argparse.Namespace) -> int:
+    """Retention: tar a finished run's institution shards (storage layout v2 §A2).
+
+    Refusals — an unfinished run, or a tar that does not match its source —
+    print the reason and exit 2 rather than raising. Both are operator-facing
+    conditions with a documented next step, not defects, and a traceback buries
+    the message that says what to do.
+    """
+    from g3o.run.archive import (
+        ArchiveError,
+        archive_run,
+        plan_archive,
+        render_plan,
+        render_result,
+    )
+
+    run_dir = Path(args.run_dir)
+    try:
+        if not args.apply:
+            # plan_archive itself reads only; the precondition gate still runs
+            # first so a dry run on an unfinished tree refuses instead of
+            # printing a plan that could never be applied.
+            archive_run(run_dir, apply=False)
+            sys.stdout.write(render_plan(plan_archive(run_dir)))
+            sys.stdout.write("\n")
+            return 0
+        result = archive_run(run_dir, apply=True)
+    except ArchiveError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+
+    sys.stdout.write(render_result(result))
+    sys.stdout.write("\n")
+    return 0
+
+
 def _cmd_verify_model(args: argparse.Namespace) -> int:
     from g3o.run.verify_model import verify_model
 
@@ -958,6 +995,26 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     run_diff.set_defaults(func=_cmd_run_diff)
+
+    archive = sub.add_parser(
+        "archive",
+        help="Tar a completed run's institution shards; --apply removes the originals.",
+    )
+    archive.add_argument(
+        "--run-dir",
+        required=True,
+        type=_existing_dir,
+        help="Path to the runs/<run_id>/ directory to archive.",
+    )
+    archive.add_argument(
+        "--apply",
+        action="store_true",
+        help=(
+            "Delete each source shard directory after its tar verifies. Without "
+            "this flag the command prints the plan and exits, writing nothing."
+        ),
+    )
+    archive.set_defaults(func=_cmd_archive)
 
     verify = sub.add_parser(
         "verify-model",

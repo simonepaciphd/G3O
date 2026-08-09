@@ -23,6 +23,7 @@ from g3o.run import preflight as pf
 from g3o.run import presweep as ps
 from g3o.run.presweep import PresweepConfig, plan_run, run_presweep, synth_institution_id
 from g3o.scrape.render import FetchMetadata, RenderedPage
+from tests._layout import inst_dir as inst_dir_of
 
 # ---------------------------------------------------------------------------
 # Fixtures / helpers
@@ -426,7 +427,7 @@ def test_empty_page_filtered_before_stage5(tmp_path, monkeypatch):
     rows = list(csv.DictReader(open(master, encoding="utf-8")))
     inst_id = synth_institution_id(rows[0])
     run_dir = tmp_path / "runs" / "ext"
-    (run_dir / inst_id).mkdir(parents=True)
+    (inst_dir_of(run_dir, inst_id)).mkdir(parents=True)
 
     captured = {}
 
@@ -459,7 +460,7 @@ def test_oversized_page_truncated_and_ledgered(tmp_path, monkeypatch):
     rows = list(csv.DictReader(open(master, encoding="utf-8")))
     inst_id = synth_institution_id(rows[0])
     run_dir = tmp_path / "runs" / "ext2"
-    (run_dir / inst_id).mkdir(parents=True)
+    (inst_dir_of(run_dir, inst_id)).mkdir(parents=True)
 
     captured = {}
     monkeypatch.setattr(ps.stage_extract, "run_chunked_stage",
@@ -528,6 +529,59 @@ def test_manifest_guard_noop_without_state(tmp_path):
     plan_run(config)
     _write_master(tmp_path / "m.csv", n=20)  # drift, but no _state present
     plan_run(config)  # no raise — fresh projection, just overwrites manifest
+
+
+# Scrape/extract job semantics the guard did not compare until 2026-08-04.
+# Each value is chosen only to differ from the field's default — if one ever
+# stopped differing, the parametrized trip test below would stop raising and
+# fail, so the table cannot silently go vacuous.
+_JOB_SEMANTICS_DRIFT: dict[str, object] = {
+    "empty_page_min_chars": 1,
+    "extract_text_cap_chars": 1_234,
+    "extract_text_cap_rule": "head",
+    "scrape_respect_robots": False,
+    "scrape_host_delay_seconds": 9.5,
+    "scrape_render_on_download_failure": True,
+}
+
+
+@pytest.mark.parametrize("key,drifted_value", sorted(_JOB_SEMANTICS_DRIFT.items()))
+def test_manifest_guard_trips_on_job_semantics_drift(tmp_path, key, drifted_value):
+    """Non-vacuous per field: each knob actually aborts a resume.
+
+    These decide how much of a page the extractor ever saw and which end
+    survived, what counted as an empty page, and which URLs were fetched at all
+    — so a resume that changes one leaves the artifacts already on disk
+    inconsistent with a fresh projection.
+    """
+    master = _write_master(tmp_path / "m.csv", n=6)
+    run_id = f"js-{key}"
+    config = _config(tmp_path, master, sample_size=4, run_id=run_id)
+    plan_run(config)
+    _seed_resume_state(config.runs_dir / run_id)
+
+    drifted = _config(
+        tmp_path, master, sample_size=4, run_id=run_id, **{key: drifted_value}
+    )
+    with pytest.raises(RuntimeError, match=f"config.{key}"):
+        plan_run(drifted)
+
+
+def test_manifest_guard_reports_every_difference_at_once(tmp_path):
+    """One abort names every drifted field, not just the first one hit."""
+    master = _write_master(tmp_path / "m.csv", n=6)
+    config = _config(tmp_path, master, sample_size=4, run_id="js-all")
+    plan_run(config)
+    _seed_resume_state(config.runs_dir / "js-all")
+
+    drifted = _config(
+        tmp_path, master, sample_size=4, run_id="js-all", **_JOB_SEMANTICS_DRIFT
+    )
+    with pytest.raises(RuntimeError) as excinfo:
+        plan_run(drifted)
+    message = str(excinfo.value)
+    missing = [k for k in _JOB_SEMANTICS_DRIFT if f"config.{k}" not in message]
+    assert not missing, f"guard stayed silent about {missing}"
 
 
 # ---------------------------------------------------------------------------

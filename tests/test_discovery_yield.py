@@ -20,6 +20,10 @@ from g3o.report.discovery_yield import (
     score_institution,
     score_run,
 )
+from tests._layout import (
+    make_inst_dir,
+    write_manifest,
+)
 
 # ---------------------------------------------------------------------------
 # The case-sensitivity rule
@@ -144,9 +148,9 @@ def test_duplicate_urls_are_counted_once():
 
 def _write_run(tmp_path, insts):
     run = tmp_path / "run"
+    write_manifest(run, {"run_id": "run", "institutions": sorted(insts)})
     for inst_id, (mode, recs_1a, recs_1b, naive, stage2) in insts.items():
-        d = run / inst_id
-        d.mkdir(parents=True)
+        d = make_inst_dir(run, inst_id)
         a = {"mode": mode,
              "queries": [{"query": "q", "language": "en", "from_cache": False}],
              "records": recs_1a}

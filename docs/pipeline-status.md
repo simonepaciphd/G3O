@@ -151,31 +151,102 @@ than becoming folklore.
 
 ## 3. Stages 1c–7 — measured through Stage 4
 
-> **Status 2026-08-02 (superseding the hold below).** Run
-> `20260802-e2e-100` — 100 institutions, `--stop-after scrape`,
-> `--filter-mode shadow`, seed 22294, chain defaults, code at `191803c` — is
-> complete. Stages 1c, 3 and 4 are now class **M**. Stages 5–7 remain unrun
-> **deliberately**: the codebook is still an open decision register, so their
-> yield, empty rate and token counts would describe a schema about to change.
-> Stopping after scrape was a PI decision taken on the reasoning below, and it
-> still answered the cost model's dominant uncertainty (§4) off the Stage 2 and
-> Stage 3 Batch responses.
+> **Status 2026-08-03 (superseding both notes below): the run is complete
+> through Stage 7.** Every stage of `20260802-e2e-100` is now class **M**. The
+> codebook gate cleared first — issue #30 was signed off and landed as contract
+> **v2.1** (PR #39) — so the Stage 5/6 figures below describe the schema that
+> ships, which is exactly what the hold existed to guarantee.
 >
-> *Prior hold, 2026-08-02 (resolved):* the run was first prepared and held
-> pending the codebook rework, because Stages 5 and 6 are two of the four Batch
-> stages the run exists to measure. That reasoning is why 5–7 are still blank;
-> it did not apply to 1c/3/4, which no codebook change can touch.
+> **Read the code split.** `manifest.json` records no git commit, and the run
+> was executed in two halves: **Stages 1a–4 at `191803c`** (2026-08-02) and
+> **Stages 5–7 at `917dc29` plus the wave scheduler of PR #40** (2026-08-03).
+> Two consequences. First, the Stage 1c row still reports the *pre-retirement*
+> rules (`1c-draft-2026-08-01`, 2.2% pass / 3.9% recall) because 1c had already
+> completed before PR #38 retired the snippet screen — the 94.8% / 99.5% figures
+> in the decision note below are the replay, not this run's artifact. Second,
+> Stage 5 ran in **8 token-sized waves** rather than one batch, which slightly
+> depresses the measured prompt-cache rate (8 cache-cold first jobs instead of
+> 1); see §4.
+>
+> *Prior status, 2026-08-02:* Stages 1c/3/4 measured, 5–7 held deliberately
+> pending the codebook, because Stages 5 and 6 are two of the four Batch stages
+> the run exists to measure and their yield, empty rate and token counts would
+> otherwise have described a schema about to change.
+>
+> *Prior hold, 2026-08-02 (resolved):* the run was first prepared and held for
+> the same reason; it never applied to 1c/3/4, which no codebook change can
+> touch.
 
 | Stage | Measured (n=100, 2026-08-02) | Threshold (T) | Budget assumption (A) |
 |---|:--|---:|---|
 | 1c filter_eligibility | as measured: **2.2% pass** (36/1,648), **shadow recall 3.9%** vs a 70% bar → **snippet screen retired same day**, giving 94.8% pass / **99.5% recall** | pass-rate bands set | shadow mode, nothing dropped ✓ |
 | 3 classify_triage | **51.6% URL keep** (831/1,610); **96%** of institutions with a keep | 70% / 40% institutions with a keep; 30% / 15% URL keep-rate | ~40 URLs → ~12 kept |
 | 4 scrape | **99.4% success** (826/831); 0 errors; 5 robots-disallowed; 83 render fallbacks | 70% / 40% success | ~2.4 rendered URLs / institution |
-| 5 extract | — *(not run — codebook open)* | 70% / 40% success; 30% / 60% empty | ~12 pages / institution |
-| 6 validate | — *(not run — codebook open)* | 80% / 60% consolidated; 40% / 70% unclear | 1 call / institution |
-| 7 persist | — *(not run)* | n/a (deterministic) | n/a |
+| 5 extract | **90.9% extracted** (619/681 eligible pages) ✓; **17.5% empty-dropped** (145/826 scraped) ✓; 62 parse failures; 71 pages truncated at the 60k cap; 84/100 institutions with ≥1 extract | 70% / 40% success; 30% / 60% empty | ~12 pages / institution → **measured 6.81** (681/100) |
+| 6 validate | **96.4% consolidated** (81/84 with extracts) ✓; **50.6% unclear** (41/81) — **the one gauge that misses** its 40% bar; yes 12.3%, no 37.0% | 80% / 60% consolidated; 40% / 70% unclear | 1 call / institution → **84 calls** (only institutions with extracts) |
+| 7 persist | 81 institutions → 22 activity rows, 588 activity-source rows, 81 summary rows; **0 load failures** | n/a (deterministic) | n/a |
 
-Stages 3 and 4 clear their thresholds comfortably. **Stage 1c did not, and the
+### What the funnel looks like end to end (n=100, measured)
+
+100 institutions → 846 candidate URLs → 90 official sites → 810 site-restricted
+URLs → 831 URLs kept by triage → 826 pages scraped → **681 pages eligible for
+extraction** → **619 extracts** → **84 institutions with any extract** → **81
+consolidated** → **81 rows shipped**, carrying **22 activities** and 588
+activity-source rows.
+
+Two attritions in that chain deserve naming because neither is a failure and
+both were invisible before this run:
+
+- **826 → 681 pages** is the near-empty filter: 145 scraped pages (17.5%) had
+  under 50 non-whitespace characters and never reached the LLM. This is the
+  budget assumption's "~12 pages / institution" landing at a measured **6.81**.
+- **100 → 84 → 81 institutions** is not run failure. 16 institutions produced no
+  extract at all (no eligible page survived), and 3 more failed Stage 6 parsing.
+  Only the latter 3 are defects; the 16 are institutions with nothing readable to
+  read, which is a finding about the web, not the pipeline.
+
+### The published outcome: 1 / 56 / 43, and why 43 is the number to fix
+
+`institution_report.csv` for the finished run:
+
+| `final_status` | `validation_status` | n |
+|---|---|---:|
+| `EVIDENCE_FOUND` | consolidated | **1** |
+| `NO_EVIDENCE_FOUND` | consolidated | 42 |
+| `NO_EVIDENCE_FOUND` | not_run | 14 |
+| `PROCESSING_FAILED` | consolidated | **38** |
+| `PROCESSING_FAILED` | not_run | 5 |
+
+**All 43 `PROCESSING_FAILED` rows cite `extract:parse_failed`** — every one traces
+to the contract-adherence defect in §5.6. And 38 of those 43 **already have a
+Stage-6 verdict**: they are withheld not because the pipeline failed to reach a
+conclusion but because the no-evidence publishing rule (PI, 2026-07-28) refuses
+to publish "no publicly available information" for an institution whose
+processing was incomplete. That rule is working exactly as designed; the defect
+is what trips it.
+
+**So a 9.1% page-level defect produces a 43% institution-level suppression.** One
+unparseable page is enough to disqualify an institution, so the amplification is
+structural, not incidental. That makes fixing `uncertainty_flags` the highest-
+value change available to this pipeline by a wide margin — it could return up to
+38 institutions to substantive verdicts without any change to the instrument's
+judgement. **Do not read 1/56/43 as a prevalence estimate**; read it as one
+confirmed positive, 56 defensible negatives, and 43 institutions the pipeline
+declined to report on.
+
+**Stage 6's unclear rate is the one gauge that misses, and it is the substantive
+result of this run.** Of 81 consolidated institutions, 41 (50.6%) came back
+`unclear` on `has_genai_activity`, against 30 `no` (37.0%) and just 10 `yes`
+(12.3%) — a warn against the 40% bar. Half the institutions the pipeline can
+process end in a verdict that supports no claim either way, and the
+contract-adherence defect in §5.6 sits upstream of exactly this number: 62 pages
+had their evidence rows dropped before consolidation, which can only push
+verdicts toward `unclear`. Whether the residual is model capability, genuinely
+ambiguous sources, or that dropped evidence is **unresolved and is the first
+thing the next analysis should separate.**
+
+Stages 3 and 4 clear their thresholds comfortably, and so does Stage 5 on both
+of its gauges. **Stage 1c did not, and the
 gap was not a threshold-calibration problem.** Of the 831 URLs Stage 3's triage
 kept, only 32 also passed the 1c draft rules — 3.9% against PI decision 6's
 provisional bar of ≥70%. Switching `filter_mode` to `enforce` on those rules
@@ -221,9 +292,13 @@ it, and retuning it belongs to `subprojects/multilingual-pipeline/`.
 
 Thresholds were calibrated for a ~10-institution smoke run and are explicitly
 PI-tunable; they were **not** derived from observation. They have deliberately
-**not** been recalibrated to the values above: n=100 is one sample, Stages 5–7
-are still unmeasured, and fitting the gauges to this run is the failure mode the
-measurement task was written to avoid.
+**not** been recalibrated, and that still holds now that all seven stages are
+measured: n=100 is one sample, and fitting the gauges to it is the failure mode
+the measurement task was written to avoid. This applies specifically to Stage
+6's `validate_unclear_warn_pct` of 0.4, which the measured 50.6% now trips —
+**the right response is to ask whether a 50% unclear rate is acceptable, not to
+move the bar to 55%.** Stage 5's two gauges pass on their existing values and
+need no attention either way.
 
 Also measured on this run, against the master's `website` (~2% of the registry,
 national-heavy — a regression canary, not a registry accuracy estimate):
@@ -262,40 +337,67 @@ The stripped-prompt row settles §5.5. See §4 for what it cost to find out.
 | Serper, `chain` | **1.84 credits / institution** | M (n=200 **and** n=100) |
 | Serper, `legacy` | 8.52 credits / institution | M (n=200) |
 | OpenAI Batch, Stages 2 + 3 | **$1.34 / 1,000 institutions** | M (n=100) |
-| OpenAI Batch, Stages 5 + 6 | — | A only (not run) |
+| OpenAI Batch, Stages 5 + 6 | **$9.70 / 1,000 institutions** | M (n=100) |
+| OpenAI Batch, whole LLM pipeline | **$11.04 / 1,000 institutions** | M (n=100) |
 | Render fleet | — | A only |
 
 Run `20260802-e2e-100` spent **184 Serper credits for 100 institutions —
 1.84/institution, reproducing the n=200 figure exactly** as an independent
 `get_balance()` delta (45,727 → 45,543).
 
-### The dominant uncertainty is resolved: prompt caching does **not** stack with the Batch discount
+### Corrected 2026-08-03: prompt caching **does** stack with the Batch discount — on the stages that matter
 
-Measured off the Batch responses, not assumed. `prompt_tokens_details.cached_tokens`
-is **0 on all 300 batched jobs** across three independent batches (Stage 2,
-Stage 3, and the §5.5 control arm). Budget lines must therefore price batched
-input at the full uncached rate, halved once by the Batch discount and not
-again.
+**The 2026-08-02 conclusion below was true but not general, and the
+generalisation drawn from it was wrong.** `cached_tokens` really is 0 on all 300
+Stage-2/3 jobs. But once Stages 5 and 6 ran, they came back **64.7% cached
+overall**, verified on raw API responses and not only via the report script.
 
-| Stage (n=100) | jobs | input | cached | output | *of which reasoning* | USD |
-|---|---:|---:|---:|---:|---:|---:|
-| 2 classify_official_site | 100 | 74,817 | **0** | 129,844 | 123,648 | $0.0278 |
-| 3 classify_triage | 100 | 111,162 | **0** | 516,621 | 421,952 | $0.1061 |
-| **total** | **200** | **185,979** | **0** | **646,465** | **545,600** | **$0.1339** |
+The mechanism explains both observations at once. OpenAI caches only prompts
+**≥1,024 tokens with a matching prefix**. Stage 2/3 prompts are 900–1,650 tokens
+with per-institution content early, so no shared prefix ever reaches the
+threshold. Stages 5/6 carry the ~10.4k-token output contract as a byte-identical
+prefix on every job, so nearly the whole input caches — 11,648–11,776 of ~12,300
+prompt tokens on a typical Stage-5 job.
 
-**The cost driver is reasoning, not prompt length.** Reasoning tokens are 84.4%
-of all output tokens, and input is only 22% of total tokens, at the pinned
-`reasoning_effort="medium"`. This has two consequences worth carrying:
+So the instruction "price batched input at the full uncached rate" holds for
+Stages 2–3 and is **withdrawn for Stages 5–6**, which are the two stages that
+dominate the budget. `docs/budget/cost-model.md` still carries the superseded
+framing and needs the same correction.
+
+| Stage (n=100) | jobs | input | cached | cache % | output | *of which reasoning* | USD |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| 2 classify_official_site | 100 | 74,817 | **0** | 0.0% | 129,844 | 123,648 | $0.0278 |
+| 3 classify_triage | 100 | 111,162 | **0** | 0.0% | 516,621 | 421,952 | $0.1061 |
+| 5 extract (8 waves) | 681 | 11,359,648 | 7,522,304 | **66.2%** | 3,365,110 | 2,958,179 | $0.7877 |
+| 6 validate | 84 | 960,979 | 568,832 | **59.2%** | 857,515 | 721,728 | $0.1827 |
+| **total** | **965** | **12,506,606** | **8,091,136** | **64.7%** | **4,869,090** | **4,225,507** | **$1.1044** |
+
+**Two caveats on the cache figures.** They are a *floor*, not a ceiling: Stage 5
+ran as 8 separate batches under the enqueued-token budget (§E of the roadmap),
+so it paid 8 cache-cold first jobs instead of 1, and per-wave rates ranged
+52.7%–76.6%. And caching reduces *billed* input only — OpenAI's enqueued-token
+ceiling counts the full uncached prompt, which is why Stage 5 could be cheap and
+still un-submittable.
+
+**The cost driver is reasoning, not prompt length — and the whole run confirms
+it.** Across all four LLM stages, reasoning tokens are **86.8%** of output
+(4,225,507 / 4,869,090) at the pinned `reasoning_effort="medium"`, up from the
+84.4% seen on Stages 2–3 alone. Two consequences worth carrying:
 
 1. `reasoning_effort` is a larger cost lever than any prompt-length edit, and it
    is currently pinned in `batch_client.py` rather than being a run parameter.
-2. It **weakens** the cost half of the Stage 5/6 codebook hold (§3): a codebook
-   prompt-length change moves cost far less than feared. The yield and
-   empty-rate half of that argument is untouched and still stands on its own.
+2. It **weakens** the cost half of the Stage 5/6 codebook hold (§3), now
+   retrospectively: a codebook prompt-length change moves cost far less than
+   feared, and prompt caching absorbs most of what it would move. The yield and
+   empty-rate half of that argument was the load-bearing one all along.
 
-Stages 5 and 6 are the expensive ones and remain unmeasured, so the $1.34 /
-1,000 figure is **not** a whole-pipeline cost and must not be compared against
-the cost model's $17.52 / 1,000 as though it were.
+**The whole-pipeline figure is now measured: $11.04 / 1,000 institutions**, of
+which Stages 5+6 are **$9.70 (87.9%)**. That is **63% of the cost model's
+modelled $17.52 / 1,000** — so the model was conservative, not optimistic, and
+`docs/budget/cost-model.md` should be re-based on measurement rather than
+assumption. Note the direction of the surprise: the modelled figure was too
+high on cost, while the constraint the model never represented at all
+(enqueued-token throughput, roadmap §E) is the one that actually blocks a sweep.
 
 **Serper at full-registry scale (719,588 institutions):**
 
@@ -314,12 +416,19 @@ never runs.** Stage 2 found a site for 13/200, so Stage 1b — which runs only
 for those — was skipped for 187 institutions. Read 8.52 as a symptom, not a
 saving; repairing Stage 2 under `legacy` would push it back toward 16.
 
-**OpenAI is ~68% of the modeled budget and rests on an unverified assumption**
-(whether prompt caching stacks with the Batch discount). No live LLM-stage cost
-has ever been measured. This is the second-largest evidence gap.
+**Closed 2026-08-03: every LLM stage now has a measured cost.** The
+caching assumption that this line called unverified has been tested and came
+back the *opposite* way for Stages 5–6 (see the correction above), and OpenAI's
+measured share is $11.04 against the model's $17.52 / 1,000. What replaces this
+as the largest open evidence gap is not cost at all but **throughput** — the
+enqueued-token ceiling of roadmap §E, which no budget line represents.
 
 Session spend for the record: 2,273 credits (smoke 6, chain arm 368, legacy arm
 1,704, leg-1 quoted arm 195; leg-1 unquoted arm 0, fully cache-served).
+**Stages 5–7 session, 2026-08-03:** zero Serper credits (discovery was already
+cached on disk) and **$0.97 of OpenAI spend** for Stages 5+6, plus $0.06 for the
+5-institution smoke run. The rejected 681-job submit cost nothing —
+`request_counts` was `total=0 completed=0 failed=0`.
 
 ---
 
@@ -393,6 +502,52 @@ Session spend for the record: 2,273 credits (smoke 6, chain arm 368, legacy arm
    test of whether a stronger model leans on the leak more or less. The
    production-behaviour question — keep the field or drop it — is still the PI's,
    now with the effect size known.
+6. **Stage 5 has a live contract-adherence defect.** *(Measured 2026-08-03.)*
+   62 of 681 pages (9.1%) failed `ContractRow` validation, and the failures are
+   not random — they concentrate in one field. `gpt-5-nano` emits either `_NA_`
+   or an empty string into `uncertainty_flags`, both of which the contract
+   forbids (`""` is barred by the "never emit null or an empty string" rule;
+   `_NA_` is not in the allowed flag set). A smaller number returned empty
+   assistant content. Each failure drops that page's evidence rows before
+   consolidation.
+
+   **Its cost is far larger than 9.1% suggests: it accounts for all 43
+   `PROCESSING_FAILED` institutions (43% of the sample), 38 of which already
+   hold a Stage-6 verdict** (§3). One unparseable page disqualifies an entire
+   institution under the no-evidence publishing rule, so a page-level defect
+   amplifies into an institution-level suppression. This is the highest-value
+   fix available to the pipeline.
+
+   Deliberately **not** fixed here: repairing it means touching either the
+   contract (gated by `CONTRIBUTING.md` §Schema stability) or the validator, and
+   doing so mid-measurement would have changed the instrument being measured.
+
+   This independently corroborates Thomas's Week-6 determinism report of the
+   same day, which flags "blank flags, invalid `_NA_` values" as measurement
+   contamination from a 3×30-institution repeat study. That report reaches the
+   defect from the reliability side; this run quantifies it at 681 pages.
+   Interacts with Pending Decision §D — a different model has different failure
+   modes, and this one may simply disappear.
+7. **The preflight vets the wrong cap.** *(Found 2026-08-03.)* Thomas's Week-6
+   preflight reported Stage 5 as "360 jobs at 61,758 bytes per job, 22,232,880
+   bytes total, one chunk, **with no cap issue**" — a byte/chunk-count check.
+   The cap that actually binds is the **enqueued-token ceiling** (roadmap §E),
+   which the preflight does not model at all; 22.2 MB is roughly 5.6M estimated
+   tokens against a 2M ceiling. A preflight that clears a submission the API
+   will reject is worse than no preflight, because it converts a pre-spend check
+   into false assurance. Open question for whoever picks this up: his runs did
+   complete Stage 5, so either the ceiling was not binding for them or the two
+   measurements are not comparable — that discrepancy is unexplained and should
+   be resolved before the preflight is trusted again.
+8. **A single transient API timeout kills a multi-hour stage.** *(Found
+   2026-08-03.)* Stages 5–6 died twice mid-run on `APITimeoutError` and
+   `APIConnectionError` raised from `poll_batch` after tenacity exhausted its
+   five attempts. Recovery is cheap and lossless — the resume path skipped
+   fetched chunks and re-adopted the in-flight one by `batch_id`, preserving 251
+   and then 496 results across two unplanned deaths — so this is robustness, not
+   correctness. But it needed a shell supervisor to babysit, and at sweep scale
+   (thousands of waves per stage) an unattended run needs the poll loop to
+   tolerate transient API faults rather than propagate them.
 
 ---
 
@@ -403,18 +558,22 @@ yield; 8–10 buy durability.
 
 ### Buy evidence first
 
-1. ~~**End-to-end run through Stage 6 on ~100 institutions.**~~ **Partly done
-   2026-08-02** — run `20260802-e2e-100` went through Stage 4 (§3). It resolved
-   the prompt-cache-stacking question that 68% of the budget hung on (it does
-   **not** stack, §4) and produced measured 1c/3/4 numbers. **Still open: Stages
-   5–7**, held until the codebook decision register closes, since their yield and
-   empty rate would describe a superseded schema. Actuals for the part that ran:
-   184 Serper credits, $0.13 OpenAI, 2 h 15 min wall-clock at
-   `--max-workers 4`, of which scrape was ~80%. Resuming for 5–7 costs only the
-   two remaining Batch stages — `--execute` against the same `--run-id` reuses
-   the completed stages off `_state/`.
-   The Stage 1c rule set, this run's other headline finding, was **fixed the
-   same day** — snippet screen retired, 3.9% → 99.5% shadow recall (§3).
+1. ~~**End-to-end run through Stage 6 on ~100 institutions.**~~ **Done
+   2026-08-03** — run `20260802-e2e-100` is complete through Stage 7 (§3).
+   Stages 1a–4 ran 2026-08-02 (184 Serper credits, $0.13 OpenAI, 2 h 15 min at
+   `--max-workers 4`, ~80% of it scrape); Stages 5–7 resumed 2026-08-03 off
+   `_state/` for **zero Serper credits and $0.97**, exactly as the resume design
+   promised.
+   Three things it settled, two of them against the prior conclusion:
+   the prompt-cache question that 68% of the budget hung on — caching **does**
+   stack, on the stages that matter (§4, superseding the 2026-08-02 reading);
+   the whole-pipeline LLM cost, **$11.04 / 1,000** vs a modelled $17.52; and
+   Stage 5/6 yield, where Stage 5 is green on both gauges and Stage 6 warns on a
+   **50.6% unclear rate**. It also surfaced the constraint no budget line
+   represented: the enqueued-token ceiling (roadmap §E), which rejected the first
+   Stage-5 submit outright.
+   The Stage 1c rule set, the run's other headline finding, was **fixed on
+   2026-08-02** — snippet screen retired, 3.9% → 99.5% shadow recall (§3).
 2. **Build a subnational ground-truth set.** ~200 hand-verified websites for US
    local government and non-US subnational units. Unblocks the disambiguation
    slot (30% of the registry) and answers whether 64.5% survives contact with
