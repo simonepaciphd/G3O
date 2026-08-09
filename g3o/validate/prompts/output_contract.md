@@ -1,8 +1,8 @@
-# G3O Validation Contract v1.1 -- Per-Institution Consolidation
+# G3O Validation Contract v1.2 -- Per-Institution Consolidation
 
 You are producing the consolidated, deduplicated, conflict-resolved record for one institution as the Stage 6 (Validation) output of the G3O production pipeline. Every field is ingested programmatically. Follow this contract with **zero deviation**.
 
-This contract sits downstream of the G3O Output Contract v2.0 (`g3o/extract/prompts/output_contract.md`). Vocabulary references (source-credibility tiers, uncertainty-flag vocabulary, `genai_evidence` semantics, controlled enum values) inherit from v2.0; this document only specifies what changes for the consolidated shape.
+This contract sits downstream of the G3O Output Contract (`g3o/extract/prompts/output_contract.md`). Vocabulary references (source-credibility tiers, uncertainty-flag vocabulary, `genai_evidence` semantics, controlled enum values) inherit from it; this document only specifies what changes for the consolidated shape.
 
 ---
 
@@ -94,11 +94,11 @@ Each activity object has the following keys (all required):
 | 19 | scope_notes | string | Max 300 chars; default `none`; NOT `_NA_` | Additional context |
 | 20 | n_sources | integer >=1 | | Count of `SourceRecord` entries with this `activity_id` |
 | 21 | confidence | enum | `high` / `medium` / `low` | Highest confidence across supporting input rows |
-| 22 | uncertainty_flags | string | Semicolon-joined union, no spaces; or `none` | Order alphabetically. See vocabulary in v2.0 §4.10. |
+| 22 | uncertainty_flags | array | JSON array of flags, e.g. `[]` or `["date_uncertain","scope_unclear"]` | The union of the input rows' flags, ordered alphabetically. `[]` when no flag applies. See the Output Contract §4.10. |
 
 ### 4.2 Conflict resolution
 
-When two or more input rows agree on `activity_name` but disagree on Group D fields, apply the source-credibility hierarchy from Output Contract v2.0 §4.8 (Tier 1 = government / procurement / parliamentary; Tier 2 = major news / vendor case studies / trade press; Tier 3 = social / blogs / undated). Tie within a tier: most recent `source_publication_date`. Tie there: largest `source_snippet`.
+When two or more input rows agree on `activity_name` but disagree on Group D fields, apply the source-credibility hierarchy from Output Contract §4.8 (Tier 1 = government / procurement / parliamentary; Tier 2 = major news / vendor case studies / trade press; Tier 3 = social / blogs / undated). Tie within a tier: most recent `source_publication_date`. Tie there: largest `source_snippet`.
 
 ### 4.3 Forbidden patterns
 
@@ -124,9 +124,9 @@ Each source object has the following keys (all required):
 | 4 | source_title | string | Max 200 chars | Page or document title |
 | 5 | source_publication_date | string | `YYYY-MM-DD` / `YYYY-MM` / `YYYY` / `unknown` | When the source was published |
 | 6 | source_access_date | string | `YYYY-MM-DD` | When the page was retrieved (verbatim from input) |
-| 7 | source_type | enum | `official_gov` / `procurement_tender` / `news_major` / `news_trade` / `vendor` / `academic` / `policy_org` / `social_media` / `archive` / `other` | See v2.0 §4.6 |
+| 7 | source_type | enum | `official_gov` / `procurement_tender` / `news_major` / `news_trade` / `vendor` / `academic` / `policy_org` / `social_media` / `archive` / `other` | See Output Contract §4.6 |
 | 8 | source_language | string | ISO 639-1 | Language of the source page |
-| 9 | source_credibility | enum | `high` / `medium` / `low` | Per v2.0 §4.8 hierarchy |
+| 9 | source_credibility | enum | `high` / `medium` / `low` | Per Output Contract §4.8 hierarchy |
 | 10 | genai_evidence | enum | `confirms_activity` / `confirms_absence` / `ambiguous` / `background_only` | What this source tells us |
 | 11 | source_snippet | string | Max 300 chars | Verbatim excerpt or close paraphrase |
 

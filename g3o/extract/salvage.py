@@ -61,9 +61,12 @@ taking the whole page down (observed: ``INST-0000580`` / windowsforum.com in run
 ``digitalocean-010-dry``). ``ConsolidatedActivity`` carries byte-identical
 validation logic, so Stage 6 has the same exposure.
 
-The prompt is the primary fix, and it is version-gated (CONTRIBUTING.md, "Schema
-stability") and held for PI sign-off. This is the defence in depth: rewrite the
-literal ``_NA_`` to ``none``, which is the value the contract already prescribes.
+From v2.3 the primary fix is the JSON Schema, which declares the field an array of
+vocabulary members and so makes ``_NA_``, ``""`` and space-bearing values
+unrepresentable during generation (#59). This module is the defence in depth
+behind it: rewrite a blank-or-``_NA_`` value to ``none``, which is the value the
+contract already prescribes, and normalise stray whitespace around the separators
+without discarding any flag the model actually supplied.
 
 - **Evidence-agnostic.** Unlike Group-D salvage, this fires on every row
   regardless of ``genai_evidence``. ``none`` is the field's only legal empty
@@ -71,11 +74,34 @@ literal ``_NA_`` to ``none``, which is the value the contract already prescribes
   "no flags apply" — so the substitution is faithful on a ``confirms_activity``
   row too. It encodes no coding decision, so nothing here is unsalvageable and
   there is no counterpart to ``GROUP_D_UNSALVAGEABLE``.
-- **The exact literal, and the whole value, only.** ``"NA"``, ``""``, ``"n/a"``
-  and mixed values such as ``"stage_ambiguous;_NA_"`` are left to hard-fail:
-  those are genuine drift rather than the documented sentinel applied by
-  analogy, and in the mixed case the model supplied real flags, so the stray
-  ``_NA_`` should stay visible rather than be silently dropped.
+- **Two repairs, and they are different in kind.**
+
+  *Blank means none.* The exact literal ``_NA_``, the empty string ``""``, and
+  whitespace-only values are whole-value statements of "no flags here", which the
+  contract spells ``none``. Substituting ``none`` is faithful: nothing the model
+  coded is lost, because it coded nothing.
+
+  *Separator whitespace is formatting, not content.* ``"a; b"`` is the contract's
+  own vocabulary with a stray space after the semicolon. The repair strips
+  whitespace around the separators and keeps every flag
+  (``"genai_vs_traditional_ai; date_uncertain"`` →
+  ``"genai_vs_traditional_ai;date_uncertain"``). This one matters most in what it
+  refuses to do: the single spaces-class failure in the n=100 run carried **two
+  real flags**, so coercing it to ``none`` — the obvious reading of "repair the
+  blank cases too" — would have destroyed a finding in order to save a page.
+
+  Still left to hard-fail, unchanged: ``"NA"``, ``"n/a"``, ``"_na_"`` (case
+  matters) and mixed values such as ``"stage_ambiguous;_NA_"``. The first three
+  are genuine vocabulary drift; in the mixed case the model supplied real flags,
+  so the stray ``_NA_`` stays visible rather than being silently dropped.
+
+  The blank and separator cases were both excluded until v2.3. That was
+  defensible while the field was an unconstrained string and ``""`` might have
+  signalled a confused row; it stopped being defensible once the run telemetry
+  showed ``""`` was the *largest* live failure class (27 of 46 page failures at
+  n=100, #17). From v2.3 the schema makes all of these unrepresentable at
+  generation time, so this widening is a backstop for a non-strict path or a
+  future model regression, not the primary fix.
 - **Ledger, not row.** As above — ``uncertainty_flags_na_salvaged``. No new
   column, and emphatically no new flag value: adding ``_NA_`` to
   ``UNCERTAINTY_FLAG_VOCAB`` would relax the contract rather than repair the row,
@@ -274,16 +300,23 @@ def salvage_group_d_na(payload: object) -> list[GroupDSalvage]:
 
 
 def salvage_uncertainty_flags_na(rows: object) -> list[UncertaintyFlagsSalvage]:
-    """Rewrite ``uncertainty_flags`` ``_NA_`` to ``none`` in place, on any row.
+    """Rewrite a blank-or-``_NA_`` ``uncertainty_flags`` to ``none``, in place.
 
     Takes the row list rather than the enclosing payload so each stage can pass
     its own container: ``payload["data"]`` at Stage 5, ``payload["activities"]``
     at Stage 6. Structurally malformed input is left for the validator to reject —
     anything that is not a list of dicts yields ``[]``.
 
-    Only the exact, whole-value literal ``_NA_`` is repaired. ``"NA"``, ``""`` and
-    mixed values such as ``"stage_ambiguous;_NA_"`` are deliberately left to
-    hard-fail; see the module docstring.
+    Two repairs, applied in order: whitespace around the semicolon separators is
+    stripped, then a value that is blank or the whole-value literal ``_NA_``
+    becomes ``none``. So ``"a; b"`` keeps both flags, while ``""``, ``"   "`` and
+    ``" _NA_ "`` all become ``none``. ``"NA"``, ``"n/a"``, ``"_na_"`` and mixed
+    values such as ``"stage_ambiguous;_NA_"`` are deliberately left to hard-fail;
+    see the module docstring.
+
+    A non-string is never touched — from v2.3 the model emits an array, which
+    ``contract._coerce_uncertainty_flags`` normalises on the way in, and an empty
+    array is already the legal way to say "no flags apply".
     """
     events: list[UncertaintyFlagsSalvage] = []
     if not isinstance(rows, list):
@@ -292,9 +325,15 @@ def salvage_uncertainty_flags_na(rows: object) -> list[UncertaintyFlagsSalvage]:
     for row in rows:
         if not isinstance(row, dict):
             continue
-        if row.get("uncertainty_flags") != NA:
+        value = row.get("uncertainty_flags")
+        if not isinstance(value, str):
             continue
-        row["uncertainty_flags"] = UNCERTAINTY_FLAGS_EMPTY
+        repaired = ";".join(token.strip() for token in value.split(";"))
+        if repaired == NA or repaired.strip() == "":
+            repaired = UNCERTAINTY_FLAGS_EMPTY
+        if repaired == value:
+            continue
+        row["uncertainty_flags"] = repaired
         rid = row.get("row_id")
         aid = row.get("activity_id")
         src = row.get("source_url")

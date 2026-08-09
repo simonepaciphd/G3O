@@ -20,10 +20,12 @@ whole document (prose edits to an edge-case narrative should not demand a
 version bump; the frozen-goldens suite already catches those as instrument
 changes):
 
-- **Stage 5** — the §5 JSON Schema block parsed out of the markdown and
-  canonically re-serialized, so indentation and key order cannot fire it; every
-  ``Literal`` enum alias as ``g3o.common.contract`` actually loads them; and
-  the four sign-off-gated column lists named in ``CONTRIBUTING.md``.
+- **Stage 5** — ``BatchResponse.model_json_schema()``, which is the schema
+  generated into ``response_format`` and therefore the one the model is actually
+  held to; every ``Literal`` enum alias as ``g3o.common.contract`` actually loads
+  them; and the four sign-off-gated column lists named in ``CONTRIBUTING.md``.
+  (Before v2.3 this was the §5 JSON Schema block parsed out of the markdown. §5
+  was a second copy of the same schema, it drifted, and v2.3 deleted it.)
 - **Stage 6** — ``ConsolidatedInstitutionResponse.model_json_schema()``, which
   the Validation Contract itself names as its source of truth, plus the same
   enum aliases.
@@ -58,7 +60,7 @@ import pytest
 
 from g3o.common import contract as _contract
 from g3o.common import schema as _schema
-from g3o.common.contract import ConsolidatedInstitutionResponse
+from g3o.common.contract import BatchResponse, ConsolidatedInstitutionResponse
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXTRACT_CONTRACT = REPO_ROOT / "g3o" / "extract" / "prompts" / "output_contract.md"
@@ -96,17 +98,26 @@ def _parse_version(path: Path) -> str:
     return f"v{m.group(1)}"
 
 
-def _extract_json_schema_block(path: Path) -> dict[str, Any]:
-    """The document's ```json fenced block, parsed. Asserts there is exactly one
-    so a second block added later cannot silently escape the pin."""
+def _no_embedded_json_schema(path: Path) -> None:
+    """The extract contract must not regrow an embedded copy of the schema.
+
+    Until v2.3 the Stage-5 surface was the document's own ```json block (§5). That
+    block was a *second* definition of a schema the API already enforces, and it
+    drifted: it self-titled "v2.0" until ``84d4493``, having survived the
+    v2.0 → v2.1 bump unchanged. v2.3 deleted it and moved this pin onto
+    ``BatchResponse.model_json_schema()`` — the schema actually sent — which makes
+    the pin strictly harder to evade. This guard keeps the old failure mode from
+    coming back by the same door.
+    """
     blocks = re.findall(
         r"^```json\n(.*?)^```", path.read_text(encoding="utf-8"), re.S | re.M
     )
-    assert len(blocks) == 1, (
-        f"expected exactly 1 ```json block in {path.name}, found {len(blocks)}; "
-        "the pin covers one block and must be updated deliberately"
+    assert not blocks, (
+        f"{path.name} has regrown {len(blocks)} embedded ```json schema block(s). "
+        "The schema of record is g3o.common.contract.BatchResponse, generated into "
+        "response_format at request time; a prose copy can only drift from it "
+        "(it already did once — see 84d4493)."
     )
-    return json.loads(blocks[0])
 
 
 def _literal_enums() -> dict[str, list[str]]:
@@ -137,7 +148,7 @@ def _current() -> dict[str, dict[str, str]]:
             "version": _parse_version(EXTRACT_CONTRACT),
             "sha256": _sha256(
                 {
-                    "json_schema_block": _extract_json_schema_block(EXTRACT_CONTRACT),
+                    "model_json_schema": BatchResponse.model_json_schema(),
                     "enums": _literal_enums(),
                     "columns": _gated_column_lists(),
                 }
@@ -237,6 +248,12 @@ def test_contract_version_matches_its_pin(name: str):
 def test_both_contracts_carry_a_parseable_version_header():
     assert _parse_version(EXTRACT_CONTRACT).startswith("v")
     assert _parse_version(VALIDATE_CONTRACT).startswith("v")
+
+
+def test_extract_contract_has_no_embedded_json_schema():
+    """v2.3 deleted §5. A prose copy of the schema can only drift from the
+    generated one, and this one already did (`84d4493`)."""
+    _no_embedded_json_schema(EXTRACT_CONTRACT)
 
 
 def test_surface_is_stable_across_invocations():

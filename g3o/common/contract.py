@@ -3,10 +3,13 @@
 Two layers:
 
 1. **Stage 5 row-level surface** — ``BatchMetadata`` / ``ContractRow`` /
-   ``BatchResponse`` / ``RunProvenance`` / ``PersistedRow``. Mirrors
-   ``g3o/extract/prompts/output_contract.md`` §5 (39 contract fields per row,
-   plus 10 batch-metadata fields). Used by Stage 5 (extract) parsing and the
-   legacy ``DATA_COLUMNS`` debug-CSV path.
+   ``BatchResponse`` / ``RunProvenance`` / ``PersistedRow``. 39 contract fields
+   per row, plus 10 batch-metadata fields, matching
+   ``g3o/extract/prompts/output_contract.md`` §3.2. Since v2.3 this module is the
+   *only* definition of the schema: the contract document's embedded copy (§5) was
+   removed once it had drifted, and the schema handed to the API is generated from
+   ``BatchResponse`` here. Used by Stage 5 (extract) parsing and the legacy
+   ``DATA_COLUMNS`` debug-CSV path.
 
 2. **Stage 6 consolidated surface** (Session C, Push #2) — the validator's
    per-institution output:
@@ -55,13 +58,15 @@ and are left to the caller.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal, get_args
 
 from pydantic import (
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     StringConstraints,
+    WithJsonSchema,
     field_validator,
     model_validator,
 )
@@ -72,18 +77,23 @@ from pydantic import (
 
 NA = "_NA_"
 
-UNCERTAINTY_FLAG_VOCAB: frozenset[str] = frozenset(
-    {
-        "stage_ambiguous",
-        "genai_vs_traditional_ai",
-        "institution_attribution",
-        "date_uncertain",
-        "source_language_barrier",
-        "vendor_undisclosed",
-        "discontinued_uncertain",
-        "scope_unclear",
-    }
-)
+# Declaration order is the §4.10 table order, and it is load-bearing: it fixes the
+# member order of the `enum` this vocabulary emits into the JSON Schema handed to
+# the API, and the Batch job-line goldens pin that schema by hash. A frozenset
+# literal cannot supply a stable order, so the tuple is the source of truth and
+# the frozenset is derived from it.
+UncertaintyFlag = Literal[
+    "stage_ambiguous",
+    "genai_vs_traditional_ai",
+    "institution_attribution",
+    "date_uncertain",
+    "source_language_barrier",
+    "vendor_undisclosed",
+    "discontinued_uncertain",
+    "scope_unclear",
+]
+
+UNCERTAINTY_FLAG_VOCAB: frozenset[str] = frozenset(get_args(UncertaintyFlag))
 
 YEAR_PATTERN = r"^(\d{4}|unknown|_NA_)$"
 SOURCE_PUB_DATE_PATTERN = r"^(\d{4}(-\d{2}(-\d{2})?)?|unknown)$"
@@ -151,6 +161,45 @@ GenAIEvidence = Literal[
     "confirms_activity", "confirms_absence", "ambiguous", "background_only"
 ]
 Confidence = Literal["high", "medium", "low"]
+
+
+def _coerce_uncertainty_flags(value: Any) -> Any:
+    """Normalise the wire shape of ``uncertainty_flags`` to the stored shape.
+
+    From v2.3 the JSON Schema handed to the API declares this field as an *array
+    of vocabulary members*, so a live extraction arrives as a list. Everything
+    else still speaks the semicolon-joined string: persisted artifacts, the CSV
+    round-trip, ``persist/writer.py``'s aggregator and ``validate/qc.py`` all read
+    the attribute as a ``str``. Collapsing the list here — before validation —
+    is what lets the wire shape change while the stored and in-memory shape does
+    not. An empty list is the array shape's only way to say "no flags apply", and
+    maps onto the contract's own empty value, ``none``.
+
+    Members are joined verbatim rather than checked here, so that
+    :meth:`ContractRow._validate_uncertainty_flags` remains the single place the
+    vocabulary is enforced and the single source of its error message.
+    """
+    if isinstance(value, list):
+        return ";".join(str(v) for v in value) if value else "none"
+    return value
+
+
+# Array of enum to the model, semicolon-joined string to everything else.
+# ``WithJsonSchema`` replaces only the *generated* schema, so the annotated type
+# stays ``str`` at runtime and no consumer outside this module changes shape —
+# which is the whole point of the exercise (#59 Phase 1). The array shape makes
+# ``""``, ``_NA_`` and space-bearing values unrepresentable at generation time
+# rather than repairable afterwards (#17).
+UncertaintyFlags = Annotated[
+    str,
+    BeforeValidator(_coerce_uncertainty_flags),
+    WithJsonSchema(
+        {
+            "type": "array",
+            "items": {"type": "string", "enum": list(get_args(UncertaintyFlag))},
+        }
+    ),
+]
 
 
 # Group D field names, used by the row-level _NA_ consistency validator and by
@@ -269,7 +318,7 @@ class ContractRow(BaseModel):
 
     # Group F — Row-level confidence and provenance metadata
     confidence: Confidence
-    uncertainty_flags: str
+    uncertainty_flags: UncertaintyFlags
 
     @model_validator(mode="after")
     def _validate_na_vs_group_d(self) -> ContractRow:
@@ -547,7 +596,7 @@ class ConsolidatedActivity(BaseModel):
     # Aggregates.
     n_sources: int = Field(ge=1)
     confidence: Confidence
-    uncertainty_flags: str
+    uncertainty_flags: UncertaintyFlags
 
     @model_validator(mode="after")
     def _validate_no_na_in_group_d(self) -> ConsolidatedActivity:
@@ -816,6 +865,8 @@ class PersistedSource(BaseModel):
 
 __all__ = [
     "NA",
+    "UncertaintyFlag",
+    "UncertaintyFlags",
     "UNCERTAINTY_FLAG_VOCAB",
     "GROUP_D_FIELDS",
     "INSTITUTION_SHARED_FIELDS",

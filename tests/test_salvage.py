@@ -641,21 +641,52 @@ def test_flags_salvage_leaves_legal_values_untouched(value: str):
     "value",
     [
         "NA",                       # the report's transcription; never a legal token
-        "",                         # has its own dedicated contract error
         "n/a",
-        "_na_",                      # case matters
-        " _NA_ ",                   # whitespace is not the documented sentinel
+        "_na_",                     # case matters
         "stage_ambiguous;_NA_",     # mixed: real flags supplied, stray _NA_ stays visible
         "_NA_;_NA_",
     ],
 )
-def test_flags_salvage_repairs_only_the_exact_whole_literal(value: str):
-    """Targeted, not blanket. Anything other than the exact whole-value `_NA_` is
-    genuine drift rather than the documented sentinel applied by analogy, and is
-    left for the validator to reject."""
+def test_flags_salvage_leaves_genuine_drift_to_hard_fail(value: str):
+    """Targeted, not blanket. Vocabulary drift and mixed values are not the
+    documented sentinel applied by analogy, and are left for the validator to
+    reject rather than papered over."""
     rows = [{"row_id": 1, "uncertainty_flags": value}]
     assert salvage_uncertainty_flags_na(rows) == []
     assert rows[0]["uncertainty_flags"] == value
+
+
+@pytest.mark.parametrize("value", ["", " ", "\t", "   ", " _NA_ ", "_NA_"])
+def test_flags_salvage_repairs_blank_and_sentinel_values_to_none(value: str):
+    """v2.3 (#59 Phase 3). A whole-value blank and the whole-value `_NA_` are both
+    statements of "no flags here", which the contract spells `none`. The empty
+    string was the largest live failure class in the n=100 run (27 of 46)."""
+    rows = [{"row_id": 1, "uncertainty_flags": value}]
+    assert len(salvage_uncertainty_flags_na(rows)) == 1
+    assert rows[0]["uncertainty_flags"] == "none"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        # The exact value behind the run's single spaces-class page failure
+        # (INST-0506317). It carries two real flags: coercing it to `none` to
+        # save the page would destroy a finding.
+        ("genai_vs_traditional_ai; date_uncertain",
+         "genai_vs_traditional_ai;date_uncertain"),
+        (" stage_ambiguous ", "stage_ambiguous"),
+        ("stage_ambiguous ;vendor_undisclosed", "stage_ambiguous;vendor_undisclosed"),
+        ("stage_ambiguous ; vendor_undisclosed", "stage_ambiguous;vendor_undisclosed"),
+    ],
+)
+def test_flags_salvage_strips_separator_whitespace_without_losing_flags(
+    value: str, expected: str
+):
+    """v2.3 (#59 Phase 3). Whitespace around the separators is formatting, not
+    content — every flag the model supplied survives the repair."""
+    rows = [{"row_id": 1, "uncertainty_flags": value}]
+    assert len(salvage_uncertainty_flags_na(rows)) == 1
+    assert rows[0]["uncertainty_flags"] == expected
 
 
 @pytest.mark.parametrize(
@@ -1076,9 +1107,15 @@ def test_contract_consistency_check_covers_columns_outside_group_d():
     assert "no column outside 11-28 may ever be `_na_`" in text
 
 
-def test_worked_example_shows_uncertainty_flags_none_on_an_absence_row():
-    """§7 Edge case A — the negative-evidence example now makes the contrast
-    visible: Group D all `_NA_`, uncertainty_flags `none`, on the same row."""
+def test_worked_example_shows_uncertainty_flags_empty_on_an_absence_row():
+    """§7 Edge case A — the negative-evidence example makes the contrast visible:
+    Group D all `_NA_`, uncertainty_flags `[]`, on the same row.
+
+    From v2.3 the field is an array on the wire, so the worked example shows `[]`
+    where it used to show `none`. `none` remains the *stored* empty value (what
+    `_coerce_uncertainty_flags` produces and every CSV carries); the example has
+    to show the shape the model emits, not the shape the row is persisted in.
+    """
     from g3o.extract.client import OUTPUT_CONTRACT_TEXT
 
     # The Edge case A table rows, which are the ones a model pattern-matches on.
@@ -1090,23 +1127,33 @@ def test_worked_example_shows_uncertainty_flags_none_on_an_absence_row():
     for line in absence_rows:
         cells = [c.strip() for c in line.split("|")]
         assert "confirms_absence" in cells
-        assert NA in cells                      # Group D still blanked
-        assert UNCERTAINTY_FLAGS_EMPTY in cells  # ...but flags are `none`
+        assert NA in cells   # Group D still blanked
+        assert "[]" in cells  # ...but flags are the empty array, never _NA_
+        assert UNCERTAINTY_FLAGS_EMPTY not in cells
 
 
-def test_system_message_version_header_matches_the_contract_h1():
-    """The SYSTEM_MESSAGE header hardcodes the contract version separately from
-    the document's own H1 (client.py), so the two can silently drift — they did,
-    and the v2.2 bump had to fix both by hand. Pin them together."""
+def test_system_message_announces_the_contract_version_exactly_once():
+    """The SYSTEM_MESSAGE header used to hardcode the contract version separately
+    from the document's own H1 (client.py), so the two could silently drift — they
+    did, and the v2.2 bump had to fix both by hand.
+
+    v2.3 removes the duplicate instead of pinning it: the header is now unversioned
+    and the contract's H1 follows immediately, so exactly one version string
+    reaches the model and there is nothing left to drift against. This test pins
+    the *absence*, which is the stronger guarantee — the previous version of it
+    could only catch a drift after it happened.
+    """
     from g3o.extract.client import OUTPUT_CONTRACT_TEXT, SYSTEM_MESSAGE
 
     h1 = OUTPUT_CONTRACT_TEXT.splitlines()[0]
     m = re.search(r"\bv(\d+(?:\.\d+)*)\b", h1)
     assert m, f"no version token in the contract H1: {h1!r}"
     version = f"v{m.group(1)}"
-    assert f"# G3O Output Contract {version} (canonical reference)" in SYSTEM_MESSAGE, (
-        f"the contract H1 says {version} but SYSTEM_MESSAGE in g3o/extract/client.py "
-        "announces a different version to the model"
+
+    assert "# G3O Output Contract (canonical reference)" in SYSTEM_MESSAGE
+    assert SYSTEM_MESSAGE.count(f"G3O Output Contract {version}") == 1, (
+        "the contract version should appear exactly once in the system message — "
+        "in the contract's own H1, and nowhere else"
     )
 
 
