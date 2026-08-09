@@ -7,7 +7,7 @@ rationale.
 
 The output schema lives in this module (`OfficialSiteResult`) rather than in
 `g3o.common.contract`, because the contract module is reserved for Output
-Contract v2.0 (the final-row schema). Stage-2 / Stage-3 schemas are
+Contract (the final-row schema). Stage-2 / Stage-3 schemas are
 intermediate and stage-local.
 """
 

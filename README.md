@@ -59,7 +59,7 @@ normalized CSVs under `runs/<run_id>/final/`: `g3o_activities_v{N}.csv`,
 | `g3o.discovery` | 1a / 1b | Serper queries + multilingual builder + on-disk cache        |
 | `g3o.classify`  | 2 + 3   | LLM official-site picker + URL triage (Batch API)            |
 | `g3o.scrape`    | 4       | HTTP fetch with HTML / PDF / headless-render routing + cache |
-| `g3o.extract`   | 5       | Per-page LLM extraction to G3O Output Contract v2.0 rows     |
+| `g3o.extract`   | 5       | Per-page LLM extraction to G3O Output Contract rows          |
 | `g3o.validate`  | 6       | Per-institution LLM consolidation + deterministic QC         |
 | `g3o.persist`   | 7       | Deterministic CSV writer (three normalized tables)           |
 | `g3o.run`       | —       | Orchestration: `presweep`, `verify-model`                    |
@@ -67,7 +67,7 @@ normalized CSVs under `runs/<run_id>/final/`: `g3o_activities_v{N}.csv`,
 
 See [`docs/architecture.md`](docs/architecture.md) for the mapping to the
 paper, and [`docs/data_dictionary.md`](docs/data_dictionary.md) for the
-output schema (G3O Output Contract v2.0).
+output schema (the G3O Output Contract).
 
 For **what the pipeline has actually been measured to do** — per-stage
 benchmarks, what is still unmeasured, and the ranked improvement list — see

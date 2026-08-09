@@ -16,8 +16,12 @@ repository.
 
 The schema for `g3o_full_database_v1.csv` is documented in
 [`../../docs/data_dictionary.md`](../../docs/data_dictionary.md). The
-schema-of-record is the G3O Output Contract v2.0 at
+schema-of-record is the G3O Output Contract at
 [`../../g3o/extract/prompts/output_contract.md`](../../g3o/extract/prompts/output_contract.md).
+This snapshot was produced under contract **v2.0**; the live contract has since
+moved to v2.2. Both changes since (`proposed` on the `adoption_stage` ladder,
+`unknown` on `activity_type`) were additive, so no value in this file became
+invalid — but the file was not coded under the current contract.
 
 ## How it was built
 
