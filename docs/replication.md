@@ -190,7 +190,7 @@ Two assertions must always hold; CI checks them:
 
 1. The list `g3o.common.schema.DATA_COLUMNS` is the exact header order
    of every published `g3o_full_database_v<N>.csv`.
-2. The columns enumerated in the G3O Output Contract v2.0 (Groups A–F,
+2. The columns enumerated in the G3O Output Contract (Groups A–F,
    columns 1–39) are a strict subset of `DATA_COLUMNS`. The five
    pipeline-derived columns (`global_row_id`, `run_id`, `run_model`,
    `run_tool`, `run_date`) wrap the contract columns in published

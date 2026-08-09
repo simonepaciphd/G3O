@@ -1,4 +1,4 @@
-"""Pydantic v2 models for the G3O Output Contract v2.0 + Stage 6 consolidation.
+"""Pydantic v2 models for the G3O Output Contract + Stage 6 consolidation.
 
 Two layers:
 

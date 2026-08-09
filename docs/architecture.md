@@ -46,7 +46,7 @@ independent.
 | Discovery         | `g3o.discovery`   | Stages 1a/1b. Two query strategies, selected by `--discovery-mode` — see [Discovery query strategy](#discovery-query-strategy) below. |
 | Discovery         | `g3o.classify`    | Stages 2 + 3. Picks the canonical institutional homepage and applies keep/drop URL triage before any page is fetched.                                            |
 | Discovery         | `g3o.scrape`      | Stage 4. Fetches each kept URL; routes between HTML, PDF, and a headless-browser fallback for JS-shell pages.                                                    |
-| Extraction        | `g3o.extract`     | Stage 5. Schema-first per-page LLM extraction into the G3O Output Contract v2.0.                                                                                  |
+| Extraction        | `g3o.extract`     | Stage 5. Schema-first per-page LLM extraction into the G3O Output Contract.                                                                                       |
 | Cross-validation  | `g3o.validate`    | Stage 6. Per-institution LLM consolidation of Stage 5 rows: dedup within institution, source-credibility resolution, uncertainty-flag propagation.                |
 | Cross-validation  | `g3o.persist`     | Stage 7. Deterministic CSV writer that assembles the three normalized per-run tables (activities, activity-sources, institution-summary).                          |
 

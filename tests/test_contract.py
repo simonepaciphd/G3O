@@ -1,4 +1,4 @@
-"""Tests for `g3o.common.contract` — Pydantic models for Output Contract v2.0."""
+"""Tests for `g3o.common.contract` — Pydantic models for the Output Contract."""
 
 from __future__ import annotations
 
