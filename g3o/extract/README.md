@@ -4,7 +4,7 @@
 
 ## Role in the pipeline
 
-Stage 5 of the seven-stage pipeline (see [`docs/architecture.md`](../../docs/architecture.md)). Takes scraped page text from Stage 4 + institution metadata, and produces 0+ canonical rows per page conforming to the G3O Output Contract v2.0.
+Stage 5 of the seven-stage pipeline (see [`docs/architecture.md`](../../docs/architecture.md)). Takes scraped page text from Stage 4 + institution metadata, and produces 0+ canonical rows per page conforming to the G3O Output Contract (currently v2.2).
 
 - **Input.** One scraped page (`{url, text, title, content_type}` from `g3o.scrape`) + the institution row.
 - **Output.** A list of contract rows (39 fields) in JSON, one per `(institution × activity × source)` triple supported by this page. Pages with no GenAI evidence return one row with `genai_evidence = confirms_absence` and Group D set to `_NA_`.
@@ -15,7 +15,9 @@ Stage 5 of the seven-stage pipeline (see [`docs/architecture.md`](../../docs/arc
 ## Modules
 
 - `client.py` — OpenAI Batch API wrapper for per-page extraction, built on `g3o.common.batch_client`.
-- `batch.py` — batch assembly across institutions; result fetching; retry on schema validation failure.
+- `batch.py` — batch assembly across institutions; result fetching. **There is no retry:**
+  a page whose result fails schema validation is recorded to the attrition ledger and
+  dropped (see issue #56).
 - `parser.py` — JSON → contract rows; attaches the five provenance fields; routes through `g3o.common.contract` for Pydantic validation.
 - `prompts/system_prompt.md` — system instructions for the extractor model.
 - `prompts/output_contract.md` — schema-of-record. The 39 columns specified there are extended at pipeline time with five run/provenance fields (`global_row_id`, `run_id`, `run_model`, `run_tool`, `run_date`), giving the 44 columns enumerated in `g3o.common.schema.DATA_COLUMNS`.

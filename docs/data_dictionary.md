@@ -12,7 +12,7 @@ emits for a run (`g3o.persist.writer`), with column orders pinned in
 
 The schema-of-record for the model-produced fields (controlled vocabularies,
 character limits, coding rules, edge cases, self-validation checks) is the
-**G3O Output Contract v2.0** at
+**G3O Output Contract** (currently v2.2) at
 [`../g3o/extract/prompts/output_contract.md`](../g3o/extract/prompts/output_contract.md).
 This file is a quick-reference index keyed to the shipped column constants; for
 any disagreement on field semantics, the contract wins.
@@ -157,7 +157,7 @@ per `institution × activity × source` triple) and the frozen header of the
 published `data/pilot_v1/g3o_full_database_v1.csv`. The current Stage 7 product
 is the three normalized CSVs above; this section is retained only for auditing
 pilot v1 and reading raw Stage 5 output. The model-produced columns (1–39) are
-governed by the same Output Contract v2.0.
+governed by the same Output Contract.
 
 | #  | Column                          | Source                | Description                                               |
 |----|---------------------------------|-----------------------|-----------------------------------------------------------|
