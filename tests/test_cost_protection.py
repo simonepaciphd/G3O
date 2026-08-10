@@ -382,8 +382,9 @@ def test_nan_budget_limit_is_rejected(tmp_path, monkeypatch):
 
 def test_cli_cost_ceiling_flag_overrides_env_var_on_execute(tmp_path, monkeypatch, capsys):
     """--cost-ceiling CLI flag takes precedence over G3O_BUDGET_LIMIT_USD on --execute path."""
-    from g3o import cli
     from unittest.mock import patch
+
+    from g3o import cli
 
     master = _write_master(tmp_path / "master.csv", n=3)
     monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
