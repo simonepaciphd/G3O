@@ -19,6 +19,7 @@ from g3o.classify.url_triage import (
 )
 from g3o.common import attrition
 from g3o.common.batch_client import BatchResult
+from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
 from g3o.common.timing import llm_stage_timer
 from g3o.report.discovery_yield import registrable_domain
@@ -78,7 +79,7 @@ def _read_existing_official_sites(
     out: dict[str, str | None] = {}
     for row in sample:
         inst_id = synth_institution_id(row)
-        path = run_dir / inst_id / "2_official_site.json"
+        path = institution_dir(run_dir, inst_id) / "2_official_site.json"
         if not path.exists():
             continue
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -92,7 +93,7 @@ def _read_existing_triaged(
     out: dict[str, list[str]] = {}
     for row in sample:
         inst_id = synth_institution_id(row)
-        path = run_dir / inst_id / "3_triage.json"
+        path = institution_dir(run_dir, inst_id) / "3_triage.json"
         if not path.exists():
             continue
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -155,7 +156,7 @@ def _run_classify_official_site(
         if bypass_url:
             out[inst_id] = bypass_url
             bypass_count += 1
-            inst_dir = run_dir / inst_id
+            inst_dir = institution_dir(run_dir, inst_id)
             if inst_dir.exists():
                 (inst_dir / "2_official_site.json").write_text(
                     json.dumps(
@@ -191,7 +192,7 @@ def _run_classify_official_site(
                 )
                 continue
             out[result.custom_id] = parsed.url
-            inst_dir = run_dir / result.custom_id
+            inst_dir = institution_dir(run_dir, result.custom_id)
             if inst_dir.exists():
                 payload = parsed.model_dump()
                 # Additive; every reader of this artifact uses .get(). Recorded
@@ -279,7 +280,7 @@ def persist_triage_result(
             run_dir, institution_id=result.custom_id, stage=stage,
             reason=casualty.reason, url=casualty.url, detail=casualty.detail,
         )
-    inst_dir = run_dir / result.custom_id
+    inst_dir = institution_dir(run_dir, result.custom_id)
     if inst_dir.exists():
         (inst_dir / "3_triage.json").write_text(
             json.dumps(

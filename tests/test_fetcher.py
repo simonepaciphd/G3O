@@ -11,7 +11,10 @@ sentinels so each test isolates *dispatch*, not parsing.
 
 from __future__ import annotations
 
+import gzip
+import hashlib
 import os
+from pathlib import Path
 
 import pytest
 
@@ -296,6 +299,109 @@ def test_get_session_is_thread_local():
     assert other["session"].headers["user-agent"] == main_session.headers["user-agent"]
 
 
+def test_cache_write_is_sharded_and_gzipped():
+    """Writes land at ``cache/<md5[:2]>/page_v2_<md5>.json.gz`` (storage-layout-v2
+    §B3) — 256-way fanout over the unchanged cache key, gzip-encoded — and never
+    at the pre-fanout flat path."""
+    url = "https://x.gov/sharded"
+    fetcher._save(_rendered_page(url, text="SHARDED BODY TEXT"))
+
+    digest = hashlib.md5(url.encode("utf-8")).hexdigest()
+    expected = Path(config.CACHE_DIR) / digest[:2] / f"page_v2_{digest}.json.gz"
+
+    assert Path(fetcher._cache_path(url)) == expected
+    assert expected.exists()
+    # Real gzip member, not a plain file with a .gz name.
+    assert expected.read_bytes()[:2] == b"\x1f\x8b"
+    with gzip.open(expected, "rt", encoding="utf-8") as f:
+        assert "SHARDED BODY TEXT" in f.read()
+    # Writes go sharded-gzipped only — nothing is written to the legacy path.
+    assert not Path(fetcher._legacy_cache_path(url)).exists()
+
+
+def test_cache_bytes_are_deterministic_for_identical_input():
+    """Identical input must produce byte-identical gzip output (§A1): the header's
+    mtime and filename fields are both pinned. Without the filename pin GzipFile
+    infers it from the temp file's name, which carries pid + thread id and would
+    make the cached bytes vary by writer."""
+    url = "https://x.gov/deterministic"
+    page = _rendered_page(url, text="STABLE BODY TEXT FOR HASHING")
+
+    fetcher._save(page)
+    first = Path(fetcher._cache_path(url)).read_bytes()
+    os.remove(fetcher._cache_path(url))
+    fetcher._save(page)
+    second = Path(fetcher._cache_path(url)).read_bytes()
+
+    assert first == second
+    # mtime field (header bytes 4:8) pinned to zero rather than "now".
+    assert first[4:8] == b"\x00\x00\x00\x00"
+
+
+def test_legacy_flat_cache_entry_still_reads(monkeypatch):
+    """A cache entry written before the §B3 fanout — flat path, uncompressed —
+    must still be served, so an existing warm cache is not invalidated. There is
+    no migration script by design."""
+    url = "https://x.gov/legacy"
+    legacy = Path(fetcher._legacy_cache_path(url))
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text(
+        _rendered_page(url, text="FROM_LEGACY_FLAT").model_dump_json(), encoding="utf-8"
+    )
+
+    assert not Path(fetcher._cache_path(url)).exists()
+    assert fetcher._load(url).text == "FROM_LEGACY_FLAT"
+
+    # And through the real entrypoint: a legacy hit short-circuits the download.
+    monkeypatch.setattr(fetcher, "_download", _boom)
+    assert fetcher.scrape_url(url).text == "FROM_LEGACY_FLAT"
+
+
+def test_legacy_read_fallback_is_not_a_write_path():
+    """Serving a legacy hit must not rewrite it into the sharded layout — the
+    fallback is read-only (the flat remainder ages out naturally)."""
+    url = "https://x.gov/legacy-noconvert"
+    legacy = Path(fetcher._legacy_cache_path(url))
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text(
+        _rendered_page(url, text="FROM_LEGACY_FLAT").model_dump_json(), encoding="utf-8"
+    )
+
+    fetcher._load(url)
+
+    assert not Path(fetcher._cache_path(url)).exists()
+    assert legacy.exists()
+
+
+def test_sharded_entry_wins_over_legacy_flat():
+    """With both present the sharded-gzipped entry is authoritative — it is the
+    only one writes can have refreshed."""
+    url = "https://x.gov/both"
+    legacy = Path(fetcher._legacy_cache_path(url))
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text(
+        _rendered_page(url, text="STALE_LEGACY").model_dump_json(), encoding="utf-8"
+    )
+    fetcher._save(_rendered_page(url, text="FRESH_SHARDED"))
+
+    assert fetcher._load(url).text == "FRESH_SHARDED"
+
+
+def test_legacy_flat_entry_respects_min_chars_floor():
+    """The F17 below-floor rule applies to legacy hits too: a short cached page
+    must read as a miss so the render path re-runs, rather than the fallback
+    becoming a way for pre-floor entries to freeze cross-run."""
+    url = "https://x.gov/legacy-short"
+    legacy = Path(fetcher._legacy_cache_path(url))
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text(
+        _rendered_page(url, text="tiny").model_dump_json(), encoding="utf-8"
+    )
+
+    assert fetcher._load(url, min_chars=1) is not None
+    assert fetcher._load(url, min_chars=500) is None
+
+
 def test_save_atomic_write_survives_concurrent_readers(monkeypatch):
     """The shared page cache must never let a reader observe a torn/partial file
     under concurrent writers (else model_validate_json raises and is swallowed
@@ -328,7 +434,8 @@ def test_save_atomic_write_survives_concurrent_readers(monkeypatch):
         t.join()
 
     assert errors == []
-    # No leftover temp files after every writer finished.
-    from pathlib import Path
-
-    assert list(Path(config.CACHE_DIR).glob("*.tmp.*")) == []
+    # No leftover temp files after every writer finished. rglob, not glob: under
+    # the §B3 fanout the temp file is created in the shard dir alongside its
+    # destination, so a root-level glob would pass vacuously and stop testing
+    # anything.
+    assert list(Path(config.CACHE_DIR).rglob("*.tmp.*")) == []

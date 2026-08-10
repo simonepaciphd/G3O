@@ -1,4 +1,4 @@
-# G3O Output Contract v2.1 -- Single Flat Table
+# G3O Output Contract v2.2 -- Single Flat Table
 
 You are producing structured research data for the **Global Government GenAI Observatory (G3O)**, a public, auditable dataset that measures generative-AI activity across government institutions worldwide. Every field you produce will be ingested programmatically. Follow this contract with **zero deviation**.
 
@@ -95,10 +95,12 @@ When `has_genai_activity` = `yes` AND this row's source supports a specific acti
 
 When `has_genai_activity` = `no` or `unclear`, OR the row's source is `confirms_absence` / `ambiguous` / `background_only`, set **every field in Group D** to the exact string `_NA_`.
 
+**"Every field in Group D" means columns 11-28 and nothing else.** It does not reach Group E (source fields) or Group F (`confidence`, `uncertainty_flags`), which are always filled with their own values on every row. In particular: **`uncertainty_flags` (column 39) is not a Group D field. Even when every Group D field is `_NA_`, `uncertainty_flags` must be `none` unless a specific flag from the §4.10 vocabulary applies. `_NA_` is never a valid value for `uncertainty_flags`.**
+
 | # | Column | Type | Allowed values | Description |
 |---|--------|------|----------------|-------------|
 | 11 | `activity_name` | string | Max 120 chars / `_NA_` | Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platform"). Otherwise descriptive (e.g., "Internal Copilot pilot for document drafting"). |
-| 12 | `activity_type` | enum | `policy_guidance` / `pilot_experiment` / `program_initiative` / `internal_operational` / `public_facing_service` / `_NA_` | G3O activity typology. See definitions below. |
+| 12 | `activity_type` | enum | `policy_guidance` / `pilot_experiment` / `program_initiative` / `internal_operational` / `public_facing_service` / `unknown` / `_NA_` | G3O activity typology. See definitions below. |
 | 13 | `adoption_stage` | enum | `proposed` / `announced` / `pilot` / `production` / `discontinued` / `unknown` / `_NA_` | Current stage. See coding rules below. |
 | 14 | `access_type` | enum | `proprietary_vendor` / `open_source` / `sovereign_model` / `in_house` / `mixed` / `unknown` / `_NA_` | How the GenAI capability is sourced. |
 | 15 | `interaction_type` | enum | `chatbot` / `document_processing` / `code_generation` / `decision_support` / `translation` / `content_creation` / `search_retrieval` / `multiple` / `not_applicable` / `unknown` / `_NA_` | Primary mode of human-AI interaction. |
@@ -160,6 +162,7 @@ When `has_genai_activity` = `no` or `unclear`, OR the row's source is `confirms_
 | `program_initiative` | Cross-agency programs, governance bodies, training programs, or platform rollouts spanning multiple units. | Program charters, budget lines, cross-agency announcements. |
 | `internal_operational` | Routine internal use for drafting, summarization, knowledge search, translation, internal helpdesks, or developer tooling. | Approved-tool lists, internal-tool announcements, procurement records. |
 | `public_facing_service` | Citizen- or business-facing chatbots, service navigation, translation, complaint handling, case triage. | Live service portals, official releases, procurement tied to a named service channel. |
+| `unknown` | Evidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate from the available sources. Use only after the five kinds above have been considered and none is supportable -- never as a default. | A procurement award or vendor register naming a GenAI product and this institution, with nothing stating what it is used for. |
 
 **Rule: policy vs. pilot.** If an institution has issued a GenAI policy AND is running a pilot, these are **two distinct activities**. Produce separate rows for each (with their respective sources).
 
@@ -248,6 +251,8 @@ When sources conflict on coded values, the higher-credibility source wins:
 
 Use these exact strings. Multiple flags: join with semicolons, no surrounding spaces (e.g., `stage_ambiguous;vendor_undisclosed`).
 
+If no flag applies, emit exactly `none`. **Do not emit `_NA_` here** — this field is Group F, not Group D, and the Group D `_NA_` rule of §3.2 does not apply to it. `none` is the correct value on a `confirms_absence` / `ambiguous` / `background_only` row just as it is on a `confirms_activity` row.
+
 | Flag | Meaning |
 |------|---------|
 | `stage_ambiguous` | Cannot determine whether proposed, announced, pilot, or production |
@@ -268,7 +273,7 @@ Your output is Markdown pipe tables, but this schema governs allowed values:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "G3O Batch Response v2.0",
+  "title": "G3O Batch Response v2.2",
   "type": "object",
   "required": ["batch_metadata", "data"],
   "properties": {
@@ -306,7 +311,7 @@ Your output is Markdown pipe tables, but this schema governs allowed values:
           "institution_summary": {"type":"string","maxLength":300},
           "institution_search_languages": {"type":"string","pattern":"^[a-z]{2}(,[a-z]{2})*$"},
           "activity_name": {"type":"string","maxLength":120},
-          "activity_type": {"enum":["policy_guidance","pilot_experiment","program_initiative","internal_operational","public_facing_service","_NA_"]},
+          "activity_type": {"enum":["policy_guidance","pilot_experiment","program_initiative","internal_operational","public_facing_service","unknown","_NA_"]},
           "adoption_stage": {"enum":["proposed","announced","pilot","production","discontinued","unknown","_NA_"]},
           "access_type": {"enum":["proprietary_vendor","open_source","sovereign_model","in_house","mixed","unknown","_NA_"]},
           "interaction_type": {"enum":["chatbot","document_processing","code_generation","decision_support","translation","content_creation","search_retrieval","multiple","not_applicable","unknown","_NA_"]},
@@ -348,7 +353,7 @@ Your output is Markdown pipe tables, but this schema governs allowed values:
 Before you output your response, verify ALL of the following. If any check fails, fix it before responding.
 
 1. **Institution coverage**: Every `institution_id` from the input appears in at least one row.
-2. **`_NA_` consistency**: On every row where `genai_evidence` is `confirms_absence`, `ambiguous`, or `background_only`, ALL Group D columns (columns 11-28) MUST be `_NA_`. On every row where `genai_evidence` = `confirms_activity`, NO Group D column may be `_NA_` (use `unknown`, `none_reported`, `none`, or `not_documented` as appropriate instead).
+2. **`_NA_` consistency**: On every row where `genai_evidence` is `confirms_absence`, `ambiguous`, or `background_only`, ALL Group D columns (columns 11-28) MUST be `_NA_`. On every row where `genai_evidence` = `confirms_activity`, NO Group D column may be `_NA_` (use `unknown`, `none_reported`, `none`, or `not_documented` as appropriate instead). **No column outside 11-28 may ever be `_NA_`** — check columns 29-39 specifically, and `uncertainty_flags` above all, where the correct empty value is `none`.
 3. **`has_genai_activity` consistency**: If an institution has `has_genai_activity` = `no`, then NONE of its rows may have `genai_evidence` = `confirms_activity`. If `yes`, at least one row MUST have `genai_evidence` = `confirms_activity`.
 4. **Repeated institution fields**: For all rows sharing the same `institution_id`, the values of `institution_name`, `country`, `branch_of_government`, `level_of_government`, `has_genai_activity`, `institution_summary`, and `institution_search_languages` must be identical.
 5. **Repeated activity fields**: For all rows sharing the same `institution_id` AND `activity_name`, the Group D columns (11-28) must be identical (only the source columns and `row_id` differ).
@@ -369,12 +374,14 @@ All examples below show how specific situations map to rows in the flat table. C
 
 **Produces 2 rows:**
 
-| row | institution_id | has_genai_activity | activity_name | ... (all Group D) | source_url | genai_evidence | source_snippet |
-|-----|---------------|--------------------|---------------|-------------------|------------|----------------|----------------|
-| 1 | INST-0030 | no | _NA_ | _NA_ | https://www.nationalassembly.gov.bz/ | confirms_absence | The supplied page text contains no mention of generative AI, LLM, ChatGPT, or related terms. |
-| 2 | INST-0030 | no | _NA_ | _NA_ | https://www.nationalassembly.gov.bz/news/ | confirms_absence | The supplied page text contains no mention of generative AI activity by the Parliament of Belize. |
+| row | institution_id | has_genai_activity | activity_name | ... (all Group D) | source_url | genai_evidence | confidence | uncertainty_flags | source_snippet |
+|-----|---------------|--------------------|---------------|-------------------|------------|----------------|------------|-------------------|----------------|
+| 1 | INST-0030 | no | _NA_ | _NA_ | https://www.nationalassembly.gov.bz/ | confirms_absence | high | none | The supplied page text contains no mention of generative AI, LLM, ChatGPT, or related terms. |
+| 2 | INST-0030 | no | _NA_ | _NA_ | https://www.nationalassembly.gov.bz/news/ | confirms_absence | high | none | The supplied page text contains no mention of generative AI activity by the Parliament of Belize. |
 
 Note: each row's `source_url` is the URL provided alongside the supplied page text. Never substitute a different URL or fabricate one.
+
+Note the Group F columns on these rows. Every Group D column is `_NA_`, but `confidence` and `uncertainty_flags` are **not** — they carry their own values (`high` and `none` here). `uncertainty_flags` is `none`, never `_NA_`, however much of Group D is blanked out.
 
 ### Edge case B: Procurement notice for Microsoft 365 Copilot
 

@@ -13,6 +13,7 @@ All paths return a ``RenderedPage`` so Stage 5 reads
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import logging
 import os
@@ -90,6 +91,26 @@ def _cache_key(url: str) -> str:
 
 
 def _cache_path(url: str) -> str:
+    """The single constructor for the page-cache path (storage-layout-v2 §B3).
+
+    ``cache/<md5[:2]>/page_v2_<md5>.json.gz`` — 256-way md5-2hex fanout over the
+    same cache key as the flat layout. The cache holds one file per unique URL
+    ever fetched and is shared cross-run, so at the 719,588-institution frame the
+    pre-fanout flat directory reached millions of entries in a single folder; the
+    fanout caps any one shard at a few thousand. The shard is derived from the
+    cache key itself, so it needs no state beyond the URL.
+    """
+    key = _cache_key(url)
+    return os.path.join(config.CACHE_DIR, key[:2], f"{_CACHE_PREFIX}{key}.json.gz")
+
+
+def _legacy_cache_path(url: str) -> str:
+    """The pre-fanout flat, uncompressed path: ``cache/page_v2_<md5>.json``.
+
+    Read-only fallback (see ``_load``) so cache entries written before the §B3
+    fanout stay warm instead of forcing a re-fetch. Nothing writes here — there
+    is no migration script by design; the flat remainder ages out naturally.
+    """
     return os.path.join(config.CACHE_DIR, f"{_CACHE_PREFIX}{_cache_key(url)}.json")
 
 
@@ -105,8 +126,10 @@ def _save(page: RenderedPage, *, min_chars: int = 1) -> None:
     # via _failure_page.
     if len(page.text.strip()) < min_chars:
         return
-    os.makedirs(config.CACHE_DIR, exist_ok=True)
     path = _cache_path(page.url)
+    # makedirs on the *shard* dir, not CACHE_DIR: the fanout (§B3) puts the file
+    # one level down, and the shard is usually absent on a cold cache.
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     # Atomic write (Stage-4 concurrency thread-safety, 2026-07): the page cache
     # is shared cross-run and cross-institution — two worker threads scraping the
     # same URL race on the same cache file. A plain open(path, "w") lets a
@@ -116,8 +139,17 @@ def _save(page: RenderedPage, *, min_chars: int = 1) -> None:
     # the temp name carries pid + thread id so two writers never collide.
     # Mirrors serper_client._save_cache.
     tmp_path = f"{path}.tmp.{os.getpid()}.{threading.get_ident()}"
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        f.write(page.model_dump_json())
+    # gzip (§B3): page text is the bulk of the cache's bytes. ``mtime=0`` and an
+    # explicit empty ``filename`` pin the two nondeterministic gzip header fields
+    # so identical input yields byte-identical output (§A1). Both matter here:
+    # GzipFile otherwise stamps the current time *and* infers the header filename
+    # from ``fileobj.name``, which is the temp name — pid + thread id — and would
+    # bake writer identity into the cached bytes.
+    with open(tmp_path, "wb") as raw_f:
+        with gzip.GzipFile(
+            filename="", fileobj=raw_f, mode="wb", mtime=0, compresslevel=6
+        ) as gz:
+            gz.write(page.model_dump_json().encode("utf-8"))
     # Windows can transiently deny os.replace while a concurrent _load() read
     # holds the destination (no FILE_SHARE_DELETE); a bounded capped-backoff
     # retry clears it, a no-op first-try on POSIX. A cache write is best-effort:
@@ -138,21 +170,29 @@ def _save(page: RenderedPage, *, min_chars: int = 1) -> None:
             time.sleep(min(0.01 * (2**attempt), 0.25))
 
 
-def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
-    path = _cache_path(url)
+def _read_cache_file(path: str, *, gzipped: bool) -> str | None:
+    """Read one cache file's JSON text, or None if absent/unreadable.
+
+    Windows can transiently deny the read open while a concurrent writer's
+    os.replace swaps the destination (Stage-4 concurrency). A bounded
+    capped-backoff retry clears it; a persistent denial degrades to a cache
+    miss (the caller re-fetches), never a spurious scrape_failed. No-op
+    first-try on POSIX.
+
+    A torn/corrupt payload is deliberately *not* swallowed here — the atomic
+    temp+os.replace write is what guarantees readers never see one, so masking a
+    decode error would hide real corruption instead of the contention this
+    retry loop exists for.
+    """
     if not os.path.exists(path):
         return None
-    # Windows can transiently deny the read open while a concurrent writer's
-    # os.replace swaps the destination (Stage-4 concurrency). A bounded
-    # capped-backoff retry clears it; a persistent denial degrades to a cache
-    # miss (the caller re-fetches), never a spurious scrape_failed. No-op
-    # first-try on POSIX.
-    raw: str | None = None
     for attempt in range(12):
         try:
+            if gzipped:
+                with gzip.open(path, "rt", encoding="utf-8") as f:
+                    return f.read()
             with open(path, encoding="utf-8") as f:
-                raw = f.read()
-            break
+                return f.read()
         except PermissionError:
             if attempt == 11:
                 logger.warning("page cache read gave up after contention on %s", path)
@@ -160,6 +200,16 @@ def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
             time.sleep(min(0.01 * (2**attempt), 0.25))
         except FileNotFoundError:
             return None  # replaced away between the exists() check and the open
+    return None
+
+
+def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
+    # Sharded-gzipped first, then the pre-fanout flat path (§B3). The fallback is
+    # read-only: a legacy hit is served as-is rather than rewritten into the new
+    # layout, so a warm flat cache keeps working without a migration pass.
+    raw = _read_cache_file(_cache_path(url), gzipped=True)
+    if raw is None:
+        raw = _read_cache_file(_legacy_cache_path(url), gzipped=False)
     if raw is None:
         return None
     cached = RenderedPage.model_validate_json(raw)

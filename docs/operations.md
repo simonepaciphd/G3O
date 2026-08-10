@@ -122,19 +122,20 @@ runs/<run-id>/
 │       ├── classify_official_site.json     # moved here once Stage 2 fetch succeeded
 │       ├── …                               # …one per completed stage
 │       └── validate.json
-├── INST-XXXXXXX/
+├── institutions/<shard>/INST-XXXXXXX/      # <shard> = md5(inst_id)[:2]
 │   ├── institution.json
 │   ├── 1a_discovery_general.json
 │   ├── 2_official_site.json
 │   ├── 1b_discovery_site_restricted.json   # absent if no usable official site
 │   ├── 3_triage.json
-│   ├── scrape/<url_hash>.json              # one per fetched page
-│   ├── extract/<url_hash>.json             # one per Stage 5 result
+│   ├── scrape/<url_hash>.json.gz           # one per fetched page (gzipped)
+│   ├── extract/<url_hash>.json.gz          # one per Stage 5 result (gzipped)
 │   └── 6_validate.json
-└── final/                                  # written by `g3o persist` after Stage 6
-    ├── g3o_activities_v{N}.csv
-    ├── g3o_activity_sources_v{N}.csv
-    └── g3o_institution_summary_v{N}.csv
+├── final/                                  # written by `g3o persist` after Stage 6
+│   ├── g3o_activities_v{N}.csv
+│   ├── g3o_activity_sources_v{N}.csv
+│   └── g3o_institution_summary_v{N}.csv
+└── archive/institutions/<shard>.tar        # written by `g3o archive --apply` (see below)
 ```
 
 ## Persist (Stage 7) — separate, deterministic
@@ -153,6 +154,68 @@ g3o persist `
 `--overwrite`. It does not use the Batch API and is therefore not part of the
 state-file machinery. See [`data_dictionary.md`](data_dictionary.md) for the
 three CSVs' columns.
+
+## Archive (retention) — the last operation on a run
+
+A finished run's institution tree is the storage overhang: at the full frame
+roughly 20M files. Once the run is complete, `g3o archive` tars it one shard at
+a time to `runs/<run-id>/archive/institutions/<shard>.tar` (plain tar — the page
+artifacts inside are already gzipped, so outer compression buys ~nothing).
+
+```powershell
+g3o archive --run-dir runs/<run-id>            # dry run: prints the plan, writes nothing
+g3o archive --run-dir runs/<run-id> --apply    # tars, verifies, then deletes the sources
+```
+
+**Dry run is the default.** Without `--apply` the command prints shard count,
+file count, byte totals, and projected tar sizes, then exits without writing or
+deleting anything. Note the projected tar size is an *estimate* (tar block
+overhead modelled, extended headers not).
+
+**Preconditions.** `archive` refuses unless all three hold, and reports every
+gap at once:
+
+1. `final/` contains the three Stage-7 CSVs (run `g3o persist` first).
+2. `_state/.done/` holds a marker for every stage in `g3o.run.presweep.STAGES`.
+3. Run-level reports (`run_summary.json`, `_health_report.json`) are written.
+
+Condition 3 is the one that bites: the reports read the *live* institution
+tree, so archiving before they run produces an empty report against an archived
+run. Archival is strictly the last operation on a run.
+
+**Verification precedes every delete.** Each tar is re-opened after writing and
+its member count and total member bytes compared against a fresh walk of the
+source. A mismatch aborts the whole command, deletes nothing, and renames the
+bad tar to `<shard>.tar.FAILED` so it is never mistaken for a good archive.
+Shards archived before the failure stay archived — each verified against its
+own source.
+
+**Idempotent.** Re-running after an interruption finishes the remainder: a
+shard whose tar exists and verifies is not rewritten, and a shard whose source
+is already gone is skipped.
+
+Run-level files (`manifest.json`, `_state/`, `_attrition.jsonl`, `final/`, the
+reports) are never archived — they stay live. A completed full-frame run's live
+tree is those files plus at most 256 tars.
+
+### Restore
+
+There is no restore subcommand (spec §A2, v1 scope). Restoring a shard is one
+plain `tar`:
+
+```powershell
+tar -xf archive/institutions/<shard>.tar -C <run_dir>/institutions/
+```
+
+The tar is rooted at the shard name, so this recreates
+`institutions/<shard>/INST-XXXXXXX/...` exactly where it was. To restore an
+entire run, repeat for each tar in `archive/institutions/`.
+
+Tars are written in **GNU format**, not Python's `PAX` default: PAX spends an
+extra 1 KB per member on an extended header for sub-second mtimes, which is
+~20 GB of padding at full-frame scale and nothing reads it. GNU tar, bsdtar
+(Windows' bundled `tar.exe`), Python's `tarfile`, and 7-zip all read GNU
+format, so the command above is unaffected.
 
 ## Notes
 

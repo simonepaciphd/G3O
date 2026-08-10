@@ -30,6 +30,12 @@ from g3o.run.presweep import stage_discovery
 from g3o.run.presweep.records import institution_record, synth_institution_id
 from g3o.run.presweep.stage_classify import ground_truth_block
 from g3o.run.presweep.stage_discovery import leg1_recall_block
+from tests._layout import (
+    inst_dir as inst_dir_of,
+)
+from tests._layout import (
+    write_manifest,
+)
 
 
 def _write(path: Path, data: Any) -> None:
@@ -159,7 +165,7 @@ def test_stage_1a_chain_writes_the_ground_truth_block(tmp_path: Path) -> None:
         "website": "https://www.bancaditalia.it/",
     }
     inst_id = synth_institution_id(row)
-    (tmp_path / inst_id).mkdir(parents=True)
+    (inst_dir_of(tmp_path, inst_id)).mkdir(parents=True)
     with mock.patch.object(stage_discovery, "search_google_detailed", return_value=_Result()):
         stage_discovery._discover_general_one(
             tmp_path, row, stage="discovery_general",
@@ -167,7 +173,7 @@ def test_stage_1a_chain_writes_the_ground_truth_block(tmp_path: Path) -> None:
         )
 
     artifact = json.loads(
-        (tmp_path / inst_id / "1a_discovery_general.json").read_text(encoding="utf-8")
+        (inst_dir_of(tmp_path, inst_id) / "1a_discovery_general.json").read_text(encoding="utf-8")
     )
     assert artifact["ground_truth"] == {
         "master_website": "https://www.bancaditalia.it/",
@@ -192,7 +198,7 @@ def test_stage_1a_omits_the_block_without_ground_truth(tmp_path: Path) -> None:
         "website": "",
     }
     inst_id = synth_institution_id(row)
-    (tmp_path / inst_id).mkdir(parents=True)
+    (inst_dir_of(tmp_path, inst_id)).mkdir(parents=True)
     with mock.patch.object(stage_discovery, "search_google_detailed", return_value=_Result()):
         stage_discovery._discover_general_one(
             tmp_path, row, stage="discovery_general",
@@ -200,7 +206,7 @@ def test_stage_1a_omits_the_block_without_ground_truth(tmp_path: Path) -> None:
         )
 
     artifact = json.loads(
-        (tmp_path / inst_id / "1a_discovery_general.json").read_text(encoding="utf-8")
+        (inst_dir_of(tmp_path, inst_id) / "1a_discovery_general.json").read_text(encoding="utf-8")
     )
     assert "ground_truth" not in artifact
 
@@ -223,8 +229,8 @@ def _build_run(
     and `n_stage2_match` had Stage 2 pick it."""
     _attrition._reset_cache()
     ids = [f"INST-{i:07d}" for i in range(1, n + 1)]
-    _write(
-        run_dir / "manifest.json",
+    write_manifest(
+        run_dir,
         {
             "run_id": "canary-run",
             "run_date": "2026-08-02",
@@ -233,7 +239,7 @@ def _build_run(
         },
     )
     for i, inst_id in enumerate(ids):
-        d = run_dir / inst_id
+        d = inst_dir_of(run_dir, inst_id)
         true_dom = f"inst{i}.gov"
         has_truth = i < n_with_truth
         leg1_hit = i < n_leg1_hit
@@ -366,8 +372,8 @@ def test_legacy_run_reports_no_canary(tmp_path: Path) -> None:
     """Leg-1 recall is chain-only; a legacy run must not grow a phantom gauge."""
     run_dir = tmp_path / "run"
     _attrition._reset_cache()
-    _write(
-        run_dir / "manifest.json",
+    write_manifest(
+        run_dir,
         {
             "run_id": "legacy-run",
             "run_date": "2026-08-02",
@@ -376,7 +382,7 @@ def test_legacy_run_reports_no_canary(tmp_path: Path) -> None:
         },
     )
     _write(
-        run_dir / "INST-0000001" / "1a_discovery_general.json",
+        inst_dir_of(run_dir, "INST-0000001") / "1a_discovery_general.json",
         {"mode": "legacy", "queries": [], "records": [{"link": "https://x.gov/"}]},
     )
     s = compute_health_report(run_dir)["stages"]["1a_discovery_general"]

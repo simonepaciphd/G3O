@@ -91,6 +91,12 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
+from g3o.common.artifact_io import glob_artifacts, read_artifact
+from g3o.common.paths import (
+    institution_dir,
+    iter_institution_dirs,
+    require_layout,
+)
 from g3o.common.urlnorm import site_root
 
 # Stage keys in canonical display order (matches the report shape agreed with
@@ -123,6 +129,20 @@ def _read_json(path: Path) -> Any | None:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _read_artifact_json(path: Path) -> Any | None:
+    """Same tolerant contract as :func:`_read_json`, for a gzipped artifact.
+
+    Kept separate rather than folded into ``_read_json``: that helper also reads
+    the plain run-level and stage files (``manifest.json``, ``3_triage.json``,
+    ``6_validate.json``), which are never gzipped, and routing those through the
+    artifact layer would blur which files Phase 2 actually compresses.
+    """
+    try:
+        return json.loads(read_artifact(path))
+    except (OSError, ValueError):
         return None
 
 
@@ -163,12 +183,17 @@ def _labeled_run_ids(dirs: list[Path]) -> list[str]:
 
 
 def _run_institutions(run_dir: Path) -> set[str]:
-    """Institutions this run knows about: manifest list ∪ on-disk subdirs."""
+    """Institutions this run knows about: manifest list, plus on-disk institution dirs.
+
+    The on-disk half goes through :func:`g3o.common.paths.iter_institution_dirs`
+    (storage layout v2). Before v2 this walked ``run_dir.iterdir()`` filtering
+    only ``_``-prefixed names and ``.done``; ``final/`` is a real direct child of
+    a run dir, so every run that had reached Stage 7 silently counted ``final``
+    as an institution here.
+    """
     insts: set[str] = set(_load_manifest(run_dir).get("institutions", []))
-    if run_dir.is_dir():
-        for d in run_dir.iterdir():
-            if d.is_dir() and not d.name.startswith("_") and d.name != ".done":
-                insts.add(d.name)
+    for d in iter_institution_dirs(run_dir):
+        insts.add(d.name)
     return insts
 
 
@@ -259,12 +284,9 @@ def _triage_keep_set(inst_dir: Path) -> frozenset[str]:
 
 
 def _scraped_pages(inst_dir: Path) -> frozenset[str]:
-    scrape_dir = inst_dir / "scrape"
-    if not scrape_dir.is_dir():
-        return frozenset()
     urls: set[str] = set()
-    for f in scrape_dir.glob("*.json"):
-        payload = _read_json(f)
+    for f in glob_artifacts(inst_dir / "scrape"):
+        payload = _read_artifact_json(f)
         if isinstance(payload, dict) and payload.get("url"):
             urls.add(payload["url"])
     return frozenset(urls)
@@ -273,17 +295,14 @@ def _scraped_pages(inst_dir: Path) -> frozenset[str]:
 def _extract_outcomes(inst_dir: Path) -> frozenset[tuple[str, Any]]:
     """Set of (source_url, has_genai_activity) pairs across every extract row.
 
-    Each ``extract/*.json`` is a dumped ``BatchResponse`` (a ``data`` array of
+    Each ``extract/`` artifact is a dumped ``BatchResponse`` (a ``data`` array of
     contract rows); every row carries ``source_url`` plus the institution-level
     ``has_genai_activity`` verdict.  We read just those two fields, tolerant of
     any row subset.
     """
-    extract_dir = inst_dir / "extract"
-    if not extract_dir.is_dir():
-        return frozenset()
     pairs: set[tuple[str, Any]] = set()
-    for f in extract_dir.glob("*.json"):
-        payload = _read_json(f)
+    for f in glob_artifacts(inst_dir / "extract"):
+        payload = _read_artifact_json(f)
         if not isinstance(payload, dict):
             continue
         for row in payload.get("data", []):
@@ -590,9 +609,9 @@ def _run_completeness(dirs: list[Path], run_ids: list[str], run_insts: list[set[
         for name in _CENSUS_ARTIFACTS:
             n = 0
             for inst in insts:
-                p = run_dir / inst / name
+                p = institution_dir(run_dir, inst) / name
                 if p.is_dir():
-                    n += 1 if any(p.glob("*.json")) else 0
+                    n += 1 if glob_artifacts(p) else 0
                 elif p.is_file():
                     n += 1
             counts[name] = n
@@ -608,7 +627,7 @@ def _final_status_reason_summary(
     for run_dir, rid, insts in zip(dirs, run_ids, run_insts, strict=True):
         per_run[rid] = {
             inst: (
-                _final_status_reason(run_dir / inst)
+                _final_status_reason(institution_dir(run_dir, inst))
                 if inst in insts
                 else "institution_absent"
             )
@@ -637,7 +656,7 @@ def _compute_diagnostics(
         for inst in all_insts:
             vals = []
             for run_dir, insts in zip(dirs, run_insts, strict=True):
-                vals.append(fn(run_dir / inst) if inst in insts else None)
+                vals.append(fn(institution_dir(run_dir, inst)) if inst in insts else None)
             out[inst] = vals
         return out
 
@@ -711,6 +730,8 @@ def compute_run_diff(run_dirs: list[str | Path]) -> dict[str, Any]:
     dirs = [Path(d) for d in run_dirs]
     if len(dirs) < 2:
         raise ValueError("run-diff requires at least two run directories")
+    for d in dirs:
+        require_layout(d)
 
     run_ids = _labeled_run_ids(dirs)
     run_insts = [_run_institutions(d) for d in dirs]
@@ -723,7 +744,7 @@ def compute_run_diff(run_dirs: list[str | Path]) -> dict[str, Any]:
         stage_values: dict[str, list[Any]] = {s: [] for s in _STAGES}
         for run_dir, insts in zip(dirs, run_insts, strict=True):
             if inst in insts:
-                collected = _collect_institution(run_dir / inst)
+                collected = _collect_institution(institution_dir(run_dir, inst))
             else:
                 collected = {s: _MISSING for s in _STAGES}
             for s in _STAGES:

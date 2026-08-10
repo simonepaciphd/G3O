@@ -39,6 +39,7 @@ from g3o.discovery.query_builder import (
 from g3o.run import presweep as ps
 from g3o.run.presweep import PresweepConfig, plan_run
 from g3o.run.presweep.planning import _GUARDED_CONFIG_KEYS
+from tests._layout import inst_dir as inst_dir_of
 from tests.test_discovery_chain import _patch_search, _Recorder, _rows
 
 _COLUMNS = [
@@ -245,7 +246,7 @@ def test_leg_2_issues_one_tagged_query_per_language(tmp_path, monkeypatch):
 
     import json
     artifact = json.loads(
-        (plan.run_dir / inst_id / "1b_discovery_site_restricted.json").read_text(
+        (inst_dir_of(plan.run_dir, inst_id) / "1b_discovery_site_restricted.json").read_text(
             encoding="utf-8"
         )
     )
@@ -293,7 +294,7 @@ def test_a_url_found_by_two_languages_is_attributed_to_the_first_only(
     )
 
     artifact = json.loads(
-        (plan.run_dir / inst_id / "1b_discovery_site_restricted.json").read_text(
+        (inst_dir_of(plan.run_dir, inst_id) / "1b_discovery_site_restricted.json").read_text(
             encoding="utf-8"
         )
     )
@@ -346,7 +347,7 @@ def test_leg_1_stays_one_english_query_whatever_the_languages(tmp_path, monkeypa
 
     import json
     artifact = json.loads(
-        (plan.run_dir / inst_id / "1a_discovery_general.json").read_text(
+        (inst_dir_of(plan.run_dir, inst_id) / "1a_discovery_general.json").read_text(
             encoding="utf-8"
         )
     )
@@ -402,3 +403,147 @@ def test_resume_guard_trips_on_a_mode_flip(tmp_path):
     # Negative control — the guard is discriminating, not raising on everything.
     same = build_manifest(_config(tmp_path, discovery_mode="chain"), plan.sample)
     _assert_manifest_matches_on_resume(plan.run_dir, same)
+
+
+# ---------------------------------------------------------------------------
+# Roster provenance — GENAI_TERMS_BY_LANG is a constant, so the manifest has to
+# carry a fingerprint of it for the guard to have anything to compare
+# ---------------------------------------------------------------------------
+
+
+def test_roster_hash_is_guarded():
+    assert "genai_terms_roster_hash" in _GUARDED_CONFIG_KEYS
+
+
+def test_roster_hash_is_stable_across_calls():
+    from g3o.discovery.query_builder import genai_terms_roster_hash
+
+    assert genai_terms_roster_hash() == genai_terms_roster_hash()
+
+
+def test_roster_hash_ignores_dict_key_order(monkeypatch):
+    """Deterministic key ordering: the source literal's order cannot leak in."""
+    from g3o.discovery import query_builder as qb
+
+    before = qb.genai_terms_roster_hash()
+    monkeypatch.setattr(
+        qb, "GENAI_TERMS_BY_LANG", dict(reversed(list(qb.GENAI_TERMS_BY_LANG.items())))
+    )
+    assert qb.genai_terms_roster_hash() == before
+
+
+def test_roster_hash_covers_languages_this_run_never_queries(monkeypatch):
+    """The fingerprint is over the whole roster, not this run's language subset.
+
+    A term added to ``fr`` moves the hash even for an English-only run: the
+    roster is one instrument, versioned as a whole, and pinning only the
+    languages a run happens to query would let the rest drift unrecorded.
+    """
+    from g3o.discovery import query_builder as qb
+
+    before = qb.genai_terms_roster_hash()
+    widened = {lang: list(terms) for lang, terms in qb.GENAI_TERMS_BY_LANG.items()}
+    widened["fr"] = [*widened["fr"], "assistant IA"]
+    monkeypatch.setattr(qb, "GENAI_TERMS_BY_LANG", widened)
+    assert qb.genai_terms_roster_hash() != before
+
+
+def test_roster_hash_moves_on_a_reordering(monkeypatch):
+    """Deliberate: term order is part of the roster's identity.
+
+    Sorting the per-language lists before hashing would make a reorder hash
+    identically and slip past the guard. Reordering is still a roster edit, so
+    it trips.
+    """
+    from g3o.discovery import query_builder as qb
+
+    before = qb.genai_terms_roster_hash()
+    reordered = {lang: list(terms) for lang, terms in qb.GENAI_TERMS_BY_LANG.items()}
+    reordered["en"] = list(reversed(reordered["en"]))
+    monkeypatch.setattr(qb, "GENAI_TERMS_BY_LANG", reordered)
+    assert qb.genai_terms_roster_hash() != before
+
+
+def test_resume_guard_trips_on_a_roster_edit(tmp_path, monkeypatch):
+    """Non-vacuous: an edited roster aborts the resume it would have changed."""
+    import json
+
+    from g3o.common.run_state import state_dir
+    from g3o.discovery import query_builder as qb
+    from g3o.run.presweep.planning import (
+        _assert_manifest_matches_on_resume,
+        build_manifest,
+    )
+
+    cfg = _config(tmp_path)
+    plan = plan_run(cfg)
+    state_dir(plan.run_dir).mkdir(parents=True, exist_ok=True)
+
+    on_disk = json.loads((plan.run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert on_disk["config"]["genai_terms_roster_hash"] == qb.genai_terms_roster_hash()
+
+    edited = {lang: list(terms) for lang, terms in qb.GENAI_TERMS_BY_LANG.items()}
+    edited["en"] = [*edited["en"], "AI copilot"]
+    monkeypatch.setattr(qb, "GENAI_TERMS_BY_LANG", edited)
+
+    with pytest.raises(RuntimeError, match="genai_terms_roster_hash"):
+        _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg, plan.sample))
+
+
+def _drop_config_key(run_dir: Path, key: str) -> None:
+    """Rewrite manifest.json as one written before ``key`` existed."""
+    import json
+
+    path = run_dir / "manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    del manifest["config"][key]
+    path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
+def test_resume_guard_tolerates_a_manifest_predating_the_roster_hash(tmp_path):
+    """Runs launched before the fingerprint shipped stay resumable (PI, 2026-08-04).
+
+    Their manifests cannot carry a key that did not exist yet. Tolerating the
+    absence is the concession run_generation_parameters already makes; the
+    alternative pressures operators into hand-editing manifests, which defeats
+    every other guarded key at once.
+    """
+    from g3o.common.run_state import state_dir
+    from g3o.run.presweep.planning import (
+        _assert_manifest_matches_on_resume,
+        build_manifest,
+    )
+
+    cfg = _config(tmp_path)
+    plan = plan_run(cfg)
+    state_dir(plan.run_dir).mkdir(parents=True, exist_ok=True)
+    _drop_config_key(plan.run_dir, "genai_terms_roster_hash")
+
+    # No raise: absent is not "differs".
+    _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg, plan.sample))
+
+
+def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
+    """The exception is one key wide.
+
+    A manifest predating the chain keys must still refuse to resume — otherwise
+    tolerating absence would reopen the mode-flip hole the chain guard closed.
+    """
+    from g3o.common.run_state import state_dir
+    from g3o.run.presweep.planning import (
+        _ABSENT_TOLERATED_CONFIG_KEYS,
+        _assert_manifest_matches_on_resume,
+        build_manifest,
+    )
+
+    assert _ABSENT_TOLERATED_CONFIG_KEYS == {"genai_terms_roster_hash"}
+
+    cfg = _config(tmp_path)
+    plan = plan_run(cfg)
+    state_dir(plan.run_dir).mkdir(parents=True, exist_ok=True)
+    _drop_config_key(plan.run_dir, "discovery_mode")
+
+    with pytest.raises(RuntimeError, match="discovery_mode"):
+        _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg, plan.sample))

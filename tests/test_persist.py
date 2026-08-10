@@ -25,6 +25,10 @@ from g3o.persist import (
     load_consolidated_outputs,
     write_run_csvs,
 )
+from tests._layout import (
+    make_inst_dir,
+    write_manifest,
+)
 
 # ---------------------------------------------------------------------------
 # Fixture builders (parallel to test_validate.py / test_consolidated_contract.py)
@@ -151,10 +155,10 @@ def _no_response(institution_id: str = "INST-0002") -> ConsolidatedInstitutionRe
 
 
 def _stage_run_dir(tmp_path: Path, responses: dict[str, ConsolidatedInstitutionResponse]) -> Path:
-    """Create runs/<run_id>/<inst>/6_validate.json for each entry."""
+    """Create a layout-v2 run tree with one 6_validate.json per entry."""
+    write_manifest(tmp_path, {"run_id": "R1", "institutions": sorted(responses)})
     for inst_id, response in responses.items():
-        d = tmp_path / inst_id
-        d.mkdir(parents=True, exist_ok=True)
+        d = make_inst_dir(tmp_path, inst_id)
         (d / "6_validate.json").write_text(
             json.dumps(response.model_dump(), ensure_ascii=False, indent=2),
             encoding="utf-8",
@@ -389,15 +393,16 @@ def test_load_consolidated_outputs_parses_valid_payloads(tmp_path: Path) -> None
 
 
 def test_load_consolidated_outputs_skips_missing_payload(tmp_path: Path) -> None:
-    (tmp_path / "INST-0001").mkdir()  # no 6_validate.json
+    write_manifest(tmp_path)
+    make_inst_dir(tmp_path, "INST-0001")  # no 6_validate.json
     loaded, failures = load_consolidated_outputs(tmp_path)
     assert loaded == []
     assert failures == []
 
 
 def test_load_consolidated_outputs_records_failures(tmp_path: Path) -> None:
-    bad_dir = tmp_path / "INST-BAD"
-    bad_dir.mkdir()
+    write_manifest(tmp_path)
+    bad_dir = make_inst_dir(tmp_path, "INST-BAD")
     (bad_dir / "6_validate.json").write_text(
         json.dumps({"institution": {"institution_id": "INST-BAD"}}), encoding="utf-8"
     )
@@ -506,8 +511,7 @@ def test_write_run_csvs_overwrite_flag_replaces(tmp_path: Path) -> None:
     run_dir = _stage_run_dir(tmp_path, {"INST-0001": _yes_response()})
     write_run_csvs(run_dir, run_id="R1", run_model="gpt-5-nano")
     # Add a second institution and overwrite.
-    second_dir = run_dir / "INST-0002"
-    second_dir.mkdir()
+    second_dir = make_inst_dir(run_dir, "INST-0002")
     (second_dir / "6_validate.json").write_text(
         json.dumps(_no_response().model_dump(), ensure_ascii=False),
         encoding="utf-8",
