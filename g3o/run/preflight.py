@@ -15,9 +15,11 @@ wants before committing real spend and ~4 days of wall-clock to a live run:
 No state files are written and no production batches are submitted. Job counts
 beyond Stage 1 depend on discovery/scrape outputs that do not exist pre-run, so
 the projections are explicitly labeled ESTIMATES built on stated assumptions
-(per review F20's caution to separate estimate from fact). The cost ceiling
-(Decision D7) is print-only for now: no abort gate is wired (researcher,
-2026-06-10).
+(per review F20's caution to separate estimate from fact). The cost ceiling (Decision D7, superseded by PR #52) aborts with exit 3
+when projected cost exceeds the limit. The limit is read from
+`G3O_BUDGET_LIMIT_USD` (env var) or `--cost-ceiling` (CLI flag, takes
+precedence). The abort gate is enforced on both `--preflight` and
+`--execute` paths.
 """
 
 from __future__ import annotations
@@ -174,7 +176,10 @@ def run_preflight(
 
     ``verify_model_live`` opts into a real 1-job ``verify-model`` batch (off by
     default — it submits and can block on the Batch SLA). ``cost_ceiling_usd``
-    is print/return only unless set; D7 left it unset (no abort gate) for now.
+    aborts (exit 3) when projected cost exceeds the limit; sourced from
+    `G3O_BUDGET_LIMIT_USD` env var or `--cost-ceiling` CLI flag (takes
+    precedence). Enforced on both `--preflight` and `--execute` paths
+    (supersedes Decision D7; PR #52).
     ``client`` is threaded into ``verify_model`` for test injection.
     """
     a = assumptions or PreflightAssumptions()

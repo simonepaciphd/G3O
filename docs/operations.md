@@ -44,8 +44,10 @@ missing**. It writes no state and submits no production batches. Optional:
 
 - `--verify-model` — also runs a live one-job `verify-model` round-trip
   (submits a batch; off by default).
-- `--cost-ceiling <USD>` — reports whether the estimated OpenAI Batch cost
-  exceeds the figure. Informational only; no abort is wired (Decision D7).
+- `--cost-ceiling <USD>` — aborts (exit 3) if the estimated OpenAI Batch cost
+  exceeds the figure. Can also be set via `G3O_BUDGET_LIMIT_USD` env var;
+  the CLI flag takes precedence. Enforced on both `--preflight` and
+  `--execute` paths (supersedes Decision D7; PR #52).
 
 ## Failure honesty in `--execute` (live mode)
 
