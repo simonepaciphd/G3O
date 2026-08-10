@@ -9,6 +9,14 @@ from typing import Any
 
 from g3o.common import attrition, scrape_telemetry
 from g3o.common import config as _config
+from g3o.common.artifact_io import (
+    artifact_exists,
+    glob_artifacts,
+    quarantine_artifact,
+    read_artifact,
+    write_artifact,
+)
+from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, mark_done
 from g3o.common.timing import stage_timer
 from g3o.extract.batch import EMPTY_PAGE_MIN_CHARS
@@ -24,19 +32,33 @@ from g3o.scrape.render import RenderedPage, RenderSession
 
 logger = logging.getLogger(__name__)
 
+#: Attrition reason for an existing scrape artifact that would not parse. Not a
+#: member of ``g3o.report.outcomes._FAILURE_REASONS``: the page is refetched in
+#: the same pass, so this records a *recovered* degradation. A refetch that then
+#: fails records ``scrape_failed`` on its own and counts as the failure.
+REASON_ARTIFACT_CORRUPT = "scrape_artifact_corrupt"
+
 
 def _read_existing_scraped(
     run_dir: Path, sample: list[dict[str, Any]]
 ) -> dict[str, list[RenderedPage]]:
+    """Load Stage 4 output from disk for a stage already marked ``.done``.
+
+    Unlike the per-URL resume guard in :func:`_scrape_one`, this path cannot
+    repair anything: the stage is complete, so there is no refetch to fall back
+    on. An unparseable artifact therefore still raises and aborts, which is the
+    loud failure the situation deserves — silently dropping the page here would
+    shrink Stage 5's input with nothing but a ledger line to show for it.
+    """
     out: dict[str, list[RenderedPage]] = {}
     for row in sample:
         inst_id = synth_institution_id(row)
-        scrape_dir = run_dir / inst_id / "scrape"
+        scrape_dir = institution_dir(run_dir, inst_id) / "scrape"
         if not scrape_dir.is_dir():
             continue
         pages: list[RenderedPage] = []
-        for path in sorted(scrape_dir.glob("*.json")):
-            pages.append(RenderedPage.model_validate_json(path.read_text(encoding="utf-8")))
+        for path in glob_artifacts(scrape_dir):
+            pages.append(RenderedPage.model_validate_json(read_artifact(path)))
         out[inst_id] = pages
     return out
 
@@ -74,6 +96,44 @@ class _ThreadLocalRenderSessions:
             self._local.session = None
 
 
+def _resume_cached_page(
+    run_dir: Path,
+    output_path: Path,
+    *,
+    inst_id: str,
+    url: str,
+    stage: str,
+) -> RenderedPage | None:
+    """The existing artifact for this URL, or None when it is unusable.
+
+    Review F7. The Q5=a resume guard used to assume that "the file exists"
+    means "this URL is done", and read it with no error handling — so one
+    truncated artifact (a crash mid-write, before writes became atomic) raised
+    out of the worker and took down every remaining institution in the pass.
+
+    An artifact that will not parse is treated as corrupt rather than as
+    completed work: it is quarantined (moved to ``.corrupt``, out of the glob
+    but still on disk for diagnosis), recorded once in the attrition ledger, and
+    reported as a miss so the caller refetches the URL. Returning None is the
+    signal to refetch; the exception is never re-raised.
+    """
+    try:
+        return RenderedPage.model_validate_json(read_artifact(output_path))
+    except Exception as exc:
+        quarantined = quarantine_artifact(output_path)
+        logger.warning(
+            "Stage 4: existing scrape artifact for %s (%s) is unparseable — "
+            "quarantined to %s and refetching: %s",
+            inst_id, url, quarantined.name, exc,
+        )
+        attrition.record(
+            run_dir, institution_id=inst_id, stage=stage,
+            reason=REASON_ARTIFACT_CORRUPT, url=url,
+            detail=f"quarantined={quarantined.name}; error={exc}",
+        )
+        return None
+
+
 def _scrape_one(
     run_dir: Path,
     row: dict[str, Any],
@@ -101,7 +161,7 @@ def _scrape_one(
 
     institution = institution_record(row)
     inst_id = institution["institution_id"]
-    scrape_dir = run_dir / inst_id / "scrape"
+    scrape_dir = institution_dir(run_dir, inst_id) / "scrape"
     scrape_dir.mkdir(parents=True, exist_ok=True)
     pages: list[RenderedPage] = []
     render_session = sessions.session()
@@ -150,18 +210,23 @@ def _scrape_one(
         for url in urls:
             fetch_failure["failed"] = False
             output_path = scrape_dir / f"{url_hash(url)}.json"
-            if output_path.exists():
+            if artifact_exists(output_path):
                 # Q5=a per-run skip: load existing RenderedPage; no refetch.
-                pages.append(
-                    RenderedPage.model_validate_json(
-                        output_path.read_text(encoding="utf-8")
+                # artifact_exists/read_artifact accept either suffix, so a run
+                # part-written before Phase 2 resumes off its plain artifacts
+                # instead of re-scraping every URL.
+                cached = _resume_cached_page(
+                    run_dir, output_path, inst_id=inst_id, url=url, stage=stage
+                )
+                if cached is not None:
+                    pages.append(cached)
+                    scrape_telemetry.record(
+                        run_dir, institution_id=inst_id, url=url,
+                        outcome=scrape_telemetry.OUTCOME_SKIPPED_CACHED,
                     )
-                )
-                scrape_telemetry.record(
-                    run_dir, institution_id=inst_id, url=url,
-                    outcome=scrape_telemetry.OUTCOME_SKIPPED_CACHED,
-                )
-                continue
+                    continue
+                # Corrupt: quarantined and recorded (F7). Fall through to
+                # refetch this URL rather than aborting the worker.
             if robots is not None and not robots.allowed(url):
                 logger.info("Stage 4: robots.txt disallows %s — skipping", url)
                 attrition.record(
@@ -210,7 +275,9 @@ def _scrape_one(
                 # it as a normal successful scrape (no artifact, not counted).
                 logger.warning("Stage 4 fetch failed for %s (%s) — dropped", inst_id, url)
                 continue
-            output_path.write_text(page.model_dump_json(indent=2), encoding="utf-8")
+            # Gzipped, compact (no indent=2), atomic, deterministic — see
+            # g3o.common.artifact_io. Writes <url_hash>.json.gz.
+            write_artifact(output_path, page.model_dump_json())
             scrape_telemetry.record(
                 run_dir, institution_id=inst_id, url=url,
                 outcome=scrape_telemetry.OUTCOME_SUCCEEDED,
@@ -238,11 +305,14 @@ def _run_scrape(
     """Stage 4 — scrape per (institution × kept URL).
 
     Per-URL idempotency (Q5=a, Session E 2026-05-09): when the per-run output
-    file ``runs/<run_id>/<inst_id>/scrape/<url_hash>.json`` already exists, the
-    runner loads the cached :class:`RenderedPage` and skips ``scrape_url`` for
-    that URL. The fetcher's global ``page_v2_<md5>`` cache continues to handle
-    cross-run reuse below this layer; the runner-side guard protects partial
-    crash-recovery within a run.
+    file ``runs/<run_id>/institutions/<shard>/<inst_id>/scrape/<url_hash>.json.gz``
+    already exists (or its pre-Phase-2 plain ``.json`` form — see
+    :mod:`g3o.common.artifact_io`), the runner loads the cached
+    :class:`RenderedPage` and skips ``scrape_url`` for that URL. The fetcher's
+    global ``page_v2_<md5>`` cache continues to handle cross-run reuse below this
+    layer; the runner-side guard protects partial crash-recovery within a run. An
+    existing artifact that will not parse is quarantined and refetched rather
+    than trusted or fatal (review F7, :func:`_resume_cached_page`).
 
     Politeness (review F14 / Decision D4, 2026-06-10): when ``respect_robots``
     is True, each URL is checked against its host's robots.txt for the G3O

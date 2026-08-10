@@ -104,6 +104,7 @@ ActivityType = Literal[
     "program_initiative",
     "internal_operational",
     "public_facing_service",
+    "unknown",
     "_NA_",
 ]
 AdoptionStage = Literal[
@@ -526,6 +527,7 @@ ActivityTypeNoNA = Literal[
     "program_initiative",
     "internal_operational",
     "public_facing_service",
+    "unknown",
 ]
 AdoptionStageNoNA = Literal[
     "proposed", "announced", "pilot", "production", "discontinued", "unknown"

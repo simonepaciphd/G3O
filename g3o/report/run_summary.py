@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common.institution_report import read_institution_report
+from g3o.common.paths import require_layout
 from g3o.common.timing import iso_to_dt, read_timing
 
 # Canonical stage order (matches g3o.run.presweep.config.STAGES).
@@ -82,6 +83,7 @@ def compute_timing_summary(run_dir: str | Path, *, top_n: int = 10) -> dict[str,
     ``wall_clock_seconds`` instead of collapsing to whole-second buckets.
     """
     run_dir = Path(run_dir)
+    require_layout(run_dir)
     manifest = _load_manifest(run_dir)
     institution_ids: list[str] = manifest.get("institutions", [])
 
@@ -170,6 +172,7 @@ def compute_run_summary(run_dir: str | Path) -> dict[str, Any]:
     """Build the run-level summary: final-status breakdown + per-stage
     completion counts + per-stage timing totals."""
     run_dir = Path(run_dir)
+    require_layout(run_dir)
     manifest = _load_manifest(run_dir)
     institution_ids: list[str] = manifest.get("institutions", [])
     n_institutions = len(institution_ids)
@@ -263,6 +266,7 @@ def write_run_summary(run_dir: str | Path) -> dict[str, Any]:
     data and are naturally produced together at end of run.
     """
     run_dir = Path(run_dir)
+    require_layout(run_dir)
     timing_summary = compute_timing_summary(run_dir)
     (run_dir / "timing_summary.json").write_text(
         json.dumps(timing_summary, ensure_ascii=False, indent=2), encoding="utf-8"

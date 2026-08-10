@@ -20,6 +20,12 @@ import pytest
 from g3o.common import attrition as _attrition
 from g3o.common.run_state import done_path, state_dir
 from g3o.report import outcomes
+from tests._layout import (
+    inst_dir as inst_dir_of,
+)
+from tests._layout import (
+    write_manifest,
+)
 
 ALL_STAGES = ("classify_triage", "scrape", "extract", "validate")
 
@@ -44,8 +50,8 @@ def _make_run(
 ) -> None:
     """Build a run directory carrying only what outcomes.py reads."""
     _attrition._reset_cache()
-    _write(
-        run_dir / "manifest.json",
+    write_manifest(
+        run_dir,
         {
             "run_id": "test-outcomes",
             "run_date": "2026-08-02",
@@ -61,7 +67,7 @@ def _make_run(
 
 def _discovery(run_dir: Path, inst_id: str, n_urls: int = 3) -> None:
     _write(
-        run_dir / inst_id / "1a_discovery_general.json",
+        inst_dir_of(run_dir, inst_id) / "1a_discovery_general.json",
         {"records": [{"link": f"https://x{i}.gov/"} for i in range(n_urls)]},
     )
 
@@ -69,12 +75,15 @@ def _discovery(run_dir: Path, inst_id: str, n_urls: int = 3) -> None:
 def _triage(run_dir: Path, inst_id: str, *, keeps: int, drops: int = 2) -> None:
     decisions = [{"decision": "keep", "url": f"https://x{i}.gov/"} for i in range(keeps)]
     decisions += [{"decision": "drop", "url": f"https://y{i}.gov/"} for i in range(drops)]
-    _write(run_dir / inst_id / "3_triage.json", {"decisions": decisions})
+    _write(inst_dir_of(run_dir, inst_id) / "3_triage.json", {"decisions": decisions})
 
 
 def _scraped(run_dir: Path, inst_id: str, n_pages: int = 2) -> None:
     for i in range(n_pages):
-        _write(run_dir / inst_id / "scrape" / f"hash{i}.json", {"url": f"https://x{i}.gov/"})
+        _write(
+            inst_dir_of(run_dir, inst_id) / "scrape" / f"hash{i}.json",
+            {"url": f"https://x{i}.gov/"},
+        )
 
 
 def _validated(run_dir: Path, inst_id: str, *, has_genai: str, n_activities: int) -> None:
@@ -85,7 +94,7 @@ def _validated(run_dir: Path, inst_id: str, *, has_genai: str, n_activities: int
     passing the abort tests vacuously.
     """
     _write(
-        run_dir / inst_id / "6_validate.json",
+        inst_dir_of(run_dir, inst_id) / "6_validate.json",
         {
             "consolidation_metadata": {
                 "institution_id": inst_id,
