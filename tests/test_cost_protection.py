@@ -317,3 +317,95 @@ def test_cli_cost_ceiling_flag_overrides_env_var(tmp_path, monkeypatch, capsys):
     # Should abort because CLI flag (0.001) overrides env var (1000.0)
     assert exit_code == 3
     assert "Budget limit: $0.00" in captured.err
+
+
+# ---------------------------------------------------------------------------
+# Test 9: Malformed G3O_BUDGET_LIMIT_USD raises SystemExit
+# ---------------------------------------------------------------------------
+
+
+def test_malformed_budget_limit_raises_systemexit(tmp_path, monkeypatch):
+    """Malformed G3O_BUDGET_LIMIT_USD env var raises SystemExit with clear message."""
+    from g3o import cli
+
+    master = _write_master(tmp_path / "master.csv", n=3)
+    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
+    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", "not-a-number")
+
+    args = [
+        "presweep",
+        "--preflight",
+        "--run-id", "cli-cost-test-6",
+        "--master-csv", str(master),
+        "--sample-size", "3",
+    ]
+
+    # Should raise SystemExit before even running preflight
+    import pytest
+    with pytest.raises(SystemExit, match="G3O_BUDGET_LIMIT_USD='not-a-number' is not a valid number"):
+        cli.main(args)
+
+
+# ---------------------------------------------------------------------------
+# Test 10: NaN budget limit is rejected
+# ---------------------------------------------------------------------------
+
+
+def test_nan_budget_limit_is_rejected(tmp_path, monkeypatch):
+    """float('nan') in G3O_BUDGET_LIMIT_USD is rejected to prevent silent gate bypass."""
+    from g3o import cli
+
+    master = _write_master(tmp_path / "master.csv", n=3)
+    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
+    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", "nan")
+
+    args = [
+        "presweep",
+        "--preflight",
+        "--run-id", "cli-cost-test-7",
+        "--master-csv", str(master),
+        "--sample-size", "3",
+    ]
+
+    # Should raise SystemExit because NaN would silently disable the gate
+    import pytest
+    with pytest.raises(SystemExit, match="G3O_BUDGET_LIMIT_USD='nan' is not a finite number"):
+        cli.main(args)
+
+
+# ---------------------------------------------------------------------------
+# Test 11: --cost-ceiling flag overrides env var on --execute path
+# ---------------------------------------------------------------------------
+
+
+def test_cli_cost_ceiling_flag_overrides_env_var_on_execute(tmp_path, monkeypatch, capsys):
+    """--cost-ceiling CLI flag takes precedence over G3O_BUDGET_LIMIT_USD on --execute path."""
+    from g3o import cli
+    from unittest.mock import patch
+
+    master = _write_master(tmp_path / "master.csv", n=3)
+    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
+    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", "1000.0")  # High env var
+
+    args = [
+        "presweep",
+        "--execute",
+        "--run-id", "cli-cost-test-8",
+        "--master-csv", str(master),
+        "--sample-size", "3",
+        "--cost-ceiling", "0.001",  # Low CLI flag should override
+    ]
+
+    # Mock run_presweep to avoid actual execution
+    with patch("g3o.run.presweep.run_presweep") as mock_run:
+        exit_code = cli.main(args)
+        captured = capsys.readouterr()
+
+    # Should abort before calling run_presweep because CLI flag (0.001) overrides env var (1000.0)
+    assert exit_code == 3
+    mock_run.assert_not_called()
+    assert "COST CIRCUIT BREAKER TRIGGERED" in captured.err
+    assert "Budget limit: $0.00" in captured.err
