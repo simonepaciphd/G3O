@@ -5,9 +5,11 @@ Example `manifest.json` + `events.jsonl` for the Run API telemetry surface, from
 implementation so the `g3o-api` loader can be written against a fixed shape
 rather than against a moving PR.
 
-**Status:** fixture set **v1**. The Run API is not implemented yet; nothing in
-the repo writes these files today. If reality corrects a fixture, the set is
-versioned (see [Changelog](#changelog)) and Katon is told the same day.
+**Status:** fixture set **v1**, notes revised **v1.1**. The Run API is not
+implemented yet; nothing in the repo writes these files today. If reality
+corrects a fixture, the set is versioned (see [Changelog](#changelog)) and Katon
+is told the same day. **v1.1 changed notes only — no fixture bytes moved**, so a
+loader written against v1 needs no revision.
 
 **These are synthetic example runs, not records of real runs.** No run with
 these ids exists. Mixed provenance, deliberately:
@@ -81,6 +83,9 @@ Pinned exactly because the hash is stored in `g3o.runs.config_hash` (§5.2) and
 may be re-verified server-side. An unstated canonicalization is a hash only the
 writer agrees with.
 
+Accepted by the PI 2026-08-11 (see resolved question 1). Whether it is
+*re-verifiable* server-side is still Katon's to confirm — his question 4.
+
 ## `events.jsonl`
 
 Append-only, one JSON object per line. Envelope on **every** line (§4.3) —
@@ -103,7 +108,7 @@ self-identifies its code version.
 | `chunk_submitted` | yes | `chunk`, `batch_id`, `n_jobs`, `key_fingerprint` |
 | `chunk_terminal` | yes | `chunk`, `batch_id`, `terminal_state`, `n_output`, `n_error`, `resolved_model` |
 | `poll_timeout` | yes | `batch_id`, `waited_seconds`, `max_wait_per_stage`, `note` |
-| `spend_snapshot` | no | `provider`, `metric`, `value`, `best_effort` |
+| `spend_snapshot` **(optional)** | no | `provider`, `metric`, `value`, `best_effort` |
 | `run_completed` / `run_stopped` / `run_failed` | sometimes | `outcome`, `stop_after`; `run_failed` adds `error_class`, `error_message`; `run_stopped` adds `reason` |
 
 ### Loader invariants
@@ -118,11 +123,15 @@ self-identifies its code version.
 8. **`terminal_state` ∈ `{completed, failed, expired, cancelled}`** (`batch_client.py:88`).
 9. **`stage` ∈ the 8-name roster** (`config.py:26`), in roster order: `discovery_general`, `classify_official_site`, `discovery_site_restricted`, `filter_eligibility`, `classify_triage`, `scrape`, `extract`, `validate`. Only the four LLM stages (`classify_official_site`, `classify_triage`, `extract`, `validate`) emit `chunk_*`.
 10. **Telemetry is passive.** No control flow reads it; failures after launch WARN and never abort (§4.4). Treat these files as a record, never as a lock.
+11. **`git_sha` may vary within a run**, like `session_id`, when a resume happens under different code (decision 7). The fixtures keep it constant; do not assume constancy. The manifest's copy is the *launching* code version.
+12. **`spend_snapshot` is optional and may be absent entirely** from a run's log (resolved question 4). Never treat its absence, or a gap between snapshots, as a defect.
 
 ## Decisions taken where the spec's §4 example and reality diverge
 
 The manifest surface is mine to own; these are recorded, not silent. 1, 2 and 6
 are corrections to the §4.1 example rather than departures from its intent.
+7 is not a §4 divergence at all — it is a PI ruling, recorded here because it is
+the decision a loader author needs to read alongside the rest.
 
 1. **`contract` is keyed by contract name, not a single block.** §4.1 shows one
    `{version, sha256}`. There are **two** independently-versioned contracts —
@@ -157,27 +166,42 @@ are corrections to the §4.1 example rather than departures from its intent.
    detectable. `system_fingerprint` is deliberately absent: newer models omit
    it, and absence must be recorded honestly rather than fabricated
    (`batch_client.py:167`).
+7. **Resume under a changed `git_sha` is permitted and recorded, not fatal**
+   (PI, 2026-08-11; resolved question 2). Same treatment §4.1 gives
+   `git_dirty`: recorded, never blocked. The per-event `git_sha` is what makes
+   the change legible after the fact — the manifest alone could not show it.
+   Deliberately asymmetric with a changed *credential* fingerprint, which still
+   fails loudly (§3.5): a mismatched key makes the original batches
+   unreachable, which is unrecoverable, whereas mixed code within a run is
+   merely a fact worth knowing.
 
-## Open questions — escalated to the PI, not decided here
+## Questions escalated to the PI — three resolved, one open
 
-1. **Is decision 4's exclusion list the intended `config_hash` semantics?**
-   It determines what "same configuration" means across runs and whether Katon
-   can re-verify the hash server-side. Cheap to change now, expensive after the
-   loader ships.
-2. **Per-event `git_sha` implies it can vary within a run** — otherwise the
-   manifest's copy would do. Should resuming under a different `git_sha` be
-   *permitted and recorded*, or *fail loudly* like a changed credential (§3.5)?
-   The fixture keeps it constant and takes no position.
-3. **A hard kill emits no `run_failed`.** §1.5 guarantees `run_failed` precedes
+Numbering is preserved from the 2026-08-10 escalation so the email thread and
+this file stay cross-referenceable.
+
+1. **RESOLVED** (PI, 2026-08-11) — decision 4's exclusion list *is* the
+   intended `config_hash` semantics: `run_id`, `runs_dir` and `master_csv` are
+   excluded, the list is recorded in-band, and "same configuration" therefore
+   means same declared fields modulo run identity and machine-local paths.
+   Katon's question 4 (server-side re-verification) is still open on his side.
+2. **RESOLVED** (PI, 2026-08-11) — resuming under a different `git_sha` is
+   permitted and recorded, not fatal. Written up as decision 7; loader
+   invariant 11 follows from it.
+3. **OPEN — a hard kill emits no `run_failed`.** §1.5 guarantees `run_failed` precedes
    every post-manifest *raise*, but `SIGKILL` produces no raise, so Item 3's
    induced-failure test will yield a log with **no** terminal event (invariant
    5) rather than a named failed state. Which named state should that resolve
    to, and is it derived by the orchestrator from `_state/` + absent terminal
    event? Not representable as a fixture until Item 3 measures the real shape;
    a `events_truncated.jsonl` will be added in fixture set v2 once it is.
-4. **`spend_snapshot`** — §9 open item 4 (worth the extra Serper account
-   calls?). One example is included; it is droppable per the sprint memo, and
-   the loader should treat the event as optional.
+4. **RESOLVED** (PI, 2026-08-11) — `spend_snapshot` stays, as best-effort and
+   optional: emitted only where a Serper account call is already cheap, never
+   blocking, and declared optional to the loader (invariant 12). It remains
+   droppable per the sprint memo's relief-valve list **without** a loader
+   change, which is the point of declaring it optional now. §9 open item 4
+   (whether the extra account calls earn their keep at scale) is answered on
+   cost figures once PR C measures them.
 
 ## Sufficiency check for Katon
 
@@ -192,4 +216,10 @@ Please answer in writing so this seam can be closed:
 
 ## Changelog
 
+- **v1.1** — 2026-08-11 — **notes only, no fixture bytes changed.** PI resolved
+  escalated questions 1, 2 and 4 (`config_hash` exclusions stand; resume under a
+  changed `git_sha` is permitted and recorded, now decision 7 + invariant 11;
+  `spend_snapshot` is optional, now invariant 12). Question 3 (named state after
+  a hard kill) stays open pending Item 3. Katon's six sufficiency questions are
+  unaffected and still open.
 - **v1** — 2026-08-10 — initial, from spec v0.1 §4, authored at `e2eba1c`.
