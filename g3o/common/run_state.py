@@ -143,6 +143,7 @@ def write_active_chunked(
     model: str,
     chunk_custom_ids: list[list[str]],
     bypass_count: int | None = None,
+    key_fingerprint: str | None = None,
 ) -> Path:
     """Persist the full chunk plan at planning time, before any submission.
 
@@ -155,6 +156,15 @@ def write_active_chunked(
     ``custom_ids`` are deduplicated and sorted per chunk (canonical storage;
     submission order within a batch is semantically irrelevant — results
     round-trip by ``custom_id``).
+
+    ``key_fingerprint`` records which key this stage's batches were submitted
+    under (Run API spec §3.5). It is written here, in ``_state/``, because that is
+    the file a resume actually reads: the spec puts the per-stage fingerprint in
+    the manifest, which arrives with PR C, and a check that has to wait for the
+    manifest is a check that does not protect the resume path in the meantime.
+    PR C mirrors it into the manifest; this stays the copy resume compares.
+    Omitted when unknown, so state files written before 2026-08-11 stay loadable
+    and comparable (as "unknown", never as "mismatched").
     """
     state_dir(run_dir).mkdir(parents=True, exist_ok=True)
     chunks: dict[str, dict[str, Any]] = {}
@@ -190,6 +200,8 @@ def write_active_chunked(
     }
     if bypass_count is not None:
         payload["bypass_count"] = bypass_count
+    if key_fingerprint:
+        payload["key_fingerprint"] = key_fingerprint
     p = state_path(run_dir, stage)
     _write_json_atomic(p, payload)
     return p
@@ -326,6 +338,41 @@ def _submit_metadata(
     if not key_fingerprint:
         return dict(identity)
     return {**identity, "g3o_key_fingerprint": key_fingerprint}
+
+
+def assert_resume_key_matches(
+    state: dict[str, Any],
+    key_fingerprint: str | None,
+    *,
+    run_dir: Path,
+    stage: str,
+) -> None:
+    """Refuse to resume a stage under a different API key (Run API spec §3.5).
+
+    The failure this prevents is expensive and silent. OpenAI lists batches **per
+    API key**, so a run resumed under key B cannot see the batches key A submitted:
+    reconciliation finds nothing, concludes the chunk was never submitted, and
+    submits it again. The original batches still run and still bill. The operator
+    sees a slow but apparently healthy resume, and pays twice for every chunk that
+    had not yet been fetched.
+
+    So a mismatch stops the stage before its first submit, naming the fingerprints
+    and telling the operator the one thing that fixes it: resume with the original
+    key. An unknown fingerprint on either side is *not* a mismatch — state files
+    predating this field, and callers that thread no credentials, must keep
+    resuming exactly as they did.
+    """
+    recorded = state.get("key_fingerprint")
+    if not recorded or not key_fingerprint or recorded == key_fingerprint:
+        return
+    raise RuntimeError(
+        f"Stage {stage}: this run's batches were submitted under OpenAI key "
+        f"{recorded} but the current key is {key_fingerprint}. Resume with the "
+        f"original key. Batches are listed per key, so continuing would find none "
+        f"of the in-flight chunks and resubmit them — the original batches would "
+        f"still run and still bill, and the duplicate spend would not show up "
+        f"anywhere until the invoice. State file: {state_path(run_dir, stage)}."
+    )
 
 
 def _reconcile_custom_ids(
@@ -507,13 +554,18 @@ def run_chunked_stage(
     passes credentials behaves exactly as it did, and no submit carries a
     fingerprint the run cannot account for.
     """
-    state = load_state(run_dir, stage)
-    if state is not None:
-        assert_chunked_state(state, path=state_path(run_dir, stage))
-
     if client is None and credentials is not None:
         client = batch_client.client_from_credentials(credentials)
     key_fingerprint = credentials.openai_fingerprint if credentials else None
+
+    state = load_state(run_dir, stage)
+    if state is not None:
+        assert_chunked_state(state, path=state_path(run_dir, stage))
+        # Before anything is submitted or polled: a resume under a different key
+        # would silently double-submit (spec §3.5).
+        assert_resume_key_matches(
+            state, key_fingerprint, run_dir=run_dir, stage=stage
+        )
 
     if enqueued_budget is None:
         enqueued_budget = batch_client.enqueued_token_budget()
@@ -553,6 +605,7 @@ def run_chunked_stage(
             run_id=run_id, model=model,
             chunk_custom_ids=[[j.custom_id for j in c] for c in chunked],
             bypass_count=bypass_count,
+            key_fingerprint=key_fingerprint,
         )
         state = load_state(run_dir, stage)
         assert state is not None
@@ -811,6 +864,7 @@ __all__ = [
     "STATE_SCHEMA_VERSION",
     "abandon_chunk_batch",
     "assert_chunked_state",
+    "assert_resume_key_matches",
     "done_path",
     "done_dir",
     "is_done",

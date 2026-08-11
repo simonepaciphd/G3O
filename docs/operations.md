@@ -9,6 +9,26 @@ Commands below use `<run-id>` as a placeholder and PowerShell line
 continuations (`` ` ``). The pre-sweep launched on 2026-05-09 used run id
 `20260509-presweep`, `--sample-size 1000`, `--seed 22294`.
 
+> **Run ids (Run API spec §2, 2026-08-11).** `--run-id` is now optional. Omit it
+> and one is minted as `r<YYYYMMDD>T<HHMMSS>Z-<4hex>` (UTC) and echoed to
+> **stderr** as `run_id=<id>` the moment it exists — before the run blocks — so a
+> long run can be resumed or monitored while still in flight. It is also the first
+> key of the JSON document on stdout.
+>
+> Pass an explicit `--run-id` for exactly two purposes: replicating a run, and
+> **resuming** one. A minted id can never name an existing run directory, so a
+> resume is always a deliberate act rather than an accident of timing. Resume
+> itself is unchanged — re-invoke the same command with the same id and each stage
+> rejoins from `_state/`.
+>
+> `--session-id` (spec §4.2) records which session drove the run; precedence is
+> the flag, then `G3O_SESSION_ID`, then `unattended`.
+>
+> One caveat carried over from §3.5: **resume with the key you launched with.**
+> Batches are listed per API key, so a resume under a rotated key would find none
+> of the in-flight chunks and resubmit them — both sets would bill. The run
+> refuses to continue rather than allow that, naming both fingerprints.
+
 > **Master CSV.** `--master-csv` points at the institution master, which lives
 > **outside** this repo and is read-only. From the repo working directory the
 > path used for the pre-sweep was

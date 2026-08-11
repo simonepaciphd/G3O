@@ -456,8 +456,15 @@ def test_cli_execute_emits_the_projection_that_cleared_it(tmp_path, monkeypatch,
     assert payload["cost_ceiling_exceeded"] is False
     assert "est_openai_batch_total_usd" in payload["cost_preview"]
 
-    # stdout carries exactly one JSON document — the presweep summary.
-    assert json.loads(captured.out) == {"status": "completed"}
+    # stdout carries exactly one JSON document. Since the Run API (spec §1.1) the
+    # CLI prints what `launch()` returned — the receipt, with the stage summary
+    # merged in — so this asserts the invariant the gate depends on (one
+    # parseable document, summary keys intact) rather than a fixed key set.
+    stdout_payload = json.loads(captured.out)
+    assert stdout_payload["status"] == "completed"  # the summary, merged in
+    assert stdout_payload["run_id"] == "cli-cost-test-9"
+    # Live run stopping at the default `extract`, i.e. short of the full roster.
+    assert stdout_payload["outcome"] == "stopped"
 
 
 # ---------------------------------------------------------------------------
