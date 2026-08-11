@@ -51,8 +51,16 @@ missing**. It writes no state and submits no production batches. Optional:
 
 ## Failure honesty in `--execute` (live mode)
 
-- **Serper key gate:** in `--execute`, a missing `SERPER_API_KEY` is a hard
-  error at startup — live mode never returns or caches mock results.
+- **Serper key gate:** in `--execute`, a missing Serper key is a hard error at
+  startup — live mode never returns or caches mock results. The gate reads the
+  run's *resolved* credentials (Run API spec §3.1: explicit → env → unset), so it
+  covers a key passed programmatically exactly as it covers `SERPER_API_KEY`.
+- **Key attribution:** every batch submit carries `g3o_key_fingerprint`
+  (`sha256(key)[:8]`) alongside its `{g3o_run_id, g3o_stage, g3o_chunk}` identity
+  (§3.5), so batches listed server-side under two different keys stay
+  attributable. Reconciliation still matches on identity alone — matching on the
+  fingerprint too would make a batch submitted under an earlier key unfindable,
+  and a missed reconcile is a double submit.
 - **Request failures** are recorded as explicit error envelopes and in the
   attrition ledger, never as a silent "searched, found nothing" artifact.
 - Purge any stale `cache/serp_*` entries before a fresh launch so a prior

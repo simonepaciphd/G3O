@@ -39,6 +39,7 @@ from g3o.common.contract import (
     ConsolidatedInstitutionResponse,
     ContractRow,
 )
+from g3o.common.credentials import ResolvedCredentials
 from g3o.common.paths import institution_dir, require_layout
 from g3o.common.run_state import (
     done_path,
@@ -284,6 +285,7 @@ def run_consolidate(
     max_wait: int = 25 * 60 * 60,
     notes: str = "none",
     client: Any | None = None,
+    credentials: ResolvedCredentials | None = None,
 ) -> dict[str, Any]:
     """End-to-end Stage 6 driver for one run directory.
 
@@ -380,6 +382,7 @@ def run_consolidate(
             poll_interval=poll_interval, max_wait=max_wait,
             process_chunk_results=_persist,
             client=client,
+            credentials=credentials,
         )
 
     done_payload = json.loads(

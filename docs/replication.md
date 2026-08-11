@@ -20,6 +20,23 @@ Fill in `.env`:
 | `SERPER_API_KEY`  | Stages 1a / 1b (discovery). Without it, `discover` returns mock data. |
 | `OPENAI_API_KEY`  | Stages 2, 3, 5, 6 (LLM via Batch API). Required end-to-end.    |
 
+Both variables are read **per call**, not at import (Run API spec §3, 2026-08-11),
+so the CLI behaves exactly as documented above. A programmatic caller may also
+pass keys per run and skip the environment entirely:
+
+```python
+from g3o.common.credentials import Credentials
+from g3o.run.presweep import run_presweep
+
+run_presweep(config, credentials=Credentials(
+    openai_api_key="sk-…", serper_api_key="…", label="key-B-grant",
+))
+```
+
+Precedence per provider is explicit field → environment → unset; unset behaves as
+it always has (mock discovery, a raise on the first LLM stage). A run records only
+`sha256(key)[:8]` and the label, never key material.
+
 ## One-off operations
 
 ```bash

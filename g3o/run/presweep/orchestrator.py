@@ -6,7 +6,7 @@ import logging
 from typing import Any
 
 from g3o.common import attrition
-from g3o.common import config as _config
+from g3o.common.credentials import Credentials, ResolvedCredentials, resolve
 from g3o.common.institution_report import write_institution_report
 from g3o.common.paths import require_layout
 from g3o.discovery.serper_client import SerperOptions, set_live_mode
@@ -49,21 +49,28 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _assert_live_keys(config: PresweepConfig) -> None:
+def _assert_live_keys(
+    config: PresweepConfig, credentials: ResolvedCredentials
+) -> None:
     """Hard-fail before a live run if a required API key is unset (review F1).
 
     Stage 1 discovery always needs Serper; Stages 2/3/5/6 need OpenAI. Failing
     fast at startup beats discovering a missing key after Serper spend (or, worse
     for Serper, silently returning mock results). The OpenAI check is skipped
     when ``--stop-after discovery_general`` means no LLM stage will run.
+
+    Reads the run's **resolved** credentials (Run API spec §3.1), so the gate
+    covers an explicitly-passed key exactly as it covers an env-sourced one — and
+    so it can no longer pass on a key that was present at import time but is not
+    the key this run will actually spend.
     """
-    if not _config.SERPER_API_KEY:
+    if not credentials.has_serper:
         raise RuntimeError(
             "SERPER_API_KEY is not set, but --execute requires a live Serper key "
             "for Stage 1 discovery. Refusing to run with mock discovery. Set the "
             "key, or run without --execute (dry run)."
         )
-    if config.stop_after != "discovery_general" and not _config.OPENAI_API_KEY:
+    if config.stop_after != "discovery_general" and not credentials.has_openai:
         raise RuntimeError(
             "OPENAI_API_KEY is not set, but --execute beyond Stage 1a requires a "
             "live OpenAI key (Stages 2/3/5/6). Set the key, pass "
@@ -71,7 +78,9 @@ def _assert_live_keys(config: PresweepConfig) -> None:
         )
 
 
-def run_presweep(config: PresweepConfig) -> dict[str, Any]:
+def run_presweep(
+    config: PresweepConfig, *, credentials: Credentials | None = None
+) -> dict[str, Any]:
     """End-to-end pre-sweep runner.
 
     Default ``config.dry_run=True`` writes the planning artifacts and returns;
@@ -89,9 +98,18 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
     the Serper client into live mode (no mock results, request failures raise
     rather than degrade to an empty artifact). The key assertion runs before the
     mode switch so a failed gate leaves global state untouched.
+
+    Credentials (Run API spec §3.1/§3.2): ``credentials`` supplies this run's
+    keys, each falling back to the environment when not given. They are resolved
+    **once, here** — the one place in the pipeline that reads the environment for
+    key material — and then threaded explicitly into every stage runner, so two
+    runs in one process can spend two different keys. Resolution happens for a
+    dry run too (it costs nothing and records nothing), which is what lets PR C
+    write the manifest's credential fingerprints on every run, not just live ones.
     """
+    resolved = resolve(credentials)
     if not config.dry_run:
-        _assert_live_keys(config)
+        _assert_live_keys(config, resolved)
     set_live_mode(not config.dry_run)
     plan = plan_run(config)
     # Storage layout v2 gate (docs/storage-layout-v2.md §B2). plan_run has just
@@ -129,6 +147,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             mode=config.discovery_mode,
             options=serper_options,
             domain_quote_name=config.discovery_domain_quote_name,
+            credentials=resolved,
         )
         summary["n_discovery_general"] = sum(
             len(v) for v in discovery_general.values()
@@ -144,6 +163,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             model=config.model,
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,
+            credentials=resolved,
         )
         summary["n_official_sites"] = sum(1 for v in official_sites.values() if v)
         summary["n_official_sites_bypassed"] = sum(
@@ -164,6 +184,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             mode=config.discovery_mode,
             evidence_terms=config.evidence_terms,
             options=serper_options,
+            credentials=resolved,
         )
         summary["n_discovery_site_restricted"] = sum(
             len(v) for v in discovery_site_restricted.values()
@@ -199,6 +220,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             model=config.model,
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,
+            credentials=resolved,
         )
         summary["n_triaged_kept"] = sum(len(v) for v in triaged.values())
         if config.stop_after == "classify_triage":
@@ -230,6 +252,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             text_cap_chars=config.extract_text_cap_chars,
             text_cap_rule=config.extract_text_cap_rule,
             empty_page_min_chars=config.empty_page_min_chars,
+            credentials=resolved,
         )
         summary["n_extracted"] = n_extracted
         if config.stop_after == "extract":
@@ -241,6 +264,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             model=config.model,
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,
+            credentials=resolved,
         )
         summary["n_consolidated"] = validate_summary.get("n_consolidated", 0)
         summary["n_validate_failed"] = validate_summary.get("n_failed", 0)

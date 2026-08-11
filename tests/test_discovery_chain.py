@@ -87,7 +87,10 @@ class _Recorder:
         self._links = links if links is not None else ["https://example.gov/a"]
         self._echo = echo if echo is not None else {"q": "x", "autocorrect": False}
 
-    def __call__(self, query, num_results=10, force_refresh=False, options=None):
+    def __call__(
+        self, query, num_results=10, force_refresh=False, options=None,
+        credentials=None,
+    ):
         self.queries.append(query)
         return SerperResult(
             results=[
@@ -471,7 +474,9 @@ def _run_chain_1a(tmp_path, monkeypatch, links_per_inst: list[list[str]]):
     plan = _plan(tmp_path, _rows(len(links_per_inst)), discovery_mode="chain")
     calls = {"i": -1}
 
-    def _search(query, num_results=10, force_refresh=False, options=None):
+    def _search(
+        query, num_results=10, force_refresh=False, options=None, credentials=None
+    ):
         calls["i"] += 1
         return SerperResult(
             results=[{"link": u, "title": "t", "snippet": "s"}

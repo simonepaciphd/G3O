@@ -11,6 +11,7 @@ from typing import Any
 from g3o.common import attrition
 from g3o.common.artifact_io import glob_artifacts, write_artifact
 from g3o.common.batch_client import BatchResult
+from g3o.common.credentials import ResolvedCredentials
 from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
 from g3o.common.timing import llm_stage_timer
@@ -134,6 +135,7 @@ def _run_extract(
     text_cap_chars: int = DEFAULT_TEXT_CAP_CHARS,
     text_cap_rule: str = DEFAULT_TEXT_CAP_RULE,
     empty_page_min_chars: int = EMPTY_PAGE_MIN_CHARS,
+    credentials: ResolvedCredentials | None = None,
 ) -> int:
     """Stage 5 — per-page LLM extraction, batched across (institution × page).
 
@@ -302,5 +304,6 @@ def _run_extract(
             run_id=run_id, model=model,
             poll_interval=poll_interval, max_wait=max_wait,
             process_chunk_results=_persist,
+            credentials=credentials,
         )
     return _count_existing_extracts(run_dir, sample)

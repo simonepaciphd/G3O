@@ -16,7 +16,6 @@ import io
 import json
 import logging
 import math
-import os
 import random
 import time
 from collections.abc import Iterator
@@ -39,6 +38,7 @@ from tenacity import (
 )
 
 from g3o.common import config
+from g3o.common.credentials import ResolvedCredentials, resolve
 
 logger = logging.getLogger(__name__)
 
@@ -209,16 +209,42 @@ class BatchResult:
 # ---------------------------------------------------------------------------
 
 
+def client_from_credentials(
+    credentials: ResolvedCredentials | None = None,
+) -> OpenAI | None:
+    """Build an OpenAI client for ``credentials``, or ``None`` if no key resolves.
+
+    The credential-aware constructor of Run API spec §3.2: the orchestrator
+    resolves once and threads the bundle down, so a per-call key is possible for
+    the first time. ``None`` for ``credentials`` resolves from the environment at
+    call time (never at import — that was the defect §3 removes).
+
+    Returning ``None`` rather than raising on a missing key is deliberate: it
+    keeps client construction *lazy* at every call site that merely forwards a
+    client. A stage that never reaches a live call must not die because a key was
+    absent, and a caller that does reach one gets today's error from
+    :func:`_default_client` at exactly the moment it always did.
+    """
+    resolved = credentials if credentials is not None else resolve()
+    if not resolved.openai_api_key:
+        return None
+    return OpenAI(api_key=resolved.openai_api_key, max_retries=0)
+
+
 def _default_client() -> OpenAI:
-    """Build an OpenAI client. The SDK's own retry is disabled in favor of
-    tenacity at the function level (see _retryable)."""
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
+    """Build an OpenAI client from the ambient environment, or raise.
+
+    The SDK's own retry is disabled in favor of tenacity at the function level
+    (see _retryable). Reached only when a call site was given neither a client
+    nor credentials.
+    """
+    cli = client_from_credentials()
+    if cli is None:
         raise RuntimeError(
             "OPENAI_API_KEY is not set; pass an OpenAI client explicitly or "
             "configure the env var."
         )
-    return OpenAI(api_key=api_key, max_retries=0)
+    return cli
 
 
 # Exceptions worth retrying: rate limits, transient connection issues, and
@@ -474,25 +500,36 @@ def _create_batch_with_reconcile(
     ``verify-model``, all single-job batches) fall back to plain per-call
     retry, accepting the residual lost-response ambiguity.
 
+    Reconciliation matches on the identity keys **only**, not on all of
+    ``metadata``: since 2026-08-11 a submit also carries ``g3o_key_fingerprint``
+    (Run API spec §3.5), which is provenance rather than identity. Matching on a
+    superset of identity is how a reconcile pass misses a batch it should have
+    adopted, and a missed adoption is a double submit.
+
     Returns:
         ``(batch_id, adopted)`` where ``adopted`` is True when the batch was
         found by reconciliation rather than created by this call.
     """
     identifying = metadata is not None and CHUNK_METADATA_KEYS <= set(metadata)
+    identity = (
+        {k: v for k, v in metadata.items() if k in CHUNK_METADATA_KEYS}
+        if metadata is not None
+        else None
+    )
     for attempt in range(_MAX_CREATE_ATTEMPTS):
         if attempt and identifying:
-            existing = find_batches_by_metadata(metadata, client=cli)
+            existing = find_batches_by_metadata(identity, client=cli)
             if len(existing) == 1:
                 logger.warning(
                     "batches.create retry reconciled to existing batch %s "
                     "(metadata=%s); adopting instead of re-creating",
-                    existing[0].batch_id, metadata,
+                    existing[0].batch_id, identity,
                 )
                 return existing[0].batch_id, True
             if len(existing) > 1:
                 raise RuntimeError(
                     f"batches.create reconciliation found {len(existing)} batches "
-                    f"matching metadata {metadata}: "
+                    f"matching metadata {identity}: "
                     f"{[s.batch_id for s in existing]}. A double-submit already "
                     f"exists server-side; cancel the duplicates before retrying."
                 )
@@ -741,6 +778,7 @@ __all__ = [
     "DEFAULT_ENDPOINT",
     "DEFAULT_REASONING_EFFORT",
     "TERMINAL_STATUSES",
+    "client_from_credentials",
     "find_batches_by_metadata",
     "split_jobs_into_chunks",
     "submit_batch",
