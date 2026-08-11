@@ -785,7 +785,7 @@ def test_regression_silent_completeness_loss_now_raises(tmp_path: Path, monkeypa
 
 def test_token_cap_splits_chunks_that_byte_cap_would_not(tmp_path: Path, monkeypatch):
     """The token cap must bind where the byte and request caps are miles away."""
-    submits, _ = _install_stub(monkeypatch, statuses={})
+    submits, _ = _install_stub(monkeypatch, run_dir=tmp_path, statuses={})
     # Three jobs of ~400 bytes each; a budget of ~100 tokens (=400 bytes at the
     # 4.0 bytes/token estimate) admits exactly one job per chunk.
     jobs = [
@@ -807,9 +807,16 @@ def test_waves_hold_chunks_until_capacity_frees(tmp_path: Path):
     """
     events: list[str] = []
     poll_counts: dict[str, int] = {}
+    # batch_id -> the custom_ids actually submitted in it. The fetch stub replays
+    # exactly these, so results reconcile one-to-one against the chunk plan; a
+    # synthetic id here would trip the completeness gate before the interleaving
+    # assertion below ever runs, and the test would pass on the raise instead of
+    # on the guarantee.
+    submitted_ids: dict[str, list[str]] = {}
 
     def _submit(jobs, *, model, completion_window, endpoint, metadata, client=None):
         batch_id = f"batch-{metadata['g3o_chunk']}"
+        submitted_ids[batch_id] = [j.custom_id for j in jobs]
         events.append(f"submit:{batch_id}")
         return BatchHandle(
             batch_id=batch_id,
@@ -827,11 +834,12 @@ def test_waves_hold_chunks_until_capacity_frees(tmp_path: Path):
 
     def _fetch(batch_id, *, client=None, status=None):
         events.append(f"fetch:{batch_id}")
-        yield BatchResult(
-            custom_id=f"R::{batch_id}", success=True,
-            response={"body": {"choices": [{"message": {"content": "ok"}}]}},
-            error=None,
-        )
+        for custom_id in submitted_ids[batch_id]:
+            yield BatchResult(
+                custom_id=custom_id, success=True,
+                response={"body": {"choices": [{"message": {"content": "ok"}}]}},
+                error=None,
+            )
 
     monkeypatch = pytest.MonkeyPatch()
     try:
@@ -864,7 +872,7 @@ def test_chunk_larger_than_budget_is_released_alone(tmp_path: Path, monkeypatch)
     a solo oversized chunk is submittable — and refusing it would strand the
     stage forever with nothing in flight and nothing releasable.
     """
-    submits, _ = _install_stub(monkeypatch, statuses={})
+    submits, _ = _install_stub(monkeypatch, run_dir=tmp_path, statuses={})
     jobs = [BatchJob(custom_id="BIG", messages=[{"role": "user", "content": "x" * 8000}])]
     _run(tmp_path, jobs, enqueued_budget=10)
     assert [s["custom_ids"] for s in submits] == [["BIG"]]
@@ -885,6 +893,7 @@ def test_resume_counts_in_flight_chunk_against_the_budget(tmp_path: Path, monkey
     update_chunk(tmp_path, "extract", 1, batch_id="batch-1")
     submits, _ = _install_stub(
         monkeypatch,
+        run_dir=tmp_path,
         statuses={"batch-1": ["in_progress", "completed"], "batch-2": ["completed"]},
     )
     jobs = [
@@ -931,7 +940,10 @@ def test_abandoned_batch_is_ignored_by_reconciliation(tmp_path: Path, monkeypatc
 
     # Before adjudication: reconciliation finds the corpse and refuses.
     submits, _ = _install_stub(
-        monkeypatch, statuses={"batch-1": ["completed"]}, found=lambda md, **kw: [dead]
+        monkeypatch,
+        run_dir=tmp_path,
+        statuses={"batch-1": ["completed"]},
+        found=lambda md, **kw: [dead],
     )
     update_chunk(tmp_path, "extract", 1, batch_id=None)
     with pytest.raises(RuntimeError, match="orphaned batch batch-dead"):
@@ -945,7 +957,9 @@ def test_abandoned_batch_is_ignored_by_reconciliation(tmp_path: Path, monkeypatc
     )
     received = _run(tmp_path, _jobs(1))
     assert [s["metadata"]["g3o_chunk"] for s in submits] == ["1"]
-    assert received == ["R::batch-1"]
+    # The planned id for chunk 1, not a synthetic one: the fetch stub now mirrors
+    # a real batch by replaying the chunk plan, which is what reconciliation checks.
+    assert received == ["J0"]
     done = json.loads(done_path(tmp_path, "extract").read_text(encoding="utf-8"))
     assert done["chunks"]["1"]["abandoned_batch_ids"] == ["batch-dead"]
     assert "token_limit_exceeded" in done["chunks"]["1"]["abandon_reasons"]["batch-dead"]
@@ -960,7 +974,7 @@ def test_abandoning_does_not_excuse_other_failed_batches(tmp_path: Path, monkeyp
     abandon_chunk_batch(tmp_path, "extract", 1, "batch-dead", reason="adjudicated")
     other = _status("expired", "batch-other")
     submits, _ = _install_stub(
-        monkeypatch, statuses={}, found=lambda md, **kw: [other]
+        monkeypatch, run_dir=tmp_path, statuses={}, found=lambda md, **kw: [other]
     )
     with pytest.raises(RuntimeError, match="orphaned batch batch-other"):
         _run(tmp_path, _jobs(1))
