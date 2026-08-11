@@ -12,7 +12,7 @@ emits for a run (`g3o.persist.writer`), with column orders pinned in
 
 The schema-of-record for the model-produced fields (controlled vocabularies,
 character limits, coding rules, edge cases, self-validation checks) is the
-**G3O Output Contract** (currently v2.2) at
+**G3O Output Contract** at
 [`../g3o/extract/prompts/output_contract.md`](../g3o/extract/prompts/output_contract.md).
 This file is a quick-reference index keyed to the shipped column constants; for
 any disagreement on field semantics, the contract wins.
