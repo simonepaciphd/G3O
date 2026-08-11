@@ -21,6 +21,7 @@ import hashlib
 import json
 import logging
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -541,6 +542,73 @@ def test_preflight_key_check_reads_the_passed_credentials(
     )
     assert with_keys["keys_ok"] is True
     assert EXPLICIT_OPENAI not in json.dumps(with_keys, default=str)
+
+
+def test_verify_model_spends_on_the_passed_key_not_the_ambient_one(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The preflight's one spend-bearing branch must use the reported key (§3.2).
+
+    ``--verify-model`` submits a real 1-job batch. Before 2026-08-11 it took
+    neither a client nor credentials, so it always used the environment — a
+    preflight could report key B as ready and then spend key A. The env here holds
+    a *different* key precisely so a regression shows up as the wrong fingerprint
+    rather than as no assertion at all.
+    """
+    from g3o.run import verify_model as vm
+    from g3o.run.preflight import run_preflight
+
+    master = _write_master(tmp_path / "master.csv")
+    monkeypatch.setenv("OPENAI_API_KEY", ENV_OPENAI)
+    monkeypatch.setenv("SERPER_API_KEY", ENV_SERPER)
+    built: list[str] = []
+    seen_clients: list[object] = []
+
+    class _FakeOpenAI:
+        def __init__(self, *, api_key, max_retries):
+            built.append(api_key)
+
+    class _Status:
+        status = "completed"
+        is_terminal = True
+        is_completed = True
+
+    def _submit(jobs, *, model, client=None):
+        seen_clients.append(client)
+        return batch_client.BatchHandle(
+            batch_id="batch-verify-1",
+            input_file_id="file-1",
+            submitted_at=datetime(2026, 8, 11, tzinfo=timezone.utc),
+            n_jobs=1,
+        )
+
+    monkeypatch.setattr(batch_client, "OpenAI", _FakeOpenAI)
+    monkeypatch.setattr(vm, "submit_batch", _submit)
+    monkeypatch.setattr(vm, "poll_batch", lambda batch_id, *, client=None: _Status())
+    monkeypatch.setattr(
+        vm, "fetch_results", lambda batch_id, *, client=None, status=None: iter(())
+    )
+
+    summary = run_preflight(
+        PresweepConfig(
+            run_id="verify-1",
+            runs_dir=tmp_path / "runs",
+            master_csv=master,
+            sample_size=3,
+            seed=22294,
+        ),
+        verify_model_live=True,
+        credentials=Credentials(
+            openai_api_key=EXPLICIT_OPENAI, serper_api_key=EXPLICIT_SERPER
+        ),
+    )
+
+    assert summary["verify_model"]["batch_id"] == "batch-verify-1"
+    assert built == [EXPLICIT_OPENAI], f"verify_model built its client from {built}"
+    assert ENV_OPENAI not in built
+    assert seen_clients and all(c is not None for c in seen_clients), (
+        "the credentialed client never reached submit_batch"
+    )
 
 
 def test_resolved_credentials_type_is_what_stages_receive() -> None:

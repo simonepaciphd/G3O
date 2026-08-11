@@ -14,6 +14,13 @@ field -> process environment -> unset. "Unset" behaves exactly as it did before
 this module existed — mock/refuse logic in :mod:`g3o.discovery.serper_client`,
 a raise in :mod:`g3o.common.batch_client`.
 
+**Where this lives.** Spec §1 declares :class:`Credentials` as part of
+``g3o/run/api.py``. That module arrives with ``launch()`` in PR B, while §3 (this
+module) is PR A and lands first — so the dataclass is defined here, in the layer
+both the CLI and the future ``launch()`` depend on, and PR B re-exports it from
+``g3o.run.api`` so the public surface matches the signed spec exactly. Placement
+only; no field, default, or name differs from §1.
+
 Secrecy (§3.3, hard): key material never reaches a manifest, event, state file,
 log line, receipt, or exception. Both dataclasses below therefore define their
 own ``__repr__``: a stock dataclass repr puts the key into every traceback and

@@ -190,12 +190,16 @@ def run_preflight(
     A programmatic caller that bypasses the CLI therefore gets the projection
     and no gate, and must check the flag itself.
 
-    ``client`` is threaded into ``verify_model`` for test injection.
+    ``client`` is threaded into ``verify_model`` for test injection. It genuinely
+    is, as of 2026-08-11: the parameter existed and was documented but never
+    passed, which left the one live-submitting branch of this function untestable.
 
     ``credentials`` (Run API spec §3.1) are the keys the projected run would use;
     omitted, they resolve from the environment. The key-readiness check reports on
     the resolved bundle, so ``keys_ok`` answers "could *this* run authenticate",
-    not "was some key present when the process started".
+    not "was some key present when the process started" — and ``--verify-model``
+    now spends on that same resolved key rather than on the ambient one, so the
+    report and the submit can no longer disagree about which key is in play.
     """
     a = assumptions or PreflightAssumptions()
     summary: dict[str, Any] = {"run_id": config.run_id, "mode": "preflight"}
@@ -243,6 +247,8 @@ def run_preflight(
             model=config.model,
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,
+            client=client,
+            credentials=resolved,
         )
     else:
         summary["verify_model"] = {
