@@ -411,9 +411,9 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         # Exit non-zero only on a hard readiness failure (keys)
         return 0 if summary.get("keys_ok") else 1
 
-    # Cost circuit breaker: execute path runs full preflight before presweep.
-    # The preflight is a dry-run projection (no actual batch submission), so
-    # it is safe to run before every presweep.
+    # Cost circuit breaker: the execute path runs a full preflight before
+    # presweep whenever a budget is set. The preflight is a dry-run projection
+    # (no batch submission), so it is safe to run before every presweep.
     if args.execute:
         effective_budget = _effective_budget(args)
 
@@ -429,6 +429,13 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
                 ),
                 cost_ceiling_usd=effective_budget,
             )
+
+            # The projection that cleared (or blocked) real spend is part of the
+            # run's record, so it is emitted either way. stderr, not stdout:
+            # stdout carries the presweep summary and stays a single JSON document.
+            sys.stderr.write("cost gate — preflight projection:\n")
+            json.dump(preflight_summary, sys.stderr, ensure_ascii=False, indent=2, default=str)
+            sys.stderr.write("\n")
 
             if preflight_summary.get("cost_ceiling_exceeded"):
                 estimated_cost = preflight_summary.get("cost_preview", {}).get("est_openai_batch_total_usd", 0)

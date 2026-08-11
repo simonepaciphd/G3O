@@ -410,3 +410,88 @@ def test_cli_cost_ceiling_flag_overrides_env_var_on_execute(tmp_path, monkeypatc
     mock_run.assert_not_called()
     assert "COST CIRCUIT BREAKER TRIGGERED" in captured.err
     assert "Budget limit: $0.00" in captured.err
+
+
+# ---------------------------------------------------------------------------
+# Test 12: the projection that cleared real spend is emitted, not discarded
+# ---------------------------------------------------------------------------
+
+
+def test_cli_execute_emits_the_projection_that_cleared_it(tmp_path, monkeypatch, capsys):
+    """A run that passes the gate still records what the gate saw.
+
+    The --preflight path dumps its summary to stdout; without this, the
+    --execute path computed the same projection, tested one key, and threw it
+    away — so the run that actually spends money kept no record of the estimate
+    that authorized it. Emitted on stderr so stdout stays a single JSON
+    document (the presweep summary).
+    """
+    from g3o import cli
+
+    master = _write_master(tmp_path / "master.csv", n=2)
+    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
+    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", "1000.0")
+
+    args = [
+        "presweep",
+        "--execute",
+        "--run-id", "cli-cost-test-9",
+        "--master-csv", str(master),
+        "--sample-size", "2",
+    ]
+
+    with patch("g3o.run.presweep.run_presweep") as mock_run:
+        mock_run.return_value = {"status": "completed"}
+        exit_code = cli.main(args)
+        captured = capsys.readouterr()
+
+    assert exit_code == 0
+    mock_run.assert_called_once()
+    assert "COST CIRCUIT BREAKER TRIGGERED" not in captured.err
+
+    # The projection is on stderr and is parseable, with the cost preview intact.
+    assert "cost gate — preflight projection:" in captured.err
+    payload = json.loads(captured.err.split("projection:", 1)[1])
+    assert payload["cost_ceiling_exceeded"] is False
+    assert "est_openai_batch_total_usd" in payload["cost_preview"]
+
+    # stdout carries exactly one JSON document — the presweep summary.
+    assert json.loads(captured.out) == {"status": "completed"}
+
+
+# ---------------------------------------------------------------------------
+# Test 13: no budget set on --execute ⇒ no preflight, presweep proceeds
+# ---------------------------------------------------------------------------
+
+
+def test_cli_execute_without_budget_skips_preflight(tmp_path, monkeypatch, capsys):
+    """The gate is opt-in. With neither the env var nor the flag set, --execute
+    must not pay the cost of a projection it has no limit to compare against."""
+    from g3o import cli
+
+    master = _write_master(tmp_path / "master.csv", n=2)
+    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
+    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", None)
+
+    args = [
+        "presweep",
+        "--execute",
+        "--run-id", "cli-cost-test-10",
+        "--master-csv", str(master),
+        "--sample-size", "2",
+    ]
+
+    with (
+        patch("g3o.run.presweep.run_presweep") as mock_run,
+        patch("g3o.run.preflight.run_preflight") as mock_preflight,
+    ):
+        mock_run.return_value = {"status": "completed"}
+        exit_code = cli.main(args)
+        captured = capsys.readouterr()
+
+    assert exit_code == 0
+    mock_run.assert_called_once()
+    mock_preflight.assert_not_called()
+    assert "cost gate" not in captured.err
