@@ -54,9 +54,17 @@ and are left to the caller.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 # ---------------------------------------------------------------------------
 # Tokens, vocabularies, and regex patterns
@@ -393,6 +401,17 @@ class RunProvenance(BaseModel):
     run_tool: str
     run_date: Annotated[str, StringConstraints(pattern=ISO_DATE_PATTERN)]
 
+    @field_validator("run_date")
+    @classmethod
+    def validate_run_date(cls, v: str) -> str:
+        """Validate run_date is a valid YYYY-MM-DD date."""
+        if v:
+            try:
+                datetime.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD)") from None
+        return v
+
 
 class PersistedRow(BaseModel):
     """A `ContractRow` plus its `RunProvenance`, used at CSV write time."""
@@ -723,6 +742,17 @@ class ValidationProvenance(BaseModel):
     run_model: str
     run_tool: str
     run_date: Annotated[str, StringConstraints(pattern=ISO_DATE_PATTERN)]
+
+    @field_validator("run_date")
+    @classmethod
+    def validate_run_date(cls, v: str) -> str:
+        """Validate run_date is a valid YYYY-MM-DD date."""
+        if v:
+            try:
+                datetime.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD)") from None
+        return v
 
 
 class PersistedActivity(BaseModel):
