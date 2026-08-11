@@ -15,9 +15,14 @@ wants before committing real spend and ~4 days of wall-clock to a live run:
 No state files are written and no production batches are submitted. Job counts
 beyond Stage 1 depend on discovery/scrape outputs that do not exist pre-run, so
 the projections are explicitly labeled ESTIMATES built on stated assumptions
-(per review F20's caution to separate estimate from fact). The cost ceiling
-(Decision D7) is print-only for now: no abort gate is wired (researcher,
-2026-06-10).
+(per review F20's caution to separate estimate from fact).
+
+The cost ceiling (Decision D7, superseded by PR #52) is now an abort gate: a
+projection over the limit exits 3 rather than merely printing. This module
+computes and reports it as `cost_ceiling_exceeded`; the abort itself lives in
+`g3o.cli._cmd_presweep`, on both the `--preflight` and `--execute` paths. The
+limit is read from `G3O_BUDGET_LIMIT_USD` (env var) or `--cost-ceiling` (CLI
+flag, takes precedence).
 """
 
 from __future__ import annotations
@@ -173,8 +178,17 @@ def run_preflight(
     """Run the no-submit pre-flight checks and return a structured summary.
 
     ``verify_model_live`` opts into a real 1-job ``verify-model`` batch (off by
-    default — it submits and can block on the Batch SLA). ``cost_ceiling_usd``
-    is print/return only unless set; D7 left it unset (no abort gate) for now.
+    default — it submits and can block on the Batch SLA).
+
+    ``cost_ceiling_usd`` only *reports*: this function returns
+    ``cost_ceiling_exceeded`` in the summary and never aborts. The abort gate
+    lives one layer up, in ``g3o.cli._cmd_presweep``, which exits 3 on that
+    flag and enforces it on both the ``--preflight`` and ``--execute`` paths
+    (supersedes Decision D7; PR #52). The limit is sourced from
+    ``G3O_BUDGET_LIMIT_USD`` or ``--cost-ceiling``, the flag taking precedence.
+    A programmatic caller that bypasses the CLI therefore gets the projection
+    and no gate, and must check the flag itself.
+
     ``client`` is threaded into ``verify_model`` for test injection.
     """
     a = assumptions or PreflightAssumptions()
