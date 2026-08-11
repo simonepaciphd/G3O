@@ -79,10 +79,47 @@ def _existing_dir(arg: str) -> Path:
     return p
 
 
+def _run_discovery_leg(
+    queries: list[tuple[str, str]],
+    *,
+    leg: str,
+    limit: int,
+    site_domain: str | None = None,
+) -> dict[str, Any]:
+    """One discovery leg, shaped like the artifact ``stage_discovery`` writes.
+
+    Deduplication is **per leg**, matching production: Stage 1a and Stage 1b
+    keep independent ``seen`` sets, so a URL both legs return appears in both
+    artifacts. Sharing one set across the legs would leave leg 2's record list
+    misrepresenting what leg 2 actually returned, which is the whole reason the
+    legs are kept apart.
+
+    ``queries`` mirrors the production provenance entry minus Serper's
+    ``searchParameters``/``from_cache`` echo — this command calls
+    ``search_google``, not ``search_google_detailed``, so that echo is not
+    available here (see ``--discovery-mode``'s help text).
+    """
+    seen: set[str] = set()
+    records: list[dict[str, Any]] = []
+    provenance: list[dict[str, Any]] = []
+    for query, lang in queries:
+        provenance.append({"query": query, "language": lang, "leg": leg})
+        for r in search_google(query, num_results=limit):
+            url = r.get("link", "")
+            if url and url not in seen:
+                seen.add(url)
+                record = {**r, "query": query, "language": lang}
+                if site_domain is not None:
+                    record["site_domain"] = site_domain
+                records.append(record)
+    return {"queries": provenance, "records": records}
+
+
 def _cmd_discover(args: argparse.Namespace) -> int:
     languages = [s.strip() for s in args.languages.split(",") if s.strip()]
+    mode = args.discovery_mode
 
-    if args.discovery_mode == "chain":
+    if mode == "chain":
         if args.languages != "en":
             sys.stderr.write(
                 "warning: --languages is ignored in chain mode "
@@ -100,6 +137,7 @@ def _cmd_discover(args: argparse.Namespace) -> int:
                 DOMAIN_QUERY_LANG,
             )
         ]
+        leg1_name = "domain_discovery"
     else:
         # Legacy mode: one query per GenAI term
         if args.discovery_evidence_term != DEFAULT_EVIDENCE_TERM:
@@ -118,39 +156,46 @@ def _cmd_discover(args: argparse.Namespace) -> int:
             country=args.country,
             disambiguation=args.disambiguation,
         )
+        leg1_name = "genai_roster"
 
-    seen: set[str] = set()
-    records: list[dict] = []
-    for query, lang in queries:
-        for r in search_google(query, num_results=args.limit):
-            url = r.get("link", "")
-            if url and url not in seen:
-                seen.add(url)
-                r["query"] = query
-                r["language"] = lang
-                r["site_domain"] = None
-                records.append(r)
+    # Output mirrors production's two artifacts rather than flattening the legs
+    # into one list: `g3o/run/presweep/stage_discovery.py` writes
+    # `1a_discovery_general.json` and `1b_discovery_site_restricted.json`, never
+    # merges the record lists, and tags each query with its leg. Keyed by those
+    # filenames so CLI output and pipeline output read the same way.
+    leg1 = _run_discovery_leg(queries, leg=leg1_name, limit=args.limit)
+    artifacts: dict[str, Any] = {"1a_discovery_general": {"mode": mode, **leg1}}
 
-    # In chain mode, run leg 2 on the discovered domain
-    if args.discovery_mode == "chain":
-        picked = pick_domain(records)
+    if mode == "chain":
+        # The naive first-non-aggregator pick, recorded but not authoritative —
+        # Stage 2's `classify_official_site` is the arbiter in production. Kept
+        # here so a CLI 1a artifact carries the same field as a pipeline one.
+        picked = pick_domain(leg1["records"])
+        artifacts["1a_discovery_general"]["naive_domain"] = picked
         domain = picked.get("domain")
         if domain:
-            query = build_evidence_query(domain, args.discovery_evidence_term)
-            for r in search_google(query, num_results=args.limit):
-                url = r.get("link", "")
-                if url and url not in seen:
-                    seen.add(url)
-                    r["query"] = query
-                    r["language"] = DOMAIN_QUERY_LANG
-                    r["site_domain"] = domain
-                    records.append(r)
+            leg2 = _run_discovery_leg(
+                [
+                    (
+                        build_evidence_query(domain, args.discovery_evidence_term),
+                        DOMAIN_QUERY_LANG,
+                    )
+                ],
+                leg="site_evidence",
+                limit=args.limit,
+                site_domain=domain,
+            )
+            artifacts["1b_discovery_site_restricted"] = {
+                "mode": mode,
+                "site_domain": domain,
+                **leg2,
+            }
         else:
             sys.stderr.write(
                 "chain: no usable domain found in leg 1; skipping leg 2\n"
             )
 
-    json.dump(records, sys.stdout, ensure_ascii=False, indent=2)
+    json.dump(artifacts, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
     return 0
 
@@ -641,9 +686,12 @@ def build_parser() -> argparse.ArgumentParser:
             "official website' (1 credit) + leg 2 'site:<domain> <evidence-term>' for the "
             "top-ranked discovered domain (1 credit; total 2 credits). "
             "Uses search_google (not search_google_detailed used by presweep), so results "
-            "lack sitelinks/date/position fields. "
+            "lack sitelinks/date/position fields and the per-query searchParameters echo. "
             "Chain mode matches the production pipeline. "
-            "'legacy': one query per GenAI term from the roster, N credits/institution."
+            "'legacy': one query per GenAI term from the roster, N credits/institution. "
+            "Output in both modes is a JSON object keyed like the pipeline's artifacts "
+            "('1a_discovery_general', plus '1b_discovery_site_restricted' when leg 2 "
+            "runs) — not a flat record list."
         ),
     )
     discover.add_argument(

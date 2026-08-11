@@ -18,6 +18,7 @@ import pytest
 
 from g3o import cli
 from g3o.common.batch_client import DEFAULT_MODEL
+from g3o.discovery.query_builder import DEFAULT_EVIDENCE_TERM
 
 # ---------------------------------------------------------------------------
 # type= guards
@@ -330,7 +331,7 @@ def _make_discover_args(**overrides):
         languages="en",
         limit=5,
         discovery_mode="chain",
-        discovery_evidence_term="AI",
+        discovery_evidence_term=DEFAULT_EVIDENCE_TERM,
         discovery_domain_quote_name=False,
     )
     defaults.update(overrides)
@@ -338,7 +339,12 @@ def _make_discover_args(**overrides):
 
 
 def test_cmd_discover_chain_runs_two_legs(monkeypatch, capsys):
-    """Chain mode: leg 1 finds a domain, leg 2 runs site-restricted query."""
+    """Chain mode: leg 1 finds a domain, leg 2 runs site-restricted query.
+
+    Output shape mirrors `g3o/run/presweep/stage_discovery.py`: two artifacts
+    keyed by the filenames it writes, record lists never merged, each query
+    tagged with its leg.
+    """
     leg1_calls = []
     leg2_calls = []
 
@@ -353,12 +359,13 @@ def test_cmd_discover_chain_runs_two_legs(monkeypatch, capsys):
             leg2_calls.append(query)
             return [
                 {"link": "https://sante.gouv.fr/ai", "title": "AI page", "snippet": "..."},
-                # Duplicate of leg 1 result — must be deduplicated via seen set.
+                # Also returned by leg 1. Production keeps a per-leg `seen` set,
+                # so this belongs in the 1b record list too.
                 {"link": "https://sante.gouv.fr", "title": "Dup", "snippet": "..."},
             ]
 
     def fake_pick_domain(records):
-        return {"domain": "sante.gouv.fr"}
+        return {"domain": "sante.gouv.fr", "url": "https://sante.gouv.fr", "rank": 1}
 
     monkeypatch.setattr(cli, "search_google", fake_search)
     monkeypatch.setattr(cli, "pick_domain", fake_pick_domain)
@@ -368,7 +375,7 @@ def test_cmd_discover_chain_runs_two_legs(monkeypatch, capsys):
     assert rc == 0
 
     captured = capsys.readouterr()
-    records = json.loads(captured.out)
+    out = json.loads(captured.out)
 
     # Leg 1 query should have been made
     assert len(leg1_calls) == 1
@@ -377,24 +384,63 @@ def test_cmd_discover_chain_runs_two_legs(monkeypatch, capsys):
     # Leg 2 query should be site-restricted on the picked domain
     assert len(leg2_calls) == 1
     assert "site:sante.gouv.fr" in leg2_calls[0]
-    assert "AI" in leg2_calls[0]
+    assert DEFAULT_EVIDENCE_TERM in leg2_calls[0]
 
-    # Deduplication: sante.gouv.fr from leg 1 should NOT appear again from leg 2
-    urls = [r["link"] for r in records]
-    assert len(urls) == len(set(urls))
-    assert "https://sante.gouv.fr" in urls
-    assert "https://example.com/agg" in urls
-    assert "https://sante.gouv.fr/ai" in urls
+    # Two separate artifacts, named as production names them.
+    assert set(out) == {"1a_discovery_general", "1b_discovery_site_restricted"}
+    leg1_art = out["1a_discovery_general"]
+    leg2_art = out["1b_discovery_site_restricted"]
+    assert leg1_art["mode"] == "chain"
+    assert leg2_art["mode"] == "chain"
+    assert leg2_art["site_domain"] == "sante.gouv.fr"
 
-    # Schema consistency: all records have site_domain field
-    for r in records:
-        assert "site_domain" in r
+    # Each query carries its leg tag, matching `_query_provenance`'s vocabulary.
+    assert [q["leg"] for q in leg1_art["queries"]] == ["domain_discovery"]
+    assert [q["leg"] for q in leg2_art["queries"]] == ["site_evidence"]
+    assert leg1_art["queries"][0]["language"] == "en"
 
-    # Leg 1 records have site_domain=None, leg 2 records have the domain
-    leg1_records = [r for r in records if r["site_domain"] is None]
-    leg2_records = [r for r in records if r["site_domain"] == "sante.gouv.fr"]
-    assert len(leg1_records) == 2  # sante.gouv.fr + example.com/agg
-    assert len(leg2_records) == 1  # only sante.gouv.fr/ai (deduped)
+    # `site_domain` is absent on leg 1 and present on leg 2 — production's shape,
+    # not a uniform column with a null.
+    assert [r["link"] for r in leg1_art["records"]] == [
+        "https://sante.gouv.fr",
+        "https://example.com/agg",
+    ]
+    assert all("site_domain" not in r for r in leg1_art["records"])
+    assert all(r["site_domain"] == "sante.gouv.fr" for r in leg2_art["records"])
+
+    # Per-leg dedup: a URL both legs return appears in both record lists.
+    assert [r["link"] for r in leg2_art["records"]] == [
+        "https://sante.gouv.fr/ai",
+        "https://sante.gouv.fr",
+    ]
+
+    # The naive pick is recorded in 1a, as production records it.
+    assert leg1_art["naive_domain"] == {
+        "domain": "sante.gouv.fr",
+        "url": "https://sante.gouv.fr",
+        "rank": 1,
+    }
+
+
+def test_cmd_discover_dedups_within_a_leg(monkeypatch, capsys):
+    """Dedup still applies inside a leg — production's `seen` set is per artifact,
+    not per query."""
+    monkeypatch.setattr(
+        cli,
+        "search_google",
+        lambda q, num_results=5: [
+            {"link": "https://a.gov", "title": "A"},
+            {"link": "https://a.gov", "title": "A again"},
+            {"link": "https://b.gov", "title": "B"},
+        ],
+    )
+    monkeypatch.setattr(cli, "pick_domain", lambda records: {"domain": None})
+
+    rc = cli._cmd_discover(_make_discover_args())
+    assert rc == 0
+
+    records = json.loads(capsys.readouterr().out)["1a_discovery_general"]["records"]
+    assert [r["link"] for r in records] == ["https://a.gov", "https://b.gov"]
 
 
 def test_cmd_discover_chain_no_usable_domain_warns(monkeypatch, capsys):
@@ -415,12 +461,16 @@ def test_cmd_discover_chain_no_usable_domain_warns(monkeypatch, capsys):
     assert rc == 0
 
     captured = capsys.readouterr()
-    records = json.loads(captured.out)
+    out = json.loads(captured.out)
 
-    # Only leg 1 results
+    # No 1b artifact at all when leg 2 does not run — an empty one would read as
+    # "the site-restricted leg found nothing", which is a different claim.
+    assert set(out) == {"1a_discovery_general"}
+    records = out["1a_discovery_general"]["records"]
     assert len(records) == 1
     assert records[0]["link"] == "https://en.wikipedia.org/wiki/X"
-    assert records[0]["site_domain"] is None
+    assert "site_domain" not in records[0]
+    assert out["1a_discovery_general"]["naive_domain"]["domain"] is None
 
     # Stderr should mention leg 2 was skipped
     assert "no usable domain" in captured.err
@@ -476,7 +526,7 @@ def test_cmd_discover_legacy_no_warn_on_defaults(monkeypatch, capsys):
 
     args = _make_discover_args(
         discovery_mode="legacy",
-        discovery_evidence_term="AI",  # DEFAULT_EVIDENCE_TERM
+        discovery_evidence_term=DEFAULT_EVIDENCE_TERM,
         discovery_domain_quote_name=False,
     )
     rc = cli._cmd_discover(args)
@@ -484,3 +534,23 @@ def test_cmd_discover_legacy_no_warn_on_defaults(monkeypatch, capsys):
 
     captured = capsys.readouterr()
     assert "ignored in legacy mode" not in captured.err
+
+
+def test_cmd_discover_legacy_emits_one_artifact_tagged_genai_roster(monkeypatch, capsys):
+    """Legacy mode is single-leg, so it emits only 1a — tagged with production's
+    legacy leg name so the two modes' artifacts stay distinguishable."""
+    monkeypatch.setattr(
+        cli,
+        "search_google",
+        lambda q, num_results=5: [{"link": f"https://x.gov/{q[:3]}", "title": "X"}],
+    )
+
+    rc = cli._cmd_discover(_make_discover_args(discovery_mode="legacy"))
+    assert rc == 0
+
+    out = json.loads(capsys.readouterr().out)
+    assert set(out) == {"1a_discovery_general"}
+    assert out["1a_discovery_general"]["mode"] == "legacy"
+    assert {q["leg"] for q in out["1a_discovery_general"]["queries"]} == {"genai_roster"}
+    # No naive_domain: that field is chain-mode-only in production too.
+    assert "naive_domain" not in out["1a_discovery_general"]
