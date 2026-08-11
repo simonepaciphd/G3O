@@ -13,6 +13,7 @@ from g3o.common.contract import (
     ContractRow,
     PersistedRow,
     RunProvenance,
+    ValidationProvenance,
 )
 from g3o.common.schema import DATA_COLUMNS
 
@@ -375,3 +376,52 @@ def test_proposed_adoption_stage_validates():
     — introduced 2026-07 (PI decision) so hedged GenAI intentions are captured
     below `announced` instead of dropped to `unclear`."""
     ContractRow.model_validate(active_row(adoption_stage="proposed"))
+
+
+# ---------------------------------------------------------------------------
+# `run_date` calendar validity on the two provenance blocks
+#
+# ``ISO_DATE_PATTERN`` only proves the *shape* ``\d{4}-\d{2}-\d{2}``, so
+# ``2026-02-30`` and ``2026-13-01`` satisfied it and reached the CSV as
+# provenance. These two blocks are the safe place to enforce real calendar
+# dates: G3O authors them itself at write time (``g3o/persist/writer.py``,
+# from ``utc_today_iso()``), and neither appears in ``BatchResponse`` or
+# ``ConsolidatedInstitutionResponse`` — so no LLM-produced value can trip
+# them, and a raise here means a G3O bug rather than a discarded finding.
+# The equivalent validators on the model-authored date fields were cut from
+# this change for exactly that reason; see the PR discussion.
+# ---------------------------------------------------------------------------
+
+
+PROVENANCE_MODELS = (RunProvenance, ValidationProvenance)
+
+
+def _provenance(run_date: str) -> dict[str, Any]:
+    return {
+        "global_row_id": "run-001-row-0001",
+        "run_id": "20260508-test",
+        "run_model": "gpt-5-nano",
+        "run_tool": "g3o.extract",
+        "run_date": run_date,
+    }
+
+
+@pytest.mark.parametrize("model", PROVENANCE_MODELS)
+@pytest.mark.parametrize("run_date", ["2026-02-30", "2026-13-01", "2026-00-10"])
+def test_provenance_rejects_shape_valid_but_impossible_run_date(model, run_date):
+    with pytest.raises(ValidationError):
+        model.model_validate(_provenance(run_date))
+
+
+@pytest.mark.parametrize("model", PROVENANCE_MODELS)
+@pytest.mark.parametrize("run_date", ["2026-05-08", "2024-02-29", "2026-12-31"])
+def test_provenance_accepts_real_run_dates(model, run_date):
+    """Including a genuine leap day, which a naive month-length check would drop."""
+    assert model.model_validate(_provenance(run_date)).run_date == run_date
+
+
+@pytest.mark.parametrize("model", PROVENANCE_MODELS)
+def test_provenance_still_rejects_malformed_run_date_shape(model):
+    """The pattern constraint is unchanged and still runs first."""
+    with pytest.raises(ValidationError):
+        model.model_validate(_provenance("08/05/2026"))
