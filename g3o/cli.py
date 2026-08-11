@@ -50,7 +50,14 @@ from g3o.common.batch_client import (
     poll_batch,
     submit_batch,
 )
-from g3o.discovery.query_builder import DEFAULT_EVIDENCE_TERM, build_queries
+from g3o.discovery.domain_pick import pick_domain
+from g3o.discovery.query_builder import (
+    DEFAULT_EVIDENCE_TERM,
+    DOMAIN_QUERY_LANG,
+    build_domain_query,
+    build_evidence_query,
+    build_queries,
+)
 from g3o.discovery.serper_client import search_google
 from g3o.scrape.fetcher import scrape_url
 
@@ -73,27 +80,123 @@ def _existing_dir(arg: str) -> Path:
     return p
 
 
-def _cmd_discover(args: argparse.Namespace) -> int:
-    languages = [s.strip() for s in args.languages.split(",") if s.strip()]
-    queries = build_queries(
-        args.institution,
-        languages,
-        country=args.country,
-        disambiguation=args.disambiguation,
-    )
+def _run_discovery_leg(
+    queries: list[tuple[str, str]],
+    *,
+    leg: str,
+    limit: int,
+    site_domain: str | None = None,
+) -> dict[str, Any]:
+    """One discovery leg, shaped like the artifact ``stage_discovery`` writes.
 
+    Deduplication is **per leg**, matching production: Stage 1a and Stage 1b
+    keep independent ``seen`` sets, so a URL both legs return appears in both
+    artifacts. Sharing one set across the legs would leave leg 2's record list
+    misrepresenting what leg 2 actually returned, which is the whole reason the
+    legs are kept apart.
+
+    ``queries`` mirrors the production provenance entry minus Serper's
+    ``searchParameters``/``from_cache`` echo — this command calls
+    ``search_google``, not ``search_google_detailed``, so that echo is not
+    available here (see ``--discovery-mode``'s help text).
+    """
     seen: set[str] = set()
-    records: list[dict] = []
+    records: list[dict[str, Any]] = []
+    provenance: list[dict[str, Any]] = []
     for query, lang in queries:
-        for r in search_google(query, num_results=args.limit):
+        provenance.append({"query": query, "language": lang, "leg": leg})
+        for r in search_google(query, num_results=limit):
             url = r.get("link", "")
             if url and url not in seen:
                 seen.add(url)
-                r["query"] = query
-                r["language"] = lang
-                records.append(r)
+                record = {**r, "query": query, "language": lang}
+                if site_domain is not None:
+                    record["site_domain"] = site_domain
+                records.append(record)
+    return {"queries": provenance, "records": records}
 
-    json.dump(records, sys.stdout, ensure_ascii=False, indent=2)
+
+def _cmd_discover(args: argparse.Namespace) -> int:
+    languages = [s.strip() for s in args.languages.split(",") if s.strip()]
+    mode = args.discovery_mode
+
+    if mode == "chain":
+        if args.languages != "en":
+            sys.stderr.write(
+                "warning: --languages is ignored in chain mode "
+                "(leg 1 always uses 'en')\n"
+            )
+        # Chain mode: leg 1 (domain discovery) + leg 2 (site-restricted evidence)
+        queries = [
+            (
+                build_domain_query(
+                    args.institution,
+                    country=args.country,
+                    disambiguation=args.disambiguation,
+                    quote_name=args.discovery_domain_quote_name,
+                ),
+                DOMAIN_QUERY_LANG,
+            )
+        ]
+        leg1_name = "domain_discovery"
+    else:
+        # Legacy mode: one query per GenAI term
+        if args.discovery_evidence_term != DEFAULT_EVIDENCE_TERM:
+            sys.stderr.write(
+                "warning: --discovery-evidence-term is ignored in legacy mode "
+                "(chain only)\n"
+            )
+        if args.discovery_domain_quote_name:
+            sys.stderr.write(
+                "warning: --discovery-domain-quote-name is ignored in legacy mode "
+                "(chain only)\n"
+            )
+        queries = build_queries(
+            args.institution,
+            languages,
+            country=args.country,
+            disambiguation=args.disambiguation,
+        )
+        leg1_name = "genai_roster"
+
+    # Output mirrors production's two artifacts rather than flattening the legs
+    # into one list: `g3o/run/presweep/stage_discovery.py` writes
+    # `1a_discovery_general.json` and `1b_discovery_site_restricted.json`, never
+    # merges the record lists, and tags each query with its leg. Keyed by those
+    # filenames so CLI output and pipeline output read the same way.
+    leg1 = _run_discovery_leg(queries, leg=leg1_name, limit=args.limit)
+    artifacts: dict[str, Any] = {"1a_discovery_general": {"mode": mode, **leg1}}
+
+    if mode == "chain":
+        # The naive first-non-aggregator pick, recorded but not authoritative —
+        # Stage 2's `classify_official_site` is the arbiter in production. Kept
+        # here so a CLI 1a artifact carries the same field as a pipeline one.
+        picked = pick_domain(leg1["records"])
+        artifacts["1a_discovery_general"]["naive_domain"] = picked
+        domain = picked.get("domain")
+        if domain:
+            leg2 = _run_discovery_leg(
+                [
+                    (
+                        build_evidence_query(domain, args.discovery_evidence_term),
+                        DOMAIN_QUERY_LANG,
+                    )
+                ],
+                leg="site_evidence",
+                limit=args.limit,
+                site_domain=domain,
+            )
+            artifacts["1b_discovery_site_restricted"] = {
+                "mode": mode,
+                "site_domain": domain,
+                **leg2,
+            }
+        else:
+            sys.stderr.write(
+                "chain: no usable domain found in leg 1; skipping leg 2\n"
+            )
+
+    json.dump(artifacts, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
     return 0
 
@@ -666,6 +769,36 @@ def build_parser() -> argparse.ArgumentParser:
     )
     discover.add_argument(
         "--limit", type=int, default=5, help="Max results per query (default: 5)."
+    )
+    discover.add_argument(
+        "--discovery-mode", choices=("legacy", "chain"), default="chain",
+        help=(
+            "Query strategy. 'chain' (default): leg 1 '<name> <country> <disambiguation> "
+            "official website' (1 credit) + leg 2 'site:<domain> <evidence-term>' for the "
+            "top-ranked discovered domain (1 credit; total 2 credits). "
+            "Uses search_google (not search_google_detailed used by presweep), so results "
+            "lack sitelinks/date/position fields and the per-query searchParameters echo. "
+            "Chain mode matches the production pipeline. "
+            "'legacy': one query per GenAI term from the roster, N credits/institution. "
+            "Output in both modes is a JSON object keyed like the pipeline's artifacts "
+            "('1a_discovery_general', plus '1b_discovery_site_restricted' when leg 2 "
+            "runs) — not a flat record list."
+        ),
+    )
+    discover.add_argument(
+        "--discovery-evidence-term", default=DEFAULT_EVIDENCE_TERM,
+        help=(
+            f"Leg 2's evidence token (--discovery-mode chain only). Default: {DEFAULT_EVIDENCE_TERM}. "
+            "One bare unquoted term by measurement."
+        ),
+    )
+    discover.add_argument(
+        "--discovery-domain-quote-name", action="store_true",
+        help=(
+            "Leg 1 only (--discovery-mode chain): bind the institution name as a Google exact phrase "
+            "instead of an unquoted hint. Off by default — the quoted name was identified as the primary "
+            "failure of the four-slot format."
+        ),
     )
     discover.set_defaults(func=_cmd_discover)
 
