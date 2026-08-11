@@ -908,7 +908,9 @@ def test_unrelated_failure_records_parse_failed_not_flags_salvaged(tmp_path, mon
     reasons = {r["reason"] for r in attrition.read_records(run_dir)}
     assert "parse_failed" in reasons
     assert REASON_FLAGS_SALVAGED not in reasons
-    assert not (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+    assert not artifact_exists(
+        inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json"
+    )
 
 
 # ---------------------------------------------------------------------------
