@@ -4,7 +4,7 @@
 
 ## Role in the pipeline
 
-Stage 5 of the seven-stage pipeline (see [`docs/architecture.md`](../../docs/architecture.md)). Takes scraped page text from Stage 4 + institution metadata, and produces 0+ canonical rows per page conforming to the G3O Output Contract (currently v2.2).
+Stage 5 of the seven-stage pipeline (see [`docs/architecture.md`](../../docs/architecture.md)). Takes scraped page text from Stage 4 + institution metadata, and produces 0+ canonical rows per page conforming to the G3O Output Contract.
 
 - **Input.** One scraped page (`{url, text, title, content_type}` from `g3o.scrape`) + the institution row.
 - **Output.** A list of contract rows (39 fields) in JSON, one per `(institution × activity × source)` triple supported by this page. Pages with no GenAI evidence return one row with `genai_evidence = confirms_absence` and Group D set to `_NA_`.

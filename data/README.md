@@ -23,5 +23,5 @@ explicitly noted. Attribution required; downstream uses welcome.
 ## Schema
 
 The data dictionary is at [`../docs/data_dictionary.md`](../docs/data_dictionary.md).
-The schema-of-record is the G3O Output Contract (currently v2.2) at
+The schema-of-record is the G3O Output Contract at
 [`../g3o/extract/prompts/output_contract.md`](../g3o/extract/prompts/output_contract.md).
