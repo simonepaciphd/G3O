@@ -24,6 +24,26 @@ continuations (`` ` ``). The pre-sweep launched on 2026-05-09 used run id
 > `--session-id` (spec §4.2) records which session drove the run; precedence is
 > the flag, then `G3O_SESSION_ID`, then `unattended`.
 >
+> **What a run records about itself (Run API spec §4).** Every run launched
+> through the CLI or `launch()` writes two things into `runs/<run_id>/`:
+>
+> - `manifest.json` — the planning manifest as before, now carrying the run's
+>   identity as well: `run_started_at` (authoritative for wave classification),
+>   `session_id`, git sha/dirty, install path, package version, the contract pin
+>   and prompt hashes, the config snapshot with its `config_hash`, credential
+>   fingerprints, and the master build id when the master declares one. Written
+>   atomically before any spend. On resume the identity half is **preserved** and
+>   only the planning half refreshes.
+> - `events.jsonl` — append-only, one JSON object per line: `run_launched`,
+>   per-stage `stage_started`/`stage_completed`, per-chunk `chunk_submitted`/
+>   `chunk_terminal`, `poll_timeout`, and one terminal `run_completed` /
+>   `run_stopped` / `run_failed`. `seq` is contiguous from 1 across resumes.
+>
+> Both are records, never controls: `_state/` remains the only thing resume reads,
+> and a telemetry write that fails warns rather than stopping the run. A log that
+> ends with **no** terminal event means the process died — read it as abnormal
+> termination, not as "still running", and check `_state/` for the truth.
+>
 > One caveat carried over from §3.5: **resume with the key you launched with.**
 > Batches are listed per API key, so a resume under a rotated key would find none
 > of the in-flight chunks and resubmit them — both sets would bill. The run

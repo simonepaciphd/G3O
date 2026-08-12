@@ -562,7 +562,12 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
                 return 3
 
     receipt = launch(
-        config, credentials=credentials, session_id=args.session_id
+        config,
+        credentials=credentials,
+        session_id=args.session_id,
+        # Stated, not inferred: the manifest records how a run was started, and a
+        # value guessed from sys.argv can be wrong without anyone noticing.
+        invocation="cli",
     )
     # One JSON document on stdout, as before — the receipt's fields first (run_id
     # leading, per §2) and the stage summary merged in after, so every key this
