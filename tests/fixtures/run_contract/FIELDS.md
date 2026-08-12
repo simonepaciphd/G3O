@@ -5,30 +5,77 @@ Example `manifest.json` + `events.jsonl` for the Run API telemetry surface, from
 implementation so the `g3o-api` loader can be written against a fixed shape
 rather than against a moving PR.
 
-**Status:** fixture set **v1**, notes revised **v1.1**. The Run API is not
-implemented yet; nothing in the repo writes these files today. If reality
-corrects a fixture, the set is versioned (see [Changelog](#changelog)) and Katon
-is told the same day. **v1.1 changed notes only — no fixture bytes moved**, so a
-loader written against v1 needs no revision.
+**Status:** fixture set **v1**, notes revised **v1.2**. **Sufficiency confirmed
+by Katon in writing, 2026-08-11** — he verified rather than read (recomputed
+`config_hash` to a match, checked every offline-checkable invariant across all
+three logs) and needs nothing changed in the set. That closes the Item 1 seam.
+
+The Run API **is** implemented now: `g3o/run/telemetry.py` on branch
+`item-2-PR-C` (PR C) writes both files. It is not merged to `main` yet, so a
+loader test pinned to this branch stays pinned for now. Three places where the
+implementation and these notes diverged are corrected below — see
+[what the implementation actually writes](#what-the-implementation-actually-writes).
+
+If reality corrects a fixture, the set is versioned (see
+[Changelog](#changelog)) and Katon is told the same day. **v1.2 changed notes
+only — no fixture bytes moved**, so a loader written against v1 needs no
+revision and no re-download.
 
 **These are synthetic example runs, not records of real runs.** No run with
 these ids exists. Mixed provenance, deliberately:
 
-| Real, and verifiable against this commit | Illustrative only |
+| Real, and verifiable **at `e2eba1c`** | Illustrative only |
 |---|---|
 | `code.git_sha` (= `e2eba1c`, tip of `main` when written) | `run_id`, all `ts`, `run_started_at` |
 | `contract.*.version` / `.sha256` (= `tests/goldens/contract_version_pin.json`) | all `counts_*`, `wall_seconds`, `n_*` |
-| `prompts.*` sha256 (= the four files in the working tree) | `batch_id`, `key_fingerprint` |
+| ~~`prompts.*` sha256~~ — **superseded, see below** | `batch_id`, `key_fingerprint` |
 | `config` field set + defaults (= `PresweepConfig`, `g3o/run/presweep/config.py:48-143`) | `hostname`, `install_path`, `operator`, `session_id` |
 | `config_hash` (actually computed over this `config`) | `frame.*` (null — pending, see below) |
 
-Verify the real ones:
+**These values are pinned to `e2eba1c`, not to today's `main`** (v1.2 correction).
+Contract v2.3 landed in `e9b2b07`, so `main` now pins extract **v2.3** / validate
+**v1.2** and rewrote **all four** prompt assets. The fixture is a valid
+snapshot of the commit it names; it is *not* a snapshot of `main`. Verify against
+that commit, which is what the original recipe should have said:
 
 ```bash
-git rev-parse HEAD                                    # matches code.git_sha
-cat tests/goldens/contract_version_pin.json           # matches contract.*
-python -c "import hashlib,pathlib,sys;print(hashlib.sha256(pathlib.Path(sys.argv[1]).read_bytes()).hexdigest())" g3o/extract/prompts/system_prompt.md
+git show e2eba1c:tests/goldens/contract_version_pin.json   # matches contract.*
+git show e2eba1c:g3o/extract/prompts/system_prompt.md | \
+  python -c "import hashlib,sys;print(hashlib.sha256(sys.stdin.buffer.read()).hexdigest())"
 ```
+
+A run's own manifest is always self-consistent — `code.git_sha` names the commit
+its `contract` and `prompts` hashes were taken at — so a loader never needs to
+resolve them against any particular branch. That property is why this staleness
+is a documentation fix and not a fixture re-cut.
+
+### `prompts.*`: this fixture's values are CRLF-derived and superseded
+
+Found while re-checking the recipe above, and it is a **defect in the
+implementation**, not only a stale note. This fixture's prompt hashes were
+computed from a **Windows working tree**, where the four `.md` files carry CRLF;
+the repository has no `.gitattributes`, so the same commit checks out with LF on
+Linux. For `g3o/extract/prompts/system_prompt.md` at `e2eba1c`:
+
+```
+6a39912a…   sha256 of the CRLF working-tree bytes   <- what this fixture records
+1b74cab1…   sha256 of the git blob (LF)             <- what a Linux checkout sees
+```
+
+So a file-bytes hash makes `prompts.*` **platform-dependent**: the droplet and a
+Windows machine would record different hashes for identical prompt content, while
+`contract.*.sha256` — which hashes Python objects, not bytes — would be identical.
+A manifest that says "contract unchanged, prompts changed" for the same commit is
+exactly the false signal this block exists to prevent, and it would surface on the
+first comparison between a droplet run and a local one.
+
+**Fix, on `item-2-PR-C`:** normalise line endings to LF before hashing, so the
+value is a property of the content rather than of the checkout, and matches the
+git blob on every platform. Once that lands, the LF column above is what a real
+manifest contains, and **this fixture's `prompts.*` values are illustrative
+only** — reproducible from a CRLF checkout, not from the implementation. Recorded
+rather than re-cut, because prompt hashes are opaque strings to the loader: it
+stores them and never recomputes them, so nothing downstream moves.
 
 ## Files
 
@@ -61,10 +108,10 @@ That is the intended property; see the exclusion list below.
 | `code.package_version` | str | `importlib.metadata`. |
 | `code.install_path` | str | Guards the stale-editable-install failure mode. Machine-specific. |
 | `frame.frame_id` | str \| null | FK target for `g3o.frames` (§5.1). **Currently null — see decision 5.** |
-| `frame.master_build_id` | str \| null | Which master build the run sampled from. **Currently null.** |
+| `frame.master_build_id` | str \| null | Which master build the run sampled from; `mb-YYYY-MM-DD`. Null until a master build carries the column — **see decision 5.** |
 | `contract.<name>` | obj | `{path, version, sha256}` per contract. **Two entries — see decision 1.** `sha256` is the §29 pin over the *machine-readable surface*, **not** the file's own sha256. |
-| `prompts.<repo-relative path>` | str | sha256 of the **file bytes**. **Keyed by path — see decision 2.** |
-| `config` | obj | Full `PresweepConfig` snapshot, all 27 fields, JSON-serializable. `Path`→POSIX string, tuple→array. Declared fields only; derived properties (`evidence_terms`, `institution_search_languages`, `chain_query_languages`) are **not** included — they are reproducible from the fields, and duplicating them would create a second source of truth. |
+| `prompts.<repo-relative path>` | str | sha256 of the file, **line endings normalised to LF**. **Keyed by path — see decision 2.** This fixture's values predate the normalisation and are CRLF-derived — see above. |
+| `config` | obj | Full `PresweepConfig` snapshot, JSON-serializable. `Path`→string, tuple→array. **27 keys in this fixture; 29 in a real manifest** — v1.2 correction, see below. |
 | `config_hash` | str | sha256, canonicalization below. |
 | `config_hash_excludes` | list[str] | The exclusion list, recorded in-band so the hash is reproducible without out-of-band knowledge. |
 | `credentials.<provider>` | obj | `{source, fingerprint, label}`. `source` ∈ `explicit` \| `env` \| `unset`. `fingerprint` = `sha256(key)[:8]`, or null when unset. **Never any key material** (§3.3). |
@@ -83,8 +130,37 @@ Pinned exactly because the hash is stored in `g3o.runs.config_hash` (§5.2) and
 may be re-verified server-side. An unstated canonicalization is a hash only the
 writer agrees with.
 
-Accepted by the PI 2026-08-11 (see resolved question 1). Whether it is
-*re-verifiable* server-side is still Katon's to confirm — his question 4.
+Accepted by the PI 2026-08-11 (see resolved question 1). **Re-verified
+server-side by Katon, 2026-08-11** — recomputed from `manifest.json` to an exact
+match (`952dfc5f…`), and pinned as a loader test against this fixture so drift on
+either side fails loudly instead of the two quietly disagreeing (his question 4).
+
+**Cross-language caveat** (Katon, v1.2): it reproduces because both sides are
+Python. Any re-implementation elsewhere must match Python's float `repr` and
+unicode handling to land on the same bytes. Nothing in the current config
+snapshot is a float except `scrape_host_delay_seconds` (`1.0`), so the exposure
+is small today and real the moment a float parameter is added.
+
+### `config` is 27 keys here and 29 in a real manifest
+
+v1.2 correction, and the one place a pre-implementation guess in this file was
+simply wrong. The original note claimed "declared fields only; derived properties
+are **not** included". PR C records two more:
+
+| Extra key | Why it is in the snapshot |
+|---|---|
+| `institution_search_languages` | Derived, but **the resume guard compares it** — it is the Stage-5 provenance string, and a run resumed under a different language roster must abort rather than silently mix instruments. |
+| `genai_terms_roster_hash` | Not a config field at all: a fingerprint of a module constant in `discovery/query_builder.py`. Recorded because the guard needs something to compare, or a run could be resumed against an edited query roster with nothing noticing. |
+
+Both live in `config` rather than beside it because
+`planning._assert_manifest_matches_on_resume` reads them there. Moving them out to
+satisfy this document would have meant rewriting a load-bearing guard to match a
+note — the wrong direction, so the note changed instead.
+
+**No loader consequence.** `config_snapshot` is `jsonb` and the hash is recomputed
+from each manifest's own `config`, so a 29-key snapshot verifies exactly as a
+27-key one does. The only stale figure is the count: Katon's verification record
+reads "24 of 27 after exclusions"; against a real manifest it is **26 of 29**.
 
 ## `events.jsonl`
 
@@ -126,6 +202,33 @@ self-identifies its code version.
 11. **`git_sha` may vary within a run**, like `session_id`, when a resume happens under different code (decision 7). The fixtures keep it constant; do not assume constancy. The manifest's copy is the *launching* code version.
 12. **`spend_snapshot` is optional and may be absent entirely** from a run's log (resolved question 4). Never treat its absence, or a gap between snapshots, as a defect.
 
+## What the implementation actually writes
+
+v1.2, added now that PR C exists. Every difference below is **additive** — extra
+keys inside `payload`, which is `jsonb`, so a loader written against v1 reads a
+real log unchanged. Recorded because "the fixture said four keys and the file has
+five" should be a documented fact, not a surprise during ingest.
+
+| Where | Fixture says | Implementation also emits | Why |
+|---|---|---|---|
+| `chunk_submitted` | `chunk`, `batch_id`, `n_jobs`, `key_fingerprint` | `adopted: true`, on the reconciliation path only | A chunk adopted from a server-side batch entered flight without a fresh create. It still emits `chunk_submitted` — otherwise a chunk would report `chunk_terminal` with no submission anywhere in the log — and `adopted` is what distinguishes the two. |
+| `poll_timeout` | `batch_id`, `waited_seconds`, `max_wait_per_stage`, `note` | `chunk` | One event per still-flying chunk, so the chunk has to be named. |
+| `chunk_terminal` (failed / expired / cancelled) | `n_output`, `n_error`, `resolved_model` | `n_error: null`, `resolved_model: null`, `n_output: 0` | Nothing was fetched, so there is no error count and no resolved model to report. Null is the honest value; zero would claim a measurement. |
+| `run_completed` / `run_stopped` / `run_failed` | `outcome`, `stop_after` (+ extras) | `wall_seconds` | Already present in the fixture's own data (`events.jsonl` seq 27); the payload table just omitted it. |
+| `spend_snapshot` | one example line | **never emitted** | Dropped per the sprint's relief-valve list. Invariant 12 already covers this: absence means nothing. Adding it later needs no loader change, which was the point of declaring it optional. |
+
+One more, on the manifest rather than the events: a real `manifest.json` carries
+the **planning** keys too (`run_kind`, `layout_version`, `run_date`,
+`run_timestamp`, `run_model`, `stages_planned`, `institutions`). §4.1 names
+`runs/<run_id>/manifest.json` — the path the pre-existing planning manifest
+already occupied — so the two compose into one document rather than one replacing
+the other. `ensure_run()` reads the §4.1 keys and can ignore the rest.
+
+On resume the §4.1 identity keys are **preserved** and only the planning keys
+refresh, which is what makes `run_started_at` trustworthy as the wave-classification
+input (§5.5). Before PR C the planning timestamp was rewritten on every
+invocation, so a resumed run would have reported the *resume* moment as its start.
+
 ## Decisions taken where the spec's §4 example and reality diverge
 
 The manifest surface is mine to own; these are recorded, not silent. 1, 2 and 6
@@ -139,7 +242,13 @@ the decision a loader author needs to read alongside the rest.
    `tests/goldens/contract_version_pin.json`. A single block cannot record both.
    *Consequence for §5.2:* `g3o.runs.contract_version` / `.contract_sha256` are
    scalar columns and cannot hold two contracts — Katon needs either two column
-   pairs or a jsonb. **Flagged; his call.**
+   pairs or a jsonb. **ANSWERED (Katon, 2026-08-11): `runs.contracts jsonb not
+   null`,** keyed by contract name, mirroring this block verbatim rather than
+   flattening it — because the count already went 1 → 2, so two column pairs would
+   hard-code today's number into the schema. A change against spec §5.2; it lands
+   in the v0.6 header and Simone's sign-off gates the apply. Vindicated since:
+   extract went `v2.2` → `v2.3` and validate `v1.1` → `v1.2` inside the same week
+   this fixture was written, and the two moved **independently**.
 2. **`prompts` is keyed by repo-relative path.** §4.1's bare filenames
    (`system_prompt.md`, `output_contract.md`) collide: there are two of each,
    under `g3o/extract/prompts/` and `g3o/validate/prompts/`.
@@ -155,8 +264,30 @@ the decision a loader author needs to read alongside the rest.
    hash differently per machine. The list is recorded in-band.
 5. **A `frame` block is added.** §4.1's example omits it; §5.1 requires it
    ("it goes in the manifest → ingest") and it is assigned to this surface.
-   Shape is fixed now, values are `null` pending Nolan's uid-stamping PR, so no
-   `manifest_schema_version` bump is needed when they arrive.
+   Shape is fixed now, so no `manifest_schema_version` bump is needed when values
+   arrive. **Resolved in both directions, 2026-08-11:**
+
+   - *What the pipeline populates* (PR C): **`master_build_id` only**, read from
+     the master CSV's own `master_build_id` column when it has one, with one
+     distinct value required across the sampled rows — disagreement records null
+     rather than choosing. **`frame_id` stays null**, because it is the FK target
+     of `g3o.frames`, whose design (§5.1) is still an open item awaiting Katon's
+     and the PI's explicit OK. Recording the build id we can attest while leaving
+     the key we cannot is the split, not an oversight.
+   - *The format*, which did not need to wait for Nolan: `mb-YYYY-MM-DD`, already
+     enforced on `main` by `scripts/build_codebook_html.py:284`, which also
+     requires exactly one distinct value per master build. The 2026-07-17 master
+     carries no such column at all, so today both fields are null on a real run;
+     Nolan's PR (or a newer master build) is what supplies the column.
+   - *What the loader does* (Katon): `runs.frame_id` stays **NOT NULL** and the
+     loader derives the frame key from `master_build_id`, taking an explicit
+     `--frame-id` when the manifest's is null and recording it as
+     operator-supplied. Deliberately **no** default to the current master build —
+     that would attribute a run to a frame it may not have sampled, which is the
+     invariant the FK exists to protect.
+   - *Consequence for the Item 4 smoke gate:* until a build-id-carrying master
+     lands, whoever runs the smoke passes `--frame-id` explicitly. That belongs in
+     the Item 3 runbook rather than being discovered during the gate.
 6. **`model_ids.requested` + `resolved_model` per chunk.** The manifest is
    written *before* any spend, so it cannot know the versioned model id
    (`gpt-5-nano-2025-08-07`) — and that versioned id, not the requested alias,
@@ -203,19 +334,65 @@ this file stay cross-referenceable.
    (whether the extra account calls earn their keep at scale) is answered on
    cost figures once PR C measures them.
 
-## Sufficiency check for Katon
+## Sufficiency check for Katon — CLOSED, 2026-08-11
 
-Please answer in writing so this seam can be closed:
+Answered in writing; the set is **sufficient and unchanged**. He verified rather
+than read: `config_hash` recomputed to an exact match, and invariants 1, 2, 3, 4,
+6 and 9 checked across all three logs (27 / 29 / 21 lines). Invariants 7, 8, 10,
+11 and 12 are not offline-checkable from the files alone — they are single-valued
+in this set or properties of the live pipeline.
 
-1. Does `manifest.json` carry everything `ensure_run()` needs for `g3o.runs`, or is a field missing?
-2. Does `frame.frame_id` match what `g3o.frames` expects as a key (§5.1)?
-3. Is `payload`-nesting right for `run_events.payload jsonb`?
-4. Will you re-verify `config_hash` server-side? If so, does the canonicalization above work, and is the exclusion list right?
-5. Do the three terminal shapes (completed / failed / stopped-then-resumed) plus invariant 5 cover what your loader must handle?
-6. Decision 1 — two contracts vs. scalar `contract_version`/`contract_sha256` columns: two column pairs, or jsonb?
+| # | Question | Answer |
+|---|---|---|
+| 1 | Everything `ensure_run()` needs? | **Yes.** Three `g3o.runs` fields are correctly *absent*: `run_completed_at` comes from the `run_completed` event (a manifest written before spend cannot know it), and `synthetic` / `in_frame` are ingest-side operator decisions. `ensure_run` loads events first, then completes the row. |
+| 2 | Does `frame.frame_id` match `g3o.frames`? | **Yes, keep the shape.** Follow-ups now resolved in decision 5 above. |
+| 3 | Is `payload`-nesting right? | **Yes, 1:1, no surgery.** `stage` living in the envelope rather than the payload is also right — it maps straight to §5.2's `stage` column. |
+| 4 | Re-verify `config_hash` server-side? | **Yes, and it verifies.** Pinned as a loader test against this fixture. Cross-language caveat recorded above. |
+| 5 | Do the terminal shapes + invariant 5 cover it? | **Yes.** All three load. Invariant 5 changes loader behaviour: no terminal event ⇒ load the run and its facts, leave `run_completed_at` null, and **refuse to mark it publishable without an explicit operator override**. An abnormally-terminated run must not publish silently just because a wave window happens to cover it. |
+| 6 | Two column pairs or jsonb? | **jsonb**, one column. See decision 1. |
+
+### Schema v0.6 commitments made in that reply
+
+His to decide per the 2026-08-07 brief; **Simone signs off before any production
+apply.** Recorded here because a loader author reading this file needs them, and
+because two are changes against signed spec §5.2:
+
+1. `runs.contracts jsonb not null` replaces §5.2's scalar `contract_version` /
+   `contract_sha256`. *(change against §5.2)*
+2. `run_events` gains `session_id text` and `git_sha text` — **not in §5.2**, and
+   the gap he caught: invariants 6 and 11 make both per-event provenance, and
+   `events_resumed.jsonl` proves it (`e28ca730` → `a1b2c3d4` at seq 22). As
+   specced, the resuming session was representable nowhere, which would have
+   defeated §4.2's whole purpose as the join key back to `interaction-log.csv`.
+   *(change against §5.2)*
+3. `runs.frame_id` stays NOT NULL; the loader requires `--frame-id` when the
+   manifest's is null, recorded as operator-supplied. No silent default.
+4. A run whose log has no terminal event loads with `run_completed_at` null and is
+   not publishable without an explicit operator override.
+
+Commitment 4 is also half of the Item 3 joint gate: the induced-failure test
+requires "nothing published", and this is the database side of it already agreed.
 
 ## Changelog
 
+- **v1.2** — 2026-08-11 — **notes only, no fixture bytes changed**; no loader
+  revision and no re-download needed. Katon confirmed sufficiency in writing
+  (Item 1 seam closed) — his six answers and four v0.6 DDL commitments are
+  recorded above. Corrections, all mine: the `contract` / `prompts` / `config`
+  values are pinned to `e2eba1c` and the verify recipe now says so (`main` has
+  since moved to extract v2.3 / validate v1.2); `config` carries **29** keys in a
+  real manifest, not 27, because the resume guard compares two of them; and a new
+  [what the implementation actually writes](#what-the-implementation-actually-writes)
+  section records five additive payload differences plus the fact that
+  `spend_snapshot` is never emitted. Found while re-checking the recipe: a
+  file-bytes prompt hash is **platform-dependent** (CRLF vs LF), so this fixture's
+  `prompts.*` are CRLF-derived and superseded, and the implementation is being
+  fixed to normalise to LF — no loader impact, the values are opaque to it. Decision 5 now answers the frame question in
+  both directions (`master_build_id` only, `mb-YYYY-MM-DD`, `frame_id` null).
+  Added Katon's cross-language canonicalization caveat. Open question 3 (named
+  state after a hard kill) still open; he confirmed it does not block him and it
+  lands as `events_truncated.jsonl` in **fixture set v2**, alongside a values
+  re-cut against a real PR C manifest.
 - **v1.1** — 2026-08-11 — **notes only, no fixture bytes changed.** PI resolved
   escalated questions 1, 2 and 4 (`config_hash` exclusions stand; resume under a
   changed `git_sha` is permitted and recorded, now decision 7 + invariant 11;
