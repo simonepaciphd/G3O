@@ -68,7 +68,7 @@ MANIFEST_FILENAME = "manifest.json"
 CONFIG_HASH_EXCLUDES: tuple[str, ...] = ("master_csv", "run_id", "runs_dir")
 
 #: Prompt assets hashed whole, keyed by repo-relative path (§4.1 ``prompts``).
-#: File bytes, unlike ``contract.*.sha256`` which pins the machine-readable
+#: File *content*, unlike ``contract.*.sha256`` which pins the machine-readable
 #: surface — so a prose-only edit moves these and leaves those fixed.
 PROMPT_ASSETS: tuple[str, ...] = (
     "g3o/extract/prompts/system_prompt.md",
@@ -89,11 +89,29 @@ OPERATOR_ENV_VAR = "G3O_OPERATOR"
 
 
 def file_sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """sha256 of a file's content, with line endings normalised to LF.
+
+    Normalisation is not cosmetic here. These hashes are provenance: two runs at
+    the same commit must record the same value, or a reader comparing them
+    concludes the prompts changed when only the checkout did. The repository has
+    no ``.gitattributes``, so a text asset is CRLF in a Windows working tree and
+    LF in a Linux one — the droplet and this machine would disagree about
+    identical content, while ``contract.*.sha256`` (which hashes Python objects,
+    not bytes) agreed. A manifest asserting "contract unchanged, prompts changed"
+    for one commit is precisely the false signal this block exists to prevent.
+
+    Collapsing ``\\r\\n`` -> ``\\n`` makes the value a property of the content and
+    equal to the git blob's hash on every platform. Found 2026-08-12 while
+    re-verifying the published fixture's own verification recipe; the fixture's
+    ``prompts.*`` values are CRLF-derived and marked superseded there.
+    """
+    return hashlib.sha256(
+        path.read_bytes().replace(b"\r\n", b"\n")
+    ).hexdigest()
 
 
 def prompt_hashes() -> dict[str, str]:
-    """``{repo-relative path: sha256(file bytes)}`` for the four prompt assets.
+    """``{repo-relative path: sha256(LF-normalised content)}`` for the four assets.
 
     Resolved against the installed package, not the repo, so a wheel-installed run
     hashes the assets it will actually send. A missing asset is a broken install

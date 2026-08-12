@@ -36,6 +36,7 @@ from g3o.run.telemetry import (
     RunTelemetry,
     build_manifest_block,
     config_hash,
+    file_sha256,
     master_build_id,
     preserve_identity,
     prompt_hashes,
@@ -141,9 +142,51 @@ def test_manifest_prompt_hashes_are_whole_file_hashes(tmp_path: Path) -> None:
     assert manifest["prompts"] == prompt_hashes()
     assert len(manifest["prompts"]) == 4
     # The same path appears in both blocks with *different* hashes, by design: the
-    # contract pin covers the machine-readable surface, this covers file bytes.
+    # contract pin covers the machine-readable surface, this covers file content.
     path = "g3o/extract/prompts/output_contract.md"
     assert manifest["prompts"][path] != manifest["contract"]["extract"]["sha256"]
+
+
+def test_prompt_hashes_do_not_depend_on_the_checkout_s_line_endings(
+    tmp_path: Path,
+) -> None:
+    """Provenance must describe content, not the platform that checked it out.
+
+    Without normalisation the droplet (LF) and a Windows working tree (CRLF)
+    record different hashes for identical prompt content, while
+    ``contract.*.sha256`` — Python objects, not bytes — stays identical. The
+    manifest then says "contract unchanged, prompts changed" for one commit, which
+    is the false signal the block exists to prevent.
+    """
+    lf = tmp_path / "lf.md"
+    crlf = tmp_path / "crlf.md"
+    lf.write_bytes(b"# Contract v2.3\n\nA line.\nAnother line.\n")
+    crlf.write_bytes(b"# Contract v2.3\r\n\r\nA line.\r\nAnother line.\r\n")
+    assert lf.read_bytes() != crlf.read_bytes()
+    assert file_sha256(lf) == file_sha256(crlf)
+
+
+def test_prompt_hash_equals_the_git_blob_hash(tmp_path: Path) -> None:
+    """The value a Linux checkout sees, asserted against git's own object.
+
+    git stores text blobs with LF, so a normalised hash of the working tree must
+    equal ``sha256`` of ``git show HEAD:<path>``. This is the check that would have
+    caught the defect: it fails on Windows without normalisation and passes on
+    Linux either way, so running it on both is what pins the property.
+    """
+    import subprocess
+
+    rel = "g3o/extract/prompts/system_prompt.md"
+    try:
+        blob = subprocess.run(
+            ["git", "show", f"HEAD:{rel}"],
+            capture_output=True, check=True, timeout=30,
+        ).stdout
+    except (OSError, subprocess.SubprocessError) as exc:  # not a checkout / no git
+        pytest.skip(f"git unavailable: {exc}")
+    import hashlib
+
+    assert prompt_hashes()[rel] == hashlib.sha256(blob).hexdigest()
 
 
 def test_config_hash_matches_the_pinned_canonicalization(tmp_path: Path) -> None:
