@@ -1,0 +1,16 @@
+{
+  "_comment": "Keys starting with _ are comments and are ignored. Every other key must be a PresweepConfig field — an unknown one is refused, not ignored, so a typo cannot configure a run nobody chose. Omitted fields take their dataclass defaults. See docs/runbook-orchestrator.md.",
+  "run_id": "",
+  "runs_dir": "/home/thomas/runs",
+  "master_csv": "/home/thomas/data/master_institutions.csv",
+  "sample_size": 20,
+  "seed": 22294,
+  "dry_run": true,
+  "stop_after": "validate",
+  "filter_mode": "shadow",
+  "discovery_mode": "chain",
+  "discovery_languages": ["en"],
+  "max_workers": 4,
+  "poll_interval": 60,
+  "max_wait_per_stage": 90000
+}
