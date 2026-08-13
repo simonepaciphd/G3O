@@ -8,7 +8,6 @@ visibility into how much was spent on incomplete work.
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from g3o.common.cost_monitor import CostMonitor
 

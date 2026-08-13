@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from g3o.common.cost_monitor import BudgetExceededError, CostMonitor
+from g3o.common.cost_monitor import CostMonitor
 
 
 def test_accumulate_chunk_usage_tracks_tokens():
@@ -132,13 +132,13 @@ def test_check_budget_with_partial_includes_recorded_stages():
 
 def test_callback_pattern_in_run_chunked_stage(tmp_path):
     """Test that cost_check_callback parameter is accepted by run_chunked_stage."""
+    import inspect
+
     from g3o.common.run_state import run_chunked_stage
-    from unittest.mock import MagicMock
-    
+
     # This test verifies the signature accepts the callback parameter
     # A full integration test would require mocking the batch client
     # For now, we just verify the parameter is in the signature
-    import inspect
     sig = inspect.signature(run_chunked_stage)
     assert "cost_check_callback" in sig.parameters
 

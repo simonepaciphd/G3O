@@ -174,8 +174,9 @@ def test_projected_budget_exceeded_error_has_correct_attributes():
 
 def test_projection_safety_factor_configurable():
     """projection_safety_factor is configurable in PresweepConfig."""
-    from g3o.run.presweep.config import PresweepConfig
     from pathlib import Path
+
+    from g3o.run.presweep.config import PresweepConfig
     
     config = PresweepConfig(
         run_id="test",
@@ -189,9 +190,11 @@ def test_projection_safety_factor_configurable():
 
 def test_projection_safety_factor_validates_minimum():
     """projection_safety_factor must be >= 1.0."""
-    from g3o.run.presweep.config import PresweepConfig
     from pathlib import Path
+
     import pytest
+
+    from g3o.run.presweep.config import PresweepConfig
     
     with pytest.raises(ValueError, match="must be >= 1.0"):
         PresweepConfig(
@@ -204,10 +207,12 @@ def test_projection_safety_factor_validates_minimum():
 
 def test_projection_safety_factor_rejects_nan():
     """projection_safety_factor rejects NaN values."""
-    from g3o.run.presweep.config import PresweepConfig
-    from pathlib import Path
     import math
+    from pathlib import Path
+
     import pytest
+
+    from g3o.run.presweep.config import PresweepConfig
     
     with pytest.raises(ValueError, match="must be a finite number"):
         PresweepConfig(
@@ -220,10 +225,12 @@ def test_projection_safety_factor_rejects_nan():
 
 def test_projection_safety_factor_rejects_inf():
     """projection_safety_factor rejects Inf values."""
-    from g3o.run.presweep.config import PresweepConfig
-    from pathlib import Path
     import math
+    from pathlib import Path
+
     import pytest
+
+    from g3o.run.presweep.config import PresweepConfig
     
     with pytest.raises(ValueError, match="must be a finite number"):
         PresweepConfig(
@@ -236,10 +243,11 @@ def test_projection_safety_factor_rejects_inf():
 
 def test_preflight_includes_stage_estimates(tmp_path):
     """run_preflight includes per-stage cost estimates in output."""
-    from g3o.run.preflight import run_preflight, PreflightAssumptions
-    from g3o.run.presweep.config import PresweepConfig
-    from g3o.common import config as g3o_config
     from unittest.mock import patch
+
+    from g3o.common import config as g3o_config
+    from g3o.run.preflight import run_preflight
+    from g3o.run.presweep.config import PresweepConfig
     
     # Create minimal master CSV
     master_csv = tmp_path / "master.csv"
@@ -270,5 +278,5 @@ def test_preflight_includes_stage_estimates(tmp_path):
     assert "validate" in stage_estimates
     
     # All estimates should be positive
-    for stage, estimate in stage_estimates.items():
+    for _stage, estimate in stage_estimates.items():
         assert estimate > 0

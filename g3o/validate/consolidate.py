@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -49,7 +49,6 @@ from g3o.common.run_state import (
     run_chunked_stage,
 )
 from g3o.common.timing import llm_stage_timer
-from collections.abc import Callable
 from g3o.extract.salvage import (
     REASON_FLAGS_SALVAGED,
     UncertaintyFlagsSalvage,

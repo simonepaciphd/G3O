@@ -202,7 +202,7 @@ class CostMonitor:
         prompt_tokens = 0
         completion_tokens = 0
         cached_tokens = 0
-        for chunk_key, chunk_entry in chunks.items():
+        for _chunk_key, chunk_entry in chunks.items():
             usage = chunk_entry.get("usage")
             if usage:
                 prompt_tokens += int(usage.get("prompt_tokens", 0))
@@ -414,7 +414,7 @@ class CostMonitor:
         completion_tokens = 0
         cached_tokens = 0
         n_completed_chunks = 0
-        for chunk_key, chunk_entry in chunks.items():
+        for _chunk_key, chunk_entry in chunks.items():
             usage = chunk_entry.get("usage")
             if usage:
                 prompt_tokens += int(usage.get("prompt_tokens", 0))

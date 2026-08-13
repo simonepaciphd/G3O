@@ -23,12 +23,10 @@ spend and aborts before budget overrun, complementing the pre-flight projection.
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from g3o.common.batch_client import BatchResult
-from g3o.common.cost_monitor import BudgetExceededError, CostMonitor, StageCost
-
+from g3o.common.cost_monitor import BudgetExceededError, CostMonitor
 
 # ---------------------------------------------------------------------------
 # Test 1: BatchResult.usage property extracts token counts correctly
@@ -504,7 +502,7 @@ def test_orchestrator_aborts_on_budget_exceeded(tmp_path, monkeypatch):
             # Should raise BudgetExceededError
             try:
                 run_presweep(config)
-                assert False, "Expected BudgetExceededError to be raised"
+                raise AssertionError("Expected BudgetExceededError to be raised")
             except BudgetExceededError as exc:
                 assert exc.stage == "classify_official_site"
                 assert exc.spent > exc.budget
@@ -824,7 +822,7 @@ def test_cost_report_includes_vs_preflight_estimate(tmp_path, monkeypatch):
             state_file.write_text(json.dumps(state_data), encoding="utf-8")
 
             # Run to completion (no abort)
-            summary = run_presweep(config)
+            run_presweep(config)
 
             # Cost report should include vs_preflight_estimate
             cost_report_path = config.runs_dir / config.run_id / "_cost_report.json"
@@ -915,7 +913,7 @@ def test_presweep_config_rejects_negative_budget(tmp_path):
 
     # Test negative budget
     try:
-        config = PresweepConfig(
+        PresweepConfig(
             run_id="test-run",
             runs_dir=tmp_path / "runs",
             master_csv=master,
@@ -928,13 +926,13 @@ def test_presweep_config_rejects_negative_budget(tmp_path):
             discovery_evidence_term="official",
             budget_usd=-10.0,  # Negative budget should be rejected
         )
-        assert False, "Expected ValueError for negative budget_usd"
+        raise AssertionError("Expected ValueError for negative budget_usd")
     except ValueError as exc:
         assert "budget_usd must be positive" in str(exc)
 
     # Test zero budget
     try:
-        config = PresweepConfig(
+        PresweepConfig(
             run_id="test-run",
             runs_dir=tmp_path / "runs",
             master_csv=master,
@@ -947,7 +945,7 @@ def test_presweep_config_rejects_negative_budget(tmp_path):
             discovery_evidence_term="official",
             budget_usd=0.0,  # Zero budget should also be rejected
         )
-        assert False, "Expected ValueError for zero budget_usd"
+        raise AssertionError("Expected ValueError for zero budget_usd")
     except ValueError as exc:
         assert "budget_usd must be positive" in str(exc)
 
@@ -999,8 +997,8 @@ def test_record_and_check_convenience_method(tmp_path):
 
 def test_shared_pricing_constants():
     """Pricing constants are imported from a single source of truth."""
-    from g3o.common.pricing import GPT5_NANO_PRICING
     from g3o.common.cost_monitor import CostMonitor
+    from g3o.common.pricing import GPT5_NANO_PRICING
     from g3o.run.preflight import GPT5_NANO_PRICING as PREFLIGHT_PRICING
 
     # Both modules should use the same pricing
