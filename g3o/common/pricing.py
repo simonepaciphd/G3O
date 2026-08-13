@@ -30,9 +30,6 @@ GPT5_NANO_PRICING: dict[str, Any] = {
 }
 
 
-__all__ = ["GPT5_NANO_PRICING", "usd"]
-
-
 def usd(n_tokens: float, per_1m: float) -> float:
     """Convert token count to USD cost given per-1M-token rate.
 
@@ -40,3 +37,6 @@ def usd(n_tokens: float, per_1m: float) -> float:
     :mod:`g3o.run.preflight` so both compute cost identically.
     """
     return (n_tokens / 1_000_000) * per_1m
+
+
+__all__ = ["GPT5_NANO_PRICING", "usd"]

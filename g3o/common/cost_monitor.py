@@ -101,8 +101,7 @@ class ProjectedBudgetExceededError(BudgetExceededError):
 
     def __str__(self) -> str:
         return (
-            f"Projected budget exceeded before stage {self.stage}: "
-            f"${self.spent:.4f} spent so far, "
+            f"{super().__str__()} — "
             f"projected total ${self.projected_total:.4f} "
             f"(threshold: ${self.budget:.4f} × {self.safety_factor} = "
             f"${self.budget * self.safety_factor:.4f})"
@@ -262,9 +261,10 @@ class CostMonitor:
                 "cached_tokens": 0,
             }
         acc = self._partial_stage_usage[stage]
-        acc["prompt_tokens"] += chunk_usage.get("prompt_tokens", 0)
-        acc["completion_tokens"] += chunk_usage.get("completion_tokens", 0)
-        acc["cached_tokens"] += chunk_usage.get("cached_tokens", 0)
+        # Validate for negative values to prevent incorrect totals
+        acc["prompt_tokens"] += max(0, chunk_usage.get("prompt_tokens", 0))
+        acc["completion_tokens"] += max(0, chunk_usage.get("completion_tokens", 0))
+        acc["cached_tokens"] += max(0, chunk_usage.get("cached_tokens", 0))
 
     def check_budget_with_partial(self, stage: str) -> bool:
         """Check budget including in-progress stage costs.

@@ -700,12 +700,13 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
                         "published for gpt-5-nano). Reconcile against first live invoice.\n"
                     )
                 # Serper cost disclaimer (Stage 1a/1b discovery uses Serper credits, not tracked)
-                if config.budget_usd is not None:
-                    sys.stderr.write(
-                        "Note: Cost monitoring tracks OpenAI Batch API only. "
-                        "Serper API costs (Stage 1 discovery) are not included in the budget. "
-                        "Monitor Serper credits separately.\n"
-                    )
+                # Always print this disclaimer when budget is set, regardless of whether
+                # discovery ran, to remind operators that Serper costs are not tracked.
+                sys.stderr.write(
+                    "Note: Cost monitoring tracks OpenAI Batch API only. "
+                    "Serper API costs (Stage 1 discovery) are not included in the budget. "
+                    "Monitor Serper credits separately.\n"
+                )
             except Exception:
                 # Log the exception instead of silently swallowing it
                 import logging

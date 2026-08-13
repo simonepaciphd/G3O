@@ -222,7 +222,7 @@ class BatchResult:
             "completion_tokens": int(usage.get("completion_tokens", 0)),
             # Fix: compute total_tokens from components when API returns 0 or omits it.
             # This prevents silent understatement of cost if a future consumer uses total_tokens.
-            "total_tokens": int(usage.get("total_tokens", 0)) or (
+            "total_tokens": (
                 int(usage.get("prompt_tokens", 0)) + int(usage.get("completion_tokens", 0))
             ),
             # OpenAI may include cached_tokens in prompt_tokens_details

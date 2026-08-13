@@ -15,7 +15,7 @@ def _run_validate(
     model: str,
     poll_interval: int,
     max_wait: int,
-    cost_check_callback=None,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
 ) -> dict[str, Any]:
     """Stage 6 — per-institution LLM consolidation (Session E fold, Q8=ii).
 

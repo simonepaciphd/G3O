@@ -9,7 +9,11 @@ from typing import Any
 
 from g3o.common import attrition
 from g3o.common import config as _config
-from g3o.common.cost_monitor import BudgetExceededError, CostMonitor, ProjectedBudgetExceededError
+from g3o.common.cost_monitor import (
+    BudgetExceededError,
+    CostMonitor,
+    ProjectedBudgetExceededError,
+)
 from g3o.common.institution_report import write_institution_report
 from g3o.common.paths import require_layout
 from g3o.discovery.serper_client import SerperOptions, set_live_mode
@@ -43,10 +47,12 @@ _LLM_STAGES: tuple[str, ...] = (
 # Projection checks: after each stage completes, check projection before the next stage.
 # Maps a stage to the set of stop_after values that skip the projection check
 # (because the run would end before the next LLM stage anyway).
+# Note: The stage itself is not included because if stop_after == stage, we return
+# before reaching the projection check.
 _PROJECTION_SKIP_AFTER: dict[str, frozenset[str]] = {
-    "classify_official_site": frozenset({"classify_official_site", "discovery_general"}),
-    "classify_triage": frozenset({"classify_triage", "classify_official_site", "discovery_general", "discovery_site_restricted", "filter_eligibility"}),
-    "extract": frozenset({"extract", "scrape"}),
+    "classify_official_site": frozenset({"discovery_general"}),
+    "classify_triage": frozenset({"classify_official_site", "discovery_general", "discovery_site_restricted", "filter_eligibility"}),
+    "extract": frozenset({"scrape"}),
 }
 
 
@@ -141,13 +147,9 @@ def _record_and_track_stage_budget(
 
     The caller should catch the exception and record the abort stage.
     """
-    try:
-        within_budget = _check_stage_budget(monitor, config, run_dir, stage_name)
-        if not within_budget:
-            budget_exceeded_stages.append(stage_name)
-    except BudgetExceededError:
+    within_budget = _check_stage_budget(monitor, config, run_dir, stage_name)
+    if not within_budget:
         budget_exceeded_stages.append(stage_name)
-        raise
 
 
 def run_presweep(config: PresweepConfig) -> dict[str, Any]:
@@ -216,6 +218,7 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
         return True
 
     # Helper to check projection after each stage (Gap 2)
+    # Note: This is a closure that captures `config` from the enclosing scope.
     def _check_projection(monitor: CostMonitor, next_stage: str) -> None:
         """Check if projected total spend exceeds budget × safety_factor."""
         within_projection, projected_total, threshold = monitor.check_projection(
