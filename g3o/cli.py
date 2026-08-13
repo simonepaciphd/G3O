@@ -61,6 +61,9 @@ from g3o.discovery.query_builder import (
 from g3o.discovery.serper_client import search_google
 from g3o.scrape.fetcher import scrape_url
 
+# Exit code for budget circuit breaker (used in preflight and runtime abort)
+EXIT_CODE_BUDGET_EXCEEDED = 3
+
 
 def _existing_file(arg: str) -> Path:
     """argparse `type=` callable: resolve `arg` to an existing file or fail
@@ -426,10 +429,11 @@ def _cmd_persist(args: argparse.Namespace) -> int:
 
 def _parse_budget_limit(budget_str: str | None) -> float | None:
     """Parse BUDGET_LIMIT_USD from string to float with clear error message.
-    
+
     Called at use time (not import time) to avoid taking down the whole CLI
     on a malformed env var value.  Rejects NaN/Inf so they cannot silently
-    disable the budget gate.
+    disable the budget gate.  Warns on zero (likely a user mistake — would
+    abort on any non-zero spend).
     """
     if budget_str is None:
         return None
@@ -444,6 +448,12 @@ def _parse_budget_limit(budget_str: str | None) -> float | None:
         raise SystemExit(
             f"G3O_BUDGET_LIMIT_USD={budget_str!r} is not a finite number. "
             f"Set it to a positive USD amount (e.g., 10.00) or unset it to disable the budget gate."
+        )
+    if value <= 0:
+        raise SystemExit(
+            f"G3O_BUDGET_LIMIT_USD={budget_str!r} must be a positive USD amount. "
+            f"A zero or negative budget would abort on any non-zero spend. "
+            f"Unset it to disable the budget gate, or set a positive value."
         )
     return value
 
@@ -468,6 +478,54 @@ def _budget_abort_message(estimated_cost: float, budget_limit: float) -> str:
     )
 
 
+def _parse_projection_safety_factor(factor_str: str | None) -> float:
+    """Parse G3O_PROJECTION_SAFETY_FACTOR from string to float with validation.
+
+    Called at use time (not import time) to avoid taking down the whole CLI
+    on a malformed env var value. Rejects NaN/Inf and values < 1.0.
+    """
+    if factor_str is None:
+        return 1.2  # Default
+    try:
+        value = float(factor_str)
+    except ValueError as e:
+        raise SystemExit(
+            f"G3O_PROJECTION_SAFETY_FACTOR={factor_str!r} is not a valid number. "
+            f"Set it to a float >= 1.0 (e.g., 1.2) or unset it to use the default."
+        ) from e
+    if math.isnan(value) or math.isinf(value):
+        raise SystemExit(
+            f"G3O_PROJECTION_SAFETY_FACTOR={factor_str!r} is not a finite number. "
+            f"Set it to a float >= 1.0 (e.g., 1.2)."
+        )
+    if value < 1.0:
+        raise SystemExit(
+            f"G3O_PROJECTION_SAFETY_FACTOR={factor_str!r} must be >= 1.0. "
+            f"A factor below 1.0 would abort even when under budget."
+        )
+    return value
+
+
+def _effective_projection_safety_factor(args: argparse.Namespace) -> float:
+    """Resolve the effective projection safety factor: CLI flag > env var > default."""
+    from g3o.common.config import PROJECTION_SAFETY_FACTOR
+    if args.projection_safety_factor is not None:
+        # Validate CLI flag
+        if math.isnan(args.projection_safety_factor) or math.isinf(args.projection_safety_factor):
+            raise SystemExit(
+                f"--projection-safety-factor must be a finite number >= 1.0, "
+                f"got {args.projection_safety_factor}."
+            )
+        if args.projection_safety_factor < 1.0:
+            raise SystemExit(
+                f"--projection-safety-factor must be >= 1.0, "
+                f"got {args.projection_safety_factor}. "
+                f"A factor below 1.0 would abort even when under budget."
+            )
+        return args.projection_safety_factor
+    return _parse_projection_safety_factor(PROJECTION_SAFETY_FACTOR)
+
+
 def _effective_budget(args: argparse.Namespace) -> float | None:
     """Resolve the effective budget limit: CLI flag > env var > None."""
     from g3o.common.config import BUDGET_LIMIT_USD
@@ -476,14 +534,27 @@ def _effective_budget(args: argparse.Namespace) -> float | None:
 
 
 def _cmd_presweep(args: argparse.Namespace) -> int:
-    from g3o.common.config import RUNS_DIR
+    from g3o.common.config import BUDGET_LIMIT_USD, RUNS_DIR
     from g3o.run.presweep import run_presweep
+
+    # Parse budget once at the start and thread it through (fix: previously parsed multiple times)
+    budget_limit = _parse_budget_limit(BUDGET_LIMIT_USD)
+    effective_budget = args.cost_ceiling if args.cost_ceiling is not None else budget_limit
+    # Parse projection safety factor
+    projection_safety_factor = _effective_projection_safety_factor(args)
+
+    # Validate --cost-ceiling CLI flag (env var already validated in _parse_budget_limit)
+    if args.cost_ceiling is not None and args.cost_ceiling <= 0:
+        raise SystemExit(
+            f"--cost-ceiling must be a positive USD amount, got {args.cost_ceiling}. "
+            f"A zero or negative budget would abort on any non-zero spend."
+        )
 
     # `PresweepConfig.__post_init__` rejects a language this run could not
     # actually query (A7, 2026-08-02). Surface it as a CLI error rather than a
     # traceback: it is a user-input mistake, and it fires before any spend.
     try:
-        config = _presweep_config(args, RUNS_DIR)
+        config = _presweep_config(args, RUNS_DIR, budget_usd=effective_budget, projection_safety_factor=projection_safety_factor)
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
@@ -506,10 +577,11 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         sys.stdout.write("\n")
 
         # Cost circuit breaker abort gate
+        # If projected cost exceeds budget limit, abort before any batches are submitted
         if summary.get("cost_ceiling_exceeded") and effective_budget is not None:
             estimated_cost = summary.get("cost_preview", {}).get("est_openai_batch_total_usd", 0)
             sys.stderr.write(_budget_abort_message(estimated_cost, effective_budget))
-            return 3  # Distinct exit code for budget abort
+            return EXIT_CODE_BUDGET_EXCEEDED  # Distinct exit code for budget abort
 
         # Exit non-zero only on a hard readiness failure (keys)
         return 0 if summary.get("keys_ok") else 1
@@ -518,8 +590,6 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
     # presweep whenever a budget is set. The preflight is a dry-run projection
     # (no batch submission), so it is safe to run before every presweep.
     if args.execute:
-        effective_budget = _effective_budget(args)
-
         if effective_budget is not None:
             from g3o.run.preflight import PreflightAssumptions, run_preflight
 
@@ -533,6 +603,16 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
                 cost_ceiling_usd=effective_budget,
             )
 
+            # Extract preflight estimate and thread it into config for actual-vs-estimated
+            # reconciliation in the cost report (Task 6 of continuous cost monitoring plan).
+            preflight_est = preflight_summary.get("cost_preview", {}).get("est_openai_batch_total_usd")
+            if preflight_est is not None:
+                config.preflight_estimate_usd = preflight_est
+            # Extract per-stage estimates for mid-run projection checking (Gap 2)
+            stage_estimates = preflight_summary.get("cost_preview", {}).get("stage_estimates")
+            if stage_estimates is not None:
+                config.preflight_stage_estimates = stage_estimates
+
             # The projection that cleared (or blocked) real spend is part of the
             # run's record, so it is emitted either way. stderr, not stdout:
             # stdout carries the presweep summary and stays a single JSON document.
@@ -543,18 +623,105 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
             if preflight_summary.get("cost_ceiling_exceeded"):
                 estimated_cost = preflight_summary.get("cost_preview", {}).get("est_openai_batch_total_usd", 0)
                 sys.stderr.write(_budget_abort_message(estimated_cost, effective_budget))
-                return 3
+                return EXIT_CODE_BUDGET_EXCEEDED
 
-    summary = run_presweep(config)
+    # Continuous cost monitoring: catch BudgetExceededError from run_presweep
+    # and exit with code 3 (consistent with pre-flight gate). The orchestrator
+    # persists the cost report in its finally block even on abort.
+    from g3o.common.cost_monitor import BudgetExceededError, ProjectedBudgetExceededError
+
+    try:
+        summary = run_presweep(config)
+    except ProjectedBudgetExceededError as exc:
+        # Projected budget exceeded (Gap 2): abort before next stage based on
+        # actual-to-preflight ratio scaling
+        sys.stderr.write(
+            f"\n{'='*70}\n"
+            f"PROJECTED BUDGET EXCEEDED — RUN ABORTED BEFORE NEXT STAGE\n"
+            f"{'='*70}\n"
+            f"Next stage: {exc.stage}\n"
+            f"Actual spend so far: ${exc.spent:.4f} USD\n"
+            f"Projected total (scaled): ${exc.projected_total:.4f} USD\n"
+            f"Budget limit:            ${exc.budget:.4f} USD\n"
+            f"Safety factor:           {exc.safety_factor:.2f}\n"
+            f"Abort threshold:         ${exc.budget * exc.safety_factor:.4f} USD\n"
+            f"\n"
+            f"Already-completed stages have been persisted.\n"
+            f"To proceed with a higher tolerance:\n"
+            f"  g3o presweep --execute --projection-safety-factor {exc.safety_factor + 0.5:.1f} ...\n"
+            f"{'='*70}\n"
+        )
+        return EXIT_CODE_BUDGET_EXCEEDED
+    except BudgetExceededError as exc:
+        # Format a clear abort message for the operator
+        # Use consistent '=' separators (fix: previously mixed '=' and '═')
+        sys.stderr.write(
+            f"\n{'='*70}\n"
+            f"BUDGET EXCEEDED — RUN ABORTED\n"
+            f"{'='*70}\n"
+            f"Stage: {exc.stage}\n"
+            f"Actual spend so far: ${exc.spent:.4f} USD\n"
+            f"Budget limit:        ${exc.budget:.4f} USD\n"
+            f"Overrun:             ${exc.spent - exc.budget:.4f} USD\n"
+            f"\n"
+            f"Already-completed stages have been persisted.\n"
+            f"To re-run with a higher limit:\n"
+            f"  export G3O_BUDGET_LIMIT_USD={exc.budget * 2:.2f}\n"
+            f"  g3o presweep --execute --run-id {config.run_id} ...\n"
+            f"{'='*70}\n"
+        )
+        return EXIT_CODE_BUDGET_EXCEEDED  # Distinct exit code for budget abort (matches pre-flight gate)
+
+    # On success, print a cost summary line to stderr (actual vs estimated)
+    if config.budget_usd is not None:
+        # Use the cost report threaded through the summary dict by the orchestrator
+        # (fix #10: avoids redundant disk I/O of re-reading _cost_report.json).
+        cost_report = summary.get("_cost_report")
+        if cost_report:
+            try:
+                actual_usd = cost_report.get("total_usd", 0)
+                vs_preflight = cost_report.get("vs_preflight_estimate")
+                if vs_preflight:
+                    est_usd = vs_preflight.get("preflight_est_usd", 0)
+                    ratio = vs_preflight.get("ratio", 0)
+                    sys.stderr.write(
+                        f"\nCost: ${actual_usd:.4f} actual vs ${est_usd:.4f} estimated "
+                        f"({ratio:.0%} of preflight estimate)\n"
+                    )
+                else:
+                    sys.stderr.write(
+                        f"\nCost: ${actual_usd:.4f} actual spend"
+                        f" (budget: ${config.budget_usd:.4f} USD)\n"
+                    )
+                # Surface pricing estimate disclaimer
+                if cost_report.get("pricing", {}).get("batch_line_is_estimate"):
+                    sys.stderr.write(
+                        "Note: Pricing is an estimate (OpenAI batch discount not explicitly "
+                        "published for gpt-5-nano). Reconcile against first live invoice.\n"
+                    )
+                # Serper cost disclaimer (Stage 1a/1b discovery uses Serper credits, not tracked)
+                if config.budget_usd is not None:
+                    sys.stderr.write(
+                        "Note: Cost monitoring tracks OpenAI Batch API only. "
+                        "Serper API costs (Stage 1 discovery) are not included in the budget. "
+                        "Monitor Serper credits separately.\n"
+                    )
+            except Exception:
+                # Log the exception instead of silently swallowing it
+                import logging
+                logging.getLogger(__name__).debug(
+                    "Cost summary printing failed", exc_info=True
+                )
     json.dump(summary, sys.stdout, ensure_ascii=False, indent=2, default=str)
     sys.stdout.write("\n")
     return 0
 
 
-def _presweep_config(args: argparse.Namespace, runs_dir_default: Path) -> PresweepConfig:
+def _presweep_config(args: argparse.Namespace, runs_dir_default: Path, budget_usd: float | None = None, projection_safety_factor: float = 1.2) -> PresweepConfig:
     """Project CLI args onto :class:`PresweepConfig`. Raises on invalid input."""
     from g3o.run.presweep import PresweepConfig
 
+    # Use the pre-parsed budget from _cmd_presweep to avoid duplicate parsing
     return PresweepConfig(
         run_id=args.run_id,
         runs_dir=Path(args.runs_dir or runs_dir_default),
@@ -578,6 +745,9 @@ def _presweep_config(args: argparse.Namespace, runs_dir_default: Path) -> Preswe
         max_wait_per_stage=args.max_wait_per_stage,
         model=args.model,
         max_workers=args.max_workers,
+        budget_usd=budget_usd,
+        cost_monitor_dry_run=args.cost_monitor_dry_run,
+        projection_safety_factor=projection_safety_factor,
     )
 
 
@@ -1054,7 +1224,23 @@ def build_parser() -> argparse.ArgumentParser:
         "--cost-ceiling", type=float, default=None,
         help="Abort (exit 3) if the estimated OpenAI Batch cost exceeds this "
              "USD figure. Overrides G3O_BUDGET_LIMIT_USD on both --preflight "
-             "and --execute paths.",
+             "and --execute paths. Note: Budget is checked after each stage "
+             "completes. A single stage may exceed the budget before the check "
+             "triggers.",
+    )
+    presweep.add_argument(
+        "--cost-monitor-dry-run", action="store_true", default=False,
+        help="When set, the runtime cost monitor logs warnings instead of "
+             "aborting when budget is exceeded. The run continues and the cost "
+             "report is still persisted with dry_run: true. Useful for "
+             "understanding what would happen without actually aborting.",
+    )
+    presweep.add_argument(
+        "--projection-safety-factor", type=float, default=None,
+        help="Abort mid-run if projected total spend exceeds budget × this factor. "
+             "Default: 1.2 (abort when projected to spend >120%% of budget). "
+             "Overrides G3O_PROJECTION_SAFETY_FACTOR env var. Must be >= 1.0. "
+             "A factor below 1.0 would abort even when under budget.",
     )
     presweep.add_argument(
         "--assume-pages-per-institution", type=int, default=12,
@@ -1068,6 +1254,14 @@ def build_parser() -> argparse.ArgumentParser:
     presweep.add_argument(
         "--assume-output-tokens-per-job", type=int, default=600,
         help="Preflight assumption for the cost estimate (default: 600).",
+    )
+    # Document exit codes in the presweep help
+    presweep.epilog = (
+        "Exit codes:\n"
+        "  0 - Success\n"
+        "  1 - Readiness failure (missing API keys or invalid config)\n"
+        "  2 - Invalid arguments or file not found\n"
+        "  3 - Budget exceeded (cost circuit breaker triggered)\n"
     )
     presweep.set_defaults(func=_cmd_presweep)
 

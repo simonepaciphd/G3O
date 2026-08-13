@@ -141,6 +141,29 @@ class PresweepConfig:
     # concurrency is the OpenAI Batch API's, not local threads. A single knob
     # rather than per-stage caps until load-testing shows otherwise.
     max_workers: int = 1
+    # Continuous cost monitoring (2026-08): actual-spend budget limit for the
+    # live run. When set, the orchestrator tracks token usage after each LLM
+    # stage and aborts (raising BudgetExceededError) if the running total
+    # exceeds this limit. The pre-flight cost gate (in cli.py) is a separate,
+    # earlier check based on projections; this is the runtime enforcement.
+    # Sourced from G3O_BUDGET_LIMIT_USD env var or --cost-ceiling CLI flag.
+    budget_usd: float | None = None
+    # Preflight cost estimate (populated by CLI when --preflight or --execute runs preflight).
+    # Used for actual-vs-estimated reconciliation in the cost report.
+    preflight_estimate_usd: float | None = None
+    # Dry run mode for cost monitoring (2026-08): when True, the cost monitor
+    # logs warnings instead of raising BudgetExceededError when budget is exceeded.
+    # The run continues and the cost report is still persisted with dry_run: true.
+    # Useful for understanding what would happen without actually aborting.
+    cost_monitor_dry_run: bool = False
+    # Per-stage preflight cost estimates (USD), populated by CLI from preflight output.
+    # Used for mid-run projection checking (Gap 2): if actual spend so far scales
+    # to a total that exceeds budget × projection_safety_factor, abort early.
+    preflight_stage_estimates: dict[str, float] | None = None
+    # Projection safety factor (Gap 4): abort when projected_total > budget × this.
+    # Default 1.2 means abort when projected to spend >120% of budget.
+    # Must be >= 1.0 (a factor below 1.0 would abort even when under budget).
+    projection_safety_factor: float = 1.2
 
     def __post_init__(self) -> None:
         """Reject a language this run could not actually query (A7, 2026-08-02).
@@ -155,6 +178,24 @@ class PresweepConfig:
         construction: a language that cannot be queried cannot be configured,
         so the provenance column can no longer claim one that never ran.
         """
+        # Validate budget_usd is positive (fix: previously accepted zero, which would always abort)
+        if self.budget_usd is not None and self.budget_usd <= 0:
+            raise ValueError(
+                f"budget_usd must be positive, got {self.budget_usd}. "
+                f"Use None to disable the budget gate."
+            )
+        # Validate projection_safety_factor (Gap 4)
+        import math
+        if math.isnan(self.projection_safety_factor) or math.isinf(self.projection_safety_factor):
+            raise ValueError(
+                f"projection_safety_factor must be a finite number >= 1.0, "
+                f"got {self.projection_safety_factor}"
+            )
+        if self.projection_safety_factor < 1.0:
+            raise ValueError(
+                f"projection_safety_factor must be >= 1.0, got {self.projection_safety_factor}. "
+                f"A factor below 1.0 would abort even when under budget."
+            )
         if (
             self.discovery_evidence_terms is not None
             and self.discovery_evidence_term != DEFAULT_EVIDENCE_TERM

@@ -49,6 +49,7 @@ from g3o.common.run_state import (
     run_chunked_stage,
 )
 from g3o.common.timing import llm_stage_timer
+from collections.abc import Callable
 from g3o.extract.salvage import (
     REASON_FLAGS_SALVAGED,
     UncertaintyFlagsSalvage,
@@ -284,6 +285,7 @@ def run_consolidate(
     max_wait: int = 25 * 60 * 60,
     notes: str = "none",
     client: Any | None = None,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
 ) -> dict[str, Any]:
     """End-to-end Stage 6 driver for one run directory.
 
@@ -380,6 +382,7 @@ def run_consolidate(
             poll_interval=poll_interval, max_wait=max_wait,
             process_chunk_results=_persist,
             client=client,
+            cost_check_callback=cost_check_callback,
         )
 
     done_payload = json.loads(

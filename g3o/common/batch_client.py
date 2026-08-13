@@ -203,6 +203,34 @@ class BatchResult:
             return None
         return self.response.get("body", {}).get("system_fingerprint")
 
+    @property
+    def usage(self) -> dict[str, int] | None:
+        """Token usage from the response body, if successful.
+
+        Returns dict with keys: prompt_tokens, completion_tokens, total_tokens,
+        and cached_tokens (for cached prompt tokens, may be 0).
+        Returns None if the job failed or response is absent.
+        """
+        if not self.success or self.response is None:
+            return None
+        body = self.response.get("body", {})
+        usage = body.get("usage")
+        if usage is None:
+            return None
+        return {
+            "prompt_tokens": int(usage.get("prompt_tokens", 0)),
+            "completion_tokens": int(usage.get("completion_tokens", 0)),
+            # Fix: compute total_tokens from components when API returns 0 or omits it.
+            # This prevents silent understatement of cost if a future consumer uses total_tokens.
+            "total_tokens": int(usage.get("total_tokens", 0)) or (
+                int(usage.get("prompt_tokens", 0)) + int(usage.get("completion_tokens", 0))
+            ),
+            # OpenAI may include cached_tokens in prompt_tokens_details
+            "cached_tokens": int(
+                (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0)
+            ),
+        }
+
 
 # ---------------------------------------------------------------------------
 # Client construction
@@ -506,11 +534,15 @@ def _create_batch_with_reconcile(
             return batch.id, False
         except _RETRYABLE_EXCEPTIONS as err:
             if attempt + 1 >= _MAX_CREATE_ATTEMPTS:
-                raise RuntimeError(
-                    f"Batch API failed after {attempt + 1} retries. Last error: {err}. "
-                    f"Check OpenAI status page at https://status.openai.com/ for service "
-                    f"outages or rate limit issues."
-                ) from err
+                # Preserve the original exception type for backward compatibility
+                # (fix: previously wrapped in RuntimeError, breaking exception handlers)
+                logger.error(
+                    "Batch API failed after %d retries. Last error: %s. "
+                    "Check OpenAI status page at https://status.openai.com/ for service "
+                    "outages or rate limit issues.",
+                    attempt + 1, err,
+                )
+                raise
             _retry_sleep(attempt)
     raise AssertionError("unreachable")  # pragma: no cover
 

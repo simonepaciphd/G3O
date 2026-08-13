@@ -15,6 +15,7 @@ def _run_validate(
     model: str,
     poll_interval: int,
     max_wait: int,
+    cost_check_callback=None,
 ) -> dict[str, Any]:
     """Stage 6 — per-institution LLM consolidation (Session E fold, Q8=ii).
 
@@ -32,4 +33,5 @@ def _run_validate(
         model=model,
         poll_interval=poll_interval,
         max_wait=max_wait,
+        cost_check_callback=cost_check_callback,
     )

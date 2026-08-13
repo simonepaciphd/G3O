@@ -111,6 +111,7 @@ def _run_classify_official_site(
     model: str,
     poll_interval: int,
     max_wait: int,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
 ) -> dict[str, str | None]:
     """Stage 2 — official-site classifier batch, with master-CSV bypass guard.
 
@@ -216,6 +217,7 @@ def _run_classify_official_site(
             run_id=run_id, model=model,
             poll_interval=poll_interval, max_wait=max_wait,
             process_chunk_results=_persist, bypass_count=bypass_count,
+            cost_check_callback=cost_check_callback,
         )
     # Disk is authoritative for chunks fetched by a prior (crashed) invocation;
     # this invocation's parses and bypasses override with identical content.
@@ -304,6 +306,7 @@ def _run_classify_triage(
     model: str,
     poll_interval: int,
     max_wait: int,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
 ) -> dict[str, list[str]]:
     """Stage 3 — URL triage batch over the dedup'd 1a+1b union.
 
@@ -374,6 +377,7 @@ def _run_classify_triage(
             run_id=run_id, model=model,
             poll_interval=poll_interval, max_wait=max_wait,
             process_chunk_results=_persist,
+            cost_check_callback=cost_check_callback,
         )
     # Disk covers chunks fetched by a prior invocation (resume).
     return {**_read_existing_triaged(run_dir, sample), **kept}

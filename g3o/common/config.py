@@ -46,3 +46,9 @@ RUNS_DIR: Path = Path(_env("G3O_RUNS_DIR", str(BASE_DIR / "runs")) or str(BASE_D
 # Read from G3O_BUDGET_LIMIT_USD environment variable. Stored as string; parsed
 # to float at use time (cli.py) to avoid import-time failures on malformed values.
 BUDGET_LIMIT_USD: str | None = _env("G3O_BUDGET_LIMIT_USD")
+
+# Projection safety factor: abort mid-run if projected total spend exceeds
+# budget × this factor. Default 1.2 means abort when projected to spend >120%
+# of budget. Read from G3O_PROJECTION_SAFETY_FACTOR env var. Stored as string;
+# parsed to float at use time (cli.py) with validation.
+PROJECTION_SAFETY_FACTOR: str | None = _env("G3O_PROJECTION_SAFETY_FACTOR")

@@ -399,6 +399,7 @@ def run_chunked_stage(
     max_chunk_requests: int = batch_client.CHUNK_MAX_REQUESTS,
     enqueued_budget: int | None = None,
     client: Any | None = None,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
 ) -> None:
     """Submit, poll, and fetch one LLM stage as size-capped batch chunks.
 
@@ -688,12 +689,41 @@ def run_chunked_stage(
                         f"{state_path(run_dir, stage)}."
                     )
                 process_chunk_results(iter(fetched))
+                # Sum token usage across all results in this chunk
+                chunk_usage = {
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                    "cached_tokens": 0,
+                }
+                for result in fetched:
+                    u = result.usage
+                    if u:
+                        for k in chunk_usage:
+                            chunk_usage[k] += u.get(k, 0)
                 update_chunk(
                     run_dir, stage, key,
                     fetched_at=_utc_iso(),
                     response_models=sorted(models),
                     system_fingerprints=sorted(fingerprints),
+                    usage=chunk_usage,
                 )
+                # Within-stage budget check (Gap 1): after each chunk completes,
+                # call the callback (if provided) to check whether to continue.
+                # If it returns False, stop submitting new chunks but let
+                # in-flight chunks finish to preserve their results.
+                if cost_check_callback is not None:
+                    should_continue = cost_check_callback(stage, chunk_usage)
+                    if not should_continue:
+                        logger.warning(
+                            "Stage %s: within-stage budget check triggered after "
+                            "chunk %s. Stopping new chunk submissions; in-flight "
+                            "chunks will complete to preserve results.",
+                            stage, key,
+                        )
+                        # Mark remaining unsubmitted chunks as skipped (but don't
+                        # raise yet — let in-flight chunks finish first)
+                        break
             elif status.is_terminal:
                 failed[key] = status.status
                 logger.warning(

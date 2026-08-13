@@ -134,6 +134,7 @@ def _run_extract(
     text_cap_chars: int = DEFAULT_TEXT_CAP_CHARS,
     text_cap_rule: str = DEFAULT_TEXT_CAP_RULE,
     empty_page_min_chars: int = EMPTY_PAGE_MIN_CHARS,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
 ) -> int:
     """Stage 5 — per-page LLM extraction, batched across (institution × page).
 
@@ -302,5 +303,6 @@ def _run_extract(
             run_id=run_id, model=model,
             poll_interval=poll_interval, max_wait=max_wait,
             process_chunk_results=_persist,
+            cost_check_callback=cost_check_callback,
         )
     return _count_existing_extracts(run_dir, sample)
