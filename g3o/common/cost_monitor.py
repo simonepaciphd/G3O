@@ -101,10 +101,11 @@ class ProjectedBudgetExceededError(BudgetExceededError):
 
     def __str__(self) -> str:
         return (
-            f"{super().__str__()} — "
+            f"Projected budget exceeded: "
             f"projected total ${self.projected_total:.4f} "
             f"(threshold: ${self.budget:.4f} × {self.safety_factor} = "
-            f"${self.budget * self.safety_factor:.4f})"
+            f"${self.budget * self.safety_factor:.4f}) — "
+            f"${self.spent:.4f} spent of ${self.budget:.4f} limit after stage {self.stage}"
         )
 
 

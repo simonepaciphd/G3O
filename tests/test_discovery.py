@@ -51,7 +51,9 @@ def institution_in_query(query: str) -> bool:
 @pytest.mark.skipif(
     bool(os.getenv("SERPER_API_KEY")), reason="Mock-path test only runs without a real API key."
 )
-def test_search_google_returns_mock_when_key_missing():
+def test_search_google_returns_mock_when_key_missing(monkeypatch):
+    # Reset live mode to ensure mock path is taken (live mode may be set by previous tests)
+    monkeypatch.setattr(serper_client, "_live_mode", False)
     results = serper_client.search_google("any query", num_results=2, force_refresh=True)
     assert isinstance(results, list)
     assert len(results) >= 1

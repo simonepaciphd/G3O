@@ -147,7 +147,13 @@ def _record_and_track_stage_budget(
 
     The caller should catch the exception and record the abort stage.
     """
-    within_budget = _check_stage_budget(monitor, config, run_dir, stage_name)
+    try:
+        within_budget = _check_stage_budget(monitor, config, run_dir, stage_name)
+    except BudgetExceededError:
+        # Append stage before re-raising so the cost report tracks which stage
+        # triggered the abort even though _check_stage_budget raises immediately.
+        budget_exceeded_stages.append(stage_name)
+        raise
     if not within_budget:
         budget_exceeded_stages.append(stage_name)
 
