@@ -10,6 +10,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from g3o.common.cost_monitor import CostMonitor
 
 
@@ -143,35 +145,145 @@ def test_callback_pattern_in_run_chunked_stage(tmp_path):
     assert "cost_check_callback" in sig.parameters
 
 
-def test_callback_returns_true_when_within_budget():
-    """Simulated callback should return True when within budget."""
+def test_callback_raises_nothing_when_within_budget():
+    """Simulated callback (raise-based pattern) does not raise when within budget."""
+    from g3o.common.cost_monitor import BudgetExceededError
     monitor = CostMonitor(budget_usd=10.0)
     
-    def callback(stage: str, chunk_usage: dict) -> bool:
+    def callback(stage: str, chunk_usage: dict) -> None:
         monitor.accumulate_chunk_usage(stage, chunk_usage)
-        return monitor.check_budget_with_partial(stage)
+        if not monitor.check_budget_with_partial(stage):
+            raise BudgetExceededError(
+                spent=monitor.running_total_usd, budget=monitor.budget_usd, stage=stage
+            )
     
-    # Small usage should return True
-    result = callback("extract", {
+    # Small usage should not raise
+    callback("extract", {
         "prompt_tokens": 1000,
         "completion_tokens": 200,
         "cached_tokens": 500,
     })
-    assert result is True
+    # If we got here without raising, the test passed
 
 
-def test_callback_returns_false_when_over_budget():
-    """Simulated callback should return False when over budget."""
+def test_callback_raises_when_over_budget():
+    """Simulated callback (raise-based pattern) raises BudgetExceededError when over budget."""
+    from g3o.common.cost_monitor import BudgetExceededError
     monitor = CostMonitor(budget_usd=0.0001)  # Very low budget
     
-    def callback(stage: str, chunk_usage: dict) -> bool:
+    def callback(stage: str, chunk_usage: dict) -> None:
         monitor.accumulate_chunk_usage(stage, chunk_usage)
-        return monitor.check_budget_with_partial(stage)
+        if not monitor.check_budget_with_partial(stage):
+            raise BudgetExceededError(
+                spent=monitor.running_total_usd, budget=monitor.budget_usd, stage=stage
+            )
     
-    # Large usage should return False
-    result = callback("extract", {
-        "prompt_tokens": 10000000,
-        "completion_tokens": 1000000,
-        "cached_tokens": 0,
-    })
-    assert result is False
+    # Large usage should raise BudgetExceededError
+    with pytest.raises(BudgetExceededError):
+        callback("extract", {
+            "prompt_tokens": 10000000,
+            "completion_tokens": 1000000,
+            "cached_tokens": 0,
+        })
+
+
+def test_callback_stops_submissions_integration(tmp_path, monkeypatch):
+    """Integration test: callback raising BudgetExceededError stops new submissions.
+    
+    The exception propagates past mark_done, so no .done marker is written,
+    leaving un-submitted chunks in the active state file as a truncation signal.
+    """
+    from datetime import datetime, timezone
+
+    from g3o.common import batch_client
+    from g3o.common.batch_client import BatchHandle, BatchJob, BatchResult, BatchStatus
+    from g3o.common.cost_monitor import BudgetExceededError
+    from g3o.common.run_state import run_chunked_stage
+    
+    # Mock batch_client functions
+    submitted_chunks = []
+    
+    def mock_submit_batch(jobs, **kwargs):
+        chunk_id = jobs[0].custom_id
+        submitted_chunks.append(chunk_id)
+        return BatchHandle(
+            batch_id=f"batch-{chunk_id}",
+            input_file_id=f"file-{chunk_id}",
+            submitted_at=datetime.now(timezone.utc),
+            n_jobs=len(jobs)
+        )
+    
+    def mock_poll_batch(batch_id, **kwargs):
+        # All batches complete immediately
+        return BatchStatus(
+            batch_id=batch_id,
+            status="completed",
+            request_counts={"total": 1, "completed": 1, "failed": 0},
+            output_file_id=f"output-{batch_id}",
+            error_file_id=None
+        )
+    
+    def mock_fetch_results(batch_id, **kwargs):
+        # Extract the job id from the batch_id (format: "batch-J0")
+        job_id = batch_id.replace("batch-", "")
+        # Return a result for each job in the batch
+        return iter([
+            BatchResult(
+                custom_id=job_id,
+                success=True,
+                response={"body": {"usage": {"prompt_tokens": 100, "completion_tokens": 50}}},
+                error=None,
+            )
+        ])
+    
+    def mock_find_batches_by_metadata(metadata, **kwargs):
+        return []  # No existing batches
+    
+    monkeypatch.setattr(batch_client, "submit_batch", mock_submit_batch)
+    monkeypatch.setattr(batch_client, "poll_batch", mock_poll_batch)
+    monkeypatch.setattr(batch_client, "fetch_results", mock_fetch_results)
+    monkeypatch.setattr(batch_client, "find_batches_by_metadata", mock_find_batches_by_metadata)
+    monkeypatch.setattr(batch_client, "split_jobs_into_chunks", 
+                       lambda jobs, **kwargs: [[jobs[0]], [jobs[1]], [jobs[2]]])
+    monkeypatch.setattr(batch_client, "job_token_estimates", 
+                       lambda jobs, **kwargs: {j.custom_id: 1000 for j in jobs})
+    monkeypatch.setattr(batch_client, "enqueued_token_budget", lambda: 1000)
+    
+    # Create 3 jobs
+    jobs = [
+        BatchJob(custom_id="J0", messages=[{"role": "user", "content": "test"}]),
+        BatchJob(custom_id="J1", messages=[{"role": "user", "content": "test"}]),
+        BatchJob(custom_id="J2", messages=[{"role": "user", "content": "test"}]),
+    ]
+    
+    # Callback raises BudgetExceededError immediately after first chunk completes
+    callback_calls = []
+    def callback(stage, chunk_usage):
+        callback_calls.append((stage, chunk_usage))
+        raise BudgetExceededError(spent=10.0, budget=5.0, stage=stage)
+    
+    # Run the stage - exception propagates past mark_done
+    with pytest.raises(BudgetExceededError) as exc_info:
+        run_chunked_stage(
+            tmp_path, "extract", jobs,
+            run_id="test-run", model="gpt-5-nano",
+            poll_interval=0, max_wait=10,
+            process_chunk_results=lambda results: None,
+            cost_check_callback=callback,
+            enqueued_budget=1000,
+        )
+    
+    # Verify only 1 chunk was submitted (exception halted before submitting more)
+    assert len(submitted_chunks) == 1
+    assert submitted_chunks == ["J0"]
+    
+    # Verify exception details
+    assert exc_info.value.stage == "extract"
+    assert exc_info.value.spent == 10.0
+    assert exc_info.value.budget == 5.0
+    
+    # Verify stage was NOT marked done (exception propagated past mark_done)
+    assert not (tmp_path / "_state" / ".done" / "extract.json").exists()
+    
+    # Verify active state file remains (un-submitted chunks preserved as truncation signal)
+    assert (tmp_path / "_state" / "extract.json").exists()

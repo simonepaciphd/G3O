@@ -52,3 +52,8 @@ BUDGET_LIMIT_USD: str | None = _env("G3O_BUDGET_LIMIT_USD")
 # of budget. Read from G3O_PROJECTION_SAFETY_FACTOR env var. Stored as string;
 # parsed to float at use time (cli.py) with validation.
 PROJECTION_SAFETY_FACTOR: str | None = _env("G3O_PROJECTION_SAFETY_FACTOR")
+
+# Cost monitor dry run mode: when True, log warnings instead of aborting when
+# budget is exceeded. Read from G3O_COST_MONITOR_DRY_RUN env var. Stored as string;
+# parsed to bool at use time (cli.py). Follows the same pattern as PROJECTION_SAFETY_FACTOR.
+COST_MONITOR_DRY_RUN: str | None = _env("G3O_COST_MONITOR_DRY_RUN")

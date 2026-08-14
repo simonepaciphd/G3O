@@ -209,8 +209,14 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
 
     # Within-stage budget callback (Gap 1): called after each chunk completes.
     # Returns False to stop submitting new chunks (but let in-flight finish).
-    def _within_stage_budget_callback(stage: str, chunk_usage: dict[str, int]) -> bool:
-        """Check budget after each chunk completes within a stage."""
+    def _within_stage_budget_callback(stage: str, chunk_usage: dict[str, int]) -> None:
+        """Check budget after each chunk completes within a stage.
+
+        Accumulates usage and raises BudgetExceededError if over budget
+        (unless in dry-run mode). The exception propagates past mark_done
+        so no .done marker is written, leaving un-submitted chunks in the
+        active state file as a truncation signal.
+        """
         monitor.accumulate_chunk_usage(stage, chunk_usage)
         if not monitor.check_budget_with_partial(stage):
             if config.cost_monitor_dry_run:
@@ -219,9 +225,12 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
                     "Stage %s partial spend: $%.4f of $%.4f limit",
                     stage, monitor.running_total_usd, monitor.budget_usd,
                 )
-                return True  # Continue in dry-run mode
-            return False  # Stop submitting new chunks
-        return True
+                return
+            raise BudgetExceededError(
+                spent=monitor.running_total_usd,
+                budget=monitor.budget_usd,
+                stage=stage,
+            )
 
     # Helper to check projection after each stage (Gap 2)
     # Note: This is a closure that captures `config` from the enclosing scope.

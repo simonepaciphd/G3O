@@ -478,14 +478,34 @@ def _budget_abort_message(estimated_cost: float, budget_limit: float) -> str:
     )
 
 
-def _parse_projection_safety_factor(factor_str: str | None) -> float:
+def _parse_cost_monitor_dry_run(dry_run_str: str | None) -> bool:
+    """Parse G3O_COST_MONITOR_DRY_RUN from string to bool with clear error message.
+
+    Follows the same pattern as _parse_projection_safety_factor: called at use
+    time to avoid import-time failures on malformed values.
+    """
+    if dry_run_str is None:
+        return False  # Default
+    value = dry_run_str.strip().lower()
+    if value in ("true", "1", "yes", "on"):
+        return True
+    if value in ("false", "0", "no", "off", ""):
+        return False
+    raise SystemExit(
+        f"G3O_COST_MONITOR_DRY_RUN={dry_run_str!r} is not a valid boolean. "
+        f"Set it to 'true' or 'false', or unset it to use the default (false)."
+    )
+
+
+def _parse_projection_safety_factor(factor_str: str | None) -> float | None:
     """Parse G3O_PROJECTION_SAFETY_FACTOR from string to float with validation.
 
     Called at use time (not import time) to avoid taking down the whole CLI
     on a malformed env var value. Rejects NaN/Inf and values < 1.0.
+    Returns None if not set (projection checking disabled by default).
     """
     if factor_str is None:
-        return 1.2  # Default
+        return None  # Default: projection checking disabled
     try:
         value = float(factor_str)
     except ValueError as e:
@@ -526,15 +546,8 @@ def _effective_projection_safety_factor(args: argparse.Namespace) -> float:
     return _parse_projection_safety_factor(PROJECTION_SAFETY_FACTOR)
 
 
-def _effective_budget(args: argparse.Namespace) -> float | None:
-    """Resolve the effective budget limit: CLI flag > env var > None."""
-    from g3o.common.config import BUDGET_LIMIT_USD
-    env_limit = _parse_budget_limit(BUDGET_LIMIT_USD)
-    return args.cost_ceiling if args.cost_ceiling is not None else env_limit
-
-
 def _cmd_presweep(args: argparse.Namespace) -> int:
-    from g3o.common.config import BUDGET_LIMIT_USD, RUNS_DIR
+    from g3o.common.config import BUDGET_LIMIT_USD, COST_MONITOR_DRY_RUN, RUNS_DIR
     from g3o.run.presweep import run_presweep
 
     # Parse budget once at the start and thread it through (fix: previously parsed multiple times)
@@ -542,6 +555,11 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
     effective_budget = args.cost_ceiling if args.cost_ceiling is not None else budget_limit
     # Parse projection safety factor
     projection_safety_factor = _effective_projection_safety_factor(args)
+    # Parse cost monitor dry run: CLI flag takes precedence over env var
+    cost_monitor_dry_run = (
+        args.cost_monitor_dry_run
+        or _parse_cost_monitor_dry_run(COST_MONITOR_DRY_RUN)
+    )
 
     # Validate --cost-ceiling CLI flag (env var already validated in _parse_budget_limit)
     if args.cost_ceiling is not None and args.cost_ceiling <= 0:
@@ -554,14 +572,17 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
     # actually query (A7, 2026-08-02). Surface it as a CLI error rather than a
     # traceback: it is a user-input mistake, and it fires before any spend.
     try:
-        config = _presweep_config(args, RUNS_DIR, budget_usd=effective_budget, projection_safety_factor=projection_safety_factor)
+        config = _presweep_config(
+            args, RUNS_DIR,
+            budget_usd=effective_budget,
+            projection_safety_factor=projection_safety_factor,
+            cost_monitor_dry_run=cost_monitor_dry_run,
+        )
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
     if args.preflight:
         from g3o.run.preflight import PreflightAssumptions, run_preflight
-
-        effective_budget = _effective_budget(args)
 
         summary = run_preflight(
             config,
@@ -718,7 +739,13 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
     return 0
 
 
-def _presweep_config(args: argparse.Namespace, runs_dir_default: Path, budget_usd: float | None = None, projection_safety_factor: float = 1.2) -> PresweepConfig:
+def _presweep_config(
+    args: argparse.Namespace,
+    runs_dir_default: Path,
+    budget_usd: float | None = None,
+    projection_safety_factor: float | None = None,
+    cost_monitor_dry_run: bool = False,
+) -> PresweepConfig:
     """Project CLI args onto :class:`PresweepConfig`. Raises on invalid input."""
     from g3o.run.presweep import PresweepConfig
 
@@ -747,7 +774,7 @@ def _presweep_config(args: argparse.Namespace, runs_dir_default: Path, budget_us
         model=args.model,
         max_workers=args.max_workers,
         budget_usd=budget_usd,
-        cost_monitor_dry_run=args.cost_monitor_dry_run,
+        cost_monitor_dry_run=cost_monitor_dry_run,
         projection_safety_factor=projection_safety_factor,
     )
 
@@ -1239,9 +1266,8 @@ def build_parser() -> argparse.ArgumentParser:
     presweep.add_argument(
         "--projection-safety-factor", type=float, default=None,
         help="Abort mid-run if projected total spend exceeds budget × this factor. "
-             "Default: 1.2 (abort when projected to spend >120%% of budget). "
-             "Overrides G3O_PROJECTION_SAFETY_FACTOR env var. Must be >= 1.0. "
-             "A factor below 1.0 would abort even when under budget.",
+             "Default: disabled (opt-in via G3O_PROJECTION_SAFETY_FACTOR or --projection-safety-factor). "
+             "Must be >= 1.0. A factor below 1.0 would abort even when under budget.",
     )
     presweep.add_argument(
         "--assume-pages-per-institution", type=int, default=12,

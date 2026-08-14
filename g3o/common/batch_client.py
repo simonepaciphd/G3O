@@ -534,15 +534,17 @@ def _create_batch_with_reconcile(
             return batch.id, False
         except _RETRYABLE_EXCEPTIONS as err:
             if attempt + 1 >= _MAX_CREATE_ATTEMPTS:
-                # Preserve the original exception type for backward compatibility
-                # (fix: previously wrapped in RuntimeError, breaking exception handlers)
                 logger.error(
                     "Batch API failed after %d retries. Last error: %s. "
                     "Check OpenAI status page at https://status.openai.com/ for service "
                     "outages or rate limit issues.",
                     attempt + 1, err,
                 )
-                raise
+                raise RuntimeError(
+                    f"Batch API failed after {attempt + 1} retries. Last error: {err}. "
+                    f"Check OpenAI status page at https://status.openai.com/ for service "
+                    f"outages or rate limit issues."
+                ) from err
             _retry_sleep(attempt)
     raise AssertionError("unreachable")  # pragma: no cover
 

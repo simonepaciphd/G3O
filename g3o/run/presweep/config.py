@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -161,9 +162,11 @@ class PresweepConfig:
     # to a total that exceeds budget × projection_safety_factor, abort early.
     preflight_stage_estimates: dict[str, float] | None = None
     # Projection safety factor (Gap 4): abort when projected_total > budget × this.
-    # Default 1.2 means abort when projected to spend >120% of budget.
-    # Must be >= 1.0 (a factor below 1.0 would abort even when under budget).
-    projection_safety_factor: float = 1.2
+    # Default None means projection checking is disabled (off by default).
+    # When set, must be >= 1.0 (a factor below 1.0 would abort even when under budget).
+    # Non-blocking: stages aren't comparable (extract dominates), so an arbitrary
+    # default factor can trigger false aborts. Operators must opt in.
+    projection_safety_factor: float | None = None
 
     def __post_init__(self) -> None:
         """Reject a language this run could not actually query (A7, 2026-08-02).
@@ -184,18 +187,18 @@ class PresweepConfig:
                 f"budget_usd must be positive, got {self.budget_usd}. "
                 f"Use None to disable the budget gate."
             )
-        # Validate projection_safety_factor (Gap 4)
-        import math
-        if math.isnan(self.projection_safety_factor) or math.isinf(self.projection_safety_factor):
-            raise ValueError(
-                f"projection_safety_factor must be a finite number >= 1.0, "
-                f"got {self.projection_safety_factor}"
-            )
-        if self.projection_safety_factor < 1.0:
-            raise ValueError(
-                f"projection_safety_factor must be >= 1.0, got {self.projection_safety_factor}. "
-                f"A factor below 1.0 would abort even when under budget."
-            )
+        # Validate projection_safety_factor (Gap 4). None means disabled (opt-in).
+        if self.projection_safety_factor is not None:
+            if math.isnan(self.projection_safety_factor) or math.isinf(self.projection_safety_factor):
+                raise ValueError(
+                    f"projection_safety_factor must be a finite number >= 1.0, "
+                    f"got {self.projection_safety_factor}"
+                )
+            if self.projection_safety_factor < 1.0:
+                raise ValueError(
+                    f"projection_safety_factor must be >= 1.0, got {self.projection_safety_factor}. "
+                    f"A factor below 1.0 would abort even when under budget."
+                )
         if (
             self.discovery_evidence_terms is not None
             and self.discovery_evidence_term != DEFAULT_EVIDENCE_TERM

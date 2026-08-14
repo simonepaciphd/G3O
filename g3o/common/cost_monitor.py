@@ -120,6 +120,8 @@ class StageCost:
 
     ``n_jobs`` is the total number of jobs (LLM calls) in the stage.
     ``n_chunks`` is the number of chunks the jobs were split into.
+    ``data_missing`` indicates the .done file was not found, meaning the cost
+    is unknown (not zero). When True, ``total_usd`` should not be trusted.
     """
 
     stage: str
@@ -136,6 +138,9 @@ class StageCost:
     # from an active state file, this records how many chunks were planned
     # so the report can show "3 of 8 completed".
     n_chunks_planned: int | None = None
+    # True when the .done file was missing — the stage's cost is unknown,
+    # not zero. Budget checks treat this conservatively.
+    data_missing: bool = False
 
 
 @dataclass
@@ -177,11 +182,15 @@ class CostMonitor:
         self._partial_stage_usage.pop(stage, None)
         done_file = run_dir / "_state" / ".done" / f"{stage}.json"
         if not done_file.exists():
-            logger.warning(
-                "Stage %s: .done file not found at %s; treating as 0 cost",
+            logger.error(
+                "Stage %s: .done file not found at %s; this is an accounting "
+                "failure, not a $0 stage. Marking data_missing=True so budget "
+                "checks treat it conservatively.",
                 stage, done_file,
             )
-            # Still record a zero-cost entry so the stage appears in the report
+            # Record a sentinel entry with data_missing=True so the cost report
+            # surfaces this as an accounting failure, and budget checks treat
+            # it conservatively (assume over budget).
             cost = StageCost(
                 stage=stage,
                 prompt_tokens=0,
@@ -192,6 +201,7 @@ class CostMonitor:
                 total_usd=0.0,
                 n_jobs=0,
                 n_chunks=0,
+                data_missing=True,
             )
             self.stages.append(cost)
             return cost
@@ -294,7 +304,7 @@ class CostMonitor:
 
     def check_projection(
         self,
-        safety_factor: float = 1.2,
+        safety_factor: float | None = None,
     ) -> tuple[bool, float, float]:
         """Check whether projected total spend exceeds budget × safety_factor.
 
@@ -308,6 +318,12 @@ class CostMonitor:
         - ``projected_total``: the projected total USD
         - ``threshold``: the abort threshold (budget × safety_factor)
 
+        If ``safety_factor`` is None, projection checking is disabled (returns
+        a no-op: True, 0.0, inf). This is the default behavior — projection
+        checking must be explicitly opted into via G3O_PROJECTION_SAFETY_FACTOR
+        or --projection-safety-factor, because the default factor of 3.0 applied
+        to the dominant extract estimate can trigger false aborts on on-track runs.
+
         If no preflight estimates are set, returns ``(True, 0.0, inf)`` — a
         no-op that allows the run to proceed without projection checking.
 
@@ -318,6 +334,8 @@ class CostMonitor:
           - The ratio is clamped to [0.5, 3.0] to prevent wild swings from
             triggering premature aborts or allowing runaway spend.
         """
+        if safety_factor is None:
+            return (True, 0.0, float("inf"))
         if self.budget_usd is None or not self.preflight_stage_estimates:
             return (True, 0.0, float("inf"))
 
@@ -371,13 +389,22 @@ class CostMonitor:
         """Sum of all recorded stage costs."""
         return sum(s.total_usd for s in self.stages)
 
+    @property
+    def has_missing_data(self) -> bool:
+        """True if any recorded stage has missing data (unknown cost)."""
+        return any(s.data_missing for s in self.stages)
+
     def check_budget(self) -> bool:
         """Return True if within budget (or no budget set).
 
         Call this after :meth:`record_stage` to decide whether to abort.
+        If any stage has missing data (data_missing=True), returns False
+        conservatively — an unknown cost cannot be confirmed as within budget.
         """
         if self.budget_usd is None:
             return True
+        if self.has_missing_data:
+            return False
         return self.running_total_usd <= self.budget_usd
 
     def record_and_check(self, run_dir: Path, stage: str) -> tuple[StageCost, bool]:
@@ -473,11 +500,17 @@ class CostMonitor:
         raw_total_output = sum(s.output_usd for s in self.stages)
         raw_total_usd = raw_total_input + raw_total_output
 
+        # Surface missing data as an accounting failure in the report.
+        # If any stage has data_missing=True, the report flags it and
+        # budget_exceeded is True (conservative: unknown cost is not safe).
+        missing_stages = [s.stage for s in self.stages if s.data_missing]
         report: dict[str, Any] = {
             "budget_usd": self.budget_usd,
-            "budget_exceeded": (
-                self.budget_usd is not None and raw_total_usd > self.budget_usd
+            "budget_exceeded": bool(
+                self.budget_usd is not None
+                and (raw_total_usd > self.budget_usd or missing_stages)
             ),
+            "data_missing_stages": missing_stages,
             "stages": [
                 {
                     "stage": s.stage,
@@ -489,6 +522,7 @@ class CostMonitor:
                     "total_usd": round(s.total_usd, 6),
                     "n_jobs": s.n_jobs,
                     "n_chunks": s.n_chunks,
+                    **({"data_missing": True} if s.data_missing else {}),
                 }
                 for s in self.stages
             ],

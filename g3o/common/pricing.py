@@ -15,6 +15,15 @@ from typing import Any
 # same pricing page for the sibling gpt-5.4-nano ($0.20→$0.10 input) — so the
 # batch line is labeled ESTIMATE-grade: the nano model page does not print the
 # batch row itself.
+#
+# Provenance note (restored 2026-08): The gpt-5-nano model page
+# (https://developers.openai.com/api/docs/models/gpt-5-nano) publishes standard
+# rates but does not list a Batch API row. The batch discount is inferred from
+# the sibling gpt-5.4-nano model, where OpenAI explicitly documents the 50%
+# discount on the same pricing page. This inference is why the batch rates are
+# labeled as estimates — they are trustworthy by analogy to a sibling model's
+# published discount, but have not been independently confirmed for gpt-5-nano.
+# Reconcile against the first live invoice.
 GPT5_NANO_PRICING: dict[str, Any] = {
     "model": "gpt-5-nano",
     "source": "https://developers.openai.com/api/docs/models/gpt-5-nano",
@@ -25,7 +34,7 @@ GPT5_NANO_PRICING: dict[str, Any] = {
     "batch_discount": 0.50,
     "batch_input_per_1m_usd": 0.025,  # estimate: 50% of standard input
     "batch_output_per_1m_usd": 0.20,  # estimate: 50% of standard output
-    "batch_cached_input_per_1m_usd": 0.0025,  # estimate: standard_cached * batch_discount
+    "batch_cached_input_per_1m_usd": 0.0025,  # estimate: standard_cached * batch_discount; reconcile against first live invoice
     "batch_line_is_estimate": True,
 }
 

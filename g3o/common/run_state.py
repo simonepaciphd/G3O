@@ -382,6 +382,7 @@ def _reconcile_detail(problems: dict[str, list[str]], *, empty: bool) -> str:
     return "; ".join(parts)
 
 
+
 def run_chunked_stage(
     run_dir: Path,
     stage: str,
@@ -399,7 +400,7 @@ def run_chunked_stage(
     max_chunk_requests: int = batch_client.CHUNK_MAX_REQUESTS,
     enqueued_budget: int | None = None,
     client: Any | None = None,
-    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
+    cost_check_callback: Callable[[str, dict[str, int]], Any] | None = None,
 ) -> None:
     """Submit, poll, and fetch one LLM stage as size-capped batch chunks.
 
@@ -616,13 +617,13 @@ def run_chunked_stage(
         # A chunk larger than the whole budget goes out alone, once nothing else
         # is in flight, so an oversized chunk cannot deadlock the stage.
         for key, entry in iter_chunks(state):
-            if entry["fetched_at"] is not None or entry["batch_id"] is not None:
-                continue
-            need = chunk_tokens(key)
-            if in_flight_tokens and in_flight_tokens + need > budget:
-                continue
-            if _submit_one(key, entry):
-                in_flight_tokens += need
+                if entry["fetched_at"] is not None or entry["batch_id"] is not None:
+                    continue
+                need = chunk_tokens(key)
+                if in_flight_tokens and in_flight_tokens + need > budget:
+                    continue
+                if _submit_one(key, entry):
+                    in_flight_tokens += need
         state = load_state(run_dir, stage)
         assert state is not None
         pending = [
@@ -709,21 +710,16 @@ def run_chunked_stage(
                     usage=chunk_usage,
                 )
                 # Within-stage budget check (Gap 1): after each chunk completes,
-                # call the callback (if provided) to check whether to continue.
-                # If it returns False, stop submitting new chunks but let
-                # in-flight chunks finish to preserve their results.
+                # call the callback (if provided). The callback accumulates usage
+                # and raises BudgetExceededError if over budget, which propagates
+                # past mark_done — no .done marker written, un-submitted chunks
+                # stay in the active state file as a truncation signal.
+                # A callback that returns False (rather than raising) also stops
+                # further chunk submission and leaves the stage incomplete.
                 if cost_check_callback is not None:
-                    should_continue = cost_check_callback(stage, chunk_usage)
-                    if not should_continue:
-                        logger.warning(
-                            "Stage %s: within-stage budget check triggered after "
-                            "chunk %s. Stopping new chunk submissions; in-flight "
-                            "chunks will complete to preserve results.",
-                            stage, key,
-                        )
-                        # Mark remaining unsubmitted chunks as skipped (but don't
-                        # raise yet — let in-flight chunks finish first)
-                        break
+                    proceed = cost_check_callback(stage, chunk_usage)
+                    if proceed is False:
+                        return
             elif status.is_terminal:
                 failed[key] = status.status
                 logger.warning(
