@@ -48,6 +48,15 @@ continuations (`` ` ``). The pre-sweep launched on 2026-05-09 used run id
 > Batches are listed per API key, so a resume under a rotated key would find none
 > of the in-flight chunks and resubmit them — both sets would bill. The run
 > refuses to continue rather than allow that, naming both fingerprints.
+>
+> A second caveat, from §1.7: **concurrent same-process launches must agree on
+> `dry_run`.** Serper live mode is held in a module global, so two launches in one
+> process that disagree race it — a dry run setting it `False` after a live run set
+> it `True` sends the live run down the mock path, producing a run that believes it
+> searched and did not. Concurrent launches are otherwise safe: no key state is
+> process-global (§3.2) and both shared caches write atomically (§3.4). Until the
+> flag is threaded the way the credentials were, this is **not supported** — run
+> disagreeing launches in separate processes.
 
 > **Master CSV.** `--master-csv` points at the institution master, which lives
 > **outside** this repo and is read-only. From the repo working directory the
