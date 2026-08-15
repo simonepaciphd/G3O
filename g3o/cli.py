@@ -703,6 +703,106 @@ def _cmd_archive(args: argparse.Namespace) -> int:
     return 0
 
 
+def _positive_int(value: str) -> int:
+    """argparse type: positive integer for CSV version number."""
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid integer value: {value!r}") from None
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"version must be >= 1, got {n}")
+    return n
+
+
+# ---------------------------------------------------------------------------
+# `validate-integrity` — Post-persist FK integrity validation
+# ---------------------------------------------------------------------------
+
+
+def _cmd_validate_integrity(args: argparse.Namespace) -> int:
+    """Validate referential integrity across all persisted artifacts in a run.
+
+    Reads all three CSVs (activities, sources, summary) and validates all FK
+    constraints. Optionally validates institution metadata consistency.
+
+    Exit codes:
+        0: valid (no violations)
+        1: violations found
+        2: file not found / other error
+    """
+    from g3o.persist.integrity import validate_run_csvs
+
+    run_dir = Path(args.run_dir)
+    try:
+        report = validate_run_csvs(run_dir, version=args.version)
+    except Exception as exc:
+        sys.stderr.write(f"Error: {exc}\n")
+        return 2
+
+    if args.json:
+        # JSON output for machine parsing
+        output = {
+            "run_dir": str(run_dir),
+            "version": args.version,
+            "is_valid": report.is_valid,
+            "n_institutions": report.n_institutions,
+            "n_activities": report.n_activities,
+            "n_sources": report.n_sources,
+            "n_violations": len(report.violations),
+            "n_warnings": len(report.warnings),
+            "violations": [
+                {
+                    "constraint": v.constraint,
+                    "entity_type": v.entity_type,
+                    "entity_id": v.entity_id,
+                    "detail": v.detail,
+                }
+                for v in report.violations
+            ],
+            "warnings": report.warnings,
+        }
+        json.dump(output, sys.stdout, ensure_ascii=False, indent=2)
+        sys.stdout.write("\n")
+    elif args.quiet:
+        # Quiet mode: only print violations
+        if not report.is_valid:
+            for v in report.violations:
+                sys.stderr.write(f"VIOLATION: {v}\n")
+    else:
+        # Human-readable output
+        sys.stdout.write(f"Validating run: {run_dir.name}\n")
+        sys.stdout.write(f"✓ {report.n_institutions} institutions loaded\n")
+        sys.stdout.write(f"✓ {report.n_activities} activities loaded\n")
+        sys.stdout.write(f"✓ {report.n_sources} sources loaded\n\n")
+
+        sys.stdout.write("Foreign Key Validation:\n")
+        if report.is_valid:
+            sys.stdout.write("✓ All sources link to valid activities\n")
+            sys.stdout.write("✓ All activities have supporting sources\n")
+            sys.stdout.write("✓ All institutions have summary rows\n")
+            sys.stdout.write("✓ Summary counts match detail counts\n")
+        else:
+            sys.stdout.write("\nVIOLATIONS:\n")
+            for v in report.violations:
+                sys.stdout.write(f"  ✗ {v}\n")
+
+        if report.warnings:
+            sys.stdout.write("\nWARNINGS:\n")
+            for w in report.warnings:
+                sys.stdout.write(f"  ⚠ {w}\n")
+
+        status = "VALID" if report.is_valid else "INVALID"
+        sys.stdout.write(
+            f"\nResult: {status} ({len(report.violations)} violations, "
+            f"{len(report.warnings)} warnings)\n"
+        )
+
+    # Exit code: 0 = valid, 1 = violations found
+    if args.strict and report.warnings:
+        return 1
+    return 0 if report.is_valid else 1
+
+
 def _cmd_verify_model(args: argparse.Namespace) -> int:
     from g3o.run.verify_model import verify_model
 
@@ -1161,6 +1261,39 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--poll-interval", type=int, default=30)
     verify.add_argument("--max-wait", type=int, default=1800)
     verify.set_defaults(func=_cmd_verify_model)
+
+    validate_integrity = sub.add_parser(
+        "validate-integrity",
+        help="Validate referential integrity across all persisted artifacts in a run.",
+    )
+    validate_integrity.add_argument(
+        "--run-dir",
+        required=True,
+        type=_existing_dir,
+        help="Path to runs/<run_id>/ directory containing persisted CSVs.",
+    )
+    validate_integrity.add_argument(
+        "--version",
+        type=_positive_int,
+        default=1,
+        help="CSV version number to validate (default: 1). Must be >= 1.",
+    )
+    validate_integrity.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail on warnings (exit code 1) in addition to violations.",
+    )
+    validate_integrity.add_argument(
+        "--json",
+        action="store_true",
+        help="Output JSON report instead of human-readable text.",
+    )
+    validate_integrity.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Only print violations (no summary).",
+    )
+    validate_integrity.set_defaults(func=_cmd_validate_integrity)
 
     return parser
 
