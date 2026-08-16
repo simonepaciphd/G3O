@@ -476,8 +476,15 @@ def _effective_budget(args: argparse.Namespace) -> float | None:
 
 
 def _cmd_presweep(args: argparse.Namespace) -> int:
+    """Argv adapter over :func:`g3o.run.api.launch` (Run API spec §1.1).
+
+    Everything this used to decide — minting, key resolution, stage dispatch —
+    lives in ``launch()`` now, so the droplet orchestrator drives the same path an
+    operator does. What stays here is genuinely CLI-shaped: projecting argv onto a
+    config, the cost gate's exit codes, and printing.
+    """
     from g3o.common.config import RUNS_DIR
-    from g3o.run.presweep import run_presweep
+    from g3o.run.api import Credentials, launch
 
     # `PresweepConfig.__post_init__` rejects a language this run could not
     # actually query (A7, 2026-08-02). Surface it as a CLI error rather than a
@@ -486,6 +493,13 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         config = _presweep_config(args, RUNS_DIR)
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
+
+    # Spec §1.1: the adapter builds `PresweepConfig` + `Credentials` from
+    # argv/env. Only the label comes from argv — the keys themselves stay in the
+    # environment deliberately, since an argument lands in shell history and in
+    # every `ps` listing on the box. Passed to the preflight too, so the readiness
+    # check, the projection, and the run all speak about one bundle of keys.
+    credentials = Credentials(label=args.key_label)
 
     if args.preflight:
         from g3o.run.preflight import PreflightAssumptions, run_preflight
@@ -501,6 +515,7 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
             ),
             verify_model_live=args.verify_model,
             cost_ceiling_usd=effective_budget,
+            credentials=credentials,
         )
         json.dump(summary, sys.stdout, ensure_ascii=False, indent=2, default=str)
         sys.stdout.write("\n")
@@ -531,6 +546,7 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
                     output_tokens_per_job=args.assume_output_tokens_per_job,
                 ),
                 cost_ceiling_usd=effective_budget,
+                credentials=credentials,
             )
 
             # The projection that cleared (or blocked) real spend is part of the
@@ -545,8 +561,23 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
                 sys.stderr.write(_budget_abort_message(estimated_cost, effective_budget))
                 return 3
 
-    summary = run_presweep(config)
-    json.dump(summary, sys.stdout, ensure_ascii=False, indent=2, default=str)
+    receipt = launch(
+        config, credentials=credentials, session_id=args.session_id
+    )
+    # One JSON document on stdout, as before — the receipt's fields first (run_id
+    # leading, per §2) and the stage summary merged in after, so every key this
+    # command printed before the Run API still appears under the same name.
+    payload: dict[str, object] = {
+        "run_id": receipt.run_id,
+        "run_started_at": receipt.run_started_at,
+        "outcome": receipt.outcome,
+        "resumed": receipt.resumed,
+        "stop_after": receipt.stop_after,
+        "manifest_path": str(receipt.manifest_path),
+        "events_path": str(receipt.events_path),
+        **receipt.summary,
+    }
+    json.dump(payload, sys.stdout, ensure_ascii=False, indent=2, default=str)
     sys.stdout.write("\n")
     return 0
 
@@ -556,7 +587,9 @@ def _presweep_config(args: argparse.Namespace, runs_dir_default: Path) -> Preswe
     from g3o.run.presweep import PresweepConfig
 
     return PresweepConfig(
-        run_id=args.run_id,
+        # Empty, not None, when the flag is omitted: `launch()` reads emptiness as
+        # "mint one" (§1.2) while `run_id` stays the `str` the dataclass declares.
+        run_id=args.run_id or "",
         runs_dir=Path(args.runs_dir or runs_dir_default),
         master_csv=Path(args.master_csv),
         sample_size=args.sample_size,
@@ -908,7 +941,37 @@ def build_parser() -> argparse.ArgumentParser:
         "presweep",
         help="Stratified pre-sweep runner (Phase 3 of Session B).",
     )
-    presweep.add_argument("--run-id", required=True, help="Run identifier (e.g. 20260509-presweep).")
+    presweep.add_argument(
+        "--run-id", default=None,
+        help=(
+            "Run identifier. Optional since 2026-08-11 (Run API spec §2): omitted, "
+            "one is minted as r<YYYYMMDD>T<HHMMSS>Z-<4hex> and echoed to stderr "
+            "the moment it exists, so a long run can be resumed or monitored while "
+            "it is still in flight. Pass an explicit id to replicate a run or to "
+            "rejoin an existing one — a minted id never names an existing run "
+            "directory, so resume is always deliberate."
+        ),
+    )
+    presweep.add_argument(
+        "--key-label", default=None,
+        help=(
+            "Human tag for the API keys this run spends, e.g. 'key-B-grant' (spec "
+            "§1). Recorded in the run's telemetry next to each key's "
+            "sha256[:8] fingerprint, so an invoice can be traced to the runs it "
+            "paid for. The keys themselves are read from the environment and have "
+            "no flag by design: an argument lands in shell history and in every "
+            "`ps` listing on the machine."
+        ),
+    )
+    presweep.add_argument(
+        "--session-id", default=None,
+        help=(
+            "Harness/session id recorded with the run (spec §4.2). Precedence: this "
+            "flag, then G3O_SESSION_ID, then 'unattended'. It is the join key from a "
+            "published row back to the session that produced it, so supply it when "
+            "a run is driven by an agent session or an RA's shell."
+        ),
+    )
     presweep.add_argument(
         "--master-csv", required=True, type=_existing_file,
         help="Path to master_institutions.csv (read-only).",

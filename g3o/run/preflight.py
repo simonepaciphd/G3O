@@ -202,7 +202,10 @@ def run_preflight(
     report and the submit can no longer disagree about which key is in play.
     """
     a = assumptions or PreflightAssumptions()
-    summary: dict[str, Any] = {"run_id": config.run_id, "mode": "preflight"}
+    # ``run_id or None``: since the id may be minted at launch (spec §2), a
+    # preflight can legitimately run before one exists. Reporting null says "no run
+    # yet" honestly; reporting "" would read as a run whose id went missing.
+    summary: dict[str, Any] = {"run_id": config.run_id or None, "mode": "preflight"}
 
     # --- 1. Keys. Resolved through the credential resolver (Run API spec §3.1),
     # so the readiness check reports on the keys this run would actually spend —

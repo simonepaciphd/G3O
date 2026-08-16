@@ -176,6 +176,28 @@ def test_presweep_preflight_flag(tmp_path):
     assert args.cost_ceiling == 50.0
 
 
+def test_presweep_run_id_is_optional(tmp_path):
+    """Run API spec §2: omitted, ``launch()`` mints one. Required until 2026-08-11."""
+    master = tmp_path / "master_institutions.csv"
+    master.write_text("institution_id\nINST-1\n", encoding="utf-8")
+    args = cli.build_parser().parse_args(
+        ["presweep", "--master-csv", str(master)]
+    )
+    assert args.run_id is None
+
+
+def test_presweep_key_label_flag(tmp_path):
+    """§1 — the only credential input on argv; the keys stay in the environment."""
+    assert _presweep_args(tmp_path).key_label is None
+    assert _presweep_args(tmp_path, "--key-label", "key-B-grant").key_label == "key-B-grant"
+
+
+def test_presweep_session_id_flag(tmp_path):
+    """§4.2 — the join key back to the session that produced the run."""
+    assert _presweep_args(tmp_path).session_id is None
+    assert _presweep_args(tmp_path, "--session-id", "sess-abc").session_id == "sess-abc"
+
+
 def test_presweep_rejects_missing_master_csv(tmp_path):
     with pytest.raises(SystemExit):
         cli.build_parser().parse_args(
