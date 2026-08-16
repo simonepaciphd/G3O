@@ -479,6 +479,7 @@ def run_chunked_stage(
     enqueued_budget: int | None = None,
     client: Any | None = None,
     credentials: ResolvedCredentials | None = None,
+    telemetry: Any | None = None,
 ) -> None:
     """Submit, poll, and fetch one LLM stage as size-capped batch chunks.
 
@@ -557,6 +558,11 @@ def run_chunked_stage(
     if client is None and credentials is not None:
         client = batch_client.client_from_credentials(credentials)
     key_fingerprint = credentials.openai_fingerprint if credentials else None
+    # Local import: g3o.run.telemetry imports this module for its state readers,
+    # so a top-level import here would be circular. Telemetry is passive (§4) —
+    # nothing below reads it back, it only records.
+    if telemetry is None:
+        from g3o.run.telemetry import NO_TELEMETRY as telemetry
 
     state = load_state(run_dir, stage)
     if state is not None:
@@ -652,6 +658,15 @@ def run_chunked_stage(
                 batch_id=found.batch_id, submitted_at=_utc_iso(),
                 adopted=True, last_status=found.status,
             )
+            # An adoption is still this chunk entering flight, so it emits
+            # chunk_submitted — with `adopted` so the record distinguishes it
+            # from a fresh create. Omitting it would leave a chunk that later
+            # reports chunk_terminal with no submission in the log at all.
+            telemetry.emit(
+                "chunk_submitted", stage=stage, chunk=int(key),
+                batch_id=found.batch_id, n_jobs=len(entry["custom_ids"]),
+                key_fingerprint=key_fingerprint, adopted=True,
+            )
             return True
         missing = [cid for cid in entry["custom_ids"] if cid not in jobs_by_id]
         if missing:
@@ -678,6 +693,11 @@ def run_chunked_stage(
         update_chunk(
             run_dir, stage, key,
             batch_id=handle.batch_id, submitted_at=_utc_iso(),
+        )
+        telemetry.emit(
+            "chunk_submitted", stage=stage, chunk=int(key),
+            batch_id=handle.batch_id, n_jobs=handle.n_jobs,
+            key_fingerprint=key_fingerprint,
         )
         return True
 
@@ -795,8 +815,24 @@ def run_chunked_stage(
                     response_models=sorted(models),
                     system_fingerprints=sorted(fingerprints),
                 )
+                # Emitted after the completeness gate, not before: a chunk whose
+                # results failed to reconcile raised above and is NOT terminal in
+                # any sense the record should claim — it stays active and a re-run
+                # rejoins the same batch.
+                telemetry.emit(
+                    "chunk_terminal", stage=stage, chunk=int(key),
+                    batch_id=entry["batch_id"], terminal_state=status.status,
+                    n_output=sum(1 for r in fetched if r.success),
+                    n_error=sum(1 for r in fetched if not r.success),
+                    resolved_model=(sorted(models)[0] if models else None),
+                )
             elif status.is_terminal:
                 failed[key] = status.status
+                telemetry.emit(
+                    "chunk_terminal", stage=stage, chunk=int(key),
+                    batch_id=entry["batch_id"], terminal_state=status.status,
+                    n_output=0, n_error=None, resolved_model=None,
+                )
                 logger.warning(
                     "Stage %s chunk %s: batch %s ended in terminal state %s; "
                     "will raise after the remaining chunks are fetched "
@@ -833,6 +869,22 @@ def run_chunked_stage(
                 if waiting
                 else ""
             )
+            # F16, recorded (§4.3 poll_timeout): one event per still-flying
+            # chunk, before the raise. The note is the operator-facing half —
+            # this is the one timeout in the pipeline that does NOT mean failure,
+            # and a reader of the log alone must not conclude the batch died.
+            for key in in_flight:
+                telemetry.emit(
+                    "poll_timeout", stage=stage,
+                    batch_id=state["chunks"][key]["batch_id"],
+                    chunk=int(key),
+                    waited_seconds=max_wait,
+                    max_wait_per_stage=max_wait,
+                    note=(
+                        "batch has NOT ended; re-run the same command to rejoin "
+                        "polling without resubmitting"
+                    ),
+                )
             raise RuntimeError(
                 f"Stage {stage}: timed out after {max_wait}s with {detail or 'no batch'} "
                 f"still in flight.{held} The batch(es) have NOT ended — an "

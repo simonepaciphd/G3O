@@ -42,6 +42,7 @@ from g3o.run.run_id import (
     mint_run_id,
     run_started_at,
 )
+from g3o.run.telemetry import RunTelemetry
 
 logger = logging.getLogger(__name__)
 
@@ -290,6 +291,11 @@ def _assert_provenance_capturable(config: PresweepConfig, git: GitMetadata) -> N
     )
 
 
+def _iso_z(moment: datetime) -> str:
+    """ISO-8601 UTC, seconds precision — the one stamp format the record uses."""
+    return moment.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _outcome(config: PresweepConfig) -> Literal["completed", "stopped"]:
     """Classify a run that returned without raising (§1's ``outcome``).
 
@@ -315,6 +321,7 @@ def launch(
     *,
     credentials: Credentials | None = None,
     session_id: str | None = None,
+    invocation: str = "api",
 ) -> RunReceipt:
     """Run a pre-sweep and return its receipt (spec §1).
 
@@ -328,6 +335,13 @@ def launch(
     ``credentials`` supply this run's keys (§3), each falling back to the
     environment. ``session_id`` is the join key back to the interaction log
     (§4.2). Dry run remains the default, as it must: live spend is opt-in.
+
+    ``invocation`` is recorded verbatim in the manifest (§4.1 permits ``api`` or
+    ``cli``). It is an argument rather than something inferred from ``sys.argv``
+    because provenance guessed from a process name is provenance that can be
+    wrong without anyone noticing; the CLI states ``cli`` and every other caller
+    gets the honest default. Additive to §1's signature — flagged to the PI with
+    the receipt's ``summary`` field.
 
     Raises rather than returning a failed receipt (§1.5); every pre-spend failure
     is a :class:`LaunchValidationError`.
@@ -354,9 +368,10 @@ def launch(
         else datetime.now(timezone.utc)
     )
 
+    git = capture_git_metadata()
     _assert_runs_dir_writable(config.runs_dir)
     _assert_credentials_sufficient(config, resolved)
-    _assert_provenance_capturable(config, capture_git_metadata())
+    _assert_provenance_capturable(config, git)
 
     run_dir = config.runs_dir / config.run_id
     # Resume is inferred from disk, exactly as the stage runners infer it (Q7=c):
@@ -372,15 +387,26 @@ def launch(
     # its double through launch().
     from g3o.run.presweep import run_presweep
 
+    # The telemetry handle carries the launch context; the manifest block it
+    # produces is completed inside plan_run, which is where the drawn sample and
+    # the stored config snapshot exist (§4.1 — still before any spend).
+    telemetry = RunTelemetry(
+        session_id=session,
+        invocation=invocation,
+        git=git,
+        credentials=resolved,
+        run_started_at=_iso_z(started_at),
+    )
+
     logger.info(
         "launch run_id=%s session_id=%s dry_run=%s stop_after=%s resumed=%s",
         config.run_id, session, config.dry_run, config.stop_after, resumed,
     )
-    summary = run_presweep(config, credentials=credentials)
+    summary = run_presweep(config, credentials=credentials, telemetry=telemetry)
 
     return RunReceipt(
         run_id=config.run_id,
-        run_started_at=started_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        run_started_at=_iso_z(started_at),
         runs_dir=run_dir,
         manifest_path=run_dir / MANIFEST_FILENAME,
         events_path=run_dir / EVENTS_FILENAME,

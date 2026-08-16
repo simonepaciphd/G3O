@@ -42,6 +42,12 @@ Precedence per provider is explicit field → environment → unset; unset behav
 it always has (mock discovery, a raise on the first LLM stage). A run records only
 `sha256(key)[:8]` and the label, never key material.
 
+Each run records its own provenance in `runs/<run_id>/manifest.json` (git sha,
+contract pin, prompt hashes, config snapshot + `config_hash`, credential
+fingerprints — never key material) and its history in `runs/<run_id>/events.jsonl`.
+Those two files are what a replication starts from: the manifest states exactly
+which code, contract and configuration produced the artifacts beside it.
+
 ## One-off operations
 
 ```bash
