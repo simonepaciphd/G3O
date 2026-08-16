@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from g3o.common.credentials import ResolvedCredentials
 from g3o.run.presweep.records import synth_institution_id
 
 
@@ -15,6 +16,7 @@ def _run_validate(
     model: str,
     poll_interval: int,
     max_wait: int,
+    credentials: ResolvedCredentials | None = None,
 ) -> dict[str, Any]:
     """Stage 6 — per-institution LLM consolidation (Session E fold, Q8=ii).
 
@@ -32,4 +34,5 @@ def _run_validate(
         model=model,
         poll_interval=poll_interval,
         max_wait=max_wait,
+        credentials=credentials,
     )

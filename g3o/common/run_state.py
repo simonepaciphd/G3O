@@ -51,6 +51,7 @@ from typing import Any
 
 from g3o.common import batch_client
 from g3o.common.batch_client import BatchJob, BatchResult
+from g3o.common.credentials import ResolvedCredentials
 
 logger = logging.getLogger(__name__)
 
@@ -292,8 +293,39 @@ def mark_done(run_dir: Path, stage: str, *, no_batch: bool = False) -> Path:
 
 
 def _chunk_metadata(run_id: str, stage: str, chunk: int | str) -> dict[str, str]:
-    """Unique batch identity carried as OpenAI batch metadata (review F6)."""
+    """Unique batch identity carried as OpenAI batch metadata (review F6).
+
+    Identity only — the three keys of ``batch_client.CHUNK_METADATA_KEYS``. This
+    is what reconciliation matches on, so it must never grow a field that can
+    change between the submit and a later resume (see :func:`_submit_metadata`).
+    """
     return {"g3o_run_id": run_id, "g3o_stage": stage, "g3o_chunk": str(chunk)}
+
+
+def _submit_metadata(
+    identity: dict[str, str], key_fingerprint: str | None
+) -> dict[str, str]:
+    """Batch identity plus the submitting key's fingerprint (Run API spec §3.5).
+
+    Server-side reconciliation lists batches **per API key**, so an operator
+    holding two keys cannot otherwise tell which key paid for a batch they are
+    looking at. ``g3o_key_fingerprint`` (``sha256(key)[:8]``, never key material —
+    §3.3) makes that attributable.
+
+    It is deliberately *stored* but not *matched on*: a resumed run reconciles
+    against batches submitted by an earlier process, which — for any batch
+    submitted before this field existed — carries no fingerprint at all. Folding
+    it into the match key would make those batches unfindable and a reconcile
+    miss means a **double submit**, i.e. double spend. Identity is what makes a
+    batch unique; the key that paid for it is provenance.
+
+    Omitted entirely when no fingerprint is known (no credentials threaded down):
+    batch metadata values are strings, and a null fingerprint would be
+    indistinguishable from a real one in a server-side listing.
+    """
+    if not key_fingerprint:
+        return dict(identity)
+    return {**identity, "g3o_key_fingerprint": key_fingerprint}
 
 
 def _reconcile_custom_ids(
@@ -399,6 +431,7 @@ def run_chunked_stage(
     max_chunk_requests: int = batch_client.CHUNK_MAX_REQUESTS,
     enqueued_budget: int | None = None,
     client: Any | None = None,
+    credentials: ResolvedCredentials | None = None,
 ) -> None:
     """Submit, poll, and fetch one LLM stage as size-capped batch chunks.
 
@@ -464,10 +497,23 @@ def run_chunked_stage(
 
     On success (every chunk fetched), the state file moves to
     ``.done/{stage}.json`` — the stage-complete signal is unchanged (Q3=e2).
+
+    **Credentials (Run API spec §3.2/§3.5).** ``credentials``, when the caller
+    threads it down, is the run's resolved key bundle: it builds the one OpenAI
+    client this stage uses and supplies the ``g3o_key_fingerprint`` recorded on
+    every submit. An explicit ``client`` still wins (test injection). With
+    neither, nothing changes from the pre-spec path — each ``batch_client`` call
+    constructs its own client from the environment — so a caller that never
+    passes credentials behaves exactly as it did, and no submit carries a
+    fingerprint the run cannot account for.
     """
     state = load_state(run_dir, stage)
     if state is not None:
         assert_chunked_state(state, path=state_path(run_dir, stage))
+
+    if client is None and credentials is not None:
+        client = batch_client.client_from_credentials(credentials)
+    key_fingerprint = credentials.openai_fingerprint if credentials else None
 
     if enqueued_budget is None:
         enqueued_budget = batch_client.enqueued_token_budget()
@@ -517,6 +563,8 @@ def run_chunked_stage(
 
     def _submit_one(key: str, entry: dict[str, Any]) -> bool:
         """Reconcile-then-submit one chunk. True if it is now in flight."""
+        # Identity is the match key; the fingerprint rides along on the submit
+        # only (see _submit_metadata for why the two must not be the same dict).
         metadata = _chunk_metadata(run_id, stage, key)
         existing = batch_client.find_batches_by_metadata(metadata, client=client)
         # Drop batches an operator has explicitly adjudicated for this chunk
@@ -567,7 +615,7 @@ def run_chunked_stage(
             model=model,
             completion_window=completion_window,
             endpoint=endpoint,
-            metadata=metadata,
+            metadata=_submit_metadata(metadata, key_fingerprint),
             client=client,
         )
         logger.info(

@@ -79,8 +79,8 @@ def _config(
 def test_preflight_detects_cost_ceiling_exceeded(tmp_path, monkeypatch):
     """When projected cost > budget limit, preflight returns cost_ceiling_exceeded=True."""
     master = _write_master(tmp_path / "m.csv", n=5)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
 
     config = _config(tmp_path, master, sample_size=5, run_id="cost-test-1")
 
@@ -105,8 +105,8 @@ def test_preflight_detects_cost_ceiling_exceeded(tmp_path, monkeypatch):
 def test_preflight_allows_under_budget(tmp_path, monkeypatch):
     """When projected cost < budget limit, preflight returns cost_ceiling_exceeded=False."""
     master = _write_master(tmp_path / "m.csv", n=3)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
 
     config = _config(tmp_path, master, sample_size=3, run_id="cost-test-2")
 
@@ -130,8 +130,8 @@ def test_preflight_allows_under_budget(tmp_path, monkeypatch):
 def test_preflight_none_ceiling_means_no_limit(tmp_path, monkeypatch):
     """When cost_ceiling_usd=None, no ceiling check is performed."""
     master = _write_master(tmp_path / "m.csv", n=5)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
 
     config = _config(tmp_path, master, sample_size=5, run_id="cost-test-3")
 
@@ -156,8 +156,8 @@ def test_cli_preflight_aborts_on_ceiling_exceeded(tmp_path, monkeypatch, capsys)
     from g3o import cli
 
     master = _write_master(tmp_path / "master.csv", n=5)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
 
     args = [
         "presweep",
@@ -190,8 +190,8 @@ def test_cli_preflight_proceeds_under_budget(tmp_path, monkeypatch, capsys):
     from g3o import cli
 
     master = _write_master(tmp_path / "master.csv", n=3)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
 
     args = [
         "presweep",
@@ -226,8 +226,8 @@ def test_cli_execute_aborts_on_budget_limit_exceeded(tmp_path, monkeypatch, caps
     from g3o import cli
 
     master = _write_master(tmp_path / "master.csv", n=5)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", "0.001")  # Very low
 
     args = [
@@ -262,8 +262,8 @@ def test_cli_execute_proceeds_under_budget_limit(tmp_path, monkeypatch, capsys):
     from g3o import cli
 
     master = _write_master(tmp_path / "master.csv", n=2)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", "1000.0")  # Very high
 
     args = [
@@ -298,8 +298,8 @@ def test_cli_cost_ceiling_flag_overrides_env_var(tmp_path, monkeypatch, capsys):
     from g3o import cli
 
     master = _write_master(tmp_path / "master.csv", n=3)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", "1000.0")  # High env var
 
     args = [
@@ -329,8 +329,8 @@ def test_malformed_budget_limit_raises_systemexit(tmp_path, monkeypatch):
     from g3o import cli
 
     master = _write_master(tmp_path / "master.csv", n=3)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", "not-a-number")
 
     args = [
@@ -357,8 +357,8 @@ def test_nan_budget_limit_is_rejected(tmp_path, monkeypatch):
     from g3o import cli
 
     master = _write_master(tmp_path / "master.csv", n=3)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", "nan")
 
     args = [
@@ -387,8 +387,8 @@ def test_cli_cost_ceiling_flag_overrides_env_var_on_execute(tmp_path, monkeypatc
     from g3o import cli
 
     master = _write_master(tmp_path / "master.csv", n=3)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", "1000.0")  # High env var
 
     args = [
@@ -429,8 +429,8 @@ def test_cli_execute_emits_the_projection_that_cleared_it(tmp_path, monkeypatch,
     from g3o import cli
 
     master = _write_master(tmp_path / "master.csv", n=2)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", "1000.0")
 
     args = [
@@ -471,8 +471,8 @@ def test_cli_execute_without_budget_skips_preflight(tmp_path, monkeypatch, capsy
     from g3o import cli
 
     master = _write_master(tmp_path / "master.csv", n=2)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", None)
 
     args = [

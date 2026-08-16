@@ -18,9 +18,9 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition, batch_client
-from g3o.common import config as g3o_config
 from g3o.common.artifact_io import ARTIFACT_SUFFIX, glob_artifacts
 from g3o.common.batch_client import BatchHandle, BatchResult, BatchStatus
+from g3o.common.credentials import fingerprint
 from g3o.common.run_state import done_path, state_dir
 from g3o.discovery import serper_client
 from g3o.extract.batch import make_custom_id, url_hash
@@ -218,8 +218,8 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
     # keys. Provide dummy keys (the network is fully stubbed below) and reset the
     # Serper live-mode global via monkeypatch so run_presweep's set_live_mode(True)
     # cannot leak into other tests (monkeypatch restores the attribute on teardown).
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "test-serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setenv("SERPER_API_KEY", "test-serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
     monkeypatch.setattr(serper_client, "_live_mode", False, raising=False)
 
     # --- Serper stub: same canned organic results for every query.
@@ -322,11 +322,19 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
     assert summary["n_validate_failed"] == 0
     assert summary["validate_batch_ids"] == ["batch-validate-1"]
 
-    # --- Every submit carried the full reconciliation metadata (review F6).
+    # --- Every submit carried the full reconciliation metadata (review F6),
+    # plus the submitting key's fingerprint (Run API spec §3.5) — which is also
+    # the end-to-end proof that the run's resolved credentials reached the wire,
+    # and that what reaches it is the fingerprint, never the key (§3.3).
     assert len(submitted_metadata) == 4  # stages 2, 3, 5, 6 — one chunk each
+    expected_fp = fingerprint("test-openai-key")
     for md in submitted_metadata:
-        assert set(md) == {"g3o_run_id", "g3o_stage", "g3o_chunk"}
+        assert set(md) == {
+            "g3o_run_id", "g3o_stage", "g3o_chunk", "g3o_key_fingerprint",
+        }
         assert md["g3o_run_id"] == "smoke-1"
+        assert md["g3o_key_fingerprint"] == expected_fp
+        assert "test-openai-key" not in json.dumps(md)
     assert [md["g3o_stage"] for md in submitted_metadata] == [
         "classify_official_site", "classify_triage", "extract", "validate",
     ]
