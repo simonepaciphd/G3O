@@ -495,6 +495,16 @@ ACTIVITY_ID_PATTERN = r"^A[1-9]\d*$"
 SOURCE_ID_PATTERN = r"^S[1-9]\d*$"
 ACTIVITY_OR_NA_PATTERN = r"^(A[1-9]\d*|_NA_)$"
 
+# Key-layer identifiers (PI ruling 2026-08-14). ``institution_uid`` is the
+# master's permanent key, carried verbatim from
+# ``master_institutions.csv``; ``sweep_uid`` is its Stage-7 restatement,
+# ``"G3O-S-" + <the 8-digit tail>``, and the loader keys sweeps on
+# ``(sweep_uid, run_id)``. Both are pipeline-minted, never model-produced —
+# see ``ValidationProvenance`` for why they live there and not on
+# ``ConsolidatedInstitution``.
+INSTITUTION_UID_PATTERN = r"^G3O-I-\d{8}$"
+SWEEP_UID_PATTERN = r"^G3O-S-\d{8}$"
+
 # Year fields in the consolidated surface drop _NA_ (every ConsolidatedActivity
 # row IS an activity, so the row-level _NA_ semantics no longer apply).
 YEAR_PATTERN_NO_NA = r"^(\d{4}|unknown)$"
@@ -782,7 +792,23 @@ class ConsolidatedInstitutionResponse(BaseModel):
         return self
 
 class ValidationProvenance(BaseModel):
-    """Run-level metadata attached at Stage 6/7 CSV write time."""
+    """Run-level metadata attached at Stage 6/7 CSV write time.
+
+    The two key-layer uids live here rather than on ``ConsolidatedInstitution``
+    for two reasons, both load-bearing (PI ruling 2026-08-14 §3):
+
+    - ``ConsolidatedInstitution`` is parsed from Stage 6 model output, and a
+      load-bearing key must never be model-produced. This model is constructed
+      by the pipeline at persist time and never appears in a prompt.
+    - Both uids are **required with no default**, so a builder that forgets one
+      raises here, at construction, rather than at write time. That matters
+      because ``extrasaction="raise"`` catches *extra* keys, not missing ones:
+      a defaulted field would sit in the merged dict as ``None``, satisfy the
+      ``missing`` guards in :meth:`PersistedActivity.to_csv_dict` /
+      :meth:`PersistedSource.to_csv_dict`, and ship an empty column with no
+      error — which is exactly how the loader's ``missing_institution_uid``
+      quarantine gets fed a clean-looking run.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -791,6 +817,8 @@ class ValidationProvenance(BaseModel):
     run_model: str
     run_tool: str
     run_date: Annotated[str, StringConstraints(pattern=ISO_DATE_PATTERN)]
+    institution_uid: Annotated[str, StringConstraints(pattern=INSTITUTION_UID_PATTERN)]
+    sweep_uid: Annotated[str, StringConstraints(pattern=SWEEP_UID_PATTERN)]
 
     @field_validator("run_date")
     @classmethod
@@ -873,6 +901,8 @@ __all__ = [
     "ACTIVITY_ID_PATTERN",
     "SOURCE_ID_PATTERN",
     "ACTIVITY_OR_NA_PATTERN",
+    "INSTITUTION_UID_PATTERN",
+    "SWEEP_UID_PATTERN",
     "YEAR_PATTERN_NO_NA",
     "BatchMetadata",
     "ContractRow",

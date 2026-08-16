@@ -57,8 +57,8 @@ def _job(custom_id: str = "job-1") -> BatchJob:
 
 def _write_master(path: Path, n: int) -> Path:
     fields = [
-        "master_row_id", "institution_name", "country", "branch",
-        "government_level", "institution_type", "website",
+        "institution_uid", "master_row_id", "institution_name", "country",
+        "branch", "government_level", "institution_type", "website",
     ]
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=fields)
@@ -66,6 +66,7 @@ def _write_master(path: Path, n: int) -> Path:
         for i in range(1, n + 1):
             w.writerow(
                 {
+                    "institution_uid": f"G3O-I-{i:08d}",
                     "master_row_id": str(i),
                     "institution_name": f"Institution {i}",
                     "country": f"C{i % 3}",

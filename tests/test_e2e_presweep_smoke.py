@@ -42,13 +42,14 @@ OFFICIAL_SITE = CANNED_URLS[0]
 
 def _write_master(path: Path) -> Path:
     fieldnames = [
-        "master_row_id", "country", "government_level", "branch",
-        "institution_type", "institution_name", "website",
+        "institution_uid", "master_row_id", "country", "government_level",
+        "branch", "institution_type", "institution_name", "website",
         "source_dataset_id", "source_url", "source_file",
         "retrieval_date", "notes",
     ]
     rows = [
         {
+            "institution_uid": f"G3O-I-{i + 1:08d}",
             "master_row_id": str(i + 1),
             "country": f"COUNTRY-{i}",
             "government_level": "national",

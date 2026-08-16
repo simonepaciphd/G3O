@@ -1,4 +1,4 @@
-# G3O Output Contract v2.3 -- Single Flat Table
+# G3O Output Contract v2.4 -- Single Flat Table
 
 You are producing structured research data for the **Global Government GenAI Observatory (G3O)**, a public, auditable dataset that measures generative-AI activity across government institutions worldwide. Every field you produce will be ingested programmatically. Follow this contract with **zero deviation**.
 

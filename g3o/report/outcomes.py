@@ -75,7 +75,7 @@ from typing import Any
 from g3o.common import attrition as _attrition
 from g3o.common.artifact_io import glob_artifacts, read_artifact
 from g3o.common.contract import BatchResponse
-from g3o.common.paths import institution_dir, require_layout
+from g3o.common.paths import institution_dir, institution_uid_map, require_layout
 from g3o.common.run_state import is_done, state_dir
 from g3o.common.timing import read_timing
 from g3o.persist.writer import load_consolidated_outputs
@@ -188,6 +188,12 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
     manifest = _load_manifest(run_dir)
     institution_ids: list[str] = manifest.get("institutions", [])
     stopped_after_stage = manifest.get("config", {}).get("stop_after")
+    # institution_report.csv is written by a generic
+    # ``{col: r.get(col) for col in INSTITUTION_REPORT_COLUMNS}`` comprehension,
+    # so a column the records never carry ships as an empty cell and no error.
+    # Read the uid map through the raising accessor for that reason: this is
+    # the one stamped surface with no structural guard behind it.
+    uid_by_inst = institution_uid_map(run_dir)
 
     ledger = _attrition.read_records(run_dir)
     failures_by_inst: dict[str, list[dict[str, Any]]] = {}
@@ -300,8 +306,16 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
             (s["end_time"] for s in stages_timing.values()), default=None
         )
 
+        institution_uid = uid_by_inst.get(inst_id, "")
+        if not institution_uid:
+            raise RuntimeError(
+                f"{inst_id} is in the manifest's institution list but carries no "
+                "institution_uid, so its report row cannot be stamped"
+            )
+
         records.append(
             {
+                "institution_uid": institution_uid,
                 "institution_id": inst_id,
                 "final_status": final_status,
                 "stage_reached": stage_reached,

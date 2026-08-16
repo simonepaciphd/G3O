@@ -45,11 +45,12 @@ def _reset_live_mode(monkeypatch):
 
 def _write_master(path: Path, n: int = 3) -> Path:
     fieldnames = [
-        "master_row_id", "country", "government_level", "branch",
-        "institution_type", "institution_name", "website",
+        "institution_uid", "master_row_id", "country", "government_level",
+        "branch", "institution_type", "institution_name", "website",
     ]
     rows = [
         {
+            "institution_uid": f"G3O-I-{i + 1:08d}",
             "master_row_id": str(i + 1),
             "country": f"COUNTRY-{i}",
             "government_level": "national",
