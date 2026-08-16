@@ -20,7 +20,7 @@
   "job_line_sha256": {
     "classify_official_site": "54552caec7b6ff7e7f13d9af79c824e9b8b1e9aba279f9a7052d2eac86654542",
     "classify_triage": "7aaf65a7df0b091abd32f44f1738bb5c463411642ef26cacc7490e0270d71d9c",
-    "extract": "d200e39a92cb662572f49b766a4c0622122c7472fad3f74018f6a9b8164037c9",
+    "extract": "305a2ddb734c594082e7c6296753c77c978f703be615165bbab4c425226b7140",
     "validate": "36a28c89f82d5ea0bf4837745df134261f6d5c12e163bcb4889dd7b38355fc1f"
   }
 }

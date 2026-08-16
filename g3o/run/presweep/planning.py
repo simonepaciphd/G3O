@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 from g3o.common.batch_client import DEFAULT_REASONING_EFFORT
-from g3o.common.paths import LAYOUT_VERSION, institution_dir
+from g3o.common.contract import INSTITUTION_UID_PATTERN
+from g3o.common.paths import INSTITUTION_UIDS_KEY, LAYOUT_VERSION, institution_dir
 from g3o.common.run_state import done_dir, state_dir
 from g3o.discovery.query_builder import genai_terms_roster_hash
 from g3o.run.presweep.config import STAGES, PresweepConfig
@@ -21,6 +23,41 @@ from g3o.run.presweep.records import (
     synth_institution_id,
 )
 from g3o.run.presweep.sampling import stratified_sample
+
+_INSTITUTION_UID_RE = re.compile(INSTITUTION_UID_PATTERN)
+
+
+def _institution_uids(sample: list[dict[str, Any]]) -> dict[str, str]:
+    """``{institution_id: institution_uid}`` off the raw master rows.
+
+    Read here rather than through :func:`institution_record` on purpose: that
+    projection is serialised to ``institution.json`` and embedded verbatim in
+    the Stage 2/3/5/6 user prompts, and the uid is bookkeeping that must not
+    reach a model (PI ruling 2026-08-14 §3). Same reasoning as the accuracy
+    canary's ground-truth read in ``stage_classify``.
+
+    Raises:
+        RuntimeError: when any sampled row carries no well-formed
+            ``institution_uid``. Refusing at plan time is the point — the
+            alternative is discovering it at ingest, after the compute is
+            spent, one quarantined row at a time.
+    """
+    uids: dict[str, str] = {}
+    bad: list[str] = []
+    for row in sample:
+        inst_id = synth_institution_id(row)
+        uid = (row.get("institution_uid") or "").strip()
+        if not _INSTITUTION_UID_RE.match(uid):
+            bad.append(f"{inst_id} (master_row_id={row.get('master_row_id', '')!r}): {uid!r}")
+            continue
+        uids[inst_id] = uid
+    if bad:
+        raise RuntimeError(
+            f"{len(bad)} sampled institution(s) carry no well-formed institution_uid "
+            f"(expected {INSTITUTION_UID_PATTERN}); the master CSV must supply it and "
+            "the pipeline will not mint one. First 5: " + "; ".join(bad[:5])
+        )
+    return uids
 
 
 def build_manifest(
@@ -68,6 +105,11 @@ def build_manifest(
         "n_strata_observed": n_strata_observed,
         "stages_planned": stages_planned,
         "institutions": [synth_institution_id(r) for r in sample],
+        # Key layer (PI ruling 2026-08-14). The manifest carries the master's
+        # institution_uid so Stage 7 can stamp it without the value ever
+        # entering a prompt; read back by
+        # :func:`g3o.common.paths.institution_uid_map`.
+        INSTITUTION_UIDS_KEY: _institution_uids(sample),
     }
 
 

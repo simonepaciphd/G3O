@@ -40,9 +40,9 @@ from tests._layout import inst_dir as inst_dir_of
 # ---------------------------------------------------------------------------
 
 _COLUMNS = [
-    "master_row_id", "country", "country_iso3", "government_level",
-    "institution_type", "branch", "institution_name", "website",
-    "disambiguation",
+    "institution_uid", "master_row_id", "country", "country_iso3",
+    "government_level", "institution_type", "branch", "institution_name",
+    "website", "disambiguation",
 ]
 
 
@@ -53,7 +53,11 @@ def _master(tmp_path: Path, rows: list[dict[str, str]]) -> Path:
         w.writeheader()
         for i, r in enumerate(rows, start=1):
             base = {c: "" for c in _COLUMNS}
-            base.update({"master_row_id": str(i), "branch": "executive"})
+            base.update({
+                "institution_uid": f"G3O-I-{i:08d}",
+                "master_row_id": str(i),
+                "branch": "executive",
+            })
             base.update(r)
             w.writerow(base)
     return path
