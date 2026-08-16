@@ -22,7 +22,10 @@ from g3o.run.orchestrate import status as st
 from g3o.run.orchestrate import submit as sub
 from g3o.run.presweep.config import PresweepConfig
 
+# institution_uid is required as of a7bca03: plan time refuses a sampled row
+# without a well-formed one rather than emitting an empty column downstream.
 MASTER_FIELDS = [
+    "institution_uid",
     "master_row_id", "country", "government_level", "branch", "institution_type",
     "institution_name", "website", "source_dataset_id", "source_url",
     "source_file", "retrieval_date", "notes",
@@ -36,6 +39,7 @@ def _write_master(path: Path, n: int = 3) -> Path:
         for i in range(n):
             writer.writerow(
                 {
+                    "institution_uid": f"G3O-I-{i + 1:08d}",
                     "master_row_id": str(i + 1),
                     "country": f"COUNTRY-{i}",
                     "government_level": "national",
