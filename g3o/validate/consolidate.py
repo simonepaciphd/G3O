@@ -286,6 +286,7 @@ def run_consolidate(
     notes: str = "none",
     client: Any | None = None,
     credentials: ResolvedCredentials | None = None,
+    telemetry: Any | None = None,
 ) -> dict[str, Any]:
     """End-to-end Stage 6 driver for one run directory.
 
@@ -383,6 +384,7 @@ def run_consolidate(
             process_chunk_results=_persist,
             client=client,
             credentials=credentials,
+            telemetry=telemetry,
         )
 
     done_payload = json.loads(

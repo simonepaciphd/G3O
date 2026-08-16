@@ -49,22 +49,26 @@ No network, no API keys.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Literal, get_args, get_origin
+from typing import Literal
 
 import pytest
 
 from g3o.common import contract as _contract
 from g3o.common import schema as _schema
-from g3o.common.contract import BatchResponse, ConsolidatedInstitutionResponse
+from g3o.common.contract_pin import (
+    EXTRACT_CONTRACT,
+    VALIDATE_CONTRACT,
+    contract_surface,
+    gated_column_lists,
+    literal_enums,
+    parse_version,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-EXTRACT_CONTRACT = REPO_ROOT / "g3o" / "extract" / "prompts" / "output_contract.md"
-VALIDATE_CONTRACT = REPO_ROOT / "g3o" / "validate" / "prompts" / "output_contract.md"
 PIN_PATH = Path(__file__).parent / "goldens" / "contract_version_pin.json"
 REGEN_ENV = "G3O_REGEN_GOLDENS"
 
@@ -90,12 +94,14 @@ _SIGNOFF_POINTER = (
 # ---------------------------------------------------------------------------
 
 
-def _parse_version(path: Path) -> str:
-    """The version token out of the document's H1, e.g. ``v2.0``."""
-    first_line = path.read_text(encoding="utf-8").splitlines()[0]
-    m = re.search(r"\bv(\d+(?:\.\d+)*)\b", first_line)
-    assert m, f"no version token in the H1 of {path.name}: {first_line!r}"
-    return f"v{m.group(1)}"
+# The surface computation now lives in ``g3o.common.contract_pin`` so the run
+# manifest (Run API spec §4.1) records the same pin this gate enforces. Two
+# implementations of it would drift, and drift in this exact surface is what
+# the pin exists to catch — so the test delegates rather than re-deriving.
+_current = contract_surface
+_parse_version = parse_version
+_literal_enums = literal_enums
+_gated_column_lists = gated_column_lists
 
 
 def _no_embedded_json_schema(path: Path) -> None:
@@ -118,53 +124,6 @@ def _no_embedded_json_schema(path: Path) -> None:
         "response_format at request time; a prose copy can only drift from it "
         "(it already did once — see 84d4493)."
     )
-
-
-def _literal_enums() -> dict[str, list[str]]:
-    """Every ``Literal`` alias in ``g3o.common.contract``, discovered not listed."""
-    out: dict[str, list[str]] = {}
-    for name, obj in vars(_contract).items():
-        if name.startswith("_"):
-            continue
-        if get_origin(obj) is Literal:
-            out[name] = [str(v) for v in get_args(obj)]
-    assert out, "no Literal enum aliases found in g3o.common.contract"
-    return dict(sorted(out.items()))
-
-
-def _gated_column_lists() -> dict[str, list[str]]:
-    return {name: list(getattr(_schema, name)) for name in _GATED_COLUMN_LISTS}
-
-
-def _sha256(payload: Any) -> str:
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
-
-def _current() -> dict[str, dict[str, str]]:
-    return {
-        "extract": {
-            "path": "g3o/extract/prompts/output_contract.md",
-            "version": _parse_version(EXTRACT_CONTRACT),
-            "sha256": _sha256(
-                {
-                    "model_json_schema": BatchResponse.model_json_schema(),
-                    "enums": _literal_enums(),
-                    "columns": _gated_column_lists(),
-                }
-            ),
-        },
-        "validate": {
-            "path": "g3o/validate/prompts/output_contract.md",
-            "version": _parse_version(VALIDATE_CONTRACT),
-            "sha256": _sha256(
-                {
-                    "model_json_schema": ConsolidatedInstitutionResponse.model_json_schema(),
-                    "enums": _literal_enums(),
-                }
-            ),
-        },
-    }
 
 
 # ---------------------------------------------------------------------------

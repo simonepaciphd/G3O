@@ -214,8 +214,8 @@ def _stub_run_presweep(monkeypatch, summary: dict | None = None) -> list[tuple]:
 
     calls: list[tuple] = []
 
-    def _fake(config, *, credentials=None):
-        calls.append((config, credentials))
+    def _fake(config, *, credentials=None, telemetry=None):
+        calls.append((config, credentials, telemetry))
         return dict(summary) if summary is not None else {
             "run_id": config.run_id,
             "run_dir": str(config.runs_dir / config.run_id),
@@ -282,6 +282,16 @@ def test_launch_threads_credentials_into_the_run(tmp_path: Path, monkeypatch) ->
     creds = Credentials(openai_api_key="sk-launch-test", label="key-B")
     launch(_config(tmp_path), credentials=creds)
     assert calls[0][1] is creds
+
+
+def test_launch_threads_a_live_telemetry_handle(tmp_path: Path, monkeypatch) -> None:
+    """PR C: the run's record is carried by the same explicit threading (§4)."""
+    calls = _stub_run_presweep(monkeypatch)
+    launch(_config(tmp_path), session_id="sess-1", invocation="cli")
+    telemetry = calls[0][2]
+    assert telemetry is not None and telemetry.enabled is True
+    assert telemetry.session_id == "sess-1"
+    assert telemetry.invocation == "cli"
 
 
 def test_launch_is_reachable_through_the_patch_target_the_cli_tests_use(
@@ -376,7 +386,7 @@ def test_launch_never_returns_a_failed_receipt(tmp_path: Path, monkeypatch) -> N
     """§1.5 — it raises instead, so an exception cannot be mistaken for a result."""
     from g3o.run import presweep as presweep_pkg
 
-    def _boom(config, *, credentials=None):
+    def _boom(config, *, credentials=None, telemetry=None):
         raise RuntimeError("stage exploded")
 
     monkeypatch.setattr(presweep_pkg, "run_presweep", _boom)
@@ -540,9 +550,12 @@ def test_cli_builds_credentials_and_labels_them(tmp_path: Path, monkeypatch) -> 
     seen: list[Credentials | None] = []
     real_launch = api.launch
 
-    def _spy(config, *, credentials=None, session_id=None):
+    def _spy(config, *, credentials=None, session_id=None, invocation="api"):
         seen.append(credentials)
-        return real_launch(config, credentials=credentials, session_id=session_id)
+        return real_launch(
+            config, credentials=credentials, session_id=session_id,
+            invocation=invocation,
+        )
 
     monkeypatch.setattr(api, "launch", _spy)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-from-env")
@@ -576,9 +589,12 @@ def test_cli_session_id_reaches_launch(tmp_path: Path, monkeypatch) -> None:
     seen: list[str | None] = []
     real_launch = api.launch
 
-    def _spy(config, *, credentials=None, session_id=None):
+    def _spy(config, *, credentials=None, session_id=None, invocation="api"):
         seen.append(session_id)
-        return real_launch(config, credentials=credentials, session_id=session_id)
+        return real_launch(
+            config, credentials=credentials, session_id=session_id,
+            invocation=invocation,
+        )
 
     monkeypatch.setattr(api, "launch", _spy)
     master = _write_master(tmp_path / "master.csv")
