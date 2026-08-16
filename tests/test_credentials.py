@@ -376,12 +376,17 @@ def _dry_run_config(tmp_path: Path, master: Path) -> PresweepConfig:
 
 
 def _write_master(path: Path) -> Path:
+    # institution_uid is required as of a7bca03: plan time refuses a sampled row
+    # without a well-formed one rather than emitting an empty column downstream.
     header = (
-        "master_row_id,institution_name,country,branch,government_level,"
-        "institution_type,website,official_site_url,official_site_confidence\n"
+        "institution_uid,master_row_id,institution_name,country,branch,"
+        "government_level,institution_type,website,official_site_url,"
+        "official_site_confidence\n"
     )
     rows = "".join(
-        f"{i},Ministry {i},Atlantis,executive,national,ministry,,,\n" for i in range(3)
+        f"G3O-I-{i + 1:08d},{i},Ministry {i},Atlantis,executive,national,"
+        f"ministry,,,\n"
+        for i in range(3)
     )
     path.write_text(header + rows, encoding="utf-8")
     return path
