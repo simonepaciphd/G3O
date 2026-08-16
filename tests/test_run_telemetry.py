@@ -49,13 +49,17 @@ FAKE_KEY = "sk-telemetry-QQQ-must-not-appear"
 
 
 def _write_master(path: Path, n: int = 3, *, build_id: str | None = None) -> Path:
+    # institution_uid is required as of a7bca03: plan time refuses a sampled row
+    # without a well-formed one rather than emitting an empty column downstream.
     extra = ",master_build_id" if build_id else ""
     header = (
-        "master_row_id,institution_name,country,branch,government_level,"
-        f"institution_type,website,official_site_url,official_site_confidence{extra}\n"
+        "institution_uid,master_row_id,institution_name,country,branch,"
+        "government_level,institution_type,website,official_site_url,"
+        f"official_site_confidence{extra}\n"
     )
     rows = "".join(
-        f"{i},Ministry {i},Atlantis,executive,national,ministry,,,"
+        f"G3O-I-{i + 1:08d},{i},Ministry {i},Atlantis,executive,national,"
+        "ministry,,,"
         + (f",{build_id}\n" if build_id else "\n")
         for i in range(n)
     )
