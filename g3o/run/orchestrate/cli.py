@@ -383,7 +383,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     ingest = sub.add_parser(
         "ingest",
-        help="Load a completed run via the pinned g3o-website scripts/ingest.py.",
+        help="Load a completed run via the pinned g3o-api scripts/ingest.py.",
         description=(
             "Refuses a run that did not complete. Passes the loader's exit code "
             "through and reports its counts without interpretation — including "
@@ -414,12 +414,12 @@ def build_parser() -> argparse.ArgumentParser:
     ingest.add_argument(
         "--loader-arg", action="append", default=None, metavar="ARG",
         help="Extra argument passed straight to ingest.py; repeatable "
-             "(e.g. --loader-arg --make-current). Its flag surface is the "
+             "(e.g. --loader-arg --synthetic). Its flag surface is the "
              "backend's, and is deliberately not mirrored here.",
     )
     ingest.add_argument(
         "--expect-loader-sha", default=None,
-        help="Refuse unless the g3o-website checkout is at this commit.",
+        help="Refuse unless the g3o-api checkout is at this commit.",
     )
     ingest.add_argument(
         "--force", action="store_true",

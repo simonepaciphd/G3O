@@ -36,23 +36,30 @@ detached run can be monitored and resumed while it is still in flight. Copy it.
 ```bash
 # 1. Code, pinned.
 git clone https://github.com/simonepaciphd/G3O.git ~/G3O
-git clone https://github.com/simonepaciphd/g3o-website.git ~/g3o-website
+git clone https://github.com/simonepaciphd/g3o-api.git ~/g3o-api
 cd ~/G3O && git checkout <sha> && pip install -e . && playwright install chromium
-cd ~/g3o-website && git checkout <sha>     # the ingest loader is pinned separately
+cd ~/g3o-api && git checkout <sha>         # the ingest loader is pinned separately
 
-# 2. boto3, for the archive leg only. Deliberately not a pipeline dependency.
-pip install boto3
+# 2. Two optional dependencies, deliberately not declared in pyproject.toml:
+#    boto3 for the archive leg, psycopg for the run-id collision guard. Both are
+#    needed on the droplet and nowhere else. Without psycopg the guard warns and
+#    skips rather than refusing, so a live run can still start unguarded — install
+#    it before the demonstration run.
+pip install boto3 "psycopg[binary]"
 
 # 3. Secrets, in the environment. Never on a command line: an argument lands in
 #    shell history and in every `ps` listing on the box.
 cat >> ~/.g3o-env <<'EOF'
 export OPENAI_API_KEY=...
 export SERPER_API_KEY=...
-export DATABASE_URL=...            # the NEON BRANCH dsn, not production
+export DATABASE_URL=...            # the NEON BRANCH dsn, not production, and
+                                   # the UNPOOLED string: the loader runs one
+                                   # long transaction, which a pooler in
+                                   # transaction mode breaks.
 export SPACES_KEY=...
 export SPACES_SECRET=...
 export SPACES_ENDPOINT=https://fra1.digitaloceanspaces.com
-export G3O_WEBSITE_REPO=$HOME/g3o-website
+export G3O_API_REPO=$HOME/g3o-api
 export G3O_API_BASE=https://api.g3observatory.org
 export G3O_OPERATOR=thomas
 export G3O_RUNS_DIR=$HOME/runs
@@ -134,7 +141,10 @@ python -m g3o persist --run-dir $G3O_RUNS_DIR/$RUN --run-id $RUN
 python -m g3o presweep-report --run-dir $G3O_RUNS_DIR/$RUN
 
 # 2. INGEST — refuses anything but a completed run. Loader exit code passed through.
-python -m g3o.run.orchestrate ingest --run-id $RUN --wave-id 1
+#    --frame-id is the master build this run sampled from; there is no --wave-id
+#    any more (v0.6 derives wave membership from the database, not from here).
+python -m g3o.run.orchestrate ingest --run-id $RUN --frame-id mb-2026-07-30 \
+    --expect-loader-sha <the pinned g3o-api sha>
 
 # 3. ARCHIVE — dry first (it deletes the institution tree), then apply + upload.
 python -m g3o.run.orchestrate archive --run-id $RUN
@@ -150,7 +160,13 @@ means *loaded and committed but a strict check failed* — the rows and the
 quarantine CSVs are in the database; read
 `runs/<id>/_orchestrator/ingest_reports/`. If the report says **COUNTS
 UNKNOWN**, the loader's output shape changed and the numbers are unavailable —
-that is not zero. Extra loader flags pass through: `--loader-arg --make-current`.
+that is not zero. Extra loader flags pass through: `--loader-arg --synthetic`.
+
+Two flags to know about and not use on a real run. `--loader-arg --no-refresh`
+skips the materialized-view refresh: the facts land and the site keeps serving
+stale aggregates, which is exactly the "publishes with no manual refresh"
+property the smoke gate asserts. `--loader-arg --synthetic` loads a run as
+queryable-but-never-published. Neither belongs on a gate run.
 
 **Archive** streams every uploaded object back out of the bucket and re-hashes
 it. `SHA256SUMS` and `archive_ledger.jsonl` land at the root of the run's prefix;
@@ -160,9 +176,10 @@ be browsed without extracting it.
 **Publish-verify** checks against an expectation: a completed run should be
 visible, a failed one should not. `--expect-hidden` asserts invisibility (an
 out-of-window run). Making a run visible is the wave window the PI cuts — this
-verb never does it. It reports `not_verifiable` while the pipeline stamps
-`institution_id` rather than `institution_uid`; the API is keyed by the uid and
-this leg will not guess a join.
+verb never does it. Since uid stamping (#71) it joins on `institution_uid` and
+returns a real verdict; a run planned before stamping carries no uid column and
+still reports `not_verifiable`, because the API is keyed by the uid and this leg
+will not guess a join.
 
 ### Restore one shard
 
@@ -277,11 +294,24 @@ runs/<run-id>/
 
 ## Known seams
 
-- **Ingest is wave-keyed.** `--wave-id` is required and passed straight through
-  to today's loader (schema v0.4). Run API spec §5 replaces it with run-keyed
-  facts and ex-post wave windows (v0.5, Katon's lane). When that lands, only
-  `build_argv` in `g3o/run/orchestrate/ingest.py` changes.
-- **Publish-verify needs `institution_uid`.** Until the pipeline stamps it, the
-  leg reports `not_verifiable` rather than guessing a join from `institution_id`.
+- **`--frame-id` is operator-supplied, and unvalidated here.** The manifest's
+  `frame` block is null on every run the pipeline emits today, so the master
+  build is named on the command line and the loader records it as
+  `frame_id_source = 'operator'`. A typo is not caught by this orchestrator.
+  When stamping populates the block, that flips to `'manifest'` and the flag
+  becomes redundant.
+- **The run-id collision guard fails open.** A live submit with an explicit
+  `--run-id` refuses if that id is already a row in `g3o.runs` (PI ruling
+  2026-08-14 §5). But an unset `DATABASE_URL`, a missing `psycopg`, or an
+  unreachable database all produce a **warning and a skip**, not a refusal —
+  blocking a run because the registry was briefly unreachable would trade a
+  rare cheap failure for a common expensive one. `_orchestrator/submit.json`
+  records which happened under `run_id_check`; a `skipped` verdict there means
+  nobody looked, not that the id was clear. A minted id is never checked, since
+  it cannot name a loaded run.
 - **`spend_snapshot` events are not emitted** (the sprint's agreed droppable);
-  their absence means nothing, by fixture loader invariant 12.
+  their absence means nothing, by fixture loader invariant 12. Reopened after
+  the window: a run that cannot say what it spent is a poor record.
+- **Concurrent same-process launches must agree on `dry_run`.** Serper live mode
+  is a module global, so a dry run can flip a live run onto the mock path. See
+  `docs/operations.md`.

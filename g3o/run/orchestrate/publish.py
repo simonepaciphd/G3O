@@ -18,12 +18,14 @@ someone remembers to eyeball.
 Two honest limitations, stated in the report rather than papered over:
 
 * **Joining on ``institution_uid``.** The public API addresses institutions by
-  ``institution_uid`` (``GET /institutions/{uid}``). The pipeline's Stage-7 CSVs
-  carry ``institution_id`` — ``INST-{master_row_id:07d}``, which is not the
-  registry key and is not stable across a master rebuild. Until the uid-stamping
-  work lands, this leg reports ``not_verifiable`` rather than guessing a join:
-  a fuzzy match here would produce a green publish-verify for rows the API is
-  not actually serving.
+  ``institution_uid`` (``GET /institutions/{uid}``). Since uid stamping (#71,
+  2026-08-16) the Stage-7 CSVs carry that column and this leg joins on it
+  directly. The fallback is retained deliberately: a run whose CSVs carry only
+  ``institution_id`` — ``INST-{master_row_id:07d}``, which is not the registry
+  key and is not stable across a master rebuild — still reports
+  ``not_verifiable`` rather than guessing a join, because a fuzzy match would
+  produce a green publish-verify for rows the API is not actually serving. Any
+  run planned before stamping lands in that branch.
 * **A sample, not a census.** The default is a deterministic sample of the run's
   institutions (sorted, first N), so re-running checks the same ones. Visibility
   is a property of the wave view, not of individual rows, so a sample answers the
