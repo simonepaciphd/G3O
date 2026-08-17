@@ -13,13 +13,15 @@ refused or could not run. Scripts should branch on 2 vs 1: *did not happen* vs
 
 ```bash
 # SUBMIT — starts the run and returns; closing this shell changes nothing.
-python -m g3o.run.orchestrate submit --config run-config.json --execute --detach
+python -m g3o.run.orchestrate submit --config run-config.json --execute --detach \
+    --session-id "$G3O_SESSION_ID"
 
 # STATUS — one line, any time, from any shell on the box.
 python -m g3o.run.orchestrate status --latest
 
 # RESUME — not a separate verb. Same command, same run id: it rejoins.
 python -m g3o.run.orchestrate submit --config run-config.json --execute --detach \
+    --session-id "$G3O_SESSION_ID" \
     --run-id r20260813T101500Z-9c2f
 
 # WATCH — status every minute until it stops changing.
@@ -28,6 +30,13 @@ watch -n 60 python -m g3o.run.orchestrate status --latest
 
 `submit` prints the minted run id **first**, before the run does anything, so a
 detached run can be monitored and resumed while it is still in flight. Copy it.
+
+**Pass `--session-id` on every run you care about.** It is the join key from a
+published database row back to the session that produced it (spec §4.2), and it
+is not recoverable afterwards — omit it and the manifest records the literal
+string `unattended`, which is a valid value and therefore fails silently. The
+precedence is the flag, then `$G3O_SESSION_ID`, then `unattended`; the flag is
+written out above so the omission is visible rather than implied.
 
 ---
 
@@ -82,8 +91,10 @@ chmod 600 ~/.g3o/env
 # G3O_OPERATOR is deliberately NOT in that file. It is the manifest's
 # accountability field, `telemetry.operator()` falls back to the OS user, and
 # the droplet's `g3o` account is shared -- so a name in a file we both source
-# would stamp the other person's runs. Set it per session instead:
+# would stamp the other person's runs. Same for G3O_SESSION_ID: it identifies
+# a session, and a shared file cannot. Both go per session:
 export G3O_OPERATOR=thomas
+export G3O_SESSION_ID=20260817-claude-g3o-endgame   # yours, not this example
 ```
 
 > **Source it with `set -a`, or nothing Python-side sees it.** `~/.g3o/env`
@@ -268,11 +279,14 @@ reboot:
 Description=G3O sweep %i
 [Service]
 Type=simple
-User=thomas
-EnvironmentFile=/home/thomas/.g3o-env
-WorkingDirectory=/home/thomas/G3O
-ExecStart=/usr/bin/python3 -m g3o.run.orchestrate submit \
-    --config /home/thomas/run-config.json --execute --run-id %i
+User=g3o
+EnvironmentFile=/home/g3o/.g3o/env
+WorkingDirectory=/home/g3o/G3O
+Environment=G3O_OPERATOR=thomas
+Environment=G3O_SESSION_ID=set-this-per-run
+ExecStart=/home/g3o/G3O/.venv/bin/python -m g3o.run.orchestrate submit \
+    --config /home/g3o/run-config.json --execute --run-id %i \
+    --session-id ${G3O_SESSION_ID}
 Restart=no
 [Install]
 WantedBy=multi-user.target
@@ -280,6 +294,15 @@ WantedBy=multi-user.target
 
 `Restart=no` is deliberate: a run that failed must be looked at, not restarted
 into the same wall. Resume is a decision, and it is one command.
+
+Two things about `EnvironmentFile` before trusting this unit. It is **not** a
+shell: it parses `KEY=value` directly, which means it reads the un-exported
+secret lines correctly where `source` does not — but it also does not honour an
+`export ` prefix and does not expand `$HOME`. Any line added to `~/.g3o/env` in
+shell form is therefore invisible or literal here, so state absolute paths with
+`Environment=` in the unit rather than relying on the file. `G3O_OPERATOR` and
+`G3O_SESSION_ID` are set in the unit for the same reason they are not in the
+shared file: they identify a person and a session, and the unit is per run.
 
 ---
 
