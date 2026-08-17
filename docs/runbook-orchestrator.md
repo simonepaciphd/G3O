@@ -49,23 +49,52 @@ pip install boto3 "psycopg[binary]"
 
 # 3. Secrets, in the environment. Never on a command line: an argument lands in
 #    shell history and in every `ps` listing on the box.
-cat >> ~/.g3o-env <<'EOF'
-export OPENAI_API_KEY=...
-export SERPER_API_KEY=...
-export DATABASE_URL=...            # the NEON BRANCH dsn, not production, and
+#
+#    On the provisioned droplet these already exist in ~/.g3o/env (mode 600).
+#    THAT FILE ASSIGNS WITHOUT `export`, so a plain `source` is not enough --
+#    see the warning below. Values are quoted; bash strips the quotes, so read
+#    it with the shell and not with a naive line parser.
+mkdir -p ~/.g3o
+cat >> ~/.g3o/env <<'EOF'
+OPENAI_API_KEY=...
+SERPER_API_KEY=...
+DATABASE_URL=...                   # the NEON BRANCH dsn, not production, and
                                    # the UNPOOLED string: the loader runs one
                                    # long transaction, which a pooler in
                                    # transaction mode breaks.
-export SPACES_KEY=...
-export SPACES_SECRET=...
-export SPACES_ENDPOINT=https://fra1.digitaloceanspaces.com
-export G3O_API_REPO=$HOME/g3o-api
-export G3O_API_BASE=https://api.g3observatory.org
-export G3O_OPERATOR=thomas
-export G3O_RUNS_DIR=$HOME/runs
+SPACES_KEY=...
+SPACES_SECRET=...
+SPACES_ENDPOINT=https://sfo3.digitaloceanspaces.com
+SPACES_BUCKET=...
+# SPACES_REGION is optional; g3o.run.orchestrate.objectstore defaults it to
+# us-east-1, which DigitalOcean Spaces accepts alongside a custom endpoint.
+G3O_API_REPO=$HOME/g3o-api
+G3O_API_BASE=...                   # the staging worker that reads the NEON
+                                   # BRANCH, with REGISTRY_ONLY dropped and
+                                   # DEFAULT_WAVE=w001. The production worker
+                                   # is REGISTRY_ONLY and serves zero findings,
+                                   # so publish-verify against it reports a run
+                                   # invisible however well the load went.
+G3O_OPERATOR=thomas
+G3O_RUNS_DIR=$HOME/runs
 EOF
-chmod 600 ~/.g3o-env && echo 'source ~/.g3o-env' >> ~/.bashrc
+chmod 600 ~/.g3o/env
 ```
+
+> **Source it with `set -a`, or nothing Python-side sees it.** `~/.g3o/env`
+> assigns rather than exports, so a plain `source` populates the *shell* and no
+> child process. `launch()`, the orchestrator and the loader (a subprocess under
+> the same interpreter) all read `os.environ`, and an unset key is a silent
+> fallback to mocks rather than an error — so a run sourced the wrong way starts
+> with no keys, no DSN, and no Spaces credentials, and says nothing about it.
+>
+> ```bash
+> set -a; . ~/.g3o/env; set +a      # every invocation, or put this in ~/.bashrc
+> python3 -c "import os; assert os.environ['DATABASE_URL']"   # cheap proof
+> ```
+>
+> Adding `export` to each line fixes it permanently, but the file is shared with
+> the PI — agree it before editing it.
 
 ### The run config
 
@@ -197,7 +226,7 @@ no G3O checkout:
 ```powershell
 pip install boto3
 $env:SPACES_KEY="..."; $env:SPACES_SECRET="..."
-$env:SPACES_ENDPOINT="https://fra1.digitaloceanspaces.com"
+$env:SPACES_ENDPOINT="https://sfo3.digitaloceanspaces.com"
 
 python scripts\orchestrator\pull_run_archive.py `
     --run-id r20260813T101500Z-9c2f `
@@ -294,6 +323,14 @@ runs/<run-id>/
 
 ## Known seams
 
+- **Publish-verify needs a worker that reads the run's database.** The leg is
+  only as meaningful as the endpoint in `G3O_API_BASE`. The worker on
+  `api.g3observatory.org` is the registry preview — `REGISTRY_ONLY=true`,
+  `DEFAULT_WAVE=w000` — which serves every institution as `not_reviewed` with
+  zero findings by design, and does not read a Neon branch. Pointed at it, this
+  leg reports a perfectly-loaded run invisible, and the report is correct about
+  the API while saying nothing about the load. Confirm the endpoint reads the
+  same database the run was ingested into before believing either verdict.
 - **`--frame-id` is operator-supplied, and unvalidated here.** The manifest's
   `frame` block is null on every run the pipeline emits today, so the master
   build is named on the command line and the loader records it as
