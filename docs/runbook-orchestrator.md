@@ -33,31 +33,73 @@ detached run can be monitored and resumed while it is still in flight. Copy it.
 
 ## Before the first run: the box
 
-```bash
-# 1. Code, pinned.
-git clone https://github.com/simonepaciphd/G3O.git ~/G3O
-git clone https://github.com/simonepaciphd/g3o-website.git ~/g3o-website
-cd ~/G3O && git checkout <sha> && pip install -e . && playwright install chromium
-cd ~/g3o-website && git checkout <sha>     # the ingest loader is pinned separately
+> Corrected against the real box (`g3o-run-01`, Ubuntu 24.04) on 2026-08-17.
+> Four things here were wrong or missing, and each one silently half-worked:
+> the loader repo, the venv, the secrets path, and quoting the DSN.
 
-# 2. boto3, for the archive leg only. Deliberately not a pipeline dependency.
-pip install boto3
+```bash
+# 1. Code, pinned. THREE repos, not two — scripts/ingest.py lives in g3o-api.
+#    (It is not in g3o-website and never was; that was this runbook's error.)
+git clone git@github-g3o-pipeline:simonepaciphd/G3O.git       ~/G3O
+git clone git@github-g3o-website:simonepaciphd/g3o-website.git ~/g3o-website
+git clone git@github-g3o-api:simonepaciphd/g3o-api.git         ~/g3o-api
+cd ~/G3O && git checkout <sha>
+cd ~/g3o-api && git checkout <sha>         # the loader is pinned separately
+# Each alias is a per-repo READ-ONLY deploy key in ~/.ssh/config. g3o-api's was
+# added 2026-08-17; the other two predate it.
+
+# 2. A VENV, not the system Python. Ubuntu 24.04 enforces PEP 668, so a bare
+#    `pip install -e .` exits with externally-managed-environment. Use a venv
+#    rather than --break-system-packages: this box runs the demonstration run,
+#    and Ubuntu's own tooling depends on that interpreter.
+python3 -m venv ~/venv
+~/venv/bin/pip install --upgrade pip
+cd ~/G3O && ~/venv/bin/pip install -e .
+~/venv/bin/pip install 'psycopg[binary]' boto3   # loader driver; archive leg
+~/venv/bin/playwright install chromium
+#    NOT --with-deps: it shells out to sudo and the g3o user has no TTY/password.
+#    The system libraries chromium needs are already present on this image —
+#    verified by launching it, not by assuming.
+# EVERY command below is ~/venv/bin/python, never plain python3.
 
 # 3. Secrets, in the environment. Never on a command line: an argument lands in
 #    shell history and in every `ps` listing on the box.
-cat >> ~/.g3o-env <<'EOF'
-export OPENAI_API_KEY=...
-export SERPER_API_KEY=...
-export DATABASE_URL=...            # the NEON BRANCH dsn, not production
-export SPACES_KEY=...
-export SPACES_SECRET=...
-export SPACES_ENDPOINT=https://fra1.digitaloceanspaces.com
+#    The real path is ~/.g3o/env — NOT ~/.g3o-env, which this runbook used to
+#    say. Note ~/.g3o/ is root-owned: the g3o user can rewrite `env` in place
+#    (it owns that file) but cannot create a sibling, so back it up to $HOME.
+#    ⚠️ SINGLE-QUOTE EVERY VALUE. The Neon DSN ends in
+#    `?sslmode=require&channel_binding=require`; unquoted, `source` splits at
+#    the `&`, backgrounds the first half, and DATABASE_URL is never set — with
+#    no error, because the assignment "succeeded".
+umask 077 && cat >> ~/.g3o/env <<'EOF'
+OPENAI_API_KEY='...'
+SERPER_API_KEY='...'
+DATABASE_URL='...'                 # the NEON BRANCH dsn, UNPOOLED, not production
+SPACES_KEY='...'
+SPACES_SECRET='...'
+SPACES_ENDPOINT='https://fra1.digitaloceanspaces.com'
+SPACES_BUCKET='...'
+EOF
+chmod 600 ~/.g3o/env
+#    ⚠️ UNPOOLED. Use the endpoint WITHOUT `-pooler` in the host. The loader
+#    runs the whole load in one transaction, which is precisely what a
+#    transaction-mode pooler is not built to hold.
+
+# 4. The frame. 171 MB, not in any repo — copy it up.
+mkdir -p ~/data ~/runs
+scp master_institutions.csv g3o-run-01:~/data/     # from the PI's machine
+
+# 5. Per-shell. `set -a` so the unexported assignments above still reach the
+#    process; G3O_API_REPO is what the ingest leg resolves the loader from.
+cat >> ~/.bashrc <<'EOF'
+set -a; . ~/.g3o/env; set +a
+export G3O_API_REPO=$HOME/g3o-api
 export G3O_WEBSITE_REPO=$HOME/g3o-website
 export G3O_API_BASE=https://api.g3observatory.org
-export G3O_OPERATOR=thomas
 export G3O_RUNS_DIR=$HOME/runs
+export G3O_MASTER_CSV=$HOME/data/master_institutions.csv
+export G3O_OPERATOR=<name>
 EOF
-chmod 600 ~/.g3o-env && echo 'source ~/.g3o-env' >> ~/.bashrc
 ```
 
 ### The run config
@@ -134,7 +176,7 @@ python -m g3o persist --run-dir $G3O_RUNS_DIR/$RUN --run-id $RUN
 python -m g3o presweep-report --run-dir $G3O_RUNS_DIR/$RUN
 
 # 2. INGEST — refuses anything but a completed run. Loader exit code passed through.
-python -m g3o.run.orchestrate ingest --run-id $RUN --wave-id 1
+python -m g3o.run.orchestrate ingest --run-id $RUN --frame-id mb-2026-07-30
 
 # 3. ARCHIVE — dry first (it deletes the institution tree), then apply + upload.
 python -m g3o.run.orchestrate archive --run-id $RUN
@@ -277,10 +319,14 @@ runs/<run-id>/
 
 ## Known seams
 
-- **Ingest is wave-keyed.** `--wave-id` is required and passed straight through
-  to today's loader (schema v0.4). Run API spec §5 replaces it with run-keyed
-  facts and ex-post wave windows (v0.5, Katon's lane). When that lands, only
-  `build_argv` in `g3o/run/orchestrate/ingest.py` changes.
+- **Ingest is run-keyed (v0.6, 2026-08-17).** This seam is CLOSED. `--wave-id`
+  is gone: pass `--frame-id` (the master build the run sampled from), which is
+  required while the manifest's `frame` block is null — and it is null on every
+  run the pipeline emits today. A run belongs to a wave iff its
+  `run_started_at` falls inside a `g3o.wave_windows` span, so wave membership is
+  a property of the database and a PI act, never an argument to the load. If
+  `g3o.wave_windows` is empty the run loads, validates green, and publishes
+  NOTHING, with nothing in the load path complaining.
 - **Publish-verify needs `institution_uid`.** Until the pipeline stamps it, the
   leg reports `not_verifiable` rather than guessing a join from `institution_id`.
 - **`spend_snapshot` events are not emitted** (the sprint's agreed droppable);
