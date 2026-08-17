@@ -166,7 +166,7 @@ def test_ingest_refuses_the_failed_run(
     monkeypatch.setenv(ing.DSN_ENV_VAR, "postgresql://u:p@host/db")
 
     with pytest.raises(ing.IngestError, match="refusing to ingest"):
-        ing.ingest_run(runs_dir, run_id, wave_id=1, website_repo=repo)
+        ing.ingest_run(runs_dir, run_id, frame_id='mb-TEST', loader_repo=repo)
 
     # And it refused before invoking anything: no ingest leg record, no log.
     assert run_status(runs_dir, run_id).legs.get("ingest") is None
@@ -265,4 +265,4 @@ def test_a_killed_run_is_also_refused_by_ingest(
     monkeypatch.setenv(ing.DSN_ENV_VAR, "postgresql://u:p@host/db")
 
     with pytest.raises(ing.IngestError, match="interrupted"):
-        ing.ingest_run(runs_dir, run_id, wave_id=1, website_repo=repo)
+        ing.ingest_run(runs_dir, run_id, frame_id='mb-TEST', loader_repo=repo)

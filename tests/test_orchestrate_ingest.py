@@ -153,10 +153,10 @@ def test_a_loader_that_echoes_the_dsn_does_not_get_it_archived(
     dsn = "postgresql://neon_user:sup3r-s3cret@ep-cool-1.neon.tech/g3o"
     runs_dir, run_id = _completed_run(tmp_path, master)
     leaky = "psycopg.OperationalError: could not connect: " + dsn
-    repo = _fake_website_repo(tmp_path, exit_code=2, output=leaky)
+    repo = _fake_loader_repo(tmp_path, exit_code=2, output=leaky)
     monkeypatch.setenv(ing.DSN_ENV_VAR, dsn)
 
-    result = ing.ingest_run(runs_dir, run_id, wave_id=1, website_repo=repo)
+    result = ing.ingest_run(runs_dir, run_id, frame_id='mb-TEST', loader_repo=repo)
 
     log = result.log_path.read_text(encoding="utf-8")
     assert "sup3r-s3cret" not in log
@@ -200,7 +200,7 @@ def test_the_dsn_is_described_without_its_password() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _fake_website_repo(tmp_path: Path, *, exit_code: int, output: str, quarantine_rows: int = 0) -> Path:
+def _fake_loader_repo(tmp_path: Path, *, exit_code: int, output: str, quarantine_rows: int = 0) -> Path:
     """A stand-in ``g3o-website`` checkout whose loader prints a fixed transcript."""
     repo = tmp_path / "g3o-website"
     (repo / "scripts").mkdir(parents=True)
@@ -247,10 +247,10 @@ def master(tmp_path: Path) -> Path:
 
 def test_a_green_load_is_reported_green(tmp_path: Path, master: Path, monkeypatch) -> None:
     runs_dir, run_id = _completed_run(tmp_path, master)
-    repo = _fake_website_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
+    repo = _fake_loader_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
     monkeypatch.setenv(ing.DSN_ENV_VAR, "postgresql://u:p@host/db")
 
-    result = ing.ingest_run(runs_dir, run_id, wave_id=1, website_repo=repo)
+    result = ing.ingest_run(runs_dir, run_id, frame_id='mb-TEST', loader_repo=repo)
 
     assert result.exit_code == 0
     assert result.green
@@ -263,12 +263,12 @@ def test_a_strict_failure_surfaces_its_exit_code_and_reports(
     tmp_path: Path, master: Path, monkeypatch
 ) -> None:
     runs_dir, run_id = _completed_run(tmp_path, master)
-    repo = _fake_website_repo(
+    repo = _fake_loader_repo(
         tmp_path, exit_code=1, output=QUARANTINED_OUTPUT, quarantine_rows=16
     )
     monkeypatch.setenv(ing.DSN_ENV_VAR, "postgresql://u:p@host/db")
 
-    result = ing.ingest_run(runs_dir, run_id, wave_id=1, website_repo=repo)
+    result = ing.ingest_run(runs_dir, run_id, frame_id='mb-TEST', loader_repo=repo)
 
     assert result.exit_code == 1
     assert not result.green
@@ -285,10 +285,10 @@ def test_the_leg_record_survives_the_run(tmp_path: Path, master: Path, monkeypat
     from g3o.run.orchestrate.status import run_status
 
     runs_dir, run_id = _completed_run(tmp_path, master)
-    repo = _fake_website_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
+    repo = _fake_loader_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
     monkeypatch.setenv(ing.DSN_ENV_VAR, "postgresql://u:p@host/db")
 
-    ing.ingest_run(runs_dir, run_id, wave_id=1, website_repo=repo)
+    ing.ingest_run(runs_dir, run_id, frame_id='mb-TEST', loader_repo=repo)
 
     status = run_status(runs_dir, run_id)
     assert status.legs["ingest"]["outcome"] == "green"
@@ -313,11 +313,11 @@ def test_a_run_that_did_not_complete_is_refused(tmp_path: Path, master: Path, mo
         ],
     )
     write_final_csvs(run_dir)
-    repo = _fake_website_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
+    repo = _fake_loader_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
     monkeypatch.setenv(ing.DSN_ENV_VAR, "postgresql://u:p@host/db")
 
     with pytest.raises(ing.IngestError, match="refusing to ingest"):
-        ing.ingest_run(runs_dir, run_dir.name, wave_id=1, website_repo=repo)
+        ing.ingest_run(runs_dir, run_dir.name, frame_id='mb-TEST', loader_repo=repo)
 
 
 def test_force_loads_a_partial_run_and_records_that_it_did(
@@ -332,10 +332,10 @@ def test_force_loads_a_partial_run_and_records_that_it_did(
         events=[event(1, "run_launched"), event(2, "run_failed", error_class="RuntimeError")],
     )
     write_final_csvs(run_dir)
-    repo = _fake_website_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
+    repo = _fake_loader_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
     monkeypatch.setenv(ing.DSN_ENV_VAR, "postgresql://u:p@host/db")
 
-    ing.ingest_run(runs_dir, run_dir.name, wave_id=1, website_repo=repo, force=True)
+    ing.ingest_run(runs_dir, run_dir.name, frame_id='mb-TEST', loader_repo=repo, force=True)
 
     assert run_status(runs_dir, run_dir.name).legs["ingest"]["forced"] is True
 
@@ -344,35 +344,35 @@ def test_a_missing_dsn_refuses_before_anything_runs(
     tmp_path: Path, master: Path, monkeypatch
 ) -> None:
     runs_dir, run_id = _completed_run(tmp_path, master)
-    repo = _fake_website_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
+    repo = _fake_loader_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
     monkeypatch.delenv(ing.DSN_ENV_VAR, raising=False)
 
     with pytest.raises(ing.IngestError, match="DATABASE_URL"):
-        ing.ingest_run(runs_dir, run_id, wave_id=1, website_repo=repo)
+        ing.ingest_run(runs_dir, run_id, frame_id='mb-TEST', loader_repo=repo)
 
 
 def test_a_checkout_at_the_wrong_commit_is_refused(
     tmp_path: Path, master: Path, monkeypatch
 ) -> None:
     runs_dir, run_id = _completed_run(tmp_path, master)
-    repo = _fake_website_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
+    repo = _fake_loader_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
     monkeypatch.setenv(ing.DSN_ENV_VAR, "postgresql://u:p@host/db")
 
     with pytest.raises(ing.IngestError, match="pinned"):
         ing.ingest_run(
-            runs_dir, run_id, wave_id=1, website_repo=repo, expect_loader_sha="deadbeef",
+            runs_dir, run_id, frame_id='mb-TEST', loader_repo=repo, expect_loader_sha="deadbeef",
         )
 
 
 def test_a_directory_without_the_loader_is_not_a_checkout(tmp_path: Path) -> None:
-    with pytest.raises(ing.IngestError, match="not a g3o-website checkout"):
-        ing.resolve_website_repo(tmp_path)
+    with pytest.raises(ing.IngestError, match="not a g3o-api checkout"):
+        ing.resolve_loader_repo(tmp_path)
 
 
 def test_no_repo_at_all_names_the_env_var(monkeypatch) -> None:
-    monkeypatch.delenv(ing.WEBSITE_REPO_ENV_VAR, raising=False)
-    with pytest.raises(ing.IngestError, match=ing.WEBSITE_REPO_ENV_VAR):
-        ing.resolve_website_repo(None)
+    monkeypatch.delenv(ing.LOADER_REPO_ENV_VAR, raising=False)
+    with pytest.raises(ing.IngestError, match=ing.LOADER_REPO_ENV_VAR):
+        ing.resolve_loader_repo(None)
 
 
 def test_missing_stage7_output_says_to_run_persist(tmp_path: Path) -> None:
@@ -398,11 +398,15 @@ def test_the_highest_csv_version_wins(tmp_path: Path) -> None:
 
 def test_extra_loader_args_are_passed_through(tmp_path: Path) -> None:
     argv = ing.build_argv(
-        tmp_path, wave_id=3, master=Path("m.csv"), activities=Path("a.csv"),
+        tmp_path, run_dir=Path("runs/r1"), frame_id="mb-2026-07-30",
+        master=Path("m.csv"), activities=Path("a.csv"),
         sources=Path("s.csv"), report_dir=Path("r"), extra_args=("--make-current",),
     )
     assert argv[-1] == "--make-current"
-    assert "--wave-id" in argv and "3" in argv
+    # v0.6: --run-dir + --frame-id, and no --wave-id anywhere.
+    assert "--run-dir" in argv and "--frame-id" in argv
+    assert "mb-2026-07-30" in argv
+    assert "--wave-id" not in argv
 
 
 def test_the_master_comes_from_the_run_that_sampled_it(tmp_path: Path, master: Path) -> None:
@@ -413,9 +417,9 @@ def test_the_master_comes_from_the_run_that_sampled_it(tmp_path: Path, master: P
 def test_environment_is_not_mutated_by_the_leg(tmp_path: Path, master: Path, monkeypatch) -> None:
     """The DSN is handed to the child's environment, not written into ours."""
     runs_dir, run_id = _completed_run(tmp_path, master)
-    repo = _fake_website_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
+    repo = _fake_loader_repo(tmp_path, exit_code=0, output=GREEN_OUTPUT)
     monkeypatch.delenv(ing.DSN_ENV_VAR, raising=False)
 
-    ing.ingest_run(runs_dir, run_id, wave_id=1, website_repo=repo, dsn="postgresql://u:p@h/d")
+    ing.ingest_run(runs_dir, run_id, frame_id='mb-TEST', loader_repo=repo, dsn="postgresql://u:p@h/d")
 
     assert ing.DSN_ENV_VAR not in os.environ
