@@ -75,10 +75,15 @@ G3O_API_BASE=...                   # the staging worker that reads the NEON
                                    # is REGISTRY_ONLY and serves zero findings,
                                    # so publish-verify against it reports a run
                                    # invisible however well the load went.
-G3O_OPERATOR=thomas
 G3O_RUNS_DIR=$HOME/runs
 EOF
 chmod 600 ~/.g3o/env
+
+# G3O_OPERATOR is deliberately NOT in that file. It is the manifest's
+# accountability field, `telemetry.operator()` falls back to the OS user, and
+# the droplet's `g3o` account is shared -- so a name in a file we both source
+# would stamp the other person's runs. Set it per session instead:
+export G3O_OPERATOR=thomas
 ```
 
 > **Source it with `set -a`, or nothing Python-side sees it.** `~/.g3o/env`
@@ -94,7 +99,9 @@ chmod 600 ~/.g3o/env
 > ```
 >
 > Adding `export` to each line fixes it permanently, but the file is shared with
-> the PI — agree it before editing it.
+> the PI — agree it before editing it. On the provisioned droplet `~/.g3o/` is
+> root-owned while `env` inside it belongs to `g3o`: you can append to the file
+> but cannot create a sibling next to it, so write backups to `$HOME`.
 
 ### The run config
 
