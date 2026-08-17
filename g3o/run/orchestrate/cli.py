@@ -77,6 +77,21 @@ def _emit(payload: dict[str, Any], text: str, *, as_json: bool) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _effective_ceiling(args: argparse.Namespace) -> float | None:
+    """CLI flag > ``G3O_BUDGET_LIMIT_USD`` > none.
+
+    The same precedence ``g3o.cli._effective_budget`` applies, reused rather than
+    re-decided: two paths that disagree about which ceiling is in force would be
+    worse than neither having one.
+    """
+    from g3o.cli import _parse_budget_limit
+    from g3o.common.config import BUDGET_LIMIT_USD
+
+    if getattr(args, "cost_ceiling", None) is not None:
+        return float(args.cost_ceiling)
+    return _parse_budget_limit(BUDGET_LIMIT_USD)
+
+
 def _cmd_submit(args: argparse.Namespace) -> int:
     from g3o.run.orchestrate.submit import SubmitError, load_config_file, submit
 
@@ -123,6 +138,7 @@ def _cmd_submit(args: argparse.Namespace) -> int:
             credentials=Credentials(label=args.key_label),
             session_id=args.session_id,
             detach=args.detach,
+            cost_ceiling_usd=_effective_ceiling(args),
         )
     except SubmitError as exc:
         sys.stderr.write(f"{exc}\n")
@@ -176,8 +192,8 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
         result = ingest_run(
             _runs_dir(args),
             _resolve_run_id(args),
-            wave_id=args.wave_id,
-            website_repo=Path(args.website_repo) if args.website_repo else None,
+            frame_id=args.frame_id,
+            loader_repo=Path(args.loader_repo) if args.loader_repo else None,
             master_csv=Path(args.master_csv) if args.master_csv else None,
             extra_args=tuple(args.loader_arg or ()),
             expect_loader_sha=args.expect_loader_sha,
@@ -318,6 +334,17 @@ def build_parser() -> argparse.ArgumentParser:
              "default would surprise anyone running this locally.",
     )
     submit.add_argument("--execute", action="store_true", help="Live spend (default is a dry run).")
+    submit.add_argument(
+        "--cost-ceiling", type=float, default=None,
+        help=(
+            "Refuse the submit if the preflight projects OpenAI Batch spend above "
+            "this many USD. Falls back to $G3O_BUDGET_LIMIT_USD. Checked before "
+            "the detach fork, so it binds identically detached or not, and the "
+            "projection that cleared is recorded at "
+            "_orchestrator/cost_projection.json. No ceiling set means no cap — "
+            "state one for any run you are not watching."
+        ),
+    )
     submit.add_argument("--master-csv", default=None)
     submit.add_argument("--sample-size", type=int, default=None)
     submit.add_argument("--seed", type=int, default=None)
@@ -365,10 +392,20 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     _add_run_selector(ingest)
-    ingest.add_argument("--wave-id", type=int, required=True, help="Loader --wave-id (schema v0.4).")
     ingest.add_argument(
-        "--website-repo", default=None,
-        help="Pinned g3o-website checkout. Defaults to $G3O_WEBSITE_REPO.",
+        "--frame-id", required=True,
+        help=(
+            "Loader --frame-id: the master build this run sampled from, e.g. "
+            "mb-2026-07-30. Required while the manifest's frame block is null, "
+            "which it is on every run the pipeline emits today. There is no "
+            "--wave-id any more: under schema v0.6 a run belongs to a wave iff "
+            "its run_started_at falls inside a g3o.wave_windows span, which is a "
+            "property of the database, not of this invocation."
+        ),
+    )
+    ingest.add_argument(
+        "--loader-repo", default=None,
+        help="Pinned g3o-api checkout (owns scripts/ingest.py). Defaults to $G3O_API_REPO.",
     )
     ingest.add_argument(
         "--master-csv", default=None,

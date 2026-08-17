@@ -30,6 +30,7 @@ that survives, and to write down which process that was. The one piece of
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import subprocess
@@ -54,6 +55,8 @@ logger = logging.getLogger(__name__)
 SUBMIT_LOG_FILENAME = "submit.log"
 SUBMIT_CONFIG_FILENAME = "submit_config.json"
 SUBMIT_RECORD_FILENAME = "submit.json"
+#: The preflight projection that cleared a live submit against its cost ceiling.
+COST_PROJECTION_FILENAME = "cost_projection.json"
 
 #: ``PresweepConfig`` fields whose JSON form is not their Python form.
 _PATH_FIELDS = ("runs_dir", "master_csv")
@@ -226,6 +229,50 @@ def _mint(runs_dir: Path) -> str:
     return _mint_unused_run_id(runs_dir)
 
 
+def cost_gate(
+    config: PresweepConfig,
+    *,
+    credentials: Credentials | None,
+    cost_ceiling_usd: float | None,
+) -> dict[str, Any] | None:
+    """Refuse a live submit whose projected spend exceeds ``cost_ceiling_usd``.
+
+    Added 2026-08-17. The circuit breaker previously existed only in
+    ``g3o.cli._cmd_presweep``, which wraps ``launch()`` for the argv path — so the
+    orchestrator, which calls ``launch()`` directly, had no cap at all. The PI's
+    signed spend authorisation (PI-Checklist item (d), 2026-08-16) states a cap
+    "per run", and the runbook prescribes this verb for the demonstration run, so
+    the cap has to bind here or it does not bind on the path that is actually
+    used.
+
+    Deliberately the same mechanism as the CLI's, not a second policy: a preflight
+    projection, which submits no batch and spends nothing, and a refusal before
+    ``launch()`` is reached. Returns the projection so the caller can record it —
+    the projection that cleared real spend is part of the run's record, not just
+    the one that blocked it. Returns ``None`` when no ceiling is set or the run is
+    a dry run, which spends nothing by construction.
+    """
+    if cost_ceiling_usd is None or config.dry_run:
+        return None
+
+    from g3o.run.preflight import run_preflight
+
+    summary = run_preflight(
+        config, cost_ceiling_usd=cost_ceiling_usd, credentials=credentials
+    )
+    if summary.get("cost_ceiling_exceeded"):
+        projected = (summary.get("cost_preview") or {}).get(
+            "est_openai_batch_total_usd", 0
+        )
+        raise SubmitError(
+            f"COST CIRCUIT BREAKER: projected OpenAI Batch spend "
+            f"${projected:.2f} exceeds the ${cost_ceiling_usd:.2f} ceiling. "
+            f"Nothing was submitted. Raise --cost-ceiling deliberately, or reduce "
+            f"--sample-size."
+        )
+    return summary
+
+
 def submit(
     config: PresweepConfig,
     *,
@@ -233,6 +280,7 @@ def submit(
     session_id: str | None = None,
     detach: bool = False,
     log_path: Path | None = None,
+    cost_ceiling_usd: float | None = None,
 ) -> SubmitReceipt:
     """Start a run. With ``detach``, return as soon as it is running.
 
@@ -249,6 +297,14 @@ def submit(
     run_id = config.run_id or _mint(config.runs_dir)
     config = replace(config, run_id=run_id)
     run_dir = config.runs_dir / run_id
+
+    # Before the detach fork, so the cap binds identically in both modes. A
+    # detached run that only discovered its ceiling in the child would have
+    # already returned "running" to the operator.
+    projection = cost_gate(
+        config, credentials=credentials, cost_ceiling_usd=cost_ceiling_usd
+    )
+
     try:
         orchestrator_dir(run_dir).mkdir(parents=True, exist_ok=True)
     except OSError as exc:
@@ -257,6 +313,18 @@ def submit(
             f"records every leg under the run directory; a run it cannot write "
             f"bookkeeping for is a run it cannot monitor."
         ) from exc
+
+    # The projection that CLEARED real spend is part of the run's record, not
+    # only the one that blocks it — otherwise the only evidence a cap was in
+    # force is that nothing went wrong.
+    if projection is not None:
+        try:
+            write_json_atomic(
+                orchestrator_dir(run_dir) / COST_PROJECTION_FILENAME,
+                json.loads(json.dumps(projection, default=str)),
+            )
+        except OSError:
+            logger.warning("could not record the cost projection (non-fatal)", exc_info=True)
 
     if detach:
         return _submit_detached(

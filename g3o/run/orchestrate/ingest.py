@@ -3,7 +3,7 @@
 The failure mode this leg exists to prevent is named in the Item 3 brief: *"a
 green print over a rolled-back load is the failure mode that burned us in
 ``--smoke``"*. So nothing here summarises the loader. ``scripts/ingest.py`` in the
-``g3o-website`` checkout is the authority on whether a load is green — it has a
+``g3o-api`` checkout is the authority on whether a load is green — it has a
 policy for that (v4: *strict by default, explicitly overridable, never silent*)
 and it encodes it in an exit code:
 
@@ -32,13 +32,26 @@ rules keep the report honest:
   mechanism behind the joint gate's "an induced failure publishes nothing" — it
   is a property of this function, not a step someone remembers.
 
-**Open seam, reported rather than worked around (Item 3 boundaries).** Today's
-loader is wave-keyed (``--wave-id``, schema v0.4). Run API spec §5 replaces that
-with run-keyed facts and ex-post wave windows (schema v0.5), which is Katon's
-lane and has not landed. So ``--wave-id`` is required here and passed straight
-through, and every other loader flag is available via ``extra_args``. When v0.5
-lands this leg changes in one place — :func:`build_argv` — and nothing else in
-the orchestrator moves.
+**Seam CLOSED, 2026-08-17.** This leg was written against the wave-keyed loader
+(``--wave-id``, schema v0.4), with a note that schema v0.5 would replace it and
+that the change would land in one place. That schema landed as **v0.6** —
+run-keyed facts and ex-post wave windows — in ``g3o-api`` PR #3, and the change
+did land in one place, :func:`build_argv`, plus the repo the loader is fetched
+from. Two things moved:
+
+* ``--wave-id`` is **gone from the loader** and is replaced by ``--run-dir``
+  (which the loader reads ``manifest.json`` and ``events.jsonl`` from) and
+  ``--frame-id`` (the master build the run sampled from). ``--frame-id`` is
+  required while the manifest's ``frame`` block is null, which it is on every
+  run the pipeline emits today, so it is required here too rather than being
+  inferred from a manifest field that is reliably ``None``.
+* The loader's canonical home is **``g3o-api``**, not ``g3o-website``. It was
+  never in ``g3o-website``; this leg was written before the split settled.
+
+Wave membership is no longer an argument to the load at all. A run belongs to a
+wave iff its ``run_started_at`` falls inside a ``g3o.wave_windows`` span, which
+is a property of the database and a PI act, not of the invocation. That is why
+nothing here takes a wave any more.
 """
 
 from __future__ import annotations
@@ -65,8 +78,12 @@ from g3o.run.orchestrate.status import (
 
 logger = logging.getLogger(__name__)
 
-#: Where the pinned ``g3o-website`` checkout is, if not passed explicitly.
-WEBSITE_REPO_ENV_VAR = "G3O_WEBSITE_REPO"
+#: Where the pinned ``g3o-api`` checkout is, if not passed explicitly. This was
+#: ``G3O_WEBSITE_REPO`` until 2026-08-17; the loader has always lived in
+#: ``g3o-api`` and the old name pointed this leg at a repo that does not contain
+#: it. No alias is kept: the leg had never completed a load under the old name,
+#: so there is nothing in the field to stay compatible with.
+LOADER_REPO_ENV_VAR = "G3O_API_REPO"
 DSN_ENV_VAR = "DATABASE_URL"
 
 INGEST_SCRIPT_RELPATH = Path("scripts") / "ingest.py"
@@ -274,20 +291,20 @@ class IngestResult:
 # ---------------------------------------------------------------------------
 
 
-def resolve_website_repo(explicit: Path | None = None) -> Path:
-    """The pinned ``g3o-website`` checkout that owns ``scripts/ingest.py``."""
-    raw = explicit or os.environ.get(WEBSITE_REPO_ENV_VAR)
+def resolve_loader_repo(explicit: Path | None = None) -> Path:
+    """The pinned ``g3o-api`` checkout that owns ``scripts/ingest.py``."""
+    raw = explicit or os.environ.get(LOADER_REPO_ENV_VAR)
     if not raw:
         raise IngestError(
-            f"no g3o-website checkout given. Pass --website-repo or set "
-            f"{WEBSITE_REPO_ENV_VAR}. The loader is deliberately invoked from a "
+            f"no g3o-api checkout given. Pass --loader-repo or set "
+            f"{LOADER_REPO_ENV_VAR}. The loader is deliberately invoked from a "
             f"pinned checkout rather than vendored here: it is the backend's code, "
             f"on the backend's release cadence."
         )
     repo = Path(raw).expanduser().resolve()
     script = repo / INGEST_SCRIPT_RELPATH
     if not script.is_file():
-        raise IngestError(f"{script} does not exist — {repo} is not a g3o-website checkout.")
+        raise IngestError(f"{script} does not exist — {repo} is not a g3o-api checkout.")
     return repo
 
 
@@ -407,7 +424,8 @@ def master_csv_from_manifest(run_dir: Path) -> Path | None:
 def build_argv(
     repo: Path,
     *,
-    wave_id: int,
+    run_dir: Path,
+    frame_id: str,
     master: Path,
     activities: Path,
     sources: Path,
@@ -415,11 +433,17 @@ def build_argv(
     extra_args: tuple[str, ...] = (),
     python: str | None = None,
 ) -> tuple[str, ...]:
-    """The loader invocation. The one place schema v0.5 will change this leg."""
+    """The loader invocation. The one place a schema change moves this leg.
+
+    v0.6 (2026-08-17): ``--wave-id`` is gone. ``--run-dir`` gives the loader the
+    manifest and the event log it keys facts by; ``--frame-id`` names the master
+    build, and is required while the manifest's ``frame`` block is null.
+    """
     return (
         python or sys.executable,
         str(repo / INGEST_SCRIPT_RELPATH),
-        "--wave-id", str(wave_id),
+        "--run-dir", str(run_dir),
+        "--frame-id", frame_id,
         "--master", str(master),
         "--activities", str(activities),
         "--sources", str(sources),
@@ -447,8 +471,8 @@ def ingest_run(
     runs_dir: Path,
     run_id: str,
     *,
-    wave_id: int,
-    website_repo: Path | None = None,
+    frame_id: str,
+    loader_repo: Path | None = None,
     master_csv: Path | None = None,
     extra_args: tuple[str, ...] = (),
     dsn: str | None = None,
@@ -480,11 +504,11 @@ def ingest_run(
             "load one deliberately."
         )
 
-    repo = resolve_website_repo(website_repo)
+    repo = resolve_loader_repo(loader_repo)
     provenance = loader_provenance(repo)
     if expect_loader_sha and provenance.get("git_sha") != expect_loader_sha:
         raise IngestError(
-            f"the g3o-website checkout at {repo} is at "
+            f"the g3o-api checkout at {repo} is at "
             f"{provenance.get('git_sha')!r}, not the pinned {expect_loader_sha!r}. "
             f"Refusing: which loader ran is part of the run record."
         )
@@ -515,7 +539,8 @@ def ingest_run(
 
     argv = build_argv(
         repo,
-        wave_id=wave_id,
+        run_dir=run_dir,
+        frame_id=frame_id,
         master=Path(master),
         activities=activities,
         sources=sources,
@@ -561,7 +586,7 @@ def ingest_run(
         outcome="green" if result.green else "not-green",
         started_at=started_at,
         forced=force,
-        wave_id=wave_id,
+        frame_id=frame_id,
         **result.to_dict(),
     )
     return result
@@ -621,7 +646,7 @@ __all__ = [
     "EXIT_OK",
     "EXIT_STRICT_FAILURE",
     "SOURCES_GLOB",
-    "WEBSITE_REPO_ENV_VAR",
+    "LOADER_REPO_ENV_VAR",
     "IngestCounts",
     "IngestError",
     "IngestResult",
@@ -633,5 +658,5 @@ __all__ = [
     "master_csv_from_manifest",
     "parse_ingest_output",
     "render_ingest",
-    "resolve_website_repo",
+    "resolve_loader_repo",
 ]

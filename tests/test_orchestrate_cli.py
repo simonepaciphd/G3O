@@ -202,23 +202,23 @@ def test_archive_refuses_an_unfinished_run(tmp_path: Path, capsys) -> None:
     assert "refusing to archive" in capsys.readouterr().err
 
 
-def test_ingest_requires_a_wave_id(tmp_path: Path) -> None:
+def test_ingest_requires_a_frame_id(tmp_path: Path) -> None:
     with pytest.raises(SystemExit):
         main(["ingest", "--run-id", "r1", "--runs-dir", str(tmp_path)])
 
 
 def test_ingest_without_a_checkout_refuses(tmp_path: Path, monkeypatch, capsys) -> None:
-    monkeypatch.delenv("G3O_WEBSITE_REPO", raising=False)
+    monkeypatch.delenv("G3O_API_REPO", raising=False)
     runs_dir = tmp_path / "runs"
     run_dir = _completed(runs_dir)
     write_final_csvs(run_dir)
 
     code = main(
-        ["ingest", "--run-id", run_dir.name, "--runs-dir", str(runs_dir), "--wave-id", "1"]
+        ["ingest", "--run-id", run_dir.name, "--runs-dir", str(runs_dir), "--frame-id", "mb-TEST"]
     )
 
     assert code == EXIT_REFUSED
-    assert "G3O_WEBSITE_REPO" in capsys.readouterr().err
+    assert "G3O_API_REPO" in capsys.readouterr().err
 
 
 def test_publish_verify_without_an_api_base_refuses(tmp_path: Path, monkeypatch, capsys) -> None:
@@ -244,5 +244,5 @@ def _minimal_args(verb: str) -> list[str]:
     if verb == "submit":
         return ["submit", "--config", "x.json"]
     if verb == "ingest":
-        return ["ingest", "--run-id", "r", "--wave-id", "1"]
+        return ["ingest", "--run-id", "r", "--frame-id", "mb-TEST"]
     return [verb, "--run-id", "r"]

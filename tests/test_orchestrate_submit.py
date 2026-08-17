@@ -13,6 +13,7 @@ import csv
 import json
 import os
 import time
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -317,3 +318,59 @@ def test_detached_dry_run_completes_without_the_parent(config: PresweepConfig) -
     assert status.dry_run is True
     assert not status.publishable
     assert (receipt.log_path or Path()).is_file()
+
+
+# ---------------------------------------------------------------------------
+# The cost circuit breaker (2026-08-17)
+# ---------------------------------------------------------------------------
+
+
+def test_no_ceiling_means_no_preflight(config, monkeypatch) -> None:
+    """The gate is opt-in. Absent a ceiling it must not run a projection at all."""
+    called = False
+
+    def _boom(*a, **k):  # pragma: no cover - asserted by `called`
+        nonlocal called
+        called = True
+        return {}
+
+    monkeypatch.setattr("g3o.run.preflight.run_preflight", _boom)
+    assert sub.cost_gate(config, credentials=None, cost_ceiling_usd=None) is None
+    assert not called
+
+
+def test_a_dry_run_is_never_gated(config, monkeypatch) -> None:
+    """A dry run spends nothing by construction, so a projection is noise."""
+    monkeypatch.setattr(
+        "g3o.run.preflight.run_preflight",
+        lambda *a, **k: pytest.fail("a dry run must not be projected"),
+    )
+    dry = replace(config, dry_run=True)
+    assert sub.cost_gate(dry, credentials=None, cost_ceiling_usd=25.0) is None
+
+
+def test_a_projection_over_the_ceiling_refuses_before_launch(config, monkeypatch) -> None:
+    """The refusal is the point: nothing is submitted and the message says so."""
+    monkeypatch.setattr(
+        "g3o.run.preflight.run_preflight",
+        lambda *a, **k: {
+            "cost_ceiling_exceeded": True,
+            "cost_preview": {"est_openai_batch_total_usd": 99.5},
+        },
+    )
+    live = replace(config, dry_run=False)
+
+    with pytest.raises(sub.SubmitError, match="COST CIRCUIT BREAKER"):
+        sub.cost_gate(live, credentials=None, cost_ceiling_usd=25.0)
+
+
+def test_a_projection_under_the_ceiling_is_returned_for_the_record(config, monkeypatch) -> None:
+    """The projection that CLEARED spend is evidence too, not only the one that blocks."""
+    summary = {
+        "cost_ceiling_exceeded": False,
+        "cost_preview": {"est_openai_batch_total_usd": 0.14},
+    }
+    monkeypatch.setattr("g3o.run.preflight.run_preflight", lambda *a, **k: summary)
+    live = replace(config, dry_run=False)
+
+    assert sub.cost_gate(live, credentials=None, cost_ceiling_usd=25.0) == summary
