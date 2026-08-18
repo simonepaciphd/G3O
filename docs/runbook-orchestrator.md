@@ -189,6 +189,21 @@ r20260813T101500Z-9c2f  RUNNING      stages=5/8  in-flight=extract  chunks=2  pi
 | `pid=8123/alive` | the supervised process. `dead` ⇒ the state is `INTERRUPTED` |
 | `last=…` | the last event in `events.jsonl` |
 
+> **Killing a run orphans its in-flight OpenAI batch, and nothing reaps it.**
+> Measured 2026-08-18: `discovery_general` finished in 1.9 s at n=2, so a kill
+> aimed at stage 1 landed in `classify_official_site` *after* a batch had been
+> submitted. That batch kept running server-side and billed until cancelled by
+> hand. Stage 1 is fast at any small n, so treat every kill as leaving a live
+> batch. Read the `batch_id` from the last `chunk_submitted` event and cancel it:
+>
+> ```bash
+> tail -3 $G3O_RUNS_DIR/$RUN/events.jsonl        # find the batch_id
+> python -c "import os;from openai import OpenAI;> print(OpenAI(api_key=os.environ['OPENAI_API_KEY']).batches.cancel('batch_...').status)"
+> ```
+>
+> Never cancel a batch belonging to a run you intend to **resume** — re-invoking
+> rejoins polling, and a `poll_timeout` is not a failure.
+
 **States:** `LAUNCHING` · `RUNNING` · `COMPLETED` · `STOPPED` (dry run, or
 `--stop-after` short of the end) · `FAILED` (the run said so) · `INTERRUPTED`
 (the process is gone and the run never got to say so — killed, or the box died).
