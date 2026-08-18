@@ -6,9 +6,9 @@ emits for a run (`g3o.persist.writer`), with column orders pinned in
 
 | CSV                              | Column constant            | Cols | Grain                              |
 |----------------------------------|----------------------------|------|------------------------------------|
-| `g3o_activities_v{N}.csv`        | `ACTIVITY_COLUMNS`         | 35   | one row per (institution × activity) |
-| `g3o_activity_sources_v{N}.csv`  | `ACTIVITY_SOURCE_COLUMNS`  | 18   | one row per source page             |
-| `g3o_institution_summary_v{N}.csv`| `SUMMARY_COLUMNS`         | 21   | one row per institution per run     |
+| `g3o_activities_v{N}.csv`        | `ACTIVITY_COLUMNS`         | 37   | one row per (institution × activity) |
+| `g3o_activity_sources_v{N}.csv`  | `ACTIVITY_SOURCE_COLUMNS`  | 20   | one row per source page             |
+| `g3o_institution_summary_v{N}.csv`| `SUMMARY_COLUMNS`         | 22   | one row per institution per run     |
 
 The schema-of-record for the model-produced fields (controlled vocabularies,
 character limits, coding rules, edge cases, self-validation checks) is the
@@ -40,12 +40,13 @@ the final product is a pending methodology decision and is **not** asserted
 here. The machine-readable `runs/<run_id>/_attrition.jsonl` ledger records,
 per institution and stage, where coverage was lost.
 
-## `g3o_activities_v{N}.csv` — `ACTIVITY_COLUMNS` (35)
+## `g3o_activities_v{N}.csv` — `ACTIVITY_COLUMNS` (37)
 
 One row per `(institution × activity)`.
 
 | Group              | Columns                                                                                                                                                                                                                                                       |
 |--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Key layer (2)      | `institution_uid` (the master's permanent key, carried verbatim), `sweep_uid` (`G3O-S-` + its 8-digit tail, minted at Stage 7). Both required by the loader; a row missing either is quarantined, not repaired.                                                |
 | Provenance (5)     | `global_row_id`, `run_id`, `run_model`, `run_tool`, `run_date`                                                                                                                                                                                                |
 | Institution + verdict (8) | `institution_id`, `institution_name`, `country`, `branch_of_government`, `level_of_government`, `has_genai_activity`, `institution_summary`, `institution_search_languages`                                                                              |
 | Activity key (1)   | `activity_id`                                                                                                                                                                                                                                                  |
@@ -58,12 +59,13 @@ module; `run_date` is `YYYY-MM-DD`. The activity-field semantics
 (controlled vocabularies, `_NA_` rules, char limits) are governed by the
 Output Contract.
 
-## `g3o_activity_sources_v{N}.csv` — `ACTIVITY_SOURCE_COLUMNS` (18)
+## `g3o_activity_sources_v{N}.csv` — `ACTIVITY_SOURCE_COLUMNS` (20)
 
 One row per source page.
 
 | Group           | Columns                                                                                                                                            |
 |-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------|
+| Key layer (2)   | `institution_uid`, `sweep_uid` — see `ACTIVITY_COLUMNS` above; the loader requires both here too.                                                  |
 | Provenance (5)  | `global_row_id`, `run_id`, `run_model`, `run_tool`, `run_date`                                                                                     |
 | Foreign keys (3)| `institution_id`, `activity_id`, `source_id`                                                                                                       |
 | Source fields (9)| `source_url`, `source_title`, `source_publication_date`, `source_access_date`, `source_type`, `source_language`, `source_credibility`, `genai_evidence`, `source_snippet` |
@@ -128,14 +130,14 @@ deferred to the contract.
   output rather than rewriting it to a synonym, so its ledger `detail` carries the
   discarded values verbatim.
 
-## `g3o_institution_summary_v{N}.csv` — `SUMMARY_COLUMNS` (21)
+## `g3o_institution_summary_v{N}.csv` — `SUMMARY_COLUMNS` (22)
 
 One row per institution per run (current-run-only roll-up, per the Session C
 decision of 2026-05-09).
 
 | Group                         | Columns                                                                                                          |
 |-------------------------------|------------------------------------------------------------------------------------------------------------------|
-| Identity (5)                  | `institution_id`, `institution_name`, `country`, `branch_of_government`, `level_of_government`                   |
+| Identity (6)                  | `institution_uid`, `institution_id`, `institution_name`, `country`, `branch_of_government`, `level_of_government`. No `sweep_uid`: this CSV is not a loader input, and at institution grain it restates `institution_uid`. |
 | Run scope (2)                 | `run_id`, `run_date`                                                                                             |
 | Institution-level verdict (3) | `has_genai_activity`, `institution_summary`, `institution_search_languages`                                     |
 | Counts (6)                    | `n_pages_extracted`, `n_activities`, `n_sources`, `n_high_credibility_sources`, `n_medium_credibility_sources`, `n_low_credibility_sources` |

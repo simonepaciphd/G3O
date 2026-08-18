@@ -18,14 +18,15 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition, batch_client
-from g3o.common import config as g3o_config
 from g3o.common.artifact_io import ARTIFACT_SUFFIX, glob_artifacts
 from g3o.common.batch_client import BatchHandle, BatchResult, BatchStatus
+from g3o.common.credentials import fingerprint
 from g3o.common.run_state import done_path, state_dir
 from g3o.discovery import serper_client
 from g3o.extract.batch import make_custom_id, url_hash
 from g3o.run import presweep as ps
-from g3o.run.presweep import STAGES, PresweepConfig, institution_record, run_presweep
+from g3o.run.api import launch
+from g3o.run.presweep import STAGES, PresweepConfig, institution_record
 from g3o.scrape.render import FetchMetadata, RenderedPage
 from tests._layout import inst_dir as inst_dir_of
 
@@ -42,13 +43,14 @@ OFFICIAL_SITE = CANNED_URLS[0]
 
 def _write_master(path: Path) -> Path:
     fieldnames = [
-        "master_row_id", "country", "government_level", "branch",
-        "institution_type", "institution_name", "website",
+        "institution_uid", "master_row_id", "country", "government_level",
+        "branch", "institution_type", "institution_name", "website",
         "source_dataset_id", "source_url", "source_file",
         "retrieval_date", "notes",
     ]
     rows = [
         {
+            "institution_uid": f"G3O-I-{i + 1:08d}",
             "master_row_id": str(i + 1),
             "country": f"COUNTRY-{i}",
             "government_level": "national",
@@ -217,8 +219,8 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
     # keys. Provide dummy keys (the network is fully stubbed below) and reset the
     # Serper live-mode global via monkeypatch so run_presweep's set_live_mode(True)
     # cannot leak into other tests (monkeypatch restores the attribute on teardown).
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "test-serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "test-openai-key")
+    monkeypatch.setenv("SERPER_API_KEY", "test-serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
     monkeypatch.setattr(serper_client, "_live_mode", False, raising=False)
 
     # --- Serper stub: same canned organic results for every query.
@@ -307,7 +309,12 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
         rec = institution_record(row)
         institutions[rec["institution_id"]] = rec
 
-    summary = run_presweep(config)
+    # Entered through `launch()` — the documented entry point since the Run API
+    # (spec §1.1) — so this test also exercises the telemetry surface end to end:
+    # a full 8-stage run is the only place the whole event sequence exists, and
+    # the shape it must produce was published to the backend before it existed.
+    receipt = launch(config, session_id="sess-smoke", invocation="api")
+    summary = receipt.summary
 
     # --- Summary invariants.
     run_dir = Path(summary["run_dir"])
@@ -321,14 +328,54 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
     assert summary["n_validate_failed"] == 0
     assert summary["validate_batch_ids"] == ["batch-validate-1"]
 
-    # --- Every submit carried the full reconciliation metadata (review F6).
+    # --- Every submit carried the full reconciliation metadata (review F6),
+    # plus the submitting key's fingerprint (Run API spec §3.5) — which is also
+    # the end-to-end proof that the run's resolved credentials reached the wire,
+    # and that what reaches it is the fingerprint, never the key (§3.3).
     assert len(submitted_metadata) == 4  # stages 2, 3, 5, 6 — one chunk each
+    expected_fp = fingerprint("test-openai-key")
     for md in submitted_metadata:
-        assert set(md) == {"g3o_run_id", "g3o_stage", "g3o_chunk"}
+        assert set(md) == {
+            "g3o_run_id", "g3o_stage", "g3o_chunk", "g3o_key_fingerprint",
+        }
         assert md["g3o_run_id"] == "smoke-1"
+        assert md["g3o_key_fingerprint"] == expected_fp
+        assert "test-openai-key" not in json.dumps(md)
     assert [md["g3o_stage"] for md in submitted_metadata] == [
         "classify_official_site", "classify_triage", "extract", "validate",
     ]
+
+    # --- The run's event log: the fixture's shape, over a complete run.
+    events = [
+        json.loads(line)
+        for line in (run_dir / "events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert [e["seq"] for e in events] == list(range(1, len(events) + 1))
+    assert {e["run_id"] for e in events} == {"smoke-1"}
+    assert {e["session_id"] for e in events} == {"sess-smoke"}
+    assert events[0]["event"] == "run_launched"
+    assert events[-1]["event"] == "run_completed"
+    assert events[-1]["payload"]["stop_after"] == "validate"
+
+    # Every stage in the roster reports a start and a completion, in roster order.
+    started = [e["stage"] for e in events if e["event"] == "stage_started"]
+    completed = [e["stage"] for e in events if e["event"] == "stage_completed"]
+    assert started == list(STAGES) == completed
+
+    # Only the four LLM stages submit chunks (fixture loader invariant 9), and
+    # every chunk that submitted also reached a terminal state.
+    llm_stages = ["classify_official_site", "classify_triage", "extract", "validate"]
+    submitted = [e for e in events if e["event"] == "chunk_submitted"]
+    terminal = [e for e in events if e["event"] == "chunk_terminal"]
+    assert [e["stage"] for e in submitted] == llm_stages
+    assert [e["stage"] for e in terminal] == llm_stages
+    for event in submitted:
+        assert set(event["payload"]) >= {"chunk", "batch_id", "n_jobs"}
+        assert event["payload"]["chunk"] == 1  # 1-based (invariant 7)
+    for event in terminal:
+        assert event["payload"]["terminal_state"] == "completed"
+        assert event["payload"]["n_output"] > 0
 
     # --- Per-institution artifact tree.
     for inst_id in institutions:

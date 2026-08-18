@@ -141,12 +141,49 @@ def require_layout(run_dir: Path) -> None:
         )
 
 
+#: Manifest key holding ``{institution_id: institution_uid}`` for the run's
+#: sample. Written once at plan time by
+#: :func:`g3o.run.presweep.planning.build_manifest`.
+INSTITUTION_UIDS_KEY = "institution_uids"
+
+
+def institution_uid_map(run_dir: Path) -> dict[str, str]:
+    """``{institution_id: institution_uid}`` for the run, off the manifest.
+
+    The manifest is the carrier because the alternative — threading the uid
+    through :func:`g3o.run.presweep.records.institution_record` — would put a
+    bookkeeping key into the Stage 2/3/5/6 prompts: that dict is serialised to
+    ``institution.json`` and embedded verbatim in every user message (see the
+    same warning at ``g3o/run/presweep/stage_classify.py``). The uid is
+    bookkeeping and must not reach a model (PI ruling 2026-08-14 §3).
+
+    Raises:
+        RuntimeError: when the manifest carries no ``institution_uids`` block.
+            Deliberately loud: a run planned before this key existed would
+            otherwise persist an empty ``institution_uid`` column, which the
+            loader quarantines row by row rather than rejecting outright.
+    """
+    require_layout(run_dir)
+    manifest = json.loads((run_dir / MANIFEST_NAME).read_text(encoding="utf-8"))
+    uids = manifest.get(INSTITUTION_UIDS_KEY)
+    if not isinstance(uids, dict):
+        raise RuntimeError(
+            f"{run_dir / MANIFEST_NAME} carries no {INSTITUTION_UIDS_KEY!r} block, so "
+            "no institution_uid can be stamped onto this run's outputs. Runs planned "
+            "before uid stamping cannot be re-persisted: re-plan the run, or persist "
+            "it by checking out the commit it was planned on."
+        )
+    return {str(k): str(v) for k, v in uids.items()}
+
+
 __all__ = [
     "INSTITUTIONS_DIRNAME",
+    "INSTITUTION_UIDS_KEY",
     "LAYOUT_VERSION",
     "MANIFEST_NAME",
     "SHARD_HEX_CHARS",
     "institution_dir",
+    "institution_uid_map",
     "institution_ids",
     "institution_shard",
     "institutions_root",

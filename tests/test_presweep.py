@@ -48,6 +48,7 @@ def _row(
     disambiguation: str = "",
 ) -> dict[str, Any]:
     return {
+        "institution_uid": f"G3O-I-{master_row_id:08d}",
         "master_row_id": str(master_row_id),
         "country": country,
         "government_level": government_level,
@@ -87,6 +88,7 @@ def _build_master(n_strata: int, rows_per_stratum: int) -> list[dict[str, Any]]:
 
 def _write_master_csv(path: Path, rows: list[dict[str, Any]]) -> Path:
     fieldnames = [
+        "institution_uid",
         "master_row_id",
         "country",
         "government_level",
@@ -461,9 +463,9 @@ def test_candidate_urls_union_dedupes_path_aware():
 def _write_master_csv_with_bypass_col(path: Path, rows: list[dict[str, Any]]) -> Path:
     """Like ``_write_master_csv`` but adds the WS3 round-2 ``official_site_url`` column."""
     fieldnames = [
-        "master_row_id", "country", "government_level", "branch", "institution_type",
-        "institution_name", "website", "source_dataset_id", "source_url",
-        "source_file", "retrieval_date", "notes", "official_site_url",
+        "institution_uid", "master_row_id", "country", "government_level", "branch",
+        "institution_type", "institution_name", "website", "source_dataset_id",
+        "source_url", "source_file", "retrieval_date", "notes", "official_site_url",
     ]
     with open(path, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)

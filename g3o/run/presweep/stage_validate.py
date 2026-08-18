@@ -6,6 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from g3o.common.credentials import ResolvedCredentials
 from g3o.run.presweep.records import synth_institution_id
 
 
@@ -17,6 +18,8 @@ def _run_validate(
     poll_interval: int,
     max_wait: int,
     cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
+    credentials: ResolvedCredentials | None = None,
+    telemetry: Any | None = None,
 ) -> dict[str, Any]:
     """Stage 6 — per-institution LLM consolidation (Session E fold, Q8=ii).
 
@@ -35,4 +38,6 @@ def _run_validate(
         poll_interval=poll_interval,
         max_wait=max_wait,
         cost_check_callback=cost_check_callback,
+        credentials=credentials,
+        telemetry=telemetry,
     )

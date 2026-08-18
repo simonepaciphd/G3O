@@ -23,10 +23,23 @@ def _env(key: str, default: str | None = None, *, required: bool = False) -> str
     return val
 
 
+# --- API keys: DEPRECATED SHIM (Run API spec §3.2, 2026-08-11) -------------
+# These two constants resolve their key **at import time**, which is exactly the
+# defect §3 removes: a value frozen at first import cannot be a per-call key, so
+# two runs in one process could never use two different grants' keys. They are
+# kept for one release, still env-populated, for out-of-repo callers only.
+#
+# Nothing in this repository may read them — resolve keys through
+# :func:`g3o.common.credentials.resolve` and pass the resulting
+# ``ResolvedCredentials`` down explicitly. ``tests/test_credentials.py``
+# greps the package and fails if a consumer reappears here, because a
+# re-introduced read would silently re-freeze key resolution at import time.
+# Removing these two names is a follow-up PR.
 SERPER_API_KEY: str | None = _env("SERPER_API_KEY")
-SERPER_ENDPOINT: str = _env("SERPER_ENDPOINT", "https://google.serper.dev/search") or ""
-
 OPENAI_API_KEY: str | None = _env("OPENAI_API_KEY")
+# ---------------------------------------------------------------------------
+
+SERPER_ENDPOINT: str = _env("SERPER_ENDPOINT", "https://google.serper.dev/search") or ""
 # Pipeline-wide default model id for every LLM stage. Wired into
 # ``batch_client.DEFAULT_MODEL`` (review F9, 2026-06-10), so setting
 # ``OPENAI_MODEL`` in the environment / .env overrides the default everywhere;

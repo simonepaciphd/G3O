@@ -40,9 +40,9 @@ from tests._layout import inst_dir as inst_dir_of
 # ---------------------------------------------------------------------------
 
 _COLUMNS = [
-    "master_row_id", "country", "country_iso3", "government_level",
-    "institution_type", "branch", "institution_name", "website",
-    "disambiguation",
+    "institution_uid", "master_row_id", "country", "country_iso3",
+    "government_level", "institution_type", "branch", "institution_name",
+    "website", "disambiguation",
 ]
 
 
@@ -53,7 +53,11 @@ def _master(tmp_path: Path, rows: list[dict[str, str]]) -> Path:
         w.writeheader()
         for i, r in enumerate(rows, start=1):
             base = {c: "" for c in _COLUMNS}
-            base.update({"master_row_id": str(i), "branch": "executive"})
+            base.update({
+                "institution_uid": f"G3O-I-{i:08d}",
+                "master_row_id": str(i),
+                "branch": "executive",
+            })
             base.update(r)
             w.writerow(base)
     return path
@@ -87,7 +91,10 @@ class _Recorder:
         self._links = links if links is not None else ["https://example.gov/a"]
         self._echo = echo if echo is not None else {"q": "x", "autocorrect": False}
 
-    def __call__(self, query, num_results=10, force_refresh=False, options=None):
+    def __call__(
+        self, query, num_results=10, force_refresh=False, options=None,
+        credentials=None,
+    ):
         self.queries.append(query)
         return SerperResult(
             results=[
@@ -471,7 +478,9 @@ def _run_chain_1a(tmp_path, monkeypatch, links_per_inst: list[list[str]]):
     plan = _plan(tmp_path, _rows(len(links_per_inst)), discovery_mode="chain")
     calls = {"i": -1}
 
-    def _search(query, num_results=10, force_refresh=False, options=None):
+    def _search(
+        query, num_results=10, force_refresh=False, options=None, credentials=None
+    ):
         calls["i"] += 1
         return SerperResult(
             results=[{"link": u, "title": "t", "snippet": "s"}

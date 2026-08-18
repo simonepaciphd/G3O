@@ -45,11 +45,12 @@ def _reset_live_mode(monkeypatch):
 
 def _write_master(path: Path, n: int = 3) -> Path:
     fieldnames = [
-        "master_row_id", "country", "government_level", "branch",
-        "institution_type", "institution_name", "website",
+        "institution_uid", "master_row_id", "country", "government_level",
+        "branch", "institution_type", "institution_name", "website",
     ]
     rows = [
         {
+            "institution_uid": f"G3O-I-{i + 1:08d}",
             "master_row_id": str(i + 1),
             "country": f"COUNTRY-{i}",
             "government_level": "national",
@@ -95,8 +96,8 @@ def _config(tmp_path: Path, master: Path, **kw) -> PresweepConfig:
 
 def test_execute_hard_fails_without_serper_key(tmp_path, monkeypatch):
     master = _write_master(tmp_path / "m.csv")
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", None)
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-test")
+    monkeypatch.delenv("SERPER_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     config = _config(tmp_path, master, dry_run=False, stop_after="discovery_general")
     with pytest.raises(RuntimeError, match="SERPER_API_KEY"):
         run_presweep(config)
@@ -104,8 +105,8 @@ def test_execute_hard_fails_without_serper_key(tmp_path, monkeypatch):
 
 def test_execute_hard_fails_without_openai_key_when_llm_stage_runs(tmp_path, monkeypatch):
     master = _write_master(tmp_path / "m.csv")
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", None)
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     config = _config(tmp_path, master, dry_run=False, stop_after="extract")
     with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
         run_presweep(config)
@@ -113,8 +114,8 @@ def test_execute_hard_fails_without_openai_key_when_llm_stage_runs(tmp_path, mon
 
 def test_dry_run_does_not_require_keys(tmp_path, monkeypatch):
     master = _write_master(tmp_path / "m.csv")
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", None)
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", None)
+    monkeypatch.delenv("SERPER_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     config = _config(tmp_path, master, dry_run=True)
     summary = run_presweep(config)
     assert summary["dry_run"] is True
@@ -122,19 +123,21 @@ def test_dry_run_does_not_require_keys(tmp_path, monkeypatch):
 
 
 def test_search_empty_result_means_searched_found_nothing(monkeypatch):
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
+    monkeypatch.setenv("SERPER_API_KEY", "k")
     monkeypatch.setattr(serper_client, "_cached", lambda payload: None)
     monkeypatch.setattr(serper_client, "_save_cache", lambda *a, **k: None)
-    monkeypatch.setattr(serper_client, "_execute", lambda payload: {"organic": []})
+    monkeypatch.setattr(
+        serper_client, "_execute", lambda payload, *, api_key: {"organic": []}
+    )
     assert serper_client.search_google("q", num_results=3) == []
 
 
 def test_search_request_failure_raises_in_live_mode(monkeypatch):
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
+    monkeypatch.setenv("SERPER_API_KEY", "k")
     serper_client.set_live_mode(True)
     monkeypatch.setattr(serper_client, "_cached", lambda payload: None)
 
-    def _boom(payload):
+    def _boom(payload, *, api_key):
         raise requests.HTTPError("403 quota")
 
     monkeypatch.setattr(serper_client, "_execute", _boom)
@@ -143,11 +146,11 @@ def test_search_request_failure_raises_in_live_mode(monkeypatch):
 
 
 def test_search_request_failure_swallowed_in_dev_mode(monkeypatch):
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
+    monkeypatch.setenv("SERPER_API_KEY", "k")
     # live mode False (autouse fixture)
     monkeypatch.setattr(serper_client, "_cached", lambda payload: None)
 
-    def _boom(payload):
+    def _boom(payload, *, api_key):
         raise requests.HTTPError("timeout")
 
     monkeypatch.setattr(serper_client, "_execute", _boom)
@@ -155,7 +158,7 @@ def test_search_request_failure_swallowed_in_dev_mode(monkeypatch):
 
 
 def test_missing_key_in_live_mode_is_config_error(monkeypatch):
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", None)
+    monkeypatch.delenv("SERPER_API_KEY", raising=False)
     serper_client.set_live_mode(True)
     monkeypatch.setattr(serper_client, "_cached", lambda payload: None)
     with pytest.raises(serper_client.SerperConfigError):
@@ -163,7 +166,7 @@ def test_missing_key_in_live_mode_is_config_error(monkeypatch):
 
 
 def test_mock_results_are_never_cached(tmp_path, monkeypatch):
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", None)  # dev mock path
+    monkeypatch.delenv("SERPER_API_KEY", raising=False)  # dev mock path
     monkeypatch.setattr(g3o_config, "CACHE_DIR", tmp_path / "cache")
     # live mode False → mock returned in dev
     results = serper_client.search_google("anything", num_results=2, force_refresh=True)
@@ -265,24 +268,24 @@ def test_execute_posts_exactly_the_payload_that_keys_the_cache(monkeypatch):
         sent["body"] = data
         return _Resp()
 
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
+    monkeypatch.setenv("SERPER_API_KEY", "k")
     monkeypatch.setattr(serper_client.requests, "post", _fake_post)
     payload = serper_client.build_request_payload(
         "x", 10, serper_client.SerperOptions(autocorrect=False)
     )
-    serper_client._execute(payload)
+    serper_client._execute(payload, api_key="k")
     assert json.loads(sent["body"]) == payload
 
 
 def test_search_captures_search_parameters_echo(tmp_path, monkeypatch):
     """The echo is captured live and survives a cache round-trip."""
     echo = {"q": "x", "num": 10, "autocorrect": False, "type": "search", "engine": "google"}
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
+    monkeypatch.setenv("SERPER_API_KEY", "k")
     monkeypatch.setattr(g3o_config, "CACHE_DIR", tmp_path / "cache")
     monkeypatch.setattr(
         serper_client,
         "_execute",
-        lambda payload: {
+        lambda payload, *, api_key: {
             "organic": [{"title": "t", "link": "https://real.gov/a", "snippet": "s"}],
             "searchParameters": echo,
         },
@@ -301,11 +304,11 @@ def test_search_captures_search_parameters_echo(tmp_path, monkeypatch):
 
 def test_autocorrect_off_and_on_do_not_share_a_cache_entry(tmp_path, monkeypatch):
     """The regression the payload-derived key exists to prevent."""
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
+    monkeypatch.setenv("SERPER_API_KEY", "k")
     monkeypatch.setattr(g3o_config, "CACHE_DIR", tmp_path / "cache")
     calls: list[dict] = []
 
-    def _exec(payload):
+    def _exec(payload, *, api_key):
         calls.append(payload)
         return {"organic": [{"link": f"https://real.gov/{len(calls)}"}], "searchParameters": {}}
 
@@ -591,8 +594,8 @@ def test_manifest_guard_reports_every_difference_at_once(tmp_path):
 
 def test_preflight_reports_keys_sample_chunks_cost(tmp_path, monkeypatch):
     master = _write_master(tmp_path / "m.csv", n=5)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     config = _config(tmp_path, master, sample_size=5, run_id="pf1")
     summary = pf.run_preflight(config, verify_model_live=False)
 
@@ -609,8 +612,8 @@ def test_preflight_reports_keys_sample_chunks_cost(tmp_path, monkeypatch):
 
 def test_preflight_flags_missing_keys(tmp_path, monkeypatch):
     master = _write_master(tmp_path / "m.csv", n=3)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", None)
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "bad-prefix")
+    monkeypatch.delenv("SERPER_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "bad-prefix")
     config = _config(tmp_path, master, sample_size=3, run_id="pf2")
     summary = pf.run_preflight(config, verify_model_live=False)
     assert summary["keys_ok"] is False
@@ -621,8 +624,8 @@ def test_preflight_flags_missing_keys(tmp_path, monkeypatch):
 
 def test_preflight_cost_ceiling_is_informational(tmp_path, monkeypatch):
     master = _write_master(tmp_path / "m.csv", n=3)
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "k")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-x")
+    monkeypatch.setenv("SERPER_API_KEY", "k")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-x")
     config = _config(tmp_path, master, sample_size=3, run_id="pf3")
     summary = pf.run_preflight(config, verify_model_live=False, cost_ceiling_usd=0.0)
     assert summary["cost_ceiling_usd"] == 0.0
