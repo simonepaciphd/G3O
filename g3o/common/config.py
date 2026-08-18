@@ -61,9 +61,14 @@ RUNS_DIR: Path = Path(_env("G3O_RUNS_DIR", str(BASE_DIR / "runs")) or str(BASE_D
 BUDGET_LIMIT_USD: str | None = _env("G3O_BUDGET_LIMIT_USD")
 
 # Projection safety factor: abort mid-run if projected total spend exceeds
-# budget × this factor. Default 1.2 means abort when projected to spend >120%
-# of budget. Read from G3O_PROJECTION_SAFETY_FACTOR env var. Stored as string;
-# parsed to float at use time (cli.py) with validation.
+# budget × this factor. There is NO default — unset means the mid-run projection
+# abort is DISABLED, not that it runs at 1.2 (_parse_projection_safety_factor
+# returns None). It is off by default because the projection scales the two
+# classify stages' actual-vs-estimate ratio onto the dominant extract estimate,
+# and those stages are not comparable enough for that ratio to kill a live run
+# uninvited. Set it, per run, when you want the guard.
+# Read from G3O_PROJECTION_SAFETY_FACTOR env var. Stored as string; parsed to
+# float at use time (cli.py) with validation.
 PROJECTION_SAFETY_FACTOR: str | None = _env("G3O_PROJECTION_SAFETY_FACTOR")
 
 # Cost monitor dry run mode: when True, log warnings instead of aborting when
