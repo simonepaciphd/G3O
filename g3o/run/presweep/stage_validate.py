@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ def _run_validate(
     model: str,
     poll_interval: int,
     max_wait: int,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
     credentials: ResolvedCredentials | None = None,
     telemetry: Any | None = None,
 ) -> dict[str, Any]:
@@ -35,6 +37,7 @@ def _run_validate(
         model=model,
         poll_interval=poll_interval,
         max_wait=max_wait,
+        cost_check_callback=cost_check_callback,
         credentials=credentials,
         telemetry=telemetry,
     )

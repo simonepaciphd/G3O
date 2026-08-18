@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -135,6 +135,7 @@ def _run_extract(
     text_cap_chars: int = DEFAULT_TEXT_CAP_CHARS,
     text_cap_rule: str = DEFAULT_TEXT_CAP_RULE,
     empty_page_min_chars: int = EMPTY_PAGE_MIN_CHARS,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
     credentials: ResolvedCredentials | None = None,
     telemetry: Any | None = None,
 ) -> int:
@@ -305,6 +306,7 @@ def _run_extract(
             run_id=run_id, model=model,
             poll_interval=poll_interval, max_wait=max_wait,
             process_chunk_results=_persist,
+            cost_check_callback=cost_check_callback,
             credentials=credentials, telemetry=telemetry,
         )
     return _count_existing_extracts(run_dir, sample)

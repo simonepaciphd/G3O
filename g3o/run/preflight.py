@@ -39,6 +39,7 @@ from g3o.common.batch_client import (
     _serialize_job_line,
 )
 from g3o.common.credentials import Credentials, resolve
+from g3o.common.pricing import GPT5_NANO_PRICING, usd
 from g3o.extract.batch import build_extract_jobs
 from g3o.run.presweep import (
     PresweepConfig,
@@ -46,30 +47,6 @@ from g3o.run.presweep import (
     stratified_sample,
 )
 from g3o.scrape.render import FetchMetadata, RenderedPage
-
-# ---------------------------------------------------------------------------
-# Pricing — verified 2026-06-10 against the OpenAI docs.
-# ---------------------------------------------------------------------------
-#
-# gpt-5-nano standard rates are published FACTS (model page below). The Batch
-# API rates apply OpenAI's documented 50% Batch discount — shown verbatim on the
-# same pricing page for the sibling gpt-5.4-nano ($0.20→$0.10 input) — so the
-# batch line is labeled ESTIMATE-grade: the nano model page does not print the
-# batch row itself. Note (F9 / WS4 T2): the current pricing table headlines
-# gpt-5.4-nano; gpt-5-nano persists as a distinct, cheaper line and is what the
-# pipeline pins via batch_client.DEFAULT_MODEL.
-GPT5_NANO_PRICING: dict[str, Any] = {
-    "model": "gpt-5-nano",
-    "source": "https://developers.openai.com/api/docs/models/gpt-5-nano",
-    "verified_on": "2026-06-10",
-    "standard_input_per_1m_usd": 0.05,
-    "standard_cached_input_per_1m_usd": 0.005,
-    "standard_output_per_1m_usd": 0.40,
-    "batch_discount": 0.50,
-    "batch_input_per_1m_usd": 0.025,  # estimate: 50% of standard input
-    "batch_output_per_1m_usd": 0.20,  # estimate: 50% of standard output
-    "batch_line_is_estimate": True,
-}
 
 # Rough chars→tokens heuristic for cost estimation (English-ish text). Stated as
 # an assumption in the output; not a billing-grade tokenizer.
@@ -161,10 +138,6 @@ def _project_chunks(n_jobs: int, per_job_bytes: int) -> dict[str, Any]:
         "approx_chunk_bytes": jobs_per_chunk * per_job_bytes,
         "single_job_exceeds_cap": per_job_bytes > CHUNK_MAX_BYTES,
     }
-
-
-def _usd(n_tokens: float, per_1m: float) -> float:
-    return (n_tokens / 1_000_000) * per_1m
 
 
 def run_preflight(
@@ -291,9 +264,35 @@ def run_preflight(
     total_in_tokens = extract_in_tokens + other_in_tokens
     total_out_tokens = extract_out_tokens + other_out_tokens
     p = GPT5_NANO_PRICING
-    input_usd = _usd(total_in_tokens, p["batch_input_per_1m_usd"])
-    output_usd = _usd(total_out_tokens, p["batch_output_per_1m_usd"])
+    input_usd = usd(total_in_tokens, p["batch_input_per_1m_usd"])
+    output_usd = usd(total_out_tokens, p["batch_output_per_1m_usd"])
     total_usd = input_usd + output_usd
+
+    # Per-stage cost estimates (Gap 2): break down total by stage for mid-run
+    # projection checking. Stages 2, 3, 6 are ~one job per institution each;
+    # Stage 5 is the extract stage (n_institutions × pages_per_institution jobs).
+    # Split the "other" cost equally across stages 2, 3, 6.
+    other_per_stage_in = other_in_tokens / 3
+    other_per_stage_out = other_out_tokens / 3
+    stage_estimates = {
+        "classify_official_site": (
+            usd(other_per_stage_in, p["batch_input_per_1m_usd"])
+            + usd(other_per_stage_out, p["batch_output_per_1m_usd"])
+        ),
+        "classify_triage": (
+            usd(other_per_stage_in, p["batch_input_per_1m_usd"])
+            + usd(other_per_stage_out, p["batch_output_per_1m_usd"])
+        ),
+        "extract": (
+            usd(extract_in_tokens, p["batch_input_per_1m_usd"])
+            + usd(extract_out_tokens, p["batch_output_per_1m_usd"])
+        ),
+        "validate": (
+            usd(other_per_stage_in, p["batch_input_per_1m_usd"])
+            + usd(other_per_stage_out, p["batch_output_per_1m_usd"])
+        ),
+    }
+
     summary["cost_preview"] = {
         "is_estimate": True,
         "pricing": p,
@@ -304,6 +303,7 @@ def run_preflight(
         "est_openai_batch_input_usd": round(input_usd, 2),
         "est_openai_batch_output_usd": round(output_usd, 2),
         "est_openai_batch_total_usd": round(total_usd, 2),
+        "stage_estimates": {k: round(v, 6) for k, v in stage_estimates.items()},
         "note": (
             "OpenAI Batch cost only; Serper (Stage 1) is billed separately and "
             "is not priced here. Measured 2026-08-01 over 200 institutions as "

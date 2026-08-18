@@ -67,7 +67,9 @@ normalized CSVs under `runs/<run_id>/final/`: `g3o_activities_v{N}.csv`,
 
 See [`docs/architecture.md`](docs/architecture.md) for the mapping to the
 paper, and [`docs/data_dictionary.md`](docs/data_dictionary.md) for the
-output schema (the G3O Output Contract).
+output schema (the G3O Output Contract), and
+[`docs/budget-enforcement.md`](docs/budget-enforcement.md) for cost monitoring
+and budget enforcement.
 
 For **what the pipeline has actually been measured to do** — per-stage
 benchmarks, what is still unmeasured, and the ranked improvement list — see

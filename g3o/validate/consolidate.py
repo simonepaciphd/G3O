@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -285,6 +285,7 @@ def run_consolidate(
     max_wait: int = 25 * 60 * 60,
     notes: str = "none",
     client: Any | None = None,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
     credentials: ResolvedCredentials | None = None,
     telemetry: Any | None = None,
 ) -> dict[str, Any]:
@@ -383,6 +384,7 @@ def run_consolidate(
             poll_interval=poll_interval, max_wait=max_wait,
             process_chunk_results=_persist,
             client=client,
+            cost_check_callback=cost_check_callback,
             credentials=credentials,
             telemetry=telemetry,
         )

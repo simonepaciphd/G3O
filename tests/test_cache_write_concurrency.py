@@ -51,6 +51,40 @@ def _run_threads(targets: list) -> None:
         t.join()
 
 
+def _run_threads_with_barrier(
+    writer_factories: list, reader_factories: list
+) -> None:
+    """Start writers and readers concurrently, but ensure at least one write
+    lands before readers check the cache.
+
+    On fast CI runners the scheduler can let all reader threads finish their
+    iterations before any writer has saved a cache entry, causing ``observed``
+    to stay empty and the assertion to fail spuriously.  To prevent this each
+    writer signals an event after its first write; readers wait for that event
+    before entering their read loop.  The remaining writes still overlap with
+    the reads, preserving the concurrency test.
+    """
+    first_write = threading.Event()
+
+    def _wrap_writer(factory):
+        def _inner():
+            factory(first_write)
+        return _inner
+
+    def _wrap_reader(factory):
+        def _inner():
+            first_write.wait()
+            factory(first_write)
+        return _inner
+
+    threads = [threading.Thread(target=_wrap_writer(f)) for f in writer_factories]
+    threads += [threading.Thread(target=_wrap_reader(f)) for f in reader_factories]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+
 def test_serper_cache_two_writers_different_payloads_same_key(_isolated_cache) -> None:
     """A reader sees payload A or payload B, whole — never a splice of the two."""
     payload = serper_client.build_request_payload("same key, two writers", 5)
@@ -66,32 +100,38 @@ def test_serper_cache_two_writers_different_payloads_same_key(_isolated_cache) -
     observed: set[str] = set()
 
     def writer(entry: dict):
-        def _write() -> None:
-            for _ in range(WRITES_PER_THREAD):
+        def _write(first_write: threading.Event) -> None:
+            for i in range(WRITES_PER_THREAD):
                 serper_client._save_cache(payload, entry)
+                if i == 0:
+                    first_write.set()
 
         return _write
 
     def reader() -> None:
-        for _ in range(WRITES_PER_THREAD):
-            try:
-                cached = serper_client._cached(payload)
-            except Exception as exc:  # noqa: BLE001 — a torn read is the failure
-                errors.append(exc)
-                continue
-            if cached is None:
-                continue
-            try:
-                writer_tag = cached["searchParameters"]["writer"]
-                assert cached == (entry_a if writer_tag == "A" else entry_b), (
-                    "cache entry is a splice of two writers' payloads"
-                )
-                observed.add(writer_tag)
-            except (AssertionError, KeyError, TypeError) as exc:
-                errors.append(exc)
+        def _read(_first_write: threading.Event) -> None:
+            for _ in range(WRITES_PER_THREAD):
+                try:
+                    cached = serper_client._cached(payload)
+                except Exception as exc:  # noqa: BLE001 — a torn read is the failure
+                    errors.append(exc)
+                    continue
+                if cached is None:
+                    continue
+                try:
+                    writer_tag = cached["searchParameters"]["writer"]
+                    assert cached == (entry_a if writer_tag == "A" else entry_b), (
+                        "cache entry is a splice of two writers' payloads"
+                    )
+                    observed.add(writer_tag)
+                except (AssertionError, KeyError, TypeError) as exc:
+                    errors.append(exc)
 
-    _run_threads(
-        [writer(entry_a), writer(entry_b), writer(entry_a), reader, reader, reader]
+        return _read
+
+    _run_threads_with_barrier(
+        [writer(entry_a), writer(entry_b), writer(entry_a)],
+        [reader(), reader(), reader()],
     )
 
     assert errors == []
@@ -134,32 +174,40 @@ def test_page_cache_two_writers_different_payloads_same_key(_isolated_cache) -> 
     observed: set[str] = set()
 
     def writer(page: RenderedPage):
-        def _write() -> None:
-            for _ in range(WRITES_PER_THREAD):
+        def _write(first_write: threading.Event) -> None:
+            for i in range(WRITES_PER_THREAD):
                 fetcher._save(page)
+                if i == 0:
+                    first_write.set()
 
         return _write
 
     def reader() -> None:
-        for _ in range(WRITES_PER_THREAD):
-            try:
-                cached = fetcher._load(url)
-            except Exception as exc:  # noqa: BLE001 — a torn read is the failure
-                errors.append(exc)
-                continue
-            if cached is None:
-                continue
-            if cached.text not in (text_a, text_b):
-                errors.append(
-                    AssertionError(
-                        f"page cache holds neither payload whole "
-                        f"({len(cached.text)} chars)"
+        def _read(_first_write: threading.Event) -> None:
+            for _ in range(WRITES_PER_THREAD):
+                try:
+                    cached = fetcher._load(url)
+                except Exception as exc:  # noqa: BLE001 — a torn read is the failure
+                    errors.append(exc)
+                    continue
+                if cached is None:
+                    continue
+                if cached.text not in (text_a, text_b):
+                    errors.append(
+                        AssertionError(
+                            f"page cache holds neither payload whole "
+                            f"({len(cached.text)} chars)"
+                        )
                     )
-                )
-                continue
-            observed.add(cached.text[0])
+                    continue
+                observed.add(cached.text[0])
 
-    _run_threads([writer(page_a), writer(page_b), writer(page_a), reader, reader, reader])
+        return _read
+
+    _run_threads_with_barrier(
+        [writer(page_a), writer(page_b), writer(page_a)],
+        [reader(), reader(), reader()],
+    )
 
     assert errors == []
     assert observed, "no read ever landed — the assertion never ran"

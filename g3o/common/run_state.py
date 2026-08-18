@@ -461,6 +461,7 @@ def _reconcile_detail(problems: dict[str, list[str]], *, empty: bool) -> str:
     return "; ".join(parts)
 
 
+
 def run_chunked_stage(
     run_dir: Path,
     stage: str,
@@ -478,6 +479,7 @@ def run_chunked_stage(
     max_chunk_requests: int = batch_client.CHUNK_MAX_REQUESTS,
     enqueued_budget: int | None = None,
     client: Any | None = None,
+    cost_check_callback: Callable[[str, dict[str, int]], Any] | None = None,
     credentials: ResolvedCredentials | None = None,
     telemetry: Any | None = None,
 ) -> None:
@@ -736,13 +738,13 @@ def run_chunked_stage(
         # A chunk larger than the whole budget goes out alone, once nothing else
         # is in flight, so an oversized chunk cannot deadlock the stage.
         for key, entry in iter_chunks(state):
-            if entry["fetched_at"] is not None or entry["batch_id"] is not None:
-                continue
-            need = chunk_tokens(key)
-            if in_flight_tokens and in_flight_tokens + need > budget:
-                continue
-            if _submit_one(key, entry):
-                in_flight_tokens += need
+                if entry["fetched_at"] is not None or entry["batch_id"] is not None:
+                    continue
+                need = chunk_tokens(key)
+                if in_flight_tokens and in_flight_tokens + need > budget:
+                    continue
+                if _submit_one(key, entry):
+                    in_flight_tokens += need
         state = load_state(run_dir, stage)
         assert state is not None
         pending = [
@@ -809,11 +811,24 @@ def run_chunked_stage(
                         f"{state_path(run_dir, stage)}."
                     )
                 process_chunk_results(iter(fetched))
+                # Sum token usage across all results in this chunk
+                chunk_usage = {
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                    "cached_tokens": 0,
+                }
+                for result in fetched:
+                    u = result.usage
+                    if u:
+                        for k in chunk_usage:
+                            chunk_usage[k] += u.get(k, 0)
                 update_chunk(
                     run_dir, stage, key,
                     fetched_at=_utc_iso(),
                     response_models=sorted(models),
                     system_fingerprints=sorted(fingerprints),
+                    usage=chunk_usage,
                 )
                 # Emitted after the completeness gate, not before: a chunk whose
                 # results failed to reconcile raised above and is NOT terminal in
@@ -826,6 +841,17 @@ def run_chunked_stage(
                     n_error=sum(1 for r in fetched if not r.success),
                     resolved_model=(sorted(models)[0] if models else None),
                 )
+                # Within-stage budget check (Gap 1): after each chunk completes,
+                # call the callback (if provided). The callback accumulates usage
+                # and raises BudgetExceededError if over budget, which propagates
+                # past mark_done — no .done marker written, un-submitted chunks
+                # stay in the active state file as a truncation signal.
+                # A callback that returns False (rather than raising) also stops
+                # further chunk submission and leaves the stage incomplete.
+                if cost_check_callback is not None:
+                    proceed = cost_check_callback(stage, chunk_usage)
+                    if proceed is False:
+                        return
             elif status.is_terminal:
                 failed[key] = status.status
                 telemetry.emit(
