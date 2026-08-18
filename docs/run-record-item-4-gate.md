@@ -175,18 +175,36 @@ published view is built `where not synthetic` (`schema_core.sql:756`), so such a
 run is hidden for two reasons at once and the assertion cannot tell which one did
 the work.
 
-### 4.3 Induced failure — PENDING
+### 4.3 Induced failure — ✅ PASSED 2026-08-18
 
-Kill a stage mid-flight. Must end in a **named failed state**, with the cause in
-`events.jsonl`, and **nothing published**. `FAILED` and `INTERRUPTED` both block
-ingest.
+Run `r20260818T203039Z-ee9b`, n=2, live keys, `--session-id induced-failure-test`.
 
 | Field | Value |
 |---|---|
-| stage killed / how | |
-| final state | |
-| cause in `events.jsonl` | |
-| confirmed nothing published | |
+| stage killed / how | `classify_official_site`, `kill -9` on the detached pid 115675 |
+| final state | **`INTERRUPTED`** — `stages=1/8`, `chunks=1`, `pid=…/dead` |
+| cause in `events.jsonl` | 5 events, ending at `chunk_submitted` (seq 5) @ 20:31:06Z. Status renders *"no terminal event — the process is gone"* |
+| confirmed nothing published | `ingest` **refused, exit 2**, without connecting to the database |
+
+`interrupted` is the named failed state the brief requires — `status.py:40` says
+so explicitly, and `status.py:295` records why it belongs there *"even though the
+run never said so itself"*. There is no signal handling in `g3o/run/`, so a
+SIGKILL leaves no `run_failed` event by design; the cause is the last event plus
+a dead pid.
+
+The refusal is worth quoting, because it is the "nothing published" assertion:
+
+> *"Only a completed, non-dry run has a full Stage-7 tree to load. A partial
+> run's CSVs are real rows from an incomplete sweep, and nothing downstream could
+> tell them apart afterwards. Pass `--force` to load one deliberately."*
+
+> ⚠️ **A killed run orphans any in-flight OpenAI batch, and nothing reaps it.**
+> `discovery_general` completed in **1.9 seconds** here, so the kill landed in
+> `classify_official_site` after `batch_6a84c10a92488190a7fd389228e64a1b` (2 jobs)
+> was already submitted. It kept running server-side and had to be cancelled by
+> hand. At n=20 stage 1 will be similarly quick, so **assume any induced or
+> accidental kill leaves a live batch**: read the last `chunk_submitted` event
+> for the `batch_id` and cancel it, or pay for it.
 
 ### 4.4 Secrecy grep — ✅ passed in rehearsal, re-run on the gate run
 
