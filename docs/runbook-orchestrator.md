@@ -94,7 +94,8 @@ export SPACES_SECRET=...
 export SPACES_ENDPOINT=https://sfo3.digitaloceanspaces.com
 export SPACES_BUCKET=...
 # SPACES_REGION is optional; g3o.run.orchestrate.objectstore defaults it to
-# us-east-1, which DigitalOcean Spaces accepts alongside a custom endpoint.
+# us-east-1. Verified 2026-08-18 against the sfo3 endpoint: a put/read/re-hash
+# round trip on bucket g3o-runs matched byte for byte, so leave it unset.
 export G3O_API_REPO=$HOME/g3o-api
 export G3O_API_BASE=...            # the staging worker that reads the NEON
                                    # BRANCH, with REGISTRY_ONLY dropped and
@@ -219,7 +220,7 @@ python -m g3o.run.orchestrate ingest --run-id $RUN --frame-id mb-2026-07-30 \
 # 3. ARCHIVE — dry first (it deletes the institution tree), then apply + upload.
 python -m g3o.run.orchestrate archive --run-id $RUN
 python -m g3o.run.orchestrate archive --run-id $RUN --apply \
-    --destination s3://g3o-archive/runs
+    --destination s3://g3o-runs/runs
 
 # 4. PUBLISH-VERIFY — read-only. Asks the API; flips nothing.
 python -m g3o.run.orchestrate publish-verify --run-id $RUN
@@ -271,7 +272,7 @@ $env:SPACES_ENDPOINT="https://sfo3.digitaloceanspaces.com"
 
 python scripts\orchestrator\pull_run_archive.py `
     --run-id r20260813T101500Z-9c2f `
-    --destination s3://g3o-archive/runs `
+    --destination s3://g3o-runs/runs `
     --dest "G:\My Drive\G3O\run-archive"
 
 # Re-verify a copy already in Drive, downloading nothing:
@@ -339,7 +340,7 @@ verified there** — the bucket is not the last copy until it is.
 python scripts/orchestrator/pull_run_archive.py --run-id $RUN --dest "<drive>" --verify-only
 
 # 2. Empty and delete the Spaces bucket.
-s3cmd del --recursive --force s3://g3o-archive && s3cmd rb s3://g3o-archive
+s3cmd del --recursive --force s3://g3o-runs && s3cmd rb s3://g3o-runs
 
 # 3. Destroy the droplet.
 doctl compute droplet delete <droplet-id> --force
