@@ -38,7 +38,8 @@ induced-failure test, and a secrecy grep.
 | 2.9 | `g3o.frames` holds the run's frame | ✅ 08-17 | `mb-2026-07-30` |
 | 2.10 | `--frame-id` is unambiguous | ✅ 08-17 | master carries **exactly one** `master_build_id`: `mb-2026-07-30` |
 | 2.11 | Sweeps grain enforced | ✅ 08-17 | `sweeps_institution_run_uq UNIQUE (institution_uid, run_id)` (g3o-api #5) |
-| 2.12 | Staging API serving the branch | ❌ **PENDING** | see §3.5 |
+| 2.12 | Object store reachable, round trip verified | ✅ 08-18 | bucket `g3o-runs`, sfo3 endpoint, `us-east-1` region accepted; hash matched |
+| 2.13 | Staging API serving the branch | ❌ **PENDING** | see §3.5 |
 
 ### Dry-run rehearsal, 2026-08-17 — `r20260817T224831Z-98a7`
 
@@ -89,11 +90,21 @@ Dry first (it deletes the institution tree), then `--apply --destination`.
 Record the bucket prefix, `SHA256SUMS`, the ledger, and the post-upload re-hash
 verdict.
 
-> **Untested surface.** As of 2026-08-18 the archive leg has never run against
-> the real bucket. `SPACES_REGION` is deliberately unset, so `objectstore`
-> defaults to `us-east-1` while the endpoint is `sfo3` — a combination that
-> normally works with DigitalOcean Spaces but has not been demonstrated here.
-> Exercise this before the pass, not during it.
+> **Object-store path verified 2026-08-18, ahead of the pass.** A
+> put → read-back → re-hash round trip through `S3ObjectStore` against bucket
+> **`g3o-runs`** matched byte for byte, so the credentials work and the
+> `us-east-1` default **is** accepted alongside the `sfo3` endpoint —
+> `SPACES_REGION` stays unset. `exists` and `list_keys` both answered.
+>
+> That probe also caught a wrong bucket name in the runbook: every archive
+> example named `s3://g3o-archive`, which does not exist. Since credentials are
+> not touched until after `archive --apply` has tarred and **deleted** the live
+> institution tree, that would have failed mid-pass with the tree already gone
+> (recoverable from the local tars, but not a clean pass). Fixed before the gate.
+>
+> Still unexercised end to end: `archive_run` itself refuses anything without
+> Stage-7 output, all eight `.done` markers and the run reports, so the full leg
+> cannot run until a real run completes. Its first true execution is this pass.
 
 ### 3.5 Publish-verify — BLOCKED
 
