@@ -432,18 +432,17 @@ def test_cost_report_structure(tmp_path):
 
 def test_orchestrator_aborts_on_budget_exceeded(tmp_path, monkeypatch):
     """Full integration: orchestrator raises BudgetExceededError when a stage pushes total over budget."""
-    from g3o.common import config as g3o_config
     from g3o.run.presweep import PresweepConfig, run_presweep
 
     # Mock the stage runners to avoid actual API calls
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
 
     # Create a minimal master CSV
     master = tmp_path / "master.csv"
     master.write_text(
-        "institution_id,name,country,government_level,institution_type,url\n"
-        "inst-0001,Test Inst,TestCountry,national,university,https://example.edu\n",
+        "institution_uid,institution_id,name,country,government_level,institution_type,url\n"
+        "G3O-I-00000001,inst-0001,Test Inst,TestCountry,national,university,https://example.edu\n",
         encoding="utf-8",
     )
 
@@ -517,11 +516,9 @@ def test_orchestrator_aborts_on_budget_exceeded(tmp_path, monkeypatch):
 def test_cli_exits_3_on_budget_exceeded(tmp_path, monkeypatch, capsys):
     """CLI catches BudgetExceededError and exits with code 3."""
     from g3o import cli
-    from g3o.common import config as g3o_config
 
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
-    monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", "1000.0")  # High so preflight passes
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
 
     master = tmp_path / "master.csv"
     master.write_text(
@@ -562,16 +559,15 @@ def test_cli_exits_3_on_budget_exceeded(tmp_path, monkeypatch, capsys):
 
 def test_cost_report_persisted_on_abort(tmp_path, monkeypatch):
     """_cost_report.json is written even when the run is aborted mid-stage."""
-    from g3o.common import config as g3o_config
     from g3o.run.presweep import PresweepConfig, run_presweep
 
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
 
     master = tmp_path / "master.csv"
     master.write_text(
-        "institution_id,name,country,government_level,institution_type,url\n"
-        "inst-0001,Test Inst,TestCountry,national,university,https://example.edu\n",
+        "institution_uid,institution_id,name,country,government_level,institution_type,url\n"
+        "G3O-I-00000001,inst-0001,Test Inst,TestCountry,national,university,https://example.edu\n",
         encoding="utf-8",
     )
 
@@ -718,8 +714,8 @@ def test_cli_execute_with_cost_ceiling_flag_exceeded(tmp_path, monkeypatch, caps
     from g3o import cli
     from g3o.common import config as g3o_config
 
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
     # No env var set - rely solely on CLI flag
     monkeypatch.setattr(g3o_config, "BUDGET_LIMIT_USD", None)
 
@@ -756,16 +752,15 @@ def test_cli_execute_with_cost_ceiling_flag_exceeded(tmp_path, monkeypatch, caps
 
 def test_cost_report_includes_vs_preflight_estimate(tmp_path, monkeypatch):
     """Orchestrator includes vs_preflight_estimate in cost report when preflight was run."""
-    from g3o.common import config as g3o_config
     from g3o.run.presweep import PresweepConfig, run_presweep
 
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
 
     master = tmp_path / "master.csv"
     master.write_text(
-        "institution_id,name,country,government_level,institution_type,url\n"
-        "inst-0001,Test Inst,TestCountry,national,university,https://example.edu\n",
+        "institution_uid,institution_id,name,country,government_level,institution_type,url\n"
+        "G3O-I-00000001,inst-0001,Test Inst,TestCountry,national,university,https://example.edu\n",
         encoding="utf-8",
     )
 
@@ -1040,16 +1035,15 @@ def test_cost_report_zero_stages():
 
 def test_orchestrator_dry_run_mode_continues(tmp_path, monkeypatch):
     """Orchestrator continues past budget limit in dry run mode."""
-    from g3o.common import config as g3o_config
     from g3o.run.presweep import PresweepConfig, run_presweep
 
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
 
     master = tmp_path / "master.csv"
     master.write_text(
-        "institution_id,name,country,government_level,institution_type,url\n"
-        "inst-0001,Test Inst,TestCountry,national,university,https://example.edu\n",
+        "institution_uid,institution_id,name,country,government_level,institution_type,url\n"
+        "G3O-I-00000001,inst-0001,Test Inst,TestCountry,national,university,https://example.edu\n",
         encoding="utf-8",
     )
 
@@ -1130,16 +1124,15 @@ def test_orchestrator_dry_run_mode_continues(tmp_path, monkeypatch):
 
 def test_cost_report_includes_dry_run_field(tmp_path, monkeypatch):
     """Cost report includes dry_run field when cost_monitor_dry_run is True."""
-    from g3o.common import config as g3o_config
     from g3o.run.presweep import PresweepConfig, run_presweep
 
-    monkeypatch.setattr(g3o_config, "SERPER_API_KEY", "serper-key")
-    monkeypatch.setattr(g3o_config, "OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
 
     master = tmp_path / "master.csv"
     master.write_text(
-        "institution_id,name,country,government_level,institution_type,url\n"
-        "inst-0001,Test Inst,TestCountry,national,university,https://example.edu\n",
+        "institution_uid,institution_id,name,country,government_level,institution_type,url\n"
+        "G3O-I-00000001,inst-0001,Test Inst,TestCountry,national,university,https://example.edu\n",
         encoding="utf-8",
     )
 

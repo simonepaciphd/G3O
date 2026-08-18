@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition
-from g3o.common import config as _config
 from g3o.common.cost_monitor import (
     BudgetExceededError,
     CostMonitor,
