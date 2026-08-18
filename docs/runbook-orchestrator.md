@@ -9,9 +9,14 @@ refused or could not run. Scripts should branch on 2 vs 1: *did not happen* vs
 
 ---
 
-## The four one-liners
+## The one-liners
 
 ```bash
+# PREFLIGHT — ALWAYS FIRST. No submits, no state writes. Non-zero = do not submit.
+g3o presweep --preflight --master-csv ~/data/master_institutions.csv --sample-size 20 --seed 22294 \
+    --runs-dir "$G3O_RUNS_DIR" \
+    || { echo "PREFLIGHT FAILED — not submitting"; exit 2; }
+
 # SUBMIT — starts the run and returns; closing this shell changes nothing.
 python -m g3o.run.orchestrate submit --config run-config.json --execute --detach \
     --session-id "$G3O_SESSION_ID"
@@ -30,6 +35,18 @@ watch -n 60 python -m g3o.run.orchestrate status --latest
 
 `submit` prints the minted run id **first**, before the run does anything, so a
 detached run can be monitored and resumed while it is still in flight. Copy it.
+
+**Run the preflight and read its exit code.** It is the only check that verifies
+the keys before spend: it computes `keys_ok` (`g3o/run/preflight.py`), and the
+sole consumer is the CLI's own exit status — **`submit` does not gate on it.**
+`submit` refuses on the cost ceiling and on nothing else, so a keyless run passes
+submit and dies at discovery, costing you minutes and leaving a partial run
+record. It is not a silent-mock hazard — `serper_client` refuses to return mock
+results while `--execute` is active, and the presweep refuses too — but the
+guard is late, and the preflight is the one that is early. It also prints the
+planned sample and the projected Batch spend, which is where the `--cost-ceiling`
+figure comes from. Gating `submit` on `keys_ok` is a follow-up, after the
+window.
 
 **Pass `--session-id` on every run you care about.** It is the join key from a
 published database row back to the session that produced it (spec §4.2), and it
@@ -50,41 +67,42 @@ cd ~/G3O && git checkout <sha> && pip install -e . && playwright install chromiu
 cd ~/g3o-api && git checkout <sha>         # the ingest loader is pinned separately
 
 # 2. Two optional dependencies, deliberately not declared in pyproject.toml:
-#    boto3 for the archive leg, psycopg for the run-id collision guard. Both are
-#    needed on the droplet and nowhere else. Without psycopg the guard warns and
-#    skips rather than refusing, so a live run can still start unguarded — install
-#    it before the demonstration run.
+#    boto3 for the archive leg, psycopg for the loader. Both are needed on the
+#    droplet and nowhere else. psycopg is not optional in practice: the ingest
+#    leg runs g3o-api/scripts/ingest.py under THIS interpreter (build_argv uses
+#    sys.executable) and that script imports psycopg at module scope, so without
+#    it the ingest leg cannot start.
 pip install boto3 "psycopg[binary]"
 
 # 3. Secrets, in the environment. Never on a command line: an argument lands in
 #    shell history and in every `ps` listing on the box.
 #
-#    On the provisioned droplet these already exist in ~/.g3o/env (mode 600).
-#    THAT FILE ASSIGNS WITHOUT `export`, so a plain `source` is not enough --
-#    see the warning below. Values are quoted; bash strips the quotes, so read
-#    it with the shell and not with a naive line parser.
+#    On the provisioned droplet these already exist in ~/.g3o/env (mode 600),
+#    and they are exported. KEEP the `export` -- see the note below. Values are
+#    quoted; bash strips the quotes, so read the file with the shell rather than
+#    with a naive line parser.
 mkdir -p ~/.g3o
 cat >> ~/.g3o/env <<'EOF'
-OPENAI_API_KEY=...
-SERPER_API_KEY=...
-DATABASE_URL=...                   # the NEON BRANCH dsn, not production, and
+export OPENAI_API_KEY=...
+export SERPER_API_KEY=...
+export DATABASE_URL=...            # the NEON BRANCH dsn, not production, and
                                    # the UNPOOLED string: the loader runs one
                                    # long transaction, which a pooler in
                                    # transaction mode breaks.
-SPACES_KEY=...
-SPACES_SECRET=...
-SPACES_ENDPOINT=https://sfo3.digitaloceanspaces.com
-SPACES_BUCKET=...
+export SPACES_KEY=...
+export SPACES_SECRET=...
+export SPACES_ENDPOINT=https://sfo3.digitaloceanspaces.com
+export SPACES_BUCKET=...
 # SPACES_REGION is optional; g3o.run.orchestrate.objectstore defaults it to
 # us-east-1, which DigitalOcean Spaces accepts alongside a custom endpoint.
-G3O_API_REPO=$HOME/g3o-api
-G3O_API_BASE=...                   # the staging worker that reads the NEON
+export G3O_API_REPO=$HOME/g3o-api
+export G3O_API_BASE=...            # the staging worker that reads the NEON
                                    # BRANCH, with REGISTRY_ONLY dropped and
                                    # DEFAULT_WAVE=w001. The production worker
                                    # is REGISTRY_ONLY and serves zero findings,
                                    # so publish-verify against it reports a run
                                    # invisible however well the load went.
-G3O_RUNS_DIR=$HOME/runs
+export G3O_RUNS_DIR=$HOME/runs
 EOF
 chmod 600 ~/.g3o/env
 
@@ -97,22 +115,27 @@ export G3O_OPERATOR=thomas
 export G3O_SESSION_ID=20260817-claude-g3o-endgame   # yours, not this example
 ```
 
-> **Source it with `set -a`, or nothing Python-side sees it.** `~/.g3o/env`
-> assigns rather than exports, so a plain `source` populates the *shell* and no
-> child process. `launch()`, the orchestrator and the loader (a subprocess under
-> the same interpreter) all read `os.environ`, and an unset key is a silent
-> fallback to mocks rather than an error — so a run sourced the wrong way starts
-> with no keys, no DSN, and no Spaces credentials, and says nothing about it.
+> **Every line must keep its `export`.** Until 2026-08-18 the file assigned
+> without exporting, so a plain `source` populated the *shell* and no child
+> process — and `launch()`, the orchestrator and the loader (a subprocess under
+> the same interpreter) all read `os.environ`. A run sourced the documented way
+> started with no keys, no DSN and no Spaces credentials. Fixed at the source on
+> the PI's instruction, rather than by requiring every invocation to remember
+> `set -a`: a convention that has to be remembered fails the first time someone
+> is tired, at 2 a.m., on the one run that costs money.
 >
 > ```bash
-> set -a; . ~/.g3o/env; set +a      # every invocation, or put this in ~/.bashrc
+> . ~/.g3o/env                                                # plain source is enough
 > python3 -c "import os; assert os.environ['DATABASE_URL']"   # cheap proof
 > ```
 >
-> Adding `export` to each line fixes it permanently, but the file is shared with
-> the PI — agree it before editing it. On the provisioned droplet `~/.g3o/` is
-> root-owned while `env` inside it belongs to `g3o`: you can append to the file
-> but cannot create a sibling next to it, so write backups to `$HOME`.
+> Run that proof after any edit to the file, and after a rebuild. Two mechanics
+> if you ever have to edit it: `~/.g3o/` is **root-owned** while `env` inside it
+> belongs to `g3o`, so the file is writable but **nothing can create a sibling
+> next to it** — `sed -i` fails, because it stages a temp file in the target's
+> directory and renames. Stage in `$HOME` and then `cat staged > ~/.g3o/env`,
+> which truncates the existing inode and needs no directory permission. Backups
+> go to `$HOME` for the same reason.
 
 ### The run config
 
@@ -124,8 +147,8 @@ next to the manifest it produced. An unknown key is refused, not ignored.
 ```json
 {
   "run_id": "",
-  "runs_dir": "/home/thomas/runs",
-  "master_csv": "/home/thomas/data/master_institutions.csv",
+  "runs_dir": "/home/g3o/runs",
+  "master_csv": "/home/g3o/data/master_institutions.csv",
   "sample_size": 20,
   "seed": 22294,
   "dry_run": true,
@@ -367,15 +390,14 @@ runs/<run-id>/
   `frame_id_source = 'operator'`. A typo is not caught by this orchestrator.
   When stamping populates the block, that flips to `'manifest'` and the flag
   becomes redundant.
-- **The run-id collision guard fails open.** A live submit with an explicit
-  `--run-id` refuses if that id is already a row in `g3o.runs` (PI ruling
-  2026-08-14 §5). But an unset `DATABASE_URL`, a missing `psycopg`, or an
-  unreachable database all produce a **warning and a skip**, not a refusal —
-  blocking a run because the registry was briefly unreachable would trade a
-  rare cheap failure for a common expensive one. `_orchestrator/submit.json`
-  records which happened under `run_id_check`; a `skipped` verdict there means
-  nobody looked, not that the id was clear. A minted id is never checked, since
-  it cannot name a loaded run.
+- **Nothing checks that a `--run-id` is unused.** The guard that would have
+  was retired rather than deferred (SD-004, 2026-08-16): minted ids are
+  `r<YYYYMMDD>T<HHMMSS>Z-<4hex>` and the orchestrator is the only sanctioned
+  launch path, so a collision is unreachable through any supported route. The
+  residual exposure is a **hand-passed `--run-id`** naming a run already loaded:
+  it survives submit, spends the compute, and then fails at the `g3o.runs`
+  primary key during ingest. Omit `--run-id` and let it mint unless you are
+  deliberately resuming.
 - **`spend_snapshot` events are not emitted** (the sprint's agreed droppable);
   their absence means nothing, by fixture loader invariant 12. Reopened after
   the window: a run that cannot say what it spent is a poor record.
