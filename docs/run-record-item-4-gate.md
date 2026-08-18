@@ -9,7 +9,19 @@ before the PI cuts the production window. This file is the record of that pass.
 Sections marked **PENDING** are filled during it; everything else is already
 verified and dated, so the pass is transcription rather than reconstruction.
 
-**Status: NOT YET RUN.** Blocked on the staging worker URL (§3.5).
+**Status: NOT YET RUN.** Two PI decisions set its shape:
+
+1. **Pinned at `d614404`**, the commit the baseline was cut on. `main` has since
+   moved to `de96557` via #65 (continuous cost monitoring, 3,892 lines touching
+   the orchestrator, `run_state`, all three batch stages, `consolidate` and
+   `presweep/config`). That change reads as additive-with-defaults and should not
+   move Stage-7 bytes — but that is an argument, not a gate result, and the
+   baseline has not been re-verified against it. Pinning at `d614404` keeps the
+   baseline exactly valid and needs no re-verification. The cost is that #65's
+   runtime budget enforcement is not active, which is immaterial at n=20.
+2. **Proceeding without the staging worker** (PI, 2026-08-18). Publication is
+   therefore proven **database-side**, and the HTTP hop is recorded as unverified
+   rather than claimed. See §3.5 and §4.2.
 
 ---
 
@@ -106,7 +118,7 @@ verdict.
 > Stage-7 output, all eight `.done` markers and the run reports, so the full leg
 > cannot run until a real run completes. Its first true execution is this pass.
 
-### 3.5 Publish-verify — BLOCKED
+### 3.5 Publish-verify — DEFERRED, publication proven database-side
 
 `G3O_API_BASE` is unset **deliberately**. The worker on `api.g3observatory.org`
 is the registry preview (`REGISTRY_ONLY=true`, `DEFAULT_WAVE=w000`), which serves
@@ -116,9 +128,24 @@ invisible — correct about the API, and silent about the load.
 
 The PI is deploying a third worker from `worker/wrangler.jsonc` (no route, no
 custom domain, so it structurally cannot touch the production hostname) with
-`DEFAULT_WAVE=w001` and the branch DSN, and will send its `*.workers.dev` URL.
-**Do not guess a value: a URL that resolves but serves the wrong wave would pass
-this leg while proving nothing.**
+`DEFAULT_WAVE=w001` and the branch DSN. As of the pass it did not exist — both
+committed configs still read `DEFAULT_WAVE: "w000"` — and the PI directed that
+the gate proceed without it.
+
+**What is therefore proven, and what is not.** Publication is asserted against
+the database: the run resolves through `v_run_wave` to wave 1, appears in
+`v_wave_institution_facts`, and is present in `mv_institution_rollup` **without
+anyone having run `REFRESH`** — which is the "no manual refresh" property, since
+the refresh is loader-side. **Not proven:** the HTTP hop and the worker's
+`DEFAULT_WAVE` binding. Those remain unverified until the worker exists, and are
+recorded here as such rather than counted.
+
+| Assertion | Result |
+|---|---|
+| `v_run_wave` maps the run to wave 1 | |
+| run present in `v_wave_institution_facts` | |
+| run present in `mv_institution_rollup`, no manual REFRESH | |
+| HTTP hop via `publish-verify` | **NOT RUN — no staging worker** |
 
 ### 3.6 Pull to Drive — the PI's act
 
