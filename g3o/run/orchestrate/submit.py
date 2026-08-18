@@ -41,7 +41,6 @@ from typing import Any
 
 from g3o.common.credentials import Credentials
 from g3o.run.api import RunReceipt, launch
-from g3o.run.orchestrate.ingest import DSN_ENV_VAR
 from g3o.run.orchestrate.status import (
     orchestrator_dir,
     pid_identity,
@@ -274,102 +273,6 @@ def cost_gate(
     return summary
 
 
-def run_id_collision_gate(
-    config: PresweepConfig,
-    *,
-    dsn: str | None = None,
-    resuming: bool | None = None,
-) -> dict[str, Any]:
-    """Refuse a live submit whose run id is already loaded in ``g3o.runs``.
-
-    The PI's, 2026-08-14 §5: *"`g3o.runs(run_id)` is a database primary key, but
-    `--run-id` is free text with no uniqueness check anywhere in the pipeline. As
-    it stands, a reused run id collides at ingest — after the compute is spent."*
-    This is that check, placed before the spend rather than after it.
-
-    **A resume is not a collision.** The id existing in ``g3o.runs`` is a refusal
-    only for a *fresh* launch. When ``runs/<run_id>/`` already exists locally the
-    operator is deliberately continuing a run that has been loaded, and
-    re-ingesting the same run is an idempotent upsert by construction (spec §5.3)
-    — so that case warns and proceeds. Distinguishing them is the whole reason
-    this takes ``resuming`` rather than just an id.
-
-    **It fails open, loudly.** A driver that is absent, a DSN that is unset, a
-    database that is unreachable, or a schema still on v0.4 (no ``g3o.runs``) all
-    produce a warning and a ``"skipped"`` verdict rather than a refusal. Blocking
-    a run because the registry was briefly unreachable would trade a rare, cheap
-    failure for a common, expensive one — and the status quo this replaces had no
-    check at all, so a warned skip is strictly better than today. The verdict is
-    returned so the caller records which of those actually happened; "the guard
-    did not run" must never look like "the guard passed".
-
-    ``psycopg`` is an optional dependency, imported at first use with an install
-    instruction rather than declared in ``pyproject.toml`` — the same treatment
-    ``boto3`` gets in :mod:`.objectstore`, for the same reason: it is needed on
-    the droplet and nowhere else, and no test in this repo talks to a database.
-    """
-    if config.dry_run:
-        return {"verdict": "skipped", "reason": "dry run spends nothing"}
-
-    resolved = dsn or os.environ.get(DSN_ENV_VAR)
-    if not resolved:
-        logger.warning(
-            "RUN-ID COLLISION GUARD DID NOT RUN: %s is unset, so this submit "
-            "cannot check whether %r is already loaded in g3o.runs. A reused id "
-            "will surface at ingest instead — after the compute is spent.",
-            DSN_ENV_VAR, config.run_id,
-        )
-        return {"verdict": "skipped", "reason": f"{DSN_ENV_VAR} unset"}
-
-    try:
-        import psycopg  # noqa: PLC0415 - optional, droplet-only (see docstring)
-    except ImportError:
-        logger.warning(
-            "RUN-ID COLLISION GUARD DID NOT RUN: psycopg is not installed, so "
-            "this submit cannot check whether %r is already loaded in g3o.runs. "
-            "Install it on the droplet with: pip install 'psycopg[binary]'",
-            config.run_id,
-        )
-        return {"verdict": "skipped", "reason": "psycopg not installed"}
-
-    try:
-        with psycopg.connect(resolved, connect_timeout=10) as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "select 1 from g3o.runs where run_id = %s", (config.run_id,)
-                )
-                found = cur.fetchone() is not None
-    except Exception as exc:  # noqa: BLE001 - any driver/DB error fails open
-        logger.warning(
-            "RUN-ID COLLISION GUARD DID NOT RUN: could not query g3o.runs (%s: "
-            "%s). This is not a refusal — but the guard did not pass either.",
-            type(exc).__name__, exc,
-        )
-        return {"verdict": "skipped", "reason": f"{type(exc).__name__}: {exc}"}
-
-    if not found:
-        return {"verdict": "clear", "run_id": config.run_id}
-
-    if resuming is None:
-        resuming = (config.runs_dir / config.run_id).exists()
-    if resuming:
-        logger.warning(
-            "run %r is already present in g3o.runs, and runs/%s/ exists locally, "
-            "so this is being treated as a resume rather than a collision. "
-            "Re-ingesting the same run is an idempotent upsert (spec §5.3).",
-            config.run_id, config.run_id,
-        )
-        return {"verdict": "resume", "run_id": config.run_id}
-
-    raise SubmitError(
-        f"RUN ID ALREADY LOADED: {config.run_id!r} is already a row in g3o.runs, "
-        f"and there is no runs/{config.run_id}/ here for this to be a resume of. "
-        f"Nothing was submitted. A reused id would otherwise collide at ingest, "
-        f"after the compute is spent. Omit --run-id to mint a fresh one, or name "
-        f"the run you actually mean to resume."
-    )
-
-
 def submit(
     config: PresweepConfig,
     *,
@@ -378,7 +281,6 @@ def submit(
     detach: bool = False,
     log_path: Path | None = None,
     cost_ceiling_usd: float | None = None,
-    dsn: str | None = None,
 ) -> SubmitReceipt:
     """Start a run. With ``detach``, return as soon as it is running.
 
@@ -392,22 +294,12 @@ def submit(
 
     Resume is therefore not a mode: pass the existing run id and re-invoke.
     """
-    explicit_run_id = bool(config.run_id)
     run_id = config.run_id or _mint(config.runs_dir)
     config = replace(config, run_id=run_id)
     run_dir = config.runs_dir / run_id
 
-    # Cheapest gate first, and before the detach fork so both bind identically. A
-    # minted id cannot collide with a loaded run (it is minted against an unused
-    # directory and carries a fresh random suffix), so only an operator-supplied
-    # id is worth a round trip to the registry.
-    collision = (
-        run_id_collision_gate(config, dsn=dsn, resuming=run_dir.exists())
-        if explicit_run_id
-        else {"verdict": "skipped", "reason": "run id was minted, not supplied"}
-    )
-
-    # A detached run that only discovered its ceiling in the child would have
+    # Before the detach fork, so the cap binds identically in both modes. A
+    # detached run that only discovered its ceiling in the child would have
     # already returned "running" to the operator.
     projection = cost_gate(
         config, credentials=credentials, cost_ceiling_usd=cost_ceiling_usd
@@ -421,15 +313,6 @@ def submit(
             f"records every leg under the run directory; a run it cannot write "
             f"bookkeeping for is a run it cannot monitor."
         ) from exc
-
-    # Same reasoning as the projection below: record which guards ran, not only
-    # the ones that fired. A "skipped" verdict here is the difference between
-    # "no collision" and "nobody looked", and only the record can tell them apart
-    # after the fact.
-    try:
-        update_submit_record(run_dir, run_id_check=collision)
-    except OSError:
-        logger.warning("could not record the run-id check (non-fatal)", exc_info=True)
 
     # The projection that CLEARED real spend is part of the run's record, not
     # only the one that blocks it — otherwise the only evidence a cap was in
@@ -630,7 +513,6 @@ __all__ = [
     "config_from_mapping",
     "config_to_mapping",
     "load_config_file",
-    "run_id_collision_gate",
     "submit",
     "submit_record_path",
     "update_submit_record",
