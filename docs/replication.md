@@ -20,6 +20,34 @@ Fill in `.env`:
 | `SERPER_API_KEY`  | Stages 1a / 1b (discovery). Without it, `discover` returns mock data. |
 | `OPENAI_API_KEY`  | Stages 2, 3, 5, 6 (LLM via Batch API). Required end-to-end.    |
 
+Both variables are read **per call**, not at import (Run API spec §3, 2026-08-11),
+so the CLI behaves exactly as documented above. A programmatic caller uses
+`launch()` — the single entry point (§1) — and may pass keys per run, skipping the
+environment entirely:
+
+```python
+from g3o.run.api import Credentials, launch
+
+receipt = launch(
+    config,                     # PresweepConfig; run_id may be left empty
+    credentials=Credentials(
+        openai_api_key="sk-…", serper_api_key="…", label="key-B-grant",
+    ),
+    session_id="…",             # joins the run back to the session that drove it
+)
+print(receipt.run_id, receipt.outcome, receipt.runs_dir)
+```
+
+Precedence per provider is explicit field → environment → unset; unset behaves as
+it always has (mock discovery, a raise on the first LLM stage). A run records only
+`sha256(key)[:8]` and the label, never key material.
+
+Each run records its own provenance in `runs/<run_id>/manifest.json` (git sha,
+contract pin, prompt hashes, config snapshot + `config_hash`, credential
+fingerprints — never key material) and its history in `runs/<run_id>/events.jsonl`.
+Those two files are what a replication starts from: the manifest states exactly
+which code, contract and configuration produced the artifacts beside it.
+
 ## One-off operations
 
 ```bash

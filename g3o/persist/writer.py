@@ -24,6 +24,7 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -32,12 +33,13 @@ from typing import Any
 
 from g3o.common import attrition
 from g3o.common.contract import (
+    INSTITUTION_UID_PATTERN,
     ConsolidatedInstitutionResponse,
     PersistedActivity,
     PersistedSource,
     ValidationProvenance,
 )
-from g3o.common.paths import iter_institution_dirs, require_layout
+from g3o.common.paths import institution_uid_map, iter_institution_dirs, require_layout
 from g3o.common.schema import (
     ACTIVITY_COLUMNS,
     ACTIVITY_SOURCE_COLUMNS,
@@ -73,6 +75,29 @@ def _utc_today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+def sweep_uid_for(institution_uid: str) -> str:
+    """``"G3O-S-" + <the 8-digit tail of institution_uid>`` (PI ruling 2026-08-14 §2).
+
+    Deterministic, stateless, no lookup and no counter: re-running institution
+    X in a later run produces the same ``sweep_uid`` and a different
+    ``(sweep_uid, run_id)`` pair, and it is the composite key — not the string
+    — that carries the distinction. Minted here, at Stage 7 persist, and never
+    at Stage 6: that is an LLM boundary and a load-bearing key must not be
+    model-produced (§3).
+
+    Raises:
+        ValueError: on an institution_uid that is not ``G3O-I-<8 digits>``. The
+            8-digit tail is the whole of the derivation, so a malformed input
+            has no defensible output.
+    """
+    if not re.match(INSTITUTION_UID_PATTERN, institution_uid):
+        raise ValueError(
+            f"cannot derive a sweep_uid from institution_uid={institution_uid!r}: "
+            f"expected {INSTITUTION_UID_PATTERN}"
+        )
+    return f"G3O-S-{institution_uid[-8:]}"
+
+
 # ---------------------------------------------------------------------------
 # Loading
 # ---------------------------------------------------------------------------
@@ -85,6 +110,9 @@ class LoadedInstitution:
     institution_id: str
     response: ConsolidatedInstitutionResponse
     source_path: Path
+    #: The master's permanent key for this institution, off the run manifest.
+    #: Not on ``response``: that object is parsed from Stage 6 model output.
+    institution_uid: str
 
 
 def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], list[str]]:
@@ -95,17 +123,31 @@ def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], l
     order — so no run-level entry (``_state``, ``final``, reports) can reach this
     loop and the pre-v2 name filtering is gone.
 
+    The manifest's ``institution_uids`` block is joined on here rather than
+    read from ``institution.json``: that file is the Stage 2/3/5/6 prompt
+    payload, and the uid is bookkeeping that must not reach a model (PI ruling
+    2026-08-14 §3). A missing uid raises rather than defaulting — an empty
+    stamp is quarantined row by row at ingest, which is the failure this whole
+    change exists to remove.
+
     Returns:
         (loaded, failures) where ``loaded`` is a list of ``LoadedInstitution``
         and ``failures`` is a list of institution_ids whose payload failed to
         parse / validate. Failures are logged at WARNING; the caller decides
         whether to abort.
+
+    Raises:
+        RuntimeError: when the manifest carries no ``institution_uids`` block,
+            or carries no entry for an institution that reached Stage 6.
     """
     if not run_dir.exists():
         raise FileNotFoundError(f"run_dir does not exist: {run_dir}")
 
+    uid_by_inst = institution_uid_map(run_dir)
+
     loaded: list[LoadedInstitution] = []
     failures: list[str] = []
+    unstamped: list[str] = []
     for inst_dir in iter_institution_dirs(run_dir):
         path = inst_dir / "6_validate.json"
         if not path.exists():
@@ -117,12 +159,25 @@ def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], l
             logger.warning("Stage 7: %s failed to load: %s", inst_dir.name, exc)
             failures.append(inst_dir.name)
             continue
+        institution_id = response.institution.institution_id
+        institution_uid = uid_by_inst.get(institution_id, "")
+        if not institution_uid:
+            unstamped.append(institution_id)
+            continue
         loaded.append(
             LoadedInstitution(
-                institution_id=response.institution.institution_id,
+                institution_id=institution_id,
                 response=response,
                 source_path=path,
+                institution_uid=institution_uid,
             )
+        )
+    if unstamped:
+        raise RuntimeError(
+            f"{len(unstamped)} institution(s) reached Stage 6 but carry no "
+            "institution_uid in the run manifest, so their rows cannot be stamped: "
+            + ", ".join(unstamped[:5])
+            + ("…" if len(unstamped) > 5 else "")
         )
     return loaded, failures
 
@@ -208,11 +263,17 @@ def build_activity_rows(
     *,
     run_id: str,
     run_model: str,
+    institution_uid: str,
     run_tool: str = DEFAULT_RUN_TOOL_ACTIVITY,
     run_date: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Build one CSV-shaped dict per ``ConsolidatedActivity``."""
+    """Build one CSV-shaped dict per ``ConsolidatedActivity``.
+
+    ``institution_uid`` is keyword-required with no default: the loader
+    quarantines an unstamped fact row, so there is no safe fallback to offer.
+    """
     run_date = run_date or _utc_today()
+    sweep_uid = sweep_uid_for(institution_uid)
     rows: list[dict[str, Any]] = []
     institution = response.institution
     for activity in response.activities:
@@ -224,6 +285,8 @@ def build_activity_rows(
             run_model=run_model,
             run_tool=run_tool,
             run_date=run_date,
+            institution_uid=institution_uid,
+            sweep_uid=sweep_uid,
         )
         pa = PersistedActivity(
             provenance=provenance, institution=institution, activity=activity
@@ -237,6 +300,7 @@ def build_source_rows(
     *,
     run_id: str,
     run_model: str,
+    institution_uid: str,
     run_tool: str = DEFAULT_RUN_TOOL_SOURCE,
     run_date: str | None = None,
     salvaged_by_source: dict[tuple[str, str], str] | None = None,
@@ -246,8 +310,12 @@ def build_source_rows(
     ``salvaged_by_source`` (from :func:`salvaged_fields_by_source`) annotates
     each row's ``group_d_salvaged_fields`` from the attrition ledger keyed by
     ``(institution_id, source_url)``; defaults to no annotation.
+
+    ``institution_uid`` is keyword-required for the same reason as in
+    :func:`build_activity_rows`.
     """
     run_date = run_date or _utc_today()
+    sweep_uid = sweep_uid_for(institution_uid)
     salvaged_by_source = salvaged_by_source or {}
     rows: list[dict[str, Any]] = []
     institution_id = response.institution.institution_id
@@ -260,6 +328,8 @@ def build_source_rows(
             run_model=run_model,
             run_tool=run_tool,
             run_date=run_date,
+            institution_uid=institution_uid,
+            sweep_uid=sweep_uid,
         )
         ps = PersistedSource(
             provenance=provenance,
@@ -277,9 +347,15 @@ def build_summary_row(
     response: ConsolidatedInstitutionResponse,
     *,
     run_id: str,
+    institution_uid: str,
     run_date: str | None = None,
 ) -> dict[str, Any]:
-    """Build one CSV-shaped dict matching ``SUMMARY_COLUMNS``."""
+    """Build one CSV-shaped dict matching ``SUMMARY_COLUMNS``.
+
+    Carries ``institution_uid`` but not ``sweep_uid``: this CSV is not a loader
+    input, and at institution grain ``sweep_uid`` is a deterministic
+    restatement of the uid with no consumer.
+    """
     run_date = run_date or _utc_today()
     institution = response.institution
     activities = response.activities
@@ -294,6 +370,7 @@ def build_summary_row(
     activities_found = [a.activity_name for a in activities]
 
     row = {
+        "institution_uid": institution_uid,
         "institution_id": institution.institution_id,
         "institution_name": institution.institution_name,
         "country": institution.country,
@@ -401,6 +478,7 @@ def write_run_csvs(
                 li.response,
                 run_id=run_id,
                 run_model=run_model,
+                institution_uid=li.institution_uid,
                 run_tool=activities_tool,
                 run_date=run_date,
             )
@@ -410,13 +488,19 @@ def write_run_csvs(
                 li.response,
                 run_id=run_id,
                 run_model=run_model,
+                institution_uid=li.institution_uid,
                 run_tool=sources_tool,
                 run_date=run_date,
                 salvaged_by_source=salvaged_by_source,
             )
         )
         summary_rows.append(
-            build_summary_row(li.response, run_id=run_id, run_date=run_date)
+            build_summary_row(
+                li.response,
+                run_id=run_id,
+                institution_uid=li.institution_uid,
+                run_date=run_date,
+            )
         )
 
     n_activities = _write_csv(activities_path, ACTIVITY_COLUMNS, activity_rows)
@@ -471,5 +555,6 @@ __all__ = [
     "build_source_rows",
     "build_summary_row",
     "load_consolidated_outputs",
+    "sweep_uid_for",
     "write_run_csvs",
 ]

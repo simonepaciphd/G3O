@@ -455,32 +455,41 @@ def test_proposed_adoption_stage_validates():
 PROVENANCE_MODELS = (RunProvenance, ValidationProvenance)
 
 
-def _provenance(run_date: str) -> dict[str, Any]:
-    return {
+def _provenance(run_date: str, model: Any = None) -> dict[str, Any]:
+    """Shared payload for both provenance models.
+
+    ``ValidationProvenance`` additionally requires the key layer; both models
+    are ``extra="forbid"``, so the uids cannot simply be sent to each.
+    """
+    base: dict[str, Any] = {
         "global_row_id": "run-001-row-0001",
         "run_id": "20260508-test",
         "run_model": "gpt-5-nano",
         "run_tool": "g3o.extract",
         "run_date": run_date,
     }
+    if model is ValidationProvenance:
+        base["institution_uid"] = "G3O-I-00000001"
+        base["sweep_uid"] = "G3O-S-00000001"
+    return base
 
 
 @pytest.mark.parametrize("model", PROVENANCE_MODELS)
 @pytest.mark.parametrize("run_date", ["2026-02-30", "2026-13-01", "2026-00-10"])
 def test_provenance_rejects_shape_valid_but_impossible_run_date(model, run_date):
     with pytest.raises(ValidationError):
-        model.model_validate(_provenance(run_date))
+        model.model_validate(_provenance(run_date, model))
 
 
 @pytest.mark.parametrize("model", PROVENANCE_MODELS)
 @pytest.mark.parametrize("run_date", ["2026-05-08", "2024-02-29", "2026-12-31"])
 def test_provenance_accepts_real_run_dates(model, run_date):
     """Including a genuine leap day, which a naive month-length check would drop."""
-    assert model.model_validate(_provenance(run_date)).run_date == run_date
+    assert model.model_validate(_provenance(run_date, model)).run_date == run_date
 
 
 @pytest.mark.parametrize("model", PROVENANCE_MODELS)
 def test_provenance_still_rejects_malformed_run_date_shape(model):
     """The pattern constraint is unchanged and still runs first."""
     with pytest.raises(ValidationError):
-        model.model_validate(_provenance("08/05/2026"))
+        model.model_validate(_provenance("08/05/2026", model))

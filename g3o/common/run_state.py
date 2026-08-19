@@ -51,6 +51,7 @@ from typing import Any
 
 from g3o.common import batch_client
 from g3o.common.batch_client import BatchJob, BatchResult
+from g3o.common.credentials import ResolvedCredentials
 
 logger = logging.getLogger(__name__)
 
@@ -142,6 +143,7 @@ def write_active_chunked(
     model: str,
     chunk_custom_ids: list[list[str]],
     bypass_count: int | None = None,
+    key_fingerprint: str | None = None,
 ) -> Path:
     """Persist the full chunk plan at planning time, before any submission.
 
@@ -154,6 +156,15 @@ def write_active_chunked(
     ``custom_ids`` are deduplicated and sorted per chunk (canonical storage;
     submission order within a batch is semantically irrelevant — results
     round-trip by ``custom_id``).
+
+    ``key_fingerprint`` records which key this stage's batches were submitted
+    under (Run API spec §3.5). It is written here, in ``_state/``, because that is
+    the file a resume actually reads: the spec puts the per-stage fingerprint in
+    the manifest, which arrives with PR C, and a check that has to wait for the
+    manifest is a check that does not protect the resume path in the meantime.
+    PR C mirrors it into the manifest; this stays the copy resume compares.
+    Omitted when unknown, so state files written before 2026-08-11 stay loadable
+    and comparable (as "unknown", never as "mismatched").
     """
     state_dir(run_dir).mkdir(parents=True, exist_ok=True)
     chunks: dict[str, dict[str, Any]] = {}
@@ -189,6 +200,8 @@ def write_active_chunked(
     }
     if bypass_count is not None:
         payload["bypass_count"] = bypass_count
+    if key_fingerprint:
+        payload["key_fingerprint"] = key_fingerprint
     p = state_path(run_dir, stage)
     _write_json_atomic(p, payload)
     return p
@@ -292,8 +305,74 @@ def mark_done(run_dir: Path, stage: str, *, no_batch: bool = False) -> Path:
 
 
 def _chunk_metadata(run_id: str, stage: str, chunk: int | str) -> dict[str, str]:
-    """Unique batch identity carried as OpenAI batch metadata (review F6)."""
+    """Unique batch identity carried as OpenAI batch metadata (review F6).
+
+    Identity only — the three keys of ``batch_client.CHUNK_METADATA_KEYS``. This
+    is what reconciliation matches on, so it must never grow a field that can
+    change between the submit and a later resume (see :func:`_submit_metadata`).
+    """
     return {"g3o_run_id": run_id, "g3o_stage": stage, "g3o_chunk": str(chunk)}
+
+
+def _submit_metadata(
+    identity: dict[str, str], key_fingerprint: str | None
+) -> dict[str, str]:
+    """Batch identity plus the submitting key's fingerprint (Run API spec §3.5).
+
+    Server-side reconciliation lists batches **per API key**, so an operator
+    holding two keys cannot otherwise tell which key paid for a batch they are
+    looking at. ``g3o_key_fingerprint`` (``sha256(key)[:8]``, never key material —
+    §3.3) makes that attributable.
+
+    It is deliberately *stored* but not *matched on*: a resumed run reconciles
+    against batches submitted by an earlier process, which — for any batch
+    submitted before this field existed — carries no fingerprint at all. Folding
+    it into the match key would make those batches unfindable and a reconcile
+    miss means a **double submit**, i.e. double spend. Identity is what makes a
+    batch unique; the key that paid for it is provenance.
+
+    Omitted entirely when no fingerprint is known (no credentials threaded down):
+    batch metadata values are strings, and a null fingerprint would be
+    indistinguishable from a real one in a server-side listing.
+    """
+    if not key_fingerprint:
+        return dict(identity)
+    return {**identity, "g3o_key_fingerprint": key_fingerprint}
+
+
+def assert_resume_key_matches(
+    state: dict[str, Any],
+    key_fingerprint: str | None,
+    *,
+    run_dir: Path,
+    stage: str,
+) -> None:
+    """Refuse to resume a stage under a different API key (Run API spec §3.5).
+
+    The failure this prevents is expensive and silent. OpenAI lists batches **per
+    API key**, so a run resumed under key B cannot see the batches key A submitted:
+    reconciliation finds nothing, concludes the chunk was never submitted, and
+    submits it again. The original batches still run and still bill. The operator
+    sees a slow but apparently healthy resume, and pays twice for every chunk that
+    had not yet been fetched.
+
+    So a mismatch stops the stage before its first submit, naming the fingerprints
+    and telling the operator the one thing that fixes it: resume with the original
+    key. An unknown fingerprint on either side is *not* a mismatch — state files
+    predating this field, and callers that thread no credentials, must keep
+    resuming exactly as they did.
+    """
+    recorded = state.get("key_fingerprint")
+    if not recorded or not key_fingerprint or recorded == key_fingerprint:
+        return
+    raise RuntimeError(
+        f"Stage {stage}: this run's batches were submitted under OpenAI key "
+        f"{recorded} but the current key is {key_fingerprint}. Resume with the "
+        f"original key. Batches are listed per key, so continuing would find none "
+        f"of the in-flight chunks and resubmit them — the original batches would "
+        f"still run and still bill, and the duplicate spend would not show up "
+        f"anywhere until the invoice. State file: {state_path(run_dir, stage)}."
+    )
 
 
 def _reconcile_custom_ids(
@@ -382,6 +461,7 @@ def _reconcile_detail(problems: dict[str, list[str]], *, empty: bool) -> str:
     return "; ".join(parts)
 
 
+
 def run_chunked_stage(
     run_dir: Path,
     stage: str,
@@ -399,6 +479,9 @@ def run_chunked_stage(
     max_chunk_requests: int = batch_client.CHUNK_MAX_REQUESTS,
     enqueued_budget: int | None = None,
     client: Any | None = None,
+    cost_check_callback: Callable[[str, dict[str, int]], Any] | None = None,
+    credentials: ResolvedCredentials | None = None,
+    telemetry: Any | None = None,
 ) -> None:
     """Submit, poll, and fetch one LLM stage as size-capped batch chunks.
 
@@ -464,10 +547,33 @@ def run_chunked_stage(
 
     On success (every chunk fetched), the state file moves to
     ``.done/{stage}.json`` — the stage-complete signal is unchanged (Q3=e2).
+
+    **Credentials (Run API spec §3.2/§3.5).** ``credentials``, when the caller
+    threads it down, is the run's resolved key bundle: it builds the one OpenAI
+    client this stage uses and supplies the ``g3o_key_fingerprint`` recorded on
+    every submit. An explicit ``client`` still wins (test injection). With
+    neither, nothing changes from the pre-spec path — each ``batch_client`` call
+    constructs its own client from the environment — so a caller that never
+    passes credentials behaves exactly as it did, and no submit carries a
+    fingerprint the run cannot account for.
     """
+    if client is None and credentials is not None:
+        client = batch_client.client_from_credentials(credentials)
+    key_fingerprint = credentials.openai_fingerprint if credentials else None
+    # Local import: g3o.run.telemetry imports this module for its state readers,
+    # so a top-level import here would be circular. Telemetry is passive (§4) —
+    # nothing below reads it back, it only records.
+    if telemetry is None:
+        from g3o.run.telemetry import NO_TELEMETRY as telemetry
+
     state = load_state(run_dir, stage)
     if state is not None:
         assert_chunked_state(state, path=state_path(run_dir, stage))
+        # Before anything is submitted or polled: a resume under a different key
+        # would silently double-submit (spec §3.5).
+        assert_resume_key_matches(
+            state, key_fingerprint, run_dir=run_dir, stage=stage
+        )
 
     if enqueued_budget is None:
         enqueued_budget = batch_client.enqueued_token_budget()
@@ -507,6 +613,7 @@ def run_chunked_stage(
             run_id=run_id, model=model,
             chunk_custom_ids=[[j.custom_id for j in c] for c in chunked],
             bypass_count=bypass_count,
+            key_fingerprint=key_fingerprint,
         )
         state = load_state(run_dir, stage)
         assert state is not None
@@ -517,6 +624,8 @@ def run_chunked_stage(
 
     def _submit_one(key: str, entry: dict[str, Any]) -> bool:
         """Reconcile-then-submit one chunk. True if it is now in flight."""
+        # Identity is the match key; the fingerprint rides along on the submit
+        # only (see _submit_metadata for why the two must not be the same dict).
         metadata = _chunk_metadata(run_id, stage, key)
         existing = batch_client.find_batches_by_metadata(metadata, client=client)
         # Drop batches an operator has explicitly adjudicated for this chunk
@@ -551,6 +660,15 @@ def run_chunked_stage(
                 batch_id=found.batch_id, submitted_at=_utc_iso(),
                 adopted=True, last_status=found.status,
             )
+            # An adoption is still this chunk entering flight, so it emits
+            # chunk_submitted — with `adopted` so the record distinguishes it
+            # from a fresh create. Omitting it would leave a chunk that later
+            # reports chunk_terminal with no submission in the log at all.
+            telemetry.emit(
+                "chunk_submitted", stage=stage, chunk=int(key),
+                batch_id=found.batch_id, n_jobs=len(entry["custom_ids"]),
+                key_fingerprint=key_fingerprint, adopted=True,
+            )
             return True
         missing = [cid for cid in entry["custom_ids"] if cid not in jobs_by_id]
         if missing:
@@ -567,7 +685,7 @@ def run_chunked_stage(
             model=model,
             completion_window=completion_window,
             endpoint=endpoint,
-            metadata=metadata,
+            metadata=_submit_metadata(metadata, key_fingerprint),
             client=client,
         )
         logger.info(
@@ -577,6 +695,11 @@ def run_chunked_stage(
         update_chunk(
             run_dir, stage, key,
             batch_id=handle.batch_id, submitted_at=_utc_iso(),
+        )
+        telemetry.emit(
+            "chunk_submitted", stage=stage, chunk=int(key),
+            batch_id=handle.batch_id, n_jobs=handle.n_jobs,
+            key_fingerprint=key_fingerprint,
         )
         return True
 
@@ -615,13 +738,13 @@ def run_chunked_stage(
         # A chunk larger than the whole budget goes out alone, once nothing else
         # is in flight, so an oversized chunk cannot deadlock the stage.
         for key, entry in iter_chunks(state):
-            if entry["fetched_at"] is not None or entry["batch_id"] is not None:
-                continue
-            need = chunk_tokens(key)
-            if in_flight_tokens and in_flight_tokens + need > budget:
-                continue
-            if _submit_one(key, entry):
-                in_flight_tokens += need
+                if entry["fetched_at"] is not None or entry["batch_id"] is not None:
+                    continue
+                need = chunk_tokens(key)
+                if in_flight_tokens and in_flight_tokens + need > budget:
+                    continue
+                if _submit_one(key, entry):
+                    in_flight_tokens += need
         state = load_state(run_dir, stage)
         assert state is not None
         pending = [
@@ -688,14 +811,54 @@ def run_chunked_stage(
                         f"{state_path(run_dir, stage)}."
                     )
                 process_chunk_results(iter(fetched))
+                # Sum token usage across all results in this chunk
+                chunk_usage = {
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                    "cached_tokens": 0,
+                }
+                for result in fetched:
+                    u = result.usage
+                    if u:
+                        for k in chunk_usage:
+                            chunk_usage[k] += u.get(k, 0)
                 update_chunk(
                     run_dir, stage, key,
                     fetched_at=_utc_iso(),
                     response_models=sorted(models),
                     system_fingerprints=sorted(fingerprints),
+                    usage=chunk_usage,
                 )
+                # Emitted after the completeness gate, not before: a chunk whose
+                # results failed to reconcile raised above and is NOT terminal in
+                # any sense the record should claim — it stays active and a re-run
+                # rejoins the same batch.
+                telemetry.emit(
+                    "chunk_terminal", stage=stage, chunk=int(key),
+                    batch_id=entry["batch_id"], terminal_state=status.status,
+                    n_output=sum(1 for r in fetched if r.success),
+                    n_error=sum(1 for r in fetched if not r.success),
+                    resolved_model=(sorted(models)[0] if models else None),
+                )
+                # Within-stage budget check (Gap 1): after each chunk completes,
+                # call the callback (if provided). The callback accumulates usage
+                # and raises BudgetExceededError if over budget, which propagates
+                # past mark_done — no .done marker written, un-submitted chunks
+                # stay in the active state file as a truncation signal.
+                # A callback that returns False (rather than raising) also stops
+                # further chunk submission and leaves the stage incomplete.
+                if cost_check_callback is not None:
+                    proceed = cost_check_callback(stage, chunk_usage)
+                    if proceed is False:
+                        return
             elif status.is_terminal:
                 failed[key] = status.status
+                telemetry.emit(
+                    "chunk_terminal", stage=stage, chunk=int(key),
+                    batch_id=entry["batch_id"], terminal_state=status.status,
+                    n_output=0, n_error=None, resolved_model=None,
+                )
                 logger.warning(
                     "Stage %s chunk %s: batch %s ended in terminal state %s; "
                     "will raise after the remaining chunks are fetched "
@@ -732,6 +895,22 @@ def run_chunked_stage(
                 if waiting
                 else ""
             )
+            # F16, recorded (§4.3 poll_timeout): one event per still-flying
+            # chunk, before the raise. The note is the operator-facing half —
+            # this is the one timeout in the pipeline that does NOT mean failure,
+            # and a reader of the log alone must not conclude the batch died.
+            for key in in_flight:
+                telemetry.emit(
+                    "poll_timeout", stage=stage,
+                    batch_id=state["chunks"][key]["batch_id"],
+                    chunk=int(key),
+                    waited_seconds=max_wait,
+                    max_wait_per_stage=max_wait,
+                    note=(
+                        "batch has NOT ended; re-run the same command to rejoin "
+                        "polling without resubmitting"
+                    ),
+                )
             raise RuntimeError(
                 f"Stage {stage}: timed out after {max_wait}s with {detail or 'no batch'} "
                 f"still in flight.{held} The batch(es) have NOT ended — an "
@@ -763,6 +942,7 @@ __all__ = [
     "STATE_SCHEMA_VERSION",
     "abandon_chunk_batch",
     "assert_chunked_state",
+    "assert_resume_key_matches",
     "done_path",
     "done_dir",
     "is_done",

@@ -77,6 +77,13 @@ DATA_COLUMNS: list[str] = [
 ]
 
 ACTIVITY_COLUMNS: list[str] = [
+    # Key layer (2) — the loader's required columns. `institution_uid` is the
+    # master's permanent key; `sweep_uid` is its Stage-7 restatement, and the
+    # sweeps upsert is ON CONFLICT (sweep_uid, run_id). A row missing either is
+    # quarantined by the loader, not repaired: derivation is retired (PI ruling
+    # 2026-08-14 §1-§3). Ordered first to mirror the loader's FINDING_MAP.
+    "institution_uid",
+    "sweep_uid",
     # Provenance (5)
     "global_row_id",
     "run_id",
@@ -120,6 +127,9 @@ ACTIVITY_COLUMNS: list[str] = [
 ]
 
 ACTIVITY_SOURCE_COLUMNS: list[str] = [
+    # Key layer (2) — see ACTIVITY_COLUMNS. Mirrors the loader's EVIDENCE_MAP.
+    "institution_uid",
+    "sweep_uid",
     # Provenance (5)
     "global_row_id",
     "run_id",
@@ -147,7 +157,13 @@ ACTIVITY_SOURCE_COLUMNS: list[str] = [
 ]
 
 INSTITUTION_REPORT_COLUMNS: list[str] = [
-    # Identity + final verdict (5)
+    # Identity + final verdict (6)
+    # `institution_uid` only: this ledger is a run diagnostic, not a loader
+    # input (`ingest.py` takes --master/--activities/--sources and nothing
+    # else), so it carries the join key and not `sweep_uid`, which on an
+    # institution-grain row is a deterministic restatement of it with no
+    # consumer. Amends the PI ruling 2026-08-14 §4 table, row 4.
+    "institution_uid",
     "institution_id",
     "final_status",
     "stage_reached",
@@ -172,7 +188,9 @@ INSTITUTION_REPORT_COLUMNS: list[str] = [
 ]
 
 SUMMARY_COLUMNS: list[str] = [
-    # Identity (5)
+    # Identity (6) — `institution_uid` only, for the reason given on
+    # INSTITUTION_REPORT_COLUMNS: this CSV is not a loader input either.
+    "institution_uid",
     "institution_id",
     "institution_name",
     "country",

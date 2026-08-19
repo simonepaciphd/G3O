@@ -1,0 +1,95 @@
+{
+  "manifest_schema_version": 1,
+  "run_id": "r20260810T142233Z-9f3b",
+  "run_started_at": "2026-08-10T14:22:33Z",
+  "session_id": "e28ca730-8bc2-418f-ae89-ba7ffe92e98d",
+  "operator": "ra_001",
+  "hostname": "g3o-sprint-droplet-t003",
+  "invocation": "api",
+  "code": {
+    "git_sha": "e2eba1cde9d721df56fd3ff99f66247a70e520ea",
+    "git_dirty": false,
+    "package_version": "0.1.0",
+    "install_path": "/home/g3o/G3O"
+  },
+  "frame": {
+    "frame_id": null,
+    "master_build_id": null
+  },
+  "contract": {
+    "extract": {
+      "path": "g3o/extract/prompts/output_contract.md",
+      "version": "v2.2",
+      "sha256": "bca25d8cc1962c96e889fee22f9f3b096ac8700ecb42f5fa97caaddeca9cc910"
+    },
+    "validate": {
+      "path": "g3o/validate/prompts/output_contract.md",
+      "version": "v1.1",
+      "sha256": "a69444835445bfb51fc72346d155c8c07a4d64133d4258d6eee55044825cf3e2"
+    }
+  },
+  "prompts": {
+    "g3o/extract/prompts/system_prompt.md": "6a39912a99f70b8ab8bd28588f469b89fbbd4fb8f468a5faa00cc7181e6e0346",
+    "g3o/extract/prompts/output_contract.md": "c733c9e0ef7e26866642194698c38b9826154f491302cd5a52c453dd9f20b04e",
+    "g3o/validate/prompts/system_prompt.md": "8ab63f72c335dbab3ba620018972240d589419710b6c40cc9df224c4954b6d2a",
+    "g3o/validate/prompts/output_contract.md": "a1cf05a00399ea88318a928899d1061f7a7669b23e54f08b236c646bfd5df85e"
+  },
+  "config": {
+    "run_id": "r20260810T142233Z-9f3b",
+    "runs_dir": "/home/g3o/G3O/runs",
+    "master_csv": "/home/g3o/G3O/data/master_institutions.csv",
+    "sample_size": 20,
+    "seed": 22294,
+    "stratification": "equal",
+    "stratify_keys": [
+      "country",
+      "government_level",
+      "institution_type"
+    ],
+    "discovery_languages": [
+      "en"
+    ],
+    "discovery_results_per_query": 10,
+    "discovery_mode": "chain",
+    "discovery_evidence_term": "AI",
+    "discovery_evidence_terms": null,
+    "discovery_domain_quote_name": false,
+    "serper_autocorrect": false,
+    "dry_run": false,
+    "stop_after": "validate",
+    "filter_mode": "shadow",
+    "poll_interval": 60,
+    "max_wait_per_stage": 90000,
+    "model": "gpt-5-nano",
+    "extract_text_cap_chars": 60000,
+    "extract_text_cap_rule": "head_tail",
+    "empty_page_min_chars": 50,
+    "scrape_respect_robots": true,
+    "scrape_host_delay_seconds": 1.0,
+    "scrape_render_on_download_failure": false,
+    "max_workers": 1
+  },
+  "config_hash": "952dfc5fa6e121476797e62c38a2c5425d581367677508bd480739159a801318",
+  "config_hash_excludes": [
+    "master_csv",
+    "run_id",
+    "runs_dir"
+  ],
+  "credentials": {
+    "openai": {
+      "source": "env",
+      "fingerprint": "3f9a1c7d",
+      "label": "key-B-grant"
+    },
+    "serper": {
+      "source": "env",
+      "fingerprint": "c04e88b2",
+      "label": null
+    }
+  },
+  "model_ids": {
+    "requested": {
+      "batch_stages": "gpt-5-nano"
+    }
+  }
+}

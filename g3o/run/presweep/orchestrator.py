@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition
-from g3o.common import config as _config
+from g3o.common.cost_monitor import (
+    BudgetExceededError,
+    CostMonitor,
+    ProjectedBudgetExceededError,
+)
+from g3o.common.credentials import Credentials, ResolvedCredentials, resolve
 from g3o.common.institution_report import write_institution_report
 from g3o.common.paths import require_layout
+from g3o.common.run_state import state_dir
 from g3o.discovery.serper_client import SerperOptions, set_live_mode
 from g3o.report.run_summary import render_run_summary_text, write_run_summary
 from g3o.run.presweep.config import PresweepConfig
@@ -26,8 +34,29 @@ from g3o.run.presweep.stage_extract import _run_extract
 from g3o.run.presweep.stage_filter import _run_filter_eligibility
 from g3o.run.presweep.stage_scrape import _run_scrape
 from g3o.run.presweep.stage_validate import _run_validate
+from g3o.run.telemetry import NO_TELEMETRY, RunTelemetry
 
 logger = logging.getLogger(__name__)
+
+# LLM stages that have cost monitoring (in execution order)
+_LLM_STAGES: tuple[str, ...] = (
+    "classify_official_site",
+    "classify_triage",
+    "extract",
+    "validate",
+)
+
+# Projection checks: after each stage completes, check projection before the next stage.
+# Maps a stage to the set of stop_after values that skip the projection check
+# (because the run would end before the next LLM stage anyway).
+# Note: The stage itself is not included because if stop_after == stage, we return
+# before reaching the projection check.
+_PROJECTION_SKIP_AFTER: dict[str, frozenset[str]] = {
+    "classify_official_site": frozenset({"discovery_general"}),
+    "classify_triage": frozenset({"classify_official_site", "discovery_general", "discovery_site_restricted", "filter_eligibility"}),
+    "extract": frozenset({"scrape"}),
+}
+
 
 # ---------------------------------------------------------------------------
 # Resume semantics (Session E, 2026-05-09; chunked Session F.1, 2026-06-10):
@@ -49,21 +78,28 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def _assert_live_keys(config: PresweepConfig) -> None:
+def _assert_live_keys(
+    config: PresweepConfig, credentials: ResolvedCredentials
+) -> None:
     """Hard-fail before a live run if a required API key is unset (review F1).
 
     Stage 1 discovery always needs Serper; Stages 2/3/5/6 need OpenAI. Failing
     fast at startup beats discovering a missing key after Serper spend (or, worse
     for Serper, silently returning mock results). The OpenAI check is skipped
     when ``--stop-after discovery_general`` means no LLM stage will run.
+
+    Reads the run's **resolved** credentials (Run API spec §3.1), so the gate
+    covers an explicitly-passed key exactly as it covers an env-sourced one — and
+    so it can no longer pass on a key that was present at import time but is not
+    the key this run will actually spend.
     """
-    if not _config.SERPER_API_KEY:
+    if not credentials.has_serper:
         raise RuntimeError(
             "SERPER_API_KEY is not set, but --execute requires a live Serper key "
             "for Stage 1 discovery. Refusing to run with mock discovery. Set the "
             "key, or run without --execute (dry run)."
         )
-    if config.stop_after != "discovery_general" and not _config.OPENAI_API_KEY:
+    if config.stop_after != "discovery_general" and not credentials.has_openai:
         raise RuntimeError(
             "OPENAI_API_KEY is not set, but --execute beyond Stage 1a requires a "
             "live OpenAI key (Stages 2/3/5/6). Set the key, pass "
@@ -71,7 +107,72 @@ def _assert_live_keys(config: PresweepConfig) -> None:
         )
 
 
-def run_presweep(config: PresweepConfig) -> dict[str, Any]:
+def _check_stage_budget(
+    monitor: CostMonitor,
+    config: PresweepConfig,
+    run_dir: Path,
+    stage_name: str,
+) -> bool:
+    """Record a stage's cost and check budget.
+
+    Returns True if within budget, False if over budget in dry-run mode.
+    Raises :class:`BudgetExceededError` when over budget and dry-run is False.
+    """
+    _, within_budget = monitor.record_and_check(run_dir, stage_name)
+    if not within_budget:
+        if config.cost_monitor_dry_run:
+            logger.warning(
+                "BUDGET EXCEEDED (warn-only mode — continuing): "
+                "Stage %s: $%.4f spent of $%.4f limit",
+                stage_name, monitor.running_total_usd, monitor.budget_usd,
+            )
+            return False
+        raise BudgetExceededError(
+            monitor.running_total_usd, monitor.budget_usd, stage_name
+        )
+    logger.debug(
+        "Stage %s: $%.4f spend of $%s budget (%.1f%%)",
+        stage_name,
+        monitor.running_total_usd,
+        f"{monitor.budget_usd:.4f}" if monitor.budget_usd else "∞",
+        (monitor.running_total_usd / monitor.budget_usd * 100) if monitor.budget_usd else 0,
+    )
+    return True
+
+
+def _record_and_track_stage_budget(
+    monitor: CostMonitor,
+    config: PresweepConfig,
+    run_dir: Path,
+    stage_name: str,
+    budget_exceeded_stages: list[str],
+) -> None:
+    """Record stage cost, check budget, and track exceeded stages.
+
+    Wrapper around :func:`_check_stage_budget` that handles tracking:
+    - If within budget: returns silently
+    - If dry-run mode and over budget: appends to budget_exceeded_stages
+    - If actual abort: appends to budget_exceeded_stages, raises BudgetExceededError
+
+    The caller should catch the exception and record the abort stage.
+    """
+    try:
+        within_budget = _check_stage_budget(monitor, config, run_dir, stage_name)
+    except BudgetExceededError:
+        # Append stage before re-raising so the cost report tracks which stage
+        # triggered the abort even though _check_stage_budget raises immediately.
+        budget_exceeded_stages.append(stage_name)
+        raise
+    if not within_budget:
+        budget_exceeded_stages.append(stage_name)
+
+
+def run_presweep(
+    config: PresweepConfig,
+    *,
+    credentials: Credentials | None = None,
+    telemetry: RunTelemetry | None = None,
+) -> dict[str, Any]:
     """End-to-end pre-sweep runner.
 
     Default ``config.dry_run=True`` writes the planning artifacts and returns;
@@ -89,15 +190,31 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
     the Serper client into live mode (no mock results, request failures raise
     rather than degrade to an empty artifact). The key assertion runs before the
     mode switch so a failed gate leaves global state untouched.
+
+    Credentials (Run API spec §3.1/§3.2): ``credentials`` supplies this run's
+    keys, each falling back to the environment when not given. They are resolved
+    **once, here** — the one place in the pipeline that reads the environment for
+    key material — and then threaded explicitly into every stage runner, so two
+    runs in one process can spend two different keys. Resolution happens for a
+    dry run too (it costs nothing and records nothing), which is what lets PR C
+    write the manifest's credential fingerprints on every run, not just live ones.
     """
+    resolved = resolve(credentials)
+    tel = telemetry if telemetry is not None else NO_TELEMETRY
     if not config.dry_run:
-        _assert_live_keys(config)
+        _assert_live_keys(config, resolved)
     set_live_mode(not config.dry_run)
-    plan = plan_run(config)
+    # `_state/` before planning: plan_run rewrites the manifest, and whether this
+    # invocation is a resume has to be read before that happens.
+    resumed = state_dir(config.runs_dir / config.run_id).exists()
+    plan = plan_run(config, telemetry=telemetry)
     # Storage layout v2 gate (docs/storage-layout-v2.md §B2). plan_run has just
     # written the manifest, so this asserts the tree this process is about to
     # write into is the layout this code knows how to read.
     require_layout(plan.run_dir)
+    # The manifest now exists, so the event log may open: every event in the file
+    # post-dates a readable record of the code and config that produced it (§4.1).
+    tel.open(plan.run_dir, config.run_id, resumed=resumed)
     summary: dict[str, Any] = {
         "run_id": config.run_id,
         "run_dir": str(plan.run_dir),
@@ -109,17 +226,92 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             f"g3o presweep --execute --run-id {config.run_id} "
             f"--sample-size {config.sample_size} --seed {config.seed}"
         )
+        tel.run_stopped(stop_after=config.stop_after, reason="dry_run")
         return summary
+
+    # Continuous cost monitoring: instantiate once at run start, check after each LLM stage.
+    # None budget means no limit (check_budget returns True unconditionally).
+    monitor = CostMonitor(
+        budget_usd=config.budget_usd,
+        preflight_stage_estimates=config.preflight_stage_estimates,
+    )
+    budget_abort_stage: str | None = None
+    budget_exceeded_stages: list[str] = []  # Track all stages that exceeded budget (for dry-run mode)
+
+    # Within-stage budget callback (Gap 1): called after each chunk completes.
+    # Returns False to stop submitting new chunks (but let in-flight finish).
+    def _within_stage_budget_callback(stage: str, chunk_usage: dict[str, int]) -> None:
+        """Check budget after each chunk completes within a stage.
+
+        Accumulates usage and raises BudgetExceededError if over budget
+        (unless in dry-run mode). The exception propagates past mark_done
+        so no .done marker is written, leaving un-submitted chunks in the
+        active state file as a truncation signal.
+        """
+        monitor.accumulate_chunk_usage(stage, chunk_usage)
+        if not monitor.check_budget_with_partial(stage):
+            if config.cost_monitor_dry_run:
+                logger.warning(
+                    "WITHIN-STAGE BUDGET EXCEEDED (warn-only mode — continuing): "
+                    "Stage %s partial spend: $%.4f of $%.4f limit",
+                    stage, monitor.running_total_usd, monitor.budget_usd,
+                )
+                return
+            raise BudgetExceededError(
+                spent=monitor.running_total_usd,
+                budget=monitor.budget_usd,
+                stage=stage,
+            )
+
+    # Helper to check projection after each stage (Gap 2)
+    # Note: This is a closure that captures `config` from the enclosing scope.
+    def _check_projection(monitor: CostMonitor, next_stage: str) -> None:
+        """Check if projected total spend exceeds budget × safety_factor."""
+        within_projection, projected_total, threshold = monitor.check_projection(
+            config.projection_safety_factor
+        )
+        if not within_projection:
+            if config.cost_monitor_dry_run:
+                logger.warning(
+                    "PROJECTION EXCEEDED (warn-only mode — continuing): "
+                    "Projected total $%.4f exceeds threshold $%.4f "
+                    "(budget $%.4f × %.2f)",
+                    projected_total, threshold, monitor.budget_usd, config.projection_safety_factor,
+                )
+                return
+            raise ProjectedBudgetExceededError(
+                spent=monitor.running_total_usd,
+                budget=monitor.budget_usd,
+                stage=next_stage,
+                projected_total=projected_total,
+                safety_factor=config.projection_safety_factor,
+            )
 
     # Guarantee the attrition ledger exists for a live run (empty ⇒ nothing
     # dropped/degraded, a stronger signal than a missing file). Review F4/F15.
     attrition.ensure_ledger(plan.run_dir)
+
+    def _finish(reason: str | None = None) -> dict[str, Any]:
+        """Emit the run's one terminal event and hand back the summary.
+
+        ``reason=None`` means the whole configured roster ran — the only case
+        that is ``completed``. An early return because ``stop_after`` was reached
+        is ``stopped``: the run did what it was told, and less than a full sweep.
+        The classification deliberately matches ``g3o.run.api._outcome``, so the
+        receipt a caller reads and the event a monitor reads cannot disagree.
+        """
+        if reason is None:
+            tel.run_completed(stop_after=config.stop_after)
+        else:
+            tel.run_stopped(stop_after=config.stop_after, reason=reason)
+        return summary
 
     # The finally-clause folds response-side LLM provenance into the manifest
     # (T1) on success, on every --stop-after early return, and best-effort on
     # a crash; the state files it reads remain the ground truth either way.
     try:
         serper_options = SerperOptions(autocorrect=config.serper_autocorrect)
+        span = tel.stage_start("discovery_general", counts_in=len(plan.sample))
         discovery_general = _run_discovery_general(
             plan.run_dir,
             plan.sample,
@@ -129,13 +321,16 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             mode=config.discovery_mode,
             options=serper_options,
             domain_quote_name=config.discovery_domain_quote_name,
+            credentials=resolved,
         )
         summary["n_discovery_general"] = sum(
             len(v) for v in discovery_general.values()
         )
+        tel.stage_end(span, counts_out=summary["n_discovery_general"])
         if config.stop_after == "discovery_general":
-            return summary
+            return _finish("stop_after")
 
+        span = tel.stage_start("classify_official_site", counts_in=len(plan.sample))
         official_sites = _run_classify_official_site(
             plan.run_dir,
             plan.sample,
@@ -144,6 +339,9 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             model=config.model,
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,
+            cost_check_callback=_within_stage_budget_callback,
+            credentials=resolved,
+            telemetry=tel,
         )
         summary["n_official_sites"] = sum(1 for v in official_sites.values() if v)
         summary["n_official_sites_bypassed"] = sum(
@@ -151,9 +349,19 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             for row in plan.sample
             if institution_record(row).get("official_site_url")
         )
+        tel.stage_end(span, counts_out=summary["n_official_sites"])
+        # Continuous cost check after Stage 2
+        _record_and_track_stage_budget(monitor, config, plan.run_dir, "classify_official_site", budget_exceeded_stages)
+        # Check projection before next stage (Gap 2)
+        skip_after = _PROJECTION_SKIP_AFTER.get("classify_official_site", frozenset())
+        if config.stop_after not in skip_after:
+            _check_projection(monitor, "classify_triage")
         if config.stop_after == "classify_official_site":
-            return summary
+            return _finish("stop_after")
 
+        span = tel.stage_start(
+            "discovery_site_restricted", counts_in=summary["n_official_sites"]
+        )
         discovery_site_restricted = _run_discovery_site_restricted(
             plan.run_dir,
             plan.sample,
@@ -164,18 +372,25 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             mode=config.discovery_mode,
             evidence_terms=config.evidence_terms,
             options=serper_options,
+            credentials=resolved,
         )
         summary["n_discovery_site_restricted"] = sum(
             len(v) for v in discovery_site_restricted.values()
         )
+        tel.stage_end(span, counts_out=summary["n_discovery_site_restricted"])
         if config.stop_after == "discovery_site_restricted":
-            return summary
+            return _finish("stop_after")
 
         # Stage 1c — deterministic eligibility pre-filter (design memo
         # 2026-07-06). Screens the 1a+1b union and, under ``enforce``, hands
         # Stage 3 only the ``pass`` URLs; ``shadow`` (default) writes the
         # would-drop artifact but leaves the union intact. The 1a/1b artifacts
         # are never mutated — pruning is applied to in-memory copies only.
+        span = tel.stage_start(
+            "filter_eligibility",
+            counts_in=summary["n_discovery_general"]
+            + summary["n_discovery_site_restricted"],
+        )
         filter_general, filter_site_restricted, filter_stats = _run_filter_eligibility(
             plan.run_dir,
             plan.sample,
@@ -186,9 +401,21 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
         summary["filter_mode"] = filter_stats["mode"]
         summary["n_filter_would_drop"] = filter_stats["n_would_drop"]
         summary["n_filter_enforced_drop"] = filter_stats["n_enforced_drop"]
+        tel.stage_end(
+            span,
+            counts_out=sum(len(v) for v in filter_general.values())
+            + sum(len(v) for v in filter_site_restricted.values()),
+            filter_mode=filter_stats["mode"],
+            would_drop=filter_stats["n_would_drop"],
+        )
         if config.stop_after == "filter_eligibility":
-            return summary
+            return _finish("stop_after")
 
+        span = tel.stage_start(
+            "classify_triage",
+            counts_in=sum(len(v) for v in filter_general.values())
+            + sum(len(v) for v in filter_site_restricted.values()),
+        )
         triaged = _run_classify_triage(
             plan.run_dir,
             plan.sample,
@@ -199,11 +426,22 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             model=config.model,
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,
+            cost_check_callback=_within_stage_budget_callback,
+            credentials=resolved,
+            telemetry=tel,
         )
         summary["n_triaged_kept"] = sum(len(v) for v in triaged.values())
+        tel.stage_end(span, counts_out=summary["n_triaged_kept"])
+        # Continuous cost check after Stage 3
+        _record_and_track_stage_budget(monitor, config, plan.run_dir, "classify_triage", budget_exceeded_stages)
+        # Check projection before next stage (Gap 2)
+        skip_after = _PROJECTION_SKIP_AFTER.get("classify_triage", frozenset())
+        if config.stop_after not in skip_after:
+            _check_projection(monitor, "extract")
         if config.stop_after == "classify_triage":
-            return summary
+            return _finish("stop_after")
 
+        span = tel.stage_start("scrape", counts_in=summary["n_triaged_kept"])
         scraped = _run_scrape(
             plan.run_dir,
             plan.sample,
@@ -215,9 +453,19 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             max_workers=config.max_workers,
         )
         summary["n_pages_scraped"] = sum(len(v) for v in scraped.values())
+        tel.stage_end(
+            span,
+            counts_out=summary["n_pages_scraped"],
+            # Not measured separately: a triaged URL that produced no page is a
+            # failure by definition here, and the attrition ledger carries the
+            # per-URL reason. Recording the difference keeps the event honest
+            # without inventing a second counter that could disagree with it.
+            n_failed=summary["n_triaged_kept"] - summary["n_pages_scraped"],
+        )
         if config.stop_after == "scrape":
-            return summary
+            return _finish("stop_after")
 
+        span = tel.stage_start("extract", counts_in=summary["n_pages_scraped"])
         n_extracted = _run_extract(
             plan.run_dir,
             plan.sample,
@@ -230,22 +478,50 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
             text_cap_chars=config.extract_text_cap_chars,
             text_cap_rule=config.extract_text_cap_rule,
             empty_page_min_chars=config.empty_page_min_chars,
+            cost_check_callback=_within_stage_budget_callback,
+            credentials=resolved,
+            telemetry=tel,
         )
         summary["n_extracted"] = n_extracted
+        tel.stage_end(span, counts_out=n_extracted)
+        # Continuous cost check after Stage 5 (extract dominates cost)
+        _record_and_track_stage_budget(monitor, config, plan.run_dir, "extract", budget_exceeded_stages)
+        # Check projection before next stage (Gap 2)
+        skip_after = _PROJECTION_SKIP_AFTER.get("extract", frozenset())
+        if config.stop_after not in skip_after:
+            _check_projection(monitor, "validate")
         if config.stop_after == "extract":
-            return summary
+            return _finish("stop_after")
 
+        span = tel.stage_start("validate", counts_in=len(plan.sample))
         validate_summary = _run_validate(
             plan.run_dir,
             plan.sample,
             model=config.model,
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,
+            cost_check_callback=_within_stage_budget_callback,
+            credentials=resolved,
+            telemetry=tel,
         )
         summary["n_consolidated"] = validate_summary.get("n_consolidated", 0)
         summary["n_validate_failed"] = validate_summary.get("n_failed", 0)
         summary["validate_batch_ids"] = validate_summary.get("batch_ids")
-        return summary
+        tel.stage_end(span, counts_out=summary["n_consolidated"])
+        # Continuous cost check after Stage 6
+        _record_and_track_stage_budget(monitor, config, plan.run_dir, "validate", budget_exceeded_stages)
+        return _finish()
+    except (BudgetExceededError, ProjectedBudgetExceededError) as exc:
+        # Single catch-point for all budget aborts (replaces 4× duplicated try/except).
+        # Set the abort stage for the cost report, then re-raise for the CLI to handle.
+        budget_abort_stage = exc.stage
+        tel.run_failed(exc, stop_after=config.stop_after)
+        raise
+    except BaseException as exc:
+        # §1.5: every raise after the manifest write is preceded by run_failed,
+        # so a crashed run's log names its own cause instead of just stopping.
+        tel.run_failed(exc, stop_after=config.stop_after)
+        raise
     finally:
         update_manifest_llm_provenance(plan.run_dir)
         # Best-effort (Feature 1): compute + persist institution_report.{jsonl,csv}
@@ -267,4 +543,58 @@ def run_presweep(config: PresweepConfig) -> dict[str, Any]:
         except Exception:
             logger.exception(
                 "run_summary generation failed for %s (non-fatal)", plan.run_dir
+            )
+        # Feature 4: persist cost report (actual spend vs budget).
+        # Written on every exit path (success, early stop_after, or budget abort)
+        # so post-mortem analysis can reconstruct the spend trajectory.
+        try:
+            cost_report = monitor.cost_report()
+            cost_report["run_id"] = config.run_id
+            cost_report["dry_run"] = config.cost_monitor_dry_run
+            # budget_exceeded is already computed correctly by monitor.cost_report()
+            # based on total_usd > budget_usd
+            cost_report["abort_stage"] = budget_abort_stage
+            # In dry-run mode, abort_stage is None but we track which stages exceeded
+            # the budget for post-mortem analysis. In abort mode, abort_stage is set
+            # and budget_exceeded_stages will contain all stages up to and including
+            # the abort stage.
+            cost_report["budget_exceeded_stages"] = budget_exceeded_stages
+            # Scan for active state files and record partial stages (Gap 3)
+            from g3o.common.run_state import state_path
+            for stage_name in _LLM_STAGES:
+                active_file = state_path(plan.run_dir, stage_name)
+                if active_file.exists():
+                    monitor.record_partial_stage(plan.run_dir, stage_name)
+                    logger.info(
+                        "Recorded partial stage %s: %d completed chunks, $%.4f spent",
+                        stage_name,
+                        monitor.partial_stages[-1].n_chunks if monitor.partial_stages else 0,
+                        monitor.partial_stages[-1].total_usd if monitor.partial_stages else 0,
+                    )
+            # Include preflight vs actual comparison if preflight was run
+            if config.preflight_estimate_usd is not None:
+                actual_usd = cost_report["total_usd"]
+                preflight_est = config.preflight_estimate_usd
+                ratio = actual_usd / preflight_est if preflight_est > 0 else 0
+                cost_report["vs_preflight_estimate"] = {
+                    "preflight_est_usd": preflight_est,
+                    "actual_usd": actual_usd,
+                    "ratio": round(ratio, 2),
+                }
+            cost_report_path = plan.run_dir / "_cost_report.json"
+            cost_report_path.write_text(
+                json.dumps(cost_report, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            logger.info(
+                "Cost report persisted: %s (total: $%.4f USD)",
+                cost_report_path,
+                cost_report["total_usd"],
+            )
+            # Thread the cost report into the summary dict so the CLI can use it
+            # without re-reading from disk (fix: avoids redundant I/O).
+            summary["_cost_report"] = cost_report
+        except Exception:
+            logger.exception(
+                "cost_report persistence failed for %s (non-fatal)", plan.run_dir
             )

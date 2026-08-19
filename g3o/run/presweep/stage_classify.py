@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,7 @@ from g3o.classify.url_triage import (
 )
 from g3o.common import attrition
 from g3o.common.batch_client import BatchResult
+from g3o.common.credentials import ResolvedCredentials
 from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
 from g3o.common.timing import llm_stage_timer
@@ -111,6 +112,9 @@ def _run_classify_official_site(
     model: str,
     poll_interval: int,
     max_wait: int,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
+    credentials: ResolvedCredentials | None = None,
+    telemetry: Any | None = None,
 ) -> dict[str, str | None]:
     """Stage 2 — official-site classifier batch, with master-CSV bypass guard.
 
@@ -216,6 +220,8 @@ def _run_classify_official_site(
             run_id=run_id, model=model,
             poll_interval=poll_interval, max_wait=max_wait,
             process_chunk_results=_persist, bypass_count=bypass_count,
+            cost_check_callback=cost_check_callback,
+            credentials=credentials, telemetry=telemetry,
         )
     # Disk is authoritative for chunks fetched by a prior (crashed) invocation;
     # this invocation's parses and bypasses override with identical content.
@@ -304,6 +310,9 @@ def _run_classify_triage(
     model: str,
     poll_interval: int,
     max_wait: int,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
+    credentials: ResolvedCredentials | None = None,
+    telemetry: Any | None = None,
 ) -> dict[str, list[str]]:
     """Stage 3 — URL triage batch over the dedup'd 1a+1b union.
 
@@ -374,6 +383,8 @@ def _run_classify_triage(
             run_id=run_id, model=model,
             poll_interval=poll_interval, max_wait=max_wait,
             process_chunk_results=_persist,
+            cost_check_callback=cost_check_callback,
+            credentials=credentials, telemetry=telemetry,
         )
     # Disk covers chunks fetched by a prior invocation (resume).
     return {**_read_existing_triaged(run_dir, sample), **kept}

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition
+from g3o.common.credentials import ResolvedCredentials
 from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, mark_done
 from g3o.common.timing import stage_timer
@@ -158,6 +159,7 @@ def _discover_general_one(
     mode: str = "legacy",
     options: SerperOptions | None = None,
     domain_quote_name: bool = False,
+    credentials: ResolvedCredentials | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Process Stage 1a general discovery for one institution.
 
@@ -226,7 +228,8 @@ def _discover_general_one(
         for query, lang in queries:
             try:
                 result = search_google_detailed(
-                    query, num_results=num_results, options=options
+                    query, num_results=num_results, options=options,
+                    credentials=credentials,
                 )
             except SerperRequestError as exc:
                 # Honest failure (review F1): record and abort rather than
@@ -278,6 +281,7 @@ def _run_discovery_general(
     mode: str = "legacy",
     options: SerperOptions | None = None,
     domain_quote_name: bool = False,
+    credentials: ResolvedCredentials | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Stage 1a — general Serper queries. One ``1a_discovery_general.json`` per institution.
 
@@ -306,6 +310,7 @@ def _run_discovery_general(
         lambda row: _discover_general_one(
             run_dir, row, stage=stage, languages=languages, num_results=num_results,
             mode=mode, options=options, domain_quote_name=domain_quote_name,
+            credentials=credentials,
         ),
         max_workers=max_workers,
     )
@@ -326,6 +331,7 @@ def _discover_site_restricted_one(
     mode: str = "legacy",
     evidence_terms: Mapping[str, str] | None = None,
     options: SerperOptions | None = None,
+    credentials: ResolvedCredentials | None = None,
 ) -> tuple[str, list[dict[str, Any]]] | None:
     """Process Stage 1b site-restricted discovery for one institution.
 
@@ -391,7 +397,8 @@ def _discover_site_restricted_one(
         for query, lang in wrapped:
             try:
                 result = search_google_detailed(
-                    query, num_results=num_results, options=options
+                    query, num_results=num_results, options=options,
+                    credentials=credentials,
                 )
             except SerperRequestError as exc:
                 attrition.record(
@@ -434,6 +441,7 @@ def _run_discovery_site_restricted(
     mode: str = "legacy",
     evidence_terms: Mapping[str, str] | None = None,
     options: SerperOptions | None = None,
+    credentials: ResolvedCredentials | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Stage 1b — site-restricted Serper queries (revision 2026-05-09, D1–D2).
 
@@ -466,6 +474,7 @@ def _run_discovery_site_restricted(
             run_dir, row, official_sites,
             stage=stage, languages=languages, num_results=num_results,
             mode=mode, evidence_terms=evidence_terms, options=options,
+            credentials=credentials,
         ),
         max_workers=max_workers,
     )

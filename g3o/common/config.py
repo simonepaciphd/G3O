@@ -23,10 +23,23 @@ def _env(key: str, default: str | None = None, *, required: bool = False) -> str
     return val
 
 
+# --- API keys: DEPRECATED SHIM (Run API spec §3.2, 2026-08-11) -------------
+# These two constants resolve their key **at import time**, which is exactly the
+# defect §3 removes: a value frozen at first import cannot be a per-call key, so
+# two runs in one process could never use two different grants' keys. They are
+# kept for one release, still env-populated, for out-of-repo callers only.
+#
+# Nothing in this repository may read them — resolve keys through
+# :func:`g3o.common.credentials.resolve` and pass the resulting
+# ``ResolvedCredentials`` down explicitly. ``tests/test_credentials.py``
+# greps the package and fails if a consumer reappears here, because a
+# re-introduced read would silently re-freeze key resolution at import time.
+# Removing these two names is a follow-up PR.
 SERPER_API_KEY: str | None = _env("SERPER_API_KEY")
-SERPER_ENDPOINT: str = _env("SERPER_ENDPOINT", "https://google.serper.dev/search") or ""
-
 OPENAI_API_KEY: str | None = _env("OPENAI_API_KEY")
+# ---------------------------------------------------------------------------
+
+SERPER_ENDPOINT: str = _env("SERPER_ENDPOINT", "https://google.serper.dev/search") or ""
 # Pipeline-wide default model id for every LLM stage. Wired into
 # ``batch_client.DEFAULT_MODEL`` (review F9, 2026-06-10), so setting
 # ``OPENAI_MODEL`` in the environment / .env overrides the default everywhere;
@@ -46,3 +59,19 @@ RUNS_DIR: Path = Path(_env("G3O_RUNS_DIR", str(BASE_DIR / "runs")) or str(BASE_D
 # Read from G3O_BUDGET_LIMIT_USD environment variable. Stored as string; parsed
 # to float at use time (cli.py) to avoid import-time failures on malformed values.
 BUDGET_LIMIT_USD: str | None = _env("G3O_BUDGET_LIMIT_USD")
+
+# Projection safety factor: abort mid-run if projected total spend exceeds
+# budget × this factor. There is NO default — unset means the mid-run projection
+# abort is DISABLED, not that it runs at 1.2 (_parse_projection_safety_factor
+# returns None). It is off by default because the projection scales the two
+# classify stages' actual-vs-estimate ratio onto the dominant extract estimate,
+# and those stages are not comparable enough for that ratio to kill a live run
+# uninvited. Set it, per run, when you want the guard.
+# Read from G3O_PROJECTION_SAFETY_FACTOR env var. Stored as string; parsed to
+# float at use time (cli.py) with validation.
+PROJECTION_SAFETY_FACTOR: str | None = _env("G3O_PROJECTION_SAFETY_FACTOR")
+
+# Cost monitor dry run mode: when True, log warnings instead of aborting when
+# budget is exceeded. Read from G3O_COST_MONITOR_DRY_RUN env var. Stored as string;
+# parsed to bool at use time (cli.py). Follows the same pattern as PROJECTION_SAFETY_FACTOR.
+COST_MONITOR_DRY_RUN: str | None = _env("G3O_COST_MONITOR_DRY_RUN")

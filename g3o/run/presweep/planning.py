@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 from g3o.common.batch_client import DEFAULT_REASONING_EFFORT
-from g3o.common.paths import LAYOUT_VERSION, institution_dir
+from g3o.common.contract import INSTITUTION_UID_PATTERN
+from g3o.common.paths import INSTITUTION_UIDS_KEY, LAYOUT_VERSION, institution_dir
 from g3o.common.run_state import done_dir, state_dir
 from g3o.discovery.query_builder import genai_terms_roster_hash
 from g3o.run.presweep.config import STAGES, PresweepConfig
@@ -21,14 +24,52 @@ from g3o.run.presweep.records import (
     synth_institution_id,
 )
 from g3o.run.presweep.sampling import stratified_sample
+from g3o.run.telemetry import preserve_identity
+
+_INSTITUTION_UID_RE = re.compile(INSTITUTION_UID_PATTERN)
 
 
-def build_manifest(
-    config: PresweepConfig,
-    sample: list[dict[str, Any]],
-    *,
-    n_strata_observed: int | None = None,
-) -> dict[str, Any]:
+def _institution_uids(sample: list[dict[str, Any]]) -> dict[str, str]:
+    """``{institution_id: institution_uid}`` off the raw master rows.
+
+    Read here rather than through :func:`institution_record` on purpose: that
+    projection is serialised to ``institution.json`` and embedded verbatim in
+    the Stage 2/3/5/6 user prompts, and the uid is bookkeeping that must not
+    reach a model (PI ruling 2026-08-14 §3). Same reasoning as the accuracy
+    canary's ground-truth read in ``stage_classify``.
+
+    Raises:
+        RuntimeError: when any sampled row carries no well-formed
+            ``institution_uid``. Refusing at plan time is the point — the
+            alternative is discovering it at ingest, after the compute is
+            spent, one quarantined row at a time.
+    """
+    uids: dict[str, str] = {}
+    bad: list[str] = []
+    for row in sample:
+        inst_id = synth_institution_id(row)
+        uid = (row.get("institution_uid") or "").strip()
+        if not _INSTITUTION_UID_RE.match(uid):
+            bad.append(f"{inst_id} (master_row_id={row.get('master_row_id', '')!r}): {uid!r}")
+            continue
+        uids[inst_id] = uid
+    if bad:
+        raise RuntimeError(
+            f"{len(bad)} sampled institution(s) carry no well-formed institution_uid "
+            f"(expected {INSTITUTION_UID_PATTERN}); the master CSV must supply it and "
+            "the pipeline will not mint one. First 5: " + "; ".join(bad[:5])
+        )
+    return uids
+
+
+def config_snapshot(config: PresweepConfig) -> dict[str, Any]:
+    """The JSON-serializable ``PresweepConfig`` snapshot the manifest stores.
+
+    Extracted from :func:`build_manifest` so the snapshot the manifest *stores*
+    and the snapshot ``config_hash`` is computed *over* cannot be two different
+    dicts — the failure mode being a hash nothing can reproduce from the manifest
+    it sits in.
+    """
     config_dict: dict[str, Any] = asdict(config)
     config_dict["runs_dir"] = str(config.runs_dir)
     config_dict["master_csv"] = str(config.master_csv)
@@ -45,8 +86,39 @@ def build_manifest(
     # nothing noticing. Recorded explicitly here for the same reason
     # institution_search_languages is, and guarded below.
     config_dict["genai_terms_roster_hash"] = genai_terms_roster_hash()
+    return config_dict
+
+
+def build_manifest(
+    config: PresweepConfig,
+    sample: list[dict[str, Any]],
+    *,
+    n_strata_observed: int | None = None,
+    telemetry_block: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """The run manifest: planning state, plus the §4.1 telemetry block when given.
+
+    One file, two readers, because Run API spec §4.1 names this exact path for the
+    telemetry manifest and the planning manifest was already here. They compose
+    rather than collide: ``config`` serves as both the planning snapshot and §4.1's
+    config snapshot, and ``telemetry_block`` contributes the identity keys
+    (``run_started_at``, ``code``, ``contract``, ``credentials``, …).
+
+    ``telemetry_block=None`` — a direct ``run_presweep`` call, and every test that
+    predates the Run API — produces the pre-spec manifest byte for byte. Telemetry
+    arrives only through ``launch()``, which is what §4.1 says writes it.
+
+    Note the ``config`` snapshot keeps the two derived values the resume guard
+    compares (``institution_search_languages``, ``genai_terms_roster_hash``). The
+    published fixture describes ``config`` as declared fields only; reality wins
+    here, because moving those two out of ``config`` to satisfy the fixture would
+    mean rewriting a load-bearing guard to satisfy a document. The backend stores
+    the snapshot as ``jsonb`` (§5.2), so two extra keys cost the loader nothing —
+    the fixture's *note* needs correcting, not this shape.
+    """
+    config_dict = config_snapshot(config)
     stages_planned = list(STAGES[: STAGES.index(config.stop_after) + 1])
-    return {
+    manifest: dict[str, Any] = {
         "run_id": config.run_id,
         "run_kind": "pre-sweep",
         # Storage layout marker (docs/storage-layout-v2.md §B2). Every reader
@@ -68,7 +140,28 @@ def build_manifest(
         "n_strata_observed": n_strata_observed,
         "stages_planned": stages_planned,
         "institutions": [synth_institution_id(r) for r in sample],
+        # Key layer (PI ruling 2026-08-14). The manifest carries the master's
+        # institution_uid so Stage 7 can stamp it without the value ever
+        # entering a prompt; read back by
+        # :func:`g3o.common.paths.institution_uid_map`.
+        INSTITUTION_UIDS_KEY: _institution_uids(sample),
     }
+    if telemetry_block:
+        manifest.update(telemetry_block)
+    return manifest
+
+
+def _write_manifest_atomic(path: Path, manifest: dict[str, Any]) -> None:
+    """Temp file + ``os.replace`` — the ``run_state`` pattern (§4.1).
+
+    The temp name carries pid and thread id so two writers never collide on it
+    before either replace lands, matching the cache writers this repo already
+    hardened for concurrency.
+    """
+    payload = json.dumps(manifest, ensure_ascii=False, indent=2)
+    tmp = path.with_name(f"{path.name}.tmp.{os.getpid()}.{threading.get_ident()}")
+    tmp.write_text(payload, encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def write_run_layout(
@@ -84,13 +177,28 @@ def write_run_layout(
     on demand by :func:`g3o.common.paths.institution_dir` + ``parents=True``.
 
     Idempotent: existing directories are preserved; ``manifest.json`` is
-    overwritten. ``inputs/`` is never touched.
+    rewritten. ``inputs/`` is never touched.
+
+    Two changes the Run API brought here (spec §4.1). The write is **atomic**
+    (temp file + ``os.replace``), because the manifest is now the record a run is
+    ingested from and a half-written one after a crash would be an uningestable
+    run rather than a re-plannable one. And a resume **preserves the launching
+    run's identity**: before this, every invocation refreshed ``run_timestamp``,
+    so a resumed run reported the resume moment as its start — and
+    ``run_started_at`` is authoritative for wave classification (§5.5), so that
+    would have filed a resumed run into whichever window the resume fell in.
     """
     run_dir = config.runs_dir / config.run_id
     run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / "manifest.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    manifest_path = run_dir / "manifest.json"
+    if manifest_path.exists():
+        try:
+            existing = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            existing = {}
+        if existing.get("manifest_schema_version"):
+            manifest = preserve_identity(existing, manifest)
+    _write_manifest_atomic(manifest_path, manifest)
     for row in sample:
         institution = institution_record(row)
         inst_dir = institution_dir(run_dir, institution["institution_id"])
@@ -319,7 +427,9 @@ def update_manifest_llm_provenance(run_dir: Path) -> dict[str, Any]:
     return provenance
 
 
-def plan_run(config: PresweepConfig) -> RunPlan:
+def plan_run(
+    config: PresweepConfig, *, telemetry: Any | None = None
+) -> RunPlan:
     """Read master, draw sample, write manifest + per-institution dirs. No live calls.
 
     On resume (``_state/`` present) the freshly drawn sample + guarded config are
@@ -338,7 +448,19 @@ def plan_run(config: PresweepConfig) -> RunPlan:
         seed=config.seed,
         stratify_keys=config.stratify_keys,
     )
-    manifest = build_manifest(config, sample, n_strata_observed=n_strata_observed)
+    # The §4.1 telemetry block needs the drawn sample (for the master build id)
+    # and the config snapshot (for config_hash), so it is built here, between the
+    # draw and the write — still before any spend, which is what §4.1 requires.
+    telemetry_block = None
+    if telemetry is not None and telemetry.enabled:
+        telemetry_block = telemetry.manifest_block_for(
+            config, sample, config_snapshot=config_snapshot(config)
+        )
+    manifest = build_manifest(
+        config, sample,
+        n_strata_observed=n_strata_observed,
+        telemetry_block=telemetry_block,
+    )
     _assert_manifest_matches_on_resume(config.runs_dir / config.run_id, manifest)
     run_dir = write_run_layout(config, sample, manifest=manifest)
     return RunPlan(run_dir=run_dir, sample=sample, manifest=manifest)
