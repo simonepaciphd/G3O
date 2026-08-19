@@ -5,7 +5,7 @@ Example `manifest.json` + `events.jsonl` for the Run API telemetry surface, from
 implementation so the `g3o-api` loader can be written against a fixed shape
 rather than against a moving PR.
 
-**Status:** fixture set **v1**, notes revised **v1.2**. **Sufficiency confirmed
+**Status:** fixture set **v1**, notes revised **v1.3**. **Sufficiency confirmed
 by Katon in writing, 2026-08-11** — he verified rather than read (recomputed
 `config_hash` to a match, checked every offline-checkable invariant across all
 three logs) and needs nothing changed in the set. That closes the Item 1 seam.
@@ -17,9 +17,9 @@ implementation and these notes diverged are corrected below — see
 [what the implementation actually writes](#what-the-implementation-actually-writes).
 
 If reality corrects a fixture, the set is versioned (see
-[Changelog](#changelog)) and Katon is told the same day. **v1.2 changed notes
-only — no fixture bytes moved**, so a loader written against v1 needs no
-revision and no re-download.
+[Changelog](#changelog)) and Katon is told the same day. **v1.2 and v1.3 changed
+notes only — no fixture bytes have moved**, so a loader written against v1 needs
+no revision and no re-download.
 
 **These are synthetic example runs, not records of real runs.** No run with
 these ids exists. Mixed provenance, deliberately:
@@ -33,10 +33,12 @@ these ids exists. Mixed provenance, deliberately:
 | `config_hash` (actually computed over this `config`) | `frame.*` (null — pending, see below) |
 
 **These values are pinned to `e2eba1c`, not to today's `main`** (v1.2 correction).
-Contract v2.3 landed in `e9b2b07`, so `main` now pins extract **v2.3** / validate
-**v1.2** and rewrote **all four** prompt assets. The fixture is a valid
-snapshot of the commit it names; it is *not* a snapshot of `main`. Verify against
-that commit, which is what the original recipe should have said:
+`main` has moved twice since: contract v2.3 landed in `e9b2b07`, and uid stamping
+(`a7bca03`, #71) edited `g3o/extract/prompts/output_contract.md` again — so as of
+2026-08-17 `main` pins extract **v2.4** / validate **v1.2**, and all six hash
+values in this fixture differ from it. The fixture is a valid snapshot of the
+commit it names; it is *not* a snapshot of `main`. Verify against that commit,
+which is what the original recipe should have said:
 
 ```bash
 git show e2eba1c:tests/goldens/contract_version_pin.json   # matches contract.*
@@ -375,6 +377,15 @@ requires "nothing published", and this is the database side of it already agreed
 
 ## Changelog
 
+- **v1.3** — 2026-08-17 — **notes only, no fixture bytes changed**; no loader
+  revision and no re-download needed. One correction: `main` has moved again since
+  v1.2 said it pinned extract v2.3 — uid stamping (`a7bca03`, #71) edited the
+  extract `output_contract.md`, so `main` now pins extract **v2.4** and *all six*
+  of this fixture's hash values differ from it. This is the documentation fix the
+  §`prompts.*` note already anticipated, not a re-cut: the values are pinned to
+  `e2eba1c`, a real manifest is self-consistent with its own `code.git_sha`, and
+  the hashes are opaque to the loader. Recorded so the drift is stated rather than
+  discovered.
 - **v1.2** — 2026-08-11 — **notes only, no fixture bytes changed**; no loader
   revision and no re-download needed. Katon confirmed sufficiency in writing
   (Item 1 seam closed) — his six answers and four v0.6 DDL commitments are
