@@ -1,7 +1,20 @@
 # Runbook — running a sweep on the droplet
 
-One page. Everything is `python -m g3o.run.orchestrate <verb>`; the pipeline CLI
-(`g3o …`) is unchanged and is not used here except for Stage 7 and the reports.
+One page. Everything is `~/venv/bin/python -m g3o.run.orchestrate <verb>`; the
+pipeline CLI (`~/venv/bin/g3o …`) is unchanged and is not used here except for
+the preflight, Stage 7 and the reports.
+
+> **Every command names `~/venv/bin/` explicitly, and that is not stylistic.**
+> Measured on the droplet 2026-08-19: `PATH` is the stock Ubuntu one, nothing in
+> `~/.bashrc` activates a venv, and so **neither `g3o` nor `python` resolves** —
+> only `python3`, which is the system interpreter. A bare `g3o presweep` or
+> `python -m g3o.run.orchestrate` dies with *command not found*; a bare
+> `python3 -m g3o.run.orchestrate` finds an interpreter with no `g3o` in it. Both
+> failures are loud, which is the good case. The bad case is a second venv:
+> `~/G3O/.venv` also exists on the box (created 2026-08-08, before `~/venv`), it
+> is complete, and it works — so *"it ran under some interpreter"* is not
+> evidence that it ran under the pinned one. **`~/venv` is the venv this runbook
+> and the systemd unit name.** Do not activate one and assume; name it.
 
 **Exit codes, every verb:** `0` green · `1` it ran and is not green · `2` it
 refused or could not run. Scripts should branch on 2 vs 1: *did not happen* vs
@@ -13,24 +26,24 @@ refused or could not run. Scripts should branch on 2 vs 1: *did not happen* vs
 
 ```bash
 # PREFLIGHT — ALWAYS FIRST. No submits, no state writes. Non-zero = do not submit.
-g3o presweep --preflight --master-csv ~/data/master_institutions.csv --sample-size 20 --seed 22294 \
+~/venv/bin/g3o presweep --preflight --master-csv "$G3O_MASTER_CSV" --sample-size 20 --seed 22294 \
     --runs-dir "$G3O_RUNS_DIR" \
     || { echo "PREFLIGHT FAILED — not submitting"; exit 2; }
 
 # SUBMIT — starts the run and returns; closing this shell changes nothing.
-python -m g3o.run.orchestrate submit --config run-config.json --execute --detach \
+~/venv/bin/python -m g3o.run.orchestrate submit --config run-config.json --execute --detach \
     --session-id "$G3O_SESSION_ID"
 
 # STATUS — one line, any time, from any shell on the box.
-python -m g3o.run.orchestrate status --latest
+~/venv/bin/python -m g3o.run.orchestrate status --latest
 
 # RESUME — not a separate verb. Same command, same run id: it rejoins.
-python -m g3o.run.orchestrate submit --config run-config.json --execute --detach \
+~/venv/bin/python -m g3o.run.orchestrate submit --config run-config.json --execute --detach \
     --session-id "$G3O_SESSION_ID" \
     --run-id r20260813T101500Z-9c2f
 
 # WATCH — status every minute until it stops changing.
-watch -n 60 python -m g3o.run.orchestrate status --latest
+watch -n 60 ~/venv/bin/python -m g3o.run.orchestrate status --latest
 ```
 
 `submit` prints the minted run id **first**, before the run does anything, so a
@@ -48,6 +61,16 @@ planned sample and the projected Batch spend, which is where the `--cost-ceiling
 figure comes from. Gating `submit` on `keys_ok` is a follow-up, after the
 window.
 
+Measured on the droplet 2026-08-19 at `da89d94`, n=20 / seed 22294: exit **0**,
+`keys_ok: true`, both keys `well_formed`, and `est_openai_batch_total_usd`
+**$0.14** (of which `extract` is $0.115). **Serper is not priced by the
+preflight** and there is no credit count in its output — `cost_preview.note`
+gives the measured rate instead (1.84 credits/institution under
+`discovery_mode='chain'`, the default; 8.52 under `legacy`), because the
+USD-per-credit rate is an unresolved input. At n=20 that is ≈37 credits. Read
+`stage5_projection.n_chunks` too: it chunks on bytes and request count, **not on
+tokens**, so a projection of 4.33 M input tokens still reports one chunk.
+
 **Pass `--session-id` on every run you care about.** It is the join key from a
 published database row back to the session that produced it (spec §4.2), and it
 is not recoverable afterwards — omit it and the manifest records the literal
@@ -63,47 +86,83 @@ written out above so the omission is visible rather than implied.
 # 1. Code, pinned.
 git clone https://github.com/simonepaciphd/G3O.git ~/G3O
 git clone https://github.com/simonepaciphd/g3o-api.git ~/g3o-api
-cd ~/G3O && git checkout <sha> && pip install -e . && playwright install chromium
+cd ~/G3O && git checkout <sha>
 cd ~/g3o-api && git checkout <sha>         # the ingest loader is pinned separately
 
-# 2. Two optional dependencies, deliberately not declared in pyproject.toml:
+# 2. The venv. It is `~/venv`, OUTSIDE the checkout, and there is one reason:
+#    the interpreter that runs the sweep must survive the git operations done to
+#    the tree it runs. `git checkout <sha>` to re-pin, or `git clean -xdf` to
+#    recover a confused checkout, both leave ~/venv untouched; a venv inside
+#    ~/G3O does not survive the second one.
+#
+#    A bare `pip install -e .` is what PEP 668 refuses here: the box's system
+#    python3 carries /usr/lib/python3.12/EXTERNALLY-MANAGED, so that install
+#    exits with `externally-managed-environment` and nothing is installed.
+python3 -m venv ~/venv
+~/venv/bin/pip install --upgrade pip
+cd ~/G3O && ~/venv/bin/pip install -e .
+
+# 3. Two optional dependencies, deliberately not declared in pyproject.toml:
 #    boto3 for the archive leg, psycopg for the loader. Both are needed on the
 #    droplet and nowhere else. psycopg is not optional in practice: the ingest
 #    leg runs g3o-api/scripts/ingest.py under THIS interpreter (build_argv uses
 #    sys.executable) and that script imports psycopg at module scope, so without
 #    it the ingest leg cannot start.
-pip install boto3 "psycopg[binary]"
+~/venv/bin/pip install boto3 "psycopg[binary]"
+~/venv/bin/python -c "import psycopg, boto3"    # cheap proof; exit 0 or fix it
 
-# 3. Secrets, in the environment. Never on a command line: an argument lands in
+# 4. The browser Playwright drives. NOT --with-deps: that shells out to sudo,
+#    and the `g3o` account is not meant to need root to install a browser.
+~/venv/bin/playwright install chromium
+
+# 5. The frame. 171 MB, in NO repo, and nothing downloads it for you: the master
+#    is the read-only canonical build in the PI's Drive tree, so it is pushed to
+#    the box. NOTE THE TWO MACHINES -- the mkdir is on the box and must happen
+#    first, because scp will not create the destination directory.
+mkdir -p ~/data ~/runs                              # ON THE BOX
+                                                    # ON THE PI'S MACHINE:
+# scp "H:/My Drive/Research/G3O/inputs/G3O_Institution_Master/data_final/master_institutions.csv" \
+#     g3o-run-01:~/data/
+sha256sum ~/data/master_institutions.csv            # ON THE BOX; must match Drive
+
+# 6. Secrets, in the environment. Never on a command line: an argument lands in
 #    shell history and in every `ps` listing on the box.
 #
 #    On the provisioned droplet these already exist in ~/.g3o/env (mode 600),
-#    and they are exported. KEEP the `export` -- see the note below. Values are
-#    quoted; bash strips the quotes, so read the file with the shell rather than
-#    with a naive line parser.
+#    and every line carries `export`. KEEP it -- see the note below.
+#
+#    EVERY VALUE BELOW IS QUOTED, and the template is the only place that is
+#    true: single quotes on the literals, double quotes where $HOME must still
+#    expand. The DSN is why. It ends
+#    `?sslmode=require&channel_binding=require`, and unquoted, bash splits at
+#    the `&`: the first half runs in the background, the assignment "succeeds",
+#    and DATABASE_URL is never set -- with no error and no output. Do not
+#    unquote a value here on the grounds that it looks harmless.
 mkdir -p ~/.g3o
 cat >> ~/.g3o/env <<'EOF'
-export OPENAI_API_KEY=...
-export SERPER_API_KEY=...
-export DATABASE_URL=...            # the NEON BRANCH dsn, not production, and
+export OPENAI_API_KEY='...'
+export SERPER_API_KEY='...'
+export DATABASE_URL='...'          # the NEON BRANCH dsn, not production, and
                                    # the UNPOOLED string: the loader runs one
                                    # long transaction, which a pooler in
-                                   # transaction mode breaks.
-export SPACES_KEY=...
-export SPACES_SECRET=...
-export SPACES_ENDPOINT=https://sfo3.digitaloceanspaces.com
-export SPACES_BUCKET=...
+                                   # transaction mode breaks. THE QUOTES ARE
+                                   # LOAD-BEARING -- see the `&` note above.
+export SPACES_KEY='...'
+export SPACES_SECRET='...'
+export SPACES_ENDPOINT='https://sfo3.digitaloceanspaces.com'
+export SPACES_BUCKET='...'
 # SPACES_REGION is optional; g3o.run.orchestrate.objectstore defaults it to
 # us-east-1. Verified 2026-08-18 against the sfo3 endpoint: a put/read/re-hash
 # round trip on bucket g3o-runs matched byte for byte, so leave it unset.
-export G3O_API_REPO=$HOME/g3o-api
-export G3O_API_BASE=...            # the staging worker that reads the NEON
+export G3O_API_REPO="$HOME/g3o-api"
+export G3O_API_BASE='...'          # the staging worker that reads the NEON
                                    # BRANCH, with REGISTRY_ONLY dropped and
                                    # DEFAULT_WAVE=w001. The production worker
                                    # is REGISTRY_ONLY and serves zero findings,
                                    # so publish-verify against it reports a run
                                    # invisible however well the load went.
-export G3O_RUNS_DIR=$HOME/runs
+export G3O_RUNS_DIR="$HOME/runs"
+export G3O_MASTER_CSV="$HOME/data/master_institutions.csv"
 EOF
 chmod 600 ~/.g3o/env
 
@@ -116,6 +175,16 @@ export G3O_OPERATOR=thomas
 export G3O_SESSION_ID=20260817-claude-g3o-endgame   # yours, not this example
 ```
 
+> **`G3O_MASTER_CSV` is read by no code, and it is in the file on purpose.**
+> Grep the repo and you will find zero hits — the master reaches the pipeline
+> only as `--master-csv` (required on `g3o presweep`, `g3o/cli.py:1180`) or as
+> the run config's `master_csv` field. The variable exists so **this runbook's
+> own one-liners** have one place to name the path, and so a re-pointed master is
+> a one-line edit rather than a search through commands. It is a shell
+> convenience, not configuration the code consumes. Stated here so that the next
+> reader who greps for it does not conclude the runbook is broken — and so that
+> nobody sets it and expects a run to pick it up.
+
 > **Every line must keep its `export`.** Until 2026-08-18 the file assigned
 > without exporting, so a plain `source` populated the *shell* and no child
 > process — and `launch()`, the orchestrator and the loader (a subprocess under
@@ -126,9 +195,12 @@ export G3O_SESSION_ID=20260817-claude-g3o-endgame   # yours, not this example
 > is tired, at 2 a.m., on the one run that costs money.
 >
 > ```bash
-> . ~/.g3o/env                                                # plain source is enough
-> python3 -c "import os; assert os.environ['DATABASE_URL']"   # cheap proof
+> . ~/.g3o/env                                                          # plain source is enough
+> ~/venv/bin/python -c "import os; assert os.environ['DATABASE_URL']"   # cheap proof
 > ```
+>
+> Confirmed on the box 2026-08-19: all nine lines carry `export`, the seven
+> secret values are single-quoted, and the proof above passes.
 >
 > Run that proof after any edit to the file, and after a rebuild. Two mechanics
 > if you ever have to edit it: `~/.g3o/` is **root-owned** while `env` inside it
@@ -166,7 +238,7 @@ from the command line. Everything else lives in the file.
 ### Dry run first
 
 ```bash
-python -m g3o.run.orchestrate submit --config run-config.json        # no --execute
+~/venv/bin/python -m g3o.run.orchestrate submit --config run-config.json        # no --execute
 ```
 
 A dry run plans and spends nothing, and reports as `stopped`, never `completed`
@@ -177,7 +249,7 @@ A dry run plans and spends nothing, and reports as `stopped`, never `completed`
 ## While it runs
 
 ```
-$ python -m g3o.run.orchestrate status --latest
+$ ~/venv/bin/python -m g3o.run.orchestrate status --latest
 r20260813T101500Z-9c2f  RUNNING      stages=5/8  in-flight=extract  chunks=2  pid=8123/alive  last=chunk_submitted@2026-08-13T14:22:07Z(seq 41)
 ```
 
@@ -198,7 +270,7 @@ r20260813T101500Z-9c2f  RUNNING      stages=5/8  in-flight=extract  chunks=2  pi
 >
 > ```bash
 > tail -3 $G3O_RUNS_DIR/$RUN/events.jsonl        # find the batch_id
-> python -c "import os;from openai import OpenAI;> print(OpenAI(api_key=os.environ['OPENAI_API_KEY']).batches.cancel('batch_...').status)"
+> ~/venv/bin/python -c "import os; from openai import OpenAI; print(OpenAI(api_key=os.environ['OPENAI_API_KEY']).batches.cancel('batch_...').status)"
 > ```
 >
 > Never cancel a batch belonging to a run you intend to **resume** — re-invoking
@@ -223,22 +295,22 @@ Full detail: `status --json`, `runs/<id>/events.jsonl`,
 RUN=r20260813T101500Z-9c2f
 
 # 1. Stage 7 + the run-level reports. Archival refuses without them.
-python -m g3o persist --run-dir $G3O_RUNS_DIR/$RUN --run-id $RUN
-python -m g3o presweep-report --run-dir $G3O_RUNS_DIR/$RUN
+~/venv/bin/python -m g3o persist --run-dir $G3O_RUNS_DIR/$RUN --run-id $RUN
+~/venv/bin/python -m g3o presweep-report --run-dir $G3O_RUNS_DIR/$RUN
 
 # 2. INGEST — refuses anything but a completed run. Loader exit code passed through.
 #    --frame-id is the master build this run sampled from; there is no --wave-id
 #    any more (v0.6 derives wave membership from the database, not from here).
-python -m g3o.run.orchestrate ingest --run-id $RUN --frame-id mb-2026-07-30 \
+~/venv/bin/python -m g3o.run.orchestrate ingest --run-id $RUN --frame-id mb-2026-07-30 \
     --expect-loader-sha <the pinned g3o-api sha>
 
 # 3. ARCHIVE — dry first (it deletes the institution tree), then apply + upload.
-python -m g3o.run.orchestrate archive --run-id $RUN
-python -m g3o.run.orchestrate archive --run-id $RUN --apply \
+~/venv/bin/python -m g3o.run.orchestrate archive --run-id $RUN
+~/venv/bin/python -m g3o.run.orchestrate archive --run-id $RUN --apply \
     --destination s3://g3o-runs/runs
 
 # 4. PUBLISH-VERIFY — read-only. Asks the API; flips nothing.
-python -m g3o.run.orchestrate publish-verify --run-id $RUN
+~/venv/bin/python -m g3o.run.orchestrate publish-verify --run-id $RUN
 ```
 
 **Ingest** reports the loader's own verdict, never a paraphrase of it. Exit 1
@@ -319,13 +391,12 @@ Description=G3O sweep %i
 [Service]
 Type=simple
 User=g3o
-EnvironmentFile=/home/g3o/.g3o/env
 WorkingDirectory=/home/g3o/G3O
 Environment=G3O_OPERATOR=thomas
 Environment=G3O_SESSION_ID=set-this-per-run
-ExecStart=/home/g3o/G3O/.venv/bin/python -m g3o.run.orchestrate submit \
-    --config /home/g3o/run-config.json --execute --run-id %i \
-    --session-id ${G3O_SESSION_ID}
+ExecStart=/bin/bash -c '. /home/g3o/.g3o/env && exec /home/g3o/venv/bin/python \
+    -m g3o.run.orchestrate submit --config /home/g3o/run-config.json \
+    --execute --run-id %i --session-id "$G3O_SESSION_ID"'
 Restart=no
 [Install]
 WantedBy=multi-user.target
@@ -334,14 +405,46 @@ WantedBy=multi-user.target
 `Restart=no` is deliberate: a run that failed must be looked at, not restarted
 into the same wall. Resume is a decision, and it is one command.
 
-Two things about `EnvironmentFile` before trusting this unit. It is **not** a
-shell: it parses `KEY=value` directly, which means it reads the un-exported
-secret lines correctly where `source` does not — but it also does not honour an
-`export ` prefix and does not expand `$HOME`. Any line added to `~/.g3o/env` in
-shell form is therefore invisible or literal here, so state absolute paths with
-`Environment=` in the unit rather than relying on the file. `G3O_OPERATOR` and
-`G3O_SESSION_ID` are set in the unit for the same reason they are not in the
-shared file: they identify a person and a session, and the unit is per run.
+> **There is no `EnvironmentFile=` in that unit, and removing it is the fix, not
+> an omission.** `EnvironmentFile=` is **not** a shell, and it does not honour an
+> `export ` prefix — so now that every line of `~/.g3o/env` carries `export` (the
+> 2026-08-18 fix, which is right for the shell path), the directive loads
+> **nothing**. Measured on the box 2026-08-19 with a transient
+> `systemd-run --user` unit over a probe file of the same shape:
+>
+> | Line in the file | What the unit saw |
+> |---|---|
+> | `export PROBE_EXPORTED='v'` | **unset** |
+> | `PROBE_PLAIN='v'` | `v` — quotes stripped |
+> | `export PROBE_HOME="$HOME/runs"` | **unset** |
+>
+> So a run started with `systemctl start g3o-run@<id>` and an `EnvironmentFile=`
+> would begin with no keys, no DSN and no Spaces credentials — the exact failure
+> the `export` fix closed on the shell path, reappearing on this one, and silent
+> in the same way. Sourcing the file in the `ExecStart` shell is what makes the
+> two paths read the same file the same way: `.` honours `export`, strips the
+> quotes, and expands `$HOME`. `G3O_OPERATOR` and `G3O_SESSION_ID` stay on
+> `Environment=` lines for the reason they are not in the shared file at all —
+> they identify a person and a session, and the unit is per run.
+>
+> **The replacement was run, not reasoned.** The same `. ~/.g3o/env && exec
+> ~/venv/bin/python …` shape, under a transient `systemd-run --user` unit against
+> the real `~/.g3o/env` on 2026-08-19: **all eleven** variables present
+> (the seven secrets, `G3O_API_REPO`, `G3O_RUNS_DIR`, and the two `Environment=`
+> ones), `G3O_RUNS_DIR` expanded to `/home/g3o/runs`, and `g3o`, `psycopg` and
+> `boto3` all importable in the unit's interpreter.
+>
+> Note the quoting in that unit is doubly load-bearing: single quotes around the
+> whole `bash -c` script keep systemd from splitting it, and `"$G3O_SESSION_ID"`
+> stays quoted inside so an unset value fails visibly rather than silently
+> dropping the argument.
+
+The same mechanics apply to `EnvironmentFile=` anywhere else you meet it: it
+parses `KEY=value` directly, strips quotes, and neither honours `export ` nor
+expands `$HOME`. A line written in shell form is invisible or literal to it. If
+you ever do point it at a file, state absolute paths with `Environment=` rather
+than relying on expansion — and read the table above before assuming a secret
+arrived.
 
 ---
 
