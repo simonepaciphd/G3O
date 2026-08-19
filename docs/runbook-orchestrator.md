@@ -10,11 +10,17 @@ the preflight, Stage 7 and the reports.
 > only `python3`, which is the system interpreter. A bare `g3o presweep` or
 > `python -m g3o.run.orchestrate` dies with *command not found*; a bare
 > `python3 -m g3o.run.orchestrate` finds an interpreter with no `g3o` in it. Both
-> failures are loud, which is the good case. The bad case is a second venv:
-> `~/G3O/.venv` also exists on the box (created 2026-08-08, before `~/venv`), it
-> is complete, and it works — so *"it ran under some interpreter"* is not
-> evidence that it ran under the pinned one. **`~/venv` is the venv this runbook
-> and the systemd unit name.** Do not activate one and assume; name it.
+> failures are loud, which is the good case. The bad case is a **second working
+> venv**, and the box had one: `~/G3O/.venv`, created 2026-08-08, complete, and
+> carrying different dependency versions from `~/venv` (openai 2.53.0 against
+> 2.54.0, boto3 1.43.67 against 1.43.72). Both ran the same source, so
+> *"it ran under some interpreter"* was not evidence that it ran under the pinned
+> one. **It was removed on PI ruling 2026-08-19**, and its package set is
+> recorded at `~/G3O-dotvenv-freeze-20260819.txt` on the box because two
+> completed runs name it in their `_orchestrator/submit.json`. There is now
+> exactly one venv under `$HOME`. **Keep it that way** — and if you ever build a
+> second for any reason, nothing in this file will notice, which is why every
+> command below names its interpreter rather than trusting the environment.
 
 **Exit codes, every verb:** `0` green · `1` it ran and is not green · `2` it
 refused or could not run. Scripts should branch on 2 vs 1: *did not happen* vs
@@ -154,6 +160,14 @@ export SPACES_BUCKET='...'
 # SPACES_REGION is optional; g3o.run.orchestrate.objectstore defaults it to
 # us-east-1. Verified 2026-08-18 against the sfo3 endpoint: a put/read/re-hash
 # round trip on bucket g3o-runs matched byte for byte, so leave it unset.
+#
+# The REGION is confirmed independently, 2026-08-19, and needs no credentials:
+# an anonymous GET of the bucket host answers 403 AccessDenied at sfo3 (the
+# bucket is there; we simply may not list it) and 404 NoSuchBucket at fra1,
+# nyc3 and ams3. A bucket lives in exactly one region, so that split settles it:
+#   for r in sfo3 fra1 nyc3 ams3; do
+#       curl -s -o /dev/null -w "$r %{http_code}\n" https://g3o-runs.$r.digitaloceanspaces.com/
+#   done
 export G3O_API_REPO="$HOME/g3o-api"
 export G3O_API_BASE='...'          # the staging worker that reads the NEON
                                    # BRANCH, with REGISTRY_ONLY dropped and
