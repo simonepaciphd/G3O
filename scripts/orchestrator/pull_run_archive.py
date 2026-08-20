@@ -92,7 +92,7 @@ def make_client(endpoint: str | None, region: str | None):
     endpoint = endpoint or os.environ.get("SPACES_ENDPOINT")
     if not endpoint:
         sys.stderr.write(
-            "no endpoint: set SPACES_ENDPOINT (e.g. https://fra1.digitaloceanspaces.com) "
+            "no endpoint: set SPACES_ENDPOINT (e.g. https://sfo3.digitaloceanspaces.com) "
             "or pass --endpoint.\n"
         )
         raise SystemExit(EXIT_REFUSED)

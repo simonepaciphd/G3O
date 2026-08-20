@@ -159,7 +159,7 @@ class S3ObjectStore:
         if not self.endpoint_url:
             raise ObjectStoreError(
                 f"no endpoint for bucket {bucket!r}. Set {SPACES_ENDPOINT_ENV_VAR} "
-                f"(e.g. https://fra1.digitaloceanspaces.com) or pass --spaces-endpoint."
+                f"(e.g. https://sfo3.digitaloceanspaces.com) or pass --spaces-endpoint."
             )
         if not (self._access_key and self._secret_key):
             raise ObjectStoreError(
