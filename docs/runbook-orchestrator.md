@@ -509,14 +509,32 @@ runs/<run-id>/
 
 ## Known seams
 
-- **Publish-verify needs a worker that reads the run's database.** The leg is
-  only as meaningful as the endpoint in `G3O_API_BASE`. The worker on
-  `api.g3observatory.org` is the registry preview — `REGISTRY_ONLY=true`,
-  `DEFAULT_WAVE=w000` — which serves every institution as `not_reviewed` with
-  zero findings by design, and does not read a Neon branch. Pointed at it, this
-  leg reports a perfectly-loaded run invisible, and the report is correct about
-  the API while saying nothing about the load. Confirm the endpoint reads the
-  same database the run was ingested into before believing either verdict.
+- **Publish-verify pointed at the wrong database returns `pass`. It is a FALSE
+  GREEN, not a false negative.** This entry said the opposite until 2026-08-20;
+  so did two other documents. Corrected against the code and a live measurement.
+  `visible` is `(code == 200)` and nothing else is consulted
+  (`publish.py:275`); the verdict is `pass` iff
+  `expected and n_visible == len(checks)` (`:295`); and `waves_seen` and
+  `aggregate` are recorded on the result but never enter the verdict (`:328`,
+  `:330`). A 200 proves only **frame membership** — the rollup is a `left join`
+  and `evidence_status` coalesces to `not_reviewed`
+  (`g3o-api worker/src/index.js:637-663`) — so the leg never looks at `findings`
+  at all. And because `api.g3observatory.org`'s wave-0 frame **is**
+  `mb-2026-07-30`, every uid a run sampled is already in it, every check answers
+  200, and the leg prints *"all N sampled institution(s) are visible, as
+  expected"* about a database that has never seen the run. Ruling R1 sharpens
+  this: with the full registry as the denominator, frame membership stops
+  discriminating a loaded run from an empty one. **A false negative gets
+  investigated; a false green closes the leg and the run is declared verified.**
+  Until the leg asserts the pinned wave *and* the findings, the only trustworthy
+  confirmation that a run loaded is DB-side — the shape the Item-4 record uses:
+  `v_wave_institution_facts` and the `mv_institution_rollup` join, counted for
+  the run.
+- **Publish-verify calls `/aggregate`, which does not exist.** `publish.py:280`
+  requests the singular form; the contract §3 and the Worker both serve
+  `/aggregates`, and the singular measures HTTP 404 `no_such_endpoint`. The
+  getter treats a non-200 as data, so nothing raises and the 404 is stored in a
+  field the verdict never reads. Fixing the path alone changes no verdict.
 - **`--frame-id` is operator-supplied, and unvalidated here.** The manifest's
   `frame` block is null on every run the pipeline emits today, so the master
   build is named on the command line and the loader records it as
