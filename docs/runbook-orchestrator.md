@@ -535,12 +535,34 @@ runs/<run-id>/
   `/aggregates`, and the singular measures HTTP 404 `no_such_endpoint`. The
   getter treats a non-200 as data, so nothing raises and the 404 is stored in a
   field the verdict never reads. Fixing the path alone changes no verdict.
-- **`--frame-id` is operator-supplied, and unvalidated here.** The manifest's
-  `frame` block is null on every run the pipeline emits today, so the master
-  build is named on the command line and the loader records it as
-  `frame_id_source = 'operator'`. A typo is not caught by this orchestrator.
-  When stamping populates the block, that flips to `'manifest'` and the flag
-  becomes redundant.
+- **`--frame-id` is operator-supplied, and the loader does not validate it — it
+  *creates* it.** `ensure_frame` is an `insert … on conflict do update` with no
+  format check and no existence check on any path, so `--frame-id mb-2026-07-3O`
+  would insert a new frame, load the whole 719,588-row master under that
+  fabricated vintage, land the facts against it, and **exit 0**. `manifest`
+  provenance protects no better than `operator` does. Since 2026-08-20 this
+  orchestrator refuses first: `assert_frame_known` queries `g3o.frames` before
+  invoking the loader and names the frames that do exist in the refusal. It fails
+  open on a missing driver or an unreachable database — the loader is about to
+  connect anyway and reports an environment problem better — and the verdict is
+  recorded under `frame_check`, so a `skipped` there means nobody looked, not
+  that the frame was known.
+- **The loader accepts a pooled DSN and fails partway through the load.** It
+  runs one long transaction with batched upserts, which a pooler in transaction
+  mode breaks — its own `.env.example` says so — but nothing in it inspects the
+  string it is handed. The one mention anywhere is the missing-`DATABASE_URL`
+  abort text. This orchestrator now hostname-tests for `-pooler`/`pgbouncer`
+  before invoking it, which is the only signal available.
+- **`publish-verify` asks `/health` first, and refuses three ways.** A 200 from
+  `/institutions/{uid}` proves only *frame membership* — the detail query is a
+  `left join` onto the rollup and `evidence_status` coalesces to `not_reviewed` —
+  so a worker that has never seen the run answers 200 for every sampled uid. The
+  leg therefore refuses a `registry_only` deployment before sampling, refuses a
+  deployment whose `DEFAULT_WAVE` is not the run's (pass `--expect-wave`, since
+  that binding is static per deployment and no response body complains about
+  it), and refuses to call it a pass when *every* sampled institution reads
+  `not_reviewed`. A partly-reviewed sample still passes: a thin run with findings
+  on one institution of fourteen is a real result.
 - **Nothing checks that a `--run-id` is unused.** The guard that would have
   was retired rather than deferred (SD-004, 2026-08-16): minted ids are
   `r<YYYYMMDD>T<HHMMSS>Z-<4hex>` and the orchestrator is the only sanctioned
