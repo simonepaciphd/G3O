@@ -19,18 +19,45 @@ from tests._orchestrate import event, make_run, write_final_csvs
 API = "https://api.example.org"
 
 
-def _getter(status_by_key: dict[str, int], *, wave: str = "w001", calls: list | None = None):
-    """A stand-in for the network. Records the URLs it was asked for."""
+def _getter(
+    status_by_key: dict[str, int],
+    *,
+    wave: str = "w001",
+    calls: list | None = None,
+    mode: str = "full",
+    default_wave: str | None = None,
+    health_status: int = 200,
+    evidence_status: str | None = "documented",
+):
+    """A stand-in for the network, shaped like the real worker.
+
+    ``/health`` answers ``mode`` and ``default_wave`` and builds no ``meta``;
+    ``/aggregates`` is plural; institution detail carries ``evidence_status``.
+    Each of those three is a property of ``worker/src/index.js`` this leg now
+    depends on, so the double models them rather than the leg's old assumptions.
+    """
 
     def _get(url: str, params: dict) -> tuple[int, object]:
         if calls is not None:
             calls.append((url, params))
-        if url.endswith("/aggregate"):
+        if url.endswith("/health"):
+            if health_status != 200:
+                return health_status, None
+            return 200, {
+                "service": "g3o-read-api",
+                "status": "ok",
+                "mode": mode,
+                "default_wave": default_wave if default_wave is not None else wave,
+            }
+        if url.endswith("/aggregates"):
             return 200, {"meta": {"wave": wave}, "data": {}}
         key = url.rsplit("/", 1)[-1]
         code = status_by_key.get(key, 404)
         if code == 200:
-            return 200, {"meta": {"wave": wave}, "data": {"institution_uid": key}}
+            data: dict[str, object] = {"institution_uid": key}
+            if evidence_status is not None:
+                data["evidence_status"] = evidence_status
+            return 200, {"meta": {"wave": wave}, "data": data}
         return code, {"error": {"code": "not_found"}}
 
     return _get
@@ -171,7 +198,14 @@ def test_a_transport_failure_is_unknown_not_absent(tmp_path: Path) -> None:
     result = pub.verify_published(runs_dir, run_id, api_base=API, getter=_dead)
 
     assert result.verdict == "not_verifiable"
-    assert "not reach the API" in result.reason
+    # Since 2026-08-20 the first thing to fail is the /health probe, and it says
+    # something more useful than the per-institution loop did: a dead endpoint
+    # means the base URL is wrong or nothing is deployed there, NOT that the run
+    # is invisible. Either way the invariant under test holds -- unreachable is
+    # never reported as absent.
+    assert "did not answer" in result.reason
+    assert "not that the run" in result.reason
+    assert result.deployment["http_status"] is None
 
 
 def test_the_wave_is_pinned_on_every_request(tmp_path: Path) -> None:
@@ -183,7 +217,11 @@ def test_the_wave_is_pinned_on_every_request(tmp_path: Path) -> None:
         getter=_getter({"G3O-I-00000001": 200, "G3O-I-00000002": 200}, calls=calls),
     )
 
-    assert calls and all(params == {"wave": "w002"} for _url, params in calls)
+    scoped = [(u, p) for u, p in calls if not u.endswith("/health")]
+    assert scoped and all(params == {"wave": "w002"} for _url, params in scoped)
+    # /health is a deployment probe, not a wave-scoped query, and must not be
+    # sent a wave: its job is to say which wave the deployment serves.
+    assert [p for u, p in calls if u.endswith("/health")] == [{}]
 
 
 def test_the_sample_is_deterministic(tmp_path: Path) -> None:
@@ -225,3 +263,123 @@ def test_rendering_says_it_publishes_nothing(tmp_path: Path) -> None:
     runs_dir, run_id = _completed_run(tmp_path)
     result = pub.verify_published(runs_dir, run_id, api_base=API, getter=_getter({}))
     assert "read-only" in pub.render_publish(result)
+
+
+# ---------------------------------------------------------------------------
+# The deployment pre-flight (G3O #81/#82, 2026-08-20)
+#
+# `visible = (code == 200)` and nothing else, against a worker that serves the
+# frame, is a FALSE GREEN: every sampled uid answers 200 from g3o.institutions
+# whether or not the run was ever loaded. These assert the leg now refuses to
+# call that a pass.
+# ---------------------------------------------------------------------------
+
+
+def test_a_registry_only_worker_is_refused_before_anything_is_sampled(tmp_path: Path) -> None:
+    """The false green that would have closed the item-4 publish leg."""
+    runs_dir, run_id = _completed_run(tmp_path)
+    calls: list = []
+    result = pub.verify_published(
+        runs_dir, run_id, api_base=API,
+        getter=_getter(
+            {"G3O-I-00000001": 200, "G3O-I-00000002": 200},
+            calls=calls, mode="registry_only",
+        ),
+    )
+    assert result.verdict == "not_verifiable"
+    assert "registry_only" in result.reason
+    # Refused BEFORE sampling: nothing but /health was asked for. Sampling a
+    # registry worker is what produced "all N visible, as expected" about a
+    # database holding zero findings for the run.
+    assert [u for u, _p in calls if "/institutions/" in u] == []
+
+
+def test_a_worker_on_the_wrong_default_wave_is_refused(tmp_path: Path) -> None:
+    """DEFAULT_WAVE is a deployment binding; no response body complains about it."""
+    runs_dir, run_id = _completed_run(tmp_path)
+    result = pub.verify_published(
+        runs_dir, run_id, api_base=API, expect_wave="w001",
+        getter=_getter({"G3O-I-00000001": 200}, wave="w000", default_wave="w000"),
+    )
+    assert result.verdict == "not_verifiable"
+    assert "w000" in result.reason and "w001" in result.reason
+    assert result.deployment["default_wave"] == "w000"
+
+
+def test_an_explicit_wave_overrides_the_deployment_default(tmp_path: Path) -> None:
+    """`--wave` is a per-request override, so a differing default is not a refusal."""
+    runs_dir, run_id = _completed_run(tmp_path)
+    result = pub.verify_published(
+        runs_dir, run_id, api_base=API, wave="w001", expect_wave="w001",
+        getter=_getter(
+            {"G3O-I-00000001": 200, "G3O-I-00000002": 200},
+            wave="w001", default_wave="w000",
+        ),
+    )
+    assert result.verdict == "pass"
+
+
+def test_a_dead_health_endpoint_is_not_read_as_invisible(tmp_path: Path) -> None:
+    runs_dir, run_id = _completed_run(tmp_path)
+    result = pub.verify_published(
+        runs_dir, run_id, api_base=API,
+        getter=_getter({"G3O-I-00000001": 200}, health_status=503),
+    )
+    assert result.verdict == "not_verifiable"
+    assert "did not answer" in result.reason
+
+
+def test_every_institution_not_reviewed_is_not_a_pass(tmp_path: Path) -> None:
+    """A 200 proves frame membership; the rollup join coalesces to not_reviewed."""
+    runs_dir, run_id = _completed_run(tmp_path)
+    result = pub.verify_published(
+        runs_dir, run_id, api_base=API,
+        getter=_getter(
+            {"G3O-I-00000001": 200, "G3O-I-00000002": 200},
+            evidence_status="not_reviewed",
+        ),
+    )
+    assert result.verdict == "not_verifiable"
+    assert "not_reviewed" in result.reason
+    assert result.n_visible == result.n_checked   # all visible...
+    assert result.n_reviewed == 0                 # ...and none of it means anything
+
+
+def test_a_partly_reviewed_sample_still_passes(tmp_path: Path) -> None:
+    """A thin run is legitimate: 13 of 14 institutions with no findings is a real
+    result, so the guard must key on 'none reviewed', never on 'all reviewed'."""
+    runs_dir, run_id = _completed_run(tmp_path)
+
+    inner = _getter({"G3O-I-00000001": 200, "G3O-I-00000002": 200})
+
+    def _mixed(url: str, params: dict):
+        code, body = inner(url, params)
+        if "/institutions/" in url and url.endswith("2") and isinstance(body, dict):
+            body["data"]["evidence_status"] = "not_reviewed"
+        return code, body
+
+    result = pub.verify_published(runs_dir, run_id, api_base=API, getter=_mixed)
+    assert result.verdict == "pass"
+    assert result.n_reviewed == 1
+
+
+def test_the_aggregate_endpoint_is_plural(tmp_path: Path) -> None:
+    """`/aggregate` is a 404 the old code recorded as data and never read."""
+    runs_dir, run_id = _completed_run(tmp_path)
+    calls: list = []
+    pub.verify_published(
+        runs_dir, run_id, api_base=API,
+        getter=_getter({"G3O-I-00000001": 200}, calls=calls),
+    )
+    urls = [u for u, _p in calls]
+    assert f"{API}{pub.AGGREGATES_PATH}" in urls
+    assert f"{API}/aggregate" not in urls
+
+
+def test_check_deployment_reports_what_it_found(tmp_path: Path) -> None:
+    got = pub.check_deployment(API, _getter({}, mode="full", default_wave="w001"))
+    assert got.http_status == 200
+    assert got.mode == "full"
+    assert got.default_wave == "w001"
+    assert not got.registry_only
+    assert pub.check_deployment(API, _getter({}, mode="registry_only")).registry_only

@@ -10,6 +10,7 @@ is not loaded at all.
 from __future__ import annotations
 
 import os
+import sys
 import textwrap
 from pathlib import Path
 
@@ -423,3 +424,135 @@ def test_environment_is_not_mutated_by_the_leg(tmp_path: Path, master: Path, mon
     ing.ingest_run(runs_dir, run_id, frame_id='mb-TEST', loader_repo=repo, dsn="postgresql://u:p@h/d")
 
     assert ing.DSN_ENV_VAR not in os.environ
+
+
+# ---------------------------------------------------------------------------
+# Pre-flight guards (2026-08-20)
+#
+# Both exist because the loader does not check these itself, and both failures
+# are silent-or-late rather than loud-and-early.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "dsn",
+    [
+        "postgresql://u:p@ep-x-pooler.c-2.us-east-2.aws.neon.tech/neondb",
+        "postgres://u:p@host/db?options=pgbouncer",
+        "POSTGRESQL://U:P@EP-X-POOLER.NEON.TECH/NEONDB",
+    ],
+)
+def test_a_pooled_dsn_is_refused_at_the_door(dsn: str) -> None:
+    """The loader runs one long transaction; a pooler in transaction mode breaks
+    it, and nothing in the loader inspects the string it is handed."""
+    with pytest.raises(ing.IngestError) as excinfo:
+        ing.assert_unpooled_dsn(dsn)
+    assert "pooled" in str(excinfo.value)
+    assert "UNPOOLED" in str(excinfo.value)
+
+
+def test_an_unpooled_dsn_passes() -> None:
+    ing.assert_unpooled_dsn(
+        "postgresql://u:p@ep-restless-wildflower-ay6t9k64.c-5.us-east-2.aws.neon.tech/neondb"
+    )
+
+
+class _FrameCursor:
+    def __init__(self, known: list[str]) -> None:
+        self._known, self._rows = known, []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def execute(self, sql: str, params=None) -> None:
+        if "where frame_id" in sql:
+            self._rows = [(1,)] if params and params[0] in self._known else []
+        else:
+            self._rows = [(f,) for f in self._known]
+
+    def fetchone(self):
+        return self._rows[0] if self._rows else None
+
+    def fetchall(self):
+        return list(self._rows)
+
+
+class _FrameConn:
+    def __init__(self, known: list[str]) -> None:
+        self._known = known
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def cursor(self):
+        return _FrameCursor(self._known)
+
+
+class _FramePsycopg:
+    def __init__(self, known: list[str], *, error: Exception | None = None) -> None:
+        self._known, self._error = known, error
+
+    def connect(self, dsn, connect_timeout=None):
+        if self._error is not None:
+            raise self._error
+        return _FrameConn(self._known)
+
+
+def _install_psycopg(monkeypatch, fake) -> None:
+    monkeypatch.setitem(sys.modules, "psycopg", fake)
+
+
+def test_a_known_frame_passes(monkeypatch) -> None:
+    _install_psycopg(monkeypatch, _FramePsycopg(["mb-2026-07-30"]))
+    got = ing.assert_frame_known("postgresql://x/y", "mb-2026-07-30")
+    assert got == {"verdict": "known", "frame_id": "mb-2026-07-30"}
+
+
+def test_a_typo_frame_is_refused_and_the_known_ones_are_named(monkeypatch) -> None:
+    """`--frame-id` does not validate -- ensure_frame is an upsert, so a typo
+    CREATES the frame, loads the whole master under it, and exits 0."""
+    _install_psycopg(monkeypatch, _FramePsycopg(["mb-2026-07-30"]))
+    with pytest.raises(ing.IngestError) as excinfo:
+        ing.assert_frame_known("postgresql://x/y", "mb-2026-07-3O")   # capital O
+    msg = str(excinfo.value)
+    assert "unknown frame" in msg
+    assert "upsert" in msg                    # says WHY the loader won't catch it
+    assert "mb-2026-07-30" in msg             # names the real one, so the fix is obvious
+    assert "Nothing was submitted" in msg
+
+
+def test_a_missing_driver_skips_loudly_rather_than_refusing(monkeypatch, caplog) -> None:
+    """Fails open on absence of evidence: the loader is about to connect anyway
+    and reports an environment problem better than this can."""
+    monkeypatch.setitem(sys.modules, "psycopg", None)
+    monkeypatch.delitem(sys.modules, "psycopg")
+
+    import builtins
+
+    real_import = builtins.__import__
+
+    def _no_psycopg(name, *a, **k):
+        if name == "psycopg":
+            raise ImportError("no module named psycopg")
+        return real_import(name, *a, **k)
+
+    monkeypatch.setattr(builtins, "__import__", _no_psycopg)
+    with caplog.at_level("WARNING"):
+        got = ing.assert_frame_known("postgresql://x/y", "mb-2026-07-30")
+    assert got["verdict"] == "skipped"
+    assert "FRAME CHECK DID NOT RUN" in caplog.text
+
+
+def test_an_unreachable_database_skips_rather_than_blocking(monkeypatch, caplog) -> None:
+    _install_psycopg(monkeypatch, _FramePsycopg([], error=OSError("no route to host")))
+    with caplog.at_level("WARNING"):
+        got = ing.assert_frame_known("postgresql://x/y", "mb-2026-07-30")
+    assert got["verdict"] == "skipped"
+    assert "OSError" in got["reason"]
+    assert "FRAME CHECK DID NOT RUN" in caplog.text

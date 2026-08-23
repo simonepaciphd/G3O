@@ -58,6 +58,26 @@ _IDENTITY_CSV_GLOBS = (
 UID_COLUMN = "institution_uid"
 ID_COLUMN = "institution_id"
 
+#: ``/health`` is the one endpoint that builds no ``meta``, so it answers even
+#: when everything downstream of it is broken (g3o-api ``worker/src/index.js``:
+#: *"the one endpoint whose job is to answer when things are wrong"*). It reports
+#: ``mode`` and ``default_wave``, which is what makes :func:`check_deployment`
+#: possible at all.
+HEALTH_PATH = "/health"
+
+#: **Plural.** The worker routes ``/aggregates``; ``/aggregate`` is a 404. This
+#: leg asked for the singular until 2026-08-20 and treated the 404 as data.
+AGGREGATES_PATH = "/aggregates"
+
+#: The mode in which the worker refuses to serve any fact at all: every
+#: institution reads ``not_reviewed`` with zero findings, by construction rather
+#: than by configuration. No ``DEFAULT_WAVE`` gets a real answer out of it.
+REGISTRY_ONLY_MODE = "registry_only"
+
+#: ``evidence_status`` for an institution no run has reviewed. An institution
+#: served with this value proves frame membership and nothing more.
+NOT_REVIEWED = "not_reviewed"
+
 DEFAULT_SAMPLE = 10
 DEFAULT_TIMEOUT = 30
 
@@ -101,7 +121,18 @@ class InstitutionCheck:
     http_status: int | None
     visible: bool
     wave: str | None = None
+    evidence_status: str | None = None
     error: str | None = None
+
+    @property
+    def reviewed(self) -> bool:
+        """Whether the API served a verdict, rather than a frame row.
+
+        ``evidence_status`` is a ``left join`` onto the rollup and coalesces to
+        ``not_reviewed``, so this is the difference between *"the institution is
+        in the frame"* and *"a run has been loaded for it"*.
+        """
+        return self.evidence_status is not None and self.evidence_status != NOT_REVIEWED
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -109,6 +140,7 @@ class InstitutionCheck:
             "http_status": self.http_status,
             "visible": self.visible,
             "wave": self.wave,
+            "evidence_status": self.evidence_status,
             "error": self.error,
         }
 
@@ -127,10 +159,17 @@ class PublishVerifyResult:
     waves_seen: tuple[str, ...] = ()
     n_institutions_in_run: int = 0
     aggregate: dict[str, Any] = field(default_factory=dict)
+    deployment: dict[str, Any] = field(default_factory=dict)
+    expect_wave: str | None = None
 
     @property
     def n_visible(self) -> int:
         return sum(1 for c in self.checks if c.visible)
+
+    @property
+    def n_reviewed(self) -> int:
+        """Sampled institutions the API served a real verdict for."""
+        return sum(1 for c in self.checks if c.reviewed)
 
     @property
     def n_checked(self) -> int:
@@ -150,6 +189,9 @@ class PublishVerifyResult:
             "waves_seen": list(self.waves_seen),
             "checks": [c.to_dict() for c in self.checks],
             "aggregate": self.aggregate,
+            "deployment": self.deployment,
+            "expect_wave": self.expect_wave,
+            "n_reviewed": self.n_reviewed,
         }
 
 
@@ -201,6 +243,69 @@ def _wave_of(body: Any) -> str | None:
     return None
 
 
+def _evidence_status_of(body: Any) -> str | None:
+    """``data.evidence_status`` from an institution detail response, if present."""
+    if isinstance(body, dict):
+        data = body.get("data")
+        if isinstance(data, dict):
+            status = data.get("evidence_status")
+            return str(status) if status is not None else None
+    return None
+
+
+@dataclass(frozen=True)
+class DeploymentCheck:
+    """Which deployment answered, before anything is asked of it.
+
+    ``mode`` and ``default_wave`` are deployment properties, not request
+    properties: ``DEFAULT_WAVE`` is a static worker binding set once at deploy
+    time and deliberately not derived per request. So "the right database, wrong
+    wave" is a state the caller can be in, and nothing in an institution response
+    body complains about it.
+    """
+
+    http_status: int | None
+    mode: str | None = None
+    default_wave: str | None = None
+    error: str | None = None
+
+    @property
+    def registry_only(self) -> bool:
+        return self.mode == REGISTRY_ONLY_MODE
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "http_status": self.http_status,
+            "mode": self.mode,
+            "default_wave": self.default_wave,
+            "error": self.error,
+        }
+
+
+def check_deployment(api_base: str, get: Getter) -> DeploymentCheck:
+    """Ask ``/health`` which worker this is, before trusting anything it serves.
+
+    One request. It exists because *"the endpoint answered"* must not be able to
+    read as *"the endpoint was the right one"* — the same argument as the submit
+    record's ``skipped`` verdict, one hop earlier. A guessed or stale
+    ``G3O_API_BASE`` that happens to resolve is worse than an unset one: this leg
+    would sample a wave that is not the run's and report ``pass``.
+    """
+    try:
+        code, body = get(f"{api_base.rstrip('/')}{HEALTH_PATH}", {})
+    except PublishVerifyError as exc:
+        return DeploymentCheck(http_status=None, error=str(exc))
+    mode = default_wave = None
+    if isinstance(body, dict):
+        mode = body.get("mode")
+        default_wave = body.get("default_wave")
+    return DeploymentCheck(
+        http_status=code,
+        mode=str(mode) if mode is not None else None,
+        default_wave=str(default_wave) if default_wave is not None else None,
+    )
+
+
 def verify_published(
     runs_dir: Path,
     run_id: str,
@@ -211,6 +316,7 @@ def verify_published(
     getter: Getter | None = None,
     status: RunStatus | None = None,
     expect_visible: bool | None = None,
+    expect_wave: str | None = None,
 ) -> PublishVerifyResult:
     """Query the public API for this run's institutions and report what it finds.
 
@@ -228,6 +334,50 @@ def verify_published(
     get = getter or requests_getter()
     started_at = utc_now_iso()
 
+    # Which deployment answered, before anything is asked of it. A registry-only
+    # worker serves every institution as not_reviewed with zero findings, from
+    # the frame, so every sampled uid answers 200 and this leg would report
+    # "visible, as expected" about a database that has never seen the run. That
+    # is a false green, and a false green closes a leg instead of opening an
+    # investigation.
+    deployment = check_deployment(base, get)
+    wanted_wave = expect_wave or wave
+
+    def _refuse(reason: str) -> PublishVerifyResult:
+        res = PublishVerifyResult(
+            run_id=run_id, api_base=base, expect_visible=expected,
+            verdict="not_verifiable", reason=reason,
+            n_institutions_in_run=0, deployment=deployment.to_dict(),
+            expect_wave=wanted_wave,
+        )
+        record_leg(run_dir, "publish", outcome=res.verdict, started_at=started_at, **res.to_dict())
+        return res
+
+    if deployment.http_status != 200:
+        detail = deployment.error or f"HTTP {deployment.http_status}"
+        return _refuse(
+            f"{base}{HEALTH_PATH} did not answer ({detail}). That endpoint builds "
+            f"no meta and answers when the rest is broken, so a failure here means "
+            f"the base URL is wrong or nothing is deployed at it — not that the run "
+            f"is invisible."
+        )
+    if deployment.registry_only:
+        return _refuse(
+            f"{base} is deployed in {REGISTRY_ONLY_MODE!r} mode: it refuses to "
+            f"serve any fact, so every institution reads {NOT_REVIEWED!r} with zero "
+            f"findings by construction. Every sampled uid would answer 200 from the "
+            f"frame and this leg would pass without touching the run. Point "
+            f"{API_BASE_ENV_VAR} at a worker with REGISTRY_ONLY dropped."
+        )
+    if wanted_wave and deployment.default_wave and not wave and deployment.default_wave != wanted_wave:
+        return _refuse(
+            f"{base} serves wave {deployment.default_wave!r} by default and this "
+            f"run belongs to {wanted_wave!r}. DEFAULT_WAVE is a static deployment "
+            f"binding, not a request property, so the right database with the wrong "
+            f"wave is a state this leg can be in and no response body complains "
+            f"about it. Re-pin the worker, or pass --wave to override per request."
+        )
+
     keys, column = read_institution_keys(run_dir)
     if column is None or not keys:
         result = PublishVerifyResult(
@@ -238,6 +388,7 @@ def verify_published(
                 f"or its CSVs carry neither {UID_COLUMN} nor {ID_COLUMN}."
             ),
             key_column=column, n_institutions_in_run=len(keys),
+            deployment=deployment.to_dict(), expect_wave=wanted_wave,
         )
         record_leg(run_dir, "publish", outcome=result.verdict, started_at=started_at, **result.to_dict())
         return result
@@ -254,6 +405,7 @@ def verify_published(
                 f"verifiable when the pipeline stamps {UID_COLUMN}."
             ),
             key_column=column, n_institutions_in_run=len(keys),
+            deployment=deployment.to_dict(), expect_wave=wanted_wave,
         )
         record_leg(run_dir, "publish", outcome=result.verdict, started_at=started_at, **result.to_dict())
         return result
@@ -272,12 +424,15 @@ def verify_published(
         if served:
             waves.add(served)
         checks.append(
-            InstitutionCheck(key=key, http_status=code, visible=code == 200, wave=served)
+            InstitutionCheck(
+                key=key, http_status=code, visible=code == 200, wave=served,
+                evidence_status=_evidence_status_of(body),
+            )
         )
 
     aggregate: dict[str, Any] = {}
     try:
-        code, body = get(f"{base}/aggregate", params)
+        code, body = get(f"{base}{AGGREGATES_PATH}", params)
         aggregate = {"http_status": code, "wave": _wave_of(body)}
         if _wave_of(body):
             waves.add(str(_wave_of(body)))
@@ -285,6 +440,7 @@ def verify_published(
         aggregate = {"http_status": None, "error": str(exc)}
 
     n_visible = sum(1 for c in checks if c.visible)
+    n_reviewed = sum(1 for c in checks if c.reviewed)
     transport_errors = [c for c in checks if c.http_status is None]
     if transport_errors:
         verdict: Verdict = "not_verifiable"
@@ -292,9 +448,41 @@ def verify_published(
             f"{len(transport_errors)} of {len(checks)} request(s) did not reach the "
             f"API ({transport_errors[0].error}). Visibility is unknown, not absent."
         )
+    elif expected and wanted_wave and any(
+        c.wave is not None and c.wave != wanted_wave for c in checks
+    ):
+        served_other = sorted({c.wave for c in checks if c.wave and c.wave != wanted_wave})
+        verdict = "not_verifiable"
+        reason = (
+            f"the API served wave {', '.join(served_other)} for a run that belongs "
+            f"to {wanted_wave!r}. Those rows are visible, but they are not this "
+            f"run's — a wave mismatch reads as success on every count this leg "
+            f"kept before 2026-08-20."
+        )
+    elif expected and n_visible == len(checks) and n_reviewed == 0 and any(
+        c.evidence_status is not None for c in checks
+    ):
+        verdict = "not_verifiable"
+        reason = (
+            f"all {len(checks)} sampled institution(s) answered 200, and every one "
+            f"reads {NOT_REVIEWED!r}. A 200 proves the uid is in the frame — the "
+            f"detail query is a left join onto the rollup and coalesces to "
+            f"{NOT_REVIEWED!r} — so this is what a run that was never loaded looks "
+            f"like, not what a published one looks like. Visibility of the frame is "
+            f"not publication of the run."
+        )
     elif expected and n_visible == len(checks):
+        reviewed_note = (
+            f" {n_reviewed} of them carry a loaded verdict."
+            if any(c.evidence_status is not None for c in checks)
+            else " The API served no evidence_status, so publication is inferred "
+                 "from visibility alone."
+        )
         verdict = "pass"
-        reason = f"all {len(checks)} sampled institution(s) are visible, as expected."
+        reason = (
+            f"all {len(checks)} sampled institution(s) are visible, as expected."
+            + reviewed_note
+        )
     elif not expected and n_visible == 0:
         verdict = "pass"
         reason = (
@@ -328,6 +516,8 @@ def verify_published(
         waves_seen=tuple(sorted(waves)),
         n_institutions_in_run=len(keys),
         aggregate=aggregate,
+        deployment=deployment.to_dict(),
+        expect_wave=wanted_wave,
     )
     record_leg(run_dir, "publish", outcome=verdict, started_at=started_at, **result.to_dict())
     return result
@@ -339,6 +529,9 @@ def render_publish(result: PublishVerifyResult) -> str:
         f"  {result.verdict.upper()}: {result.reason}",
         "",
         f"  API base            : {result.api_base}",
+        f"  Deployment          : mode={result.deployment.get('mode') or '?'} "
+        f"default_wave={result.deployment.get('default_wave') or '?'}"
+        + (f" (expected {result.expect_wave})" if result.expect_wave else ""),
         f"  Expectation         : {'visible' if result.expect_visible else 'NOT visible'}",
         f"  Institutions in run : {result.n_institutions_in_run} (key column: {result.key_column})",
         f"  Sampled / visible   : {result.n_checked} / {result.n_visible}",
@@ -357,15 +550,21 @@ def render_publish(result: PublishVerifyResult) -> str:
 
 
 __all__ = [
+    "AGGREGATES_PATH",
     "API_BASE_ENV_VAR",
     "DEFAULT_SAMPLE",
+    "HEALTH_PATH",
     "ID_COLUMN",
+    "NOT_REVIEWED",
+    "REGISTRY_ONLY_MODE",
     "UID_COLUMN",
+    "DeploymentCheck",
     "Getter",
     "InstitutionCheck",
     "PublishVerifyError",
     "PublishVerifyResult",
     "Verdict",
+    "check_deployment",
     "read_institution_keys",
     "render_publish",
     "requests_getter",

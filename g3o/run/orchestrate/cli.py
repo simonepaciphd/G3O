@@ -271,6 +271,7 @@ def _cmd_publish_verify(args: argparse.Namespace) -> int:
             wave=args.wave,
             sample=args.sample,
             expect_visible=expect,
+            expect_wave=args.expect_wave,
         )
     except PublishVerifyError as exc:
         sys.stderr.write(f"{exc}\n")
@@ -470,6 +471,13 @@ def build_parser() -> argparse.ArgumentParser:
     publish.add_argument(
         "--expect-visible", action="store_true",
         help="Assert the run IS visible (default: inferred from the run's state).",
+    )
+    publish.add_argument(
+        "--expect-wave", default=None, metavar="WAVE",
+        help="The wave this run belongs to, e.g. w001. Refuses before sampling if "
+             "the deployment's DEFAULT_WAVE is a different one -- that binding is "
+             "static per deployment, not per request, so 'right database, wrong "
+             "wave' is a state this leg can be in and no response body says so.",
     )
     publish.add_argument(
         "--expect-hidden", action="store_true",
