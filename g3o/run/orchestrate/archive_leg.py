@@ -275,7 +275,17 @@ def write_ledger(run_dir: Path, members: list[BundleMember]) -> Path:
                 "kind": "bundle",
                 "run_id": manifest.get("run_id") or run_dir.name,
                 "run_started_at": manifest.get("run_started_at"),
-                "created_at": utc_now_iso(),
+                # No wall clock here, deliberately. Every field on this line is a
+                # property of the run, not of the moment the bundle was made, and
+                # this file's own hash is a row in SHA256SUMS. A `created_at` of
+                # now lived here until 2026-08-23 and made the bundle
+                # reproducible only within a one-second window: two passes over
+                # an unchanged run agreed on every tar and every CSV and differed
+                # on the ledger, so `test_the_bundle_is_reproducible_for_an_unchanged_run`
+                # passed by luck and reddened CI at random (#85). When the bundle
+                # was made is recorded where it costs nothing — `started_at` and
+                # `recorded_at` in `_orchestrator/archive.json`, which the bundle
+                # excludes by design.
                 "git_sha": (manifest.get("code") or {}).get("git_sha"),
                 "config_hash": manifest.get("config_hash"),
                 "n_members": len(members),
