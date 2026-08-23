@@ -143,6 +143,38 @@ def test_the_bundle_is_reproducible_for_an_unchanged_run(
     assert second.sha256sums_path.read_bytes() == first_bytes
 
 
+def test_the_bundle_is_reproducible_across_a_change_of_clock(
+    finished_run: tuple[Path, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same assertion, with the wall clock moved between the two passes.
+
+    The test above passed by luck until 2026-08-23: the ledger's ``bundle`` line
+    carried a ``created_at`` of *now* at one-second precision, so two passes
+    agreed only when both landed inside the same second. It reddened CI at random,
+    including on documentation-only pull requests (#85).
+
+    Forcing the clock forward is what makes the property testable rather than
+    probable. Every hash in ``SHA256SUMS`` must be a function of the run, so a
+    field that moves with the clock cannot be inside the hashed surface — if this
+    fails, something reintroduced one, and the failure it causes in CI will look
+    like flake rather than like this.
+    """
+    runs_dir, run_id = finished_run
+
+    stamps = iter(
+        ["2026-08-23T00:00:00Z", "2026-08-23T00:00:01Z", "2027-01-01T12:34:56Z"] * 20
+    )
+    monkeypatch.setattr(al, "utc_now_iso", lambda: next(stamps))
+
+    first = al.archive_and_upload(runs_dir, run_id, apply=True)
+    first_sums = first.sha256sums_path.read_bytes()
+    first_ledger = first.ledger_path.read_bytes()
+    second = al.archive_and_upload(runs_dir, run_id, apply=True)
+
+    assert second.ledger_path.read_bytes() == first_ledger
+    assert second.sha256sums_path.read_bytes() == first_sums
+
+
 # ---------------------------------------------------------------------------
 # Upload and verification
 # ---------------------------------------------------------------------------
