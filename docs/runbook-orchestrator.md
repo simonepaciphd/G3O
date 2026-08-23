@@ -109,13 +109,21 @@ python3 -m venv ~/venv
 cd ~/G3O && ~/venv/bin/pip install -e .
 
 # 3. Two optional dependencies, deliberately not declared in pyproject.toml:
-#    boto3 for the archive leg, psycopg for the loader. Both are needed on the
-#    droplet and nowhere else. psycopg is not optional in practice: the ingest
-#    leg runs g3o-api/scripts/ingest.py under THIS interpreter (build_argv uses
-#    sys.executable) and that script imports psycopg at module scope, so without
-#    it the ingest leg cannot start.
+#    boto3 for the archive leg, psycopg for the loader.
+#
+#    psycopg is here for a structural reason, not a G3O one. NOTHING in this
+#    repo imports it -- the run-id collision guard that once did was retired by
+#    SD-004. It is needed because build_argv launches
+#    g3o-api/scripts/ingest.py with `python or sys.executable` and no CLI flag
+#    exposes that parameter, so the loader always runs under THIS interpreter
+#    and its dependency lands in THIS venv. See the seam note below.
 ~/venv/bin/pip install boto3 "psycopg[binary]"
 ~/venv/bin/python -c "import psycopg, boto3"    # cheap proof; exit 0 or fix it
+#    Do NOT verify psycopg by running `ingest.py --help`. Every psycopg import
+#    in that script is deliberately lazy ("so that --help and the argument
+#    guards work on a machine without the driver installed"), so --help exits 0
+#    on an environment that will fail at connect time. Use the import check
+#    above, or g3o-api's own scripts/dbcheck.py.
 
 # 4. The browser Playwright drives. NOT --with-deps: that shells out to sudo,
 #    and the `g3o` account is not meant to need root to install a browser.
@@ -535,6 +543,17 @@ runs/<run-id>/
   `/aggregates`, and the singular measures HTTP 404 `no_such_endpoint`. The
   getter treats a non-200 as data, so nothing raises and the 404 is stored in a
   field the verdict never reads. Fixing the path alone changes no verdict.
+- **The ingest leg runs g3o-api's loader under G3O's interpreter.**
+  `build_argv` accepts a `python` parameter but no CLI flag reaches it, so the
+  loader is always launched with `sys.executable` -- which is why
+  `psycopg[binary]` has to be installed into this repo's venv even though no G3O
+  module imports it. That crossing is what let an unrelated deletion of this
+  venv break the ingest leg mid-gate on 2026-08-19. `g3o-api` now declares and
+  owns `psycopg` itself (`g3o-api/requirements.txt`, PI ruling 2026-08-20), so
+  the fix is to plumb a `--loader-python` flag through to `build_argv` and point
+  it at `~/g3o-api/.venv/bin/python`, after which this repo can drop psycopg
+  entirely. Until that lands, both venvs need it and this one is the one that is
+  load-bearing.
 - **`--frame-id` is operator-supplied, and the loader does not validate it — it
   *creates* it.** `ensure_frame` is an `insert … on conflict do update` with no
   format check and no existence check on any path, so `--frame-id mb-2026-07-3O`
