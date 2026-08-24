@@ -46,6 +46,7 @@ from g3o.common.schema import (
     SUMMARY_COLUMNS,
 )
 from g3o.extract.salvage import REASON_SALVAGED
+from g3o.persist.integrity import IntegrityError, validate_run_csvs
 
 logger = logging.getLogger(__name__)
 
@@ -424,6 +425,7 @@ def write_run_csvs(
     run_date: str | None = None,
     activities_tool: str = DEFAULT_RUN_TOOL_ACTIVITY,
     sources_tool: str = DEFAULT_RUN_TOOL_SOURCE,
+    skip_integrity_check: bool = False,
 ) -> dict[str, Any]:
     """Persist all consolidated outputs in ``run_dir`` to three CSVs at
     ``run_dir / "final"``.
@@ -436,9 +438,19 @@ def write_run_csvs(
         overwrite: when False, refuse to clobber existing outputs.
         run_date: ISO date for provenance; defaults to UTC today.
         activities_tool / sources_tool: ``run_tool`` provenance value for each CSV.
+        skip_integrity_check: bypass post-persist FK validation (escape hatch).
+        When False (default), validates all FK constraints after writing. Note:
+        ``check_metadata=False`` is used during write for performance; use the
+        ``validate-integrity`` CLI command for full metadata validation.
 
     Returns:
         Summary dict with output paths and row counts.
+
+    Raises:
+        FileExistsError: if ``overwrite=False`` and any CSV already exists.
+        ValidationError: if any ``6_validate.json`` fails schema validation.
+        IntegrityError: if post-persist FK validation fails (when ``skip_integrity_check=False``).
+            Import from ``g3o.persist.integrity.IntegrityError`` or ``g3o.persist.IntegrityError``.
     """
     require_layout(run_dir)
     final_dir = run_dir / "final"
@@ -495,6 +507,22 @@ def write_run_csvs(
     n_sources = _write_csv(sources_path, ACTIVITY_SOURCE_COLUMNS, source_rows)
     n_summary = _write_csv(summary_path, SUMMARY_COLUMNS, summary_rows)
 
+    # Post-persist referential integrity validation (Phase 1 of FK integrity plan).
+    if skip_integrity_check:
+        integrity_report = None
+    else:
+        integrity_report = validate_run_csvs(run_dir, version=version, check_metadata=False)
+        if not integrity_report.is_valid:
+            logger.error(
+                "Stage 7: integrity validation failed after CSV write: %s",
+                integrity_report.summary(),
+            )
+            raise IntegrityError(integrity_report)
+        logger.info("Stage 7: integrity validation passed: %s", integrity_report.summary())
+        if integrity_report.warnings:
+            for w in integrity_report.warnings:
+                logger.warning("Stage 7: integrity warning: %s", w)
+
     return {
         "run_dir": str(run_dir),
         "run_id": run_id,
@@ -502,6 +530,15 @@ def write_run_csvs(
         "n_institutions": len(loaded),
         "n_load_failures": len(failures),
         "load_failures": failures,
+        "integrity": (
+            {
+                "is_valid": integrity_report.is_valid,
+                "n_violations": len(integrity_report.violations),
+                "n_warnings": len(integrity_report.warnings),
+            }
+            if integrity_report is not None
+            else None
+        ),
         "outputs": {
             "activities": {"path": str(activities_path), "n_rows": n_activities},
             "activity_sources": {"path": str(sources_path), "n_rows": n_sources},
