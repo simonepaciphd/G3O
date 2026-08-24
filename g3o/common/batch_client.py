@@ -94,7 +94,30 @@ ENQUEUED_TOKEN_LIMIT = 2_000_000
 # Fraction of the ceiling this pipeline will occupy. Headroom matters because
 # the estimator below is approximate and because other work in the same org
 # competes for the same ceiling.
-ENQUEUED_BUDGET_UTILISATION = 0.8
+#
+# 0.8 -> 0.95 on PI ruling 2026-08-24, on two measurements taken the same day.
+# First, the ceiling itself was confirmed rather than inherited: a deliberately
+# oversized probe (400 jobs x ~12.5k tokens) came back
+# `Enqueued token limit reached for gpt-5-nano ... Limit: 2,000,000 enqueued
+# tokens` with `request_counts total=0 completed=0 failed=0` -- so the pinned
+# ENQUEUED_TOKEN_LIMIT above is right, and a submit that trips the ceiling is
+# rejected before a single request runs and costs nothing. Second, the org had
+# ZERO other batches in flight, so the "other work competes" half of the
+# rationale above is currently hypothetical rather than observed.
+#
+# What the extra 15 points buy: at the ~18.8k estimated tokens of a real
+# Stage-5 job, the wave goes from ~85 jobs to ~101, i.e. ~19% fewer waves for
+# the same work. Waves are strictly serialised in
+# `run_state.run_chunked_stage`, so that is ~19% off the Stage-5 wall clock --
+# the binding constraint on a large run, not cost.
+#
+# Why the residual 5% is enough. The estimator deliberately runs high
+# (BYTES_PER_TOKEN below is under the measured ratio), so the usual error is in
+# the safe direction. And the failure mode if it is not is bounded and loud: the
+# batch is rejected with zero spend, the chunk keeps its plan, and the wave loop
+# re-releases it. Raise this no further without re-measuring the ceiling -- at
+# 1.0 there is no room for estimator error at all.
+ENQUEUED_BUDGET_UTILISATION = 0.95
 
 # Serialized JSONL bytes per token, for the offline estimate in
 # `estimate_job_tokens`. Deliberately *below* the measured ratio so the
