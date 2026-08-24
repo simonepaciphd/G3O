@@ -404,9 +404,61 @@ def build_summary_row(
 # ---------------------------------------------------------------------------
 
 
+def _strip_nul(rows: list[dict[str, Any]], *, path: Path) -> list[dict[str, Any]]:
+    """Remove NUL (0x00) from string values, loudly. Returns rows unchanged if clean.
+
+    PostgreSQL text columns cannot hold a NUL byte, and the component that
+    discovers that is the *loader*, three stages downstream. Measured 2026-08-24:
+    a single NUL in **5 of 3,633** source rows aborted the ingest of a
+    1,000-institution run with ``psycopg.DataError: PostgreSQL text fields cannot
+    contain NUL (0x00) bytes`` — after institutions and findings had already been
+    staged. The one-long-transaction design rolled it all back, so nothing partial
+    landed, but the run had to be re-persisted and re-ingested.
+
+    NUL is not data. It cannot occur in valid text content: it arrives from
+    scraped PDFs and from HTML served under a mislabelled encoding, and it rides
+    through Stage 4 → Stage 5 → here inside ``source_snippet`` and
+    ``source_title``. Removing it is lossless in the only sense that matters —
+    no character is lost, only a byte no text pipeline can represent.
+
+    Stripped at the CSV boundary rather than at scrape time on purpose: this is
+    the single choke point every Stage-7 table passes through, so one guard covers
+    every column, including ones added later. A scrape-time strip would be better
+    hygiene and is worth doing as well, but it would not protect a field
+    introduced after it.
+
+    The count is logged rather than silent: this mutates a published artifact, and
+    an artifact that differs from what the model emitted must say so.
+    """
+    n_values = 0
+    n_bytes = 0
+    fields: set[str] = set()
+    cleaned: list[dict[str, Any]] = []
+    for row in rows:
+        new_row = row
+        for key, value in row.items():
+            if isinstance(value, str) and "\x00" in value:
+                if new_row is row:
+                    new_row = dict(row)
+                n_values += 1
+                n_bytes += value.count("\x00")
+                fields.add(key)
+                new_row[key] = value.replace("\x00", "")
+        cleaned.append(new_row)
+    if n_values:
+        logger.warning(
+            "%s: stripped %d NUL byte(s) from %d value(s) across field(s) %s — "
+            "NUL cannot be stored in a PostgreSQL text column and is not valid "
+            "text content; it originates in scraped PDF/HTML upstream",
+            path.name, n_bytes, n_values, ", ".join(sorted(fields)),
+        )
+    return cleaned
+
+
 def _write_csv(path: Path, columns: list[str], rows: list[dict[str, Any]]) -> int:
     """Write ``rows`` to ``path`` with header ``columns``. Returns row count."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    rows = _strip_nul(rows, path=path)
     with path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=columns, extrasaction="raise")
         writer.writeheader()
