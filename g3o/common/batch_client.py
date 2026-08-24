@@ -89,11 +89,48 @@ CHUNK_MAX_REQUESTS = 25_000
 # ENQUEUED_TOKEN_LIMIT is the org/model ceiling as reported by the API's
 # `token_limit_exceeded` error. It is a property of the account tier, not of
 # this code: raise it here only to match a raised account limit.
-ENQUEUED_TOKEN_LIMIT = 2_000_000
+#
+# 2_000_000 -> 15_000_000_000, 2026-08-24, on an account change: the pipeline
+# moved to a Tier-5 project. This is exactly the "match a raised account limit"
+# case the line above reserves, and the raise was measured, not assumed:
+#
+#   - the OLD ceiling was confirmed first. A deliberately oversized probe was
+#     rejected with `Limit: 2,000,000 enqueued tokens` and `request_counts
+#     total=0 completed=0 failed=0` — so tripping the ceiling is free.
+#   - the NEW account reports `x-ratelimit-limit-requests: 30000` and
+#     `x-ratelimit-limit-tokens: 180000000` for gpt-5-nano, which are exactly
+#     the published Tier-5 row, whose batch queue limit is 15e9.
+#   - and the move off Tier 1 was proved directly rather than inferred: a
+#     2.5M-token batch, the same shape Tier 1 rejected, was ACCEPTED
+#     (in_progress, 200 requests) and then cancelled.
+#
+# The 15e9 figure itself is the published value for that row, NOT a measured
+# one — tripping a 15e9 ceiling would take ~800k Stage-5 jobs, which is not a
+# probe. That is acceptable because over-stating it is cheap and loud: a submit
+# above the true ceiling is rejected with zero spend, the chunk keeps its plan,
+# and the wave loop re-releases it.
+#
+# CONSEQUENCE, and it is the important part: at this ceiling the enqueued-token
+# budget no longer binds at any n this project contemplates. CHUNK_MAX_BYTES
+# above does — 100 MB at the ~57.7 kB of a real Stage-5 job is ~1,817 jobs per
+# chunk. So n=1,000 (4 chunks) and n=5,000 (19 chunks) each release in a SINGLE
+# wave, and the full 719,588 sweep in ~8. Two things follow:
+#   1. `ENQUEUED_BUDGET_UTILISATION` below is now inert in practice. It is left
+#      at 0.8 deliberately — the headroom costs nothing when the budget is not
+#      the constraint, and it still absorbs estimator error if the true ceiling
+#      is lower than the published row.
+#   2. A whole run's OpenAI spend now commits in one release, where the 2M
+#      ceiling used to meter it out ~85 jobs at a time. The wave scheduler is
+#      therefore NO LONGER an accidental brake on spend, and the real guards
+#      have to be used rather than assumed: `submit --cost-ceiling <usd>`
+#      (checked before the detach fork) and the runtime budget enforcement of
+#      PR #65. State a cost ceiling on every run.
+ENQUEUED_TOKEN_LIMIT = 15_000_000_000
 
 # Fraction of the ceiling this pipeline will occupy. Headroom matters because
 # the estimator below is approximate and because other work in the same org
-# competes for the same ceiling.
+# competes for the same ceiling. See the note above on why this is now inert
+# in practice, and why it is nonetheless left at 0.8.
 ENQUEUED_BUDGET_UTILISATION = 0.8
 
 # Serialized JSONL bytes per token, for the offline estimate in
