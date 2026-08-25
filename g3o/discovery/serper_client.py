@@ -1,9 +1,16 @@
 """Serper.dev Google Search API client.
 
 Ported from the pre-restructure `src/search_serper.py`. The pipeline calls
-`search_google()` with institution-scoped queries from `query_builder`; the
-multi-strategy and entity helpers below cover the cases where we need to
-identify an institution's homepage or scope a query to a known domain.
+`search_google()` with institution-scoped queries from `query_builder`.
+
+The multi-strategy and entity helpers that used to live here were removed on
+2026-08-24 (review F12). Nothing in the pipeline called them, and they were not
+inert: every one of them built a **quoted** institution name — the query shape
+this project measured and abandoned. Leg-1 recall is 82.0% unquoted against
+64.5% quoted (paired McNemar over 200 institutions, p = 2.8e-9), because master
+local names are abbreviated (`Polson H S`, `KELLER ISD`) and an exact-phrase
+match on them returns almost nothing. A helper that looks reusable and encodes a
+retired strategy is a trap, not dead weight.
 """
 
 from __future__ import annotations
@@ -446,63 +453,3 @@ def search_google(
 def build_site_query(query: str, site_domain: str) -> str:
     """Wrap a query with Google's `site:` operator."""
     return f"site:{site_domain} {query}"
-
-
-def build_filetype_query(query: str, filetype: str = "pdf") -> str:
-    """Wrap a query with Google's `filetype:` operator."""
-    return f"{query} filetype:{filetype}"
-
-
-def search_entity_homepage(entity_name: str, entity_type: str = "government institution") -> dict:
-    """Best-effort homepage discovery for a named entity."""
-    query = f'"{entity_name}" official website {entity_type}'
-    results = search_google(query, num_results=5)
-    if not results:
-        results = search_google(f"{entity_name} {entity_type}", num_results=5)
-    if results:
-        return {
-            "homepage": results[0].get("link"),
-            "domain": results[0].get("domain"),
-            "confidence": "high",
-        }
-    return {"homepage": None, "domain": None, "confidence": "none"}
-
-
-def search_entity_with_site_scope(
-    entity_name: str, topic: str, homepage_domain: str | None = None
-) -> list[dict]:
-    """Scope a topic search to an entity's known (or discoverable) homepage."""
-    if not homepage_domain:
-        homepage_domain = search_entity_homepage(entity_name).get("domain")
-
-    if homepage_domain:
-        return search_google(build_site_query(topic, homepage_domain), num_results=10)
-    return search_google(f"{entity_name} {topic}", num_results=10)
-
-
-def multi_strategy_search(
-    entity_name: str, topic: str, num_results_per_strategy: int = 5
-) -> list[dict]:
-    """Run several query patterns against Serper and dedupe by URL.
-
-    Each result carries a `search_strategy` field naming the query that found it,
-    which downstream layers use for provenance and ranking.
-    """
-    strategies = [
-        f'"{entity_name}" "{topic}"',
-        f"{entity_name} {topic}",
-        f"{entity_name} {topic} policy",
-        f"{entity_name} {topic} announcement",
-        build_filetype_query(f"{entity_name} {topic}", "pdf"),
-    ]
-
-    seen: set[str] = set()
-    out: list[dict] = []
-    for query in strategies:
-        for r in search_google(query, num_results=num_results_per_strategy):
-            url = r.get("link", "")
-            if url and url not in seen:
-                seen.add(url)
-                r["search_strategy"] = query
-                out.append(r)
-    return out

@@ -24,14 +24,13 @@ def test_common_imports():
 
 
 def test_discovery_imports():
-    from g3o.discovery import (  # noqa: F401
-        multi_strategy_search,
-        query_builder,
-        search_entity_homepage,
-        search_entity_with_site_scope,
-        search_google,
-        serper_client,
-    )
+    # The three entity/multi-strategy helpers that used to be exported from
+    # g3o.discovery were removed 2026-08-24 (review F12): unused by the pipeline,
+    # and every one of them built a quoted institution name — the query shape the
+    # project measured and abandoned. `build_site_query` stays; stage_discovery
+    # imports it.
+    from g3o.discovery import query_builder, search_google, serper_client  # noqa: F401
+    from g3o.discovery.serper_client import build_site_query  # noqa: F401
 
 
 def test_scrape_imports():

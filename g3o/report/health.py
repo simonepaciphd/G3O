@@ -28,6 +28,7 @@ from g3o.common.paths import (
     iter_institution_dirs,
     require_layout,
 )
+from g3o.common.run_state import done_path, state_path
 from g3o.report.filter_eligibility import compute_filter_block
 from g3o.report.thresholds import HealthThresholds
 
@@ -125,10 +126,10 @@ def _stage_ran(
         return True
     if any(s == stage for (s, _r) in att):
         return True
-    state_dir = run_dir / "_state"
-    return (state_dir / ".done" / f"{stage}.json").exists() or (
-        state_dir / f"{stage}.json"
-    ).exists()
+    # Both paths come from run_state, which owns the _state layout. Building
+    # them from literals here meant a rename there would silently report every
+    # stage as never-run (review F4).
+    return done_path(run_dir, stage).exists() or state_path(run_dir, stage).exists()
 
 
 def _merge_url_langs(

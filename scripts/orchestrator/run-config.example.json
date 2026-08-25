@@ -1,8 +1,8 @@
 {
   "_comment": "Keys starting with _ are comments and are ignored. Every other key must be a PresweepConfig field — an unknown one is refused, not ignored, so a typo cannot configure a run nobody chose. Omitted fields take their dataclass defaults. See docs/runbook-orchestrator.md.",
   "run_id": "",
-  "runs_dir": "/home/thomas/runs",
-  "master_csv": "/home/thomas/data/master_institutions.csv",
+  "runs_dir": "/home/g3o/runs",
+  "master_csv": "/home/g3o/data/master_institutions.csv",
   "sample_size": 20,
   "seed": 22294,
   "dry_run": true,

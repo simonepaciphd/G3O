@@ -1,9 +1,16 @@
 # Pipeline status and measured benchmarks
 
-**Last updated: 2026-08-02** · Branch of record: `main` (`8877db6`, PR #24 —
-the two-query discovery chain is now the shipped default); instrumentation work
-on `chore/instrumentation-side-tasks` · Suite: 766 passed, 2 deselected,
-1 xfailed · ruff clean
+**Measurements last updated: 2026-08-02.** Suite line refreshed 2026-08-24 ·
+Branch of record: `main` (`8877db6`, PR #24 — the two-query discovery chain is
+now the shipped default); instrumentation work on
+`chore/instrumentation-side-tasks` · Suite: **1,465 passed, 1 skipped,
+2 deselected, 1 xfailed** · ruff clean
+
+> The suite line said `766 passed` until 2026-08-24, which was 699 tests stale —
+> it had never been refreshed after the count it recorded. Measured here on
+> `chore/small-pile-and-docs` at `eb1d9b4`+; the three gate PRs (#92, #93, #94)
+> each add tests, so expect it to move again as that stack lands. **Every
+> measurement below is still as of 2026-08-02** and is unaffected by this line.
 
 The standing record of **what the G3O pipeline has actually been measured to
 do**, stage by stage, and what remains unmeasured. It is deliberately separate
@@ -288,7 +295,7 @@ than 97.8%, so it is a correctness/hygiene stage and **no longer a cost-saving
 one**. Any Stage 3 volume reduction that the budget attributed to 1c should be
 removed from the model. Screening on page *text* after Stage 4, or on a
 better-calibrated lexicon, remains open; the vocabulary machinery is intact for
-it, and retuning it belongs to `subprojects/multilingual-pipeline/`.
+it, and retuning it belongs to `subprojects/multilingual-pipeline/` (Drive).
 
 Thresholds were calibrated for a ~10-institution smoke run and are explicitly
 PI-tunable; they were **not** derived from observation. They have deliberately
@@ -614,7 +621,7 @@ yield; 8–10 buy durability.
    A/B on the existing harness: a second website-term wording; `num` beyond 10
    via pagination; using the master's `website` as a seed where present.
 5. **Native-language legs.** Measured +2/24 in the findings and unreachable any
-   other way. Owned by `subprojects/multilingual-pipeline/`, which also owns
+   other way. Owned by `subprojects/multilingual-pipeline/` (Drive), which also owns
    reshaping `GENAI_TERMS_BY_LANG` — the current roster is eight redundant
    English terms, and five evaluated countries silently fall back to English.
 6. **Reconsider the volume reserve against evidence.** The chain collects

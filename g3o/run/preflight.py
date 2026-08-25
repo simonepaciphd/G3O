@@ -115,12 +115,27 @@ def _representative_extract_job_bytes(
 def _project_chunks(n_jobs: int, per_job_bytes: int) -> dict[str, Any]:
     """Project chunk count for ``n_jobs`` near-uniform jobs.
 
-    Replicates the two caps in :func:`batch_client.split_jobs_into_chunks`
-    (``CHUNK_MAX_BYTES`` and ``CHUNK_MAX_REQUESTS``). Analytic rather than
-    materialized: a 12k-job Stage 5 would serialize to hundreds of MB, so the
-    preflight must not build every job. Jobs are near-uniform because the ~39k-
-    char system message dominates and page text is capped (review F3), so the
-    greedy packer's result equals the ceiling division below.
+    Replicates **two of the three** caps in
+    :func:`batch_client.split_jobs_into_chunks` — ``CHUNK_MAX_BYTES`` and
+    ``CHUNK_MAX_REQUESTS``. It does **not** model the third, ``max_tokens``
+    (defaulting to :func:`batch_client.enqueued_token_budget`), so the chunk
+    count below can understate what the submit path will actually produce.
+
+    That gap used to matter a great deal and no longer does: the enqueued-token
+    ceiling was 2M, which is what rejected Stage 5's first submit at n=100 (681
+    jobs needing ~10.6M). PR #89 raised it to 15e9 on the move to a Tier-5
+    project, so at any n this project contemplates ``CHUNK_MAX_BYTES`` binds
+    first and the token cap does not bind at all. Correcting the docstring
+    rather than the arithmetic is therefore deliberate (PI call, 2026-08-24) —
+    the stale *claim* was the durable hazard, since the next reader would have
+    trusted it. Folding the real chunker in, so the two cannot drift again, is
+    the better fix and belongs to whoever does it with a measurement attached.
+
+    Analytic rather than materialized: a 12k-job Stage 5 would serialize to
+    hundreds of MB, so the preflight must not build every job. Jobs are
+    near-uniform because the ~39k-char system message dominates and page text is
+    capped (review F3), so the greedy packer's result equals the ceiling
+    division below.
     """
     total_bytes = n_jobs * per_job_bytes
     by_bytes = math.ceil(total_bytes / CHUNK_MAX_BYTES) if n_jobs else 0

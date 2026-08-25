@@ -647,6 +647,16 @@ def submit_batch(
         jobs, model=model, response_format=response_format, endpoint=endpoint,
         reasoning_effort=reasoning_effort,
     )
+    # The request-count limit is documented alongside the file-size one and was
+    # exported but never checked (review F15). `split_jobs_into_chunks` keeps
+    # chunks at half of both, so this only binds on a direct caller that
+    # bypasses the splitter -- which is exactly the caller with no other guard.
+    if len(jobs) > BATCH_MAX_REQUESTS:
+        raise ValueError(
+            f"batch holds {len(jobs):,} requests, above the documented Batch API "
+            f"limit of {BATCH_MAX_REQUESTS:,}; split the jobs with "
+            f"split_jobs_into_chunks before submitting."
+        )
     if len(payload) > BATCH_MAX_INPUT_FILE_BYTES:
         raise ValueError(
             f"batch input file is {len(payload):,} bytes, above the documented "
