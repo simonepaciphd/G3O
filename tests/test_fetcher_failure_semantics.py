@@ -128,3 +128,54 @@ def test_download_then_render_both_fail_preserve_both_exceptions(tmp_path, monke
     # The double failure is not surfaced as a successful scrape.
     assert out[_INST_ID] == []
     assert json.dumps(recs)  # ledger is well-formed JSONL
+
+
+def test_size_capped_page_is_booked_under_its_own_reason(tmp_path, monkeypatch):
+    """F3: a body past the cap is dropped, and the ledger says *why* precisely.
+
+    Three things at once, because all three were the point of giving the size cap
+    its own hook rather than folding it into the failure path:
+
+    1. the ledger carries ``scrape_size_capped``, not ``scrape_failed`` — "we
+       declined to read this" is a different event from "the fetch failed";
+    2. a ``_scrape_telemetry`` row exists. The hook drop path wrote attrition but
+       no telemetry, unlike the ``except`` path, so a URL dropped via a hook
+       vanished from the funnel entirely. The new path does not inherit that;
+    3. no artifact lands on disk, so nothing downstream reads a phantom page.
+    """
+    from g3o.common import scrape_telemetry
+
+    run_dir = tmp_path / "runs" / "r1"
+
+    def _too_big(url):
+        raise fetcher.ResponseTooLarge(url, n_bytes=99_999_999, limit=1024)
+
+    monkeypatch.setattr(fetcher, "_download", _too_big)
+    monkeypatch.setattr(fetcher, "render_url", _boom)
+
+    out = ps._run_scrape(
+        run_dir,
+        [{"master_row_id": "580"}],
+        {_INST_ID: [_URL]},
+        respect_robots=False,
+        host_delay_seconds=0,
+        render_on_download_failure=False,
+    )
+
+    recs = attrition.read_records(run_dir)
+    capped = [r for r in recs if r["reason"] == "scrape_size_capped"]
+    assert len(capped) == 1, f"expected one scrape_size_capped record; ledger: {recs}"
+    assert capped[0]["url"] == _URL
+    assert "99,999,999" in capped[0]["detail"]
+    assert not [r for r in recs if r["reason"] == "scrape_failed"], (
+        "a size cap must not also be booked as a fetch failure"
+    )
+
+    rows = scrape_telemetry.read_records(run_dir)
+    assert [r for r in rows if r.get("url") == _URL], (
+        "the size-cap drop left no telemetry row, so the funnel loses the URL"
+    )
+
+    assert out[_INST_ID] == []
+    artifact = inst_dir_of(run_dir, _INST_ID) / "scrape" / f"{url_hash(_URL)}.json"
+    assert not artifact_exists(artifact)

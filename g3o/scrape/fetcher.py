@@ -23,7 +23,7 @@ from collections.abc import Callable
 
 import requests
 from bs4 import BeautifulSoup
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from g3o.common import config
 from g3o.scrape import html as html_mod
@@ -84,6 +84,15 @@ RenderAttemptCallback = Callable[..., None]
 # drops the page. A no-op when None, so standalone callers keep the Q10
 # failure-page return unchanged.
 ScrapeFailureCallback = Callable[..., None]
+
+# A size-cap accounting hook. Called once when a response body exceeds
+# ``MAX_RESPONSE_BYTES`` and is abandoned unread, with keyword args ``url`` and
+# ``error`` (the :class:`ResponseTooLarge`). Separate from
+# ``ScrapeFailureCallback`` because the two are different events: a failure means
+# the fetch did not happen; this means it happened and the pipeline refused the
+# payload. Stage 4 books them under different attrition reasons so the funnel can
+# tell "could not read" from "chose not to read". A no-op when None.
+SizeCappedCallback = Callable[..., None]
 
 
 def _cache_key(url: str) -> str:
@@ -223,20 +232,138 @@ def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
     return cached
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def _download(url: str) -> tuple[bytes, str, int, str, int]:
-    """Return ``(content, content_type, http_status, final_url, elapsed_ms)``."""
-    started = time.monotonic()
-    r = _get_session().get(url, timeout=config.REQUEST_TIMEOUT)
-    r.raise_for_status()
-    elapsed_ms = int((time.monotonic() - started) * 1000)
-    return (
-        r.content,
-        r.headers.get("content-type", "").lower(),
-        r.status_code,
-        r.url,
-        elapsed_ms,
+#: Hard ceiling on a single response body. Sized against Stage 5's 60k-char
+#: extraction cap (``g3o.extract.batch.DEFAULT_TEXT_CAP_CHARS``): that cap
+#: already establishes that a larger page carries no extra analytic value, so a
+#: body two orders of magnitude past it is a misconfigured endpoint or a
+#: multi-gigabyte scanned PDF, not evidence.
+#:
+#: The ceiling exists because ``r.content`` buffers the entire body in memory,
+#: once per worker thread, and ``REQUEST_TIMEOUT`` bounds *inactivity between
+#: bytes*, not total transfer — so a slow steady stream is not caught by it. At
+#: ``--max-workers N`` an unbounded read is N simultaneous unbounded reads.
+MAX_RESPONSE_BYTES = 32 * 1024 * 1024
+
+
+class ResponseTooLarge(Exception):
+    """A response exceeded :data:`MAX_RESPONSE_BYTES` and was abandoned.
+
+    Distinct from a download *failure*: the server answered and the pipeline
+    declined to read the whole answer. Stage 4 books it under its own attrition
+    reason so "we declined to read this" never reads as "the fetch failed" —
+    nor, more importantly, as "we read it and found nothing".
+
+    Not retried: the body will be the same size next time.
+    """
+
+    def __init__(self, url: str, *, n_bytes: int | None, limit: int) -> None:
+        self.url = url
+        self.n_bytes = n_bytes
+        self.limit = limit
+        size = f"{n_bytes:,} bytes" if n_bytes is not None else "an unstated size"
+        super().__init__(
+            f"response body for {url} is {size}, above the {limit:,}-byte cap; "
+            f"abandoned without reading it into memory"
+        )
+
+
+def _is_transient_http_error(exc: BaseException) -> bool:
+    """Retry predicate for :func:`_download` — transport faults and 5xx only.
+
+    Until 2026-08-24 ``_download`` carried no predicate at all, so tenacity
+    retried *every* exception three times with exponential backoff, including a
+    404's or 403's ``HTTPError``. Run ``r20260824T142136Z-7875`` (n=1,000) makes
+    the cost concrete rather than theoretical: 1,385 of its 1,746 scrape failures
+    were ``HTTPError``, and re-probing showed ~95% were 406/403 *rejections*
+    (issue #90 — datacenter-IP blocking, nothing in the client). Every one of
+    those cost three requests plus backoff where one would do. That is wasted
+    wall-clock on a sweep, and a politeness cost against government hosts this
+    project is careful with everywhere else.
+
+    A rejection is a decision, not a fault: it will be identical on attempt two.
+    """
+    if isinstance(exc, ResponseTooLarge):
+        return False
+    if isinstance(exc, requests.exceptions.HTTPError):
+        response = getattr(exc, "response", None)
+        status = getattr(response, "status_code", None)
+        # 5xx is the server saying "not right now"; 4xx is "no". Retry only the
+        # first. An HTTPError with no status attached is treated as transient —
+        # we cannot show it is permanent, and the old behaviour retried it.
+        return status is None or status >= 500
+    return isinstance(
+        exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout)
     )
+
+
+def _read_capped(response: requests.Response, url: str) -> bytes:
+    """Stream ``response`` into memory, refusing to exceed the cap.
+
+    Checks the advertised ``Content-Length`` first so an oversized body is
+    refused before a byte of it is read. A **missing** header is treated as
+    unknown rather than as zero — plenty of servers omit it under chunked
+    transfer encoding — so the streaming accumulation below is the real
+    enforcement and the header check is only an early exit.
+    """
+    advertised = response.headers.get("content-length")
+    if advertised is not None:
+        try:
+            if int(advertised) > MAX_RESPONSE_BYTES:
+                raise ResponseTooLarge(
+                    url, n_bytes=int(advertised), limit=MAX_RESPONSE_BYTES
+                )
+        except ValueError:
+            pass  # unparseable header: fall through to the streaming check
+    chunks: list[bytes] = []
+    total = 0
+    for chunk in response.iter_content(chunk_size=_STREAM_CHUNK_BYTES):
+        if not chunk:
+            continue
+        total += len(chunk)
+        if total > MAX_RESPONSE_BYTES:
+            raise ResponseTooLarge(url, n_bytes=None, limit=MAX_RESPONSE_BYTES)
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+#: Read granularity for the capped stream. Large enough not to be syscall-bound
+#: on a normal page, small enough that the overshoot past the cap is bounded.
+_STREAM_CHUNK_BYTES = 64 * 1024
+
+
+@retry(
+    retry=retry_if_exception(_is_transient_http_error),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    # Matches g3o.common.batch_client's convention, and this was the one retry in
+    # the codebase without it. Without `reraise`, an exhausted retry surfaces as
+    # `RetryError[...]` and the real exception reaches the attrition ledger's
+    # `detail` only as repr noise — while the class of that exception is exactly
+    # what a scrape-failure diagnosis reads (issue #90's breakdown is HTTPError
+    # 1385 / SSLError 232 / ConnectTimeout 106 ...). Surfacing the original keeps
+    # that breakdown legible straight from the ledger.
+    reraise=True,
+)
+def _download(url: str) -> tuple[bytes, str, int, str, int]:
+    """Return ``(content, content_type, http_status, final_url, elapsed_ms)``.
+
+    Streams the body under :data:`MAX_RESPONSE_BYTES` rather than buffering it
+    whole, and raises :class:`ResponseTooLarge` past the cap.
+    """
+    started = time.monotonic()
+    with _get_session().get(
+        url, timeout=config.REQUEST_TIMEOUT, stream=True
+    ) as r:
+        r.raise_for_status()
+        content = _read_capped(r, url)
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        return (
+            content,
+            r.headers.get("content-type", "").lower(),
+            r.status_code,
+            r.url,
+            elapsed_ms,
+        )
 
 
 def _extract_html_title(soup: BeautifulSoup) -> str:
@@ -303,6 +430,24 @@ def _notify_scrape_failure(
         callback(url=url, download_error=download_error, render_error=render_error)
 
 
+def _notify_size_capped(
+    callback: SizeCappedCallback | None,
+    *,
+    url: str,
+    error: ResponseTooLarge,
+) -> None:
+    """Fire the size-cap accounting hook, if one was supplied.
+
+    Its own hook rather than a flavour of ``on_scrape_failure`` because the two
+    say different things and Stage 4 books them under different reasons: a
+    failure means the fetch did not happen, this means it was declined. Folding
+    them together would also disturb the fetcher's failure contract, which PR #32
+    only recently stabilised (issue #46).
+    """
+    if callback is not None:
+        callback(url=url, error=error)
+
+
 def _failure_page(url: str, *, attempted_method: str) -> RenderedPage:
     """Build a no-text RenderedPage for download failures. Not cached."""
     return RenderedPage(
@@ -332,6 +477,7 @@ def scrape_url(
     render_session: RenderSession | None = None,
     on_render_attempt: RenderAttemptCallback | None = None,
     on_scrape_failure: ScrapeFailureCallback | None = None,
+    on_size_capped: SizeCappedCallback | None = None,
 ) -> RenderedPage:
     """Fetch a URL and return a ``RenderedPage``.
 
@@ -397,6 +543,14 @@ def scrape_url(
 
     try:
         content, ctype, status, final_url, elapsed_ms = _download(url)
+    except ResponseTooLarge as oversize_exc:
+        # Deliberately its own branch, ahead of the failure path (F3, 2026-08-24).
+        # The server answered; we declined to read the whole answer. Routing that
+        # through on_scrape_failure would book it as `scrape_failed` and lose the
+        # distinction, and no render fallback is attempted — a body past the cap
+        # is not going to become tractable by driving a browser at it.
+        _notify_size_capped(on_size_capped, url=url, error=oversize_exc)
+        return _failure_page(url, attempted_method="html")
     except Exception as download_exc:
         # Render fallback on a failed GET is opt-in (review F14): only when the
         # caller accepts the per-dead-URL browser-launch cost.
