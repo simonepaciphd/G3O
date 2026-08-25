@@ -38,6 +38,25 @@ logger = logging.getLogger(__name__)
 #: fails records ``scrape_failed`` on its own and counts as the failure.
 REASON_ARTIFACT_CORRUPT = "scrape_artifact_corrupt"
 
+#: Attrition reason for a response body past ``fetcher.MAX_RESPONSE_BYTES``,
+#: abandoned unread (F3, 2026-08-24).
+#:
+#: Deliberately NOT ``scrape_failed``: the server answered and the pipeline
+#: declined the payload, which is a different event from a fetch that did not
+#: happen, and the funnel should be able to tell them apart.
+#:
+#: **Open question for the PI, not settled here.** It is likewise not (yet) a
+#: member of ``g3o.report.outcomes._FAILURE_REASONS``, so an institution whose
+#: only page was capped currently scores ``NO_EVIDENCE_FOUND``. That reads as
+#: "we looked and found nothing" when the truth is "we declined to look" —
+#: which is precisely the failure issue #46 documents, where ten institutions
+#: were published as negatives without a character of text reaching the coder.
+#: Adding it to that set would reclassify institutions, and #46 §9.4 establishes
+#: that such a reclassification is a measurement decision rather than an
+#: engineering one. At this cap it should fire vanishingly rarely, so nothing is
+#: lost by asking first.
+REASON_SIZE_CAPPED = "scrape_size_capped"
+
 
 def _read_existing_scraped(
     run_dir: Path, sample: list[dict[str, Any]]
@@ -206,6 +225,24 @@ def _scrape_one(
             reason="scrape_failed", url=url, detail=detail,
         )
 
+    def _record_size_capped(
+        *, url: str, error: BaseException, _inst: str = inst_id
+    ) -> None:
+        fetch_failure["failed"] = True
+        attrition.record(
+            run_dir, institution_id=_inst, stage=stage,
+            reason=REASON_SIZE_CAPPED, url=url, detail=str(error),
+        )
+        # The telemetry record the hook path has been missing. The `except`
+        # branch below writes one and this branch never did, so a URL dropped
+        # via a hook left no row in _scrape_telemetry.jsonl at all — the funnel
+        # simply lost it. Do not inherit that asymmetry for a new drop path.
+        scrape_telemetry.record(
+            run_dir, institution_id=_inst, url=url,
+            outcome=scrape_telemetry.OUTCOME_SCRAPE_FAILED,
+            detail=f"{REASON_SIZE_CAPPED}: {error}",
+        )
+
     with stage_timer(run_dir, inst_id, stage):
         for url in urls:
             fetch_failure["failed"] = False
@@ -256,6 +293,7 @@ def _scrape_one(
                     empty_page_min_chars=empty_page_min_chars,
                     on_render_attempt=_record_render_attempt,
                     on_scrape_failure=_record_scrape_failure,
+                    on_size_capped=_record_size_capped,
                 )
             except Exception as exc:
                 logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
