@@ -7,10 +7,13 @@ now the shipped default); instrumentation work on
 2 deselected, 1 xfailed** · ruff clean
 
 > The suite line said `766 passed` until 2026-08-24, which was 699 tests stale —
-> it had never been refreshed after the count it recorded. Measured here on
-> `chore/small-pile-and-docs` at `eb1d9b4`+; the three gate PRs (#92, #93, #94)
-> each add tests, so expect it to move again as that stack lands. **Every
-> measurement below is still as of 2026-08-02** and is unaffected by this line.
+> it had never been refreshed after the count it recorded. Measured on
+> `chore/small-pile-and-docs` at `eb1d9b4`+, on **Python 3.12.10** — a CI-matrix
+> interpreter, which is the point: the count that goes in this document should
+> come from a version the project actually claims to support. The three gate PRs
+> (#92, #93, #94) each add tests, so expect it to move again as that stack lands.
+> **Every measurement below is still as of 2026-08-02** and is unaffected by
+> this line.
 
 The standing record of **what the G3O pipeline has actually been measured to
 do**, stage by stage, and what remains unmeasured. It is deliberately separate
