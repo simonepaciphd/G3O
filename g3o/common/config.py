@@ -47,6 +47,16 @@ SERPER_ENDPOINT: str = _env("SERPER_ENDPOINT", "https://google.serper.dev/search
 OPENAI_MODEL: str = _env("OPENAI_MODEL", "gpt-5-nano") or "gpt-5-nano"
 
 REQUEST_TIMEOUT: int = int(_env("REQUEST_TIMEOUT", "30") or "30")
+
+# Stage 4 headless-render browser recycling (2026-08-25). Each scrape worker
+# thread holds one Chromium for the whole stage (``RenderSession``), so its
+# memory grows monotonically with the renders that thread serves. Run
+# ``r20260824T215623Z-bb4e`` (n=4,000, ``max_workers 8``) was OOM-killed 69
+# minutes into Stage 4 on a 7.9 GB box with no swap: memory climbed 4.2% ->
+# 90.7% over 439 renders while the process table grew 402 -> 787. Closing and
+# relaunching the browser every N renders bounds that growth at N pages per
+# worker instead of the whole stage. Set to 0 to disable recycling.
+RENDER_RECYCLE_AFTER: int = int(_env("RENDER_RECYCLE_AFTER", "25") or "25")
 USER_AGENT: str = _env("USER_AGENT", "G3O-Observatory/0.1") or "G3O-Observatory/0.1"
 
 LOG_LEVEL: str = _env("LOG_LEVEL", "INFO") or "INFO"
