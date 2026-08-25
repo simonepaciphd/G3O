@@ -218,7 +218,13 @@ def test_tar_members_restore_under_the_institutions_root(complete_run: Path, tmp
     restore_into = tmp_path / "restored"
     restore_into.mkdir()
     with tarfile.open(shard_tar_path(complete_run, shard), mode="r:") as tar:
-        tar.extractall(restore_into)  # noqa: S202 - fixture tar built in-test
+        # filter="data" is the 3.14 default and the 3.12 deprecation warning's
+        # remedy; stating it explicitly makes this test read the same on every
+        # interpreter in the CI matrix. Surfaced by pinning the dev environment
+        # to 3.12 (review F6) — the warning is *about* 3.14 behaviour, so the
+        # 3.14 box where this suite was being run was the one place it could not
+        # appear. Safe here: the tar is a fixture built in-test.
+        tar.extractall(restore_into, filter="data")  # noqa: S202
     restored = sorted(
         p.relative_to(restore_into).as_posix()
         for p in restore_into.rglob("*")
