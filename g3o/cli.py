@@ -1098,6 +1098,111 @@ def _cmd_frame_build(args: argparse.Namespace) -> int:
     return 0
 
 
+def _read_quota_spec(path: Path) -> tuple[list[Any], str | None]:
+    """Load a ruled quota spec into ``StratumSpec``s, plus the ruling it cites.
+
+    The spec is a file rather than a pile of flags because the composition of a
+    published wave is a PI ruling, and a ruling belongs in something hashable
+    that travels with the frame. The sidecar records the spec's own sha256, so
+    "this frame was built under that ruling" is checkable afterwards rather than
+    asserted in a commit message.
+    """
+    from g3o.run.frame.quota import QUOTA_SCHEMA_VERSION, StratumSpec
+    from g3o.run.frame.sampler import FrameError
+
+    spec = json.loads(path.read_text(encoding="utf-8"))
+    version = spec.get("version")
+    if version != QUOTA_SCHEMA_VERSION:
+        raise FrameError(
+            f"{path} declares quota spec version {version!r}; this build reads "
+            f"version {QUOTA_SCHEMA_VERSION}."
+        )
+    strata = spec.get("strata")
+    if not isinstance(strata, list) or not strata:
+        raise FrameError(f"{path} has no `strata` list.")
+    out = [
+        StratumSpec(
+            name=s["name"],
+            countries=tuple(s["countries"]),
+            size=int(s["size"]),
+            country_cap=int(s["country_cap"]),
+            level_floors={k: int(v) for k, v in (s.get("level_floors") or {}).items()},
+        )
+        for s in strata
+    ]
+    return out, spec.get("ruling")
+
+
+def _cmd_frame_build_stratified(args: argparse.Namespace) -> int:
+    """Draw a frame under a ruled quota spec. Refuses rather than short-drawing."""
+    from g3o.run.frame.build import build_stratified_frame, sha256_file
+    from g3o.run.frame.sampler import FrameError
+
+    try:
+        snapshot = _frame_snapshot_source(args)
+        spec_path = Path(args.quota_spec)
+        strata, ruling = _read_quota_spec(spec_path)
+        result = build_stratified_frame(
+            Path(args.master_csv),
+            Path(args.out),
+            strata=strata,
+            seed=args.seed,
+            snapshot=snapshot,
+            label=args.label,
+            ruling=ruling,
+        )
+    except (FrameError, ValueError, KeyError) as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    result.sidecar["quota_spec"] = {
+        "path": str(spec_path),
+        "sha256": sha256_file(spec_path),
+    }
+    result.sidecar_json.write_text(
+        json.dumps(result.sidecar, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    sys.stdout.write(_render_frame_summary(result.sidecar))
+    sys.stdout.write(_render_stratum_summary(result.sidecar))
+    sys.stdout.write(f"\nsidecar: {result.sidecar_json}\n")
+    return 0
+
+
+def _render_stratum_summary(sidecar: dict[str, Any]) -> str:
+    """Per-stratum composition — the half of the report a pooled table would hide."""
+    strata = sidecar.get("strata")
+    if not strata:
+        return ""
+    lines = ["", "strata (never pool these — they are different populations by construction):"]
+    for stratum in strata:
+        plan = stratum["plan"]
+        by_level: dict[str, int] = {}
+        by_country: dict[str, int] = {}
+        for cell, n in plan.items():
+            country, _, level = cell.partition("|")
+            by_level[level] = by_level.get(level, 0) + n
+            by_country[country] = by_country.get(country, 0) + n
+        n = max(stratum["n_drawn"], 1)
+        top = sorted(by_country.items(), key=lambda kv: (-kv[1], kv[0]))[:6]
+        lines += [
+            f"  {stratum['name']}: {stratum['n_drawn']:,} of a {stratum['pool_available']:,} "
+            f"pool across {len(stratum['countries'])} countries",
+            f"    cap        : {stratum['country_cap']:,}/country "
+            f"({stratum['country_cap'] / n:.0%}); "
+            f"{sum(1 for v in by_country.values() if v >= stratum['country_cap'])} at it",
+            "    floors     : "
+            + ", ".join(f"{k}>={v:,}" for k, v in stratum["level_floors"].items()),
+            "    levels     : "
+            + ", ".join(
+                f"{k} {v:,} ({v / n:.1%})"
+                for k, v in sorted(by_level.items(), key=lambda kv: -kv[1])
+            ),
+            "    countries  : "
+            + ", ".join(f"{k} {v:,} ({v / n:.1%})" for k, v in top)
+            + (f", +{len(by_country) - len(top)} more" if len(by_country) > len(top) else ""),
+        ]
+    return "\n".join(lines)
+
+
 def _cmd_frame_subset(args: argparse.Namespace) -> int:
     """Draw a smoke frame out of a wave frame, so the smoke tests the population."""
     from g3o.run.frame.build import subset_frame
@@ -1112,6 +1217,56 @@ def _cmd_frame_subset(args: argparse.Namespace) -> int:
         return 2
     sys.stdout.write(_render_frame_summary(result.sidecar))
     sys.stdout.write(f"\nsidecar: {result.sidecar_json}\n")
+    return 0
+
+
+def _cmd_frame_subset_stratified(args: argparse.Namespace) -> int:
+    """Draw a per-stratum subset — the probe draw, deliberately unbalanced."""
+    from g3o.run.frame.build import sha256_file, subset_stratified
+    from g3o.run.frame.sampler import FrameError
+
+    try:
+        spec_path = Path(args.quota_spec)
+        strata, _ruling = _read_quota_spec(spec_path)
+        countries = {s.name: s.countries for s in strata}
+        per_stratum: dict[str, int] = {}
+        for pair in args.stratum_size:
+            name, _, raw = pair.partition("=")
+            if not _ or not raw.isdigit():
+                raise FrameError(f"--stratum-size wants name=N, got {pair!r}")
+            if name not in countries:
+                raise FrameError(
+                    f"--stratum-size names {name!r}, which is not in {spec_path} "
+                    f"(has {', '.join(countries)})"
+                )
+            per_stratum[name] = int(raw)
+        if not per_stratum:
+            raise FrameError("give at least one --stratum-size name=N")
+        result = subset_stratified(
+            Path(args.frame),
+            Path(args.out),
+            per_stratum=per_stratum,
+            stratum_countries=countries,
+            seed=args.seed,
+        )
+    except (FrameError, ValueError) as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    result.sidecar["quota_spec"] = {
+        "path": str(spec_path),
+        "sha256": sha256_file(spec_path),
+    }
+    result.sidecar_json.write_text(
+        json.dumps(result.sidecar, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    sys.stdout.write(_render_frame_summary(result.sidecar))
+    sys.stdout.write("\nstrata (report these separately; there is no pooled rate):\n")
+    for stratum in result.sidecar["strata"]:
+        sys.stdout.write(
+            f"  {stratum['name']}: {stratum['n_drawn']:,} drawn from "
+            f"{stratum['parent_rows']:,} in the parent frame\n"
+        )
+    sys.stdout.write(f"sidecar: {result.sidecar_json}\n")
     return 0
 
 
@@ -1713,6 +1868,45 @@ def build_parser() -> argparse.ArgumentParser:
     )
     frame_build.set_defaults(func=_cmd_frame_build)
 
+    frame_strat = frame_sub.add_parser(
+        "build-stratified",
+        help=(
+            "Draw a frame under a ruled quota spec — per-stratum sizes, "
+            "per-country caps, per-level floors. NOT proportional to the master."
+        ),
+    )
+    frame_strat.add_argument(
+        "--master-csv", required=True, type=_existing_file,
+        help="The canonical institution master. Its column layout is carried through verbatim.",
+    )
+    frame_strat.add_argument("--out", required=True, help="Frame CSV to write.")
+    frame_strat.add_argument(
+        "--quota-spec", required=True, type=_existing_file,
+        help=(
+            "JSON spec naming each stratum's countries, size, country cap and "
+            "level floors. Its sha256 goes into the sidecar, so the frame can be "
+            "tied back to the ruling it was built under."
+        ),
+    )
+    frame_strat.add_argument(
+        "--seed", required=True, type=int,
+        help="Required, not defaulted, for the same reason as `frame build`.",
+    )
+    frame_strat.add_argument(
+        "--inspected-csv", default=None, type=_existing_file,
+        help="Snapshot written by `g3o frame snapshot`. The reproducible source.",
+    )
+    frame_strat.add_argument("--dsn", default=None, help="Live inspection history; not reproducible.")
+    frame_strat.add_argument(
+        "--assume-none-inspected", action="store_true",
+        help="Assert that nothing has ever been inspected.",
+    )
+    frame_strat.add_argument(
+        "--label", default=None,
+        help="Name recorded in the sidecar (default: the frame filename stem).",
+    )
+    frame_strat.set_defaults(func=_cmd_frame_build_stratified)
+
     frame_subset = frame_sub.add_parser(
         "subset",
         help="Draw a smaller frame out of an existing one — a smoke that tests the population.",
@@ -1724,6 +1918,29 @@ def build_parser() -> argparse.ArgumentParser:
     frame_subset.add_argument("--size", required=True, type=int)
     frame_subset.add_argument("--seed", required=True, type=int)
     frame_subset.set_defaults(func=_cmd_frame_subset)
+
+    frame_sub_strat = frame_sub.add_parser(
+        "subset-stratified",
+        help=(
+            "Draw a per-stratum subset of a stratified frame — the probe draw. "
+            "Sizes need not be proportional; the sidecar records the split so "
+            "the strata are never pooled downstream."
+        ),
+    )
+    frame_sub_strat.add_argument(
+        "--frame", required=True, type=_existing_file, help="Parent stratified frame CSV."
+    )
+    frame_sub_strat.add_argument("--out", required=True, help="Subset CSV to write.")
+    frame_sub_strat.add_argument(
+        "--quota-spec", required=True, type=_existing_file,
+        help="The spec the parent frame was built under; supplies the country lists.",
+    )
+    frame_sub_strat.add_argument(
+        "--stratum-size", action="append", default=[], metavar="NAME=N",
+        help="Repeatable, e.g. --stratum-size anglophone=200 --stratum-size mix=300.",
+    )
+    frame_sub_strat.add_argument("--seed", required=True, type=int)
+    frame_sub_strat.set_defaults(func=_cmd_frame_subset_stratified)
 
     verify = sub.add_parser(
         "verify-model",

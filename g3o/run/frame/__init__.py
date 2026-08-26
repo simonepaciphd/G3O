@@ -27,7 +27,14 @@ unexercised. See :func:`g3o.run.frame.sampler.draw_recency_weighted`.
 
 from __future__ import annotations
 
-from g3o.run.frame.build import FrameBuildResult, build_frame, sidecar_path_for, subset_frame
+from g3o.run.frame.build import (
+    FrameBuildResult,
+    build_frame,
+    build_stratified_frame,
+    classify_master_cells,
+    sidecar_path_for,
+    subset_frame,
+)
 from g3o.run.frame.inspection import (
     InspectionSnapshot,
     last_inspected_at,
@@ -35,6 +42,13 @@ from g3o.run.frame.inspection import (
     read_sweeps_csv,
     snapshot_from_dsn,
     write_snapshot_csv,
+)
+from g3o.run.frame.quota import (
+    StratumSpec,
+    allocate_level,
+    allocate_stratum,
+    draw_plan,
+    level_targets,
 )
 from g3o.run.frame.sampler import (
     FrameError,
@@ -48,7 +62,14 @@ __all__ = [
     "FrameBuildResult",
     "FrameError",
     "InspectionSnapshot",
+    "StratumSpec",
+    "allocate_level",
+    "allocate_stratum",
     "build_frame",
+    "build_stratified_frame",
+    "classify_master_cells",
+    "draw_plan",
+    "level_targets",
     "draw_recency_weighted",
     "draw_uniform",
     "is_duplicate",
