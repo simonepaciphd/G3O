@@ -20,6 +20,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from g3o.common import config
+from g3o.scrape import egress
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +161,18 @@ class RenderSession:
         if self._context is None:
             sync_playwright = _import_sync_playwright()
             self._pw = sync_playwright().start()
-            self._browser = self._pw.chromium.launch(headless=True)
+            # Egress (#90): the render is the third of Stage 4's three egress
+            # points and has to leave from the same place as the other two — a
+            # render that goes out direct would recover exactly the pages the
+            # proxy exists to recover, from the identity that was blocked.
+            # ``launch_kwargs`` rather than a literal ``proxy=None``: playwright
+            # treats the key's presence as configuration, and passing None on
+            # every direct launch would change the historical call.
+            launch_kwargs: dict[str, object] = {"headless": True}
+            proxy = egress.playwright_proxy()
+            if proxy:
+                launch_kwargs["proxy"] = proxy
+            self._browser = self._pw.chromium.launch(**launch_kwargs)
             self._context = self._browser.new_context()
         return self._context
 

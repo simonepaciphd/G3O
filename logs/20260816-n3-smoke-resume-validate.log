@@ -1,0 +1,156 @@
+cost gate — preflight projection:
+{
+  "run_id": "20260816-n3-smoke",
+  "mode": "preflight",
+  "keys": [
+    {
+      "name": "SERPER_API_KEY",
+      "present": true,
+      "well_formed": true,
+      "note": "ok"
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "present": true,
+      "well_formed": true,
+      "note": "ok"
+    }
+  ],
+  "keys_ok": true,
+  "sample": {
+    "n_institutions": 3,
+    "n_strata_in_master": 2907,
+    "n_stage2_bypass": 0,
+    "n_stage2_llm": 3
+  },
+  "verify_model": {
+    "skipped": true,
+    "note": "pass --verify-model to run a live 1-job round-trip (submits a batch)"
+  },
+  "stage5_projection": {
+    "n_jobs": 36,
+    "per_job_bytes": 57693,
+    "total_bytes": 2076948,
+    "n_chunks": 1,
+    "chunk_cap_bytes": 104857600,
+    "chunk_cap_requests": 25000,
+    "approx_jobs_per_chunk": 36,
+    "approx_chunk_bytes": 2076948,
+    "single_job_exceeds_cap": false,
+    "is_estimate": true,
+    "assumes_pages_per_institution": 12,
+    "assumes_page_chars": 8000,
+    "page_text_cap_chars": 60000
+  },
+  "cost_preview": {
+    "is_estimate": true,
+    "pricing": {
+      "model": "gpt-5-nano",
+      "source": "https://developers.openai.com/api/docs/models/gpt-5-nano",
+      "verified_on": "2026-06-10",
+      "standard_input_per_1m_usd": 0.05,
+      "standard_cached_input_per_1m_usd": 0.005,
+      "standard_output_per_1m_usd": 0.4,
+      "batch_discount": 0.5,
+      "batch_input_per_1m_usd": 0.025,
+      "batch_output_per_1m_usd": 0.2,
+      "batch_line_is_estimate": true
+    },
+    "chars_per_token_assumption": 4,
+    "assumes_output_tokens_per_job": 600,
+    "est_input_tokens": 649046,
+    "est_output_tokens": 27000,
+    "est_openai_batch_input_usd": 0.02,
+    "est_openai_batch_output_usd": 0.01,
+    "est_openai_batch_total_usd": 0.02,
+    "note": "OpenAI Batch cost only; Serper (Stage 1) is billed separately and is not priced here. Measured 2026-08-01 over 200 institutions as GET /account balance deltas: 1.84 credits/institution under discovery_mode='chain' (the default), 8.52 under 'legacy'. The USD-per-credit rate is an unresolved PI input — docs/budget/cost-model.md tabulates both $0.00056 and $0.001, which differ ~1.8x. Estimate scales with the pages-per-institution and page-chars assumptions."
+  },
+  "cost_ceiling_usd": 25.0,
+  "cost_ceiling_exceeded": false
+}
+Stage 6: no Stage 5 rows for INST-0547884; skipping consolidation
+Stage 6: no Stage 5 rows for INST-0533274; skipping consolidation
+======================================================================
+  G3O Run Summary
+======================================================================
+  Run ID              : 20260816-n3-smoke
+  Institutions started: 3
+  Stopped after stage : validate
+
+Final status breakdown
+----------------------------------------------------------------------
+  EVIDENCE_FOUND       0
+  NO_EVIDENCE_FOUND    3
+  PROCESSING_FAILED    0
+  RUN_TRUNCATED        0
+
+Per-stage completion (institutions reaching this stage / total)
+----------------------------------------------------------------------
+  discovery_general            3/3
+  classify_official_site       3/3
+  discovery_site_restricted    3/3
+  filter_eligibility           3/3
+  classify_triage              3/3
+  scrape                       1/3
+  extract                      1/3
+  validate                     1/3
+
+Per-stage timing (per institution, stage total next to it)
+----------------------------------------------------------------------
+  discovery_general — stage total: 4.646s sum, 4.654s wall  (per_institution)
+      INST-0547884                      1.693s
+      INST-0533274                      1.520s
+      INST-0552386                      1.433s
+
+  classify_official_site — stage total: 184.000s sum, 184.000s wall  (shared_chunk)
+      INST-0547884                    184.000s
+      INST-0533274                    184.000s
+      INST-0552386                    184.000s
+
+  discovery_site_restricted — stage total: 1.426s sum, 1.426s wall  (per_institution)
+      INST-0552386                      1.426s
+
+  filter_eligibility — stage total: 0.004s sum, 0.009s wall  (per_institution)
+      INST-0547884                      0.002s
+      INST-0533274                      0.001s
+      INST-0552386                      0.001s
+
+  classify_triage — stage total: 62.000s sum, 62.000s wall  (shared_chunk)
+      INST-0547884                     62.000s
+      INST-0533274                     62.000s
+      INST-0552386                     62.000s
+
+  scrape — stage total: 7.156s sum, 7.163s wall  (per_institution)
+      INST-0552386                      7.156s
+      INST-0547884                      0.000s
+      INST-0533274                      0.000s
+
+  extract — stage total: 62.000s sum, 62.000s wall  (shared_chunk)
+      INST-0552386                     62.000s
+
+  validate — stage total: 62.000s sum, 62.000s wall  (shared_chunk)
+      INST-0552386                     62.000s
+
+  Total run duration      : 706.664211
+  Avg institution runtime : 291.744062
+{
+  "run_id": "20260816-n3-smoke",
+  "run_dir": "C:\\Users\\spaci\\repos\\G3O\\runs\\20260816-n3-smoke",
+  "n_institutions": 3,
+  "dry_run": false,
+  "n_discovery_general": 27,
+  "n_official_sites": 1,
+  "n_official_sites_bypassed": 0,
+  "n_discovery_site_restricted": 1,
+  "filter_mode": "shadow",
+  "n_filter_would_drop": 1,
+  "n_filter_enforced_drop": 0,
+  "n_triaged_kept": 3,
+  "n_pages_scraped": 2,
+  "n_extracted": 2,
+  "n_consolidated": 1,
+  "n_validate_failed": 0,
+  "validate_batch_ids": [
+    "batch_6a81eff4b9d081909c23e3558ceb47d7"
+  ]
+}

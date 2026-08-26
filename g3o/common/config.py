@@ -59,6 +59,20 @@ REQUEST_TIMEOUT: int = int(_env("REQUEST_TIMEOUT", "30") or "30")
 RENDER_RECYCLE_AFTER: int = int(_env("RENDER_RECYCLE_AFTER", "25") or "25")
 USER_AGENT: str = _env("USER_AGENT", "G3O-Observatory/0.1") or "G3O-Observatory/0.1"
 
+# Stage 4 egress (issue #90, measured 2026-08-26). Empty means "go out direct",
+# which is the historical behaviour and stays the default. Set to a proxy URL
+# (``http://user:pass@host:port``) and all three of Stage 4's egress points —
+# page fetches, robots.txt fetches, and the headless render — leave through it
+# together. Why this exists at all is documented with the measurement in
+# ``g3o/scrape/egress.py``: from the run droplet 0 of 120 previously-failed URLs
+# returned a body, and from a residential IP 91 of the same 120 did, under
+# identical code and headers.
+#
+# The value is a secret (it carries credentials) and is never recorded: the
+# manifest stores ``egress.describe()``, which is host:port and a
+# ``credentialed`` flag.
+SCRAPE_PROXY_URL: str = _env("G3O_SCRAPE_PROXY", "") or ""
+
 LOG_LEVEL: str = _env("LOG_LEVEL", "INFO") or "INFO"
 
 BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent

@@ -25,6 +25,7 @@ from g3o.run.presweep.records import (
 )
 from g3o.run.presweep.sampling import stratified_sample
 from g3o.run.telemetry import preserve_identity
+from g3o.scrape import egress
 
 _INSTITUTION_UID_RE = re.compile(INSTITUTION_UID_PATTERN)
 
@@ -145,6 +146,16 @@ def build_manifest(
         # entering a prompt; read back by
         # :func:`g3o.common.paths.institution_uid_map`.
         INSTITUTION_UIDS_KEY: _institution_uids(sample),
+        # Which egress Stage 4 left from (#90, 2026-08-26). Recorded at plan
+        # time, next to the other identity keys rather than inside ``config``:
+        # the proxy is an environment parameter like ``USER_AGENT`` and
+        # ``RENDER_RECYCLE_AFTER``, so putting it in the config snapshot would
+        # change ``config_hash`` for every run past and future to record
+        # something no ``PresweepConfig`` field holds. Credentials never appear —
+        # ``egress.describe()`` is mode, host:port, and a ``credentialed`` flag.
+        # Guarded on resume below: a run whose egress changed halfway measured
+        # two different instruments.
+        "run_egress": egress.describe(),
     }
     if telemetry_block:
         manifest.update(telemetry_block)
@@ -353,6 +364,21 @@ def _assert_manifest_matches_on_resume(
         diffs.append(
             f"run_generation_parameters: {old_gen!r} (manifest) "
             f"!= {new_gen!r} (this run)"
+        )
+    # Egress is run identity for the same reason the generation parameters are
+    # (#90): the measured recovery from changing it is ~76% of the
+    # all-fetch-failed population, so a run that scraped half its institutions
+    # direct and half through a proxy has two different scrape instruments in one
+    # artifact and no column saying which. Absent-tolerated on the same
+    # precedent as ``genai_terms_roster_hash``: manifests written before
+    # 2026-08-26 have no ``run_egress``, and refusing to resume them would be a
+    # cost with no safety gain, since every one of them predates the proxy
+    # existing and so ran direct by construction.
+    old_egress = existing.get("run_egress")
+    new_egress = new_manifest.get("run_egress")
+    if old_egress is not None and old_egress != new_egress:
+        diffs.append(
+            f"run_egress: {old_egress!r} (manifest) != {new_egress!r} (this run)"
         )
     if diffs:
         raise RuntimeError(

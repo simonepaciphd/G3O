@@ -95,6 +95,16 @@ INGEST_REPORTS_DIRNAME = "ingest_reports"
 ACTIVITIES_GLOB = "g3o_activities_v*.csv"
 SOURCES_GLOB = "g3o_activity_sources_v*.csv"
 
+#: The third Stage-7 CSV, at the exact path the loader opens. **Not** a glob, and
+#: that asymmetry is the point: ``g3o-api/scripts/ingest.py`` pins
+#: ``_SUMMARY_REL = ("final", "g3o_institution_summary_v1.csv")``, so this is a
+#: literal mirror of a literal in another repo. If the loader's pin ever moves,
+#: this constant and the pin in ``LOADER_PIN`` move in the same commit.
+LOADER_SUMMARY_RELPATH = ("final", "g3o_institution_summary_v1.csv")
+
+#: ``…_v{N}.csv`` — used to check the three Stage-7 CSVs are one consistent set.
+_RE_STAGE7_VERSION = re.compile(r"_v(\d+)\.csv$")
+
 EXIT_OK = 0
 EXIT_STRICT_FAILURE = 1
 EXIT_ABORT = 2
@@ -392,7 +402,29 @@ def redact_dsn(text: str, dsn: str) -> str:
 
 
 def find_stage7_csvs(run_dir: Path) -> tuple[Path, Path]:
-    """The run's activities and sources CSVs, highest ``v{N}`` when several exist."""
+    """The run's activities and sources CSVs, highest ``v{N}`` when several exist.
+
+    Also asserts the third Stage-7 CSV — the institution summary — is present at
+    the version the loader actually reads. That assertion is not decoration; it
+    closes the run's only remaining silent-bad-publish path, and it is here rather
+    than in the loader because here is *before* the transaction opens.
+
+    The loader reads the summary from a **hardcoded** path
+    (``g3o-api/scripts/ingest.py:833``, ``_SUMMARY_REL``), while this module globs
+    ``v*`` for the other two. So ``g3o persist --version 2`` produces a tree where
+    the activities and sources globs both resolve happily and the loader's summary
+    lookup misses. What follows from a miss is the whole problem:
+    ``load_search_verdicts`` prints a warning and **continues** — by its own
+    docstring, deliberately — writing NULL ``search_verdict`` for every
+    institution the run touched, which drops them through to the pre-#17
+    finding-count inference and republishes exactly the defect #17 closed. The
+    refresh then runs inside the same transaction, unconditionally, and cannot be
+    un-published. On run ``r20260824T215623Z-bb4e`` that inference would have
+    turned 717 ``(no, PROCESSING_FAILED)`` institutions into earned negatives.
+
+    Nothing downstream can detect this after the fact, and no human is reading the
+    log on an unattended run. Refusing here is what makes the automation safe.
+    """
     final = run_dir / "final"
     found: list[Path] = []
     for glob in (ACTIVITIES_GLOB, SOURCES_GLOB):
@@ -404,7 +436,59 @@ def find_stage7_csvs(run_dir: Path) -> tuple[Path, Path]:
                 f"there is nothing to load."
             )
         found.append(matches[-1])
+    _assert_loader_readable_summary(run_dir, found[0])
     return found[0], found[1]
+
+
+def _assert_loader_readable_summary(run_dir: Path, activities: Path) -> None:
+    """Refuse unless the summary the loader opens describes *these* findings.
+
+    The invariant is not "a summary exists" but "the summary the loader will read
+    is the same Stage-7 write as the findings this leg is about to hand it". Two
+    distinct refusals, because they need two different fixes:
+
+    * **version skew.** Stage 7 wrote ``v{N}``, N != the loader's pinned version.
+      The tree can be perfectly self-consistent and still unloadable: this leg
+      would pass the loader ``g3o_activities_v2.csv`` while the loader reads
+      ``g3o_institution_summary_v1.csv``, so the verdicts loaded would be a
+      *different run's* — or absent. Re-run Stage 7 at the pinned version; moving
+      the pin instead means editing the loader, which is a re-pin of the droplet
+      checkout and not this leg's call.
+    * **missing.** Stage 7 wrote a partial ``final/``, or never ran. Re-run it.
+    """
+    version = _stage7_version(activities)
+    pinned = _stage7_version(Path(LOADER_SUMMARY_RELPATH[-1]))
+    if version is not None and version != pinned:
+        raise IngestError(
+            f"Stage 7 wrote {activities.name} (v{version}) but the loader reads "
+            f"{'/'.join(LOADER_SUMMARY_RELPATH)} — the path is hardcoded in "
+            f"g3o-api scripts/ingest.py (_SUMMARY_REL). Loading this tree would "
+            f"pair v{version} findings with v{pinned} verdicts, or with none at "
+            f"all: the loader prints a warning for a missing summary and "
+            f"CONTINUES, writing NULL search_verdict for every institution, which "
+            f"publishes them through the pre-#17 finding-count inference inside "
+            f"the same transaction that refreshes the public views. Re-run Stage 7 "
+            f"at v{pinned} (`python -m g3o persist --run-dir {run_dir} "
+            f"--run-id <id> --version {pinned} --overwrite`)."
+        )
+    expected = run_dir.joinpath(*LOADER_SUMMARY_RELPATH)
+    if not expected.is_file():
+        found = sorted(p.name for p in (run_dir / "final").glob("g3o_*_v*.csv"))
+        raise IngestError(
+            f"{expected} is not on disk while {activities.name} is. Stage 7 wrote "
+            f"a partial final/ for this run. The loader reads that file for every "
+            f"sweep's search_verdict and, when it is absent, warns and continues "
+            f"with NULL verdicts — republishing the #17 defect unattended and "
+            f"un-undoably. Re-run Stage 7 (`python -m g3o persist --run-dir "
+            f"{run_dir} --run-id <id> --overwrite`) before loading. "
+            f"final/ holds: {found or 'nothing'}."
+        )
+
+
+def _stage7_version(path: Path) -> int | None:
+    """The ``N`` in ``…_v{N}.csv``, or None when the name does not carry one."""
+    match = _RE_STAGE7_VERSION.search(path.name)
+    return int(match.group(1)) if match else None
 
 
 def master_csv_from_manifest(run_dir: Path) -> Path | None:
@@ -727,6 +811,7 @@ def render_ingest(result: IngestResult) -> str:
 
 __all__ = [
     "ACTIVITIES_GLOB",
+    "LOADER_SUMMARY_RELPATH",
     "DSN_ENV_VAR",
     "EXIT_ABORT",
     "EXIT_OK",

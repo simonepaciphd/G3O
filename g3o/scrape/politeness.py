@@ -30,6 +30,7 @@ from urllib.parse import urlsplit, urlunsplit
 import requests
 
 from g3o.common import config
+from g3o.scrape import egress
 
 # Per-host courtesy delay between successive requests to the same host. An
 # engineering parameter (not a methodology surface); surfaced on PresweepConfig
@@ -72,7 +73,14 @@ def _fetch_robots_txt(
     """
     try:
         resp = requests.get(
-            robots_url, headers={"user-agent": user_agent}, timeout=timeout
+            robots_url,
+            headers={"user-agent": user_agent},
+            timeout=timeout,
+            # Egress (#90): the same proxy the page fetches use, or None for
+            # direct. Deciding politeness from one identity and then fetching
+            # from another would make the D4 respect-robots decision answer a
+            # question nobody asked — robots.txt is a per-requester contract.
+            proxies=egress.requests_proxies(),
         )
     except requests.RequestException:
         return None
