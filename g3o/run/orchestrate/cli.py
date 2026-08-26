@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common.credentials import Credentials
+from g3o.run.orchestrate.loader_pin import PINNED_SENTINEL
 from g3o.run.orchestrate.status import RunStatus, run_status
 from g3o.run.presweep.config import STAGES
 
@@ -187,7 +188,9 @@ def _cmd_status(args: argparse.Namespace) -> int:
 
 def _cmd_ingest(args: argparse.Namespace) -> int:
     from g3o.run.orchestrate.ingest import IngestError, ingest_run, render_ingest
+    from g3o.run.orchestrate.loader_pin import resolve_expected_sha
 
+    args.expect_loader_sha = resolve_expected_sha(args.expect_loader_sha)
     try:
         result = ingest_run(
             _runs_dir(args),
@@ -203,6 +206,66 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
         sys.stderr.write(f"{exc}\n")
         return EXIT_REFUSED
     _emit(result.to_dict(), render_ingest(result), as_json=args.json)
+    return EXIT_OK if result.green else EXIT_NOT_GREEN
+
+
+# ---------------------------------------------------------------------------
+# persist
+# ---------------------------------------------------------------------------
+
+
+def _cmd_persist(args: argparse.Namespace) -> int:
+    from g3o.run.orchestrate.persist_leg import (
+        PersistError,
+        persist_run,
+        render_persist,
+    )
+
+    try:
+        result = persist_run(
+            _runs_dir(args),
+            _resolve_run_id(args),
+            version=args.version,
+            overwrite=args.overwrite,
+            force=args.force,
+            max_load_failures=args.max_load_failures,
+        )
+    except PersistError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return EXIT_REFUSED
+    _emit(result.to_dict(), render_persist(result), as_json=args.json)
+    return EXIT_OK if result.green else EXIT_NOT_GREEN
+
+
+# ---------------------------------------------------------------------------
+# e2e
+# ---------------------------------------------------------------------------
+
+
+def _cmd_e2e(args: argparse.Namespace) -> int:
+    from g3o.run.orchestrate.e2e import E2EError, render_e2e, run_e2e
+
+    try:
+        result = run_e2e(
+            _runs_dir(args),
+            _resolve_run_id(args),
+            frame_id=args.frame_id,
+            loader_repo=Path(args.loader_repo) if args.loader_repo else None,
+            master_csv=Path(args.master_csv) if args.master_csv else None,
+            extra_args=tuple(args.loader_arg or ()),
+            expect_loader_sha=args.expect_loader_sha,
+            api_base=args.api_base,
+            publish_sample=args.sample,
+            poll_interval=args.poll_interval,
+            max_wait_seconds=args.max_wait_hours * 3600.0,
+            version=args.version,
+            max_load_failures=args.max_load_failures,
+            log=lambda msg: sys.stderr.write(f"{msg}\n"),
+        )
+    except E2EError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return EXIT_REFUSED
+    _emit(result.to_dict(), render_e2e(result), as_json=args.json)
     return EXIT_OK if result.green else EXIT_NOT_GREEN
 
 
@@ -419,14 +482,111 @@ def build_parser() -> argparse.ArgumentParser:
              "backend's, and is deliberately not mirrored here.",
     )
     ingest.add_argument(
-        "--expect-loader-sha", default=None,
-        help="Refuse unless the g3o-api checkout is at this commit.",
+        "--expect-loader-sha", default=None, metavar="SHA",
+        help=(
+            "Refuse unless the g3o-api checkout is at this commit. Pass 'pinned' "
+            "to use the reviewed sha in g3o/run/orchestrate/loader_pin.py rather "
+            "than pasting one — an omitted flag means this check silently does "
+            "not happen, which is not a thing an unattended chain can afford."
+        ),
     )
     ingest.add_argument(
         "--force", action="store_true",
         help="Load a run that did not complete. Recorded in the leg record.",
     )
     ingest.set_defaults(func=_cmd_ingest)
+
+    persist = sub.add_parser(
+        "persist",
+        help="Stage 7 — write final/ for a finished run, and prove it is loadable.",
+        description=(
+            "Stage 7 is not a member of the stage list, so `stop_after: validate` "
+            "finishes COMPLETED 8/8 with no final/ at all. This leg is that step, "
+            "gated on the run's state the same way ingest is, and its success "
+            "criterion is the ingest leg's precondition: it re-reads what it wrote "
+            "and fails here if the loader could not read it."
+        ),
+    )
+    _add_run_selector(persist)
+    persist.add_argument(
+        "--version", type=int, default=None,
+        help="v{N} suffix. Defaults to the version the pinned loader reads; any "
+             "other value writes a tree the ingest leg refuses, reported here.",
+    )
+    persist.add_argument(
+        "--overwrite", action="store_true",
+        help="Rewrite an existing final/. Without it, a final/ that is already "
+             "loadable is reported as-is — re-running the chain over a persisted "
+             "run should be a no-op, not a conflict.",
+    )
+    persist.add_argument(
+        "--force", action="store_true",
+        help="Run Stage 7 over a run that did not complete. Recorded in the leg "
+             "record. Its CSVs are real rows from an incomplete sweep.",
+    )
+    persist.add_argument(
+        "--max-load-failures", type=int, default=0, metavar="N",
+        help="Institutions Stage 7 may fail to read before this leg refuses "
+             "(default 0). They are absent from final/ and so make no published "
+             "claim, which is right only if it was noticed.",
+    )
+    persist.set_defaults(func=_cmd_persist)
+
+    e2e = sub.add_parser(
+        "e2e",
+        help="Drive a submitted run to published, unattended, stopping at the "
+             "first failure.",
+        description=(
+            "wait -> gate -> Stage 7 -> load -> verify, for a run that is already "
+            "running. Does not submit: submitting spends money and has its own "
+            "ceiling, and one verb holding two irreversible acts is one too many. "
+            "Waits on `orchestrate status`, never on ~/run-<id>.done, which "
+            "watch-run.sh writes once and leaves to go stale. Every gate sits "
+            "BEFORE the load, because the loader refreshes the public views inside "
+            "its own transaction and nothing afterwards can un-publish."
+        ),
+    )
+    _add_run_selector(e2e)
+    e2e.add_argument("--frame-id", required=True, help="Loader --frame-id.")
+    e2e.add_argument(
+        "--loader-repo", default=None,
+        help="Pinned g3o-api checkout. Defaults to $G3O_API_REPO.",
+    )
+    e2e.add_argument(
+        "--master-csv", default=None,
+        help="Override the master. Defaults to the one the run's manifest records.",
+    )
+    e2e.add_argument(
+        "--loader-arg", action="append", default=None, metavar="ARG",
+        help="Passed straight to ingest.py; repeatable. --smoke and "
+             "--institutions-only are refused before the chain starts.",
+    )
+    e2e.add_argument(
+        # Defaulted to the sentinel rather than to None, which is the difference
+        # between this verb and the bare `ingest`: there is no invocation of the
+        # chain in which the loader identity goes unchecked.
+        "--expect-loader-sha", default=PINNED_SENTINEL, metavar="SHA",
+        help=f"Defaults to {PINNED_SENTINEL!r} — the reviewed sha in "
+             "loader_pin.py. A sha is mandatory here; there is no way to skip "
+             "the check.",
+    )
+    e2e.add_argument("--api-base", default=None, help="Defaults to $G3O_API_BASE.")
+    e2e.add_argument("--sample", type=int, default=10, help="publish-verify sample.")
+    e2e.add_argument(
+        "--poll-interval", type=float, default=60.0, metavar="SECONDS",
+        help="How often to ask `orchestrate status` (default 60).",
+    )
+    e2e.add_argument(
+        "--max-wait-hours", type=float, default=30.0, metavar="HOURS",
+        help="Stop DRIVING the run after this long (default 30, above the 25h "
+             "max_wait_per_stage). Never stops the run itself.",
+    )
+    e2e.add_argument("--version", type=int, default=None, help="Stage 7 v{N}.")
+    e2e.add_argument(
+        "--max-load-failures", type=int, default=0, metavar="N",
+        help="Passed to Stage 7 (default 0).",
+    )
+    e2e.set_defaults(func=_cmd_e2e)
 
     archive = sub.add_parser(
         "archive",

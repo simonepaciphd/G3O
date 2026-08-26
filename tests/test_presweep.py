@@ -1286,6 +1286,45 @@ def test_stage4_done_marker_short_circuits_no_scrape_calls(tmp_path: Path):
     assert pages[0].text == "cached"
 
 
+def test_stage4_done_path_raises_on_an_unparseable_artifact(tmp_path: Path):
+    """The loud failure ``_read_existing_scraped`` exists for (stage_scrape.py:45-52).
+
+    Two resume paths read the same artifacts and they must not behave the same
+    way. The per-URL guard in ``_scrape_one`` meets a corrupt file *before* the
+    stage is done, so it can quarantine it and refetch — that is
+    ``test_stage4_quarantines_corrupt_artifact_and_refetches``. This path meets it
+    *after* ``.done/scrape.json`` is written, when there is no refetch left to
+    fall back on, so swallowing it would silently shrink Stage 5's input with
+    nothing but a ledger line to show for it.
+
+    Cover for the property named in the e2e-automation card's acceptance
+    criteria: an unattended chain that repaired itself quietly here would publish
+    a smaller sweep than the one it says it ran.
+    """
+    from g3o.common.run_state import mark_done
+    from g3o.extract.batch import url_hash
+    from g3o.run import presweep as ps
+
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+    inst_id = plan.manifest["institutions"][0]
+    url = "https://x.example/a"
+
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
+    scrape_dir.mkdir(parents=True, exist_ok=True)
+    (scrape_dir / f"{url_hash(url)}.json").write_text("{ torn", encoding="utf-8")
+    mark_done(plan.run_dir, "scrape", no_batch=True)
+
+    # Pydantic's own validation error, unswallowed: the artifact is not a
+    # RenderedPage and nothing downstream is told a smaller story instead.
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        ps._run_scrape(plan.run_dir, plan.sample, {inst_id: [url]})
+
+
 def test_stage4_robots_disallow_skips_url_and_records_attrition(tmp_path: Path):
     """Review F14 / D4: a robots.txt Disallow skips the URL and writes a
     ``robots_disallowed`` attrition record; allowed URLs still scrape."""
