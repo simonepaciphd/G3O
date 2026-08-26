@@ -368,3 +368,94 @@ def test_stage_completion_reads_markers(tmp_path: Path) -> None:
         "extract": False,
         "validate": False,
     }
+
+
+# ---------------------------------------------------------------------------
+# The Stage 4 wall-clock budget (issue #96, PI ruling 2026-08-26)
+# ---------------------------------------------------------------------------
+
+
+def test_budget_expired_institution_is_processing_failed_not_no_evidence(
+    tmp_path: Path,
+) -> None:
+    """The ruling's whole point, and the test that would have caught the
+    rejected option.
+
+    The run completed cleanly — every stage marker is present — so nothing
+    about the *run* explains this institution's empty result. It kept URLs,
+    scraped nothing, and reached Stage 6 with no verdict. On the pre-#96
+    reading that is a textbook ``NO_EVIDENCE_FOUND``: the pipeline looked and
+    found nothing. It is not. Stage 4 ran out of its per-institution budget and
+    never fetched those URLs, and ``crawl_delay_exceeded``'s membership in
+    ``_FAILURE_REASONS`` is the only thing standing between that and publishing
+    "could not reach" as "searched and found nothing" — the #17 defect class,
+    made *more* convincing by the post-#17 tightening of ``none``.
+
+    Budget-then-skip **without** this membership is precisely the silent option
+    the PI rejected, and deleting ``crawl_delay_exceeded`` from the frozenset
+    is what would fail here.
+    """
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=3)
+    for i in range(3):
+        _attrition.record(
+            run_dir,
+            institution_id="INST-0000001",
+            stage="scrape",
+            reason="crawl_delay_exceeded",
+            url=f"https://x{i}.gov/",
+            detail="budget=3600s;elapsed=1.5s;crawl_delay=8640s",
+        )
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert rec["final_status"] != "NO_EVIDENCE_FOUND"
+    assert "scrape:crawl_delay_exceeded" in rec["reason"]
+    # An operator reading the report can see why, without opening the ledger.
+    assert "crawl_delay=8640s" in rec["reason"]
+    assert rec["error"] == rec["reason"]
+
+
+def test_crawl_delay_exceeded_is_a_failure_reason() -> None:
+    """Pinned directly, not only through the report.
+
+    The membership is load-bearing policy rather than an implementation detail:
+    a reason outside this frozenset is on the ledger and invisible to the
+    report's failure tally, which is the outcome the ruling exists to prevent.
+    """
+    assert "crawl_delay_exceeded" in outcomes._FAILURE_REASONS
+
+
+def test_a_budget_expiry_alongside_real_evidence_still_reports_the_failure(
+    tmp_path: Path,
+) -> None:
+    """The accepted cost, stated so it is not mistaken for a defect later.
+
+    An institution that reached Stage 6 with a genuine positive verdict but also
+    lost URLs to the budget reports PROCESSING_FAILED, because a technical
+    failure outranks the verdict everywhere in this module. That is the larger
+    PROCESSING_FAILED bucket the PI named and accepted: the evidence that *was*
+    found is still on disk and in the consolidated CSVs, but the institution is
+    flagged as incompletely searched rather than published as a clean result.
+    """
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=4)
+    _scraped(run_dir, "INST-0000001", n_pages=2)
+    _validated(run_dir, "INST-0000001", has_genai="yes", n_activities=1)
+    _attrition.record(
+        run_dir,
+        institution_id="INST-0000001",
+        stage="scrape",
+        reason="crawl_delay_exceeded",
+        url="https://x3.gov/",
+        detail="budget=3600s;elapsed=3600.2s",
+    )
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert "crawl_delay_exceeded" in rec["reason"]
+    assert rec["consolidated_row_count"] == 1  # the evidence is not discarded

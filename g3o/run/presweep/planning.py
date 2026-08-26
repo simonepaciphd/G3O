@@ -279,6 +279,13 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "scrape_respect_robots",
     "scrape_host_delay_seconds",
     "scrape_render_on_download_failure",
+    # Issue #96. Same class as the three above — it decides which URLs were
+    # fetched at all. Guarded specifically because raising it across a resume
+    # produces an institution that holds both a page and a stale
+    # ``crawl_delay_exceeded`` row for the same URL, and the ledger is
+    # append-only, so that institution reports PROCESSING_FAILED for the rest
+    # of the run's life with no way to tell it from a real one.
+    "scrape_max_institution_seconds",
     # Roster fingerprint (A4) — see build_manifest. Not a dataclass field; the
     # manifest carries it because the guard needs something to compare.
     "genai_terms_roster_hash",
@@ -310,7 +317,15 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
 # such run exists. It is kept as the precedent mechanism for the *next* guarded
 # key added to a manifest that predates it (the key-contract work adds several),
 # not as protection for this one.
-_ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset({"genai_terms_roster_hash"})
+#
+# ``scrape_max_institution_seconds`` (issue #96, 2026-08-26) is the first key to
+# use this mechanism for what the paragraph above describes: it is guarded, and
+# every manifest written before it existed lacks it, including the published run
+# ``r20260824T215623Z-bb4e``. Tolerating its absence lets such a run resume; a
+# manifest that *does* record it and differs still aborts.
+_ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset(
+    {"genai_terms_roster_hash", "scrape_max_institution_seconds"}
+)
 
 
 def _assert_manifest_matches_on_resume(

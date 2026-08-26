@@ -83,8 +83,31 @@ from g3o.persist.writer import load_consolidated_outputs
 # Attrition reasons that represent a genuine technical failure, as opposed to
 # expected/normal filtering (robots_disallowed, empty_page_dropped,
 # page_text_truncated, official_site_unparseable).
+#
+# ``crawl_delay_exceeded`` (issue #96, PI ruling 2026-08-26) is a technical
+# failure by that test and joins the set. Stage 4 gives each institution a
+# wall-clock budget and skips the URLs it cannot reach inside it, so one host
+# declaring ``Crawl-delay: 8640`` can no longer hold the stage open; the ruling
+# was that the skip must be *named*, and this membership is what makes the name
+# mean something. Without it the institution would carry ledger rows saying "we
+# never fetched these" and still report NO_EVIDENCE_FOUND — "could not reach"
+# published as "searched and found nothing", the #17 defect class, made more
+# convincing by the post-#17 tightening of ``none``. The accepted cost, named
+# and ruled on: a larger PROCESSING_FAILED bucket.
+#
+# Note this is deliberately sticky across a resume, exactly as ``scrape_failed``
+# already is. An institution that hits the budget, then reaches every URL on a
+# later pass, keeps its rows (the ledger is append-only and never rewritten) and
+# still reads PROCESSING_FAILED. That errs toward reporting failure, which is
+# the safe direction here, and it is the ledger's existing semantics rather than
+# a new behaviour introduced with this reason.
 _FAILURE_REASONS: frozenset[str] = frozenset(
-    {"serper_request_failed", "scrape_failed", "parse_failed"}
+    {
+        "serper_request_failed",
+        "scrape_failed",
+        "parse_failed",
+        "crawl_delay_exceeded",
+    }
 )
 
 

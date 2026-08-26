@@ -622,6 +622,10 @@ def compute_health_report(
         "n_pages_scraped": n_scraped,
         "n_robots_disallowed": _att_count("scrape", "robots_disallowed"),
         "n_scrape_failed": _att_count("scrape", "scrape_failed"),
+        # Issue #96. Counted on its own rather than left to top_drop_reasons:
+        # the other two Stage 4 drop classes are named here, and a budget expiry
+        # is the one that silently shrinks coverage without any URL failing.
+        "n_crawl_delay_exceeded": _att_count("scrape", "crawl_delay_exceeded"),
         "pct_scrape_success": pct_scrape,
         "n_institutions_with_pages": n_institutions_with_pages,
         "top_drop_reasons": _top_reasons(att, "scrape"),

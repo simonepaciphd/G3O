@@ -206,11 +206,46 @@ class HostThrottle:
                 self._host_locks[host] = lock
             return lock
 
-    def wait(self, url: str, *, extra_delay: float | None = None) -> None:
+    def now(self) -> float:
+        """This throttle's clock reading — the same clock its waits are measured on.
+
+        Exposed (issue #96) so a caller enforcing a wall-clock budget across
+        several waits measures elapsed time against one source of truth. The
+        budget arithmetic in :func:`g3o.run.presweep.stage_scrape._scrape_one`
+        is ``elapsed + next_wait <= budget``; that comparison is only sound if
+        both terms come from this clock, and injecting a fake clock into the
+        throttle then measuring elapsed time with ``time.monotonic`` would make
+        the budget untestable without really sleeping.
+        """
+        return self._monotonic()
+
+    def wait(
+        self,
+        url: str,
+        *,
+        extra_delay: float | None = None,
+        max_wait: float | None = None,
+    ) -> bool:
         """Block until ``delay`` has elapsed since the last request to this host.
 
         ``extra_delay`` (e.g. a robots ``Crawl-delay``) raises the floor for
         this call: the effective wait is ``max(self.delay_seconds, extra_delay)``.
+
+        ``max_wait`` (issue #96) is a ceiling on how long *this call* may sleep.
+        Returns True when the wait was taken and the caller may fetch; False
+        when the required sleep exceeds ``max_wait``, in which case **nothing
+        is slept and the host's last-request stamp is left untouched** — no
+        request is made, so the courtesy clock must not advance. ``None`` (the
+        default) is no ceiling, which is every pre-#96 caller's behaviour.
+
+        The ceiling is enforced *inside* the per-host lock and *before* the
+        sleep, deliberately. Checking a budget after the sleep would still pay
+        one full ``Crawl-delay`` — 2h24m on the host that motivated #96 —
+        before giving up, which is the whole cost the budget exists to avoid.
+        Deciding inside the lock also makes the check race-free against another
+        worker on the same host: the decision and the sleep are one atomic step,
+        so a refusal can never be based on a stamp another thread has already
+        moved.
         """
         delay = self.delay_seconds
         if extra_delay is not None:
@@ -219,12 +254,16 @@ class HostThrottle:
         with self._lock_for(host):
             if delay <= 0:
                 self._last[host] = self._monotonic()
-                return
+                return True
             last = self._last.get(host)
             now = self._monotonic()
             if last is not None and (now - last) < delay:
-                self._sleep(delay - (now - last))
+                remaining = delay - (now - last)
+                if max_wait is not None and remaining > max_wait:
+                    return False
+                self._sleep(remaining)
             self._last[host] = self._monotonic()
+            return True
 
 
 __all__ = [
