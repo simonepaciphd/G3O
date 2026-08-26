@@ -8,6 +8,7 @@ Subcommands:
   extract                 — Stage 5 per-page LLM extraction (orchestrated via `presweep`).
   validate                — Stage 6 per-institution LLM consolidation.
   persist                 — Stage 7 deterministic CSV writer.
+  frame                   — build a wave sampling frame from the institution master.
   presweep                — Phase 3 of Session B: stratified pre-sweep runner.
   presweep-report         — Stage-by-stage funnel health report for a finished run.
   run-diff                — Cross-run determinism report over 2+ run dirs (disk-only).
@@ -25,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
 import time
 from pathlib import Path
@@ -940,6 +942,179 @@ def _cmd_archive(args: argparse.Namespace) -> int:
     return 0
 
 
+def _frame_snapshot_source(args: argparse.Namespace) -> Any:
+    """Resolve `frame build`'s inspection history from exactly one source.
+
+    Refuses when none is given. "No history supplied" and "nothing has ever been
+    inspected" produce identical frames and mean opposite things, so the caller
+    has to say which one it means — `--assume-none-inspected` is the explicit
+    form of the second.
+    """
+    from g3o.run.frame.inspection import (
+        empty_snapshot,
+        read_snapshot_csv,
+        snapshot_from_dsn,
+    )
+
+    chosen = [
+        name
+        for name, given in (
+            ("--inspected-csv", bool(args.inspected_csv)),
+            ("--dsn", bool(args.dsn)),
+            ("--assume-none-inspected", bool(args.assume_none_inspected)),
+        )
+        if given
+    ]
+    if len(chosen) != 1:
+        raise ValueError(
+            "give exactly one inspection source: --inspected-csv (reproducible), "
+            "--dsn (live, and therefore not reproducible), or "
+            "--assume-none-inspected (only true of a database that has never "
+            f"been loaded). Got: {', '.join(chosen) or 'none'}."
+        )
+    if args.inspected_csv:
+        return read_snapshot_csv(Path(args.inspected_csv))
+    if args.dsn:
+        return snapshot_from_dsn(args.dsn)
+    return empty_snapshot()
+
+
+def _render_frame_summary(sidecar: dict[str, Any], top: int = 8) -> str:
+    """Human-readable composition report — what goes to the PI and to the next lane."""
+    comp = sidecar["composition"]
+    lines = [
+        f"frame: {sidecar['frame']['path']}",
+        f"  rows       : {sidecar['n_written']:,} (requested {sidecar['n_requested']:,})",
+        f"  seed       : {sidecar['seed']}",
+        f"  sha256     : {sidecar['frame']['sha256']}",
+        f"  sidecar    : {sidecar.get('label')}",
+    ]
+    tiers = sidecar.get("tiers")
+    if tiers:
+        lines.append(
+            f"  tiers      : {tiers['tier1_never_inspected']:,} never inspected, "
+            f"{tiers['tier2_recency_weighted']:,} re-inspected"
+        )
+    n = max(sidecar["n_written"], 1)
+    lines.append(
+        f"  website    : {comp['n_with_website']:,} with, "
+        f"{comp['n_without_website']:,} without "
+        f"({comp['n_without_website'] / n:.1%} without)"
+    )
+    lines.append(f"  strata     : {comp['n_strata']:,} distinct "
+                 f"{'x'.join(comp['stratum_keys'])}")
+    for key in ("country", "government_level", "source_dataset_id"):
+        counts = comp["by"].get(key, {})
+        head = list(counts.items())[:top]
+        rendered = ", ".join(f"{k or '(blank)'} {v:,} ({v / n:.1%})" for k, v in head)
+        more = "" if len(counts) <= top else f", +{len(counts) - top} more"
+        lines.append(f"  {key:<11}: {rendered}{more}")
+    return "\n".join(lines)
+
+
+def _cmd_frame_snapshot(args: argparse.Namespace) -> int:
+    """Export the inspected-institution snapshot that `frame build` weights against."""
+    from datetime import datetime, timezone
+
+    from g3o.run.frame.inspection import (
+        read_sweeps_csv,
+        snapshot_from_dsn,
+        write_snapshot_csv,
+    )
+
+    if args.sweeps_csv:
+        if not args.snapshot_at:
+            sys.stderr.write(
+                "--sweeps-csv needs --snapshot-at: a dump cannot know when it was "
+                "taken, and the recency weights are measured from that moment.\n"
+            )
+            return 2
+        snapshot = read_sweeps_csv(
+            Path(args.sweeps_csv),
+            snapshot_at=datetime.fromisoformat(args.snapshot_at),
+            source=args.source or f"g3o.sweeps dump:{Path(args.sweeps_csv).name}",
+        )
+        out = Path(args.out)
+        n = write_snapshot_csv(snapshot, out)
+        sys.stdout.write(
+            f"inspection snapshot: {n:,} institutions, taken "
+            f"{snapshot.snapshot_at.isoformat()} -> {out}\n"
+        )
+        if snapshot.n_undated:
+            sys.stdout.write(
+                f"  {snapshot.n_undated:,} sweep rows had no usable timestamp "
+                "and were dropped\n"
+            )
+        return 0
+
+    dsn = args.dsn or os.environ.get("DATABASE_URL")
+    if not dsn:
+        sys.stderr.write(
+            "no inspection source: pass --dsn (or set DATABASE_URL), or "
+            "--sweeps-csv with --snapshot-at for a dump taken on another host.\n"
+        )
+        return 2
+    snapshot = snapshot_from_dsn(
+        dsn,
+        snapshot_at=(
+            datetime.fromisoformat(args.snapshot_at)
+            if args.snapshot_at
+            else datetime.now(timezone.utc)
+        ),
+    )
+    out = Path(args.out)
+    n = write_snapshot_csv(snapshot, out)
+    sys.stdout.write(
+        f"inspection snapshot: {n:,} institutions, taken "
+        f"{snapshot.snapshot_at.isoformat()} -> {out}\n"
+    )
+    if snapshot.n_undated:
+        sys.stdout.write(
+            f"  {snapshot.n_undated:,} sweep rows had no usable timestamp and were dropped\n"
+        )
+    return 0
+
+
+def _cmd_frame_build(args: argparse.Namespace) -> int:
+    """Draw a wave frame from the master. Refuses rather than short-drawing."""
+    from g3o.run.frame.build import build_frame
+    from g3o.run.frame.sampler import FrameError
+
+    try:
+        snapshot = _frame_snapshot_source(args)
+        result = build_frame(
+            Path(args.master_csv),
+            Path(args.out),
+            size=args.size,
+            seed=args.seed,
+            snapshot=snapshot,
+            label=args.label,
+        )
+    except (FrameError, ValueError) as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    sys.stdout.write(_render_frame_summary(result.sidecar))
+    sys.stdout.write(f"\nsidecar: {result.sidecar_json}\n")
+    return 0
+
+
+def _cmd_frame_subset(args: argparse.Namespace) -> int:
+    """Draw a smoke frame out of a wave frame, so the smoke tests the population."""
+    from g3o.run.frame.build import subset_frame
+    from g3o.run.frame.sampler import FrameError
+
+    try:
+        result = subset_frame(
+            Path(args.frame), Path(args.out), size=args.size, seed=args.seed
+        )
+    except FrameError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    sys.stdout.write(_render_frame_summary(result.sidecar))
+    sys.stdout.write(f"\nsidecar: {result.sidecar_json}\n")
+    return 0
+
+
 def _cmd_verify_model(args: argparse.Namespace) -> int:
     from g3o.run.verify_model import verify_model
 
@@ -1442,6 +1617,113 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     archive.set_defaults(func=_cmd_archive)
+
+    frame = sub.add_parser(
+        "frame",
+        help="Build a wave sampling frame from the institution master, reproducibly.",
+    )
+    frame_sub = frame.add_subparsers(dest="frame_command", required=True)
+
+    frame_snapshot = frame_sub.add_parser(
+        "snapshot",
+        help="Export the inspected-institution snapshot from g3o.sweeps (read-only).",
+    )
+    frame_snapshot.add_argument(
+        "--out", required=True, help="Snapshot CSV to write."
+    )
+    frame_snapshot.add_argument(
+        "--dsn",
+        default=None,
+        help="Postgres DSN. Defaults to $DATABASE_URL. One read-only SELECT.",
+    )
+    frame_snapshot.add_argument(
+        "--sweeps-csv",
+        default=None,
+        type=_existing_file,
+        help=(
+            "Fold a raw institution_uid,run_id,loaded_at dump instead of "
+            "querying. For the usual case where the database is reachable from "
+            "the run droplet and the frame is built elsewhere: the dump carries "
+            "no logic, every decision still happens here. Requires --snapshot-at."
+        ),
+    )
+    frame_snapshot.add_argument(
+        "--snapshot-at",
+        default=None,
+        help="ISO moment the dump was taken. Required with --sweeps-csv.",
+    )
+    frame_snapshot.add_argument(
+        "--source",
+        default=None,
+        help="Provenance string recorded in the snapshot header.",
+    )
+    frame_snapshot.set_defaults(func=_cmd_frame_snapshot)
+
+    frame_build = frame_sub.add_parser(
+        "build",
+        help="Draw a frame: never-inspected first, then by distance from last inspection.",
+    )
+    frame_build.add_argument(
+        "--master-csv",
+        required=True,
+        type=_existing_file,
+        help="The canonical institution master. Its column layout is carried through verbatim.",
+    )
+    frame_build.add_argument("--out", required=True, help="Frame CSV to write.")
+    frame_build.add_argument(
+        "--size", required=True, type=int, help="Number of institutions to draw."
+    )
+    frame_build.add_argument(
+        "--seed",
+        required=True,
+        type=int,
+        help=(
+            "Required, not defaulted: the frame is an input to a published "
+            "measurement, so the draw has to be nameable afterwards."
+        ),
+    )
+    frame_build.add_argument(
+        "--inspected-csv",
+        default=None,
+        type=_existing_file,
+        help="Snapshot written by `g3o frame snapshot`. The reproducible source.",
+    )
+    frame_build.add_argument(
+        "--dsn",
+        default=None,
+        help=(
+            "Read inspection history live from Postgres instead. Convenient, but "
+            "the table moves, so the frame is not reproducible from the recorded "
+            "inputs alone."
+        ),
+    )
+    frame_build.add_argument(
+        "--assume-none-inspected",
+        action="store_true",
+        help=(
+            "Assert that nothing has ever been inspected. Only true of a database "
+            "that has never been loaded; required explicitly because omitting a "
+            "history source would otherwise produce the same frame silently."
+        ),
+    )
+    frame_build.add_argument(
+        "--label",
+        default=None,
+        help="Name recorded in the sidecar (default: the frame filename stem).",
+    )
+    frame_build.set_defaults(func=_cmd_frame_build)
+
+    frame_subset = frame_sub.add_parser(
+        "subset",
+        help="Draw a smaller frame out of an existing one — a smoke that tests the population.",
+    )
+    frame_subset.add_argument(
+        "--frame", required=True, type=_existing_file, help="Parent frame CSV."
+    )
+    frame_subset.add_argument("--out", required=True, help="Subset CSV to write.")
+    frame_subset.add_argument("--size", required=True, type=int)
+    frame_subset.add_argument("--seed", required=True, type=int)
+    frame_subset.set_defaults(func=_cmd_frame_subset)
 
     verify = sub.add_parser(
         "verify-model",
