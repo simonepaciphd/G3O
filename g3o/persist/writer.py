@@ -351,9 +351,12 @@ def build_summary_row(
 ) -> dict[str, Any]:
     """Build one CSV-shaped dict matching ``SUMMARY_COLUMNS``.
 
-    Carries ``institution_uid`` but not ``sweep_uid``: this CSV is not a loader
-    input, and at institution grain ``sweep_uid`` is a deterministic
-    restatement of the uid with no consumer.
+    Carries ``institution_uid`` but not ``sweep_uid``. The reason changed on
+    2026-08-25 while the column list did not: this CSV *is* now a loader input —
+    ``g3o-api``'s ``load_search_verdicts`` reads it off ``--run-dir`` to carry the
+    institution-level verdict to the database (PI ruling, g3o-api #17) — but it
+    keys on ``institution_uid``, and at institution grain ``sweep_uid`` is a
+    deterministic restatement of the uid.
     """
     run_date = run_date or _utc_today()
     institution = response.institution

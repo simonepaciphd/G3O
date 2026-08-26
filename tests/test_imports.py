@@ -18,8 +18,9 @@ def test_common_imports():
     # 20 = 17 base + group_d_salvaged_fields (Group-D salvage flag, 2026-07-21)
     # + the same two-column key layer.
     assert len(schema.ACTIVITY_SOURCE_COLUMNS) == 20
-    # 22 = 21 base + institution_uid. No sweep_uid: this CSV is not a loader
-    # input, and at institution grain sweep_uid restates the uid.
+    # 22 = 21 base + institution_uid. No sweep_uid: the loader keys this CSV on
+    # institution_uid (it reads the verdict off it since 2026-08-25), and at
+    # institution grain sweep_uid restates the uid.
     assert len(schema.SUMMARY_COLUMNS) == 22
 
 
