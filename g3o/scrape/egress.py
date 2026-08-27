@@ -109,8 +109,25 @@ def describe() -> dict[str, object]:
         return {"mode": "direct", "endpoint": None, "credentialed": False}
     parts = urlsplit(url)
     endpoint = parts.hostname or ""
-    if parts.port:
-        endpoint = f"{endpoint}:{parts.port}"
+    try:
+        port = parts.port
+    except ValueError:
+        # ``urlsplit`` defers the port parse to attribute access, so a
+        # non-numeric port raises *here* rather than at parse time. This
+        # function must not be the thing that raises: it is the manifest's
+        # identity field, and a run that cannot describe its own egress would
+        # die inside ``build_manifest`` with a ValueError about integer casting
+        # — which reads as a bug in the manifest writer rather than as a typo in
+        # an environment variable. :func:`validate` is the check that refuses
+        # such a URL, and it runs first in ``plan_run``; this is only what
+        # happens if some other caller reaches here anyway.
+        #
+        # ``None``, not the raw text: the port is unusable, and putting an
+        # unparseable string in the manifest's endpoint would let two runs that
+        # differ only in a typo compare as different instruments.
+        port = None
+    if port:
+        endpoint = f"{endpoint}:{port}"
     return {
         "mode": "proxy",
         "endpoint": endpoint,
@@ -147,3 +164,124 @@ __all__ = [
     "redact",
     "requests_proxies",
 ]
+
+
+def _user_agent_has_contact() -> bool:
+    """Does the user-agent give anyone a way to reach this project?
+
+    A shape check, not a validity check: it asks whether a URL or an address is
+    present at all, not whether it resolves or whether anyone reads it. The
+    conventional crawler form is ``Name/version (+https://host/page)``, and an
+    email in parentheses is equally reachable, so both count.
+    """
+    ua = config.USER_AGENT or ""
+    return "http://" in ua or "https://" in ua or "@" in ua
+
+
+class EgressConfigError(ValueError):
+    """``G3O_SCRAPE_PROXY`` is set but unusable.
+
+    Its own class so a caller can distinguish "the operator mistyped the proxy"
+    from any other ``ValueError`` and refuse the run rather than degrade into
+    one. The message names the *defect*, never the value — see
+    :func:`validate`.
+    """
+
+
+def validate() -> None:
+    """Refuse a proxy URL that cannot work, before a run starts. No-op when direct.
+
+    Added 2026-08-27 after measuring what a malformed value actually does. Two
+    ordinary operator typos — a trailing space, which survives a copy-paste out
+    of a password manager, and a non-numeric port — make ``requests`` raise
+    ``InvalidURL("Failed to parse: <the whole URL>")`` on *every* fetch. Two
+    consequences, and the second is the reason this exists:
+
+    * the run does not fail, it fails *per URL*, so 10,000 institutions each
+      record a scrape failure and the run reports a catastrophic yield rather
+      than a configuration error;
+    * that message carries ``user:pass``, so the credential is written once per
+      URL. The ledger sinks now redact it, but redaction at the sink is a net
+      under a fall. This is the guardrail at the top.
+
+    Raising here converts both into one refusal, before the first fetch and
+    before anything is written to disk.
+
+    **The message must never contain the URL.** Every branch below reports a
+    property — a missing scheme, a port that will not parse — and the endpoint
+    at most, which is what :func:`describe` already puts in the manifest.
+    """
+    url = proxy_url()
+    if not url:
+        return
+    if url != url.strip():
+        # First, because it is both the likeliest typo and the one whose
+        # symptom is least legible: everything below would pass on the stripped
+        # value, so a later check would report nothing wrong.
+        raise EgressConfigError(
+            "G3O_SCRAPE_PROXY has leading or trailing whitespace. requests "
+            "cannot parse it and echoes the whole URL — credentials included — "
+            "into the error it raises on every fetch. Strip it and retry."
+        )
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https"):
+        raise EgressConfigError(
+            f"G3O_SCRAPE_PROXY has scheme {parts.scheme!r}; requests accepts "
+            "only 'http' or 'https' for a proxy. A residential gateway is "
+            "reached over http even when the target is https."
+        )
+    if not parts.hostname:
+        raise EgressConfigError(
+            "G3O_SCRAPE_PROXY has no host. Expected the shape "
+            "http://<user>:<pass>@<host>:<port>."
+        )
+    try:
+        port = parts.port
+    except ValueError as exc:
+        # urlsplit defers the port parse to attribute access, so a non-numeric
+        # port only raises here. Chained deliberately — but ``exc`` carries the
+        # port text alone, not the URL, so it is safe to keep the context.
+        raise EgressConfigError(
+            "G3O_SCRAPE_PROXY has a port that is not a number."
+        ) from exc
+    if port is None:
+        raise EgressConfigError(
+            "G3O_SCRAPE_PROXY names no port. A residential gateway is reached "
+            "on an explicit port; defaulting to 80/443 would silently send "
+            "Stage 4 somewhere else."
+        )
+    if not _user_agent_has_contact():
+        # Tied to the proxy deliberately, and only to the proxy. Routing Stage 4
+        # through a residential gateway makes the observatory opaque at the
+        # *network* layer; the user-agent is then the only identity control it
+        # still holds, and a site operator who wants to ask about this traffic —
+        # or to have it stop — needs somewhere to write. Going opaque at both
+        # layers at once is a different thing from going opaque at one, and it
+        # is not a thing this pipeline should be able to do by omission.
+        #
+        # Measured 2026-08-27, and it is why this is a guard rather than a note:
+        # the droplet's ``.env`` sets no ``USER_AGENT`` at all, so every
+        # production run so far has gone out as the bare default with no contact,
+        # while the laptop — which barely scrapes — sets a full one. The gap was
+        # invisible because nothing compared them.
+        #
+        # A direct run is untouched. This refuses only the combination.
+        raise EgressConfigError(
+            "G3O_SCRAPE_PROXY is set but USER_AGENT carries no contact point "
+            f"({config.USER_AGENT!r}). Through a residential proxy the "
+            "user-agent is the only way a site operator can identify or reach "
+            "this crawler. Set USER_AGENT to include a contact URL or email — "
+            "e.g. 'G3O-Observatory/0.1 (+https://example.org/crawler)'. "
+            "urllib.robotparser reads only the token before the first '/', so "
+            "a suffix cannot change which robots rules apply."
+        )
+    if not parts.username or not parts.password:
+        # Not fatal in principle — an IP-allowlisted gateway needs no userinfo —
+        # but Bright Data's is credentialed, and a gateway reached without the
+        # credential it expects answers 407 to every request, which Stage 4
+        # books as a scrape failure. Better to say so than to measure it.
+        raise EgressConfigError(
+            "G3O_SCRAPE_PROXY carries no username:password. If the gateway is "
+            "IP-allowlisted rather than credentialed, remove this check "
+            "deliberately rather than working around it."
+        )

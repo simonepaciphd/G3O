@@ -477,6 +477,13 @@ def plan_run(
     checked against the existing manifest *before* anything is overwritten
     (review F7); a mismatch aborts with a diff.
     """
+    # Before the master read, because this is the cheapest possible failure and
+    # a misconfigured egress is the most expensive one to discover late (#90,
+    # 2026-08-27): a proxy URL requests cannot parse does not stop a run, it
+    # fails every fetch individually, so the run completes and reports a
+    # collapsed yield that looks like the network rather than like a typo.
+    # No-op when no proxy is set, which is the default and the common case.
+    egress.validate()
     rows = list(_read_master(config.master_csv))
     if not rows:
         raise RuntimeError(f"master CSV is empty: {config.master_csv}")

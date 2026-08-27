@@ -22,6 +22,7 @@ from g3o.common.timing import stage_timer
 from g3o.extract.batch import EMPTY_PAGE_MIN_CHARS
 from g3o.run.presweep.concurrency import run_concurrent
 from g3o.run.presweep.records import institution_record, synth_institution_id
+from g3o.scrape import egress
 from g3o.scrape.fetcher import scrape_url
 from g3o.scrape.politeness import (
     DEFAULT_HOST_DELAY_SECONDS,
@@ -236,9 +237,19 @@ def _scrape_one(
         _inst: str = inst_id,
     ) -> None:
         fetch_failure["failed"] = True
-        detail = f"download_error={download_error}"
+        # Redacted, because these two strings are the one place a *third-party*
+        # exception reaches an artifact. The rule that made
+        # ``run_failed(error_message=str(exc))`` safe — this pipeline's own
+        # exceptions name variables and paths, never values — does not bind
+        # ``requests``: a malformed ``G3O_SCRAPE_PROXY`` (a trailing space, a
+        # non-numeric port) raises ``InvalidURL("Failed to parse: <the whole
+        # proxy URL>")``, credentials included, and Stage 4 writes it here once
+        # per URL. Measured 2026-08-27; connection-level ``ProxyError``s are
+        # clean, so this is narrow, but it is on the run's worst path — the one
+        # where the proxy is misconfigured and every fetch fails.
+        detail = f"download_error={egress.redact(str(download_error))}"
         if render_error is not None:
-            detail += f"; render_error={render_error}"
+            detail += f"; render_error={egress.redact(str(render_error))}"
         attrition.record(
             run_dir, institution_id=_inst, stage=stage,
             reason="scrape_failed", url=url, detail=detail,
@@ -354,15 +365,18 @@ def _scrape_one(
                     on_scrape_failure=_record_scrape_failure,
                 )
             except Exception as exc:
-                logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, exc)
+                # Same redaction, same reason, and applied once here so the log
+                # line and both ledgers cannot drift apart.
+                safe = egress.redact(str(exc))
+                logger.warning("Stage 4 scrape failed for %s (%s): %s", inst_id, url, safe)
                 attrition.record(
                     run_dir, institution_id=inst_id, stage=stage,
-                    reason="scrape_failed", url=url, detail=str(exc),
+                    reason="scrape_failed", url=url, detail=safe,
                 )
                 scrape_telemetry.record(
                     run_dir, institution_id=inst_id, url=url,
                     outcome=scrape_telemetry.OUTCOME_SCRAPE_FAILED,
-                    detail=str(exc),
+                    detail=safe,
                 )
                 continue
             if fetch_failure["failed"]:

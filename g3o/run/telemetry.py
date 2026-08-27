@@ -52,6 +52,7 @@ from typing import Any
 from g3o.common.contract_pin import contract_surface
 from g3o.common.credentials import ResolvedCredentials
 from g3o.common.run_state import done_dir, iter_chunks, load_state, state_dir
+from g3o.scrape import egress
 
 logger = logging.getLogger(__name__)
 
@@ -554,17 +555,28 @@ class RunTelemetry:
     def run_failed(self, exc: BaseException, *, stop_after: str) -> None:
         """The event §1.5 requires before every post-manifest raise.
 
-        ``error_message`` is ``str(exc)``. Exceptions in this pipeline are written
-        to name variables and paths rather than values — and §3.3 keeps key
-        material out of them — so this stays safe to record; the secrecy test
-        greps a full run tree, this file included.
+        ``error_message`` is ``str(exc)``, passed through
+        :func:`g3o.scrape.egress.redact`. Exceptions *this pipeline* raises are
+        written to name variables and paths rather than values, and §3.3 keeps
+        key material out of them — that argument is why this was safe to record
+        unredacted, and it still holds for every exception the pipeline writes
+        itself.
+
+        It does not hold for exceptions raised inside a dependency. ``requests``
+        echoes a proxy URL it cannot parse straight back in the message
+        (``InvalidURL("Failed to parse: <url>")``), and since #90 that URL may
+        carry ``user:pass``; a malformed ``G3O_SCRAPE_PROXY`` that escapes Stage
+        4 arrives here. Redacting costs nothing when no proxy is set — ``redact``
+        returns the text unchanged — so the guard is paid for only by runs that
+        have a secret to protect. Measured 2026-08-27. The secrecy test greps a
+        full run tree, this file included.
         """
         self.emit(
             "run_failed",
             outcome="failed",
             stop_after=stop_after,
             error_class=type(exc).__name__,
-            error_message=str(exc),
+            error_message=egress.redact(str(exc)),
             wall_seconds=self._wall(),
         )
 
