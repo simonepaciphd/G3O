@@ -47,7 +47,31 @@ SERPER_ENDPOINT: str = _env("SERPER_ENDPOINT", "https://google.serper.dev/search
 OPENAI_MODEL: str = _env("OPENAI_MODEL", "gpt-5-nano") or "gpt-5-nano"
 
 REQUEST_TIMEOUT: int = int(_env("REQUEST_TIMEOUT", "30") or "30")
+
+# Stage 4 headless-render browser recycling (2026-08-25). Each scrape worker
+# thread holds one Chromium for the whole stage (``RenderSession``), so its
+# memory grows monotonically with the renders that thread serves. Run
+# ``r20260824T215623Z-bb4e`` (n=4,000, ``max_workers 8``) was OOM-killed 69
+# minutes into Stage 4 on a 7.9 GB box with no swap: memory climbed 4.2% ->
+# 90.7% over 439 renders while the process table grew 402 -> 787. Closing and
+# relaunching the browser every N renders bounds that growth at N pages per
+# worker instead of the whole stage. Set to 0 to disable recycling.
+RENDER_RECYCLE_AFTER: int = int(_env("RENDER_RECYCLE_AFTER", "25") or "25")
 USER_AGENT: str = _env("USER_AGENT", "G3O-Observatory/0.1") or "G3O-Observatory/0.1"
+
+# Stage 4 egress (issue #90, measured 2026-08-26). Empty means "go out direct",
+# which is the historical behaviour and stays the default. Set to a proxy URL
+# (``http://user:pass@host:port``) and all three of Stage 4's egress points —
+# page fetches, robots.txt fetches, and the headless render — leave through it
+# together. Why this exists at all is documented with the measurement in
+# ``g3o/scrape/egress.py``: from the run droplet 0 of 120 previously-failed URLs
+# returned a body, and from a residential IP 91 of the same 120 did, under
+# identical code and headers.
+#
+# The value is a secret (it carries credentials) and is never recorded: the
+# manifest stores ``egress.describe()``, which is host:port and a
+# ``credentialed`` flag.
+SCRAPE_PROXY_URL: str = _env("G3O_SCRAPE_PROXY", "") or ""
 
 LOG_LEVEL: str = _env("LOG_LEVEL", "INFO") or "INFO"
 

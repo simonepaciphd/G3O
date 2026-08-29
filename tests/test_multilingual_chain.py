@@ -530,10 +530,17 @@ def test_resume_guard_tolerates_a_manifest_predating_the_roster_hash(tmp_path):
 
 
 def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
-    """The exception is one key wide.
+    """The exception is enumerated, not open.
 
     A manifest predating the chain keys must still refuse to resume — otherwise
     tolerating absence would reopen the mode-flip hole the chain guard closed.
+
+    The set is asserted by exact equality so any *new* member has to be added
+    here deliberately. It grew from one key to two on 2026-08-26 (issue #96):
+    ``scrape_max_institution_seconds`` is the first key to use the mechanism for
+    what its own comment describes — a guarded key added to a manifest schema
+    that real, resumable runs predate. That is the intended use and does not
+    weaken this test; a third key still trips it.
     """
     from g3o.common.run_state import state_dir
     from g3o.run.presweep.planning import (
@@ -542,7 +549,10 @@ def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
         build_manifest,
     )
 
-    assert _ABSENT_TOLERATED_CONFIG_KEYS == {"genai_terms_roster_hash"}
+    assert _ABSENT_TOLERATED_CONFIG_KEYS == {
+        "genai_terms_roster_hash",
+        "scrape_max_institution_seconds",
+    }
 
     cfg = _config(tmp_path)
     plan = plan_run(cfg)

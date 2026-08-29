@@ -574,3 +574,45 @@ def test_write_run_csvs_round_trip_revalidates(tmp_path: Path) -> None:
     # Summary CSV
     _, summary_rows = _read_csv(run_dir / "final" / "g3o_institution_summary_v1.csv")
     assert all(set(r.keys()) == set(SUMMARY_COLUMNS) for r in summary_rows)
+
+
+def test_write_csv_strips_nul_bytes(tmp_path: Path, caplog) -> None:
+    """A NUL byte must never reach the CSV, because it cannot reach PostgreSQL.
+
+    Regression for the 2026-08-24 ingest abort: 5 of 3,633 source rows carried a
+    NUL in `source_snippet`/`source_title` (from scraped PDF and mis-encoded
+    HTML), and `psycopg` refused the whole load with `PostgreSQL text fields
+    cannot contain NUL (0x00) bytes` — after institutions and findings had
+    already been staged. Nothing partial landed, but a 1,000-institution run had
+    to be re-persisted and re-ingested over nine bytes.
+
+    The strip is also asserted to be *loud*: it mutates a published artifact, so
+    it has to be visible in the log rather than silent.
+    """
+    import logging
+
+    from g3o.persist.writer import _write_csv
+
+    path = tmp_path / "out.csv"
+    rows = [
+        {"a": "clean", "b": "also clean"},
+        {"a": "nul\x00here", "b": "two\x00nul\x00s"},
+    ]
+    with caplog.at_level(logging.WARNING):
+        n = _write_csv(path, ["a", "b"], rows)
+
+    assert n == 2
+    raw = path.read_bytes()
+    assert b"\x00" not in raw
+
+    written = list(csv.DictReader(path.open(encoding="utf-8", newline="")))
+    assert written[0] == {"a": "clean", "b": "also clean"}
+    assert written[1] == {"a": "nulhere", "b": "twonuls"}
+
+    # The caller's rows must not be mutated in place.
+    assert rows[1]["a"] == "nul\x00here"
+
+    assert any(
+        "stripped 3 NUL byte(s) from 2 value(s)" in r.getMessage()
+        for r in caplog.records
+    )

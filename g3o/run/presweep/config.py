@@ -137,6 +137,43 @@ class PresweepConfig:
     scrape_respect_robots: bool = True
     scrape_host_delay_seconds: float = DEFAULT_HOST_DELAY_SECONDS
     scrape_render_on_download_failure: bool = False
+    # Per-institution Stage 4 wall-clock budget (issue #96, PI ruling
+    # 2026-08-26: budget-then-skip **plus** a named attrition reason). When the
+    # budget is spent, the institution completes with the pages it has and every
+    # URL it did not reach is recorded under ``crawl_delay_exceeded`` — a member
+    # of ``g3o.report.outcomes._FAILURE_REASONS``, so the institution reads
+    # PROCESSING_FAILED rather than NO_EVIDENCE_FOUND. The rejected alternative
+    # was capping the honoured ``Crawl-delay`` itself, which would partially
+    # reverse D4; this leaves D4 intact — G3O never fetches faster than a site
+    # asked, it only stops waiting and says so. ``None`` disables the budget and
+    # restores the pre-#96 unbounded behaviour.
+    #
+    # **Default 3600 s (1 h), set from the measured distribution** of run
+    # ``r20260824T215623Z-bb4e`` (n=4,000). Per-institution Stage 4 spans, over
+    # the 2,045 institutions that ran a cold pass (no cached URLs, not straddling
+    # the resume gap), from ``_scrape_telemetry.jsonl``:
+    #
+    #     p50 8 s · p95 72 s · p99 205 s · p99.9 613 s
+    #     slowest legitimate institution   1,324 s  (INST-0015237, 17 URLs on a
+    #                                                host declaring Crawl-delay 120)
+    #     the host that motivated #96     25,923 s  (INST-0048190, Crawl-delay 8640)
+    #
+    # The distribution is bimodal with nothing between 22 minutes and 7.2 hours,
+    # so the two populations separate cleanly and the only question is where in
+    # that gap to sit. 3600 s is chosen from the *structural* ceiling rather
+    # than from the observed p99.9: Stage 3 keeps at most 20 URLs per institution
+    # (measured max on this run), so the worst legitimate case is 20 URLs against
+    # the slowest delay a site plausibly declares, and 20 x 180 s = 3,600 s. A
+    # tighter default fitted to the observed tail (say 1,800 s) would truncate a
+    # legitimate 20-URL institution behind a 120 s delay, and the observed tail
+    # is thin — n=2,045 cold institutions sample far fewer distinct hosts than
+    # n=10,000 will.
+    #
+    # It cuts exactly one of the 2,045 measured institutions, sits 2.7x above the
+    # slowest legitimate one and 7.2x below the pathological one, and turns an
+    # unbounded stall into a bounded one: before this, a single host could hold
+    # Stage 4 open past ``max_wait_per_stage`` (25 h) and fail the whole run.
+    scrape_max_institution_seconds: float | None = 3600.0
     # Concurrency (2026-07): shared worker count for Stages 1a/1b/4 (the
     # deterministic, non-LLM stages). Stages 2/3/5/6 are unaffected — their
     # concurrency is the OpenAI Batch API's, not local threads. A single knob
@@ -199,6 +236,18 @@ class PresweepConfig:
                     f"projection_safety_factor must be >= 1.0, got {self.projection_safety_factor}. "
                     f"A factor below 1.0 would abort even when under budget."
                 )
+        if (
+            self.scrape_max_institution_seconds is not None
+            and self.scrape_max_institution_seconds <= 0
+        ):
+            raise ValueError(
+                "scrape_max_institution_seconds must be positive, got "
+                f"{self.scrape_max_institution_seconds}. Use None to disable "
+                "the per-institution scrape budget; a zero or negative budget "
+                "would strand every URL of every institution under "
+                "crawl_delay_exceeded and report the whole run "
+                "PROCESSING_FAILED."
+            )
         if (
             self.discovery_evidence_terms is not None
             and self.discovery_evidence_term != DEFAULT_EVIDENCE_TERM

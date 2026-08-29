@@ -41,6 +41,12 @@ OUTCOME_SUCCEEDED = "succeeded"
 OUTCOME_ROBOTS_DISALLOWED = "robots_disallowed"
 OUTCOME_SCRAPE_FAILED = "scrape_failed"
 OUTCOME_SKIPPED_CACHED = "skipped_cached"
+# Issue #96: the per-institution wall-clock budget expired before this URL was
+# reached. Deliberately the same string as the attrition reason
+# (``g3o.run.presweep.stage_scrape.REASON_CRAWL_DELAY_EXCEEDED``), as
+# ``robots_disallowed`` and ``scrape_failed`` already are, so the two ledgers
+# stay reconcilable on the drop paths they both record.
+OUTCOME_CRAWL_DELAY_EXCEEDED = "crawl_delay_exceeded"
 
 # Per-run dedup cache: str(run_dir) -> set of (institution_id, url, outcome) keys
 # already on disk. Lazily seeded from the existing file on first touch so the
@@ -173,6 +179,7 @@ def _reset_cache() -> None:
 
 __all__ = [
     "LEDGER_NAME",
+    "OUTCOME_CRAWL_DELAY_EXCEEDED",
     "OUTCOME_ROBOTS_DISALLOWED",
     "OUTCOME_SCRAPE_FAILED",
     "OUTCOME_SKIPPED_CACHED",

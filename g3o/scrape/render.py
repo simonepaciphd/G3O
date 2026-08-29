@@ -12,11 +12,17 @@ codebase (and the unit tests) does not require the runtime browser binary.
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import datetime, timezone
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+from g3o.common import config
+from g3o.scrape import egress
+
+logger = logging.getLogger(__name__)
 
 ContentType = Literal["html", "pdf", "render", "unknown"]
 FetchMethod = Literal["html", "pdf", "render"]
@@ -122,14 +128,31 @@ class RenderSession:
     The browser is launched **lazily** on the first ``new_page`` call, so a
     scrape run that never needs a render never starts Chromium (and an
     environment without the browser binary is unaffected unless a render
-    actually fires). One playwright ``page`` is created and closed per render;
-    the browser + context persist for the session's lifetime.
+    actually fires). One playwright ``page`` is created and closed per render.
+
+    **Recycling (2026-08-25).** The browser + context do *not* persist for the
+    session's whole lifetime: they are torn down and relaunched every
+    ``recycle_after`` renders. Closing the page per render does not reclaim
+    everything Chromium accumulates (cache, service workers, per-origin state),
+    so a browser held for an entire stage grows without bound. Run
+    ``r20260824T215623Z-bb4e`` was OOM-killed 69 minutes into Stage 4 with
+    ``max_workers 8`` on a 7.9 GB box: 4.2% -> 90.7% memory over 439 renders,
+    process table 402 -> 787, no swap. Recycling bounds each worker's footprint
+    at ``recycle_after`` pages instead of the whole stage, at the cost of one
+    browser launch per ``recycle_after`` renders. ``recycle_after=0`` restores
+    the previous hold-forever behaviour.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, recycle_after: int | None = None) -> None:
         self._pw: object | None = None
         self._browser: object | None = None
         self._context: object | None = None
+        # Resolved per instance, not at import time, so the env var is readable
+        # by a process that configures it after importing this module.
+        self._recycle_after: int = (
+            config.RENDER_RECYCLE_AFTER if recycle_after is None else recycle_after
+        )
+        self._rendered_since_launch: int = 0
 
     def __enter__(self) -> RenderSession:
         return self
@@ -138,12 +161,52 @@ class RenderSession:
         if self._context is None:
             sync_playwright = _import_sync_playwright()
             self._pw = sync_playwright().start()
-            self._browser = self._pw.chromium.launch(headless=True)
+            # Egress (#90): the render is the third of Stage 4's three egress
+            # points and has to leave from the same place as the other two — a
+            # render that goes out direct would recover exactly the pages the
+            # proxy exists to recover, from the identity that was blocked.
+            # ``launch_kwargs`` rather than a literal ``proxy=None``: playwright
+            # treats the key's presence as configuration, and passing None on
+            # every direct launch would change the historical call.
+            launch_kwargs: dict[str, object] = {"headless": True}
+            proxy = egress.playwright_proxy()
+            if proxy:
+                launch_kwargs["proxy"] = proxy
+            self._browser = self._pw.chromium.launch(**launch_kwargs)
             self._context = self._browser.new_context()
         return self._context
 
     def new_page(self) -> object:
+        """A fresh page, recycling the browser first when the cap is reached.
+
+        Called exactly once per render, which is what makes it the right place
+        to count. The session is thread-local (one per scrape worker), so no
+        lock is needed here.
+        """
+        if 0 < self._recycle_after <= self._rendered_since_launch:
+            self._recycle()
+        self._rendered_since_launch += 1
         return self._context_obj().new_page()
+
+    def _recycle(self) -> None:
+        """Tear the browser down so the next render launches a clean one.
+
+        A teardown failure must not abort the scrape: a browser that has already
+        died raises on close, and that is precisely the case where relaunching
+        matters most. The handles are cleared either way, so ``_context_obj``
+        relaunches lazily on the next call.
+        """
+        served = self._rendered_since_launch
+        try:
+            self.close()
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "RenderSession: recycle teardown failed after %d renders "
+                "(relaunching anyway): %s",
+                served, exc,
+            )
+            self._pw = self._browser = self._context = None
+        self._rendered_since_launch = 0
 
     def close(self) -> None:
         try:
@@ -155,6 +218,9 @@ class RenderSession:
             if self._pw is not None:
                 self._pw.stop()
             self._pw = self._browser = self._context = None
+            # Keeps the invariant true in both directions: the counter always
+            # means "renders served by the browser currently launched".
+            self._rendered_since_launch = 0
 
     def __exit__(self, *_exc: object) -> bool:
         self.close()

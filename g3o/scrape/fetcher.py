@@ -26,6 +26,7 @@ from bs4 import BeautifulSoup
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from g3o.common import config
+from g3o.scrape import egress
 from g3o.scrape import html as html_mod
 from g3o.scrape import pdf as pdf_mod
 from g3o.scrape.render import (
@@ -56,6 +57,12 @@ def _get_session() -> requests.Session:
     if session is None:
         session = requests.Session()
         session.headers = dict(_SESSION_HEADERS)
+        # Egress (#90): set on the Session rather than passed per-request, so a
+        # new call site cannot forget it and send one fetch out of a different
+        # identity than the robots.txt that authorised it. None = direct.
+        proxies = egress.requests_proxies()
+        if proxies:
+            session.proxies = proxies
         _thread_local.session = session
     return session
 

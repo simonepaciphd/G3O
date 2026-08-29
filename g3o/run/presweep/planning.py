@@ -25,6 +25,7 @@ from g3o.run.presweep.records import (
 )
 from g3o.run.presweep.sampling import stratified_sample
 from g3o.run.telemetry import preserve_identity
+from g3o.scrape import egress
 
 _INSTITUTION_UID_RE = re.compile(INSTITUTION_UID_PATTERN)
 
@@ -145,6 +146,16 @@ def build_manifest(
         # entering a prompt; read back by
         # :func:`g3o.common.paths.institution_uid_map`.
         INSTITUTION_UIDS_KEY: _institution_uids(sample),
+        # Which egress Stage 4 left from (#90, 2026-08-26). Recorded at plan
+        # time, next to the other identity keys rather than inside ``config``:
+        # the proxy is an environment parameter like ``USER_AGENT`` and
+        # ``RENDER_RECYCLE_AFTER``, so putting it in the config snapshot would
+        # change ``config_hash`` for every run past and future to record
+        # something no ``PresweepConfig`` field holds. Credentials never appear —
+        # ``egress.describe()`` is mode, host:port, and a ``credentialed`` flag.
+        # Guarded on resume below: a run whose egress changed halfway measured
+        # two different instruments.
+        "run_egress": egress.describe(),
     }
     if telemetry_block:
         manifest.update(telemetry_block)
@@ -268,6 +279,13 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "scrape_respect_robots",
     "scrape_host_delay_seconds",
     "scrape_render_on_download_failure",
+    # Issue #96. Same class as the three above — it decides which URLs were
+    # fetched at all. Guarded specifically because raising it across a resume
+    # produces an institution that holds both a page and a stale
+    # ``crawl_delay_exceeded`` row for the same URL, and the ledger is
+    # append-only, so that institution reports PROCESSING_FAILED for the rest
+    # of the run's life with no way to tell it from a real one.
+    "scrape_max_institution_seconds",
     # Roster fingerprint (A4) — see build_manifest. Not a dataclass field; the
     # manifest carries it because the guard needs something to compare.
     "genai_terms_roster_hash",
@@ -299,7 +317,15 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
 # such run exists. It is kept as the precedent mechanism for the *next* guarded
 # key added to a manifest that predates it (the key-contract work adds several),
 # not as protection for this one.
-_ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset({"genai_terms_roster_hash"})
+#
+# ``scrape_max_institution_seconds`` (issue #96, 2026-08-26) is the first key to
+# use this mechanism for what the paragraph above describes: it is guarded, and
+# every manifest written before it existed lacks it, including the published run
+# ``r20260824T215623Z-bb4e``. Tolerating its absence lets such a run resume; a
+# manifest that *does* record it and differs still aborts.
+_ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset(
+    {"genai_terms_roster_hash", "scrape_max_institution_seconds"}
+)
 
 
 def _assert_manifest_matches_on_resume(
@@ -353,6 +379,21 @@ def _assert_manifest_matches_on_resume(
         diffs.append(
             f"run_generation_parameters: {old_gen!r} (manifest) "
             f"!= {new_gen!r} (this run)"
+        )
+    # Egress is run identity for the same reason the generation parameters are
+    # (#90): the measured recovery from changing it is ~76% of the
+    # all-fetch-failed population, so a run that scraped half its institutions
+    # direct and half through a proxy has two different scrape instruments in one
+    # artifact and no column saying which. Absent-tolerated on the same
+    # precedent as ``genai_terms_roster_hash``: manifests written before
+    # 2026-08-26 have no ``run_egress``, and refusing to resume them would be a
+    # cost with no safety gain, since every one of them predates the proxy
+    # existing and so ran direct by construction.
+    old_egress = existing.get("run_egress")
+    new_egress = new_manifest.get("run_egress")
+    if old_egress is not None and old_egress != new_egress:
+        diffs.append(
+            f"run_egress: {old_egress!r} (manifest) != {new_egress!r} (this run)"
         )
     if diffs:
         raise RuntimeError(
@@ -436,6 +477,13 @@ def plan_run(
     checked against the existing manifest *before* anything is overwritten
     (review F7); a mismatch aborts with a diff.
     """
+    # Before the master read, because this is the cheapest possible failure and
+    # a misconfigured egress is the most expensive one to discover late (#90,
+    # 2026-08-27): a proxy URL requests cannot parse does not stop a run, it
+    # fails every fetch individually, so the run completes and reports a
+    # collapsed yield that looks like the network rather than like a typo.
+    # No-op when no proxy is set, which is the default and the common case.
+    egress.validate()
     rows = list(_read_master(config.master_csv))
     if not rows:
         raise RuntimeError(f"master CSV is empty: {config.master_csv}")

@@ -1286,6 +1286,45 @@ def test_stage4_done_marker_short_circuits_no_scrape_calls(tmp_path: Path):
     assert pages[0].text == "cached"
 
 
+def test_stage4_done_path_raises_on_an_unparseable_artifact(tmp_path: Path):
+    """The loud failure ``_read_existing_scraped`` exists for (stage_scrape.py:45-52).
+
+    Two resume paths read the same artifacts and they must not behave the same
+    way. The per-URL guard in ``_scrape_one`` meets a corrupt file *before* the
+    stage is done, so it can quarantine it and refetch — that is
+    ``test_stage4_quarantines_corrupt_artifact_and_refetches``. This path meets it
+    *after* ``.done/scrape.json`` is written, when there is no refetch left to
+    fall back on, so swallowing it would silently shrink Stage 5's input with
+    nothing but a ledger line to show for it.
+
+    Cover for the property named in the e2e-automation card's acceptance
+    criteria: an unattended chain that repaired itself quietly here would publish
+    a smaller sweep than the one it says it ran.
+    """
+    from g3o.common.run_state import mark_done
+    from g3o.extract.batch import url_hash
+    from g3o.run import presweep as ps
+
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+    inst_id = plan.manifest["institutions"][0]
+    url = "https://x.example/a"
+
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
+    scrape_dir.mkdir(parents=True, exist_ok=True)
+    (scrape_dir / f"{url_hash(url)}.json").write_text("{ torn", encoding="utf-8")
+    mark_done(plan.run_dir, "scrape", no_batch=True)
+
+    # Pydantic's own validation error, unswallowed: the artifact is not a
+    # RenderedPage and nothing downstream is told a smaller story instead.
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        ps._run_scrape(plan.run_dir, plan.sample, {inst_id: [url]})
+
+
 def test_stage4_robots_disallow_skips_url_and_records_attrition(tmp_path: Path):
     """Review F14 / D4: a robots.txt Disallow skips the URL and writes a
     ``robots_disallowed`` attrition record; allowed URLs still scrape."""
@@ -2106,3 +2145,333 @@ def test_stage4_robots_correct_under_concurrency(tmp_path: Path):
         if r["outcome"] == scrape_telemetry.OUTCOME_ROBOTS_DISALLOWED
     }
     assert tel_disallowed == set(disallowed)
+
+
+# ---------------------------------------------------------------------------
+# Stage 4 per-institution wall-clock budget (issue #96, PI ruling 2026-08-26)
+# ---------------------------------------------------------------------------
+
+
+def _budget_fixture(tmp_path: Path, *, n_urls: int, crawl_delay: float | None):
+    """A one-institution plan plus a throttle on a fake clock.
+
+    The clock advances only when the throttle sleeps or a fetch runs, so every
+    assertion below is on the injected clock — nothing here sleeps for real.
+    """
+    from g3o.common import attrition, scrape_telemetry
+    from g3o.run import presweep as ps
+    from g3o.scrape.politeness import HostThrottle
+
+    attrition._reset_cache()
+    scrape_telemetry._reset_cache()
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+    inst_id = plan.manifest["institutions"][0]
+    urls = [f"https://slow.example/{i}" for i in range(n_urls)]
+
+    clock = [0.0]
+    slept: list[float] = []
+
+    def _sleep(seconds: float) -> None:
+        slept.append(seconds)
+        clock[0] += seconds
+
+    throttle = HostThrottle(1.0, sleep=_sleep, monotonic=lambda: clock[0])
+
+    class _Robots:
+        def allowed(self, url: str) -> bool:
+            return True
+
+        def crawl_delay(self, url: str):
+            return crawl_delay
+
+    def _fake_scrape(url: str, **kwargs: Any):
+        clock[0] += 1.5  # the fetch itself; fast, as the measured host was
+        return _f14b_page(url)
+
+    return plan, inst_id, urls, throttle, clock, slept, _Robots(), _fake_scrape
+
+
+def _run_with_budget(plan, triaged, *, throttle, robots, scrape, budget, workers=1):
+    from g3o.run import presweep as ps
+
+    monkey = ps.stage_scrape.scrape_url
+    ps.stage_scrape.scrape_url = scrape  # type: ignore[assignment]
+    try:
+        return ps._run_scrape(
+            plan.run_dir, plan.sample, triaged,
+            respect_robots=True, robots=robots, throttle=throttle,
+            max_institution_seconds=budget, max_workers=workers,
+        )
+    finally:
+        ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
+
+
+def _budget_rows(run_dir: Path) -> list[dict[str, Any]]:
+    from g3o.common import attrition
+    from g3o.run.presweep.stage_scrape import REASON_CRAWL_DELAY_EXCEEDED
+
+    return [
+        r for r in attrition.read_records(run_dir)
+        if r["reason"] == REASON_CRAWL_DELAY_EXCEEDED
+    ]
+
+
+def test_stage4_enormous_crawl_delay_does_not_hold_the_stage_open(tmp_path: Path):
+    """Issue #96, the measured case: ``www.riigikohus.ee`` declares
+    ``Crawl-delay: 8640`` (2h24m per URL) and held Stage 4 open for 14+ hours at
+    3,999/4,000. Under the budget the institution completes instead.
+
+    The whole fix lives in *where* the budget is checked. It is checked before
+    the sleep, against the sleep that sleep would be — so the throttle never
+    sleeps 8,640 s even once. Checking elapsed time *after* the sleep would pass
+    at URL 0 (elapsed 0), pay one full 2h24m, and only then give up, which is
+    the cost the budget exists to avoid. ``slept == []`` is that assertion.
+    """
+    plan, inst_id, urls, throttle, clock, slept, robots, scrape = _budget_fixture(
+        tmp_path, n_urls=5, crawl_delay=8640.0
+    )
+    out = _run_with_budget(
+        plan, {inst_id: urls}, throttle=throttle, robots=robots, scrape=scrape,
+        budget=3600.0,
+    )
+
+    assert slept == []              # never paid a single 2h24m courtesy sleep
+    assert clock[0] < 3600.0        # the injected clock — the budget was never spent
+    assert inst_id in out           # the institution completed rather than hanging
+    assert [p.url for p in out[inst_id]] == [urls[0]]  # one fetch got through
+
+
+def test_stage4_budget_records_exactly_one_row_for_every_unfetched_url(tmp_path: Path):
+    """The ruled requirement is *every* unfetched URL, not just the one the
+    stage stopped on — a partial ledger is the same silence in a smaller box."""
+    from g3o.common import scrape_telemetry
+    from g3o.run.presweep.stage_scrape import REASON_CRAWL_DELAY_EXCEEDED
+
+    plan, inst_id, urls, throttle, _, _, robots, scrape = _budget_fixture(
+        tmp_path, n_urls=6, crawl_delay=8640.0
+    )
+    _run_with_budget(
+        plan, {inst_id: urls}, throttle=throttle, robots=robots, scrape=scrape,
+        budget=3600.0,
+    )
+
+    rows = _budget_rows(plan.run_dir)
+    assert [r["url"] for r in rows] == urls[1:]        # all five, in order
+    assert len({r["url"] for r in rows}) == len(rows)  # exactly one each
+    assert all(r["institution_id"] == inst_id and r["stage"] == "scrape" for r in rows)
+    # The detail carries the cause, so a row is legible without leaning on the
+    # reason's name: the budget can expire for something other than a crawl delay.
+    assert "budget=3600s" in rows[0]["detail"]
+    assert "crawl_delay=8640s" in rows[0]["detail"]
+
+    tel = {
+        r["url"]: r["outcome"] for r in scrape_telemetry.read_records(plan.run_dir)
+    }
+    assert all(
+        tel[u] == scrape_telemetry.OUTCOME_CRAWL_DELAY_EXCEEDED for u in urls[1:]
+    )
+    assert tel[urls[0]] == scrape_telemetry.OUTCOME_SUCCEEDED
+    # The two ledgers stay reconcilable on this drop path, as they already are
+    # for robots_disallowed and scrape_failed.
+    assert REASON_CRAWL_DELAY_EXCEEDED == scrape_telemetry.OUTCOME_CRAWL_DELAY_EXCEEDED
+
+
+def test_stage4_budget_expiry_still_writes_the_done_marker(tmp_path: Path):
+    """The institution *completes*. That is the point of budget-then-skip, and
+    it is what lets the stage close and the run move on."""
+    from g3o.common.run_state import is_done
+
+    plan, inst_id, urls, throttle, _, _, robots, scrape = _budget_fixture(
+        tmp_path, n_urls=4, crawl_delay=8640.0
+    )
+    _run_with_budget(
+        plan, {inst_id: urls}, throttle=throttle, robots=robots, scrape=scrape,
+        budget=3600.0,
+    )
+    assert is_done(plan.run_dir, "scrape")
+
+
+def test_stage4_budget_still_serves_pages_already_on_disk(tmp_path: Path):
+    """A cached URL costs nothing, so the budget does not refuse it.
+
+    Refusing free pages would make each resume recover less than the pass
+    before it — the budget gates network work, not the loop.
+    """
+    from g3o.extract.batch import url_hash
+
+    plan, inst_id, urls, throttle, _, _, robots, scrape = _budget_fixture(
+        tmp_path, n_urls=4, crawl_delay=8640.0
+    )
+    # Pre-seed the LAST url, i.e. one the budget will have expired before.
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
+    scrape_dir.mkdir(parents=True, exist_ok=True)
+    write_artifact(
+        scrape_dir / f"{url_hash(urls[-1])}.json",
+        _f14b_page(urls[-1]).model_dump_json(),
+    )
+
+    out = _run_with_budget(
+        plan, {inst_id: urls}, throttle=throttle, robots=robots, scrape=scrape,
+        budget=3600.0,
+    )
+    assert sorted(p.url for p in out[inst_id]) == sorted([urls[0], urls[-1]])
+    # ...and the cached one is not also recorded as unreached.
+    assert [r["url"] for r in _budget_rows(plan.run_dir)] == urls[1:-1]
+
+
+def test_stage4_budget_none_restores_the_unbounded_pre_96_behaviour(tmp_path: Path):
+    plan, inst_id, urls, throttle, clock, slept, robots, scrape = _budget_fixture(
+        tmp_path, n_urls=3, crawl_delay=8640.0
+    )
+    out = _run_with_budget(
+        plan, {inst_id: urls}, throttle=throttle, robots=robots, scrape=scrape,
+        budget=None,
+    )
+    assert [p.url for p in out[inst_id]] == urls      # every URL fetched
+    # Both courtesy sleeps paid in full. 8638.5, not 8640: the 1.5 s fetch
+    # counts toward the delay, since Crawl-delay spaces request *starts*.
+    assert slept == [8638.5, 8638.5]
+    assert _budget_rows(plan.run_dir) == []
+
+
+def test_stage4_ordinary_institution_is_untouched_by_the_budget(tmp_path: Path):
+    """p50 of the measured distribution is 8 s against a 3,600 s default. The
+    budget must be invisible to every institution that is not pathological."""
+    plan, inst_id, urls, throttle, clock, slept, robots, scrape = _budget_fixture(
+        tmp_path, n_urls=5, crawl_delay=2.0
+    )
+    out = _run_with_budget(
+        plan, {inst_id: urls}, throttle=throttle, robots=robots, scrape=scrape,
+        budget=3600.0,
+    )
+    assert [p.url for p in out[inst_id]] == urls
+    assert _budget_rows(plan.run_dir) == []
+    assert clock[0] < 3600.0
+
+
+def test_stage4_budget_is_per_institution_not_per_stage(tmp_path: Path):
+    """Two institutions behind the same pathological host. Each gets its own
+    budget rather than inheriting the previous one's exhaustion, and both
+    complete."""
+    from g3o.common import attrition, scrape_telemetry
+    from g3o.run import presweep as ps
+    from g3o.run.presweep.records import synth_institution_id
+    from g3o.scrape.politeness import HostThrottle
+
+    attrition._reset_cache()
+    scrape_telemetry._reset_cache()
+    rows = _build_master(n_strata=2, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=2)
+    plan = ps.plan_run(config)
+    assert len(plan.sample) == 2
+
+    clock = [0.0]
+    slept: list[float] = []
+
+    def _sleep(seconds: float) -> None:
+        slept.append(seconds)
+        clock[0] += seconds
+
+    throttle = HostThrottle(1.0, sleep=_sleep, monotonic=lambda: clock[0])
+
+    class _Robots:
+        def allowed(self, url: str) -> bool:
+            return True
+
+        def crawl_delay(self, url: str):
+            return 8640.0
+
+    triaged = {
+        synth_institution_id(row): [f"https://slow.example/{i}-{n}" for n in range(3)]
+        for i, row in enumerate(plan.sample)
+    }
+
+    def _fake_scrape(url: str, **kwargs: Any):
+        clock[0] += 1.5
+        return _f14b_page(url)
+
+    out = _run_with_budget(
+        plan, triaged, throttle=throttle, robots=_Robots(), scrape=_fake_scrape,
+        budget=3600.0,
+    )
+    # Both institutions completed and neither slept. They share one host, so
+    # only the very first request in the stage is free: the second institution's
+    # own first URL is refused too. The budget is per-institution; the courtesy
+    # delay stays per-host, which is D4 working exactly as it should.
+    assert set(out) == set(triaged)
+    assert slept == []
+    assert len(_budget_rows(plan.run_dir)) == 5
+    assert sum(len(v) for v in out.values()) == 1
+
+
+# ---------------------------------------------------------------------------
+# scrape_max_institution_seconds (issue #96, PI ruling 2026-08-26)
+# ---------------------------------------------------------------------------
+
+
+def test_scrape_budget_default_is_the_measured_one_hour(tmp_path: Path):
+    """Pinned so the default cannot drift away from the distribution it was
+    fitted to without a test saying so.
+
+    3,600 s comes from run ``r20260824T215623Z-bb4e``: over the 2,045
+    institutions that ran a cold Stage 4 pass, p99.9 was 613 s, the slowest
+    legitimate institution 1,324 s, and the host that motivated #96 25,923 s.
+    The number itself is set from the structural ceiling rather than that tail —
+    at most 20 URLs survive triage, so 20 x a 180 s declared delay is 3,600 s.
+    """
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    assert config.scrape_max_institution_seconds == 3600.0
+
+
+def test_scrape_budget_can_be_disabled(tmp_path: Path):
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = PresweepConfig(
+        run_id="20260826-test",
+        runs_dir=tmp_path / "runs",
+        master_csv=master,
+        sample_size=1,
+        scrape_max_institution_seconds=None,
+    )
+    assert config.scrape_max_institution_seconds is None
+
+
+@pytest.mark.parametrize("bad", [0.0, -1.0])
+def test_scrape_budget_rejects_non_positive(tmp_path: Path, bad: float):
+    """A zero or negative budget would strand every URL of every institution
+    under ``crawl_delay_exceeded`` and report the whole run PROCESSING_FAILED —
+    caught at construction, before a Serper credit is spent, like budget_usd."""
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    with pytest.raises(ValueError) as exc:
+        PresweepConfig(
+            run_id="20260826-test",
+            runs_dir=tmp_path / "runs",
+            master_csv=master,
+            sample_size=1,
+            scrape_max_institution_seconds=bad,
+        )
+    assert "scrape_max_institution_seconds must be positive" in str(exc.value)
+
+
+def test_scrape_budget_is_guarded_across_a_resume():
+    """Raising the budget on a resume leaves an institution holding both a page
+    and a stale ``crawl_delay_exceeded`` row for the same URL; the ledger is
+    append-only, so that institution reads PROCESSING_FAILED for the rest of the
+    run's life with no way to tell it from a real failure. Guarded for the same
+    reason as the three politeness knobs beside it — and tolerated when absent,
+    because every manifest written before #96 lacks the key.
+    """
+    from g3o.run.presweep.planning import (
+        _ABSENT_TOLERATED_CONFIG_KEYS,
+        _GUARDED_CONFIG_KEYS,
+    )
+
+    assert "scrape_max_institution_seconds" in _GUARDED_CONFIG_KEYS
+    assert "scrape_max_institution_seconds" in _ABSENT_TOLERATED_CONFIG_KEYS

@@ -8,6 +8,7 @@ Subcommands:
   extract                 — Stage 5 per-page LLM extraction (orchestrated via `presweep`).
   validate                — Stage 6 per-institution LLM consolidation.
   persist                 — Stage 7 deterministic CSV writer.
+  frame                   — build a wave sampling frame from the institution master.
   presweep                — Phase 3 of Session B: stratified pre-sweep runner.
   presweep-report         — Stage-by-stage funnel health report for a finished run.
   run-diff                — Cross-run determinism report over 2+ run dirs (disk-only).
@@ -25,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
 import time
 from pathlib import Path
@@ -940,6 +942,334 @@ def _cmd_archive(args: argparse.Namespace) -> int:
     return 0
 
 
+def _frame_snapshot_source(args: argparse.Namespace) -> Any:
+    """Resolve `frame build`'s inspection history from exactly one source.
+
+    Refuses when none is given. "No history supplied" and "nothing has ever been
+    inspected" produce identical frames and mean opposite things, so the caller
+    has to say which one it means — `--assume-none-inspected` is the explicit
+    form of the second.
+    """
+    from g3o.run.frame.inspection import (
+        empty_snapshot,
+        read_snapshot_csv,
+        snapshot_from_dsn,
+    )
+
+    chosen = [
+        name
+        for name, given in (
+            ("--inspected-csv", bool(args.inspected_csv)),
+            ("--dsn", bool(args.dsn)),
+            ("--assume-none-inspected", bool(args.assume_none_inspected)),
+        )
+        if given
+    ]
+    if len(chosen) != 1:
+        raise ValueError(
+            "give exactly one inspection source: --inspected-csv (reproducible), "
+            "--dsn (live, and therefore not reproducible), or "
+            "--assume-none-inspected (only true of a database that has never "
+            f"been loaded). Got: {', '.join(chosen) or 'none'}."
+        )
+    if args.inspected_csv:
+        return read_snapshot_csv(Path(args.inspected_csv))
+    if args.dsn:
+        return snapshot_from_dsn(args.dsn)
+    return empty_snapshot()
+
+
+def _render_frame_summary(sidecar: dict[str, Any], top: int = 8) -> str:
+    """Human-readable composition report — what goes to the PI and to the next lane."""
+    comp = sidecar["composition"]
+    lines = [
+        f"frame: {sidecar['frame']['path']}",
+        f"  rows       : {sidecar['n_written']:,} (requested {sidecar['n_requested']:,})",
+        f"  seed       : {sidecar['seed']}",
+        f"  sha256     : {sidecar['frame']['sha256']}",
+        f"  sidecar    : {sidecar.get('label')}",
+    ]
+    tiers = sidecar.get("tiers")
+    if tiers:
+        lines.append(
+            f"  tiers      : {tiers['tier1_never_inspected']:,} never inspected, "
+            f"{tiers['tier2_recency_weighted']:,} re-inspected"
+        )
+    n = max(sidecar["n_written"], 1)
+    lines.append(
+        f"  website    : {comp['n_with_website']:,} with, "
+        f"{comp['n_without_website']:,} without "
+        f"({comp['n_without_website'] / n:.1%} without)"
+    )
+    lines.append(f"  strata     : {comp['n_strata']:,} distinct "
+                 f"{'x'.join(comp['stratum_keys'])}")
+    for key in ("country", "government_level", "source_dataset_id"):
+        counts = comp["by"].get(key, {})
+        head = list(counts.items())[:top]
+        rendered = ", ".join(f"{k or '(blank)'} {v:,} ({v / n:.1%})" for k, v in head)
+        more = "" if len(counts) <= top else f", +{len(counts) - top} more"
+        lines.append(f"  {key:<11}: {rendered}{more}")
+    return "\n".join(lines)
+
+
+def _cmd_frame_snapshot(args: argparse.Namespace) -> int:
+    """Export the inspected-institution snapshot that `frame build` weights against."""
+    from datetime import datetime, timezone
+
+    from g3o.run.frame.inspection import (
+        read_sweeps_csv,
+        snapshot_from_dsn,
+        write_snapshot_csv,
+    )
+
+    if args.sweeps_csv:
+        if not args.snapshot_at:
+            sys.stderr.write(
+                "--sweeps-csv needs --snapshot-at: a dump cannot know when it was "
+                "taken, and the recency weights are measured from that moment.\n"
+            )
+            return 2
+        snapshot = read_sweeps_csv(
+            Path(args.sweeps_csv),
+            snapshot_at=datetime.fromisoformat(args.snapshot_at),
+            source=args.source or f"g3o.sweeps dump:{Path(args.sweeps_csv).name}",
+        )
+        out = Path(args.out)
+        n = write_snapshot_csv(snapshot, out)
+        sys.stdout.write(
+            f"inspection snapshot: {n:,} institutions, taken "
+            f"{snapshot.snapshot_at.isoformat()} -> {out}\n"
+        )
+        if snapshot.n_undated:
+            sys.stdout.write(
+                f"  {snapshot.n_undated:,} sweep rows had no usable timestamp "
+                "and were dropped\n"
+            )
+        return 0
+
+    dsn = args.dsn or os.environ.get("DATABASE_URL")
+    if not dsn:
+        sys.stderr.write(
+            "no inspection source: pass --dsn (or set DATABASE_URL), or "
+            "--sweeps-csv with --snapshot-at for a dump taken on another host.\n"
+        )
+        return 2
+    snapshot = snapshot_from_dsn(
+        dsn,
+        snapshot_at=(
+            datetime.fromisoformat(args.snapshot_at)
+            if args.snapshot_at
+            else datetime.now(timezone.utc)
+        ),
+    )
+    out = Path(args.out)
+    n = write_snapshot_csv(snapshot, out)
+    sys.stdout.write(
+        f"inspection snapshot: {n:,} institutions, taken "
+        f"{snapshot.snapshot_at.isoformat()} -> {out}\n"
+    )
+    if snapshot.n_undated:
+        sys.stdout.write(
+            f"  {snapshot.n_undated:,} sweep rows had no usable timestamp and were dropped\n"
+        )
+    return 0
+
+
+def _cmd_frame_build(args: argparse.Namespace) -> int:
+    """Draw a wave frame from the master. Refuses rather than short-drawing."""
+    from g3o.run.frame.build import build_frame
+    from g3o.run.frame.sampler import FrameError
+
+    try:
+        snapshot = _frame_snapshot_source(args)
+        result = build_frame(
+            Path(args.master_csv),
+            Path(args.out),
+            size=args.size,
+            seed=args.seed,
+            snapshot=snapshot,
+            label=args.label,
+        )
+    except (FrameError, ValueError) as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    sys.stdout.write(_render_frame_summary(result.sidecar))
+    sys.stdout.write(f"\nsidecar: {result.sidecar_json}\n")
+    return 0
+
+
+def _read_quota_spec(path: Path) -> tuple[list[Any], str | None]:
+    """Load a ruled quota spec into ``StratumSpec``s, plus the ruling it cites.
+
+    The spec is a file rather than a pile of flags because the composition of a
+    published wave is a PI ruling, and a ruling belongs in something hashable
+    that travels with the frame. The sidecar records the spec's own sha256, so
+    "this frame was built under that ruling" is checkable afterwards rather than
+    asserted in a commit message.
+    """
+    from g3o.run.frame.quota import QUOTA_SCHEMA_VERSION, StratumSpec
+    from g3o.run.frame.sampler import FrameError
+
+    spec = json.loads(path.read_text(encoding="utf-8"))
+    version = spec.get("version")
+    if version != QUOTA_SCHEMA_VERSION:
+        raise FrameError(
+            f"{path} declares quota spec version {version!r}; this build reads "
+            f"version {QUOTA_SCHEMA_VERSION}."
+        )
+    strata = spec.get("strata")
+    if not isinstance(strata, list) or not strata:
+        raise FrameError(f"{path} has no `strata` list.")
+    out = [
+        StratumSpec(
+            name=s["name"],
+            countries=tuple(s["countries"]),
+            size=int(s["size"]),
+            country_cap=int(s["country_cap"]),
+            level_floors={k: int(v) for k, v in (s.get("level_floors") or {}).items()},
+        )
+        for s in strata
+    ]
+    return out, spec.get("ruling")
+
+
+def _cmd_frame_build_stratified(args: argparse.Namespace) -> int:
+    """Draw a frame under a ruled quota spec. Refuses rather than short-drawing."""
+    from g3o.run.frame.build import build_stratified_frame, sha256_file
+    from g3o.run.frame.sampler import FrameError
+
+    try:
+        snapshot = _frame_snapshot_source(args)
+        spec_path = Path(args.quota_spec)
+        strata, ruling = _read_quota_spec(spec_path)
+        result = build_stratified_frame(
+            Path(args.master_csv),
+            Path(args.out),
+            strata=strata,
+            seed=args.seed,
+            snapshot=snapshot,
+            label=args.label,
+            ruling=ruling,
+        )
+    except (FrameError, ValueError, KeyError) as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    result.sidecar["quota_spec"] = {
+        "path": str(spec_path),
+        "sha256": sha256_file(spec_path),
+    }
+    result.sidecar_json.write_text(
+        json.dumps(result.sidecar, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    sys.stdout.write(_render_frame_summary(result.sidecar))
+    sys.stdout.write(_render_stratum_summary(result.sidecar))
+    sys.stdout.write(f"\nsidecar: {result.sidecar_json}\n")
+    return 0
+
+
+def _render_stratum_summary(sidecar: dict[str, Any]) -> str:
+    """Per-stratum composition — the half of the report a pooled table would hide."""
+    strata = sidecar.get("strata")
+    if not strata:
+        return ""
+    lines = ["", "strata (never pool these — they are different populations by construction):"]
+    for stratum in strata:
+        plan = stratum["plan"]
+        by_level: dict[str, int] = {}
+        by_country: dict[str, int] = {}
+        for cell, n in plan.items():
+            country, _, level = cell.partition("|")
+            by_level[level] = by_level.get(level, 0) + n
+            by_country[country] = by_country.get(country, 0) + n
+        n = max(stratum["n_drawn"], 1)
+        top = sorted(by_country.items(), key=lambda kv: (-kv[1], kv[0]))[:6]
+        lines += [
+            f"  {stratum['name']}: {stratum['n_drawn']:,} of a {stratum['pool_available']:,} "
+            f"pool across {len(stratum['countries'])} countries",
+            f"    cap        : {stratum['country_cap']:,}/country "
+            f"({stratum['country_cap'] / n:.0%}); "
+            f"{sum(1 for v in by_country.values() if v >= stratum['country_cap'])} at it",
+            "    floors     : "
+            + ", ".join(f"{k}>={v:,}" for k, v in stratum["level_floors"].items()),
+            "    levels     : "
+            + ", ".join(
+                f"{k} {v:,} ({v / n:.1%})"
+                for k, v in sorted(by_level.items(), key=lambda kv: -kv[1])
+            ),
+            "    countries  : "
+            + ", ".join(f"{k} {v:,} ({v / n:.1%})" for k, v in top)
+            + (f", +{len(by_country) - len(top)} more" if len(by_country) > len(top) else ""),
+        ]
+    return "\n".join(lines)
+
+
+def _cmd_frame_subset(args: argparse.Namespace) -> int:
+    """Draw a smoke frame out of a wave frame, so the smoke tests the population."""
+    from g3o.run.frame.build import subset_frame
+    from g3o.run.frame.sampler import FrameError
+
+    try:
+        result = subset_frame(
+            Path(args.frame), Path(args.out), size=args.size, seed=args.seed
+        )
+    except FrameError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    sys.stdout.write(_render_frame_summary(result.sidecar))
+    sys.stdout.write(f"\nsidecar: {result.sidecar_json}\n")
+    return 0
+
+
+def _cmd_frame_subset_stratified(args: argparse.Namespace) -> int:
+    """Draw a per-stratum subset — the probe draw, deliberately unbalanced."""
+    from g3o.run.frame.build import sha256_file, subset_stratified
+    from g3o.run.frame.sampler import FrameError
+
+    try:
+        spec_path = Path(args.quota_spec)
+        strata, _ruling = _read_quota_spec(spec_path)
+        countries = {s.name: s.countries for s in strata}
+        per_stratum: dict[str, int] = {}
+        for pair in args.stratum_size:
+            name, _, raw = pair.partition("=")
+            if not _ or not raw.isdigit():
+                raise FrameError(f"--stratum-size wants name=N, got {pair!r}")
+            if name not in countries:
+                raise FrameError(
+                    f"--stratum-size names {name!r}, which is not in {spec_path} "
+                    f"(has {', '.join(countries)})"
+                )
+            per_stratum[name] = int(raw)
+        if not per_stratum:
+            raise FrameError("give at least one --stratum-size name=N")
+        result = subset_stratified(
+            Path(args.frame),
+            Path(args.out),
+            per_stratum=per_stratum,
+            stratum_countries=countries,
+            seed=args.seed,
+        )
+    except (FrameError, ValueError) as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    result.sidecar["quota_spec"] = {
+        "path": str(spec_path),
+        "sha256": sha256_file(spec_path),
+    }
+    result.sidecar_json.write_text(
+        json.dumps(result.sidecar, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    sys.stdout.write(_render_frame_summary(result.sidecar))
+    sys.stdout.write("\nstrata (report these separately; there is no pooled rate):\n")
+    for stratum in result.sidecar["strata"]:
+        sys.stdout.write(
+            f"  {stratum['name']}: {stratum['n_drawn']:,} drawn from "
+            f"{stratum['parent_rows']:,} in the parent frame\n"
+        )
+    sys.stdout.write(f"sidecar: {result.sidecar_json}\n")
+    return 0
+
+
 def _cmd_verify_model(args: argparse.Namespace) -> int:
     from g3o.run.verify_model import verify_model
 
@@ -1442,6 +1772,175 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     archive.set_defaults(func=_cmd_archive)
+
+    frame = sub.add_parser(
+        "frame",
+        help="Build a wave sampling frame from the institution master, reproducibly.",
+    )
+    frame_sub = frame.add_subparsers(dest="frame_command", required=True)
+
+    frame_snapshot = frame_sub.add_parser(
+        "snapshot",
+        help="Export the inspected-institution snapshot from g3o.sweeps (read-only).",
+    )
+    frame_snapshot.add_argument(
+        "--out", required=True, help="Snapshot CSV to write."
+    )
+    frame_snapshot.add_argument(
+        "--dsn",
+        default=None,
+        help="Postgres DSN. Defaults to $DATABASE_URL. One read-only SELECT.",
+    )
+    frame_snapshot.add_argument(
+        "--sweeps-csv",
+        default=None,
+        type=_existing_file,
+        help=(
+            "Fold a raw institution_uid,run_id,loaded_at dump instead of "
+            "querying. For the usual case where the database is reachable from "
+            "the run droplet and the frame is built elsewhere: the dump carries "
+            "no logic, every decision still happens here. Requires --snapshot-at."
+        ),
+    )
+    frame_snapshot.add_argument(
+        "--snapshot-at",
+        default=None,
+        help="ISO moment the dump was taken. Required with --sweeps-csv.",
+    )
+    frame_snapshot.add_argument(
+        "--source",
+        default=None,
+        help="Provenance string recorded in the snapshot header.",
+    )
+    frame_snapshot.set_defaults(func=_cmd_frame_snapshot)
+
+    frame_build = frame_sub.add_parser(
+        "build",
+        help="Draw a frame: never-inspected first, then by distance from last inspection.",
+    )
+    frame_build.add_argument(
+        "--master-csv",
+        required=True,
+        type=_existing_file,
+        help="The canonical institution master. Its column layout is carried through verbatim.",
+    )
+    frame_build.add_argument("--out", required=True, help="Frame CSV to write.")
+    frame_build.add_argument(
+        "--size", required=True, type=int, help="Number of institutions to draw."
+    )
+    frame_build.add_argument(
+        "--seed",
+        required=True,
+        type=int,
+        help=(
+            "Required, not defaulted: the frame is an input to a published "
+            "measurement, so the draw has to be nameable afterwards."
+        ),
+    )
+    frame_build.add_argument(
+        "--inspected-csv",
+        default=None,
+        type=_existing_file,
+        help="Snapshot written by `g3o frame snapshot`. The reproducible source.",
+    )
+    frame_build.add_argument(
+        "--dsn",
+        default=None,
+        help=(
+            "Read inspection history live from Postgres instead. Convenient, but "
+            "the table moves, so the frame is not reproducible from the recorded "
+            "inputs alone."
+        ),
+    )
+    frame_build.add_argument(
+        "--assume-none-inspected",
+        action="store_true",
+        help=(
+            "Assert that nothing has ever been inspected. Only true of a database "
+            "that has never been loaded; required explicitly because omitting a "
+            "history source would otherwise produce the same frame silently."
+        ),
+    )
+    frame_build.add_argument(
+        "--label",
+        default=None,
+        help="Name recorded in the sidecar (default: the frame filename stem).",
+    )
+    frame_build.set_defaults(func=_cmd_frame_build)
+
+    frame_strat = frame_sub.add_parser(
+        "build-stratified",
+        help=(
+            "Draw a frame under a ruled quota spec — per-stratum sizes, "
+            "per-country caps, per-level floors. NOT proportional to the master."
+        ),
+    )
+    frame_strat.add_argument(
+        "--master-csv", required=True, type=_existing_file,
+        help="The canonical institution master. Its column layout is carried through verbatim.",
+    )
+    frame_strat.add_argument("--out", required=True, help="Frame CSV to write.")
+    frame_strat.add_argument(
+        "--quota-spec", required=True, type=_existing_file,
+        help=(
+            "JSON spec naming each stratum's countries, size, country cap and "
+            "level floors. Its sha256 goes into the sidecar, so the frame can be "
+            "tied back to the ruling it was built under."
+        ),
+    )
+    frame_strat.add_argument(
+        "--seed", required=True, type=int,
+        help="Required, not defaulted, for the same reason as `frame build`.",
+    )
+    frame_strat.add_argument(
+        "--inspected-csv", default=None, type=_existing_file,
+        help="Snapshot written by `g3o frame snapshot`. The reproducible source.",
+    )
+    frame_strat.add_argument("--dsn", default=None, help="Live inspection history; not reproducible.")
+    frame_strat.add_argument(
+        "--assume-none-inspected", action="store_true",
+        help="Assert that nothing has ever been inspected.",
+    )
+    frame_strat.add_argument(
+        "--label", default=None,
+        help="Name recorded in the sidecar (default: the frame filename stem).",
+    )
+    frame_strat.set_defaults(func=_cmd_frame_build_stratified)
+
+    frame_subset = frame_sub.add_parser(
+        "subset",
+        help="Draw a smaller frame out of an existing one — a smoke that tests the population.",
+    )
+    frame_subset.add_argument(
+        "--frame", required=True, type=_existing_file, help="Parent frame CSV."
+    )
+    frame_subset.add_argument("--out", required=True, help="Subset CSV to write.")
+    frame_subset.add_argument("--size", required=True, type=int)
+    frame_subset.add_argument("--seed", required=True, type=int)
+    frame_subset.set_defaults(func=_cmd_frame_subset)
+
+    frame_sub_strat = frame_sub.add_parser(
+        "subset-stratified",
+        help=(
+            "Draw a per-stratum subset of a stratified frame — the probe draw. "
+            "Sizes need not be proportional; the sidecar records the split so "
+            "the strata are never pooled downstream."
+        ),
+    )
+    frame_sub_strat.add_argument(
+        "--frame", required=True, type=_existing_file, help="Parent stratified frame CSV."
+    )
+    frame_sub_strat.add_argument("--out", required=True, help="Subset CSV to write.")
+    frame_sub_strat.add_argument(
+        "--quota-spec", required=True, type=_existing_file,
+        help="The spec the parent frame was built under; supplies the country lists.",
+    )
+    frame_sub_strat.add_argument(
+        "--stratum-size", action="append", default=[], metavar="NAME=N",
+        help="Repeatable, e.g. --stratum-size anglophone=200 --stratum-size mix=300.",
+    )
+    frame_sub_strat.add_argument("--seed", required=True, type=int)
+    frame_sub_strat.set_defaults(func=_cmd_frame_subset_stratified)
 
     verify = sub.add_parser(
         "verify-model",
