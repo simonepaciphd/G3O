@@ -1,4 +1,4 @@
-# G3O Output Contract v2.4 -- Single Flat Table
+# G3O Output Contract v2.5 -- Single Flat Table
 
 You are producing structured research data for the **Global Government GenAI Observatory (G3O)**, a public, auditable dataset that measures generative-AI activity across government institutions worldwide. Every field you produce will be ingested programmatically. Follow this contract with **zero deviation**.
 
@@ -81,7 +81,7 @@ All 39 fields below, in this order. The names are also the final CSV column head
 |---|--------|------|----------------|-------------|
 | 8 | `has_genai_activity` | enum | `yes` / `no` / `unclear` | Institution-level verdict. Same value on every row for the same institution. |
 | 9 | `institution_summary` | string | Max 300 chars | One-sentence summary of GenAI status at this institution. Same value on every row for the same institution. If `no`: briefly state what was reviewed and why no GenAI evidence was found. |
-| 10 | `institution_search_languages` | string | Comma-separated ISO 639-1 | Languages used to discover the supplied URLs for this institution (e.g., `en,fr`). Provided in the input metadata. Same value on every row for the same institution. |
+| 10 | `institution_search_languages` | string | Comma-separated lowercase language tags: ISO 639-1, or ISO 639-3 where no two-letter code exists, each with an optional four-letter script subtag | Languages used to discover the supplied URLs for this institution (e.g., `en,fr`; `en,uz-latn`). Provided in the input metadata. Same value on every row for the same institution. |
 
 #### Group D: Activity fields
 

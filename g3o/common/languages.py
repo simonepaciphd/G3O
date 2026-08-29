@@ -71,20 +71,16 @@ from g3o.discovery.query_builder import (
 
 # One language tag as the extraction contract can store it.
 #
-# ``contract.LANGS_PATTERN`` (``^[a-z]{2}(,[a-z]{2})*$``) constrains
-# ``institution_search_languages`` to comma-joined lowercase **two-letter** tags,
-# so this is not a style preference — a policy that can emit anything else can
-# only be discovered at Stage 5, after the run has been paid for. Two live
-# consequences, both of which belong in the design record rather than in a
-# workaround here:
-#
-#   - a language with no ISO 639-1 code cannot be recorded at all; and
-#   - a script variant cannot be expressed (``uz-Latn`` / ``uz-Cyrl`` do not
-#     match), so a country whose government publishes in two scripts of one
-#     language is, to the contract, searched in one language.
-#
-# Widening the pattern is a contract change and is not this module's to make.
-_LANG_TAG = re.compile(r"^[a-z]{2}$")
+# ``contract.LANGS_PATTERN`` constrains ``institution_search_languages`` to
+# comma-joined lowercase ``language[-script]`` tags — ISO 639-1, or ISO 639-3
+# where no two-letter code exists, with an optional four-letter script subtag
+# (``uz-latn``). Widened from bare ISO 639-1 pairs by PI ruling 2026-08-29
+# (extract contract v2.5 / validate v1.3), so a script variant is expressible
+# and a 639-3-only language is recordable. Lowercase-only: BCP 47 is
+# case-insensitive, and one canonical casing keeps ``uz-Latn`` / ``uz-latn``
+# from coexisting as distinct provenance strings — the mixed-case form is
+# rejected here, at construction, not at Stage 5 after the run is paid for.
+_LANG_TAG = re.compile(r"^[a-z]{2,3}(-[a-z]{4})?$")
 
 
 class LanguagePolicyError(ValueError):
@@ -270,8 +266,10 @@ def _validate_languages(langs: Iterable[str], *, context: str) -> tuple[str, ...
         if not isinstance(lang, str) or not _LANG_TAG.match(lang):
             raise LanguagePolicyError(
                 f"{context}: {lang!r} is not a storable language tag. "
-                f"contract.LANGS_PATTERN admits only lowercase two-letter ISO "
-                f"639-1 codes, so anything else cannot be recorded in "
+                f"contract.LANGS_PATTERN admits lowercase language[-script] tags "
+                f"only — ISO 639-1 (or 639-3 where no two-letter code exists), "
+                f"optionally with a four-letter lowercase script subtag, e.g. "
+                f"'uz-latn'. Anything else cannot be recorded in "
                 f"institution_search_languages and would fail at Stage 5, after "
                 f"the run was paid for."
             )

@@ -100,16 +100,33 @@ def test_bare_string_is_not_a_language_sequence():
         _policy(mapping={"Czechia": "cs"})
 
 
-@pytest.mark.parametrize("bad", ["CS", "ces", "c", "uz-Latn", "", "kk1"])
+@pytest.mark.parametrize(
+    "bad", ["CS", "c", "uz-Latn", "uz-LATN", "", "kk1", "abcd", "uz-lat", "uz-latn-cyrl"]
+)
 def test_non_contract_storable_tag_rejected_at_construction(bad):
     """A tag the contract cannot store must fail here, not at Stage 5.
 
-    ``contract.LANGS_PATTERN`` admits only lowercase two-letter codes. A policy
-    that can emit ``uz-Latn`` produces a row that fails validation after the
-    run has been paid for.
+    ``contract.LANGS_PATTERN`` admits lowercase ``language[-script]`` tags only
+    (PI ruling 2026-08-29). Mixed case is rejected deliberately: BCP 47 is
+    case-insensitive, so admitting ``uz-Latn`` alongside ``uz-latn`` would let
+    one instrument write two provenance strings.
     """
     with pytest.raises(LanguagePolicyError, match="LANGS_PATTERN"):
         _policy(mapping={"Uzbekistan": (bad,)})
+
+
+@pytest.mark.parametrize("good", ["ces", "uz-latn", "uz-cyrl", "zh-hant", "lo"])
+def test_widened_tags_accepted_and_storable(good):
+    """The three cases the 2026-08-29 widening exists for: an ISO 639-3 code
+    with no two-letter equivalent, and a script variant — each must construct
+    AND satisfy the widened ``contract.LANGS_PATTERN`` end to end."""
+    policy = _policy(mapping={"Uzbekistan": (good,)})
+    langs, used_fallback = policy.languages_for({"country": "Uzbekistan"})
+    assert langs == (good,)
+    assert not used_fallback
+    recorded = search_languages_string(langs, mode="chain")
+    assert re.match(LANGS_PATTERN, recorded), recorded
+    assert recorded == f"en,{good}"
 
 
 def test_duplicate_country_key_after_normalization_rejected():
