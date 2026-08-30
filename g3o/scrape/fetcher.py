@@ -23,7 +23,7 @@ from collections.abc import Callable
 
 import requests
 from bs4 import BeautifulSoup
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from g3o.common import config
 from g3o.scrape import egress
@@ -308,6 +308,63 @@ def _notify_scrape_failure(
     """
     if callback is not None:
         callback(url=url, download_error=download_error, render_error=render_error)
+
+
+def unwrap_fetch_error(exc: BaseException | None) -> BaseException | None:
+    """The exception that actually failed, behind tenacity's wrapper.
+
+    ``_download`` is decorated with ``@retry`` and does not set ``reraise``, so
+    what escapes it after three attempts is a
+    :class:`tenacity.RetryError` — a class name that says only "we gave up",
+    never what refused us. The last attempt's exception is the one worth
+    recording. Non-wrapped exceptions pass straight through.
+    """
+    if isinstance(exc, RetryError):
+        attempt = exc.last_attempt
+        if attempt is not None and attempt.failed:
+            return attempt.exception()
+    return exc
+
+
+def http_status_from_exception(exc: BaseException | None) -> int | None:
+    """The HTTP status a fetch was refused with, or None when there was none.
+
+    None is a real answer and not a gap: a connect timeout, a DNS failure and a
+    TLS handshake error never produce a status line, and recording them as
+    ``None`` beside a 403's ``403`` is what makes the two distinguishable. That
+    distinction is the whole reason this exists — across the 6,719
+    ``scrape_failed`` rows of the anglophone 12k, a bot-block and a dead host
+    were the same row, and separating them cost a hand re-probe of 60 URLs.
+
+    Reads ``requests``' own convention: ``raise_for_status`` raises an
+    ``HTTPError`` carrying the ``Response`` that produced it. Everything is
+    ``getattr``-guarded rather than isinstance-checked, so a non-requests
+    transport that follows the same convention is read too and one that does not
+    returns None instead of raising inside a failure handler.
+    """
+    seen: set[int] = set()
+    current = unwrap_fetch_error(exc)
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        status = getattr(getattr(current, "response", None), "status_code", None)
+        if isinstance(status, int):
+            return status
+        current = unwrap_fetch_error(current.__cause__ or current.__context__)
+    return None
+
+
+def error_class_of(exc: BaseException | None) -> str | None:
+    """The unwrapped exception's class name — the free half of the diagnosis.
+
+    ``ConnectTimeout``, ``ReadTimeout``, ``ConnectionError``, ``SSLError``,
+    ``ProxyError`` and ``HTTPError`` are already an exact vocabulary for the four
+    failures that mattered, so this records the name rather than mapping it onto
+    a taxonomy of ours that would have to be kept true. Safe to log: a class name
+    carries no request or credential, unlike the message, which is why this is
+    reported alongside the redacted detail rather than instead of it.
+    """
+    unwrapped = unwrap_fetch_error(exc)
+    return type(unwrapped).__name__ if unwrapped is not None else None
 
 
 def _failure_page(url: str, *, attempted_method: str) -> RenderedPage:
