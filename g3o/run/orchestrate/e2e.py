@@ -27,7 +27,13 @@ imagined:
    transaction, before its commit, so every gate in this chain is placed *before*
    ``ingest``. Nothing after the load can un-publish, and nothing in this module
    pretends otherwise: the last leg, ``publish-verify``, is a read-only check that
-   the thing which already happened is what was wanted.
+   the thing which already happened is what was wanted. **That leg is mandatory
+   for the same reason the sha is** (2026-08-30): an absent ``--api-base`` used to
+   record ``publish-verify`` as a green step whose own message said nothing had
+   been checked, so a chain that published and then verified nothing returned the
+   same verdict as one that verified. A flag that can disagree with the thing it
+   describes is not a weaker check, it is a wrong answer. The base is now required
+   before the wait, where a refusal is still free.
 
 **Two traps that cost a session real time, encoded here so nobody rediscovers
 them.**
@@ -62,6 +68,7 @@ from typing import Any
 from g3o.run.orchestrate.ingest import IngestError, IngestResult, ingest_run
 from g3o.run.orchestrate.loader_pin import PINNED_SENTINEL, resolve_expected_sha
 from g3o.run.orchestrate.persist_leg import PersistError, PersistResult, persist_run
+from g3o.run.orchestrate.publish import API_BASE_ENV_VAR
 from g3o.run.orchestrate.status import RunStatus, run_status
 
 logger = logging.getLogger(__name__)
@@ -254,6 +261,18 @@ def run_e2e(
             f"{PINNED_SENTINEL!r} to use the reviewed pin in "
             "g3o/run/orchestrate/loader_pin.py."
         )
+    base = api_base or os.environ.get(API_BASE_ENV_VAR)
+    if not base:
+        raise E2EError(
+            f"the chain requires an API base: pass --api-base or set "
+            f"{API_BASE_ENV_VAR} (e.g. https://api.g3observatory.org). Until "
+            f"2026-08-30 an absent one skipped publish-verify and recorded that "
+            f"skip as a GREEN step, so a chain that committed a publication and "
+            f"then checked nothing about it reported the same verdict as one "
+            f"that verified. Refused here, at second zero, because the leg it "
+            f"guards runs after the only irreversible act in the chain: a "
+            f"refusal at the end would arrive too late to be a gate."
+        )
 
     result = E2EResult(run_id=run_id)
 
@@ -346,19 +365,6 @@ def run_e2e(
     # Read-only, and last on purpose: it cannot cause a publish and cannot undo
     # one. It answers "is what happened what was wanted", which is a different
     # question from every gate above it.
-    base = api_base or os.environ.get("G3O_API_BASE")
-    if not base:
-        result._record(
-            StepOutcome(
-                "publish-verify", True,
-                message=(
-                    "skipped: no --api-base and no G3O_API_BASE. The load is "
-                    "committed and published; nothing checked what the public API "
-                    "can see of it."
-                ),
-            )
-        )
-        return result
     from g3o.run.orchestrate.publish import PublishVerifyError, verify_published
 
     log(f"e2e: asking {base} what it can see of {run_id}")
