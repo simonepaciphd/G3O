@@ -59,7 +59,9 @@ SUBMIT_RECORD_FILENAME = "submit.json"
 COST_PROJECTION_FILENAME = "cost_projection.json"
 
 #: ``PresweepConfig`` fields whose JSON form is not their Python form.
-_PATH_FIELDS = ("runs_dir", "master_csv")
+# ``official_sites_csv`` is optional, so unlike the other two it can be None —
+# every use below guards for that rather than calling Path(None).
+_PATH_FIELDS = ("runs_dir", "master_csv", "official_sites_csv")
 _TUPLE_FIELDS = ("stratify_keys", "discovery_languages")
 
 
@@ -90,7 +92,9 @@ def config_to_mapping(config: PresweepConfig) -> dict[str, Any]:
     for f in fields(config):
         value = getattr(config, f.name)
         if f.name in _PATH_FIELDS:
-            out[f.name] = str(Path(value).expanduser().resolve())
+            out[f.name] = (
+                str(Path(value).expanduser().resolve()) if value is not None else None
+            )
         elif isinstance(value, tuple):
             out[f.name] = list(value)
         elif value is not None and f.name == "discovery_evidence_terms":

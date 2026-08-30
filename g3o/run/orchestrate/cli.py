@@ -31,6 +31,8 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common.credentials import Credentials
+from g3o.report.site_overlay import PRECEDENCE_MODES
+from g3o.run.orchestrate.harvest import DEFAULT_OVERLAY_DIRNAME
 from g3o.run.orchestrate.loader_pin import PINNED_SENTINEL
 from g3o.run.orchestrate.status import RunStatus, run_status
 from g3o.run.presweep.config import STAGES
@@ -537,7 +539,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Drive a submitted run to published, unattended, stopping at the "
              "first failure.",
         description=(
-            "wait -> gate -> Stage 7 -> load -> verify, for a run that is already "
+            "wait -> gate -> harvest -> Stage 7 -> load -> verify, for a run that "
+            "is already "
             "running. Does not submit: submitting spends money and has its own "
             "ceiling, and one verb holding two irreversible acts is one too many. "
             "Waits on `orchestrate status`, never on ~/run-<id>.done, which "
@@ -585,6 +588,30 @@ def build_parser() -> argparse.ArgumentParser:
     e2e.add_argument(
         "--max-load-failures", type=int, default=0, metavar="N",
         help="Passed to Stage 7 (default 0).",
+    )
+    e2e.add_argument(
+        "--no-harvest", action="store_true",
+        help="Skip the official-site overlay rebuild. The chain harvests by "
+             "default: the overlay is worth what it is only while it is current, "
+             "and the moment it is knowably stale is the moment a run finishes. "
+             "Skipping means a later run spends the sites known before this one.",
+    )
+    e2e.add_argument(
+        "--require-harvest", action="store_true",
+        help="Make a failed overlay rebuild stop the chain. Off by default, and "
+             "deliberately: the overlay is derived, nothing in THIS run reads it, "
+             "and a chain that published must not report itself stopped because a "
+             "derived table could not be rewritten.",
+    )
+    e2e.add_argument(
+        "--overlay-dir", default=None, metavar="DIR",
+        help="Where the overlay is written. Defaults to "
+             f"<runs-dir>/{DEFAULT_OVERLAY_DIRNAME}/.",
+    )
+    e2e.add_argument(
+        "--overlay-precedence", default=PRECEDENCE_MODES[0], choices=PRECEDENCE_MODES,
+        help="How two runs disagreeing about one institution are resolved "
+             f"(default {PRECEDENCE_MODES[0]!r}).",
     )
     e2e.set_defaults(func=_cmd_e2e)
 
