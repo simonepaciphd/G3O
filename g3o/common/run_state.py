@@ -43,6 +43,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 import time
 from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
@@ -68,10 +69,33 @@ def _utc_iso() -> str:
 
 
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
-    """Write JSON via temp-file + ``os.replace`` (atomic on Windows and POSIX)."""
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, path)
+    """Write JSON via temp-file + ``os.replace`` (atomic on Windows and POSIX).
+
+    The temp name carries pid + thread id, matching
+    :func:`g3o.common.artifact_io.write_artifact` and
+    :func:`g3o.discovery.serper_client._save_cache` (review F17). State writes
+    are main-thread-only today, so a fixed ``.tmp`` name races with nothing —
+    this is consistency, not a bug fix. It buys two things anyway: the pattern
+    holds if state writing ever moves into a worker, and an orphaned temp file
+    now matches ``archive_leg._EXCLUDED_SUFFIX_MARKERS`` (which looks for
+    ``".tmp."``, *with* the trailing dot) instead of being swept into an
+    archive bundle.
+
+    A failed write cleans up after itself rather than leaving the orphan behind.
+    """
+    tmp = path.with_name(f"{path.name}.tmp.{os.getpid()}.{threading.get_ident()}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        tmp.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def state_dir(run_dir: Path) -> Path:

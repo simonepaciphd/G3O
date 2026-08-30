@@ -79,7 +79,7 @@ and byte-identical for replication.
 
 Paired McNemar over 200 institutions: 94 gains, 5 losses, exact two-sided
 *p* = 2.4 × 10⁻²². Report:
-`agent-workspace/2026-08-01-discovery-chain-validation.md`.
+`agent-workspace/2026-08-01-discovery-chain-validation.md` (Drive; not tracked here).
 
 The chain exists because **Stage 1a was asking one query to do two incompatible
 jobs** — identify the institution *and* find GenAI evidence — and the four-slot
@@ -111,7 +111,7 @@ tuning the query builders:
   return zero results.**
 
 Native-language legs (a real, measured +2/24 that is unreachable any other way)
-belong to `subprojects/multilingual-pipeline/`, which owns country-conditional
+belong to `subprojects/multilingual-pipeline/` (Drive; not tracked here), which owns country-conditional
 discovery-language routing and the term rosters. Do not add them here.
 
 Volume is a **reserve, not a ceiling** (PI direction, 2026-08-01): the chain
@@ -123,7 +123,7 @@ not pre-emptively — and note that extra English tokens measure at 0 pp and
 should never be drawn on.
 
 Spec and measurements:
-`agent-workspace/2026-08-01-serper-discovery-yield-findings.md`.
+`agent-workspace/2026-08-01-serper-discovery-yield-findings.md` (Drive; not tracked here).
 
 ## Boundary artifacts
 
@@ -135,7 +135,7 @@ layout v2**, specified in [`storage-layout-v2.md`](storage-layout-v2.md):
 runs/<run_id>/
   manifest.json            # run-level; carries "layout_version": 2
   _state/                  # batch-chunk state + .done/ markers
-  attrition.jsonl          # run-level ledger
+  _attrition.jsonl         # run-level ledger (g3o.common.attrition.LEDGER_NAME)
   final/                   # Stage-7 CSVs
   institutions/
     <shard>/               # md5(inst_id)[:2] -> 256 shards

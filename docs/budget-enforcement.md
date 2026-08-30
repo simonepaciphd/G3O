@@ -53,6 +53,46 @@ python -m g3o presweep --execute --run-id test --master-csv master.csv --sample-
 
 The orchestrator will track actual spend after each LLM stage and abort if the running total exceeds the budget.
 
+### Two further controls, both off by default
+
+Neither is set by the runbook, and both change whether enforcement actually
+enforces. They were documented nowhere outside the source until 2026-08-24.
+
+#### `G3O_COST_MONITOR_DRY_RUN` — **disables enforcement**
+
+| | |
+|---|---|
+| Values | `true`/`1`/`yes`/`on` — or `false`/`0`/`no`/`off`/empty (default) |
+| CLI equivalent | `--cost-monitor-dry-run` |
+| Default | off |
+
+Read the name carefully: this is **not** "report what a budget would have done".
+When it is on, a run that exceeds its budget **logs a warning and keeps
+spending**. The stage is recorded in `budget_exceeded_stages` for the
+post-mortem, `abort_stage` stays `null`, and the run continues to completion.
+
+Use it to calibrate a ceiling on a run you are willing to pay for in full. Do
+not use it on a run whose ceiling is the thing protecting you.
+
+#### `G3O_PROJECTION_SAFETY_FACTOR` — enables the mid-run projection abort
+
+| | |
+|---|---|
+| Values | a float `>= 1.0` |
+| CLI equivalent | `--projection-safety-factor <float>` |
+| Default | **unset, meaning the projection abort does not run at all** |
+
+There is deliberately no default value. Unset does not mean "1.2" or any other
+number — it means the check is off. With it set, the monitor scales the
+remaining stages' preflight estimates by the actual-to-estimated ratio observed
+so far and aborts *before* the next stage if the projected total would exceed
+`budget x factor`.
+
+It is opt-in because the projection scales the two cheap classify stages'
+ratio onto the dominant extract estimate, and those stages are not comparable
+enough for that ratio to end a live run uninvited. The ratio is clamped to
+[0.5, 3.0] and the check is skipped until at least two stages have completed.
+
 ---
 
 ## What Happens When Budget Is Exceeded
@@ -274,6 +314,10 @@ A ratio significantly above 1.0 suggests the preflight assumptions (pages per in
 3. **Pricing estimates**: The batch rates for `gpt-5-nano` are labeled as estimates because OpenAI's documentation does not explicitly publish the batch discount for this model. Reconcile against your first live invoice to verify the actual rates.
 
 4. **Mid-stage abort not supported**: If a stage is running when the budget is exceeded, the stage will complete before the abort triggers. The orchestrator cannot interrupt a stage mid-execution.
+
+5. **Enforcement can be switched off, and one switch is easy to misread**: `G3O_COST_MONITOR_DRY_RUN=true` makes a budget overrun a **warning rather than an abort** — the run continues spending past its ceiling. It reports; it does not enforce. See "Two further controls" above.
+
+6. **The mid-run projection abort is off unless asked for**: `G3O_PROJECTION_SAFETY_FACTOR` has no default. Without it, the only checks are the pre-flight projection and the after-each-stage actual — so a run can be visibly on course to overshoot and will not stop until it has.
 
 ---
 
