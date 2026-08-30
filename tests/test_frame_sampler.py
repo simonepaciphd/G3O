@@ -44,7 +44,7 @@ from g3o.run.frame.sampler import (
     draw,
     draw_recency_weighted,
     draw_uniform,
-    is_duplicate,
+    has_colliding_name,
     is_eligible,
 )
 
@@ -103,14 +103,13 @@ def _snapshot(uids: dict[str, datetime]) -> InspectionSnapshot:
     [("1", True), ("true", True), ("TRUE", True), ("y", True), ("0", False),
      ("", False), ("  ", False), ("false", False), ("2", False)],
 )
-def test_duplicate_column_reads_all_three_shapes_the_master_carries(value, expected):
-    assert is_duplicate({"duplicate": value}) is expected
+def test_name_collision_column_reads_all_three_shapes_the_master_carries(value, expected):
+    assert has_colliding_name({"duplicate": value}) is expected
 
 
-def test_missing_duplicate_column_is_not_a_duplicate():
-    # 19,766 master rows carry NULL here. A truthiness test would drop them all.
-    assert is_duplicate({}) is False
-    assert is_eligible({}) is True
+def test_missing_duplicate_column_asserts_no_collision():
+    # 19,766 master rows carry NULL here. A truthiness test would misread them.
+    assert has_colliding_name({}) is False
 
 
 def test_an_empty_website_is_still_eligible():
@@ -118,6 +117,27 @@ def test_an_empty_website_is_still_eligible():
     silently restrict every wave to 11,579 rows, 10,811 of them US districts."""
     assert is_eligible(_row(1, website="")) is True
     assert is_eligible(_row(1, website="https://example.gov")) is True
+
+
+def test_a_name_collision_is_eligible_because_it_is_not_a_duplicate_row():
+    """The regression. `duplicate=1` flags a NAME collision that
+    `disambiguation` resolves — the master schema says "1 = duplicate name
+    (needs disambiguation)" and the codebook says both such rows are kept.
+
+    Reading it as a duplicate ROW excluded 216,642 of 719,588 master rows
+    (30.1%): 29.7% of the local tier, 44.7% of second_subnational, 34.0% of
+    India, 46.4% of Uganda, 71.4% of Rwanda. Fixed 2026-08-30 on PI ruling.
+    """
+    assert is_eligible(_row(1, duplicate="1")) is True
+    assert is_eligible(_row(1, duplicate="1", disambiguation="Sabar Kantha — gram panchayat")) is True
+    assert is_eligible({}) is True
+
+
+def test_eligibility_does_not_consult_the_duplicate_column_at_all():
+    """Stronger than the row above and deliberately so: the failure mode was a
+    predicate that *read* this column to decide admission. Nothing may."""
+    for value in ("1", "true", "Y", "0", "", "   ", "banana"):
+        assert is_eligible(_row(1, duplicate=value)) is True
 
 
 # --- timestamp precedence --------------------------------------------------
@@ -266,20 +286,30 @@ def test_the_frame_carries_the_master_column_layout_exactly(tmp_path):
         assert len(list(reader)) == 10
 
 
-def test_duplicates_are_excluded_and_counted(tmp_path):
+def test_name_collisions_are_counted_and_still_drawable(tmp_path):
+    """Was `test_duplicates_are_excluded_and_counted`, and it asserted the bug.
+
+    The ten flagged rows are now in the pool, so a frame of 30 can be filled
+    from 30 rows; under the old rule this build raised, because the pool the
+    sampler believed in held only 20.
+    """
     rows = [_row(i) for i in range(1, 21)] + [
         _row(i, duplicate="1") for i in range(21, 31)
     ]
     master = _master(tmp_path, rows)
     result = build_frame(
-        master, tmp_path / "f.csv", size=20, seed=1,
+        master, tmp_path / "f.csv", size=30, seed=1,
         snapshot=empty_snapshot(snapshot_at=NOW), built_at=NOW,
     )
-    assert result.sidecar["pool"]["excluded_duplicate"] == 10
-    assert result.sidecar["pool"]["eligible"] == 20
+    assert result.sidecar["pool"]["name_collision"] == 10
+    assert result.sidecar["pool"]["eligible"] == 30
+    assert "excluded_duplicate" not in result.sidecar["pool"]
+    assert result.sidecar["schema_version"] == 2
     with open(result.frame_csv, encoding="utf-8", newline="") as f:
         drawn = {r["institution_uid"] for r in csv.DictReader(f)}
-    assert all(int(uid.rsplit("-", 1)[1]) <= 20 for uid in drawn)
+    assert len(drawn) == 30
+    # The point of the fix: the flagged rows are in the frame.
+    assert {uid for uid in drawn if int(uid.rsplit("-", 1)[1]) > 20}
 
 
 def test_never_inspected_is_drawn_before_anything_previously_inspected(tmp_path):
