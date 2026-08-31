@@ -311,6 +311,18 @@ def run_presweep(
     # a crash; the state files it reads remain the ground truth either way.
     try:
         serper_options = SerperOptions(autocorrect=config.serper_autocorrect)
+        # Per-institution language selection (PI-signed policy, 2026-08-30).
+        # ``None`` — no policy configured — leaves all three stages on the
+        # run-level answer they have always taken, byte for byte. The policy's
+        # tags were checked against the mode's roster in
+        # ``PresweepConfig.__post_init__``, before this function was reached and
+        # so before the first Serper credit.
+        uses_policy = config.language_policy is not None
+        languages_for = config.languages_for if uses_policy else None
+        evidence_terms_for = config.evidence_terms_for if uses_policy else None
+        search_languages_for = (
+            config.institution_search_languages_for if uses_policy else None
+        )
         span = tel.stage_start("discovery_general", counts_in=len(plan.sample))
         discovery_general = _run_discovery_general(
             plan.run_dir,
@@ -322,6 +334,7 @@ def run_presweep(
             options=serper_options,
             domain_quote_name=config.discovery_domain_quote_name,
             credentials=resolved,
+            languages_for=languages_for,
         )
         summary["n_discovery_general"] = sum(
             len(v) for v in discovery_general.values()
@@ -373,6 +386,8 @@ def run_presweep(
             evidence_terms=config.evidence_terms,
             options=serper_options,
             credentials=resolved,
+            languages_for=languages_for,
+            evidence_terms_for=evidence_terms_for,
         )
         summary["n_discovery_site_restricted"] = sum(
             len(v) for v in discovery_site_restricted.values()
@@ -472,6 +487,7 @@ def run_presweep(
             plan.sample,
             scraped,
             institution_search_languages=config.institution_search_languages,
+            search_languages_for=search_languages_for,
             model=config.model,
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,

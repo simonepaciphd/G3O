@@ -29,13 +29,15 @@ required and free-text on purpose: the policy cannot be constructed without
 naming its own rule, so the rule reaches :func:`language_policy_hash` and the
 run's provenance instead of being inferable only from the table.
 
-**Not wired in.** Nothing here is imported by the orchestrator or by
-``PresweepConfig``. ``build_queries`` already takes ``languages`` per call, so
-per-institution selection needs no change to the query builders and the GenAI
-roster hash cannot move on account of this module. What it *does* need is a
-run-level validation choke point (:func:`assert_policy_rostered`) and honest
-per-row provenance (:func:`search_languages_string`); both are here, and the
-decision to route the orchestrator through them is the PI's.
+**Wired in, 2026-08-30.** This paragraph used to say "not wired in", and the
+decision to route the orchestrator through this module was the PI's to take. He
+took it: the 225-row mapping was signed row by row on 2026-08-30 and
+``PresweepConfig.language_policy`` now names it. ``build_queries`` already took
+``languages`` per call, so per-institution selection needed no change to the
+query builders and the GenAI roster hash did not move on account of it. What it
+needed was a run-level validation choke point (:func:`assert_policy_rostered`),
+honest per-row provenance (:func:`search_languages_string`), and the policy
+layer described under :attr:`LanguagePolicy.always_include`.
 
 Fail-loud, not fall-back
 ------------------------
@@ -62,6 +64,8 @@ import json
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
+from functools import cache
+from pathlib import Path
 from typing import Any
 
 from g3o.discovery.query_builder import (
@@ -122,6 +126,33 @@ class LanguagePolicy:
         Country key -> the language tag(s) to search that country's institutions
         in, in query order. **Required, and there is no default.** Keys are
         matched against the field named by ``key``, case-folded and stripped.
+    always_include:
+        Language(s) every institution is searched in whatever its row says —
+        the *policy* layer, kept out of the *evidence* layer above. Empty by
+        default.
+
+        The signed 2026-08-30 policy sets ``("en",)``, PI ruling R1, and the
+        reason is mechanical rather than stylistic. Leg 1 issues a hardcoded
+        English domain-discovery query for every institution
+        (:data:`~g3o.discovery.query_builder.DOMAIN_QUERY_LANG`), but leg 2
+        issues one query **per configured language**, so a row that does not
+        name ``en`` loses its English *evidence* query — which is the query
+        production runs today. Without this field, adopting the mapping would
+        have been a silent recall regression on the 120 rows that do not name
+        English.
+
+        It is not written into those 120 rows because :attr:`rule` says a
+        language enters a row when it was *observed* published, and 120 rows
+        never observed English (France 0/10 sites, Indonesia 0/5). Writing it
+        in would make the table contradict its own method; carrying it here
+        issues identical queries and leaves the evidence artifact intact.
+
+        **Order.** A tag already named by a row keeps that row's position —
+        query order is part of the instrument and the signed rows' order is
+        signed. A tag the row does *not* name is prepended, matching the
+        mechanism table R1 was signed against (``ar, fr`` + ``en`` issues
+        ``site:X AI``, ``site:X <ar>``, ``site:X <fr>``). So nothing is
+        reordered and nothing is duplicated.
     key:
         Which field of the institution record carries the country. Defaults to
         ``"country"``, the field
@@ -144,6 +175,7 @@ class LanguagePolicy:
 
     rule: str
     mapping: Mapping[str, tuple[str, ...]]
+    always_include: tuple[str, ...] = ()
     key: str = "country"
     fallback: tuple[str, ...] | None = None
     subnational_note: str = ""
@@ -190,6 +222,16 @@ class LanguagePolicy:
                 "fallback",
                 _validate_languages(self.fallback, context="fallback"),
             )
+        if self.always_include:
+            object.__setattr__(
+                self,
+                "always_include",
+                _validate_languages(self.always_include, context="always_include"),
+            )
+        else:
+            # Normalize whatever empty sequence was passed to the empty tuple,
+            # so an empty list and an empty tuple hash and compare identically.
+            object.__setattr__(self, "always_include", ())
         object.__setattr__(self, "_normalized", normalized)
 
     # ── lookup ───────────────────────────────────────────────────────────────
@@ -197,11 +239,29 @@ class LanguagePolicy:
     def languages_for(self, record: Mapping[str, Any]) -> tuple[tuple[str, ...], bool]:
         """Languages for one institution record, and whether the fallback supplied them.
 
-        Returns ``(languages, used_fallback)``. The flag is returned rather than
-        logged so that a caller writing per-row provenance can record *how* the
-        row's languages were chosen; a run in which 40% of rows fell back is a
-        different measurement from one in which none did, and that difference is
-        invisible in the language tags alone.
+        Returns ``(languages, used_fallback)``, with :attr:`always_include`
+        already applied — this is the single surface a caller queries, so a
+        caller cannot get the mapped row and forget the policy layer. Use
+        :meth:`mapped_languages_for` for the row as signed, without it.
+
+        The flag is returned rather than logged so that a caller writing per-row
+        provenance can record *how* the row's languages were chosen; a run in
+        which 40% of rows fell back is a different measurement from one in which
+        none did, and that difference is invisible in the language tags alone.
+        """
+        langs, used_fallback = self.mapped_languages_for(record)
+        return self._with_always_include(langs), used_fallback
+
+    def mapped_languages_for(
+        self, record: Mapping[str, Any]
+    ) -> tuple[tuple[str, ...], bool]:
+        """The row as signed, **without** :attr:`always_include`.
+
+        The evidence layer on its own. Separated from :meth:`languages_for` so
+        the signed table can be read back and checked against the artifact it
+        came from without the policy layer contaminating the comparison — and
+        so :func:`language_policy_hash` can fingerprint the two layers
+        separately rather than hashing a table nobody signed.
         """
         country = _normalize_key(record.get(self.key, ""))
         langs = self._normalized.get(country)
@@ -217,6 +277,21 @@ class LanguagePolicy:
             f"measure unmapped countries in a language nobody chose for them."
         )
 
+    def _with_always_include(self, langs: tuple[str, ...]) -> tuple[str, ...]:
+        """Prepend the always-include tags this row does not already name.
+
+        Prepend, not append: R1's signed mechanism table issues the English
+        evidence query first for a row that does not name English. Only the
+        *missing* tags move, so a row that already names ``en`` — Bangladesh's
+        signed ``bn, en`` — keeps the query order it was signed with. Query
+        order is part of the instrument, and re-sorting 105 signed rows to make
+        the policy layer uniform would be an edit to rows nobody amended.
+        """
+        if not self.always_include:
+            return langs
+        missing = tuple(t for t in self.always_include if t not in langs)
+        return missing + langs
+
     @property
     def countries(self) -> tuple[str, ...]:
         """Normalized country keys the policy covers, sorted."""
@@ -226,8 +301,10 @@ class LanguagePolicy:
     def selectable_languages(self) -> tuple[str, ...]:
         """Every language tag this policy could ever emit, sorted and deduplicated.
 
-        Includes the fallback. This is the set :func:`assert_policy_rostered`
-        checks, and it is what makes the run-level roster guarantee survive
+        Includes the fallback and :attr:`always_include` — the latter because a
+        policy layer that adds an unrostered tag would fail inside the loop
+        exactly like a mapped one, and on every institution rather than on some.
+        This is the set :func:`assert_policy_rostered` checks, and it is what makes the run-level roster guarantee survive
         per-institution selection: today ``assert_languages_rostered`` promises
         that every *configured* language is rostered, checked once before any
         credit is spent. Per-institution selection would weaken that promise to
@@ -239,6 +316,7 @@ class LanguagePolicy:
             langs.update(value)
         if self.fallback is not None:
             langs.update(self.fallback)
+        langs.update(self.always_include)
         return tuple(sorted(langs))
 
 
@@ -292,21 +370,29 @@ def language_policy_hash(policy: LanguagePolicy) -> str:
     instrument than it launched with, and the resume guard can only see that if
     the policy has a fingerprint.
 
-    Hashed over ``rule``, ``key``, ``fallback`` and the normalized mapping —
-    ``rule`` included, so restating what the same table measures moves the hash.
-    Country keys are sorted (source-literal order must not leak in); each
-    country's language tuple keeps its order, because query order is part of the
-    instrument and sorting it here would hash a reordering identically and hide
-    it. ``subnational_note`` is excluded: it documents the policy's limits and
-    does not change a single query.
+    Hashed over ``rule``, ``key``, ``fallback``, ``always_include`` and the
+    normalized mapping — ``rule`` included, so restating what the same table
+    measures moves the hash. Country keys are sorted (source-literal order must
+    not leak in); each country's language tuple keeps its order, because query
+    order is part of the instrument and sorting it here would hash a reordering
+    identically and hide it. ``subnational_note`` is excluded: it documents the
+    policy's limits and does not change a single query.
+
+    ``mapping`` is hashed **as signed**, before ``always_include`` is applied,
+    and ``always_include`` is hashed as its own key. Folding the policy layer
+    into the per-country lists instead would make the evidence table and the
+    policy layer indistinguishable in the fingerprint: a run whose 225 rows all
+    named ``en`` outright would hash identically to one that added it by policy,
+    and those are different instruments answering different questions.
     """
     payload = json.dumps(
         {
             "rule": " ".join(policy.rule.split()),
             "key": policy.key,
             "fallback": list(policy.fallback) if policy.fallback is not None else None,
+            "always_include": list(policy.always_include),
             "mapping": {
-                country: list(policy.languages_for({policy.key: country})[0])
+                country: list(policy.mapped_languages_for({policy.key: country})[0])
                 for country in policy.countries
             },
         },
@@ -373,12 +459,109 @@ def search_languages_string(
     return ",".join(ordered)
 
 
+# ---------------------------------------------------------------------------
+# Signed policies on disk
+# ---------------------------------------------------------------------------
+
+#: Where a signed policy asset lives. One JSON file per signature, named by its
+#: ``policy_id``, never overwritten — an amended mapping is a new signature and
+#: therefore a new file, so a run that recorded ``2026-08-30`` can always be
+#: reconstructed from the tree even after a later policy supersedes it.
+POLICIES_DIR = Path(__file__).resolve().parent / "policies"
+
+#: Filename stem of a policy asset: ``language_policy_<policy_id>.json``.
+_POLICY_FILENAME = "language_policy_{policy_id}.json"
+
+#: ``policy_id`` of the mapping the PI signed row by row on 2026-08-30 (225
+#: rows, 0 deferred). Not a default anywhere — naming it is still an explicit
+#: act on ``PresweepConfig`` — but a constant so that callers and tests refer to
+#: one string rather than retyping a date.
+SIGNED_POLICY_2026_08_30 = "2026-08-30"
+
+
+class UnknownPolicyError(LanguagePolicyError):
+    """No signed policy asset by that id.
+
+    Not a fallback to an unsigned mapping and not a fallback to English: a run
+    that named a policy which does not exist has not chosen a language
+    instrument, and guessing one for it is the failure
+    :class:`UnmappedCountryError` exists to prevent, one level up.
+    """
+
+
+def available_policies() -> tuple[str, ...]:
+    """Every signed ``policy_id`` present in :data:`POLICIES_DIR`, sorted."""
+    if not POLICIES_DIR.is_dir():
+        return ()
+    prefix, suffix = _POLICY_FILENAME.split("{policy_id}")
+    return tuple(
+        sorted(
+            path.name[len(prefix) : -len(suffix)]
+            for path in POLICIES_DIR.glob(_POLICY_FILENAME.format(policy_id="*"))
+        )
+    )
+
+
+def load_signed_policy(policy_id: str) -> LanguagePolicy:
+    """Load the signed policy asset named ``policy_id``.
+
+    The asset is the machine-readable form of a PI-signed markdown artifact and
+    carries its own ``rule``, ``key``, ``always_include`` and ``mapping``; none
+    of the four is supplied here, because supplying any of them would let this
+    function decide something the signature decided. Extra keys the asset
+    carries for people (``_comment``, ``source``, ``record``, ``provenance``)
+    are read past deliberately — they document the signature and change no
+    query, which is the same line :attr:`LanguagePolicy.subnational_note` sits
+    on.
+
+    Cached: a policy is an immutable file, the mapping is 225 rows, and
+    :meth:`LanguagePolicy.languages_for` is called once per institution on runs
+    of tens of thousands. The cache is keyed on the *directory* as well as the
+    id, so redirecting :data:`POLICIES_DIR` cannot serve a policy loaded from
+    somewhere else — a stale hit there would silently run a mapping the config
+    did not name.
+    """
+    return _load_signed_policy(policy_id, POLICIES_DIR)
+
+
+@cache
+def _load_signed_policy(policy_id: str, policies_dir: Path) -> LanguagePolicy:
+    path = policies_dir / _POLICY_FILENAME.format(policy_id=policy_id)
+    if not path.is_file():
+        raise UnknownPolicyError(
+            f"no signed language policy {policy_id!r} at {path}. "
+            f"Available: {list(available_policies())!r}. A policy is a PI-signed "
+            f"artifact checked into the tree, not something a config file can "
+            f"supply inline — see the module docstring."
+        )
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        mapping = payload["mapping"]
+        rule = payload["rule"]
+    except KeyError as exc:
+        raise LanguagePolicyError(
+            f"signed policy {policy_id!r} at {path} is missing required key {exc}"
+        ) from exc
+    return LanguagePolicy(
+        rule=rule,
+        mapping={country: tuple(langs) for country, langs in mapping.items()},
+        always_include=tuple(payload.get("always_include", ())),
+        key=payload.get("key", "country"),
+        subnational_note=payload.get("subnational_note", ""),
+    )
+
+
 __all__ = [
+    "POLICIES_DIR",
+    "SIGNED_POLICY_2026_08_30",
     "EmptyPolicyError",
     "LanguagePolicy",
     "LanguagePolicyError",
+    "UnknownPolicyError",
     "UnmappedCountryError",
     "assert_policy_rostered",
+    "available_policies",
     "language_policy_hash",
+    "load_signed_policy",
     "search_languages_string",
 ]

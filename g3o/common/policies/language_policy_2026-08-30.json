@@ -1,0 +1,2136 @@
+{
+  "_comment": "PI-signed 2026-08-30. Derived mechanically from SIGNED-LANGUAGE-POLICY-2026-08-30.md; that markdown is the signed artifact and this file is its machine-readable form. Do not hand-edit: amending a row is a PI-signed decision on the mapping, not a config change.",
+  "policy_id": "2026-08-30",
+  "signed": "2026-08-30",
+  "source": "agent-workspace/2026-08-29-language-mapping/SIGNED-LANGUAGE-POLICY-2026-08-30.md",
+  "record": "agent-workspace/2026-08-29-language-mapping/SIGNATURE-RECORD-2026-08-30.md",
+  "key": "country",
+  "rule": "language of government publication (de facto), with English always included. A language enters a country's row if government institutions at the tiers the frame samples publish primary web content in it. Established by direct observation for 28 countries -- 12 on a pre-committed 12-site sample, 16 on a 4-site verification -- at >=25% of reachable sites at any frame-sampled tier; the remaining 197 countries are graded expert guesses, unverified. English is included for every country by policy, independent of observation. A row is revisited when its country's Stage 2 yield falls materially below its stratum peers, or when a named open question in SIGNATURE-RECORD-2026-08-30.md has its blocker clear. Protocol v1 PI-ruled 2026-08-29; rows PI-signed 2026-08-30.",
+  "always_include": [
+    "en"
+  ],
+  "subnational_note": "One answer per country, applied to every institution in it. That is crudest exactly where the frame is densest: an Indian block does not publish in the same language as another state's block, and the signed table has no subnational grain to say so. Caveats C1-C7 in SIGNATURE-RECORD-2026-08-30.md name the draws that would settle the known cases.",
+  "mapping": {
+    "Brazil": [
+      "pt",
+      "en"
+    ],
+    "Czechia": [
+      "cs",
+      "en"
+    ],
+    "France": [
+      "fr"
+    ],
+    "Germany": [
+      "de",
+      "en",
+      "fr"
+    ],
+    "India": [
+      "en",
+      "hi"
+    ],
+    "Indonesia": [
+      "id"
+    ],
+    "Italy": [
+      "it",
+      "en"
+    ],
+    "Kazakhstan": [
+      "kk-cyrl",
+      "ru",
+      "en"
+    ],
+    "Lao People's Democratic Republic": [
+      "lo",
+      "en"
+    ],
+    "Rwanda": [
+      "rw",
+      "en"
+    ],
+    "Spain": [
+      "es",
+      "ca",
+      "en",
+      "eu",
+      "gl"
+    ],
+    "Uzbekistan": [
+      "uz-latn",
+      "uz-cyrl",
+      "en",
+      "ru"
+    ],
+    "Uganda": [
+      "en"
+    ],
+    "United States": [
+      "en"
+    ],
+    "United Kingdom": [
+      "en",
+      "cy"
+    ],
+    "Bangladesh": [
+      "bn",
+      "en"
+    ],
+    "Egypt": [
+      "ar"
+    ],
+    "Canada": [
+      "en",
+      "fr"
+    ],
+    "Viet Nam": [
+      "vi"
+    ],
+    "Romania": [
+      "ro"
+    ],
+    "China": [
+      "zh-hans"
+    ],
+    "Hungary": [
+      "hu"
+    ],
+    "Slovakia": [
+      "sk"
+    ],
+    "Poland": [
+      "pl"
+    ],
+    "Thailand": [
+      "th"
+    ],
+    "Mexico": [
+      "es"
+    ],
+    "Argentina": [
+      "es"
+    ],
+    "Mongolia": [
+      "mn"
+    ],
+    "Switzerland": [
+      "de",
+      "fr",
+      "it"
+    ],
+    "Austria": [
+      "de"
+    ],
+    "Zambia": [
+      "en"
+    ],
+    "Peru": [
+      "es"
+    ],
+    "Cambodia": [
+      "km",
+      "en"
+    ],
+    "Japan": [
+      "ja"
+    ],
+    "Philippines": [
+      "en"
+    ],
+    "Ukraine": [
+      "uk"
+    ],
+    "Madagascar": [
+      "fr",
+      "mg"
+    ],
+    "Algeria": [
+      "ar",
+      "fr"
+    ],
+    "Azerbaijan": [
+      "az"
+    ],
+    "Morocco": [
+      "ar",
+      "fr",
+      "tzm"
+    ],
+    "Republic of Türkiye": [
+      "tr"
+    ],
+    "Ethiopia": [
+      "en",
+      "am",
+      "om"
+    ],
+    "Colombia": [
+      "es"
+    ],
+    "Moldova": [
+      "ro"
+    ],
+    "Mali": [
+      "fr"
+    ],
+    "Nigeria": [
+      "en"
+    ],
+    "Pakistan": [
+      "en",
+      "ur"
+    ],
+    "Nepal": [
+      "ne",
+      "en"
+    ],
+    "Chad": [
+      "fr",
+      "ar"
+    ],
+    "Senegal": [
+      "fr"
+    ],
+    "Palestine": [
+      "ar"
+    ],
+    "Australia": [
+      "en"
+    ],
+    "Belgium": [
+      "nl",
+      "fr",
+      "de"
+    ],
+    "Croatia": [
+      "hr"
+    ],
+    "Kyrgyzstan": [
+      "ky",
+      "ru"
+    ],
+    "Tajikistan": [
+      "tg",
+      "ru"
+    ],
+    "Saudi Arabia": [
+      "ar",
+      "en"
+    ],
+    "Cameroon": [
+      "fr",
+      "en"
+    ],
+    "Guinea": [
+      "fr"
+    ],
+    "Tunisia": [
+      "ar",
+      "fr"
+    ],
+    "Norway": [
+      "no"
+    ],
+    "Venezuela": [
+      "es"
+    ],
+    "Chile": [
+      "es"
+    ],
+    "Burkina Faso": [
+      "fr"
+    ],
+    "Sri Lanka": [
+      "si",
+      "ta",
+      "en"
+    ],
+    "Netherlands": [
+      "nl"
+    ],
+    "Finland": [
+      "fi",
+      "sv"
+    ],
+    "Angola": [
+      "pt"
+    ],
+    "Bolivia": [
+      "es"
+    ],
+    "Greece": [
+      "el"
+    ],
+    "Guatemala": [
+      "es"
+    ],
+    "Sweden": [
+      "sv"
+    ],
+    "Portugal": [
+      "pt"
+    ],
+    "Ghana": [
+      "en"
+    ],
+    "Cyprus": [
+      "el",
+      "en"
+    ],
+    "Honduras": [
+      "es"
+    ],
+    "South Africa": [
+      "en"
+    ],
+    "Niger": [
+      "fr"
+    ],
+    "Paraguay": [
+      "es"
+    ],
+    "Israel": [
+      "he",
+      "en",
+      "ar"
+    ],
+    "Bulgaria": [
+      "bg"
+    ],
+    "New Zealand": [
+      "en"
+    ],
+    "Mauritania": [
+      "ar",
+      "fr"
+    ],
+    "Ecuador": [
+      "es"
+    ],
+    "Côte d'Ivoire": [
+      "fr"
+    ],
+    "Korea, Republic of": [
+      "ko"
+    ],
+    "Sierra Leone": [
+      "en"
+    ],
+    "Slovenia": [
+      "sl"
+    ],
+    "Bhutan": [
+      "en",
+      "dz"
+    ],
+    "Tanzania": [
+      "sw",
+      "en"
+    ],
+    "Malaysia": [
+      "ms",
+      "en"
+    ],
+    "Liberia": [
+      "en"
+    ],
+    "Kenya": [
+      "en",
+      "sw"
+    ],
+    "Dominican Republic": [
+      "es"
+    ],
+    "Serbia": [
+      "sr-cyrl",
+      "sr-latn",
+      "hu"
+    ],
+    "Uruguay": [
+      "es"
+    ],
+    "Mauritius": [
+      "en",
+      "fr"
+    ],
+    "Bosnia and Herzegovina": [
+      "bs",
+      "hr",
+      "sr-cyrl",
+      "sr-latn"
+    ],
+    "Nicaragua": [
+      "es"
+    ],
+    "Haiti": [
+      "fr",
+      "ht"
+    ],
+    "Togo": [
+      "fr"
+    ],
+    "Jordan": [
+      "ar",
+      "en"
+    ],
+    "Luxembourg": [
+      "fr",
+      "de",
+      "lb"
+    ],
+    "Zimbabwe": [
+      "en"
+    ],
+    "Denmark": [
+      "da"
+    ],
+    "Somalia": [
+      "so",
+      "en"
+    ],
+    "Costa Rica": [
+      "es"
+    ],
+    "Republic of North Macedonia": [
+      "mk",
+      "sq"
+    ],
+    "Benin": [
+      "fr"
+    ],
+    "Malta": [
+      "mt",
+      "en"
+    ],
+    "Mozambique": [
+      "pt"
+    ],
+    "Albania": [
+      "sq"
+    ],
+    "Estonia": [
+      "et"
+    ],
+    "Namibia": [
+      "en"
+    ],
+    "Eswatini": [
+      "en"
+    ],
+    "Panama": [
+      "es"
+    ],
+    "Armenia": [
+      "hy"
+    ],
+    "Malawi": [
+      "en"
+    ],
+    "Ireland": [
+      "en",
+      "ga"
+    ],
+    "Georgia": [
+      "ka"
+    ],
+    "Lithuania": [
+      "lt"
+    ],
+    "Iceland": [
+      "is"
+    ],
+    "Latvia": [
+      "lv"
+    ],
+    "El Salvador": [
+      "es"
+    ],
+    "Burundi": [
+      "fr",
+      "rn"
+    ],
+    "Botswana": [
+      "en"
+    ],
+    "Montenegro": [
+      "cnr-latn",
+      "cnr-cyrl",
+      "sr-cyrl",
+      "sr-latn"
+    ],
+    "Myanmar": [
+      "my"
+    ],
+    "Cabo Verde": [
+      "pt"
+    ],
+    "Congo, The Democratic Republic of the": [
+      "fr"
+    ],
+    "Gambia": [
+      "en"
+    ],
+    "Kosovo": [
+      "sq",
+      "sr-latn"
+    ],
+    "Papua New Guinea": [
+      "en"
+    ],
+    "Congo": [
+      "fr"
+    ],
+    "Gabon": [
+      "fr"
+    ],
+    "Fiji": [
+      "en"
+    ],
+    "South Sudan": [
+      "en"
+    ],
+    "Seychelles": [
+      "en"
+    ],
+    "United Arab Emirates": [
+      "ar",
+      "en"
+    ],
+    "Djibouti": [
+      "fr",
+      "ar"
+    ],
+    "Central African Republic": [
+      "fr"
+    ],
+    "Libya": [
+      "ar"
+    ],
+    "Belarus": [
+      "ru",
+      "be"
+    ],
+    "Russian Federation": [
+      "ru"
+    ],
+    "Equatorial Guinea": [
+      "es"
+    ],
+    "Korea, Democratic People's Republic of": [
+      "ko"
+    ],
+    "Sudan": [
+      "ar",
+      "en"
+    ],
+    "Syrian Arab Republic": [
+      "ar"
+    ],
+    "Afghanistan": [
+      "ps",
+      "prs"
+    ],
+    "Bahrain": [
+      "ar",
+      "en"
+    ],
+    "Kuwait": [
+      "ar",
+      "en"
+    ],
+    "Lebanon": [
+      "ar",
+      "fr"
+    ],
+    "Oman": [
+      "ar",
+      "en"
+    ],
+    "Cuba": [
+      "es"
+    ],
+    "Guyana": [
+      "en"
+    ],
+    "Iraq": [
+      "ar",
+      "ku"
+    ],
+    "Jamaica": [
+      "en"
+    ],
+    "Taiwan": [
+      "zh-hant"
+    ],
+    "Trinidad and Tobago": [
+      "en"
+    ],
+    "Guinea-Bissau": [
+      "pt"
+    ],
+    "Maldives": [
+      "dv",
+      "en"
+    ],
+    "Qatar": [
+      "ar",
+      "en"
+    ],
+    "Singapore": [
+      "en"
+    ],
+    "Yemen": [
+      "ar"
+    ],
+    "Timor-Leste": [
+      "tet",
+      "pt",
+      "en"
+    ],
+    "Iran, Islamic Republic of": [
+      "fa"
+    ],
+    "Lesotho": [
+      "en"
+    ],
+    "Suriname": [
+      "nl"
+    ],
+    "Brunei Darussalam": [
+      "ms",
+      "en"
+    ],
+    "Turkmenistan": [
+      "tk"
+    ],
+    "Eritrea": [
+      "ti",
+      "en"
+    ],
+    "Grenada": [
+      "en"
+    ],
+    "Comoros": [
+      "fr",
+      "ar"
+    ],
+    "Sao Tome and Principe": [
+      "pt"
+    ],
+    "Bahamas": [
+      "en"
+    ],
+    "Barbados": [
+      "en"
+    ],
+    "Belize": [
+      "en"
+    ],
+    "Saint Lucia": [
+      "en"
+    ],
+    "Samoa": [
+      "en"
+    ],
+    "Vanuatu": [
+      "en",
+      "fr"
+    ],
+    "Antigua and Barbuda": [
+      "en"
+    ],
+    "China, Hong Kong SAR": [
+      "zh-hant",
+      "en"
+    ],
+    "Liechtenstein": [
+      "de"
+    ],
+    "Solomon Islands": [
+      "en"
+    ],
+    "Tonga": [
+      "en"
+    ],
+    "Andorra": [
+      "ca"
+    ],
+    "Dominica": [
+      "en"
+    ],
+    "Kiribati": [
+      "en"
+    ],
+    "Marshall Islands": [
+      "en"
+    ],
+    "Monaco": [
+      "fr"
+    ],
+    "Nauru": [
+      "en"
+    ],
+    "Palau": [
+      "en"
+    ],
+    "Saint Kitts and Nevis": [
+      "en"
+    ],
+    "Saint Vincent and the Grenadines": [
+      "en"
+    ],
+    "San Marino": [
+      "it"
+    ],
+    "Macao": [
+      "zh-hant",
+      "pt"
+    ],
+    "Micronesia, Federated States of": [
+      "en"
+    ],
+    "Tuvalu": [
+      "en"
+    ],
+    "Aruba": [
+      "nl"
+    ],
+    "Cayman Islands": [
+      "en"
+    ],
+    "Cook Islands": [
+      "en"
+    ],
+    "Curaçao": [
+      "nl",
+      "pap"
+    ],
+    "Holy See (Vatican City State)": [
+      "it"
+    ],
+    "Anguilla": [
+      "en"
+    ],
+    "Bermuda": [
+      "en"
+    ],
+    "Niue": [
+      "en"
+    ],
+    "Turks and Caicos Islands": [
+      "en"
+    ],
+    "Greenland": [
+      "kl",
+      "da"
+    ],
+    "Isle of Man": [
+      "en"
+    ],
+    "Puerto Rico": [
+      "es",
+      "en"
+    ],
+    "Sint Maarten (Dutch part)": [
+      "nl",
+      "en"
+    ],
+    "Faroe Islands": [
+      "fo",
+      "da"
+    ],
+    "French Polynesia": [
+      "fr"
+    ],
+    "Gibraltar": [
+      "en"
+    ],
+    "Guam": [
+      "en"
+    ],
+    "Guernsey": [
+      "en"
+    ],
+    "Jersey": [
+      "en"
+    ],
+    "Montserrat": [
+      "en"
+    ],
+    "New Caledonia": [
+      "fr"
+    ],
+    "Northern Mariana Islands": [
+      "en"
+    ],
+    "Saint Helena, Ascension and Tristan da Cunha": [
+      "en"
+    ],
+    "Saint Martin (French part)": [
+      "fr"
+    ],
+    "Tokelau": [
+      "en"
+    ],
+    "Virgin Islands, British": [
+      "en"
+    ],
+    "Åland Islands": [
+      "sv"
+    ]
+  },
+  "provenance": {
+    "Brazil": {
+      "iso3": "BRA",
+      "master_rows": null,
+      "provenance": "observed",
+      "amended_at_signature": null
+    },
+    "Czechia": {
+      "iso3": "CZE",
+      "master_rows": null,
+      "provenance": "observed",
+      "amended_at_signature": null
+    },
+    "France": {
+      "iso3": "FRA",
+      "master_rows": null,
+      "provenance": "observed",
+      "amended_at_signature": null
+    },
+    "Germany": {
+      "iso3": "DEU",
+      "master_rows": null,
+      "provenance": "observed",
+      "amended_at_signature": null
+    },
+    "India": {
+      "iso3": "IND",
+      "master_rows": null,
+      "provenance": "observed",
+      "amended_at_signature": null
+    },
+    "Indonesia": {
+      "iso3": "IDN",
+      "master_rows": null,
+      "provenance": "observed",
+      "amended_at_signature": null
+    },
+    "Italy": {
+      "iso3": "ITA",
+      "master_rows": null,
+      "provenance": "observed",
+      "amended_at_signature": null
+    },
+    "Kazakhstan": {
+      "iso3": "KAZ",
+      "master_rows": null,
+      "provenance": "observed",
+      "amended_at_signature": null
+    },
+    "Lao People's Democratic Republic": {
+      "iso3": "LAO",
+      "master_rows": null,
+      "provenance": "observed",
+      "amended_at_signature": null
+    },
+    "Rwanda": {
+      "iso3": "RWA",
+      "master_rows": null,
+      "provenance": "observed",
+      "amended_at_signature": null
+    },
+    "Spain": {
+      "iso3": "ESP",
+      "master_rows": null,
+      "provenance": "observed",
+      "amended_at_signature": null
+    },
+    "Uzbekistan": {
+      "iso3": "UZB",
+      "master_rows": null,
+      "provenance": "observed",
+      "amended_at_signature": null
+    },
+    "Uganda": {
+      "iso3": null,
+      "master_rows": 83795,
+      "provenance": "spot-check",
+      "amended_at_signature": null
+    },
+    "United States": {
+      "iso3": null,
+      "master_rows": 52159,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "United Kingdom": {
+      "iso3": null,
+      "master_rows": 12955,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Bangladesh": {
+      "iso3": null,
+      "master_rows": 5487,
+      "provenance": "spot-check",
+      "amended_at_signature": null
+    },
+    "Egypt": {
+      "iso3": null,
+      "master_rows": 4879,
+      "provenance": "spot-check",
+      "amended_at_signature": null
+    },
+    "Canada": {
+      "iso3": null,
+      "master_rows": 3977,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Viet Nam": {
+      "iso3": null,
+      "master_rows": 3372,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Romania": {
+      "iso3": null,
+      "master_rows": 3259,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "China": {
+      "iso3": null,
+      "master_rows": 3247,
+      "provenance": "prior",
+      "amended_at_signature": "script subtag made explicit"
+    },
+    "Hungary": {
+      "iso3": null,
+      "master_rows": 3204,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Slovakia": {
+      "iso3": null,
+      "master_rows": 2965,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Poland": {
+      "iso3": null,
+      "master_rows": 2908,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Thailand": {
+      "iso3": null,
+      "master_rows": 2876,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Mexico": {
+      "iso3": null,
+      "master_rows": 2547,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Argentina": {
+      "iso3": null,
+      "master_rows": 2362,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Mongolia": {
+      "iso3": null,
+      "master_rows": 2241,
+      "provenance": "spot-check",
+      "amended_at_signature": null
+    },
+    "Switzerland": {
+      "iso3": null,
+      "master_rows": 2155,
+      "provenance": "spot-check",
+      "amended_at_signature": null
+    },
+    "Austria": {
+      "iso3": null,
+      "master_rows": 2136,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Zambia": {
+      "iso3": null,
+      "master_rows": 2008,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Peru": {
+      "iso3": null,
+      "master_rows": 1930,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Cambodia": {
+      "iso3": null,
+      "master_rows": 1927,
+      "provenance": "spot-check",
+      "amended_at_signature": null
+    },
+    "Japan": {
+      "iso3": null,
+      "master_rows": 1851,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Philippines": {
+      "iso3": null,
+      "master_rows": 1765,
+      "provenance": "spot-check",
+      "amended_at_signature": null
+    },
+    "Ukraine": {
+      "iso3": null,
+      "master_rows": 1663,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Madagascar": {
+      "iso3": null,
+      "master_rows": 1645,
+      "provenance": "spot-check",
+      "amended_at_signature": null
+    },
+    "Algeria": {
+      "iso3": null,
+      "master_rows": 1644,
+      "provenance": "spot-check",
+      "amended_at_signature": null
+    },
+    "Azerbaijan": {
+      "iso3": null,
+      "master_rows": 1642,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Morocco": {
+      "iso3": null,
+      "master_rows": 1629,
+      "provenance": "spot-check",
+      "amended_at_signature": "tzm admitted (flag c1)"
+    },
+    "Republic of Türkiye": {
+      "iso3": null,
+      "master_rows": 1550,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Ethiopia": {
+      "iso3": null,
+      "master_rows": 1303,
+      "provenance": "spot-check",
+      "amended_at_signature": "om admitted (flag a)"
+    },
+    "Colombia": {
+      "iso3": null,
+      "master_rows": 1191,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Moldova": {
+      "iso3": null,
+      "master_rows": 959,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Mali": {
+      "iso3": null,
+      "master_rows": 911,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Nigeria": {
+      "iso3": null,
+      "master_rows": 864,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Pakistan": {
+      "iso3": null,
+      "master_rows": 796,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Nepal": {
+      "iso3": null,
+      "master_rows": 774,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Chad": {
+      "iso3": null,
+      "master_rows": 676,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Senegal": {
+      "iso3": null,
+      "master_rows": 646,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Palestine": {
+      "iso3": null,
+      "master_rows": 640,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Australia": {
+      "iso3": null,
+      "master_rows": 624,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Belgium": {
+      "iso3": null,
+      "master_rows": 614,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Croatia": {
+      "iso3": null,
+      "master_rows": 609,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Kyrgyzstan": {
+      "iso3": null,
+      "master_rows": 553,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Tajikistan": {
+      "iso3": null,
+      "master_rows": 479,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Saudi Arabia": {
+      "iso3": null,
+      "master_rows": 475,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Cameroon": {
+      "iso3": null,
+      "master_rows": 431,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Guinea": {
+      "iso3": null,
+      "master_rows": 416,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Tunisia": {
+      "iso3": null,
+      "master_rows": 413,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Norway": {
+      "iso3": null,
+      "master_rows": 410,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Venezuela": {
+      "iso3": null,
+      "master_rows": 405,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Chile": {
+      "iso3": null,
+      "master_rows": 404,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Burkina Faso": {
+      "iso3": null,
+      "master_rows": 397,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Sri Lanka": {
+      "iso3": null,
+      "master_rows": 396,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Netherlands": {
+      "iso3": null,
+      "master_rows": 395,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Finland": {
+      "iso3": null,
+      "master_rows": 386,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Angola": {
+      "iso3": null,
+      "master_rows": 383,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Bolivia": {
+      "iso3": null,
+      "master_rows": 383,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Greece": {
+      "iso3": null,
+      "master_rows": 382,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Guatemala": {
+      "iso3": null,
+      "master_rows": 368,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Sweden": {
+      "iso3": null,
+      "master_rows": 348,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Portugal": {
+      "iso3": null,
+      "master_rows": 342,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Ghana": {
+      "iso3": null,
+      "master_rows": 338,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Cyprus": {
+      "iso3": null,
+      "master_rows": 334,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Honduras": {
+      "iso3": null,
+      "master_rows": 334,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "South Africa": {
+      "iso3": null,
+      "master_rows": 313,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Niger": {
+      "iso3": null,
+      "master_rows": 312,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Paraguay": {
+      "iso3": null,
+      "master_rows": 310,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Israel": {
+      "iso3": null,
+      "master_rows": 308,
+      "provenance": "prior",
+      "amended_at_signature": "ar admitted"
+    },
+    "Bulgaria": {
+      "iso3": null,
+      "master_rows": 301,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "New Zealand": {
+      "iso3": null,
+      "master_rows": 300,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Mauritania": {
+      "iso3": null,
+      "master_rows": 285,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Ecuador": {
+      "iso3": null,
+      "master_rows": 279,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Côte d'Ivoire": {
+      "iso3": null,
+      "master_rows": 275,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Korea, Republic of": {
+      "iso3": null,
+      "master_rows": 263,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Sierra Leone": {
+      "iso3": null,
+      "master_rows": 256,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Slovenia": {
+      "iso3": null,
+      "master_rows": 248,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Bhutan": {
+      "iso3": null,
+      "master_rows": 247,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Tanzania": {
+      "iso3": null,
+      "master_rows": 231,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Malaysia": {
+      "iso3": null,
+      "master_rows": 217,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Liberia": {
+      "iso3": null,
+      "master_rows": 206,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Kenya": {
+      "iso3": null,
+      "master_rows": 195,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Dominican Republic": {
+      "iso3": null,
+      "master_rows": 192,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Serbia": {
+      "iso3": null,
+      "master_rows": 189,
+      "provenance": "spot-check",
+      "amended_at_signature": "hu admitted (flag g)"
+    },
+    "Uruguay": {
+      "iso3": null,
+      "master_rows": 185,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Mauritius": {
+      "iso3": null,
+      "master_rows": 183,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Bosnia and Herzegovina": {
+      "iso3": null,
+      "master_rows": 181,
+      "provenance": "spot-check",
+      "amended_at_signature": null
+    },
+    "Nicaragua": {
+      "iso3": null,
+      "master_rows": 181,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Haiti": {
+      "iso3": null,
+      "master_rows": 169,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Togo": {
+      "iso3": null,
+      "master_rows": 163,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Jordan": {
+      "iso3": null,
+      "master_rows": 159,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Luxembourg": {
+      "iso3": null,
+      "master_rows": 153,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Zimbabwe": {
+      "iso3": null,
+      "master_rows": 149,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Denmark": {
+      "iso3": null,
+      "master_rows": 141,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Somalia": {
+      "iso3": null,
+      "master_rows": 128,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Costa Rica": {
+      "iso3": null,
+      "master_rows": 120,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Republic of North Macedonia": {
+      "iso3": null,
+      "master_rows": 117,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Benin": {
+      "iso3": null,
+      "master_rows": 109,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Malta": {
+      "iso3": null,
+      "master_rows": 108,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Mozambique": {
+      "iso3": null,
+      "master_rows": 108,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Albania": {
+      "iso3": null,
+      "master_rows": 107,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Estonia": {
+      "iso3": null,
+      "master_rows": 107,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Namibia": {
+      "iso3": null,
+      "master_rows": 107,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Eswatini": {
+      "iso3": null,
+      "master_rows": 106,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Panama": {
+      "iso3": null,
+      "master_rows": 105,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Armenia": {
+      "iso3": null,
+      "master_rows": 100,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Malawi": {
+      "iso3": null,
+      "master_rows": 99,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Ireland": {
+      "iso3": null,
+      "master_rows": 97,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Georgia": {
+      "iso3": null,
+      "master_rows": 93,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Lithuania": {
+      "iso3": null,
+      "master_rows": 92,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Iceland": {
+      "iso3": null,
+      "master_rows": 89,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Latvia": {
+      "iso3": null,
+      "master_rows": 74,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "El Salvador": {
+      "iso3": null,
+      "master_rows": 72,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Burundi": {
+      "iso3": null,
+      "master_rows": 71,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Botswana": {
+      "iso3": null,
+      "master_rows": 62,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Montenegro": {
+      "iso3": null,
+      "master_rows": 54,
+      "provenance": "spot-check",
+      "amended_at_signature": "sr both scripts admitted (flag h)"
+    },
+    "Myanmar": {
+      "iso3": null,
+      "master_rows": 52,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Cabo Verde": {
+      "iso3": null,
+      "master_rows": 49,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Congo, The Democratic Republic of the": {
+      "iso3": null,
+      "master_rows": 48,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Gambia": {
+      "iso3": null,
+      "master_rows": 48,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Kosovo": {
+      "iso3": null,
+      "master_rows": 47,
+      "provenance": "prior",
+      "amended_at_signature": "script subtag added for consistency"
+    },
+    "Papua New Guinea": {
+      "iso3": null,
+      "master_rows": 45,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Congo": {
+      "iso3": null,
+      "master_rows": 44,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Gabon": {
+      "iso3": null,
+      "master_rows": 42,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Fiji": {
+      "iso3": null,
+      "master_rows": 41,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "South Sudan": {
+      "iso3": null,
+      "master_rows": 41,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Seychelles": {
+      "iso3": null,
+      "master_rows": 40,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "United Arab Emirates": {
+      "iso3": null,
+      "master_rows": 40,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Djibouti": {
+      "iso3": null,
+      "master_rows": 39,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Central African Republic": {
+      "iso3": null,
+      "master_rows": 37,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Libya": {
+      "iso3": null,
+      "master_rows": 37,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Belarus": {
+      "iso3": null,
+      "master_rows": 36,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Russian Federation": {
+      "iso3": null,
+      "master_rows": 35,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Equatorial Guinea": {
+      "iso3": null,
+      "master_rows": 34,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Korea, Democratic People's Republic of": {
+      "iso3": null,
+      "master_rows": 34,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Sudan": {
+      "iso3": null,
+      "master_rows": 34,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Syrian Arab Republic": {
+      "iso3": null,
+      "master_rows": 34,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Afghanistan": {
+      "iso3": null,
+      "master_rows": 32,
+      "provenance": "spot-check",
+      "amended_at_signature": null
+    },
+    "Bahrain": {
+      "iso3": null,
+      "master_rows": 32,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Kuwait": {
+      "iso3": null,
+      "master_rows": 32,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Lebanon": {
+      "iso3": null,
+      "master_rows": 32,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Oman": {
+      "iso3": null,
+      "master_rows": 32,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Cuba": {
+      "iso3": null,
+      "master_rows": 31,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Guyana": {
+      "iso3": null,
+      "master_rows": 31,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Iraq": {
+      "iso3": null,
+      "master_rows": 31,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Jamaica": {
+      "iso3": null,
+      "master_rows": 31,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Taiwan": {
+      "iso3": null,
+      "master_rows": 31,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Trinidad and Tobago": {
+      "iso3": null,
+      "master_rows": 31,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Guinea-Bissau": {
+      "iso3": null,
+      "master_rows": 30,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Maldives": {
+      "iso3": null,
+      "master_rows": 30,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Qatar": {
+      "iso3": null,
+      "master_rows": 30,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Singapore": {
+      "iso3": null,
+      "master_rows": 30,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Yemen": {
+      "iso3": null,
+      "master_rows": 30,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Timor-Leste": {
+      "iso3": null,
+      "master_rows": 28,
+      "provenance": "spot-check",
+      "amended_at_signature": "en admitted (flag b)"
+    },
+    "Iran, Islamic Republic of": {
+      "iso3": null,
+      "master_rows": 27,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Lesotho": {
+      "iso3": null,
+      "master_rows": 26,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Suriname": {
+      "iso3": null,
+      "master_rows": 26,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Brunei Darussalam": {
+      "iso3": null,
+      "master_rows": 24,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Turkmenistan": {
+      "iso3": null,
+      "master_rows": 23,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Eritrea": {
+      "iso3": null,
+      "master_rows": 21,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Grenada": {
+      "iso3": null,
+      "master_rows": 21,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Comoros": {
+      "iso3": null,
+      "master_rows": 17,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Sao Tome and Principe": {
+      "iso3": null,
+      "master_rows": 16,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Bahamas": {
+      "iso3": null,
+      "master_rows": 11,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Barbados": {
+      "iso3": null,
+      "master_rows": 11,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Belize": {
+      "iso3": null,
+      "master_rows": 10,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Saint Lucia": {
+      "iso3": null,
+      "master_rows": 9,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Samoa": {
+      "iso3": null,
+      "master_rows": 8,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Vanuatu": {
+      "iso3": null,
+      "master_rows": 8,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Antigua and Barbuda": {
+      "iso3": null,
+      "master_rows": 7,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "China, Hong Kong SAR": {
+      "iso3": null,
+      "master_rows": 7,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Liechtenstein": {
+      "iso3": null,
+      "master_rows": 7,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Solomon Islands": {
+      "iso3": null,
+      "master_rows": 7,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Tonga": {
+      "iso3": null,
+      "master_rows": 7,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Andorra": {
+      "iso3": null,
+      "master_rows": 6,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Dominica": {
+      "iso3": null,
+      "master_rows": 6,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Kiribati": {
+      "iso3": null,
+      "master_rows": 6,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Marshall Islands": {
+      "iso3": null,
+      "master_rows": 6,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Monaco": {
+      "iso3": null,
+      "master_rows": 6,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Nauru": {
+      "iso3": null,
+      "master_rows": 6,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Palau": {
+      "iso3": null,
+      "master_rows": 6,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Saint Kitts and Nevis": {
+      "iso3": null,
+      "master_rows": 6,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Saint Vincent and the Grenadines": {
+      "iso3": null,
+      "master_rows": 6,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "San Marino": {
+      "iso3": null,
+      "master_rows": 6,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Macao": {
+      "iso3": null,
+      "master_rows": 5,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Micronesia, Federated States of": {
+      "iso3": null,
+      "master_rows": 5,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Tuvalu": {
+      "iso3": null,
+      "master_rows": 5,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Aruba": {
+      "iso3": null,
+      "master_rows": 4,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Cayman Islands": {
+      "iso3": null,
+      "master_rows": 4,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Cook Islands": {
+      "iso3": null,
+      "master_rows": 4,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Curaçao": {
+      "iso3": null,
+      "master_rows": 4,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Holy See (Vatican City State)": {
+      "iso3": null,
+      "master_rows": 4,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Anguilla": {
+      "iso3": null,
+      "master_rows": 3,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Bermuda": {
+      "iso3": null,
+      "master_rows": 3,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Niue": {
+      "iso3": null,
+      "master_rows": 3,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Turks and Caicos Islands": {
+      "iso3": null,
+      "master_rows": 3,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Greenland": {
+      "iso3": null,
+      "master_rows": 2,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Isle of Man": {
+      "iso3": null,
+      "master_rows": 2,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Puerto Rico": {
+      "iso3": null,
+      "master_rows": 2,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Sint Maarten (Dutch part)": {
+      "iso3": null,
+      "master_rows": 2,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Faroe Islands": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "French Polynesia": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Gibraltar": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Guam": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Guernsey": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Jersey": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Montserrat": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "New Caledonia": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Northern Mariana Islands": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Saint Helena, Ascension and Tristan da Cunha": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Saint Martin (French part)": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Tokelau": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Virgin Islands, British": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    },
+    "Åland Islands": {
+      "iso3": null,
+      "master_rows": 1,
+      "provenance": "prior",
+      "amended_at_signature": null
+    }
+  }
+}

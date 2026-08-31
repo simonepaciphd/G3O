@@ -6,9 +6,15 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from g3o.common.batch_client import DEFAULT_MODEL
+from g3o.common.languages import (
+    LanguagePolicy,
+    assert_policy_rostered,
+    load_signed_policy,
+    search_languages_string,
+)
 from g3o.discovery.query_builder import (
     DEFAULT_EVIDENCE_TERM,
     DOMAIN_QUERY_LANG,
@@ -24,6 +30,11 @@ from g3o.extract.batch import (
 from g3o.scrape.politeness import DEFAULT_HOST_DELAY_SECONDS
 
 STRATIFY_KEYS: tuple[str, ...] = ("country", "government_level", "institution_type")
+#: ``discovery_languages``'s default, named so ``__post_init__`` can tell "the
+#: operator left it alone" from "the operator set it", which is what makes the
+#: mutual exclusion with ``language_policy`` a refusal rather than a precedence
+#: rule.
+DEFAULT_DISCOVERY_LANGUAGES: tuple[str, ...] = ("en",)
 STAGES: tuple[str, ...] = (
     "discovery_general",
     "classify_official_site",
@@ -55,7 +66,23 @@ class PresweepConfig:
     seed: int = 22294
     stratification: Literal["equal"] = "equal"  # only equal in Session B
     stratify_keys: tuple[str, ...] = STRATIFY_KEYS
-    discovery_languages: tuple[str, ...] = ("en",)
+    discovery_languages: tuple[str, ...] = DEFAULT_DISCOVERY_LANGUAGES
+    # ── Per-institution language selection (PI-signed 2026-08-30) ────────────
+    # The ``policy_id`` of a signed policy in ``g3o/common/policies/``, or
+    # ``None`` for the run-level ``discovery_languages`` tuple above — which is
+    # every run to date, and stays the default.
+    #
+    # An id, not a ``LanguagePolicy``: a config round-trips through JSON
+    # (``g3o.run.orchestrate.submit``), and a mapping a config file could
+    # supply inline would be a 225-row language instrument that nobody signed,
+    # arriving through the same door as a batch size. Naming a signed artifact
+    # keeps the instrument in the tree and the config a record of which one ran.
+    #
+    # Setting this **and** ``discovery_languages`` is an error rather than a
+    # precedence rule, for the reason the evidence-term pair below is: a silent
+    # precedence here would decide which languages every leg-2 query is issued
+    # in, on every institution of the run.
+    language_policy: str | None = None
     # 10, not 5: ``num`` truncates and costs a flat 1 credit either way, so at 5
     # the pipeline paid for ten results and discarded half of them. A waste fix
     # with no measured yield effect. Serper returns 9 in practice.
@@ -259,12 +286,85 @@ class PresweepConfig:
                 "shorthand for {'en': <term>}; a silent precedence rule here "
                 "would decide which token every leg-2 query carries."
             )
+        if self.language_policy is not None and (
+            tuple(self.discovery_languages) != DEFAULT_DISCOVERY_LANGUAGES
+        ):
+            raise ValueError(
+                f"set language_policy or discovery_languages, not both (got "
+                f"{self.language_policy!r} and {tuple(self.discovery_languages)!r}). "
+                f"A policy selects a language set per institution; "
+                f"discovery_languages selects one for the whole run. A silent "
+                f"precedence rule between them would decide which languages every "
+                f"leg-2 query of the run is issued in."
+            )
         if self.discovery_mode == "chain":
             assert_languages_rostered(
                 self.discovery_languages, self.evidence_term_roster
             )
         else:
             assert_languages_rostered(self.discovery_languages, GENAI_TERMS_BY_LANG)
+        # The pre-spend choke point for per-institution selection (A7). The
+        # run-level checks above cover ``discovery_languages``; this one covers
+        # every tag the policy could ever select, on any institution of the
+        # sample, *before* the first Serper credit — an UnknownLanguageError
+        # raised on institution 3,000 of 10,000 has already spent 3,000
+        # institutions' worth of queries, and there is deliberately no English
+        # fallback to absorb it.
+        policy = self.signed_language_policy
+        if policy is not None:
+            assert_policy_rostered(
+                policy,
+                self.evidence_term_roster
+                if self.discovery_mode == "chain"
+                else GENAI_TERMS_BY_LANG,
+            )
+
+    @property
+    def signed_language_policy(self) -> LanguagePolicy | None:
+        """The loaded policy :attr:`language_policy` names, or ``None``.
+
+        ``None`` is the run-level tuple path — every run to date. Loading is
+        cached in :func:`g3o.common.languages.load_signed_policy`, so touching
+        this property per institution is a dict lookup, not a 225-row parse.
+        """
+        if self.language_policy is None:
+            return None
+        return load_signed_policy(self.language_policy)
+
+    def languages_for(self, institution: Mapping[str, Any]) -> tuple[str, ...]:
+        """The languages **this institution's** leg-2 queries are issued in.
+
+        The run-level ``discovery_languages`` when no policy is configured, and
+        the policy's answer for the institution's country when one is —
+        ``always_include`` already applied, so a caller cannot get the signed
+        row and forget the policy layer.
+        """
+        policy = self.signed_language_policy
+        if policy is None:
+            return tuple(self.discovery_languages)
+        return policy.languages_for(institution)[0]
+
+    def evidence_terms_for(self, institution: Mapping[str, Any]) -> dict[str, str]:
+        """:attr:`evidence_terms`, one institution at a time.
+
+        Safe to index unguarded for the same reason :attr:`evidence_terms` is:
+        ``__post_init__`` has already rejected a policy that could select a tag
+        absent from the roster, on any institution, before any spend.
+        """
+        roster = self.evidence_term_roster
+        return {lang: roster[lang] for lang in self.languages_for(institution)}
+
+    def institution_search_languages_for(self, institution: Mapping[str, Any]) -> str:
+        """:attr:`institution_search_languages`, one institution at a time.
+
+        Mode-aware through the same helper the run-level property is, so chain
+        mode's English leg 1 is named once and only once even when the policy
+        already put ``en`` in the institution's leg-2 set. The two English
+        queries do different jobs; the column has one slot for the tag.
+        """
+        return search_languages_string(
+            self.languages_for(institution), mode=self.discovery_mode
+        )
 
     @property
     def evidence_term_roster(self) -> dict[str, str]:
@@ -322,6 +422,14 @@ class PresweepConfig:
         ``discovery_languages`` alone made a ``zh``-configured chain run report
         ``zh`` while every query it issued was English — the chain-mode sibling
         of A7, verified live before the fix. Legacy mode is unchanged.
+
+        **Not the per-row answer under a language policy** (2026-08-30). When
+        :attr:`language_policy` is set the run has no single answer, and this
+        property keeps describing the run-level configuration rather than
+        inventing one: ``institution_search_languages_for`` is what Stage 5
+        writes into each row, and ``planning.config_snapshot`` records the
+        policy id and hash so the manifest and the F7 resume guard see the
+        instrument that actually ran instead of this string.
         """
         if self.discovery_mode == "chain":
             return ",".join(self.chain_query_languages)

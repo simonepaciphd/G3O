@@ -12,6 +12,7 @@ from typing import Any
 
 from g3o.common.batch_client import DEFAULT_REASONING_EFFORT
 from g3o.common.contract import INSTITUTION_UID_PATTERN
+from g3o.common.languages import language_policy_hash
 from g3o.common.paths import INSTITUTION_UIDS_KEY, LAYOUT_VERSION, institution_dir
 from g3o.common.run_state import done_dir, state_dir
 from g3o.discovery.query_builder import genai_terms_roster_hash
@@ -87,6 +88,30 @@ def config_snapshot(config: PresweepConfig) -> dict[str, Any]:
     # nothing noticing. Recorded explicitly here for the same reason
     # institution_search_languages is, and guarded below.
     config_dict["genai_terms_roster_hash"] = genai_terms_roster_hash()
+    # Language policy (2026-08-30). Two keys, for two different failure modes.
+    #
+    # ``language_policy_hash`` is the roster-hash argument one level up: the
+    # signed mapping is a file in the tree, so a run resumed after an edit to
+    # it is running a different language instrument than it launched with, and
+    # the F7 guard can only see that if the policy has a fingerprint. The id
+    # alone would not — an amended ``2026-08-30`` is still ``2026-08-30``.
+    #
+    # ``institution_search_languages`` is overwritten because under a policy the
+    # run has no single answer and the derived property's value is the run-level
+    # configuration, not what any row was searched in. Leaving ``"en"`` there
+    # would let a reader compute "this run searched English only" off the
+    # manifest of a run that issued 91 languages — the A7 misattribution, at the
+    # run level. The replacement is deliberately not a language tag: nothing
+    # should be able to parse it as one.
+    if config.language_policy is None:
+        config_dict["language_policy_hash"] = None
+    else:
+        config_dict["language_policy_hash"] = language_policy_hash(
+            config.signed_language_policy
+        )
+        config_dict["institution_search_languages"] = (
+            f"per-institution: language policy {config.language_policy}"
+        )
     return config_dict
 
 
@@ -262,6 +287,12 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "discovery_mode",
     "discovery_evidence_term",
     "discovery_evidence_terms",
+    # Language policy (added 2026-08-30). The id names which signed mapping ran;
+    # the hash catches an edit to that mapping under an unchanged id. Both are
+    # the same class of surface as the roster hash beside them — they decide
+    # which languages every leg-2 query of every institution is issued in.
+    "language_policy",
+    "language_policy_hash",
     "discovery_domain_quote_name",
     "serper_autocorrect",
     "model",

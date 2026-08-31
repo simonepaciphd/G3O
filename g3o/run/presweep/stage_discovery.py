@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +36,28 @@ from g3o.run.presweep.records import (
 )
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Per-institution language selection (PI-signed policy, 2026-08-30)
+#
+# Both discovery legs took a run-level answer — one language tuple, one evidence
+# -term dict, identical on every institution of the sample. The signed policy
+# answers per country, so the two legs take an optional **resolver** instead: a
+# callable handed the projected institution record, returning that row's answer.
+#
+# Optional, and ``None`` is the run-level path unchanged — byte-for-byte, on
+# every run configured without a policy, which is every run to date. Exactly one
+# of the pair answers a call: the resolver when given, the fixed argument
+# otherwise. Not a precedence rule between two live values; the orchestrator
+# passes a resolver only when ``PresweepConfig.language_policy`` is set, and the
+# config refuses to carry both a policy and a non-default ``discovery_languages``.
+# ---------------------------------------------------------------------------
+
+#: Institution record -> the languages that institution's queries are issued in.
+LanguagesFor = Callable[[Mapping[str, Any]], tuple[str, ...]]
+
+#: Institution record -> that institution's leg-2 ``{language: term}`` map.
+EvidenceTermsFor = Callable[[Mapping[str, Any]], Mapping[str, str]]
 
 
 def leg1_recall_block(
@@ -160,6 +182,7 @@ def _discover_general_one(
     options: SerperOptions | None = None,
     domain_quote_name: bool = False,
     credentials: ResolvedCredentials | None = None,
+    languages_for: LanguagesFor | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Process Stage 1a general discovery for one institution.
 
@@ -182,6 +205,13 @@ def _discover_general_one(
     In both modes the query list is a **list** that is unioned and deduped
     over, so drawing on the volume reserve later — an extra leg — stays a
     config change rather than a refactor (PI direction, 2026-08-01).
+
+    ``languages_for`` (2026-08-30) overrides ``languages`` per institution; see
+    the module note. It changes nothing under ``chain``, whose leg 1 is the
+    hardcoded English domain query on every institution by PI decision
+    (2026-08-02) — it is honoured here so that legacy mode, whose leg 1 *is*
+    the language roster, cannot silently keep searching the run-level tuple
+    while leg 2 searches the policy's.
     """
     institution = institution_record(row)
     inst_id = institution["institution_id"]
@@ -217,7 +247,8 @@ def _discover_general_one(
             # change model input as a side effect of a query change. `.get` keeps
             # pre-rollout masters (no such column) working.
             queries = build_queries(
-                institution["institution_name"], list(languages),
+                institution["institution_name"],
+                list(languages if languages_for is None else languages_for(institution)),
                 country=institution["country"],
                 disambiguation=row.get("disambiguation") or "",
             )
@@ -282,6 +313,7 @@ def _run_discovery_general(
     options: SerperOptions | None = None,
     domain_quote_name: bool = False,
     credentials: ResolvedCredentials | None = None,
+    languages_for: LanguagesFor | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Stage 1a — general Serper queries. One ``1a_discovery_general.json`` per institution.
 
@@ -310,7 +342,7 @@ def _run_discovery_general(
         lambda row: _discover_general_one(
             run_dir, row, stage=stage, languages=languages, num_results=num_results,
             mode=mode, options=options, domain_quote_name=domain_quote_name,
-            credentials=credentials,
+            credentials=credentials, languages_for=languages_for,
         ),
         max_workers=max_workers,
     )
@@ -332,6 +364,8 @@ def _discover_site_restricted_one(
     evidence_terms: Mapping[str, str] | None = None,
     options: SerperOptions | None = None,
     credentials: ResolvedCredentials | None = None,
+    languages_for: LanguagesFor | None = None,
+    evidence_terms_for: EvidenceTermsFor | None = None,
 ) -> tuple[str, list[dict[str, Any]]] | None:
     """Process Stage 1b site-restricted discovery for one institution.
 
@@ -348,6 +382,15 @@ def _discover_site_restricted_one(
     token is unquoted and alone by measurement: extra English terms add 0 pp
     once site-bound, and OR-chaining them scores 4/24 against 16/24 for the
     bare token.
+
+    **This is the leg the language policy is about** (2026-08-30). Leg 1's
+    ``official website`` suffix is English on every institution, but this leg
+    issues one query per *configured* language, so the set it is handed decides
+    whether an institution gets an English evidence query at all — which is the
+    query production has been running. ``evidence_terms_for`` overrides
+    ``evidence_terms`` per institution; the signed policy's ``always_include``
+    is what keeps ``en`` in that set for the 120 signed rows that do not name
+    it. See the module note.
     """
     institution = institution_record(row)
     inst_id = institution["institution_id"]
@@ -374,18 +417,20 @@ def _discover_site_restricted_one(
             # code. Credit cost scales linearly: n languages = n leg-2 credits
             # per institution, against the 1.84 credits/institution measured
             # for the single-language chain.
-            terms = (
-                dict(evidence_terms)
-                if evidence_terms is not None
-                else {DOMAIN_QUERY_LANG: DEFAULT_EVIDENCE_TERM}
-            )
+            if evidence_terms_for is not None:
+                terms = dict(evidence_terms_for(institution))
+            elif evidence_terms is not None:
+                terms = dict(evidence_terms)
+            else:
+                terms = {DOMAIN_QUERY_LANG: DEFAULT_EVIDENCE_TERM}
             wrapped = [
                 (build_evidence_query(domain, term), lang)
                 for lang, term in terms.items()
             ]
         else:
             base_queries = build_queries(
-                institution["institution_name"], list(languages),
+                institution["institution_name"],
+                list(languages if languages_for is None else languages_for(institution)),
                 country=institution["country"],
                 disambiguation=row.get("disambiguation") or "",
             )
@@ -442,6 +487,8 @@ def _run_discovery_site_restricted(
     evidence_terms: Mapping[str, str] | None = None,
     options: SerperOptions | None = None,
     credentials: ResolvedCredentials | None = None,
+    languages_for: LanguagesFor | None = None,
+    evidence_terms_for: EvidenceTermsFor | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Stage 1b — site-restricted Serper queries (revision 2026-05-09, D1–D2).
 
@@ -474,7 +521,8 @@ def _run_discovery_site_restricted(
             run_dir, row, official_sites,
             stage=stage, languages=languages, num_results=num_results,
             mode=mode, evidence_terms=evidence_terms, options=options,
-            credentials=credentials,
+            credentials=credentials, languages_for=languages_for,
+            evidence_terms_for=evidence_terms_for,
         ),
         max_workers=max_workers,
     )
