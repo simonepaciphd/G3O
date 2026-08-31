@@ -178,6 +178,34 @@ def _user_agent_has_contact() -> bool:
     return "http://" in ua or "https://" in ua or "@" in ua
 
 
+#: Ports on which Bright Data serves its *remote browser* products rather than a
+#: forward proxy: 9222 is the Chrome DevTools Protocol socket (Puppeteer /
+#: Playwright ``connect_over_cdp``) and 9515 is the WebDriver endpoint
+#: (Selenium). Both belong to a Browser API / Scraping Browser zone.
+#:
+#: They are named here because of a measured near-miss, 2026-08-31. The Bright
+#: Data console for zone ``g3o_pipeline_scraper1`` issues exactly two strings:
+#:
+#:     wss://brd-customer-...-zone-...:PASS@brd.superproxy.io:9222
+#:     https://brd-customer-...-zone-...:PASS@brd.superproxy.io:9515
+#:
+#: The first is refused by the scheme check above. **The second passes every
+#: other check in** :func:`validate` — https is a legal proxy scheme, the host
+#: resolves, 9515 is a number, and the userinfo is present — and would then fail
+#: every fetch, because ``requests`` would send ``CONNECT`` to a WebDriver
+#: listener. That is precisely the silent whole-run failure :func:`validate`
+#: exists to prevent, arriving through the one shape the guard did not cover.
+#:
+#: Port-matching is narrow and deliberately so: it cannot catch a remote-browser
+#: endpoint on a nonstandard port, and it is not trying to. It catches the two
+#: strings a Bright Data console actually hands an operator, which is where this
+#: mistake comes from.
+_REMOTE_BROWSER_PORTS: dict[int, str] = {
+    9222: "Chrome DevTools Protocol (Puppeteer/Playwright)",
+    9515: "WebDriver (Selenium)",
+}
+
+
 class EgressConfigError(ValueError):
     """``G3O_SCRAPE_PROXY`` is set but unusable.
 
@@ -274,6 +302,21 @@ def validate() -> None:
             "e.g. 'G3O-Observatory/0.1 (+https://example.org/crawler)'. "
             "urllib.robotparser reads only the token before the first '/', so "
             "a suffix cannot change which robots rules apply."
+        )
+    if port in _REMOTE_BROWSER_PORTS:
+        # Before the credential check, because a remote-browser endpoint is
+        # fully credentialed and would sail past it. The defect is the product,
+        # not the URL: no amount of fixing the userinfo makes a CDP socket a
+        # forward proxy.
+        raise EgressConfigError(
+            f"G3O_SCRAPE_PROXY names port {port}, which is a remote-browser "
+            f"endpoint — {_REMOTE_BROWSER_PORTS[port]} — not an HTTP forward "
+            "proxy. Stage 4 fetches with requests and needs a gateway it can "
+            "CONNECT through; a Browser API / Scraping Browser zone does not "
+            "provide one, and every fetch would fail while the run completed "
+            "and reported the collapse as network conditions. Provision a Web "
+            "Unlocker or Residential zone instead and use its proxy port "
+            "(conventionally 33335 — read it from the console)."
         )
     if not parts.username or not parts.password:
         # Not fatal in principle — an IP-allowlisted gateway needs no userinfo —
