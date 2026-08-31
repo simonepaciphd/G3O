@@ -560,7 +560,13 @@ def test_the_signed_policy_supplies_english_by_policy_not_by_row():
 @pytest.mark.parametrize(
     ("country", "expected"),
     [
-        ("Morocco", ("ar", "fr", "tzm")),
+        # Amended after signature, PI 2026-08-30 (see the signature record's
+        # post-signature section). Morocco's row was signed `ar, fr, tzm`.
+        ("Morocco", ("ar", "fr", "tzm-tfng")),
+        # Amended after signature, PI 2026-08-30. Signed `ps, prs`; the open item
+        # Pass 2 carried forward -- "flag it in the wiring lane if the roster
+        # convention turns out to require 639-1 where one exists" -- was ruled.
+        ("Afghanistan", ("ps", "fa")),
         ("Ethiopia", ("en", "am", "om")),
         ("Serbia", ("sr-cyrl", "sr-latn", "hu")),
         ("Montenegro", ("cnr-latn", "cnr-cyrl", "sr-cyrl", "sr-latn")),
@@ -570,9 +576,14 @@ def test_the_signed_policy_supplies_english_by_policy_not_by_row():
         ("Kosovo", ("sq", "sr-latn")),
     ],
 )
-def test_the_eight_rows_amended_at_signature_are_as_signed(country, expected):
-    """Eight rows the PI changed while signing. A silent revert is a silent
-    reversal of a ruling, so each one is pinned by name."""
+def test_every_pi_ruled_row_is_as_last_ruled(country, expected):
+    """The nine rows the PI ruled on individually: eight amended while signing,
+    plus Afghanistan amended after it (Morocco is in both groups).
+
+    A silent revert is a silent reversal of a ruling, so each is pinned by name.
+    The expectation is the row as *last* ruled rather than as first signed; the
+    two post-signature amendments carry what they replaced in a comment above.
+    """
     policy = load_signed_policy(SIGNED_POLICY_2026_08_30)
     assert policy.mapped_languages_for({"country": country})[0] == expected
 
@@ -594,12 +605,12 @@ def test_the_signed_policy_hash_is_pinned():
     change to one gets noticed.
     """
     policy = load_signed_policy(SIGNED_POLICY_2026_08_30)
-    assert language_policy_hash(policy) == "b1de14180755c021"
+    assert language_policy_hash(policy) == "ec6760238dfcc998"
 
 
 def test_the_signed_policy_cannot_run_against_the_shipped_roster():
     """The hard fence. `EVIDENCE_TERMS_BY_LANG` is seeded English-only and lane
-    (b) — a PI-signed leg-2 term for each of the 90 non-English tags — has not
+    (b) — a PI-signed leg-2 term for each of the 89 non-English tags — has not
     started. This test is the tripwire on that fence: it goes red the moment the
     roster grows, which is the moment someone should be checking that the terms
     were signed rather than translated."""
@@ -607,5 +618,7 @@ def test_the_signed_policy_cannot_run_against_the_shipped_roster():
     with pytest.raises(UnknownLanguageError) as exc:
         assert_policy_rostered(policy, EVIDENCE_TERMS_BY_LANG)
     unknown = str(exc.value)
-    assert "tzm" in unknown and "zh-hans" in unknown
-    assert len(policy.selectable_languages) == 91
+    # `tzm-tfng` in full: bare "tzm" is a substring of it, so the shorter
+    # assertion would keep passing if the amended tag were reverted.
+    assert "tzm-tfng" in unknown and "zh-hans" in unknown
+    assert len(policy.selectable_languages) == 90

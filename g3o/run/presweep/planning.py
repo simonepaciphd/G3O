@@ -100,7 +100,7 @@ def config_snapshot(config: PresweepConfig) -> dict[str, Any]:
     # run has no single answer and the derived property's value is the run-level
     # configuration, not what any row was searched in. Leaving ``"en"`` there
     # would let a reader compute "this run searched English only" off the
-    # manifest of a run that issued 91 languages — the A7 misattribution, at the
+    # manifest of a run that issued 90 languages — the A7 misattribution, at the
     # run level. The replacement is deliberately not a language tag: nothing
     # should be able to parse it as one.
     if config.language_policy is None:
