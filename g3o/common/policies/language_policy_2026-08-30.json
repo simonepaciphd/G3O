@@ -1,5 +1,5 @@
 {
-  "_comment": "PI-signed 2026-08-30. Derived mechanically from SIGNED-LANGUAGE-POLICY-2026-08-30.md; that markdown is the signed artifact and this file is its machine-readable form. Do not hand-edit: amending a row is a PI-signed decision on the mapping, not a config change.",
+  "_comment": "PI-signed 2026-08-30. Derived mechanically from SIGNED-LANGUAGE-POLICY-2026-08-30.md; that markdown is the signed artifact and this file is its machine-readable form. Do not hand-edit: amending a row is a PI-signed decision on the mapping, not a config change. AMENDED post-signature 2026-08-30 on PI ruling: Morocco tzm -> tzm-tfng, Afghanistan prs -> fa. Two rows, nothing else; see the signature record's post-signature amendment section. policy_id is unchanged and the hash moves, which is the designed signal.",
   "policy_id": "2026-08-30",
   "signed": "2026-08-30",
   "source": "agent-workspace/2026-08-29-language-mapping/SIGNED-LANGUAGE-POLICY-2026-08-30.md",
@@ -156,7 +156,7 @@
     "Morocco": [
       "ar",
       "fr",
-      "tzm"
+      "tzm-tfng"
     ],
     "Republic of Türkiye": [
       "tr"
@@ -530,7 +530,7 @@
     ],
     "Afghanistan": [
       "ps",
-      "prs"
+      "fa"
     ],
     "Bahrain": [
       "ar",
@@ -1020,7 +1020,7 @@
       "iso3": null,
       "master_rows": 1629,
       "provenance": "spot-check",
-      "amended_at_signature": "tzm admitted (flag c1)"
+      "amended_at_signature": "tzm admitted (flag c1); tag amended to tzm-tfng post-signature (PI 2026-08-30)"
     },
     "Republic of Türkiye": {
       "iso3": null,
@@ -1674,7 +1674,7 @@
       "iso3": null,
       "master_rows": 32,
       "provenance": "spot-check",
-      "amended_at_signature": null
+      "amended_at_signature": "prs -> fa post-signature: 639-1 where one exists (PI 2026-08-30)"
     },
     "Bahrain": {
       "iso3": null,
