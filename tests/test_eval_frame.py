@@ -101,9 +101,19 @@ def test_aggregator_hosts_are_placeholders(website: str) -> None:
 # --- eligibility -----------------------------------------------------------
 
 
-def test_duplicates_are_excluded() -> None:
-    assert not is_eligible(_row("https://example.gov.uk", duplicate="1"))
+def test_the_name_collision_flag_no_longer_rejects() -> None:
+    """Was `test_duplicates_are_excluded`. Removed 2026-08-30 with the sampler
+    defect: `duplicate=1` flags a NAME collision, not a repeated row.
+
+    No published figure moves — 0 of the master's 719,588 rows carry both
+    `duplicate=1` and a website, so this branch could never fire behind the
+    website requirement below. It was dead code that read as policy.
+    """
+    assert is_eligible(_row("https://example.gov.uk", duplicate="1"))
     assert is_eligible(_row("https://example.gov.uk", duplicate="0"))
+    # …and the website requirement, which does the real work, is untouched.
+    assert not is_eligible(_row("", duplicate="1"))
+    assert not is_eligible(_row("n/a", duplicate="1"))
 
 
 def test_short_websites_are_excluded() -> None:
@@ -127,6 +137,7 @@ def test_filter_master_preserves_input_order() -> None:
     assert kept == [
         "https://a.gov.uk",
         "https://b.gov.uk",
+        "https://c.gov.uk",  # name collision: kept since 2026-08-30
         "https://d.gov.uk/en/about-us",
     ]
 
@@ -141,11 +152,14 @@ def test_build_round_trips_through_csv(tmp_path) -> None:
             [
                 _row("https://keep.gov.uk/en/about"),
                 _row("n/a"),
-                _row("https://dupe.gov.uk", duplicate="1"),
+                _row("https://collides.gov.uk", duplicate="1"),
             ]
         )
     out = tmp_path / "sub" / "frame.csv"
-    assert build(master, out) == 1
+    assert build(master, out) == 2
     with open(out, encoding="utf-8", newline="") as f:
         rows = list(csv.DictReader(f))
-    assert [r["website"] for r in rows] == ["https://keep.gov.uk/en/about"]
+    assert [r["website"] for r in rows] == [
+        "https://keep.gov.uk/en/about",
+        "https://collides.gov.uk",
+    ]

@@ -5,10 +5,19 @@ builds that CSV from the read-only institution master, so the frame every
 measured rate is computed against is reproducible rather than re-derived by
 hand each session.
 
-A row is eligible when it is not a duplicate and carries a website that could
-plausibly be an institution's own site: at least `MIN_WEBSITE_LEN` characters,
-parsing to a host with a dot, and free of the placeholder and aggregator
-markers below.
+A row is eligible when it carries a website that could plausibly be an
+institution's own site: at least `MIN_WEBSITE_LEN` characters, parsing to a host
+with a dot, and free of the placeholder and aggregator markers below.
+
+This filter also excluded `duplicate=1` until 2026-08-30. It was removed with
+the same-named defect in `g3o.run.frame.sampler` (PI ruling that date): the
+column flags a *name* collision that `disambiguation` resolves, not a repeated
+row. **Removing it here moves no published figure, and that is checkable rather
+than asserted** — 0 of the master's 719,588 rows carry both `duplicate=1` and a
+website, so a filter that requires a website could never have rejected one. The
+14,134-row usable pool in `docs/pipeline-status.md` §1 is unchanged. The branch
+was dead code that read as policy, which is the form the sampler defect took
+too, one file over, where it was not dead.
 
 `n/a` is matched as a **delimited token**, not a bare substring (PI sign-off,
 2026-08-02). The bare-substring rule silently dropped four real institutions
@@ -62,9 +71,11 @@ def is_placeholder(website: str) -> bool:
 
 
 def is_eligible(row: dict[str, Any]) -> bool:
-    """True when `row` belongs in the evaluation frame."""
-    if (row.get("duplicate") or "").strip() == "1":
-        return False
+    """True when `row` belongs in the evaluation frame.
+
+    Does not test `duplicate`; see the module docstring for why that branch was
+    removed and why its removal is a no-op on this master.
+    """
     website = (row.get("website") or "").strip()
     if len(website) < MIN_WEBSITE_LEN:
         return False
