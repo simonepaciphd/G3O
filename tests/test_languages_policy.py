@@ -229,12 +229,15 @@ def test_assert_policy_rostered_passes_when_every_selectable_language_is_rostere
 def test_assert_policy_rostered_is_mode_specific():
     """A language rostered for ``legacy`` is not thereby runnable under ``chain``.
 
-    ``fr`` has four four-slot terms but no leg-2 evidence token, so the same
-    policy must pass against ``GENAI_TERMS_BY_LANG`` and fail against
-    ``EVIDENCE_TERMS_BY_LANG``.
+    Carried on ``zh`` since 2026-08-31. It used to be carried on ``fr``, which the
+    signed evidence roster now covers — but the property survives the roster
+    growing, because the signed policy expresses Chinese as ``zh-hans`` /
+    ``zh-hant`` (the tag selects the term, and the two genuinely differ) while the
+    legacy roster still carries bare ``zh``. So the same policy must pass against
+    ``GENAI_TERMS_BY_LANG`` and fail against ``EVIDENCE_TERMS_BY_LANG``.
     """
     policy = LanguagePolicy(
-        rule="official language(s) of the state", mapping={"France": ("fr",)}
+        rule="official language(s) of the state", mapping={"China": ("zh",)}
     )
     assert_policy_rostered(policy, GENAI_TERMS_BY_LANG)
     with pytest.raises(UnknownLanguageError):
