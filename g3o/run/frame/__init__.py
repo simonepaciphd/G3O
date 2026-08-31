@@ -54,7 +54,7 @@ from g3o.run.frame.sampler import (
     FrameError,
     draw_recency_weighted,
     draw_uniform,
-    is_duplicate,
+    has_colliding_name,
     is_eligible,
 )
 
@@ -72,7 +72,7 @@ __all__ = [
     "level_targets",
     "draw_recency_weighted",
     "draw_uniform",
-    "is_duplicate",
+    "has_colliding_name",
     "is_eligible",
     "last_inspected_at",
     "read_snapshot_csv",
