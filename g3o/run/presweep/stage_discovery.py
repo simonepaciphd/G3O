@@ -126,6 +126,40 @@ def leg1_recall_block(
 # language that was never issued; see ``PresweepConfig`` for the other half.
 
 
+def _note_finding(record: dict[str, Any], query: str, lang: str) -> None:
+    """Append a repeat finding of a URL this leg has already recorded.
+
+    Dedup is by URL, so a URL returned by three of an institution's leg-2
+    queries is written once. Before 2026-08-30 the losing queries were simply
+    dropped, and nothing else recorded them: ``_query_provenance`` stores a
+    query's *parameters*, never its result URLs, so the fact that the Arabic
+    query also surfaced a page was unrecoverable from the artifact.
+
+    That cost was paid in attribution, not in recall — the union is a true
+    union and no URL is lost — but the attribution is what
+    ``report.health._merge_url_langs`` and
+    ``report.filter_eligibility._url_languages`` read to answer "which
+    languages surfaced this URL". With one language per record those functions
+    could only ever return a singleton, so a per-language health figure
+    measured *which language got there first* and undercounted every language
+    behind English in issue order. On a 90-language policy that is most of them.
+
+    ``found_by`` records the whole set, first finder included, so the answer no
+    longer depends on query order. It costs nothing: every query in the list was
+    issued and paid for whether or not its results are written down.
+
+    ``query`` and ``language`` on the record keep their first-finder meaning —
+    they name the query whose title and snippet the record carries, which is
+    still a single query's text.
+    """
+    found_by = record.setdefault(
+        "found_by", [{"query": record["query"], "language": record["language"]}]
+    )
+    entry = {"query": query, "language": lang}
+    if entry not in found_by:
+        found_by.append(entry)
+
+
 def _query_provenance(query: str, lang: str, leg: str, result) -> dict[str, Any]:
     """One entry for an artifact's ``queries`` list, with Serper's echo.
 
@@ -252,7 +286,7 @@ def _discover_general_one(
                 country=institution["country"],
                 disambiguation=row.get("disambiguation") or "",
             )
-        seen: set[str] = set()
+        index: dict[str, int] = {}
         records: list[dict[str, Any]] = []
         provenance: list[dict[str, Any]] = []
         leg = "domain_discovery" if mode == "chain" else "genai_roster"
@@ -275,9 +309,20 @@ def _discover_general_one(
             provenance.append(_query_provenance(query, lang, leg, result))
             for r in result.results:
                 url = r.get("link", "")
-                if url and url not in seen:
-                    seen.add(url)
-                    records.append({**r, "query": query, "language": lang})
+                if not url:
+                    continue
+                if url in index:
+                    _note_finding(records[index[url]], query, lang)
+                    continue
+                index[url] = len(records)
+                records.append(
+                    {
+                        **r,
+                        "query": query,
+                        "language": lang,
+                        "found_by": [{"query": query, "language": lang}],
+                    }
+                )
         artifact: dict[str, Any] = {
             "mode": mode,
             "queries": provenance,
@@ -435,7 +480,7 @@ def _discover_site_restricted_one(
                 disambiguation=row.get("disambiguation") or "",
             )
             wrapped = [(build_site_query(q, domain), lang) for q, lang in base_queries]
-        seen: set[str] = set()
+        index: dict[str, int] = {}
         records: list[dict[str, Any]] = []
         provenance: list[dict[str, Any]] = []
         leg = "site_evidence" if mode == "chain" else "site_genai_roster"
@@ -454,11 +499,21 @@ def _discover_site_restricted_one(
             provenance.append(_query_provenance(query, lang, leg, result))
             for r in result.results:
                 url = r.get("link", "")
-                if url and url not in seen:
-                    seen.add(url)
-                    records.append(
-                        {**r, "query": query, "language": lang, "site_domain": domain}
-                    )
+                if not url:
+                    continue
+                if url in index:
+                    _note_finding(records[index[url]], query, lang)
+                    continue
+                index[url] = len(records)
+                records.append(
+                    {
+                        **r,
+                        "query": query,
+                        "language": lang,
+                        "site_domain": domain,
+                        "found_by": [{"query": query, "language": lang}],
+                    }
+                )
         path.write_text(
             json.dumps(
                 {
