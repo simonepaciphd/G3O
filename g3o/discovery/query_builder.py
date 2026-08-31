@@ -158,20 +158,186 @@ DOMAIN_QUERY_LANG = "en"
 DEFAULT_EVIDENCE_TERM = "AI"
 
 # Leg 2's evidence token, per language. The chain-mode counterpart of
-# ``GENAI_TERMS_BY_LANG``, and deliberately **seeded with English only**.
+# ``GENAI_TERMS_BY_LANG``, and the instrument the signed language policy of
+# 2026-08-30 selects from.
 #
 # A row here is a methodology surface, not a translation: it silently changes
-# every leg-2 query a run issues for that language. Rows are curated and
-# signed off row by row by the PI through
-# ``subprojects/multilingual-pipeline/`` (roadmap A2/B3) — for Chinese the
-# ecosystem is largely disjoint from English (``ChatGPT`` is not a viable
-# mainland term) and the formal register differs, so translating ``AI`` would
-# be wrong rather than merely incomplete.
+# every leg-2 query a run issues for that language. **All 90 rows were signed by
+# the PI on 2026-08-31** against
+# ``agent-workspace/2026-08-31-multilingual-readiness/SIGNABLE-ROSTER-90.md``,
+# on evidence from two Serper probes (1,856 + 736 credits, 2026-08-30).
+#
+# **The construction rule: one term per tag, the native multi-character phrase.**
+# Not a judgement imposed on the measurement but the one it produced — of the 57
+# arms that beat the English control at national tier, 54 were multi-character
+# native terms, 1 was an abbreviation, and 0 was the loanword ``AI``. It is also
+# the homograph test in the signed relevance screen (whitespace, or length >= 4),
+# which keeps out every documented failure: Hungarian ``MI`` (the pronoun that
+# outranked the real term on raw volume), ``IA`` (the *ia* in *media*/*social*),
+# and bare ``ai`` (the French verb). Applied to all 89 non-English tags it yields
+# exactly one candidate each, with no gaps and no ties.
+#
+# It overrides a measured winner on exactly one row, by PI ruling: ``tr`` takes
+# ``yapay zeka`` (marginal 4) over ``YZ`` (marginal 5), because ``YZ`` is on the
+# homograph list and won by a single URL under a screen since found biased.
+#
+# **Why all 90 and not the 21 that cleared the floor.**
+# :func:`g3o.common.languages.assert_policy_rostered` checks every tag the signed
+# policy could emit on any institution, before the first Serper credit. Under the
+# ``2026-08-30`` policy that is all 90, on every run. A partial roster does not
+# make the pipeline partially multilingual — it makes it unable to start. The PI
+# ruled (2026-08-31) that multilingual is to be a permanent, automatic part of
+# the pipeline, so the roster is complete by construction.
+#
+# The tags are exactly the policy's 90 selectable languages — set equality,
+# asserted in ``tests/test_language_policy_wiring.py``.
 #
 # One term per language, not a list: extra terms measure at exactly 0 pp once
 # site-bound and OR-chains are actively harmful (4/24 vs 16/24). If a language
 # ever needs two, that is a measured decision and changes leg-2's credit cost.
-EVIDENCE_TERMS_BY_LANG: dict[str, str] = {"en": DEFAULT_EVIDENCE_TERM}
+EVIDENCE_TERMS_BY_LANG: dict[str, str] = {
+    "en": DEFAULT_EVIDENCE_TERM,
+
+    # Class A - cleared the sub-national floor. 21 tags, 300,705 master rows.
+    # Marginal >=3 AND >=25% of the English control, measured on 216 sub-national
+    # domains - the tier the frame lives at. Four rest on one or two registrable
+    # domains (kk-cyrl, uz-cyrl, uz-latn, ru); gov.kz and gov.uz reach every
+    # subdomain of that government, which is broader than one site and still one
+    # country.
+    "ar": "الذكاء الاصطناعي",
+    "bn": "কৃত্রিম বুদ্ধিমত্তা",
+    "bs": "umjetna inteligencija",
+    "ca": "intel·ligència artificial",
+    "cnr-latn": "vještačka inteligencija",
+    "cs": "umělá inteligence",
+    "de": "künstliche Intelligenz",
+    "es": "inteligencia artificial",
+    "fr": "intelligence artificielle",
+    "gl": "intelixencia artificial",
+    "hr": "umjetna inteligencija",
+    "hu": "mesterséges intelligencia",
+    "id": "kecerdasan buatan",
+    "it": "intelligenza artificiale",
+    "kk-cyrl": "жасанды интеллект",
+    "pt": "inteligência artificial",
+    "ru": "искусственный интеллект",
+    "sr-cyrl": "вештачка интелигенција",
+    "sr-latn": "veštačka inteligencija",
+    "uz-cyrl": "сунъий интеллект",
+    "uz-latn": "sunʼiy intellekt",
+
+    # Classes B1-B3 - ON PROBATION. 14 tags, 311,707 master rows.
+    # Carried by PI ruling 2026-08-31 ("same as hi for now"), not by measurement.
+    # B1 (hi, rw, eu) measured a marginal of 0-2 against a control of 22-34 on nine
+    # sub-national domains each: the government publishes its AI material in
+    # English. B2 (lo, mn, km, mg, tzm-tfng, cnr-cyrl) is uninformative rather than
+    # null - the control found nothing either, so the domains carry no AI content in
+    # any language. B3 (am, om, fa, ps, tet) is underpowered: one to three domains.
+    # These rows spend a leg-2 credit per institution for a term with no measured
+    # yield. hi alone is 267,177 master rows. The first multilingual run's readout
+    # is where they are ruled on; until then they stay, because the run cannot
+    # produce the evidence to drop them if they are not in it.
+    "am": "ሰው ሰራሽ አስተውሎት",
+    "cnr-cyrl": "вјештачка интелигенција",
+    "eu": "adimen artifiziala",
+    "fa": "هوش مصنوعی",
+    "hi": "कृत्रिम बुद्धिमत्ता",
+    "km": "បញ្ញាសិប្បនិម្មិត",
+    "lo": "ປັນຍາປະດິດ",
+    "mg": "faharanitan-tsaina artifisialy",
+    "mn": "хиймэл оюун ухаан",
+    "om": "beekumsa nam-tolchee",
+    "ps": "مصنوعي ځیرکتیا",
+    "rw": "ubwenge bwa artifisiye",
+    "tet": "inteligensia artifisial",
+    "tzm-tfng": "ⵜⴰⵎⵓⵙⵏⵉ ⵜⴰⵏⴰⴼⴳⴰⵏⵜ",
+
+    # Class C - never reached at sub-national tier. 54 tags, 50,057 master rows.
+    # The 2026-08-29 signature pass recorded no non-national host for these
+    # countries, so the sub-national probe had no pool to build. The term is the
+    # drafted native phrase under the construction rule. The national-tier
+    # measurement exists but is not the signing basis: that table is superseded,
+    # and its relevance screen was differentially biased toward fr/es/pt/de/it,
+    # none of which are in this class.
+    "az": "süni intellekt",
+    "be": "штучны інтэлект",
+    "bg": "изкуствен интелект",
+    "cy": "deallusrwydd artiffisial",
+    "da": "kunstig intelligens",
+    "dv": "މަސްނޫއީ ބުއްދި",
+    "dz": "བཟོ་བཀོད་རིག་པ།",
+    "el": "τεχνητή νοημοσύνη",
+    "et": "tehisintellekt",
+    "fi": "tekoäly",
+    "fo": "vitmaskina",
+    "ga": "intleacht shaorga",
+    "he": "בינה מלאכותית",
+    "ht": "entèlijans atifisyèl",
+    "hy": "արհեստական բանականություն",
+    "is": "gervigreind",
+    "ja": "人工知能",
+    "ka": "ხელოვნური ინტელექტი",
+    "kl": "silatusaaq",
+    "ko": "인공지능",
+    "ku": "زیرەکی دەستکرد",
+    "ky": "жасалма интеллект",
+    "lb": "kënschtlech Intelligenz",
+    "lt": "dirbtinis intelektas",
+    "lv": "mākslīgais intelekts",
+    "mk": "вештачка интелигенција",
+    "ms": "kecerdasan buatan",
+    "mt": "intelliġenza artifiċjali",
+    "my": "ဉာဏ်ရည်တု",
+    "ne": "कृत्रिम बुद्धिमत्ता",
+    "nl": "kunstmatige intelligentie",
+    "no": "kunstig intelligens",
+    "pap": "inteligensia artificial",
+    "pl": "sztuczna inteligencja",
+    "rn": "ubwenge bwa artifisiye",
+    "ro": "inteligență artificială",
+    "si": "කෘත්‍රිම බුද්ධිය",
+    "sk": "umelá inteligencia",
+    "sl": "umetna inteligenca",
+    "so": "sirdoonka macmalka ah",
+    "sq": "inteligjenca artificiale",
+    "sv": "artificiell intelligens",
+    "sw": "akili bandia",
+    "ta": "செயற்கை நுண்ணறிவு",
+    "tg": "зеҳни сунъӣ",
+    "th": "ปัญญาประดิษฐ์",
+    "ti": "ሰብ ሰራሕ ኣእምሮ",
+    "tk": "emeli aň",
+    "tr": "yapay zeka",
+    "uk": "штучний інтелект",
+    "ur": "مصنوعی ذہانت",
+    "vi": "trí tuệ nhân tạo",
+    "zh-hans": "人工智能",
+    "zh-hant": "人工智慧",
+}
+
+
+def evidence_terms_roster_hash() -> str:
+    """Stable fingerprint of the whole chain-mode evidence-term roster.
+
+    The counterpart of :func:`genai_terms_roster_hash` for the roster chain mode
+    actually issues its leg-2 queries from, and it did not exist until the roster
+    did. While ``EVIDENCE_TERMS_BY_LANG`` held a single English row that was
+    harmless: the manifest recorded a fingerprint of ``GENAI_TERMS_BY_LANG``,
+    which a chain run never reads, and none of the roster a chain run *does*
+    read. With 90 PI-signed rows the evidence roster is the instrument, and a run
+    resumed after an edit to any row is running a different one than it launched
+    with — the exact failure the A4 guard exists to catch.
+
+    Hashed over the entire mapping, keys sorted, read at call time rather than at
+    import, for the same three reasons the GenAI-roster hash is.
+    """
+    payload = json.dumps(
+        EVIDENCE_TERMS_BY_LANG,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
 class UnknownLanguageError(ValueError):

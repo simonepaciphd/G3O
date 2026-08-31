@@ -35,6 +35,7 @@ from g3o.discovery.query_builder import (
     EVIDENCE_TERMS_BY_LANG,
     GENAI_TERMS_BY_LANG,
     UnknownLanguageError,
+    evidence_terms_roster_hash,
 )
 from g3o.run import presweep as ps
 from g3o.run.presweep import PresweepConfig, plan_run
@@ -83,14 +84,44 @@ def _config(tmp_path: Path, **kw: Any) -> PresweepConfig:
 # ---------------------------------------------------------------------------
 
 
-def test_evidence_roster_is_english_only():
-    """A non-English row is a signed-off roster decision, not a code change.
+def test_evidence_roster_is_the_signed_roster_of_2026_08_31():
+    """A roster row is a signed decision, not a code change.
 
-    This test is the tripwire: it fails the moment someone adds a term without
-    going through subprojects/multilingual-pipeline/. Update it in the same
-    commit that carries the PI's row-by-row sign-off, never before.
+    The tripwire this replaces asserted the roster was English-only, and it went
+    red exactly when it was supposed to: on 2026-08-31, in the commit carrying
+    the PI's sign-off on all 90 rows
+    (``agent-workspace/2026-08-31-multilingual-readiness/SIGNABLE-ROSTER-90.md``).
+    It is not deleted, it is re-pointed: the fingerprint pins what was signed, so
+    editing a signed term still cannot pass as a refactor. Moving this hash is
+    the same deliberate act as moving ``language_policy_hash`` was on 2026-08-30,
+    and it needs the same paperwork.
     """
-    assert EVIDENCE_TERMS_BY_LANG == {"en": "AI"}
+    assert evidence_terms_roster_hash() == "a5d45bb1175c03a9"
+    assert len(EVIDENCE_TERMS_BY_LANG) == 90
+    assert EVIDENCE_TERMS_BY_LANG["en"] == "AI"
+    # Three rows that carry the reasoning, one per class.
+    # A: the sub-national floor. B1: on probation, measured at zero marginal.
+    # C: never reached at sub-national tier, drafted native phrase.
+    assert EVIDENCE_TERMS_BY_LANG["id"] == "kecerdasan buatan"
+    assert EVIDENCE_TERMS_BY_LANG["hi"] == "कृत्रिम बुद्धिमत्ता"
+    assert EVIDENCE_TERMS_BY_LANG["cy"] == "deallusrwydd artiffisial"
+
+
+def test_no_signed_term_is_a_homograph_token():
+    """The construction rule, asserted rather than trusted.
+
+    Every signed term is a native multi-character phrase: whitespace, or length
+    >= 4 and not one of the eleven ambiguous tokens. This is what keeps Hungarian
+    ``MI`` (the pronoun that outranked the real term on raw volume), ``IA`` (the
+    *ia* in *media*/*social*) and bare ``ai`` (the French verb) out of the
+    instrument, and it is why ``tr`` carries ``yapay zeka`` rather than the
+    measured winner ``YZ``.
+    """
+    homographs = {"AI", "DI", "IA", "KI", "MI", "SI", "UI", "YZ", "ΤΝ", "ИИ", "ШІ"}
+    for lang, term in EVIDENCE_TERMS_BY_LANG.items():
+        if lang == "en":
+            continue  # the control is deliberately the bare token
+        assert " " in term or (len(term) >= 4 and term not in homographs), lang
 
 
 # ---------------------------------------------------------------------------
@@ -125,8 +156,15 @@ def test_legacy_config_still_accepts_its_ten_rostered_languages(tmp_path):
 
 
 def test_the_two_rosters_are_not_interchangeable(tmp_path):
-    """A language rostered for legacy is not thereby runnable under chain."""
-    lang = "fr"
+    """A language rostered for legacy is not thereby runnable under chain.
+
+    Carried on ``zh`` since 2026-08-31. It used to be carried on ``fr``, which
+    the signed roster now covers -- but the point survives the roster growing,
+    because the signed policy expresses Chinese as ``zh-hans``/``zh-hant`` (the
+    tag selects the term: 人工智能 and 人工智慧 genuinely differ), while the legacy
+    roster still carries bare ``zh``. The two rosters remain different surfaces.
+    """
+    lang = "zh"
     assert lang in GENAI_TERMS_BY_LANG
     assert lang not in EVIDENCE_TERMS_BY_LANG
     _config(tmp_path, discovery_mode="legacy", discovery_languages=(lang,))
@@ -540,7 +578,11 @@ def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
     ``scrape_max_institution_seconds`` is the first key to use the mechanism for
     what its own comment describes — a guarded key added to a manifest schema
     that real, resumable runs predate. That is the intended use and does not
-    weaken this test; a third key still trips it.
+    weaken this test; a fourth key still trips it.
+
+    It grew to three on 2026-08-31 for the same documented reason:
+    ``evidence_terms_roster_hash`` did not exist until the chain-mode roster did,
+    so every manifest ever written lacks it, including the published runs.
     """
     from g3o.common.run_state import state_dir
     from g3o.run.presweep.planning import (
@@ -552,6 +594,7 @@ def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
     assert _ABSENT_TOLERATED_CONFIG_KEYS == {
         "genai_terms_roster_hash",
         "scrape_max_institution_seconds",
+        "evidence_terms_roster_hash",
     }
 
     cfg = _config(tmp_path)
