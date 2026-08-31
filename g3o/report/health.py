@@ -28,7 +28,7 @@ from g3o.common.paths import (
     iter_institution_dirs,
     require_layout,
 )
-from g3o.report.filter_eligibility import compute_filter_block
+from g3o.report.filter_eligibility import compute_filter_block, record_languages
 from g3o.report.thresholds import HealthThresholds
 
 # Flag literals: green = within normal bounds, warn = below warn threshold,
@@ -136,9 +136,8 @@ def _merge_url_langs(
 ) -> None:
     for r in records:
         url = r.get("link")
-        lang = r.get("language")
-        if url and lang:
-            into.setdefault(url, set()).add(lang)
+        if url:
+            into.setdefault(url, set()).update(record_languages(r))
 
 
 def _collect_institution(
@@ -147,9 +146,10 @@ def _collect_institution(
     """Read disk artifacts for one institution; return a metrics dict.
 
     ``language``, when given, restricts URL-keyed stages (1a, 1b, 3, 4, 5) to
-    URLs discovered by a query tagged with that language (the ``language``
-    field ``g3o.discovery.query_builder.build_queries`` attaches to every 1a/1b
-    record). Stage 2 (official-site) and Stage 6 (has_genai_activity) are
+    URLs discovered by a query tagged with that language — *any* such query, not
+    only the one that won dedup. See
+    :func:`g3o.report.filter_eligibility.record_languages` for the ``found_by``
+    set, and ``g3o.discovery.query_builder.build_queries`` for the tag itself. Stage 2 (official-site) and Stage 6 (has_genai_activity) are
     single per-institution decisions made over the *pooled* candidate/evidence
     set, not per-language — restricting only narrows *eligibility* for those
     stages to institutions this language actually contributed URLs for; see
@@ -173,7 +173,7 @@ def _collect_institution(
         d["n_urls_1a"] = (
             len(records_1a)
             if language is None
-            else sum(1 for r in records_1a if r.get("language") == language)
+            else sum(1 for r in records_1a if language in record_languages(r))
         )
         # Two-query chain (2026-08-01). Under ``mode="chain"`` Stage 1a is
         # domain discovery, so "did Serper return >=1 URL" is trivially true
@@ -229,7 +229,7 @@ def _collect_institution(
         d["n_urls_1b"] = (
             len(records_1b)
             if language is None
-            else sum(1 for r in records_1b if r.get("language") == language)
+            else sum(1 for r in records_1b if language in record_languages(r))
         )
     else:
         d["has_1b"] = False
