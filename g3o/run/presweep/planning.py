@@ -15,7 +15,10 @@ from g3o.common.contract import INSTITUTION_UID_PATTERN
 from g3o.common.languages import language_policy_hash
 from g3o.common.paths import INSTITUTION_UIDS_KEY, LAYOUT_VERSION, institution_dir
 from g3o.common.run_state import done_dir, state_dir
-from g3o.discovery.query_builder import genai_terms_roster_hash
+from g3o.discovery.query_builder import (
+    evidence_terms_roster_hash,
+    genai_terms_roster_hash,
+)
 from g3o.run.presweep.config import STAGES, PresweepConfig
 from g3o.run.presweep.records import (
     _read_master,
@@ -88,6 +91,13 @@ def config_snapshot(config: PresweepConfig) -> dict[str, Any]:
     # nothing noticing. Recorded explicitly here for the same reason
     # institution_search_languages is, and guarded below.
     config_dict["genai_terms_roster_hash"] = genai_terms_roster_hash()
+    # The chain-mode roster is a second instrument and needs its own fingerprint.
+    # Until 2026-08-31 ``EVIDENCE_TERMS_BY_LANG`` held one English row, so the
+    # manifest fingerprinted only ``GENAI_TERMS_BY_LANG`` -- which a chain run
+    # never reads -- and nothing at all of the roster a chain run does read. With
+    # 90 PI-signed terms that gap is the whole language instrument, so it is
+    # recorded and guarded on exactly the same terms.
+    config_dict["evidence_terms_roster_hash"] = evidence_terms_roster_hash()
     # Language policy (2026-08-30). Two keys, for two different failure modes.
     #
     # ``language_policy_hash`` is the roster-hash argument one level up: the
@@ -320,6 +330,8 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     # Roster fingerprint (A4) — see build_manifest. Not a dataclass field; the
     # manifest carries it because the guard needs something to compare.
     "genai_terms_roster_hash",
+    # The chain-mode roster's fingerprint, guarded for the same reason (2026-08-31).
+    "evidence_terms_roster_hash",
 )
 
 # Guarded keys whose *absence* from the on-disk manifest is tolerated: a run
@@ -355,7 +367,14 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
 # ``r20260824T215623Z-bb4e``. Tolerating its absence lets such a run resume; a
 # manifest that *does* record it and differs still aborts.
 _ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset(
-    {"genai_terms_roster_hash", "scrape_max_institution_seconds"}
+    {
+        "genai_terms_roster_hash",
+        "scrape_max_institution_seconds",
+        # Every manifest written before 2026-08-31 lacks this key, including the
+        # published runs; tolerating its absence lets them resume, and a manifest
+        # that does record it and differs still aborts.
+        "evidence_terms_roster_hash",
+    }
 )
 
 

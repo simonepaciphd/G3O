@@ -607,18 +607,45 @@ def test_the_signed_policy_hash_is_pinned():
     policy = load_signed_policy(SIGNED_POLICY_2026_08_30)
     assert language_policy_hash(policy) == "ec6760238dfcc998"
 
+def test_the_signed_policy_runs_against_the_shipped_roster():
+    """The hard fence, now standing open — deliberately, and provably.
 
-def test_the_signed_policy_cannot_run_against_the_shipped_roster():
-    """The hard fence. `EVIDENCE_TERMS_BY_LANG` is seeded English-only and lane
-    (b) — a PI-signed leg-2 term for each of the 89 non-English tags — has not
-    started. This test is the tripwire on that fence: it goes red the moment the
-    roster grows, which is the moment someone should be checking that the terms
-    were signed rather than translated."""
+    Until 2026-08-31 this asserted the opposite: ``EVIDENCE_TERMS_BY_LANG`` was
+    seeded English-only, so configuring the signed policy raised
+    ``UnknownLanguageError`` before the first Serper credit, and that raise was
+    the tripwire on lane (b). Lane (b) is done — the PI signed all 90 rows on
+    2026-08-31 — so the assertion inverts.
+
+    What must not be lost in inverting it is the *guarantee*, which was never
+    "the roster is small" but "the roster covers every tag the policy can emit,
+    on any institution, checked before any spend". That is asserted here as set
+    equality in both directions: a policy tag with no term would fail the run,
+    and a roster term for a tag no policy emits is dead weight better noticed
+    than accumulated.
+    """
     policy = load_signed_policy(SIGNED_POLICY_2026_08_30)
-    with pytest.raises(UnknownLanguageError) as exc:
-        assert_policy_rostered(policy, EVIDENCE_TERMS_BY_LANG)
-    unknown = str(exc.value)
+    # Does not raise. This is the whole point of the day's work.
+    assert_policy_rostered(policy, EVIDENCE_TERMS_BY_LANG)
+    assert len(policy.selectable_languages) == 90
+    assert set(policy.selectable_languages) == set(EVIDENCE_TERMS_BY_LANG)
     # `tzm-tfng` in full: bare "tzm" is a substring of it, so the shorter
     # assertion would keep passing if the amended tag were reverted.
-    assert "tzm-tfng" in unknown and "zh-hans" in unknown
-    assert len(policy.selectable_languages) == 90
+    assert "tzm-tfng" in EVIDENCE_TERMS_BY_LANG
+    assert "zh-hans" in EVIDENCE_TERMS_BY_LANG
+
+
+def test_a_policy_tag_with_no_term_still_fails_before_any_spend():
+    """Inverting the test above must not retire the mechanism it tested.
+
+    A policy that can emit a tag the roster does not cover is still refused, and
+    still refused at construction — the A7 discipline, because an
+    ``UnknownLanguageError`` raised on institution 3,000 of 10,000 has already
+    been paid for.
+    """
+    policy = LanguagePolicy(
+        mapping={"Neverland": ("en", "xx")},
+        rule="a tag no signature covers",
+    )
+    with pytest.raises(UnknownLanguageError) as exc:
+        assert_policy_rostered(policy, EVIDENCE_TERMS_BY_LANG)
+    assert "xx" in str(exc.value)
