@@ -283,6 +283,32 @@ format, so the command above is unaffected.
 - WS3 round-2 owns the `official_site_url` master column. Pre-rollout, the
   Stage 2 LLM path runs for every institution; bypass envelopes appear once the
   column is populated.
+
+  **Since 2026-08-30 the pipeline populates it from its own output** (PI ruling),
+  without writing the registry. Two halves, deliberately separate:
+
+  - `orchestrate e2e` runs a **harvest** leg after the gate and before the load,
+    rebuilding `<runs-dir>/_site_overlay/official_sites.csv` from every completed
+    run — one row per institution Stage 2 found a site for, carrying `run_id`,
+    `git_sha`, the model and the model's confidence. The rebuild is deterministic,
+    so a repeat over an unchanged corpus is a byte-identical no-op. Disable with
+    `--no-harvest`; make it a gate with `--require-harvest`.
+  - `presweep --official-sites <overlay.csv>` **spends** it: the drawn sample is
+    decorated in memory with `official_site_url`, so Stage 2 is bypassed for those
+    institutions and Stage 1b gets the site directly. The read-only master and the
+    frame CSV are never touched.
+
+  Two filters are on by default and both are recorded in the manifest under
+  `run_official_sites`. `--official-sites-min-confidence` defaults to `high` — the
+  model's rating of its own pick, not a validated accuracy figure. Picks whose
+  `site:` host is shared with another institution are skipped, because one
+  `site:nsw.gov.au` issued for 95 different councils is worse than leaving them
+  website-free; `--official-sites-allow-shared` turns that off.
+
+  The instrument's identity is `config.official_sites_hash`, a digest of the
+  (uid, site) pairs the run actually spends — not of the file, which is rebuilt
+  under the same name after every run. It is guarded on resume: a run that
+  classified with Stage 2 cannot resume into one that bypasses it.
 - The cost-model brief consumes per-stage telemetry from the run.
 - **Serper spend is measured, not estimated.** `g3o.discovery.serper_client.get_balance()`
   reads `GET /account`; bracket a run with it and report the delta rather than

@@ -348,14 +348,30 @@ def _chain(monkeypatch: pytest.MonkeyPatch, **overrides: Any) -> Any:
         recorded_sha.append(kwargs.get("expect_loader_sha"))
         return overrides.get("ingest_result", _green_ingest())
 
+    def fake_harvest(*_a: Any, **_k: Any) -> Any:
+        calls.append("harvest")
+        return overrides.get("harvest_result", _green_harvest())
+
     recorded_sha: list[Any] = []
     monkeypatch.setattr(e2e_mod, "wait_for_terminal", fake_wait)
     monkeypatch.setattr(e2e_mod, "persist_run", fake_persist)
     monkeypatch.setattr(e2e_mod, "ingest_run", fake_ingest)
+    monkeypatch.setattr(e2e_mod, "harvest_official_sites", fake_harvest)
     monkeypatch.delenv("G3O_API_BASE", raising=False)
 
-    result = e2e_mod.run_e2e(Path("runs"), "r1", frame_id="mb-TEST")
+    result = e2e_mod.run_e2e(
+        Path("runs"), "r1", frame_id="mb-TEST", **overrides.get("e2e_kwargs", {})
+    )
     return result, calls, recorded_sha
+
+
+def _green_harvest() -> Any:
+    from g3o.run.orchestrate.harvest import HarvestResult
+
+    return HarvestResult(
+        overlay_path="runs/_site_overlay/official_sites.csv",
+        sha256="a" * 64, changed=True, runs_scanned=1, overlay_rows=3,
+    )
 
 
 def _green_ingest() -> Any:
@@ -377,9 +393,9 @@ def test_the_chain_runs_wait_gate_persist_ingest_in_that_order(
     """Stage 7 before the load, and every gate before the irreversible step."""
     result, calls, sha = _chain(monkeypatch)
 
-    assert calls == ["wait", "persist", "ingest"]
+    assert calls == ["wait", "harvest", "persist", "ingest"]
     assert [s.step for s in result.steps] == [
-        "wait", "gate", "persist", "ingest", "publish-verify"
+        "wait", "gate", "harvest", "persist", "ingest", "publish-verify"
     ]
     assert result.green
     assert result.published is True
@@ -411,7 +427,7 @@ def test_a_stage_7_refusal_stops_the_chain_before_the_load(
 ) -> None:
     result, calls, _ = _chain(monkeypatch, persist_error="final/ is not loadable")
 
-    assert calls == ["wait", "persist"]
+    assert calls == ["wait", "harvest", "persist"]
     assert result.stopped_at == "persist"
     assert result.published is False
 
@@ -428,7 +444,7 @@ def test_an_aborted_load_is_reported_as_not_published(
     )
     result, calls, _ = _chain(monkeypatch, ingest_result=aborted)
 
-    assert calls == ["wait", "persist", "ingest"]
+    assert calls == ["wait", "harvest", "persist", "ingest"]
     assert result.stopped_at == "ingest"
     assert result.published is False
 
@@ -483,3 +499,77 @@ def test_render_names_the_step_it_stopped_at() -> None:
 
     assert "NOT GREEN — stopped at gate" in text
     assert "FAIL gate" in text
+
+
+# ---------------------------------------------------------------------------
+# harvest — the derived leg, and the only one that must never stop the chain
+# ---------------------------------------------------------------------------
+
+
+def _failed_harvest() -> Any:
+    from g3o.run.orchestrate.harvest import HarvestResult
+
+    return HarvestResult(error="OSError: read-only file system")
+
+
+def test_the_harvest_runs_before_the_irreversible_load(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """It depends only on the run being complete, and a run whose load later fails
+    still contributed its discoveries: the sites Stage 2 found are real either way."""
+    _, calls, _ = _chain(monkeypatch)
+
+    assert calls.index("harvest") < calls.index("ingest")
+    assert calls.index("harvest") < calls.index("persist")
+
+
+def test_a_run_that_is_not_publishable_is_never_harvested(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The gate is upstream of it: a failed run's Stage-2 artifacts are not a corpus."""
+    _, calls, _ = _chain(monkeypatch, status=_status("failed", dry_run=False))
+
+    assert "harvest" not in calls
+
+
+def test_a_failed_harvest_does_not_stop_a_chain_that_published(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A derived table that could not be rewritten is not a failed publication.
+
+    `_record` sets `stopped_at` on any non-green step, so reporting the failure as
+    non-green would make a successful, irreversible publish read as a chain that
+    stopped — describing a failure that did not happen.
+    """
+    result, calls, _ = _chain(monkeypatch, harvest_result=_failed_harvest())
+
+    assert calls == ["wait", "harvest", "persist", "ingest"]
+    assert result.stopped_at is None
+    assert result.green is True
+    assert result.published is True
+    step = next(s for s in result.steps if s.step == "harvest")
+    assert step.green is True
+    assert "NOT rebuilt" in step.message
+
+
+def test_require_harvest_makes_it_a_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """For a caller who wants one. Note it stops the chain BEFORE the load."""
+    result, calls, _ = _chain(
+        monkeypatch,
+        harvest_result=_failed_harvest(),
+        e2e_kwargs={"require_harvest": True},
+    )
+
+    assert calls == ["wait", "harvest"]
+    assert result.stopped_at == "harvest"
+    assert result.published is False
+
+
+def test_harvest_can_be_skipped_and_says_so(monkeypatch: pytest.MonkeyPatch) -> None:
+    result, calls, _ = _chain(monkeypatch, e2e_kwargs={"harvest": False})
+
+    assert "harvest" not in calls
+    step = next(s for s in result.steps if s.step == "harvest")
+    assert step.green is True
+    assert "skipped" in step.message
+    assert result.green is True

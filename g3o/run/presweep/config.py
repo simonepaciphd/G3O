@@ -109,6 +109,33 @@ class PresweepConfig:
     # answered, and ``False`` is what the confirmation run measured. Set None to
     # reproduce a pre-2026-08-01 request exactly.
     serper_autocorrect: bool | None = False
+    # ── Spending the official-site overlay (2026-08-30, PI ruling) ───────────
+    # Path to a :mod:`g3o.report.site_overlay` CSV. When set, the drawn sample is
+    # decorated in memory with ``official_site_url`` for every institution the
+    # overlay covers at or above ``official_sites_min_confidence`` — which makes
+    # Stage 2 bypass the LLM path for those institutions and hands Stage 1b the
+    # site directly. ``None`` (the default) is the pre-2026-08-30 behaviour
+    # exactly: nothing is read and nothing is decorated.
+    #
+    # **The registry is never rewritten.** The decoration is in memory, after the
+    # draw; the read-only master and the frame CSV are untouched — the frame in
+    # particular must keep the master's column layout exactly (see
+    # :mod:`g3o.run.frame.build`). See :mod:`g3o.run.presweep.official_sites` for
+    # why both filters below default on.
+    official_sites_csv: Path | None = None
+    # Ruled ``high`` only (PI, 2026-08-30): 6,076 of the 6,684 picks on
+    # ``r20260829T121145Z-233a``, against 564 medium and 44 low. This is the
+    # model's self-rating, not a validated instrument — that run has no
+    # hand-adjudicated subset — so widening it is a data-quality decision rather
+    # than a tuning knob.
+    official_sites_min_confidence: str = "high"
+    # Skip picks whose ``site:`` host is shared with another institution (1,192
+    # of 6,684 on that run — 95 councils on ``nsw.gov.au``, 45 institutions on
+    # ``gov.mt``). Decorating those makes Stage 1b issue one identical
+    # ``site:`` query for all of them, which is worse than leaving the
+    # institution website-free: the website-free path at least searches the
+    # institution's own name. Turn off only to measure what those picks do.
+    official_sites_require_unshared_host: bool = True
     dry_run: bool = True
     stop_after: StageName = "extract"
     # Stage 1c eligibility pre-filter mode (design memo 2026-07-06, decision 2).

@@ -807,6 +807,11 @@ def _presweep_config(
         discovery_domain_quote_name=args.discovery_domain_quote_name,
         # "omit" -> None (no key in the payload at all), "off" -> False.
         serper_autocorrect=None if args.serper_autocorrect == "omit" else False,
+        official_sites_csv=(
+            Path(args.official_sites).expanduser() if args.official_sites else None
+        ),
+        official_sites_min_confidence=args.official_sites_min_confidence,
+        official_sites_require_unshared_host=not args.official_sites_allow_shared,
         dry_run=not args.execute,
         stop_after=args.stop_after,
         filter_mode=args.filter_mode,
@@ -1484,6 +1489,41 @@ def build_parser() -> argparse.ArgumentParser:
             "it is still in flight. Pass an explicit id to replicate a run or to "
             "rejoin an existing one — a minted id never names an existing run "
             "directory, so resume is always deliberate."
+        ),
+    )
+    presweep.add_argument(
+        "--official-sites", default=None, metavar="OVERLAY_CSV",
+        help=(
+            "Spend a g3o.report.site_overlay CSV: every sampled institution the "
+            "overlay covers is decorated with `official_site_url`, which makes "
+            "Stage 2 BYPASS the LLM path for it and hands Stage 1b the site "
+            "directly (no plausibility check — the runner trusts the value, Q4 "
+            "2026-05-09). The registry is never rewritten: the decoration is in "
+            "memory, after the draw. Omitted, the run classifies every "
+            "institution with Stage 2, exactly as before 2026-08-30. "
+            "`orchestrate e2e` rebuilds this file under "
+            "<runs-dir>/_site_overlay/official_sites.csv after every run."
+        ),
+    )
+    presweep.add_argument(
+        "--official-sites-min-confidence", default="high",
+        choices=("high", "medium", "low"),
+        help=(
+            "Confidence floor for --official-sites (default 'high', PI ruling "
+            "2026-08-30). This is Stage 2's rating of its own pick, not a "
+            "validated accuracy figure — no adjudicated subset exists — so "
+            "lowering it is a data-quality decision."
+        ),
+    )
+    presweep.add_argument(
+        "--official-sites-allow-shared", action="store_true",
+        help=(
+            "Also spend picks whose `site:` host is shared with another "
+            "institution (1,192 of 6,684 on r20260829T121145Z-233a: 95 councils "
+            "on nsw.gov.au, 45 institutions on gov.mt). Off by default because "
+            "one `site:` query issued for 95 different councils is worse than "
+            "leaving them website-free — the website-free path at least searches "
+            "the institution's own name."
         ),
     )
     presweep.add_argument(

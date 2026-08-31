@@ -1,4 +1,4 @@
-"""The whole chain, with nobody watching: submit → wait → Stage 7 → load → verify.
+"""The whole chain, with nobody watching: wait → gate → harvest → Stage 7 → load → verify.
 
 Every leg this composes already existed and already reported honestly. What did
 not exist was the composition, and the four things that go wrong in it were all
@@ -59,6 +59,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from g3o.report.site_overlay import PRECEDENCE_MODES
+from g3o.run.orchestrate.harvest import harvest_official_sites
 from g3o.run.orchestrate.ingest import IngestError, IngestResult, ingest_run
 from g3o.run.orchestrate.loader_pin import PINNED_SENTINEL, resolve_expected_sha
 from g3o.run.orchestrate.persist_leg import PersistError, PersistResult, persist_run
@@ -225,6 +227,10 @@ def run_e2e(
     max_wait_seconds: float = 30 * 60 * 60,
     version: int | None = None,
     max_load_failures: int = 0,
+    harvest: bool = True,
+    require_harvest: bool = False,
+    overlay_dir: Path | None = None,
+    overlay_precedence: str = PRECEDENCE_MODES[0],
     sleep: Callable[[float], None] = time.sleep,
     now: Callable[[], float] = time.monotonic,
     log: Callable[[str], None] = logger.info,
@@ -294,7 +300,47 @@ def run_e2e(
         return result
     result._record(StepOutcome("gate", True, message=f"{run_id} is publishable"))
 
-    # --- 3. Stage 7 -------------------------------------------------------
+    # --- 3. harvest -------------------------------------------------------
+    # The official-site overlay, rebuilt from every completed run under
+    # ``runs_dir``. Placed here for two reasons, neither aesthetic.
+    #
+    # It depends only on the run being complete — which ``gate`` has just
+    # established — and on nothing below it. Running it *before* the irreversible
+    # load means a run whose load later fails still contributes its discoveries:
+    # the sites Stage 2 found are real whether or not the findings loaded.
+    #
+    # And it always records green. ``_record`` sets ``stopped_at`` on any
+    # non-green step, so a failed rebuild of a *derived* table would make a chain
+    # that published read as one that stopped — describing a failure that did not
+    # happen. The failure, when there is one, is in the message and the detail.
+    # ``require_harvest`` is there for a caller who wants a gate; it is not the
+    # default, because nothing in *this* run reads the overlay. It feeds the next.
+    if harvest:
+        harvested = harvest_official_sites(
+            runs_dir, overlay_dir=overlay_dir, precedence=overlay_precedence
+        )
+        result._record(
+            StepOutcome(
+                "harvest",
+                harvested.green or not require_harvest,
+                detail=harvested.to_dict(),
+                message=harvested.message,
+            )
+        )
+        if require_harvest and not harvested.green:
+            return result
+    else:
+        result._record(
+            StepOutcome(
+                "harvest", True,
+                message=(
+                    "skipped: harvest disabled. The overlay was not rebuilt, so a "
+                    "later run spends the sites known before this one."
+                ),
+            )
+        )
+
+    # --- 4. Stage 7 -------------------------------------------------------
     log(f"e2e: Stage 7 for {run_id}")
     persist_kwargs: dict[str, Any] = {
         "max_load_failures": max_load_failures, "status": state,
@@ -314,7 +360,7 @@ def run_e2e(
         )
     )
 
-    # --- 4. load ----------------------------------------------------------
+    # --- 5. load ----------------------------------------------------------
     # Everything above this line is reversible. Nothing below it is.
     log(f"e2e: loading {run_id} with loader pinned at {resolved_sha[:7]}")
     try:
@@ -342,7 +388,7 @@ def run_e2e(
     if not ingested.green:
         return result
 
-    # --- 5. verify --------------------------------------------------------
+    # --- 6. verify --------------------------------------------------------
     # Read-only, and last on purpose: it cannot cause a publish and cannot undo
     # one. It answers "is what happened what was wanted", which is a different
     # question from every gate above it.
