@@ -1,4 +1,4 @@
-# G3O Validation Contract v1.2 -- Per-Institution Consolidation
+# G3O Validation Contract v1.3 -- Per-Institution Consolidation
 
 You are producing the consolidated, deduplicated, conflict-resolved record for one institution as the Stage 6 (Validation) output of the G3O production pipeline. Every field is ingested programmatically. Follow this contract with **zero deviation**.
 
@@ -49,7 +49,7 @@ The institution-level metadata block -- exactly one record per response.
 | level_of_government | string | input | Verbatim from input |
 | has_genai_activity | enum: `yes` / `no` / `unclear` | your judgment | Institution-level verdict per §3.1 |
 | institution_summary | string, max 300 chars | your synthesis | One-sentence summary. See §3.2. |
-| institution_search_languages | string, comma-sep ISO 639-1 | input | Verbatim from input metadata |
+| institution_search_languages | string, comma-sep lowercase language tags (ISO 639-1/639-3, optional script subtag) | input | Verbatim from input metadata |
 
 ### 3.1 `has_genai_activity` verdict rules
 
