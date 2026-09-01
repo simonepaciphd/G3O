@@ -1,10 +1,21 @@
 """Institution-level final outcome determination — read-only from disk.
 
-Walks a presweep run and assigns each institution exactly one of four final
+Walks a presweep run and assigns each institution exactly one of five final
 statuses:
 
 - ``EVIDENCE_FOUND``    — reached Stage 6; ``has_genai_activity == "yes"``
-                          with >=1 consolidated activity.
+                          with >=1 consolidated activity, and no technical
+                          failure on the way.
+- ``EVIDENCE_FOUND_PARTIAL``
+                          — the same conclusion, reached over an incomplete
+                          search: >=1 URL for this institution failed to fetch
+                          or parse. The evidence is real; the count is a floor.
+                          Added 2026-08-31, and it is not a new category so much
+                          as the recovery of one that was being discarded — see
+                          the branch comment in
+                          :func:`compute_institution_outcomes`. Measured at
+                          23.8%-33.3% of every run's positives, all of which
+                          previously reported ``PROCESSING_FAILED``.
 - ``NO_EVIDENCE_FOUND`` — the run was configured to reach Stage 6 and this
                           institution was genuinely evaluated that far (or ran
                           out of legitimate upstream input, e.g. zero URLs
@@ -258,7 +269,48 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
         ) or None
 
         error: str | None = None
-        if failures or validation_status == "failed_to_parse":
+        concluded_positive = (
+            validation_status == "consolidated"
+            and has_genai_activity == "yes"
+            and consolidated_row_count > 0
+        )
+        if failures and concluded_positive:
+            # EVIDENCE_FOUND_PARTIAL, 2026-08-31. Measured on five runs: this
+            # branch is 23.8%–33.3% of every run's positives — 104 of 437 on
+            # ``r20260830T114940Z-32ea``, 439 institutions across the five —
+            # and before it existed all of them reported PROCESSING_FAILED.
+            #
+            # The precedence below (any failure row wins) is right for negatives
+            # and wrong for positives, and the asymmetry is the whole argument.
+            # For a negative it stops "could not reach" being published as
+            # "searched and found nothing" — the #17 defect class. For an
+            # institution that consolidated ``yes`` with N activities it does
+            # the opposite: that institution was, definitionally, reached, and
+            # calling it a processing failure suppresses a positive rather than
+            # guarding against a false negative. One failed URL out of nine was
+            # enough (INST-0703416: one ``download_error``, one consolidated
+            # activity, reported PROCESSING_FAILED).
+            #
+            # ``g3o-api`` already resolved this the other way and has all
+            # along: ``sql/001_aggregates.sql`` computes ``documented`` from
+            # ``yes_count``, not from ``outcome_status``, reasoning that "an
+            # incomplete search does not un-find it". So this is a
+            # reconciliation of the report to the database, not a new policy —
+            # the two repos disagreed and the database was right.
+            #
+            # The partial status is kept distinct from EVIDENCE_FOUND rather
+            # than merged into it because the distinction is real: this
+            # institution's evidence is a floor, not a measurement. Anything
+            # counting positives should count both; anything reasoning about
+            # completeness of search must not.
+            final_status = "EVIDENCE_FOUND_PARTIAL"
+            reason = (
+                f"has_genai_activity=yes with {consolidated_row_count} "
+                f"consolidated activity(ies), but the search was incomplete: "
+                f"{attrition_detail}"
+            )
+            error = attrition_detail
+        elif failures or validation_status == "failed_to_parse":
             final_status = "PROCESSING_FAILED"
             if failures:
                 reason = attrition_detail
