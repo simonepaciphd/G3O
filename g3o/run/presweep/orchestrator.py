@@ -319,6 +319,14 @@ def run_presweep(
         # so before the first Serper credit.
         uses_policy = config.language_policy is not None
         languages_for = config.languages_for if uses_policy else None
+        # Leg 1's own selector (PI ruling 2026-09-01), separate from leg 2's for
+        # the reason ``leg1_languages_for`` documents: the two legs answer to
+        # different rosters. ``None`` while the flag is off — which is every run
+        # until the suffix roster is signed — leaves Stage 1a on the single
+        # English domain query, byte for byte.
+        leg1_languages_for = (
+            config.leg1_languages_for if config.discovery_leg1_multilingual else None
+        )
         evidence_terms_for = config.evidence_terms_for if uses_policy else None
         search_languages_for = (
             config.institution_search_languages_for if uses_policy else None
@@ -335,9 +343,22 @@ def run_presweep(
             domain_quote_name=config.discovery_domain_quote_name,
             credentials=resolved,
             languages_for=languages_for,
+            leg1_languages_for=leg1_languages_for,
         )
         summary["n_discovery_general"] = sum(
             len(v) for v in discovery_general.values()
+        )
+        # Institutions whose leg 1 was skipped because the master already
+        # carried the answer (card 2 §4, 2026-09-01). Counted off the sample the
+        # same way ``n_official_sites_bypassed`` counts the Stage 2 skips, so the
+        # two figures are read against each other: today they are equal by
+        # construction, and the column is null on every master row, so both are
+        # zero. They diverge the moment either bypass grows a condition the other
+        # does not have — which is exactly what a reader needs to see.
+        summary["n_leg1_bypassed"] = sum(
+            1
+            for row in plan.sample
+            if institution_record(row).get("official_site_url")
         )
         tel.stage_end(span, counts_out=summary["n_discovery_general"])
         if config.stop_after == "discovery_general":
