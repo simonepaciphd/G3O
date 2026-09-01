@@ -45,7 +45,7 @@ The schema-of-record is `g3o/extract/prompts/output_contract.md`. The live Stage
 
 - **No secrets in commits.** `.env` is gitignored; the template lives at `.env.template`. If you find a key in a diff, remove it before opening a PR.
 - **Schema stability.** Changes to `output_contract.md` or the `g3o.common.schema` column lists (`ACTIVITY_COLUMNS`, `ACTIVITY_SOURCE_COLUMNS`, `SUMMARY_COLUMNS`, legacy `DATA_COLUMNS`) are versioned and require maintainer sign-off.
-- **Pilot data is read-only.** `data/pilot_v1/` is a fixed snapshot. Future versions land as `data/pilot_v2/`, `data/v2/`, etc., never overwrites.
+- **Published data is read-only.** `data/pilot_v1/` is a fixed, citable version. Later versions land in their own directories, never as overwrites.
 - **Researcher control.** Substantive design choices (typology, validation, sampling) are reserved for the project authors. Pull requests that touch typology or coding rules need explicit sign-off in the issue first.
 
 ## How to contribute
