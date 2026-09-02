@@ -275,11 +275,18 @@ def _discover_general_one(
                 )
             ]
         else:
-            # `disambiguation` is read off the raw master row, not the projected
-            # institution record: that projection is serialized to institution.json
-            # and fed to the Stage 2/3/5 LLM prompts, so adding a key there would
-            # change model input as a side effect of a query change. `.get` keeps
-            # pre-rollout masters (no such column) working.
+            # `disambiguation` is read off the raw master row, and the reason
+            # has changed, so it is restated rather than left to be inferred.
+            # It USED to be that `institution_record()` did not carry the column
+            # at all, and adding it there would have changed Stage 2/3/5/6 model
+            # input as a side effect of a query change. As of ADJ ruling 2
+            # (2026-08-31) the projection DOES carry it, deliberately — see
+            # `records.py`. The raw read stays because the two consumers want
+            # different things: the query wants the empty string (it is
+            # concatenated into query text), the prompt wants `None` (it is JSON
+            # a model reads), and keeping the raw read means a future change to
+            # the projection's null handling cannot silently rewrite a query.
+            # `.get` keeps pre-rollout masters (no such column) working.
             queries = build_queries(
                 institution["institution_name"],
                 list(languages if languages_for is None else languages_for(institution)),
