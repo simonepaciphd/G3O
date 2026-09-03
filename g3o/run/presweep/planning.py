@@ -16,6 +16,7 @@ from g3o.common.languages import language_policy_hash
 from g3o.common.paths import INSTITUTION_UIDS_KEY, LAYOUT_VERSION, institution_dir
 from g3o.common.run_state import done_dir, state_dir
 from g3o.discovery.query_builder import (
+    domain_suffix_roster_hash,
     evidence_terms_roster_hash,
     genai_terms_roster_hash,
 )
@@ -98,6 +99,13 @@ def config_snapshot(config: PresweepConfig) -> dict[str, Any]:
     # 90 PI-signed terms that gap is the whole language instrument, so it is
     # recorded and guarded on exactly the same terms.
     config_dict["evidence_terms_roster_hash"] = evidence_terms_roster_hash()
+    # Leg 1's roster is a third instrument (2026-09-01). Recorded from the day it
+    # holds a single English row rather than from the day it holds 90, so that
+    # the first signed suffix moves a fingerprint the manifest was already
+    # writing down — the evidence roster's history is the argument for not
+    # waiting: while it held one row the manifest fingerprinted a roster the run
+    # never read, and the gap only became visible once the rows arrived.
+    config_dict["domain_suffix_roster_hash"] = domain_suffix_roster_hash()
     # Language policy (2026-08-30). Two keys, for two different failure modes.
     #
     # ``language_policy_hash`` is the roster-hash argument one level up: the
@@ -304,6 +312,21 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "language_policy",
     "language_policy_hash",
     "discovery_domain_quote_name",
+    # Leg 1 goes multilingual (added 2026-09-01). The same class of surface as
+    # ``discovery_mode`` beside it, and for a sharper reason: it decides how many
+    # queries leg 1 issues per institution and in which languages, so a run
+    # started with it off and resumed with it on has two domain-discovery
+    # instruments in one artifact and no column saying which institutions got
+    # which. Deliberately **not** absent-tolerated: unlike the roster hashes, a
+    # manifest lacking this key predates the flag and therefore ran with it off,
+    # which ``asdict`` records as ``False`` on every new manifest — so a missing
+    # key can only come from a hand-edited manifest.
+    "discovery_leg1_multilingual",
+    # The open evidence leg (2026-09-03), guarded on the same reasoning as the
+    # flag above: a run that started without it and resumed with it has two
+    # evidence instruments in one artifact tree. Not absent-tolerated either —
+    # ``asdict`` writes ``False`` on every manifest since the field existed.
+    "discovery_evidence_open",
     "serper_autocorrect",
     "model",
     # Scrape/extract job semantics (added 2026-08-04). Same class of gap as the
@@ -332,6 +355,10 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "genai_terms_roster_hash",
     # The chain-mode roster's fingerprint, guarded for the same reason (2026-08-31).
     "evidence_terms_roster_hash",
+    # Leg 1's suffix roster, guarded for the same reason again (2026-09-01): once
+    # it carries more than the English row it *is* the domain-discovery
+    # instrument, and leg 1 is the leg that decides whether leg 2 runs at all.
+    "domain_suffix_roster_hash",
 )
 
 # Guarded keys whose *absence* from the on-disk manifest is tolerated: a run
@@ -374,6 +401,11 @@ _ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset(
         # published runs; tolerating its absence lets them resume, and a manifest
         # that does record it and differs still aborts.
         "evidence_terms_roster_hash",
+        # Same concession, one day later: every manifest written before
+        # 2026-09-01 lacks the leg-1 suffix hash, and every one of those runs
+        # issued the English suffix by construction, so refusing to resume them
+        # would be a cost with no safety gain.
+        "domain_suffix_roster_hash",
     }
 )
 

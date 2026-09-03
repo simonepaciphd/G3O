@@ -195,7 +195,11 @@ def _stage_reached(inst_dir: Path) -> str | None:
 
 def _urls_discovered(inst_dir: Path) -> int:
     total = 0
-    for fname in ("1a_discovery_general.json", "1b_discovery_site_restricted.json"):
+    for fname in (
+        "1a_discovery_general.json",
+        "1b_discovery_site_restricted.json",
+        "1d_discovery_evidence_open.json",
+    ):
         p = inst_dir / fname
         if p.exists():
             payload = json.loads(p.read_text(encoding="utf-8"))

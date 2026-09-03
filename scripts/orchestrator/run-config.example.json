@@ -10,6 +10,8 @@
   "filter_mode": "shadow",
   "discovery_mode": "chain",
   "discovery_languages": ["en"],
+  "_comment_legs": "The four-leg configuration (2026-09-03) replaces discovery_languages with the signed policy and turns on the two optional legs; both default false. See docs/runbook-orchestrator.md § The run config.",
+  "_example_four_legs": {"language_policy": "2026-08-30", "discovery_leg1_multilingual": true, "discovery_evidence_open": true},
   "max_workers": 4,
   "poll_interval": 60,
   "max_wait_per_stage": 90000

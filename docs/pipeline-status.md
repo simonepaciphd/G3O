@@ -213,6 +213,30 @@ quoted-name failure mode the n=24 findings identified **does transfer** to
 leg 1. `--discovery-domain-quote-name` exists so this stays reproducible rather
 than becoming folklore.
 
+### Four legs, two of them optional (2026-09-03)
+
+Two legs joined the chain on the PI's rulings of 2026-09-03, each behind a
+`PresweepConfig` flag that defaults off, so every figure above still describes
+a run configured without them.
+
+| leg | flag | query | when |
+|---|---|---|---|
+| 1 | — | `<name> <country> <disamb> official website` | every institution, English |
+| 1′ fallback | `discovery_leg1_multilingual` | same, localized suffix from `DOMAIN_SUFFIX_BY_LANG` | only where Stage 2 found no site; Stage 2 re-runs on the widened candidates |
+| 2 | — | `site:<domain> <term>` | per policy language, where a site is known |
+| open | `discovery_evidence_open` | `"<name>" <country> <disamb> "<term>"` | every institution, per policy language; feeds 1c and triage, never Stage 2 |
+
+The evidence behind the two designs is in
+`agent-workspace/2026-09-01-discovery-legs/`: the leg-1 fallback because the
+additive form measured zero recall gain where English already succeeds
+(n=1,412, McNemar *p* = 1.0) and ~a third recovery where it fails (7/26,
+underpowered) — `leg1-suffix-roster/FINDINGS-ordering.md`; the open leg
+because as an *addition* it surfaced 45 institutions with confirmed evidence
+the chain never reached (7.5% of n=600) while as a *replacement* it was
+worthless — `leg3/READOUT.md`. The 90-row suffix roster is tabled for PI
+signature in `leg1-suffix-roster/SIGNABLE-SUFFIX-ROSTER-90.md`; 55 rows were
+probed live, 35 are drafted and unprobed, and the table says which.
+
 ---
 
 ## 3. Stages 1c–7 — measured through Stage 4

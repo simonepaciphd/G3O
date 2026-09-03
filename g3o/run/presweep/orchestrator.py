@@ -23,11 +23,17 @@ from g3o.run.presweep.config import PresweepConfig
 from g3o.run.presweep.planning import plan_run, update_manifest_llm_provenance
 from g3o.run.presweep.records import institution_record
 from g3o.run.presweep.stage_classify import (
+    STAGE_2_FALLBACK,
     _run_classify_official_site,
+    _run_classify_official_site_fallback,
     _run_classify_triage,
 )
 from g3o.run.presweep.stage_discovery import (
+    STAGE_1A_FALLBACK,
+    STAGE_1D,
+    _run_discovery_evidence_open,
     _run_discovery_general,
+    _run_discovery_general_fallback,
     _run_discovery_site_restricted,
 )
 from g3o.run.presweep.stage_extract import _run_extract
@@ -38,9 +44,11 @@ from g3o.run.telemetry import NO_TELEMETRY, RunTelemetry
 
 logger = logging.getLogger(__name__)
 
-# LLM stages that have cost monitoring (in execution order)
+# LLM stages that have cost monitoring (in execution order). The Stage 2
+# fallback pass is a sub-step, not a roster stage, but it spends like one.
 _LLM_STAGES: tuple[str, ...] = (
     "classify_official_site",
+    STAGE_2_FALLBACK,
     "classify_triage",
     "extract",
     "validate",
@@ -343,6 +351,18 @@ def run_presweep(
         summary["n_discovery_general"] = sum(
             len(v) for v in discovery_general.values()
         )
+        # Institutions whose leg 1 was skipped because the master already
+        # carried the answer (card 2 §4, 2026-09-01). Counted off the sample the
+        # same way ``n_official_sites_bypassed`` counts the Stage 2 skips, so the
+        # two figures are read against each other: today they are equal by
+        # construction, and the column is null on every master row, so both are
+        # zero. They diverge the moment either bypass grows a condition the other
+        # does not have — which is exactly what a reader needs to see.
+        summary["n_leg1_bypassed"] = sum(
+            1
+            for row in plan.sample
+            if institution_record(row).get("official_site_url")
+        )
         tel.stage_end(span, counts_out=summary["n_discovery_general"])
         if config.stop_after == "discovery_general":
             return _finish("stop_after")
@@ -373,6 +393,66 @@ def run_presweep(
         skip_after = _PROJECTION_SKIP_AFTER.get("classify_official_site", frozenset())
         if config.stop_after not in skip_after:
             _check_projection(monitor, "classify_triage")
+
+        if config.discovery_leg1_multilingual:
+            # Leg 1, second pass (PI ruling 2026-09-03): localized domain queries
+            # for exactly the institutions Stage 2 came away from empty-handed,
+            # then Stage 2 again on the widened candidates. Two sub-steps of the
+            # ``classify_official_site`` phase — see ``STAGES`` — so they run
+            # before this phase's ``stop_after`` check and their spend is
+            # recorded before the next roster stage starts.
+            span = tel.stage_start(
+                STAGE_1A_FALLBACK,
+                counts_in=sum(1 for v in official_sites.values() if not v),
+            )
+            discovery_general, fallback_stats = _run_discovery_general_fallback(
+                plan.run_dir,
+                plan.sample,
+                discovery_general,
+                official_sites,
+                num_results=config.discovery_results_per_query,
+                fallback_languages_for=config.leg1_fallback_languages_for,
+                max_workers=config.max_workers,
+                options=serper_options,
+                domain_quote_name=config.discovery_domain_quote_name,
+                credentials=resolved,
+            )
+            summary["n_leg1_fallback_institutions"] = fallback_stats["n_institutions"]
+            summary["n_leg1_fallback_english_only"] = fallback_stats["n_english_only"]
+            summary["n_leg1_fallback_queries"] = fallback_stats["n_queries"]
+            summary["n_leg1_fallback_new_urls"] = fallback_stats["n_new_records"]
+            # The union grew, so the leg-1 total is restated over it.
+            summary["n_discovery_general"] = sum(
+                len(v) for v in discovery_general.values()
+            )
+            tel.stage_end(span, counts_out=fallback_stats["n_new_records"])
+
+            span = tel.stage_start(
+                STAGE_2_FALLBACK, counts_in=fallback_stats["n_institutions"]
+            )
+            official_sites, stage2_fallback_stats = _run_classify_official_site_fallback(
+                plan.run_dir,
+                plan.sample,
+                discovery_general,
+                official_sites,
+                run_id=config.run_id,
+                model=config.model,
+                poll_interval=config.poll_interval,
+                max_wait=config.max_wait_per_stage,
+                cost_check_callback=_within_stage_budget_callback,
+                credentials=resolved,
+                telemetry=tel,
+            )
+            summary["n_official_sites_fallback_candidates"] = stage2_fallback_stats[
+                "n_candidates"
+            ]
+            summary["n_official_sites_fallback"] = stage2_fallback_stats["n_found"]
+            summary["n_official_sites"] = sum(1 for v in official_sites.values() if v)
+            tel.stage_end(span, counts_out=stage2_fallback_stats["n_found"])
+            _record_and_track_stage_budget(
+                monitor, config, plan.run_dir, STAGE_2_FALLBACK, budget_exceeded_stages
+            )
+
         if config.stop_after == "classify_official_site":
             return _finish("stop_after")
 
@@ -397,18 +477,43 @@ def run_presweep(
             len(v) for v in discovery_site_restricted.values()
         )
         tel.stage_end(span, counts_out=summary["n_discovery_site_restricted"])
+
+        # The open evidence leg (PI ruling 2026-09-03) — a sub-step of the
+        # ``discovery_site_restricted`` phase. ``None`` when the flag is off, so
+        # every downstream union is exactly the 1a+1b union it always was.
+        discovery_evidence_open: dict[str, list[dict[str, Any]]] | None = None
+        if config.discovery_evidence_open:
+            span = tel.stage_start(STAGE_1D, counts_in=len(plan.sample))
+            discovery_evidence_open = _run_discovery_evidence_open(
+                plan.run_dir,
+                plan.sample,
+                num_results=config.discovery_results_per_query,
+                max_workers=config.max_workers,
+                evidence_terms=config.evidence_terms,
+                options=serper_options,
+                credentials=resolved,
+                evidence_terms_for=evidence_terms_for,
+            )
+            summary["n_discovery_evidence_open"] = sum(
+                len(v) for v in discovery_evidence_open.values()
+            )
+            tel.stage_end(span, counts_out=summary["n_discovery_evidence_open"])
+        n_open = summary.get("n_discovery_evidence_open", 0)
+
         if config.stop_after == "discovery_site_restricted":
             return _finish("stop_after")
 
         # Stage 1c — deterministic eligibility pre-filter (design memo
-        # 2026-07-06). Screens the 1a+1b union and, under ``enforce``, hands
+        # 2026-07-06). Screens the 1a+1b(+1d) union and, under ``enforce``, hands
         # Stage 3 only the ``pass`` URLs; ``shadow`` (default) writes the
-        # would-drop artifact but leaves the union intact. The 1a/1b artifacts
-        # are never mutated — pruning is applied to in-memory copies only.
+        # would-drop artifact but leaves the union intact. The discovery
+        # artifacts are never mutated — pruning is applied to in-memory copies
+        # only (the open leg's dict is pruned in place; see the runner).
         span = tel.stage_start(
             "filter_eligibility",
             counts_in=summary["n_discovery_general"]
-            + summary["n_discovery_site_restricted"],
+            + summary["n_discovery_site_restricted"]
+            + n_open,
         )
         filter_general, filter_site_restricted, filter_stats = _run_filter_eligibility(
             plan.run_dir,
@@ -416,14 +521,17 @@ def run_presweep(
             discovery_general,
             discovery_site_restricted,
             mode=config.filter_mode,
+            discovery_evidence_open=discovery_evidence_open,
         )
         summary["filter_mode"] = filter_stats["mode"]
         summary["n_filter_would_drop"] = filter_stats["n_would_drop"]
         summary["n_filter_enforced_drop"] = filter_stats["n_enforced_drop"]
+        n_open_effective = sum(len(v) for v in (discovery_evidence_open or {}).values())
         tel.stage_end(
             span,
             counts_out=sum(len(v) for v in filter_general.values())
-            + sum(len(v) for v in filter_site_restricted.values()),
+            + sum(len(v) for v in filter_site_restricted.values())
+            + n_open_effective,
             filter_mode=filter_stats["mode"],
             would_drop=filter_stats["n_would_drop"],
         )
@@ -433,7 +541,8 @@ def run_presweep(
         span = tel.stage_start(
             "classify_triage",
             counts_in=sum(len(v) for v in filter_general.values())
-            + sum(len(v) for v in filter_site_restricted.values()),
+            + sum(len(v) for v in filter_site_restricted.values())
+            + n_open_effective,
         )
         triaged = _run_classify_triage(
             plan.run_dir,
@@ -448,6 +557,7 @@ def run_presweep(
             cost_check_callback=_within_stage_budget_callback,
             credentials=resolved,
             telemetry=tel,
+            discovery_evidence_open=discovery_evidence_open,
         )
         summary["n_triaged_kept"] = sum(len(v) for v in triaged.values())
         tel.stage_end(span, counts_out=summary["n_triaged_kept"])

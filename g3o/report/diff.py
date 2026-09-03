@@ -238,7 +238,11 @@ def _discovery_candidates(inst_dir: Path) -> frozenset[str]:
        bypassed cache.
     """
     urls: set[str] = set()
-    for name in ("1a_discovery_general.json", "1b_discovery_site_restricted.json"):
+    for name in (
+        "1a_discovery_general.json",
+        "1b_discovery_site_restricted.json",
+        "1d_discovery_evidence_open.json",
+    ):
         payload = _read_json(inst_dir / name)
         if not isinstance(payload, dict):
             continue
