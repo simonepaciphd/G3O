@@ -322,6 +322,11 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     # which ``asdict`` records as ``False`` on every new manifest — so a missing
     # key can only come from a hand-edited manifest.
     "discovery_leg1_multilingual",
+    # The open evidence leg (2026-09-03), guarded on the same reasoning as the
+    # flag above: a run that started without it and resumed with it has two
+    # evidence instruments in one artifact tree. Not absent-tolerated either —
+    # ``asdict`` writes ``False`` on every manifest since the field existed.
+    "discovery_evidence_open",
     "serper_autocorrect",
     "model",
     # Scrape/extract job semantics (added 2026-08-04). Same class of gap as the

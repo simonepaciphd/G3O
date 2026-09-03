@@ -45,20 +45,25 @@ def _records_union(
     discovery_general: dict[str, list[dict[str, Any]]],
     discovery_site_restricted: dict[str, list[dict[str, Any]]],
     inst_id: str,
+    discovery_evidence_open: dict[str, list[dict[str, Any]]] | None = None,
 ) -> list[dict[str, Any]]:
-    """First-seen, path-aware deduped union of 1a+1b *records* for one institution.
+    """First-seen, path-aware deduped union of 1a+1b(+1d) *records* for one institution.
 
     Mirrors :func:`g3o.run.presweep.stage_classify._candidate_urls_union` (same
-    ``_dedupe_key`` and 1a-before-1b order) but keeps the whole record so the 1b
-    keyword screen can read ``title``/``snippet`` — which the URL-only triage
-    union discards. Evaluating the first-seen record per dedup key matches the
-    canonical URL the triage union would carry downstream.
+    ``_dedupe_key`` and 1a-before-1b-before-1d order) but keeps the whole record
+    so the 1b keyword screen can read ``title``/``snippet`` — which the URL-only
+    triage union discards. Evaluating the first-seen record per dedup key matches
+    the canonical URL the triage union would carry downstream.
+
+    ``discovery_evidence_open`` (2026-09-03) is the open evidence leg's records,
+    ``None`` on a run without it — every run before that date.
     """
     seen: set[str] = set()
     out: list[dict[str, Any]] = []
     for source in (
         discovery_general.get(inst_id, []),
         discovery_site_restricted.get(inst_id, []),
+        (discovery_evidence_open or {}).get(inst_id, []),
     ):
         for r in source:
             url = r.get("link", "")
@@ -137,17 +142,23 @@ def _run_filter_eligibility(
     discovery_site_restricted: dict[str, list[dict[str, Any]]],
     *,
     mode: str,
+    discovery_evidence_open: dict[str, list[dict[str, Any]]] | None = None,
 ) -> tuple[
     dict[str, list[dict[str, Any]]],
     dict[str, list[dict[str, Any]]],
     dict[str, Any],
 ]:
-    """Screen the 1a+1b union per institution and honor ``mode``.
+    """Screen the 1a+1b(+1d) union per institution and honor ``mode``.
 
     Returns ``(effective_general, effective_site_restricted, stats)`` — the two
     discovery dicts Stage 3 should consume (pruned only under ``enforce``) plus
     a small stats dict for the run summary. Under ``off`` the inputs are
     returned unchanged and nothing is written.
+
+    ``discovery_evidence_open`` (2026-09-03), when given, joins the screened
+    union and is pruned in place under ``enforce`` — the caller keeps its own
+    reference, which is why it is not a fourth return value: the two-tuple
+    contract predates the leg and every caller of it reads positionally.
     """
     if mode == "off":
         logger.info("Stage 1c: filter_mode=off — bypassed, Stage 3 sees full union")
@@ -176,7 +187,8 @@ def _run_filter_eligibility(
                 )
             else:
                 union = _records_union(
-                    discovery_general, discovery_site_restricted, inst_id
+                    discovery_general, discovery_site_restricted, inst_id,
+                    discovery_evidence_open,
                 )
                 if not union:
                     continue
@@ -199,6 +211,11 @@ def _run_filter_eligibility(
         dropped_by_inst = {
             i: _dropped_keys(ds) for i, ds in decisions_by_inst.items()
         }
+        if discovery_evidence_open is not None:
+            # In place, so the caller's dict is the pruned one (see docstring).
+            pruned_open = _prune(discovery_evidence_open, dropped_by_inst)
+            discovery_evidence_open.clear()
+            discovery_evidence_open.update(pruned_open)
         return (
             _prune(discovery_general, dropped_by_inst),
             _prune(discovery_site_restricted, dropped_by_inst),

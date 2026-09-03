@@ -90,7 +90,11 @@ def _url_languages(inst_dir: Path) -> dict[str, set[str]]:
     docstring was false by one query order. See :func:`record_languages`.
     """
     out: dict[str, set[str]] = {}
-    for fname in ("1a_discovery_general.json", "1b_discovery_site_restricted.json"):
+    for fname in (
+        "1a_discovery_general.json",
+        "1b_discovery_site_restricted.json",
+        "1d_discovery_evidence_open.json",
+    ):
         p = inst_dir / fname
         if not p.exists():
             continue

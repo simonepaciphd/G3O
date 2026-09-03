@@ -1,4 +1,20 @@
-"""Stage 1a/1b runners — general + site-restricted Serper discovery."""
+"""Stage 1 runners — the four Serper discovery legs.
+
+Four legs, three artifacts, one query loop (:func:`_issue_queries`):
+
+=====  ======================  ===================================  =====================
+leg    stage                   query                                artifact
+=====  ======================  ===================================  =====================
+1      discovery_general       ``<name> <country> <disamb> official website``  1a
+1'     discovery_general_fallback  the same, localized suffix, only where Stage 2 found no site  1a (rewritten)
+2      discovery_site_restricted   ``site:<domain> <term>``, one per policy language  1b
+open   discovery_evidence_open  ``"<name>" <country> <disamb> "<term>"``, one per policy language  1d
+=====  ======================  ===================================  =====================
+
+Legs 1 and 2 are the chain of 2026-08-01. The other two entered on 2026-09-03 on
+the PI's direction, each behind its own ``PresweepConfig`` flag, default off, so a
+run configured as before issues exactly the queries it issued before.
+"""
 
 from __future__ import annotations
 
@@ -19,6 +35,7 @@ from g3o.discovery.query_builder import (
     DOMAIN_QUERY_LANG,
     build_domain_queries,
     build_evidence_query,
+    build_open_evidence_queries,
     build_queries,
 )
 from g3o.discovery.serper_client import (
@@ -189,32 +206,112 @@ def _query_provenance(query: str, lang: str, leg: str, result) -> dict[str, Any]
     }
 
 
-def _read_existing_discovery_general(
-    run_dir: Path, sample: list[dict[str, Any]]
+def _issue_queries(
+    run_dir: Path,
+    inst_id: str,
+    stage: str,
+    queries: list[tuple[str, str]],
+    *,
+    leg: str,
+    num_results: int,
+    options: SerperOptions | None,
+    credentials: ResolvedCredentials | None,
+    index: dict[str, int],
+    records: list[dict[str, Any]],
+    provenance: list[dict[str, Any]],
+    record_extra: Mapping[str, Any] | None = None,
+    provenance_extra: Mapping[str, Any] | None = None,
+) -> int:
+    """Issue ``queries`` and union their results into ``records`` in place.
+
+    The one query loop every leg runs (2026-09-03; until then legs 1 and 2 each
+    carried a copy). Dedup is by URL through ``index``: a URL already present
+    gets a :func:`_note_finding` entry, a new one is appended with first-finder
+    ``query``/``language`` and a one-entry ``found_by``. ``record_extra`` is
+    merged into every *new* record (leg 2 stamps ``site_domain``);
+    ``provenance_extra`` into every provenance entry (the fallback pass stamps
+    ``pass``). Returns the number of records appended.
+
+    A :class:`SerperRequestError` is recorded to the attrition ledger and
+    re-raised (review F1): the caller must not persist a partial artifact that
+    reads as "found nothing", so nothing is written here and the caller's
+    skip-if-exists resume retries the institution.
+    """
+    n_new = 0
+    for query, lang in queries:
+        try:
+            result = search_google_detailed(
+                query, num_results=num_results, options=options,
+                credentials=credentials,
+            )
+        except SerperRequestError as exc:
+            attrition.record(
+                run_dir, institution_id=inst_id, stage=stage,
+                reason="serper_request_failed", url=query, detail=str(exc),
+            )
+            raise
+        entry = _query_provenance(query, lang, leg, result)
+        if provenance_extra:
+            entry.update(provenance_extra)
+        provenance.append(entry)
+        for r in result.results:
+            url = r.get("link", "")
+            if not url:
+                continue
+            if url in index:
+                _note_finding(records[index[url]], query, lang)
+                continue
+            index[url] = len(records)
+            records.append(
+                {
+                    **r,
+                    "query": query,
+                    "language": lang,
+                    **(dict(record_extra) if record_extra else {}),
+                    "found_by": [{"query": query, "language": lang}],
+                }
+            )
+            n_new += 1
+    return n_new
+
+
+ARTIFACT_1A = "1a_discovery_general.json"
+ARTIFACT_1B = "1b_discovery_site_restricted.json"
+#: The open evidence leg's artifact. ``1d`` because ``1c`` is the eligibility
+#: filter's and the leg runs after it in the roster of things called Stage 1.
+ARTIFACT_1D = "1d_discovery_evidence_open.json"
+
+
+def _read_existing_records(
+    run_dir: Path, sample: list[dict[str, Any]], filename: str
 ) -> dict[str, list[dict[str, Any]]]:
     out: dict[str, list[dict[str, Any]]] = {}
     for row in sample:
         inst_id = synth_institution_id(row)
-        path = institution_dir(run_dir, inst_id) / "1a_discovery_general.json"
+        path = institution_dir(run_dir, inst_id) / filename
         if not path.exists():
             continue
         payload = json.loads(path.read_text(encoding="utf-8"))
         out[inst_id] = payload.get("records", [])
     return out
+
+
+def _read_existing_discovery_general(
+    run_dir: Path, sample: list[dict[str, Any]]
+) -> dict[str, list[dict[str, Any]]]:
+    return _read_existing_records(run_dir, sample, ARTIFACT_1A)
 
 
 def _read_existing_discovery_site_restricted(
     run_dir: Path, sample: list[dict[str, Any]]
 ) -> dict[str, list[dict[str, Any]]]:
-    out: dict[str, list[dict[str, Any]]] = {}
-    for row in sample:
-        inst_id = synth_institution_id(row)
-        path = institution_dir(run_dir, inst_id) / "1b_discovery_site_restricted.json"
-        if not path.exists():
-            continue
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        out[inst_id] = payload.get("records", [])
-    return out
+    return _read_existing_records(run_dir, sample, ARTIFACT_1B)
+
+
+def _read_existing_discovery_evidence_open(
+    run_dir: Path, sample: list[dict[str, Any]]
+) -> dict[str, list[dict[str, Any]]]:
+    return _read_existing_records(run_dir, sample, ARTIFACT_1D)
 
 
 def _discover_general_one(
@@ -363,39 +460,13 @@ def _discover_general_one(
         records: list[dict[str, Any]] = []
         provenance: list[dict[str, Any]] = []
         leg = "domain_discovery" if mode == "chain" else "genai_roster"
-        for query, lang in queries:
-            try:
-                result = search_google_detailed(
-                    query, num_results=num_results, options=options,
-                    credentials=credentials,
-                )
-            except SerperRequestError as exc:
-                # Honest failure (review F1): record and abort rather than
-                # persist a partial artifact that looks like "found nothing".
-                # The institution's 1a file is NOT written, so resume (or,
-                # under concurrency, the stage-level abort) retries it.
-                attrition.record(
-                    run_dir, institution_id=inst_id, stage=stage,
-                    reason="serper_request_failed", url=query, detail=str(exc),
-                )
-                raise
-            provenance.append(_query_provenance(query, lang, leg, result))
-            for r in result.results:
-                url = r.get("link", "")
-                if not url:
-                    continue
-                if url in index:
-                    _note_finding(records[index[url]], query, lang)
-                    continue
-                index[url] = len(records)
-                records.append(
-                    {
-                        **r,
-                        "query": query,
-                        "language": lang,
-                        "found_by": [{"query": query, "language": lang}],
-                    }
-                )
+        # On a SerperRequestError the institution's 1a file is NOT written, so
+        # resume (or, under concurrency, the stage-level abort) retries it.
+        _issue_queries(
+            run_dir, inst_id, stage, queries, leg=leg, num_results=num_results,
+            options=options, credentials=credentials,
+            index=index, records=records, provenance=provenance,
+        )
         artifact: dict[str, Any] = {
             "mode": mode,
             "queries": provenance,
@@ -470,6 +541,185 @@ def _run_discovery_general(
         out[inst_id] = records
     mark_done(run_dir, stage, no_batch=True)
     return out
+
+
+# ---------------------------------------------------------------------------
+# Leg 1, second pass — the localized fallback (PI ruling 2026-09-03)
+#
+# English first, localized only on failure. The card-2 probe
+# (agent-workspace/2026-09-01-discovery-legs/leg1-suffix-roster/FINDINGS-*.md)
+# measured that the localized suffixes add no recall where English already
+# succeeds (n=1,412, McNemar p=1.0) and recover roughly a third of the cases
+# where it fails (7 of 26, underpowered). So the localized queries are issued
+# for exactly the institutions Stage 2 came away from empty-handed, and Stage 2
+# is then run again on the widened candidate list. "Failed" is Stage 2's verdict,
+# not leg 1's: leg 1 returns ten URLs and cannot tell whether one is the site.
+# The alternative — exiting on ``pick_domain``'s heuristic — would have promoted
+# a rule the project has deliberately kept advisory since 2026-08-01.
+#
+# The second pass writes into the SAME ``1a_discovery_general.json``. Leg 1 is
+# one leg with two passes, and every reader of the funnel (health, outcomes,
+# diff, the 1c filter, triage) reads leg 1 from that file; a sibling artifact
+# would have made the fallback's URLs invisible to all of them. The artifact
+# stays self-describing: every fallback query is stamped ``pass: "fallback"``
+# in ``queries``, every URL keeps ``found_by`` attribution, and a
+# ``fallback_pass`` block records what the pass did — or why it did nothing.
+# ---------------------------------------------------------------------------
+
+STAGE_1A_FALLBACK = "discovery_general_fallback"
+
+
+def _discover_general_fallback_one(
+    run_dir: Path,
+    row: dict[str, Any],
+    official_sites: Mapping[str, str | None],
+    *,
+    stage: str,
+    num_results: int,
+    fallback_languages_for: LanguagesFor,
+    options: SerperOptions | None = None,
+    domain_quote_name: bool = False,
+    credentials: ResolvedCredentials | None = None,
+) -> tuple[str, list[dict[str, Any]] | None]:
+    """The localized leg-1 pass for one institution, or ``None`` if not applicable.
+
+    Not applicable — artifact untouched, nothing returned — when Stage 2 found a
+    site, when the master supplied one (the 1a bypass envelope), or when the
+    institution never reached 1a. Applicable but empty when the policy names
+    English only: recorded in the artifact as ``fallback_pass.reason`` so a
+    reader can tell "no localized query exists for this country" from "the
+    fallback was never considered".
+    """
+    institution = institution_record(row)
+    inst_id = institution["institution_id"]
+    path = institution_dir(run_dir, inst_id) / ARTIFACT_1A
+    if not path.exists():
+        return inst_id, None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if payload.get("bypassed"):
+        return inst_id, None
+    if payload.get("fallback_pass") is not None:
+        # Resume: this institution's pass already ran (skip-if-exists).
+        return inst_id, payload.get("records", [])
+    if official_sites.get(inst_id):
+        return inst_id, None
+    langs = tuple(fallback_languages_for(institution))
+    records: list[dict[str, Any]] = payload.get("records", [])
+    if not langs:
+        payload["fallback_pass"] = {
+            "languages": [],
+            "n_queries": 0,
+            "n_new_records": 0,
+            "reason": "policy_names_english_only",
+        }
+        path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        return inst_id, records
+    with stage_timer(run_dir, inst_id, stage):
+        queries = build_domain_queries(
+            institution["institution_name"],
+            langs,
+            institution["country"],
+            row.get("disambiguation") or "",
+            quote_name=domain_quote_name,
+        )
+        index = {r.get("link", ""): i for i, r in enumerate(records) if r.get("link")}
+        provenance: list[dict[str, Any]] = payload.get("queries", [])
+        n_new = _issue_queries(
+            run_dir, inst_id, stage, queries, leg="domain_discovery",
+            num_results=num_results, options=options, credentials=credentials,
+            index=index, records=records, provenance=provenance,
+            provenance_extra={"pass": "fallback"},
+        )
+        payload["queries"] = provenance
+        payload["records"] = records
+        # Recomputed over the union, for the same readers as the first pass.
+        payload["naive_domain"] = pick_domain(records)
+        truth = leg1_recall_block(row.get("website"), records)
+        if truth is not None:
+            payload["ground_truth"] = truth
+        payload["fallback_pass"] = {
+            "languages": list(langs),
+            "n_queries": len(queries),
+            "n_new_records": n_new,
+        }
+        path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        return inst_id, records
+
+
+def _fallback_stats_from_disk(
+    run_dir: Path, sample: list[dict[str, Any]]
+) -> dict[str, int]:
+    """Aggregate every ``fallback_pass`` block — the run summary's view of the pass."""
+    stats = {
+        "n_institutions": 0,
+        "n_english_only": 0,
+        "n_queries": 0,
+        "n_new_records": 0,
+    }
+    for row in sample:
+        inst_id = synth_institution_id(row)
+        path = institution_dir(run_dir, inst_id) / ARTIFACT_1A
+        if not path.exists():
+            continue
+        block = json.loads(path.read_text(encoding="utf-8")).get("fallback_pass")
+        if block is None:
+            continue
+        stats["n_institutions"] += 1
+        if block.get("reason") == "policy_names_english_only":
+            stats["n_english_only"] += 1
+        stats["n_queries"] += int(block.get("n_queries", 0))
+        stats["n_new_records"] += int(block.get("n_new_records", 0))
+    return stats
+
+
+def _run_discovery_general_fallback(
+    run_dir: Path,
+    sample: list[dict[str, Any]],
+    discovery_general: dict[str, list[dict[str, Any]]],
+    official_sites: Mapping[str, str | None],
+    *,
+    num_results: int,
+    fallback_languages_for: LanguagesFor,
+    max_workers: int = 1,
+    options: SerperOptions | None = None,
+    domain_quote_name: bool = False,
+    credentials: ResolvedCredentials | None = None,
+) -> tuple[dict[str, list[dict[str, Any]]], dict[str, int]]:
+    """Stage 1a, second pass — localized leg 1 where Stage 2 found no site.
+
+    Returns the leg-1 records dict with the fallback's URLs unioned in, plus the
+    pass's statistics. Institutions the pass did not apply to keep their
+    first-pass records unchanged. Resume and concurrency follow
+    :func:`_run_discovery_general`: a ``.done`` marker short-circuits to disk,
+    and without one the per-institution ``fallback_pass`` block is the
+    skip-if-exists signal.
+    """
+    stage = STAGE_1A_FALLBACK
+    if is_done(run_dir, stage):
+        logger.info("Stage 1a fallback: .done marker present — skipping (resume from disk)")
+        return (
+            _read_existing_discovery_general(run_dir, sample),
+            _fallback_stats_from_disk(run_dir, sample),
+        )
+    out = dict(discovery_general)
+    results = run_concurrent(
+        sample,
+        lambda row: _discover_general_fallback_one(
+            run_dir, row, official_sites, stage=stage, num_results=num_results,
+            fallback_languages_for=fallback_languages_for, options=options,
+            domain_quote_name=domain_quote_name, credentials=credentials,
+        ),
+        max_workers=max_workers,
+    )
+    for inst_id, records in results:
+        if records is not None:
+            out[inst_id] = records
+    mark_done(run_dir, stage, no_batch=True)
+    return out, _fallback_stats_from_disk(run_dir, sample)
 
 
 def _discover_site_restricted_one(
@@ -559,36 +809,12 @@ def _discover_site_restricted_one(
         records: list[dict[str, Any]] = []
         provenance: list[dict[str, Any]] = []
         leg = "site_evidence" if mode == "chain" else "site_genai_roster"
-        for query, lang in wrapped:
-            try:
-                result = search_google_detailed(
-                    query, num_results=num_results, options=options,
-                    credentials=credentials,
-                )
-            except SerperRequestError as exc:
-                attrition.record(
-                    run_dir, institution_id=inst_id, stage=stage,
-                    reason="serper_request_failed", url=query, detail=str(exc),
-                )
-                raise
-            provenance.append(_query_provenance(query, lang, leg, result))
-            for r in result.results:
-                url = r.get("link", "")
-                if not url:
-                    continue
-                if url in index:
-                    _note_finding(records[index[url]], query, lang)
-                    continue
-                index[url] = len(records)
-                records.append(
-                    {
-                        **r,
-                        "query": query,
-                        "language": lang,
-                        "site_domain": domain,
-                        "found_by": [{"query": query, "language": lang}],
-                    }
-                )
+        _issue_queries(
+            run_dir, inst_id, stage, wrapped, leg=leg, num_results=num_results,
+            options=options, credentials=credentials,
+            index=index, records=records, provenance=provenance,
+            record_extra={"site_domain": domain},
+        )
         path.write_text(
             json.dumps(
                 {
@@ -653,6 +879,130 @@ def _run_discovery_site_restricted(
             mode=mode, evidence_terms=evidence_terms, options=options,
             credentials=credentials, languages_for=languages_for,
             evidence_terms_for=evidence_terms_for,
+        ),
+        max_workers=max_workers,
+    )
+    for inst_id, records in results:
+        out[inst_id] = records
+    mark_done(run_dir, stage, no_batch=True)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# The open evidence leg (PI ruling 2026-09-03; measured as card 3, 2026-09-02)
+#
+# ``"<name>" <country> <disambiguation> "<term>"``, one query per policy language,
+# not bound to any site. The retired legacy leg's shape with the signed 90-term
+# evidence roster supplying one native term per language where legacy issued
+# eight English ones. Card 3 measured it at n=600 through the real Stages
+# 1c → 3 → 5: as an addition to the chain it surfaces 45 institutions with
+# confirmed GenAI evidence the chain never reaches (7.5% of the sample), 53 of
+# them from third-party sources; as a replacement it is worthless; in English
+# alone it is significantly worse than the chain. So it runs in every policy
+# language, alongside legs 1 and 2, never instead of either.
+#
+# It runs after Stage 2 and does not feed it: a query for content is not a query
+# for a website, and adding third-party pages to the official-site candidate list
+# would change the domain instrument as a side effect. Its URLs join the 1a+1b
+# union at Stage 1c and triage, where Stage 3 sees them with the official site
+# already known — card 3 measured that withholding it moves triage by 0.3%.
+# ---------------------------------------------------------------------------
+
+STAGE_1D = "discovery_evidence_open"
+
+
+def _discover_evidence_open_one(
+    run_dir: Path,
+    row: dict[str, Any],
+    *,
+    stage: str,
+    num_results: int,
+    evidence_terms: Mapping[str, str] | None = None,
+    options: SerperOptions | None = None,
+    credentials: ResolvedCredentials | None = None,
+    evidence_terms_for: EvidenceTermsFor | None = None,
+) -> tuple[str, list[dict[str, Any]]]:
+    """The open evidence leg for one institution. One ``1d`` artifact.
+
+    Term selection is exactly leg 2's (``evidence_terms_for`` per institution
+    under a policy, ``evidence_terms`` for a run-level tuple, ``{en: AI}`` when
+    neither is given), so the two evidence legs can never disagree about which
+    languages an institution is searched in.
+    """
+    institution = institution_record(row)
+    inst_id = institution["institution_id"]
+    path = institution_dir(run_dir, inst_id) / ARTIFACT_1D
+    if path.exists():
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return inst_id, payload.get("records", [])
+    if evidence_terms_for is not None:
+        terms = dict(evidence_terms_for(institution))
+    elif evidence_terms is not None:
+        terms = dict(evidence_terms)
+    else:
+        terms = {DOMAIN_QUERY_LANG: DEFAULT_EVIDENCE_TERM}
+    with stage_timer(run_dir, inst_id, stage):
+        # ``disambiguation`` off the raw master row, not the projected record,
+        # for the reason the other legs give: the projection is model input.
+        queries = build_open_evidence_queries(
+            institution["institution_name"],
+            terms,
+            institution["country"],
+            row.get("disambiguation") or "",
+        )
+        index: dict[str, int] = {}
+        records: list[dict[str, Any]] = []
+        provenance: list[dict[str, Any]] = []
+        _issue_queries(
+            run_dir, inst_id, stage, queries, leg="evidence_open",
+            num_results=num_results, options=options, credentials=credentials,
+            index=index, records=records, provenance=provenance,
+        )
+        path.write_text(
+            json.dumps(
+                {
+                    "mode": "chain",
+                    "leg": "evidence_open",
+                    "queries": provenance,
+                    "records": records,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return inst_id, records
+
+
+def _run_discovery_evidence_open(
+    run_dir: Path,
+    sample: list[dict[str, Any]],
+    *,
+    num_results: int,
+    max_workers: int = 1,
+    evidence_terms: Mapping[str, str] | None = None,
+    options: SerperOptions | None = None,
+    credentials: ResolvedCredentials | None = None,
+    evidence_terms_for: EvidenceTermsFor | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """Stage 1d — the open evidence leg. One ``1d_discovery_evidence_open.json`` per institution.
+
+    Every institution of the sample, whether or not Stage 2 found a site: the
+    leg's whole value is the third-party evidence a site-bound query cannot
+    reach, and an institution without a known site is exactly where nothing else
+    is looking. Resume and concurrency as :func:`_run_discovery_general`.
+    """
+    stage = STAGE_1D
+    if is_done(run_dir, stage):
+        logger.info("Stage 1d: .done marker present — skipping (resume from disk)")
+        return _read_existing_discovery_evidence_open(run_dir, sample)
+    out: dict[str, list[dict[str, Any]]] = {}
+    results = run_concurrent(
+        sample,
+        lambda row: _discover_evidence_open_one(
+            run_dir, row, stage=stage, num_results=num_results,
+            evidence_terms=evidence_terms, options=options,
+            credentials=credentials, evidence_terms_for=evidence_terms_for,
         ),
         max_workers=max_workers,
     )

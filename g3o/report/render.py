@@ -147,6 +147,20 @@ def render_text_report(report: dict[str, Any]) -> str:
         if rl:
             w(rl)
 
+    # ── Stage 1d — open evidence leg (2026-09-03) ──
+    s = stages.get("1d_discovery_evidence_open", {})
+    if s and s.get("flag") != "not_run":
+        w(f"\n{_icon(s.get('flag','?'))}  Stage 1d — Discovery (open evidence leg, per policy language)")
+        w(f"  Input:              {s.get('n_institutions_in')} institutions")
+        w(
+            f"  With ≥1 1d URL:     {s.get('n_institutions_with_urls')}"
+            f" ({_pct_str(s.get('pct_institutions_with_urls'))})"
+        )
+        w(f"  Total 1d URLs:      {s.get('total_candidate_urls')}")
+        w(f"  Mean URLs / inst:   {s.get('mean_urls_per_institution')}")
+        if s.get("n_serper_failed"):
+            w(f"  Serper failures:    {s['n_serper_failed']}")
+
     # ── Stage 1c — eligibility pre-filter (additive block, design memo 2026-07-06) ──
     fb = report.get("filter_eligibility", {})
     if fb.get("ran"):

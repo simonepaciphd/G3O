@@ -1,32 +1,23 @@
-"""Leg 1 goes multilingual — the flag, the gate, and the bypass.
+"""Leg 1 goes multilingual — the flag, the gate, the bypass, and the roster.
 
 Card 2 of ``agent-workspace/2026-09-01-discovery-legs/``, implementing the PI's
-ruling of 2026-09-01, verbatim: *"For leg 1: i'd just use each of the country's
-languages / multiple serper calls. This is a step that we likely won't reuse much
-as the database self-populates with websites."*
+ruling of 2026-09-01 — *"For leg 1: i'd just use each of the country's languages /
+multiple serper calls"* — as refined on 2026-09-03: **English first, localized only
+where Stage 2 finds no site.** The card-2 probe (``leg1-suffix-roster/FINDINGS-*.md``)
+measured the additive design the card specified at zero recall gain for ~4x the
+cost, and the fallback design recovering roughly a third of English's misses.
 
-That ruling reverses the 2026-08-02 decision which left ``DOMAIN_QUERY_SUFFIX``
-un-localized, and it reverses only half of it. What was ruled is that leg 1 issues
-one query per language the institution's policy row names, **additive** to the
-English one. What was *not* ruled is any particular suffix — the 2026-08-02
-decision's own words were "settling it needs its own A/B on the existing harness,
-not a default flip", and the localized side has no measurement against leg 1's
-82.0% recall on the n=200 truth pool.
+This file pins:
 
-So this file pins three things at once, and the middle one is the point:
+1. The roster — 90 rows, exactly the policy's selectable tags, fingerprinted.
+   Tabled for PI signature 2026-09-03; the merge is the signature.
+2. The gate — a missing row refuses a multilingual run at config construction.
+3. The first pass is unchanged — one English query per institution, flag or no
+   flag; the flag names the fallback languages, and nothing else.
+4. Leg 1 no longer runs when the master already carries the answer (card §4).
 
-1. The mechanism works — one query per policy language, each tagged with the
-   language whose suffix produced it, English always among them.
-2. **It cannot be turned on.** ``DOMAIN_SUFFIX_BY_LANG`` holds one English row,
-   and the pre-spend choke point refuses a multilingual run for every policy tag
-   that has no signed suffix. Production is byte-identical to what it was.
-3. Leg 1 no longer runs when the master already carries the answer (card §4).
-
-**No non-English suffix ships in the repo**, here included. The tests that need a
-complete roster patch synthetic placeholders in place — ``<fr suffix>`` is not a
-translation and could never be mistaken for one, which is exactly why it is safe
-to write in a test file. The 89 real rows arrive through a PI-signed roster on
-probe evidence, the way the 90 evidence terms did.
+The fallback pass itself, its Stage 2 re-run and the open evidence leg are
+exercised end to end in ``tests/test_discovery_legs.py``.
 """
 
 from __future__ import annotations
@@ -117,42 +108,37 @@ def _config(tmp_path: Path, rows: list[dict[str, str]] | None = None, **kw: Any)
     )
 
 
-def _sign_placeholder_suffixes(monkeypatch) -> None:
-    """Give every policy tag a placeholder suffix, in place, for one test.
-
-    ``monkeypatch.setitem`` mutates the one dict object rather than rebinding a
-    name, which matters: ``config.py`` imported ``DOMAIN_SUFFIX_BY_LANG`` by name
-    at module load, so rebinding the attribute on ``query_builder`` would leave
-    the config gate reading the unpatched roster and the test would pass against
-    half the change.
-    """
-    policy = load_signed_policy(_POLICY_ID)
-    for tag in policy.selectable_languages:
-        if tag not in DOMAIN_SUFFIX_BY_LANG:
-            monkeypatch.setitem(DOMAIN_SUFFIX_BY_LANG, tag, f"<{tag} suffix>")
-
-
 # ---------------------------------------------------------------------------
 # The roster is the gate
 # ---------------------------------------------------------------------------
 
 
-def test_the_suffix_roster_ships_english_only():
-    """One row, and it is the suffix production has always issued.
+def test_the_suffix_roster_is_the_table_tabled_on_2026_09_03():
+    """Ninety rows — exactly the policy's selectable tags — and a pinned fingerprint.
 
-    The tripwire for the signature that has not happened yet. It is the leg-1
-    counterpart of ``test_evidence_roster_is_the_signed_roster_of_2026_08_31``,
-    at the stage that test was at before 2026-08-31: pinned to English-only, and
-    it should go red exactly once — in the commit carrying the PI's sign-off on
-    the suffix table, which then re-points it at a fingerprint the way the
-    evidence-roster test was re-pointed.
+    The leg-1 counterpart of ``test_evidence_roster_is_the_signed_roster_of_2026_08_31``.
+    The table was tabled for PI signature on 2026-09-03 (SIGNABLE-SUFFIX-ROSTER-90.md);
+    the merge of the PR carrying it is the signature. Any later edit to a row is a
+    different domain-discovery instrument and must move this hash on purpose, in a
+    commit that says so.
     """
-    assert DOMAIN_SUFFIX_BY_LANG == {"en": DOMAIN_QUERY_SUFFIX}
-    assert DOMAIN_SUFFIX_BY_LANG["en"] == "official website"
+    policy = load_signed_policy(_POLICY_ID)
+    assert set(DOMAIN_SUFFIX_BY_LANG) == set(policy.selectable_languages)
+    assert len(DOMAIN_SUFFIX_BY_LANG) == 90
+    assert DOMAIN_SUFFIX_BY_LANG["en"] == DOMAIN_QUERY_SUFFIX == "official website"
+    # Every non-English row is a real phrase, not a placeholder and not English.
+    for tag, suffix in DOMAIN_SUFFIX_BY_LANG.items():
+        assert suffix.strip() == suffix and suffix
+        assert not suffix.startswith("<"), tag
+        if tag != "en":
+            assert suffix != DOMAIN_QUERY_SUFFIX, tag
+    assert domain_suffix_roster_hash() == "d01422f1980579bd"
 
 
-def test_leg1_multilingual_cannot_be_turned_on_before_the_roster_is_signed(tmp_path):
-    """The pre-spend choke point, doing the only job it has today.
+def test_leg1_multilingual_refuses_to_start_on_a_missing_suffix_row(
+    tmp_path, monkeypatch
+):
+    """The pre-spend choke point still bites when a row goes missing.
 
     Raised at *config construction*, not on institution 3,000 of 20,293 — the A7
     discipline, and the reason ``assert_policy_rostered`` exists at all. The
@@ -161,6 +147,7 @@ def test_leg1_multilingual_cannot_be_turned_on_before_the_roster_is_signed(tmp_p
     one person who ever reads this error to the wrong signature table is the
     whole cost of getting it wrong.
     """
+    monkeypatch.delitem(DOMAIN_SUFFIX_BY_LANG, "fr")
     with pytest.raises(UnknownLanguageError) as exc:
         _config(tmp_path, language_policy=_POLICY_ID, discovery_leg1_multilingual=True)
     msg = str(exc.value)
@@ -179,14 +166,12 @@ def test_leg1_multilingual_requires_a_language_policy(tmp_path, monkeypatch):
     the English arm and then report a within-institution comparison that was
     never run. Refused rather than silently repaired.
     """
-    _sign_placeholder_suffixes(monkeypatch)
     with pytest.raises(ValueError, match="requires language_policy"):
         _config(tmp_path, discovery_leg1_multilingual=True)
 
 
 def test_leg1_multilingual_requires_chain_mode(tmp_path, monkeypatch):
     """Legacy's leg 1 *is* the language roster, so the flag would mean nothing."""
-    _sign_placeholder_suffixes(monkeypatch)
     with pytest.raises(ValueError, match="requires discovery_mode="):
         _config(
             tmp_path,
@@ -231,7 +216,7 @@ def test_build_domain_queries_fails_loud_on_an_unrostered_tag():
     list before any query is built, so an institution is never half-issued.
     """
     with pytest.raises(UnknownLanguageError):
-        build_domain_queries("Ministry of Things", ("en", "fr"), "France")
+        build_domain_queries("Ministry of Things", ("en", "xx"), "France")
 
 
 def test_two_tags_sharing_a_suffix_both_keep_their_row(monkeypatch):
@@ -283,51 +268,39 @@ def test_stage_1a_default_is_one_english_query_even_under_a_policy(
     assert [q["language"] for q in artifact["queries"]] == [DOMAIN_QUERY_LANG]
 
 
-def test_stage_1a_issues_one_query_per_policy_language_when_the_flag_is_on(
+def test_stage_1a_first_pass_is_still_one_english_query_when_the_flag_is_on(
     tmp_path, monkeypatch
 ):
-    """The mechanism, end to end, with per-URL language attribution.
+    """English first, on every institution, whatever the flag says (2026-09-03).
 
-    France's signed row is ``['fr']`` and the policy layer prepends ``en``, so
-    the institution gets two leg-1 queries in that order. Both are recorded in
-    the artifact's ``queries`` provenance with their own language, and the URL
-    both queries returned carries ``found_by`` naming both — the attribution
-    ``report.health`` and ``report.filter_eligibility`` read to answer "which
-    language surfaced this URL", which on a merged pile would only ever be able
-    to answer "whichever ran first".
+    The flag no longer widens the first pass — the card-2 probe measured that
+    issuing the localized queries everywhere buys zero recall for ~4x the cost.
+    What it does is name the languages the *fallback* pass will issue where Stage
+    2 finds nothing: France's row is ``['fr']``, English is already issued, so
+    the fallback set is ``('fr',)``. ``tests/test_discovery_legs.py`` runs that
+    pass end to end.
     """
-    _sign_placeholder_suffixes(monkeypatch)
     cfg = _config(
         tmp_path, language_policy=_POLICY_ID, discovery_leg1_multilingual=True
     )
-    assert cfg.leg1_languages_for({"country": "France"}) == ("en", "fr")
+    assert cfg.leg1_fallback_languages_for({"country": "France"}) == ("fr",)
+    assert cfg.leg1_fallback_languages_for({"country": "United States"}) == ()
     plan = plan_run(cfg)
-    inst_id = ps.synth_institution_id(plan.sample[0])
     rec = _Recorder()
     _patch_search(monkeypatch, rec)
 
     ps._run_discovery_general(
         plan.run_dir, plan.sample,
         languages=cfg.discovery_languages, num_results=10, mode="chain",
-        leg1_languages_for=cfg.leg1_languages_for,
     )
 
-    assert len(rec.queries) == 2
+    assert len(rec.queries) == 1
     assert rec.queries[0].endswith(DOMAIN_QUERY_SUFFIX)
-    assert rec.queries[1].endswith("<fr suffix>")
 
-    artifact = json.loads(
-        (inst_dir_of(plan.run_dir, inst_id) / "1a_discovery_general.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert [q["language"] for q in artifact["queries"]] == ["en", "fr"]
-    # One URL, found by both legs, and both are named.
-    assert len(artifact["records"]) == 1
-    found_by = artifact["records"][0]["found_by"]
-    assert [f["language"] for f in found_by] == ["en", "fr"]
-    # First-finder meaning is preserved on ``language``/``query``.
-    assert artifact["records"][0]["language"] == "en"
+
+def test_fallback_languages_are_empty_when_the_flag_is_off(tmp_path):
+    cfg = _config(tmp_path, language_policy=_POLICY_ID)
+    assert cfg.leg1_fallback_languages_for({"country": "France"}) == ()
 
 
 # ---------------------------------------------------------------------------

@@ -36,6 +36,16 @@ STRATIFY_KEYS: tuple[str, ...] = ("country", "government_level", "institution_ty
 #: mutual exclusion with ``language_policy`` a refusal rather than a precedence
 #: rule.
 DEFAULT_DISCOVERY_LANGUAGES: tuple[str, ...] = ("en",)
+#: The eight roster stages. ``stop_after``, ``stages_planned``, the archive's
+#: completeness check and ``status`` all count in these. Two legs added on
+#: 2026-09-03 run as **sub-steps** of roster stages rather than as entries here:
+#: the localized leg-1 fallback and its Stage 2 re-run
+#: (``discovery_general_fallback`` / ``classify_official_site_fallback``) inside
+#: the ``classify_official_site`` phase, and the open evidence leg
+#: (``discovery_evidence_open``) inside ``discovery_site_restricted``. Each keeps
+#: its own ``_state``/``.done`` file and telemetry span, so resume, cost
+#: accounting and the event log see them; the roster stays eight so that every
+#: run before them remains readable by the same code.
 STAGES: tuple[str, ...] = (
     "discovery_general",
     "classify_official_site",
@@ -84,20 +94,24 @@ class PresweepConfig:
     # precedence here would decide which languages every leg-2 query is issued
     # in, on every institution of the run.
     language_policy: str | None = None
-    # ── Leg 1 goes multilingual (PI ruling 2026-09-01, card 2 of
-    #    agent-workspace/2026-09-01-discovery-legs/) ───────────────────────────
-    # When True, Stage 1a's chain branch issues **one domain-discovery query per
-    # language the institution's policy row names** instead of the single
-    # hardcoded English one, taking each language's suffix from
-    # ``DOMAIN_SUFFIX_BY_LANG``.
+    # ── Leg 1 goes multilingual — as an English-first FALLBACK (PI rulings
+    #    2026-09-01 and 2026-09-03; card 2 of agent-workspace/2026-09-01-discovery-legs/)
+    # When True, Stage 1a still issues the single English domain query it always
+    # has, on every institution; then, for each institution Stage 2 came away
+    # from with no official site, a second pass issues **one localized query per
+    # non-English language the institution's policy row names**, taking each
+    # suffix from ``DOMAIN_SUFFIX_BY_LANG``, and Stage 2 runs again on the
+    # widened candidates. English first because the card-2 probe measured it
+    # cheaper at every k (FINDINGS-ordering.md §1); fallback rather than additive
+    # because the same probe measured the localized block adding zero recall
+    # where English already succeeds and ~a third where it fails (§2, §4). The
+    # 2026-09-01 card specified an additive leg; that delta is recorded in
+    # PREREGISTRATION.md §9.4 and ruled on 2026-09-03.
     #
-    # **Default False, and it stays False until the suffix roster is signed.**
-    # The PI ruled that leg 1 goes multilingual; he did not rule on any
-    # particular suffix, and the card's own stop boundary is explicit: do not
-    # flip the leg-1 instrument in production before the roster is signed and
-    # the paired measurement is read out. With the roster at one English row a
-    # True here raises at construction on the first non-English policy tag —
-    # which is the gate working, not a bug.
+    # **Default False.** Production is byte-identical to every run before the
+    # flag existed until a run config sets it. The gate that reads it is the
+    # pre-spend choke point below: every tag the policy can emit needs a row in
+    # ``DOMAIN_SUFFIX_BY_LANG``, and a missing row refuses the run at construction.
     #
     # A bool rather than a language tuple, deliberately. The languages are not a
     # free parameter: they are the signed policy's answer for the institution's
@@ -105,6 +119,19 @@ class PresweepConfig:
     # instrument arriving through the same door as a batch size. The card says
     # reuse the signed mapping and build no parallel one.
     discovery_leg1_multilingual: bool = False
+    # ── The open evidence leg (PI ruling 2026-09-03; measured as card 3) ──────
+    # When True, a fourth leg issues ``"<name>" <country> <disambiguation>
+    # "<term>"`` — non-site-bound — once per policy language, English included
+    # via ``always_include``, with the term from the signed 90-row evidence
+    # roster. Its URLs join the 1a+1b union at Stage 1c and triage; they do not
+    # reach Stage 2. Card 3 (n=600, real Stages 1c → 3 → 5) measured it adding
+    # 45 institutions with confirmed evidence the chain never reaches (+7.5pp)
+    # at ~1.08x the marginal-institution cost, 59.5% of its rows non-official
+    # against the chain's 8.1% — which is why it is a flag and not a default:
+    # the source mix of collected evidence is a codebook-adjacent property.
+    #
+    # **Default False**, for the same byte-identity reason as the flag above.
+    discovery_evidence_open: bool = False
     # 10, not 5: ``num`` truncates and costs a flat 1 credit either way, so at 5
     # the pipeline paid for ten results and discarded half of them. A waste fix
     # with no measured yield effect. Serper returns 9 in practice.
@@ -350,6 +377,16 @@ class PresweepConfig:
                     "tuple can drop English and would turn an additive leg into "
                     "a swap."
                 )
+        if self.discovery_evidence_open and self.discovery_mode != "chain":
+            # Legacy's leg 1 *is* an open GenAI-term leg (eight English terms,
+            # not site-bound); adding a second one would double it, and the
+            # measurement behind this flag was made against the chain.
+            raise ValueError(
+                "discovery_evidence_open requires discovery_mode='chain' (got "
+                f"{self.discovery_mode!r}). Legacy mode's leg 1 is already a "
+                "non-site-bound GenAI-term leg; this flag adds the open evidence "
+                "leg to the two-query chain and was measured against it."
+            )
         if self.discovery_mode == "chain":
             assert_languages_rostered(
                 self.discovery_languages, self.evidence_term_roster
@@ -409,21 +446,22 @@ class PresweepConfig:
             return tuple(self.discovery_languages)
         return policy.languages_for(institution)[0]
 
-    def leg1_languages_for(self, institution: Mapping[str, Any]) -> tuple[str, ...]:
-        """The languages **this institution's leg-1** queries are issued in.
+    def leg1_fallback_languages_for(
+        self, institution: Mapping[str, Any]
+    ) -> tuple[str, ...]:
+        """The languages **this institution's localized leg-1 pass** is issued in.
+
+        The policy's answer for the institution's country **minus English**, in
+        the policy's order — English was already issued by the first pass, and
+        re-issuing it would be a credit spent on a query whose result is already
+        in the artifact. Empty when :attr:`discovery_leg1_multilingual` is off,
+        or when the row names English only; the fallback runner records the
+        latter as ``fallback_pass.reason``.
 
         Deliberately a separate method from :meth:`languages_for`, which answers
-        the same question for leg 2. The two legs have always been allowed to
-        disagree — until 2026-09-01 leg 1 was English on every institution of
-        every run while leg 2 followed the policy — and collapsing them onto one
-        method would make the leg-1 instrument change as a side effect of a
-        leg-2 decision.
-
-        ``(DOMAIN_QUERY_LANG,)`` when :attr:`discovery_leg1_multilingual` is off,
-        which is every run to date: one English query, byte-identical to what
-        Stage 1a issued before this method existed. The policy's answer for the
-        institution's country when it is on, ``always_include`` applied, so
-        English is in the tuple and the localized leg is additive.
+        for leg 2 and the open leg: the two legs have always been allowed to
+        disagree, and collapsing them would make the leg-1 instrument change as
+        a side effect of a leg-2 decision.
 
         Safe to index into :data:`DOMAIN_SUFFIX_BY_LANG` unguarded for the same
         reason :meth:`evidence_terms_for` is: ``__post_init__`` has already
@@ -431,8 +469,10 @@ class PresweepConfig:
         institution, before any spend.
         """
         if not self.discovery_leg1_multilingual:
-            return (DOMAIN_QUERY_LANG,)
-        return self.languages_for(institution)
+            return ()
+        return tuple(
+            lang for lang in self.languages_for(institution) if lang != DOMAIN_QUERY_LANG
+        )
 
     def evidence_terms_for(self, institution: Mapping[str, Any]) -> dict[str, str]:
         """:attr:`evidence_terms`, one institution at a time.
