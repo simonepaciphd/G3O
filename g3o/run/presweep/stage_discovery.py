@@ -136,19 +136,19 @@ def leg1_recall_block(
 # roster. That is what makes a multi-language chain run honest at row level
 # rather than collapsing to a single run-level claim.
 #
-# **Leg 1 was English on every institution until 2026-09-01** — its ``official
+# **Leg 1 was English on every institution until 2026-09-03** — its ``official
 # website`` suffix was un-localized by PI decision 2026-08-02, so its tag was
 # always ``DOMAIN_QUERY_LANG``, and the asymmetry between the legs was the point
-# of the note that stood here. The PI reversed that on 2026-09-01: leg 1 issues
-# one query per language the institution's policy row names, additive to the
-# English one. The tag still describes the query that was issued, never the
-# language the run was configured for — which is why it comes from the suffix
-# actually used, and why a tag with no signed suffix raises instead of falling
-# back.
+# of the note that stood here. The PI reversed that on 2026-09-01 and shaped it
+# on 2026-09-03: the first pass is still the one English query, and a second
+# pass issues one localized query per non-English policy language only where
+# Stage 2 found no site (``_run_discovery_general_fallback``). The tag still
+# describes the query that was issued, never the language the run was
+# configured for — which is why it comes from the suffix actually used, and why
+# a tag with no roster row raises instead of falling back.
 #
-# Until the suffix roster is signed the roster holds one English row and
-# ``discovery_leg1_multilingual`` defaults False, so production still issues
-# exactly one English leg-1 query per institution.
+# ``discovery_leg1_multilingual`` defaults False, so a run configured without it
+# still issues exactly one English leg-1 query per institution.
 #
 # Until 2026-08-02 both legs shared one ``"en"`` constant. That was honest
 # about the queries but left ``institution_search_languages`` free to claim a
