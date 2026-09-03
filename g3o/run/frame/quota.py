@@ -239,9 +239,18 @@ def allocate_stratum(
 ) -> dict[tuple[str, str], int]:
     """Turn one ruled stratum into a per-``(country, level)`` draw plan.
 
-    ``availability`` counts never-inspected, non-duplicate rows per cell; cells
-    outside ``spec.countries`` are ignored rather than rejected, so one pool
-    scan can serve every stratum.
+    ``availability`` counts never-inspected rows per cell; cells outside
+    ``spec.countries`` are ignored rather than rejected, so one pool scan can
+    serve every stratum.
+
+    It said "never-inspected, **non-duplicate**" until 2026-08-30. That half was
+    wrong from the moment PR #99 landed and is corrected rather than softened,
+    because it is precisely the sentence that would re-seed the defect that PR
+    removed: the master's ``duplicate`` column flags a *name* collision that
+    ``disambiguation`` resolves, not a repeated row, and reading it as an
+    eligibility test cost every wave 30% of the master. Behaviour here was always
+    correct — :func:`classify_master_cells` builds ``availability`` and has never
+    consulted that column — so this is a comment fix and nothing else.
     """
     countries = list(spec.countries)
     cells = {

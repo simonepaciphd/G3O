@@ -101,7 +101,7 @@ def persist_run(
     runs_dir: Path,
     run_id: str,
     *,
-    version: int = LOADER_VERSION,
+    version: int | None = None,
     overwrite: bool = False,
     force: bool = False,
     max_load_failures: int = 0,
@@ -110,9 +110,23 @@ def persist_run(
     """Write ``final/`` for a finished run, then prove leg 3 could load it.
 
     Args:
-        version: the ``v{N}`` suffix. Defaults to the version the loader reads;
-            any other value writes a tree :func:`find_stage7_csvs` refuses, which
-            is reported here rather than at ingest time.
+        version: the ``v{N}`` suffix, or None for :data:`LOADER_VERSION` — the
+            version the pinned loader reads. Any other value writes a tree
+            :func:`find_stage7_csvs` refuses, which is reported here rather than
+            at ingest time.
+
+            **None is resolved here rather than in the signature default, and
+            that is a fix, not a style.** ``orchestrate persist`` declares
+            ``--version`` with ``default=None`` and forwarded it
+            unconditionally, so this signature default was never reached and
+            Stage 7 wrote ``g3o_activities_vNone.csv``. Nothing downstream
+            caught it: the activities and sources globs are ``_v*``, and the
+            version-skew refusal in
+            :func:`~g3o.run.orchestrate.ingest._assert_loader_readable_summary`
+            is guarded on a parsed version being not-None, which ``vNone`` is
+            not. Resolving at the one place every caller passes through is what
+            stops the next caller reintroducing it by forgetting to omit the
+            argument.
         overwrite: replace an existing ``final/``. Without it, a ``final/`` that
             is already loadable is reported as-is instead of being rewritten —
             re-running the chain over a run that is already persisted is a normal
@@ -126,6 +140,7 @@ def persist_run(
             ``r20260824T215623Z-bb4e`` had 0 of 2,909, so the strict default is
             what production already meets rather than an aspiration.
     """
+    version = LOADER_VERSION if version is None else version
     run_dir = Path(runs_dir) / run_id
     state = status or run_status(Path(runs_dir), run_id)
     if not state.publishable and not force:

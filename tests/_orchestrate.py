@@ -66,12 +66,18 @@ def write_final_csvs(
     *,
     institutions: list[str] | None = None,
     uid_column: bool = False,
+    version: object = 1,
 ) -> Path:
     """Stage-7 outputs, enough for the archive preconditions and publish-verify.
 
     ``uid_column`` writes ``institution_uid`` alongside ``institution_id``, which
     is what the publish leg needs to be able to query the API at all — the split
     the leg refuses to guess across.
+
+    ``version`` is formatted into the filenames exactly as ``persist.writer``
+    formats it — deliberately untyped, so a caller standing in for Stage 7 can
+    write whatever it was handed. That is what makes ``vNone`` reproducible in a
+    test instead of only in production.
     """
     final = run_dir / "final"
     final.mkdir(parents=True, exist_ok=True)
@@ -85,9 +91,9 @@ def write_final_csvs(
         ]
     body = header + "\n" + "\n".join(rows) + "\n"
     for name in (
-        "g3o_activities_v1.csv",
-        "g3o_activity_sources_v1.csv",
-        "g3o_institution_summary_v1.csv",
+        f"g3o_activities_v{version}.csv",
+        f"g3o_activity_sources_v{version}.csv",
+        f"g3o_institution_summary_v{version}.csv",
     ):
         (final / name).write_text(body, encoding="utf-8")
     return final

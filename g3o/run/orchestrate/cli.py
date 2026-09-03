@@ -570,7 +570,14 @@ def build_parser() -> argparse.ArgumentParser:
              "loader_pin.py. A sha is mandatory here; there is no way to skip "
              "the check.",
     )
-    e2e.add_argument("--api-base", default=None, help="Defaults to $G3O_API_BASE.")
+    e2e.add_argument(
+        # Mandatory here, unlike on the bare `publish-verify` verb, and for the
+        # same reason --expect-loader-sha is: the chain has no operator reading
+        # its output, so a check it skipped must not be a check it reported.
+        "--api-base", default=None,
+        help="Defaults to $G3O_API_BASE. REQUIRED: the chain refuses to start "
+             "without one rather than publishing and skipping publish-verify.",
+    )
     e2e.add_argument("--sample", type=int, default=10, help="publish-verify sample.")
     e2e.add_argument(
         "--poll-interval", type=float, default=60.0, metavar="SECONDS",

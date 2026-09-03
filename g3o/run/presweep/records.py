@@ -29,6 +29,34 @@ def institution_record(row: dict[str, Any]) -> dict[str, Any]:
     2026-05-09). Pre-rollout the column is missing and the projection records
     ``None``; the runner's bypass guard treats ``None`` as "Stage 2 LLM path runs
     as before."
+
+    ``disambiguation`` is here by PI ruling (`G3O ADJ`, 2026-08-31, ruling 2:
+    *"``duplicate = 1`` stays in quota-bearing strata AND ``disambiguation`` is
+    passed to Stage 2"*), and it closes a gap that was measured rather than
+    argued. The master carries the column on **100% of the 718 name-collided
+    rows** in the 15k frame, and this projection dropped it, so the *query* was
+    disambiguated (``stage_discovery`` reads the raw row) and the *classifier*
+    was not — while ``g3o.classify.official_site``'s system prompt already tells
+    the model it will receive *"any known aliases or domain hints"*. The prompt
+    advertised a slot the projection never filled, and the cost of the empty
+    slot is `G3O ADJ`'s 58.3% collided-pick error.
+
+    **This dict is model input, not telemetry**, and that has two consequences
+    worth stating where the change is:
+
+    * It is serialised to ``institution.json`` and embedded verbatim in the
+      Stage 2/3/5/6 user messages, so the key reaches all four stages, not only
+      the Stage 2 the ruling names. Stage 3/5/6 prompts do not advertise it; an
+      extra, accurate key is additional context there rather than a
+      re-specification, but it *is* a change to their input and is recorded as
+      such (Stage 7 closeout, decision 2a).
+    * The key is present on every row, ``None`` when the master cell is blank or
+      the column absent, matching ``website`` and ``official_site_url``. That
+      keeps ``institution.json`` one fixed key set — the property Stage 6 audited
+      the 15k run against — at the price of changing the prompt for every
+      institution rather than only for collided ones. The reproducibility
+      goldens (``tests/goldens/reproducibility.json``) move accordingly, which is
+      the intended signal, not a nuisance.
     """
     return {
         "institution_id": synth_institution_id(row),
@@ -40,6 +68,7 @@ def institution_record(row: dict[str, Any]) -> dict[str, Any]:
         "website": row.get("website") or None,
         "official_site_url": row.get("official_site_url") or None,
         "official_site_confidence": row.get("official_site_confidence") or None,
+        "disambiguation": row.get("disambiguation") or None,
         "master_row_id": row.get("master_row_id", ""),
     }
 

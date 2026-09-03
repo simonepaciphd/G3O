@@ -29,6 +29,7 @@ import pytest
 from g3o.run.orchestrate import e2e as e2e_mod
 from g3o.run.orchestrate import loader_pin
 from g3o.run.orchestrate import persist_leg as pl
+from g3o.run.orchestrate import publish as publish_mod
 from g3o.run.orchestrate.status import RunStatus
 from tests._orchestrate import event, make_run, write_final_csvs
 
@@ -223,6 +224,60 @@ def test_the_loader_version_is_read_off_the_loader_path() -> None:
     assert pl.LOADER_VERSION == 1
 
 
+def test_persist_writes_the_loader_version_when_asked_for_none(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`orchestrate persist` with no --version wrote `g3o_activities_vNone.csv`.
+
+    The CLI declares ``--version`` with ``default=None`` and passed it through
+    unconditionally, so the signature default was never reached and Stage 7
+    formatted None into the filename. The tree that produced was not caught by
+    the version-skew refusal either: ``_stage7_version`` parses a digit run, so
+    ``vNone`` returns None and the skew branch is guarded on ``is not None``.
+    Confirmed on ``main`` at 2a8e7fb; ``git grep vNone`` was empty, so nothing
+    covered it.
+    """
+    runs_dir, run_id = _completed_run(tmp_path)
+    seen: list[Any] = []
+
+    def record_version(run_dir: Path, rid: str, **kw: Any) -> dict[str, Any]:
+        seen.append(kw["version"])
+        write_final_csvs(run_dir)
+        return {"n_load_failures": 0, "outputs": {}}
+
+    monkeypatch.setattr(pl, "_write", record_version)
+
+    result = pl.persist_run(runs_dir, run_id, version=None)
+
+    assert seen == [pl.LOADER_VERSION]
+    assert result.version == pl.LOADER_VERSION
+    # The whole point: the name Stage 7 was asked to write is a real version.
+    assert not list((runs_dir / run_id / "final").glob("*vNone*"))
+
+
+def test_persist_still_honours_an_explicit_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Resolving None must not also swallow a deliberate --version 2.
+
+    An explicit wrong version is a tree ``find_stage7_csvs`` refuses, and that
+    refusal is the reported failure here rather than at ingest time.
+    """
+    runs_dir, run_id = _completed_run(tmp_path)
+    seen: list[Any] = []
+
+    def record_version(run_dir: Path, rid: str, **kw: Any) -> dict[str, Any]:
+        seen.append(kw["version"])
+        return {"n_load_failures": 0, "outputs": {}}
+
+    monkeypatch.setattr(pl, "_write", record_version)
+
+    with pytest.raises(pl.PersistError):
+        pl.persist_run(runs_dir, run_id, version=2)
+
+    assert seen == [2]
+
+
 def test_persist_refuses_a_run_that_did_not_complete(tmp_path: Path) -> None:
     runs_dir = tmp_path / "runs"
     make_run(runs_dir, events=[event(1, "run_launched")])
@@ -348,14 +403,32 @@ def _chain(monkeypatch: pytest.MonkeyPatch, **overrides: Any) -> Any:
         recorded_sha.append(kwargs.get("expect_loader_sha"))
         return overrides.get("ingest_result", _green_ingest())
 
+    def fake_verify(*_a: Any, **_k: Any) -> Any:
+        calls.append("publish-verify")
+        return overrides.get("verify", lambda *a, **k: _passing_verify())()
+
     recorded_sha: list[Any] = []
     monkeypatch.setattr(e2e_mod, "wait_for_terminal", fake_wait)
     monkeypatch.setattr(e2e_mod, "persist_run", fake_persist)
     monkeypatch.setattr(e2e_mod, "ingest_run", fake_ingest)
-    monkeypatch.delenv("G3O_API_BASE", raising=False)
+    monkeypatch.setattr(publish_mod, "verify_published", fake_verify)
+    if "env_base" in overrides:
+        monkeypatch.setenv("G3O_API_BASE", overrides["env_base"])
+    else:
+        monkeypatch.delenv("G3O_API_BASE", raising=False)
 
-    result = e2e_mod.run_e2e(Path("runs"), "r1", frame_id="mb-TEST")
+    result = e2e_mod.run_e2e(
+        Path("runs"), "r1", frame_id="mb-TEST",
+        api_base=overrides.get("api_base", "https://api.example.test"),
+    )
     return result, calls, recorded_sha
+
+
+def _passing_verify() -> Any:
+    return publish_mod.PublishVerifyResult(
+        run_id="r1", api_base="https://api.example.test", expect_visible=True,
+        verdict="pass", reason="every sampled institution is visible",
+    )
 
 
 def _green_ingest() -> Any:
@@ -377,7 +450,7 @@ def test_the_chain_runs_wait_gate_persist_ingest_in_that_order(
     """Stage 7 before the load, and every gate before the irreversible step."""
     result, calls, sha = _chain(monkeypatch)
 
-    assert calls == ["wait", "persist", "ingest"]
+    assert calls == ["wait", "persist", "ingest", "publish-verify"]
     assert [s.step for s in result.steps] == [
         "wait", "gate", "persist", "ingest", "publish-verify"
     ]
@@ -459,13 +532,74 @@ def test_a_committed_but_not_green_load_is_reported_as_published(
     assert result.green is False
 
 
-def test_publish_verify_is_skipped_loudly_when_there_is_no_api_base(
+def test_the_chain_refuses_without_an_api_base(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The defect this replaces: a skipped check that recorded itself GREEN.
+
+    Until 2026-08-30 an absent base made ``publish-verify`` a green step whose
+    own message said nothing had been checked, so ``E2EResult.green`` was True
+    for a chain that had published and verified nothing. A status flag that can
+    disagree with the thing it describes is a wrong answer, not a weak check.
+    """
+    monkeypatch.delenv("G3O_API_BASE", raising=False)
+
+    with pytest.raises(e2e_mod.E2EError, match="requires an API base"):
+        e2e_mod.run_e2e(tmp_path / "runs", "r1", frame_id="mb-TEST")
+
+
+def test_the_api_base_refusal_happens_before_the_chain_waits(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Refused at second zero, because the leg it guards runs after the publish.
+
+    A refusal at the last leg would arrive after the only irreversible act in
+    the chain, which is not a gate — it is a complaint.
+    """
+    monkeypatch.delenv("G3O_API_BASE", raising=False)
+
+    def explode(*_a: Any, **_k: Any) -> Any:
+        raise AssertionError("the chain waited before checking it could verify")
+
+    monkeypatch.setattr(e2e_mod, "wait_for_terminal", explode)
+
+    with pytest.raises(e2e_mod.E2EError, match="requires an API base"):
+        e2e_mod.run_e2e(tmp_path / "runs", "r1", frame_id="mb-TEST")
+
+
+def test_the_env_var_satisfies_the_api_base_requirement(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    result, _, _ = _chain(monkeypatch)
-    step = [s for s in result.steps if s.step == "publish-verify"][0]
-    assert "skipped" in step.message
-    assert "committed and published" in step.message
+    """G3O_API_BASE is the droplet's low-friction path and must still work.
+
+    The requirement is that the chain HAS a base, not that a flag carries it —
+    making the flag mandatory would break the standing droplet environment for
+    no gain in what is actually checked.
+    """
+    result, calls, _ = _chain(
+        monkeypatch, api_base=None, env_base="https://api.example.test"
+    )
+
+    assert "publish-verify" in calls
+    assert result.green
+
+
+def test_a_failed_publish_verify_stops_the_chain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The leg cannot un-publish, but it must still say the publish is wrong."""
+
+    def failing(*_a: Any, **_k: Any) -> Any:
+        return publish_mod.PublishVerifyResult(
+            run_id="r1", api_base="https://api.example.test", expect_visible=True,
+            verdict="fail", reason="0 of 10 sampled institutions are visible",
+        )
+
+    result, _, _ = _chain(monkeypatch, verify=failing)
+
+    assert result.stopped_at == "publish-verify"
+    assert result.green is False
+    assert result.published is True
 
 
 def test_an_empty_chain_is_not_green() -> None:

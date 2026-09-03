@@ -241,6 +241,10 @@ def run_presweep(
     # None budget means no limit (check_budget returns True unconditionally).
     monitor = CostMonitor(
         budget_usd=config.budget_usd,
+        # The model this run submits selects its own rate row (review F2). Without
+        # it the monitor priced every model as gpt-5-nano, so the budget it was
+        # enforcing was not the budget of the run it was watching.
+        model=config.model,
         preflight_stage_estimates=config.preflight_stage_estimates,
     )
     budget_abort_stage: str | None = None
@@ -675,6 +679,32 @@ def run_presweep(
         # Written on every exit path (success, early stop_after, or budget abort)
         # so post-mortem analysis can reconstruct the spend trajectory.
         try:
+            # Scan for active state files and record partial stages (Gap 3).
+            #
+            # This MUST run before cost_report(). `cost_report()` returns a plain
+            # snapshot, and `record_partial_stage` is what populates
+            # `monitor.partial_stages` — so building the report first pinned
+            # `"partial_stages": []` into every persisted _cost_report.json,
+            # including on the budget-abort path this scan exists to serve. The
+            # unit tests record before reporting, which is why they never caught
+            # it. Found during the review of finding F2 (2026-08-24); outside that
+            # finding's scope but in its blast radius, so fixed with it.
+            from g3o.common.run_state import state_path
+            for stage_name in _LLM_STAGES:
+                active_file = state_path(plan.run_dir, stage_name)
+                if active_file.exists():
+                    monitor.record_partial_stage(plan.run_dir, stage_name)
+                    last = monitor.partial_stages[-1] if monitor.partial_stages else None
+                    logger.info(
+                        "Recorded partial stage %s: %d completed chunks, %s spent",
+                        stage_name,
+                        last.n_chunks if last else 0,
+                        (
+                            f"${last.total_usd:.4f}"
+                            if last is not None and last.total_usd is not None
+                            else "an unpriced amount"
+                        ),
+                    )
             cost_report = monitor.cost_report()
             cost_report["run_id"] = config.run_id
             cost_report["dry_run"] = config.cost_monitor_dry_run
@@ -686,20 +716,8 @@ def run_presweep(
             # and budget_exceeded_stages will contain all stages up to and including
             # the abort stage.
             cost_report["budget_exceeded_stages"] = budget_exceeded_stages
-            # Scan for active state files and record partial stages (Gap 3)
-            from g3o.common.run_state import state_path
-            for stage_name in _LLM_STAGES:
-                active_file = state_path(plan.run_dir, stage_name)
-                if active_file.exists():
-                    monitor.record_partial_stage(plan.run_dir, stage_name)
-                    logger.info(
-                        "Recorded partial stage %s: %d completed chunks, $%.4f spent",
-                        stage_name,
-                        monitor.partial_stages[-1].n_chunks if monitor.partial_stages else 0,
-                        monitor.partial_stages[-1].total_usd if monitor.partial_stages else 0,
-                    )
             # Include preflight vs actual comparison if preflight was run
-            if config.preflight_estimate_usd is not None:
+            if config.preflight_estimate_usd is not None and cost_report["total_usd"] is not None:
                 actual_usd = cost_report["total_usd"]
                 preflight_est = config.preflight_estimate_usd
                 ratio = actual_usd / preflight_est if preflight_est > 0 else 0

@@ -23,7 +23,11 @@ from g3o.extract.batch import EMPTY_PAGE_MIN_CHARS
 from g3o.run.presweep.concurrency import run_concurrent
 from g3o.run.presweep.records import institution_record, synth_institution_id
 from g3o.scrape import egress
-from g3o.scrape.fetcher import scrape_url
+from g3o.scrape.fetcher import (
+    error_class_of,
+    http_status_from_exception,
+    scrape_url,
+)
 from g3o.scrape.politeness import (
     DEFAULT_HOST_DELAY_SECONDS,
     HostThrottle,
@@ -254,6 +258,25 @@ def _scrape_one(
             run_dir, institution_id=_inst, stage=stage,
             reason="scrape_failed", url=url, detail=detail,
         )
+        # This ledger is the per-attempt floor: its contract is that every
+        # (institution, url) the runner touched is accounted for, and until
+        # 2026-08-30 the commonest failure path — a hard fetch failure, which
+        # reaches the runner through this hook rather than as an exception —
+        # wrote nothing here at all. So a scrape_failed appeared in the attrition
+        # ledger and vanished from the telemetry one, and neither carried a
+        # status. Across the anglophone 12k's 6,719 scrape_failed rows a 403
+        # refusal, a timeout, a DNS failure and a TLS error were one row.
+        scrape_telemetry.record(
+            run_dir, institution_id=_inst, url=url,
+            outcome=scrape_telemetry.OUTCOME_SCRAPE_FAILED,
+            detail=detail,
+            # Always written, both of them, including as null: an explicit null
+            # is "this fetch never got a status line", which is the answer for a
+            # timeout and is not the same as a ledger that predates the field.
+            http_status=http_status_from_exception(download_error),
+            error_class=error_class_of(download_error),
+            render_error_class=error_class_of(render_error),
+        )
 
     def _record_budget_expiry(
         *, url: str, elapsed: float, crawl_delay: float | None,
@@ -377,6 +400,13 @@ def _scrape_one(
                     run_dir, institution_id=inst_id, url=url,
                     outcome=scrape_telemetry.OUTCOME_SCRAPE_FAILED,
                     detail=safe,
+                    # Same two fields as the hook path above, so a query over the
+                    # ledger does not have to know which of the two produced a
+                    # row. `render_error_class` is absent rather than null here:
+                    # this path is everything that escaped `scrape_url`, and no
+                    # render was attempted and lost.
+                    http_status=http_status_from_exception(exc),
+                    error_class=error_class_of(exc),
                 )
                 continue
             if fetch_failure["failed"]:

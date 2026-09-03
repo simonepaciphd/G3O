@@ -218,7 +218,13 @@ def test_tar_members_restore_under_the_institutions_root(complete_run: Path, tmp
     restore_into = tmp_path / "restored"
     restore_into.mkdir()
     with tarfile.open(shard_tar_path(complete_run, shard), mode="r:") as tar:
-        tar.extractall(restore_into)  # noqa: S202 - fixture tar built in-test
+        # filter="data" is the 3.14 default and the 3.12 deprecation warning's
+        # remedy; stating it explicitly makes this test read the same on every
+        # interpreter in the CI matrix. Surfaced by pinning the dev environment
+        # to 3.12 (review F6) — the warning is *about* 3.14 behaviour, so the
+        # 3.14 box where this suite was being run was the one place it could not
+        # appear. Safe here: the tar is a fixture built in-test.
+        tar.extractall(restore_into, filter="data")  # noqa: S202
     restored = sorted(
         p.relative_to(restore_into).as_posix()
         for p in restore_into.rglob("*")
@@ -597,32 +603,36 @@ def test_freshly_written_tar_that_mismatches_still_fails_closed(complete_run: Pa
 
     A tar written this pass that does not match was produced against a source
     mutating underneath it; it earns no trust, and the .FAILED path applies.
+
+    Injected through the source-digest read rather than the old ``walk_shard``
+    seam: since 2026-08-24 verification compares per-member digests, so a
+    plausible concurrent-deleter simulation is one file disappearing between the
+    tar being written and the source being re-read.
     """
     import g3o.run.archive as archive_mod
 
-    real_walk = archive_mod.walk_shard
+    real_digests = archive_mod._source_digests
     calls = {"n": 0}
 
-    def _shrinking_walk(shard_dir: Path):
-        # First call is _write_tar's plan walk; the verification walk that
-        # follows sees one fewer file, as a concurrent deleter would produce.
+    def _shrinking_digests(shard_dir: Path):
+        # The verification read sees one fewer file, as a concurrent deleter
+        # working on the tree underneath us would produce.
         calls["n"] += 1
-        stat = real_walk(shard_dir)
-        if calls["n"] > 1 and stat.n_files:
-            return type(stat)(
-                n_files=stat.n_files - 1, n_bytes=stat.n_bytes, n_dirs=stat.n_dirs
-            )
-        return stat
+        digests = real_digests(shard_dir)
+        if digests:
+            digests.pop(sorted(digests)[0])
+        return digests
 
     shard = sorted(institution_shard(i) for i in INSTS)[0]
     tar_path = shard_tar_path(complete_run, shard)
-    archive_mod.walk_shard = _shrinking_walk
+    archive_mod._source_digests = _shrinking_digests
     try:
         with pytest.raises(VerificationError):
             archive_run(complete_run, apply=True)
     finally:
-        archive_mod.walk_shard = real_walk
+        archive_mod._source_digests = real_digests
 
+    assert calls["n"] >= 1
     assert tar_path.with_name(tar_path.name + FAILED_SUFFIX).is_file()
 
 
@@ -654,3 +664,125 @@ def test_cli_reports_an_interrupted_delete_as_exit_2(complete_run: Path, capsys)
 
     assert code == 2
     assert "strict superset" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
+# Per-member content verification (review F1, 2026-08-24)
+#
+# The tests the old aggregate check could not pass. `verify_tar` compared only
+# (member count, summed bytes); both are preserved by a transposition and by
+# corruption that keeps a file's length, so under that check each of the tars
+# built below verified clean and its source was deleted.
+# ---------------------------------------------------------------------------
+
+
+def _rewrite_tar(tar_path: Path, transform) -> None:
+    """Rebuild a tar, passing each member's (name, bytes) through ``transform``."""
+    with tarfile.open(tar_path, mode="r:") as tar:
+        members = [(m, tar.extractfile(m).read() if m.isfile() else b"") for m in tar]
+    payloads = transform([(m.name, data) for m, data in members if m.isfile()])
+    with tarfile.open(tar_path, mode="w:") as tar:
+        for name, data in payloads:
+            info = tarfile.TarInfo(name=name)
+            info.size = len(data)
+            import io
+
+            tar.addfile(info, io.BytesIO(data))
+
+
+def _first_shard(run_dir: Path) -> str:
+    return sorted(institution_shard(i) for i in INSTS)[0]
+
+
+def test_corruption_at_identical_length_is_caught(complete_run: Path):
+    """A member whose bytes changed but whose length did not.
+
+    File count and total bytes both still match exactly, so the pre-2026-08-24
+    check verified this tar and deleted the source. That is the whole finding.
+    """
+    shard = _first_shard(complete_run)
+    source = institutions_root(complete_run) / shard
+    tar_path = shard_tar_path(complete_run, shard)
+
+    from g3o.run.archive import _write_tar, verify_tar
+
+    _write_tar(source, tar_path, shard)
+    _rewrite_tar(
+        tar_path,
+        lambda ms: [(n, (b"\0" * len(d)) if i == 0 else d) for i, (n, d) in enumerate(ms)],
+    )
+
+    # The aggregates the old check compared are untouched...
+    assert read_tar_stat(tar_path).n_files == walk_shard(source).n_files
+    assert read_tar_stat(tar_path).n_bytes == walk_shard(source).n_bytes
+    # ...and the content check still fails it.
+    with pytest.raises(VerificationError) as exc:
+        verify_tar(tar_path, source)
+    assert "differ in content" in str(exc.value)
+
+
+def test_transposed_members_are_caught(complete_run: Path):
+    """Two members' contents swapped: every aggregate is identical."""
+    shard = _first_shard(complete_run)
+    source = institutions_root(complete_run) / shard
+    tar_path = shard_tar_path(complete_run, shard)
+
+    from g3o.run.archive import _write_tar, verify_tar
+
+    _write_tar(source, tar_path, shard)
+
+    def _swap_two_distinct(members):
+        # Swap the payloads of the first two members whose sizes differ, so the
+        # swap is observable at all (equal-length payloads are indistinguishable).
+        by_size = sorted(members, key=lambda nd: len(nd[1]))
+        if len(by_size) < 2 or len(by_size[0][1]) == len(by_size[-1][1]):
+            pytest.skip("fixture has no two members of differing size")
+        (n_a, d_a), (n_b, d_b) = by_size[0], by_size[-1]
+        swapped = {n_a: d_b, n_b: d_a}
+        return [(n, swapped.get(n, d)) for n, d in members]
+
+    _rewrite_tar(tar_path, _swap_two_distinct)
+
+    assert read_tar_stat(tar_path).n_files == walk_shard(source).n_files
+    assert read_tar_stat(tar_path).n_bytes == walk_shard(source).n_bytes
+    with pytest.raises(VerificationError):
+        verify_tar(tar_path, source)
+
+
+def test_corrupted_tar_aborts_with_the_source_intact(complete_run: Path, monkeypatch):
+    """End to end: a same-length corruption must not cost the data.
+
+    This is the assertion that matters — not that the error is raised, but that
+    the institution tree is still on disk afterwards.
+    """
+    import g3o.run.archive as archive_mod
+
+    real_write = archive_mod._write_tar
+
+    def _write_then_corrupt(source: Path, tar_path: Path, shard: str) -> None:
+        real_write(source, tar_path, shard)
+        _rewrite_tar(
+            tar_path,
+            lambda ms: [
+                (n, (b"\0" * len(d)) if i == 0 else d) for i, (n, d) in enumerate(ms)
+            ],
+        )
+
+    monkeypatch.setattr(archive_mod, "_write_tar", _write_then_corrupt)
+
+    with pytest.raises(VerificationError):
+        archive_run(complete_run, apply=True)
+
+    for inst_id in INSTS:
+        assert (
+            institutions_root(complete_run) / institution_shard(inst_id) / inst_id
+        ).is_dir(), "a failed verification must never cost the source tree"
+
+
+def test_a_good_tar_still_verifies_and_deletes(complete_run: Path):
+    """The stronger check must not become a check that never passes."""
+    result = archive_run(complete_run, apply=True)
+    assert result.n_deleted == len({institution_shard(i) for i in INSTS})
+    assert not any(
+        p.name.endswith(FAILED_SUFFIX) for p in archive_root(complete_run).rglob("*")
+    )
