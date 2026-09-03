@@ -13,6 +13,13 @@ PI decisions this file encodes (2026-08-02):
 - **Leg 1 stays English and unparameterized.** So chain mode always searches
   English *in addition to* the configured languages, and the provenance string
   has to say so rather than hide it.
+
+  **Reversed 2026-09-01** — leg 1 now issues one query per language the
+  institution's policy row names, behind ``discovery_leg1_multilingual``, which
+  defaults False and cannot be enabled until the leg-1 suffix roster is signed.
+  The tests in this file pin the *default*, which is unchanged and is what
+  production runs; ``tests/test_leg1_multilingual.py`` covers the other side of
+  the flag.
 - **The scalar ``discovery_evidence_term`` is shorthand**, not a competing
   surface; setting both it and the mapping is an error, not a precedence rule.
 
@@ -232,7 +239,7 @@ def test_evidence_terms_follow_configured_language_order(tmp_path):
 
 
 def test_chain_provenance_includes_english_because_leg_1_is_english(tmp_path):
-    """Leg 1 is not localized, so English is always among the searched languages.
+    """Leg 1 is English by default, so English is always among the searched languages.
 
     The alternative — reporting only `zh` — would be the same lie the old
     derivation told, just in the other direction.
@@ -367,7 +374,17 @@ def test_leg_2_credit_cost_scales_with_languages(tmp_path, monkeypatch):
 
 
 def test_leg_1_stays_one_english_query_whatever_the_languages(tmp_path, monkeypatch):
-    """H3: leg 1's suffix is not localized, and its tag says so honestly."""
+    """H3: leg 1 issues one English query by default, and tags it honestly.
+
+    The PI reversed the 2026-08-02 un-localized-suffix decision on 2026-09-01, so
+    leg 1 *can* now be localized — but only behind
+    ``discovery_leg1_multilingual``, which defaults False and cannot be turned on
+    until the suffix roster is signed. This test pins the default, which is the
+    behaviour production runs: whatever ``discovery_languages`` says, and whatever
+    leg 2 does with it, leg 1 issues exactly one query and tags it ``en``.
+    ``test_leg_1_localizes_per_policy_language_when_the_flag_is_on`` is its
+    counterpart on the other side of the flag.
+    """
     cfg = _config(
         tmp_path,
         discovery_mode="chain",
@@ -583,6 +600,12 @@ def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
     It grew to three on 2026-08-31 for the same documented reason:
     ``evidence_terms_roster_hash`` did not exist until the chain-mode roster did,
     so every manifest ever written lacks it, including the published runs.
+
+    It grew to four on 2026-09-01, once more for that reason:
+    ``domain_suffix_roster_hash`` did not exist until leg 1 had a roster, and every
+    run that predates it issued the English suffix by construction — there is no
+    instrument ambiguity for the guard to protect against on those runs, so
+    refusing to resume them would be a cost with no safety gain.
     """
     from g3o.common.run_state import state_dir
     from g3o.run.presweep.planning import (
@@ -595,6 +618,7 @@ def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
         "genai_terms_roster_hash",
         "scrape_max_institution_seconds",
         "evidence_terms_roster_hash",
+        "domain_suffix_roster_hash",
     }
 
     cfg = _config(tmp_path)

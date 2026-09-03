@@ -153,6 +153,40 @@ DOMAIN_QUERY_SUFFIX = "official website"
 # for. Change this only together with DOMAIN_QUERY_SUFFIX.
 DOMAIN_QUERY_LANG = "en"
 
+# Leg 1's suffix, per language. **UNSIGNED, and deliberately one row long.**
+#
+# The leg-1 counterpart of ``EVIDENCE_TERMS_BY_LANG``, added 2026-09-01 for card 2
+# of ``agent-workspace/2026-09-01-discovery-legs/``. The PI ruled that day that
+# leg 1 goes multilingual — one query per language the institution's policy row
+# names, **additive** to the English query it issues today. He did *not* rule on
+# any particular suffix, and the 2026-08-02 decision that ruling reverses said in
+# its own words that "settling it needs its own A/B on the existing harness, not a
+# default flip".
+#
+# So this table holds exactly the English suffix production issues today, and its
+# job right now is to be **the gate rather than the instrument**. Filling in the
+# other 89 tags is a PI-signed roster decision on probe evidence, built the way
+# the 90-term evidence roster was: candidates proposed, probed live against Serper
+# on a pre-committed sample, and put to the PI as a signable table with the
+# evidence next to each row.
+#
+# **Why one row and not 89 placeholders.** ``assert_languages_rostered`` is
+# consulted for every tag the signed language policy could emit, before the first
+# Serper credit, so an unsigned roster cannot be half-adopted: a multilingual
+# leg-1 run either has a complete signed roster or does not start. A placeholder
+# row would do the opposite — ship a machine translation as the domain-discovery
+# instrument for every institution in that language, silently, against a measured
+# 82.0% leg-1 recall (n=200 truth pool, 2026-08-01) that has no counterpart
+# measurement on the localized side.
+#
+# One suffix per tag, not a list. Leg 1 already costs one credit per language
+# under the additive design; a second suffix per language doubles that on every
+# institution, and unlike leg 2's terms there is no measurement saying it buys
+# anything.
+DOMAIN_SUFFIX_BY_LANG: dict[str, str] = {
+    "en": DOMAIN_QUERY_SUFFIX,
+}
+
 # Leg 2's default evidence token. Bare and unquoted by measurement, not by
 # omission — see the module note above.
 DEFAULT_EVIDENCE_TERM = "AI"
@@ -340,6 +374,33 @@ def evidence_terms_roster_hash() -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
+def domain_suffix_roster_hash() -> str:
+    """Stable fingerprint of the whole leg-1 domain-suffix roster.
+
+    The leg-1 counterpart of :func:`evidence_terms_roster_hash`, and load-bearing
+    for the same reason: the moment this roster carries more than the English row
+    it *is* the domain-discovery instrument, and a run resumed after an edit to
+    any row is running a different instrument than the one it launched with.
+
+    Recorded from the day the roster is a single row, deliberately. The evidence
+    roster's own history is the argument: while ``EVIDENCE_TERMS_BY_LANG`` held
+    one English row the manifest recorded a fingerprint of ``GENAI_TERMS_BY_LANG``
+    — a roster a chain run never reads — and none of the roster it does read. The
+    manifest key exists here before the rows do so that the first signed row moves
+    a fingerprint that was already being written down.
+
+    Hashed over the entire mapping, keys sorted, read at call time rather than at
+    import, for the same three reasons the GenAI-roster hash is.
+    """
+    payload = json.dumps(
+        DOMAIN_SUFFIX_BY_LANG,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
 class UnknownLanguageError(ValueError):
     """A configured language has no roster entry for the mode being run.
 
@@ -352,13 +413,27 @@ class UnknownLanguageError(ValueError):
     """
 
 
-def assert_languages_rostered(languages: Iterable[str], roster: dict[str, Any]) -> None:
+def assert_languages_rostered(
+    languages: Iterable[str],
+    roster: dict[str, Any],
+    route: str = "subprojects/multilingual-pipeline/, not a config change — "
+    "see roadmap A2/A7",
+) -> None:
     """Raise :class:`UnknownLanguageError` for any language absent from ``roster``.
 
-    ``roster`` is ``GENAI_TERMS_BY_LANG`` under ``legacy`` and
-    ``EVIDENCE_TERMS_BY_LANG`` under ``chain`` — the two are not
-    interchangeable, and a language rostered for one is not thereby runnable
-    under the other.
+    ``roster`` is ``GENAI_TERMS_BY_LANG`` under ``legacy``,
+    ``EVIDENCE_TERMS_BY_LANG`` under ``chain``, and ``DOMAIN_SUFFIX_BY_LANG`` for
+    chain's leg 1 (2026-09-01) — the three are not interchangeable, and a
+    language rostered for one is not thereby runnable under the others.
+
+    ``route`` names where a missing row is *added*, and it differs per roster:
+    the evidence rosters route through the multilingual subproject, the leg-1
+    suffix roster through card 2 of the discovery-legs plan. It is a parameter
+    with the evidence-roster wording as its default so that every pre-existing
+    call site raises a byte-identical message; only a caller that knows its
+    roster is a different instrument overrides it. Telling a reader to add a
+    leg-1 suffix in the leg-2 subproject would send the one person who hits this
+    error to the wrong signature table.
     """
     unknown = [lang for lang in languages if lang not in roster]
     if not unknown:
@@ -366,8 +441,7 @@ def assert_languages_rostered(languages: Iterable[str], roster: dict[str, Any]) 
     raise UnknownLanguageError(
         f"no roster entry for language(s) {unknown!r}; "
         f"rostered: {sorted(roster)!r}. Adding one is a PI-signed roster "
-        f"decision routed through subprojects/multilingual-pipeline/, not a "
-        f"config change — see roadmap A2/A7."
+        f"decision routed through {route}."
     )
 
 
@@ -376,11 +450,21 @@ def build_domain_query(
     country: str | None = None,
     disambiguation: str | None = None,
     quote_name: bool = False,
+    suffix: str = DOMAIN_QUERY_SUFFIX,
 ) -> str:
     """Leg 1 — identify the institution's own domain. One credit.
 
     ``<name> <country> <disambiguation> official website``. Slot order matches
     :func:`build_queries`; any absent slot is skipped.
+
+    ``suffix`` defaults to :data:`DOMAIN_QUERY_SUFFIX`, so every existing call
+    site issues the query it always issued, byte for byte. It is a parameter
+    rather than a lookup inside this function for the same reason
+    :func:`build_evidence_query` takes ``term``: the *choice* of suffix is the
+    instrument and belongs to the caller that holds the language, and a function
+    that reached into :data:`DOMAIN_SUFFIX_BY_LANG` itself would have to invent a
+    behaviour for an unrostered tag — which is exactly the silent English
+    fallback :func:`build_domain_queries` refuses.
 
     ``disambiguation`` is the master's parent-geography annotation (PI catch,
     2026-08-01 — it was missing from the first cut of this function). It carries
@@ -411,8 +495,73 @@ def build_domain_query(
         hint = _hint(qualifier) if qualifier else ""
         if hint:
             slots.append(hint)
-    slots.append(DOMAIN_QUERY_SUFFIX)
+    slots.append(suffix)
     return " ".join(s for s in slots if s)
+
+
+def build_domain_queries(
+    institution_name: str,
+    languages: Iterable[str],
+    country: str | None = None,
+    disambiguation: str | None = None,
+    quote_name: bool = False,
+) -> list[tuple[str, str]]:
+    """Leg 1, once per language the institution's policy row names. One credit each.
+
+    The multilingual form of :func:`build_domain_query` (PI ruling 2026-09-01),
+    shaped to match :func:`build_queries` so the two legs are read the same way:
+    ``(query_string, language)`` tuples, in the order ``languages`` gives them,
+    which is the signed policy's row order with ``always_include`` applied.
+
+    **Additive, not a swap.** Because the signed 2026-08-30 policy carries
+    ``always_include: ['en']``, ``en`` is among the languages of every
+    institution, so the English query production issues today is always in the
+    returned list. No institution loses its English arm, and the comparison the
+    card asks for is within-institution rather than between runs.
+
+    **Fail loud, never fall back.** A tag with no row in
+    :data:`DOMAIN_SUFFIX_BY_LANG` raises
+    :class:`UnknownLanguageError` through :func:`assert_languages_rostered` — the
+    same choke point, and the same definition of "rostered", that leg 2 uses.
+    The alternative was measured and rejected on leg 2 in the same words: a
+    silent English fallback would issue English queries, tag them with the
+    requested language, and make the misattribution invisible from the artifact
+    onward. Asserted once for the whole list, before any query is built, so the
+    caller cannot half-issue an institution.
+
+    **Identical queries are not deduped, and that is deliberate.** Two tags
+    sharing a suffix produce byte-identical query strings; dropping the second
+    would save nothing and lose that language's attribution, since
+    :func:`g3o.discovery.serper_client.search_google_detailed` keys its on-disk
+    cache on the whole request payload — the repeat is served from cache, costs
+    no credit, and records ``from_cache: true`` in its own provenance entry. Cost
+    is handled by the cache; attribution is handled by keeping the row.
+
+    Under the roster as it stands — one English row — an institution whose policy
+    languages reduce to ``("en",)`` gets exactly one query, identical to
+    :func:`build_domain_query`'s. Any other tag raises. That is the gate, not a
+    limitation of this function.
+    """
+    languages = list(languages)
+    assert_languages_rostered(
+        languages,
+        DOMAIN_SUFFIX_BY_LANG,
+        route="agent-workspace/2026-09-01-discovery-legs/cards/"
+        "2-legs-leg1-multilingual.txt, not a config change",
+    )
+    return [
+        (
+            build_domain_query(
+                institution_name,
+                country,
+                disambiguation,
+                quote_name=quote_name,
+                suffix=DOMAIN_SUFFIX_BY_LANG[lang],
+            ),
+            lang,
+        )
+        for lang in languages
+    ]
 
 
 def build_evidence_query(site_domain: str, term: str = DEFAULT_EVIDENCE_TERM) -> str:

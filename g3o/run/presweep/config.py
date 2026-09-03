@@ -18,6 +18,7 @@ from g3o.common.languages import (
 from g3o.discovery.query_builder import (
     DEFAULT_EVIDENCE_TERM,
     DOMAIN_QUERY_LANG,
+    DOMAIN_SUFFIX_BY_LANG,
     EVIDENCE_TERMS_BY_LANG,
     GENAI_TERMS_BY_LANG,
     assert_languages_rostered,
@@ -83,6 +84,27 @@ class PresweepConfig:
     # precedence here would decide which languages every leg-2 query is issued
     # in, on every institution of the run.
     language_policy: str | None = None
+    # ── Leg 1 goes multilingual (PI ruling 2026-09-01, card 2 of
+    #    agent-workspace/2026-09-01-discovery-legs/) ───────────────────────────
+    # When True, Stage 1a's chain branch issues **one domain-discovery query per
+    # language the institution's policy row names** instead of the single
+    # hardcoded English one, taking each language's suffix from
+    # ``DOMAIN_SUFFIX_BY_LANG``.
+    #
+    # **Default False, and it stays False until the suffix roster is signed.**
+    # The PI ruled that leg 1 goes multilingual; he did not rule on any
+    # particular suffix, and the card's own stop boundary is explicit: do not
+    # flip the leg-1 instrument in production before the roster is signed and
+    # the paired measurement is read out. With the roster at one English row a
+    # True here raises at construction on the first non-English policy tag —
+    # which is the gate working, not a bug.
+    #
+    # A bool rather than a language tuple, deliberately. The languages are not a
+    # free parameter: they are the signed policy's answer for the institution's
+    # country, and offering a tuple here would be a second country->language
+    # instrument arriving through the same door as a batch size. The card says
+    # reuse the signed mapping and build no parallel one.
+    discovery_leg1_multilingual: bool = False
     # 10, not 5: ``num`` truncates and costs a flat 1 credit either way, so at 5
     # the pipeline paid for ten results and discarded half of them. A waste fix
     # with no measured yield effect. Serper returns 9 in practice.
@@ -297,6 +319,37 @@ class PresweepConfig:
                 f"precedence rule between them would decide which languages every "
                 f"leg-2 query of the run is issued in."
             )
+        # Leg-1 coherence before any roster check, so a misconfigured flag reports
+        # itself rather than surfacing as an unrostered-language error about a
+        # roster the operator never meant to consult.
+        if self.discovery_leg1_multilingual:
+            # Chain-only: under ``legacy`` leg 1 *is* the GenAI-term roster, so
+            # there is no un-localized suffix to localize and this flag would
+            # silently mean nothing.
+            if self.discovery_mode != "chain":
+                raise ValueError(
+                    "discovery_leg1_multilingual requires discovery_mode="
+                    f"'chain' (got {self.discovery_mode!r}). Legacy's leg 1 is "
+                    "already the language roster; there is no un-localized "
+                    "suffix there for this flag to act on."
+                )
+            # Policy-only, because the ruling is that the localized leg is
+            # **additive**. That property is not a property of this code — it
+            # comes from the signed policy's ``always_include: ['en']``, which
+            # puts English among every institution's languages. A run-level
+            # ``discovery_languages`` tuple carries no such guarantee, so
+            # ``discovery_languages=('fr',)`` plus this flag would *replace* the
+            # English arm rather than add to it, and report a within-institution
+            # comparison that was never run.
+            if self.language_policy is None:
+                raise ValueError(
+                    "discovery_leg1_multilingual requires language_policy to be "
+                    "set. The ruling is that the localized leg is additive, and "
+                    "what makes it additive is the signed policy's "
+                    "always_include=['en'] — a run-level discovery_languages "
+                    "tuple can drop English and would turn an additive leg into "
+                    "a swap."
+                )
         if self.discovery_mode == "chain":
             assert_languages_rostered(
                 self.discovery_languages, self.evidence_term_roster
@@ -317,6 +370,18 @@ class PresweepConfig:
                 self.evidence_term_roster
                 if self.discovery_mode == "chain"
                 else GENAI_TERMS_BY_LANG,
+            )
+        if self.discovery_leg1_multilingual:
+            # The same pre-spend choke point, one roster further: every tag the
+            # policy could emit on any institution must have a signed leg-1
+            # suffix before the first credit. With the roster at one English row
+            # this is what refuses to start a multilingual run, and it names the
+            # card the suffixes are signed on rather than leg 2's subproject.
+            assert_policy_rostered(
+                policy,
+                DOMAIN_SUFFIX_BY_LANG,
+                "agent-workspace/2026-09-01-discovery-legs/cards/"
+                "2-legs-leg1-multilingual.txt, not a config change",
             )
 
     @property
@@ -343,6 +408,31 @@ class PresweepConfig:
         if policy is None:
             return tuple(self.discovery_languages)
         return policy.languages_for(institution)[0]
+
+    def leg1_languages_for(self, institution: Mapping[str, Any]) -> tuple[str, ...]:
+        """The languages **this institution's leg-1** queries are issued in.
+
+        Deliberately a separate method from :meth:`languages_for`, which answers
+        the same question for leg 2. The two legs have always been allowed to
+        disagree — until 2026-09-01 leg 1 was English on every institution of
+        every run while leg 2 followed the policy — and collapsing them onto one
+        method would make the leg-1 instrument change as a side effect of a
+        leg-2 decision.
+
+        ``(DOMAIN_QUERY_LANG,)`` when :attr:`discovery_leg1_multilingual` is off,
+        which is every run to date: one English query, byte-identical to what
+        Stage 1a issued before this method existed. The policy's answer for the
+        institution's country when it is on, ``always_include`` applied, so
+        English is in the tuple and the localized leg is additive.
+
+        Safe to index into :data:`DOMAIN_SUFFIX_BY_LANG` unguarded for the same
+        reason :meth:`evidence_terms_for` is: ``__post_init__`` has already
+        rejected a policy that could select an unrostered tag on any
+        institution, before any spend.
+        """
+        if not self.discovery_leg1_multilingual:
+            return (DOMAIN_QUERY_LANG,)
+        return self.languages_for(institution)
 
     def evidence_terms_for(self, institution: Mapping[str, Any]) -> dict[str, str]:
         """:attr:`evidence_terms`, one institution at a time.

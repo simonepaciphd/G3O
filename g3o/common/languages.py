@@ -403,7 +403,11 @@ def language_policy_hash(policy: LanguagePolicy) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
-def assert_policy_rostered(policy: LanguagePolicy, roster: Mapping[str, Any]) -> None:
+def assert_policy_rostered(
+    policy: LanguagePolicy,
+    roster: Mapping[str, Any],
+    route: str | None = None,
+) -> None:
     """Reject a policy that could select a language the run cannot query.
 
     The run-level choke point per-institution selection needs, and the reason
@@ -411,14 +415,22 @@ def assert_policy_rostered(policy: LanguagePolicy, roster: Mapping[str, Any]) ->
     :func:`g3o.discovery.query_builder.assert_languages_rostered` so that
     "rostered" has exactly one definition and a mode-specific roster
     (``GENAI_TERMS_BY_LANG`` under ``legacy``, ``EVIDENCE_TERMS_BY_LANG`` under
-    ``chain``) is honoured here too.
+    ``chain``, ``DOMAIN_SUFFIX_BY_LANG`` for chain's leg 1) is honoured here too.
+
+    ``route`` is forwarded to that function and names where a missing row is
+    signed, which differs per roster; ``None`` keeps its evidence-roster default,
+    so every call site that predates leg 1 having a roster raises a byte-identical
+    message.
 
     Call it once, before the first credit is spent —
     :class:`~g3o.discovery.query_builder.UnknownLanguageError` raised on
     institution 3,000 of 10,000 has already cost 3,000 institutions' worth of
     queries.
     """
-    assert_languages_rostered(policy.selectable_languages, dict(roster))
+    if route is None:
+        assert_languages_rostered(policy.selectable_languages, dict(roster))
+    else:
+        assert_languages_rostered(policy.selectable_languages, dict(roster), route)
 
 
 def search_languages_string(

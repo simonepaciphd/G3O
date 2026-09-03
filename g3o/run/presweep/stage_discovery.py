@@ -17,7 +17,7 @@ from g3o.discovery.domain_pick import pick_domain
 from g3o.discovery.query_builder import (
     DEFAULT_EVIDENCE_TERM,
     DOMAIN_QUERY_LANG,
-    build_domain_query,
+    build_domain_queries,
     build_evidence_query,
     build_queries,
 )
@@ -114,12 +114,24 @@ def leg1_recall_block(
 # zero out every language-filtered health figure and the readiness bar the
 # multilingual subproject depends on.
 #
-# The two legs are tagged differently and that asymmetry is the point.
-# Leg 1's ``official website`` suffix is not localized (PI decision,
-# 2026-08-02), so it is always ``DOMAIN_QUERY_LANG`` — English. Leg 2 carries
-# **its own** language per query, taken from the evidence-term roster, which is
-# what makes a multi-language chain run honest at row level rather than
-# collapsing to a single run-level claim.
+# Both legs now carry their own language per query, and each takes it from its
+# own roster: leg 1 from ``DOMAIN_SUFFIX_BY_LANG``, leg 2 from the evidence-term
+# roster. That is what makes a multi-language chain run honest at row level
+# rather than collapsing to a single run-level claim.
+#
+# **Leg 1 was English on every institution until 2026-09-01** — its ``official
+# website`` suffix was un-localized by PI decision 2026-08-02, so its tag was
+# always ``DOMAIN_QUERY_LANG``, and the asymmetry between the legs was the point
+# of the note that stood here. The PI reversed that on 2026-09-01: leg 1 issues
+# one query per language the institution's policy row names, additive to the
+# English one. The tag still describes the query that was issued, never the
+# language the run was configured for — which is why it comes from the suffix
+# actually used, and why a tag with no signed suffix raises instead of falling
+# back.
+#
+# Until the suffix roster is signed the roster holds one English row and
+# ``discovery_leg1_multilingual`` defaults False, so production still issues
+# exactly one English leg-1 query per institution.
 #
 # Until 2026-08-02 both legs shared one ``"en"`` constant. That was honest
 # about the queries but left ``institution_search_languages`` free to claim a
@@ -217,6 +229,7 @@ def _discover_general_one(
     domain_quote_name: bool = False,
     credentials: ResolvedCredentials | None = None,
     languages_for: LanguagesFor | None = None,
+    leg1_languages_for: LanguagesFor | None = None,
 ) -> tuple[str, list[dict[str, Any]]]:
     """Process Stage 1a general discovery for one institution.
 
@@ -241,11 +254,17 @@ def _discover_general_one(
     config change rather than a refactor (PI direction, 2026-08-01).
 
     ``languages_for`` (2026-08-30) overrides ``languages`` per institution; see
-    the module note. It changes nothing under ``chain``, whose leg 1 is the
-    hardcoded English domain query on every institution by PI decision
-    (2026-08-02) — it is honoured here so that legacy mode, whose leg 1 *is*
-    the language roster, cannot silently keep searching the run-level tuple
-    while leg 2 searches the policy's.
+    the module note. It applies to ``legacy`` only, whose leg 1 *is* the
+    language roster — it is honoured here so that legacy mode cannot silently
+    keep searching the run-level tuple while leg 2 searches the policy's.
+
+    ``leg1_languages_for`` (2026-09-01) is the ``chain`` counterpart, and a
+    separate parameter rather than a reuse of ``languages_for`` because the two
+    legs answer to different rosters: a tag can be signed for leg-2 evidence and
+    unsigned for a leg-1 suffix, and passing one selector to both would let a
+    leg-2 decision silently change the domain-discovery instrument. ``None`` —
+    the default, and every run to date — issues the single English domain query,
+    byte for byte.
     """
     institution = institution_record(row)
     inst_id = institution["institution_id"]
@@ -253,6 +272,52 @@ def _discover_general_one(
     if path.exists():
         payload = json.loads(path.read_text(encoding="utf-8"))
         return inst_id, payload.get("records", [])
+    bypass_url = institution.get("official_site_url")
+    if bypass_url:
+        # Leg 1 asks "what is this institution's website". When the master
+        # already answers that, asking Serper is a credit spent to rediscover a
+        # known fact (card 2 §4, 2026-09-01).
+        #
+        # ``official_site_url`` has bypassed **Stage 2** since 2026-05-09
+        # (``stage_classify``, D1+D4), but nothing bypassed Stage 1a:
+        # ``_run_discovery_general`` was called on the full sample
+        # unconditionally. That cost nothing while the column was null on every
+        # master row — which it is today, so this branch is inert on every
+        # existing master and the change is measurable as zero. It stops being
+        # free the moment the registry carries discovered sites, and it stops
+        # being *one* credit the moment leg 1 issues one query per language,
+        # which is the change this branch ships alongside.
+        #
+        # No plausibility check, matching Stage 2's bypass under Q4 (2026-05-09):
+        # the runner trusts the master. Trusting it in Stage 2 and re-litigating
+        # it here would be two different policies on one column.
+        #
+        # **An artifact is still written.** Returning early without one would
+        # leave no ``1a_discovery_general.json``, and ``report.health`` and
+        # ``report.outcomes`` both test that file's existence — a skipped
+        # institution would read as one whose queries came back empty, which is
+        # the conflation this module's language-tagging note exists to prevent.
+        # The envelope carries ``bypassed``/``source``/``url`` in the shape
+        # ``2_official_site.json`` already uses, so a reader can separate a
+        # deliberate skip from a discovery failure.
+        bypass_artifact: dict[str, Any] = {
+            "mode": mode,
+            "queries": [],
+            "records": [],
+            "bypassed": True,
+            "source": "master_csv",
+            "url": bypass_url,
+        }
+        path.write_text(
+            json.dumps(bypass_artifact, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        logger.info(
+            "Stage 1a: %s bypassed — official_site_url present in master (%r); "
+            "no leg-1 credit spent",
+            inst_id, bypass_url,
+        )
+        return inst_id, []
     if not institution["country"]:
         logger.warning(
             "Stage 1a: %s (%r) has no country — discovery query is unscoped and "
@@ -263,17 +328,25 @@ def _discover_general_one(
         if mode == "chain":
             # `disambiguation` off the raw master row, not the projected
             # institution record — same reason as the legacy branch below.
-            queries = [
-                (
-                    build_domain_query(
-                        institution["institution_name"],
-                        institution["country"],
-                        row.get("disambiguation") or "",
-                        quote_name=domain_quote_name,
-                    ),
-                    DOMAIN_QUERY_LANG,
-                )
-            ]
+            # One query per language the institution's policy row names (PI
+            # ruling 2026-09-01), or the single English query every run to date
+            # issued when no leg-1 selector is supplied. The English arm is never
+            # lost: the signed policy's ``always_include`` puts ``en`` in every
+            # institution's tuple, so the localized leg is additive and the
+            # comparison it enables is within-institution rather than between
+            # runs.
+            leg1_langs = (
+                (DOMAIN_QUERY_LANG,)
+                if leg1_languages_for is None
+                else tuple(leg1_languages_for(institution))
+            )
+            queries = build_domain_queries(
+                institution["institution_name"],
+                leg1_langs,
+                institution["country"],
+                row.get("disambiguation") or "",
+                quote_name=domain_quote_name,
+            )
         else:
             # `disambiguation` is read off the raw master row, not the projected
             # institution record: that projection is serialized to institution.json
@@ -359,6 +432,7 @@ def _run_discovery_general(
     domain_quote_name: bool = False,
     credentials: ResolvedCredentials | None = None,
     languages_for: LanguagesFor | None = None,
+    leg1_languages_for: LanguagesFor | None = None,
 ) -> dict[str, list[dict[str, Any]]]:
     """Stage 1a — general Serper queries. One ``1a_discovery_general.json`` per institution.
 
@@ -388,6 +462,7 @@ def _run_discovery_general(
             run_dir, row, stage=stage, languages=languages, num_results=num_results,
             mode=mode, options=options, domain_quote_name=domain_quote_name,
             credentials=credentials, languages_for=languages_for,
+            leg1_languages_for=leg1_languages_for,
         ),
         max_workers=max_workers,
     )
