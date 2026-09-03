@@ -274,3 +274,113 @@ def test_partial_stage_handles_cached_tokens_clamping(tmp_path):
     assert partial_cost is not None
     # Should not crash, and should handle the inconsistency gracefully
     assert partial_cost.total_usd >= 0
+
+
+def test_persisted_report_carries_partial_stages(tmp_path, monkeypatch):
+    """The *file* on disk carries partial stages, not just the in-memory monitor.
+
+    Regression test for an ordering bug found while reviewing finding F2
+    (2026-08-24). The orchestrator built ``monitor.cost_report()`` — a plain
+    snapshot — *before* the loop that calls ``record_partial_stage``, so the
+    persisted ``_cost_report.json`` always carried ``"partial_stages": []``.
+    That emptied the report exactly on the budget-abort path this scan exists to
+    serve: the truncated stage's partial spend never reached the file.
+
+    Every other test in this module calls ``record_partial_stage`` before
+    ``cost_report()`` and so cannot see the bug. This one asserts against the
+    persisted artifact, which is the only place the ordering is observable.
+    """
+    from unittest.mock import patch
+
+    from g3o.common.cost_monitor import BudgetExceededError
+    from g3o.run.presweep import PresweepConfig, run_presweep
+
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
+
+    master = tmp_path / "master.csv"
+    master.write_text(
+        "institution_uid,institution_id,name,country,government_level,institution_type,url\n"
+        "G3O-I-00000001,inst-0001,Test Inst,TestCountry,national,university,https://example.edu\n",
+        encoding="utf-8",
+    )
+    config = PresweepConfig(
+        run_id="partial-run",
+        runs_dir=tmp_path / "runs",
+        master_csv=master,
+        sample_size=1,
+        seed=22294,
+        dry_run=False,
+        stop_after="classify_official_site",
+        model="gpt-5-nano",
+        budget_usd=0.001,
+    )
+
+    run_dir = config.runs_dir / config.run_id
+    done_dir = run_dir / "_state" / ".done"
+    done_dir.mkdir(parents=True, exist_ok=True)
+    # A completed stage expensive enough to trip the ceiling...
+    (done_dir / "classify_official_site.json").write_text(
+        json.dumps(
+            {
+                "stage": "classify_official_site",
+                "n_jobs": 1,
+                "n_chunks": 1,
+                "chunks": {
+                    "1": {
+                        "custom_ids": ["job-1"],
+                        "usage": {
+                            "prompt_tokens": 1_000_000,
+                            "completion_tokens": 100_000,
+                            "total_tokens": 1_100_000,
+                            "cached_tokens": 0,
+                        },
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    # ...and an *active* extract stage, which is what the scan must pick up.
+    (run_dir / "_state" / "extract.json").write_text(
+        json.dumps(
+            {
+                "stage": "extract",
+                "n_jobs": 10,
+                "n_chunks": 4,
+                "chunks": {
+                    "1": {
+                        "custom_ids": ["e-1"],
+                        "usage": {
+                            "prompt_tokens": 50_000,
+                            "completion_tokens": 5_000,
+                            "total_tokens": 55_000,
+                            "cached_tokens": 0,
+                        },
+                    },
+                    "2": {"custom_ids": ["e-2"]},
+                    "3": {"custom_ids": ["e-3"]},
+                    "4": {"custom_ids": ["e-4"]},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with patch("g3o.run.presweep.orchestrator._run_discovery_general") as discovery:
+        discovery.return_value = {}
+        with patch("g3o.run.presweep.orchestrator._run_classify_official_site") as classify:
+            classify.return_value = {}
+            try:
+                run_presweep(config)
+            except BudgetExceededError:
+                pass
+
+    report = json.loads((run_dir / "_cost_report.json").read_text(encoding="utf-8"))
+    assert report["abort_stage"] == "classify_official_site"
+    partial = report["partial_stages"]
+    assert partial, "the persisted report dropped the in-flight stage"
+    assert partial[0]["stage"] == "extract"
+    assert partial[0]["n_chunks_completed"] == 1
+    assert partial[0]["n_chunks_total"] == 4
+    assert partial[0]["total_usd"] > 0

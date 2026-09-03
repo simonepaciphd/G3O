@@ -176,6 +176,7 @@ The pricing rates used to compute costs:
 ```json
 {
   "model": "gpt-5-nano",
+  "priced": true,
   "batch_input_per_1m_usd": 0.025,
   "batch_output_per_1m_usd": 0.20,
   "batch_cached_input_per_1m_usd": 0.0025,
@@ -185,11 +186,33 @@ The pricing rates used to compute costs:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `model` | string | The model used |
+| `model` | string | The model the run actually submitted — and the model these rates are for. Before 2026-08-24 this was hard-wired to `gpt-5-nano` regardless of what ran (review F2). |
+| `priced` | boolean | False when no rate row is registered for `model`; every USD figure in the report is then `null` |
 | `batch_input_per_1m_usd` | float | Cost per 1M prompt tokens (non-cached) |
 | `batch_output_per_1m_usd` | float | Cost per 1M completion tokens |
 | `batch_cached_input_per_1m_usd` | float | Cost per 1M cached prompt tokens |
 | `batch_line_is_estimate` | boolean | True if the batch rates are estimates (see note below) |
+
+**Pricing is keyed by model id** (2026-08-24, review F2). Rates live in
+`g3o.common.pricing.PRICING`, one row per model, and the row is selected by the
+model the run submits — `--model`, `OPENAI_MODEL`, or the `PresweepConfig`
+field. Until this change every projection and every cost report used the
+`gpt-5-nano` table whatever model actually ran, so a one-word config change
+silently under-reported spend and the breaker did not fire.
+
+Two consequences for a run on a model with **no** registered row:
+
+- **with a cost ceiling set, the run refuses to start.** A ceiling is a promise
+  to stop at a number, and that promise cannot be kept for a model whose price
+  is unknown. The refusal comes from the pre-flight, before anything is spent.
+- **without a ceiling, the run proceeds** and reports `"priced": false`, the
+  real model id, and `null` for every USD field. The token counts stay exact —
+  they are measured; only the conversion to dollars is unavailable. Reporting
+  `0.0` there would assert a spend that did not happen.
+
+There is deliberately no "assume gpt-5-nano" fallback and no
+`--allow-unpriced-model` flag. Adding a model means adding a row with its own
+verified rates and its own `verified_on`.
 
 **Note on pricing estimates**: The batch rates for `gpt-5-nano` are labeled as estimates because OpenAI's documentation does not explicitly publish the batch discount for this model. The rates are derived by applying the documented 50% batch discount (shown for the sibling `gpt-5.4-nano` model) to the published standard rates. **Reconcile against your first live invoice** to verify the actual rates.
 
