@@ -24,6 +24,7 @@ The distinction between 1 and 2 is the one that matters operationally: 1 means
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 from dataclasses import replace
@@ -71,6 +72,41 @@ def _emit(payload: dict[str, Any], text: str, *, as_json: bool) -> None:
         sys.stdout.write("\n")
     else:
         sys.stdout.write(text + "\n")
+
+
+def _stdout_reserved_for_json(as_json: bool) -> contextlib.AbstractContextManager[Any]:
+    """Under ``--json``, stdout belongs to the JSON document and nothing else.
+
+    Written against a measured failure, not a hypothetical one. On
+    ``r20260831T123415Z-eba5`` — the first multilingual 15k, 15.9 h and $42.08 —
+    the launch script did::
+
+        OUT=$(... submit --config "$CFG" --cost-ceiling 150 --json)
+        RUN_ID=$(python -c 'import json,sys; print(json.load(sys.stdin)["run_id"])' <<<"$OUT")
+
+    and died on ``Expecting value: line 1 column 1 (char 0)``, because a
+    foreground ``submit`` runs the whole pipeline in-process and the
+    orchestrator's ``finally`` block prints a human run summary
+    (``render_run_summary_text``) to stdout before this module writes any JSON.
+    Under ``set -euo pipefail`` that aborted the script before it ever reached
+    the publish step, so a completed run published nothing.
+
+    The guard is here rather than at the offending ``print`` on purpose. Fixing
+    that one call site fixes that one call site; reserving the stream at the
+    boundary makes the whole class impossible, including for prints nobody has
+    written yet — the pipeline is thousands of lines deep and any of it may
+    reasonably talk to a human. Two properties follow, and both are the point:
+
+    * Without ``--json`` nothing changes at all, so an operator redirecting
+      ``submit > summary.txt`` still captures the summary.
+    * With ``--json``, human output is not suppressed — it moves to stderr,
+      where a terminal still shows it and a pipe still ignores it.
+
+    ``--detach`` is unaffected either way: the detached child's stdout is bound
+    to its log file when it is spawned (:func:`g3o.run.orchestrate.submit`), not
+    inherited from here.
+    """
+    return contextlib.redirect_stdout(sys.stderr) if as_json else contextlib.nullcontext()
 
 
 # ---------------------------------------------------------------------------
@@ -134,13 +170,16 @@ def _cmd_submit(args: argparse.Namespace) -> int:
             return EXIT_REFUSED
 
     try:
-        receipt = submit(
-            config,
-            credentials=Credentials(label=args.key_label),
-            session_id=args.session_id,
-            detach=args.detach,
-            cost_ceiling_usd=_effective_ceiling(args),
-        )
+        # A foreground submit runs the entire pipeline inside this call, and the
+        # pipeline prints. See _stdout_reserved_for_json.
+        with _stdout_reserved_for_json(args.json):
+            receipt = submit(
+                config,
+                credentials=Credentials(label=args.key_label),
+                session_id=args.session_id,
+                detach=args.detach,
+                cost_ceiling_usd=_effective_ceiling(args),
+            )
     except SubmitError as exc:
         sys.stderr.write(f"{exc}\n")
         return EXIT_REFUSED
