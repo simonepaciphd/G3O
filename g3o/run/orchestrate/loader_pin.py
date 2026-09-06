@@ -25,14 +25,17 @@ them together.
 
 from __future__ import annotations
 
-#: ``g3o-api`` ``main`` as of 2026-08-26 — "Merge sql/009: model the search
-#: verdict (#17)". This is the checkout that loaded run
-#: ``r20260824T215623Z-bb4e``, and the one the droplet at
-#: ``/home/g3o/g3o-api`` was re-pinned to that morning (from ``9836a3d``). It is
-#: the first loader that carries the #17 fix, so a run loaded by anything older
-#: republishes ``(no, PROCESSING_FAILED)`` institutions as earned negatives —
-#: 717 of them on that run alone.
-EXPECTED_LOADER_SHA = "14e37cccf28b6afa29187f127d7ee12c5b8f0cd1"
+#: ``g3o-api`` ``main`` as of 2026-09-06 — "Merge pull request #38: the roster
+#: check accepts the four-leg sub-steps by name". The first loader that can
+#: ingest a four-leg run: ``r20260903T120740Z-362c`` (20,293 institutions,
+#: COMPLETED 2026-09-05T20:12Z) was refused by the previous pin, ``14e37cc``,
+#: on the three sub-step stage names its ``events.jsonl`` carries
+#: (``discovery_general_fallback``, ``classify_official_site_fallback``,
+#: ``discovery_evidence_open``). Nothing older than this sha can publish a
+#: four-leg run; everything ``14e37cc`` carried (the #17 search-verdict fix,
+#: without which ``(no, PROCESSING_FAILED)`` institutions republish as earned
+#: negatives) is still in it. Re-pinned on the PI's "fix and publish".
+EXPECTED_LOADER_SHA = "b39cc9fdeb545743e7710c1cc5f412e8b6e4a47f"
 
 #: What an operator types instead of the sha. Kept as a constant so the CLI help,
 #: the resolver and the tests all name the same string.
