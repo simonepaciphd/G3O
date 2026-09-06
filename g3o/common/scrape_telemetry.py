@@ -47,6 +47,12 @@ OUTCOME_SKIPPED_CACHED = "skipped_cached"
 # ``robots_disallowed`` and ``scrape_failed`` already are, so the two ledgers
 # stay reconcilable on the drop paths they both record.
 OUTCOME_CRAWL_DELAY_EXCEEDED = "crawl_delay_exceeded"
+#: The URL's host tripped the run-scoped circuit breaker (PI-approved
+#: 2026-09-06): earlier fetches to it failed at connect level
+#: ``scrape_host_failure_threshold`` times, so this URL was never attempted.
+#: Same name as the attrition reason (``stage_scrape.REASON_HOST_UNREACHABLE``),
+#: for the same reconciliation reason as ``crawl_delay_exceeded``.
+OUTCOME_HOST_UNREACHABLE = "host_unreachable"
 
 # Per-run dedup cache: str(run_dir) -> set of (institution_id, url, outcome) keys
 # already on disk. Lazily seeded from the existing file on first touch so the
@@ -180,6 +186,7 @@ def _reset_cache() -> None:
 __all__ = [
     "LEDGER_NAME",
     "OUTCOME_CRAWL_DELAY_EXCEEDED",
+    "OUTCOME_HOST_UNREACHABLE",
     "OUTCOME_ROBOTS_DISALLOWED",
     "OUTCOME_SCRAPE_FAILED",
     "OUTCOME_SKIPPED_CACHED",

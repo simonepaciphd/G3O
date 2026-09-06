@@ -20,10 +20,17 @@ import os
 import threading
 import time
 from collections.abc import Callable
+from typing import Any
 
 import requests
 from bs4 import BeautifulSoup
-from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
+from tenacity import (
+    RetryError,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from g3o.common import config
 from g3o.scrape import egress
@@ -230,11 +237,74 @@ def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
     return cached
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+#: HTTP statuses a second attempt at the same GET can plausibly turn into a
+#: page: rate limiting and transient server-side failure. Every other status a
+#: server *chose* to send — 403, 404, 406, 405, 401 — is the same answer three
+#: times over.
+_RETRYABLE_STATUSES: frozenset[int] = frozenset({429, 500, 502, 503, 504})
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    """Whether retrying the GET can change the outcome (PI-approved 2026-09-06).
+
+    Measured on ``r20260903T120740Z-362c``: the fetcher retried every exception
+    three times, so a 403 or 406 refusal cost ~4.5 s and a connect timeout ~96 s
+    per URL, and 22,863 of the run's 46,487 failures were refusals a retry
+    cannot argue with. Retry is kept for what it was written for — a dropped
+    connection, a timeout, a 429 or a 5xx — and withheld from a status the
+    server chose, a TLS handshake the host cannot complete (deterministic per
+    host), and a malformed URL.
+    """
+    if isinstance(exc, requests.exceptions.SSLError):
+        return False
+    if isinstance(exc, requests.exceptions.HTTPError):
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        return status in _RETRYABLE_STATUSES
+    return isinstance(
+        exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout)
+    )
+
+
+def _note_attempt(retry_state: Any) -> None:
+    """tenacity ``before`` hook: remember which attempt this thread is on.
+
+    The count is the one number 362c could not answer — how often a second or
+    third attempt rescued a page — so Stage 4 records it beside every outcome
+    (``attempts`` in the telemetry ledger). Thread-local because ``_download``
+    runs on every scrape worker at once.
+    """
+    _thread_local.attempts = retry_state.attempt_number
+
+
+def download_attempts() -> int:
+    """GET attempts made by the most recent ``scrape_url`` on this thread.
+
+    0 when no GET was made (cache hit, forced render, or nothing called yet).
+    Read it immediately after ``scrape_url`` returns, on the same thread.
+    """
+    return getattr(_thread_local, "attempts", 0)
+
+
+def _reset_attempts() -> None:
+    _thread_local.attempts = 0
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception(_is_retryable),
+    before=_note_attempt,
+)
 def _download(url: str) -> tuple[bytes, str, int, str, int]:
-    """Return ``(content, content_type, http_status, final_url, elapsed_ms)``."""
+    """Return ``(content, content_type, http_status, final_url, elapsed_ms)``.
+
+    ``timeout`` is ``(connect, read)``: a handshake gets ``CONNECT_TIMEOUT``
+    (10 s), the body ``REQUEST_TIMEOUT`` (30 s). See ``g3o.common.config``.
+    """
     started = time.monotonic()
-    r = _get_session().get(url, timeout=config.REQUEST_TIMEOUT)
+    r = _get_session().get(
+        url, timeout=(config.CONNECT_TIMEOUT, config.REQUEST_TIMEOUT)
+    )
     r.raise_for_status()
     elapsed_ms = int((time.monotonic() - started) * 1000)
     return (
@@ -446,6 +516,7 @@ def scrape_url(
     # prefer_render_on_empty is off, a short page is legitimate content, so the
     # floor collapses to 1 (skip only empty/whitespace-only).
     cache_floor = empty_page_min_chars if prefer_render_on_empty else 1
+    _reset_attempts()
 
     if not force_refresh:
         cached = _load(url, min_chars=cache_floor)

@@ -47,6 +47,14 @@ SERPER_ENDPOINT: str = _env("SERPER_ENDPOINT", "https://google.serper.dev/search
 OPENAI_MODEL: str = _env("OPENAI_MODEL", "gpt-5-nano") or "gpt-5-nano"
 
 REQUEST_TIMEOUT: int = int(_env("REQUEST_TIMEOUT", "30") or "30")
+# Stage 4 connect timeout (2026-09-06). ``requests`` takes ``(connect, read)``;
+# until this key existed the fetcher passed the single ``REQUEST_TIMEOUT`` and
+# so waited 30 s for a TCP handshake that a live host completes in well under
+# one. On ``r20260903T120740Z-362c`` 15,462 fetches ended in ``ConnectTimeout``
+# at ~96 s each (3 attempts x 30 s + backoff) — 67% of the stage's 2.21M
+# worker-seconds — and only 57 of them were on a host that ever answered. The
+# read timeout stays at ``REQUEST_TIMEOUT``: a slow body is a live host.
+CONNECT_TIMEOUT: int = int(_env("CONNECT_TIMEOUT", "10") or "10")
 
 # Stage 4 headless-render browser recycling (2026-08-25). Each scrape worker
 # thread holds one Chromium for the whole stage (``RenderSession``), so its

@@ -23,7 +23,9 @@ from g3o.extract.batch import EMPTY_PAGE_MIN_CHARS
 from g3o.run.presweep.concurrency import run_concurrent
 from g3o.run.presweep.records import institution_record, synth_institution_id
 from g3o.scrape import egress
+from g3o.scrape.breaker import HostBreaker
 from g3o.scrape.fetcher import (
+    download_attempts,
     error_class_of,
     http_status_from_exception,
     scrape_url,
@@ -61,6 +63,14 @@ REASON_ARTIFACT_CORRUPT = "scrape_artifact_corrupt"
 #: large PDF), so the per-record ``detail`` carries the elapsed time, the budget,
 #: and the wait that was refused, and the row is legible without the name.
 REASON_CRAWL_DELAY_EXCEEDED = "crawl_delay_exceeded"
+
+#: Attrition reason for a URL skipped because its host tripped the run-scoped
+#: circuit breaker (PI-approved 2026-09-06; :class:`g3o.scrape.breaker.
+#: HostBreaker`). **Is** a member of ``_FAILURE_REASONS``, for the reason
+#: ``crawl_delay_exceeded`` is: the URL was never fetched, so the institution
+#: must report PROCESSING_FAILED rather than publish as a clean negative. The
+#: per-record ``detail`` names the host, its failure count and the threshold.
+REASON_HOST_UNREACHABLE = "host_unreachable"
 
 
 def _read_existing_scraped(
@@ -170,6 +180,7 @@ def _scrape_one(
     empty_page_min_chars: int,
     sessions: _ThreadLocalRenderSessions,
     budget_seconds: float | None = None,
+    breaker: HostBreaker | None = None,
 ) -> tuple[str, list[RenderedPage]]:
     """Scrape one institution's kept URLs. Factored out of :func:`_run_scrape`
     (institution-level Stage-4 concurrency, 2026-07) so it can run in a worker
@@ -199,6 +210,12 @@ def _scrape_one(
     consult, the throttle sleep, the fetch — is recorded per URL under
     ``REASON_CRAWL_DELAY_EXCEEDED``, every one of them, because a partial ledger
     is the same silence in a smaller box.
+
+    ``breaker`` (2026-09-06) is the run-scoped :class:`HostBreaker`, shared
+    across workers like ``throttle``. A URL whose host is open is skipped before
+    the robots consult (a robots fetch to a dead host is itself a timeout) and
+    recorded under ``REASON_HOST_UNREACHABLE`` in both ledgers; every
+    connect-level failure feeds the breaker, every success resets its host.
     """
     from g3o.extract.batch import url_hash
 
@@ -276,6 +293,35 @@ def _scrape_one(
             http_status=http_status_from_exception(download_error),
             error_class=error_class_of(download_error),
             render_error_class=error_class_of(render_error),
+            attempts=download_attempts(),
+        )
+        _feed_breaker(url=url, exc=download_error)
+
+    def _feed_breaker(*, url: str, exc: BaseException, _inst: str = inst_id) -> None:
+        # One call site for both failure paths (the hook above and the
+        # exception path in the loop), so the two cannot drift on what counts.
+        if breaker is not None and breaker.record_failure(url, error_class_of(exc)):
+            logger.warning(
+                "Stage 4: host %s tripped the circuit breaker after %d connect-level "
+                "failures (threshold %d) on %s — its remaining URLs this run are "
+                "recorded as %s",
+                egress.redact(url), breaker.failures(url), breaker.threshold,
+                _inst, REASON_HOST_UNREACHABLE,
+            )
+
+    def _record_host_unreachable(*, url: str, _inst: str = inst_id) -> None:
+        # Same two-ledger shape as the budget expiry, for the same reason.
+        assert breaker is not None
+        detail = (
+            f"failures={breaker.failures(url)};threshold={breaker.threshold}"
+        )
+        attrition.record(
+            run_dir, institution_id=_inst, stage=stage,
+            reason=REASON_HOST_UNREACHABLE, url=url, detail=detail,
+        )
+        scrape_telemetry.record(
+            run_dir, institution_id=_inst, url=url,
+            outcome=scrape_telemetry.OUTCOME_HOST_UNREACHABLE, detail=detail,
         )
 
     def _record_budget_expiry(
@@ -339,6 +385,11 @@ def _scrape_one(
                 _record_budget_expiry(
                     url=url, elapsed=throttle.now() - started, crawl_delay=None,
                 )
+                continue
+            if breaker is not None and breaker.is_open(url):
+                # Before the robots consult and the throttle: neither is worth a
+                # round trip to a host that has already failed to connect.
+                _record_host_unreachable(url=url)
                 continue
             if robots is not None and not robots.allowed(url):
                 logger.info("Stage 4: robots.txt disallows %s — skipping", url)
@@ -407,7 +458,9 @@ def _scrape_one(
                     # render was attempted and lost.
                     http_status=http_status_from_exception(exc),
                     error_class=error_class_of(exc),
+                    attempts=download_attempts(),
                 )
+                _feed_breaker(url=url, exc=exc)
                 continue
             if fetch_failure["failed"]:
                 # A hard fetch failure already recorded a scrape_failed entry via
@@ -425,7 +478,10 @@ def _scrape_one(
                 http_status=page.fetch_metadata.http_status,
                 fetch_method=page.fetch_metadata.fetch_method,
                 elapsed_ms=page.fetch_metadata.elapsed_ms,
+                attempts=download_attempts(),
             )
+            if breaker is not None:
+                breaker.record_success(url)
             pages.append(page)
     return inst_id, pages
 
@@ -442,6 +498,8 @@ def _run_scrape(
     robots: RobotsCache | None = None,
     throttle: HostThrottle | None = None,
     max_institution_seconds: float | None = None,
+    host_failure_threshold: int | None = None,
+    breaker: HostBreaker | None = None,
     max_workers: int = 1,
 ) -> dict[str, list[RenderedPage]]:
     """Stage 4 — scrape per (institution × kept URL).
@@ -498,6 +556,15 @@ def _run_scrape(
     alongside ``robots`` so the suite drives the budget on a fake clock instead
     of sleeping.
 
+    Per-host circuit breaker (PI-approved 2026-09-06): ``host_failure_threshold``
+    connect-level failures on one host, anywhere in the run, open that host and
+    every later URL on it is skipped and recorded under ``host_unreachable`` in
+    both ledgers — a member of ``_FAILURE_REASONS``, so the institution reports
+    PROCESSING_FAILED. ``None`` (the default here; :class:`PresweepConfig`
+    supplies 2) attempts every URL, the pre-2026-09-06 behaviour. ``breaker``
+    may be injected (tests); otherwise one run-scoped :class:`HostBreaker` is
+    built from the threshold and shared across workers.
+
     Concurrency (2026-07): institutions run through
     :func:`g3o.run.presweep.concurrency.run_concurrent`, up to ``max_workers`` at
     a time (default 1 = one worker thread, effectively sequential). Each worker
@@ -518,6 +585,8 @@ def _run_scrape(
         robots = RobotsCache(_config.USER_AGENT)
     if throttle is None:
         throttle = HostThrottle(host_delay_seconds)
+    if breaker is None and host_failure_threshold is not None:
+        breaker = HostBreaker(host_failure_threshold)
     scrape_telemetry.ensure_ledger(run_dir)
     sessions = _ThreadLocalRenderSessions()
     out: dict[str, list[RenderedPage]] = {}
@@ -530,6 +599,7 @@ def _run_scrape(
             empty_page_min_chars=empty_page_min_chars,
             sessions=sessions,
             budget_seconds=max_institution_seconds,
+            breaker=breaker,
         ),
         max_workers=max_workers,
         initializer=sessions.init_thread,
