@@ -670,6 +670,9 @@ def compute_health_report(
         # the other two Stage 4 drop classes are named here, and a budget expiry
         # is the one that silently shrinks coverage without any URL failing.
         "n_crawl_delay_exceeded": _att_count("scrape", "crawl_delay_exceeded"),
+        # Circuit breaker (2026-09-06): the fourth Stage 4 drop class, and like
+        # the budget it shrinks coverage without the skipped URL ever failing.
+        "n_host_unreachable": _att_count("scrape", "host_unreachable"),
         "pct_scrape_success": pct_scrape,
         "n_institutions_with_pages": n_institutions_with_pages,
         "top_drop_reasons": _top_reasons(att, "scrape"),
