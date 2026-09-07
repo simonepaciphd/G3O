@@ -12,7 +12,7 @@ matched back to the input page deterministically.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from typing import Any
 
 from g3o.common.batch_client import (
@@ -111,20 +111,43 @@ def build_extract_jobs(
     institution_pages: Iterable[tuple[dict[str, Any], RenderedPage]],
     *,
     batch_id: str,
-    institution_search_languages: str,
+    institution_search_languages: str | Mapping[str, str],
     chat_type: str = "web",
     model_label: str | None = None,
 ) -> list[BatchJob]:
     """Build one Stage 5 ``BatchJob`` per (institution_row, scraped_page) pair.
 
-    ``institution_search_languages`` is the comma-separated ISO 639-1 string
+    ``institution_search_languages`` is the comma-separated language string
     used during discovery for that institution; it lands in
     ``ContractRow.institution_search_languages`` (consistency check #4 keeps
     it identical across rows for the same institution).
+
+    A **string** is that value for every job — the run-level answer, and every
+    run to date. A **mapping** keyed by ``institution_id`` is the per-row answer
+    a language policy produces (2026-08-30). Keyed by institution rather than by
+    job precisely because of consistency check #4: two pages of one institution
+    cannot be handed different strings by construction, which a per-job sequence
+    would allow. A missing key raises rather than defaulting — an institution
+    whose search languages nobody supplied has no honest value for this column,
+    and the plausible default is the run-level string, which is exactly the
+    misattribution the column exists to prevent.
     """
     jobs: list[BatchJob] = []
     for institution_row, page in institution_pages:
         institution_id = institution_row.get("institution_id", "")
+        if isinstance(institution_search_languages, str):
+            langs = institution_search_languages
+        else:
+            try:
+                langs = institution_search_languages[institution_id]
+            except KeyError:
+                raise KeyError(
+                    f"no institution_search_languages for institution "
+                    f"{institution_id!r}. Refusing to fall back to a run-level "
+                    f"string: recording languages an institution was not "
+                    f"searched in is the A7 misattribution this column exists "
+                    f"to prevent."
+                ) from None
         custom_id = make_custom_id(institution_id, page.url)
         jobs.append(
             build_extract_job(
@@ -132,7 +155,7 @@ def build_extract_jobs(
                 page,
                 custom_id=custom_id,
                 batch_id=batch_id,
-                institution_search_languages=institution_search_languages,
+                institution_search_languages=langs,
                 chat_type=chat_type,
                 model_label=model_label,
             )

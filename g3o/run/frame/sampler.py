@@ -22,11 +22,11 @@ import random
 from collections.abc import Sequence
 from typing import Any
 
-#: ``duplicate`` values that mean "this row is a duplicate". Everything else —
-#: including ``''``, ``'0'`` and NULL — is not a duplicate. The published master
+#: ``duplicate`` values that assert a NAME COLLISION. Everything else —
+#: including ``''``, ``'0'`` and NULL — asserts none. The published master
 #: carries all three of ``''``, ``'0'`` and ``'1'``, so a bare truthiness test on
-#: this column would drop 19,766 rows that are perfectly eligible.
-DUPLICATE_TRUE = frozenset({"1", "true", "t", "yes", "y"})
+#: this column would misread the 19,766 rows that are blank.
+NAME_COLLISION_TRUE = frozenset({"1", "true", "t", "yes", "y"})
 
 #: Recency weights are floored here (one hour) so an institution inspected at the
 #: snapshot moment still carries a positive weight instead of being unselectable.
@@ -37,15 +37,39 @@ class FrameError(RuntimeError):
     """A frame could not be built as requested. Never raised for a short draw."""
 
 
-def is_duplicate(row: dict[str, Any]) -> bool:
-    """True when ``row``'s ``duplicate`` column asserts it is a duplicate."""
-    return (row.get("duplicate") or "").strip().lower() in DUPLICATE_TRUE
+def has_colliding_name(row: dict[str, Any]) -> bool:
+    """True when ``row``'s ``duplicate`` column asserts a NAME collision.
+
+    **The column does not mean the row is a duplicate row, and reading it that
+    way was a defect** (PI ruling, 2026-08-30). The master's own schema
+    (``docs/institution_master_schema.csv``) defines it as *"1 = duplicate name
+    (needs disambiguation); 0 = unique"*, set by the subnational RA track when a
+    unit's name collides within its ``(country, tier)``. The codebook's
+    ``duplicate``/``disambiguation`` section is explicit about the consequence:
+    *"two units with identical name but different disambiguation are both
+    kept."*
+
+    They are distinct institutions. G3O's own discovery layer already knows it —
+    :func:`g3o.discovery.query_builder` builds a disambiguation-qualified query
+    precisely for these rows — so excluding them here handed discovery a
+    population it was written to serve and then never served it.
+
+    Kept as a named predicate rather than deleted: which rows carry a collision
+    is a real composition fact about a frame, it is reported in the sidecar, and
+    a future caller may legitimately want to stratify on it. What it must never
+    again be is an eligibility test.
+    """
+    return (row.get("duplicate") or "").strip().lower() in NAME_COLLISION_TRUE
 
 
 def is_eligible(row: dict[str, Any]) -> bool:
-    """True when ``row`` may be drawn into a wave frame.
+    """True when ``row`` may be drawn into a wave frame. Today: every row.
 
-    Deliberately *not* the same predicate as
+    The function stays even though it has no rejecting branch left, because the
+    two things it does *not* test are both mistakes someone has already made
+    once, and a bare ``True`` records neither.
+
+    **Not a website.** Deliberately *not* the same predicate as
     :func:`g3o.run.presweep.eval_frame.is_eligible`, which also requires a
     plausible ``website``. Only 2.0% of the master carries one, and Stage 1
     discovers from the institution name: on the published run the 605
@@ -53,8 +77,24 @@ def is_eligible(row: dict[str, Any]) -> bool:
     rest — six points worse, not a different regime. Requiring a website here
     would silently restrict every wave to 14,670 rows, 10,811 of them US school
     districts.
+
+    **Not a name collision.** Until 2026-08-30 this returned
+    ``not is_duplicate(row)``, which dropped **216,642 of the master's 719,588
+    rows (30.1%)** — every one of them a real institution, 216,575 of them
+    carrying the very ``disambiguation`` string that exists to tell them apart.
+    The loss was concentrated exactly where a wave most needs depth: 29.7% of
+    the ``local`` tier, **44.7% of ``second_subnational``**, and 34.0% of India,
+    46.4% of Uganda, 71.4% of Rwanda. Nothing at ``national`` or
+    ``first_subnational`` was touched, which is part of why it stayed invisible.
+
+    It stayed invisible for a second and larger reason: **no master row has both
+    ``duplicate=1`` and a ``website`` (0 of 719,588, verified 2026-08-30)**, so
+    for as long as a frame required a website the exclusion removed nothing at
+    all. It became load-bearing the moment this module started drawing
+    website-free frames — which the paragraph above argues for on its own,
+    entirely sound, grounds. Two correct decisions met and produced a wrong one.
     """
-    return not is_duplicate(row)
+    return True
 
 
 def draw_uniform(rng: random.Random, n_pool: int, size: int) -> list[int]:
@@ -160,12 +200,12 @@ def draw(
 
 
 __all__ = [
-    "DUPLICATE_TRUE",
+    "NAME_COLLISION_TRUE",
     "MIN_AGE_SECONDS",
     "FrameError",
     "draw",
     "draw_recency_weighted",
     "draw_uniform",
-    "is_duplicate",
+    "has_colliding_name",
     "is_eligible",
 ]

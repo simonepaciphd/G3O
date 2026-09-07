@@ -38,8 +38,9 @@ from g3o.common.batch_client import (
     DEFAULT_ENDPOINT,
     _serialize_job_line,
 )
+from g3o.common.cost_monitor import UnpricedModelError
 from g3o.common.credentials import Credentials, resolve
-from g3o.common.pricing import GPT5_NANO_PRICING, usd
+from g3o.common.pricing import GPT5_NANO_PRICING, pricing_for, usd
 from g3o.extract.batch import build_extract_jobs
 from g3o.run.presweep import (
     PresweepConfig,
@@ -137,6 +138,44 @@ def _project_chunks(n_jobs: int, per_job_bytes: int) -> dict[str, Any]:
         "approx_jobs_per_chunk": jobs_per_chunk,
         "approx_chunk_bytes": jobs_per_chunk * per_job_bytes,
         "single_job_exceeds_cap": per_job_bytes > CHUNK_MAX_BYTES,
+    }
+
+
+def _unpriced_cost_preview(
+    model: str,
+    *,
+    total_in_tokens: float,
+    total_out_tokens: float,
+    output_tokens_per_job: int,
+) -> dict[str, Any]:
+    """A cost preview for a model with no rate row (review F2, ruling half 2).
+
+    Same shape as the priced preview so a consumer needs no special case, but
+    every USD slot is ``None`` and ``priced`` is False. The token projection is
+    unaffected — it never depended on the rates — so this still answers "how big
+    is this run", just not "what will it cost".
+
+    Only reachable without a cost ceiling; with one, :func:`run_preflight`
+    raises instead.
+    """
+    return {
+        "is_estimate": True,
+        "pricing": {"model": model, "priced": False},
+        "chars_per_token_assumption": _CHARS_PER_TOKEN,
+        "assumes_output_tokens_per_job": output_tokens_per_job,
+        "est_input_tokens": round(total_in_tokens),
+        "est_output_tokens": round(total_out_tokens),
+        "est_openai_batch_input_usd": None,
+        "est_openai_batch_output_usd": None,
+        "est_openai_batch_total_usd": None,
+        "stage_estimates": None,
+        "note": (
+            f"no rate row is registered for model {model!r}, so this run cannot "
+            f"be priced and every USD figure above is null. The token projection "
+            f"is unaffected. Add a row to g3o.common.pricing.PRICING to price it; "
+            f"a run with a --cost-ceiling is refused outright rather than "
+            f"projected this way."
+        ),
     }
 
 
@@ -263,7 +302,28 @@ def run_preflight(
 
     total_in_tokens = extract_in_tokens + other_in_tokens
     total_out_tokens = extract_out_tokens + other_out_tokens
-    p = GPT5_NANO_PRICING
+    # Rates for the model this run will actually submit (review F2, 2026-08-24).
+    # This was `GPT5_NANO_PRICING` unconditionally, so every projection priced
+    # every model at nano rates — including the projection the cost ceiling is
+    # enforced against, which is what made the ceiling fail open on `--model`.
+    p = pricing_for(config.model)
+    if p is None:
+        # PI ruling half 1: a ceiling cannot be enforced for a model we cannot
+        # price, so refuse here — before verify-model spends anything, and on
+        # both cost gates at once, since each only runs a preflight when a
+        # ceiling is set.
+        if cost_ceiling_usd is not None:
+            raise UnpricedModelError(config.model, budget_usd=cost_ceiling_usd)
+        # Half 2: no ceiling, so the run may proceed — but it is projected in
+        # tokens with null USD rather than being quietly priced as nano.
+        summary["cost_preview"] = _unpriced_cost_preview(
+            config.model,
+            total_in_tokens=total_in_tokens,
+            total_out_tokens=total_out_tokens,
+            output_tokens_per_job=a.output_tokens_per_job,
+        )
+        summary["cost_ceiling_usd"] = None
+        return summary
     input_usd = usd(total_in_tokens, p["batch_input_per_1m_usd"])
     output_usd = usd(total_out_tokens, p["batch_output_per_1m_usd"])
     total_usd = input_usd + output_usd
@@ -295,7 +355,10 @@ def run_preflight(
 
     summary["cost_preview"] = {
         "is_estimate": True,
-        "pricing": p,
+        # Copied, not aliased: this was a direct reference to the module-level
+        # rate table, so any consumer mutating the summary would have mutated
+        # the pricing registry for the rest of the process.
+        "pricing": dict(p),
         "chars_per_token_assumption": _CHARS_PER_TOKEN,
         "assumes_output_tokens_per_job": a.output_tokens_per_job,
         "est_input_tokens": round(total_in_tokens),
@@ -326,5 +389,7 @@ def run_preflight(
 __all__ = [
     "GPT5_NANO_PRICING",
     "PreflightAssumptions",
+    "UnpricedModelError",
+    "pricing_for",
     "run_preflight",
 ]

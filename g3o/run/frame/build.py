@@ -38,10 +38,16 @@ from g3o.run.frame.quota import (
     allocate_stratum,
     draw_plan,
 )
-from g3o.run.frame.sampler import FrameError, draw, draw_uniform, is_duplicate
+from g3o.run.frame.sampler import FrameError, draw, draw_uniform, has_colliding_name
 
 #: Sidecar shape version. Bump when a field changes meaning, not when one is added.
-SIDECAR_SCHEMA_VERSION = 1
+#:
+#: v2 (2026-08-30): ``pool.excluded_duplicate`` is gone and ``pool.name_collision``
+#: replaces it. The old key named an exclusion; the new one names a composition
+#: fact and excludes nothing. A reader that treats a v1 sidecar's ``eligible`` as
+#: comparable to a v2 sidecar's would be comparing two different populations —
+#: v1's pool is 30.1% smaller — which is exactly what a version bump is for.
+SIDECAR_SCHEMA_VERSION = 2
 
 #: Named in the sidecar so a reader knows which draw produced the file.
 METHOD = "never-inspected-first, then weighted by distance from last inspection"
@@ -135,9 +141,11 @@ def classify_master(
             )
         for index, row in enumerate(reader):
             counts["master_rows"] += 1
-            if is_duplicate(row):
-                counts["excluded_duplicate"] += 1
-                continue
+            if has_colliding_name(row):
+                # Counted, NOT excluded. See sampler.is_eligible: this flag marks
+                # a name collision that `disambiguation` resolves, not a repeated
+                # row, and excluding it cost every wave 30.1% of the master.
+                counts["name_collision"] += 1
             counts["eligible"] += 1
             if not (row.get("website") or "").strip():
                 counts["eligible_without_website"] += 1
@@ -301,8 +309,14 @@ def classify_master_cells(
     builder falls back to a recency-weighted second tier; this one does not, and
     refuses instead. Re-inspecting under a quota would make the stratum a mix of
     new coverage and re-measurement with nothing in the frame recording which row
-    is which, and 499,338 of 502,946 eligible institutions have never been looked
-    at, so the fallback would buy nothing it could not be asked for explicitly.
+    is which, and 715,977 of the master's 719,588 institutions have never been
+    looked at, so the fallback would buy nothing it could not be asked for
+    explicitly.
+
+    (That denominator was ``502,946`` until 2026-08-30, when the name-collision
+    exclusion was removed as a defect — see :func:`sampler.is_eligible`. The
+    figure beside it in the sampler commit message always said 719,588, and the
+    two disagreeing was the visible edge of the bug.)
     """
     _raise_field_limit()
     claimed: dict[str, str] = {}
@@ -327,9 +341,8 @@ def classify_master_cells(
                 )
         for index, row in enumerate(reader):
             counts["master_rows"] += 1
-            if is_duplicate(row):
-                counts["excluded_duplicate"] += 1
-                continue
+            if has_colliding_name(row):
+                counts["name_collision"] += 1  # counted, not excluded
             counts["eligible"] += 1
             stratum = claimed.get((row.get(COUNTRY_KEY) or "").strip())
             if stratum is None:

@@ -434,11 +434,25 @@ def test_a_budget_expiry_alongside_real_evidence_still_reports_the_failure(
     """The accepted cost, stated so it is not mistaken for a defect later.
 
     An institution that reached Stage 6 with a genuine positive verdict but also
-    lost URLs to the budget reports PROCESSING_FAILED, because a technical
-    failure outranks the verdict everywhere in this module. That is the larger
-    PROCESSING_FAILED bucket the PI named and accepted: the evidence that *was*
-    found is still on disk and in the consolidated CSVs, but the institution is
-    flagged as incompletely searched rather than published as a clean result.
+    lost URLs to the budget is **flagged as incompletely searched rather than
+    published as a clean result** — which is what the #96 ruling requires and
+    what this test has always been about.
+
+    **Revised 2026-08-31: the status is now EVIDENCE_FOUND_PARTIAL, not
+    PROCESSING_FAILED.** The ruling's substance is unchanged and is still
+    asserted below — the failure reason is named in the record, and the row does
+    not read as a clean result. What changed is that the old label discarded a
+    second true fact while asserting the first: it erased that the institution
+    was a positive at all. Measured across five runs, that cost 23.8%-33.3% of
+    every run's positives (104 of 437 on ``r20260830T114940Z-32ea``), and
+    ``g3o-api`` had already declined to follow the report here —
+    ``sql/001_aggregates.sql`` computes ``documented`` from ``yes_count``, not
+    ``outcome_status``, because "an incomplete search does not un-find it".
+
+    So this is a relabelling that keeps both facts, not a relaxation of the
+    ruling. The larger-bucket cost the PI accepted was accepted *for negatives*,
+    where reporting failure is the cautious direction; for a positive it is not
+    cautious, it is lossy.
     """
     run_dir = tmp_path / "run"
     _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
@@ -456,6 +470,181 @@ def test_a_budget_expiry_alongside_real_evidence_still_reports_the_failure(
     )
 
     rec = _only(run_dir)
-    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert rec["final_status"] == "EVIDENCE_FOUND_PARTIAL"
+    # The ruling's requirement, unchanged: the skip is named, in the record, not
+    # merely on the ledger where the report cannot see it.
     assert "crawl_delay_exceeded" in rec["reason"]
+    assert "crawl_delay_exceeded" in (rec["error"] or "")
+    # And it does not read as a clean result: a consumer filtering for
+    # EVIDENCE_FOUND does not pick this row up.
+    assert rec["final_status"] != "EVIDENCE_FOUND"
     assert rec["consolidated_row_count"] == 1  # the evidence is not discarded
+
+
+# ---------------------------------------------------------------------------
+# EVIDENCE_FOUND_PARTIAL (2026-08-31)
+#
+# Measured cause: 104 of 437 positives on r20260830T114940Z-32ea, 439 across
+# five runs, all previously PROCESSING_FAILED. The tests below pin the boundary
+# in both directions — the new status must not swallow real failures, and must
+# not leak into the clean bucket.
+# ---------------------------------------------------------------------------
+
+
+def test_a_positive_with_one_failed_url_is_partial_not_failed(
+    tmp_path: Path,
+) -> None:
+    """The measured case, reduced to its minimum.
+
+    INST-0703416 on the 15k run: nine URLs, one ``download_error``, one
+    consolidated activity, reported PROCESSING_FAILED. One failed fetch out of
+    several was enough to erase a positive.
+    """
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=9)
+    _scraped(run_dir, "INST-0000001", n_pages=8)
+    _validated(run_dir, "INST-0000001", has_genai="yes", n_activities=3)
+    _attrition.record(
+        run_dir,
+        institution_id="INST-0000001",
+        stage="scrape",
+        reason="scrape_failed",
+        url="https://x9.gov/",
+        detail="download_error=HTTPError",
+    )
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "EVIDENCE_FOUND_PARTIAL"
+    assert rec["consolidated_row_count"] == 3
+    assert rec["validation_status"] == "consolidated"
+
+
+def test_a_positive_with_no_failures_is_still_plain_evidence_found(
+    tmp_path: Path,
+) -> None:
+    """The new status must not annex the clean case.
+
+    Without this, a regression that set the partial status unconditionally would
+    pass every other test in this block.
+    """
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=4)
+    _scraped(run_dir, "INST-0000001", n_pages=4)
+    _validated(run_dir, "INST-0000001", has_genai="yes", n_activities=1)
+
+    assert _only(run_dir)["final_status"] == "EVIDENCE_FOUND"
+
+
+def test_a_negative_with_a_failed_url_is_still_processing_failed(
+    tmp_path: Path,
+) -> None:
+    """The #17 defence is untouched, and this is the test that proves it.
+
+    The whole argument for the new status is that reporting failure is cautious
+    for a negative and lossy for a positive. If the change had leaked into the
+    negative branch it would have re-opened #17 — "could not reach" published as
+    "searched and found nothing" — which is the defect this module exists to
+    prevent.
+    """
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=4)
+    _scraped(run_dir, "INST-0000001", n_pages=2)
+    _validated(run_dir, "INST-0000001", has_genai="no", n_activities=0)
+    _attrition.record(
+        run_dir,
+        institution_id="INST-0000001",
+        stage="scrape",
+        reason="scrape_failed",
+        url="https://x1.gov/",
+        detail="download_error=HTTPError",
+    )
+
+    assert _only(run_dir)["final_status"] == "PROCESSING_FAILED"
+
+
+def test_an_unclear_verdict_with_a_failed_url_is_still_processing_failed(
+    tmp_path: Path,
+) -> None:
+    """``unclear`` is the pipeline declining to conclude, not a positive.
+
+    1,173 of 7,947 consolidations on the 15k run were ``unclear``; none of them
+    may reach the partial status, which asserts that evidence *was* found.
+    """
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=4)
+    _scraped(run_dir, "INST-0000001", n_pages=2)
+    _validated(run_dir, "INST-0000001", has_genai="unclear", n_activities=0)
+    _attrition.record(
+        run_dir,
+        institution_id="INST-0000001",
+        stage="scrape",
+        reason="scrape_failed",
+        url="https://x1.gov/",
+        detail="download_error=HTTPError",
+    )
+
+    assert _only(run_dir)["final_status"] == "PROCESSING_FAILED"
+
+
+def test_a_validate_parse_failure_is_never_partial(tmp_path: Path) -> None:
+    """A rejected consolidation has no verdict to be partial about.
+
+    ``failed_to_parse`` must stay PROCESSING_FAILED, and the partial branch tests
+    ``validation_status`` explicitly rather than trusting ``has_genai_activity``
+    to be ``None``, so this holds even for an artifact whose ``institution``
+    object reads ``yes``.
+
+    The fixture writes a *contract-invalid* artifact rather than adding a ledger
+    row, because that is the only way ``failed_to_parse`` actually arises:
+    ``validate_parse_failures`` comes from re-parsing the artifact in
+    ``load_consolidated_outputs``, not from the attrition ledger. (In production
+    a Stage 6 rejection leaves no ``6_validate.json`` at all — verified on all
+    126 rejected institutions of ``r20260830T114940Z-32ea`` — so it lands in the
+    ``not_run`` branch instead. Both are covered: this test and
+    ``test_a_negative_with_a_failed_url_is_still_processing_failed``.)
+    """
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=4)
+    _scraped(run_dir, "INST-0000001", n_pages=2)
+    _validated(run_dir, "INST-0000001", has_genai="yes", n_activities=1)
+    # has_genai_activity=yes with an empty activities list: the contract rejects
+    # it, so load_consolidated_outputs books it as a parse failure.
+    path = inst_dir_of(run_dir, "INST-0000001") / "6_validate.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["activities"] = []
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    _attrition.record(
+        run_dir,
+        institution_id="INST-0000001",
+        stage="scrape",
+        reason="scrape_failed",
+        url="https://x1.gov/",
+        detail="download_error=HTTPError",
+    )
+
+    rec = _only(run_dir)
+    assert rec["validation_status"] == "failed_to_parse"
+    assert rec["final_status"] == "PROCESSING_FAILED"
+
+
+def test_the_new_status_is_counted_in_the_run_summary(tmp_path: Path) -> None:
+    """``_FINAL_STATUSES`` gates the counter, so an unlisted status is dropped.
+
+    ``final_status_counts`` is pre-seeded from that tuple and increments only
+    ``if status in final_status_counts``. A status emitted by ``outcomes`` and
+    missing from ``run_summary`` would therefore vanish, and the counts would
+    stop summing to ``n_institutions`` — an identity the e2e check asserts.
+    """
+    from g3o.report import run_summary as _run_summary
+
+    assert "EVIDENCE_FOUND_PARTIAL" in _run_summary._FINAL_STATUSES

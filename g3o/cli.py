@@ -739,9 +739,21 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
         cost_report = receipt.summary.get("_cost_report")
         if cost_report:
             try:
+                pricing_block = cost_report.get("pricing", {})
+                run_model = pricing_block.get("model", "the configured model")
                 actual_usd = cost_report.get("total_usd", 0)
                 vs_preflight = cost_report.get("vs_preflight_estimate")
-                if vs_preflight:
+                if actual_usd is None:
+                    # Unpriced model (review F2): report the tokens that were
+                    # measured rather than a dollar figure that was not.
+                    sys.stderr.write(
+                        f"\nCost: not priced — no rate row is registered for "
+                        f"{run_model!r}. "
+                        f"{cost_report.get('total_prompt_tokens', 0):,} prompt + "
+                        f"{cost_report.get('total_completion_tokens', 0):,} completion "
+                        f"tokens were spent; the USD figures in the cost report are null.\n"
+                    )
+                elif vs_preflight:
                     est_usd = vs_preflight.get("preflight_est_usd", 0)
                     ratio = vs_preflight.get("ratio", 0)
                     sys.stderr.write(
@@ -754,10 +766,10 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
                         f" (budget: ${config.budget_usd:.4f} USD)\n"
                     )
                 # Surface pricing estimate disclaimer
-                if cost_report.get("pricing", {}).get("batch_line_is_estimate"):
+                if pricing_block.get("batch_line_is_estimate"):
                     sys.stderr.write(
-                        "Note: Pricing is an estimate (OpenAI batch discount not explicitly "
-                        "published for gpt-5-nano). Reconcile against first live invoice.\n"
+                        f"Note: Pricing is an estimate (OpenAI batch discount not explicitly "
+                        f"published for {run_model}). Reconcile against first live invoice.\n"
                     )
                 # Serper cost disclaimer (Stage 1a/1b discovery uses Serper credits, not tracked)
                 # Always print this disclaimer when budget is set, regardless of whether

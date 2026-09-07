@@ -737,6 +737,110 @@ def test_describe_does_not_raise_on_an_unparseable_port(
 
 
 # ---------------------------------------------------------------------------
+# The remote-browser endpoint guard (2026-08-31)
+#
+# Bright Data's console for the zone G3O was actually issued hands out two
+# strings, and only one of them was refused by the checks that existed. These
+# cover the other one, which is the whole reason the guard was added.
+# ---------------------------------------------------------------------------
+
+#: Verbatim shapes from the Bright Data console for zone
+#: ``g3o_pipeline_scraper1``, with the real password replaced. Kept as literals
+#: rather than assembled from parts: the point of these tests is that *these
+#: strings* are refused, and a helper that built them could drift away from what
+#: the console actually emits.
+BROWSER_API_CDP = (
+    f"wss://brd-customer-hl_xxxx-zone-g3o_pipeline_scraper1:{SECRET}"
+    "@brd.superproxy.io:9222"
+)
+BROWSER_API_WEBDRIVER = (
+    f"https://brd-customer-hl_xxxx-zone-g3o_pipeline_scraper1:{SECRET}"
+    "@brd.superproxy.io:9515"
+)
+
+
+@pytest.mark.parametrize(
+    "label, url, port",
+    [
+        ("CDP / Puppeteer", BROWSER_API_CDP, 9222),
+        ("WebDriver / Selenium", BROWSER_API_WEBDRIVER, 9515),
+    ],
+)
+def test_validate_refuses_a_remote_browser_endpoint(
+    label: str, url: str, port: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Browser API zone is not a forward proxy, and must not read as one.
+
+    The CDP form was already refused by the scheme check; the WebDriver form
+    passed *every* check — https is a legal proxy scheme, the host resolves,
+    9515 is a number, the userinfo is present — and would then have failed every
+    fetch, which is the silent whole-run collapse ``validate`` exists to stop.
+    """
+    monkeypatch.setattr(config, "SCRAPE_PROXY_URL", url)
+    monkeypatch.setattr(config, "USER_AGENT", UA_WITH_CONTACT)
+    with pytest.raises(egress.EgressConfigError) as caught:
+        egress.validate()
+    message = str(caught.value)
+    assert SECRET not in message, f"{label}: the refusal leaked the password"
+    assert url not in message, f"{label}: the refusal leaked the URL"
+
+
+def test_the_webdriver_refusal_names_the_product_not_just_the_port(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The message has to be actionable, because the fix is a console action.
+
+    An operator who reads "port 9515 is invalid" re-reads the port. An operator
+    who reads "that is a WebDriver endpoint, provision a Web Unlocker zone"
+    goes and does the thing that actually resolves it. This asserts the second.
+    """
+    monkeypatch.setattr(config, "SCRAPE_PROXY_URL", BROWSER_API_WEBDRIVER)
+    monkeypatch.setattr(config, "USER_AGENT", UA_WITH_CONTACT)
+    with pytest.raises(egress.EgressConfigError) as caught:
+        egress.validate()
+    message = str(caught.value)
+    assert "WebDriver" in message
+    assert "Web Unlocker" in message or "Residential" in message
+
+
+def test_the_remote_browser_guard_precedes_the_credential_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Order matters: a remote-browser endpoint is fully credentialed.
+
+    Were the userinfo check first, an uncredentialed CDP URL would be refused
+    for the wrong reason and the operator would go fix the password.
+    """
+    monkeypatch.setattr(
+        config, "SCRAPE_PROXY_URL", "https://brd.superproxy.io:9515"
+    )
+    monkeypatch.setattr(config, "USER_AGENT", UA_WITH_CONTACT)
+    with pytest.raises(egress.EgressConfigError) as caught:
+        egress.validate()
+    assert "remote-browser" in str(caught.value)
+    assert "username:password" not in str(caught.value)
+
+
+def test_a_real_forward_proxy_port_is_still_accepted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The guard must not make Bright Data unreachable, only its wrong product.
+
+    33335 is the conventional Web Unlocker / Residential proxy port and is the
+    endpoint this whole seam was built for.
+    """
+    monkeypatch.setattr(
+        config,
+        "SCRAPE_PROXY_URL",
+        f"http://brd-customer-hl_xxxx-zone-unlocker1:{SECRET}"
+        "@brd.superproxy.io:33335",
+    )
+    monkeypatch.setattr(config, "USER_AGENT", UA_WITH_CONTACT)
+    egress.validate()
+    assert egress.describe()["endpoint"] == "brd.superproxy.io:33335"
+
+
+# ---------------------------------------------------------------------------
 # The user-agent contact guard (2026-08-27)
 #
 # Not a general UA policy — it fires only when the proxy is on. Going opaque at

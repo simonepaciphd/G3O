@@ -16,12 +16,16 @@ Plain tar, no outer compression: the bytes that matter are already gzipped by
 Three properties make the delete path safe, and each is why this module is
 shaped the way it is:
 
-- **Verification precedes every delete.** A shard's tar is re-opened and its
-  member count and total member bytes compared against a *fresh* walk of the
-  source — not against numbers remembered from the write. A mismatch aborts
-  the whole run, deletes nothing, and leaves the bad tar renamed
-  ``<shard>.tar.FAILED`` so it is never mistaken for a good archive on the
-  next pass.
+- **Verification precedes every delete, and it checks content.** A shard's tar
+  is re-opened and every member streamed through sha256, compared against a
+  *fresh* read of the source — not against numbers remembered from the write.
+  Until 2026-08-24 this compared only member count and total member bytes,
+  which are both preserved by a transposition or by corruption that keeps a
+  file's length: the check could not fail on the damage it existed to catch,
+  in front of the only irreversible operation in the codebase (review F1). A
+  mismatch aborts the whole run, deletes nothing, and leaves the bad tar
+  renamed ``<shard>.tar.FAILED`` so it is never mistaken for a good archive on
+  the next pass.
 - **Dry-run is the default.** Without ``apply=True`` nothing is written and
   nothing is deleted; the caller gets the plan and exits. Deleting data
   requires saying so.
@@ -43,11 +47,13 @@ Restore is deliberately not implemented (spec §A2); it is one documented
 
 from __future__ import annotations
 
+import hashlib
 import os
 import shutil
 import tarfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from g3o.common.paths import institutions_root, require_layout
 from g3o.common.run_state import done_path
@@ -99,7 +105,7 @@ REQUIRED_REPORTS = ("run_summary.json", "_health_report.json")
 #: the documented restore command is unaffected.
 #:
 #: Sub-second mtime precision is the only thing given up, and nothing reads it:
-#: verification compares member count and bytes, never timestamps.
+#: verification compares member names and content digests, never timestamps.
 TAR_FORMAT = tarfile.GNU_FORMAT
 
 _TAR_BLOCK = 512
@@ -528,6 +534,77 @@ def _refuse_on_incomplete_source(tar_path: Path, source: Path, n_done: int) -> N
     )
 
 
+#: Read granularity for streaming hashes. Large enough that hashing a multi-GB
+#: shard is not syscall-bound, small enough that no member is ever held whole in
+#: memory.
+HASH_CHUNK_BYTES = 1024 * 1024
+
+
+def sha256_file(path: Path) -> str:
+    """Streaming sha256 of a file on disk.
+
+    Lives here rather than in :mod:`g3o.run.orchestrate.archive_leg`, which is
+    where it started: the leg imports *from* this module, so the dependency only
+    runs one way and the hash helper has to sit at the lower level for
+    :func:`verify_tar` to use it. ``archive_leg`` re-exports it, so its own
+    callers are unaffected.
+    """
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        while True:
+            chunk = handle.read(HASH_CHUNK_BYTES)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _sha256_stream(reader: Any) -> str:
+    """Streaming sha256 of a file-like object (a tar member, unextracted)."""
+    digest = hashlib.sha256()
+    while True:
+        chunk = reader.read(HASH_CHUNK_BYTES)
+        if not chunk:
+            break
+        digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _tar_member_digests(tar_path: Path) -> dict[str, str]:
+    """Shard-relative member path -> sha256, for the regular files in a tar.
+
+    Members are streamed through the hash via :meth:`tarfile.TarFile.extractfile`
+    and never written to disk — verification must not need scratch space the size
+    of the shard it is checking.
+    """
+    digests: dict[str, str] = {}
+    try:
+        with tarfile.open(tar_path, mode="r:") as tar:
+            for member in tar:
+                if not member.isfile():
+                    continue
+                reader = tar.extractfile(member)
+                if reader is None:  # pragma: no cover - defensive
+                    raise VerificationError(
+                        f"{tar_path}: member {member.name!r} is a regular file but "
+                        f"could not be opened for reading."
+                    )
+                with reader:
+                    digests[member.name.split("/", 1)[-1]] = _sha256_stream(reader)
+    except (tarfile.TarError, OSError) as exc:
+        raise VerificationError(f"{tar_path} could not be read as a tar: {exc}") from exc
+    return digests
+
+
+def _source_digests(shard_dir: Path) -> dict[str, str]:
+    """Shard-relative path -> sha256, from a fresh read of the source tree."""
+    return {
+        p.relative_to(shard_dir).as_posix(): sha256_file(p)
+        for p in shard_dir.rglob("*")
+        if p.is_file()
+    }
+
+
 def _tar_member_sizes(tar_path: Path) -> dict[str, int]:
     """Shard-relative member path -> size, for the regular files in a tar."""
     sizes: dict[str, int] = {}
@@ -542,22 +619,58 @@ def _tar_member_sizes(tar_path: Path) -> dict[str, int]:
 
 
 def verify_tar(tar_path: Path, source: Path) -> TarStat:
-    """Compare a tar against a fresh walk of its source.
+    """Compare a tar against a fresh read of its source, member by member.
+
+    **Why per-member content and not two totals** (review F1, 2026-08-24). This
+    used to compare exactly ``(n_files, n_bytes)`` — member count and *summed*
+    bytes — and :func:`archive_run` then ``rmtree``s the source. Under that check
+    a tar whose members had been transposed, or corrupted without changing
+    length, verified clean and the originals were deleted. Both aggregates are
+    preserved by exactly those failures, which is what made them the wrong
+    things to compare in front of the only irreversible operation in the
+    codebase.
+
+    Every regular member is streamed through sha256 straight out of the tar
+    (never extracted to disk) and compared against a fresh hash of the
+    corresponding source file, and the two name sets must match exactly. That
+    subsumes the old count/bytes comparison rather than sitting beside it: two
+    trees with identical per-member digests necessarily have identical counts
+    and totals.
+
+    The cost is reading both sides once more. That is the right trade in front
+    of a delete: the alternative is a check that cannot fail on the corruption
+    it exists to catch. There is deliberately no flag to weaken it.
 
     Raises:
-        VerificationError: on any mismatch in member count or total member
-            bytes. The caller renames the tar aside and aborts; nothing is
-            deleted on this path.
+        VerificationError: on any name-set or content mismatch. The caller
+            renames the tar aside and aborts; nothing is deleted on this path.
     """
-    tar_stat = read_tar_stat(tar_path)
-    src_stat = walk_shard(source)
-    if (tar_stat.n_files, tar_stat.n_bytes) != (src_stat.n_files, src_stat.n_bytes):
+    tar_digests = _tar_member_digests(tar_path)
+    src_digests = _source_digests(source)
+
+    if tar_digests.keys() != src_digests.keys():
+        missing = sorted(src_digests.keys() - tar_digests.keys())
+        extra = sorted(tar_digests.keys() - src_digests.keys())
         raise VerificationError(
-            f"{tar_path} does not match its source {source}: tar holds "
-            f"{tar_stat.n_files} file(s) / {tar_stat.n_bytes} byte(s), source walk "
-            f"found {src_stat.n_files} file(s) / {src_stat.n_bytes} byte(s)."
+            f"{tar_path} does not match its source {source}: "
+            f"{len(missing)} file(s) present in the source but absent from the tar"
+            f"{' (first: ' + missing[0] + ')' if missing else ''}, "
+            f"{len(extra)} present in the tar but absent from the source"
+            f"{' (first: ' + extra[0] + ')' if extra else ''}."
         )
-    return tar_stat
+
+    mismatched = sorted(
+        name for name, digest in src_digests.items() if tar_digests[name] != digest
+    )
+    if mismatched:
+        raise VerificationError(
+            f"{tar_path} does not match its source {source}: "
+            f"{len(mismatched)} member(s) differ in content despite matching names "
+            f"(first: {mismatched[0]}). The file count and total byte count may "
+            f"well agree — that is exactly the corruption a per-member digest "
+            f"check exists to catch, and why nothing here is deleted."
+        )
+    return read_tar_stat(tar_path)
 
 
 def archive_run(run_dir: Path, *, apply: bool = False) -> ArchiveResult:

@@ -13,6 +13,13 @@ PI decisions this file encodes (2026-08-02):
 - **Leg 1 stays English and unparameterized.** So chain mode always searches
   English *in addition to* the configured languages, and the provenance string
   has to say so rather than hide it.
+
+  **Reversed 2026-09-01** — leg 1 now issues one query per language the
+  institution's policy row names, behind ``discovery_leg1_multilingual``, which
+  defaults False and cannot be enabled until the leg-1 suffix roster is signed.
+  The tests in this file pin the *default*, which is unchanged and is what
+  production runs; ``tests/test_leg1_multilingual.py`` covers the other side of
+  the flag.
 - **The scalar ``discovery_evidence_term`` is shorthand**, not a competing
   surface; setting both it and the mapping is an error, not a precedence rule.
 
@@ -35,6 +42,7 @@ from g3o.discovery.query_builder import (
     EVIDENCE_TERMS_BY_LANG,
     GENAI_TERMS_BY_LANG,
     UnknownLanguageError,
+    evidence_terms_roster_hash,
 )
 from g3o.run import presweep as ps
 from g3o.run.presweep import PresweepConfig, plan_run
@@ -83,14 +91,44 @@ def _config(tmp_path: Path, **kw: Any) -> PresweepConfig:
 # ---------------------------------------------------------------------------
 
 
-def test_evidence_roster_is_english_only():
-    """A non-English row is a signed-off roster decision, not a code change.
+def test_evidence_roster_is_the_signed_roster_of_2026_08_31():
+    """A roster row is a signed decision, not a code change.
 
-    This test is the tripwire: it fails the moment someone adds a term without
-    going through subprojects/multilingual-pipeline/. Update it in the same
-    commit that carries the PI's row-by-row sign-off, never before.
+    The tripwire this replaces asserted the roster was English-only, and it went
+    red exactly when it was supposed to: on 2026-08-31, in the commit carrying
+    the PI's sign-off on all 90 rows
+    (``agent-workspace/2026-08-31-multilingual-readiness/SIGNABLE-ROSTER-90.md``).
+    It is not deleted, it is re-pointed: the fingerprint pins what was signed, so
+    editing a signed term still cannot pass as a refactor. Moving this hash is
+    the same deliberate act as moving ``language_policy_hash`` was on 2026-08-30,
+    and it needs the same paperwork.
     """
-    assert EVIDENCE_TERMS_BY_LANG == {"en": "AI"}
+    assert evidence_terms_roster_hash() == "a5d45bb1175c03a9"
+    assert len(EVIDENCE_TERMS_BY_LANG) == 90
+    assert EVIDENCE_TERMS_BY_LANG["en"] == "AI"
+    # Three rows that carry the reasoning, one per class.
+    # A: the sub-national floor. B1: on probation, measured at zero marginal.
+    # C: never reached at sub-national tier, drafted native phrase.
+    assert EVIDENCE_TERMS_BY_LANG["id"] == "kecerdasan buatan"
+    assert EVIDENCE_TERMS_BY_LANG["hi"] == "कृत्रिम बुद्धिमत्ता"
+    assert EVIDENCE_TERMS_BY_LANG["cy"] == "deallusrwydd artiffisial"
+
+
+def test_no_signed_term_is_a_homograph_token():
+    """The construction rule, asserted rather than trusted.
+
+    Every signed term is a native multi-character phrase: whitespace, or length
+    >= 4 and not one of the eleven ambiguous tokens. This is what keeps Hungarian
+    ``MI`` (the pronoun that outranked the real term on raw volume), ``IA`` (the
+    *ia* in *media*/*social*) and bare ``ai`` (the French verb) out of the
+    instrument, and it is why ``tr`` carries ``yapay zeka`` rather than the
+    measured winner ``YZ``.
+    """
+    homographs = {"AI", "DI", "IA", "KI", "MI", "SI", "UI", "YZ", "ΤΝ", "ИИ", "ШІ"}
+    for lang, term in EVIDENCE_TERMS_BY_LANG.items():
+        if lang == "en":
+            continue  # the control is deliberately the bare token
+        assert " " in term or (len(term) >= 4 and term not in homographs), lang
 
 
 # ---------------------------------------------------------------------------
@@ -125,8 +163,15 @@ def test_legacy_config_still_accepts_its_ten_rostered_languages(tmp_path):
 
 
 def test_the_two_rosters_are_not_interchangeable(tmp_path):
-    """A language rostered for legacy is not thereby runnable under chain."""
-    lang = "fr"
+    """A language rostered for legacy is not thereby runnable under chain.
+
+    Carried on ``zh`` since 2026-08-31. It used to be carried on ``fr``, which
+    the signed roster now covers -- but the point survives the roster growing,
+    because the signed policy expresses Chinese as ``zh-hans``/``zh-hant`` (the
+    tag selects the term: 人工智能 and 人工智慧 genuinely differ), while the legacy
+    roster still carries bare ``zh``. The two rosters remain different surfaces.
+    """
+    lang = "zh"
     assert lang in GENAI_TERMS_BY_LANG
     assert lang not in EVIDENCE_TERMS_BY_LANG
     _config(tmp_path, discovery_mode="legacy", discovery_languages=(lang,))
@@ -194,7 +239,7 @@ def test_evidence_terms_follow_configured_language_order(tmp_path):
 
 
 def test_chain_provenance_includes_english_because_leg_1_is_english(tmp_path):
-    """Leg 1 is not localized, so English is always among the searched languages.
+    """Leg 1 is English by default, so English is always among the searched languages.
 
     The alternative — reporting only `zh` — would be the same lie the old
     derivation told, just in the other direction.
@@ -329,7 +374,17 @@ def test_leg_2_credit_cost_scales_with_languages(tmp_path, monkeypatch):
 
 
 def test_leg_1_stays_one_english_query_whatever_the_languages(tmp_path, monkeypatch):
-    """H3: leg 1's suffix is not localized, and its tag says so honestly."""
+    """H3: leg 1 issues one English query by default, and tags it honestly.
+
+    The PI reversed the 2026-08-02 un-localized-suffix decision on 2026-09-01, so
+    leg 1 *can* now be localized — but only behind
+    ``discovery_leg1_multilingual``, which defaults False and cannot be turned on
+    until the suffix roster is signed. This test pins the default, which is the
+    behaviour production runs: whatever ``discovery_languages`` says, and whatever
+    leg 2 does with it, leg 1 issues exactly one query and tags it ``en``.
+    ``test_leg_1_localizes_per_policy_language_when_the_flag_is_on`` is its
+    counterpart on the other side of the flag.
+    """
     cfg = _config(
         tmp_path,
         discovery_mode="chain",
@@ -551,6 +606,21 @@ def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
     cannot be used to slip a run from the Stage-2 LLM path into the bypass path
     halfway through. ``test_resuming_into_an_overlay_is_refused`` in
     ``tests/test_official_sites_integration.py`` is the test for that half.
+
+    It grew to three on 2026-08-31 for the same documented reason:
+    ``evidence_terms_roster_hash`` did not exist until the chain-mode roster did,
+    so every manifest ever written lacks it, including the published runs.
+
+    It grew to four on 2026-09-01, once more for that reason:
+    ``domain_suffix_roster_hash`` did not exist until leg 1 had a roster, and every
+    run that predates it issued the English suffix by construction — there is no
+    instrument ambiguity for the guard to protect against on those runs, so
+    refusing to resume them would be a cost with no safety gain.
+
+    It grew to five on 2026-09-06, for the reason the mechanism was kept:
+    ``scrape_host_failure_threshold`` (the per-host circuit breaker) did not
+    exist before that date, and every run that predates it attempted every kept
+    URL by construction — the pre-breaker behaviour ``None`` names.
     """
     from g3o.common.run_state import state_dir
     from g3o.run.presweep.planning import (
@@ -566,6 +636,9 @@ def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
         "official_sites_hash",
         "official_sites_min_confidence",
         "official_sites_require_unshared_host",
+        "scrape_host_failure_threshold",
+        "evidence_terms_roster_hash",
+        "domain_suffix_roster_hash",
     }
 
     cfg = _config(tmp_path)

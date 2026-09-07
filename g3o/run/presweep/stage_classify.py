@@ -228,17 +228,186 @@ def _run_classify_official_site(
     return {**_read_existing_official_sites(run_dir, sample), **out}
 
 
+# ---------------------------------------------------------------------------
+# Stage 2, second pass — after the localized leg-1 fallback (PI ruling 2026-09-03)
+#
+# Runs the same classifier on the institutions the first pass came away from
+# empty-handed, over the widened candidate list the fallback produced. It writes
+# its verdict into the SAME ``2_official_site.json``: that file is where every
+# downstream reader — leg 2, triage, health, outcomes, diff, the resume path —
+# learns the institution's official site, and a sibling artifact would have left
+# all of them reading the first pass's ``null``. The first pass is preserved
+# inside the rewritten artifact under ``first_pass``, and ``via_fallback: true``
+# plus ``fallback_languages`` say how the pick was reached, so the pass is fully
+# recoverable from the artifact. Institutions with no new candidate — the
+# fallback found only URLs the English query had already surfaced — are not
+# re-adjudicated: that would re-roll a verdict on identical input.
+# ---------------------------------------------------------------------------
+
+STAGE_2_FALLBACK = "classify_official_site_fallback"
+
+
+def _picked_found_by(
+    records: list[dict[str, Any]], picked_url: str | None
+) -> list[dict[str, Any]]:
+    """The ``found_by`` attribution of the leg-1 record whose URL Stage 2 picked.
+
+    Exact URL first; failing that, the first record on the picked registrable
+    domain — Stage 2 may return the site root rather than the URL it was shown.
+    This is the per-URL provenance card 2 asked for: which language's query
+    surfaced the domain the classifier accepted.
+    """
+    if not picked_url:
+        return []
+    for r in records:
+        if r.get("link") == picked_url:
+            return list(r.get("found_by") or [])
+    picked_domain = registrable_domain(picked_url)
+    if picked_domain:
+        for r in records:
+            if registrable_domain(r.get("link", "")) == picked_domain:
+                return list(r.get("found_by") or [])
+    return []
+
+
+def _run_classify_official_site_fallback(
+    run_dir: Path,
+    sample: list[dict[str, Any]],
+    discovery_general: dict[str, list[dict[str, Any]]],
+    official_sites: dict[str, str | None],
+    *,
+    run_id: str,
+    model: str,
+    poll_interval: int,
+    max_wait: int,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
+    credentials: ResolvedCredentials | None = None,
+    telemetry: Any | None = None,
+) -> tuple[dict[str, str | None], dict[str, int]]:
+    """Stage 2, second pass, over the institutions the fallback leg widened.
+
+    Returns the official-site map with the fallback's picks merged in, plus the
+    pass's statistics: ``n_candidates`` (institutions with ≥1 new leg-1 URL and
+    hence a job) and ``n_found`` (of those, resolved to a site). Resume follows
+    Stage 2's own shape — a ``.done`` marker short-circuits to disk, where the
+    rewritten ``2_official_site.json`` already carries the merged answer.
+    """
+    stage = STAGE_2_FALLBACK
+    if is_done(run_dir, stage):
+        logger.info("Stage 2 fallback: .done marker present — skipping (resume from disk)")
+        merged = {**official_sites, **_read_existing_official_sites(run_dir, sample)}
+        stats = {"n_candidates": 0, "n_found": 0}
+        for row in sample:
+            inst_id = synth_institution_id(row)
+            path = institution_dir(run_dir, inst_id) / "2_official_site.json"
+            if not path.exists():
+                continue
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            if payload.get("via_fallback"):
+                stats["n_candidates"] += 1
+                stats["n_found"] += 1 if payload.get("url") else 0
+        return merged, stats
+
+    jobs = []
+    first_pass: dict[str, dict[str, Any]] = {}
+    languages_by_inst: dict[str, list[str]] = {}
+    for row in sample:
+        institution = institution_record(row)
+        inst_id = institution["institution_id"]
+        if official_sites.get(inst_id) or institution.get("official_site_url"):
+            continue
+        inst_dir = institution_dir(run_dir, inst_id)
+        leg1 = inst_dir / "1a_discovery_general.json"
+        if not leg1.exists():
+            continue
+        block = json.loads(leg1.read_text(encoding="utf-8")).get("fallback_pass")
+        if not block or not block.get("n_new_records"):
+            continue
+        candidate_urls = [r.get("link", "") for r in discovery_general.get(inst_id, [])]
+        candidate_urls = [u for u in candidate_urls if u]
+        if not candidate_urls:
+            continue
+        stage2 = inst_dir / "2_official_site.json"
+        first_pass[inst_id] = (
+            json.loads(stage2.read_text(encoding="utf-8")) if stage2.exists() else {}
+        )
+        languages_by_inst[inst_id] = list(block.get("languages", []))
+        jobs.append(build_official_site_job(institution, candidate_urls, custom_id=inst_id))
+
+    stats = {"n_candidates": len(jobs), "n_found": 0}
+    if not jobs and load_state(run_dir, stage) is None:
+        mark_done(run_dir, stage, no_batch=True)
+        return dict(official_sites), stats
+
+    out: dict[str, str | None] = {}
+    truth_by_inst: dict[str, str] = {
+        synth_institution_id(row): (row.get("website") or "").strip()
+        for row in sample
+    }
+
+    def _persist(results: Iterator[BatchResult]) -> None:
+        for result in results:
+            try:
+                parsed = parse_official_site_result(result)
+            except Exception as exc:
+                logger.warning(
+                    "Stage 2 fallback parse failed for %s: %s", result.custom_id, exc
+                )
+                attrition.record(
+                    run_dir, institution_id=result.custom_id, stage=stage,
+                    reason="parse_failed", detail=str(exc),
+                )
+                continue
+            out[result.custom_id] = parsed.url
+            inst_dir = institution_dir(run_dir, result.custom_id)
+            if inst_dir.exists():
+                payload = parsed.model_dump()
+                truth = ground_truth_block(truth_by_inst.get(result.custom_id), parsed.url)
+                if truth is not None:
+                    payload["ground_truth"] = truth
+                payload["via_fallback"] = True
+                payload["fallback_languages"] = languages_by_inst.get(result.custom_id, [])
+                payload["picked_found_by"] = _picked_found_by(
+                    discovery_general.get(result.custom_id, []), parsed.url
+                )
+                payload["first_pass"] = first_pass.get(result.custom_id, {})
+                (inst_dir / "2_official_site.json").write_text(
+                    json.dumps(payload, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+
+    with llm_stage_timer(run_dir, stage, {}):
+        run_chunked_stage(
+            run_dir, stage, jobs,
+            run_id=run_id, model=model,
+            poll_interval=poll_interval, max_wait=max_wait,
+            process_chunk_results=_persist,
+            cost_check_callback=cost_check_callback,
+            credentials=credentials, telemetry=telemetry,
+        )
+    merged = {**official_sites, **_read_existing_official_sites(run_dir, sample), **out}
+    stats["n_found"] = sum(1 for inst_id in first_pass if merged.get(inst_id))
+    return merged, stats
+
+
 def _candidate_urls_union(
     discovery_general: dict[str, list[dict[str, Any]]],
     discovery_site_restricted: dict[str, list[dict[str, Any]]],
     inst_id: str,
+    discovery_evidence_open: dict[str, list[dict[str, Any]]] | None = None,
 ) -> list[str]:
-    """Path-aware deduped union of 1a + 1b URLs for one institution (Q3=c)."""
+    """Path-aware deduped union of 1a + 1b (+ 1d) URLs for one institution (Q3=c).
+
+    ``discovery_evidence_open`` (2026-09-03) is the open evidence leg, unioned
+    last so a URL two legs both found keeps the canonical form the earlier leg
+    gave it. ``None`` on a run without the leg.
+    """
     seen: set[str] = set()
     out: list[str] = []
     for source in (
         discovery_general.get(inst_id, []),
         discovery_site_restricted.get(inst_id, []),
+        (discovery_evidence_open or {}).get(inst_id, []),
     ):
         for r in source:
             url = r.get("link", "")
@@ -313,13 +482,16 @@ def _run_classify_triage(
     cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
     credentials: ResolvedCredentials | None = None,
     telemetry: Any | None = None,
+    discovery_evidence_open: dict[str, list[dict[str, Any]]] | None = None,
 ) -> dict[str, list[str]]:
-    """Stage 3 — URL triage batch over the dedup'd 1a+1b union.
+    """Stage 3 — URL triage batch over the dedup'd 1a+1b(+1d) union.
 
     Per Q3=c (2026-05-09), the candidate set is the path-aware deduped union of
     Stage 1a and Stage 1b records (lowercase scheme + netloc, fold ``www.``,
     strip trailing slash on non-root paths, drop fragment; query string left
-    intact). When 1b skipped (no official site), only 1a URLs are seen.
+    intact). When 1b skipped (no official site), only 1a URLs are seen. The open
+    evidence leg's records (``discovery_evidence_open``, 2026-09-03) join the
+    union when the leg ran.
 
     Resume (Session E; chunked Session F.1): same shape as Stage 2 —
     done-marker short-circuit, then :func:`run_chunked_stage` owns chunking,
@@ -338,7 +510,8 @@ def _run_classify_triage(
         institution = institution_record(row)
         inst_id = institution["institution_id"]
         candidate_urls = _candidate_urls_union(
-            discovery_general, discovery_site_restricted, inst_id
+            discovery_general, discovery_site_restricted, inst_id,
+            discovery_evidence_open,
         )
         if candidate_urls:
             candidates_by_inst[inst_id] = candidate_urls

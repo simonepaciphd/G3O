@@ -102,7 +102,15 @@ ISO_DATETIME_PATTERN = (
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})$"
 )
 LANG_PATTERN = r"^[a-z]{2}$"
-LANGS_PATTERN = r"^[a-z]{2}(,[a-z]{2})*$"
+# Search-language tags: lowercase ``language[-script]`` — an ISO 639-1 code, or
+# ISO 639-3 where no two-letter code exists, with an optional four-letter script
+# subtag (``uz-latn``). Lowercase-only on purpose: BCP 47 is case-insensitive and
+# admitting a second casing would let ``uz-Latn`` and ``uz-latn`` coexist as
+# distinct strings in provenance. Widened from bare ISO 639-1 pairs by PI ruling
+# 2026-08-29 (extract v2.5 / validate v1.3): a script variant is a different
+# search instrument and must be recordable. ``LANG_PATTERN`` (``source_language``,
+# the page's own language as the model codes it) is deliberately unchanged.
+LANGS_PATTERN = r"^[a-z]{2,3}(-[a-z]{4})?(,[a-z]{2,3}(-[a-z]{4})?)*$"
 
 # Enum aliases keep the model definition close to the contract document.
 ChatType = Literal["web", "deep"]

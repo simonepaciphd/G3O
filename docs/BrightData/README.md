@@ -19,8 +19,9 @@ believed — verify each step's output rather than assuming the step worked.
 > or target-ToS compliance, so **G3O is stricter than its vendor demands**. Do not
 > re-derive these — cite the entry.
 >
-> **2. No provisioned endpoint exists.** Credits received is not a gateway. See
-> [`validation-probe.md`](./validation-probe.md).
+> **2. No *usable* provisioned endpoint exists.** A zone now exists and it is
+> the wrong product — see [Which zone](#which-zone-and-why-the-one-we-have-does-not-work)
+> immediately below. Also [`validation-probe.md`](./validation-probe.md).
 >
 > **The code being ready is not the same as the decision being made.** Nothing in
 > this document authorises a run.
@@ -66,6 +67,56 @@ one.** Fetching `robots.txt` direct while fetching pages through a proxy would d
 politeness from one identity and act on it from another — the D4 respect-robots decision
 assumes those are the same host asking. Do not add a fourth egress point without routing
 it through this module.
+
+---
+
+## Which zone — and why the one we have does not work
+
+**Measured 2026-08-31.** Zone `g3o_pipeline_scraper1` was provisioned and issues
+exactly two strings:
+
+```
+wss://brd-customer-hl_f6fdd2d1-zone-g3o_pipeline_scraper1:PASS@brd.superproxy.io:9222
+https://brd-customer-hl_f6fdd2d1-zone-g3o_pipeline_scraper1:PASS@brd.superproxy.io:9515
+```
+
+Those are **Browser API / Scraping Browser** endpoints — 9222 is the Chrome
+DevTools Protocol socket, 9515 is WebDriver. Neither is an HTTP forward proxy,
+and a Browser API zone does not serve one. `G3O_SCRAPE_PROXY` needs a gateway
+`requests` can `CONNECT` through, which comes from a **Web Unlocker** or
+**Residential** zone (conventionally port 33335).
+
+> ### ⚠ The WebDriver form passed every guard, and that is the dangerous half
+>
+> Tested against `egress.validate()` on 2026-08-31, before the fix:
+>
+> | value | verdict |
+> |---|---|
+> | `wss://…:9222` | refused — the scheme check catches `wss` |
+> | `https://…:9515` | **accepted** — https is a legal proxy scheme, the host resolves, 9515 is a number, the userinfo is present |
+>
+> An accepted `:9515` would have produced a run that started cleanly, failed
+> **every** fetch, and reported the collapse as network conditions — which is
+> precisely the silent whole-run failure `validate()` was written to prevent,
+> arriving through the one shape the guard did not cover.
+>
+> **Fixed.** `_REMOTE_BROWSER_PORTS` in `g3o/scrape/egress.py` now refuses both,
+> naming the product and the remedy rather than the port. Covered by
+> `tests/test_egress.py::test_validate_refuses_a_remote_browser_endpoint`.
+> **The guard is not on the droplet until this branch merges and is deployed** —
+> verified still accepting `:9515` there on 2026-08-31.
+
+**What to do:** provision a Web Unlocker or Residential zone in the console and
+read its host/port/username/password from there. No code change is needed — that
+is what this seam was built for, and it keeps all three egress points unified.
+
+**What not to do:** wire the Browser API in as a fourth egress point. It would
+reach only the headless-render path, leaving `fetcher.py` and `politeness.py`
+going out direct — which breaks the all-three-move-together property this module
+calls a correctness invariant, not a tidiness one (robots decided from one
+identity and acted on from another). It also routes every page through a full
+remote browser, which is not what [`../budget/cost-model.md`](../budget/cost-model.md)
+priced.
 
 ---
 
@@ -210,29 +261,51 @@ Stage 4 through a residential gateway makes the observatory opaque at the
 Going opaque at both layers at once is a different act from going opaque at one,
 and it should not be reachable by forgetting to set a variable.
 
-**Which it currently is.** Measured 2026-08-27:
+**Which it was until 2026-08-31.** Measured 2026-08-27:
 
 | box | `USER_AGENT` | contact? |
 |---|---|---|
 | the laptop | set in `.env`, carries a repo URL and an email | yes |
 | **`g3o-run-01`, where runs actually happen** | **not set at all** | **no — bare `G3O-Observatory/0.1`** |
 
-So every production sweep to date has identified itself to government websites
-with no way to be reached, while the machine that barely scrapes identifies itself
-properly. Nothing compared them, so nothing caught it. This was surfaced as a
-*"cheap fix"* on 2026-08-26 (researcher-log, *evidence-layer custody*) and had not
-been actioned.
+So every production sweep up to and including the 15,000-institution run
+`r20260830T114940Z-32ea` identified itself to government websites with no way to
+be reached, while the machine that barely scrapes identified itself properly.
+Nothing compared them, so nothing caught it. Surfaced as a *"cheap fix"* on
+2026-08-26 (researcher-log, *evidence-layer custody*) and unactioned for five
+days.
 
-Set it in the same env file as the proxy:
+### ✅ Actioned 2026-08-31
 
-```bash
-printf 'USER_AGENT=G3O-Observatory/0.1 (+%s)
-' 'https://example.org/crawler' >> ~/.g3o-egress.env
+Set on the droplet, on PI instruction, to **verbatim the value
+`G3O/.env.template` already prescribes** — so the droplet now matches the repo's
+own documented default rather than carrying a newly invented identity:
+
+```
+G3O-Observatory/0.1 (https://github.com/simonepaciphd/G3O; spaci@stanford.edu)
 ```
 
-**The value is the PI's to choose** — which page, which address — and is
-deliberately not defaulted anywhere in the code, because an unreviewed value here
-would be shipped to every government website the observatory touches.
+Verified in place: `egress._user_agent_has_contact()` → `True`, and a proxied run
+now passes the UA gate. Backup of the prior env at `~/g3o-env.bak-20260831`.
+
+**Two corrections to the instruction this section used to give:**
+
+1. **It goes in `~/.g3o/env`, not `~/.g3o-egress.env`.** The run scripts (e.g.
+   `~/submit-smoke-wave2.sh`) `set -a; . ~/.g3o/env` — that is the file a run
+   actually reads. Putting the UA only in the egress file would have left every
+   *direct* run still anonymous, and the missing-contact defect was never
+   specific to proxied runs. The proxy URL itself stays in `~/.g3o-egress.env`,
+   sourced only by the shell launching a proxied run, which is the right shape
+   for an opt-in secret.
+2. **`~/.g3o/` is root-owned** (`drwxr-xr-x root root`), so you cannot create a
+   new file there as `g3o`, though the existing `env` file is `g3o`-owned and
+   appendable. Write backups elsewhere.
+
+**The email form remains open.** The template uses `spaci@stanford.edu`; the
+canonical public-facing address is `simone.paci@stanford.edu`. This UA is about
+as public-facing as a string gets, so if the long form is wanted, change it in
+`.env.template` and `~/.g3o/env` together — one line each. Left as-is rather than
+chosen unilaterally.
 
 Safe for politeness: `urllib.robotparser` compares only the token before the first
 `/`, so a `(+...)` suffix cannot change which `robots.txt` rules apply. Asserted

@@ -38,6 +38,7 @@ discovery → classify → scrape → extract → validate → persist
 - `g3o.validate` — Stage 6: per-institution LLM consolidation + deterministic QC.
 - `g3o.persist` — Stage 7: deterministic CSV writer (three normalized tables).
 - `g3o.run` / `g3o.common` — orchestration (`presweep`, `verify-model`) and shared schema / contract validators / batch client / run-state.
+- `g3o.experiments` — **not part of the pipeline.** Code supporting a named, authorised measurement. Nothing outside this package may import it, and two tests in `tests/test_parent_chain_experiment.py` enforce that rather than a comment asserting it: one walks the import graph of every module under `g3o/`, the other traces every file a default frame build opens. If something here turns out to be needed in production, it gets promoted deliberately — moved out, with its own PR — never imported across the line.
 
 The schema-of-record is `g3o/extract/prompts/output_contract.md`. The live Stage 7 CSV column orders are pinned in `g3o.common.schema` (`ACTIVITY_COLUMNS`, `ACTIVITY_SOURCE_COLUMNS`, `SUMMARY_COLUMNS`); the legacy 44-column `DATA_COLUMNS` governs the historical full-database format (pilot v1). These must stay in sync with the contract.
 
@@ -45,7 +46,7 @@ The schema-of-record is `g3o/extract/prompts/output_contract.md`. The live Stage
 
 - **No secrets in commits.** `.env` is gitignored; the template lives at `.env.template`. If you find a key in a diff, remove it before opening a PR.
 - **Schema stability.** Changes to `output_contract.md` or the `g3o.common.schema` column lists (`ACTIVITY_COLUMNS`, `ACTIVITY_SOURCE_COLUMNS`, `SUMMARY_COLUMNS`, legacy `DATA_COLUMNS`) are versioned and require maintainer sign-off.
-- **Pilot data is read-only.** `data/pilot_v1/` is a fixed snapshot. Future versions land as `data/pilot_v2/`, `data/v2/`, etc., never overwrites.
+- **Published data is read-only.** `data/pilot_v1/` is a fixed, citable version. Later versions land in their own directories, never as overwrites.
 - **Researcher control.** Substantive design choices (typology, validation, sampling) are reserved for the project authors. Pull requests that touch typology or coding rules need explicit sign-off in the issue first.
 
 ## How to contribute

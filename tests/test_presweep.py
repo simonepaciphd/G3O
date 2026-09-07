@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+from g3o.classify.official_site import build_official_site_job
 from g3o.common.artifact_io import artifact_exists, glob_artifacts, write_artifact
 from g3o.discovery.serper_client import SerperResult
 from g3o.run.presweep import (
@@ -145,6 +146,9 @@ def test_institution_record_projection():
     # Stage 2 bypass column (WS3 round-2) — pre-rollout the column is missing.
     assert rec["official_site_url"] is None
     assert rec["official_site_confidence"] is None
+    # ADJ ruling 2: the key is always present, `None` on a blank cell, so
+    # `institution.json` stays one fixed key set across the whole frame.
+    assert rec["disambiguation"] is None
 
 
 def test_institution_record_carries_official_site_url():
@@ -172,6 +176,70 @@ def test_institution_record_blank_official_site_url_maps_to_none():
     row["official_site_url"] = ""  # blank cell, not absent
     rec = institution_record(row)
     assert rec["official_site_url"] is None
+
+
+def test_institution_record_carries_disambiguation():
+    """ADJ ruling 2 (PI, 2026-08-31): ``disambiguation`` is passed to Stage 2.
+
+    The master carries this column on 100% of the 718 name-collided rows in the
+    15k frame and the projection used to drop it, so the *query* was
+    disambiguated (``stage_discovery`` reads the raw row) while the
+    *classifier* was not. That gap is what `G3O ADJ` measured as the 58.3%
+    collided-pick error.
+    """
+    row = _row(
+        master_row_id=9,
+        country="United States",
+        government_level="municipal",
+        institution_type="county",
+        institution_name="COUNTY OF MONTGOMERY",
+        disambiguation="Montgomery County, Maryland",
+    )
+    rec = institution_record(row)
+    assert rec["disambiguation"] == "Montgomery County, Maryland"
+
+
+def test_institution_record_absent_disambiguation_column_maps_to_none():
+    """A pre-rollout master with no such column must still project."""
+    row = _row(
+        master_row_id=10,
+        country="TESTLAND",
+        government_level="national",
+        institution_type="ministry",
+    )
+    del row["disambiguation"]
+    rec = institution_record(row)
+    assert rec["disambiguation"] is None
+
+
+def test_the_disambiguation_reaches_the_stage_2_prompt():
+    """The ruling is about model input, so pin the model input, not the dict.
+
+    ``institution_record()`` is only the projection; what the ruling actually
+    asks for is that the alias reaches the classifier. ``_user_prompt``
+    serialises the whole record into the Stage 2 user message, so this asserts
+    the end of the path rather than the middle of it — the same shape as
+    ``tests/test_accuracy_canaries.py``'s check on ``website``.
+
+    Also pins the *other* half of the fix: the Stage 2 system prompt has always
+    promised the model "any known aliases or domain hints", and until ADJ
+    ruling 2 shipped it advertised a slot nothing filled.
+    """
+    row = _row(
+        master_row_id=11,
+        country="United States",
+        government_level="municipal",
+        institution_type="county",
+        institution_name="COUNTY OF MONTGOMERY",
+        disambiguation="Montgomery County, Maryland",
+    )
+    job = build_official_site_job(
+        institution_record(row),
+        ["https://www.montgomerycountymd.gov/"],
+        custom_id="INST-0000011",
+    )
+    assert "any known aliases or domain hints" in job.messages[0]["content"]
+    assert "Montgomery County, Maryland" in job.messages[1]["content"]
 
 
 # ---------------------------------------------------------------------------
