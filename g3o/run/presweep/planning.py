@@ -12,9 +12,14 @@ from typing import Any
 
 from g3o.common.batch_client import DEFAULT_REASONING_EFFORT
 from g3o.common.contract import INSTITUTION_UID_PATTERN
+from g3o.common.languages import language_policy_hash
 from g3o.common.paths import INSTITUTION_UIDS_KEY, LAYOUT_VERSION, institution_dir
 from g3o.common.run_state import done_dir, state_dir
-from g3o.discovery.query_builder import genai_terms_roster_hash
+from g3o.discovery.query_builder import (
+    domain_suffix_roster_hash,
+    evidence_terms_roster_hash,
+    genai_terms_roster_hash,
+)
 from g3o.run.presweep.config import STAGES, PresweepConfig
 from g3o.run.presweep.records import (
     _read_master,
@@ -25,6 +30,7 @@ from g3o.run.presweep.records import (
 )
 from g3o.run.presweep.sampling import stratified_sample
 from g3o.run.telemetry import preserve_identity
+from g3o.scrape import egress
 
 _INSTITUTION_UID_RE = re.compile(INSTITUTION_UID_PATTERN)
 
@@ -86,6 +92,44 @@ def config_snapshot(config: PresweepConfig) -> dict[str, Any]:
     # nothing noticing. Recorded explicitly here for the same reason
     # institution_search_languages is, and guarded below.
     config_dict["genai_terms_roster_hash"] = genai_terms_roster_hash()
+    # The chain-mode roster is a second instrument and needs its own fingerprint.
+    # Until 2026-08-31 ``EVIDENCE_TERMS_BY_LANG`` held one English row, so the
+    # manifest fingerprinted only ``GENAI_TERMS_BY_LANG`` -- which a chain run
+    # never reads -- and nothing at all of the roster a chain run does read. With
+    # 90 PI-signed terms that gap is the whole language instrument, so it is
+    # recorded and guarded on exactly the same terms.
+    config_dict["evidence_terms_roster_hash"] = evidence_terms_roster_hash()
+    # Leg 1's roster is a third instrument (2026-09-01). Recorded from the day it
+    # holds a single English row rather than from the day it holds 90, so that
+    # the first signed suffix moves a fingerprint the manifest was already
+    # writing down — the evidence roster's history is the argument for not
+    # waiting: while it held one row the manifest fingerprinted a roster the run
+    # never read, and the gap only became visible once the rows arrived.
+    config_dict["domain_suffix_roster_hash"] = domain_suffix_roster_hash()
+    # Language policy (2026-08-30). Two keys, for two different failure modes.
+    #
+    # ``language_policy_hash`` is the roster-hash argument one level up: the
+    # signed mapping is a file in the tree, so a run resumed after an edit to
+    # it is running a different language instrument than it launched with, and
+    # the F7 guard can only see that if the policy has a fingerprint. The id
+    # alone would not — an amended ``2026-08-30`` is still ``2026-08-30``.
+    #
+    # ``institution_search_languages`` is overwritten because under a policy the
+    # run has no single answer and the derived property's value is the run-level
+    # configuration, not what any row was searched in. Leaving ``"en"`` there
+    # would let a reader compute "this run searched English only" off the
+    # manifest of a run that issued 90 languages — the A7 misattribution, at the
+    # run level. The replacement is deliberately not a language tag: nothing
+    # should be able to parse it as one.
+    if config.language_policy is None:
+        config_dict["language_policy_hash"] = None
+    else:
+        config_dict["language_policy_hash"] = language_policy_hash(
+            config.signed_language_policy
+        )
+        config_dict["institution_search_languages"] = (
+            f"per-institution: language policy {config.language_policy}"
+        )
     return config_dict
 
 
@@ -145,6 +189,16 @@ def build_manifest(
         # entering a prompt; read back by
         # :func:`g3o.common.paths.institution_uid_map`.
         INSTITUTION_UIDS_KEY: _institution_uids(sample),
+        # Which egress Stage 4 left from (#90, 2026-08-26). Recorded at plan
+        # time, next to the other identity keys rather than inside ``config``:
+        # the proxy is an environment parameter like ``USER_AGENT`` and
+        # ``RENDER_RECYCLE_AFTER``, so putting it in the config snapshot would
+        # change ``config_hash`` for every run past and future to record
+        # something no ``PresweepConfig`` field holds. Credentials never appear —
+        # ``egress.describe()`` is mode, host:port, and a ``credentialed`` flag.
+        # Guarded on resume below: a run whose egress changed halfway measured
+        # two different instruments.
+        "run_egress": egress.describe(),
     }
     if telemetry_block:
         manifest.update(telemetry_block)
@@ -251,7 +305,28 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "discovery_mode",
     "discovery_evidence_term",
     "discovery_evidence_terms",
+    # Language policy (added 2026-08-30). The id names which signed mapping ran;
+    # the hash catches an edit to that mapping under an unchanged id. Both are
+    # the same class of surface as the roster hash beside them — they decide
+    # which languages every leg-2 query of every institution is issued in.
+    "language_policy",
+    "language_policy_hash",
     "discovery_domain_quote_name",
+    # Leg 1 goes multilingual (added 2026-09-01). The same class of surface as
+    # ``discovery_mode`` beside it, and for a sharper reason: it decides how many
+    # queries leg 1 issues per institution and in which languages, so a run
+    # started with it off and resumed with it on has two domain-discovery
+    # instruments in one artifact and no column saying which institutions got
+    # which. Deliberately **not** absent-tolerated: unlike the roster hashes, a
+    # manifest lacking this key predates the flag and therefore ran with it off,
+    # which ``asdict`` records as ``False`` on every new manifest — so a missing
+    # key can only come from a hand-edited manifest.
+    "discovery_leg1_multilingual",
+    # The open evidence leg (2026-09-03), guarded on the same reasoning as the
+    # flag above: a run that started without it and resumed with it has two
+    # evidence instruments in one artifact tree. Not absent-tolerated either —
+    # ``asdict`` writes ``False`` on every manifest since the field existed.
+    "discovery_evidence_open",
     "serper_autocorrect",
     "model",
     # Scrape/extract job semantics (added 2026-08-04). Same class of gap as the
@@ -268,9 +343,26 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "scrape_respect_robots",
     "scrape_host_delay_seconds",
     "scrape_render_on_download_failure",
+    # Issue #96. Same class as the three above — it decides which URLs were
+    # fetched at all. Guarded specifically because raising it across a resume
+    # produces an institution that holds both a page and a stale
+    # ``crawl_delay_exceeded`` row for the same URL, and the ledger is
+    # append-only, so that institution reports PROCESSING_FAILED for the rest
+    # of the run's life with no way to tell it from a real one.
+    "scrape_max_institution_seconds",
+    # Circuit breaker (2026-09-06). Same class again: it decides which URLs
+    # were fetched at all, and a resume under a different threshold would
+    # pair a page with a stale ``host_unreachable`` row for the same URL.
+    "scrape_host_failure_threshold",
     # Roster fingerprint (A4) — see build_manifest. Not a dataclass field; the
     # manifest carries it because the guard needs something to compare.
     "genai_terms_roster_hash",
+    # The chain-mode roster's fingerprint, guarded for the same reason (2026-08-31).
+    "evidence_terms_roster_hash",
+    # Leg 1's suffix roster, guarded for the same reason again (2026-09-01): once
+    # it carries more than the English row it *is* the domain-discovery
+    # instrument, and leg 1 is the leg that decides whether leg 2 runs at all.
+    "domain_suffix_roster_hash",
 )
 
 # Guarded keys whose *absence* from the on-disk manifest is tolerated: a run
@@ -299,7 +391,30 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
 # such run exists. It is kept as the precedent mechanism for the *next* guarded
 # key added to a manifest that predates it (the key-contract work adds several),
 # not as protection for this one.
-_ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset({"genai_terms_roster_hash"})
+#
+# ``scrape_max_institution_seconds`` (issue #96, 2026-08-26) is the first key to
+# use this mechanism for what the paragraph above describes: it is guarded, and
+# every manifest written before it existed lacks it, including the published run
+# ``r20260824T215623Z-bb4e``. Tolerating its absence lets such a run resume; a
+# manifest that *does* record it and differs still aborts.
+_ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset(
+    {
+        "genai_terms_roster_hash",
+        "scrape_max_institution_seconds",
+        # Every manifest written before 2026-09-06 lacks the breaker threshold,
+        # and every one of those runs attempted every kept URL by construction.
+        "scrape_host_failure_threshold",
+        # Every manifest written before 2026-08-31 lacks this key, including the
+        # published runs; tolerating its absence lets them resume, and a manifest
+        # that does record it and differs still aborts.
+        "evidence_terms_roster_hash",
+        # Same concession, one day later: every manifest written before
+        # 2026-09-01 lacks the leg-1 suffix hash, and every one of those runs
+        # issued the English suffix by construction, so refusing to resume them
+        # would be a cost with no safety gain.
+        "domain_suffix_roster_hash",
+    }
+)
 
 
 def _assert_manifest_matches_on_resume(
@@ -353,6 +468,21 @@ def _assert_manifest_matches_on_resume(
         diffs.append(
             f"run_generation_parameters: {old_gen!r} (manifest) "
             f"!= {new_gen!r} (this run)"
+        )
+    # Egress is run identity for the same reason the generation parameters are
+    # (#90): the measured recovery from changing it is ~76% of the
+    # all-fetch-failed population, so a run that scraped half its institutions
+    # direct and half through a proxy has two different scrape instruments in one
+    # artifact and no column saying which. Absent-tolerated on the same
+    # precedent as ``genai_terms_roster_hash``: manifests written before
+    # 2026-08-26 have no ``run_egress``, and refusing to resume them would be a
+    # cost with no safety gain, since every one of them predates the proxy
+    # existing and so ran direct by construction.
+    old_egress = existing.get("run_egress")
+    new_egress = new_manifest.get("run_egress")
+    if old_egress is not None and old_egress != new_egress:
+        diffs.append(
+            f"run_egress: {old_egress!r} (manifest) != {new_egress!r} (this run)"
         )
     if diffs:
         raise RuntimeError(
@@ -436,6 +566,13 @@ def plan_run(
     checked against the existing manifest *before* anything is overwritten
     (review F7); a mismatch aborts with a diff.
     """
+    # Before the master read, because this is the cheapest possible failure and
+    # a misconfigured egress is the most expensive one to discover late (#90,
+    # 2026-08-27): a proxy URL requests cannot parse does not stop a run, it
+    # fails every fetch individually, so the run completes and reports a
+    # collapsed yield that looks like the network rather than like a typo.
+    # No-op when no proxy is set, which is the default and the common case.
+    egress.validate()
     rows = list(_read_master(config.master_csv))
     if not rows:
         raise RuntimeError(f"master CSV is empty: {config.master_csv}")

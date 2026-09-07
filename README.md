@@ -1,15 +1,20 @@
 # G3O — Global Government GenAI Observatory
 
-> **Status: preliminary research infrastructure.** The accompanying paper is
-> in preparation. This repository ships the production data-collection
-> pipeline and the pilot v1 results that back the live observatory at
-> [`simonepaciphd.github.io/g3o-website`](https://simonepaciphd.github.io/g3o-website/)
+> **Status: a living, versioned database.** The accompanying paper is in
+> preparation. G3O is not a one-off release: data are collected continuously
+> and published as successive versions, and every version stays available
+> under its own identifier. This repository ships the production
+> data-collection pipeline and the archived pilot dataset; the live
+> observatory at
+> [`g3observatory.org`](https://g3observatory.org) is served from the
+> production database and currently publishes wave `w001`
 > (source: [`g3o-website`](https://github.com/simonepaciphd/g3o-website)).
-> The full institutional universe (~675k institutions) and the v2 dataset
-> will land in subsequent releases.
+> Coverage and validation are still in progress, so the data should not yet
+> be interpreted as systematic or fully validated. Cite the version you used
+> and the date you accessed it.
 
 G3O builds an open, auditable, versioned panel of public-sector generative-AI
-activity across ~675,000 government institutions worldwide. The pipeline runs
+activity across 719,588 government institutions worldwide. The pipeline runs
 quarterly multilingual searches against an institutional universe, scrapes
 candidate sources, extracts structured records via LLM with a fixed schema,
 and cross-validates across sources. A complementary multilingual staff
@@ -90,7 +95,7 @@ G3O/
 │   ├── persist/          # Stage 7
 │   ├── run/              # Orchestration: presweep, verify-model
 │   └── common/           # Schema, contract, batch client, run state
-├── data/pilot_v1/        # Pilot v1 results (~1k institutions; CC-BY 4.0)
+├── data/pilot_v1/        # Archived pilot, superseded (~1k institutions; CC-BY 4.0)
 ├── docs/                 # Architecture, data dictionary, replication, working draft
 ├── tests/                # pytest test suite
 ├── runs/                 # Per-run artifacts (gitignored)
@@ -141,14 +146,23 @@ the pipeline shape without API credentials. The on-disk fetch cache lives
 under `cache/` (gitignored); per-run artifacts live under `runs/<run_id>/`
 (gitignored). Delete either to force re-fetches.
 
-## Pilot v1 dataset
+## Pilot dataset (archived)
 
-`data/pilot_v1/` ships the 1k-institution pilot dataset that backs the
-[live observatory](https://simonepaciphd.github.io/g3o-website/). It was
-collected with ChatGPT-web search prior to the API-driven pipeline and is
-**a snapshot, not a panel** — the production pipeline will produce v2 under
-different methodology. See [`data/pilot_v1/README.md`](data/pilot_v1/README.md)
-for provenance, model, date, and caveats.
+`data/pilot_v1/` is the archived pilot: a ~1k-institution snapshot collected
+with ChatGPT-web search prior to the API-driven pipeline. **It is superseded**
+— the [live observatory](https://g3observatory.org) is served from the
+production database, not from this file — and is retained for provenance and
+citation, not for current use. Its directory name matches the provenance
+tokens carried in the rows themselves (`sample_id` values of the form
+`pilot_v1_web_0001`).
+
+Published versions are never overwritten: each lands in its own directory and
+stays available under its own identifier. Going forward, published releases
+are named for the pipeline wave they correspond to, so that a file release and
+the API report the same version (see [`data/README.md`](data/README.md)).
+
+See [`data/pilot_v1/README.md`](data/pilot_v1/README.md) for provenance,
+model, date, and caveats.
 
 ## Citing G3O
 

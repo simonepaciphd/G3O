@@ -63,10 +63,19 @@ from g3o.run.presweep.stage_classify import (
     _run_classify_official_site as _run_classify_official_site,
 )
 from g3o.run.presweep.stage_classify import (
+    _run_classify_official_site_fallback as _run_classify_official_site_fallback,
+)
+from g3o.run.presweep.stage_classify import (
     _run_classify_triage as _run_classify_triage,
 )
 from g3o.run.presweep.stage_discovery import (
+    _run_discovery_evidence_open as _run_discovery_evidence_open,
+)
+from g3o.run.presweep.stage_discovery import (
     _run_discovery_general as _run_discovery_general,
+)
+from g3o.run.presweep.stage_discovery import (
+    _run_discovery_general_fallback as _run_discovery_general_fallback,
 )
 from g3o.run.presweep.stage_discovery import (
     _run_discovery_site_restricted as _run_discovery_site_restricted,

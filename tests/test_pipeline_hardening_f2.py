@@ -217,7 +217,8 @@ def test_serp_cache_key_covers_every_option_field():
     import dataclasses
 
     baseline = _payload()
-    probes = {"autocorrect": False}  # field name -> a value differing from the default
+    # field name -> a value differing from the default
+    probes = {"autocorrect": False, "gl": "jp", "hl": "ja"}
     fields = {f.name for f in dataclasses.fields(serper_client.SerperOptions)}
     assert fields == set(probes), (
         f"SerperOptions fields {sorted(fields)} not all probed here; "
@@ -227,6 +228,71 @@ def test_serp_cache_key_covers_every_option_field():
         assert serper_client._cache_key(_payload(**{name: value})) != serper_client._cache_key(
             baseline
         ), f"{name} does not affect the SERP cache key"
+
+
+# ---------------------------------------------------------------------------
+# Search locale — gl/hl (2026-08-30, PI sign-off).
+#
+# Until this change SerperOptions could not express a locale at all, so every
+# query G3O had ever issued went out with gl/hl unset and took Serper's US /
+# English default. Under the signed language policy of 2026-08-30 that is a
+# confound: the policy picks the term's language per institution while the
+# locale stays anglophone. These tests pin the two properties the addition has
+# to have — it must be invisible when unused, and it must be in the cache key
+# when used.
+# ---------------------------------------------------------------------------
+
+
+def test_locale_is_omitted_entirely_when_unset():
+    """An unlocalised call keeps the legacy two-key payload.
+
+    This is what stops the locale addition from invalidating every SERP cache
+    entry written before 2026-08-30: same payload, same key, same entry.
+    """
+    assert serper_client.build_request_payload("q", 5) == {"q": "q", "num": 5}
+    assert serper_client.build_request_payload(
+        "q", 5, serper_client.SerperOptions()
+    ) == {"q": "q", "num": 5}
+
+
+def test_locale_reaches_the_payload_when_set():
+    assert serper_client.build_request_payload(
+        "q", 5, serper_client.SerperOptions(gl="jp", hl="ja")
+    ) == {"q": "q", "num": 5, "gl": "jp", "hl": "ja"}
+
+
+def test_gl_and_hl_are_independent():
+    """Two fields, not one 'locale' — they come from different tables.
+
+    ``hl`` is a property of the language tag and ``gl`` of the institution's
+    country: France-fr and Senegal-fr share a term and need different ``gl``.
+    Either must be settable without the other.
+    """
+    assert serper_client.build_request_payload(
+        "q", 5, serper_client.SerperOptions(gl="sn")
+    ) == {"q": "q", "num": 5, "gl": "sn"}
+    assert serper_client.build_request_payload(
+        "q", 5, serper_client.SerperOptions(hl="fr")
+    ) == {"q": "q", "num": 5, "hl": "fr"}
+
+
+def test_a_localised_query_cannot_be_served_from_an_unlocalised_cache_entry():
+    """The load-bearing one.
+
+    Same query string, different locale, must be different cache entries. If
+    these collided, the first (unlocalised) answer would be replayed for every
+    localised request and the locale would appear to do nothing — a null result
+    produced by the cache rather than by Google.
+    """
+    plain = _payload(q="site:x.jp AI")
+    jp = _payload(q="site:x.jp AI", gl="jp", hl="ja")
+    fr = _payload(q="site:x.jp AI", gl="fr", hl="fr")
+    keys = {
+        serper_client._cache_key(plain),
+        serper_client._cache_key(jp),
+        serper_client._cache_key(fr),
+    }
+    assert len(keys) == 3
 
 
 def test_serp_cache_key_is_insensitive_to_key_order():

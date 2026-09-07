@@ -1,17 +1,20 @@
 # `data/` — published G3O datasets
 
 Datasets published from this repository. Released versioned and immutable.
-A new version is a new directory (`pilot_v1/`, `v1/`, `v2/`, …); existing
-files are never overwritten.
+A new version is a new directory; existing files are never overwritten.
 
 ## Versioning
 
-| Path             | What it is                                                       |
-|------------------|------------------------------------------------------------------|
-| `pilot_v1/`      | Pilot snapshot, ~1k institutions. ChatGPT-web + RA samples + harmonized existing DBs. |
-| `v1/` *(future)* | First release from the API-driven production pipeline (Push #2). |
+**File releases are named for the pipeline wave they correspond to**, so that a
+directory here and the version reported by the API name the same thing. The
+archived pilot predates that scheme and keeps its original name.
 
-The full institutional universe (~675,000 institutions) is built in a
+| Path              | What it is                                                       |
+|-------------------|------------------------------------------------------------------|
+| `pilot_v1/`       | Archived pilot snapshot, ~1k institutions. ChatGPT-web + RA samples + harmonized existing DBs. Superseded; retained for provenance. |
+| `w001/` *(future)* | First published release from the API-driven production pipeline; corresponds to wave `w001`, the wave the live API currently serves. |
+
+The full institutional universe (719,588 institutions) is built in a
 separate workflow and will be released alongside the first production
 dataset. It is intentionally **not** included in `data/pilot_v1/`.
 

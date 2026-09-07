@@ -67,6 +67,13 @@ include = ["g3o*"]
 [tool.setuptools.package-data]
 "g3o.extract.prompts" = ["*.md"]
 "g3o.validate.prompts" = ["*.md"]
+# Signed language policies. Without this the mapping ships in the repo but not
+# in the wheel, and a config naming a policy id would fail on the droplet with
+# UnknownPolicyError while passing every test on the laptop.
+# Attached to ``g3o.common`` rather than declared as its own package: the
+# directory holds data, not code, and giving it an ``__init__.py`` purely to
+# satisfy ``packages.find`` would invent a module nobody imports.
+"g3o.common" = ["policies/*.json"]
 
 [tool.ruff]
 line-length = 100

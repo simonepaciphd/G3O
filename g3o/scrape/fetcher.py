@@ -20,12 +20,20 @@ import os
 import threading
 import time
 from collections.abc import Callable
+from typing import Any
 
 import requests
 from bs4 import BeautifulSoup
-from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
+from tenacity import (
+    RetryError,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from g3o.common import config
+from g3o.scrape import egress
 from g3o.scrape import html as html_mod
 from g3o.scrape import pdf as pdf_mod
 from g3o.scrape.render import (
@@ -56,6 +64,12 @@ def _get_session() -> requests.Session:
     if session is None:
         session = requests.Session()
         session.headers = dict(_SESSION_HEADERS)
+        # Egress (#90): set on the Session rather than passed per-request, so a
+        # new call site cannot forget it and send one fetch out of a different
+        # identity than the robots.txt that authorised it. None = direct.
+        proxies = egress.requests_proxies()
+        if proxies:
+            session.proxies = proxies
         _thread_local.session = session
     return session
 
@@ -267,33 +281,56 @@ class ResponseTooLarge(Exception):
         )
 
 
-def _is_transient_http_error(exc: BaseException) -> bool:
-    """Retry predicate for :func:`_download` — transport faults and 5xx only.
+#: HTTP statuses a second attempt at the same GET can plausibly turn into a
+#: page: rate limiting and transient server-side failure. Every other status a
+#: server *chose* to send — 403, 404, 406, 405, 401 — is the same answer three
+#: times over.
+_RETRYABLE_STATUSES: frozenset[int] = frozenset({429, 500, 502, 503, 504})
 
-    Until 2026-08-24 ``_download`` carried no predicate at all, so tenacity
-    retried *every* exception three times with exponential backoff, including a
-    404's or 403's ``HTTPError``. Run ``r20260824T142136Z-7875`` (n=1,000) makes
-    the cost concrete rather than theoretical: 1,385 of its 1,746 scrape failures
-    were ``HTTPError``, and re-probing showed ~95% were 406/403 *rejections*
-    (issue #90 — datacenter-IP blocking, nothing in the client). Every one of
-    those cost three requests plus backoff where one would do. That is wasted
-    wall-clock on a sweep, and a politeness cost against government hosts this
-    project is careful with everywhere else.
 
-    A rejection is a decision, not a fault: it will be identical on attempt two.
+def _is_retryable(exc: BaseException) -> bool:
+    """Whether retrying the GET can change the outcome (PI-approved 2026-09-06).
+
+    Measured on ``r20260903T120740Z-362c``: the fetcher retried every exception
+    three times, so a 403 or 406 refusal cost ~4.5 s and a connect timeout ~96 s
+    per URL, and 22,863 of the run's 46,487 failures were refusals a retry
+    cannot argue with. Retry is kept for what it was written for — a dropped
+    connection, a timeout, a 429 or a 5xx — and withheld from a status the
+    server chose, a TLS handshake the host cannot complete (deterministic per
+    host), and a malformed URL.
     """
-    if isinstance(exc, ResponseTooLarge):
+    if isinstance(exc, requests.exceptions.SSLError):
         return False
     if isinstance(exc, requests.exceptions.HTTPError):
-        response = getattr(exc, "response", None)
-        status = getattr(response, "status_code", None)
-        # 5xx is the server saying "not right now"; 4xx is "no". Retry only the
-        # first. An HTTPError with no status attached is treated as transient —
-        # we cannot show it is permanent, and the old behaviour retried it.
-        return status is None or status >= 500
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        return status in _RETRYABLE_STATUSES
     return isinstance(
         exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout)
     )
+
+
+def _note_attempt(retry_state: Any) -> None:
+    """tenacity ``before`` hook: remember which attempt this thread is on.
+
+    The count is the one number 362c could not answer — how often a second or
+    third attempt rescued a page — so Stage 4 records it beside every outcome
+    (``attempts`` in the telemetry ledger). Thread-local because ``_download``
+    runs on every scrape worker at once.
+    """
+    _thread_local.attempts = retry_state.attempt_number
+
+
+def download_attempts() -> int:
+    """GET attempts made by the most recent ``scrape_url`` on this thread.
+
+    0 when no GET was made (cache hit, forced render, or nothing called yet).
+    Read it immediately after ``scrape_url`` returns, on the same thread.
+    """
+    return getattr(_thread_local, "attempts", 0)
+
+
+def _reset_attempts() -> None:
+    _thread_local.attempts = 0
 
 
 def _read_capped(response: requests.Response, url: str) -> bytes:
@@ -332,7 +369,8 @@ _STREAM_CHUNK_BYTES = 64 * 1024
 
 
 @retry(
-    retry=retry_if_exception(_is_transient_http_error),
+    retry=retry_if_exception(_is_retryable),
+    before=_note_attempt,
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=2, max=10),
     # Matches g3o.common.batch_client's convention, and this was the one retry in
@@ -352,7 +390,7 @@ def _download(url: str) -> tuple[bytes, str, int, str, int]:
     """
     started = time.monotonic()
     with _get_session().get(
-        url, timeout=config.REQUEST_TIMEOUT, stream=True
+        url, timeout=(config.CONNECT_TIMEOUT, config.REQUEST_TIMEOUT), stream=True
     ) as r:
         r.raise_for_status()
         content = _read_capped(r, url)
@@ -448,6 +486,63 @@ def _notify_size_capped(
         callback(url=url, error=error)
 
 
+def unwrap_fetch_error(exc: BaseException | None) -> BaseException | None:
+    """The exception that actually failed, behind tenacity's wrapper.
+
+    ``_download`` is decorated with ``@retry`` and does not set ``reraise``, so
+    what escapes it after three attempts is a
+    :class:`tenacity.RetryError` — a class name that says only "we gave up",
+    never what refused us. The last attempt's exception is the one worth
+    recording. Non-wrapped exceptions pass straight through.
+    """
+    if isinstance(exc, RetryError):
+        attempt = exc.last_attempt
+        if attempt is not None and attempt.failed:
+            return attempt.exception()
+    return exc
+
+
+def http_status_from_exception(exc: BaseException | None) -> int | None:
+    """The HTTP status a fetch was refused with, or None when there was none.
+
+    None is a real answer and not a gap: a connect timeout, a DNS failure and a
+    TLS handshake error never produce a status line, and recording them as
+    ``None`` beside a 403's ``403`` is what makes the two distinguishable. That
+    distinction is the whole reason this exists — across the 6,719
+    ``scrape_failed`` rows of the anglophone 12k, a bot-block and a dead host
+    were the same row, and separating them cost a hand re-probe of 60 URLs.
+
+    Reads ``requests``' own convention: ``raise_for_status`` raises an
+    ``HTTPError`` carrying the ``Response`` that produced it. Everything is
+    ``getattr``-guarded rather than isinstance-checked, so a non-requests
+    transport that follows the same convention is read too and one that does not
+    returns None instead of raising inside a failure handler.
+    """
+    seen: set[int] = set()
+    current = unwrap_fetch_error(exc)
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        status = getattr(getattr(current, "response", None), "status_code", None)
+        if isinstance(status, int):
+            return status
+        current = unwrap_fetch_error(current.__cause__ or current.__context__)
+    return None
+
+
+def error_class_of(exc: BaseException | None) -> str | None:
+    """The unwrapped exception's class name — the free half of the diagnosis.
+
+    ``ConnectTimeout``, ``ReadTimeout``, ``ConnectionError``, ``SSLError``,
+    ``ProxyError`` and ``HTTPError`` are already an exact vocabulary for the four
+    failures that mattered, so this records the name rather than mapping it onto
+    a taxonomy of ours that would have to be kept true. Safe to log: a class name
+    carries no request or credential, unlike the message, which is why this is
+    reported alongside the redacted detail rather than instead of it.
+    """
+    unwrapped = unwrap_fetch_error(exc)
+    return type(unwrapped).__name__ if unwrapped is not None else None
+
+
 def _failure_page(url: str, *, attempted_method: str) -> RenderedPage:
     """Build a no-text RenderedPage for download failures. Not cached."""
     return RenderedPage(
@@ -528,6 +623,7 @@ def scrape_url(
     # prefer_render_on_empty is off, a short page is legitimate content, so the
     # floor collapses to 1 (skip only empty/whitespace-only).
     cache_floor = empty_page_min_chars if prefer_render_on_empty else 1
+    _reset_attempts()
 
     if not force_refresh:
         cached = _load(url, min_chars=cache_floor)
