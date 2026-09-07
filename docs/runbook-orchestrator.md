@@ -109,13 +109,21 @@ python3 -m venv ~/venv
 cd ~/G3O && ~/venv/bin/pip install -e .
 
 # 3. Two optional dependencies, deliberately not declared in pyproject.toml:
-#    boto3 for the archive leg, psycopg for the loader. Both are needed on the
-#    droplet and nowhere else. psycopg is not optional in practice: the ingest
-#    leg runs g3o-api/scripts/ingest.py under THIS interpreter (build_argv uses
-#    sys.executable) and that script imports psycopg at module scope, so without
-#    it the ingest leg cannot start.
+#    boto3 for the archive leg, psycopg for the loader.
+#
+#    psycopg is here for a structural reason, not a G3O one. NOTHING in this
+#    repo imports it -- the run-id collision guard that once did was retired by
+#    SD-004. It is needed because build_argv launches
+#    g3o-api/scripts/ingest.py with `python or sys.executable` and no CLI flag
+#    exposes that parameter, so the loader always runs under THIS interpreter
+#    and its dependency lands in THIS venv. See the seam note below.
 ~/venv/bin/pip install boto3 "psycopg[binary]"
 ~/venv/bin/python -c "import psycopg, boto3"    # cheap proof; exit 0 or fix it
+#    Do NOT verify psycopg by running `ingest.py --help`. Every psycopg import
+#    in that script is deliberately lazy ("so that --help and the argument
+#    guards work on a machine without the driver installed"), so --help exits 0
+#    on an environment that will fail at connect time. Use the import check
+#    above, or g3o-api's own scripts/dbcheck.py.
 
 # 4. The browser Playwright drives. NOT --with-deps: that shells out to sudo,
 #    and the `g3o` account is not meant to need root to install a browser.
@@ -241,13 +249,30 @@ next to the manifest it produced. An unknown key is refused, not ignored.
   "dry_run": true,
   "stop_after": "validate",
   "filter_mode": "shadow",
-  "max_workers": 4
+  "max_workers": 4,
+  "language_policy": "2026-08-30",
+  "discovery_leg1_multilingual": true,
+  "discovery_evidence_open": true
 }
 ```
 
 `--sample-size`, `--seed`, `--stop-after`, `--model`, `--max-workers`,
 `--filter-mode`, `--master-csv`, `--runs-dir` and `--execute` override the file
 from the command line. Everything else lives in the file.
+
+The last three keys are the four-leg discovery configuration (2026-09-03; both
+flags default **false**, and a config without them runs the two-leg chain
+exactly as before). `discovery_leg1_multilingual` adds the localized leg-1
+**fallback**: English first on every institution, then one query per
+non-English policy language only where Stage 2 found no official site, then
+Stage 2 again. `discovery_evidence_open` adds the open (non-site-bound)
+evidence leg, one query per policy language. Both require `language_policy`
+to be set in practice — the fallback refuses to start without it — and both run
+as sub-steps of the roster stages (`classify_official_site` and
+`discovery_site_restricted` respectively), so `--stop-after` keeps its eight
+values and `status` still reports `stages=n/8`. Credit cost rises from ~1.84
+per institution to roughly `1 + 0.2·(k−1) + k + k` where `k` is the number of
+policy languages (mean ~2), so budget about 5 credits per institution.
 
 ### Dry run first
 
@@ -535,12 +560,45 @@ runs/<run-id>/
   `/aggregates`, and the singular measures HTTP 404 `no_such_endpoint`. The
   getter treats a non-200 as data, so nothing raises and the 404 is stored in a
   field the verdict never reads. Fixing the path alone changes no verdict.
-- **`--frame-id` is operator-supplied, and unvalidated here.** The manifest's
-  `frame` block is null on every run the pipeline emits today, so the master
-  build is named on the command line and the loader records it as
-  `frame_id_source = 'operator'`. A typo is not caught by this orchestrator.
-  When stamping populates the block, that flips to `'manifest'` and the flag
-  becomes redundant.
+- **The ingest leg runs g3o-api's loader under G3O's interpreter.**
+  `build_argv` accepts a `python` parameter but no CLI flag reaches it, so the
+  loader is always launched with `sys.executable` -- which is why
+  `psycopg[binary]` has to be installed into this repo's venv even though no G3O
+  module imports it. That crossing is what let an unrelated deletion of this
+  venv break the ingest leg mid-gate on 2026-08-19. `g3o-api` now declares and
+  owns `psycopg` itself (`g3o-api/requirements.txt`, PI ruling 2026-08-20), so
+  the fix is to plumb a `--loader-python` flag through to `build_argv` and point
+  it at `~/g3o-api/.venv/bin/python`, after which this repo can drop psycopg
+  entirely. Until that lands, both venvs need it and this one is the one that is
+  load-bearing.
+- **`--frame-id` is operator-supplied, and the loader does not validate it — it
+  *creates* it.** `ensure_frame` is an `insert … on conflict do update` with no
+  format check and no existence check on any path, so `--frame-id mb-2026-07-3O`
+  would insert a new frame, load the whole 719,588-row master under that
+  fabricated vintage, land the facts against it, and **exit 0**. `manifest`
+  provenance protects no better than `operator` does. Since 2026-08-20 this
+  orchestrator refuses first: `assert_frame_known` queries `g3o.frames` before
+  invoking the loader and names the frames that do exist in the refusal. It fails
+  open on a missing driver or an unreachable database — the loader is about to
+  connect anyway and reports an environment problem better — and the verdict is
+  recorded under `frame_check`, so a `skipped` there means nobody looked, not
+  that the frame was known.
+- **The loader accepts a pooled DSN and fails partway through the load.** It
+  runs one long transaction with batched upserts, which a pooler in transaction
+  mode breaks — its own `.env.example` says so — but nothing in it inspects the
+  string it is handed. The one mention anywhere is the missing-`DATABASE_URL`
+  abort text. This orchestrator now hostname-tests for `-pooler`/`pgbouncer`
+  before invoking it, which is the only signal available.
+- **`publish-verify` asks `/health` first, and refuses three ways.** A 200 from
+  `/institutions/{uid}` proves only *frame membership* — the detail query is a
+  `left join` onto the rollup and `evidence_status` coalesces to `not_reviewed` —
+  so a worker that has never seen the run answers 200 for every sampled uid. The
+  leg therefore refuses a `registry_only` deployment before sampling, refuses a
+  deployment whose `DEFAULT_WAVE` is not the run's (pass `--expect-wave`, since
+  that binding is static per deployment and no response body complains about
+  it), and refuses to call it a pass when *every* sampled institution reads
+  `not_reviewed`. A partly-reviewed sample still passes: a thin run with findings
+  on one institution of fourteen is a real result.
 - **Nothing checks that a `--run-id` is unused.** The guard that would have
   was retired rather than deferred (SD-004, 2026-08-16): minted ids are
   `r<YYYYMMDD>T<HHMMSS>Z-<4hex>` and the orchestrator is the only sanctioned

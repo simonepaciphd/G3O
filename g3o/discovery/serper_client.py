@@ -93,9 +93,39 @@ class SerperOptions:
     every query G3O has run. Setting it ``False`` is a provenance fix — the
     query recorded in the artifact becomes the query Google actually answered.
     It is **not** a recall lever and was not measured as one.
+
+    ``gl`` / ``hl`` (2026-08-30, PI sign-off) — **the search locale, which until
+    now G3O could not express at all.** ``gl`` is the country the search is run
+    from; ``hl`` is Google's interface language. Both were absent from this
+    class, so every Serper query G3O has ever issued went out with them unset
+    and took Serper's server-side default — US / English. That was invisible
+    while only English ran. Under the signed language policy of 2026-08-30 it is
+    a live confound: the policy chooses the *term's* language per institution
+    while the *locale* stays anglophone, so a Japanese term is issued through a
+    US/English Google and the run cannot claim to have searched Japan in
+    Japanese.
+
+    They are deliberately **two independent fields, not one "locale"**, because
+    they come from different tables: ``hl`` is a property of the language tag
+    and ``gl`` a property of the institution's country. France-``fr`` and
+    Senegal-``fr`` share a term and need different ``gl``.
+
+    Neither is validated here. Serper drops an unrecognised value with HTTP 200
+    and no error, so the only evidence that a locale was honoured is its
+    presence in :attr:`SerperResult.search_parameters` — validating against a
+    hardcoded list would replace that live signal with a stale guess about what
+    Google supports. Not all 89 tags of the signed policy have a Google
+    interface language (Tifinagh, Dhivehi, Dzongkha, Tetum, Papiamento and
+    Greenlandic are expected to have none), and the echo is how we find out.
+
+    **Not measured as a recall lever.** Like ``autocorrect``, this is added so
+    the parameter *can* be set and recorded; whether a matched locale retrieves
+    more than the default is exactly what the 2026-08-30 term probe measures.
     """
 
     autocorrect: bool | None = None
+    gl: str | None = None
+    hl: str | None = None
 
 
 DEFAULT_OPTIONS = SerperOptions()
@@ -115,11 +145,22 @@ def build_request_payload(
 
     Key insertion order is ``q``, ``num``, then options in field order, so the
     legacy payload serialises byte-identically to ``{"q": ..., "num": ...}``.
+
+    ``gl``/``hl`` follow ``autocorrect`` in field order and are omitted when
+    ``None``, so an unlocalised call still produces the legacy two-key payload
+    and therefore the legacy cache key. That is what keeps the locale addition
+    from invalidating every cached result from before 2026-08-30 — and, on the
+    other side, what guarantees a *localised* query can never be served from an
+    *unlocalised* cache entry, since the key is derived from this payload.
     """
     opts = options if options is not None else DEFAULT_OPTIONS
     payload: dict = {"q": query, "num": num_results}
     if opts.autocorrect is not None:
         payload["autocorrect"] = opts.autocorrect
+    if opts.gl is not None:
+        payload["gl"] = opts.gl
+    if opts.hl is not None:
+        payload["hl"] = opts.hl
     return payload
 
 

@@ -25,8 +25,10 @@ from __future__ import annotations
 import json
 
 import pytest
+import requests
+from tenacity import retry, stop_after_attempt, wait_none
 
-from g3o.common import attrition
+from g3o.common import attrition, scrape_telemetry
 from g3o.common import config as _config
 from g3o.common.artifact_io import artifact_exists
 from g3o.extract.batch import url_hash
@@ -128,3 +130,164 @@ def test_download_then_render_both_fail_preserve_both_exceptions(tmp_path, monke
     # The double failure is not surfaced as a successful scrape.
     assert out[_INST_ID] == []
     assert json.dumps(recs)  # ledger is well-formed JSONL
+
+
+# ---------------------------------------------------------------------------
+# What refused us — the status code, recorded (2026-08-30)
+# ---------------------------------------------------------------------------
+#
+# Across the anglophone 12k's 6,719 ``scrape_failed`` rows a 403/406 bot-block,
+# a connect timeout, a DNS failure and a TLS error were indistinguishable: the
+# hard-failure path wrote no telemetry row at all, and neither ledger carried an
+# HTTP status. That is why the school-district census could only reach "91.7%
+# bot-blocks" by re-probing 60 URLs by hand.
+
+
+def _http_error(status: int) -> Exception:
+    """A ``requests`` refusal, built the way ``raise_for_status`` builds one."""
+    response = requests.Response()
+    response.status_code = status
+    response.url = _URL
+    return requests.HTTPError(f"{status} Client Error", response=response)
+
+
+def _download_raising_exc(exc: BaseException):
+    def _f(url):
+        raise exc
+
+    return _f
+
+
+def _failed_telemetry(run_dir) -> dict:
+    recs = [
+        r for r in scrape_telemetry.read_records(run_dir)
+        if r["outcome"] == scrape_telemetry.OUTCOME_SCRAPE_FAILED
+        and r.get("url") == _URL
+    ]
+    assert len(recs) == 1, f"expected one scrape_failed telemetry row; got {recs}"
+    return recs[0]
+
+
+def _scrape_once(run_dir, monkeypatch, exc: BaseException):
+    monkeypatch.setattr(fetcher, "_download", _download_raising_exc(exc))
+    monkeypatch.setattr(fetcher, "render_url", _boom)
+    ps._run_scrape(
+        run_dir, [{"master_row_id": "580"}], {_INST_ID: [_URL]},
+        respect_robots=False, host_delay_seconds=0,
+        render_on_download_failure=False,
+    )
+
+
+def test_a_refused_fetch_writes_a_telemetry_row_with_its_status(tmp_path, monkeypatch):
+    """The regression: this path wrote NO telemetry row, so the ledger's own
+    contract — one record per attempt regardless of outcome — did not hold on
+    the one outcome the egress question turns on."""
+    run_dir = tmp_path / "runs" / "r1"
+    scrape_telemetry._reset_cache()
+
+    _scrape_once(run_dir, monkeypatch, _http_error(403))
+
+    rec = _failed_telemetry(run_dir)
+    assert rec["http_status"] == 403
+    assert rec["error_class"] == "HTTPError"
+
+
+def test_a_timeout_records_a_null_status_rather_than_no_status(tmp_path, monkeypatch):
+    """None is an answer, not a gap. A connect timeout never gets a status line,
+    and recording that explicitly is what separates it from a 403."""
+    run_dir = tmp_path / "runs" / "r1"
+    scrape_telemetry._reset_cache()
+
+    _scrape_once(run_dir, monkeypatch, requests.ConnectTimeout("timed out"))
+
+    rec = _failed_telemetry(run_dir)
+    assert "http_status" in rec and rec["http_status"] is None
+    assert rec["error_class"] == "ConnectTimeout"
+
+
+def test_the_four_failures_are_now_distinguishable(tmp_path, monkeypatch):
+    """406, timeout, DNS and TLS: four rows that used to read identically."""
+    cases = {
+        "block": (_http_error(406), 406, "HTTPError"),
+        "timeout": (requests.ReadTimeout("read timed out"), None, "ReadTimeout"),
+        "dns": (requests.ConnectionError("NameResolutionError"), None, "ConnectionError"),
+        "tls": (requests.exceptions.SSLError("CERTIFICATE_VERIFY_FAILED"), None, "SSLError"),
+    }
+    for name, (exc, status, klass) in cases.items():
+        run_dir = tmp_path / "runs" / name
+        scrape_telemetry._reset_cache()
+        attrition._reset_cache()
+
+        _scrape_once(run_dir, monkeypatch, exc)
+
+        rec = _failed_telemetry(run_dir)
+        assert rec["http_status"] == status, name
+        assert rec["error_class"] == klass, name
+
+
+def test_the_status_is_read_through_tenacitys_retry_wrapper(tmp_path, monkeypatch):
+    """`_download` is `@retry` without `reraise`, so what escapes is a
+    RetryError — a class name that says only that we gave up. Recording it
+    would have replaced one useless answer with another."""
+    run_dir = tmp_path / "runs" / "r1"
+    scrape_telemetry._reset_cache()
+    inner = _http_error(403)
+
+    def _f(url):
+        raise inner
+
+    # The real decorator, so the wrapper under test is the one production makes.
+    wrapped = retry(stop=stop_after_attempt(2), wait=wait_none())(_f)
+    monkeypatch.setattr(fetcher, "_download", wrapped)
+    monkeypatch.setattr(fetcher, "render_url", _boom)
+    ps._run_scrape(
+        run_dir, [{"master_row_id": "580"}], {_INST_ID: [_URL]},
+        respect_robots=False, host_delay_seconds=0,
+        render_on_download_failure=False,
+    )
+
+    rec = _failed_telemetry(run_dir)
+    assert rec["http_status"] == 403
+    assert rec["error_class"] == "HTTPError"
+
+
+def test_a_double_failure_names_both_classes(tmp_path, monkeypatch):
+    """Download and render both failed: the render's class is recorded too, so
+    a render-fallback failure is not read as a bare download refusal."""
+    run_dir = tmp_path / "runs" / "r1"
+    scrape_telemetry._reset_cache()
+    monkeypatch.setattr(fetcher, "_download", _download_raising_exc(_http_error(403)))
+
+    def _render_raising(u, timeout, session=None):
+        raise RuntimeError("RENDER-BOOM")
+
+    monkeypatch.setattr(fetcher, "render_url", _render_raising)
+    ps._run_scrape(
+        run_dir, [{"master_row_id": "580"}], {_INST_ID: [_URL]},
+        respect_robots=False, host_delay_seconds=0,
+        render_on_download_failure=True,
+    )
+
+    rec = _failed_telemetry(run_dir)
+    assert rec["http_status"] == 403
+    assert rec["error_class"] == "HTTPError"
+    assert rec["render_error_class"] == "RuntimeError"
+
+
+def test_the_extractors_never_raise_inside_a_failure_handler(tmp_path):
+    """They run on the run's worst path. A None, a bare exception and a
+    response-less error must all come back as answers, not as a second fault."""
+    assert fetcher.http_status_from_exception(None) is None
+    assert fetcher.error_class_of(None) is None
+    assert fetcher.http_status_from_exception(RuntimeError("no response")) is None
+    assert fetcher.error_class_of(RuntimeError("x")) == "RuntimeError"
+
+    # A cause chain: the status is on the exception two links down.
+    outer = RuntimeError("wrapper")
+    outer.__cause__ = _http_error(429)
+    assert fetcher.http_status_from_exception(outer) == 429
+
+    # A self-referential chain must terminate rather than spin.
+    loop = RuntimeError("loop")
+    loop.__cause__ = loop
+    assert fetcher.http_status_from_exception(loop) is None

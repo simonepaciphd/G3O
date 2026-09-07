@@ -1,10 +1,21 @@
 """Institution-level final outcome determination — read-only from disk.
 
-Walks a presweep run and assigns each institution exactly one of four final
+Walks a presweep run and assigns each institution exactly one of five final
 statuses:
 
 - ``EVIDENCE_FOUND``    — reached Stage 6; ``has_genai_activity == "yes"``
-                          with >=1 consolidated activity.
+                          with >=1 consolidated activity, and no technical
+                          failure on the way.
+- ``EVIDENCE_FOUND_PARTIAL``
+                          — the same conclusion, reached over an incomplete
+                          search: >=1 URL for this institution failed to fetch
+                          or parse. The evidence is real; the count is a floor.
+                          Added 2026-08-31, and it is not a new category so much
+                          as the recovery of one that was being discarded — see
+                          the branch comment in
+                          :func:`compute_institution_outcomes`. Measured at
+                          23.8%-33.3% of every run's positives, all of which
+                          previously reported ``PROCESSING_FAILED``.
 - ``NO_EVIDENCE_FOUND`` — the run was configured to reach Stage 6 and this
                           institution was genuinely evaluated that far (or ran
                           out of legitimate upstream input, e.g. zero URLs
@@ -83,8 +94,37 @@ from g3o.persist.writer import load_consolidated_outputs
 # Attrition reasons that represent a genuine technical failure, as opposed to
 # expected/normal filtering (robots_disallowed, empty_page_dropped,
 # page_text_truncated, official_site_unparseable).
+#
+# ``crawl_delay_exceeded`` (issue #96, PI ruling 2026-08-26) is a technical
+# failure by that test and joins the set. Stage 4 gives each institution a
+# wall-clock budget and skips the URLs it cannot reach inside it, so one host
+# declaring ``Crawl-delay: 8640`` can no longer hold the stage open; the ruling
+# was that the skip must be *named*, and this membership is what makes the name
+# mean something. Without it the institution would carry ledger rows saying "we
+# never fetched these" and still report NO_EVIDENCE_FOUND — "could not reach"
+# published as "searched and found nothing", the #17 defect class, made more
+# convincing by the post-#17 tightening of ``none``. The accepted cost, named
+# and ruled on: a larger PROCESSING_FAILED bucket.
+#
+# Note this is deliberately sticky across a resume, exactly as ``scrape_failed``
+# already is. An institution that hits the budget, then reaches every URL on a
+# later pass, keeps its rows (the ledger is append-only and never rewritten) and
+# still reads PROCESSING_FAILED. That errs toward reporting failure, which is
+# the safe direction here, and it is the ledger's existing semantics rather than
+# a new behaviour introduced with this reason.
 _FAILURE_REASONS: frozenset[str] = frozenset(
-    {"serper_request_failed", "scrape_failed", "parse_failed"}
+    {
+        "serper_request_failed",
+        "scrape_failed",
+        "parse_failed",
+        "crawl_delay_exceeded",
+        # Per-host circuit breaker (PI-approved 2026-09-06). A URL skipped
+        # because its host already failed at connect level N times this run
+        # is "could not reach" exactly as a budget expiry is, and for the same
+        # reason it must be a member here: outside this frozenset the skip is
+        # on the ledger and the institution publishes as NO_EVIDENCE_FOUND.
+        "host_unreachable",
+    }
 )
 
 
@@ -161,7 +201,11 @@ def _stage_reached(inst_dir: Path) -> str | None:
 
 def _urls_discovered(inst_dir: Path) -> int:
     total = 0
-    for fname in ("1a_discovery_general.json", "1b_discovery_site_restricted.json"):
+    for fname in (
+        "1a_discovery_general.json",
+        "1b_discovery_site_restricted.json",
+        "1d_discovery_evidence_open.json",
+    ):
         p = inst_dir / fname
         if p.exists():
             payload = json.loads(p.read_text(encoding="utf-8"))
@@ -235,7 +279,48 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
         ) or None
 
         error: str | None = None
-        if failures or validation_status == "failed_to_parse":
+        concluded_positive = (
+            validation_status == "consolidated"
+            and has_genai_activity == "yes"
+            and consolidated_row_count > 0
+        )
+        if failures and concluded_positive:
+            # EVIDENCE_FOUND_PARTIAL, 2026-08-31. Measured on five runs: this
+            # branch is 23.8%–33.3% of every run's positives — 104 of 437 on
+            # ``r20260830T114940Z-32ea``, 439 institutions across the five —
+            # and before it existed all of them reported PROCESSING_FAILED.
+            #
+            # The precedence below (any failure row wins) is right for negatives
+            # and wrong for positives, and the asymmetry is the whole argument.
+            # For a negative it stops "could not reach" being published as
+            # "searched and found nothing" — the #17 defect class. For an
+            # institution that consolidated ``yes`` with N activities it does
+            # the opposite: that institution was, definitionally, reached, and
+            # calling it a processing failure suppresses a positive rather than
+            # guarding against a false negative. One failed URL out of nine was
+            # enough (INST-0703416: one ``download_error``, one consolidated
+            # activity, reported PROCESSING_FAILED).
+            #
+            # ``g3o-api`` already resolved this the other way and has all
+            # along: ``sql/001_aggregates.sql`` computes ``documented`` from
+            # ``yes_count``, not from ``outcome_status``, reasoning that "an
+            # incomplete search does not un-find it". So this is a
+            # reconciliation of the report to the database, not a new policy —
+            # the two repos disagreed and the database was right.
+            #
+            # The partial status is kept distinct from EVIDENCE_FOUND rather
+            # than merged into it because the distinction is real: this
+            # institution's evidence is a floor, not a measurement. Anything
+            # counting positives should count both; anything reasoning about
+            # completeness of search must not.
+            final_status = "EVIDENCE_FOUND_PARTIAL"
+            reason = (
+                f"has_genai_activity=yes with {consolidated_row_count} "
+                f"consolidated activity(ies), but the search was incomplete: "
+                f"{attrition_detail}"
+            )
+            error = attrition_detail
+        elif failures or validation_status == "failed_to_parse":
             final_status = "PROCESSING_FAILED"
             if failures:
                 reason = attrition_detail

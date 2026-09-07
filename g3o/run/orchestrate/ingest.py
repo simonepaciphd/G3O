@@ -95,6 +95,16 @@ INGEST_REPORTS_DIRNAME = "ingest_reports"
 ACTIVITIES_GLOB = "g3o_activities_v*.csv"
 SOURCES_GLOB = "g3o_activity_sources_v*.csv"
 
+#: The third Stage-7 CSV, at the exact path the loader opens. **Not** a glob, and
+#: that asymmetry is the point: ``g3o-api/scripts/ingest.py`` pins
+#: ``_SUMMARY_REL = ("final", "g3o_institution_summary_v1.csv")``, so this is a
+#: literal mirror of a literal in another repo. If the loader's pin ever moves,
+#: this constant and the pin in ``LOADER_PIN`` move in the same commit.
+LOADER_SUMMARY_RELPATH = ("final", "g3o_institution_summary_v1.csv")
+
+#: ``…_v{N}.csv`` — used to check the three Stage-7 CSVs are one consistent set.
+_RE_STAGE7_VERSION = re.compile(r"_v(\d+)\.csv$")
+
 EXIT_OK = 0
 EXIT_STRICT_FAILURE = 1
 EXIT_ABORT = 2
@@ -392,7 +402,29 @@ def redact_dsn(text: str, dsn: str) -> str:
 
 
 def find_stage7_csvs(run_dir: Path) -> tuple[Path, Path]:
-    """The run's activities and sources CSVs, highest ``v{N}`` when several exist."""
+    """The run's activities and sources CSVs, highest ``v{N}`` when several exist.
+
+    Also asserts the third Stage-7 CSV — the institution summary — is present at
+    the version the loader actually reads. That assertion is not decoration; it
+    closes the run's only remaining silent-bad-publish path, and it is here rather
+    than in the loader because here is *before* the transaction opens.
+
+    The loader reads the summary from a **hardcoded** path
+    (``g3o-api/scripts/ingest.py:833``, ``_SUMMARY_REL``), while this module globs
+    ``v*`` for the other two. So ``g3o persist --version 2`` produces a tree where
+    the activities and sources globs both resolve happily and the loader's summary
+    lookup misses. What follows from a miss is the whole problem:
+    ``load_search_verdicts`` prints a warning and **continues** — by its own
+    docstring, deliberately — writing NULL ``search_verdict`` for every
+    institution the run touched, which drops them through to the pre-#17
+    finding-count inference and republishes exactly the defect #17 closed. The
+    refresh then runs inside the same transaction, unconditionally, and cannot be
+    un-published. On run ``r20260824T215623Z-bb4e`` that inference would have
+    turned 717 ``(no, PROCESSING_FAILED)`` institutions into earned negatives.
+
+    Nothing downstream can detect this after the fact, and no human is reading the
+    log on an unattended run. Refusing here is what makes the automation safe.
+    """
     final = run_dir / "final"
     found: list[Path] = []
     for glob in (ACTIVITIES_GLOB, SOURCES_GLOB):
@@ -404,7 +436,59 @@ def find_stage7_csvs(run_dir: Path) -> tuple[Path, Path]:
                 f"there is nothing to load."
             )
         found.append(matches[-1])
+    _assert_loader_readable_summary(run_dir, found[0])
     return found[0], found[1]
+
+
+def _assert_loader_readable_summary(run_dir: Path, activities: Path) -> None:
+    """Refuse unless the summary the loader opens describes *these* findings.
+
+    The invariant is not "a summary exists" but "the summary the loader will read
+    is the same Stage-7 write as the findings this leg is about to hand it". Two
+    distinct refusals, because they need two different fixes:
+
+    * **version skew.** Stage 7 wrote ``v{N}``, N != the loader's pinned version.
+      The tree can be perfectly self-consistent and still unloadable: this leg
+      would pass the loader ``g3o_activities_v2.csv`` while the loader reads
+      ``g3o_institution_summary_v1.csv``, so the verdicts loaded would be a
+      *different run's* — or absent. Re-run Stage 7 at the pinned version; moving
+      the pin instead means editing the loader, which is a re-pin of the droplet
+      checkout and not this leg's call.
+    * **missing.** Stage 7 wrote a partial ``final/``, or never ran. Re-run it.
+    """
+    version = _stage7_version(activities)
+    pinned = _stage7_version(Path(LOADER_SUMMARY_RELPATH[-1]))
+    if version is not None and version != pinned:
+        raise IngestError(
+            f"Stage 7 wrote {activities.name} (v{version}) but the loader reads "
+            f"{'/'.join(LOADER_SUMMARY_RELPATH)} — the path is hardcoded in "
+            f"g3o-api scripts/ingest.py (_SUMMARY_REL). Loading this tree would "
+            f"pair v{version} findings with v{pinned} verdicts, or with none at "
+            f"all: the loader prints a warning for a missing summary and "
+            f"CONTINUES, writing NULL search_verdict for every institution, which "
+            f"publishes them through the pre-#17 finding-count inference inside "
+            f"the same transaction that refreshes the public views. Re-run Stage 7 "
+            f"at v{pinned} (`python -m g3o persist --run-dir {run_dir} "
+            f"--run-id <id> --version {pinned} --overwrite`)."
+        )
+    expected = run_dir.joinpath(*LOADER_SUMMARY_RELPATH)
+    if not expected.is_file():
+        found = sorted(p.name for p in (run_dir / "final").glob("g3o_*_v*.csv"))
+        raise IngestError(
+            f"{expected} is not on disk while {activities.name} is. Stage 7 wrote "
+            f"a partial final/ for this run. The loader reads that file for every "
+            f"sweep's search_verdict and, when it is absent, warns and continues "
+            f"with NULL verdicts — republishing the #17 defect unattended and "
+            f"un-undoably. Re-run Stage 7 (`python -m g3o persist --run-dir "
+            f"{run_dir} --run-id <id> --overwrite`) before loading. "
+            f"final/ holds: {found or 'nothing'}."
+        )
+
+
+def _stage7_version(path: Path) -> int | None:
+    """The ``N`` in ``…_v{N}.csv``, or None when the name does not carry one."""
+    match = _RE_STAGE7_VERSION.search(path.name)
+    return int(match.group(1)) if match else None
 
 
 def master_csv_from_manifest(run_dir: Path) -> Path | None:
@@ -467,6 +551,89 @@ def _count_csv_rows(path: Path) -> int:
 # ---------------------------------------------------------------------------
 
 
+#: Substrings that mark a Neon connection string as going through the pooler.
+#: The loader does no pooled detection of its own — the only mention anywhere is
+#: the missing-``DATABASE_URL`` abort text, which explains that unpooled is
+#: required and then never checks the string it gets.
+POOLED_DSN_MARKERS = ("-pooler", "pgbouncer")
+
+
+def assert_unpooled_dsn(dsn: str) -> None:
+    """Refuse a pooled DSN at the door instead of mid-load.
+
+    ``ingest.py`` runs one long transaction with batched upserts, which a pooler
+    in transaction mode breaks — its own ``.env.example`` says so. But nothing in
+    the loader inspects the string, so a pooled DSN fails partway through a load
+    rather than before one. This is a hostname test, which is the only signal
+    available, and it is cheap.
+    """
+    lowered = dsn.lower()
+    hit = next((m for m in POOLED_DSN_MARKERS if m in lowered), None)
+    if hit is None:
+        return
+    raise IngestError(
+        f"{DSN_ENV_VAR} looks pooled (it contains {hit!r}). The loader runs one "
+        f"long transaction with batched upserts and a pooler in transaction mode "
+        f"breaks that, so this fails partway through a load rather than at the "
+        f"start. Use the UNPOOLED connection string. Nothing was submitted."
+    )
+
+
+def assert_frame_known(dsn: str, frame_id: str) -> dict[str, Any]:
+    """Refuse a ``--frame-id`` that is not already a row in ``g3o.frames``.
+
+    **``--frame-id`` does not validate — it creates.** ``run_contract.ingest_run``
+    calls ``ensure_frame`` unconditionally and ``ensure_frame`` is an
+    ``insert … on conflict (frame_id) do update``, with no format check and no
+    existence check on any path. So ``--frame-id mb-2026-07-3O`` inserts a new
+    frame, loads the whole master under that fabricated vintage, lands the facts
+    against it, and exits ``0``. A typo is not caught anywhere downstream, and
+    ``manifest`` provenance protects no better than ``operator`` does.
+
+    Fails **open on absence of evidence, closed on evidence of absence**: a
+    missing driver or an unreachable database warns and returns a ``"skipped"``
+    verdict, because the loader is about to connect anyway and will report an
+    environment problem better than this can. A successful query that finds no
+    such frame refuses. The verdict is returned so the caller records which
+    happened — "nobody looked" must not read as "the frame was known".
+    """
+    try:
+        import psycopg  # noqa: PLC0415 - optional, droplet-only
+    except ImportError:
+        logger.warning(
+            "FRAME CHECK DID NOT RUN: psycopg is not installed, so this ingest "
+            "cannot confirm %r is an existing frame. A typo would be UPSERTED by "
+            "the loader and the whole master loaded under it, exit 0.", frame_id,
+        )
+        return {"verdict": "skipped", "reason": "psycopg not installed"}
+    try:
+        with psycopg.connect(dsn, connect_timeout=10) as conn, conn.cursor() as cur:
+            cur.execute(
+                "select 1 from g3o.frames where frame_id = %s", (frame_id,)
+            )
+            found = cur.fetchone() is not None
+            cur.execute("select frame_id from g3o.frames order by 1")
+            known = [r[0] for r in cur.fetchall()]
+    except Exception as exc:  # noqa: BLE001 - any driver/DB error fails open
+        logger.warning(
+            "FRAME CHECK DID NOT RUN: could not query g3o.frames (%s: %s). This is "
+            "not a refusal, but the frame was not confirmed either.",
+            type(exc).__name__, exc,
+        )
+        return {"verdict": "skipped", "reason": f"{type(exc).__name__}: {exc}"}
+
+    if found:
+        return {"verdict": "known", "frame_id": frame_id}
+
+    raise IngestError(
+        f"unknown frame {frame_id!r}. It is not a row in g3o.frames, and the "
+        f"loader would not refuse it — ensure_frame is an upsert, so this would "
+        f"CREATE the frame, load the entire master under that vintage, and exit 0. "
+        f"Frames that do exist: {', '.join(known) or '(none)'}. Nothing was "
+        f"submitted."
+    )
+
+
 def ingest_run(
     runs_dir: Path,
     run_id: str,
@@ -520,6 +687,8 @@ def ingest_run(
             f"passed on the command line, where it would land in `ps` and in the "
             f"shell history along with the database password."
         )
+    assert_unpooled_dsn(resolved_dsn)
+    frame_check = assert_frame_known(resolved_dsn, frame_id)
 
     master = master_csv or master_csv_from_manifest(run_dir)
     if master is None:
@@ -587,6 +756,7 @@ def ingest_run(
         started_at=started_at,
         forced=force,
         frame_id=frame_id,
+        frame_check=frame_check,
         **result.to_dict(),
     )
     return result
@@ -641,6 +811,7 @@ def render_ingest(result: IngestResult) -> str:
 
 __all__ = [
     "ACTIVITIES_GLOB",
+    "LOADER_SUMMARY_RELPATH",
     "DSN_ENV_VAR",
     "EXIT_ABORT",
     "EXIT_OK",
@@ -650,6 +821,8 @@ __all__ = [
     "IngestCounts",
     "IngestError",
     "IngestResult",
+    "assert_frame_known",
+    "assert_unpooled_dsn",
     "build_argv",
     "describe_dsn",
     "find_stage7_csvs",

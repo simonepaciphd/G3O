@@ -35,8 +35,17 @@ _STAGE_ORDER: tuple[str, ...] = (
     "validate",
 )
 
+#: Every status ``compute_institution_outcomes`` can emit. A status missing from
+#: this tuple is silently dropped from ``final_status_counts`` (the counter is
+#: pre-seeded from it and ``if status in final_status_counts`` gates the
+#: increment), so the counts would no longer sum to ``n_institutions`` — which is
+#: an identity the e2e check asserts. Add here and there together.
 _FINAL_STATUSES: tuple[str, ...] = (
     "EVIDENCE_FOUND",
+    # 2026-08-31. Consolidated `yes` with >=1 activity, but at least one
+    # technical failure row: the evidence is real and the search was incomplete.
+    # 23.8%-33.3% of every measured run's positives. See g3o.report.outcomes.
+    "EVIDENCE_FOUND_PARTIAL",
     "NO_EVIDENCE_FOUND",
     "PROCESSING_FAILED",
     "RUN_TRUNCATED",

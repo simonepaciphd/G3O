@@ -320,6 +320,11 @@ def test_stage_4_scrape(fixture_run: Path) -> None:
     assert s["n_pages_scraped"] == 14
     assert s["n_robots_disallowed"] == 1
     assert s["n_scrape_failed"] == 1
+    # Issue #96: the third Stage 4 drop class is named alongside the other two
+    # rather than left to top_drop_reasons. The fixture run has none, and zero
+    # is the informative answer here — a missing key would read the same as a
+    # run that never reached the budget-aware code.
+    assert s["n_crawl_delay_exceeded"] == 0
     assert s["n_institutions_with_pages"] == 7
 
 

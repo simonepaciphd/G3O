@@ -567,3 +567,124 @@ def test_render_session_lazy_no_launch_without_render(
         pass  # no render_url call → Chromium must never launch
 
     assert chromium.launch_count == 0
+
+
+# ---------------------------------------------------------------------------
+# RenderSession recycling — bounds per-worker Chromium growth (2026-08-25)
+#
+# Regression cover for the OOM that killed run r20260824T215623Z-bb4e 69 minutes
+# into Stage 4: one browser per worker thread, held for the whole stage, grew
+# 4.2% -> 90.7% of a 7.9 GB box over 439 renders.
+# ---------------------------------------------------------------------------
+
+
+class _RecyclingStubChromium:
+    """Mints a NEW browser+context per launch, so relaunches are observable."""
+
+    def __init__(self) -> None:
+        self.launch_count = 0
+        self.browsers: list[_SessionStubBrowser] = []
+
+    def launch(self, **_kwargs):
+        self.launch_count += 1
+        browser = _SessionStubBrowser(_SessionStubContext())
+        self.browsers.append(browser)
+        return browser
+
+
+def _build_recycling_stub():
+    chromium = _RecyclingStubChromium()
+    pw = _SessionStubPlaywright(chromium)
+
+    def factory():
+        return _SessionStarter(pw)
+
+    return factory, pw, chromium
+
+
+def test_render_session_recycles_browser_after_cap(monkeypatch: pytest.MonkeyPatch):
+    """Every ``recycle_after`` renders, the browser is torn down and relaunched."""
+    factory, _pw, chromium = _build_recycling_stub()
+    monkeypatch.setattr(render, "_import_sync_playwright", lambda: factory)
+
+    from g3o.scrape.render import RenderSession, render_url
+
+    with RenderSession(recycle_after=3) as session:
+        for i in range(7):
+            render_url(f"https://{i}.gov/", session=session)
+        # 7 renders at a cap of 3 -> launches on renders 1, 4 and 7.
+        assert chromium.launch_count == 3
+        # The first two browsers were closed; the live one is not.
+        assert [b.closed for b in chromium.browsers] == [True, True, False]
+
+    # Session teardown closes the last one too.
+    assert all(b.closed for b in chromium.browsers)
+
+
+def test_render_session_recycle_disabled_holds_one_browser(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """``recycle_after=0`` restores the previous hold-for-the-whole-stage behavior."""
+    factory, _pw, chromium = _build_recycling_stub()
+    monkeypatch.setattr(render, "_import_sync_playwright", lambda: factory)
+
+    from g3o.scrape.render import RenderSession, render_url
+
+    with RenderSession(recycle_after=0) as session:
+        for i in range(10):
+            render_url(f"https://{i}.gov/", session=session)
+        assert chromium.launch_count == 1
+
+
+def test_render_session_recycle_defaults_to_config(monkeypatch: pytest.MonkeyPatch):
+    """An unset ``recycle_after`` reads the configured cap, per instance."""
+    from g3o.common import config
+    from g3o.scrape.render import RenderSession
+
+    monkeypatch.setattr(config, "RENDER_RECYCLE_AFTER", 11)
+    assert RenderSession()._recycle_after == 11
+    # Explicit argument still wins.
+    assert RenderSession(recycle_after=4)._recycle_after == 4
+
+
+def test_render_session_recycle_survives_a_failing_teardown(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A browser that raises on close must not abort the scrape.
+
+    This is the case recycling exists for: a browser already dead or wedged is
+    exactly the one that must be replaced, and its close() is the most likely to
+    raise.
+    """
+    factory, _pw, chromium = _build_recycling_stub()
+    monkeypatch.setattr(render, "_import_sync_playwright", lambda: factory)
+
+    from g3o.scrape.render import RenderSession, render_url
+
+    with RenderSession(recycle_after=2) as session:
+        render_url("https://a.gov/", session=session)
+        render_url("https://b.gov/", session=session)
+
+        def _boom() -> None:
+            raise RuntimeError("browser already gone")
+
+        chromium.browsers[0].close = _boom
+
+        # The recycle fires here and must not propagate.
+        page = render_url("https://c.gov/", session=session)
+
+    assert page.content_type == "render"
+    assert chromium.launch_count == 2
+
+
+def test_render_session_still_lazy_with_recycling(monkeypatch: pytest.MonkeyPatch):
+    """Recycling must not defeat the lazy launch: no render, no Chromium."""
+    factory, _pw, chromium = _build_recycling_stub()
+    monkeypatch.setattr(render, "_import_sync_playwright", lambda: factory)
+
+    from g3o.scrape.render import RenderSession
+
+    with RenderSession(recycle_after=1):
+        pass
+
+    assert chromium.launch_count == 0

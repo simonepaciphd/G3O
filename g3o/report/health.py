@@ -28,7 +28,7 @@ from g3o.common.paths import (
     iter_institution_dirs,
     require_layout,
 )
-from g3o.report.filter_eligibility import compute_filter_block
+from g3o.report.filter_eligibility import compute_filter_block, record_languages
 from g3o.report.thresholds import HealthThresholds
 
 # Flag literals: green = within normal bounds, warn = below warn threshold,
@@ -136,9 +136,8 @@ def _merge_url_langs(
 ) -> None:
     for r in records:
         url = r.get("link")
-        lang = r.get("language")
-        if url and lang:
-            into.setdefault(url, set()).add(lang)
+        if url:
+            into.setdefault(url, set()).update(record_languages(r))
 
 
 def _collect_institution(
@@ -147,9 +146,10 @@ def _collect_institution(
     """Read disk artifacts for one institution; return a metrics dict.
 
     ``language``, when given, restricts URL-keyed stages (1a, 1b, 3, 4, 5) to
-    URLs discovered by a query tagged with that language (the ``language``
-    field ``g3o.discovery.query_builder.build_queries`` attaches to every 1a/1b
-    record). Stage 2 (official-site) and Stage 6 (has_genai_activity) are
+    URLs discovered by a query tagged with that language — *any* such query, not
+    only the one that won dedup. See
+    :func:`g3o.report.filter_eligibility.record_languages` for the ``found_by``
+    set, and ``g3o.discovery.query_builder.build_queries`` for the tag itself. Stage 2 (official-site) and Stage 6 (has_genai_activity) are
     single per-institution decisions made over the *pooled* candidate/evidence
     set, not per-language — restricting only narrows *eligibility* for those
     stages to institutions this language actually contributed URLs for; see
@@ -173,7 +173,7 @@ def _collect_institution(
         d["n_urls_1a"] = (
             len(records_1a)
             if language is None
-            else sum(1 for r in records_1a if r.get("language") == language)
+            else sum(1 for r in records_1a if language in record_languages(r))
         )
         # Two-query chain (2026-08-01). Under ``mode="chain"`` Stage 1a is
         # domain discovery, so "did Serper return >=1 URL" is trivially true
@@ -229,13 +229,30 @@ def _collect_institution(
         d["n_urls_1b"] = (
             len(records_1b)
             if language is None
-            else sum(1 for r in records_1b if r.get("language") == language)
+            else sum(1 for r in records_1b if language in record_languages(r))
         )
     else:
         d["has_1b"] = False
         d["n_urls_1b"] = 0
 
-    # Stage 3 — decisions are per-URL; attribute via the 1a/1b language map.
+    # Stage 1d — the open evidence leg (2026-09-03). Absent on every run that
+    # predates it or ran without it; present for every institution when it ran.
+    p = inst_dir / "1d_discovery_evidence_open.json"
+    if p.exists():
+        payload = json.loads(p.read_text(encoding="utf-8"))
+        records_1d = payload.get("records", [])
+        _merge_url_langs(url_langs, records_1d)
+        d["has_1d"] = True
+        d["n_urls_1d"] = (
+            len(records_1d)
+            if language is None
+            else sum(1 for r in records_1d if language in record_languages(r))
+        )
+    else:
+        d["has_1d"] = False
+        d["n_urls_1d"] = 0
+
+    # Stage 3 — decisions are per-URL; attribute via the 1a/1b/1d language map.
     p = inst_dir / "3_triage.json"
     if p.exists():
         payload = json.loads(p.read_text(encoding="utf-8"))
@@ -562,9 +579,36 @@ def compute_health_report(
         ),
     }
 
+    # ── Stage 1d — the open evidence leg (2026-09-03) ─────────────────────────
+    # Every institution is eligible: the leg is not conditioned on Stage 2.
+    # Informational — no threshold, no flag beyond ran / not_run — because the
+    # leg's value was measured at the *institution-positive* level (card 3), and
+    # a URL-count gauge here would say nothing about that.
+    n_1d_with_urls = sum(1 for d in inst_data if d["n_urls_1d"] > 0)
+    total_urls_1d = sum(d["n_urls_1d"] for d in inst_data)
+    stage1d_ran = any(d["has_1d"] for d in inst_data)
+    stage_1d: dict[str, Any] = {
+        "n_institutions_in": n_institutions if stage1d_ran else 0,
+        "n_institutions_with_urls": n_1d_with_urls,
+        "pct_institutions_with_urls": (
+            _pct(n_1d_with_urls, n_institutions) if stage1d_ran else None
+        ),
+        "total_candidate_urls": total_urls_1d,
+        "mean_urls_per_institution": (
+            round(total_urls_1d / n_institutions, 2)
+            if stage1d_ran and n_institutions
+            else None
+        ),
+        "n_serper_failed": att.get(("discovery_evidence_open", "serper_request_failed"), 0),
+        "top_drop_reasons": _top_reasons(att, "discovery_evidence_open"),
+        "flag": "ok" if stage1d_ran else "not_run",
+    }
+
     # ── Stage 3 ───────────────────────────────────────────────────────────────
     n_3_eligible = sum(
-        1 for d in inst_data if d["n_urls_1a"] > 0 or d["n_urls_1b"] > 0
+        1
+        for d in inst_data
+        if d["n_urls_1a"] > 0 or d["n_urls_1b"] > 0 or d["n_urls_1d"] > 0
     )
     n_institutions_with_kept = sum(1 for d in inst_data if d["n_urls_kept"] > 0)
     total_urls_triaged = sum(d["n_urls_triaged"] for d in inst_data)
@@ -622,6 +666,13 @@ def compute_health_report(
         "n_pages_scraped": n_scraped,
         "n_robots_disallowed": _att_count("scrape", "robots_disallowed"),
         "n_scrape_failed": _att_count("scrape", "scrape_failed"),
+        # Issue #96. Counted on its own rather than left to top_drop_reasons:
+        # the other two Stage 4 drop classes are named here, and a budget expiry
+        # is the one that silently shrinks coverage without any URL failing.
+        "n_crawl_delay_exceeded": _att_count("scrape", "crawl_delay_exceeded"),
+        # Circuit breaker (2026-09-06): the fourth Stage 4 drop class, and like
+        # the budget it shrinks coverage without the skipped URL ever failing.
+        "n_host_unreachable": _att_count("scrape", "host_unreachable"),
         "pct_scrape_success": pct_scrape,
         "n_institutions_with_pages": n_institutions_with_pages,
         "top_drop_reasons": _top_reasons(att, "scrape"),
@@ -726,6 +777,7 @@ def compute_health_report(
         "1a_discovery_general": stage_1a,
         "2_classify_official_site": stage_2,
         "1b_discovery_site_restricted": stage_1b,
+        "1d_discovery_evidence_open": stage_1d,
         "3_classify_triage": stage_3,
         "4_scrape": stage_4,
         "5_extract": stage_5,
@@ -791,7 +843,11 @@ def detect_languages(run_dir: str | Path) -> list[str]:
     require_layout(run_dir)
     langs: set[str] = set()
     for inst_dir in iter_institution_dirs(run_dir):
-        for fname in ("1a_discovery_general.json", "1b_discovery_site_restricted.json"):
+        for fname in (
+            "1a_discovery_general.json",
+            "1b_discovery_site_restricted.json",
+            "1d_discovery_evidence_open.json",
+        ):
             p = inst_dir / fname
             if not p.exists():
                 continue

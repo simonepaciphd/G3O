@@ -107,31 +107,34 @@ class IntegrityError(Exception):
 # ---------------------------------------------------------------------------
 
 
-def _load_csv(path: Path) -> list[dict[str, str]]:
+def _load_csv(path: Path, required_columns: list[str]) -> list[dict[str, str]]:
     """Load CSV as list of dicts. Raises if file doesn't exist."""
     if not path.exists():
         raise FileNotFoundError(f"CSV not found: {path}")
     with path.open(encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
+        missing = set(required_columns) - set(reader.fieldnames or [])
+        if missing:
+            raise ValueError(f"{path.name} CSV missing required columns: {sorted(missing)}")
         return list(reader)
 
 
 def _load_activities_csv(run_dir: Path, version: int = 1) -> list[dict[str, str]]:
     """Load g3o_activities_v{N}.csv."""
     path = run_dir / "final" / f"g3o_activities_v{version}.csv"
-    return _load_csv(path)
+    return _load_csv(path, ACTIVITY_COLUMNS)
 
 
 def _load_sources_csv(run_dir: Path, version: int = 1) -> list[dict[str, str]]:
     """Load g3o_activity_sources_v{N}.csv."""
     path = run_dir / "final" / f"g3o_activity_sources_v{version}.csv"
-    return _load_csv(path)
+    return _load_csv(path, ACTIVITY_SOURCE_COLUMNS)
 
 
 def _load_summary_csv(run_dir: Path, version: int = 1) -> list[dict[str, str]]:
     """Load g3o_institution_summary_v{N}.csv."""
     path = run_dir / "final" / f"g3o_institution_summary_v{version}.csv"
-    return _load_csv(path)
+    return _load_csv(path, SUMMARY_COLUMNS)
 
 
 # ---------------------------------------------------------------------------
@@ -563,32 +566,6 @@ def validate_run_csvs(
     if len(summary) == 0:
         warnings.append("summary CSV is empty (0 rows)")
 
-    # Validate CSV schema (ensure expected columns exist)
-    if activities and len(activities) > 0:
-        actual_cols = set(activities[0].keys())
-        expected_cols = set(ACTIVITY_COLUMNS)
-        missing = expected_cols - actual_cols
-        if missing:
-            raise ValueError(
-                f"activities CSV missing required columns: {sorted(missing)}"
-            )
-    if sources and len(sources) > 0:
-        actual_cols = set(sources[0].keys())
-        expected_cols = set(ACTIVITY_SOURCE_COLUMNS)
-        missing = expected_cols - actual_cols
-        if missing:
-            raise ValueError(
-                f"sources CSV missing required columns: {sorted(missing)}"
-            )
-    if summary and len(summary) > 0:
-        actual_cols = set(summary[0].keys())
-        expected_cols = set(SUMMARY_COLUMNS)
-        missing = expected_cols - actual_cols
-        if missing:
-            raise ValueError(
-                f"summary CSV missing required columns: {sorted(missing)}"
-            )
-
     # Validate hard constraints
     violations: list[FKViolation] = []
     violations.extend(_validate_source_activity_link(activities, sources))
@@ -600,7 +577,7 @@ def validate_run_csvs(
     # Phase 2: Institution metadata consistency
     if check_metadata:
         violations.extend(_validate_institution_metadata(run_dir))
-        violations.extend(_validate_institution_id_uniqueness(summary))
+    violations.extend(_validate_institution_id_uniqueness(summary))
 
     # Validate soft constraints (warnings)
     warnings.extend(

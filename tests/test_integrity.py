@@ -13,6 +13,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from g3o.common.contract import NA, ConsolidatedInstitutionResponse
 from g3o.persist import write_run_csvs
 from g3o.persist.integrity import (
@@ -253,8 +255,9 @@ def test_activity_without_sources_detected(tmp_path: Path) -> None:
     # Remove all sources for A1
     sources_csv = run_dir / "final" / "g3o_activity_sources_v1.csv"
     rows = list(csv.DictReader(sources_csv.open(encoding="utf-8")))
+    columns = list(rows[0])
     rows = [r for r in rows if r["activity_id"] != "A1"]
-    _write_csv(sources_csv, list(rows[0].keys()) if rows else [], rows)
+    _write_csv(sources_csv, columns, rows)
 
     report = validate_run_csvs(run_dir, version=1)
 
@@ -290,8 +293,9 @@ def test_institution_without_summary_detected(tmp_path: Path) -> None:
     # Remove INST-0001 from summary
     summary_csv = run_dir / "final" / "g3o_institution_summary_v1.csv"
     rows = list(csv.DictReader(summary_csv.open(encoding="utf-8")))
+    columns = list(rows[0])
     rows = [r for r in rows if r["institution_id"] != "INST-0001"]
-    _write_csv(summary_csv, list(rows[0].keys()) if rows else [], rows)
+    _write_csv(summary_csv, columns, rows)
 
     report = validate_run_csvs(run_dir, version=1)
 
@@ -599,3 +603,24 @@ def test_write_run_csvs_skip_integrity_check(tmp_path: Path) -> None:
 
     assert "integrity" in result
     assert result["integrity"] is None
+
+
+@pytest.mark.parametrize("name", ["activities", "activity_sources", "institution_summary"])
+def test_empty_file_cannot_bypass_csv_header_validation(tmp_path: Path, name: str) -> None:
+    run_dir = _stage_run_dir(tmp_path, {"INST-0002": _no_response()})
+    write_run_csvs(run_dir, run_id="R1", run_model="gpt-5-nano")
+    (run_dir / "final" / f"g3o_{name}_v1.csv").write_text("", encoding="utf-8")
+    with pytest.raises(ValueError, match="missing required columns"):
+        validate_run_csvs(run_dir, check_metadata=False)
+
+
+def test_duplicate_summary_is_checked_without_metadata(tmp_path: Path) -> None:
+    run_dir = _stage_run_dir(tmp_path, {"INST-0001": _yes_response()})
+    write_run_csvs(run_dir, run_id="R1", run_model="gpt-5-nano")
+    path = run_dir / "final" / "g3o_institution_summary_v1.csv"
+    with path.open(encoding="utf-8", newline="") as source:
+        rows = list(csv.DictReader(source))
+    _write_csv(path, list(rows[0]), rows + rows)
+    report = validate_run_csvs(run_dir, check_metadata=False)
+    assert not report.is_valid
+    assert any(v.constraint == "institution_id_uniqueness" for v in report.violations)
