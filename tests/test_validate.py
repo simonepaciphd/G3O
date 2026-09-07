@@ -417,15 +417,27 @@ def test_load_extract_outputs_missing_dir_returns_empty(tmp_path: Path) -> None:
     assert n_pages == 0
 
 
-def test_load_extract_outputs_validates_batch_response(tmp_path: Path) -> None:
+def test_load_extract_outputs_quarantines_malformed_artifact(tmp_path: Path) -> None:
+    """Malformed extract artifacts are quarantined; valid ones still load."""
     institution_dir = inst_dir_of(tmp_path, "INST-0001")
     extract_dir = institution_dir / "extract"
     extract_dir.mkdir(parents=True)
+    # Write one valid and one malformed artifact
+    valid_rows = [_stage5_row(row_id=1, batch_id="page-valid", source_url="https://ok.gov/")]
+    (extract_dir / "good.json").write_text(
+        json.dumps(_stage5_batch_response(valid_rows)), encoding="utf-8"
+    )
     (extract_dir / "bad.json").write_text(
         json.dumps({"batch_metadata": {}, "data": []}), encoding="utf-8"
     )
-    with pytest.raises(ValidationError):
-        load_extract_outputs(institution_dir)
+    rows, n_pages = load_extract_outputs(institution_dir)
+    # Valid artifact loaded; malformed one quarantined
+    assert n_pages == 1
+    assert len(rows) == 1
+    assert rows[0].source_url == "https://ok.gov/"
+    # Malformed artifact was quarantined (renamed to .json.corrupt)
+    assert not (extract_dir / "bad.json").exists()
+    assert (extract_dir / "bad.json.corrupt").exists()
 
 
 def test_write_consolidated_output_writes_canonical_path(tmp_path: Path) -> None:

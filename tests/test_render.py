@@ -688,3 +688,56 @@ def test_render_session_still_lazy_with_recycling(monkeypatch: pytest.MonkeyPatc
         pass
 
     assert chromium.launch_count == 0
+
+# ---------------------------------------------------------------------------
+# Non-session render egress proxy + _context_obj leak fix
+# ---------------------------------------------------------------------------
+
+
+def test_render_non_session_uses_egress_proxy(monkeypatch: pytest.MonkeyPatch):
+    """Standalone render_url must apply the egress proxy, not go direct."""
+    from g3o.scrape import egress
+
+    factory, _page, _browser, chromium = _build_stub()
+    monkeypatch.setattr(render, "_import_sync_playwright", lambda: factory)
+    # Stub the egress proxy to return a known value
+    monkeypatch.setattr(egress, "playwright_proxy", lambda: {"server": "http://proxy.test:8080"})
+
+    result = render_url("https://example.com/")  # no session -> non-session path
+    assert result.content_type == "render"
+    # The proxy was passed to chromium.launch
+    assert len(chromium.launch_kwargs) == 1
+    assert chromium.launch_kwargs[0].get("proxy") == {"server": "http://proxy.test:8080"}
+
+
+def test_render_session_context_obj_no_leak_on_launch_failure(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Failed chromium.launch must not leak the playwright instance."""
+    factory, pw, _browser, _context, chromium = _build_session_stub()
+
+    # Make launch fail on first call, succeed on second
+    original_launch = chromium.launch
+    call_count = [0]
+
+    def flaky_launch(**kwargs):
+        call_count[0] += 1
+        if call_count[0] == 1:
+            raise RuntimeError("browser binary not found")
+        return original_launch(**kwargs)
+
+    chromium.launch = flaky_launch
+    monkeypatch.setattr(render, "_import_sync_playwright", lambda: factory)
+
+    from g3o.scrape.render import RenderSession
+
+    session = RenderSession()
+    # First call fails; playwright instance should be cleaned up
+    with pytest.raises(RuntimeError, match="browser binary not found"):
+        session._context_obj()
+    # The playwright instance was stopped (cleaned up)
+    assert pw.stopped is True
+    # Second call succeeds (new playwright instance)
+    ctx = session._context_obj()
+    assert ctx is not None
+    session.close()

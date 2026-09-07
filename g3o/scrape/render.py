@@ -160,20 +160,31 @@ class RenderSession:
     def _context_obj(self) -> object:
         if self._context is None:
             sync_playwright = _import_sync_playwright()
-            self._pw = sync_playwright().start()
-            # Egress (#90): the render is the third of Stage 4's three egress
-            # points and has to leave from the same place as the other two — a
-            # render that goes out direct would recover exactly the pages the
-            # proxy exists to recover, from the identity that was blocked.
-            # ``launch_kwargs`` rather than a literal ``proxy=None``: playwright
-            # treats the key's presence as configuration, and passing None on
-            # every direct launch would change the historical call.
-            launch_kwargs: dict[str, object] = {"headless": True}
-            proxy = egress.playwright_proxy()
-            if proxy:
-                launch_kwargs["proxy"] = proxy
-            self._browser = self._pw.chromium.launch(**launch_kwargs)
-            self._context = self._browser.new_context()
+            pw = sync_playwright().start()
+            try:
+                # Egress (#90): the render is the third of Stage 4's three egress
+                # points and has to leave from the same place as the other two — a
+                # render that goes out direct would recover exactly the pages the
+                # proxy exists to recover, from the identity that was blocked.
+                # ``launch_kwargs`` rather than a literal ``proxy=None``: playwright
+                # treats the key's presence as configuration, and passing None on
+                # every direct launch would change the historical call.
+                launch_kwargs: dict[str, object] = {"headless": True}
+                proxy = egress.playwright_proxy()
+                if proxy:
+                    launch_kwargs["proxy"] = proxy
+                browser = pw.chromium.launch(**launch_kwargs)
+            except Exception:
+                # Launch failed — clean up the playwright instance so it doesn't
+                # leak. The next call to _context_obj will retry from scratch.
+                try:
+                    pw.stop()
+                except Exception:
+                    pass
+                raise
+            self._pw = pw
+            self._browser = browser
+            self._context = browser.new_context()
         return self._context
 
     def new_page(self) -> object:
@@ -260,7 +271,16 @@ def render_url(
     else:
         sync_playwright = _import_sync_playwright()
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            # Egress (#90): the standalone render must leave from the same
+            # place as the session render and the other two Stage 4 egress
+            # points (page fetch, robots.txt). A render that goes out direct
+            # would recover exactly the pages the proxy exists to recover,
+            # from the identity that was blocked.
+            launch_kwargs: dict[str, object] = {"headless": True}
+            proxy = egress.playwright_proxy()
+            if proxy:
+                launch_kwargs["proxy"] = proxy
+            browser = p.chromium.launch(**launch_kwargs)
             try:
                 context = browser.new_context()
                 page = context.new_page()

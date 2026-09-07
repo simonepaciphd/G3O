@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition
-from g3o.common.artifact_io import glob_artifacts, read_artifact
+from g3o.common.artifact_io import glob_artifacts, quarantine_artifact, read_artifact
 from g3o.common.batch_client import (
     DEFAULT_COMPLETION_WINDOW,
     DEFAULT_ENDPOINT,
@@ -228,6 +228,10 @@ def load_extract_outputs(inst_dir: Path) -> tuple[list[ContractRow], int]:
     resolves both and orders by url-hash stem, so row order does not depend on
     which files happen to be compressed.
 
+    Malformed artifacts (contract version drift, disk corruption, Stage 5 bugs)
+    are quarantined and logged; the institution's consolidation proceeds with
+    valid artifacts.
+
     Returns:
         (rows, n_pages) where ``rows`` is the concatenated list and
         ``n_pages`` is the count of extract artifacts that produced rows.
@@ -235,8 +239,18 @@ def load_extract_outputs(inst_dir: Path) -> tuple[list[ContractRow], int]:
     rows: list[ContractRow] = []
     n_pages = 0
     for path in glob_artifacts(inst_dir / "extract"):
-        payload = json.loads(read_artifact(path))
-        response = BatchResponse.model_validate(payload)
+        try:
+            payload = json.loads(read_artifact(path))
+            response = BatchResponse.model_validate(payload)
+        except (json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
+            logger.warning(
+                "Stage 6: malformed extract artifact %s; quarantining and "
+                "continuing with remaining artifacts. Error: %s",
+                path,
+                exc,
+            )
+            quarantine_artifact(path)
+            continue
         if not response.data:
             continue
         rows.extend(response.data)

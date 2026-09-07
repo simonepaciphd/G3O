@@ -725,31 +725,54 @@ def find_batches_by_metadata(
     *,
     client: OpenAI | None = None,
     limit: int = 100,
-    max_pages: int = 5,
+    max_pages: int = 20,
+    min_created_at: datetime | None = None,
 ) -> list[BatchStatus]:
     """List recent batches and return those whose metadata matches exactly.
 
     A batch matches when every key/value pair in ``metadata`` equals the
     batch's metadata (string comparison — the API stores metadata values as
     strings). Pagination is bounded at ``max_pages`` pages of ``limit``
-    batches, newest first; pipeline reconciliation only ever looks for
-    batches submitted within the current run's lifetime, so a bounded recent
-    window is sufficient.
+    batches, newest first; default window is 2000 batches. If
+    ``min_created_at`` is provided, pagination stops when batches older than
+    that timestamp are reached.
+
+    Logs a warning if pagination exhausts without finding any match, which
+    may indicate the target batch is outside the search window.
     """
     cli = client or _default_client()
     wanted = {str(k): str(v) for k, v in metadata.items()}
     matches: list[BatchStatus] = []
     after: str | None = None
+    pages_searched = 0
     for _ in range(max_pages):
+        pages_searched += 1
         page = _list_batches_page(cli, limit=limit, after=after)
         data = list(getattr(page, "data", None) or [])
         for batch in data:
             md = getattr(batch, "metadata", None) or {}
             if all(md.get(k) == v for k, v in wanted.items()):
                 matches.append(_coerce_batch_status(batch))
+            # Check if we've gone past the time window
+            if min_created_at is not None:
+                batch_ts = getattr(batch, "created_at", None)
+                # OpenAI returns created_at as Unix timestamp (int)
+                if batch_ts is not None:
+                    batch_dt = datetime.fromtimestamp(batch_ts, tz=timezone.utc)
+                    if batch_dt < min_created_at:
+                        return matches
         if not data or not getattr(page, "has_more", False):
             break
         after = data[-1].id
+    if not matches:
+        logger.warning(
+            "find_batches_by_metadata searched %d pages (%d batches) without "
+            "finding a match for metadata=%s. The target batch may be outside "
+            "the search window.",
+            pages_searched,
+            pages_searched * limit,
+            metadata,
+        )
     return matches
 
 
