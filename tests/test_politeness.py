@@ -272,3 +272,89 @@ def test_throttle_default_delay_is_one_second_D4():
     th.wait("https://x.gov/a")  # t=0, no sleep
     th.wait("https://x.gov/b")  # elapsed 0 -> sleep the full 1.0s
     assert clock.slept == [1.0]
+
+
+# ---------------------------------------------------------------------------
+# HostThrottle — max_wait ceiling (issue #96)
+# ---------------------------------------------------------------------------
+
+
+def _instrumented_throttle(delay: float = 1.0):
+    """A throttle on a fake clock that advances only when it sleeps."""
+    clock = [0.0]
+    slept: list[float] = []
+
+    def _sleep(seconds: float) -> None:
+        slept.append(seconds)
+        clock[0] += seconds
+
+    return (
+        HostThrottle(delay, sleep=_sleep, monotonic=lambda: clock[0]),
+        clock,
+        slept,
+    )
+
+
+def test_throttle_now_reads_the_injected_clock():
+    # The budget in Stage 4 is measured on this, so it has to be the same clock
+    # the waits are computed against — not time.monotonic.
+    t, clock, _ = _instrumented_throttle()
+    assert t.now() == 0.0
+    clock[0] = 41.5
+    assert t.now() == 41.5
+
+
+def test_throttle_first_request_to_a_host_never_waits_whatever_the_ceiling():
+    # Nothing has been fetched from this host, so there is no courtesy debt to
+    # pay and max_wait has nothing to refuse. This is why the host that
+    # motivated #96 still costs exactly one fetch rather than zero.
+    t, _, slept = _instrumented_throttle()
+    assert t.wait("https://x.gov/a", extra_delay=8640.0, max_wait=0.0) is True
+    assert slept == []
+
+
+def test_throttle_refuses_a_wait_that_exceeds_max_wait_without_sleeping():
+    # The riigikohus.ee case: Crawl-delay 8640 against a 3600 s budget.
+    t, _, slept = _instrumented_throttle()
+    assert t.wait("https://x.gov/a", extra_delay=8640.0) is True
+    assert t.wait("https://x.gov/b", extra_delay=8640.0, max_wait=3600.0) is False
+    assert slept == []  # refused *before* the sleep, not after it
+
+
+def test_throttle_takes_a_wait_that_fits_under_max_wait():
+    t, _, slept = _instrumented_throttle()
+    assert t.wait("https://x.gov/a", extra_delay=120.0) is True
+    assert t.wait("https://x.gov/b", extra_delay=120.0, max_wait=3600.0) is True
+    assert slept == [120.0]
+
+
+def test_throttle_refusal_leaves_the_host_stamp_untouched():
+    """No request was made, so the host's courtesy clock must not advance.
+
+    Otherwise a refusal would silently buy the *next* caller a shorter wait
+    than the site asked for — a partial reversal of D4 through the back door,
+    which is exactly what the chosen fix avoids.
+    """
+    t, clock, slept = _instrumented_throttle()
+    assert t.wait("https://x.gov/a", extra_delay=100.0) is True  # stamp = 0.0
+    clock[0] = 10.0
+    assert t.wait("https://x.gov/b", extra_delay=100.0, max_wait=5.0) is False
+    # Had the refusal re-stamped at t=10, this call would still owe 10 s.
+    clock[0] = 100.0
+    assert t.wait("https://x.gov/c", extra_delay=100.0) is True
+    assert slept == []
+
+
+def test_throttle_without_max_wait_is_unbounded():
+    # Every pre-#96 caller: no ceiling, always proceeds, sleeps the full delay.
+    t, _, slept = _instrumented_throttle()
+    assert t.wait("https://x.gov/a", extra_delay=8640.0) is True
+    assert t.wait("https://x.gov/b", extra_delay=8640.0) is True
+    assert slept == [8640.0]
+
+
+def test_throttle_zero_delay_is_still_a_no_op_under_a_ceiling():
+    t, _, slept = _instrumented_throttle(delay=0.0)
+    assert t.wait("https://x.gov/a", max_wait=0.0) is True
+    assert t.wait("https://x.gov/b", max_wait=0.0) is True
+    assert slept == []

@@ -403,3 +403,84 @@ def test_tars_hold_what_the_ledger_says_they_hold(finished_run: tuple[Path, str]
         with tarfile.open(run_dir / relpath, mode="r:") as tar:
             actual = {m.name for m in tar if m.isfile()}
         assert actual == names
+
+
+# ---------------------------------------------------------------------------
+# The destination is proved reachable BEFORE the delete (#78)
+# ---------------------------------------------------------------------------
+
+
+class _UnreachableStore(LocalObjectStore):
+    """A store whose every operation fails, as a wrong endpoint or key would.
+
+    `S3ObjectStore.__init__` validates only local config — `boto3.client()` makes
+    no network call — so DNS, TLS, credentials, bucket existence and region are
+    all deferred to the first real request. This models that first request
+    failing.
+    """
+
+    def list_keys(self, prefix: str = "") -> list[str]:
+        from g3o.run.orchestrate.objectstore import ObjectStoreError
+
+        raise ObjectStoreError("could not resolve endpoint")
+
+    def put(self, key: str, path: Path) -> None:  # pragma: no cover - never reached
+        raise AssertionError("put must not be attempted on an unreachable store")
+
+
+def test_an_unreachable_destination_refuses_with_every_shard_intact(
+    finished_run: tuple[Path, str], tmp_path: Path
+) -> None:
+    """#78: the endpoint used to be first contacted *after* the tree was deleted.
+
+    The bytes were never lost — they were in the local tars — but the archive was
+    half-complete and the only copy of a finished run sat on the droplet it was
+    being archived away from. The assertion that matters here is the last one.
+    """
+    from g3o.common.paths import institutions_root
+
+    runs_dir, run_id = finished_run
+    run_dir = runs_dir / run_id
+    before = sorted(p.name for p in institutions_root(run_dir).iterdir())
+    assert before, "fixture should start with a live institution tree"
+
+    with pytest.raises(al.ArchiveLegError) as exc:
+        al.archive_and_upload(
+            runs_dir, run_id, apply=True, destination=_UnreachableStore(tmp_path / "b")
+        )
+
+    assert "not reachable" in str(exc.value)
+    assert "nothing was deleted" in str(exc.value).lower()
+    after = sorted(p.name for p in institutions_root(run_dir).iterdir())
+    assert after == before, "the institution tree must survive an unreachable store"
+    assert not (run_dir / al.ARCHIVE_DIRNAME).exists(), "nothing should have been tarred"
+
+
+def test_the_dry_pass_also_probes_the_destination(
+    finished_run: tuple[Path, str], tmp_path: Path
+) -> None:
+    """`archive --destination` without `--apply` is now a real upload preflight.
+
+    It previously returned before the store was constructed at all, so it could
+    not tell an operator their endpoint was wrong — which is what made the
+    fra1/sfo3 question load-bearing rather than merely a docs detail.
+    """
+    runs_dir, run_id = finished_run
+
+    with pytest.raises(al.ArchiveLegError) as exc:
+        al.archive_and_upload(
+            runs_dir, run_id, apply=False, destination=_UnreachableStore(tmp_path / "b")
+        )
+    assert "not reachable" in str(exc.value)
+
+
+def test_a_reachable_destination_dry_pass_reports_it(
+    finished_run: tuple[Path, str], tmp_path: Path
+) -> None:
+    runs_dir, run_id = finished_run
+    store = LocalObjectStore(tmp_path / "bucket")
+
+    result = al.archive_and_upload(runs_dir, run_id, apply=False, destination=store)
+
+    assert result.applied is False
+    assert result.destination, "the dry pass should name the destination it probed"

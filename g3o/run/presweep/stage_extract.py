@@ -128,6 +128,7 @@ def _run_extract(
     scraped: dict[str, list[RenderedPage]],
     *,
     institution_search_languages: str,
+    search_languages_for: Callable[[dict[str, Any]], str] | None = None,
     model: str,
     poll_interval: int,
     max_wait: int,
@@ -146,6 +147,11 @@ def _run_extract(
     stage is complete (equals the parsed-result count on a clean fresh run,
     and stays truthful across chunked resumes where earlier invocations
     already persisted some chunks).
+
+    ``search_languages_for`` (2026-08-30) supersedes the run-level
+    ``institution_search_languages`` per institution, under a signed language
+    policy. Without it the run-level string is written to every row, which is
+    every run to date.
     """
     from g3o.extract.batch import make_custom_id, url_hash
 
@@ -156,9 +162,16 @@ def _run_extract(
 
     page_lookup: dict[str, tuple[str, RenderedPage]] = {}
     pairs: list[tuple[dict[str, Any], RenderedPage]] = []
+    # Per-institution search-language provenance, keyed by institution_id so
+    # consistency check #4 (one string per institution, across its pages) holds
+    # by construction rather than by care. Empty under the run-level path, in
+    # which case the string below serves every job.
+    search_languages: dict[str, str] = {}
     for row in sample:
         institution = institution_record(row)
         inst_id = institution["institution_id"]
+        if search_languages_for is not None:
+            search_languages[inst_id] = search_languages_for(institution)
         for page in scraped.get(inst_id, []):
             # Empty-page filter (review F5): a page with no usable text must not
             # become a Stage 5 job — the contract's data:min_length=1 would
@@ -192,7 +205,11 @@ def _run_extract(
     jobs = build_extract_jobs(
         pairs,
         batch_id=f"{run_id}-extract",
-        institution_search_languages=institution_search_languages,
+        institution_search_languages=(
+            institution_search_languages
+            if search_languages_for is None
+            else search_languages
+        ),
         # Provenance accuracy (review F18a): pass the run's actual model so
         # batch_metadata.model_label reflects it, instead of the literal
         # "gpt-5-nano" fallback in _user_prompt. Mirrors Stage 6's

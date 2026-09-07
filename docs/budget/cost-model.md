@@ -16,6 +16,11 @@ It estimates the cost of one full pipeline sweep at three institution-universe
 sizes — **1,000 / 100,000 / 675,000** institutions — broken out by **Serper**,
 **OpenAI Batch**, and **infrastructure**.
 
+**One line does not fit that shape.** Residential proxy egress (issue #90) bills
+**per gigabyte of traffic**, not per institution or per token, and is projected
+separately in [its own section](#residential-proxy-egress--per-gb-the-first-non-per-institution-cost-line).
+It is off by default and no run has ever incurred it.
+
 ## What scales, and what doesn't
 
 The pipeline is one call (or a fixed handful of calls) per institution at each
@@ -142,6 +147,142 @@ discount is not documented** (verified silent at developers.openai.com,
 **Resolve with telemetry, not estimate.** The first live pre-sweep invoice
 reports cached-token counts directly. Recompute the extraction line against the
 measured counts then, and confirm the stacking behavior empirically.
+
+## Residential proxy egress — per-GB, the first non-per-institution cost line
+
+**Added 2026-08-27 (issue #90). Evidence class: the byte rates are M, the dollar
+figures are A and stay A until a proxied run measures them.** No G3O run has ever
+fetched a page through a proxy, and **Bright Data's actual per-GB rate under the
+partnership is not known to this document** — the figures below are therefore
+parameterised on the rate rather than asserting one. That distinction is
+load-bearing: the Serper line above was wrong by ~4× because an assumption
+travelled unlabelled, and this is the second unlabelled assumption that document
+nearly acquired.
+
+**Every other line in this model is per-institution or per-token. Residential
+proxies bill per gigabyte of traffic**, so `$1,000/month` of partnership credits
+is a quantity of *bytes*, not of runs, and nothing in this model previously
+represented that at all.
+
+### Why the bytes had to be measured rather than read off disk
+
+**G3O records no byte counts anywhere.** `FetchMetadata`
+(`g3o/scrape/render.py:36`, `extra="forbid"`) holds `access_date`, `http_status`,
+`final_url`, `fetch_method`, `elapsed_ms`, `wait_for` — and no content length.
+`scrape/*.json.gz` artifacts hold *extracted text*, gzipped: for HTML the
+stripped text, for PDF the extracted text, both far smaller than what crossed the
+wire. Reading the artifacts would have understated a PDF by more than an order of
+magnitude.
+
+So the rates below were **measured directly, on 2026-08-27**, by re-fetching a
+stratified sample of the URLs run `r20260824T215623Z-bb4e` actually scraped
+(one URL per host, so no host was hit twice; `RobotsCache` consulted per URL;
+bodies counted and discarded, never stored):
+
+| path | n (2xx with body) | mean | median | p90 | max |
+|---|---:|---:|---:|---:|---:|
+| HTML fetch | 196 | **176.9 KB** | 90.0 KB | 305 KB | 5.5 MB |
+| PDF fetch | 99 | **1,759.0 KB** | 589.8 KB | 4.3 MB | 16.8 MB |
+| render — document only | 76 | 79.4 KB | 62.0 KB | 182 KB | 414 KB |
+| **render — full page load** | 54 | **5,441.9 KB** | 2,044 KB | 8.7 MB | **102.9 MB** |
+
+Measured from a residential ISP, deliberately: the droplet is the blocked
+identity (0/120 on the paired probe), so measuring there would have counted
+tiny 403/406 error pages and understated everything. A residential ISP is the
+closest available analogue of the residential-proxy path.
+
+Render figures are CDP `Network.loadingFinished.encodedDataLength` — compressed
+bytes actually on the wire, per response, which is what a proxy meters — summed
+across every request the page issued (**mean 65.8 responses per page**).
+
+### The finding: the render fallback is two-thirds of the egress bill
+
+**Answering the question the cost model never asked.** A headless render pulls
+every subresource — images, fonts, CSS, JS, analytics — that a plain HTTP fetch
+never touches. It is **69× the document alone**, and on run `bb4e`'s fetch mix
+(12,598 HTML / 2,021 PDF / 2,255 render over 16,874 fetches):
+
+| path | share of fetches | **share of bytes** |
+|---|---:|---:|
+| HTML | 74.7% | 12.2% |
+| PDF | 12.0% | 19.5% |
+| **render** | **13.4%** | **68.3%** |
+
+**13% of fetches are 68% of the traffic, and nobody has ever counted it.** If
+render subresources bill at the same per-GB rate as the document — which is the
+assumption to confirm with the vendor, not with this document — then the render
+fallback is the dominant per-GB cost line, and it is the one lever that could cut
+the bill by roughly two-thirds. **Whether to disable the render fallback on a
+proxied run is a substantive trade, not an engineering one:** the render exists to
+recover JS-shell pages, so turning it off trades yield for bytes. Flagged for the
+PI, not decided here.
+
+A second observation with no home elsewhere: **there is no byte budget anywhere
+in the pipeline.** The cost circuit breaker (`#42`, `#52`) meters tokens and
+Serper credits. A single 103 MB page load — measured, not hypothetical — is
+invisible to it.
+
+### Weighted rate and per-scale projection
+
+Weighted mean **1,080.6 KB per fetch** on `bb4e`'s mix.
+
+Volumes come from the **n=500 wave-2 probe** (`r20260826T214131Z-4cd7`), not from
+`bb4e`, because wave 2's frame behaves differently: 718 fetches succeeded and 227
+URL-attempts failed across 500 institutions. Through a working proxy the
+block-shaped failures largely succeed instead — 145 of the 227 were `HTTPError`
+(a server answered with a refusing status), and the wave-1 residential arm
+recovered 75.8% — so ~110 attempts convert, giving **828 fetches / 500
+institutions = 1.656 fetches per frame institution ⇒ ~1.75 MB per frame
+institution.**
+
+| frame size | projected egress |
+|---|---:|
+| 1,000 | 1.7 GB |
+| **10,000 (wave 2)** | **17.1 GB** |
+| 22,000 (wall-clock ceiling) | 37.5 GB |
+| 719,588 (full universe) | **1,228 GB ≈ 1.2 TB** |
+
+### What the credits buy — parameterised, because the rate is unknown
+
+Per 10,000-institution wave, and what `$1,000/month` of credits covers:
+
+| rate | $ / wave | waves per $1,000 |
+|---|---:|---:|
+| $1/GB | $17 | 58.6 |
+| $3/GB | $51 | 19.5 |
+| $5/GB | $85 | 11.7 |
+| $8/GB | $137 | 7.3 |
+| $10/GB | $171 | 5.9 |
+
+**Read across, not down.** Two conclusions survive every column:
+
+1. **At wave scale the credits are not the binding constraint.** Even at $10/GB,
+   `$1,000/month` buys ~6 waves of 10,000. Egress cost is not a reason to defer a
+   wave.
+2. **At full-universe scale it is material.** 1.2 TB at $8/GB is ~$9,800 per
+   sweep — comparable to the entire OpenAI Batch line — and at `$1,000/month` of
+   credits a single full sweep would consume ~10 months of them.
+
+**Marginal cost per additional wave after the credits are exhausted** is the
+`$ / wave` column, unchanged: this line is purely linear in bytes, with no fixed
+component and no tier assumed.
+
+### To resolve, in priority order
+
+1. **Get the actual per-GB rate from the console or the agreement.** One number
+   collapses the table above to a single column. Until then every dollar figure
+   here is class **A**.
+2. **Confirm whether render subresource traffic is billed at the same rate.** It
+   is 68% of the projection; a different treatment changes the headline more than
+   anything else on this page.
+3. **Instrument bytes.** `FetchMetadata` forbids extras, so recording
+   `content_length` is a schema change — but until it exists, every figure here
+   has to be re-measured out of band rather than read out of a run. Note the
+   2026-08-26 decision to retain raw bytes transiently (researcher-log,
+   *evidence-layer custody*, decision 1) would make this free as a side effect.
+4. **Re-measure per-institution fetch volume on the frame actually being run.**
+   1.656 fetches/institution is wave-2's probe; `bb4e` ran 4.22, a 2.5× spread
+   driven by Stage-2 attrition rather than by anything about egress.
 
 ## Assumptions, caveats, and provenance
 

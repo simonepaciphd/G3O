@@ -383,18 +383,68 @@ def test_missing_stage7_output_says_to_run_persist(tmp_path: Path) -> None:
         ing.find_stage7_csvs(run_dir)
 
 
-def test_the_highest_csv_version_wins(tmp_path: Path) -> None:
-    run_dir = tmp_path / "runs" / "r1"
-    final = run_dir / "final"
-    final.mkdir(parents=True)
-    for version in (1, 2):
+def _write_stage7(final: Path, *versions: int, summary: bool = True) -> None:
+    final.mkdir(parents=True, exist_ok=True)
+    for version in versions:
         (final / f"g3o_activities_v{version}.csv").write_text("x\n", encoding="utf-8")
         (final / f"g3o_activity_sources_v{version}.csv").write_text("x\n", encoding="utf-8")
+        if summary:
+            (final / f"g3o_institution_summary_v{version}.csv").write_text(
+                "x\n", encoding="utf-8"
+            )
+
+
+def test_a_complete_v1_tree_resolves(tmp_path: Path) -> None:
+    run_dir = tmp_path / "runs" / "r1"
+    _write_stage7(run_dir / "final", 1)
 
     activities, sources = ing.find_stage7_csvs(run_dir)
 
-    assert activities.name.endswith("v2.csv")
-    assert sources.name.endswith("v2.csv")
+    assert activities.name == "g3o_activities_v1.csv"
+    assert sources.name == "g3o_activity_sources_v1.csv"
+
+
+def test_a_version_the_loader_cannot_read_is_refused(tmp_path: Path) -> None:
+    """The silent-bad-publish path, closed before the transaction opens.
+
+    ``g3o persist --version 2`` writes a tree whose activities and sources globs
+    both resolve, while ``g3o-api``'s loader opens a hardcoded
+    ``final/g3o_institution_summary_v1.csv``. Handing that pair over means the
+    loader warns about the missing summary and CONTINUES with NULL
+    ``search_verdict`` for every institution, which republishes the #17 defect —
+    inside the transaction that refreshes the public views, and no human is
+    reading the log on an unattended run.
+    """
+    run_dir = tmp_path / "runs" / "r1"
+    _write_stage7(run_dir / "final", 2)
+
+    with pytest.raises(ing.IngestError, match="hardcoded"):
+        ing.find_stage7_csvs(run_dir)
+
+
+def test_version_skew_is_refused_even_when_both_versions_are_present(
+    tmp_path: Path,
+) -> None:
+    """A v1 summary next to v2 findings is worse than a missing one.
+
+    The glob would hand the loader v2 findings; the loader would read v1
+    verdicts. Every row loads, nothing warns, and the verdicts belong to a
+    different Stage-7 write.
+    """
+    run_dir = tmp_path / "runs" / "r1"
+    _write_stage7(run_dir / "final", 1, 2)
+
+    with pytest.raises(ing.IngestError, match="v2"):
+        ing.find_stage7_csvs(run_dir)
+
+
+def test_a_partial_stage7_tree_is_refused(tmp_path: Path) -> None:
+    """Findings written, summary not. The loader would warn and continue."""
+    run_dir = tmp_path / "runs" / "r1"
+    _write_stage7(run_dir / "final", 1, summary=False)
+
+    with pytest.raises(ing.IngestError, match="partial final/"):
+        ing.find_stage7_csvs(run_dir)
 
 
 def test_extra_loader_args_are_passed_through(tmp_path: Path) -> None:

@@ -249,13 +249,30 @@ next to the manifest it produced. An unknown key is refused, not ignored.
   "dry_run": true,
   "stop_after": "validate",
   "filter_mode": "shadow",
-  "max_workers": 4
+  "max_workers": 4,
+  "language_policy": "2026-08-30",
+  "discovery_leg1_multilingual": true,
+  "discovery_evidence_open": true
 }
 ```
 
 `--sample-size`, `--seed`, `--stop-after`, `--model`, `--max-workers`,
 `--filter-mode`, `--master-csv`, `--runs-dir` and `--execute` override the file
 from the command line. Everything else lives in the file.
+
+The last three keys are the four-leg discovery configuration (2026-09-03; both
+flags default **false**, and a config without them runs the two-leg chain
+exactly as before). `discovery_leg1_multilingual` adds the localized leg-1
+**fallback**: English first on every institution, then one query per
+non-English policy language only where Stage 2 found no official site, then
+Stage 2 again. `discovery_evidence_open` adds the open (non-site-bound)
+evidence leg, one query per policy language. Both require `language_policy`
+to be set in practice — the fallback refuses to start without it — and both run
+as sub-steps of the roster stages (`classify_official_site` and
+`discovery_site_restricted` respectively), so `--stop-after` keeps its eight
+values and `status` still reports `stages=n/8`. Credit cost rises from ~1.84
+per institution to roughly `1 + 0.2·(k−1) + k + k` where `k` is the number of
+policy languages (mean ~2), so budget about 5 credits per institution.
 
 ### Dry run first
 

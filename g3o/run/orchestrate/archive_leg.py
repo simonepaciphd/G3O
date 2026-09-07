@@ -49,9 +49,14 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common.paths import INSTITUTIONS_DIRNAME
-from g3o.run.archive import ARCHIVE_DIRNAME, ArchiveError, archive_run, render_result
+from g3o.run.archive import (
+    ARCHIVE_DIRNAME,
+    ArchiveError,
+    archive_run,
+    render_result,
+    sha256_file,
+)
 from g3o.run.orchestrate.objectstore import (
-    CHUNK_BYTES,
     ObjectStore,
     ObjectStoreError,
     describe_store,
@@ -97,16 +102,10 @@ class ArchiveLegError(RuntimeError):
     """The archive could not be produced, uploaded, or verified."""
 
 
-def sha256_file(path: Path) -> str:
-    """Streaming sha256 of a file. Never loads a shard tar into memory."""
-    digest = hashlib.sha256()
-    with open(path, "rb") as handle:
-        while True:
-            chunk = handle.read(CHUNK_BYTES)
-            if not chunk:
-                break
-            digest.update(chunk)
-    return digest.hexdigest()
+# ``sha256_file`` now lives in :mod:`g3o.run.archive`, because ``verify_tar``
+# there needs it and this module already imports *from* that one — the
+# dependency only runs one way. Re-exported under its original name so every
+# caller and test here is unaffected (2026-08-24).
 
 
 def sha256_stream(chunks: Any) -> str:
@@ -430,6 +429,41 @@ def archive_and_upload(
         )
 
     started_at = utc_now_iso()
+
+    # Prove the destination is reachable BEFORE anything is deleted (#78).
+    #
+    # The four steps of this leg are ordered so each one's failure is cheap, and
+    # that ordering had a hole: `archive_run(apply=True)` tars *and deletes* the
+    # institution tree, and the endpoint was first touched several steps later at
+    # `store_from_uri`. `S3ObjectStore.__init__` validates only local config —
+    # `boto3.client()` performs no network I/O — so a wrong SPACES_ENDPOINT, a
+    # revoked key or a bucket in the wrong region failed *after* the live tree was
+    # gone. The bytes survived in the local tars, but the only copy of a finished
+    # run then sat on the droplet it was being archived away from.
+    #
+    # One round trip fixes it. This also runs on the dry pass, which previously
+    # returned before the store was constructed at all — so `archive --destination`
+    # without `--apply` is now a real preflight for the upload, not only for the
+    # tar (#78's own suggestion).
+    store: ObjectStore | None = None
+    if destination is not None:
+        store = (
+            store_from_uri(destination) if isinstance(destination, str) else destination
+        )
+        try:
+            store.list_keys(f"{run_id}/")
+        except ObjectStoreError as exc:
+            record_leg(
+                run_dir, "archive", outcome="refused", started_at=started_at,
+                error_class=type(exc).__name__, error_message=str(exc),
+            )
+            raise ArchiveLegError(
+                f"destination {describe_store(store).get('uri', destination)!r} is "
+                f"not reachable: {exc}. Nothing was archived and nothing was "
+                f"deleted — the institution tree is intact. Fix the endpoint, "
+                f"credentials or bucket and re-run."
+            ) from exc
+
     try:
         archive_result = archive_run(run_dir, apply=apply)
     except ArchiveError as exc:
@@ -444,6 +478,7 @@ def archive_and_upload(
 
         return ArchiveLegResult(
             run_id=run_id, run_dir=run_dir, applied=False, uploaded=False,
+            destination=describe_store(store) if store is not None else None,
             archive_summary=render_plan(plan_archive(run_dir)),
         )
 
@@ -472,7 +507,7 @@ def archive_and_upload(
             archive_summary=render_result(archive_result),
         )
 
-    store = store_from_uri(destination) if isinstance(destination, str) else destination
+    assert store is not None  # constructed above, since destination is not None
     upload_set = [(m.relpath, m.path, m.sha256) for m in members]
     upload_set.append((LEDGER_FILENAME, ledger, sha256_file(ledger)))
     upload_set.append((SHA256SUMS_FILENAME, sums, sha256_file(sums)))
