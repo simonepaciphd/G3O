@@ -35,6 +35,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
+from g3o.common.paths import institution_dir
 from g3o.common.run_state import done_path, state_path
 
 TimingType = Literal["per_institution", "shared_chunk"]
@@ -43,7 +44,7 @@ TIMING_FILENAME = "timing.json"
 
 
 def timing_path(run_dir: Path, institution_id: str) -> Path:
-    return run_dir / institution_id / TIMING_FILENAME
+    return institution_dir(run_dir, institution_id) / TIMING_FILENAME
 
 
 def _utc_iso() -> str:

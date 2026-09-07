@@ -128,6 +128,15 @@ def build_triage_job(
         raise ValueError("custom_id is required and must be non-empty")
     if not candidate_urls:
         raise ValueError("candidate_urls must be non-empty for triage")
+    # Inclusion #3/#4: an empty or whitespace-only candidate URL is not a
+    # scrapable target and must never be triaged. Reject at the boundary rather
+    # than emit a decision request the model cannot meaningfully act on.
+    for idx, url in enumerate(candidate_urls):
+        if not url or not url.strip():
+            raise ValueError(
+                f"candidate_urls[{idx}] is empty or whitespace-only; "
+                "empty candidate URLs are rejected (Inclusion #3/#4)"
+            )
     return BatchJob(
         custom_id=custom_id,
         messages=[
@@ -229,18 +238,20 @@ def match_triage_decisions(
     same-URL reorder (every candidate decided, but out of input order) is
     salvaged in full here, whereas positional matching would drop every
     displaced decision. The order the model emits its decisions in carries no
-    weight beyond breaking conflicts.
+    weight: conflicts are broken by the order-invariant keep-wins rule below,
+    so ``kept_urls`` depends only on the candidates and the decision multiset.
 
     Casualties (each a per-URL attrition record; the institution is never
     discarded wholesale):
 
     - ``missing_decision`` — a candidate no returned decision echoed.
     - ``duplicate_url`` — a candidate echoed by two or more decisions
-      (a keep/drop conflict, or a plain repeat). The **positional winner** is
-      accepted deterministically: the decision sitting at the candidate's own
-      index if the URL was echoed there, else the first (lowest-index)
-      occurrence. The candidate keeps a decision ("keep the data"); the surplus
-      occurrences are recorded.
+      (a keep/drop conflict, or a plain repeat). The winner is resolved by an
+      **order-invariant keep-wins** rule (decision 2): if any occurrence is a
+      ``keep`` the candidate is kept, otherwise dropped — independent of the
+      order the model emitted its decisions in. The candidate keeps a decision
+      ("keep the data"); the surplus occurrences are recorded, and the
+      ``detail`` distinguishes a genuine keep/drop conflict from a plain repeat.
     - ``url_mismatch`` — a returned decision whose echoed URL is not any
       candidate (a rewritten or fabricated URL). Recorded against the echoed URL
       and never salvaged.
@@ -258,28 +269,37 @@ def match_triage_decisions(
     kept_urls: list[str] = []
     attrition: list[TriageAttrition] = []
 
-    for i, cand in enumerate(candidate_urls):
+    for cand in candidate_urls:
         occ = by_url.get(cand)
         if not occ:
             attrition.append(
                 TriageAttrition(cand, "missing_decision", "no returned decision echoed this URL")
             )
             continue
-        # Positional winner: the decision at this candidate's own index if the
-        # URL was echoed there, otherwise the first (lowest-index) occurrence.
-        winner_j = i if i in occ else occ[0]
-        winner = decisions[winner_j]
+        occ_decisions = [decisions[j] for j in occ]
+        keeps = [d for d in occ_decisions if d.decision == "keep"]
+        # Order-invariant tie-break (decision 2): keep always wins. The winner
+        # is drawn only from the winning class (a keep if any keep was echoed,
+        # else a drop), so the salvaged decision's keep/drop value — and hence
+        # ``kept_urls`` — is a pure function of the submitted candidates and the
+        # *multiset* of returned decisions, never of the order the model emitted
+        # them in. Within a class the lowest-index occurrence is taken so the
+        # chosen decision object (and its rationale) is deterministic.
+        winner = keeps[0] if keeps else occ_decisions[0]
         matched.append(winner)
         if winner.decision == "keep":
             kept_urls.append(cand)
         if len(occ) > 1:
-            attrition.append(
-                TriageAttrition(
-                    cand,
-                    "duplicate_url",
-                    f"echoed {len(occ)}x in response; positional winner accepted",
+            n_drop = len(occ_decisions) - len(keeps)
+            if keeps and n_drop:
+                detail = (
+                    f"echoed {len(occ)}x with conflicting decisions "
+                    f"({len(keeps)} keep / {n_drop} drop): keep/drop conflict, keep wins"
                 )
-            )
+            else:
+                verdict = "keep" if keeps else "drop"
+                detail = f"echoed {len(occ)}x (all {verdict}); first occurrence accepted"
+            attrition.append(TriageAttrition(cand, "duplicate_url", detail))
 
     # Decisions whose echoed URL is not any candidate: rewritten or fabricated.
     for d in decisions:

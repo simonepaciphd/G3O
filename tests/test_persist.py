@@ -25,6 +25,11 @@ from g3o.persist import (
     load_consolidated_outputs,
     write_run_csvs,
 )
+from tests._layout import (
+    make_inst_dir,
+    uid_for,
+    write_manifest,
+)
 
 # ---------------------------------------------------------------------------
 # Fixture builders (parallel to test_validate.py / test_consolidated_contract.py)
@@ -151,10 +156,10 @@ def _no_response(institution_id: str = "INST-0002") -> ConsolidatedInstitutionRe
 
 
 def _stage_run_dir(tmp_path: Path, responses: dict[str, ConsolidatedInstitutionResponse]) -> Path:
-    """Create runs/<run_id>/<inst>/6_validate.json for each entry."""
+    """Create a layout-v2 run tree with one 6_validate.json per entry."""
+    write_manifest(tmp_path, {"run_id": "R1", "institutions": sorted(responses)})
     for inst_id, response in responses.items():
-        d = tmp_path / inst_id
-        d.mkdir(parents=True, exist_ok=True)
+        d = make_inst_dir(tmp_path, inst_id)
         (d / "6_validate.json").write_text(
             json.dumps(response.model_dump(), ensure_ascii=False, indent=2),
             encoding="utf-8",
@@ -170,7 +175,8 @@ def _stage_run_dir(tmp_path: Path, responses: dict[str, ConsolidatedInstitutionR
 def test_build_activity_rows_keys_match_schema() -> None:
     response = _yes_response()
     rows = build_activity_rows(
-        response, run_id="R1", run_model="gpt-5-nano", run_date="2026-05-09"
+        response, run_id="R1", run_model="gpt-5-nano",
+        institution_uid=uid_for("INST-0001"), run_date="2026-05-09"
     )
     assert len(rows) == 1
     assert list(rows[0].keys()) == ACTIVITY_COLUMNS
@@ -183,14 +189,18 @@ def test_build_activity_rows_keys_match_schema() -> None:
 
 def test_build_activity_rows_empty_when_no_activities() -> None:
     response = _no_response()
-    rows = build_activity_rows(response, run_id="R1", run_model="gpt-5-nano")
+    rows = build_activity_rows(
+        response, run_id="R1", run_model="gpt-5-nano",
+        institution_uid=uid_for("INST-0002"),
+    )
     assert rows == []
 
 
 def test_build_source_rows_keys_match_schema() -> None:
     response = _yes_response()
     rows = build_source_rows(
-        response, run_id="R1", run_model="gpt-5-nano", run_date="2026-05-09"
+        response, run_id="R1", run_model="gpt-5-nano",
+        institution_uid=uid_for("INST-0001"), run_date="2026-05-09"
     )
     assert len(rows) == 1
     assert list(rows[0].keys()) == ACTIVITY_SOURCE_COLUMNS
@@ -201,7 +211,10 @@ def test_build_source_rows_keys_match_schema() -> None:
 
 def test_build_source_rows_handles_na_activity_id() -> None:
     response = _no_response()
-    rows = build_source_rows(response, run_id="R1", run_model="gpt-5-nano")
+    rows = build_source_rows(
+        response, run_id="R1", run_model="gpt-5-nano",
+        institution_uid=uid_for("INST-0002"),
+    )
     assert len(rows) == 2
     assert all(r["activity_id"] == NA for r in rows)
     assert all(r["genai_evidence"] == "confirms_absence" for r in rows)
@@ -215,7 +228,10 @@ def test_build_source_rows_handles_na_activity_id() -> None:
 def test_source_rows_salvage_flag_empty_without_map() -> None:
     """Absent a salvage map, the new column is present and empty (regression
     guard: the column always exists, defaulting to no annotation)."""
-    rows = build_source_rows(_yes_response(), run_id="R1", run_model="gpt-5-nano")
+    rows = build_source_rows(
+        _yes_response(), run_id="R1", run_model="gpt-5-nano",
+        institution_uid=uid_for("INST-0001"),
+    )
     assert "group_d_salvaged_fields" in rows[0]
     assert rows[0]["group_d_salvaged_fields"] == ""
 
@@ -226,12 +242,13 @@ def test_source_rows_salvage_flag_populated_from_map() -> None:
     salvaged = {("INST-0001", "https://example.gov/procurement/123"): "tool_name;vendor"}
     rows = build_source_rows(
         _yes_response(), run_id="R1", run_model="gpt-5-nano",
-        salvaged_by_source=salvaged,
+        institution_uid=uid_for("INST-0001"), salvaged_by_source=salvaged,
     )
     assert rows[0]["group_d_salvaged_fields"] == "tool_name;vendor"
 
     rows_no = build_source_rows(
         _no_response(), run_id="R1", run_model="gpt-5-nano",
+        institution_uid=uid_for("INST-0002"),
         salvaged_by_source=salvaged,  # keyed to INST-0001, not INST-0002
     )
     assert all(r["group_d_salvaged_fields"] == "" for r in rows_no)
@@ -319,7 +336,10 @@ def test_build_summary_row_keys_match_schema() -> None:
             ),
         ],
     )
-    row = build_summary_row(response, run_id="R1", run_date="2026-05-09")
+    row = build_summary_row(
+        response, run_id="R1", institution_uid=uid_for("INST-0001"),
+        run_date="2026-05-09",
+    )
     assert list(row.keys()) == SUMMARY_COLUMNS
     assert row["institution_id"] == "INST-0001"
     assert row["n_pages_extracted"] == 2  # from _meta
@@ -339,7 +359,9 @@ def test_build_summary_row_keys_match_schema() -> None:
 
 def test_build_summary_row_no_activity_institution() -> None:
     response = _no_response()
-    row = build_summary_row(response, run_id="R1")
+    row = build_summary_row(
+        response, run_id="R1", institution_uid=uid_for("INST-0002")
+    )
     assert row["has_genai_activity"] == "no"
     assert row["n_activities"] == 0
     assert row["n_sources"] == 2
@@ -365,7 +387,9 @@ def test_build_summary_row_uncertainty_flags_unioned() -> None:
             ),
         ],
     )
-    row = build_summary_row(response, run_id="R1")
+    row = build_summary_row(
+        response, run_id="R1", institution_uid=uid_for("INST-0001")
+    )
     flags = row["consolidated_uncertainty_flags"].split(";")
     assert sorted(flags) == ["date_uncertain", "stage_ambiguous", "vendor_undisclosed"]
 
@@ -389,15 +413,16 @@ def test_load_consolidated_outputs_parses_valid_payloads(tmp_path: Path) -> None
 
 
 def test_load_consolidated_outputs_skips_missing_payload(tmp_path: Path) -> None:
-    (tmp_path / "INST-0001").mkdir()  # no 6_validate.json
+    write_manifest(tmp_path)
+    make_inst_dir(tmp_path, "INST-0001")  # no 6_validate.json
     loaded, failures = load_consolidated_outputs(tmp_path)
     assert loaded == []
     assert failures == []
 
 
 def test_load_consolidated_outputs_records_failures(tmp_path: Path) -> None:
-    bad_dir = tmp_path / "INST-BAD"
-    bad_dir.mkdir()
+    write_manifest(tmp_path)
+    bad_dir = make_inst_dir(tmp_path, "INST-BAD")
     (bad_dir / "6_validate.json").write_text(
         json.dumps({"institution": {"institution_id": "INST-BAD"}}), encoding="utf-8"
     )
@@ -505,13 +530,15 @@ def test_write_run_csvs_refuses_overwrite(tmp_path: Path) -> None:
 def test_write_run_csvs_overwrite_flag_replaces(tmp_path: Path) -> None:
     run_dir = _stage_run_dir(tmp_path, {"INST-0001": _yes_response()})
     write_run_csvs(run_dir, run_id="R1", run_model="gpt-5-nano")
-    # Add a second institution and overwrite.
-    second_dir = run_dir / "INST-0002"
-    second_dir.mkdir()
+    # Add a second institution and overwrite. The manifest is rewritten with it
+    # too: a real run's sample — and so its institution_uid map — is fixed at
+    # plan time, and Stage 7 refuses to stamp an institution the plan never saw.
+    second_dir = make_inst_dir(run_dir, "INST-0002")
     (second_dir / "6_validate.json").write_text(
         json.dumps(_no_response().model_dump(), ensure_ascii=False),
         encoding="utf-8",
     )
+    write_manifest(run_dir, {"run_id": "R1", "institutions": ["INST-0001", "INST-0002"]})
     summary = write_run_csvs(
         run_dir, run_id="R1", run_model="gpt-5-nano", overwrite=True
     )
@@ -547,3 +574,45 @@ def test_write_run_csvs_round_trip_revalidates(tmp_path: Path) -> None:
     # Summary CSV
     _, summary_rows = _read_csv(run_dir / "final" / "g3o_institution_summary_v1.csv")
     assert all(set(r.keys()) == set(SUMMARY_COLUMNS) for r in summary_rows)
+
+
+def test_write_csv_strips_nul_bytes(tmp_path: Path, caplog) -> None:
+    """A NUL byte must never reach the CSV, because it cannot reach PostgreSQL.
+
+    Regression for the 2026-08-24 ingest abort: 5 of 3,633 source rows carried a
+    NUL in `source_snippet`/`source_title` (from scraped PDF and mis-encoded
+    HTML), and `psycopg` refused the whole load with `PostgreSQL text fields
+    cannot contain NUL (0x00) bytes` — after institutions and findings had
+    already been staged. Nothing partial landed, but a 1,000-institution run had
+    to be re-persisted and re-ingested over nine bytes.
+
+    The strip is also asserted to be *loud*: it mutates a published artifact, so
+    it has to be visible in the log rather than silent.
+    """
+    import logging
+
+    from g3o.persist.writer import _write_csv
+
+    path = tmp_path / "out.csv"
+    rows = [
+        {"a": "clean", "b": "also clean"},
+        {"a": "nul\x00here", "b": "two\x00nul\x00s"},
+    ]
+    with caplog.at_level(logging.WARNING):
+        n = _write_csv(path, ["a", "b"], rows)
+
+    assert n == 2
+    raw = path.read_bytes()
+    assert b"\x00" not in raw
+
+    written = list(csv.DictReader(path.open(encoding="utf-8", newline="")))
+    assert written[0] == {"a": "clean", "b": "also clean"}
+    assert written[1] == {"a": "nulhere", "b": "twonuls"}
+
+    # The caller's rows must not be mutated in place.
+    assert rows[1]["a"] == "nul\x00here"
+
+    assert any(
+        "stripped 3 NUL byte(s) from 2 value(s)" in r.getMessage()
+        for r in caplog.records
+    )

@@ -9,7 +9,7 @@ You do not introduce new information. You reduce, dedupe, and resolve conflicts.
 For one institution, you receive:
 
 1. **Institution metadata.** `institution_id`, `institution_name`, `country`, `branch_of_government`, `level_of_government`, `institution_search_languages`.
-2. **All Stage 5 extract rows for this institution.** A flat list of `ContractRow` objects (per the G3O Output Contract v2.0). Each row is one (institution × activity × source) triple, with the activity columns either filled (`genai_evidence = confirms_activity`) or all `_NA_` (`confirms_absence` / `ambiguous` / `background_only`). Multiple rows may report the same activity from different pages, and may disagree on Group D fields.
+2. **All Stage 5 extract rows for this institution.** A flat list of `ContractRow` objects (per the G3O Output Contract). Each row is one (institution × activity × source) triple, with the activity columns either filled (`genai_evidence = confirms_activity`) or all `_NA_` (`confirms_absence` / `ambiguous` / `background_only`). Multiple rows may report the same activity from different pages, and may disagree on Group D fields.
 3. **Pipeline metadata.** `n_input_pages`, `n_input_rows`.
 
 ## Your output
@@ -21,7 +21,7 @@ A single JSON object with four top-level keys:
 - `activities` — an array of `(institution × activity)` rows, deduplicated. May be empty if `has_genai_activity != yes`.
 - `sources` — an array of source records, one per source page, FK-linked to an activity by `activity_id` (or `_NA_` for sources that do not confirm a specific activity).
 
-The full output schema is specified in the **G3O Validation Contract v1.0** in the user message. Return only the raw JSON object.
+The full output schema is specified in the **G3O Validation Contract** in the user message. Return only the raw JSON object.
 
 ## Consolidation rules
 
@@ -37,7 +37,7 @@ Rows with `genai_evidence != confirms_activity` (i.e., `activity_name = _NA_`) d
 
 ### 2. Conflict resolution per Group D field
 
-When two or more input rows agree on `activity_name` but disagree on a Group D field (`activity_type`, `adoption_stage`, `tool_name`, etc.), the **higher-credibility source wins** per Output Contract v2.0 §4.8:
+When two or more input rows agree on `activity_name` but disagree on a Group D field (`activity_type`, `adoption_stage`, `tool_name`, etc.), the **higher-credibility source wins** per Output Contract §4.8:
 
 - **Tier 1 (high):** government domains, procurement portals, parliamentary records, gazette notices, regulator publications.
 - **Tier 2 (medium):** major news outlets, vendor case studies with named institutions, trade press, policy organization reports.

@@ -15,7 +15,7 @@ from __future__ import annotations
 import io
 import json
 import logging
-import os
+import math
 import random
 import time
 from collections.abc import Iterator
@@ -38,6 +38,7 @@ from tenacity import (
 )
 
 from g3o.common import config
+from g3o.common.credentials import ResolvedCredentials, resolve
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,71 @@ BATCH_MAX_REQUESTS = 50_000
 # hundred MB splits into single-digit chunks).
 CHUNK_MAX_BYTES = 100 * 1024 * 1024
 CHUNK_MAX_REQUESTS = 25_000
+
+# Enqueued-token ceiling (2026-08-03). Distinct from the two caps above, and
+# the binding one in practice: OpenAI limits the tokens an organization may
+# have *enqueued at once* per model, counting the full prompt of every queued
+# request whether or not it prompt-caches. Stage 5 at n=100 first hit this —
+# 681 jobs needing ~10.6M enqueued against a 2M ceiling — because the ~10.4k-
+# token output contract is re-sent per page, so the ceiling binds on
+# (job count x shared prefix), not on page content.
+#
+# ENQUEUED_TOKEN_LIMIT is the org/model ceiling as reported by the API's
+# `token_limit_exceeded` error. It is a property of the account tier, not of
+# this code: raise it here only to match a raised account limit.
+#
+# 2_000_000 -> 15_000_000_000, 2026-08-24, on an account change: the pipeline
+# moved to a Tier-5 project. This is exactly the "match a raised account limit"
+# case the line above reserves, and the raise was measured, not assumed:
+#
+#   - the OLD ceiling was confirmed first. A deliberately oversized probe was
+#     rejected with `Limit: 2,000,000 enqueued tokens` and `request_counts
+#     total=0 completed=0 failed=0` — so tripping the ceiling is free.
+#   - the NEW account reports `x-ratelimit-limit-requests: 30000` and
+#     `x-ratelimit-limit-tokens: 180000000` for gpt-5-nano, which are exactly
+#     the published Tier-5 row, whose batch queue limit is 15e9.
+#   - and the move off Tier 1 was proved directly rather than inferred: a
+#     2.5M-token batch, the same shape Tier 1 rejected, was ACCEPTED
+#     (in_progress, 200 requests) and then cancelled.
+#
+# The 15e9 figure itself is the published value for that row, NOT a measured
+# one — tripping a 15e9 ceiling would take ~800k Stage-5 jobs, which is not a
+# probe. That is acceptable because over-stating it is cheap and loud: a submit
+# above the true ceiling is rejected with zero spend, the chunk keeps its plan,
+# and the wave loop re-releases it.
+#
+# CONSEQUENCE, and it is the important part: at this ceiling the enqueued-token
+# budget no longer binds at any n this project contemplates. CHUNK_MAX_BYTES
+# above does — 100 MB at the ~57.7 kB of a real Stage-5 job is ~1,817 jobs per
+# chunk. So n=1,000 (4 chunks) and n=5,000 (19 chunks) each release in a SINGLE
+# wave, and the full 719,588 sweep in ~8. Two things follow:
+#   1. `ENQUEUED_BUDGET_UTILISATION` below is now inert in practice. It is left
+#      at 0.8 deliberately — the headroom costs nothing when the budget is not
+#      the constraint, and it still absorbs estimator error if the true ceiling
+#      is lower than the published row.
+#   2. A whole run's OpenAI spend now commits in one release, where the 2M
+#      ceiling used to meter it out ~85 jobs at a time. The wave scheduler is
+#      therefore NO LONGER an accidental brake on spend, and the real guards
+#      have to be used rather than assumed: `submit --cost-ceiling <usd>`
+#      (checked before the detach fork) and the runtime budget enforcement of
+#      PR #65. State a cost ceiling on every run.
+ENQUEUED_TOKEN_LIMIT = 15_000_000_000
+
+# Fraction of the ceiling this pipeline will occupy. Headroom matters because
+# the estimator below is approximate and because other work in the same org
+# competes for the same ceiling. See the note above on why this is now inert
+# in practice, and why it is nonetheless left at 0.8.
+ENQUEUED_BUDGET_UTILISATION = 0.8
+
+# Serialized JSONL bytes per token, for the offline estimate in
+# `estimate_job_tokens`. Deliberately *below* the measured ratio so the
+# estimate runs high: an overestimate costs an extra wave, an underestimate
+# costs a failed submit. Calibrated 2026-08-03 against tiktoken `o200k_base`
+# over the 681 real Stage-5 jobs of run 20260802-e2e-100 — aggregate 4.54
+# bytes/token, per-job p05 3.83, per-job min 2.55. tiktoken is not a declared
+# runtime dependency, which is why this is a calibrated constant rather than a
+# live tokenizer call.
+BYTES_PER_TOKEN = 4.0
 
 # Metadata keys that uniquely identify a pipeline batch chunk. When all three
 # are present on a submit, lost-response retries and resume paths can
@@ -174,22 +240,76 @@ class BatchResult:
             return None
         return self.response.get("body", {}).get("system_fingerprint")
 
+    @property
+    def usage(self) -> dict[str, int] | None:
+        """Token usage from the response body, if successful.
+
+        Returns dict with keys: prompt_tokens, completion_tokens, total_tokens,
+        and cached_tokens (for cached prompt tokens, may be 0).
+        Returns None if the job failed or response is absent.
+        """
+        if not self.success or self.response is None:
+            return None
+        body = self.response.get("body", {})
+        usage = body.get("usage")
+        if usage is None:
+            return None
+        return {
+            "prompt_tokens": int(usage.get("prompt_tokens", 0)),
+            "completion_tokens": int(usage.get("completion_tokens", 0)),
+            # Fix: compute total_tokens from components when API returns 0 or omits it.
+            # This prevents silent understatement of cost if a future consumer uses total_tokens.
+            "total_tokens": (
+                int(usage.get("prompt_tokens", 0)) + int(usage.get("completion_tokens", 0))
+            ),
+            # OpenAI may include cached_tokens in prompt_tokens_details
+            "cached_tokens": int(
+                (usage.get("prompt_tokens_details") or {}).get("cached_tokens", 0)
+            ),
+        }
+
 
 # ---------------------------------------------------------------------------
 # Client construction
 # ---------------------------------------------------------------------------
 
 
+def client_from_credentials(
+    credentials: ResolvedCredentials | None = None,
+) -> OpenAI | None:
+    """Build an OpenAI client for ``credentials``, or ``None`` if no key resolves.
+
+    The credential-aware constructor of Run API spec §3.2: the orchestrator
+    resolves once and threads the bundle down, so a per-call key is possible for
+    the first time. ``None`` for ``credentials`` resolves from the environment at
+    call time (never at import — that was the defect §3 removes).
+
+    Returning ``None`` rather than raising on a missing key is deliberate: it
+    keeps client construction *lazy* at every call site that merely forwards a
+    client. A stage that never reaches a live call must not die because a key was
+    absent, and a caller that does reach one gets today's error from
+    :func:`_default_client` at exactly the moment it always did.
+    """
+    resolved = credentials if credentials is not None else resolve()
+    if not resolved.openai_api_key:
+        return None
+    return OpenAI(api_key=resolved.openai_api_key, max_retries=0)
+
+
 def _default_client() -> OpenAI:
-    """Build an OpenAI client. The SDK's own retry is disabled in favor of
-    tenacity at the function level (see _retryable)."""
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
+    """Build an OpenAI client from the ambient environment, or raise.
+
+    The SDK's own retry is disabled in favor of tenacity at the function level
+    (see _retryable). Reached only when a call site was given neither a client
+    nor credentials.
+    """
+    cli = client_from_credentials()
+    if cli is None:
         raise RuntimeError(
             "OPENAI_API_KEY is not set; pass an OpenAI client explicitly or "
             "configure the env var."
         )
-    return OpenAI(api_key=api_key, max_retries=0)
+    return cli
 
 
 # Exceptions worth retrying: rate limits, transient connection issues, and
@@ -280,6 +400,60 @@ def _build_jsonl_payload(
     return buf.getvalue()
 
 
+def enqueued_token_budget(
+    *,
+    limit: int = ENQUEUED_TOKEN_LIMIT,
+    utilisation: float = ENQUEUED_BUDGET_UTILISATION,
+) -> int:
+    """Tokens this pipeline will keep enqueued at once (2026-08-03).
+
+    The usable slice of the org/model enqueued-token ceiling. Doubles as the
+    per-chunk token cap, so one chunk can always fill a wave on its own and the
+    wave scheduler in :func:`g3o.common.run_state.run_chunked_stage` can never
+    deadlock on a chunk too large to submit.
+    """
+    return max(1, int(limit * utilisation))
+
+
+def estimate_job_tokens(serialized_bytes: int) -> int:
+    """Approximate the enqueued-token cost of one serialized job line.
+
+    Offline and deliberately conservative — see :data:`BYTES_PER_TOKEN`. Used
+    only for scheduling against the enqueued-token ceiling; never for billing,
+    which is measured from the response's ``usage`` block.
+    """
+    return math.ceil(serialized_bytes / BYTES_PER_TOKEN)
+
+
+def job_token_estimates(
+    jobs: list[BatchJob],
+    *,
+    model: str,
+    response_format: dict[str, Any] | None = None,
+    endpoint: str = DEFAULT_ENDPOINT,
+    reasoning_effort: str | None = DEFAULT_REASONING_EFFORT,
+) -> dict[str, int]:
+    """Estimated enqueued tokens per ``custom_id``, for wave scheduling.
+
+    Serializes each job exactly as :func:`submit_batch` will upload it, so the
+    estimate tracks the same payload the ceiling is charged against.
+    """
+    return {
+        job.custom_id: estimate_job_tokens(
+            len(
+                _serialize_job_line(
+                    job,
+                    model=model,
+                    response_format=response_format,
+                    endpoint=endpoint,
+                    reasoning_effort=reasoning_effort,
+                )
+            )
+        )
+        for job in jobs
+    }
+
+
 def split_jobs_into_chunks(
     jobs: list[BatchJob],
     *,
@@ -288,14 +462,20 @@ def split_jobs_into_chunks(
     endpoint: str = DEFAULT_ENDPOINT,
     max_bytes: int = CHUNK_MAX_BYTES,
     max_requests: int = CHUNK_MAX_REQUESTS,
+    max_tokens: int | None = None,
     reasoning_effort: str | None = DEFAULT_REASONING_EFFORT,
 ) -> list[list[BatchJob]]:
     """Split jobs into size-capped sub-batches for chunked submission (review F2).
 
     Deterministic greedy packing in input order: a chunk closes when adding
-    the next job would exceed ``max_bytes`` of serialized JSONL or
-    ``max_requests`` jobs. Sizes are computed on the exact bytes
-    ``submit_batch`` will upload.
+    the next job would exceed ``max_bytes`` of serialized JSONL, ``max_tokens``
+    of estimated enqueued tokens, or ``max_requests`` jobs. Sizes are computed
+    on the exact bytes ``submit_batch`` will upload.
+
+    ``max_tokens`` defaults to :func:`enqueued_token_budget` and is the cap
+    that binds on the LLM-heavy stages (2026-08-03): the byte and request caps
+    are orders of magnitude away from a real Stage-5 chunk, while the
+    enqueued-token ceiling is reached at a few hundred jobs.
 
     Raises:
         ValueError: on an empty job list, a duplicate ``custom_id`` anywhere
@@ -306,10 +486,13 @@ def split_jobs_into_chunks(
     """
     if not jobs:
         raise ValueError("split_jobs_into_chunks: jobs list is empty")
+    if max_tokens is None:
+        max_tokens = enqueued_token_budget()
     seen: set[str] = set()
     chunks: list[list[BatchJob]] = []
     current: list[BatchJob] = []
     current_bytes = 0
+    current_tokens = 0
     for job in jobs:
         if job.custom_id in seen:
             raise ValueError(f"duplicate custom_id in batch: {job.custom_id!r}")
@@ -328,12 +511,24 @@ def split_jobs_into_chunks(
                 f"F3 — page-text truncation, scheduled for the next hardening "
                 f"session); cap the page feeding this job before resubmitting."
             )
-        if current and (current_bytes + size > max_bytes or len(current) >= max_requests):
+        tokens = estimate_job_tokens(size)
+        # A lone job above the token cap still has to go somewhere: it becomes
+        # its own chunk (and its own wave) rather than an error. Unlike the byte
+        # cap this is not a hard API limit on a single request — the ceiling is
+        # on what may be enqueued concurrently, so a solo oversized chunk is
+        # submittable, just not alongside anything else.
+        if current and (
+            current_bytes + size > max_bytes
+            or current_tokens + tokens > max_tokens
+            or len(current) >= max_requests
+        ):
             chunks.append(current)
             current = []
             current_bytes = 0
+            current_tokens = 0
         current.append(job)
         current_bytes += size
+        current_tokens += tokens
     chunks.append(current)
     return chunks
 
@@ -370,25 +565,36 @@ def _create_batch_with_reconcile(
     ``verify-model``, all single-job batches) fall back to plain per-call
     retry, accepting the residual lost-response ambiguity.
 
+    Reconciliation matches on the identity keys **only**, not on all of
+    ``metadata``: since 2026-08-11 a submit also carries ``g3o_key_fingerprint``
+    (Run API spec §3.5), which is provenance rather than identity. Matching on a
+    superset of identity is how a reconcile pass misses a batch it should have
+    adopted, and a missed adoption is a double submit.
+
     Returns:
         ``(batch_id, adopted)`` where ``adopted`` is True when the batch was
         found by reconciliation rather than created by this call.
     """
     identifying = metadata is not None and CHUNK_METADATA_KEYS <= set(metadata)
+    identity = (
+        {k: v for k, v in metadata.items() if k in CHUNK_METADATA_KEYS}
+        if metadata is not None
+        else None
+    )
     for attempt in range(_MAX_CREATE_ATTEMPTS):
         if attempt and identifying:
-            existing = find_batches_by_metadata(metadata, client=cli)
+            existing = find_batches_by_metadata(identity, client=cli)
             if len(existing) == 1:
                 logger.warning(
                     "batches.create retry reconciled to existing batch %s "
                     "(metadata=%s); adopting instead of re-creating",
-                    existing[0].batch_id, metadata,
+                    existing[0].batch_id, identity,
                 )
                 return existing[0].batch_id, True
             if len(existing) > 1:
                 raise RuntimeError(
                     f"batches.create reconciliation found {len(existing)} batches "
-                    f"matching metadata {metadata}: "
+                    f"matching metadata {identity}: "
                     f"{[s.batch_id for s in existing]}. A double-submit already "
                     f"exists server-side; cancel the duplicates before retrying."
                 )
@@ -400,9 +606,19 @@ def _create_batch_with_reconcile(
                 metadata=metadata,
             )
             return batch.id, False
-        except _RETRYABLE_EXCEPTIONS:
+        except _RETRYABLE_EXCEPTIONS as err:
             if attempt + 1 >= _MAX_CREATE_ATTEMPTS:
-                raise
+                logger.error(
+                    "Batch API failed after %d retries. Last error: %s. "
+                    "Check OpenAI status page at https://status.openai.com/ for service "
+                    "outages or rate limit issues.",
+                    attempt + 1, err,
+                )
+                raise RuntimeError(
+                    f"Batch API failed after {attempt + 1} retries. Last error: {err}. "
+                    f"Check OpenAI status page at https://status.openai.com/ for service "
+                    f"outages or rate limit issues."
+                ) from err
             _retry_sleep(attempt)
     raise AssertionError("unreachable")  # pragma: no cover
 
@@ -619,14 +835,21 @@ __all__ = [
     "BatchResult",
     "BATCH_MAX_INPUT_FILE_BYTES",
     "BATCH_MAX_REQUESTS",
+    "BYTES_PER_TOKEN",
     "CHUNK_MAX_BYTES",
     "CHUNK_MAX_REQUESTS",
     "CHUNK_METADATA_KEYS",
+    "ENQUEUED_BUDGET_UTILISATION",
+    "ENQUEUED_TOKEN_LIMIT",
+    "enqueued_token_budget",
+    "estimate_job_tokens",
+    "job_token_estimates",
     "DEFAULT_MODEL",
     "DEFAULT_COMPLETION_WINDOW",
     "DEFAULT_ENDPOINT",
     "DEFAULT_REASONING_EFFORT",
     "TERMINAL_STATUSES",
+    "client_from_credentials",
     "find_batches_by_metadata",
     "split_jobs_into_chunks",
     "submit_batch",

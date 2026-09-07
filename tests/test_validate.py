@@ -35,6 +35,13 @@ from g3o.validate import (
     qc_per_run,
     write_consolidated_output,
 )
+from tests._layout import (
+    inst_dir as inst_dir_of,
+)
+from tests._layout import (
+    make_inst_dir,
+    write_manifest,
+)
 
 # ---------------------------------------------------------------------------
 # Fixture builders (re-use the same shape conventions as
@@ -206,7 +213,10 @@ def test_prompt_assets_loaded() -> None:
     assert "G3O Validation Agent" in SYSTEM_PROMPT_TEXT
     assert "Consolidation rules" in SYSTEM_PROMPT_TEXT
     # Markers from output_contract.md
-    assert "G3O Validation Contract v1.0" in OUTPUT_CONTRACT_TEXT
+    # Version-agnostic on purpose: this asserts the contract text is LOADED, and
+    # the version is pinned properly by tests/test_contract_version_pin.py. A
+    # literal "v1.0" here just fails every legitimate bump (it failed on v1.1).
+    assert "G3O Validation Contract v" in OUTPUT_CONTRACT_TEXT
     assert "consolidation_metadata" in OUTPUT_CONTRACT_TEXT
     # System message concatenation worked
     assert SYSTEM_PROMPT_TEXT in SYSTEM_MESSAGE
@@ -389,8 +399,7 @@ def _write_extract_jsons(institution_dir: Path, n_pages: int) -> None:
 
 
 def test_load_extract_outputs_walks_directory(tmp_path: Path) -> None:
-    institution_dir = tmp_path / "INST-0001"
-    institution_dir.mkdir()
+    institution_dir = make_inst_dir(tmp_path, "INST-0001")
     _write_extract_jsons(institution_dir, n_pages=3)
     rows, n_pages = load_extract_outputs(institution_dir)
     assert n_pages == 3
@@ -409,7 +418,7 @@ def test_load_extract_outputs_missing_dir_returns_empty(tmp_path: Path) -> None:
 
 
 def test_load_extract_outputs_validates_batch_response(tmp_path: Path) -> None:
-    institution_dir = tmp_path / "INST-0001"
+    institution_dir = inst_dir_of(tmp_path, "INST-0001")
     extract_dir = institution_dir / "extract"
     extract_dir.mkdir(parents=True)
     (extract_dir / "bad.json").write_text(
@@ -422,7 +431,7 @@ def test_load_extract_outputs_validates_batch_response(tmp_path: Path) -> None:
 def test_write_consolidated_output_writes_canonical_path(tmp_path: Path) -> None:
     response = ConsolidatedInstitutionResponse.model_validate(_yes_response())
     out_path = write_consolidated_output(tmp_path, "INST-0001", response)
-    assert out_path == tmp_path / "INST-0001" / "6_validate.json"
+    assert out_path == inst_dir_of(tmp_path, "INST-0001") / "6_validate.json"
     assert out_path.exists()
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert payload["institution"]["institution_id"] == "INST-0001"
@@ -510,10 +519,10 @@ def test_qc_per_institution_uncertainty_flags_surfaced() -> None:
 
 
 def test_qc_per_run_aggregates_across_institutions(tmp_path: Path) -> None:
+    write_manifest(tmp_path, {"run_id": "qc-run"})
     # Two institutions with consolidated outputs, one without.
     for inst_id in ("INST-0001", "INST-0002"):
-        d = tmp_path / inst_id
-        d.mkdir()
+        make_inst_dir(tmp_path, inst_id)
         response = ConsolidatedInstitutionResponse.model_validate(
             _yes_response(
                 consolidation_metadata=_meta(institution_id=inst_id),
@@ -523,10 +532,9 @@ def test_qc_per_run_aggregates_across_institutions(tmp_path: Path) -> None:
         write_consolidated_output(tmp_path, inst_id, response)
 
     # Empty institution — no 6_validate.json
-    (tmp_path / "INST-0003").mkdir()
+    make_inst_dir(tmp_path, "INST-0003")
     # Parse-failure institution — invalid 6_validate.json
-    bad_dir = tmp_path / "INST-0004"
-    bad_dir.mkdir()
+    bad_dir = make_inst_dir(tmp_path, "INST-0004")
     (bad_dir / "6_validate.json").write_text(
         json.dumps({"institution": {"institution_id": "INST-0004"}}),
         encoding="utf-8",
@@ -562,3 +570,34 @@ def test_source_record_round_trip_via_response() -> None:
     assert isinstance(s, SourceRecord)
     assert s.source_id == "S1"
     assert s.activity_id == "A1"
+
+
+def test_qc_per_run_does_not_count_run_level_dirs_as_institutions(tmp_path: Path) -> None:
+    """Regression: ``_state/`` and ``final/`` used to inflate the institution count.
+
+    Pre-v2, ``qc_per_run`` walked ``run_dir.iterdir()`` and incremented
+    ``n_seen`` for *every* subdirectory before any filtering, so a completed run
+    reported two phantom institutions (and a correspondingly inflated
+    ``n_missing_validate_json``). Layout v2 removes the possibility: the walk
+    only descends ``institutions/``.
+    """
+    write_manifest(tmp_path, {"run_id": "qc-phantom-run"})
+    inst_id = "INST-0001"
+    make_inst_dir(tmp_path, inst_id)
+    response = ConsolidatedInstitutionResponse.model_validate(
+        _yes_response(
+            consolidation_metadata=_meta(institution_id=inst_id),
+            institution=_institution(institution_id=inst_id),
+        )
+    )
+    write_consolidated_output(tmp_path, inst_id, response)
+    # Run-level siblings of institutions/ that pre-v2 code counted.
+    (tmp_path / "_state" / ".done").mkdir(parents=True)
+    (tmp_path / "final").mkdir()
+    (tmp_path / "final" / "g3o_activities_v1.csv").write_text("x\n", encoding="utf-8")
+
+    qc = qc_per_run(tmp_path)
+
+    assert qc["n_institutions_in_dir"] == 1
+    assert qc["n_consolidated"] == 1
+    assert qc["n_missing_validate_json"] == 0

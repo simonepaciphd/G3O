@@ -161,8 +161,10 @@ def test_system_prompt_loaded_from_disk():
 
 
 def test_output_contract_loaded_from_disk():
-    # Q5 (2026-05-09): literal Edge case A phrase restored.
-    assert "Two pages were supplied for the Parliament of Belize" in OUTPUT_CONTRACT_TEXT
+    # Q5 (2026-05-09): the Edge case A worked example is present. v2.3 re-scoped it
+    # from two supplied pages to one, because the pipeline sends one page per job
+    # (#55) — the institution and the phrasing are what this assertion is for.
+    assert "supplied page is the Parliament of Belize" in OUTPUT_CONTRACT_TEXT
     # Q6: JSON-output framing in §1 of the contract.
     assert "ONE JSON object" in OUTPUT_CONTRACT_TEXT
 

@@ -1,8 +1,8 @@
-# G3O Validation Contract v1.0 -- Per-Institution Consolidation
+# G3O Validation Contract v1.3 -- Per-Institution Consolidation
 
 You are producing the consolidated, deduplicated, conflict-resolved record for one institution as the Stage 6 (Validation) output of the G3O production pipeline. Every field is ingested programmatically. Follow this contract with **zero deviation**.
 
-This contract sits downstream of the G3O Output Contract v2.0 (`g3o/extract/prompts/output_contract.md`). Vocabulary references (source-credibility tiers, uncertainty-flag vocabulary, `genai_evidence` semantics, controlled enum values) inherit from v2.0; this document only specifies what changes for the consolidated shape.
+This contract sits downstream of the G3O Output Contract (`g3o/extract/prompts/output_contract.md`). Vocabulary references (source-credibility tiers, uncertainty-flag vocabulary, `genai_evidence` semantics, controlled enum values) inherit from it; this document only specifies what changes for the consolidated shape.
 
 ---
 
@@ -49,7 +49,7 @@ The institution-level metadata block -- exactly one record per response.
 | level_of_government | string | input | Verbatim from input |
 | has_genai_activity | enum: `yes` / `no` / `unclear` | your judgment | Institution-level verdict per §3.1 |
 | institution_summary | string, max 300 chars | your synthesis | One-sentence summary. See §3.2. |
-| institution_search_languages | string, comma-sep ISO 639-1 | input | Verbatim from input metadata |
+| institution_search_languages | string, comma-sep lowercase language tags (ISO 639-1/639-3, optional script subtag) | input | Verbatim from input metadata |
 
 ### 3.1 `has_genai_activity` verdict rules
 
@@ -75,7 +75,7 @@ Each activity object has the following keys (all required):
 |---|-------|------|----------------|-------------|
 | 1 | activity_id | string | `^A[1-9]\d*$` | `A1`, `A2`, `A3`, ... -- per-institution, gapless, in input-row-appearance order |
 | 2 | activity_name | string | Max 120 chars; NOT `_NA_` | Canonical name; use most authoritative input wording |
-| 3 | activity_type | enum | `policy_guidance` / `pilot_experiment` / `program_initiative` / `internal_operational` / `public_facing_service` | NO `_NA_` |
+| 3 | activity_type | enum | `policy_guidance` / `pilot_experiment` / `program_initiative` / `internal_operational` / `public_facing_service` / `unknown` | NO `_NA_` |
 | 4 | adoption_stage | enum | `proposed` / `announced` / `pilot` / `production` / `discontinued` / `unknown` | NO `_NA_` |
 | 5 | access_type | enum | `proprietary_vendor` / `open_source` / `sovereign_model` / `in_house` / `mixed` / `unknown` | NO `_NA_` |
 | 6 | interaction_type | enum | `chatbot` / `document_processing` / `code_generation` / `decision_support` / `translation` / `content_creation` / `search_retrieval` / `multiple` / `not_applicable` / `unknown` | NO `_NA_` |
@@ -94,11 +94,11 @@ Each activity object has the following keys (all required):
 | 19 | scope_notes | string | Max 300 chars; default `none`; NOT `_NA_` | Additional context |
 | 20 | n_sources | integer >=1 | | Count of `SourceRecord` entries with this `activity_id` |
 | 21 | confidence | enum | `high` / `medium` / `low` | Highest confidence across supporting input rows |
-| 22 | uncertainty_flags | string | Semicolon-joined union, no spaces; or `none` | Order alphabetically. See vocabulary in v2.0 §4.10. |
+| 22 | uncertainty_flags | array | JSON array of flags, e.g. `[]` or `["date_uncertain","scope_unclear"]` | The union of the input rows' flags, ordered alphabetically. `[]` when no flag applies. See the Output Contract §4.10. |
 
 ### 4.2 Conflict resolution
 
-When two or more input rows agree on `activity_name` but disagree on Group D fields, apply the source-credibility hierarchy from Output Contract v2.0 §4.8 (Tier 1 = government / procurement / parliamentary; Tier 2 = major news / vendor case studies / trade press; Tier 3 = social / blogs / undated). Tie within a tier: most recent `source_publication_date`. Tie there: largest `source_snippet`.
+When two or more input rows agree on `activity_name` but disagree on Group D fields, apply the source-credibility hierarchy from Output Contract §4.8 (Tier 1 = government / procurement / parliamentary; Tier 2 = major news / vendor case studies / trade press; Tier 3 = social / blogs / undated). Tie within a tier: most recent `source_publication_date`. Tie there: largest `source_snippet`.
 
 ### 4.3 Forbidden patterns
 
@@ -124,9 +124,9 @@ Each source object has the following keys (all required):
 | 4 | source_title | string | Max 200 chars | Page or document title |
 | 5 | source_publication_date | string | `YYYY-MM-DD` / `YYYY-MM` / `YYYY` / `unknown` | When the source was published |
 | 6 | source_access_date | string | `YYYY-MM-DD` | When the page was retrieved (verbatim from input) |
-| 7 | source_type | enum | `official_gov` / `procurement_tender` / `news_major` / `news_trade` / `vendor` / `academic` / `policy_org` / `social_media` / `archive` / `other` | See v2.0 §4.6 |
+| 7 | source_type | enum | `official_gov` / `procurement_tender` / `news_major` / `news_trade` / `vendor` / `academic` / `policy_org` / `social_media` / `archive` / `other` | See Output Contract §4.6 |
 | 8 | source_language | string | ISO 639-1 | Language of the source page |
-| 9 | source_credibility | enum | `high` / `medium` / `low` | Per v2.0 §4.8 hierarchy |
+| 9 | source_credibility | enum | `high` / `medium` / `low` | Per Output Contract §4.8 hierarchy |
 | 10 | genai_evidence | enum | `confirms_activity` / `confirms_absence` / `ambiguous` / `background_only` | What this source tells us |
 | 11 | source_snippet | string | Max 300 chars | Verbatim excerpt or close paraphrase |
 

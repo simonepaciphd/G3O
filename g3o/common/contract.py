@@ -1,12 +1,15 @@
-"""Pydantic v2 models for the G3O Output Contract v2.0 + Stage 6 consolidation.
+"""Pydantic v2 models for the G3O Output Contract + Stage 6 consolidation.
 
 Two layers:
 
 1. **Stage 5 row-level surface** — ``BatchMetadata`` / ``ContractRow`` /
-   ``BatchResponse`` / ``RunProvenance`` / ``PersistedRow``. Mirrors
-   ``g3o/extract/prompts/output_contract.md`` §5 (39 contract fields per row,
-   plus 10 batch-metadata fields). Used by Stage 5 (extract) parsing and the
-   legacy ``DATA_COLUMNS`` debug-CSV path.
+   ``BatchResponse`` / ``RunProvenance`` / ``PersistedRow``. 39 contract fields
+   per row, plus 10 batch-metadata fields, matching
+   ``g3o/extract/prompts/output_contract.md`` §3.2. Since v2.3 this module is the
+   *only* definition of the schema: the contract document's embedded copy (§5) was
+   removed once it had drifted, and the schema handed to the API is generated from
+   ``BatchResponse`` here. Used by Stage 5 (extract) parsing and the legacy
+   ``DATA_COLUMNS`` debug-CSV path.
 
 2. **Stage 6 consolidated surface** (Session C, Push #2) — the validator's
    per-institution output:
@@ -54,9 +57,19 @@ and are left to the caller.
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from datetime import datetime
+from typing import Annotated, Any, Literal, get_args
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    WithJsonSchema,
+    field_validator,
+    model_validator,
+)
 
 # ---------------------------------------------------------------------------
 # Tokens, vocabularies, and regex patterns
@@ -64,18 +77,23 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 
 NA = "_NA_"
 
-UNCERTAINTY_FLAG_VOCAB: frozenset[str] = frozenset(
-    {
-        "stage_ambiguous",
-        "genai_vs_traditional_ai",
-        "institution_attribution",
-        "date_uncertain",
-        "source_language_barrier",
-        "vendor_undisclosed",
-        "discontinued_uncertain",
-        "scope_unclear",
-    }
-)
+# Declaration order is the §4.10 table order, and it is load-bearing: it fixes the
+# member order of the `enum` this vocabulary emits into the JSON Schema handed to
+# the API, and the Batch job-line goldens pin that schema by hash. A frozenset
+# literal cannot supply a stable order, so the tuple is the source of truth and
+# the frozenset is derived from it.
+UncertaintyFlag = Literal[
+    "stage_ambiguous",
+    "genai_vs_traditional_ai",
+    "institution_attribution",
+    "date_uncertain",
+    "source_language_barrier",
+    "vendor_undisclosed",
+    "discontinued_uncertain",
+    "scope_unclear",
+]
+
+UNCERTAINTY_FLAG_VOCAB: frozenset[str] = frozenset(get_args(UncertaintyFlag))
 
 YEAR_PATTERN = r"^(\d{4}|unknown|_NA_)$"
 SOURCE_PUB_DATE_PATTERN = r"^(\d{4}(-\d{2}(-\d{2})?)?|unknown)$"
@@ -84,7 +102,15 @@ ISO_DATETIME_PATTERN = (
     r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})$"
 )
 LANG_PATTERN = r"^[a-z]{2}$"
-LANGS_PATTERN = r"^[a-z]{2}(,[a-z]{2})*$"
+# Search-language tags: lowercase ``language[-script]`` — an ISO 639-1 code, or
+# ISO 639-3 where no two-letter code exists, with an optional four-letter script
+# subtag (``uz-latn``). Lowercase-only on purpose: BCP 47 is case-insensitive and
+# admitting a second casing would let ``uz-Latn`` and ``uz-latn`` coexist as
+# distinct strings in provenance. Widened from bare ISO 639-1 pairs by PI ruling
+# 2026-08-29 (extract v2.5 / validate v1.3): a script variant is a different
+# search instrument and must be recordable. ``LANG_PATTERN`` (``source_language``,
+# the page's own language as the model codes it) is deliberately unchanged.
+LANGS_PATTERN = r"^[a-z]{2,3}(-[a-z]{4})?(,[a-z]{2,3}(-[a-z]{4})?)*$"
 
 # Enum aliases keep the model definition close to the contract document.
 ChatType = Literal["web", "deep"]
@@ -95,6 +121,7 @@ ActivityType = Literal[
     "program_initiative",
     "internal_operational",
     "public_facing_service",
+    "unknown",
     "_NA_",
 ]
 AdoptionStage = Literal[
@@ -142,6 +169,45 @@ GenAIEvidence = Literal[
     "confirms_activity", "confirms_absence", "ambiguous", "background_only"
 ]
 Confidence = Literal["high", "medium", "low"]
+
+
+def _coerce_uncertainty_flags(value: Any) -> Any:
+    """Normalise the wire shape of ``uncertainty_flags`` to the stored shape.
+
+    From v2.3 the JSON Schema handed to the API declares this field as an *array
+    of vocabulary members*, so a live extraction arrives as a list. Everything
+    else still speaks the semicolon-joined string: persisted artifacts, the CSV
+    round-trip, ``persist/writer.py``'s aggregator and ``validate/qc.py`` all read
+    the attribute as a ``str``. Collapsing the list here — before validation —
+    is what lets the wire shape change while the stored and in-memory shape does
+    not. An empty list is the array shape's only way to say "no flags apply", and
+    maps onto the contract's own empty value, ``none``.
+
+    Members are joined verbatim rather than checked here, so that
+    :meth:`ContractRow._validate_uncertainty_flags` remains the single place the
+    vocabulary is enforced and the single source of its error message.
+    """
+    if isinstance(value, list):
+        return ";".join(str(v) for v in value) if value else "none"
+    return value
+
+
+# Array of enum to the model, semicolon-joined string to everything else.
+# ``WithJsonSchema`` replaces only the *generated* schema, so the annotated type
+# stays ``str`` at runtime and no consumer outside this module changes shape —
+# which is the whole point of the exercise (#59 Phase 1). The array shape makes
+# ``""``, ``_NA_`` and space-bearing values unrepresentable at generation time
+# rather than repairable afterwards (#17).
+UncertaintyFlags = Annotated[
+    str,
+    BeforeValidator(_coerce_uncertainty_flags),
+    WithJsonSchema(
+        {
+            "type": "array",
+            "items": {"type": "string", "enum": list(get_args(UncertaintyFlag))},
+        }
+    ),
+]
 
 
 # Group D field names, used by the row-level _NA_ consistency validator and by
@@ -260,7 +326,7 @@ class ContractRow(BaseModel):
 
     # Group F — Row-level confidence and provenance metadata
     confidence: Confidence
-    uncertainty_flags: str
+    uncertainty_flags: UncertaintyFlags
 
     @model_validator(mode="after")
     def _validate_na_vs_group_d(self) -> ContractRow:
@@ -392,6 +458,17 @@ class RunProvenance(BaseModel):
     run_tool: str
     run_date: Annotated[str, StringConstraints(pattern=ISO_DATE_PATTERN)]
 
+    @field_validator("run_date")
+    @classmethod
+    def validate_run_date(cls, v: str) -> str:
+        """Validate run_date is a valid YYYY-MM-DD date."""
+        if v:
+            try:
+                datetime.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD)") from None
+        return v
+
 
 class PersistedRow(BaseModel):
     """A `ContractRow` plus its `RunProvenance`, used at CSV write time."""
@@ -426,6 +503,16 @@ ACTIVITY_ID_PATTERN = r"^A[1-9]\d*$"
 SOURCE_ID_PATTERN = r"^S[1-9]\d*$"
 ACTIVITY_OR_NA_PATTERN = r"^(A[1-9]\d*|_NA_)$"
 
+# Key-layer identifiers (PI ruling 2026-08-14). ``institution_uid`` is the
+# master's permanent key, carried verbatim from
+# ``master_institutions.csv``; ``sweep_uid`` is its Stage-7 restatement,
+# ``"G3O-S-" + <the 8-digit tail>``, and the loader keys sweeps on
+# ``(sweep_uid, run_id)``. Both are pipeline-minted, never model-produced —
+# see ``ValidationProvenance`` for why they live there and not on
+# ``ConsolidatedInstitution``.
+INSTITUTION_UID_PATTERN = r"^G3O-I-\d{8}$"
+SWEEP_UID_PATTERN = r"^G3O-S-\d{8}$"
+
 # Year fields in the consolidated surface drop _NA_ (every ConsolidatedActivity
 # row IS an activity, so the row-level _NA_ semantics no longer apply).
 YEAR_PATTERN_NO_NA = r"^(\d{4}|unknown)$"
@@ -437,6 +524,7 @@ ActivityTypeNoNA = Literal[
     "program_initiative",
     "internal_operational",
     "public_facing_service",
+    "unknown",
 ]
 AdoptionStageNoNA = Literal[
     "proposed", "announced", "pilot", "production", "discontinued", "unknown"
@@ -526,7 +614,7 @@ class ConsolidatedActivity(BaseModel):
     # Aggregates.
     n_sources: int = Field(ge=1)
     confidence: Confidence
-    uncertainty_flags: str
+    uncertainty_flags: UncertaintyFlags
 
     @model_validator(mode="after")
     def _validate_no_na_in_group_d(self) -> ConsolidatedActivity:
@@ -712,7 +800,23 @@ class ConsolidatedInstitutionResponse(BaseModel):
         return self
 
 class ValidationProvenance(BaseModel):
-    """Run-level metadata attached at Stage 6/7 CSV write time."""
+    """Run-level metadata attached at Stage 6/7 CSV write time.
+
+    The two key-layer uids live here rather than on ``ConsolidatedInstitution``
+    for two reasons, both load-bearing (PI ruling 2026-08-14 §3):
+
+    - ``ConsolidatedInstitution`` is parsed from Stage 6 model output, and a
+      load-bearing key must never be model-produced. This model is constructed
+      by the pipeline at persist time and never appears in a prompt.
+    - Both uids are **required with no default**, so a builder that forgets one
+      raises here, at construction, rather than at write time. That matters
+      because ``extrasaction="raise"`` catches *extra* keys, not missing ones:
+      a defaulted field would sit in the merged dict as ``None``, satisfy the
+      ``missing`` guards in :meth:`PersistedActivity.to_csv_dict` /
+      :meth:`PersistedSource.to_csv_dict`, and ship an empty column with no
+      error — which is exactly how the loader's ``missing_institution_uid``
+      quarantine gets fed a clean-looking run.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -721,6 +825,19 @@ class ValidationProvenance(BaseModel):
     run_model: str
     run_tool: str
     run_date: Annotated[str, StringConstraints(pattern=ISO_DATE_PATTERN)]
+    institution_uid: Annotated[str, StringConstraints(pattern=INSTITUTION_UID_PATTERN)]
+    sweep_uid: Annotated[str, StringConstraints(pattern=SWEEP_UID_PATTERN)]
+
+    @field_validator("run_date")
+    @classmethod
+    def validate_run_date(cls, v: str) -> str:
+        """Validate run_date is a valid YYYY-MM-DD date."""
+        if v:
+            try:
+                datetime.strptime(v, "%Y-%m-%d")
+            except ValueError:
+                raise ValueError(f"Invalid date format: {v!r} (must be valid YYYY-MM-DD)") from None
+        return v
 
 
 class PersistedActivity(BaseModel):
@@ -784,12 +901,16 @@ class PersistedSource(BaseModel):
 
 __all__ = [
     "NA",
+    "UncertaintyFlag",
+    "UncertaintyFlags",
     "UNCERTAINTY_FLAG_VOCAB",
     "GROUP_D_FIELDS",
     "INSTITUTION_SHARED_FIELDS",
     "ACTIVITY_ID_PATTERN",
     "SOURCE_ID_PATTERN",
     "ACTIVITY_OR_NA_PATTERN",
+    "INSTITUTION_UID_PATTERN",
+    "SWEEP_UID_PATTERN",
     "YEAR_PATTERN_NO_NA",
     "BatchMetadata",
     "ContractRow",

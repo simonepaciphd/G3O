@@ -1,7 +1,8 @@
 """Stage 7 — Deterministic CSV writer.
 
-Walks ``runs/<run_id>/<institution_id>/6_validate.json`` for every institution
-in a run, validates each payload against
+Walks ``runs/<run_id>/institutions/<shard>/<institution_id>/6_validate.json``
+for every institution in a run (storage layout v2 — see
+``docs/storage-layout-v2.md``), validates each payload against
 ``g3o.common.contract.ConsolidatedInstitutionResponse``, and writes three
 canonical CSVs to ``runs/<run_id>/final/``:
 
@@ -23,6 +24,7 @@ from __future__ import annotations
 import csv
 import json
 import logging
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -31,11 +33,13 @@ from typing import Any
 
 from g3o.common import attrition
 from g3o.common.contract import (
+    INSTITUTION_UID_PATTERN,
     ConsolidatedInstitutionResponse,
     PersistedActivity,
     PersistedSource,
     ValidationProvenance,
 )
+from g3o.common.paths import institution_uid_map, iter_institution_dirs, require_layout
 from g3o.common.schema import (
     ACTIVITY_COLUMNS,
     ACTIVITY_SOURCE_COLUMNS,
@@ -70,6 +74,29 @@ def _utc_today() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
 
+def sweep_uid_for(institution_uid: str) -> str:
+    """``"G3O-S-" + <the 8-digit tail of institution_uid>`` (PI ruling 2026-08-14 §2).
+
+    Deterministic, stateless, no lookup and no counter: re-running institution
+    X in a later run produces the same ``sweep_uid`` and a different
+    ``(sweep_uid, run_id)`` pair, and it is the composite key — not the string
+    — that carries the distinction. Minted here, at Stage 7 persist, and never
+    at Stage 6: that is an LLM boundary and a load-bearing key must not be
+    model-produced (§3).
+
+    Raises:
+        ValueError: on an institution_uid that is not ``G3O-I-<8 digits>``. The
+            8-digit tail is the whole of the derivation, so a malformed input
+            has no defensible output.
+    """
+    if not re.match(INSTITUTION_UID_PATTERN, institution_uid):
+        raise ValueError(
+            f"cannot derive a sweep_uid from institution_uid={institution_uid!r}: "
+            f"expected {INSTITUTION_UID_PATTERN}"
+        )
+    return f"G3O-S-{institution_uid[-8:]}"
+
+
 # ---------------------------------------------------------------------------
 # Loading
 # ---------------------------------------------------------------------------
@@ -82,43 +109,74 @@ class LoadedInstitution:
     institution_id: str
     response: ConsolidatedInstitutionResponse
     source_path: Path
+    #: The master's permanent key for this institution, off the run manifest.
+    #: Not on ``response``: that object is parsed from Stage 6 model output.
+    institution_uid: str
 
 
 def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], list[str]]:
-    """Walk ``run_dir/<inst>/6_validate.json``; validate each.
+    """Walk ``institutions/<shard>/<inst>/6_validate.json``; validate each.
+
+    Institution discovery goes through :func:`g3o.common.paths.iter_institution_dirs`
+    (storage layout v2), which yields only institution directories in ``inst_id``
+    order — so no run-level entry (``_state``, ``final``, reports) can reach this
+    loop and the pre-v2 name filtering is gone.
+
+    The manifest's ``institution_uids`` block is joined on here rather than
+    read from ``institution.json``: that file is the Stage 2/3/5/6 prompt
+    payload, and the uid is bookkeeping that must not reach a model (PI ruling
+    2026-08-14 §3). A missing uid raises rather than defaulting — an empty
+    stamp is quarantined row by row at ingest, which is the failure this whole
+    change exists to remove.
 
     Returns:
         (loaded, failures) where ``loaded`` is a list of ``LoadedInstitution``
         and ``failures`` is a list of institution_ids whose payload failed to
         parse / validate. Failures are logged at WARNING; the caller decides
         whether to abort.
+
+    Raises:
+        RuntimeError: when the manifest carries no ``institution_uids`` block,
+            or carries no entry for an institution that reached Stage 6.
     """
     if not run_dir.exists():
         raise FileNotFoundError(f"run_dir does not exist: {run_dir}")
 
+    uid_by_inst = institution_uid_map(run_dir)
+
     loaded: list[LoadedInstitution] = []
     failures: list[str] = []
-    for institution_dir in sorted(run_dir.iterdir()):
-        if not institution_dir.is_dir():
-            continue
-        path = institution_dir / "6_validate.json"
+    unstamped: list[str] = []
+    for inst_dir in iter_institution_dirs(run_dir):
+        path = inst_dir / "6_validate.json"
         if not path.exists():
             continue
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
             response = ConsolidatedInstitutionResponse.model_validate(payload)
         except Exception as exc:
-            logger.warning(
-                "Stage 7: %s failed to load: %s", institution_dir.name, exc
-            )
-            failures.append(institution_dir.name)
+            logger.warning("Stage 7: %s failed to load: %s", inst_dir.name, exc)
+            failures.append(inst_dir.name)
+            continue
+        institution_id = response.institution.institution_id
+        institution_uid = uid_by_inst.get(institution_id, "")
+        if not institution_uid:
+            unstamped.append(institution_id)
             continue
         loaded.append(
             LoadedInstitution(
-                institution_id=response.institution.institution_id,
+                institution_id=institution_id,
                 response=response,
                 source_path=path,
+                institution_uid=institution_uid,
             )
+        )
+    if unstamped:
+        raise RuntimeError(
+            f"{len(unstamped)} institution(s) reached Stage 6 but carry no "
+            "institution_uid in the run manifest, so their rows cannot be stamped: "
+            + ", ".join(unstamped[:5])
+            + ("…" if len(unstamped) > 5 else "")
         )
     return loaded, failures
 
@@ -130,6 +188,17 @@ def salvaged_fields_by_source(run_dir: Path) -> dict[tuple[str, str], str]:
     ``group_d_incomplete_salvaged`` records — each recorded against the scraped
     page URL with ``detail='rows=[...];fields=f1,f2'`` — and returns the salvaged
     field names per source page. Absent ledger → empty map.
+
+    The value is **page-level**, not per-record or per-event: it is the
+    deduplicated set of field names for which *at least one record* on the page
+    was salvaged. This function does not compute that dedup — it only reads it.
+    Stage-5 (``run.presweep.stage_extract``) does the work: for each page it
+    unions the field names across every salvaged record via a sorted set
+    (``sorted({f for s in salvaged for f in s.salvaged_fields})``) and writes
+    exactly one ``group_d_incomplete_salvaged`` ledger record per page. Because
+    that single record already carries the collapsed set, this map does not —
+    and cannot — distinguish which record salvaged which field, or how many
+    times a field was salvaged; all of that is folded in upstream.
 
     Join caveat (documented, conservative): the key is the source URL. If Stage-6
     consolidation altered a source_url, its salvage annotation will not attach
@@ -193,11 +262,17 @@ def build_activity_rows(
     *,
     run_id: str,
     run_model: str,
+    institution_uid: str,
     run_tool: str = DEFAULT_RUN_TOOL_ACTIVITY,
     run_date: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Build one CSV-shaped dict per ``ConsolidatedActivity``."""
+    """Build one CSV-shaped dict per ``ConsolidatedActivity``.
+
+    ``institution_uid`` is keyword-required with no default: the loader
+    quarantines an unstamped fact row, so there is no safe fallback to offer.
+    """
     run_date = run_date or _utc_today()
+    sweep_uid = sweep_uid_for(institution_uid)
     rows: list[dict[str, Any]] = []
     institution = response.institution
     for activity in response.activities:
@@ -209,6 +284,8 @@ def build_activity_rows(
             run_model=run_model,
             run_tool=run_tool,
             run_date=run_date,
+            institution_uid=institution_uid,
+            sweep_uid=sweep_uid,
         )
         pa = PersistedActivity(
             provenance=provenance, institution=institution, activity=activity
@@ -222,6 +299,7 @@ def build_source_rows(
     *,
     run_id: str,
     run_model: str,
+    institution_uid: str,
     run_tool: str = DEFAULT_RUN_TOOL_SOURCE,
     run_date: str | None = None,
     salvaged_by_source: dict[tuple[str, str], str] | None = None,
@@ -231,8 +309,12 @@ def build_source_rows(
     ``salvaged_by_source`` (from :func:`salvaged_fields_by_source`) annotates
     each row's ``group_d_salvaged_fields`` from the attrition ledger keyed by
     ``(institution_id, source_url)``; defaults to no annotation.
+
+    ``institution_uid`` is keyword-required for the same reason as in
+    :func:`build_activity_rows`.
     """
     run_date = run_date or _utc_today()
+    sweep_uid = sweep_uid_for(institution_uid)
     salvaged_by_source = salvaged_by_source or {}
     rows: list[dict[str, Any]] = []
     institution_id = response.institution.institution_id
@@ -245,6 +327,8 @@ def build_source_rows(
             run_model=run_model,
             run_tool=run_tool,
             run_date=run_date,
+            institution_uid=institution_uid,
+            sweep_uid=sweep_uid,
         )
         ps = PersistedSource(
             provenance=provenance,
@@ -262,9 +346,15 @@ def build_summary_row(
     response: ConsolidatedInstitutionResponse,
     *,
     run_id: str,
+    institution_uid: str,
     run_date: str | None = None,
 ) -> dict[str, Any]:
-    """Build one CSV-shaped dict matching ``SUMMARY_COLUMNS``."""
+    """Build one CSV-shaped dict matching ``SUMMARY_COLUMNS``.
+
+    Carries ``institution_uid`` but not ``sweep_uid``: this CSV is not a loader
+    input, and at institution grain ``sweep_uid`` is a deterministic
+    restatement of the uid with no consumer.
+    """
     run_date = run_date or _utc_today()
     institution = response.institution
     activities = response.activities
@@ -279,6 +369,7 @@ def build_summary_row(
     activities_found = [a.activity_name for a in activities]
 
     row = {
+        "institution_uid": institution_uid,
         "institution_id": institution.institution_id,
         "institution_name": institution.institution_name,
         "country": institution.country,
@@ -313,9 +404,61 @@ def build_summary_row(
 # ---------------------------------------------------------------------------
 
 
+def _strip_nul(rows: list[dict[str, Any]], *, path: Path) -> list[dict[str, Any]]:
+    """Remove NUL (0x00) from string values, loudly. Returns rows unchanged if clean.
+
+    PostgreSQL text columns cannot hold a NUL byte, and the component that
+    discovers that is the *loader*, three stages downstream. Measured 2026-08-24:
+    a single NUL in **5 of 3,633** source rows aborted the ingest of a
+    1,000-institution run with ``psycopg.DataError: PostgreSQL text fields cannot
+    contain NUL (0x00) bytes`` — after institutions and findings had already been
+    staged. The one-long-transaction design rolled it all back, so nothing partial
+    landed, but the run had to be re-persisted and re-ingested.
+
+    NUL is not data. It cannot occur in valid text content: it arrives from
+    scraped PDFs and from HTML served under a mislabelled encoding, and it rides
+    through Stage 4 → Stage 5 → here inside ``source_snippet`` and
+    ``source_title``. Removing it is lossless in the only sense that matters —
+    no character is lost, only a byte no text pipeline can represent.
+
+    Stripped at the CSV boundary rather than at scrape time on purpose: this is
+    the single choke point every Stage-7 table passes through, so one guard covers
+    every column, including ones added later. A scrape-time strip would be better
+    hygiene and is worth doing as well, but it would not protect a field
+    introduced after it.
+
+    The count is logged rather than silent: this mutates a published artifact, and
+    an artifact that differs from what the model emitted must say so.
+    """
+    n_values = 0
+    n_bytes = 0
+    fields: set[str] = set()
+    cleaned: list[dict[str, Any]] = []
+    for row in rows:
+        new_row = row
+        for key, value in row.items():
+            if isinstance(value, str) and "\x00" in value:
+                if new_row is row:
+                    new_row = dict(row)
+                n_values += 1
+                n_bytes += value.count("\x00")
+                fields.add(key)
+                new_row[key] = value.replace("\x00", "")
+        cleaned.append(new_row)
+    if n_values:
+        logger.warning(
+            "%s: stripped %d NUL byte(s) from %d value(s) across field(s) %s — "
+            "NUL cannot be stored in a PostgreSQL text column and is not valid "
+            "text content; it originates in scraped PDF/HTML upstream",
+            path.name, n_bytes, n_values, ", ".join(sorted(fields)),
+        )
+    return cleaned
+
+
 def _write_csv(path: Path, columns: list[str], rows: list[dict[str, Any]]) -> int:
     """Write ``rows`` to ``path`` with header ``columns``. Returns row count."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    rows = _strip_nul(rows, path=path)
     with path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=columns, extrasaction="raise")
         writer.writeheader()
@@ -349,6 +492,7 @@ def write_run_csvs(
     Returns:
         Summary dict with output paths and row counts.
     """
+    require_layout(run_dir)
     final_dir = run_dir / "final"
     activities_path = final_dir / f"g3o_activities_v{version}.csv"
     sources_path = final_dir / f"g3o_activity_sources_v{version}.csv"
@@ -374,6 +518,7 @@ def write_run_csvs(
                 li.response,
                 run_id=run_id,
                 run_model=run_model,
+                institution_uid=li.institution_uid,
                 run_tool=activities_tool,
                 run_date=run_date,
             )
@@ -383,13 +528,19 @@ def write_run_csvs(
                 li.response,
                 run_id=run_id,
                 run_model=run_model,
+                institution_uid=li.institution_uid,
                 run_tool=sources_tool,
                 run_date=run_date,
                 salvaged_by_source=salvaged_by_source,
             )
         )
         summary_rows.append(
-            build_summary_row(li.response, run_id=run_id, run_date=run_date)
+            build_summary_row(
+                li.response,
+                run_id=run_id,
+                institution_uid=li.institution_uid,
+                run_date=run_date,
+            )
         )
 
     n_activities = _write_csv(activities_path, ACTIVITY_COLUMNS, activity_rows)
@@ -419,5 +570,6 @@ __all__ = [
     "build_source_rows",
     "build_summary_row",
     "load_consolidated_outputs",
+    "sweep_uid_for",
     "write_run_csvs",
 ]

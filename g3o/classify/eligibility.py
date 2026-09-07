@@ -15,13 +15,34 @@ non-content, decided from the URL string alone. Language-neutral. Two rosters:
   from the path alone. Scope is those two categories and only those; expansion
   is a signed amendment, not a drive-by commit. See :func:`host_rule_hits`.
 
-**1b. Snippet/title keyword screen (positive eligibility).** Require ≥1
-GenAI/AI-signal term in ``title ∪ snippet``. Vocabulary is the union of every
-language roster in ``GENAI_TERMS_BY_LANG`` plus the tool/model names in
-``qc.GENERATIVE_SIGNAL_KEYWORDS`` — a French snippet found by an English query
-still passes on French terms. **Fail-open:** if both title and snippet are
-empty/missing, the record passes (we never drop for absence of text we do not
-have).
+**1b. Snippet/title keyword screen — RETIRED from the pipeline 2026-08-02
+(PI decision).** :func:`has_genai_signal` is retained and still tested, but
+:func:`evaluate` no longer calls it, so Stage 1c is now a URL-hygiene screen
+only. It required ≥1 GenAI/AI-signal term in ``title ∪ snippet``, with the
+vocabulary described below.
+
+*Why it was retired.* Measured on run ``20260802-e2e-100`` (n=100, shadow mode),
+the screen dropped 1,527 of 1,648 discovered URLs, and of the 831 URLs Stage 3's
+LLM triage judged worth reading only **32 also passed — 3.9%, against PI
+decision 6's ≥70% bar.** Enforcing it would have discarded ~96% of the funnel.
+
+The cause is that a SERP snippet is not a statement about the page's topic. Leg
+1 asks ``<name> <country> official website``, so its snippets describe the
+institution, never AI — every one of an institution's homepages failed. That
+much was expected. What was not: **leg 2 fails almost as badly.** Although it
+asks ``site:<domain> AI``, Google returns the page's generic meta description
+rather than an AI-matching excerpt, so 762 of ~802 leg-2 URLs were also dropped
+and *every* one of the 36 survivors was a leg-2 URL. Restricting the screen to
+leg 2 was therefore measured and rejected; so was exempting homepages, which
+lifts recall only to 13.8%. Removing it takes 1c to 94.8% pass / **99.5% shadow
+recall**.
+
+The consequence to keep in view: 1c no longer reduces Stage 3 volume
+meaningfully (5.2%, not 97.8%), so it is a correctness/hygiene stage rather than
+a cost-saving one. Deciding what GenAI signal is worth screening on — page text
+rather than snippets, or a better-calibrated lexicon — is open, and the
+vocabulary machinery below is deliberately left intact for it. Retuning that
+vocabulary belongs to ``subprojects/multilingual-pipeline/``.
 
 Per fact 5 of the memo, ``qc._compile_keyword_pattern`` asserts ``\\w``
 boundaries, which are wrong for continuous CJK script (kanji/hanzi are word
@@ -45,7 +66,7 @@ from g3o.validate.qc import GENERATIVE_SIGNAL_KEYWORDS, _compile_keyword_pattern
 # into every 1c artifact so a decision can always be traced to the rules that
 # produced it. NOT yet PI-signed — the memo (decision 3) requires PI sign-off
 # on the lists before ``enforce`` gates any live run; ``shadow`` is unaffected.
-RULES_VERSION = "1c-draft-2026-08-01"
+RULES_VERSION = "1c-url-hygiene-2026-08-02"
 
 # Coarse attrition reason codes (stable; participate in the attrition dedup
 # key). The per-URL ``matched_rules`` in the artifact carry the fine detail.
@@ -306,10 +327,16 @@ def has_genai_signal(title: str | None, snippet: str | None) -> bool:
 def evaluate(record: dict) -> dict:
     """Screen one discovery record → ``{decision, matched_rules, reason}``.
 
-    ``decision`` is ``"pass"`` or ``"drop"``. 1a runs first (URL string alone);
-    only URLs that survive 1a are keyword-screened. ``matched_rules`` names the
-    fired 1a rules, or ``["no_genai_signal"]`` for a 1b drop, or ``[]`` for a
-    pass. ``reason`` is the coarse attrition code (``None`` for a pass).
+    ``decision`` is ``"pass"`` or ``"drop"``. Only the URL-pattern screen
+    applies: ``matched_rules`` names the fired rules, or is ``[]`` for a pass,
+    and ``reason`` is the coarse attrition code (``None`` for a pass).
+
+    The snippet/title GenAI screen is **not** applied — retired 2026-08-02 by PI
+    decision after it measured 3.9% shadow recall against a ≥70% bar (module
+    docstring for the numbers and the two rejected alternatives).
+    :data:`REASON_NO_SIGNAL` is kept so existing artifacts and the health
+    report's reason tallies stay readable, and :func:`has_genai_signal` is kept
+    for whatever replaces it; neither is reachable from here.
     """
     url = record.get("link", "") or ""
     pattern_rules = url_pattern_hits(url)
@@ -318,12 +345,6 @@ def evaluate(record: dict) -> dict:
             "decision": "drop",
             "matched_rules": pattern_rules,
             "reason": REASON_URL_PATTERN,
-        }
-    if not has_genai_signal(record.get("title"), record.get("snippet")):
-        return {
-            "decision": "drop",
-            "matched_rules": [REASON_NO_SIGNAL],
-            "reason": REASON_NO_SIGNAL,
         }
     return {"decision": "pass", "matched_rules": [], "reason": None}
 

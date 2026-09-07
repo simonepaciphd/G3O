@@ -9,6 +9,55 @@ Commands below use `<run-id>` as a placeholder and PowerShell line
 continuations (`` ` ``). The pre-sweep launched on 2026-05-09 used run id
 `20260509-presweep`, `--sample-size 1000`, `--seed 22294`.
 
+> **Run ids (Run API spec §2, 2026-08-11).** `--run-id` is now optional. Omit it
+> and one is minted as `r<YYYYMMDD>T<HHMMSS>Z-<4hex>` (UTC) and echoed to
+> **stderr** as `run_id=<id>` the moment it exists — before the run blocks — so a
+> long run can be resumed or monitored while still in flight. It is also the first
+> key of the JSON document on stdout.
+>
+> Pass an explicit `--run-id` for exactly two purposes: replicating a run, and
+> **resuming** one. A minted id can never name an existing run directory, so a
+> resume is always a deliberate act rather than an accident of timing. Resume
+> itself is unchanged — re-invoke the same command with the same id and each stage
+> rejoins from `_state/`.
+>
+> `--session-id` (spec §4.2) records which session drove the run; precedence is
+> the flag, then `G3O_SESSION_ID`, then `unattended`.
+>
+> **What a run records about itself (Run API spec §4).** Every run launched
+> through the CLI or `launch()` writes two things into `runs/<run_id>/`:
+>
+> - `manifest.json` — the planning manifest as before, now carrying the run's
+>   identity as well: `run_started_at` (authoritative for wave classification),
+>   `session_id`, git sha/dirty, install path, package version, the contract pin
+>   and prompt hashes, the config snapshot with its `config_hash`, credential
+>   fingerprints, and the master build id when the master declares one. Written
+>   atomically before any spend. On resume the identity half is **preserved** and
+>   only the planning half refreshes.
+> - `events.jsonl` — append-only, one JSON object per line: `run_launched`,
+>   per-stage `stage_started`/`stage_completed`, per-chunk `chunk_submitted`/
+>   `chunk_terminal`, `poll_timeout`, and one terminal `run_completed` /
+>   `run_stopped` / `run_failed`. `seq` is contiguous from 1 across resumes.
+>
+> Both are records, never controls: `_state/` remains the only thing resume reads,
+> and a telemetry write that fails warns rather than stopping the run. A log that
+> ends with **no** terminal event means the process died — read it as abnormal
+> termination, not as "still running", and check `_state/` for the truth.
+>
+> One caveat carried over from §3.5: **resume with the key you launched with.**
+> Batches are listed per API key, so a resume under a rotated key would find none
+> of the in-flight chunks and resubmit them — both sets would bill. The run
+> refuses to continue rather than allow that, naming both fingerprints.
+>
+> A second caveat, from §1.7: **concurrent same-process launches must agree on
+> `dry_run`.** Serper live mode is held in a module global, so two launches in one
+> process that disagree race it — a dry run setting it `False` after a live run set
+> it `True` sends the live run down the mock path, producing a run that believes it
+> searched and did not. Concurrent launches are otherwise safe: no key state is
+> process-global (§3.2) and both shared caches write atomically (§3.4). Until the
+> flag is threaded the way the credentials were, this is **not supported** — run
+> disagreeing launches in separate processes.
+
 > **Master CSV.** `--master-csv` points at the institution master, which lives
 > **outside** this repo and is read-only. From the repo working directory the
 > path used for the pre-sweep was
@@ -44,13 +93,23 @@ missing**. It writes no state and submits no production batches. Optional:
 
 - `--verify-model` — also runs a live one-job `verify-model` round-trip
   (submits a batch; off by default).
-- `--cost-ceiling <USD>` — reports whether the estimated OpenAI Batch cost
-  exceeds the figure. Informational only; no abort is wired (Decision D7).
+- `--cost-ceiling <USD>` — aborts (exit 3) if the estimated OpenAI Batch cost
+  exceeds the figure. Can also be set via `G3O_BUDGET_LIMIT_USD` env var;
+  the CLI flag takes precedence. Enforced on both `--preflight` and
+  `--execute` paths (supersedes Decision D7; PR #52).
 
 ## Failure honesty in `--execute` (live mode)
 
-- **Serper key gate:** in `--execute`, a missing `SERPER_API_KEY` is a hard
-  error at startup — live mode never returns or caches mock results.
+- **Serper key gate:** in `--execute`, a missing Serper key is a hard error at
+  startup — live mode never returns or caches mock results. The gate reads the
+  run's *resolved* credentials (Run API spec §3.1: explicit → env → unset), so it
+  covers a key passed programmatically exactly as it covers `SERPER_API_KEY`.
+- **Key attribution:** every batch submit carries `g3o_key_fingerprint`
+  (`sha256(key)[:8]`) alongside its `{g3o_run_id, g3o_stage, g3o_chunk}` identity
+  (§3.5), so batches listed server-side under two different keys stay
+  attributable. Reconciliation still matches on identity alone — matching on the
+  fingerprint too would make a batch submitted under an earlier key unfindable,
+  and a missed reconcile is a double submit.
 - **Request failures** are recorded as explicit error envelopes and in the
   attrition ledger, never as a silent "searched, found nothing" artifact.
 - Purge any stale `cache/serp_*` entries before a fresh launch so a prior
@@ -122,19 +181,20 @@ runs/<run-id>/
 │       ├── classify_official_site.json     # moved here once Stage 2 fetch succeeded
 │       ├── …                               # …one per completed stage
 │       └── validate.json
-├── INST-XXXXXXX/
+├── institutions/<shard>/INST-XXXXXXX/      # <shard> = md5(inst_id)[:2]
 │   ├── institution.json
 │   ├── 1a_discovery_general.json
 │   ├── 2_official_site.json
 │   ├── 1b_discovery_site_restricted.json   # absent if no usable official site
 │   ├── 3_triage.json
-│   ├── scrape/<url_hash>.json              # one per fetched page
-│   ├── extract/<url_hash>.json             # one per Stage 5 result
+│   ├── scrape/<url_hash>.json.gz           # one per fetched page (gzipped)
+│   ├── extract/<url_hash>.json.gz          # one per Stage 5 result (gzipped)
 │   └── 6_validate.json
-└── final/                                  # written by `g3o persist` after Stage 6
-    ├── g3o_activities_v{N}.csv
-    ├── g3o_activity_sources_v{N}.csv
-    └── g3o_institution_summary_v{N}.csv
+├── final/                                  # written by `g3o persist` after Stage 6
+│   ├── g3o_activities_v{N}.csv
+│   ├── g3o_activity_sources_v{N}.csv
+│   └── g3o_institution_summary_v{N}.csv
+└── archive/institutions/<shard>.tar        # written by `g3o archive --apply` (see below)
 ```
 
 ## Persist (Stage 7) — separate, deterministic
@@ -153,6 +213,68 @@ g3o persist `
 `--overwrite`. It does not use the Batch API and is therefore not part of the
 state-file machinery. See [`data_dictionary.md`](data_dictionary.md) for the
 three CSVs' columns.
+
+## Archive (retention) — the last operation on a run
+
+A finished run's institution tree is the storage overhang: at the full frame
+roughly 20M files. Once the run is complete, `g3o archive` tars it one shard at
+a time to `runs/<run-id>/archive/institutions/<shard>.tar` (plain tar — the page
+artifacts inside are already gzipped, so outer compression buys ~nothing).
+
+```powershell
+g3o archive --run-dir runs/<run-id>            # dry run: prints the plan, writes nothing
+g3o archive --run-dir runs/<run-id> --apply    # tars, verifies, then deletes the sources
+```
+
+**Dry run is the default.** Without `--apply` the command prints shard count,
+file count, byte totals, and projected tar sizes, then exits without writing or
+deleting anything. Note the projected tar size is an *estimate* (tar block
+overhead modelled, extended headers not).
+
+**Preconditions.** `archive` refuses unless all three hold, and reports every
+gap at once:
+
+1. `final/` contains the three Stage-7 CSVs (run `g3o persist` first).
+2. `_state/.done/` holds a marker for every stage in `g3o.run.presweep.STAGES`.
+3. Run-level reports (`run_summary.json`, `_health_report.json`) are written.
+
+Condition 3 is the one that bites: the reports read the *live* institution
+tree, so archiving before they run produces an empty report against an archived
+run. Archival is strictly the last operation on a run.
+
+**Verification precedes every delete.** Each tar is re-opened after writing and
+its member count and total member bytes compared against a fresh walk of the
+source. A mismatch aborts the whole command, deletes nothing, and renames the
+bad tar to `<shard>.tar.FAILED` so it is never mistaken for a good archive.
+Shards archived before the failure stay archived — each verified against its
+own source.
+
+**Idempotent.** Re-running after an interruption finishes the remainder: a
+shard whose tar exists and verifies is not rewritten, and a shard whose source
+is already gone is skipped.
+
+Run-level files (`manifest.json`, `_state/`, `_attrition.jsonl`, `final/`, the
+reports) are never archived — they stay live. A completed full-frame run's live
+tree is those files plus at most 256 tars.
+
+### Restore
+
+There is no restore subcommand (spec §A2, v1 scope). Restoring a shard is one
+plain `tar`:
+
+```powershell
+tar -xf archive/institutions/<shard>.tar -C <run_dir>/institutions/
+```
+
+The tar is rooted at the shard name, so this recreates
+`institutions/<shard>/INST-XXXXXXX/...` exactly where it was. To restore an
+entire run, repeat for each tar in `archive/institutions/`.
+
+Tars are written in **GNU format**, not Python's `PAX` default: PAX spends an
+extra 1 KB per member on an extended header for sub-second mtimes, which is
+~20 GB of padding at full-frame scale and nothing reads it. GNU tar, bsdtar
+(Windows' bundled `tar.exe`), Python's `tarfile`, and 7-zip all read GNU
+format, so the command above is unaffected.
 
 ## Notes
 

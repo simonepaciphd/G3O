@@ -1,23 +1,34 @@
-"""Stage 5 Group-D ``_NA_`` salvage (fix/stage5-groupd-salvage).
+"""Stage 5 / Stage 6 ``_NA_`` salvage (fix/stage5-groupd-salvage, fix/NA-issue).
 
-A ``confirms_activity`` row whose Group-D activity fields carry the illegal
-literal ``_NA_`` used to fail ``BatchResponse`` validation and, because
-validation is atomic over the page, take the whole page (and its confirmed
-positive finding) down with it — the Qatar MCIT data-loss bug. These tests pin
-the salvage behaviour that repairs such rows to the contract's prescribed
-defaults instead of dropping them, keeps the repair targeted, and writes one
-stable-reason attrition record per salvaged page.
+Two data-loss bugs with the same shape: an illegal literal ``_NA_`` fails
+validation, and because validation is atomic over the page (Stage 5) or the
+institution (Stage 6), it takes the whole unit down with it.
+
+1. **Group-D ``_NA_`` on positive findings** — the Qatar MCIT bug. A
+   ``confirms_activity`` row whose Group-D activity fields carry ``_NA_``.
+2. **``uncertainty_flags`` ``_NA_``** — ``INST-0000580`` /
+   ``windowsforum.com`` in run ``digitalocean-010-dry``. Column 39 is Group F
+   with its own closed vocabulary whose empty value is ``none``, but §3.2 tells
+   the model to set "every field in Group D" to ``_NA_`` and never marks column
+   39 as an exception, so a model generalising the rule writes ``_NA_`` here.
+
+These tests pin the salvage behaviour that repairs both to the contract's own
+prescribed values instead of dropping the unit, keeps each repair targeted, and
+writes one stable-reason attrition record per affected unit.
 
 Layers covered:
   • ``salvage_group_d_na`` unit behaviour (repair / skip / unsalvageable / malformed).
+  • ``salvage_uncertainty_flags_na`` unit behaviour (repair / boundaries / malformed).
   • ``parse_extract_result`` integration (salvaged row survives; targeted; sink).
   • ``_run_extract`` → ``_persist`` telemetry (one ledger record, stable code).
+  • ``parse_consolidate_result`` + ``run_consolidate`` → ``_persist`` at Stage 6.
 """
 
 from __future__ import annotations
 
 import csv
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -25,22 +36,38 @@ import pytest
 from pydantic import ValidationError
 
 from g3o.common import attrition
+from g3o.common.artifact_io import artifact_exists
 from g3o.common.batch_client import BatchResult
-from g3o.common.contract import GROUP_D_FIELDS
+from g3o.common.contract import GROUP_D_FIELDS, NA, UNCERTAINTY_FLAG_VOCAB
+from g3o.common.run_state import mark_done
 from g3o.extract import make_custom_id, parse_extract_result, url_hash
 from g3o.extract.batch import EMPTY_PAGE_MIN_CHARS
+from g3o.extract.parser import SalvageEvent
 from g3o.extract.salvage import (
+    GROUP_D_EXISTENCE_ASSERTING,
     GROUP_D_SALVAGE_DEFAULTS,
     GROUP_D_UNSALVAGEABLE,
+    REASON_FLAGS_SALVAGED,
+    REASON_NEGATIVE_ROW_BLANKED,
+    REASON_NEGATIVE_ROW_CONTRADICTORY,
     REASON_SALVAGED,
     REASON_UNSALVAGEABLE,
+    UNCERTAINTY_FLAGS_EMPTY,
     GroupDSalvage,
+    NegativeRowSalvage,
+    UncertaintyFlagsSalvage,
     salvage_group_d_na,
+    salvage_negative_row_group_d,
+    salvage_uncertainty_flags_na,
 )
 from g3o.run import presweep as ps
 from g3o.run.presweep import synth_institution_id
 from g3o.run.presweep.stage_extract import _is_unsalvageable_group_d_failure
 from g3o.scrape.render import FetchMetadata, RenderedPage
+from g3o.validate import consolidate as vc
+from g3o.validate.consolidate import parse_consolidate_result
+from tests._layout import inst_dir as inst_dir_of
+from tests._layout import make_inst_dir, write_manifest
 
 MCIT_ACCESS_DATE = "2026-06-10"
 
@@ -410,7 +437,7 @@ def _run_one_page_extract(tmp_path: Path, monkeypatch, payload: dict[str, Any], 
     rows = list(csv.DictReader(open(master, encoding="utf-8")))
     inst_id = synth_institution_id(rows[0])
     run_dir = tmp_path / "runs" / run_id
-    (run_dir / inst_id).mkdir(parents=True)
+    (inst_dir_of(run_dir, inst_id)).mkdir(parents=True)
 
     url = "https://www.mcit.gov.qa/en/genai-assistant"
     page = _make_page(url, "GenAI citizen assistant announcement. " * 5)
@@ -441,7 +468,7 @@ def test_salvage_writes_one_attrition_record_with_stable_code(tmp_path, monkeypa
     assert salvaged[0]["stage"] == "extract"
     assert "year_deployed" in salvaged[0]["detail"]
     # The confirmed finding was preserved on disk for Stage 6.
-    assert (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+    assert artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
 
 
 def test_unsalvageable_page_records_distinct_code_and_drops(tmp_path, monkeypatch):
@@ -455,8 +482,9 @@ def test_unsalvageable_page_records_distinct_code_and_drops(tmp_path, monkeypatc
     assert REASON_UNSALVAGEABLE in reasons
     assert "parse_failed" not in reasons
     assert REASON_SALVAGED not in reasons
-    # The page dropped — no extract artifact written.
-    assert not (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+    # The page dropped — no extract artifact written, in either encoding
+    # (a plain-.json check would pass vacuously once writes are gzipped).
+    assert not artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
 
 
 def test_clean_page_records_no_salvage(tmp_path, monkeypatch):
@@ -472,7 +500,7 @@ def test_clean_page_records_no_salvage(tmp_path, monkeypatch):
     run_dir, inst_id, url = _run_one_page_extract(tmp_path, monkeypatch, clean, "clean")
     recs = attrition.read_records(run_dir)
     assert not any(r["reason"] in (REASON_SALVAGED, REASON_UNSALVAGEABLE) for r in recs)
-    assert (run_dir / inst_id / "extract" / f"{url_hash(url)}.json").exists()
+    assert artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
 
 
 # ---------------------------------------------------------------------------
@@ -525,6 +553,819 @@ def test_unsalvageable_attribution_false_on_unrelated_validation_error():
     assert _is_unsalvageable_group_d_failure(exc, [event]) is False
 
 
+# ---------------------------------------------------------------------------
+# uncertainty_flags _NA_ — fixtures
+# ---------------------------------------------------------------------------
+
+# The real failing case, run digitalocean-010-dry / INST-0000580. Reconstructed
+# from the run's attrition ledger, which preserves the source URL, the row_id and
+# the offending value but truncates the rest of the payload — so the coded values
+# below are representative rather than byte-identical. What matters is reproduced
+# exactly: uncertainty_flags is the whole-value literal `_NA_` and is the row's
+# *only* contract violation, so this payload hard-failed before the repair.
+WINDOWSFORUM_URL = (
+    "https://windowsforum.com/threads/"
+    "qatars-mcit-launches-training-on-microsoft-copilot-for-government-efficiency.351450/"
+)
+
+
+def _absence_row(**overrides: Any) -> dict[str, Any]:
+    """A negative-evidence row: has_genai_activity=no, every Group-D field _NA_.
+
+    This is the shape the bug report identifies as the common case — most rows in
+    a real run are negative evidence, and it is precisely the row where §3.2's
+    "set every field in Group D to _NA_" instruction is active and therefore most
+    likely to be over-generalised onto column 39.
+    """
+    base: dict[str, Any] = {
+        **_mcit_row(),
+        "has_genai_activity": "no",
+        "institution_summary": "Supplied pages reviewed; no GenAI evidence found.",
+        "genai_evidence": "confirms_absence",
+        "source_snippet": "The supplied page text contains no mention of generative AI.",
+        **{f: NA for f in GROUP_D_FIELDS},
+    }
+    base.update(overrides)
+    return base
+
+
+def _absence_payload(row_overrides: dict[str, Any] | None = None) -> dict[str, Any]:
+    return {
+        "batch_metadata": _mcit_meta(n_institutions_with_genai=0),
+        "data": [_absence_row(**(row_overrides or {}))],
+    }
+
+
+# ---------------------------------------------------------------------------
+# salvage_uncertainty_flags_na — unit behaviour
+# ---------------------------------------------------------------------------
+
+
+def test_flags_salvage_module_invariants_hold():
+    """The repair only makes sense while `_NA_` is illegal and `none` is not a
+    flag. Both are asserted at import time in salvage.py; pin them here too so a
+    vocabulary edit fails a test rather than only breaking an import."""
+    assert NA not in UNCERTAINTY_FLAG_VOCAB
+    assert UNCERTAINTY_FLAGS_EMPTY not in UNCERTAINTY_FLAG_VOCAB
+    assert UNCERTAINTY_FLAGS_EMPTY == "none"
+
+
+def test_flags_salvage_rewrites_na_to_none():
+    rows = [{"row_id": 1, "source_url": "u", "uncertainty_flags": NA}]
+    events = salvage_uncertainty_flags_na(rows)
+    assert rows[0]["uncertainty_flags"] == "none"
+    assert len(events) == 1
+    assert events[0].row_id == 1
+    assert events[0].source_url == "u"
+
+
+@pytest.mark.parametrize(
+    "evidence",
+    ["confirms_activity", "confirms_absence", "ambiguous", "background_only"],
+)
+def test_flags_salvage_is_evidence_agnostic(evidence: str):
+    """Unlike Group-D salvage, this repair does not condition on genai_evidence:
+    `none` is the field's only legal empty value in every branch of the contract,
+    so the substitution is faithful on a positive row too."""
+    rows = [{"row_id": 1, "genai_evidence": evidence, "uncertainty_flags": NA}]
+    assert len(salvage_uncertainty_flags_na(rows)) == 1
+    assert rows[0]["uncertainty_flags"] == "none"
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["none", "stage_ambiguous", "stage_ambiguous;vendor_undisclosed"],
+)
+def test_flags_salvage_leaves_legal_values_untouched(value: str):
+    rows = [{"row_id": 1, "uncertainty_flags": value}]
+    assert salvage_uncertainty_flags_na(rows) == []
+    assert rows[0]["uncertainty_flags"] == value
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "NA",                       # the report's transcription; never a legal token
+        "n/a",
+        "_na_",                     # case matters
+        "stage_ambiguous;_NA_",     # mixed: real flags supplied, stray _NA_ stays visible
+        "_NA_;_NA_",
+    ],
+)
+def test_flags_salvage_leaves_genuine_drift_to_hard_fail(value: str):
+    """Targeted, not blanket. Vocabulary drift and mixed values are not the
+    documented sentinel applied by analogy, and are left for the validator to
+    reject rather than papered over."""
+    rows = [{"row_id": 1, "uncertainty_flags": value}]
+    assert salvage_uncertainty_flags_na(rows) == []
+    assert rows[0]["uncertainty_flags"] == value
+
+
+@pytest.mark.parametrize("value", ["", " ", "\t", "   ", " _NA_ ", "_NA_"])
+def test_flags_salvage_repairs_blank_and_sentinel_values_to_none(value: str):
+    """v2.3 (#59 Phase 3). A whole-value blank and the whole-value `_NA_` are both
+    statements of "no flags here", which the contract spells `none`. The empty
+    string was the largest live failure class in the n=100 run (27 of 46)."""
+    rows = [{"row_id": 1, "uncertainty_flags": value}]
+    assert len(salvage_uncertainty_flags_na(rows)) == 1
+    assert rows[0]["uncertainty_flags"] == "none"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        # The exact value behind the run's single spaces-class page failure
+        # (INST-0506317). It carries two real flags: coercing it to `none` to
+        # save the page would destroy a finding.
+        ("genai_vs_traditional_ai; date_uncertain",
+         "genai_vs_traditional_ai;date_uncertain"),
+        (" stage_ambiguous ", "stage_ambiguous"),
+        ("stage_ambiguous ;vendor_undisclosed", "stage_ambiguous;vendor_undisclosed"),
+        ("stage_ambiguous ; vendor_undisclosed", "stage_ambiguous;vendor_undisclosed"),
+    ],
+)
+def test_flags_salvage_strips_separator_whitespace_without_losing_flags(
+    value: str, expected: str
+):
+    """v2.3 (#59 Phase 3). Whitespace around the separators is formatting, not
+    content — every flag the model supplied survives the repair."""
+    rows = [{"row_id": 1, "uncertainty_flags": value}]
+    assert len(salvage_uncertainty_flags_na(rows)) == 1
+    assert rows[0]["uncertainty_flags"] == expected
+
+
+@pytest.mark.parametrize(
+    "bad", [None, {}, "data", 7, [None], ["row"], [7], {"data": []}]
+)
+def test_flags_salvage_malformed_input_returns_empty(bad: Any):
+    """Structurally malformed input is left for the validator; salvage no-ops."""
+    assert salvage_uncertainty_flags_na(bad) == []
+
+
+def test_flags_salvage_repairs_every_affected_row():
+    rows = [
+        {"row_id": 1, "uncertainty_flags": NA},
+        {"row_id": 2, "uncertainty_flags": "stage_ambiguous"},
+        {"row_id": 3, "uncertainty_flags": NA},
+    ]
+    events = salvage_uncertainty_flags_na(rows)
+    assert [e.row_id for e in events] == [1, 3]
+    assert [r["uncertainty_flags"] for r in rows] == [
+        "none", "stage_ambiguous", "none",
+    ]
+
+
+def test_flags_salvage_ref_prefers_row_id_then_activity_id():
+    """Stage 5 rows carry row_id; Stage 6 activities carry activity_id instead.
+    The ledger `detail` uses whichever identity the row actually has."""
+    assert UncertaintyFlagsSalvage(row_id=4).ref == "row_id=4"
+    assert UncertaintyFlagsSalvage(activity_id="A2").ref == "activity_id=A2"
+    assert UncertaintyFlagsSalvage().ref == "row_ref=?"
+
+
+def test_flags_salvage_captures_activity_id_at_stage_6_shape():
+    rows = [{"activity_id": "A1", "uncertainty_flags": NA}]
+    events = salvage_uncertainty_flags_na(rows)
+    assert events[0].activity_id == "A1"
+    assert events[0].row_id is None
+    assert events[0].source_url == ""
+
+
+# ---------------------------------------------------------------------------
+# parse_extract_result — uncertainty_flags salvage integration (Stage 5)
+# ---------------------------------------------------------------------------
+
+
+def test_windowsforum_row_preserved_rather_than_dropped():
+    """The named INST-0000580 case: the page parses instead of failing validation
+    and dropping the institution to PROCESSING_FAILED."""
+    payload = _mcit_payload(
+        {
+            **_SALVAGEABLE_NA_ROW,          # Group D fully coded — flags are the sole defect
+            "source_url": WINDOWSFORUM_URL,
+            "source_type": "news_trade",
+            "source_credibility": "medium",
+            "confidence": "low",
+            "uncertainty_flags": NA,
+        }
+    )
+    result = _make_result(make_custom_id("INST-0000580", WINDOWSFORUM_URL), payload)
+    sink: list[SalvageEvent] = []
+
+    parsed = parse_extract_result(
+        result, scrape_access_date=MCIT_ACCESS_DATE, salvage_sink=sink
+    )
+
+    assert len(parsed.data) == 1
+    assert parsed.data[0].uncertainty_flags == "none"
+    assert len(sink) == 1
+    assert isinstance(sink[0], UncertaintyFlagsSalvage)
+    assert sink[0].source_url == WINDOWSFORUM_URL
+
+
+def test_windowsforum_payload_would_have_failed_without_the_repair():
+    """Guards the regression test above against becoming vacuous: the same payload
+    is still rejected when validated directly, so the parse above is passing
+    because of the repair, not because the payload was legal all along."""
+    from g3o.common.contract import BatchResponse
+
+    payload = _mcit_payload(
+        {**_SALVAGEABLE_NA_ROW, "uncertainty_flags": NA}
+    )
+    with pytest.raises(ValidationError, match="unknown uncertainty flag"):
+        BatchResponse.model_validate(payload)
+
+
+def test_flags_na_on_negative_evidence_row_parses():
+    """The bug report's common case: a confirms_absence row where Group D is
+    legitimately all _NA_ and the model carried _NA_ onto column 39 too."""
+    result = _make_result(
+        make_custom_id("INST-0000580", WINDOWSFORUM_URL),
+        _absence_payload({"uncertainty_flags": NA}),
+    )
+    sink: list[SalvageEvent] = []
+
+    parsed = parse_extract_result(
+        result, scrape_access_date=MCIT_ACCESS_DATE, salvage_sink=sink
+    )
+
+    row = parsed.data[0]
+    assert row.genai_evidence == "confirms_absence"
+    assert row.uncertainty_flags == "none"
+    # Group D is untouched: still legitimately _NA_ on a negative-evidence row.
+    assert all(getattr(row, f) == NA for f in GROUP_D_FIELDS)
+    assert len(sink) == 1 and isinstance(sink[0], UncertaintyFlagsSalvage)
+
+
+def test_negative_evidence_row_without_flags_na_needs_no_salvage():
+    """Control for the test above — the same row with `none` parses and salvages
+    nothing, so the repair is not silently firing on every negative row."""
+    result = _make_result("INST-0000580::x", _absence_payload())
+    sink: list[SalvageEvent] = []
+    parsed = parse_extract_result(
+        result, scrape_access_date=MCIT_ACCESS_DATE, salvage_sink=sink
+    )
+    assert parsed.data[0].uncertainty_flags == "none"
+    assert sink == []
+
+
+def test_both_salvages_compose_on_one_row():
+    """A confirms_activity row with Group-D _NA_ *and* uncertainty_flags _NA_ is
+    fully repaired, and the sink reports both events without either clobbering
+    the other."""
+    result = _make_result(
+        "INST-QA-MCIT::x", _mcit_payload({"uncertainty_flags": NA})
+    )
+    sink: list[SalvageEvent] = []
+
+    parsed = parse_extract_result(
+        result, scrape_access_date=MCIT_ACCESS_DATE, salvage_sink=sink
+    )
+
+    row = parsed.data[0]
+    assert row.uncertainty_flags == "none"
+    assert all(getattr(row, f) != NA for f in GROUP_D_FIELDS)
+    assert len(sink) == 2
+    assert {type(e) for e in sink} == {GroupDSalvage, UncertaintyFlagsSalvage}
+
+
+@pytest.mark.parametrize("value", ["NA", "stage_ambiguous;_NA_", "bogus_flag"])
+def test_flags_drift_other_than_the_sentinel_still_hard_fails(value: str):
+    """Repair, not relaxation: the vocabulary check still bites on anything that
+    is not the exact documented sentinel."""
+    result = _make_result("INST-QA-MCIT::x", _mcit_payload({"uncertainty_flags": value}))
+    with pytest.raises(ValidationError, match="uncertainty_flags|uncertainty flag"):
+        parse_extract_result(result, scrape_access_date=MCIT_ACCESS_DATE)
+
+
+def test_flags_salvage_populates_sink_even_when_validation_raises():
+    """Salvage runs before validation, so the caller can still see what was
+    repaired on a page that failed for an unrelated reason."""
+    result = _make_result(
+        "INST-QA-MCIT::x",
+        _mcit_payload(
+            {**_SALVAGEABLE_NA_ROW, "uncertainty_flags": NA, "source_credibility": "_NA_"}
+        ),
+    )
+    sink: list[SalvageEvent] = []
+    with pytest.raises(ValidationError):
+        parse_extract_result(
+            result, scrape_access_date=MCIT_ACCESS_DATE, salvage_sink=sink
+        )
+    assert len(sink) == 1 and isinstance(sink[0], UncertaintyFlagsSalvage)
+
+
+# ---------------------------------------------------------------------------
+# _run_extract → _persist — uncertainty_flags telemetry (Stage 5)
+# ---------------------------------------------------------------------------
+
+
+def test_flags_salvage_writes_one_attrition_record_with_stable_code(tmp_path, monkeypatch):
+    """One ledger record with the stable reason code, and the page is persisted."""
+    payload = _mcit_payload({**_SALVAGEABLE_NA_ROW, "uncertainty_flags": NA})
+    run_dir, inst_id, url = _run_one_page_extract(tmp_path, monkeypatch, payload, "flags")
+
+    recs = attrition.read_records(run_dir)
+    salvaged = [r for r in recs if r["reason"] == REASON_FLAGS_SALVAGED]
+    assert len(salvaged) == 1
+    assert salvaged[0]["url"] == url
+    assert salvaged[0]["stage"] == "extract"
+    assert "rows=[1]" in salvaged[0]["detail"]
+    # No Group-D record: Group D was fully coded on this page.
+    assert not any(r["reason"] == REASON_SALVAGED for r in recs)
+    assert artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
+
+
+def test_both_salvage_codes_recorded_when_both_fired(tmp_path, monkeypatch):
+    """The two repairs are reported independently, not merged into one record."""
+    run_dir, _inst_id, _url = _run_one_page_extract(
+        tmp_path, monkeypatch, _mcit_payload({"uncertainty_flags": NA}), "both"
+    )
+    reasons = {r["reason"] for r in attrition.read_records(run_dir)}
+    assert REASON_SALVAGED in reasons
+    assert REASON_FLAGS_SALVAGED in reasons
+    assert "parse_failed" not in reasons
+
+
+def test_clean_page_records_no_flags_salvage(tmp_path, monkeypatch):
+    payload = _mcit_payload({**_SALVAGEABLE_NA_ROW})
+    run_dir, _inst_id, _url = _run_one_page_extract(
+        tmp_path, monkeypatch, payload, "flagsclean"
+    )
+    reasons = {r["reason"] for r in attrition.read_records(run_dir)}
+    assert REASON_FLAGS_SALVAGED not in reasons
+
+
+def test_unrelated_failure_records_parse_failed_not_flags_salvaged(tmp_path, monkeypatch):
+    """A page whose flags were repaired but which still dropped for another reason
+    is reported by its actual failure, not as a salvage that did not save it."""
+    payload = _mcit_payload(
+        {**_SALVAGEABLE_NA_ROW, "uncertainty_flags": NA, "source_credibility": "_NA_"}
+    )
+    run_dir, inst_id, url = _run_one_page_extract(
+        tmp_path, monkeypatch, payload, "flagsfail"
+    )
+    reasons = {r["reason"] for r in attrition.read_records(run_dir)}
+    assert "parse_failed" in reasons
+    assert REASON_FLAGS_SALVAGED not in reasons
+    assert not artifact_exists(
+        inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Stage 6 — the same _NA_ in a consolidated activity
+# ---------------------------------------------------------------------------
+
+
+def _consolidated_payload(
+    institution_id: str, activity_overrides: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """A minimal valid Stage 6 response for one institution with one activity."""
+    activity: dict[str, Any] = {
+        "activity_id": "A1",
+        "activity_name": "Microsoft Copilot adoption programme",
+        "activity_type": "internal_operational",
+        "adoption_stage": "production",
+        "access_type": "proprietary_vendor",
+        "interaction_type": "document_processing",
+        "tool_name": "Microsoft 365 Copilot",
+        "vendor": "Microsoft",
+        "deployment_mode": "integrated",
+        "target_users": "internal_staff",
+        "year_announced": "2024",
+        "year_deployed": "2024",
+        "has_human_oversight": "not_documented",
+        "has_transparency_notice": "not_documented",
+        "has_data_classification": "not_documented",
+        "has_risk_assessment": "not_documented",
+        "reported_outcomes": "none_reported",
+        "reported_incidents": "none_reported",
+        "scope_notes": "none",
+        "n_sources": 1,
+        "confidence": "medium",
+        "uncertainty_flags": "none",
+    }
+    activity.update(activity_overrides or {})
+    return {
+        "consolidation_metadata": {
+            "institution_id": institution_id,
+            "n_input_pages": 1,
+            "n_input_rows": 1,
+            "response_timestamp": "2026-06-10T12:00:00Z",
+            "model_label": "gpt-5-nano",
+            "notes": "none",
+        },
+        "institution": {
+            "institution_id": institution_id,
+            "institution_name": "Ministry of Communications and Information Technology",
+            "country": "Qatar",
+            "branch_of_government": "executive",
+            "level_of_government": "national",
+            "has_genai_activity": "yes",
+            "institution_summary": "MCIT runs a Copilot adoption programme.",
+            "institution_search_languages": "en,ar",
+        },
+        "activities": [activity],
+        "sources": [
+            {
+                "source_id": "S1",
+                "activity_id": "A1",
+                "source_url": "https://www.mcit.gov.qa/en/genai-assistant",
+                "source_title": "MCIT Copilot adoption programme",
+                "source_publication_date": "2024-05",
+                "source_access_date": MCIT_ACCESS_DATE,
+                "source_type": "official_gov",
+                "source_language": "en",
+                "source_credibility": "high",
+                "genai_evidence": "confirms_activity",
+                "source_snippet": "MCIT announced a Copilot adoption programme.",
+            }
+        ],
+    }
+
+
+def test_stage6_flags_na_activity_preserved_rather_than_dropped():
+    """ConsolidatedActivity carries byte-identical uncertainty_flags validation,
+    and model_validate is atomic over the institution — so without the repair one
+    activity's `_NA_` drops the entire consolidation."""
+    payload = _consolidated_payload("INST-0000580", {"uncertainty_flags": NA})
+    result = _make_result("INST-0000580", payload)
+    sink: list[UncertaintyFlagsSalvage] = []
+
+    response = parse_consolidate_result(result, salvage_sink=sink)
+
+    assert response.activities[0].uncertainty_flags == "none"
+    assert len(sink) == 1
+    assert sink[0].activity_id == "A1"
+    assert sink[0].ref == "activity_id=A1"
+
+
+def test_stage6_payload_would_have_failed_without_the_repair():
+    """Keeps the Stage 6 regression test non-vacuous."""
+    from g3o.common.contract import ConsolidatedInstitutionResponse
+
+    payload = _consolidated_payload("INST-0000580", {"uncertainty_flags": NA})
+    with pytest.raises(ValidationError, match="unknown uncertainty flag"):
+        ConsolidatedInstitutionResponse.model_validate(payload)
+
+
+def test_stage6_clean_payload_salvages_nothing():
+    result = _make_result("INST-0000580", _consolidated_payload("INST-0000580"))
+    sink: list[UncertaintyFlagsSalvage] = []
+    parse_consolidate_result(result, salvage_sink=sink)
+    assert sink == []
+
+
+def test_stage6_sink_optional():
+    result = _make_result(
+        "INST-0000580", _consolidated_payload("INST-0000580", {"uncertainty_flags": NA})
+    )
+    assert parse_consolidate_result(result).activities[0].uncertainty_flags == "none"
+
+
+def test_stage6_flags_salvage_writes_attrition_record(tmp_path, monkeypatch):
+    """End-to-end through run_consolidate's _persist: the ledger records the
+    repair and the consolidation is written rather than dropped."""
+    run_id = "stage6flags"
+    inst_id = "INST-0000580"
+    run_dir = tmp_path / "runs" / run_id
+    write_manifest(run_dir, {"run_id": run_id})
+    inst_dir = make_inst_dir(run_dir, inst_id)
+    (inst_dir / "extract").mkdir(parents=True)
+    # Stage 6 assembles its input from institution.json + Stage 5 extract outputs.
+    (inst_dir / "institution.json").write_text(
+        json.dumps(
+            {
+                "institution_id": inst_id,
+                "institution_name": "Ministry of Communications and Information Technology",
+                "country": "Qatar",
+                "branch_of_government": "executive",
+                "level_of_government": "national",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (inst_dir / "extract" / "page.json").write_text(
+        json.dumps(_mcit_payload({**_SALVAGEABLE_NA_ROW})), encoding="utf-8"
+    )
+
+    result = _make_result(
+        inst_id, _consolidated_payload(inst_id, {"uncertainty_flags": NA})
+    )
+
+    def _fake_chunked(rd, stage, jobs, **kw):
+        kw["process_chunk_results"](iter([result]))
+        mark_done(rd, stage, no_batch=True)
+
+    monkeypatch.setattr(vc, "run_chunked_stage", _fake_chunked)
+
+    summary = vc.run_consolidate(
+        run_dir, institution_ids=[inst_id], model="gpt-5-nano",
+        poll_interval=0, max_wait=1,
+    )
+
+    assert summary["n_failed"] == 0
+    salvaged = [
+        r for r in attrition.read_records(run_dir)
+        if r["reason"] == REASON_FLAGS_SALVAGED
+    ]
+    assert len(salvaged) == 1
+    assert salvaged[0]["stage"] == "validate"
+    assert "activity_id=A1" in salvaged[0]["detail"]
+    assert (inst_dir / "6_validate.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# The prompt-side fix (Output Contract v2.2)
+#
+# The salvage above is defence in depth; the contract carve-out is the primary
+# fix, and until these tests existed it had no coverage at all — the version pin
+# detects that the contract *changed* but cannot require that the carve-out is
+# still in it. The phrases asserted below are the load-bearing claims; if a
+# rewording trips one of these, re-point the test deliberately rather than
+# deleting it.
+# ---------------------------------------------------------------------------
+
+
+def _normalised_contract() -> str:
+    from g3o.extract.client import OUTPUT_CONTRACT_TEXT
+
+    return re.sub(r"\s+", " ", OUTPUT_CONTRACT_TEXT).lower()
+
+
+def test_contract_states_uncertainty_flags_is_not_group_d():
+    """§3.2 — the rule the model over-generalised now names its own exception."""
+    text = _normalised_contract()
+    assert "`uncertainty_flags` (column 39) is not a group d field" in text
+    assert '"every field in group d" means columns 11-28 and nothing else' in text
+
+
+def test_contract_forbids_na_in_the_uncertainty_flags_vocabulary_section():
+    """§4.10 — stated again where the model actually fills the field, since a
+    reader who jumps straight to the vocabulary would otherwise miss §3.2."""
+    text = _normalised_contract()
+    assert "do not emit `_na_` here" in text
+
+
+def test_contract_consistency_check_covers_columns_outside_group_d():
+    """§6 — the self-validation checklist the model runs before submitting."""
+    text = _normalised_contract()
+    assert "no column outside 11-28 may ever be `_na_`" in text
+
+
+def test_worked_example_shows_uncertainty_flags_empty_on_an_absence_row():
+    """§7 Edge case A — the negative-evidence example makes the contrast visible:
+    Group D all `_NA_`, uncertainty_flags `[]`, on the same row.
+
+    From v2.3 the field is an array on the wire, so the worked example shows `[]`
+    where it used to show `none`. `none` remains the *stored* empty value (what
+    `_coerce_uncertainty_flags` produces and every CSV carries); the example has
+    to show the shape the model emits, not the shape the row is persisted in.
+    """
+    from g3o.extract.client import OUTPUT_CONTRACT_TEXT
+
+    # The Edge case A table rows, which are the ones a model pattern-matches on.
+    absence_rows = [
+        line for line in OUTPUT_CONTRACT_TEXT.splitlines()
+        if "nationalassembly.gov.bz" in line
+    ]
+    assert absence_rows, "Edge case A absence rows not found"
+    for line in absence_rows:
+        cells = [c.strip() for c in line.split("|")]
+        assert "confirms_absence" in cells
+        assert NA in cells   # Group D still blanked
+        assert "[]" in cells  # ...but flags are the empty array, never _NA_
+        assert UNCERTAINTY_FLAGS_EMPTY not in cells
+
+
+def test_system_message_announces_the_contract_version_exactly_once():
+    """The SYSTEM_MESSAGE header used to hardcode the contract version separately
+    from the document's own H1 (client.py), so the two could silently drift — they
+    did, and the v2.2 bump had to fix both by hand.
+
+    v2.3 removes the duplicate instead of pinning it: the header is now unversioned
+    and the contract's H1 follows immediately, so exactly one version string
+    reaches the model and there is nothing left to drift against. This test pins
+    the *absence*, which is the stronger guarantee — the previous version of it
+    could only catch a drift after it happened.
+    """
+    from g3o.extract.client import OUTPUT_CONTRACT_TEXT, SYSTEM_MESSAGE
+
+    h1 = OUTPUT_CONTRACT_TEXT.splitlines()[0]
+    m = re.search(r"\bv(\d+(?:\.\d+)*)\b", h1)
+    assert m, f"no version token in the contract H1: {h1!r}"
+    version = f"v{m.group(1)}"
+
+    assert "# G3O Output Contract (canonical reference)" in SYSTEM_MESSAGE
+    assert SYSTEM_MESSAGE.count(f"G3O Output Contract {version}") == 1, (
+        "the contract version should appear exactly once in the system message — "
+        "in the contract's own H1, and nowhere else"
+    )
+
+
 # EMPTY_PAGE_MIN_CHARS is imported to keep the near-empty page in the helper
 # comfortably above the Stage 5 empty-page floor without hard-coding the number.
 assert len("GenAI citizen assistant announcement. " * 5) >= EMPTY_PAGE_MIN_CHARS
+
+
+# ---------------------------------------------------------------------------
+# Group D filled on a negative-evidence row (the inverse direction)
+# ---------------------------------------------------------------------------
+
+
+def _negative_row(**overrides: Any) -> dict[str, Any]:
+    """A contract-clean confirms_absence row: every Group-D field `_NA_`."""
+    row = _mcit_row()
+    row.update({f: NA for f in GROUP_D_FIELDS})
+    row.update(
+        {
+            "has_genai_activity": "no",
+            "genai_evidence": "confirms_absence",
+            "uncertainty_flags": "none",
+        }
+    )
+    row.update(overrides)
+    return row
+
+
+def _negative_payload(**overrides: Any) -> dict[str, Any]:
+    return {
+        "batch_metadata": _mcit_meta(n_institutions_with_genai=0),
+        "data": [_negative_row(**overrides)],
+    }
+
+
+def test_negative_row_scope_notes_blanked():
+    """The shape seen in all 8 of the n=100 run's records: the model appends a
+    remark on a page it has just declared negative."""
+    payload = _negative_payload(scope_notes="No GenAI mentioned on this page.")
+    events = salvage_negative_row_group_d(payload)
+    assert len(events) == 1
+    assert events[0].is_salvageable
+    assert events[0].blanked_fields == ("scope_notes",)
+    assert events[0].discarded == (("scope_notes", "No GenAI mentioned on this page."),)
+    assert events[0].reason == REASON_NEGATIVE_ROW_BLANKED
+    assert payload["data"][0]["scope_notes"] == NA
+
+
+@pytest.mark.parametrize(
+    "evidence", ["confirms_absence", "ambiguous", "background_only"]
+)
+def test_negative_row_blanking_covers_every_negative_evidence_value(evidence: str):
+    payload = _negative_payload(genai_evidence=evidence, year_announced="2024")
+    assert len(salvage_negative_row_group_d(payload)) == 1
+    assert payload["data"][0]["year_announced"] == NA
+
+
+def test_negative_row_blanks_every_offender_and_records_each():
+    payload = _negative_payload(
+        scope_notes="a note", year_announced="2024", has_risk_assessment="yes"
+    )
+    events = salvage_negative_row_group_d(payload)
+    assert set(events[0].blanked_fields) == {
+        "scope_notes",
+        "year_announced",
+        "has_risk_assessment",
+    }
+    assert dict(events[0].discarded) == {
+        "scope_notes": "a note",
+        "year_announced": "2024",
+        "has_risk_assessment": "yes",
+    }
+    assert all(payload["data"][0][f] == NA for f in GROUP_D_FIELDS)
+
+
+@pytest.mark.parametrize(
+    "field", ["activity_name", "activity_type", "tool_name", "vendor"]
+)
+def test_negative_row_with_existence_asserting_field_is_escalated(field: str):
+    """The line that matters. A negative row naming an activity, a type, a tool or
+    a vendor contradicts itself about whether a finding exists. Blanking it would
+    resolve that contradiction in favour of no-activity — a coding decision this
+    module refuses to make — so the row is left to fail and reported instead."""
+    original = {"activity_type": "public_facing_service"}.get(field, "Some Tool")
+    payload = _negative_payload(**{field: original, "scope_notes": "a note"})
+    events = salvage_negative_row_group_d(payload)
+    assert len(events) == 1
+    assert not events[0].is_salvageable
+    assert events[0].contradictory_fields == (field,)
+    assert events[0].reason == REASON_NEGATIVE_ROW_CONTRADICTORY
+    # Nothing was rewritten — not even the innocent scope_notes on the same row.
+    assert payload["data"][0][field] == original
+    assert payload["data"][0]["scope_notes"] == "a note"
+
+
+def test_negative_row_escalation_set_is_not_the_unsalvageable_set():
+    """The two sets overlap but mean different things, and conflating them would
+    silently change behaviour: GROUP_D_UNSALVAGEABLE is about fields with no
+    sanctioned could-not-determine value, GROUP_D_EXISTENCE_ASSERTING about fields
+    whose content asserts a finding exists."""
+    assert GROUP_D_EXISTENCE_ASSERTING != GROUP_D_UNSALVAGEABLE
+    assert GROUP_D_UNSALVAGEABLE < GROUP_D_EXISTENCE_ASSERTING
+    assert GROUP_D_EXISTENCE_ASSERTING <= set(GROUP_D_FIELDS)
+
+
+def test_negative_row_clean_payload_is_untouched():
+    payload = _negative_payload()
+    assert salvage_negative_row_group_d(payload) == []
+
+
+def test_negative_row_salvage_ignores_positive_rows():
+    """A confirms_activity row is the other repair's business, not this one's."""
+    payload = _mcit_payload()
+    assert salvage_negative_row_group_d(payload) == []
+
+
+def test_negative_row_absent_field_is_not_an_offender():
+    """A missing Group-D key is a schema failure, not a salvage case — repairing it
+    would paper over a structurally malformed row."""
+    row = _negative_row()
+    del row["scope_notes"]
+    payload = {
+        "batch_metadata": _mcit_meta(n_institutions_with_genai=0),
+        "data": [row],
+    }
+    assert salvage_negative_row_group_d(payload) == []
+
+
+@pytest.mark.parametrize("bad", [None, 7, "data", {}, {"data": {}}, {"data": [7]}])
+def test_negative_row_salvage_malformed_input_returns_empty(bad: Any):
+    assert salvage_negative_row_group_d(bad) == []
+
+
+def test_negative_row_blanked_page_parses_at_stage_5():
+    """End to end: the page survives instead of dropping the institution."""
+    result = _make_result(
+        "INST-QA-MCIT::neg", _negative_payload(scope_notes="No GenAI mentioned.")
+    )
+    sink: list[Any] = []
+    parsed = parse_extract_result(
+        result, scrape_access_date=MCIT_ACCESS_DATE, salvage_sink=sink
+    )
+    assert parsed.data[0].scope_notes == NA
+    assert [type(e) for e in sink] == [NegativeRowSalvage]
+
+
+def test_negative_row_blanked_payload_would_have_failed_without_the_repair():
+    """Keeps the test above honest."""
+    from g3o.common.contract import BatchResponse
+
+    payload = _negative_payload(scope_notes="No GenAI mentioned.")
+    with pytest.raises(ValidationError, match="requires every Group D field"):
+        BatchResponse.model_validate(payload)
+
+
+def test_negative_row_contradictory_page_still_fails_at_stage_5():
+    """Escalation is not repair: the page still drops."""
+    result = _make_result("INST-QA-MCIT::contra", _negative_payload(tool_name="Copilot"))
+    sink: list[Any] = []
+    with pytest.raises(ValidationError, match="requires every Group D field"):
+        parse_extract_result(
+            result, scrape_access_date=MCIT_ACCESS_DATE, salvage_sink=sink
+        )
+    assert len(sink) == 1
+    assert not sink[0].is_salvageable
+
+
+def test_negative_row_ledger_record_carries_the_discarded_value(tmp_path, monkeypatch):
+    """This repair discards model output, so the ledger has to say what was lost —
+    a blanking must be reconstructible from the record, not merely counted."""
+    payload = _negative_payload(scope_notes="No GenAI mentioned on this page.")
+    run_dir, inst_id, url = _run_one_page_extract(
+        tmp_path, monkeypatch, payload, "negblank"
+    )
+    recs = attrition.read_records(run_dir)
+    hits = [r for r in recs if r["reason"] == REASON_NEGATIVE_ROW_BLANKED]
+    assert len(hits) == 1
+    assert hits[0]["url"] == url
+    assert "rows=[1]" in hits[0]["detail"]
+    assert "No GenAI mentioned on this page." in hits[0]["detail"]
+    assert "parse_failed" not in {r["reason"] for r in recs}
+    assert artifact_exists(inst_dir_of(run_dir, inst_id) / "extract" / f"{url_hash(url)}.json")
+
+
+def test_negative_row_contradiction_is_tagged_distinctly_in_the_ledger(
+    tmp_path, monkeypatch
+):
+    """A contradictory row drops the page, but not as a generic parse_failed — the
+    escalation rate has to be measurable."""
+    payload = _negative_payload(tool_name="Copilot")
+    run_dir, _inst_id, _url = _run_one_page_extract(
+        tmp_path, monkeypatch, payload, "negcontra"
+    )
+    reasons = {r["reason"] for r in attrition.read_records(run_dir)}
+    assert REASON_NEGATIVE_ROW_CONTRADICTORY in reasons
+    assert "parse_failed" not in reasons
+
+
+def test_negative_row_unrelated_failure_stays_parse_failed(tmp_path, monkeypatch):
+    """The attribution guard: a contradictory event coexisting with an unrelated
+    failure must not steal the reason code."""
+    payload = _negative_payload(tool_name="Copilot", source_credibility="bogus_tier")
+    run_dir, _inst_id, _url = _run_one_page_extract(
+        tmp_path, monkeypatch, payload, "negunrel"
+    )
+    reasons = {r["reason"] for r in attrition.read_records(run_dir)}
+    assert "parse_failed" in reasons
+    assert REASON_NEGATIVE_ROW_CONTRADICTORY not in reasons

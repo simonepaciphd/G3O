@@ -15,9 +15,14 @@ wants before committing real spend and ~4 days of wall-clock to a live run:
 No state files are written and no production batches are submitted. Job counts
 beyond Stage 1 depend on discovery/scrape outputs that do not exist pre-run, so
 the projections are explicitly labeled ESTIMATES built on stated assumptions
-(per review F20's caution to separate estimate from fact). The cost ceiling
-(Decision D7) is print-only for now: no abort gate is wired (researcher,
-2026-06-10).
+(per review F20's caution to separate estimate from fact).
+
+The cost ceiling (Decision D7, superseded by PR #52) is now an abort gate: a
+projection over the limit exits 3 rather than merely printing. This module
+computes and reports it as `cost_ceiling_exceeded`; the abort itself lives in
+`g3o.cli._cmd_presweep`, on both the `--preflight` and `--execute` paths. The
+limit is read from `G3O_BUDGET_LIMIT_USD` (env var) or `--cost-ceiling` (CLI
+flag, takes precedence).
 """
 
 from __future__ import annotations
@@ -27,13 +32,15 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
-from g3o.common import config as _config
 from g3o.common.batch_client import (
     CHUNK_MAX_BYTES,
     CHUNK_MAX_REQUESTS,
     DEFAULT_ENDPOINT,
     _serialize_job_line,
 )
+from g3o.common.cost_monitor import UnpricedModelError
+from g3o.common.credentials import Credentials, resolve
+from g3o.common.pricing import GPT5_NANO_PRICING, pricing_for, usd
 from g3o.extract.batch import build_extract_jobs
 from g3o.run.presweep import (
     PresweepConfig,
@@ -41,30 +48,6 @@ from g3o.run.presweep import (
     stratified_sample,
 )
 from g3o.scrape.render import FetchMetadata, RenderedPage
-
-# ---------------------------------------------------------------------------
-# Pricing — verified 2026-06-10 against the OpenAI docs.
-# ---------------------------------------------------------------------------
-#
-# gpt-5-nano standard rates are published FACTS (model page below). The Batch
-# API rates apply OpenAI's documented 50% Batch discount — shown verbatim on the
-# same pricing page for the sibling gpt-5.4-nano ($0.20→$0.10 input) — so the
-# batch line is labeled ESTIMATE-grade: the nano model page does not print the
-# batch row itself. Note (F9 / WS4 T2): the current pricing table headlines
-# gpt-5.4-nano; gpt-5-nano persists as a distinct, cheaper line and is what the
-# pipeline pins via batch_client.DEFAULT_MODEL.
-GPT5_NANO_PRICING: dict[str, Any] = {
-    "model": "gpt-5-nano",
-    "source": "https://developers.openai.com/api/docs/models/gpt-5-nano",
-    "verified_on": "2026-06-10",
-    "standard_input_per_1m_usd": 0.05,
-    "standard_cached_input_per_1m_usd": 0.005,
-    "standard_output_per_1m_usd": 0.40,
-    "batch_discount": 0.50,
-    "batch_input_per_1m_usd": 0.025,  # estimate: 50% of standard input
-    "batch_output_per_1m_usd": 0.20,  # estimate: 50% of standard output
-    "batch_line_is_estimate": True,
-}
 
 # Rough chars→tokens heuristic for cost estimation (English-ish text). Stated as
 # an assumption in the output; not a billing-grade tokenizer.
@@ -158,8 +141,42 @@ def _project_chunks(n_jobs: int, per_job_bytes: int) -> dict[str, Any]:
     }
 
 
-def _usd(n_tokens: float, per_1m: float) -> float:
-    return (n_tokens / 1_000_000) * per_1m
+def _unpriced_cost_preview(
+    model: str,
+    *,
+    total_in_tokens: float,
+    total_out_tokens: float,
+    output_tokens_per_job: int,
+) -> dict[str, Any]:
+    """A cost preview for a model with no rate row (review F2, ruling half 2).
+
+    Same shape as the priced preview so a consumer needs no special case, but
+    every USD slot is ``None`` and ``priced`` is False. The token projection is
+    unaffected — it never depended on the rates — so this still answers "how big
+    is this run", just not "what will it cost".
+
+    Only reachable without a cost ceiling; with one, :func:`run_preflight`
+    raises instead.
+    """
+    return {
+        "is_estimate": True,
+        "pricing": {"model": model, "priced": False},
+        "chars_per_token_assumption": _CHARS_PER_TOKEN,
+        "assumes_output_tokens_per_job": output_tokens_per_job,
+        "est_input_tokens": round(total_in_tokens),
+        "est_output_tokens": round(total_out_tokens),
+        "est_openai_batch_input_usd": None,
+        "est_openai_batch_output_usd": None,
+        "est_openai_batch_total_usd": None,
+        "stage_estimates": None,
+        "note": (
+            f"no rate row is registered for model {model!r}, so this run cannot "
+            f"be priced and every USD figure above is null. The token projection "
+            f"is unaffected. Add a row to g3o.common.pricing.PRICING to price it; "
+            f"a run with a --cost-ceiling is refused outright rather than "
+            f"projected this way."
+        ),
+    }
 
 
 def run_preflight(
@@ -169,21 +186,48 @@ def run_preflight(
     verify_model_live: bool = False,
     cost_ceiling_usd: float | None = None,
     client: Any | None = None,
+    credentials: Credentials | None = None,
 ) -> dict[str, Any]:
     """Run the no-submit pre-flight checks and return a structured summary.
 
     ``verify_model_live`` opts into a real 1-job ``verify-model`` batch (off by
-    default — it submits and can block on the Batch SLA). ``cost_ceiling_usd``
-    is print/return only unless set; D7 left it unset (no abort gate) for now.
-    ``client`` is threaded into ``verify_model`` for test injection.
+    default — it submits and can block on the Batch SLA).
+
+    ``cost_ceiling_usd`` only *reports*: this function returns
+    ``cost_ceiling_exceeded`` in the summary and never aborts. The abort gate
+    lives one layer up, in ``g3o.cli._cmd_presweep``, which exits 3 on that
+    flag and enforces it on both the ``--preflight`` and ``--execute`` paths
+    (supersedes Decision D7; PR #52). The limit is sourced from
+    ``G3O_BUDGET_LIMIT_USD`` or ``--cost-ceiling``, the flag taking precedence.
+    A programmatic caller that bypasses the CLI therefore gets the projection
+    and no gate, and must check the flag itself.
+
+    ``client`` is threaded into ``verify_model`` for test injection. It genuinely
+    is, as of 2026-08-11: the parameter existed and was documented but never
+    passed, which left the one live-submitting branch of this function untestable.
+
+    ``credentials`` (Run API spec §3.1) are the keys the projected run would use;
+    omitted, they resolve from the environment. The key-readiness check reports on
+    the resolved bundle, so ``keys_ok`` answers "could *this* run authenticate",
+    not "was some key present when the process started" — and ``--verify-model``
+    now spends on that same resolved key rather than on the ambient one, so the
+    report and the submit can no longer disagree about which key is in play.
     """
     a = assumptions or PreflightAssumptions()
-    summary: dict[str, Any] = {"run_id": config.run_id, "mode": "preflight"}
+    # ``run_id or None``: since the id may be minted at launch (spec §2), a
+    # preflight can legitimately run before one exists. Reporting null says "no run
+    # yet" honestly; reporting "" would read as a run whose id went missing.
+    summary: dict[str, Any] = {"run_id": config.run_id or None, "mode": "preflight"}
 
-    # --- 1. Keys.
+    # --- 1. Keys. Resolved through the credential resolver (Run API spec §3.1),
+    # so the readiness check reports on the keys this run would actually spend —
+    # an explicitly-passed key included — rather than on whatever the process
+    # environment held at import time. The names stay the env-var names because
+    # that is what an operator reading the report has to go fix.
+    resolved = resolve(credentials)
     keys = [
-        _key_check("SERPER_API_KEY", _config.SERPER_API_KEY),
-        _key_check("OPENAI_API_KEY", _config.OPENAI_API_KEY, prefix="sk-"),
+        _key_check("SERPER_API_KEY", resolved.serper_api_key),
+        _key_check("OPENAI_API_KEY", resolved.openai_api_key, prefix="sk-"),
     ]
     summary["keys"] = keys
     summary["keys_ok"] = all(k["well_formed"] for k in keys)
@@ -218,6 +262,8 @@ def run_preflight(
             model=config.model,
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,
+            client=client,
+            credentials=resolved,
         )
     else:
         summary["verify_model"] = {
@@ -256,13 +302,63 @@ def run_preflight(
 
     total_in_tokens = extract_in_tokens + other_in_tokens
     total_out_tokens = extract_out_tokens + other_out_tokens
-    p = GPT5_NANO_PRICING
-    input_usd = _usd(total_in_tokens, p["batch_input_per_1m_usd"])
-    output_usd = _usd(total_out_tokens, p["batch_output_per_1m_usd"])
+    # Rates for the model this run will actually submit (review F2, 2026-08-24).
+    # This was `GPT5_NANO_PRICING` unconditionally, so every projection priced
+    # every model at nano rates — including the projection the cost ceiling is
+    # enforced against, which is what made the ceiling fail open on `--model`.
+    p = pricing_for(config.model)
+    if p is None:
+        # PI ruling half 1: a ceiling cannot be enforced for a model we cannot
+        # price, so refuse here — before verify-model spends anything, and on
+        # both cost gates at once, since each only runs a preflight when a
+        # ceiling is set.
+        if cost_ceiling_usd is not None:
+            raise UnpricedModelError(config.model, budget_usd=cost_ceiling_usd)
+        # Half 2: no ceiling, so the run may proceed — but it is projected in
+        # tokens with null USD rather than being quietly priced as nano.
+        summary["cost_preview"] = _unpriced_cost_preview(
+            config.model,
+            total_in_tokens=total_in_tokens,
+            total_out_tokens=total_out_tokens,
+            output_tokens_per_job=a.output_tokens_per_job,
+        )
+        summary["cost_ceiling_usd"] = None
+        return summary
+    input_usd = usd(total_in_tokens, p["batch_input_per_1m_usd"])
+    output_usd = usd(total_out_tokens, p["batch_output_per_1m_usd"])
     total_usd = input_usd + output_usd
+
+    # Per-stage cost estimates (Gap 2): break down total by stage for mid-run
+    # projection checking. Stages 2, 3, 6 are ~one job per institution each;
+    # Stage 5 is the extract stage (n_institutions × pages_per_institution jobs).
+    # Split the "other" cost equally across stages 2, 3, 6.
+    other_per_stage_in = other_in_tokens / 3
+    other_per_stage_out = other_out_tokens / 3
+    stage_estimates = {
+        "classify_official_site": (
+            usd(other_per_stage_in, p["batch_input_per_1m_usd"])
+            + usd(other_per_stage_out, p["batch_output_per_1m_usd"])
+        ),
+        "classify_triage": (
+            usd(other_per_stage_in, p["batch_input_per_1m_usd"])
+            + usd(other_per_stage_out, p["batch_output_per_1m_usd"])
+        ),
+        "extract": (
+            usd(extract_in_tokens, p["batch_input_per_1m_usd"])
+            + usd(extract_out_tokens, p["batch_output_per_1m_usd"])
+        ),
+        "validate": (
+            usd(other_per_stage_in, p["batch_input_per_1m_usd"])
+            + usd(other_per_stage_out, p["batch_output_per_1m_usd"])
+        ),
+    }
+
     summary["cost_preview"] = {
         "is_estimate": True,
-        "pricing": p,
+        # Copied, not aliased: this was a direct reference to the module-level
+        # rate table, so any consumer mutating the summary would have mutated
+        # the pricing registry for the rest of the process.
+        "pricing": dict(p),
         "chars_per_token_assumption": _CHARS_PER_TOKEN,
         "assumes_output_tokens_per_job": a.output_tokens_per_job,
         "est_input_tokens": round(total_in_tokens),
@@ -270,6 +366,7 @@ def run_preflight(
         "est_openai_batch_input_usd": round(input_usd, 2),
         "est_openai_batch_output_usd": round(output_usd, 2),
         "est_openai_batch_total_usd": round(total_usd, 2),
+        "stage_estimates": {k: round(v, 6) for k, v in stage_estimates.items()},
         "note": (
             "OpenAI Batch cost only; Serper (Stage 1) is billed separately and "
             "is not priced here. Measured 2026-08-01 over 200 institutions as "
@@ -292,5 +389,7 @@ def run_preflight(
 __all__ = [
     "GPT5_NANO_PRICING",
     "PreflightAssumptions",
+    "UnpricedModelError",
+    "pricing_for",
     "run_preflight",
 ]

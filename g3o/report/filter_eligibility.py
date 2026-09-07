@@ -34,6 +34,12 @@ import json
 from pathlib import Path
 from typing import Any
 
+from g3o.common.paths import (
+    institution_dir,
+    iter_institution_dirs,
+    require_layout,
+)
+
 # Would-drop-rate thresholds (PI-tunable). The 1c block is informational in
 # shadow mode, so these never escalate to "fail" and never feed the run's
 # overall flag — they only surface an unusually aggressive draft rule set.
@@ -51,25 +57,51 @@ def _iter_inst_dirs(run_dir: Path) -> list[Path]:
     if manifest.exists():
         ids = json.loads(manifest.read_text(encoding="utf-8")).get("institutions", [])
         if ids:
-            return [run_dir / i for i in ids]
-    return [
-        d
-        for d in sorted(run_dir.iterdir())
-        if d.is_dir() and not d.name.startswith("_") and d.name != ".done"
-    ]
+            return [institution_dir(run_dir, i) for i in ids]
+    return list(iter_institution_dirs(run_dir))
+
+
+def record_languages(record: dict[str, Any]) -> set[str]:
+    """Every language that surfaced this record's URL, not just the first.
+
+    ``found_by`` (2026-08-30) lists every query that returned the URL. Before
+    it, dedup kept only the winning query and ``language`` named the first
+    finder, so this set was always a singleton per leg and every language
+    behind English in issue order was undercounted.
+
+    Artifacts written before that change carry no ``found_by``, so ``language``
+    stays the fallback: an old run keeps reporting exactly what it always did
+    rather than erroring or silently reading empty.
+
+    Lives here rather than in ``g3o.report.health`` because health imports this
+    module, not the other way round.
+    """
+    found_by = record.get("found_by")
+    if found_by:
+        return {f["language"] for f in found_by if f.get("language")}
+    lang = record.get("language")
+    return {lang} if lang else set()
 
 
 def _url_languages(inst_dir: Path) -> dict[str, set[str]]:
-    """Map each discovered URL to the set of languages that surfaced it (1a∪1b)."""
+    """Map each discovered URL to the set of languages that surfaced it (1a∪1b).
+
+    True as written only since ``found_by``: under first-writer dedup this
+    docstring was false by one query order. See :func:`record_languages`.
+    """
     out: dict[str, set[str]] = {}
-    for fname in ("1a_discovery_general.json", "1b_discovery_site_restricted.json"):
+    for fname in (
+        "1a_discovery_general.json",
+        "1b_discovery_site_restricted.json",
+        "1d_discovery_evidence_open.json",
+    ):
         p = inst_dir / fname
         if not p.exists():
             continue
         for r in json.loads(p.read_text(encoding="utf-8")).get("records", []):
-            url, lang = r.get("link"), r.get("language")
-            if url and lang:
-                out.setdefault(url, set()).add(lang)
+            url = r.get("link")
+            if url:
+                out.setdefault(url, set()).update(record_languages(r))
     return out
 
 
@@ -96,6 +128,7 @@ def compute_filter_block(
     cross-language comparison).
     """
     run_dir = Path(run_dir)
+    require_layout(run_dir)
 
     mode: str | None = None
     rules_version: str | None = None

@@ -10,6 +10,8 @@ from typing import Any
 
 import pytest
 
+from g3o.classify.official_site import build_official_site_job
+from g3o.common.artifact_io import artifact_exists, glob_artifacts, write_artifact
 from g3o.discovery.serper_client import SerperResult
 from g3o.run.presweep import (
     PresweepConfig,
@@ -20,6 +22,7 @@ from g3o.run.presweep import (
     stratified_sample,
     synth_institution_id,
 )
+from tests._layout import inst_dir as inst_dir_of
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -46,6 +49,7 @@ def _row(
     disambiguation: str = "",
 ) -> dict[str, Any]:
     return {
+        "institution_uid": f"G3O-I-{master_row_id:08d}",
         "master_row_id": str(master_row_id),
         "country": country,
         "government_level": government_level,
@@ -85,6 +89,7 @@ def _build_master(n_strata: int, rows_per_stratum: int) -> list[dict[str, Any]]:
 
 def _write_master_csv(path: Path, rows: list[dict[str, Any]]) -> Path:
     fieldnames = [
+        "institution_uid",
         "master_row_id",
         "country",
         "government_level",
@@ -141,6 +146,9 @@ def test_institution_record_projection():
     # Stage 2 bypass column (WS3 round-2) — pre-rollout the column is missing.
     assert rec["official_site_url"] is None
     assert rec["official_site_confidence"] is None
+    # ADJ ruling 2: the key is always present, `None` on a blank cell, so
+    # `institution.json` stays one fixed key set across the whole frame.
+    assert rec["disambiguation"] is None
 
 
 def test_institution_record_carries_official_site_url():
@@ -168,6 +176,70 @@ def test_institution_record_blank_official_site_url_maps_to_none():
     row["official_site_url"] = ""  # blank cell, not absent
     rec = institution_record(row)
     assert rec["official_site_url"] is None
+
+
+def test_institution_record_carries_disambiguation():
+    """ADJ ruling 2 (PI, 2026-08-31): ``disambiguation`` is passed to Stage 2.
+
+    The master carries this column on 100% of the 718 name-collided rows in the
+    15k frame and the projection used to drop it, so the *query* was
+    disambiguated (``stage_discovery`` reads the raw row) while the
+    *classifier* was not. That gap is what `G3O ADJ` measured as the 58.3%
+    collided-pick error.
+    """
+    row = _row(
+        master_row_id=9,
+        country="United States",
+        government_level="municipal",
+        institution_type="county",
+        institution_name="COUNTY OF MONTGOMERY",
+        disambiguation="Montgomery County, Maryland",
+    )
+    rec = institution_record(row)
+    assert rec["disambiguation"] == "Montgomery County, Maryland"
+
+
+def test_institution_record_absent_disambiguation_column_maps_to_none():
+    """A pre-rollout master with no such column must still project."""
+    row = _row(
+        master_row_id=10,
+        country="TESTLAND",
+        government_level="national",
+        institution_type="ministry",
+    )
+    del row["disambiguation"]
+    rec = institution_record(row)
+    assert rec["disambiguation"] is None
+
+
+def test_the_disambiguation_reaches_the_stage_2_prompt():
+    """The ruling is about model input, so pin the model input, not the dict.
+
+    ``institution_record()`` is only the projection; what the ruling actually
+    asks for is that the alias reaches the classifier. ``_user_prompt``
+    serialises the whole record into the Stage 2 user message, so this asserts
+    the end of the path rather than the middle of it — the same shape as
+    ``tests/test_accuracy_canaries.py``'s check on ``website``.
+
+    Also pins the *other* half of the fix: the Stage 2 system prompt has always
+    promised the model "any known aliases or domain hints", and until ADJ
+    ruling 2 shipped it advertised a slot nothing filled.
+    """
+    row = _row(
+        master_row_id=11,
+        country="United States",
+        government_level="municipal",
+        institution_type="county",
+        institution_name="COUNTY OF MONTGOMERY",
+        disambiguation="Montgomery County, Maryland",
+    )
+    job = build_official_site_job(
+        institution_record(row),
+        ["https://www.montgomerycountymd.gov/"],
+        custom_id="INST-0000011",
+    )
+    assert "any known aliases or domain hints" in job.messages[0]["content"]
+    assert "Montgomery County, Maryland" in job.messages[1]["content"]
 
 
 # ---------------------------------------------------------------------------
@@ -307,7 +379,7 @@ def test_plan_run_writes_layout(tmp_path: Path):
     assert manifest["n_institutions_drawn"] == 7
     assert len(manifest["institutions"]) == 7
     for inst_id in manifest["institutions"]:
-        inst_dir = run_dir / inst_id
+        inst_dir = inst_dir_of(run_dir, inst_id)
         assert inst_dir.is_dir()
         inst_json = inst_dir / "institution.json"
         assert inst_json.exists()
@@ -459,9 +531,9 @@ def test_candidate_urls_union_dedupes_path_aware():
 def _write_master_csv_with_bypass_col(path: Path, rows: list[dict[str, Any]]) -> Path:
     """Like ``_write_master_csv`` but adds the WS3 round-2 ``official_site_url`` column."""
     fieldnames = [
-        "master_row_id", "country", "government_level", "branch", "institution_type",
-        "institution_name", "website", "source_dataset_id", "source_url",
-        "source_file", "retrieval_date", "notes", "official_site_url",
+        "institution_uid", "master_row_id", "country", "government_level", "branch",
+        "institution_type", "institution_name", "website", "source_dataset_id",
+        "source_url", "source_file", "retrieval_date", "notes", "official_site_url",
     ]
     with open(path, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -502,7 +574,7 @@ def test_classify_official_site_bypass_writes_envelope_and_skips_submit(
     )
 
     assert result.get("INST-0000001") == "https://ministry.a.gov/"
-    envelope_path = plan.run_dir / "INST-0000001" / "2_official_site.json"
+    envelope_path = inst_dir_of(plan.run_dir, "INST-0000001") / "2_official_site.json"
     assert envelope_path.exists()
     payload = json.loads(envelope_path.read_text(encoding="utf-8"))
     assert payload == {
@@ -511,7 +583,7 @@ def test_classify_official_site_bypass_writes_envelope_and_skips_submit(
         "url": "https://ministry.a.gov/",
     }
     # The non-bypassed row got nothing (empty discovery → no envelope).
-    assert not (plan.run_dir / "INST-0000002" / "2_official_site.json").exists()
+    assert not (inst_dir_of(plan.run_dir, "INST-0000002") / "2_official_site.json").exists()
 
 
 # ---------------------------------------------------------------------------
@@ -538,8 +610,8 @@ def test_run_discovery_general_writes_1a_artifact_filename(tmp_path: Path):
         ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     for inst_id in plan.manifest["institutions"]:
-        assert (plan.run_dir / inst_id / "1a_discovery_general.json").exists()
-        assert not (plan.run_dir / inst_id / "1_discovery.json").exists()
+        assert (inst_dir_of(plan.run_dir, inst_id) / "1a_discovery_general.json").exists()
+        assert not (inst_dir_of(plan.run_dir, inst_id) / "1_discovery.json").exists()
 
 
 def test_run_discovery_general_queries_include_country(tmp_path: Path):
@@ -686,8 +758,8 @@ def test_run_discovery_site_restricted_skips_when_no_site(tmp_path: Path):
         ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     # Inst A: queries fired, 1b file written. Inst B: skipped — no queries, no file.
-    assert (plan.run_dir / inst_a / "1b_discovery_site_restricted.json").exists()
-    assert not (plan.run_dir / inst_b / "1b_discovery_site_restricted.json").exists()
+    assert (inst_dir_of(plan.run_dir, inst_a) / "1b_discovery_site_restricted.json").exists()
+    assert not (inst_dir_of(plan.run_dir, inst_b) / "1b_discovery_site_restricted.json").exists()
     assert all(q.startswith("site:a.gov ") for q in seen_queries)
     # Q1=a: same per-language query count as Stage 1a (the English GenAI roster).
     from g3o.discovery.query_builder import GENAI_TERMS_BY_LANG
@@ -722,7 +794,7 @@ def test_run_discovery_site_restricted_records_carry_site_domain(tmp_path: Path)
         ps.stage_discovery.search_google_detailed = monkey  # type: ignore[assignment]
 
     payload = json.loads(
-        (plan.run_dir / inst_id / "1b_discovery_site_restricted.json").read_text(
+        (inst_dir_of(plan.run_dir, inst_id) / "1b_discovery_site_restricted.json").read_text(
             encoding="utf-8"
         )
     )
@@ -847,16 +919,43 @@ def test_stage2_mixed_bypass_writes_state_file_with_bypass_count(
         submit_calls.append(jobs)
         return _batch_handle(batch_id="batch-stage2", n_jobs=len(jobs))
 
+    def _fetch_one(batch_id, client=None, status=None):
+        # Mirror a real completed batch: return the chunk's one planned result
+        # (INST-0000002). An empty stream here would (correctly) trip the
+        # completeness reconciliation added for the Data Validation Team brief
+        # 2026-07-28 — this test is about bypass accounting, not silent loss.
+        from g3o.common.batch_client import BatchResult
+
+        yield BatchResult(
+            custom_id="INST-0000002",
+            success=True,
+            response={
+                "body": {
+                    "choices": [
+                        {
+                            "message": {
+                                "content": json.dumps(
+                                    {
+                                        "url": "https://b.example/official",
+                                        "confidence": "high",
+                                        "rationale": "test",
+                                    }
+                                )
+                            }
+                        }
+                    ]
+                }
+            },
+            error=None,
+        )
+
     monkeypatch.setattr(batch_client, "submit_batch", _capture_submit)
     monkeypatch.setattr(batch_client, "find_batches_by_metadata", lambda md, **kw: [])
     monkeypatch.setattr(
         batch_client, "poll_batch",
         lambda batch_id, client=None: _batch_status("completed", batch_id=batch_id),
     )
-    monkeypatch.setattr(
-        batch_client, "fetch_results",
-        lambda batch_id, client=None, status=None: iter([]),
-    )
+    monkeypatch.setattr(batch_client, "fetch_results", _fetch_one)
     ps._run_classify_official_site(
         plan.run_dir, plan.sample, discovery,
         run_id=config.run_id, model="gpt-5-nano", poll_interval=0, max_wait=1,
@@ -999,7 +1098,7 @@ def test_stage2_done_marker_short_circuits(tmp_path: Path, monkeypatch):
     config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
     plan = ps.plan_run(config)
     # Pre-write a bypass envelope as if a prior run had completed Stage 2.
-    inst_dir = plan.run_dir / "INST-0000001"
+    inst_dir = inst_dir_of(plan.run_dir, "INST-0000001")
     (inst_dir / "2_official_site.json").write_text(
         json.dumps({"bypassed": True, "source": "master_csv", "url": "https://a.gov/"}),
         encoding="utf-8",
@@ -1037,7 +1136,7 @@ def test_stage4_skips_refetch_when_url_hash_file_exists(tmp_path: Path):
     # Pre-seed one URL's per-run output file.
     from g3o.extract.batch import url_hash
 
-    scrape_dir = plan.run_dir / inst_id / "scrape"
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
     scrape_dir.mkdir(parents=True, exist_ok=True)
     cached = RenderedPage(
         url="https://x.example/a", text="cached", title="A",
@@ -1085,6 +1184,131 @@ def test_stage4_skips_refetch_when_url_hash_file_exists(tmp_path: Path):
     assert by_url["https://x.example/b"] == "fresh-https://x.example/b"
 
 
+def _stage4_resume_fixture(tmp_path: Path, urls: list[str]):
+    """A planned one-institution run plus its triage list, for the resume tests."""
+    from g3o.run import presweep as ps
+
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+    inst_id = plan.manifest["institutions"][0]
+    return plan, inst_id, {inst_id: urls}
+
+
+def _fresh_page(url: str):
+    from g3o.scrape.render import FetchMetadata, RenderedPage
+
+    return RenderedPage(
+        url=url, text=f"fresh-{url}", title="", content_type="html",
+        fetch_metadata=FetchMetadata(
+            access_date="2026-05-09", http_status=200, final_url=url,
+            fetch_method="html", elapsed_ms=10, wait_for=None,
+        ),
+    )
+
+
+def test_stage4_skips_refetch_when_gzipped_artifact_exists(tmp_path: Path):
+    """Q5=a resume off a Phase-2 ``<url_hash>.json.gz`` artifact.
+
+    The plain-``.json`` half of the duality is covered by
+    :func:`test_stage4_skips_refetch_when_url_hash_file_exists`, which is now
+    also the pre-Phase-2 partial-run resume case.
+    """
+    from g3o.extract.batch import url_hash
+    from g3o.run import presweep as ps
+
+    url = "https://x.example/a"
+    plan, inst_id, triaged = _stage4_resume_fixture(tmp_path, [url])
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
+    cached = _fresh_page(url).model_copy(update={"text": "cached"})
+    write_artifact(scrape_dir / f"{url_hash(url)}.json", cached.model_dump_json())
+
+    monkey = ps.stage_scrape.scrape_url
+    ps.stage_scrape.scrape_url = lambda u, **kw: pytest.fail(  # type: ignore[assignment]
+        "scrape_url must not be called when a gzipped artifact is on disk"
+    )
+    try:
+        out = ps._run_scrape(
+            plan.run_dir, plan.sample, triaged,
+            respect_robots=False, host_delay_seconds=0,
+        )
+    finally:
+        ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
+
+    assert [p.text for p in out[inst_id]] == ["cached"]
+
+
+def test_stage4_quarantines_corrupt_artifact_and_refetches(tmp_path: Path):
+    """Review F7: a torn artifact is corrupt evidence, not completed work.
+
+    Before this, the resume guard read the existing artifact with no error
+    handling, so one file truncated by a crash mid-write raised straight out of
+    the worker and took the rest of the pass down with it. Now the artifact is
+    quarantined, recorded once in the ledger, and the URL is refetched — while a
+    healthy artifact in the same institution is still honored.
+    """
+    from g3o.common import attrition
+    from g3o.common.artifact_io import CORRUPT_SUFFIX, gz_path
+    from g3o.common.run_state import is_done
+    from g3o.extract.batch import url_hash
+    from g3o.run import presweep as ps
+    from g3o.run.presweep.stage_scrape import REASON_ARTIFACT_CORRUPT
+
+    bad, good = "https://x.example/bad", "https://x.example/good"
+    plan, inst_id, triaged = _stage4_resume_fixture(tmp_path, [bad, good])
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
+
+    bad_path = scrape_dir / f"{url_hash(bad)}.json"
+    good_path = scrape_dir / f"{url_hash(good)}.json"
+    write_artifact(good_path, _fresh_page(good).model_copy(
+        update={"text": "cached-good"}).model_dump_json())
+    # A write that died partway: the .gz name exists but the bytes are garbage.
+    gz_path(bad_path).write_bytes(b"\x1f\x8b\x08\x00 truncated-midway")
+
+    fetched: list[str] = []
+
+    def _capture(url, **kwargs):
+        fetched.append(url)
+        return _fresh_page(url)
+
+    monkey = ps.stage_scrape.scrape_url
+    ps.stage_scrape.scrape_url = _capture  # type: ignore[assignment]
+    try:
+        out = ps._run_scrape(
+            plan.run_dir, plan.sample, triaged,
+            respect_robots=False, host_delay_seconds=0,
+        )
+    finally:
+        ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
+
+    # The corrupt URL was refetched; the healthy one was not.
+    assert fetched == [bad]
+    by_url = {p.url: p.text for p in out[inst_id]}
+    assert by_url == {bad: f"fresh-{bad}", good: "cached-good"}
+
+    # The bad bytes were moved aside, not deleted, and a fresh artifact landed.
+    quarantined = gz_path(bad_path).with_name(gz_path(bad_path).name + CORRUPT_SUFFIX)
+    assert quarantined.exists()
+    assert quarantined.read_bytes() == b"\x1f\x8b\x08\x00 truncated-midway"
+    assert artifact_exists(bad_path)
+    # Ordered by url-hash stem, not by triage order — so compare as a set.
+    assert set(glob_artifacts(scrape_dir)) == {gz_path(bad_path), gz_path(good_path)}
+
+    # Exactly one ledger record, naming the quarantine.
+    corrupt = [
+        r for r in attrition.read_records(plan.run_dir)
+        if r["reason"] == REASON_ARTIFACT_CORRUPT
+    ]
+    assert len(corrupt) == 1
+    assert corrupt[0]["url"] == bad
+    assert corrupt[0]["stage"] == "scrape"
+    assert CORRUPT_SUFFIX in corrupt[0]["detail"]
+
+    # The stage completed rather than aborting the worker.
+    assert is_done(plan.run_dir, "scrape")
+
+
 def test_stage4_done_marker_short_circuits_no_scrape_calls(tmp_path: Path):
     """Q3=e2: ``.done/scrape.json`` present → no scrape_url calls; pages
     reconstructed from per-URL files on disk."""
@@ -1101,7 +1325,7 @@ def test_stage4_done_marker_short_circuits_no_scrape_calls(tmp_path: Path):
 
     from g3o.extract.batch import url_hash
 
-    scrape_dir = plan.run_dir / inst_id / "scrape"
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
     scrape_dir.mkdir(parents=True, exist_ok=True)
     cached = RenderedPage(
         url="https://x.example/a", text="cached", title="A",
@@ -1128,6 +1352,45 @@ def test_stage4_done_marker_short_circuits_no_scrape_calls(tmp_path: Path):
     pages = out[inst_id]
     assert len(pages) == 1
     assert pages[0].text == "cached"
+
+
+def test_stage4_done_path_raises_on_an_unparseable_artifact(tmp_path: Path):
+    """The loud failure ``_read_existing_scraped`` exists for (stage_scrape.py:45-52).
+
+    Two resume paths read the same artifacts and they must not behave the same
+    way. The per-URL guard in ``_scrape_one`` meets a corrupt file *before* the
+    stage is done, so it can quarantine it and refetch — that is
+    ``test_stage4_quarantines_corrupt_artifact_and_refetches``. This path meets it
+    *after* ``.done/scrape.json`` is written, when there is no refetch left to
+    fall back on, so swallowing it would silently shrink Stage 5's input with
+    nothing but a ledger line to show for it.
+
+    Cover for the property named in the e2e-automation card's acceptance
+    criteria: an unattended chain that repaired itself quietly here would publish
+    a smaller sweep than the one it says it ran.
+    """
+    from g3o.common.run_state import mark_done
+    from g3o.extract.batch import url_hash
+    from g3o.run import presweep as ps
+
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+    inst_id = plan.manifest["institutions"][0]
+    url = "https://x.example/a"
+
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
+    scrape_dir.mkdir(parents=True, exist_ok=True)
+    (scrape_dir / f"{url_hash(url)}.json").write_text("{ torn", encoding="utf-8")
+    mark_done(plan.run_dir, "scrape", no_batch=True)
+
+    # Pydantic's own validation error, unswallowed: the artifact is not a
+    # RenderedPage and nothing downstream is told a smaller story instead.
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        ps._run_scrape(plan.run_dir, plan.sample, {inst_id: [url]})
 
 
 def test_stage4_robots_disallow_skips_url_and_records_attrition(tmp_path: Path):
@@ -1431,7 +1694,7 @@ def test_run_discovery_general_failure_cancels_pending_preserves_completed_and_r
     # Stage not marked done; the failing institution's own artifact was never
     # written (it raised inside its own worker, before the write).
     assert not is_done(plan.run_dir, "discovery_general")
-    assert not (plan.run_dir / fail_inst_id / "1a_discovery_general.json").exists()
+    assert not (inst_dir_of(plan.run_dir, fail_inst_id) / "1a_discovery_general.json").exists()
 
     # Resume: fix the fake, re-run. Skip-if-exists reprocesses only whatever
     # is still missing; the previously-failing institution now succeeds.
@@ -1452,7 +1715,7 @@ def test_run_discovery_general_failure_cancels_pending_preserves_completed_and_r
     assert is_done(plan.run_dir, "discovery_general")
     assert len(out) == 4
     assert any(fail_name in q for q in seen_queries)
-    assert (plan.run_dir / fail_inst_id / "1a_discovery_general.json").exists()
+    assert (inst_dir_of(plan.run_dir, fail_inst_id) / "1a_discovery_general.json").exists()
 
 
 def test_run_scrape_concurrent_matches_sequential_output(tmp_path: Path):
@@ -1643,7 +1906,7 @@ def test_run_discovery_site_restricted_failure_cancels_pending_preserves_complet
     # written (it raised inside its own worker, before the write).
     assert not is_done(plan.run_dir, "discovery_site_restricted")
     assert not (
-        plan.run_dir / fail_inst_id / "1b_discovery_site_restricted.json"
+        inst_dir_of(plan.run_dir, fail_inst_id) / "1b_discovery_site_restricted.json"
     ).exists()
 
     # Resume: fix the fake, re-run. Skip-if-exists reprocesses only whatever
@@ -1667,7 +1930,7 @@ def test_run_discovery_site_restricted_failure_cancels_pending_preserves_complet
     assert len(out) == 4
     assert any(fail_name in q for q in seen_queries)
     assert (
-        plan.run_dir / fail_inst_id / "1b_discovery_site_restricted.json"
+        inst_dir_of(plan.run_dir, fail_inst_id) / "1b_discovery_site_restricted.json"
     ).exists()
 
 
@@ -1791,7 +2054,7 @@ def test_run_scrape_failure_cancels_pending_preserves_completed_and_resumes(
     # Stage not marked done; the failing institution's scrape directory has
     # no per-URL output file (it raised before ever calling scrape_url).
     assert not is_done(plan.run_dir, "scrape")
-    assert not list((plan.run_dir / fail_inst_id / "scrape").glob("*.json"))
+    assert not glob_artifacts(inst_dir_of(plan.run_dir, fail_inst_id) / "scrape")
 
     # Resume: drop robots entirely (already proven separately in
     # test_stage4_robots_disallow_skips_url_and_records_attrition), re-run.
@@ -1808,7 +2071,7 @@ def test_run_scrape_failure_cancels_pending_preserves_completed_and_resumes(
 
     assert is_done(plan.run_dir, "scrape")
     assert len(out) == 4
-    assert list((plan.run_dir / fail_inst_id / "scrape").glob("*.json"))
+    assert glob_artifacts(inst_dir_of(plan.run_dir, fail_inst_id) / "scrape")
 
 
 # ---------------------------------------------------------------------------
@@ -1851,7 +2114,7 @@ def test_stage4_records_telemetry_for_every_attempt(tmp_path: Path):
     triaged = {inst_id: [ok_url, cached_url, disallowed_url, failed_url]}
 
     # Pre-seed the cached URL's per-run file so it takes the skipped_cached path.
-    scrape_dir = plan.run_dir / inst_id / "scrape"
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
     scrape_dir.mkdir(parents=True, exist_ok=True)
     (scrape_dir / f"{url_hash(cached_url)}.json").write_text(
         _f14b_page(cached_url).model_dump_json(), encoding="utf-8"
@@ -1950,3 +2213,333 @@ def test_stage4_robots_correct_under_concurrency(tmp_path: Path):
         if r["outcome"] == scrape_telemetry.OUTCOME_ROBOTS_DISALLOWED
     }
     assert tel_disallowed == set(disallowed)
+
+
+# ---------------------------------------------------------------------------
+# Stage 4 per-institution wall-clock budget (issue #96, PI ruling 2026-08-26)
+# ---------------------------------------------------------------------------
+
+
+def _budget_fixture(tmp_path: Path, *, n_urls: int, crawl_delay: float | None):
+    """A one-institution plan plus a throttle on a fake clock.
+
+    The clock advances only when the throttle sleeps or a fetch runs, so every
+    assertion below is on the injected clock — nothing here sleeps for real.
+    """
+    from g3o.common import attrition, scrape_telemetry
+    from g3o.run import presweep as ps
+    from g3o.scrape.politeness import HostThrottle
+
+    attrition._reset_cache()
+    scrape_telemetry._reset_cache()
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    plan = ps.plan_run(config)
+    inst_id = plan.manifest["institutions"][0]
+    urls = [f"https://slow.example/{i}" for i in range(n_urls)]
+
+    clock = [0.0]
+    slept: list[float] = []
+
+    def _sleep(seconds: float) -> None:
+        slept.append(seconds)
+        clock[0] += seconds
+
+    throttle = HostThrottle(1.0, sleep=_sleep, monotonic=lambda: clock[0])
+
+    class _Robots:
+        def allowed(self, url: str) -> bool:
+            return True
+
+        def crawl_delay(self, url: str):
+            return crawl_delay
+
+    def _fake_scrape(url: str, **kwargs: Any):
+        clock[0] += 1.5  # the fetch itself; fast, as the measured host was
+        return _f14b_page(url)
+
+    return plan, inst_id, urls, throttle, clock, slept, _Robots(), _fake_scrape
+
+
+def _run_with_budget(plan, triaged, *, throttle, robots, scrape, budget, workers=1):
+    from g3o.run import presweep as ps
+
+    monkey = ps.stage_scrape.scrape_url
+    ps.stage_scrape.scrape_url = scrape  # type: ignore[assignment]
+    try:
+        return ps._run_scrape(
+            plan.run_dir, plan.sample, triaged,
+            respect_robots=True, robots=robots, throttle=throttle,
+            max_institution_seconds=budget, max_workers=workers,
+        )
+    finally:
+        ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
+
+
+def _budget_rows(run_dir: Path) -> list[dict[str, Any]]:
+    from g3o.common import attrition
+    from g3o.run.presweep.stage_scrape import REASON_CRAWL_DELAY_EXCEEDED
+
+    return [
+        r for r in attrition.read_records(run_dir)
+        if r["reason"] == REASON_CRAWL_DELAY_EXCEEDED
+    ]
+
+
+def test_stage4_enormous_crawl_delay_does_not_hold_the_stage_open(tmp_path: Path):
+    """Issue #96, the measured case: ``www.riigikohus.ee`` declares
+    ``Crawl-delay: 8640`` (2h24m per URL) and held Stage 4 open for 14+ hours at
+    3,999/4,000. Under the budget the institution completes instead.
+
+    The whole fix lives in *where* the budget is checked. It is checked before
+    the sleep, against the sleep that sleep would be — so the throttle never
+    sleeps 8,640 s even once. Checking elapsed time *after* the sleep would pass
+    at URL 0 (elapsed 0), pay one full 2h24m, and only then give up, which is
+    the cost the budget exists to avoid. ``slept == []`` is that assertion.
+    """
+    plan, inst_id, urls, throttle, clock, slept, robots, scrape = _budget_fixture(
+        tmp_path, n_urls=5, crawl_delay=8640.0
+    )
+    out = _run_with_budget(
+        plan, {inst_id: urls}, throttle=throttle, robots=robots, scrape=scrape,
+        budget=3600.0,
+    )
+
+    assert slept == []              # never paid a single 2h24m courtesy sleep
+    assert clock[0] < 3600.0        # the injected clock — the budget was never spent
+    assert inst_id in out           # the institution completed rather than hanging
+    assert [p.url for p in out[inst_id]] == [urls[0]]  # one fetch got through
+
+
+def test_stage4_budget_records_exactly_one_row_for_every_unfetched_url(tmp_path: Path):
+    """The ruled requirement is *every* unfetched URL, not just the one the
+    stage stopped on — a partial ledger is the same silence in a smaller box."""
+    from g3o.common import scrape_telemetry
+    from g3o.run.presweep.stage_scrape import REASON_CRAWL_DELAY_EXCEEDED
+
+    plan, inst_id, urls, throttle, _, _, robots, scrape = _budget_fixture(
+        tmp_path, n_urls=6, crawl_delay=8640.0
+    )
+    _run_with_budget(
+        plan, {inst_id: urls}, throttle=throttle, robots=robots, scrape=scrape,
+        budget=3600.0,
+    )
+
+    rows = _budget_rows(plan.run_dir)
+    assert [r["url"] for r in rows] == urls[1:]        # all five, in order
+    assert len({r["url"] for r in rows}) == len(rows)  # exactly one each
+    assert all(r["institution_id"] == inst_id and r["stage"] == "scrape" for r in rows)
+    # The detail carries the cause, so a row is legible without leaning on the
+    # reason's name: the budget can expire for something other than a crawl delay.
+    assert "budget=3600s" in rows[0]["detail"]
+    assert "crawl_delay=8640s" in rows[0]["detail"]
+
+    tel = {
+        r["url"]: r["outcome"] for r in scrape_telemetry.read_records(plan.run_dir)
+    }
+    assert all(
+        tel[u] == scrape_telemetry.OUTCOME_CRAWL_DELAY_EXCEEDED for u in urls[1:]
+    )
+    assert tel[urls[0]] == scrape_telemetry.OUTCOME_SUCCEEDED
+    # The two ledgers stay reconcilable on this drop path, as they already are
+    # for robots_disallowed and scrape_failed.
+    assert REASON_CRAWL_DELAY_EXCEEDED == scrape_telemetry.OUTCOME_CRAWL_DELAY_EXCEEDED
+
+
+def test_stage4_budget_expiry_still_writes_the_done_marker(tmp_path: Path):
+    """The institution *completes*. That is the point of budget-then-skip, and
+    it is what lets the stage close and the run move on."""
+    from g3o.common.run_state import is_done
+
+    plan, inst_id, urls, throttle, _, _, robots, scrape = _budget_fixture(
+        tmp_path, n_urls=4, crawl_delay=8640.0
+    )
+    _run_with_budget(
+        plan, {inst_id: urls}, throttle=throttle, robots=robots, scrape=scrape,
+        budget=3600.0,
+    )
+    assert is_done(plan.run_dir, "scrape")
+
+
+def test_stage4_budget_still_serves_pages_already_on_disk(tmp_path: Path):
+    """A cached URL costs nothing, so the budget does not refuse it.
+
+    Refusing free pages would make each resume recover less than the pass
+    before it — the budget gates network work, not the loop.
+    """
+    from g3o.extract.batch import url_hash
+
+    plan, inst_id, urls, throttle, _, _, robots, scrape = _budget_fixture(
+        tmp_path, n_urls=4, crawl_delay=8640.0
+    )
+    # Pre-seed the LAST url, i.e. one the budget will have expired before.
+    scrape_dir = inst_dir_of(plan.run_dir, inst_id) / "scrape"
+    scrape_dir.mkdir(parents=True, exist_ok=True)
+    write_artifact(
+        scrape_dir / f"{url_hash(urls[-1])}.json",
+        _f14b_page(urls[-1]).model_dump_json(),
+    )
+
+    out = _run_with_budget(
+        plan, {inst_id: urls}, throttle=throttle, robots=robots, scrape=scrape,
+        budget=3600.0,
+    )
+    assert sorted(p.url for p in out[inst_id]) == sorted([urls[0], urls[-1]])
+    # ...and the cached one is not also recorded as unreached.
+    assert [r["url"] for r in _budget_rows(plan.run_dir)] == urls[1:-1]
+
+
+def test_stage4_budget_none_restores_the_unbounded_pre_96_behaviour(tmp_path: Path):
+    plan, inst_id, urls, throttle, clock, slept, robots, scrape = _budget_fixture(
+        tmp_path, n_urls=3, crawl_delay=8640.0
+    )
+    out = _run_with_budget(
+        plan, {inst_id: urls}, throttle=throttle, robots=robots, scrape=scrape,
+        budget=None,
+    )
+    assert [p.url for p in out[inst_id]] == urls      # every URL fetched
+    # Both courtesy sleeps paid in full. 8638.5, not 8640: the 1.5 s fetch
+    # counts toward the delay, since Crawl-delay spaces request *starts*.
+    assert slept == [8638.5, 8638.5]
+    assert _budget_rows(plan.run_dir) == []
+
+
+def test_stage4_ordinary_institution_is_untouched_by_the_budget(tmp_path: Path):
+    """p50 of the measured distribution is 8 s against a 3,600 s default. The
+    budget must be invisible to every institution that is not pathological."""
+    plan, inst_id, urls, throttle, clock, slept, robots, scrape = _budget_fixture(
+        tmp_path, n_urls=5, crawl_delay=2.0
+    )
+    out = _run_with_budget(
+        plan, {inst_id: urls}, throttle=throttle, robots=robots, scrape=scrape,
+        budget=3600.0,
+    )
+    assert [p.url for p in out[inst_id]] == urls
+    assert _budget_rows(plan.run_dir) == []
+    assert clock[0] < 3600.0
+
+
+def test_stage4_budget_is_per_institution_not_per_stage(tmp_path: Path):
+    """Two institutions behind the same pathological host. Each gets its own
+    budget rather than inheriting the previous one's exhaustion, and both
+    complete."""
+    from g3o.common import attrition, scrape_telemetry
+    from g3o.run import presweep as ps
+    from g3o.run.presweep.records import synth_institution_id
+    from g3o.scrape.politeness import HostThrottle
+
+    attrition._reset_cache()
+    scrape_telemetry._reset_cache()
+    rows = _build_master(n_strata=2, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=2)
+    plan = ps.plan_run(config)
+    assert len(plan.sample) == 2
+
+    clock = [0.0]
+    slept: list[float] = []
+
+    def _sleep(seconds: float) -> None:
+        slept.append(seconds)
+        clock[0] += seconds
+
+    throttle = HostThrottle(1.0, sleep=_sleep, monotonic=lambda: clock[0])
+
+    class _Robots:
+        def allowed(self, url: str) -> bool:
+            return True
+
+        def crawl_delay(self, url: str):
+            return 8640.0
+
+    triaged = {
+        synth_institution_id(row): [f"https://slow.example/{i}-{n}" for n in range(3)]
+        for i, row in enumerate(plan.sample)
+    }
+
+    def _fake_scrape(url: str, **kwargs: Any):
+        clock[0] += 1.5
+        return _f14b_page(url)
+
+    out = _run_with_budget(
+        plan, triaged, throttle=throttle, robots=_Robots(), scrape=_fake_scrape,
+        budget=3600.0,
+    )
+    # Both institutions completed and neither slept. They share one host, so
+    # only the very first request in the stage is free: the second institution's
+    # own first URL is refused too. The budget is per-institution; the courtesy
+    # delay stays per-host, which is D4 working exactly as it should.
+    assert set(out) == set(triaged)
+    assert slept == []
+    assert len(_budget_rows(plan.run_dir)) == 5
+    assert sum(len(v) for v in out.values()) == 1
+
+
+# ---------------------------------------------------------------------------
+# scrape_max_institution_seconds (issue #96, PI ruling 2026-08-26)
+# ---------------------------------------------------------------------------
+
+
+def test_scrape_budget_default_is_the_measured_one_hour(tmp_path: Path):
+    """Pinned so the default cannot drift away from the distribution it was
+    fitted to without a test saying so.
+
+    3,600 s comes from run ``r20260824T215623Z-bb4e``: over the 2,045
+    institutions that ran a cold Stage 4 pass, p99.9 was 613 s, the slowest
+    legitimate institution 1,324 s, and the host that motivated #96 25,923 s.
+    The number itself is set from the structural ceiling rather than that tail —
+    at most 20 URLs survive triage, so 20 x a 180 s declared delay is 3,600 s.
+    """
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = _make_config(tmp_path=tmp_path, master_csv=master, sample_size=1)
+    assert config.scrape_max_institution_seconds == 3600.0
+
+
+def test_scrape_budget_can_be_disabled(tmp_path: Path):
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = PresweepConfig(
+        run_id="20260826-test",
+        runs_dir=tmp_path / "runs",
+        master_csv=master,
+        sample_size=1,
+        scrape_max_institution_seconds=None,
+    )
+    assert config.scrape_max_institution_seconds is None
+
+
+@pytest.mark.parametrize("bad", [0.0, -1.0])
+def test_scrape_budget_rejects_non_positive(tmp_path: Path, bad: float):
+    """A zero or negative budget would strand every URL of every institution
+    under ``crawl_delay_exceeded`` and report the whole run PROCESSING_FAILED —
+    caught at construction, before a Serper credit is spent, like budget_usd."""
+    rows = _build_master(n_strata=1, rows_per_stratum=1)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    with pytest.raises(ValueError) as exc:
+        PresweepConfig(
+            run_id="20260826-test",
+            runs_dir=tmp_path / "runs",
+            master_csv=master,
+            sample_size=1,
+            scrape_max_institution_seconds=bad,
+        )
+    assert "scrape_max_institution_seconds must be positive" in str(exc.value)
+
+
+def test_scrape_budget_is_guarded_across_a_resume():
+    """Raising the budget on a resume leaves an institution holding both a page
+    and a stale ``crawl_delay_exceeded`` row for the same URL; the ledger is
+    append-only, so that institution reads PROCESSING_FAILED for the rest of the
+    run's life with no way to tell it from a real failure. Guarded for the same
+    reason as the three politeness knobs beside it — and tolerated when absent,
+    because every manifest written before #96 lacks the key.
+    """
+    from g3o.run.presweep.planning import (
+        _ABSENT_TOLERATED_CONFIG_KEYS,
+        _GUARDED_CONFIG_KEYS,
+    )
+
+    assert "scrape_max_institution_seconds" in _GUARDED_CONFIG_KEYS
+    assert "scrape_max_institution_seconds" in _ABSENT_TOLERATED_CONFIG_KEYS

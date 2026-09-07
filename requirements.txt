@@ -10,6 +10,12 @@ python-dotenv>=1.0
 playwright>=1.40  # Stage 4 headless render adapter (g3o.scrape.render)
 
 # Classify / extract / validate (LLM stages)
-openai>=1.30
+# Upper bound is deliberate. `openai>=1.30` alone resolved to 3.1.0 on
+# 2026-08-16, which swapped its `httpx` dependency for `httpx2` and broke CI on
+# an unchanged `main`. Every validated run to date — including the archived
+# 20260802-e2e-100 — used 1.x/2.x, so pinning below 3 keeps CI testing the SDK
+# the pipeline was built and measured against. Lift it deliberately, with a
+# live smoke, not by letting a resolver decide.
+openai>=1.30,<3
 pydantic>=2.5
 pyyaml>=6.0

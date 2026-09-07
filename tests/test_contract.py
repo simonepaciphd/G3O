@@ -1,4 +1,4 @@
-"""Tests for `g3o.common.contract` — Pydantic models for Output Contract v2.0."""
+"""Tests for `g3o.common.contract` — Pydantic models for the Output Contract."""
 
 from __future__ import annotations
 
@@ -8,11 +8,13 @@ import pytest
 from pydantic import ValidationError
 
 from g3o.common.contract import (
+    UNCERTAINTY_FLAG_VOCAB,
     BatchMetadata,
     BatchResponse,
     ContractRow,
     PersistedRow,
     RunProvenance,
+    ValidationProvenance,
 )
 from g3o.common.schema import DATA_COLUMNS
 
@@ -173,6 +175,64 @@ def test_valid_uncertainty_flags_combinations():
     ContractRow.model_validate(
         absent_row(uncertainty_flags="stage_ambiguous;vendor_undisclosed")
     )
+
+
+# ---------------------------------------------------------------------------
+# uncertainty_flags: array on the wire, semicolon-joined string in store (v2.3)
+#
+# The point of the annotated type is that the *schema* changed and nothing else
+# did. These tests pin both halves of that claim: the schema is an array of enum,
+# and every currently-valid value still round-trips to the byte-identical string
+# every consumer and CSV already carries.
+# ---------------------------------------------------------------------------
+
+
+def test_uncertainty_flags_schema_is_an_array_of_the_vocabulary():
+    prop = ContractRow.model_json_schema()["properties"]["uncertainty_flags"]
+    assert prop["type"] == "array"
+    assert set(prop["items"]["enum"]) == UNCERTAINTY_FLAG_VOCAB
+    # `_NA_`, `none` and `""` are not members — that is the whole guarantee.
+    assert "_NA_" not in prop["items"]["enum"]
+    assert "none" not in prop["items"]["enum"]
+    assert "" not in prop["items"]["enum"]
+
+
+@pytest.mark.parametrize(
+    ("emitted", "stored"),
+    [
+        ([], "none"),
+        (["stage_ambiguous"], "stage_ambiguous"),
+        (["stage_ambiguous", "vendor_undisclosed"], "stage_ambiguous;vendor_undisclosed"),
+    ],
+)
+def test_uncertainty_flags_array_collapses_to_the_stored_string(
+    emitted: list[str], stored: str
+):
+    """The array shape the model emits lands as the string everything else reads."""
+    row = ContractRow.model_validate(absent_row(uncertainty_flags=emitted))
+    assert row.uncertainty_flags == stored
+    assert isinstance(row.uncertainty_flags, str)
+    assert row.model_dump()["uncertainty_flags"] == stored
+
+
+@pytest.mark.parametrize(
+    "stored", ["none", "stage_ambiguous", "stage_ambiguous;vendor_undisclosed"]
+)
+def test_uncertainty_flags_string_round_trip_is_byte_identical(stored: str):
+    """Persisted rows are read back as strings and must survive untouched — the
+    deserialisation path is what keeps the three shipped CSVs readable."""
+    row = ContractRow.model_validate(absent_row(uncertainty_flags=stored))
+    assert row.uncertainty_flags == stored
+    assert row.model_dump()["uncertainty_flags"] == stored
+    assert ContractRow.model_validate(row.model_dump()).uncertainty_flags == stored
+
+
+@pytest.mark.parametrize("bad", [[""], ["_NA_"], ["stage_ambiguous", "_NA_"], ["not_a_flag"]])
+def test_uncertainty_flags_array_with_illegal_member_still_rejected(bad: list[str]):
+    """Constrained decoding makes these unreachable in production; the validator
+    stays the backstop, and stays the single source of the error message."""
+    with pytest.raises(ValidationError):
+        ContractRow.model_validate(absent_row(uncertainty_flags=bad))
 
 
 def test_valid_year_formats():
@@ -375,3 +435,61 @@ def test_proposed_adoption_stage_validates():
     — introduced 2026-07 (PI decision) so hedged GenAI intentions are captured
     below `announced` instead of dropped to `unclear`."""
     ContractRow.model_validate(active_row(adoption_stage="proposed"))
+
+
+# ---------------------------------------------------------------------------
+# `run_date` calendar validity on the two provenance blocks
+#
+# ``ISO_DATE_PATTERN`` only proves the *shape* ``\d{4}-\d{2}-\d{2}``, so
+# ``2026-02-30`` and ``2026-13-01`` satisfied it and reached the CSV as
+# provenance. These two blocks are the safe place to enforce real calendar
+# dates: G3O authors them itself at write time (``g3o/persist/writer.py``,
+# from ``utc_today_iso()``), and neither appears in ``BatchResponse`` or
+# ``ConsolidatedInstitutionResponse`` — so no LLM-produced value can trip
+# them, and a raise here means a G3O bug rather than a discarded finding.
+# The equivalent validators on the model-authored date fields were cut from
+# this change for exactly that reason; see the PR discussion.
+# ---------------------------------------------------------------------------
+
+
+PROVENANCE_MODELS = (RunProvenance, ValidationProvenance)
+
+
+def _provenance(run_date: str, model: Any = None) -> dict[str, Any]:
+    """Shared payload for both provenance models.
+
+    ``ValidationProvenance`` additionally requires the key layer; both models
+    are ``extra="forbid"``, so the uids cannot simply be sent to each.
+    """
+    base: dict[str, Any] = {
+        "global_row_id": "run-001-row-0001",
+        "run_id": "20260508-test",
+        "run_model": "gpt-5-nano",
+        "run_tool": "g3o.extract",
+        "run_date": run_date,
+    }
+    if model is ValidationProvenance:
+        base["institution_uid"] = "G3O-I-00000001"
+        base["sweep_uid"] = "G3O-S-00000001"
+    return base
+
+
+@pytest.mark.parametrize("model", PROVENANCE_MODELS)
+@pytest.mark.parametrize("run_date", ["2026-02-30", "2026-13-01", "2026-00-10"])
+def test_provenance_rejects_shape_valid_but_impossible_run_date(model, run_date):
+    with pytest.raises(ValidationError):
+        model.model_validate(_provenance(run_date, model))
+
+
+@pytest.mark.parametrize("model", PROVENANCE_MODELS)
+@pytest.mark.parametrize("run_date", ["2026-05-08", "2024-02-29", "2026-12-31"])
+def test_provenance_accepts_real_run_dates(model, run_date):
+    """Including a genuine leap day, which a naive month-length check would drop."""
+    assert model.model_validate(_provenance(run_date, model)).run_date == run_date
+
+
+@pytest.mark.parametrize("model", PROVENANCE_MODELS)
+def test_provenance_still_rejects_malformed_run_date_shape(model):
+    """The pattern constraint is unchanged and still runs first."""
+    with pytest.raises(ValidationError):
+        model.model_validate(_provenance("08/05/2026", model))

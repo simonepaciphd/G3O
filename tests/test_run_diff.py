@@ -23,6 +23,13 @@ from typing import Any
 import pytest
 
 from g3o.report import compute_run_diff, render_run_diff_text
+from g3o.report.diff import _run_institutions
+from tests._layout import (
+    inst_dir as inst_dir_of,
+)
+from tests._layout import (
+    write_manifest,
+)
 
 # ---------------------------------------------------------------------------
 # Fixture helpers
@@ -81,12 +88,9 @@ def _build_run(root: Path, run_id: str, institutions: dict[str, dict[str, Any]])
     """Build ``root/<run_id>/`` with a manifest and the given per-inst specs."""
     run_dir = root / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
-    _write(
-        run_dir / "manifest.json",
-        {"run_id": run_id, "institutions": sorted(institutions)},
-    )
+    write_manifest(run_dir, {"run_id": run_id, "institutions": sorted(institutions)})
     for inst_id, spec in institutions.items():
-        _write_institution(run_dir / inst_id, **spec)
+        _write_institution(inst_dir_of(run_dir, inst_id), **spec)
     return run_dir
 
 
@@ -335,15 +339,31 @@ def test_fewer_than_two_dirs_raises(tmp_path: Path) -> None:
         compute_run_diff([a])
 
 
-def test_manifest_absent_falls_back_to_dirs(tmp_path: Path) -> None:
+def test_institution_list_absent_falls_back_to_dirs(tmp_path: Path) -> None:
+    """Institutions are inferred from disk when the manifest omits the list.
+
+    Under storage layout v2 the manifest itself cannot be absent (it carries
+    ``layout_version``; see
+    :func:`test_run_diff_refuses_a_tree_without_a_layout_marker`), so this
+    covers the surviving half of the old behaviour: a manifest with no
+    ``run_id`` and no ``institutions`` list.
+    """
+    a = _build_run(tmp_path, "run-a", _identical_spec())
+    b = _build_run(tmp_path, "run-b", _identical_spec())
+    for d in (a, b):
+        write_manifest(d, {})
+    report = compute_run_diff([a, b])
+    # run_id falls back to the directory name; institutions inferred from disk.
+    assert report["run_ids"] == ["run-a", "run-b"]
+    assert report["n_institutions"] == 3
+
+
+def test_run_diff_refuses_a_tree_without_a_layout_marker(tmp_path: Path) -> None:
     a = _build_run(tmp_path, "run-a", _identical_spec())
     b = _build_run(tmp_path, "run-b", _identical_spec())
     (a / "manifest.json").unlink()
-    (b / "manifest.json").unlink()
-    report = compute_run_diff([a, b])
-    # run_id falls back to the directory name; institutions inferred from subdirs.
-    assert report["run_ids"] == ["run-a", "run-b"]
-    assert report["n_institutions"] == 3
+    with pytest.raises(RuntimeError, match="storage-layout-v2"):
+        compute_run_diff([a, b])
 
 
 def test_shared_run_id_disambiguated_by_directory(tmp_path: Path) -> None:
@@ -439,10 +459,10 @@ def test_diagnostics_localises_churn_to_discovery(tmp_path: Path) -> None:
     b = _build_run(tmp_path, "run-b", spec_b)
 
     # Same verdict on the one shared URL; run-b saw an extra candidate and kept it.
-    _write_discovery(a / _inst_id(1), ["u-shared"])
-    _write_discovery(b / _inst_id(1), ["u-shared", "u-extra"])
-    _write_decisions(a / _inst_id(1), {"u-shared": "keep"})
-    _write_decisions(b / _inst_id(1), {"u-shared": "keep", "u-extra": "keep"})
+    _write_discovery(inst_dir_of(a, _inst_id(1)), ["u-shared"])
+    _write_discovery(inst_dir_of(b, _inst_id(1)), ["u-shared", "u-extra"])
+    _write_decisions(inst_dir_of(a, _inst_id(1)), {"u-shared": "keep"})
+    _write_decisions(inst_dir_of(b, _inst_id(1)), {"u-shared": "keep", "u-extra": "keep"})
 
     diag = compute_run_diff([a, b])["diagnostics"]
 
@@ -459,10 +479,10 @@ def test_diagnostics_localises_churn_to_classifier(tmp_path: Path) -> None:
     a = _build_run(tmp_path, "run-a", spec_a)
     b = _build_run(tmp_path, "run-b", spec_b)
 
-    _write_discovery(a / _inst_id(1), ["u-1", "u-2"])
-    _write_discovery(b / _inst_id(1), ["u-1", "u-2"])
-    _write_decisions(a / _inst_id(1), {"u-1": "keep", "u-2": "drop"})
-    _write_decisions(b / _inst_id(1), {"u-1": "keep", "u-2": "keep"})
+    _write_discovery(inst_dir_of(a, _inst_id(1)), ["u-1", "u-2"])
+    _write_discovery(inst_dir_of(b, _inst_id(1)), ["u-1", "u-2"])
+    _write_decisions(inst_dir_of(a, _inst_id(1)), {"u-1": "keep", "u-2": "drop"})
+    _write_decisions(inst_dir_of(b, _inst_id(1)), {"u-1": "keep", "u-2": "keep"})
 
     diag = compute_run_diff([a, b])["diagnostics"]
 
@@ -490,10 +510,10 @@ def test_triage_decisions_prefer_keep_on_duplicate_rows(tmp_path: Path) -> None:
     a = _build_run(tmp_path, "run-a", spec_a)
     b = _build_run(tmp_path, "run-b", spec_b)
     # Same content, opposite row order — must not read as a flip.
-    _write(a / _inst_id(1) / "3_triage.json",
+    _write(inst_dir_of(a, _inst_id(1)) / "3_triage.json",
            {"decisions": [{"url": "u", "decision": "keep"},
                           {"url": "u", "decision": "drop"}]})
-    _write(b / _inst_id(1) / "3_triage.json",
+    _write(inst_dir_of(b, _inst_id(1)) / "3_triage.json",
            {"decisions": [{"url": "u", "decision": "drop"},
                           {"url": "u", "decision": "keep"}]})
 
@@ -512,7 +532,7 @@ def test_final_status_reason_codes_separate_unfinished_from_flip(tmp_path: Path)
     b = _build_run(tmp_path, "run-b", spec_null)
     c = _build_run(tmp_path, "run-c", spec_ok)
     # run-b wrote the artifact but declined to decide.
-    _write(b / _inst_id(1) / "6_validate.json",
+    _write(inst_dir_of(b, _inst_id(1)) / "6_validate.json",
            {"institution": {"has_genai_activity": None}})
 
     reasons = compute_run_diff([a, b, c])["diagnostics"]["final_status_reasons"]
@@ -526,7 +546,7 @@ def test_final_status_reason_codes_separate_unfinished_from_flip(tmp_path: Path)
 def test_corrupt_validate_artifact_reported_as_unreadable(tmp_path: Path) -> None:
     a = _build_run(tmp_path, "run-a", _identical_spec())
     b = _build_run(tmp_path, "run-b", _identical_spec())
-    (b / _inst_id(1) / "6_validate.json").write_text("{not json", encoding="utf-8")
+    (inst_dir_of(b, _inst_id(1)) / "6_validate.json").write_text("{not json", encoding="utf-8")
 
     reasons = compute_run_diff([a, b])["diagnostics"]["final_status_reasons"]
     assert reasons["divergent_institutions"][_inst_id(1)]["run-b"] == "artifact_unreadable"
@@ -645,3 +665,39 @@ def test_cli_run_diff_writes_json_and_prints(tmp_path: Path, capsys: Any) -> Non
     out = capsys.readouterr().out
     assert "Run-diff: run-a, run-b (n=3 institutions)" in out
     assert "FULL AGREEMENT: 3/3" in out
+
+
+# ---------------------------------------------------------------------------
+# Storage layout v2 — run-level entries are no longer counted as institutions
+# ---------------------------------------------------------------------------
+
+
+def test_run_level_entries_are_not_counted_as_institutions(tmp_path: Path) -> None:
+    """Regression: ``final/`` used to be counted as an institution.
+
+    Pre-v2, ``_run_institutions`` filtered ``run_dir.iterdir()`` on
+    ``startswith("_")`` and ``!= ".done"`` only. ``final/`` (the Stage-7 CSV
+    directory) matched neither, so every run that had reached Stage 7 reported
+    one phantom institution and diverged against a run that had not. ``.done``
+    never was a direct child of a run dir (it lives at ``_state/.done``), so
+    that half of the filter was dead code. Both go away structurally under
+    layout v2: the walk only ever descends ``institutions/``.
+    """
+    a = _build_run(tmp_path, "run-a", _identical_spec())
+    b = _build_run(tmp_path, "run-b", _identical_spec())
+    # run-a has completed Stage 7 and been reported on; run-b has not.
+    (a / "final").mkdir()
+    (a / "final" / "g3o_activities_v1.csv").write_text("global_row_id\n", encoding="utf-8")
+    (a / "_state" / ".done").mkdir(parents=True)
+    (a / "_state" / ".done" / "validate.json").write_text("{}", encoding="utf-8")
+    (a / "_run_diff_report.json").write_text("{}", encoding="utf-8")
+    (a / "attrition.jsonl").write_text("", encoding="utf-8")
+
+    report = compute_run_diff([a, b])
+
+    assert report["n_institutions"] == 3
+    assert _run_institutions(a) == _run_institutions(b)
+    for phantom in ("final", "_state", ".done", "attrition.jsonl"):
+        assert phantom not in _run_institutions(a)
+    # And Stage 7 completing on one side does not manufacture divergence.
+    assert sorted(report["full_agreement"]) == [_inst_id(1), _inst_id(2), _inst_id(3)]

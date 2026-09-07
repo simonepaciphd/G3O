@@ -21,6 +21,7 @@ import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from g3o.common import config
+from g3o.common.credentials import ResolvedCredentials, resolve
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ _live_mode = False
 
 
 class SerperConfigError(RuntimeError):
-    """SERPER_API_KEY is unset while live (``--execute``) mode is active."""
+    """No Serper key is resolvable while live (``--execute``) mode is active."""
 
 
 class SerperRequestError(RuntimeError):
@@ -58,6 +59,19 @@ def set_live_mode(enabled: bool) -> None:
     """Enable/disable live mode (no mock, honest failures). Set by presweep."""
     global _live_mode
     _live_mode = enabled
+
+
+def _serper_key(credentials: ResolvedCredentials | None) -> str | None:
+    """The Serper key for one call (Run API spec §3.1/§3.2).
+
+    ``credentials`` is what the presweep orchestrator threads down. ``None`` —
+    the CLI subcommands, ad-hoc/library callers, and every test that predates the
+    spec — resolves from the environment **at call time**, so precedence stays
+    explicit -> env -> unset and no key is ever frozen at import.
+    """
+    if credentials is not None:
+        return credentials.serper_api_key
+    return resolve().serper_api_key
 
 
 def _contains_mock(data: list[dict]) -> bool:
@@ -79,9 +93,39 @@ class SerperOptions:
     every query G3O has run. Setting it ``False`` is a provenance fix — the
     query recorded in the artifact becomes the query Google actually answered.
     It is **not** a recall lever and was not measured as one.
+
+    ``gl`` / ``hl`` (2026-08-30, PI sign-off) — **the search locale, which until
+    now G3O could not express at all.** ``gl`` is the country the search is run
+    from; ``hl`` is Google's interface language. Both were absent from this
+    class, so every Serper query G3O has ever issued went out with them unset
+    and took Serper's server-side default — US / English. That was invisible
+    while only English ran. Under the signed language policy of 2026-08-30 it is
+    a live confound: the policy chooses the *term's* language per institution
+    while the *locale* stays anglophone, so a Japanese term is issued through a
+    US/English Google and the run cannot claim to have searched Japan in
+    Japanese.
+
+    They are deliberately **two independent fields, not one "locale"**, because
+    they come from different tables: ``hl`` is a property of the language tag
+    and ``gl`` a property of the institution's country. France-``fr`` and
+    Senegal-``fr`` share a term and need different ``gl``.
+
+    Neither is validated here. Serper drops an unrecognised value with HTTP 200
+    and no error, so the only evidence that a locale was honoured is its
+    presence in :attr:`SerperResult.search_parameters` — validating against a
+    hardcoded list would replace that live signal with a stale guess about what
+    Google supports. Not all 89 tags of the signed policy have a Google
+    interface language (Tifinagh, Dhivehi, Dzongkha, Tetum, Papiamento and
+    Greenlandic are expected to have none), and the echo is how we find out.
+
+    **Not measured as a recall lever.** Like ``autocorrect``, this is added so
+    the parameter *can* be set and recorded; whether a matched locale retrieves
+    more than the default is exactly what the 2026-08-30 term probe measures.
     """
 
     autocorrect: bool | None = None
+    gl: str | None = None
+    hl: str | None = None
 
 
 DEFAULT_OPTIONS = SerperOptions()
@@ -101,24 +145,46 @@ def build_request_payload(
 
     Key insertion order is ``q``, ``num``, then options in field order, so the
     legacy payload serialises byte-identically to ``{"q": ..., "num": ...}``.
+
+    ``gl``/``hl`` follow ``autocorrect`` in field order and are omitted when
+    ``None``, so an unlocalised call still produces the legacy two-key payload
+    and therefore the legacy cache key. That is what keeps the locale addition
+    from invalidating every cached result from before 2026-08-30 — and, on the
+    other side, what guarantees a *localised* query can never be served from an
+    *unlocalised* cache entry, since the key is derived from this payload.
     """
     opts = options if options is not None else DEFAULT_OPTIONS
     payload: dict = {"q": query, "num": num_results}
     if opts.autocorrect is not None:
         payload["autocorrect"] = opts.autocorrect
+    if opts.gl is not None:
+        payload["gl"] = opts.gl
+    if opts.hl is not None:
+        payload["hl"] = opts.hl
     return payload
 
 
-def _cache_key(payload: dict) -> str:
-    """Hash the whole request payload, not a hand-picked subset.
+def _cache_key(payload: dict, engine: str = "serper") -> str:
+    """Hash the whole request payload, namespaced by search backend.
 
     ``sort_keys`` makes the key insensitive to insertion order (two callers
     building the same parameters in a different order must hit the same entry);
     ``ensure_ascii=False`` keeps non-ASCII queries from hashing differently than
     they are sent.
+
+    ``engine`` namespaces the key by search backend and is prefixed onto the
+    hashed blob rather than folded into ``payload``: it is a cache-partition
+    tag, **not** a request parameter, so it must never reach the wire or the
+    stored ``searchParameters`` provenance (that is what keeps ``payload``
+    byte-faithful to what Serper received — see :func:`build_request_payload`).
+    Two backends issuing the *same* query at the *same* result count must not
+    collide on one on-disk entry and silently serve each other's results.
+    Inert while Serper is the sole backend; defaulting to ``"serper"`` keeps
+    every current call site unchanged.
     """
     blob = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.md5(blob.encode("utf-8")).hexdigest()
+    namespaced = f"{engine}:{blob}"
+    return hashlib.md5(namespaced.encode("utf-8")).hexdigest()
 
 
 # Cache filename prefix. Bumped ``serp_`` -> ``serp_v2_`` when the key became
@@ -129,12 +195,12 @@ def _cache_key(payload: dict) -> str:
 _CACHE_PREFIX = "serp_v2_"
 
 
-def _cache_path(payload: dict) -> str:
-    return os.path.join(config.CACHE_DIR, f"{_CACHE_PREFIX}{_cache_key(payload)}.json")
+def _cache_path(payload: dict, engine: str = "serper") -> str:
+    return os.path.join(config.CACHE_DIR, f"{_CACHE_PREFIX}{_cache_key(payload, engine)}.json")
 
 
-def _cached(payload: dict) -> dict | None:
-    path = _cache_path(payload)
+def _cached(payload: dict, engine: str = "serper") -> dict | None:
+    path = _cache_path(payload, engine)
     # Concurrent-read retry (Stage 1a/1b concurrency, 2026-07): a reader's
     # open() can transiently lose a Windows sharing-violation race against
     # another thread's os.replace() landing on this exact path (the atomic
@@ -154,13 +220,16 @@ def _cached(payload: dict) -> dict | None:
     return None
 
 
-def _save_cache(payload: dict, entry: dict) -> None:
+def _save_cache(payload: dict, entry: dict, engine: str = "serper") -> None:
     """Persist one cache entry keyed by the full request ``payload``.
 
     ``entry`` is the v2 on-disk shape: ``{"results": [...],
     "searchParameters": {...}}``. The echo is stored alongside the results so a
     cache hit stays as auditable as a live call — otherwise the parameters
     Serper honoured would be recoverable only for uncached queries.
+
+    ``engine`` namespaces the on-disk entry by backend (see :func:`_cache_key`)
+    so a write under one backend is never read back under another.
     """
     if _contains_mock(entry.get("results") or []):
         # Belt-and-suspenders: in live mode mock is never produced, but a dev
@@ -168,7 +237,7 @@ def _save_cache(payload: dict, entry: dict) -> None:
         logger.debug("Refusing to cache mock SERP results for payload %r", payload)
         return
     os.makedirs(config.CACHE_DIR, exist_ok=True)
-    path = _cache_path(payload)
+    path = _cache_path(payload, engine)
     # Atomic write (Stage 1a/1b concurrency, 2026-07): two worker threads can
     # race on the same cache key (identical query + num_results). A plain
     # open(path, "w") lets a concurrent reader observe a torn/partial file; a
@@ -222,18 +291,19 @@ def _mock_response() -> dict:
 
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def _execute(payload: dict) -> dict:
+def _execute(payload: dict, *, api_key: str) -> dict:
     """POST ``payload`` to Serper with retry. Assumes a key is present.
 
     Takes the already-built payload rather than ``(query, num_results)`` so the
     bytes on the wire and the bytes fed to :func:`_cache_key` are the same dict
     — see :func:`build_request_payload`.
 
-    The retry wraps only the network call — the missing-key / mock decision
-    lives in :func:`search_google`, so a config error is never retried or
-    wrapped in a tenacity ``RetryError``.
+    ``api_key`` is passed in rather than read here so this function holds no
+    credential policy at all (§3.2); the missing-key / mock decision and the
+    precedence live in :func:`search_google_detailed`, so a config error is never
+    retried or wrapped in a tenacity ``RetryError``.
     """
-    headers = {"X-API-KEY": config.SERPER_API_KEY, "Content-Type": "application/json"}
+    headers = {"X-API-KEY": api_key, "Content-Type": "application/json"}
     response = requests.post(
         config.SERPER_ENDPOINT,
         headers=headers,
@@ -257,7 +327,7 @@ def account_endpoint() -> str:
     return urlunsplit((parts.scheme, parts.netloc, "/account", "", ""))
 
 
-def get_account() -> dict:
+def get_account(credentials: ResolvedCredentials | None = None) -> dict:
     """Return Serper's live account state, e.g. ``{"balance": N, "rateLimit": 50}``.
 
     The spend guard: credit cost is reported as a **balance delta** across a
@@ -269,7 +339,10 @@ def get_account() -> dict:
     Raises whatever ``requests`` raises; callers decide whether a missing
     balance reading is fatal.
     """
-    headers = {"X-API-KEY": config.SERPER_API_KEY, "Content-Type": "application/json"}
+    headers = {
+        "X-API-KEY": _serper_key(credentials),
+        "Content-Type": "application/json",
+    }
     response = requests.get(
         account_endpoint(), headers=headers, timeout=config.REQUEST_TIMEOUT
     )
@@ -277,7 +350,7 @@ def get_account() -> dict:
     return response.json()
 
 
-def get_balance() -> int | None:
+def get_balance(credentials: ResolvedCredentials | None = None) -> int | None:
     """Best-effort credit balance. Returns ``None`` rather than raising.
 
     Used at run start/end where a failed balance read must not abort a run that
@@ -285,7 +358,7 @@ def get_balance() -> int | None:
     unavailable instead of the run dying over telemetry.
     """
     try:
-        value = get_account().get("balance")
+        value = get_account(credentials).get("balance")
     except Exception as exc:  # network, auth, malformed JSON
         logger.warning("Serper /account balance read failed: %s", exc)
         return None
@@ -318,12 +391,19 @@ def search_google_detailed(
     num_results: int = 10,
     force_refresh: bool = False,
     options: SerperOptions | None = None,
+    credentials: ResolvedCredentials | None = None,
 ) -> SerperResult:
     """Run a Serper query and return results **plus** request/echo provenance.
 
     :func:`search_google` is the thin list-returning wrapper over this and
     remains the pipeline's ordinary entry point; callers that persist telemetry
     (the Stage 1a/1b runners) use this form to capture ``searchParameters``.
+
+    ``credentials`` (spec §3.2) carries the key for this call; ``None`` resolves
+    from the environment at call time. Note the ordering below: the cache is
+    consulted **before** any key is needed, so a fully-cached dry run still
+    requires no credential at all — the property the byte-identical dry-run gate
+    depends on.
     """
     payload = build_request_payload(query, num_results, options)
 
@@ -337,18 +417,20 @@ def search_google_detailed(
                 payload=payload,
             )
 
-    if not config.SERPER_API_KEY:
+    api_key = _serper_key(credentials)
+    if not api_key:
         if _live_mode:
             # Missing key in live mode is a hard error — never degrade to mock.
             raise SerperConfigError(
-                "SERPER_API_KEY is unset but live (--execute) discovery is active. "
+                "No Serper API key is resolvable (explicit credentials or "
+                "SERPER_API_KEY) but live (--execute) discovery is active. "
                 "Refusing to return mock results. Set SERPER_API_KEY before running "
                 "--execute, or run a dry run."
             )
         data = _mock_response()
     else:
         try:
-            data = _execute(payload)
+            data = _execute(payload, api_key=api_key)
         except Exception as exc:  # network / Serper error (quota, 403, timeout)
             if _live_mode:
                 # Honest failure: an empty artifact must mean "searched, found
@@ -387,13 +469,18 @@ def search_google(
     num_results: int = 10,
     force_refresh: bool = False,
     options: SerperOptions | None = None,
+    credentials: ResolvedCredentials | None = None,
 ) -> list[dict]:
     """Run a Serper query and return normalized organic results.
 
     Each result dict has keys: title, link, snippet, domain, position, date, sitelinks.
     """
     return search_google_detailed(
-        query, num_results=num_results, force_refresh=force_refresh, options=options
+        query,
+        num_results=num_results,
+        force_refresh=force_refresh,
+        options=options,
+        credentials=credentials,
     ).results
 
 

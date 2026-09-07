@@ -1,11 +1,12 @@
 """Stage 6 driver — per-institution consolidation orchestrator.
 
-Walks ``runs/<run_id>/<inst>/extract/*.json`` for each institution in a run,
-flattens the Stage 5 ``ContractRow`` outputs into a single per-institution
-input list, submits one consolidation job per institution (chunked into
-size-capped OpenAI Batch API batches, Session F.1 2026-06-10), polls to
-terminal state, parses the results, and persists
-``runs/<run_id>/<inst>/6_validate.json``.
+Walks the ``extract/`` artifacts of each institution in a run (see
+:mod:`g3o.common.paths` for the institution path and
+:mod:`g3o.common.artifact_io` for the artifact encoding), flattens the Stage 5
+``ContractRow`` outputs into a single per-institution input list, submits one
+consolidation job per institution (chunked into size-capped OpenAI Batch API
+batches, Session F.1 2026-06-10), polls to terminal state, parses the results,
+and persists ``6_validate.json`` next to them.
 
 The single owner of OpenAI Batch API access remains
 ``g3o.common.batch_client``; this module is a thin wrapper around it.
@@ -15,11 +16,12 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
 from g3o.common import attrition
+from g3o.common.artifact_io import glob_artifacts, read_artifact
 from g3o.common.batch_client import (
     DEFAULT_COMPLETION_WINDOW,
     DEFAULT_ENDPOINT,
@@ -37,6 +39,8 @@ from g3o.common.contract import (
     ConsolidatedInstitutionResponse,
     ContractRow,
 )
+from g3o.common.credentials import ResolvedCredentials
+from g3o.common.paths import institution_dir, require_layout
 from g3o.common.run_state import (
     done_path,
     is_done,
@@ -46,7 +50,17 @@ from g3o.common.run_state import (
     run_chunked_stage,
 )
 from g3o.common.timing import llm_stage_timer
+from g3o.extract.salvage import (
+    REASON_FLAGS_SALVAGED,
+    UncertaintyFlagsSalvage,
+    salvage_uncertainty_flags_na,
+)
 from g3o.validate.client import RESPONSE_FORMAT, build_consolidate_job
+from g3o.validate.salvage import (
+    REASON_BOOKKEEPING_SALVAGED,
+    BookkeepingSalvage,
+    salvage_consolidation_bookkeeping,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -133,8 +147,41 @@ def fetch_consolidate_results(
     return fetch_results(batch_id, client=client, status=status)
 
 
-def parse_consolidate_result(result: BatchResult) -> ConsolidatedInstitutionResponse:
+def parse_consolidate_result(
+    result: BatchResult,
+    *,
+    salvage_sink: list[UncertaintyFlagsSalvage] | None = None,
+    bookkeeping_sink: list[BookkeepingSalvage] | None = None,
+    raw_sink: list[str] | None = None,
+) -> ConsolidatedInstitutionResponse:
     """Parse a Stage 6 ``BatchResult`` into a validated ``ConsolidatedInstitutionResponse``.
+
+    ``uncertainty_flags`` ``_NA_`` salvage runs before validation, for the same
+    reason it does at Stage 5: ``ConsolidatedActivity._validate_uncertainty_flags``
+    is byte-identical to the Stage 5 rule, and ``model_validate`` is atomic over
+    the institution, so one activity carrying the illegal literal would drop the
+    whole consolidation. See ``g3o.extract.salvage`` for the reasoning (the module
+    is shared rather than duplicated; ``g3o.persist.writer`` already imports its
+    reason codes across the same boundary).
+
+    Bookkeeping salvage (:mod:`g3o.validate.salvage`) runs after it, on the same
+    before-validation principle and for a sharper reason: the invariants it
+    repairs — id sequencing, ``n_sources`` back-link counts — are only
+    *reachable* once the model has activities to keep straight, so rejecting on
+    them discards evidence-bearing institutions at 11.5× the base rate
+    (measured 2026-08-31; see that module's docstring).
+
+    Args:
+        salvage_sink: if provided, one ``UncertaintyFlagsSalvage`` per repaired
+            activity is appended. Populated before validation, so it is available
+            to the caller even when this call raises.
+        bookkeeping_sink: as above, for :class:`BookkeepingSalvage` events.
+        raw_sink: if provided, the raw assistant content is appended **before**
+            validation is attempted. This is what lets the caller retain a
+            rejected payload: ``model_validate`` raises without returning
+            anything, and until 2026-08-31 the response was then unrecoverable —
+            no ``6_validate.json`` was written and the payload survived only as a
+            truncated ``input_value=`` prefix inside a ledger ``detail`` string.
 
     Raises:
         RuntimeError: if the underlying API call failed or returned no content.
@@ -149,7 +196,18 @@ def parse_consolidate_result(result: BatchResult) -> ConsolidatedInstitutionResp
         raise RuntimeError(
             f"Stage 6 batch result {result.custom_id!r}: empty assistant content"
         )
+    if raw_sink is not None:
+        # Before json.loads, not after: content that is not even JSON is exactly
+        # the case where having the bytes matters most.
+        raw_sink.append(content)
     payload = json.loads(content)
+    if isinstance(payload, dict):
+        events = salvage_uncertainty_flags_na(payload.get("activities"))
+        if salvage_sink is not None:
+            salvage_sink.extend(events)
+        book = salvage_consolidation_bookkeeping(payload)
+        if bookkeeping_sink is not None:
+            bookkeeping_sink.extend(book)
     return ConsolidatedInstitutionResponse.model_validate(payload)
 
 
@@ -158,24 +216,26 @@ def parse_consolidate_result(result: BatchResult) -> ConsolidatedInstitutionResp
 # ---------------------------------------------------------------------------
 
 
-def load_extract_outputs(institution_dir: Path) -> tuple[list[ContractRow], int]:
+def load_extract_outputs(inst_dir: Path) -> tuple[list[ContractRow], int]:
     """Load all Stage 5 extract outputs for one institution.
 
-    Walks ``institution_dir/extract/*.json`` (each file holds one validated
+    Walks ``inst_dir/extract/`` (each artifact holds one validated
     ``BatchResponse``), flattens the ``data`` arrays into a single list of
     ``ContractRow`` objects, and returns the count of distinct source pages.
 
+    Artifacts are ``.json.gz`` from Phase 2 on and may be plain ``.json`` in an
+    older or hand-built tree; :func:`g3o.common.artifact_io.glob_artifacts`
+    resolves both and orders by url-hash stem, so row order does not depend on
+    which files happen to be compressed.
+
     Returns:
         (rows, n_pages) where ``rows`` is the concatenated list and
-        ``n_pages`` is the count of extract JSON files that produced rows.
+        ``n_pages`` is the count of extract artifacts that produced rows.
     """
-    extract_dir = institution_dir / "extract"
-    if not extract_dir.exists():
-        return [], 0
     rows: list[ContractRow] = []
     n_pages = 0
-    for path in sorted(extract_dir.glob("*.json")):
-        payload = json.loads(path.read_text(encoding="utf-8"))
+    for path in glob_artifacts(inst_dir / "extract"):
+        payload = json.loads(read_artifact(path))
         response = BatchResponse.model_validate(payload)
         if not response.data:
             continue
@@ -195,15 +255,15 @@ def assemble_per_institution_inputs(
     """
     out: list[tuple[dict[str, Any], list[dict[str, Any]], int]] = []
     for inst_id in institution_ids:
-        institution_dir = run_dir / inst_id
-        institution_path = institution_dir / "institution.json"
+        inst_dir = institution_dir(run_dir, inst_id)
+        institution_path = inst_dir / "institution.json"
         if not institution_path.exists():
             logger.warning(
                 "Stage 6: institution.json missing for %s; skipping", inst_id
             )
             continue
         institution_row = json.loads(institution_path.read_text(encoding="utf-8"))
-        rows, n_pages = load_extract_outputs(institution_dir)
+        rows, n_pages = load_extract_outputs(inst_dir)
         if not rows:
             logger.warning(
                 "Stage 6: no Stage 5 rows for %s; skipping consolidation", inst_id
@@ -221,14 +281,79 @@ def write_consolidated_output(
     response: ConsolidatedInstitutionResponse,
 ) -> Path:
     """Persist ``runs/<run_id>/<inst>/6_validate.json``."""
-    institution_dir = run_dir / institution_id
-    institution_dir.mkdir(parents=True, exist_ok=True)
-    out_path = institution_dir / "6_validate.json"
+    inst_dir = institution_dir(run_dir, institution_id)
+    inst_dir.mkdir(parents=True, exist_ok=True)
+    out_path = inst_dir / "6_validate.json"
     out_path.write_text(
         json.dumps(response.model_dump(), ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
     return out_path
+
+
+#: Where a rejected Stage 6 response is kept. Deliberately **not** matched by
+#: ``6_validate.json``, so no reader that globs for the consolidated record can
+#: pick one up: every downstream consumer — :mod:`g3o.persist.writer`,
+#: :mod:`g3o.report.outcomes`, :mod:`g3o.report.diff` — tests for that exact
+#: filename, and a rejected payload is not a finding.
+REJECTED_FILENAME = "6_validate.rejected.json"
+
+
+def write_rejected_output(
+    run_dir: Path,
+    institution_id: str,
+    *,
+    raw_content: str | None,
+    error: str,
+) -> Path | None:
+    """Keep a Stage 6 response that failed validation, beside the institution.
+
+    Added 2026-08-31. Until then a rejection was **unrecoverable from
+    artifacts**: no ``6_validate.json`` was written, and the payload survived
+    only as the truncated ``input_value=`` prefix pydantic embeds in its own
+    error string, inside an ``_attrition.jsonl`` ``detail`` field. Verified on
+    ``r20260830T114940Z-32ea``: all 126 rejected institutions have no Stage 6
+    artifact of any kind. 444 institutions across five runs are gone this way.
+
+    Retention makes the residue auditable and re-askable without re-scraping —
+    the ``extract/`` artifacts are already kept, so Stage 6 alone can be re-run.
+    It repairs nothing on its own and is deliberately independent of
+    :mod:`g3o.validate.salvage`: whatever the repair policy is, the payloads a
+    policy declines to repair should not be destroyed by that decision.
+
+    Returns the path written, or ``None`` when there was no content to keep (an
+    empty assistant response, 8 of the 126 — nothing to retain, and an empty
+    file would falsely suggest otherwise). Never raises: this runs on a path
+    that is already handling a failure, and a write error here must not replace
+    the real one.
+    """
+    if not raw_content:
+        return None
+    inst_dir = institution_dir(run_dir, institution_id)
+    try:
+        inst_dir.mkdir(parents=True, exist_ok=True)
+        out_path = inst_dir / REJECTED_FILENAME
+        out_path.write_text(
+            json.dumps(
+                {
+                    "institution_id": institution_id,
+                    "rejected_at_stage": "validate",
+                    "validation_error": error,
+                    "raw_assistant_content": raw_content,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        return out_path
+    except OSError as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "Stage 6: could not retain rejected payload for %s: %s",
+            institution_id,
+            exc,
+        )
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +364,7 @@ def write_consolidated_output(
 def _count_existing_validates(run_dir: Path, institution_ids: Iterable[str]) -> int:
     n = 0
     for inst_id in institution_ids:
-        if (run_dir / inst_id / "6_validate.json").exists():
+        if (institution_dir(run_dir, inst_id) / "6_validate.json").exists():
             n += 1
     return n
 
@@ -253,6 +378,9 @@ def run_consolidate(
     max_wait: int = 25 * 60 * 60,
     notes: str = "none",
     client: Any | None = None,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
+    credentials: ResolvedCredentials | None = None,
+    telemetry: Any | None = None,
 ) -> dict[str, Any]:
     """End-to-end Stage 6 driver for one run directory.
 
@@ -271,6 +399,7 @@ def run_consolidate(
     (Session F.1 — replaces the single-batch ``batch_id`` key).
     """
     stage = "validate"
+    require_layout(run_dir)
     if institution_ids is None:
         manifest_path = run_dir / "manifest.json"
         if not manifest_path.exists():
@@ -311,11 +440,28 @@ def run_consolidate(
     def _persist(results: Iterator[BatchResult]) -> None:
         nonlocal n_failed
         for result in results:
+            flags_salvaged: list[UncertaintyFlagsSalvage] = []
+            book_salvaged: list[BookkeepingSalvage] = []
+            raw: list[str] = []
             try:
-                response = parse_consolidate_result(result)
+                response = parse_consolidate_result(
+                    result,
+                    salvage_sink=flags_salvaged,
+                    bookkeeping_sink=book_salvaged,
+                    raw_sink=raw,
+                )
             except Exception as exc:
                 logger.warning(
                     "Stage 6 parse failed for %s: %s", result.custom_id, exc
+                )
+                # Retain first, then record. The ledger row is the index into
+                # the retained payload, so a row that names a file which was
+                # never written would be worse than no row.
+                write_rejected_output(
+                    run_dir,
+                    result.custom_id,
+                    raw_content=raw[0] if raw else None,
+                    error=str(exc),
                 )
                 attrition.record(
                     run_dir, institution_id=result.custom_id, stage=stage,
@@ -323,6 +469,29 @@ def run_consolidate(
                 )
                 n_failed += 1
                 continue
+            # Bookkeeping repairs, on the success path only and for the same
+            # reason the flags salvage is: a consolidation that still failed is
+            # reported by its actual failure, not as a salvage that did not save
+            # it.
+            if book_salvaged:
+                attrition.record(
+                    run_dir, institution_id=result.custom_id, stage=stage,
+                    reason=REASON_BOOKKEEPING_SALVAGED,
+                    detail="; ".join(
+                        f"{s.kind}: {s.detail}" for s in book_salvaged
+                    ),
+                )
+            # An illegal whole-value `uncertainty_flags` of `_NA_` was rewritten to
+            # the contract's `none` and the consolidation preserved. Recorded on the
+            # success path only, mirroring Stage 5: a consolidation that still
+            # failed is reported by its actual failure, not as a salvage that did
+            # not save it.
+            if flags_salvaged:
+                refs = sorted(s.ref for s in flags_salvaged)
+                attrition.record(
+                    run_dir, institution_id=result.custom_id, stage=stage,
+                    reason=REASON_FLAGS_SALVAGED, detail=f"activities={refs}",
+                )
             write_consolidated_output(run_dir, result.custom_id, response)
 
     # custom_id == institution_id for this stage (make_consolidate_custom_id),
@@ -334,6 +503,9 @@ def run_consolidate(
             poll_interval=poll_interval, max_wait=max_wait,
             process_chunk_results=_persist,
             client=client,
+            cost_check_callback=cost_check_callback,
+            credentials=credentials,
+            telemetry=telemetry,
         )
 
     done_payload = json.loads(
@@ -366,6 +538,7 @@ def _manifest_run_id(run_dir: Path) -> str:
 
 
 __all__ = [
+    "REJECTED_FILENAME",
     "assemble_per_institution_inputs",
     "build_consolidate_jobs",
     "fetch_consolidate_results",
@@ -376,4 +549,5 @@ __all__ = [
     "run_consolidate",
     "submit_consolidate_batch",
     "write_consolidated_output",
+    "write_rejected_output",
 ]

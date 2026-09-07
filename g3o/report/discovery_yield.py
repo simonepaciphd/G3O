@@ -31,6 +31,7 @@ from urllib.parse import urlparse
 
 import tldextract
 
+from g3o.common.paths import iter_institution_dirs, require_layout
 from g3o.discovery.domain_pick import is_infra_host
 
 # Offline extractor: the bundled public-suffix snapshot, never a network fetch,
@@ -166,11 +167,12 @@ def score_run(run_dir: str | Path, truth: dict[str, str]) -> dict[str, Any]:
     division of labour.
     """
     run_dir = Path(run_dir)
+    require_layout(run_dir)
     per_inst: dict[str, Any] = {}
     n_queries = n_cached = 0
-    for inst_dir in sorted(p for p in run_dir.iterdir() if p.is_dir()):
+    for inst_dir in iter_institution_dirs(run_dir):
         inst_id = inst_dir.name
-        if inst_id.startswith("_") or inst_id.startswith(".") or inst_id not in truth:
+        if inst_id not in truth:
             continue
         a = _read(inst_dir / "1a_discovery_general.json")
         b = _read(inst_dir / "1b_discovery_site_restricted.json")

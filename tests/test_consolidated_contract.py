@@ -111,6 +111,8 @@ def _provenance(**overrides: Any) -> dict[str, Any]:
         "run_model": "gpt-5-nano",
         "run_tool": "g3o.validate.consolidate",
         "run_date": "2026-05-09",
+        "institution_uid": "G3O-I-00000001",
+        "sweep_uid": "G3O-S-00000001",
     }
     base.update(overrides)
     return base

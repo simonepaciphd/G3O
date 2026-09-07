@@ -8,9 +8,11 @@ Subcommands:
   extract                 — Stage 5 per-page LLM extraction (orchestrated via `presweep`).
   validate                — Stage 6 per-institution LLM consolidation.
   persist                 — Stage 7 deterministic CSV writer.
+  frame                   — build a wave sampling frame from the institution master.
   presweep                — Phase 3 of Session B: stratified pre-sweep runner.
   presweep-report         — Stage-by-stage funnel health report for a finished run.
   run-diff                — Cross-run determinism report over 2+ run dirs (disk-only).
+  archive                 — Tar a completed run's institution shards (retention, layout v2).
   verify-model            — One-job Batch API submit to confirm the model id (Q4).
 
 Push #1 implemented `discover` and `scrape`. Session A of Push #2 added the
@@ -23,6 +25,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
+import os
 import sys
 import time
 from pathlib import Path
@@ -48,9 +52,19 @@ from g3o.common.batch_client import (
     poll_batch,
     submit_batch,
 )
-from g3o.discovery.query_builder import DEFAULT_EVIDENCE_TERM, build_queries
+from g3o.discovery.domain_pick import pick_domain
+from g3o.discovery.query_builder import (
+    DEFAULT_EVIDENCE_TERM,
+    DOMAIN_QUERY_LANG,
+    build_domain_query,
+    build_evidence_query,
+    build_queries,
+)
 from g3o.discovery.serper_client import search_google
 from g3o.scrape.fetcher import scrape_url
+
+# Exit code for budget circuit breaker (used in preflight and runtime abort)
+EXIT_CODE_BUDGET_EXCEEDED = 3
 
 
 def _existing_file(arg: str) -> Path:
@@ -71,27 +85,123 @@ def _existing_dir(arg: str) -> Path:
     return p
 
 
-def _cmd_discover(args: argparse.Namespace) -> int:
-    languages = [s.strip() for s in args.languages.split(",") if s.strip()]
-    queries = build_queries(
-        args.institution,
-        languages,
-        country=args.country,
-        disambiguation=args.disambiguation,
-    )
+def _run_discovery_leg(
+    queries: list[tuple[str, str]],
+    *,
+    leg: str,
+    limit: int,
+    site_domain: str | None = None,
+) -> dict[str, Any]:
+    """One discovery leg, shaped like the artifact ``stage_discovery`` writes.
 
+    Deduplication is **per leg**, matching production: Stage 1a and Stage 1b
+    keep independent ``seen`` sets, so a URL both legs return appears in both
+    artifacts. Sharing one set across the legs would leave leg 2's record list
+    misrepresenting what leg 2 actually returned, which is the whole reason the
+    legs are kept apart.
+
+    ``queries`` mirrors the production provenance entry minus Serper's
+    ``searchParameters``/``from_cache`` echo — this command calls
+    ``search_google``, not ``search_google_detailed``, so that echo is not
+    available here (see ``--discovery-mode``'s help text).
+    """
     seen: set[str] = set()
-    records: list[dict] = []
+    records: list[dict[str, Any]] = []
+    provenance: list[dict[str, Any]] = []
     for query, lang in queries:
-        for r in search_google(query, num_results=args.limit):
+        provenance.append({"query": query, "language": lang, "leg": leg})
+        for r in search_google(query, num_results=limit):
             url = r.get("link", "")
             if url and url not in seen:
                 seen.add(url)
-                r["query"] = query
-                r["language"] = lang
-                records.append(r)
+                record = {**r, "query": query, "language": lang}
+                if site_domain is not None:
+                    record["site_domain"] = site_domain
+                records.append(record)
+    return {"queries": provenance, "records": records}
 
-    json.dump(records, sys.stdout, ensure_ascii=False, indent=2)
+
+def _cmd_discover(args: argparse.Namespace) -> int:
+    languages = [s.strip() for s in args.languages.split(",") if s.strip()]
+    mode = args.discovery_mode
+
+    if mode == "chain":
+        if args.languages != "en":
+            sys.stderr.write(
+                "warning: --languages is ignored in chain mode "
+                "(leg 1 always uses 'en')\n"
+            )
+        # Chain mode: leg 1 (domain discovery) + leg 2 (site-restricted evidence)
+        queries = [
+            (
+                build_domain_query(
+                    args.institution,
+                    country=args.country,
+                    disambiguation=args.disambiguation,
+                    quote_name=args.discovery_domain_quote_name,
+                ),
+                DOMAIN_QUERY_LANG,
+            )
+        ]
+        leg1_name = "domain_discovery"
+    else:
+        # Legacy mode: one query per GenAI term
+        if args.discovery_evidence_term != DEFAULT_EVIDENCE_TERM:
+            sys.stderr.write(
+                "warning: --discovery-evidence-term is ignored in legacy mode "
+                "(chain only)\n"
+            )
+        if args.discovery_domain_quote_name:
+            sys.stderr.write(
+                "warning: --discovery-domain-quote-name is ignored in legacy mode "
+                "(chain only)\n"
+            )
+        queries = build_queries(
+            args.institution,
+            languages,
+            country=args.country,
+            disambiguation=args.disambiguation,
+        )
+        leg1_name = "genai_roster"
+
+    # Output mirrors production's two artifacts rather than flattening the legs
+    # into one list: `g3o/run/presweep/stage_discovery.py` writes
+    # `1a_discovery_general.json` and `1b_discovery_site_restricted.json`, never
+    # merges the record lists, and tags each query with its leg. Keyed by those
+    # filenames so CLI output and pipeline output read the same way.
+    leg1 = _run_discovery_leg(queries, leg=leg1_name, limit=args.limit)
+    artifacts: dict[str, Any] = {"1a_discovery_general": {"mode": mode, **leg1}}
+
+    if mode == "chain":
+        # The naive first-non-aggregator pick, recorded but not authoritative —
+        # Stage 2's `classify_official_site` is the arbiter in production. Kept
+        # here so a CLI 1a artifact carries the same field as a pipeline one.
+        picked = pick_domain(leg1["records"])
+        artifacts["1a_discovery_general"]["naive_domain"] = picked
+        domain = picked.get("domain")
+        if domain:
+            leg2 = _run_discovery_leg(
+                [
+                    (
+                        build_evidence_query(domain, args.discovery_evidence_term),
+                        DOMAIN_QUERY_LANG,
+                    )
+                ],
+                leg="site_evidence",
+                limit=args.limit,
+                site_domain=domain,
+            )
+            artifacts["1b_discovery_site_restricted"] = {
+                "mode": mode,
+                "site_domain": domain,
+                **leg2,
+            }
+        else:
+            sys.stderr.write(
+                "chain: no usable domain found in leg 1; skipping leg 2\n"
+            )
+
+    json.dump(artifacts, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
     return 0
 
@@ -319,17 +429,173 @@ def _cmd_persist(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 
+def _parse_budget_limit(budget_str: str | None) -> float | None:
+    """Parse BUDGET_LIMIT_USD from string to float with clear error message.
+
+    Called at use time (not import time) to avoid taking down the whole CLI
+    on a malformed env var value.  Rejects NaN/Inf so they cannot silently
+    disable the budget gate.  Warns on zero (likely a user mistake — would
+    abort on any non-zero spend).
+    """
+    if budget_str is None:
+        return None
+    try:
+        value = float(budget_str)
+    except ValueError as e:
+        raise SystemExit(
+            f"G3O_BUDGET_LIMIT_USD={budget_str!r} is not a valid number. "
+            f"Set it to a USD amount (e.g., 10.00) or unset it to disable the budget gate."
+        ) from e
+    if math.isnan(value) or math.isinf(value):
+        raise SystemExit(
+            f"G3O_BUDGET_LIMIT_USD={budget_str!r} is not a finite number. "
+            f"Set it to a positive USD amount (e.g., 10.00) or unset it to disable the budget gate."
+        )
+    if value <= 0:
+        raise SystemExit(
+            f"G3O_BUDGET_LIMIT_USD={budget_str!r} must be a positive USD amount. "
+            f"A zero or negative budget would abort on any non-zero spend. "
+            f"Unset it to disable the budget gate, or set a positive value."
+        )
+    return value
+
+
+def _budget_abort_message(estimated_cost: float, budget_limit: float) -> str:
+    """Format the circuit-breaker banner written to stderr on budget abort."""
+    overrun = estimated_cost - budget_limit
+    return (
+        f"\n{'='*70}\n"
+        f"COST CIRCUIT BREAKER TRIGGERED\n"
+        f"{'='*70}\n"
+        f"Projected OpenAI Batch cost: ${estimated_cost:.2f} USD\n"
+        f"Budget limit: ${budget_limit:.2f} USD\n"
+        f"Overrun: ${overrun:.2f} USD\n"
+        f"\n"
+        f"Aborting before batch submission to prevent budget overrun.\n"
+        f"To proceed, either:\n"
+        f"  1. Increase budget: export G3O_BUDGET_LIMIT_USD=<higher_value>\n"
+        f"  2. Use --cost-ceiling <higher_value> to override\n"
+        f"  3. Reduce sample size or scope to lower projected cost\n"
+        f"{'='*70}\n"
+    )
+
+
+def _parse_cost_monitor_dry_run(dry_run_str: str | None) -> bool:
+    """Parse G3O_COST_MONITOR_DRY_RUN from string to bool with clear error message.
+
+    Follows the same pattern as _parse_projection_safety_factor: called at use
+    time to avoid import-time failures on malformed values.
+    """
+    if dry_run_str is None:
+        return False  # Default
+    value = dry_run_str.strip().lower()
+    if value in ("true", "1", "yes", "on"):
+        return True
+    if value in ("false", "0", "no", "off", ""):
+        return False
+    raise SystemExit(
+        f"G3O_COST_MONITOR_DRY_RUN={dry_run_str!r} is not a valid boolean. "
+        f"Set it to 'true' or 'false', or unset it to use the default (false)."
+    )
+
+
+def _parse_projection_safety_factor(factor_str: str | None) -> float | None:
+    """Parse G3O_PROJECTION_SAFETY_FACTOR from string to float with validation.
+
+    Called at use time (not import time) to avoid taking down the whole CLI
+    on a malformed env var value. Rejects NaN/Inf and values < 1.0.
+    Returns None if not set (projection checking disabled by default).
+    """
+    if factor_str is None:
+        return None  # Default: projection checking disabled
+    try:
+        value = float(factor_str)
+    except ValueError as e:
+        raise SystemExit(
+            f"G3O_PROJECTION_SAFETY_FACTOR={factor_str!r} is not a valid number. "
+            f"Set it to a float >= 1.0 (e.g., 1.2) or unset it to use the default."
+        ) from e
+    if math.isnan(value) or math.isinf(value):
+        raise SystemExit(
+            f"G3O_PROJECTION_SAFETY_FACTOR={factor_str!r} is not a finite number. "
+            f"Set it to a float >= 1.0 (e.g., 1.2)."
+        )
+    if value < 1.0:
+        raise SystemExit(
+            f"G3O_PROJECTION_SAFETY_FACTOR={factor_str!r} must be >= 1.0. "
+            f"A factor below 1.0 would abort even when under budget."
+        )
+    return value
+
+
+def _effective_projection_safety_factor(args: argparse.Namespace) -> float:
+    """Resolve the effective projection safety factor: CLI flag > env var > default."""
+    from g3o.common.config import PROJECTION_SAFETY_FACTOR
+    if args.projection_safety_factor is not None:
+        # Validate CLI flag
+        if math.isnan(args.projection_safety_factor) or math.isinf(args.projection_safety_factor):
+            raise SystemExit(
+                f"--projection-safety-factor must be a finite number >= 1.0, "
+                f"got {args.projection_safety_factor}."
+            )
+        if args.projection_safety_factor < 1.0:
+            raise SystemExit(
+                f"--projection-safety-factor must be >= 1.0, "
+                f"got {args.projection_safety_factor}. "
+                f"A factor below 1.0 would abort even when under budget."
+            )
+        return args.projection_safety_factor
+    return _parse_projection_safety_factor(PROJECTION_SAFETY_FACTOR)
+
+
 def _cmd_presweep(args: argparse.Namespace) -> int:
-    from g3o.common.config import RUNS_DIR
-    from g3o.run.presweep import run_presweep
+    """Argv adapter over :func:`g3o.run.api.launch` (Run API spec §1.1).
+
+    Everything this used to decide — minting, key resolution, stage dispatch —
+    lives in ``launch()`` now, so the droplet orchestrator drives the same path an
+    operator does. What stays here is genuinely CLI-shaped: projecting argv onto a
+    config, the cost gate's exit codes, and printing.
+    """
+    from g3o.common.config import BUDGET_LIMIT_USD, COST_MONITOR_DRY_RUN, RUNS_DIR
+    from g3o.run.api import Credentials, launch
+
+    # Parse budget once at the start and thread it through (fix: previously parsed multiple times)
+    budget_limit = _parse_budget_limit(BUDGET_LIMIT_USD)
+    effective_budget = args.cost_ceiling if args.cost_ceiling is not None else budget_limit
+    # Parse projection safety factor
+    projection_safety_factor = _effective_projection_safety_factor(args)
+    # Parse cost monitor dry run: CLI flag takes precedence over env var
+    cost_monitor_dry_run = (
+        args.cost_monitor_dry_run
+        or _parse_cost_monitor_dry_run(COST_MONITOR_DRY_RUN)
+    )
+
+    # Validate --cost-ceiling CLI flag (env var already validated in _parse_budget_limit)
+    if args.cost_ceiling is not None and args.cost_ceiling <= 0:
+        raise SystemExit(
+            f"--cost-ceiling must be a positive USD amount, got {args.cost_ceiling}. "
+            f"A zero or negative budget would abort on any non-zero spend."
+        )
 
     # `PresweepConfig.__post_init__` rejects a language this run could not
     # actually query (A7, 2026-08-02). Surface it as a CLI error rather than a
     # traceback: it is a user-input mistake, and it fires before any spend.
     try:
-        config = _presweep_config(args, RUNS_DIR)
+        config = _presweep_config(
+            args, RUNS_DIR,
+            budget_usd=effective_budget,
+            projection_safety_factor=projection_safety_factor,
+            cost_monitor_dry_run=cost_monitor_dry_run,
+        )
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
+
+    # Spec §1.1: the adapter builds `PresweepConfig` + `Credentials` from
+    # argv/env. Only the label comes from argv — the keys themselves stay in the
+    # environment deliberately, since an argument lands in shell history and in
+    # every `ps` listing on the box. Passed to the preflight too, so the readiness
+    # check, the projection, and the run all speak about one bundle of keys.
+    credentials = Credentials(label=args.key_label)
 
     if args.preflight:
         from g3o.run.preflight import PreflightAssumptions, run_preflight
@@ -342,26 +608,203 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
                 output_tokens_per_job=args.assume_output_tokens_per_job,
             ),
             verify_model_live=args.verify_model,
-            cost_ceiling_usd=args.cost_ceiling,
+            cost_ceiling_usd=effective_budget,
+            credentials=credentials,
         )
         json.dump(summary, sys.stdout, ensure_ascii=False, indent=2, default=str)
         sys.stdout.write("\n")
-        # Exit non-zero only on a hard readiness failure (keys); the cost ceiling
-        # is informational (D7 print-only, 2026-06-10).
+
+        # Cost circuit breaker abort gate
+        # If projected cost exceeds budget limit, abort before any batches are submitted
+        if summary.get("cost_ceiling_exceeded") and effective_budget is not None:
+            estimated_cost = summary.get("cost_preview", {}).get("est_openai_batch_total_usd", 0)
+            sys.stderr.write(_budget_abort_message(estimated_cost, effective_budget))
+            return EXIT_CODE_BUDGET_EXCEEDED  # Distinct exit code for budget abort
+
+        # Exit non-zero only on a hard readiness failure (keys)
         return 0 if summary.get("keys_ok") else 1
 
-    summary = run_presweep(config)
-    json.dump(summary, sys.stdout, ensure_ascii=False, indent=2, default=str)
+    # Cost circuit breaker: the execute path runs a full preflight before
+    # presweep whenever a budget is set. The preflight is a dry-run projection
+    # (no batch submission), so it is safe to run before every presweep.
+    if args.execute:
+        if effective_budget is not None:
+            from g3o.run.preflight import PreflightAssumptions, run_preflight
+
+            preflight_summary = run_preflight(
+                config,
+                assumptions=PreflightAssumptions(
+                    pages_per_institution=args.assume_pages_per_institution,
+                    page_chars=args.assume_page_chars,
+                    output_tokens_per_job=args.assume_output_tokens_per_job,
+                ),
+                cost_ceiling_usd=effective_budget,
+                credentials=credentials,
+            )
+
+            # Extract preflight estimate and thread it into config for actual-vs-estimated
+            # reconciliation in the cost report (Task 6 of continuous cost monitoring plan).
+            preflight_est = preflight_summary.get("cost_preview", {}).get("est_openai_batch_total_usd")
+            if preflight_est is not None:
+                config.preflight_estimate_usd = preflight_est
+            # Extract per-stage estimates for mid-run projection checking (Gap 2)
+            stage_estimates = preflight_summary.get("cost_preview", {}).get("stage_estimates")
+            if stage_estimates is not None:
+                config.preflight_stage_estimates = stage_estimates
+
+            # The projection that cleared (or blocked) real spend is part of the
+            # run's record, so it is emitted either way. stderr, not stdout:
+            # stdout carries the presweep summary and stays a single JSON document.
+            sys.stderr.write("cost gate — preflight projection:\n")
+            json.dump(preflight_summary, sys.stderr, ensure_ascii=False, indent=2, default=str)
+            sys.stderr.write("\n")
+
+            if preflight_summary.get("cost_ceiling_exceeded"):
+                estimated_cost = preflight_summary.get("cost_preview", {}).get("est_openai_batch_total_usd", 0)
+                sys.stderr.write(_budget_abort_message(estimated_cost, effective_budget))
+                return EXIT_CODE_BUDGET_EXCEEDED
+
+    # Continuous cost monitoring: catch BudgetExceededError from launch()
+    # and exit with code 3 (consistent with pre-flight gate). The orchestrator
+    # persists the cost report in its finally block even on abort.
+    from g3o.common.cost_monitor import BudgetExceededError, ProjectedBudgetExceededError
+
+    try:
+        receipt = launch(
+            config,
+            credentials=credentials,
+            session_id=args.session_id,
+            # Stated, not inferred: the manifest records how a run was started, and a
+            # value guessed from sys.argv can be wrong without anyone noticing.
+            invocation="cli",
+        )
+    except ProjectedBudgetExceededError as exc:
+        # Projected budget exceeded (Gap 2): abort before next stage based on
+        # actual-to-preflight ratio scaling
+        sys.stderr.write(
+            f"\n{'='*70}\n"
+            f"PROJECTED BUDGET EXCEEDED — RUN ABORTED BEFORE NEXT STAGE\n"
+            f"{'='*70}\n"
+            f"Next stage: {exc.stage}\n"
+            f"Actual spend so far: ${exc.spent:.4f} USD\n"
+            f"Projected total (scaled): ${exc.projected_total:.4f} USD\n"
+            f"Budget limit:            ${exc.budget:.4f} USD\n"
+            f"Safety factor:           {exc.safety_factor:.2f}\n"
+            f"Abort threshold:         ${exc.budget * exc.safety_factor:.4f} USD\n"
+            f"\n"
+            f"Already-completed stages have been persisted.\n"
+            f"To proceed with a higher tolerance:\n"
+            f"  g3o presweep --execute --projection-safety-factor {exc.safety_factor + 0.5:.1f} ...\n"
+            f"{'='*70}\n"
+        )
+        return EXIT_CODE_BUDGET_EXCEEDED
+    except BudgetExceededError as exc:
+        # Format a clear abort message for the operator
+        # Use consistent '=' separators (fix: previously mixed '=' and '═')
+        sys.stderr.write(
+            f"\n{'='*70}\n"
+            f"BUDGET EXCEEDED — RUN ABORTED\n"
+            f"{'='*70}\n"
+            f"Stage: {exc.stage}\n"
+            f"Actual spend so far: ${exc.spent:.4f} USD\n"
+            f"Budget limit:        ${exc.budget:.4f} USD\n"
+            f"Overrun:             ${exc.spent - exc.budget:.4f} USD\n"
+            f"\n"
+            f"Already-completed stages have been persisted.\n"
+            f"To re-run with a higher limit:\n"
+            f"  export G3O_BUDGET_LIMIT_USD={exc.budget * 2:.2f}\n"
+            f"  g3o presweep --execute --run-id {config.run_id} ...\n"
+            f"{'='*70}\n"
+        )
+        return EXIT_CODE_BUDGET_EXCEEDED  # Distinct exit code for budget abort (matches pre-flight gate)
+
+    # One JSON document on stdout, as before — the receipt's fields first (run_id
+    # leading, per §2) and the stage summary merged in after, so every key this
+    # command printed before the Run API still appears under the same name.
+    payload: dict[str, object] = {
+        "run_id": receipt.run_id,
+        "run_started_at": receipt.run_started_at,
+        "outcome": receipt.outcome,
+        "resumed": receipt.resumed,
+        "stop_after": receipt.stop_after,
+        "manifest_path": str(receipt.manifest_path),
+        "events_path": str(receipt.events_path),
+        **receipt.summary,
+    }
+
+    # On success, print a cost summary line to stderr (actual vs estimated)
+    if config.budget_usd is not None:
+        # Use the cost report threaded through the summary dict by the orchestrator
+        # (fix #10: avoids redundant disk I/O of re-reading _cost_report.json).
+        cost_report = receipt.summary.get("_cost_report")
+        if cost_report:
+            try:
+                pricing_block = cost_report.get("pricing", {})
+                run_model = pricing_block.get("model", "the configured model")
+                actual_usd = cost_report.get("total_usd", 0)
+                vs_preflight = cost_report.get("vs_preflight_estimate")
+                if actual_usd is None:
+                    # Unpriced model (review F2): report the tokens that were
+                    # measured rather than a dollar figure that was not.
+                    sys.stderr.write(
+                        f"\nCost: not priced — no rate row is registered for "
+                        f"{run_model!r}. "
+                        f"{cost_report.get('total_prompt_tokens', 0):,} prompt + "
+                        f"{cost_report.get('total_completion_tokens', 0):,} completion "
+                        f"tokens were spent; the USD figures in the cost report are null.\n"
+                    )
+                elif vs_preflight:
+                    est_usd = vs_preflight.get("preflight_est_usd", 0)
+                    ratio = vs_preflight.get("ratio", 0)
+                    sys.stderr.write(
+                        f"\nCost: ${actual_usd:.4f} actual vs ${est_usd:.4f} estimated "
+                        f"({ratio:.0%} of preflight estimate)\n"
+                    )
+                else:
+                    sys.stderr.write(
+                        f"\nCost: ${actual_usd:.4f} actual spend"
+                        f" (budget: ${config.budget_usd:.4f} USD)\n"
+                    )
+                # Surface pricing estimate disclaimer
+                if pricing_block.get("batch_line_is_estimate"):
+                    sys.stderr.write(
+                        f"Note: Pricing is an estimate (OpenAI batch discount not explicitly "
+                        f"published for {run_model}). Reconcile against first live invoice.\n"
+                    )
+                # Serper cost disclaimer (Stage 1a/1b discovery uses Serper credits, not tracked)
+                # Always print this disclaimer when budget is set, regardless of whether
+                # discovery ran, to remind operators that Serper costs are not tracked.
+                sys.stderr.write(
+                    "Note: Cost monitoring tracks OpenAI Batch API only. "
+                    "Serper API costs (Stage 1 discovery) are not included in the budget. "
+                    "Monitor Serper credits separately.\n"
+                )
+            except Exception:
+                # Log the exception instead of silently swallowing it
+                import logging
+                logging.getLogger(__name__).debug(
+                    "Cost summary printing failed", exc_info=True
+                )
+    json.dump(payload, sys.stdout, ensure_ascii=False, indent=2, default=str)
     sys.stdout.write("\n")
     return 0
 
 
-def _presweep_config(args: argparse.Namespace, runs_dir_default: Path) -> PresweepConfig:
+def _presweep_config(
+    args: argparse.Namespace,
+    runs_dir_default: Path,
+    budget_usd: float | None = None,
+    projection_safety_factor: float | None = None,
+    cost_monitor_dry_run: bool = False,
+) -> PresweepConfig:
     """Project CLI args onto :class:`PresweepConfig`. Raises on invalid input."""
     from g3o.run.presweep import PresweepConfig
 
+    # Use the pre-parsed budget from _cmd_presweep to avoid duplicate parsing
     return PresweepConfig(
-        run_id=args.run_id,
+        # Empty, not None, when the flag is omitted: `launch()` reads emptiness as
+        # "mint one" (§1.2) while `run_id` stays the `str` the dataclass declares.
+        run_id=args.run_id or "",
         runs_dir=Path(args.runs_dir or runs_dir_default),
         master_csv=Path(args.master_csv),
         sample_size=args.sample_size,
@@ -383,6 +826,9 @@ def _presweep_config(args: argparse.Namespace, runs_dir_default: Path) -> Preswe
         max_wait_per_stage=args.max_wait_per_stage,
         model=args.model,
         max_workers=args.max_workers,
+        budget_usd=budget_usd,
+        cost_monitor_dry_run=cost_monitor_dry_run,
+        projection_safety_factor=projection_safety_factor,
     )
 
 
@@ -472,6 +918,370 @@ def _cmd_run_diff(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_archive(args: argparse.Namespace) -> int:
+    """Retention: tar a finished run's institution shards (storage layout v2 §A2).
+
+    Refusals — an unfinished run, or a tar that does not match its source —
+    print the reason and exit 2 rather than raising. Both are operator-facing
+    conditions with a documented next step, not defects, and a traceback buries
+    the message that says what to do.
+    """
+    from g3o.run.archive import (
+        ArchiveError,
+        archive_run,
+        plan_archive,
+        render_plan,
+        render_result,
+    )
+
+    run_dir = Path(args.run_dir)
+    try:
+        if not args.apply:
+            # plan_archive itself reads only; the precondition gate still runs
+            # first so a dry run on an unfinished tree refuses instead of
+            # printing a plan that could never be applied.
+            archive_run(run_dir, apply=False)
+            sys.stdout.write(render_plan(plan_archive(run_dir)))
+            sys.stdout.write("\n")
+            return 0
+        result = archive_run(run_dir, apply=True)
+    except ArchiveError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+
+    sys.stdout.write(render_result(result))
+    sys.stdout.write("\n")
+    return 0
+
+
+def _frame_snapshot_source(args: argparse.Namespace) -> Any:
+    """Resolve `frame build`'s inspection history from exactly one source.
+
+    Refuses when none is given. "No history supplied" and "nothing has ever been
+    inspected" produce identical frames and mean opposite things, so the caller
+    has to say which one it means — `--assume-none-inspected` is the explicit
+    form of the second.
+    """
+    from g3o.run.frame.inspection import (
+        empty_snapshot,
+        read_snapshot_csv,
+        snapshot_from_dsn,
+    )
+
+    chosen = [
+        name
+        for name, given in (
+            ("--inspected-csv", bool(args.inspected_csv)),
+            ("--dsn", bool(args.dsn)),
+            ("--assume-none-inspected", bool(args.assume_none_inspected)),
+        )
+        if given
+    ]
+    if len(chosen) != 1:
+        raise ValueError(
+            "give exactly one inspection source: --inspected-csv (reproducible), "
+            "--dsn (live, and therefore not reproducible), or "
+            "--assume-none-inspected (only true of a database that has never "
+            f"been loaded). Got: {', '.join(chosen) or 'none'}."
+        )
+    if args.inspected_csv:
+        return read_snapshot_csv(Path(args.inspected_csv))
+    if args.dsn:
+        return snapshot_from_dsn(args.dsn)
+    return empty_snapshot()
+
+
+def _render_frame_summary(sidecar: dict[str, Any], top: int = 8) -> str:
+    """Human-readable composition report — what goes to the PI and to the next lane."""
+    comp = sidecar["composition"]
+    lines = [
+        f"frame: {sidecar['frame']['path']}",
+        f"  rows       : {sidecar['n_written']:,} (requested {sidecar['n_requested']:,})",
+        f"  seed       : {sidecar['seed']}",
+        f"  sha256     : {sidecar['frame']['sha256']}",
+        f"  sidecar    : {sidecar.get('label')}",
+    ]
+    tiers = sidecar.get("tiers")
+    if tiers:
+        lines.append(
+            f"  tiers      : {tiers['tier1_never_inspected']:,} never inspected, "
+            f"{tiers['tier2_recency_weighted']:,} re-inspected"
+        )
+    n = max(sidecar["n_written"], 1)
+    lines.append(
+        f"  website    : {comp['n_with_website']:,} with, "
+        f"{comp['n_without_website']:,} without "
+        f"({comp['n_without_website'] / n:.1%} without)"
+    )
+    lines.append(f"  strata     : {comp['n_strata']:,} distinct "
+                 f"{'x'.join(comp['stratum_keys'])}")
+    for key in ("country", "government_level", "source_dataset_id"):
+        counts = comp["by"].get(key, {})
+        head = list(counts.items())[:top]
+        rendered = ", ".join(f"{k or '(blank)'} {v:,} ({v / n:.1%})" for k, v in head)
+        more = "" if len(counts) <= top else f", +{len(counts) - top} more"
+        lines.append(f"  {key:<11}: {rendered}{more}")
+    return "\n".join(lines)
+
+
+def _cmd_frame_snapshot(args: argparse.Namespace) -> int:
+    """Export the inspected-institution snapshot that `frame build` weights against."""
+    from datetime import datetime, timezone
+
+    from g3o.run.frame.inspection import (
+        read_sweeps_csv,
+        snapshot_from_dsn,
+        write_snapshot_csv,
+    )
+
+    if args.sweeps_csv:
+        if not args.snapshot_at:
+            sys.stderr.write(
+                "--sweeps-csv needs --snapshot-at: a dump cannot know when it was "
+                "taken, and the recency weights are measured from that moment.\n"
+            )
+            return 2
+        snapshot = read_sweeps_csv(
+            Path(args.sweeps_csv),
+            snapshot_at=datetime.fromisoformat(args.snapshot_at),
+            source=args.source or f"g3o.sweeps dump:{Path(args.sweeps_csv).name}",
+        )
+        out = Path(args.out)
+        n = write_snapshot_csv(snapshot, out)
+        sys.stdout.write(
+            f"inspection snapshot: {n:,} institutions, taken "
+            f"{snapshot.snapshot_at.isoformat()} -> {out}\n"
+        )
+        if snapshot.n_undated:
+            sys.stdout.write(
+                f"  {snapshot.n_undated:,} sweep rows had no usable timestamp "
+                "and were dropped\n"
+            )
+        return 0
+
+    dsn = args.dsn or os.environ.get("DATABASE_URL")
+    if not dsn:
+        sys.stderr.write(
+            "no inspection source: pass --dsn (or set DATABASE_URL), or "
+            "--sweeps-csv with --snapshot-at for a dump taken on another host.\n"
+        )
+        return 2
+    snapshot = snapshot_from_dsn(
+        dsn,
+        snapshot_at=(
+            datetime.fromisoformat(args.snapshot_at)
+            if args.snapshot_at
+            else datetime.now(timezone.utc)
+        ),
+    )
+    out = Path(args.out)
+    n = write_snapshot_csv(snapshot, out)
+    sys.stdout.write(
+        f"inspection snapshot: {n:,} institutions, taken "
+        f"{snapshot.snapshot_at.isoformat()} -> {out}\n"
+    )
+    if snapshot.n_undated:
+        sys.stdout.write(
+            f"  {snapshot.n_undated:,} sweep rows had no usable timestamp and were dropped\n"
+        )
+    return 0
+
+
+def _cmd_frame_build(args: argparse.Namespace) -> int:
+    """Draw a wave frame from the master. Refuses rather than short-drawing."""
+    from g3o.run.frame.build import build_frame
+    from g3o.run.frame.sampler import FrameError
+
+    try:
+        snapshot = _frame_snapshot_source(args)
+        result = build_frame(
+            Path(args.master_csv),
+            Path(args.out),
+            size=args.size,
+            seed=args.seed,
+            snapshot=snapshot,
+            label=args.label,
+        )
+    except (FrameError, ValueError) as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    sys.stdout.write(_render_frame_summary(result.sidecar))
+    sys.stdout.write(f"\nsidecar: {result.sidecar_json}\n")
+    return 0
+
+
+def _read_quota_spec(path: Path) -> tuple[list[Any], str | None]:
+    """Load a ruled quota spec into ``StratumSpec``s, plus the ruling it cites.
+
+    The spec is a file rather than a pile of flags because the composition of a
+    published wave is a PI ruling, and a ruling belongs in something hashable
+    that travels with the frame. The sidecar records the spec's own sha256, so
+    "this frame was built under that ruling" is checkable afterwards rather than
+    asserted in a commit message.
+    """
+    from g3o.run.frame.quota import QUOTA_SCHEMA_VERSION, StratumSpec
+    from g3o.run.frame.sampler import FrameError
+
+    spec = json.loads(path.read_text(encoding="utf-8"))
+    version = spec.get("version")
+    if version != QUOTA_SCHEMA_VERSION:
+        raise FrameError(
+            f"{path} declares quota spec version {version!r}; this build reads "
+            f"version {QUOTA_SCHEMA_VERSION}."
+        )
+    strata = spec.get("strata")
+    if not isinstance(strata, list) or not strata:
+        raise FrameError(f"{path} has no `strata` list.")
+    out = [
+        StratumSpec(
+            name=s["name"],
+            countries=tuple(s["countries"]),
+            size=int(s["size"]),
+            country_cap=int(s["country_cap"]),
+            level_floors={k: int(v) for k, v in (s.get("level_floors") or {}).items()},
+        )
+        for s in strata
+    ]
+    return out, spec.get("ruling")
+
+
+def _cmd_frame_build_stratified(args: argparse.Namespace) -> int:
+    """Draw a frame under a ruled quota spec. Refuses rather than short-drawing."""
+    from g3o.run.frame.build import build_stratified_frame, sha256_file
+    from g3o.run.frame.sampler import FrameError
+
+    try:
+        snapshot = _frame_snapshot_source(args)
+        spec_path = Path(args.quota_spec)
+        strata, ruling = _read_quota_spec(spec_path)
+        result = build_stratified_frame(
+            Path(args.master_csv),
+            Path(args.out),
+            strata=strata,
+            seed=args.seed,
+            snapshot=snapshot,
+            label=args.label,
+            ruling=ruling,
+        )
+    except (FrameError, ValueError, KeyError) as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    result.sidecar["quota_spec"] = {
+        "path": str(spec_path),
+        "sha256": sha256_file(spec_path),
+    }
+    result.sidecar_json.write_text(
+        json.dumps(result.sidecar, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    sys.stdout.write(_render_frame_summary(result.sidecar))
+    sys.stdout.write(_render_stratum_summary(result.sidecar))
+    sys.stdout.write(f"\nsidecar: {result.sidecar_json}\n")
+    return 0
+
+
+def _render_stratum_summary(sidecar: dict[str, Any]) -> str:
+    """Per-stratum composition — the half of the report a pooled table would hide."""
+    strata = sidecar.get("strata")
+    if not strata:
+        return ""
+    lines = ["", "strata (never pool these — they are different populations by construction):"]
+    for stratum in strata:
+        plan = stratum["plan"]
+        by_level: dict[str, int] = {}
+        by_country: dict[str, int] = {}
+        for cell, n in plan.items():
+            country, _, level = cell.partition("|")
+            by_level[level] = by_level.get(level, 0) + n
+            by_country[country] = by_country.get(country, 0) + n
+        n = max(stratum["n_drawn"], 1)
+        top = sorted(by_country.items(), key=lambda kv: (-kv[1], kv[0]))[:6]
+        lines += [
+            f"  {stratum['name']}: {stratum['n_drawn']:,} of a {stratum['pool_available']:,} "
+            f"pool across {len(stratum['countries'])} countries",
+            f"    cap        : {stratum['country_cap']:,}/country "
+            f"({stratum['country_cap'] / n:.0%}); "
+            f"{sum(1 for v in by_country.values() if v >= stratum['country_cap'])} at it",
+            "    floors     : "
+            + ", ".join(f"{k}>={v:,}" for k, v in stratum["level_floors"].items()),
+            "    levels     : "
+            + ", ".join(
+                f"{k} {v:,} ({v / n:.1%})"
+                for k, v in sorted(by_level.items(), key=lambda kv: -kv[1])
+            ),
+            "    countries  : "
+            + ", ".join(f"{k} {v:,} ({v / n:.1%})" for k, v in top)
+            + (f", +{len(by_country) - len(top)} more" if len(by_country) > len(top) else ""),
+        ]
+    return "\n".join(lines)
+
+
+def _cmd_frame_subset(args: argparse.Namespace) -> int:
+    """Draw a smoke frame out of a wave frame, so the smoke tests the population."""
+    from g3o.run.frame.build import subset_frame
+    from g3o.run.frame.sampler import FrameError
+
+    try:
+        result = subset_frame(
+            Path(args.frame), Path(args.out), size=args.size, seed=args.seed
+        )
+    except FrameError as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    sys.stdout.write(_render_frame_summary(result.sidecar))
+    sys.stdout.write(f"\nsidecar: {result.sidecar_json}\n")
+    return 0
+
+
+def _cmd_frame_subset_stratified(args: argparse.Namespace) -> int:
+    """Draw a per-stratum subset — the probe draw, deliberately unbalanced."""
+    from g3o.run.frame.build import sha256_file, subset_stratified
+    from g3o.run.frame.sampler import FrameError
+
+    try:
+        spec_path = Path(args.quota_spec)
+        strata, _ruling = _read_quota_spec(spec_path)
+        countries = {s.name: s.countries for s in strata}
+        per_stratum: dict[str, int] = {}
+        for pair in args.stratum_size:
+            name, _, raw = pair.partition("=")
+            if not _ or not raw.isdigit():
+                raise FrameError(f"--stratum-size wants name=N, got {pair!r}")
+            if name not in countries:
+                raise FrameError(
+                    f"--stratum-size names {name!r}, which is not in {spec_path} "
+                    f"(has {', '.join(countries)})"
+                )
+            per_stratum[name] = int(raw)
+        if not per_stratum:
+            raise FrameError("give at least one --stratum-size name=N")
+        result = subset_stratified(
+            Path(args.frame),
+            Path(args.out),
+            per_stratum=per_stratum,
+            stratum_countries=countries,
+            seed=args.seed,
+        )
+    except (FrameError, ValueError) as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    result.sidecar["quota_spec"] = {
+        "path": str(spec_path),
+        "sha256": sha256_file(spec_path),
+    }
+    result.sidecar_json.write_text(
+        json.dumps(result.sidecar, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    sys.stdout.write(_render_frame_summary(result.sidecar))
+    sys.stdout.write("\nstrata (report these separately; there is no pooled rate):\n")
+    for stratum in result.sidecar["strata"]:
+        sys.stdout.write(
+            f"  {stratum['name']}: {stratum['n_drawn']:,} drawn from "
+            f"{stratum['parent_rows']:,} in the parent frame\n"
+        )
+    sys.stdout.write(f"sidecar: {result.sidecar_json}\n")
+    return 0
+
+
 def _cmd_verify_model(args: argparse.Namespace) -> int:
     from g3o.run.verify_model import verify_model
 
@@ -538,6 +1348,36 @@ def build_parser() -> argparse.ArgumentParser:
     )
     discover.add_argument(
         "--limit", type=int, default=5, help="Max results per query (default: 5)."
+    )
+    discover.add_argument(
+        "--discovery-mode", choices=("legacy", "chain"), default="chain",
+        help=(
+            "Query strategy. 'chain' (default): leg 1 '<name> <country> <disambiguation> "
+            "official website' (1 credit) + leg 2 'site:<domain> <evidence-term>' for the "
+            "top-ranked discovered domain (1 credit; total 2 credits). "
+            "Uses search_google (not search_google_detailed used by presweep), so results "
+            "lack sitelinks/date/position fields and the per-query searchParameters echo. "
+            "Chain mode matches the production pipeline. "
+            "'legacy': one query per GenAI term from the roster, N credits/institution. "
+            "Output in both modes is a JSON object keyed like the pipeline's artifacts "
+            "('1a_discovery_general', plus '1b_discovery_site_restricted' when leg 2 "
+            "runs) — not a flat record list."
+        ),
+    )
+    discover.add_argument(
+        "--discovery-evidence-term", default=DEFAULT_EVIDENCE_TERM,
+        help=(
+            f"Leg 2's evidence token (--discovery-mode chain only). Default: {DEFAULT_EVIDENCE_TERM}. "
+            "One bare unquoted term by measurement."
+        ),
+    )
+    discover.add_argument(
+        "--discovery-domain-quote-name", action="store_true",
+        help=(
+            "Leg 1 only (--discovery-mode chain): bind the institution name as a Google exact phrase "
+            "instead of an unquoted hint. Off by default — the quoted name was identified as the primary "
+            "failure of the four-slot format."
+        ),
     )
     discover.set_defaults(func=_cmd_discover)
 
@@ -647,7 +1487,37 @@ def build_parser() -> argparse.ArgumentParser:
         "presweep",
         help="Stratified pre-sweep runner (Phase 3 of Session B).",
     )
-    presweep.add_argument("--run-id", required=True, help="Run identifier (e.g. 20260509-presweep).")
+    presweep.add_argument(
+        "--run-id", default=None,
+        help=(
+            "Run identifier. Optional since 2026-08-11 (Run API spec §2): omitted, "
+            "one is minted as r<YYYYMMDD>T<HHMMSS>Z-<4hex> and echoed to stderr "
+            "the moment it exists, so a long run can be resumed or monitored while "
+            "it is still in flight. Pass an explicit id to replicate a run or to "
+            "rejoin an existing one — a minted id never names an existing run "
+            "directory, so resume is always deliberate."
+        ),
+    )
+    presweep.add_argument(
+        "--key-label", default=None,
+        help=(
+            "Human tag for the API keys this run spends, e.g. 'key-B-grant' (spec "
+            "§1). Recorded in the run's telemetry next to each key's "
+            "sha256[:8] fingerprint, so an invoice can be traced to the runs it "
+            "paid for. The keys themselves are read from the environment and have "
+            "no flag by design: an argument lands in shell history and in every "
+            "`ps` listing on the machine."
+        ),
+    )
+    presweep.add_argument(
+        "--session-id", default=None,
+        help=(
+            "Harness/session id recorded with the run (spec §4.2). Precedence: this "
+            "flag, then G3O_SESSION_ID, then 'unattended'. It is the join key from a "
+            "published row back to the session that produced it, so supply it when "
+            "a run is driven by an agent session or an RA's shell."
+        ),
+    )
     presweep.add_argument(
         "--master-csv", required=True, type=_existing_file,
         help="Path to master_institutions.csv (read-only).",
@@ -791,8 +1661,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     presweep.add_argument(
         "--cost-ceiling", type=float, default=None,
-        help="With --preflight: report whether the estimated OpenAI Batch cost "
-             "exceeds this USD figure (informational; no abort wired — D7).",
+        help="Abort (exit 3) if the estimated OpenAI Batch cost exceeds this "
+             "USD figure. Overrides G3O_BUDGET_LIMIT_USD on both --preflight "
+             "and --execute paths. Note: Budget is checked after each stage "
+             "completes. A single stage may exceed the budget before the check "
+             "triggers.",
+    )
+    presweep.add_argument(
+        "--cost-monitor-dry-run", action="store_true", default=False,
+        help="When set, the runtime cost monitor logs warnings instead of "
+             "aborting when budget is exceeded. The run continues and the cost "
+             "report is still persisted with dry_run: true. Useful for "
+             "understanding what would happen without actually aborting.",
+    )
+    presweep.add_argument(
+        "--projection-safety-factor", type=float, default=None,
+        help="Abort mid-run if projected total spend exceeds budget × this factor. "
+             "Default: disabled (opt-in via G3O_PROJECTION_SAFETY_FACTOR or --projection-safety-factor). "
+             "Must be >= 1.0. A factor below 1.0 would abort even when under budget.",
     )
     presweep.add_argument(
         "--assume-pages-per-institution", type=int, default=12,
@@ -806,6 +1692,14 @@ def build_parser() -> argparse.ArgumentParser:
     presweep.add_argument(
         "--assume-output-tokens-per-job", type=int, default=600,
         help="Preflight assumption for the cost estimate (default: 600).",
+    )
+    # Document exit codes in the presweep help
+    presweep.epilog = (
+        "Exit codes:\n"
+        "  0 - Success\n"
+        "  1 - Readiness failure (missing API keys or invalid config)\n"
+        "  2 - Invalid arguments or file not found\n"
+        "  3 - Budget exceeded (cost circuit breaker triggered)\n"
     )
     presweep.set_defaults(func=_cmd_presweep)
 
@@ -870,6 +1764,195 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     run_diff.set_defaults(func=_cmd_run_diff)
+
+    archive = sub.add_parser(
+        "archive",
+        help="Tar a completed run's institution shards; --apply removes the originals.",
+    )
+    archive.add_argument(
+        "--run-dir",
+        required=True,
+        type=_existing_dir,
+        help="Path to the runs/<run_id>/ directory to archive.",
+    )
+    archive.add_argument(
+        "--apply",
+        action="store_true",
+        help=(
+            "Delete each source shard directory after its tar verifies. Without "
+            "this flag the command prints the plan and exits, writing nothing."
+        ),
+    )
+    archive.set_defaults(func=_cmd_archive)
+
+    frame = sub.add_parser(
+        "frame",
+        help="Build a wave sampling frame from the institution master, reproducibly.",
+    )
+    frame_sub = frame.add_subparsers(dest="frame_command", required=True)
+
+    frame_snapshot = frame_sub.add_parser(
+        "snapshot",
+        help="Export the inspected-institution snapshot from g3o.sweeps (read-only).",
+    )
+    frame_snapshot.add_argument(
+        "--out", required=True, help="Snapshot CSV to write."
+    )
+    frame_snapshot.add_argument(
+        "--dsn",
+        default=None,
+        help="Postgres DSN. Defaults to $DATABASE_URL. One read-only SELECT.",
+    )
+    frame_snapshot.add_argument(
+        "--sweeps-csv",
+        default=None,
+        type=_existing_file,
+        help=(
+            "Fold a raw institution_uid,run_id,loaded_at dump instead of "
+            "querying. For the usual case where the database is reachable from "
+            "the run droplet and the frame is built elsewhere: the dump carries "
+            "no logic, every decision still happens here. Requires --snapshot-at."
+        ),
+    )
+    frame_snapshot.add_argument(
+        "--snapshot-at",
+        default=None,
+        help="ISO moment the dump was taken. Required with --sweeps-csv.",
+    )
+    frame_snapshot.add_argument(
+        "--source",
+        default=None,
+        help="Provenance string recorded in the snapshot header.",
+    )
+    frame_snapshot.set_defaults(func=_cmd_frame_snapshot)
+
+    frame_build = frame_sub.add_parser(
+        "build",
+        help="Draw a frame: never-inspected first, then by distance from last inspection.",
+    )
+    frame_build.add_argument(
+        "--master-csv",
+        required=True,
+        type=_existing_file,
+        help="The canonical institution master. Its column layout is carried through verbatim.",
+    )
+    frame_build.add_argument("--out", required=True, help="Frame CSV to write.")
+    frame_build.add_argument(
+        "--size", required=True, type=int, help="Number of institutions to draw."
+    )
+    frame_build.add_argument(
+        "--seed",
+        required=True,
+        type=int,
+        help=(
+            "Required, not defaulted: the frame is an input to a published "
+            "measurement, so the draw has to be nameable afterwards."
+        ),
+    )
+    frame_build.add_argument(
+        "--inspected-csv",
+        default=None,
+        type=_existing_file,
+        help="Snapshot written by `g3o frame snapshot`. The reproducible source.",
+    )
+    frame_build.add_argument(
+        "--dsn",
+        default=None,
+        help=(
+            "Read inspection history live from Postgres instead. Convenient, but "
+            "the table moves, so the frame is not reproducible from the recorded "
+            "inputs alone."
+        ),
+    )
+    frame_build.add_argument(
+        "--assume-none-inspected",
+        action="store_true",
+        help=(
+            "Assert that nothing has ever been inspected. Only true of a database "
+            "that has never been loaded; required explicitly because omitting a "
+            "history source would otherwise produce the same frame silently."
+        ),
+    )
+    frame_build.add_argument(
+        "--label",
+        default=None,
+        help="Name recorded in the sidecar (default: the frame filename stem).",
+    )
+    frame_build.set_defaults(func=_cmd_frame_build)
+
+    frame_strat = frame_sub.add_parser(
+        "build-stratified",
+        help=(
+            "Draw a frame under a ruled quota spec — per-stratum sizes, "
+            "per-country caps, per-level floors. NOT proportional to the master."
+        ),
+    )
+    frame_strat.add_argument(
+        "--master-csv", required=True, type=_existing_file,
+        help="The canonical institution master. Its column layout is carried through verbatim.",
+    )
+    frame_strat.add_argument("--out", required=True, help="Frame CSV to write.")
+    frame_strat.add_argument(
+        "--quota-spec", required=True, type=_existing_file,
+        help=(
+            "JSON spec naming each stratum's countries, size, country cap and "
+            "level floors. Its sha256 goes into the sidecar, so the frame can be "
+            "tied back to the ruling it was built under."
+        ),
+    )
+    frame_strat.add_argument(
+        "--seed", required=True, type=int,
+        help="Required, not defaulted, for the same reason as `frame build`.",
+    )
+    frame_strat.add_argument(
+        "--inspected-csv", default=None, type=_existing_file,
+        help="Snapshot written by `g3o frame snapshot`. The reproducible source.",
+    )
+    frame_strat.add_argument("--dsn", default=None, help="Live inspection history; not reproducible.")
+    frame_strat.add_argument(
+        "--assume-none-inspected", action="store_true",
+        help="Assert that nothing has ever been inspected.",
+    )
+    frame_strat.add_argument(
+        "--label", default=None,
+        help="Name recorded in the sidecar (default: the frame filename stem).",
+    )
+    frame_strat.set_defaults(func=_cmd_frame_build_stratified)
+
+    frame_subset = frame_sub.add_parser(
+        "subset",
+        help="Draw a smaller frame out of an existing one — a smoke that tests the population.",
+    )
+    frame_subset.add_argument(
+        "--frame", required=True, type=_existing_file, help="Parent frame CSV."
+    )
+    frame_subset.add_argument("--out", required=True, help="Subset CSV to write.")
+    frame_subset.add_argument("--size", required=True, type=int)
+    frame_subset.add_argument("--seed", required=True, type=int)
+    frame_subset.set_defaults(func=_cmd_frame_subset)
+
+    frame_sub_strat = frame_sub.add_parser(
+        "subset-stratified",
+        help=(
+            "Draw a per-stratum subset of a stratified frame — the probe draw. "
+            "Sizes need not be proportional; the sidecar records the split so "
+            "the strata are never pooled downstream."
+        ),
+    )
+    frame_sub_strat.add_argument(
+        "--frame", required=True, type=_existing_file, help="Parent stratified frame CSV."
+    )
+    frame_sub_strat.add_argument("--out", required=True, help="Subset CSV to write.")
+    frame_sub_strat.add_argument(
+        "--quota-spec", required=True, type=_existing_file,
+        help="The spec the parent frame was built under; supplies the country lists.",
+    )
+    frame_sub_strat.add_argument(
+        "--stratum-size", action="append", default=[], metavar="NAME=N",
+        help="Repeatable, e.g. --stratum-size anglophone=200 --stratum-size mix=300.",
+    )
+    frame_sub_strat.add_argument("--seed", required=True, type=int)
+    frame_sub_strat.set_defaults(func=_cmd_frame_subset_stratified)
 
     verify = sub.add_parser(
         "verify-model",

@@ -13,19 +13,28 @@ All paths return a ``RenderedPage`` so Stage 5 reads
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import logging
 import os
 import threading
 import time
 from collections.abc import Callable
+from typing import Any
 from urllib.parse import urljoin, urlsplit
 
 import requests
 from bs4 import BeautifulSoup
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import (
+    RetryError,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 from g3o.common import config
+from g3o.scrape import egress
 from g3o.scrape import html as html_mod
 from g3o.scrape import pdf as pdf_mod
 from g3o.scrape.render import (
@@ -56,6 +65,12 @@ def _get_session() -> requests.Session:
     if session is None:
         session = requests.Session()
         session.headers = dict(_SESSION_HEADERS)
+        # Egress (#90): set on the Session rather than passed per-request, so a
+        # new call site cannot forget it and send one fetch out of a different
+        # identity than the robots.txt that authorised it. None = direct.
+        proxies = egress.requests_proxies()
+        if proxies:
+            session.proxies = proxies
         _thread_local.session = session
     return session
 
@@ -71,12 +86,46 @@ _CACHE_PREFIX = "page_v2_"
 # that records the attempt to the attrition ledger.
 RenderAttemptCallback = Callable[..., None]
 
+# A scrape-failure accounting hook. Called once when a fetch fails hard — the
+# HTTP GET raised after all retries and either the render fallback was off or it
+# also raised — with keyword args ``url``, ``download_error`` (the download
+# exception), and ``render_error`` (the render exception, or None when no render
+# was attempted). Decision Q10 keeps ``scrape_url`` returning a no-text
+# ``RenderedPage`` on every path so Stage 5 reads ``access_date`` uniformly;
+# without this hook a hard failure is indistinguishable from a normal empty
+# scrape and no ``scrape_failed`` attrition is created. The fetcher stays
+# agnostic of the run context; the Stage 4 runner supplies a hook that records
+# the failure (carrying both exception messages) to the attrition ledger and
+# drops the page. A no-op when None, so standalone callers keep the Q10
+# failure-page return unchanged.
+ScrapeFailureCallback = Callable[..., None]
+
 
 def _cache_key(url: str) -> str:
     return hashlib.md5(url.encode("utf-8")).hexdigest()
 
 
 def _cache_path(url: str) -> str:
+    """The single constructor for the page-cache path (storage-layout-v2 §B3).
+
+    ``cache/<md5[:2]>/page_v2_<md5>.json.gz`` — 256-way md5-2hex fanout over the
+    same cache key as the flat layout. The cache holds one file per unique URL
+    ever fetched and is shared cross-run, so at the 719,588-institution frame the
+    pre-fanout flat directory reached millions of entries in a single folder; the
+    fanout caps any one shard at a few thousand. The shard is derived from the
+    cache key itself, so it needs no state beyond the URL.
+    """
+    key = _cache_key(url)
+    return os.path.join(config.CACHE_DIR, key[:2], f"{_CACHE_PREFIX}{key}.json.gz")
+
+
+def _legacy_cache_path(url: str) -> str:
+    """The pre-fanout flat, uncompressed path: ``cache/page_v2_<md5>.json``.
+
+    Read-only fallback (see ``_load``) so cache entries written before the §B3
+    fanout stay warm instead of forcing a re-fetch. Nothing writes here — there
+    is no migration script by design; the flat remainder ages out naturally.
+    """
     return os.path.join(config.CACHE_DIR, f"{_CACHE_PREFIX}{_cache_key(url)}.json")
 
 
@@ -92,8 +141,10 @@ def _save(page: RenderedPage, *, min_chars: int = 1) -> None:
     # via _failure_page.
     if len(page.text.strip()) < min_chars:
         return
-    os.makedirs(config.CACHE_DIR, exist_ok=True)
     path = _cache_path(page.url)
+    # makedirs on the *shard* dir, not CACHE_DIR: the fanout (§B3) puts the file
+    # one level down, and the shard is usually absent on a cold cache.
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     # Atomic write (Stage-4 concurrency thread-safety, 2026-07): the page cache
     # is shared cross-run and cross-institution — two worker threads scraping the
     # same URL race on the same cache file. A plain open(path, "w") lets a
@@ -103,8 +154,17 @@ def _save(page: RenderedPage, *, min_chars: int = 1) -> None:
     # the temp name carries pid + thread id so two writers never collide.
     # Mirrors serper_client._save_cache.
     tmp_path = f"{path}.tmp.{os.getpid()}.{threading.get_ident()}"
-    with open(tmp_path, "w", encoding="utf-8") as f:
-        f.write(page.model_dump_json())
+    # gzip (§B3): page text is the bulk of the cache's bytes. ``mtime=0`` and an
+    # explicit empty ``filename`` pin the two nondeterministic gzip header fields
+    # so identical input yields byte-identical output (§A1). Both matter here:
+    # GzipFile otherwise stamps the current time *and* infers the header filename
+    # from ``fileobj.name``, which is the temp name — pid + thread id — and would
+    # bake writer identity into the cached bytes.
+    with open(tmp_path, "wb") as raw_f:
+        with gzip.GzipFile(
+            filename="", fileobj=raw_f, mode="wb", mtime=0, compresslevel=6
+        ) as gz:
+            gz.write(page.model_dump_json().encode("utf-8"))
     # Windows can transiently deny os.replace while a concurrent _load() read
     # holds the destination (no FILE_SHARE_DELETE); a bounded capped-backoff
     # retry clears it, a no-op first-try on POSIX. A cache write is best-effort:
@@ -125,21 +185,29 @@ def _save(page: RenderedPage, *, min_chars: int = 1) -> None:
             time.sleep(min(0.01 * (2**attempt), 0.25))
 
 
-def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
-    path = _cache_path(url)
+def _read_cache_file(path: str, *, gzipped: bool) -> str | None:
+    """Read one cache file's JSON text, or None if absent/unreadable.
+
+    Windows can transiently deny the read open while a concurrent writer's
+    os.replace swaps the destination (Stage-4 concurrency). A bounded
+    capped-backoff retry clears it; a persistent denial degrades to a cache
+    miss (the caller re-fetches), never a spurious scrape_failed. No-op
+    first-try on POSIX.
+
+    A torn/corrupt payload is deliberately *not* swallowed here — the atomic
+    temp+os.replace write is what guarantees readers never see one, so masking a
+    decode error would hide real corruption instead of the contention this
+    retry loop exists for.
+    """
     if not os.path.exists(path):
         return None
-    # Windows can transiently deny the read open while a concurrent writer's
-    # os.replace swaps the destination (Stage-4 concurrency). A bounded
-    # capped-backoff retry clears it; a persistent denial degrades to a cache
-    # miss (the caller re-fetches), never a spurious scrape_failed. No-op
-    # first-try on POSIX.
-    raw: str | None = None
     for attempt in range(12):
         try:
+            if gzipped:
+                with gzip.open(path, "rt", encoding="utf-8") as f:
+                    return f.read()
             with open(path, encoding="utf-8") as f:
-                raw = f.read()
-            break
+                return f.read()
         except PermissionError:
             if attempt == 11:
                 logger.warning("page cache read gave up after contention on %s", path)
@@ -147,6 +215,16 @@ def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
             time.sleep(min(0.01 * (2**attempt), 0.25))
         except FileNotFoundError:
             return None  # replaced away between the exists() check and the open
+    return None
+
+
+def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
+    # Sharded-gzipped first, then the pre-fanout flat path (§B3). The fallback is
+    # read-only: a legacy hit is served as-is rather than rewritten into the new
+    # layout, so a warm flat cache keeps working without a migration pass.
+    raw = _read_cache_file(_cache_path(url), gzipped=True)
+    if raw is None:
+        raw = _read_cache_file(_legacy_cache_path(url), gzipped=False)
     if raw is None:
         return None
     cached = RenderedPage.model_validate_json(raw)
@@ -160,6 +238,58 @@ def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
     return cached
 
 
+#: HTTP statuses a second attempt at the same GET can plausibly turn into a
+#: page: rate limiting and transient server-side failure. Every other status a
+#: server *chose* to send — 403, 404, 406, 405, 401 — is the same answer three
+#: times over.
+_RETRYABLE_STATUSES: frozenset[int] = frozenset({429, 500, 502, 503, 504})
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    """Whether retrying the GET can change the outcome (PI-approved 2026-09-06).
+
+    Measured on ``r20260903T120740Z-362c``: the fetcher retried every exception
+    three times, so a 403 or 406 refusal cost ~4.5 s and a connect timeout ~96 s
+    per URL, and 22,863 of the run's 46,487 failures were refusals a retry
+    cannot argue with. Retry is kept for what it was written for — a dropped
+    connection, a timeout, a 429 or a 5xx — and withheld from a status the
+    server chose, a TLS handshake the host cannot complete (deterministic per
+    host), and a malformed URL.
+    """
+    if isinstance(exc, requests.exceptions.SSLError):
+        return False
+    if isinstance(exc, requests.exceptions.HTTPError):
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        return status in _RETRYABLE_STATUSES
+    return isinstance(
+        exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout)
+    )
+
+
+def _note_attempt(retry_state: Any) -> None:
+    """tenacity ``before`` hook: remember which attempt this thread is on.
+
+    The count is the one number 362c could not answer — how often a second or
+    third attempt rescued a page — so Stage 4 records it beside every outcome
+    (``attempts`` in the telemetry ledger). Thread-local because ``_download``
+    runs on every scrape worker at once.
+    """
+    _thread_local.attempts = retry_state.attempt_number
+
+
+def download_attempts() -> int:
+    """GET attempts made by the most recent ``scrape_url`` on this thread.
+
+    0 when no GET was made (cache hit, forced render, or nothing called yet).
+    Read it immediately after ``scrape_url`` returns, on the same thread.
+    """
+    return getattr(_thread_local, "attempts", 0)
+
+
+def _reset_attempts() -> None:
+    _thread_local.attempts = 0
+
+
 # HTTP redirect statuses that carry a Location (per RFC 9110 / requests'
 # REDIRECT_STATI). Followed manually below so each cross-host hop can be
 # throttled at the boundary it crosses.
@@ -167,7 +297,12 @@ _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _MAX_REDIRECTS = 20  # loop guard; mirrors requests' default ceiling
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    retry=retry_if_exception(_is_retryable),
+    before=_note_attempt,
+)
 def _download(
     url: str, *, on_redirect_hop: Callable[[str], None] | None = None
 ) -> tuple[bytes, str, int, str, int]:
@@ -191,7 +326,7 @@ def _download(
     current = url
     for _ in range(_MAX_REDIRECTS + 1):
         r = session.get(
-            current, timeout=config.REQUEST_TIMEOUT, allow_redirects=False
+            current, timeout=(config.CONNECT_TIMEOUT, config.REQUEST_TIMEOUT), allow_redirects=False
         )
         location = (
             r.headers.get("location")
@@ -267,6 +402,83 @@ def _notify_render_attempt(
         callback(url=url, trigger=trigger, outcome=outcome, result_len=result_len)
 
 
+def _notify_scrape_failure(
+    callback: ScrapeFailureCallback | None,
+    *,
+    url: str,
+    download_error: BaseException,
+    render_error: BaseException | None,
+) -> None:
+    """Fire the scrape-failure accounting hook, if one was supplied.
+
+    Called on a hard fetch failure (download raised after retries; render
+    fallback off or also raised) so the caller can record a durable
+    ``scrape_failed`` attrition entry carrying both underlying exceptions.
+    Both exception objects are passed so the caller controls formatting and no
+    message is lost. A no-op when ``callback`` is None, which preserves the
+    Q10 failure-page return for standalone callers.
+    """
+    if callback is not None:
+        callback(url=url, download_error=download_error, render_error=render_error)
+
+
+def unwrap_fetch_error(exc: BaseException | None) -> BaseException | None:
+    """The exception that actually failed, behind tenacity's wrapper.
+
+    ``_download`` is decorated with ``@retry`` and does not set ``reraise``, so
+    what escapes it after three attempts is a
+    :class:`tenacity.RetryError` — a class name that says only "we gave up",
+    never what refused us. The last attempt's exception is the one worth
+    recording. Non-wrapped exceptions pass straight through.
+    """
+    if isinstance(exc, RetryError):
+        attempt = exc.last_attempt
+        if attempt is not None and attempt.failed:
+            return attempt.exception()
+    return exc
+
+
+def http_status_from_exception(exc: BaseException | None) -> int | None:
+    """The HTTP status a fetch was refused with, or None when there was none.
+
+    None is a real answer and not a gap: a connect timeout, a DNS failure and a
+    TLS handshake error never produce a status line, and recording them as
+    ``None`` beside a 403's ``403`` is what makes the two distinguishable. That
+    distinction is the whole reason this exists — across the 6,719
+    ``scrape_failed`` rows of the anglophone 12k, a bot-block and a dead host
+    were the same row, and separating them cost a hand re-probe of 60 URLs.
+
+    Reads ``requests``' own convention: ``raise_for_status`` raises an
+    ``HTTPError`` carrying the ``Response`` that produced it. Everything is
+    ``getattr``-guarded rather than isinstance-checked, so a non-requests
+    transport that follows the same convention is read too and one that does not
+    returns None instead of raising inside a failure handler.
+    """
+    seen: set[int] = set()
+    current = unwrap_fetch_error(exc)
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        status = getattr(getattr(current, "response", None), "status_code", None)
+        if isinstance(status, int):
+            return status
+        current = unwrap_fetch_error(current.__cause__ or current.__context__)
+    return None
+
+
+def error_class_of(exc: BaseException | None) -> str | None:
+    """The unwrapped exception's class name — the free half of the diagnosis.
+
+    ``ConnectTimeout``, ``ReadTimeout``, ``ConnectionError``, ``SSLError``,
+    ``ProxyError`` and ``HTTPError`` are already an exact vocabulary for the four
+    failures that mattered, so this records the name rather than mapping it onto
+    a taxonomy of ours that would have to be kept true. Safe to log: a class name
+    carries no request or credential, unlike the message, which is why this is
+    reported alongside the redacted detail rather than instead of it.
+    """
+    unwrapped = unwrap_fetch_error(exc)
+    return type(unwrapped).__name__ if unwrapped is not None else None
+
+
 def _failure_page(url: str, *, attempted_method: str) -> RenderedPage:
     """Build a no-text RenderedPage for download failures. Not cached."""
     return RenderedPage(
@@ -296,6 +508,7 @@ def scrape_url(
     render_session: RenderSession | None = None,
     on_render_attempt: RenderAttemptCallback | None = None,
     on_redirect_hop: Callable[[str], None] | None = None,
+    on_scrape_failure: ScrapeFailureCallback | None = None,
 ) -> RenderedPage:
     """Fetch a URL and return a ``RenderedPage``.
 
@@ -323,6 +536,15 @@ def scrape_url(
     ``on_render_attempt`` when supplied, so the caller can account for the
     render rate/cost; the fetcher itself never silently retries.
 
+    A hard fetch failure — the HTTP GET raises after all retries and the render
+    fallback is either off or also raises — invokes ``on_scrape_failure`` when
+    supplied, carrying both the download and (if attempted) the render
+    exception. Decision Q10 still returns a no-text ``RenderedPage`` on this
+    path so Stage 5 reads ``access_date`` uniformly; the hook is how the Stage 4
+    runner records a ``scrape_failed`` attrition entry and drops the page rather
+    than writing the empty failure page as a normal successful scrape. Without a
+    hook the Q10 failure-page return is unchanged (standalone callers).
+
     When ``render_session`` is supplied, every render reuses that
     :class:`RenderSession`'s browser instead of launching a fresh Chromium per
     call (review F14 browser reuse).
@@ -345,6 +567,7 @@ def scrape_url(
     # prefer_render_on_empty is off, a short page is legitimate content, so the
     # floor collapses to 1 (skip only empty/whitespace-only).
     cache_floor = empty_page_min_chars if prefer_render_on_empty else 1
+    _reset_attempts()
 
     if not force_refresh:
         cached = _load(url, min_chars=cache_floor)
@@ -366,7 +589,7 @@ def scrape_url(
             if on_redirect_hop is not None
             else _download(url)
         )
-    except Exception:
+    except Exception as download_exc:
         # Render fallback on a failed GET is opt-in (review F14): only when the
         # caller accepts the per-dead-URL browser-launch cost.
         if prefer_render_on_download_failure:
@@ -374,11 +597,20 @@ def scrape_url(
                 page = render_url(
                     url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session
                 )
-            except Exception:
+            except Exception as render_exc:
+                # Both the download and the render failed. Bind both so neither
+                # exception is lost (the bare `except Exception` here previously
+                # discarded both), report the failed render attempt for render-
+                # rate accounting, then account the hard scrape failure carrying
+                # both messages before returning the Q10 failure page.
                 _notify_render_attempt(
                     on_render_attempt, url=url,
                     trigger="download_failure", outcome="render_failed",
                     result_len=None,
+                )
+                _notify_scrape_failure(
+                    on_scrape_failure, url=url,
+                    download_error=download_exc, render_error=render_exc,
                 )
                 return _failure_page(url, attempted_method="html")
             _notify_render_attempt(
@@ -388,6 +620,13 @@ def scrape_url(
             )
             _save(page, min_chars=cache_floor)
             return page
+        # Render fallback off (the Stage 4 default): account the hard download
+        # failure so the caller can record scrape_failed and drop the page,
+        # rather than writing the empty Q10 failure page as a normal scrape.
+        _notify_scrape_failure(
+            on_scrape_failure, url=url,
+            download_error=download_exc, render_error=None,
+        )
         return _failure_page(url, attempted_method="html")
 
     if "pdf" in ctype or url.lower().endswith(".pdf"):

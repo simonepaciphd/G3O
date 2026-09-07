@@ -33,15 +33,16 @@ from g3o.discovery.serper_client import (
 from g3o.report.health import compute_health_report, detect_languages
 from g3o.run import presweep as ps
 from g3o.run.presweep import PresweepConfig, plan_run
+from tests._layout import inst_dir as inst_dir_of
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
 _COLUMNS = [
-    "master_row_id", "country", "country_iso3", "government_level",
-    "institution_type", "branch", "institution_name", "website",
-    "disambiguation",
+    "institution_uid", "master_row_id", "country", "country_iso3",
+    "government_level", "institution_type", "branch", "institution_name",
+    "website", "disambiguation",
 ]
 
 
@@ -52,7 +53,11 @@ def _master(tmp_path: Path, rows: list[dict[str, str]]) -> Path:
         w.writeheader()
         for i, r in enumerate(rows, start=1):
             base = {c: "" for c in _COLUMNS}
-            base.update({"master_row_id": str(i), "branch": "executive"})
+            base.update({
+                "institution_uid": f"G3O-I-{i:08d}",
+                "master_row_id": str(i),
+                "branch": "executive",
+            })
             base.update(r)
             w.writerow(base)
     return path
@@ -86,7 +91,10 @@ class _Recorder:
         self._links = links if links is not None else ["https://example.gov/a"]
         self._echo = echo if echo is not None else {"q": "x", "autocorrect": False}
 
-    def __call__(self, query, num_results=10, force_refresh=False, options=None):
+    def __call__(
+        self, query, num_results=10, force_refresh=False, options=None,
+        credentials=None,
+    ):
         self.queries.append(query)
         return SerperResult(
             results=[
@@ -368,7 +376,7 @@ def test_chain_records_and_queries_carry_a_language_tag(tmp_path, monkeypatch):
     )
 
     for row in plan.sample:
-        inst = plan.run_dir / ps.synth_institution_id(row)
+        inst = inst_dir_of(plan.run_dir, ps.synth_institution_id(row))
         for fname in ("1a_discovery_general.json", "1b_discovery_site_restricted.json"):
             payload = json.loads((inst / fname).read_text(encoding="utf-8"))
             assert payload["records"], f"{fname} wrote no records"
@@ -402,7 +410,7 @@ def test_chain_artifact_records_mode_leg_and_search_parameters(tmp_path, monkeyp
     ps._run_discovery_general(
         plan.run_dir, plan.sample, languages=("en",), num_results=10, mode="chain",
     )
-    inst = plan.run_dir / ps.synth_institution_id(plan.sample[0])
+    inst = inst_dir_of(plan.run_dir, ps.synth_institution_id(plan.sample[0]))
     payload = json.loads((inst / "1a_discovery_general.json").read_text(encoding="utf-8"))
     assert payload["mode"] == "chain"
     assert payload["queries"][0]["leg"] == "domain_discovery"
@@ -419,7 +427,7 @@ def test_chain_1a_records_the_naive_domain_without_acting_on_it(tmp_path, monkey
     ps._run_discovery_general(
         plan.run_dir, plan.sample, languages=("en",), num_results=10, mode="chain",
     )
-    inst = plan.run_dir / ps.synth_institution_id(plan.sample[0])
+    inst = inst_dir_of(plan.run_dir, ps.synth_institution_id(plan.sample[0]))
     payload = json.loads((inst / "1a_discovery_general.json").read_text(encoding="utf-8"))
     assert payload["naive_domain"] == {
         "domain": "ministry.go.ke", "url": "https://ministry.go.ke/", "rank": 2,
@@ -434,7 +442,7 @@ def test_legacy_artifact_has_no_naive_domain_key(tmp_path, monkeypatch):
     ps._run_discovery_general(
         plan.run_dir, plan.sample, languages=("en",), num_results=5,
     )
-    inst = plan.run_dir / ps.synth_institution_id(plan.sample[0])
+    inst = inst_dir_of(plan.run_dir, ps.synth_institution_id(plan.sample[0]))
     payload = json.loads((inst / "1a_discovery_general.json").read_text(encoding="utf-8"))
     assert payload["mode"] == "legacy"
     assert "naive_domain" not in payload
@@ -452,7 +460,7 @@ def test_chain_unions_and_dedupes_over_a_query_list(tmp_path, monkeypatch):
     ps._run_discovery_general(
         plan.run_dir, plan.sample, languages=("en",), num_results=10, mode="chain",
     )
-    inst = plan.run_dir / ps.synth_institution_id(plan.sample[0])
+    inst = inst_dir_of(plan.run_dir, ps.synth_institution_id(plan.sample[0]))
     payload = json.loads((inst / "1a_discovery_general.json").read_text(encoding="utf-8"))
     # One query, two distinct URLs, no duplicates.
     assert len(payload["queries"]) == 1
@@ -470,7 +478,9 @@ def _run_chain_1a(tmp_path, monkeypatch, links_per_inst: list[list[str]]):
     plan = _plan(tmp_path, _rows(len(links_per_inst)), discovery_mode="chain")
     calls = {"i": -1}
 
-    def _search(query, num_results=10, force_refresh=False, options=None):
+    def _search(
+        query, num_results=10, force_refresh=False, options=None, credentials=None
+    ):
         calls["i"] += 1
         return SerperResult(
             results=[{"link": u, "title": "t", "snippet": "s"}

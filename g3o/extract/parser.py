@@ -11,13 +11,24 @@ disagrees with the supplied ``scrape_access_date``, the parser raises (no
 silent overwrite). A parser-side failure here surfaces an LLM contract drift
 that would otherwise corrupt provenance.
 
-Group-D ``_NA_`` salvage: before validation, ``salvage_group_d_na`` repairs
-``confirms_activity`` rows whose Group-D fields carry the illegal literal
-``_NA_``, substituting the contract's prescribed defaults so a real positive
-finding is not dropped over a schema imperfection (see ``salvage.py``). When a
-``salvage_sink`` list is supplied, the parser appends one ``GroupDSalvage`` per
-affected row so the caller can write attrition telemetry — including on the
-failure path, since salvage runs (and populates the sink) before validation.
+Salvage: before validation, three independent repairs run over the payload
+(see ``salvage.py`` for the reasoning and the boundaries of each).
+
+- ``salvage_group_d_na`` repairs ``confirms_activity`` rows whose Group-D fields
+  carry the illegal literal ``_NA_``, substituting the contract's prescribed
+  defaults so a real positive finding is not dropped over a schema imperfection.
+- ``salvage_uncertainty_flags_na`` rewrites a whole-value ``uncertainty_flags``
+  of ``_NA_`` to the contract's ``none`` on any row, whatever its
+  ``genai_evidence``.
+- ``salvage_negative_row_group_d`` blanks stray Group-D values on a
+  negative-evidence row to ``_NA_``, unless an existence-asserting field is among
+  them — in which case the row contradicts itself and is left to fail.
+
+When a ``salvage_sink`` list is supplied, the parser appends one event per
+affected row — ``GroupDSalvage``, ``UncertaintyFlagsSalvage`` or
+``NegativeRowSalvage``, so callers must discriminate on type — letting the caller
+write attrition telemetry. The sink is
+populated on the failure path too, since salvage runs before validation.
 """
 
 from __future__ import annotations
@@ -26,23 +37,34 @@ import json
 
 from g3o.common.batch_client import BatchResult
 from g3o.common.contract import BatchResponse
-from g3o.extract.salvage import GroupDSalvage, salvage_group_d_na
+from g3o.extract.salvage import (
+    GroupDSalvage,
+    NegativeRowSalvage,
+    UncertaintyFlagsSalvage,
+    salvage_group_d_na,
+    salvage_negative_row_group_d,
+    salvage_uncertainty_flags_na,
+)
+
+SalvageEvent = GroupDSalvage | UncertaintyFlagsSalvage | NegativeRowSalvage
 
 
 def parse_extract_result(
     result: BatchResult,
     *,
     scrape_access_date: str,
-    salvage_sink: list[GroupDSalvage] | None = None,
+    salvage_sink: list[SalvageEvent] | None = None,
 ) -> BatchResponse:
     """Parse a Stage 5 ``BatchResult`` into a validated ``BatchResponse``.
 
     Args:
-        salvage_sink: if provided, ``GroupDSalvage`` records for every
-            ``confirms_activity`` row with Group-D ``_NA_`` are appended to it
-            (both repaired rows and unsalvageable ones). Populated before
-            validation, so it is available to the caller even when this call
-            raises.
+        salvage_sink: if provided, one salvage event per affected row is appended
+            to it: a ``GroupDSalvage`` for every ``confirms_activity`` row with
+            Group-D ``_NA_`` (both repaired and unsalvageable), and an
+            ``UncertaintyFlagsSalvage`` for every row whose ``uncertainty_flags``
+            was ``_NA_``, and a ``NegativeRowSalvage`` for every negative-evidence
+            row carrying stray Group-D values. Populated before validation, so it
+            is available to the caller even when this call raises.
 
     Raises:
         RuntimeError: if the underlying API call failed or returned no content.
@@ -60,7 +82,10 @@ def parse_extract_result(
             f"Stage 5 batch result {result.custom_id!r}: empty assistant content"
         )
     payload = json.loads(content)
-    events = salvage_group_d_na(payload)
+    events: list[SalvageEvent] = [*salvage_group_d_na(payload)]
+    events.extend(salvage_negative_row_group_d(payload))
+    if isinstance(payload, dict):
+        events.extend(salvage_uncertainty_flags_na(payload.get("data")))
     if salvage_sink is not None:
         salvage_sink.extend(events)
     response = BatchResponse.model_validate(payload)
@@ -85,4 +110,13 @@ def parse_extract_result(
     return response
 
 
-__all__ = ["parse_extract_result", "GroupDSalvage", "salvage_group_d_na"]
+__all__ = [
+    "parse_extract_result",
+    "SalvageEvent",
+    "GroupDSalvage",
+    "UncertaintyFlagsSalvage",
+    "NegativeRowSalvage",
+    "salvage_group_d_na",
+    "salvage_uncertainty_flags_na",
+    "salvage_negative_row_group_d",
+]

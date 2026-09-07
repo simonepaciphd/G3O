@@ -7,7 +7,6 @@ suite runs in CI without secrets.
 
 from __future__ import annotations
 
-import os
 import threading
 
 import pytest
@@ -48,14 +47,20 @@ def institution_in_query(query: str) -> bool:
     return '"' in query and len(query) > 10
 
 
-@pytest.mark.skipif(
-    bool(os.getenv("SERPER_API_KEY")), reason="Mock-path test only runs without a real API key."
-)
 def test_search_google_returns_mock_when_key_missing():
+    """The unset branch of the §3.1 precedence: no key -> mock, never a live call.
+
+    Was ``skipif(os.getenv("SERPER_API_KEY"))``, which meant the test never ran on
+    any machine that had a key configured — i.e. never where it mattered. Since
+    2026-08-11 the suite's autouse fixture (``tests/conftest.py``) clears the key
+    for every non-network test, so the unset path is now genuinely exercised
+    everywhere instead of being skipped away.
+    """
     results = serper_client.search_google("any query", num_results=2, force_refresh=True)
     assert isinstance(results, list)
     assert len(results) >= 1
     assert "link" in results[0]
+    assert all("g3o-mock" in r["link"] for r in results)
 
 
 # ---------------------------------------------------------------------------
