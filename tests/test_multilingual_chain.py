@@ -606,6 +606,11 @@ def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
     run that predates it issued the English suffix by construction — there is no
     instrument ambiguity for the guard to protect against on those runs, so
     refusing to resume them would be a cost with no safety gain.
+
+    It grew to five on 2026-09-06, for the reason the mechanism was kept:
+    ``scrape_host_failure_threshold`` (the per-host circuit breaker) did not
+    exist before that date, and every run that predates it attempted every kept
+    URL by construction — the pre-breaker behaviour ``None`` names.
     """
     from g3o.common.run_state import state_dir
     from g3o.run.presweep.planning import (
@@ -617,6 +622,7 @@ def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
     assert _ABSENT_TOLERATED_CONFIG_KEYS == {
         "genai_terms_roster_hash",
         "scrape_max_institution_seconds",
+        "scrape_host_failure_threshold",
         "evidence_terms_roster_hash",
         "domain_suffix_roster_hash",
     }

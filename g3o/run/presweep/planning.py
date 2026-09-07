@@ -350,6 +350,10 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     # append-only, so that institution reports PROCESSING_FAILED for the rest
     # of the run's life with no way to tell it from a real one.
     "scrape_max_institution_seconds",
+    # Circuit breaker (2026-09-06). Same class again: it decides which URLs
+    # were fetched at all, and a resume under a different threshold would
+    # pair a page with a stale ``host_unreachable`` row for the same URL.
+    "scrape_host_failure_threshold",
     # Roster fingerprint (A4) — see build_manifest. Not a dataclass field; the
     # manifest carries it because the guard needs something to compare.
     "genai_terms_roster_hash",
@@ -397,6 +401,9 @@ _ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset(
     {
         "genai_terms_roster_hash",
         "scrape_max_institution_seconds",
+        # Every manifest written before 2026-09-06 lacks the breaker threshold,
+        # and every one of those runs attempted every kept URL by construction.
+        "scrape_host_failure_threshold",
         # Every manifest written before 2026-08-31 lacks this key, including the
         # published runs; tolerating its absence lets them resume, and a manifest
         # that does record it and differs still aborts.

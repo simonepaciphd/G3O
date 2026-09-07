@@ -250,6 +250,17 @@ class PresweepConfig:
     # unbounded stall into a bounded one: before this, a single host could hold
     # Stage 4 open past ``max_wait_per_stage`` (25 h) and fail the whole run.
     scrape_max_institution_seconds: float | None = 3600.0
+    # Per-host circuit breaker (PI-approved 2026-09-06). After this many
+    # connect-level failures (``ConnectTimeout`` / ``ConnectionError``) on one
+    # host, anywhere in the run, every remaining URL on that host is skipped
+    # and recorded under ``host_unreachable`` — a member of
+    # ``_FAILURE_REASONS``, so the institution reports PROCESSING_FAILED. On
+    # ``r20260903T120740Z-362c`` 28,212 of 46,487 failures were repeats on a
+    # host that had already failed for the same institution, and of 15,462
+    # connect timeouts only 57 were on a host that answered anywhere in the
+    # run: a host that times out is dead for the run, not slow. 2 rather than
+    # 1 so a single dropped handshake does not write off a host. None disables.
+    scrape_host_failure_threshold: int | None = 2
     # Concurrency (2026-07): shared worker count for Stages 1a/1b/4 (the
     # deterministic, non-LLM stages). Stages 2/3/5/6 are unaffected — their
     # concurrency is the OpenAI Batch API's, not local threads. A single knob
@@ -323,6 +334,15 @@ class PresweepConfig:
                 "would strand every URL of every institution under "
                 "crawl_delay_exceeded and report the whole run "
                 "PROCESSING_FAILED."
+            )
+        if (
+            self.scrape_host_failure_threshold is not None
+            and self.scrape_host_failure_threshold < 1
+        ):
+            raise ValueError(
+                "scrape_host_failure_threshold must be >= 1, got "
+                f"{self.scrape_host_failure_threshold}. Use None to disable "
+                "the per-host circuit breaker."
             )
         if (
             self.discovery_evidence_terms is not None

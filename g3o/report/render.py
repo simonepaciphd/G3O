@@ -226,6 +226,7 @@ def render_text_report(report: dict[str, Any]) -> str:
         w(f"  Robots disallowed:  {s.get('n_robots_disallowed')}")
         w(f"  Scrape errors:      {s.get('n_scrape_failed')}")
         w(f"  Budget exceeded:    {s.get('n_crawl_delay_exceeded')}")
+        w(f"  Host unreachable:   {s.get('n_host_unreachable')}")
         w(f"  Insts with ≥1 page: {s.get('n_institutions_with_pages')}")
         rl = _reasons_line(s.get("top_drop_reasons", []))
         if rl:

@@ -216,7 +216,9 @@ def parse_consolidate_result(
 # ---------------------------------------------------------------------------
 
 
-def load_extract_outputs(inst_dir: Path) -> tuple[list[ContractRow], int]:
+def load_extract_outputs(
+    inst_dir: Path, *, run_dir: Path | None = None,
+) -> tuple[list[ContractRow], int]:
     """Load all Stage 5 extract outputs for one institution.
 
     Walks ``inst_dir/extract/`` (each artifact holds one validated
@@ -228,9 +230,9 @@ def load_extract_outputs(inst_dir: Path) -> tuple[list[ContractRow], int]:
     resolves both and orders by url-hash stem, so row order does not depend on
     which files happen to be compressed.
 
-    Malformed artifacts (contract version drift, disk corruption, Stage 5 bugs)
-    are quarantined and logged; the institution's consolidation proceeds with
-    valid artifacts.
+    With ``run_dir``, malformed artifacts are recorded as parse failures before
+    quarantine, so surviving rows cannot hide an incomplete search. Standalone
+    callers without a run ledger fail rather than silently discard evidence.
 
     Returns:
         (rows, n_pages) where ``rows`` is the concatenated list and
@@ -243,6 +245,13 @@ def load_extract_outputs(inst_dir: Path) -> tuple[list[ContractRow], int]:
             payload = json.loads(read_artifact(path))
             response = BatchResponse.model_validate(payload)
         except (json.JSONDecodeError, ValueError, TypeError, KeyError) as exc:
+            if run_dir is None:
+                raise
+            attrition.record(
+                run_dir, institution_id=inst_dir.name, stage="validate",
+                reason="parse_failed",
+                detail=f"Malformed extract artifact {path.name}: {exc}",
+            )
             logger.warning(
                 "Stage 6: malformed extract artifact %s; quarantining and "
                 "continuing with remaining artifacts. Error: %s",
@@ -277,7 +286,7 @@ def assemble_per_institution_inputs(
             )
             continue
         institution_row = json.loads(institution_path.read_text(encoding="utf-8"))
-        rows, n_pages = load_extract_outputs(inst_dir)
+        rows, n_pages = load_extract_outputs(inst_dir, run_dir=run_dir)
         if not rows:
             logger.warning(
                 "Stage 6: no Stage 5 rows for %s; skipping consolidation", inst_id

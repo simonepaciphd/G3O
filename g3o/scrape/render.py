@@ -161,6 +161,7 @@ class RenderSession:
         if self._context is None:
             sync_playwright = _import_sync_playwright()
             pw = sync_playwright().start()
+            browser = None
             try:
                 # Egress (#90): the render is the third of Stage 4's three egress
                 # points and has to leave from the same place as the other two — a
@@ -174,9 +175,15 @@ class RenderSession:
                 if proxy:
                     launch_kwargs["proxy"] = proxy
                 browser = pw.chromium.launch(**launch_kwargs)
+                context = browser.new_context()
             except Exception:
-                # Launch failed — clean up the playwright instance so it doesn't
-                # leak. The next call to _context_obj will retry from scratch.
+                # Publish handles only after context creation succeeds. Either
+                # initialization failure must release this attempt before retry.
+                if browser is not None:
+                    try:
+                        browser.close()
+                    except Exception:
+                        pass
                 try:
                     pw.stop()
                 except Exception:
@@ -184,7 +191,7 @@ class RenderSession:
                 raise
             self._pw = pw
             self._browser = browser
-            self._context = browser.new_context()
+            self._context = context
         return self._context
 
     def new_page(self) -> object:

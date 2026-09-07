@@ -118,6 +118,12 @@ _FAILURE_REASONS: frozenset[str] = frozenset(
         "scrape_failed",
         "parse_failed",
         "crawl_delay_exceeded",
+        # Per-host circuit breaker (PI-approved 2026-09-06). A URL skipped
+        # because its host already failed at connect level N times this run
+        # is "could not reach" exactly as a budget expiry is, and for the same
+        # reason it must be a member here: outside this frozenset the skip is
+        # on the ledger and the institution publishes as NO_EVIDENCE_FOUND.
+        "host_unreachable",
     }
 )
 

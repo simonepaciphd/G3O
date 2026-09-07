@@ -741,3 +741,25 @@ def test_render_session_context_obj_no_leak_on_launch_failure(
     ctx = session._context_obj()
     assert ctx is not None
     session.close()
+
+
+def test_context_creation_failure_releases_browser_before_retry(monkeypatch):
+    from unittest.mock import MagicMock
+
+    first_pw, second_pw = MagicMock(), MagicMock()
+    first_browser, second_browser = MagicMock(), MagicMock()
+    first_pw.chromium.launch.return_value = first_browser
+    second_pw.chromium.launch.return_value = second_browser
+    first_browser.new_context.side_effect = RuntimeError("context failed")
+    factory = MagicMock()
+    factory.return_value.start.side_effect = [first_pw, second_pw]
+    monkeypatch.setattr(render, "_import_sync_playwright", lambda: factory)
+    monkeypatch.setattr(render.egress, "playwright_proxy", lambda: None)
+    session = render.RenderSession()
+    with pytest.raises(RuntimeError, match="context failed"):
+        session._context_obj()
+    first_browser.close.assert_called_once()
+    first_pw.stop.assert_called_once()
+    assert session._pw is session._browser is session._context is None
+    assert session._context_obj() is second_browser.new_context.return_value
+    session.close()

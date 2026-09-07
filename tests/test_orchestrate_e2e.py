@@ -43,7 +43,7 @@ def test_the_pin_is_a_full_sha() -> None:
     # ``loader_provenance`` reads out of git, and the refusal message would
     # read as a stale checkout rather than as a malformed pin.
     assert len(loader_pin.EXPECTED_LOADER_SHA) == 40
-    assert loader_pin.EXPECTED_LOADER_SHA.startswith("14e37cc")
+    assert loader_pin.EXPECTED_LOADER_SHA.startswith("b39cc9f")
 
 
 def test_the_sentinel_resolves_and_everything_else_passes_through() -> None:
