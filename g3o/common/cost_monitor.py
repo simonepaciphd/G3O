@@ -56,6 +56,7 @@ from typing import Any
 
 from g3o.common.batch_client import DEFAULT_MODEL
 from g3o.common.pricing import pricing_for, usd
+from g3o.common.run_state import done_path, state_path
 
 logger = logging.getLogger(__name__)
 
@@ -298,7 +299,7 @@ class CostMonitor:
         # The .done file now owns the truth for this stage; partial usage
         # accumulated via accumulate_chunk_usage() is superseded.
         self._partial_stage_usage.pop(stage, None)
-        done_file = run_dir / "_state" / ".done" / f"{stage}.json"
+        done_file = done_path(run_dir, stage)
         if not done_file.exists():
             logger.error(
                 "Stage %s: .done file not found at %s; this is an accounting "
@@ -543,7 +544,6 @@ class CostMonitor:
         Returns None if no active state file exists (stage never started, or
         already completed and moved to .done).
         """
-        from g3o.common.run_state import state_path
         active_file = state_path(run_dir, stage)
         if not active_file.exists():
             return None

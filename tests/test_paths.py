@@ -299,3 +299,86 @@ def test_only_paths_module_is_exempt_from_the_guard() -> None:
     assert _GUARD_EXEMPT == {Path("g3o/common/paths.py")}
     for rel in _GUARD_EXEMPT:
         assert (REPO_ROOT / rel).is_file()
+
+
+# ---------------------------------------------------------------------------
+# The same guard, for the _state layout (review F4, 2026-08-24)
+#
+# `run_state` owns `_state/` and `.done/` the way `paths` owns the institution
+# tree, and exposes state_dir/done_dir/state_path/done_path. Two consumers had
+# rebuilt those paths from string literals anyway. That guard is the whole
+# reason `paths.py` has no equivalent drift, so it is worth having twice: an
+# invariant that is only remembered is the one that drifts.
+# ---------------------------------------------------------------------------
+
+
+#: A hand-built state path: some run-level dir joined to the ``_state`` or
+#: ``.done`` literal. Requires the join expression rather than matching the bare
+#: string, because both names appear legitimately in prose all over the package
+#: (``run_state``'s own module docstring, ``report/outcomes``, the runbook
+#: references in ``cli``) and a guard that fires on documentation is a guard
+#: people delete.
+_HAND_BUILT_STATE_PATH = re.compile(
+    r"""
+    (?:run_dir|run_path|runs_dir|out_dir|base_dir|root|state_dir)  # a run-level dir...
+    \s*/\s*                                                        # ...joined to...
+    (?:"_state"|'_state'|"\.done"|'\.done')                        # ...the layout literal
+    """,
+    re.VERBOSE,
+)
+
+#: ``run_state.py`` owns the layout and is the one module allowed to name it.
+_STATE_GUARD_EXEMPT = {Path("g3o/common/run_state.py")}
+
+
+def test_no_module_builds_a_state_path_by_hand() -> None:
+    """Only :mod:`g3o.common.run_state` may join a run dir to ``_state``.
+
+    Caught two real sites when it was written: ``cost_monitor.record_stage``
+    (whose sibling ``record_partial_stage``, 240 lines away, used the accessor
+    correctly) and ``report.health._stage_ran``. Both failure modes are silent —
+    a renamed state dir would have made every stage read as never-run, and made
+    every stage's cost read as an accounting failure.
+    """
+    offenders: list[str] = []
+    for path in _python_sources():
+        rel = path.relative_to(REPO_ROOT)
+        if rel in _STATE_GUARD_EXEMPT:
+            continue
+        for lineno, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), start=1
+        ):
+            code = line.split("#", 1)[0]
+            if _HAND_BUILT_STATE_PATH.search(code):
+                offenders.append(f"{rel.as_posix()}:{lineno}: {line.strip()}")
+    assert not offenders, (
+        "state paths must be built via g3o.common.run_state.state_path() / "
+        "done_path():\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_state_grep_guard_actually_matches_the_patterns_it_claims_to() -> None:
+    """A guard that matches nothing would pass silently forever."""
+    for snippet in (
+        'done_file = run_dir / "_state" / ".done" / f"{stage}.json"',
+        'state_dir = run_dir / "_state"',
+        "p = runs_dir / '_state'",
+        'return (state_dir / ".done" / f"{stage}.json").exists()',
+    ):
+        assert _HAND_BUILT_STATE_PATH.search(snippet), snippet
+    for ok in (
+        "done_path(run_dir, stage).exists()",
+        "state_path(run_dir, stage)",
+        'manifest_path = run_dir / "manifest.json"',
+        # Prose, which is where `_state` legitimately appears everywhere else.
+        '    ``_state/{stage}.json`` (active) or ``_state/.done/{stage}.json``',
+        '"""Layout under ``runs/<run_id>/_state/``::"""',
+    ):
+        assert not _HAND_BUILT_STATE_PATH.search(ok), ok
+
+
+def test_only_run_state_is_exempt_from_the_state_guard() -> None:
+    """Keep the exemption list from quietly growing."""
+    assert _STATE_GUARD_EXEMPT == {Path("g3o/common/run_state.py")}
+    for rel in _STATE_GUARD_EXEMPT:
+        assert (REPO_ROOT / rel).is_file()

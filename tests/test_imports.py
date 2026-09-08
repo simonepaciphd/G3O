@@ -18,20 +18,20 @@ def test_common_imports():
     # 20 = 17 base + group_d_salvaged_fields (Group-D salvage flag, 2026-07-21)
     # + the same two-column key layer.
     assert len(schema.ACTIVITY_SOURCE_COLUMNS) == 20
-    # 22 = 21 base + institution_uid. No sweep_uid: this CSV is not a loader
-    # input, and at institution grain sweep_uid restates the uid.
+    # 22 = 21 base + institution_uid. No sweep_uid: the loader keys this CSV on
+    # institution_uid (it reads the verdict off it since 2026-08-25), and at
+    # institution grain sweep_uid restates the uid.
     assert len(schema.SUMMARY_COLUMNS) == 22
 
 
 def test_discovery_imports():
-    from g3o.discovery import (  # noqa: F401
-        multi_strategy_search,
-        query_builder,
-        search_entity_homepage,
-        search_entity_with_site_scope,
-        search_google,
-        serper_client,
-    )
+    # The three entity/multi-strategy helpers that used to be exported from
+    # g3o.discovery were removed 2026-08-24 (review F12): unused by the pipeline,
+    # and every one of them built a quoted institution name — the query shape the
+    # project measured and abandoned. `build_site_query` stays; stage_discovery
+    # imports it.
+    from g3o.discovery import query_builder, search_google, serper_client  # noqa: F401
+    from g3o.discovery.serper_client import build_site_query  # noqa: F401
 
 
 def test_scrape_imports():

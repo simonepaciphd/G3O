@@ -173,9 +173,13 @@ def test_source_rows_carry_both_uids(tmp_path: Path) -> None:
 
 
 def test_summary_rows_carry_the_uid_and_not_the_sweep_uid(tmp_path: Path) -> None:
-    """The summary CSV is not a loader input (``ingest.py`` takes
-    --master/--activities/--sources), and at institution grain ``sweep_uid``
-    restates the uid — so it carries the join key only."""
+    """The loader keys this CSV on ``institution_uid``, and at institution grain
+    ``sweep_uid`` restates the uid — so it carries the join key only.
+
+    The reason used to be "the summary CSV is not a loader input". That stopped
+    being true on 2026-08-25, when ``g3o-api`` began reading the verdict off it
+    (#17); the column list did not change, because the key layer is what moved.
+    """
     run_dir = _run_with_both(tmp_path)
     write_run_csvs(run_dir, run_id="R1", run_model="gpt-5-nano")
     fields, rows = _read_csv(run_dir / "final" / "g3o_institution_summary_v1.csv")

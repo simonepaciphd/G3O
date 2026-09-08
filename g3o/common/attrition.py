@@ -7,9 +7,16 @@ empty/near-empty page drops (review F5), Stage 2/3/5 parse failures (review
 F15), and page-text truncations (review F3). Run-scoped and underscore-prefixed
 like ``_state/`` (researcher-confirmed path, 2026-06-10).
 
-This is the F4/F15 *accounting floor* only. How never-reached institutions are
-represented in the output CSVs is Decision D2 (Phase 2) and is deliberately not
-touched here — the ledger is a side-table, not part of the public CSV contract.
+This is the F4/F15 *accounting floor* only, and the ledger remains a side-table
+rather than part of the public CSV contract.
+
+What was Decision D2 (Phase 2) — how never-reached institutions are represented
+in the output CSVs — was ruled by the PI on 2026-08-25 and is now asserted in
+``docs/data_dictionary.md`` under "Grain": such an institution has **no row in
+any of the three Stage-7 CSVs**, and is carried downstream by
+``institution_report.csv``'s ``final_status`` instead. That makes this ledger the
+explanation of *where* coverage was lost, not the record of *whether* it was —
+which is the role the data dictionary points readers here for.
 
 Idempotence (resume): records are deduplicated on the stable key
 ``(institution_id, stage, reason, url)``. A stage that re-runs on resume (e.g.

@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -65,10 +66,28 @@ def _iso_diff_seconds(start: str, end: str) -> float:
 
 
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    """Atomic JSON write; temp name carries pid + thread id (review F17).
+
+    This one is reached from Stage-4 worker threads via :func:`stage_timer`.
+    Each institution writes its own ``_timing.json`` and one worker owns an
+    institution, so a fixed ``.tmp`` name does not collide in practice — but
+    that safety rests on the caller's partitioning rather than on this function,
+    which is a thin thing to rest it on. Matches
+    :func:`g3o.common.artifact_io.write_artifact`.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, path)
+    tmp = path.with_name(f"{path.name}.tmp.{os.getpid()}.{threading.get_ident()}")
+    try:
+        tmp.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def record_stage_timing(

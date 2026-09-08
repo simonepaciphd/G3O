@@ -158,11 +158,17 @@ ACTIVITY_SOURCE_COLUMNS: list[str] = [
 
 INSTITUTION_REPORT_COLUMNS: list[str] = [
     # Identity + final verdict (6)
-    # `institution_uid` only: this ledger is a run diagnostic, not a loader
-    # input (`ingest.py` takes --master/--activities/--sources and nothing
-    # else), so it carries the join key and not `sweep_uid`, which on an
-    # institution-grain row is a deterministic restatement of it with no
-    # consumer. Amends the PI ruling 2026-08-14 §4 table, row 4.
+    # `institution_uid` only. This was justified as "a run diagnostic, not a
+    # loader input", which stopped being true on 2026-08-25: `g3o-api`'s
+    # `load_search_verdicts` reads this file off `--run-dir` and carries
+    # `final_status` to the database as `outcome_status`, which is how an
+    # institution that never reached Stage 6 is now distinguished from one
+    # judged to have nothing (PI ruling, g3o-api #17). The column list is
+    # unchanged because the loader keys on the uid, and on an institution-grain
+    # row `sweep_uid` is a deterministic restatement of it.
+    # `g3o.run.orchestrate.ingest.build_argv` is the authority on what the
+    # loader is handed; do not re-enumerate the flags here.
+    # Amends the PI ruling 2026-08-14 §4 table, row 4.
     "institution_uid",
     "institution_id",
     "final_status",
@@ -189,7 +195,8 @@ INSTITUTION_REPORT_COLUMNS: list[str] = [
 
 SUMMARY_COLUMNS: list[str] = [
     # Identity (6) — `institution_uid` only, for the reason given on
-    # INSTITUTION_REPORT_COLUMNS: this CSV is not a loader input either.
+    # INSTITUTION_REPORT_COLUMNS: the loader reads this CSV too (it is where
+    # `has_genai_activity` reaches the database) and keys it on the uid.
     "institution_uid",
     "institution_id",
     "institution_name",

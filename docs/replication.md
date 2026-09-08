@@ -96,7 +96,8 @@ is auto-inferred from `_state/` files in `runs/<run_id>/`.
 ### Discovery defaults changed 2026-08-01
 
 PI sign-off on the confirmation run
-(`agent-workspace/2026-08-01-discovery-chain-validation.md`). `--discovery-mode`
+(`agent-workspace/2026-08-01-discovery-chain-validation.md` — Drive; not tracked
+here). `--discovery-mode`
 now defaults to `chain`, `--discovery-results-per-query` to `10`, and
 `--serper-autocorrect` to `off`. Measured over 200 institutions per arm, same
 sample, as `GET /account` balance deltas:
