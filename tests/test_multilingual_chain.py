@@ -595,7 +595,17 @@ def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
     ``scrape_max_institution_seconds`` is the first key to use the mechanism for
     what its own comment describes — a guarded key added to a manifest schema
     that real, resumable runs predate. That is the intended use and does not
-    weaken this test; a fourth key still trips it.
+    weaken this test; a further key still trips it.
+
+    It grew again on 2026-08-30, to six, with the four ``official_sites_*`` keys.
+    Same intended use: every manifest written before that date lacks all four,
+    including the published run ``r20260829T121145Z-233a``, and such a run must
+    stay resumable. Their tolerance is narrower than the other two, and the
+    narrowing is the point — ``_assert_manifest_matches_on_resume`` refuses the
+    absence anyway when *this* run has an overlay configured, so the mechanism
+    cannot be used to slip a run from the Stage-2 LLM path into the bypass path
+    halfway through. ``test_resuming_into_an_overlay_is_refused`` in
+    ``tests/test_official_sites_integration.py`` is the test for that half.
 
     It grew to three on 2026-08-31 for the same documented reason:
     ``evidence_terms_roster_hash`` did not exist until the chain-mode roster did,
@@ -622,6 +632,10 @@ def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
     assert _ABSENT_TOLERATED_CONFIG_KEYS == {
         "genai_terms_roster_hash",
         "scrape_max_institution_seconds",
+        "official_sites_csv",
+        "official_sites_hash",
+        "official_sites_min_confidence",
+        "official_sites_require_unshared_host",
         "scrape_host_failure_threshold",
         "evidence_terms_roster_hash",
         "domain_suffix_roster_hash",

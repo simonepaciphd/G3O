@@ -417,15 +417,30 @@ def test_load_extract_outputs_missing_dir_returns_empty(tmp_path: Path) -> None:
     assert n_pages == 0
 
 
-def test_load_extract_outputs_validates_batch_response(tmp_path: Path) -> None:
+def test_load_extract_outputs_quarantines_malformed_artifact(tmp_path: Path) -> None:
+    """Malformed extract artifacts are quarantined; valid ones still load."""
     institution_dir = inst_dir_of(tmp_path, "INST-0001")
     extract_dir = institution_dir / "extract"
     extract_dir.mkdir(parents=True)
+    # Write one valid and one malformed artifact
+    valid_rows = [_stage5_row(row_id=1, batch_id="page-valid", source_url="https://ok.gov/")]
+    (extract_dir / "good.json").write_text(
+        json.dumps(_stage5_batch_response(valid_rows)), encoding="utf-8"
+    )
     (extract_dir / "bad.json").write_text(
         json.dumps({"batch_metadata": {}, "data": []}), encoding="utf-8"
     )
-    with pytest.raises(ValidationError):
-        load_extract_outputs(institution_dir)
+    rows, n_pages = load_extract_outputs(institution_dir, run_dir=tmp_path)
+    # Valid artifact loaded; malformed one quarantined
+    assert n_pages == 1
+    assert len(rows) == 1
+    assert rows[0].source_url == "https://ok.gov/"
+    # Malformed artifact was quarantined (renamed to .json.corrupt)
+    assert not (extract_dir / "bad.json").exists()
+    assert (extract_dir / "bad.json.corrupt").exists()
+
+    from g3o.common import attrition
+    assert [r["reason"] for r in attrition.read_records(tmp_path)] == ["parse_failed"]
 
 
 def test_write_consolidated_output_writes_canonical_path(tmp_path: Path) -> None:
@@ -601,3 +616,41 @@ def test_qc_per_run_does_not_count_run_level_dirs_as_institutions(tmp_path: Path
     assert qc["n_institutions_in_dir"] == 1
     assert qc["n_consolidated"] == 1
     assert qc["n_missing_validate_json"] == 0
+
+
+def test_malformed_extracts_cannot_become_a_clean_negative(tmp_path: Path) -> None:
+    from g3o.common import attrition
+    from g3o.report.outcomes import compute_institution_report
+    from g3o.validate.consolidate import run_consolidate
+    from tests.test_outcomes import (
+        ALL_STAGES,
+        _make_run,
+        _scraped,
+        _triage,
+        _write,
+    )
+
+    inst_id = "INST-0000001"
+    _make_run(tmp_path, institutions=[inst_id], done=ALL_STAGES[:-1])
+    _triage(tmp_path, inst_id, keeps=1)
+    _scraped(tmp_path, inst_id, n_pages=1)
+    directory = inst_dir_of(tmp_path, inst_id)
+    _write(directory / "institution.json", {"institution_id": inst_id})
+    _write(directory / "extract" / "broken.json", {"batch_metadata": {}, "data": []})
+    run_consolidate(tmp_path)
+    assert compute_institution_report(tmp_path)[0]["final_status"] == "PROCESSING_FAILED"
+    assert [r["reason"] for r in attrition.read_records(tmp_path)] == ["parse_failed"]
+    run_consolidate(tmp_path)
+    assert compute_institution_report(tmp_path)[0]["final_status"] == "PROCESSING_FAILED"
+    assert len(attrition.read_records(tmp_path)) == 1
+
+
+def test_malformed_extract_without_ledger_fails_closed(tmp_path: Path) -> None:
+    directory = inst_dir_of(tmp_path, "INST-0000001")
+    extract = directory / "extract"
+    extract.mkdir(parents=True)
+    bad = extract / "bad.json"
+    bad.write_text('{"batch_metadata": {}, "data": []}', encoding="utf-8")
+    with pytest.raises(ValidationError):
+        load_extract_outputs(directory)
+    assert bad.exists()
