@@ -20,7 +20,7 @@ from typing import Any
 
 import pytest
 import requests
-from tenacity import RetryError, wait_none
+from tenacity import wait_none
 
 from g3o.common import attrition, config, scrape_telemetry
 from g3o.report import outcomes
@@ -85,6 +85,7 @@ class _FakeSession:
             raise self.exc
         resp = requests.Response()
         resp.status_code = 200
+        resp._content_consumed = True
         resp._content = b"<html><body>" + b"x" * 200 + b"</body></html>"
         resp.headers["content-type"] = "text/html"
         resp.url = url
@@ -108,7 +109,7 @@ def test_a_refusal_is_fetched_once_and_raises_as_itself(monkeypatch):
 def test_a_connect_timeout_is_still_retried_three_times(monkeypatch):
     session = _FakeSession(requests.exceptions.ConnectTimeout("x"))
     monkeypatch.setattr(fetcher, "_get_session", lambda: session)
-    with pytest.raises(RetryError):
+    with pytest.raises(requests.exceptions.ConnectTimeout):
         _download_no_sleep()("https://dead.example/")
     assert len(session.calls) == 3
     assert fetcher.download_attempts() == 3

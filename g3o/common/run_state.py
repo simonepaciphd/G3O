@@ -50,7 +50,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common import batch_client
-from g3o.common.batch_client import BatchJob, BatchResult
+from g3o.common.batch_client import TRANSIENT_API_ERRORS, BatchJob, BatchResult
 from g3o.common.credentials import ResolvedCredentials
 
 logger = logging.getLogger(__name__)
@@ -764,7 +764,36 @@ def run_chunked_stage(
         if not pending and not unsubmitted:
             break
         for key, entry in pending:
-            status = batch_client.poll_batch(entry["batch_id"], client=client)
+            # A poll is a READ: no spend, no server-side mutation, and the batch
+            # it asks about is unaffected by the question. So a transient fault
+            # here is worth absorbing indefinitely — the stage deadline below is
+            # the terminal bound, not an attempt count.
+            #
+            # Before this, `poll_batch`'s five tenacity attempts were the whole
+            # story and the sixth consecutive failure propagated out of
+            # run_chunked_stage, killing a multi-hour stage over a network blip.
+            # Observed twice on run 20260802-e2e-100 (docs/pipeline-status.md
+            # §5.8). Three things went with it, none of them obvious:
+            # `failed` is loop-local, so the Q3=d "chunk N ended terminal"
+            # report was discarded; the deadline check below was skipped, so the
+            # F16 `poll_timeout` telemetry never fired and the operator lost the
+            # "the batch has NOT ended, re-run to rejoin" guidance exactly when
+            # they needed it; and every chunk after this one went unpolled.
+            #
+            # Deliberately NOT symmetric with the submit path: `submit_batch`
+            # keeps its five attempts because it is a spend-bearing mutation
+            # where a lost response can double-create a live batch (review F6a).
+            # Do not "fix" that inconsistency — the asymmetry is the design.
+            try:
+                status = batch_client.poll_batch(entry["batch_id"], client=client)
+            except TRANSIENT_API_ERRORS as exc:
+                logger.warning(
+                    "Stage %s chunk %s: poll of batch %s failed transiently (%s: %s); "
+                    "retrying on the next cycle. The batch is unaffected; this "
+                    "stage ends at its %ds deadline, not on this error.",
+                    stage, key, entry["batch_id"], type(exc).__name__, exc, max_wait,
+                )
+                continue
             update_chunk(
                 run_dir, stage, key,
                 last_polled_at=_utc_iso(), last_status=status.status,
@@ -783,14 +812,32 @@ def run_chunked_stage(
                 models: set[str] = set()
                 fingerprints: set[str] = set()
                 fetched: list[BatchResult] = []
-                for result in batch_client.fetch_results(
-                    entry["batch_id"], client=client, status=status
-                ):
-                    if result.response_model:
-                        models.add(result.response_model)
-                    if result.system_fingerprint:
-                        fingerprints.add(result.system_fingerprint)
-                    fetched.append(result)
+                # Same reasoning as the poll above: downloading a completed
+                # batch's result files is a read, and the batch stays completed
+                # and re-fetchable if it fails. `fetch_results` is a generator
+                # whose *inner* file read is retryable but whose JSONL decode is
+                # not, so a truncated download surfaces here as a bare
+                # JSONDecodeError. Nothing has been persisted at this point —
+                # `fetched_at` is written further down, after the completeness
+                # gate — so abandoning the attempt costs one re-download and
+                # cannot half-commit a chunk.
+                try:
+                    for result in batch_client.fetch_results(
+                        entry["batch_id"], client=client, status=status
+                    ):
+                        if result.response_model:
+                            models.add(result.response_model)
+                        if result.system_fingerprint:
+                            fingerprints.add(result.system_fingerprint)
+                        fetched.append(result)
+                except (*TRANSIENT_API_ERRORS, json.JSONDecodeError) as exc:
+                    logger.warning(
+                        "Stage %s chunk %s: fetching results for batch %s failed "
+                        "transiently (%s: %s); will re-fetch on the next cycle. "
+                        "Nothing was persisted for this chunk.",
+                        stage, key, entry["batch_id"], type(exc).__name__, exc,
+                    )
+                    continue
                 planned = entry["custom_ids"]
                 observed = [r.custom_id for r in fetched]
                 problems = _reconcile_custom_ids(planned, observed)

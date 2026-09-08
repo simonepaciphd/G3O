@@ -321,6 +321,17 @@ _RETRYABLE_EXCEPTIONS = (
     InternalServerError,
 )
 
+#: The same tuple, under a public name, for callers that need to recognise a
+#: transient API fault *outside* a tenacity-wrapped call — currently the poll and
+#: result-fetch loops in :func:`g3o.common.run_state.run_chunked_stage`, which
+#: absorb these against a wall-clock deadline rather than an attempt count
+#: because both operations are reads (2026-08-24).
+#:
+#: Exported so that "what counts as transient" has one definition. A second list
+#: maintained elsewhere would drift, and the drift would show up as a stage dying
+#: on an error class this module already considers retryable.
+TRANSIENT_API_ERRORS: tuple[type[Exception], ...] = _RETRYABLE_EXCEPTIONS
+
 # Tenacity wrapper applied per network call. Session F.1 (2026-06-10, review
 # F6): the retry is per-call, never around a function performing more than
 # one server-side mutation — a whole-function retry around upload+create
@@ -849,6 +860,7 @@ __all__ = [
     "DEFAULT_ENDPOINT",
     "DEFAULT_REASONING_EFFORT",
     "TERMINAL_STATUSES",
+    "TRANSIENT_API_ERRORS",
     "client_from_credentials",
     "find_batches_by_metadata",
     "split_jobs_into_chunks",
