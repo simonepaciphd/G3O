@@ -25,7 +25,7 @@ import threading
 import time
 from collections.abc import Callable
 from urllib import robotparser
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 import requests
 
@@ -39,28 +39,47 @@ DEFAULT_HOST_DELAY_SECONDS = 1.0
 _ROBOTS_TIMEOUT_SECONDS = 10
 
 
-def host_key(url: str) -> str:
-    """The ``netloc`` (host[:port]) of ``url`` — the granularity for robots +
-    throttle.
+def _robots_cache_key(url: str) -> str:
+    """``scheme://netloc`` for ``url`` — the granularity for the robots cache.
 
-    Scheme-agnostic on purpose (Finding 1, SCHEME-SPLIT fix, 2026-07): the
-    throttle and robots cache identify a *physical host*, so ``http://x.gov`` and
-    ``https://x.gov`` must map to the same key. Keying on ``scheme://netloc``
-    previously split them into separate throttle entries, letting two workers hit
-    the same host over different schemes with no per-host spacing. The scheme is
-    reconstructed where a real request URL is needed (see ``_robots_url``).
+    Scheme- and port-preserving on purpose (SCHEME-SPLIT follow-up, 2026-08):
+    RFC 9309 §2.3 treats ``http://x.gov/robots.txt`` and
+    ``https://x.gov/robots.txt`` as **distinct resources** (different scheme →
+    different origin → potentially different rules), so the two must cache under
+    separate keys. The project's public posture is to crawl politely, so we do
+    not deviate from that reading. This is the *only* key that is also a URL
+    prefix: :meth:`RobotsCache._parser_for` reconstructs the fetch URL as
+    ``f"{_robots_cache_key(url)}/robots.txt"``. Single caller: ``RobotsCache``.
     """
+    parts = urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}"
+
+
+def host_key(url: str) -> str:
+    """Host and port key retained for the per-host failure circuit breaker."""
     return urlsplit(url).netloc
 
 
-def _robots_url(url: str) -> str:
-    """The ``robots.txt`` URL for ``url``'s host, preserving ``url``'s scheme.
+def _throttle_key(url: str) -> str:
+    """The bare hostname of ``url`` — the granularity for the per-host throttle.
 
-    ``host_key`` is scheme-agnostic, so the fetch URL cannot be rebuilt from it;
-    the scheme comes from the request URL that triggered the (one-per-host) fetch.
+    Deliberately coarser than :func:`_robots_cache_key` (SCHEME-SPLIT fix,
+    2026-07/08): the courtesy delay protects a **physical host**, so every
+    request that lands on one host shares one throttle bucket regardless of how
+    the URL is spelled. Concretely this key intentionally collapses:
+
+    - **scheme** — ``http://x.gov`` and ``https://x.gov`` are one server; keying
+      on scheme let two workers hit it over http and https with no spacing.
+    - **port** — ``x.gov:8080`` and ``x.gov`` (i.e. ``:443``) share one throttle
+      bucket. This is a *deliberate* choice, not an oversight: a courtesy delay
+      is a per-host social contract with the operator, and ports are cheap to
+      vary. Collapsing them is the conservative (more-throttling) reading; if a
+      future case needs per-port spacing this is the line to revisit.
+
+    Single caller: ``HostThrottle.wait``.
     """
     parts = urlsplit(url)
-    return urlunsplit((parts.scheme, parts.netloc, "/robots.txt", "", ""))
+    return parts.hostname or parts.netloc
 
 
 def _fetch_robots_txt(
@@ -110,10 +129,18 @@ class RobotsCache:
         *,
         fetch: Callable[..., str | None] = _fetch_robots_txt,
         timeout: int = _ROBOTS_TIMEOUT_SECONDS,
+        throttle: HostThrottle | None = None,
     ) -> None:
         self.user_agent = user_agent or config.USER_AGENT
         self._fetch = fetch
         self._timeout = timeout
+        # The robots.txt GET is itself a physical hit to the host (finding: an
+        # uncached host's robots fetch preceded the page fetch with no per-host
+        # spacing between them). When a shared throttle is injected, the (one-
+        # per-host) robots fetch registers with / respects it exactly as a page
+        # fetch does, so the following page GET is spaced the full delay after
+        # the robots GET — not fired back-to-back.
+        self._throttle = throttle
         self._parsers: dict[str, robotparser.RobotFileParser | None] = {}
         self._map_lock = threading.Lock()
         self._host_locks: dict[str, threading.Lock] = {}
@@ -127,7 +154,7 @@ class RobotsCache:
             return lock
 
     def _parser_for(self, url: str) -> robotparser.RobotFileParser | None:
-        host = host_key(url)
+        host = _robots_cache_key(url)
         # Fast path: already populated (a single set-once dict read is safe under
         # the GIL). Avoids taking a lock once the host's robots.txt is cached.
         if host in self._parsers:
@@ -135,8 +162,16 @@ class RobotsCache:
         with self._lock_for(host):
             if host in self._parsers:  # double-check: another thread populated it
                 return self._parsers[host]
+            robots_url = f"{host}/robots.txt"
+            # This is the one-and-only physical robots.txt GET for this host.
+            # Space/register it against the host throttle (when one is injected)
+            # so it counts toward the per-host courtesy delay like any page GET
+            # would; a cached host never reaches here, so no extra delay is paid
+            # once robots is known.
+            if self._throttle is not None:
+                self._throttle.wait(robots_url)
             body = self._fetch(
-                _robots_url(url),
+                robots_url,
                 user_agent=self.user_agent,
                 timeout=self._timeout,
             )
@@ -250,7 +285,7 @@ class HostThrottle:
         delay = self.delay_seconds
         if extra_delay is not None:
             delay = max(delay, extra_delay)
-        host = host_key(url)
+        host = _throttle_key(url)
         with self._lock_for(host):
             if delay <= 0:
                 self._last[host] = self._monotonic()
@@ -270,5 +305,4 @@ __all__ = [
     "DEFAULT_HOST_DELAY_SECONDS",
     "HostThrottle",
     "RobotsCache",
-    "host_key",
 ]
