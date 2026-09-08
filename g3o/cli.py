@@ -819,6 +819,11 @@ def _presweep_config(
         discovery_domain_quote_name=args.discovery_domain_quote_name,
         # "omit" -> None (no key in the payload at all), "off" -> False.
         serper_autocorrect=None if args.serper_autocorrect == "omit" else False,
+        official_sites_csv=(
+            Path(args.official_sites).expanduser() if args.official_sites else None
+        ),
+        official_sites_min_confidence=args.official_sites_min_confidence,
+        official_sites_require_unshared_host=not args.official_sites_allow_shared,
         dry_run=not args.execute,
         stop_after=args.stop_after,
         filter_mode=args.filter_mode,
@@ -952,6 +957,106 @@ def _cmd_archive(args: argparse.Namespace) -> int:
     sys.stdout.write(render_result(result))
     sys.stdout.write("\n")
     return 0
+
+
+def _positive_int(value: str) -> int:
+    """argparse type: positive integer for CSV version number."""
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid integer value: {value!r}") from None
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"version must be >= 1, got {n}")
+    return n
+
+
+# ---------------------------------------------------------------------------
+# `validate-integrity` — Post-persist FK integrity validation
+# ---------------------------------------------------------------------------
+
+
+def _cmd_validate_integrity(args: argparse.Namespace) -> int:
+    """Validate referential integrity across all persisted artifacts in a run.
+
+    Reads all three CSVs (activities, sources, summary) and validates all FK
+    constraints. Optionally validates institution metadata consistency.
+
+    Exit codes:
+        0: valid (no violations)
+        1: violations found
+        2: file not found / other error
+    """
+    from g3o.persist.integrity import validate_run_csvs
+
+    run_dir = Path(args.run_dir)
+    try:
+        report = validate_run_csvs(run_dir, version=args.version)
+    except Exception as exc:
+        sys.stderr.write(f"Error: {exc}\n")
+        return 2
+
+    if args.json:
+        # JSON output for machine parsing
+        output = {
+            "run_dir": str(run_dir),
+            "version": args.version,
+            "is_valid": report.is_valid,
+            "n_institutions": report.n_institutions,
+            "n_activities": report.n_activities,
+            "n_sources": report.n_sources,
+            "n_violations": len(report.violations),
+            "n_warnings": len(report.warnings),
+            "violations": [
+                {
+                    "constraint": v.constraint,
+                    "entity_type": v.entity_type,
+                    "entity_id": v.entity_id,
+                    "detail": v.detail,
+                }
+                for v in report.violations
+            ],
+            "warnings": report.warnings,
+        }
+        json.dump(output, sys.stdout, ensure_ascii=False, indent=2)
+        sys.stdout.write("\n")
+    elif args.quiet:
+        # Quiet mode: only print violations
+        if not report.is_valid:
+            for v in report.violations:
+                sys.stderr.write(f"VIOLATION: {v}\n")
+    else:
+        # Human-readable output
+        sys.stdout.write(f"Validating run: {run_dir.name}\n")
+        sys.stdout.write(f"✓ {report.n_institutions} institutions loaded\n")
+        sys.stdout.write(f"✓ {report.n_activities} activities loaded\n")
+        sys.stdout.write(f"✓ {report.n_sources} sources loaded\n\n")
+
+        sys.stdout.write("Foreign Key Validation:\n")
+        if report.is_valid:
+            sys.stdout.write("✓ All sources link to valid activities\n")
+            sys.stdout.write("✓ All activities have supporting sources\n")
+            sys.stdout.write("✓ All institutions have summary rows\n")
+            sys.stdout.write("✓ Summary counts match detail counts\n")
+        else:
+            sys.stdout.write("\nVIOLATIONS:\n")
+            for v in report.violations:
+                sys.stdout.write(f"  ✗ {v}\n")
+
+        if report.warnings:
+            sys.stdout.write("\nWARNINGS:\n")
+            for w in report.warnings:
+                sys.stdout.write(f"  ⚠ {w}\n")
+
+        status = "VALID" if report.is_valid else "INVALID"
+        sys.stdout.write(
+            f"\nResult: {status} ({len(report.violations)} violations, "
+            f"{len(report.warnings)} warnings)\n"
+        )
+
+    # Exit code: 0 = valid, 1 = violations found
+    if args.strict and report.warnings:
+        return 1
+    return 0 if report.is_valid else 1
 
 
 def _frame_snapshot_source(args: argparse.Namespace) -> Any:
@@ -1499,6 +1604,41 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     presweep.add_argument(
+        "--official-sites", default=None, metavar="OVERLAY_CSV",
+        help=(
+            "Spend a g3o.report.site_overlay CSV: every sampled institution the "
+            "overlay covers is decorated with `official_site_url`, which makes "
+            "Stage 2 BYPASS the LLM path for it and hands Stage 1b the site "
+            "directly (no plausibility check — the runner trusts the value, Q4 "
+            "2026-05-09). The registry is never rewritten: the decoration is in "
+            "memory, after the draw. Omitted, the run classifies every "
+            "institution with Stage 2, exactly as before 2026-08-30. "
+            "`orchestrate e2e` rebuilds this file under "
+            "<runs-dir>/_site_overlay/official_sites.csv after every run."
+        ),
+    )
+    presweep.add_argument(
+        "--official-sites-min-confidence", default="high",
+        choices=("high", "medium", "low"),
+        help=(
+            "Confidence floor for --official-sites (default 'high', PI ruling "
+            "2026-08-30). This is Stage 2's rating of its own pick, not a "
+            "validated accuracy figure — no adjudicated subset exists — so "
+            "lowering it is a data-quality decision."
+        ),
+    )
+    presweep.add_argument(
+        "--official-sites-allow-shared", action="store_true",
+        help=(
+            "Also spend picks whose `site:` host is shared with another "
+            "institution (1,192 of 6,684 on r20260829T121145Z-233a: 95 councils "
+            "on nsw.gov.au, 45 institutions on gov.mt). Off by default because "
+            "one `site:` query issued for 95 different councils is worse than "
+            "leaving them website-free — the website-free path at least searches "
+            "the institution's own name."
+        ),
+    )
+    presweep.add_argument(
         "--key-label", default=None,
         help=(
             "Human tag for the API keys this run spends, e.g. 'key-B-grant' (spec "
@@ -1962,6 +2102,39 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--poll-interval", type=int, default=30)
     verify.add_argument("--max-wait", type=int, default=1800)
     verify.set_defaults(func=_cmd_verify_model)
+
+    validate_integrity = sub.add_parser(
+        "validate-integrity",
+        help="Validate referential integrity across all persisted artifacts in a run.",
+    )
+    validate_integrity.add_argument(
+        "--run-dir",
+        required=True,
+        type=_existing_dir,
+        help="Path to runs/<run_id>/ directory containing persisted CSVs.",
+    )
+    validate_integrity.add_argument(
+        "--version",
+        type=_positive_int,
+        default=1,
+        help="CSV version number to validate (default: 1). Must be >= 1.",
+    )
+    validate_integrity.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail on warnings (exit code 1) in addition to violations.",
+    )
+    validate_integrity.add_argument(
+        "--json",
+        action="store_true",
+        help="Output JSON report instead of human-readable text.",
+    )
+    validate_integrity.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Only print violations (no summary).",
+    )
+    validate_integrity.set_defaults(func=_cmd_validate_integrity)
 
     return parser
 

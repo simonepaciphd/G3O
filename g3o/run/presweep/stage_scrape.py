@@ -436,6 +436,11 @@ def _scrape_one(
                     prefer_render_on_download_failure=render_on_download_failure,
                     empty_page_min_chars=empty_page_min_chars,
                     on_render_attempt=_record_render_attempt,
+                    # Throttle each cross-host redirect destination *before* the
+                    # hop's GET, so a request that redirects onto a host another
+                    # worker is throttled against waits its per-host turn instead
+                    # of racing in.
+                    on_redirect_hop=throttle.wait,
                     on_scrape_failure=_record_scrape_failure,
                 )
             except Exception as exc:
@@ -581,10 +586,10 @@ def _run_scrape(
     if is_done(run_dir, stage):
         logger.info("Stage 4: .done marker present — skipping (resume from disk)")
         return _read_existing_scraped(run_dir, sample)
-    if respect_robots and robots is None:
-        robots = RobotsCache(_config.USER_AGENT)
     if throttle is None:
         throttle = HostThrottle(host_delay_seconds)
+    if respect_robots and robots is None:
+        robots = RobotsCache(_config.USER_AGENT, throttle=throttle)
     if breaker is None and host_failure_threshold is not None:
         breaker = HostBreaker(host_failure_threshold)
     scrape_telemetry.ensure_ledger(run_dir)
