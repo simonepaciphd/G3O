@@ -334,7 +334,7 @@ def test_stage3_prose_refusal_caught():
 
 
 def test_stage3_rewritten_url_variant_caught():
-    """LLMs silently rewrite URLs (here: a trailing slash added to one entry).
+    """LLMs silently rewrite URLs (here: a path segment changed).
 
     The threat is unchanged from the old round-trip contract — a rewritten URL
     must never be trusted as a valid candidate — but the blast radius is now
@@ -343,7 +343,8 @@ def test_stage3_rewritten_url_variant_caught():
     and discarding the whole institution.
     """
     urls = list(CANDIDATE_URLS)
-    urls[2] = urls[2] + "/"
+    # Rewrite the path segment — a genuine change that normalization won't fix
+    urls[2] = urls[2].replace("/ai-pilot", "/ai-program")
     result = _make_result("INST-0042", _triage_payload(urls))
     match = match_triage_decisions(CANDIDATE_URLS, parse_triage_result(result))
 

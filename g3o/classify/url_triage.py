@@ -10,8 +10,10 @@ per-page cost dominates the budget.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from typing import Any, Literal
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -220,19 +222,77 @@ class TriageMatch:
     attrition: list[TriageAttrition]
 
 
+def normalize_url(url: str) -> str:
+    """Normalize a URL for cosmetic equivalence without changing resource identity.
+
+    Applies transformations that preserve the target resource:
+    - Lowercase scheme and host
+    - Remove default ports (:443 for https, :80 for http)
+    - Remove trailing slash (except root path)
+    - Normalize percent-encoding to uppercase hex (without decoding)
+    - Sort query parameters
+
+    Does NOT change:
+    - Path segments (e.g., /az/news/ → /news/ is rejected)
+    - Domain names (e.g., example.gov → example.com is rejected)
+    - Encoded path separators (e.g., %2F is preserved, not decoded to /)
+
+    Fragments are dropped: if a candidate has a fragment and the LLM echoes
+    the URL without it, they match. This is acceptable since government URLs
+    rarely use fragments.
+
+    This allows matching URLs that differ only in cosmetic ways (trailing slash,
+    percent-encoding case, query parameter order) while still rejecting genuine
+    rewrites or fabrications.
+    """
+    parsed = urlparse(url)
+
+    # Lowercase scheme and host
+    scheme = parsed.scheme.lower()
+    netloc = parsed.netloc.lower()
+
+    # Remove default ports
+    if netloc.endswith(":443") and scheme == "https":
+        netloc = netloc[:-4]
+    elif netloc.endswith(":80") and scheme == "http":
+        netloc = netloc[:-3]
+
+    # Normalize path: remove trailing slash (except root)
+    path = parsed.path
+    if path != "/" and path.endswith("/"):
+        path = path.rstrip("/")
+
+    # Normalize percent-encoding: uppercase hex digits without decoding
+    # This preserves %2F as %2F (not decoded to /) which would change semantics
+    path = re.sub(r"%([0-9a-fA-F]{2})", lambda m: "%" + m.group(1).upper(), path)
+
+    # Sort query parameters for canonical form
+    query = urlencode(sorted(parse_qsl(parsed.query), key=lambda x: x[0]))
+
+    # Reconstruct URL (drop fragment — different resource, but acceptable to match)
+    return urlunparse((scheme, netloc, path, parsed.params, query, ""))
+
+
+
 def match_triage_decisions(
     candidate_urls: list[str], triage: URLTriageResult
 ) -> TriageMatch:
-    """Match returned triage decisions to submitted candidates by **URL**.
+    """Match returned triage decisions to submitted candidates by **normalized URL**.
 
     The submitted ``candidate_urls`` list (the path-aware deduped 1a+1b union,
     so entries are pairwise-distinct) is the stable identity. Each candidate is
-    matched to the returned decision(s) whose echoed ``url`` *exactly equals*
-    that candidate — the echoed URL is the model's own claim of identity, and
-    because candidates are distinct an exact URL match uniquely identifies its
-    candidate. A decision is salvaged only on an exact URL match, so a drifted,
-    rewritten, or fabricated URL is never mis-attributed and never scraped —
-    identical safety to strict positional matching.
+    matched to the returned decision(s) whose echoed ``url`` *normalizes to*
+    that candidate — normalization applies cosmetic transformations (lowercase
+    scheme/host, remove default ports, strip trailing slash, normalize percent-
+    encoding case, sort query parameters) that preserve resource identity.
+    If two candidates normalize to the same URL, the last one in input order
+    wins the index slot; the other receives ``missing_decision`` attrition. This
+    is correct because both candidates point to the same resource. A decision is
+    salvaged only on a normalized URL match, so a genuinely drifted, rewritten,
+    or fabricated URL is never mis-attributed and never scraped — identical
+    safety to strict positional matching.
+
+
 
     URL-keyed matching salvages *strictly more* than positional matching: a
     same-URL reorder (every candidate decided, but out of input order) is
@@ -257,20 +317,22 @@ def match_triage_decisions(
       and never salvaged.
     """
     decisions = triage.decisions
-    candidate_index = {url: i for i, url in enumerate(candidate_urls)}
+    # Build index on normalized URLs for cosmetic-equivalence matching
+    candidate_index = {normalize_url(url): i for i, url in enumerate(candidate_urls)}
 
-    # Decision indices grouped by the URL each decision echoed, preserving
-    # emission order within a group so the tie-break below is deterministic.
+    # Decision indices grouped by the normalized URL each decision echoed,
+    # preserving emission order within a group so the tie-break below is deterministic.
     by_url: dict[str, list[int]] = {}
     for j, d in enumerate(decisions):
-        by_url.setdefault(d.url, []).append(j)
+        by_url.setdefault(normalize_url(d.url), []).append(j)
+
 
     matched: list[URLDecision] = []
     kept_urls: list[str] = []
     attrition: list[TriageAttrition] = []
 
     for cand in candidate_urls:
-        occ = by_url.get(cand)
+        occ = by_url.get(normalize_url(cand))
         if not occ:
             attrition.append(
                 TriageAttrition(cand, "missing_decision", "no returned decision echoed this URL")
@@ -301,9 +363,10 @@ def match_triage_decisions(
                 detail = f"echoed {len(occ)}x (all {verdict}); first occurrence accepted"
             attrition.append(TriageAttrition(cand, "duplicate_url", detail))
 
-    # Decisions whose echoed URL is not any candidate: rewritten or fabricated.
+    # Decisions whose normalized echoed URL is not any normalized candidate:
+    # rewritten or fabricated.
     for d in decisions:
-        if d.url not in candidate_index:
+        if normalize_url(d.url) not in candidate_index:
             attrition.append(
                 TriageAttrition(
                     d.url,
@@ -323,6 +386,7 @@ __all__ = [
     "URLTriageResult",
     "TriageAttrition",
     "TriageMatch",
+    "normalize_url",
     "build_triage_job",
     "parse_triage_result",
     "match_triage_decisions",
