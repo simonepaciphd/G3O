@@ -178,7 +178,24 @@ def update_submit_record(run_dir: Path, **updates: Any) -> None:
     """
     path = submit_record_path(run_dir)
     existing = read_json(path) or {}
-    if existing.get("finished_at") and not updates.get("finished_at"):
+    new_attempt = (
+        existing.get("pid") is not None
+        and updates.get("pid") is not None
+        and updates["pid"] != existing["pid"]
+    )
+    if new_attempt:
+        # A different supervised process is a resume of a finished run. The
+        # previous attempt's ending stays in events.jsonl as history, but it is
+        # no longer this record's outcome. Left in place, `finished_at` made the
+        # resumed run read as dead and `outcome` kept it 'failed' for the whole
+        # second attempt (sweep 4, 2026-09-14). The same-pid case below is the
+        # parent's late post-spawn write, which must still not downgrade.
+        existing = {
+            k: v
+            for k, v in existing.items()
+            if k not in ("finished_at", "error_class", "error_message")
+        }
+    elif existing.get("finished_at") and not updates.get("finished_at"):
         updates = {
             k: v for k, v in updates.items() if k not in ("outcome", "started_at")
         }

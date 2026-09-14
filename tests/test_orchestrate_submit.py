@@ -374,3 +374,38 @@ def test_a_projection_under_the_ceiling_is_returned_for_the_record(config, monke
     live = replace(config, dry_run=False)
 
     assert sub.cost_gate(live, credentials=None, cost_ceiling_usd=25.0) == summary
+
+
+def test_a_new_supervised_process_supersedes_a_finished_record(tmp_path: Path) -> None:
+    """A resume is a second process. The first attempt's ending stays in the
+    event log; the record must stop reporting it (sweep 4, 2026-09-14: the
+    resumed run read as dead and 'failed' for its whole second attempt)."""
+    run_dir = tmp_path / "runs" / "r1"
+    run_dir.mkdir(parents=True)
+    sub.update_submit_record(run_dir, outcome="running", started_at="2026-08-13T10:00:00Z", pid=17)
+    sub.update_submit_record(
+        run_dir, outcome="failed", finished_at="2026-08-13T10:05:00Z",
+        error_class="LocationParseError", error_message="Failed to parse",
+    )
+    sub.update_submit_record(run_dir, outcome="running", started_at="2026-08-14T09:00:00Z", pid=18)
+
+    record = st.read_json(sub.submit_record_path(run_dir))
+    assert record["outcome"] == "running"
+    assert record["pid"] == 18
+    assert record["started_at"] == "2026-08-14T09:00:00Z"
+    assert "finished_at" not in record
+    assert "error_class" not in record and "error_message" not in record
+
+
+def test_the_same_pid_writing_late_still_does_not_downgrade(tmp_path: Path) -> None:
+    """The parent's post-spawn write carries the child's pid: same process, so
+    the fast-run rule above still applies."""
+    run_dir = tmp_path / "runs" / "r1"
+    run_dir.mkdir(parents=True)
+    sub.update_submit_record(run_dir, outcome="running", started_at="2026-08-13T10:00:00Z", pid=17)
+    sub.update_submit_record(run_dir, outcome="completed", finished_at="2026-08-13T10:05:00Z")
+    sub.update_submit_record(run_dir, outcome="running", started_at="2026-08-13T10:00:01Z", pid=17)
+
+    record = st.read_json(sub.submit_record_path(run_dir))
+    assert record["outcome"] == "completed"
+    assert record["finished_at"] == "2026-08-13T10:05:00Z"
