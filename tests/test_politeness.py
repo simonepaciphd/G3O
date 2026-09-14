@@ -12,9 +12,10 @@ import time
 from urllib.parse import urlsplit
 
 import requests
+import urllib3
 
 from g3o.common import config
-from g3o.scrape import fetcher
+from g3o.scrape import fetcher, politeness
 from g3o.scrape.politeness import (
     DEFAULT_HOST_DELAY_SECONDS,
     HostThrottle,
@@ -553,3 +554,47 @@ def test_throttle_zero_delay_is_still_a_no_op_under_a_ceiling():
     assert t.wait("https://x.gov/a", max_wait=0.0) is True
     assert t.wait("https://x.gov/b", max_wait=0.0) is True
     assert slept == []
+
+
+# ---------------------------------------------------------------------------
+# Regression: a robots.txt GET must honour "None on any failure" for urllib3
+# errors too, not just requests ones.
+#
+# Run r20260912T001021Z-f4fb died 2026-09-13T00:16:50Z, 87% through scrape and
+# with extract/validate unrun, on a 302 whose Location carried empty DNS labels
+# (`www.indiatoday...%20twitte`). `requests.get`'s automatic redirect handling
+# raised `urllib3.exceptions.LocationParseError`, which is NOT a
+# `requests.RequestException`; it escaped `_fetch_robots_txt`, then escaped
+# `robots.allowed()` at its Stage 4 call site, which sits OUTSIDE the per-URL
+# `except Exception` sink. One malformed third-party header, one dead sweep.
+# ---------------------------------------------------------------------------
+
+
+def test_robots_fetch_swallows_urllib3_location_parse_error(monkeypatch):
+    """The real 2026-09-13 killer: not a RequestException, so it escaped."""
+
+    def _raise(*_args, **_kwargs):
+        raise urllib3.exceptions.LocationParseError(
+            "www.indiatoday...%20twitte"
+        )
+
+    monkeypatch.setattr(politeness.requests, "get", _raise)
+    assert (
+        politeness._fetch_robots_txt(
+            "https://x.gov/robots.txt", user_agent="g3o", timeout=5
+        )
+        is None
+    )
+
+
+def test_robots_allowed_is_allow_all_when_the_fetch_raises_urllib3(monkeypatch):
+    """End of the escape path: `allowed()` must return, not raise, so Stage 4's
+    pre-fetch block cannot kill the worker (and with it the run)."""
+
+    def _raise(*_args, **_kwargs):
+        raise urllib3.exceptions.LocationParseError("bad...host")
+
+    monkeypatch.setattr(politeness.requests, "get", _raise)
+    cache = RobotsCache(user_agent="g3o")
+    assert cache.allowed("https://x.gov/page") is True
+    assert cache.crawl_delay("https://x.gov/page") is None

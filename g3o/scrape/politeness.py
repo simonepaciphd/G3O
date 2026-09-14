@@ -28,6 +28,7 @@ from urllib import robotparser
 from urllib.parse import urlsplit
 
 import requests
+import urllib3
 
 from g3o.common import config
 from g3o.scrape import egress
@@ -101,7 +102,26 @@ def _fetch_robots_txt(
             # question nobody asked — robots.txt is a per-requester contract.
             proxies=egress.requests_proxies(),
         )
-    except requests.RequestException:
+    except (requests.RequestException, urllib3.exceptions.HTTPError):
+        # `requests.RequestException` alone does NOT honour this function's
+        # "None on any failure" contract, and the gap killed a 24-hour run.
+        # Measured 2026-09-13 on the droplet's own interpreter (requests 2.34.2,
+        # urllib3 2.7.0): a 302 whose Location carries empty DNS labels — the
+        # real one was `www.indiatoday...%20twitte` — raises
+        # `urllib3.exceptions.LocationParseError` out of `requests.get`'s
+        # automatic redirect handling. That class is NOT a RequestException, so
+        # it escaped here, escaped `robots.allowed()` at its Stage 4 call site
+        # (which sits outside the per-URL `except Exception` sink), and took
+        # down run r20260912T001021Z-f4fb 87% through scrape with extract and
+        # validate unrun.
+        #
+        # The page path never hit this because `fetcher._download` follows
+        # redirects MANUALLY; only this robots.txt GET delegates redirects to
+        # requests. Catching urllib3's `HTTPError` base rather than
+        # `LocationParseError` alone: requests re-raises urllib3 errors it does
+        # not recognise, so the sibling location/parse errors would each be a
+        # fresh way to kill a sweep. Allow-all on failure is the documented
+        # pre-existing behaviour for an unreachable robots.txt, not new policy.
         return None
     if resp.status_code != 200:
         return None
