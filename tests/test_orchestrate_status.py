@@ -306,3 +306,69 @@ def test_write_json_atomic_leaves_no_temp_file(tmp_path: Path) -> None:
     st.write_json_atomic(path, {"a": 1})
     assert path.read_text(encoding="utf-8").strip().startswith("{")
     assert list(path.parent.glob("*.tmp.*")) == []
+
+
+# ---------------------------------------------------------------------------
+# Resume (sweep 4, 2026-09-14)
+# ---------------------------------------------------------------------------
+
+
+def _failed_then_resumed_events() -> list[dict]:
+    return [
+        *_running_events(),
+        event(
+            5, "run_failed", outcome="failed", stop_after="validate",
+            error_class="LocationParseError", error_message="Failed to parse: 'x..y'",
+        ),
+        event(6, "resume", stages_done=["discovery_general"]),
+        event(7, "stage_started", stage="scrape", counts_in=3),
+    ]
+
+
+def test_a_resume_voids_the_previous_attempts_terminal_event(tmp_path: Path, monkeypatch) -> None:
+    """Run f4fb read FAILED for its entire second attempt, and the e2e driver
+    started at resume time exited at its gate on that reading."""
+    run_dir = make_run(
+        tmp_path, events=_failed_then_resumed_events(), stages_done=["discovery_general"]
+    )
+    write_submit_record(run_dir, pid=os.getpid(), outcome="running")
+    monkeypatch.setattr(st, "process_liveness", lambda *a, **k: "alive")
+
+    status = st.run_status(tmp_path, run_dir.name)
+
+    assert status.state == "running"
+    assert status.resumed
+    assert not status.is_terminal
+    assert status.failure is None
+    assert status.stage_in_flight == "scrape"
+
+
+def test_a_resumed_run_whose_process_died_is_interrupted(tmp_path: Path, monkeypatch) -> None:
+    run_dir = make_run(
+        tmp_path, events=_failed_then_resumed_events(), stages_done=["discovery_general"]
+    )
+    write_submit_record(run_dir, pid=424242, outcome="running")
+    monkeypatch.setattr(st, "process_liveness", lambda *a, **k: "dead")
+
+    assert st.run_status(tmp_path, run_dir.name).state == "interrupted"
+
+
+def test_a_resumed_run_that_completes_is_publishable(tmp_path: Path, monkeypatch) -> None:
+    run_dir = make_run(
+        tmp_path,
+        events=[
+            *_failed_then_resumed_events(),
+            event(8, "stage_completed", stage="scrape", counts_in=3, counts_out=3),
+            event(9, "run_completed", outcome="completed", stop_after="validate"),
+        ],
+    )
+    write_submit_record(
+        run_dir, pid=424242, outcome="completed", finished_at="2026-08-13T12:00:00Z"
+    )
+    monkeypatch.setattr(st, "process_liveness", lambda *a, **k: "dead")
+
+    status = st.run_status(tmp_path, run_dir.name)
+
+    assert status.state == "completed"
+    assert status.resumed
+    assert status.publishable
