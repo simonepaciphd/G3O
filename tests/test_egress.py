@@ -31,11 +31,13 @@ PROXY_MALFORMED = "http://user:s3cr3t-longpass@gw.residential.example:8080 "
 @pytest.fixture
 def direct(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config, "SCRAPE_PROXY_URL", "")
+    monkeypatch.setattr(config, "UNLOCKER_API_TOKEN", None)
 
 
 @pytest.fixture
 def proxied(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config, "SCRAPE_PROXY_URL", PROXY)
+    monkeypatch.setattr(config, "UNLOCKER_API_TOKEN", None)
     # Pinned, not inherited. ``validate`` refuses a proxied run whose user-agent
     # carries no contact, and the ambient value comes from whatever ``.env`` the
     # box has: this machine's sets a contact, the droplet's sets no USER_AGENT
@@ -56,7 +58,8 @@ def test_direct_is_the_default(direct: None) -> None:
     assert egress.requests_proxies() is None
     assert egress.playwright_proxy() is None
     assert egress.describe() == {
-        "mode": "direct", "endpoint": None, "credentialed": False
+        "mode": "direct", "endpoint": None, "credentialed": False,
+        "unlocker_configured": False,
     }
 
 
@@ -89,6 +92,7 @@ def test_describe_records_the_endpoint_and_never_the_secret(proxied: None) -> No
         "mode": "proxy",
         "endpoint": "gw.residential.example:8080",
         "credentialed": True,
+        "unlocker_configured": False,
     }
     # The whole point: this dict is written to manifest.json.
     assert "s3cr3t-longpass" not in json.dumps(described)
@@ -320,6 +324,7 @@ def test_manifest_records_the_egress_and_not_the_secret(
         "mode": "proxy",
         "endpoint": "gw.residential.example:8080",
         "credentialed": True,
+        "unlocker_configured": False,
     }
     assert "s3cr3t-longpass" not in json.dumps(on_disk)
     # The proxy is an environment parameter, not a PresweepConfig field: putting

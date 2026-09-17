@@ -25,7 +25,7 @@ from g3o.scrape import egress
 logger = logging.getLogger(__name__)
 
 ContentType = Literal["html", "pdf", "render", "unknown"]
-FetchMethod = Literal["html", "pdf", "render"]
+FetchMethod = Literal["html", "pdf", "render", "unlocker", "unlocker_pdf"]
 
 
 def utc_today_iso() -> str:

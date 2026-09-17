@@ -639,6 +639,8 @@ def test_absence_tolerance_does_not_leak_to_other_guarded_keys(tmp_path):
         "scrape_host_failure_threshold",
         "evidence_terms_roster_hash",
         "domain_suffix_roster_hash",
+        "scrape_unlocker_on_block",
+        "scrape_unlocker_on_empty",
     }
 
     cfg = _config(tmp_path)

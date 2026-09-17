@@ -240,6 +240,29 @@ class PresweepConfig:
     scrape_respect_robots: bool = True
     scrape_host_delay_seconds: float = DEFAULT_HOST_DELAY_SECONDS
     scrape_render_on_download_failure: bool = False
+    # ── Bright Data Web Unlocker escalation (Phase 3, 2026-09-17) ───────────
+    # Per-URL escalation for refused/blocked fetches. The unlocker is NOT a
+    # fourth always-on egress point: it fires only on URLs the default path
+    # refused (403/406-class), preserving the all-three-move-together invariant
+    # for the default identity. Two triggers, both default off:
+    #
+    # ``scrape_unlocker_on_block``: fire on refusal-status download failures
+    #   (403/406/401/451 — the statuses ``_RETRYABLE_STATUSES`` already refuses
+    #   to retry). This is the primary recovery lever: the measured probe
+    #   recovered 75.6% of my-run32's failed hosts (100% of 403-refused).
+    #
+    # ``scrape_unlocker_on_empty``: fire on empty-after-strip pages, as a
+    #   render-fallback replacement. The unlocker renders JS and solves captchas
+    #   internally at ~$0.002–0.006/page vs ~$0.046/page for pushing a playwright
+    #   render through residential — ~8–20× cheaper and strictly more capable.
+    #   When both this and ``scrape_render_on_download_failure`` are set, the
+    #   unlocker fires first (cheaper); the render is the fallback's fallback.
+    #
+    # Both require ``G3O_UNLOCKER_API_TOKEN`` in the environment; without it the
+    # flags are inert (the dispatch wiring checks ``unlocker.enabled()`` before
+    # every call). The token is never recorded in any artifact.
+    scrape_unlocker_on_block: bool = False
+    scrape_unlocker_on_empty: bool = False
     # Per-institution Stage 4 wall-clock budget (issue #96, PI ruling
     # 2026-08-26: budget-then-skip **plus** a named attrition reason). When the
     # budget is spent, the institution completes with the pages it has and every

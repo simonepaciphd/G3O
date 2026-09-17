@@ -102,11 +102,20 @@ def describe() -> dict[str, object]:
 
     ``mode`` is the field a reader compares between two runs; ``endpoint`` is
     host[:port] so a proxy swap is visible, and ``credentialed`` records that a
-    secret was in play without recording it.
+    secret was in play without recording it. ``unlocker_configured`` records
+    whether the Web Unlocker token is present (Phase 3, 2026-09-17): the
+    unlocker is a separate instrument from the proxy, and a run that uses it
+    has a different scrape identity than one that does not — the resume guard
+    needs to see it.
     """
+    from g3o.scrape import unlocker as unlocker_mod
+
     url = proxy_url()
     if not url:
-        return {"mode": "direct", "endpoint": None, "credentialed": False}
+        return {
+            "mode": "direct", "endpoint": None, "credentialed": False,
+            "unlocker_configured": unlocker_mod.enabled(),
+        }
     parts = urlsplit(url)
     endpoint = parts.hostname or ""
     try:
@@ -132,6 +141,7 @@ def describe() -> dict[str, object]:
         "mode": "proxy",
         "endpoint": endpoint,
         "credentialed": bool(parts.username or parts.password),
+        "unlocker_configured": unlocker_mod.enabled(),
     }
 
 

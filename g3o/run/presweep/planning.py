@@ -387,6 +387,13 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "scrape_respect_robots",
     "scrape_host_delay_seconds",
     "scrape_render_on_download_failure",
+    # Web Unlocker escalation (2026-09-17). Same class as the render fallback
+    # flag beside it: decides which URLs were fetched at all (the unlocker
+    # recovers pages the default path refused), so a resume under a different
+    # setting would pair a page fetched through the unlocker with a stale
+    # ``scrape_failed`` row for the same URL from the pass before.
+    "scrape_unlocker_on_block",
+    "scrape_unlocker_on_empty",
     # Issue #96. Same class as the three above — it decides which URLs were
     # fetched at all. Guarded specifically because raising it across a resume
     # produces an institution that holds both a page and a stale
@@ -468,6 +475,12 @@ _ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset(
         # issued the English suffix by construction, so refusing to resume them
         # would be a cost with no safety gain.
         "domain_suffix_roster_hash",
+        # Every manifest written before 2026-09-17 lacks the two unlocker
+        # flags, and every one of those runs fetched every refused URL without
+        # unlocker escalation. Tolerating their absence lets such runs resume;
+        # a manifest that does record them and differs still aborts.
+        "scrape_unlocker_on_block",
+        "scrape_unlocker_on_empty",
     }
 )
 
