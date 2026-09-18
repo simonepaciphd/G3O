@@ -532,6 +532,45 @@ def _failure_page(url: str, *, attempted_method: str) -> RenderedPage:
         ),
     )
 
+def _unlocker_page(
+    url: str, uresult: unlocker_mod.UnlockerResult, *, cache_floor: int
+) -> RenderedPage:
+    """Build a RenderedPage from a successful unlocker result.
+
+    PDF routing via ``url.lower().endswith(".pdf")`` — NOT ``"pdf" in url.lower()``
+    (which misroutes e.g. ``…/pdf-forms.html`` into ``pdf_mod.extract_text``).
+    The deterministic path's content-type half (``"pdf" in ctype``) is
+    unavailable with ``format=raw``: the unlocker returns the body as-is
+    without a content-type header, so URL suffix is the only signal.
+    """
+    ucontent = uresult.content
+    if url.lower().endswith(".pdf"):
+        utext = pdf_mod.extract_text(ucontent)
+        utitle = _extract_pdf_title(ucontent)
+        umethod = "unlocker_pdf"
+        uctype = "pdf"
+    else:
+        usoup = BeautifulSoup(ucontent, "html.parser")
+        utitle = _extract_html_title(usoup)
+        utext = html_mod.extract_text(usoup)
+        umethod = "unlocker"
+        uctype = "html"
+    upage = RenderedPage(
+        url=url, text=utext, title=utitle,
+        content_type=uctype,  # type: ignore[arg-type]
+        fetch_metadata=FetchMetadata(
+            access_date=utc_today_iso(),
+            http_status=uresult.inner_status,
+            final_url=url,
+            fetch_method=umethod,  # type: ignore[arg-type]
+            elapsed_ms=uresult.elapsed_ms,
+            wait_for=None,
+        ),
+    )
+    _save(upage, min_chars=cache_floor)
+    return upage
+
+
 
 def scrape_url(
     url: str,
@@ -678,37 +717,7 @@ def scrape_url(
                         error=uresult.error, elapsed_ms=uresult.elapsed_ms,
                     )
                     if uresult.success:
-                        # The unlocker returned a page. Parse it the same way
-                        # the deterministic path does (HTML vs PDF), build a
-                        # RenderedPage, cache it, and return. The unlocker's
-                        # ``format: "raw"`` returns the body as-is, so the
-                        # content-type routing below applies verbatim.
-                        ucontent = uresult.text.encode("utf-8")
-                        if "pdf" in url.lower():
-                            utext = pdf_mod.extract_text(ucontent)
-                            utitle = _extract_pdf_title(ucontent)
-                            umethod = "unlocker_pdf"
-                            uctype = "pdf"
-                        else:
-                            usoup = BeautifulSoup(ucontent, "html.parser")
-                            utitle = _extract_html_title(usoup)
-                            utext = html_mod.extract_text(usoup)
-                            umethod = "unlocker"
-                            uctype = "html"
-                        upage = RenderedPage(
-                            url=url, text=utext, title=utitle,
-                            content_type=uctype,  # type: ignore[arg-type]
-                            fetch_metadata=FetchMetadata(
-                                access_date=utc_today_iso(),
-                                http_status=uresult.inner_status,
-                                final_url=url,
-                                fetch_method=umethod,  # type: ignore[arg-type]
-                                elapsed_ms=uresult.elapsed_ms,
-                                wait_for=None,
-                            ),
-                        )
-                        _save(upage, min_chars=cache_floor)
-                        return upage
+                        return _unlocker_page(url, uresult, cache_floor=cache_floor)
                 # Unlocker failed or was unreachable. Fall through to the render
                 # fallback (if enabled) or the hard-failure path.
         # Render fallback on a failed GET is opt-in (review F14): only when the
@@ -799,35 +808,7 @@ def scrape_url(
                     error=uresult.error, elapsed_ms=uresult.elapsed_ms,
                 )
                 if uresult.success:
-                    # The unlocker returned a page. Parse it the same way the
-                    # deterministic path does (HTML vs PDF), build a
-                    # RenderedPage, cache it, and return.
-                    ucontent = uresult.text.encode("utf-8")
-                    if "pdf" in url.lower():
-                        utext = pdf_mod.extract_text(ucontent)
-                        utitle = _extract_pdf_title(ucontent)
-                        umethod = "unlocker_pdf"
-                        uctype = "pdf"
-                    else:
-                        usoup = BeautifulSoup(ucontent, "html.parser")
-                        utitle = _extract_html_title(usoup)
-                        utext = html_mod.extract_text(usoup)
-                        umethod = "unlocker"
-                        uctype = "html"
-                    upage = RenderedPage(
-                        url=url, text=utext, title=utitle,
-                        content_type=uctype,  # type: ignore[arg-type]
-                        fetch_metadata=FetchMetadata(
-                            access_date=utc_today_iso(),
-                            http_status=uresult.inner_status,
-                            final_url=url,
-                            fetch_method=umethod,  # type: ignore[arg-type]
-                            elapsed_ms=uresult.elapsed_ms,
-                            wait_for=None,
-                        ),
-                    )
-                    _save(upage, min_chars=cache_floor)
-                    return upage
+                    return _unlocker_page(url, uresult, cache_floor=cache_floor)
             # Unlocker failed or was unreachable. Fall through to the render
             # fallback (if enabled).
         try:

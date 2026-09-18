@@ -73,12 +73,12 @@ def test_fetch_raises_when_token_is_absent(unlocker_disabled: None) -> None:
 
 
 def _mock_response(
-    *, status_code: int = 200, text: str = "body",
+    *, status_code: int = 200, content: bytes = b"body",
     headers: dict[str, str] | None = None,
 ) -> MagicMock:
     resp = MagicMock(spec=requests.Response)
     resp.status_code = status_code
-    resp.text = text
+    resp.content = content
     resp.headers = headers or {}
     return resp
 
@@ -88,13 +88,13 @@ def test_fetch_success_gate_all_three_conditions(
 ) -> None:
     # A success requires: no x-brd-error, inner status 200, non-empty body.
     mock_resp = _mock_response(
-        status_code=200, text="<html>content</html>",
+        status_code=200, content=b"<html>content</html>",
         headers={"x-brd-status-code": "200"},
     )
     monkeypatch.setattr(unlocker.requests, "post", lambda *a, **kw: mock_resp)
     result = unlocker.fetch("https://example.com")
     assert result.success is True
-    assert result.text == "<html>content</html>"
+    assert result.content == b"<html>content</html>"
     assert result.inner_status == 200
     assert result.error is None
 
@@ -106,7 +106,7 @@ def test_fetch_failure_on_x_brd_error_header(
     # API with 0 bytes and x-brd-error: policy_20000 in the headers. The
     # transport status code alone is not the success gate.
     mock_resp = _mock_response(
-        status_code=200, text="",
+        status_code=200, content=b"",
         headers={"x-brd-error": "policy_20000", "x-brd-error-code": "policy"},
     )
     monkeypatch.setattr(unlocker.requests, "post", lambda *a, **kw: mock_resp)
@@ -122,7 +122,7 @@ def test_fetch_failure_on_non_200_inner_status(
     # A dead target arrives as HTTP 200 from the unlocker API with 0 bytes and
     # x-brd-status-code: 404. The inner status is the truth, not the transport.
     mock_resp = _mock_response(
-        status_code=200, text="",
+        status_code=200, content=b"",
         headers={"x-brd-status-code": "404"},
     )
     monkeypatch.setattr(unlocker.requests, "post", lambda *a, **kw: mock_resp)
@@ -136,7 +136,7 @@ def test_fetch_failure_on_empty_body(
 ) -> None:
     # A 200 with no error header but 0 bytes is still a failure.
     mock_resp = _mock_response(
-        status_code=200, text="",
+        status_code=200, content=b"",
         headers={"x-brd-status-code": "200"},
     )
     monkeypatch.setattr(unlocker.requests, "post", lambda *a, **kw: mock_resp)
@@ -192,7 +192,7 @@ def test_unlocker_fires_on_403_when_enabled(
     # fires, succeeds, and returns a page with fetch_method="unlocker".
     monkeypatch.setattr(fetcher, "_download", _download_raising_403())
     mock_result = unlocker.UnlockerResult(
-        success=True, text="<html><body><p>This is some recovered content that is long enough.</p></body></html>",
+        success=True, content=b"<html><body><p>This is some recovered content that is long enough.</p></body></html>",
         inner_status=200, error=None, error_code=None, elapsed_ms=500,
     )
     monkeypatch.setattr(unlocker, "fetch", lambda url: mock_result)
@@ -263,7 +263,7 @@ def test_unlocker_failure_falls_through_to_render(
     # unlocker failure. Both attempts are recorded.
     monkeypatch.setattr(fetcher, "_download", _download_raising_403())
     mock_result = unlocker.UnlockerResult(
-        success=False, text="", inner_status=403,
+        success=False, content=b"", inner_status=403,
         error="policy_20000", error_code="policy", elapsed_ms=300,
     )
     monkeypatch.setattr(unlocker, "fetch", lambda url: mock_result)
@@ -299,7 +299,7 @@ def test_unlocker_on_empty_after_strip(
         return (b"<html></html>", "text/html", 200, "https://example.com", 100)
     monkeypatch.setattr(fetcher, "_download", _download_empty)
     mock_result = unlocker.UnlockerResult(
-        success=True, text="<html><body><p>This is full content that is long enough to pass.</p></body></html>",
+        success=True, content=b"<html><body><p>This is full content that is long enough to pass.</p></body></html>",
         inner_status=200, error=None, error_code=None, elapsed_ms=500,
     )
     monkeypatch.setattr(unlocker, "fetch", lambda url: mock_result)
@@ -315,6 +315,80 @@ def test_unlocker_on_empty_after_strip(
     assert page.fetch_metadata.fetch_method == "unlocker"
     assert len(events) == 1
     assert events[0]["trigger"] == "empty_after_strip"
+
+
+def test_unlocker_carries_raw_bytes_through_to_parse(
+    unlocker_configured: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """UTF-8 non-ASCII unlocker body survives to page.text intact.
+
+    Pins the never-decode contract: the unlocker carries raw bytes, and the
+    caller's parser (BeautifulSoup + UnicodeDammit) does the encoding
+    detection. Cannot fail pre-fix through a mock (requests' decoder is not
+    in the loop), so this pins the contract.
+    """
+    monkeypatch.setattr(fetcher, "_download", _download_raising_403())
+    utf8_body = "<html><body><p>Überflüssige Ämter – Prüfung</p></body></html>".encode()
+    mock_result = unlocker.UnlockerResult(
+        success=True, content=utf8_body,
+        inner_status=200, error=None, error_code=None, elapsed_ms=500,
+    )
+    monkeypatch.setattr(unlocker, "fetch", lambda url: mock_result)
+    page = fetcher.scrape_url(
+        "https://blocked.gov", force_refresh=True,
+        prefer_unlocker_on_block=True,
+    )
+    assert "Überflüssige" in page.text
+    assert "Ämter" in page.text
+    assert "Prüfung" in page.text
+
+
+def test_unlocker_pdf_routing_uses_suffix_not_substring(
+    unlocker_configured: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A URL containing "pdf" but not ending in ".pdf" routes to HTML.
+
+    Pre-fix: ``"pdf" in url.lower()`` misroutes ``…/pdf-forms.html`` into
+    ``pdf_mod.extract_text``. Post-fix: ``url.lower().endswith(".pdf")``
+    routes correctly.
+    """
+    monkeypatch.setattr(fetcher, "_download", _download_raising_403())
+    html_body = b"<html><body><p>PDF forms are here</p></body></html>"
+    mock_result = unlocker.UnlockerResult(
+        success=True, content=html_body,
+        inner_status=200, error=None, error_code=None, elapsed_ms=500,
+    )
+    monkeypatch.setattr(unlocker, "fetch", lambda url: mock_result)
+    page = fetcher.scrape_url(
+        "https://x.gov/pdf-forms", force_refresh=True,
+        prefer_unlocker_on_block=True,
+    )
+    assert page.fetch_metadata.fetch_method == "unlocker"
+
+
+def test_unlocker_pdf_routing_uses_suffix_for_actual_pdf(
+    unlocker_configured: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A URL ending in ".pdf" routes to PDF extraction.
+
+    The unlocker returns raw bytes; the fetcher must detect PDF by URL suffix
+    and route to ``pdf_mod.extract_text``.
+    """
+    monkeypatch.setattr(fetcher, "_download", _download_raising_403())
+    # Minimal PDF body (pdfplumber will fail to parse, but the routing is what
+    # matters — the fetch_method will be "unlocker_pdf").
+    pdf_body = b"%PDF-1.4\n%fake pdf content"
+    mock_result = unlocker.UnlockerResult(
+        success=True, content=pdf_body,
+        inner_status=200, error=None, error_code=None, elapsed_ms=500,
+    )
+    monkeypatch.setattr(unlocker, "fetch", lambda url: mock_result)
+    page = fetcher.scrape_url(
+        "https://example.gov/document.pdf", force_refresh=True,
+        prefer_unlocker_on_block=True,
+    )
+    assert page.fetch_metadata.fetch_method == "unlocker_pdf"
+
 
 
 # ---------------------------------------------------------------------------

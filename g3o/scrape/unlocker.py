@@ -74,15 +74,16 @@ class UnlockerResult:
     a policy block, a dead page, and a captcha defeat three distinguishable
     rows in the attrition ledger rather than one.
 
-    ``text`` is the page body as a string (decoded from the response). Empty
-    on failure. ``inner_status`` is the target's HTTP status as reported by
-    the unlocker (``x-brd-status-code``), or None when the unlocker never
-    reached the target. ``error`` is the ``x-brd-error`` text, or None.
-    ``elapsed_ms`` is the wall-clock time the unlocker API took.
+    ``content`` is the raw body, undecoded — the caller's parser does the
+    encoding detection, same as the deterministic path. Empty on failure.
+    ``inner_status`` is the target's HTTP status as reported by the unlocker
+    (``x-brd-status-code``), or None when the unlocker never reached the
+    target. ``error`` is the ``x-brd-error`` text, or None. ``elapsed_ms``
+    is the wall-clock time the unlocker API took.
     """
 
     success: bool
-    text: str
+    content: bytes
     inner_status: int | None
     error: str | None
     error_code: str | None
@@ -132,26 +133,25 @@ def _parse_response(
             inner_status = int(inner_status_str)
         except (ValueError, TypeError):
             pass
-
-    body = resp.text
+    body = resp.content
     # The success gate: all three must hold.
     if error or error_code:
         return UnlockerResult(
-            success=False, text="", inner_status=inner_status,
+            success=False, content=b"", inner_status=inner_status,
             error=error, error_code=error_code, elapsed_ms=elapsed_ms,
         )
     if inner_status is not None and inner_status != 200:
         return UnlockerResult(
-            success=False, text="", inner_status=inner_status,
+            success=False, content=b"", inner_status=inner_status,
             error=None, error_code=None, elapsed_ms=elapsed_ms,
         )
     if not body or not body.strip():
         return UnlockerResult(
-            success=False, text="", inner_status=inner_status,
+            success=False, content=b"", inner_status=inner_status,
             error=error, error_code=error_code, elapsed_ms=elapsed_ms,
         )
     return UnlockerResult(
-        success=True, text=body, inner_status=inner_status,
+        success=True, content=body, inner_status=inner_status,
         error=None, error_code=None, elapsed_ms=elapsed_ms,
     )
 

@@ -401,6 +401,107 @@ def test_resume_guard_tolerates_a_manifest_that_predates_the_key(
     _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg, plan.sample))
 
 
+def test_resume_guard_tolerates_a_manifest_that_predates_unlocker_configured(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    """A manifest written before 2026-09-17 has no ``unlocker_configured``.
+
+    Every such run predates the unlocker existing and so ran with it off by
+    construction; refusing to resume it would be a cost with no safety gain.
+    The token-absent variant: the old manifest lacked the key, the new
+    manifest has ``unlocker_configured: False``, so they match after A1
+    tolerates the absent key as ``False``.
+    """
+    from g3o.common.run_state import state_dir
+    from g3o.run.presweep import plan_run
+    from g3o.run.presweep.planning import (
+        _assert_manifest_matches_on_resume,
+        build_manifest,
+    )
+
+    monkeypatch.setattr(config, "UNLOCKER_API_TOKEN", None)
+    cfg = _config(tmp_path)
+    plan = plan_run(cfg)
+    state_dir(plan.run_dir).mkdir(parents=True, exist_ok=True)
+    path = plan.run_dir / "manifest.json"
+    stripped = json.loads(path.read_text(encoding="utf-8"))
+    del stripped["run_egress"]["unlocker_configured"]
+    path.write_text(json.dumps(stripped), encoding="utf-8")
+    _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg, plan.sample))
+
+
+def test_resume_guard_refuses_when_unlocker_configured_changes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    """Old records ``unlocker_configured: False``, new has ``True``.
+
+    A run that started with the unlocker off and resumed with it on has two
+    different scrape instruments in one artifact. The narrowing (A2) must not
+    swallow this real instrument change.
+    """
+    from g3o.common.run_state import state_dir
+    from g3o.run.presweep import plan_run
+    from g3o.run.presweep.planning import (
+        _assert_manifest_matches_on_resume,
+        build_manifest,
+    )
+
+    monkeypatch.setattr(config, "UNLOCKER_API_TOKEN", None)
+    cfg = _config(tmp_path)
+    plan = plan_run(cfg)
+    state_dir(plan.run_dir).mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(config, "UNLOCKER_API_TOKEN", "test-token")
+    with pytest.raises(RuntimeError, match="run_egress"):
+        _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg, plan.sample))
+
+
+def test_resuming_a_pre_unlocker_run_with_the_unlocker_enabled_is_refused(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    """A manifest predating the unlocker flags resumed with them on.
+
+    Every manifest written before 2026-09-17 lacks ``scrape_unlocker_on_block``
+    and ``scrape_unlocker_on_empty``. Resuming such a run with the flags on
+    would pair pages recovered via the unlocker with stale ``scrape_failed``
+    rows from the first pass — the exact mixed-instrument failure the guard
+    exists to prevent.
+    """
+    from g3o.common.run_state import state_dir
+    from g3o.run.presweep import PresweepConfig, plan_run
+    from g3o.run.presweep.planning import (
+        _assert_manifest_matches_on_resume,
+        build_manifest,
+    )
+
+    monkeypatch.setattr(config, "UNLOCKER_API_TOKEN", "test-token")
+    cfg = _config(tmp_path)
+    plan = plan_run(cfg)
+    state_dir(plan.run_dir).mkdir(parents=True, exist_ok=True)
+    path = plan.run_dir / "manifest.json"
+    stripped = json.loads(path.read_text(encoding="utf-8"))
+    del stripped["config"]["scrape_unlocker_on_block"]
+    del stripped["config"]["scrape_unlocker_on_empty"]
+    path.write_text(json.dumps(stripped), encoding="utf-8")
+
+    # Flags on: refused.
+    cfg_on = PresweepConfig(
+        run_id=cfg.run_id,
+        runs_dir=cfg.runs_dir,
+        master_csv=cfg.master_csv,
+        sample_size=cfg.sample_size,
+        seed=cfg.seed,
+        dry_run=cfg.dry_run,
+        scrape_unlocker_on_block=True,
+    )
+    with pytest.raises(RuntimeError, match="scrape_unlocker_on_block"):
+        _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg_on, plan.sample))
+
+    # Flags off (the default): resumes clean.
+    _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg, plan.sample))
+
+
+
 # ---------------------------------------------------------------------------
 # Adversarial credential hygiene (2026-08-27, card 3)
 #
