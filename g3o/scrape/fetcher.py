@@ -98,6 +98,7 @@ RenderAttemptCallback = Callable[..., None]
 # agnostic of the run context; the Stage 4 runner supplies a hook that records
 # the failure (carrying both exception messages) to the attrition ledger and
 # drops the page. A no-op when None, so standalone callers keep the Q10
+# failure-page return unchanged.
 ScrapeFailureCallback = Callable[..., None]
 
 # An unlocker-attempt telemetry hook. Called once per unlocker attempt with
