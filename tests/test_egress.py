@@ -18,6 +18,8 @@ import json
 from typing import Any
 
 import pytest
+import requests
+from packaging.version import Version  # a hard pytest dependency
 
 from g3o.common import config
 from g3o.scrape import egress
@@ -544,29 +546,43 @@ def _requests_url_parse_error(proxy: str) -> Exception:
 
     Nothing leaves the machine -- the URL fails to parse before any socket is
     opened. What it contains is version-dependent (2.34.2 names only the host;
-    the version this suite was written against echoed the whole URL), which is
-    exactly why the guard below pins it rather than any test assuming a shape.
+    every release before it echoed the whole URL, credential included), which
+    is why the guard below asserts the shape the *installed* version is known
+    to produce rather than one fixed shape.
     """
-    import requests
-
     session = requests.Session()
     session.proxies = {"http": proxy, "https": proxy}
     try:
         session.get("http://g3o-egress-test.invalid/x", timeout=1)
     except Exception as exc:  # noqa: BLE001 - the exception *is* the fixture
         return exc
+    raise AssertionError(
+        "expected the malformed proxy URL to raise -- with no exception this "
+        "fixture returns None and every guard built on it is vacuous"
+    )
+
+
+#: The release that stopped echoing the userinfo in URL parse errors. Below it
+#: the live exception still carries the credential and the redaction net has
+#: real work to do on it; at or above it the leak has to be planted by hand
+#: (``_historical_parse_error``).
+REQUESTS_USERINFO_FIX = Version("2.34.2")
+
+
+def _installed_requests_echoes_userinfo() -> bool:
+    """Whether the installed requests still echoes the credential."""
+    return Version(requests.__version__) < REQUESTS_USERINFO_FIX
 
 
 def _historical_parse_error(proxy: str) -> Exception:
     """The pre-2.34.2 message shape: ``Failed to parse: <url with credentials>``.
 
-    The installed requests no longer raises anything that holds the secret, so
-    a test that must scrub a real leak plants this. Every consumer asserts the
-    secret is present before scrubbing, so the fixture cannot go vacuous the
-    way the real exception silently did.
+    Where requests no longer raises anything that holds the secret, a test that
+    must scrub a real leak plants this. Every consumer asserts the secret is
+    present before scrubbing, so the fixture cannot go vacuous the way the real
+    exception silently did -- and planting it keeps those tests identical on
+    both sides of the 2.34.2 boundary.
     """
-    import requests
-
     return requests.exceptions.InvalidURL(f"Failed to parse: {proxy}")
 
 
@@ -577,22 +593,32 @@ def _historical_parse_error(proxy: str) -> Exception:
         ("non-numeric port", f"http://user:{SECRET}@gw.residential.example:notaport"),
     ],
 )
-def test_a_malformed_proxy_url_no_longer_leaks_before_redaction(
+def test_the_live_parse_error_matches_its_versions_known_shape(
     label: str, proxy: str
 ) -> None:
     """Non-vacuity guard, in the shape ``test_credentials`` established.
 
-    requests 2.34.2 stopped echoing the proxy URL in its parse errors, so the
-    real exception no longer carries the secret on its own. This guard pins
-    that new reality: if requests ever regresses to echoing the credential,
-    this fails first and says so, rather than letting the planted-shape tests
-    below quietly become the only line of defence -- and stop matching what
-    the library actually raises.
+    ``pyproject`` pins ``requests>=2.31``, so both shapes are installable and
+    this suite has to run green on either. Asserting one fixed shape couples
+    the suite to one release: the flipped form of this guard passed on 2.34.2
+    (CI, and the lockfile) and failed on 2.32.5 (the run machine), which is a
+    red suite on the box the sweeps actually run from.
+
+    So assert the shape the *installed* version is known to produce. A
+    regression to echoing the credential fails here; so does a silent change
+    that stops the live exception carrying what the redaction tests below
+    assume of it. Either way this test fails first and says which, rather than
+    letting those tests quietly stop testing anything.
     """
-    assert SECRET not in str(_requests_url_parse_error(proxy)), (
-        f"requests is echoing the proxy credential for {label!r} again -- the "
-        "upstream fix is gone. Re-ground these tests on the live leak and keep "
-        "the guard flipped until it returns."
+    message = str(_requests_url_parse_error(proxy))
+    echoes = SECRET in message
+    expected = _installed_requests_echoes_userinfo()
+    assert echoes == expected, (
+        f"requests {requests.__version__} {'echoes' if echoes else 'does not echo'} "
+        f"the proxy credential for {label!r}, but the {REQUESTS_USERINFO_FIX} "
+        f"boundary says it {'should' if expected else 'should not'}. Re-ground "
+        "these tests on what the library now raises -- do not delete them, and "
+        "move REQUESTS_USERINFO_FIX rather than asserting one shape."
     )
 
 
