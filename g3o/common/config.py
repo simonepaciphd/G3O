@@ -81,6 +81,29 @@ USER_AGENT: str = _env("USER_AGENT", "G3O-Observatory/0.1") or "G3O-Observatory/
 # ``credentialed`` flag.
 SCRAPE_PROXY_URL: str = _env("G3O_SCRAPE_PROXY", "") or ""
 
+#: Bright Data Web Unlocker (Phase 3, 2026-09-17). A per-URL escalation for
+#: refused/blocked fetches — NOT a fourth always-on egress point. The unlocker
+#: fires only when ``PresweepConfig.scrape_unlocker_on_block`` (or
+#: ``scrape_unlocker_on_empty``) is True, and only on URLs that the default
+#: fetch path refused. The all-three-move-together invariant for the default
+#: identity is preserved: robots.txt, page fetches, and the render still share
+#: ``SCRAPE_PROXY_URL``; the unlocker is a separate instrument that the
+#: dispatch wiring in ``fetcher.scrape_url`` invokes as a fallback.
+#:
+#: ``G3O_UNLOCKER_API_TOKEN`` is a secret (Bearer token) and is never recorded:
+#: the manifest stores ``egress.describe()``, which records only that the
+#: unlocker is configured, never the token. The token is read at call time
+#: (not import time) so a per-process rotation takes effect without restart.
+UNLOCKER_API_TOKEN: str | None = _env("G3O_UNLOCKER_API_TOKEN")
+#: The Bright Data zone to use. Defaults to ``web_unlocker1`` (the zone
+#: provisioned for this project).
+UNLOCKER_ZONE: str = _env("G3O_UNLOCKER_ZONE", "web_unlocker1") or "web_unlocker1"
+#: The Web Unlocker REST endpoint. Override only for testing or vendor changes.
+UNLOCKER_API_URL: str = (
+    _env("G3O_UNLOCKER_API_URL", "https://api.brightdata.com/request")
+    or "https://api.brightdata.com/request"
+)
+
 LOG_LEVEL: str = _env("LOG_LEVEL", "INFO") or "INFO"
 
 BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent

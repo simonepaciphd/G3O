@@ -37,6 +37,7 @@ from g3o.common import config
 from g3o.scrape import egress
 from g3o.scrape import html as html_mod
 from g3o.scrape import pdf as pdf_mod
+from g3o.scrape import unlocker as unlocker_mod
 from g3o.scrape.render import (
     FetchMetadata,
     RenderedPage,
@@ -99,6 +100,16 @@ RenderAttemptCallback = Callable[..., None]
 # drops the page. A no-op when None, so standalone callers keep the Q10
 # failure-page return unchanged.
 ScrapeFailureCallback = Callable[..., None]
+
+# An unlocker-attempt telemetry hook. Called once per unlocker attempt with
+# keyword args ``url``, ``trigger`` ("block" | "empty_after_strip"),
+# ``outcome`` ("unlocker_succeeded" | "unlocker_failed" | "unlocker_disabled"),
+# ``inner_status`` (the target's HTTP status as reported by the unlocker, or
+# None), ``error`` (the ``x-brd-error`` text, or None), and ``elapsed_ms``.
+# The fetcher stays agnostic of the run context; the Stage 4 runner supplies a
+# hook that records the attempt to the attrition ledger. A no-op when None, so
+# standalone callers keep the default behaviour unchanged.
+UnlockerAttemptCallback = Callable[..., None]
 
 
 def _cache_key(url: str) -> str:
@@ -422,6 +433,32 @@ def _notify_scrape_failure(
         callback(url=url, download_error=download_error, render_error=render_error)
 
 
+def _notify_unlocker_attempt(
+    callback: UnlockerAttemptCallback | None,
+    *,
+    url: str,
+    trigger: str,
+    outcome: str,
+    inner_status: int | None,
+    error: str | None,
+    elapsed_ms: int | None,
+) -> None:
+    """Fire the unlocker-attempt telemetry hook, if one was supplied.
+
+    Called on *every* unlocker attempt — block- or empty-after-strip-triggered,
+    success or failure — so the caller can account for the unlocker rate and
+    its cost (CPM billing). ``inner_status`` and ``error`` distinguish a policy
+    block, a dead page, and a captcha defeat in the attrition ledger. A no-op
+    when ``callback`` is None, which keeps the low-level fetcher usable without
+    a run context.
+    """
+    if callback is not None:
+        callback(
+            url=url, trigger=trigger, outcome=outcome,
+            inner_status=inner_status, error=error, elapsed_ms=elapsed_ms,
+        )
+
+
 def unwrap_fetch_error(exc: BaseException | None) -> BaseException | None:
     """The exception that actually failed, behind tenacity's wrapper.
 
@@ -496,6 +533,45 @@ def _failure_page(url: str, *, attempted_method: str) -> RenderedPage:
         ),
     )
 
+def _unlocker_page(
+    url: str, uresult: unlocker_mod.UnlockerResult, *, cache_floor: int
+) -> RenderedPage:
+    """Build a RenderedPage from a successful unlocker result.
+
+    PDF routing via ``url.lower().endswith(".pdf")`` — NOT ``"pdf" in url.lower()``
+    (which misroutes e.g. ``…/pdf-forms.html`` into ``pdf_mod.extract_text``).
+    The deterministic path's content-type half (``"pdf" in ctype``) is
+    unavailable with ``format=raw``: the unlocker returns the body as-is
+    without a content-type header, so URL suffix is the only signal.
+    """
+    ucontent = uresult.content
+    if url.lower().endswith(".pdf"):
+        utext = pdf_mod.extract_text(ucontent)
+        utitle = _extract_pdf_title(ucontent)
+        umethod = "unlocker_pdf"
+        uctype = "pdf"
+    else:
+        usoup = BeautifulSoup(ucontent, "html.parser")
+        utitle = _extract_html_title(usoup)
+        utext = html_mod.extract_text(usoup)
+        umethod = "unlocker"
+        uctype = "html"
+    upage = RenderedPage(
+        url=url, text=utext, title=utitle,
+        content_type=uctype,  # type: ignore[arg-type]
+        fetch_metadata=FetchMetadata(
+            access_date=utc_today_iso(),
+            http_status=uresult.inner_status,
+            final_url=url,
+            fetch_method=umethod,  # type: ignore[arg-type]
+            elapsed_ms=uresult.elapsed_ms,
+            wait_for=None,
+        ),
+    )
+    _save(upage, min_chars=cache_floor)
+    return upage
+
+
 
 def scrape_url(
     url: str,
@@ -504,9 +580,12 @@ def scrape_url(
     force_render: bool = False,
     prefer_render_on_empty: bool = True,
     prefer_render_on_download_failure: bool = False,
+    prefer_unlocker_on_block: bool = False,
+    prefer_unlocker_on_empty: bool = False,
     empty_page_min_chars: int = 1,
     render_session: RenderSession | None = None,
     on_render_attempt: RenderAttemptCallback | None = None,
+    on_unlocker_attempt: UnlockerAttemptCallback | None = None,
     on_redirect_hop: Callable[[str], None] | None = None,
     on_scrape_failure: ScrapeFailureCallback | None = None,
 ) -> RenderedPage:
@@ -531,10 +610,26 @@ def scrape_url(
       IP-reputation risk on government hosts and a multi-hour wall-clock tax at
       ~12k URLs. The Stage 4 runner leaves it off by default
       (``PresweepConfig.scrape_render_on_download_failure``).
+    - If the HTTP GET fails with a refusal status (403/406/401/451) and
+      ``prefer_unlocker_on_block`` is True, the Bright Data Web Unlocker is
+      tried as a fallback *before* the render fallback. The unlocker renders JS
+      and solves captchas internally at ~$0.002–0.006/page, strictly more
+      capable and ~8–20× cheaper than pushing a playwright render through the
+      residential proxy. If the unlocker fails, the render fallback (if
+      enabled) is tried next. Defaults to False
+      (``PresweepConfig.scrape_unlocker_on_block``).
+    - If the deterministic path yields text below the empty-page floor and
+      ``prefer_unlocker_on_empty`` is True, the unlocker is tried *before* the
+      render fallback. If the unlocker fails, the render fallback is tried
+      next. Defaults to False (``PresweepConfig.scrape_unlocker_on_empty``).
 
     Every render attempt (either trigger, success or failure) invokes
     ``on_render_attempt`` when supplied, so the caller can account for the
-    render rate/cost; the fetcher itself never silently retries.
+    render rate/cost; the fetcher itself never silently retries. Every unlocker
+    attempt (either trigger, success or failure) invokes ``on_unlocker_attempt``
+    when supplied, carrying the inner status and error text so a policy block,
+    a dead page, and a captcha defeat are three distinguishable rows in the
+    attrition ledger rather than one.
 
     A hard fetch failure — the HTTP GET raises after all retries and the render
     fallback is either off or also raises — invokes ``on_scrape_failure`` when
@@ -590,6 +685,42 @@ def scrape_url(
             else _download(url)
         )
     except Exception as download_exc:
+        # Unlocker escalation on a refusal-status failure (Phase 3, 2026-09-17).
+        # The unlocker fires BEFORE the render fallback: it is cheaper (~$0.002
+        # vs ~$0.046 per page) and strictly more capable (renders JS + solves
+        # captchas internally). Only fires when the caller opted in AND the
+        # unlocker is configured AND the exception carries a refusal status
+        # (403/406/401/451). A connect timeout or DNS failure has no status and
+        # is not a refusal — the unlocker cannot defeat a dead host.
+        if prefer_unlocker_on_block and unlocker_mod.enabled():
+            exc_status = http_status_from_exception(download_exc)
+            if unlocker_mod.is_refusal_status(exc_status):
+                try:
+                    uresult = unlocker_mod.fetch(url)
+                except Exception as unlocker_exc:
+                    # Transport failure: the unlocker API was never reached.
+                    # Redact the token from the exception message, report the
+                    # attempt, and fall through to the render fallback.
+                    _notify_unlocker_attempt(
+                        on_unlocker_attempt, url=url, trigger="block",
+                        outcome="unlocker_failed", inner_status=None,
+                        error=unlocker_mod.redact(str(unlocker_exc)),
+                        elapsed_ms=None,
+                    )
+                else:
+                    _notify_unlocker_attempt(
+                        on_unlocker_attempt, url=url, trigger="block",
+                        outcome=(
+                            "unlocker_succeeded" if uresult.success
+                            else "unlocker_failed"
+                        ),
+                        inner_status=uresult.inner_status,
+                        error=uresult.error, elapsed_ms=uresult.elapsed_ms,
+                    )
+                    if uresult.success:
+                        return _unlocker_page(url, uresult, cache_floor=cache_floor)
+                # Unlocker failed or was unreachable. Fall through to the render
+                # fallback (if enabled) or the hard-failure path.
         # Render fallback on a failed GET is opt-in (review F14): only when the
         # caller accepts the per-dead-URL browser-launch cost.
         if prefer_render_on_download_failure:
@@ -647,6 +778,40 @@ def scrape_url(
     # ``len(strip) < empty_page_min_chars`` mirrors Stage 5's is_near_empty drop
     # test so the render fires for exactly the pages the extractor would discard.
     if prefer_render_on_empty and len(text.strip()) < empty_page_min_chars:
+        # Unlocker escalation on empty-after-strip (Phase 3, 2026-09-17).
+        # The unlocker fires BEFORE the render fallback: it is cheaper (~$0.002
+        # vs ~$0.046 per page) and strictly more capable (renders JS + solves
+        # captchas internally). Only fires when the caller opted in AND the
+        # unlocker is configured.
+        if prefer_unlocker_on_empty and unlocker_mod.enabled():
+            try:
+                uresult = unlocker_mod.fetch(url)
+            except Exception as unlocker_exc:
+                # Transport failure: the unlocker API was never reached.
+                # Redact the token from the exception message, report the
+                # attempt, and fall through to the render fallback.
+                _notify_unlocker_attempt(
+                    on_unlocker_attempt, url=url,
+                    trigger="empty_after_strip", outcome="unlocker_failed",
+                    inner_status=None,
+                    error=unlocker_mod.redact(str(unlocker_exc)),
+                    elapsed_ms=None,
+                )
+            else:
+                _notify_unlocker_attempt(
+                    on_unlocker_attempt, url=url,
+                    trigger="empty_after_strip",
+                    outcome=(
+                        "unlocker_succeeded" if uresult.success
+                        else "unlocker_failed"
+                    ),
+                    inner_status=uresult.inner_status,
+                    error=uresult.error, elapsed_ms=uresult.elapsed_ms,
+                )
+                if uresult.success:
+                    return _unlocker_page(url, uresult, cache_floor=cache_floor)
+            # Unlocker failed or was unreachable. Fall through to the render
+            # fallback (if enabled).
         try:
             page = render_url(
                 url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session

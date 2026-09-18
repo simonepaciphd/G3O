@@ -387,6 +387,13 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "scrape_respect_robots",
     "scrape_host_delay_seconds",
     "scrape_render_on_download_failure",
+    # Web Unlocker escalation (2026-09-17). Same class as the render fallback
+    # flag beside it: decides which URLs were fetched at all (the unlocker
+    # recovers pages the default path refused), so a resume under a different
+    # setting would pair a page fetched through the unlocker with a stale
+    # ``scrape_failed`` row for the same URL from the pass before.
+    "scrape_unlocker_on_block",
+    "scrape_unlocker_on_empty",
     # Issue #96. Same class as the three above — it decides which URLs were
     # fetched at all. Guarded specifically because raising it across a resume
     # produces an institution that holds both a page and a stale
@@ -468,6 +475,20 @@ _ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset(
         # issued the English suffix by construction, so refusing to resume them
         # would be a cost with no safety gain.
         "domain_suffix_roster_hash",
+        # Every manifest written before 2026-09-17 lacks the two unlocker
+        # flags, and every one of those runs fetched every refused URL without
+        # unlocker escalation. Tolerating their absence lets such runs resume;
+        # a manifest that does record them and differs still aborts.
+        #
+        # Narrowed (2026-09-17): the tolerance is unconditional *unless* this
+        # run activates the unlocker overlay. A manifest predating the flags
+        # resumed with ``scrape_unlocker_on_block=True`` currently would
+        # proceed silently: pages recovered via the unlocker pair with stale
+        # ``scrape_failed`` rows from the first pass — the exact failure the
+        # guarded-key comment at planning.py:390-394 says the guard exists to
+        # prevent. Mirrors the ``official_sites_*`` narrowing below.
+        "scrape_unlocker_on_block",
+        "scrape_unlocker_on_empty",
     }
 )
 
@@ -512,6 +533,19 @@ def _assert_manifest_matches_on_resume(
     # the rest of it with the LLM, which is the exact mixed-instrument failure
     # the guard exists to prevent.
     official_sites_active = bool(new_cfg.get("official_sites_csv"))
+    # Same narrowing for the unlocker flags: a manifest predating them is fine
+    # to resume *as long as this run is not activating the unlocker either*.
+    # Otherwise the tolerance would let a resume silently escalate refused
+    # fetches through the unlocker, pairing recovered pages with stale
+    # ``scrape_failed`` rows from the first pass — the exact mixed-instrument
+    # failure the guard exists to prevent. Gate on the config flags, not
+    # ``unlocker_mod.enabled()`` (env): matches the official_sites precedent,
+    # which checks config, not environment. Corner case: flags on + token
+    # absent is inert but still refused; conservative and cheap.
+    unlocker_active = bool(
+        new_cfg.get("scrape_unlocker_on_block")
+        or new_cfg.get("scrape_unlocker_on_empty")
+    )
     for key in _GUARDED_CONFIG_KEYS:
         if key not in old_cfg and key in _ABSENT_TOLERATED_CONFIG_KEYS:
             if key.startswith("official_sites") and official_sites_active:
@@ -520,6 +554,14 @@ def _assert_manifest_matches_on_resume(
                     f"overlay) != {new_cfg.get(key)!r} (this run). Resuming a run "
                     "that classified with Stage 2 into one that bypasses it would "
                     "mix two instruments in one measurement."
+                )
+            elif key.startswith("scrape_unlocker") and unlocker_active:
+                diffs.append(
+                    f"config.{key}: absent (manifest predates the unlocker) != "
+                    f"{new_cfg.get(key)!r} (this run). Resuming a run that "
+                    "scraped without the unlocker into one that escalates "
+                    "refused fetches through it would mix two instruments in "
+                    "one measurement."
                 )
             continue  # manifest predates the key — nothing to compare
         if old_cfg.get(key) != new_cfg.get(key):
@@ -547,12 +589,32 @@ def _assert_manifest_matches_on_resume(
     # 2026-08-26 have no ``run_egress``, and refusing to resume them would be a
     # cost with no safety gain, since every one of them predates the proxy
     # existing and so ran direct by construction.
+    #
+    # Shape change (2026-09-17): ``describe()`` gained ``unlocker_configured``
+    # when the Web Unlocker shipped. Every manifest written between #90
+    # (2026-08-26) and 2026-09-17 carries a 3-key ``run_egress``; after the
+    # merge, ``build_manifest`` emits 4 keys. A strict dict compare would
+    # refuse every in-flight run from that window even with identical env and
+    # CLI args. Tolerate the absent key as ``False``: an old manifest lacking
+    # the key ran with the unlocker off (it did not exist), so a new manifest
+    # with ``unlocker_configured: False`` is the same instrument. A new
+    # manifest with ``unlocker_configured: True`` is tolerated only because
+    # the absent-tolerance narrowing below (A2) refuses the flags-on case —
+    # A1 and A2 land together. If the old manifest *records* the key and it
+    # differs (e.g. ``False`` → ``True``), the unlocker started firing mid-run,
+    # which is a real instrument change and still aborts.
     old_egress = existing.get("run_egress")
     new_egress = new_manifest.get("run_egress")
     if old_egress is not None and old_egress != new_egress:
-        diffs.append(
-            f"run_egress: {old_egress!r} (manifest) != {new_egress!r} (this run)"
-        )
+        # Copy before mutating so the on-disk manifest is not rewritten.
+        old_egress_copy = dict(old_egress)
+        new_egress_copy = dict(new_egress) if new_egress is not None else {}
+        if "unlocker_configured" not in old_egress_copy:
+            old_egress_copy.setdefault("unlocker_configured", False)
+        if old_egress_copy != new_egress_copy:
+            diffs.append(
+                f"run_egress: {old_egress!r} (manifest) != {new_egress!r} (this run)"
+            )
     if diffs:
         raise RuntimeError(
             "Resume aborted: _state/ is present under "

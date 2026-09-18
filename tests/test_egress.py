@@ -18,6 +18,8 @@ import json
 from typing import Any
 
 import pytest
+import requests
+from packaging.version import Version  # a hard pytest dependency
 
 from g3o.common import config
 from g3o.scrape import egress
@@ -31,11 +33,13 @@ PROXY_MALFORMED = "http://user:s3cr3t-longpass@gw.residential.example:8080 "
 @pytest.fixture
 def direct(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config, "SCRAPE_PROXY_URL", "")
+    monkeypatch.setattr(config, "UNLOCKER_API_TOKEN", None)
 
 
 @pytest.fixture
 def proxied(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(config, "SCRAPE_PROXY_URL", PROXY)
+    monkeypatch.setattr(config, "UNLOCKER_API_TOKEN", None)
     # Pinned, not inherited. ``validate`` refuses a proxied run whose user-agent
     # carries no contact, and the ambient value comes from whatever ``.env`` the
     # box has: this machine's sets a contact, the droplet's sets no USER_AGENT
@@ -56,7 +60,8 @@ def test_direct_is_the_default(direct: None) -> None:
     assert egress.requests_proxies() is None
     assert egress.playwright_proxy() is None
     assert egress.describe() == {
-        "mode": "direct", "endpoint": None, "credentialed": False
+        "mode": "direct", "endpoint": None, "credentialed": False,
+        "unlocker_configured": False,
     }
 
 
@@ -89,6 +94,7 @@ def test_describe_records_the_endpoint_and_never_the_secret(proxied: None) -> No
         "mode": "proxy",
         "endpoint": "gw.residential.example:8080",
         "credentialed": True,
+        "unlocker_configured": False,
     }
     # The whole point: this dict is written to manifest.json.
     assert "s3cr3t-longpass" not in json.dumps(described)
@@ -320,6 +326,7 @@ def test_manifest_records_the_egress_and_not_the_secret(
         "mode": "proxy",
         "endpoint": "gw.residential.example:8080",
         "credentialed": True,
+        "unlocker_configured": False,
     }
     assert "s3cr3t-longpass" not in json.dumps(on_disk)
     # The proxy is an environment parameter, not a PresweepConfig field: putting
@@ -396,6 +403,107 @@ def test_resume_guard_tolerates_a_manifest_that_predates_the_key(
     _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg, plan.sample))
 
 
+def test_resume_guard_tolerates_a_manifest_that_predates_unlocker_configured(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    """A manifest written before 2026-09-17 has no ``unlocker_configured``.
+
+    Every such run predates the unlocker existing and so ran with it off by
+    construction; refusing to resume it would be a cost with no safety gain.
+    The token-absent variant: the old manifest lacked the key, the new
+    manifest has ``unlocker_configured: False``, so they match after A1
+    tolerates the absent key as ``False``.
+    """
+    from g3o.common.run_state import state_dir
+    from g3o.run.presweep import plan_run
+    from g3o.run.presweep.planning import (
+        _assert_manifest_matches_on_resume,
+        build_manifest,
+    )
+
+    monkeypatch.setattr(config, "UNLOCKER_API_TOKEN", None)
+    cfg = _config(tmp_path)
+    plan = plan_run(cfg)
+    state_dir(plan.run_dir).mkdir(parents=True, exist_ok=True)
+    path = plan.run_dir / "manifest.json"
+    stripped = json.loads(path.read_text(encoding="utf-8"))
+    del stripped["run_egress"]["unlocker_configured"]
+    path.write_text(json.dumps(stripped), encoding="utf-8")
+    _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg, plan.sample))
+
+
+def test_resume_guard_refuses_when_unlocker_configured_changes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    """Old records ``unlocker_configured: False``, new has ``True``.
+
+    A run that started with the unlocker off and resumed with it on has two
+    different scrape instruments in one artifact. The narrowing (A2) must not
+    swallow this real instrument change.
+    """
+    from g3o.common.run_state import state_dir
+    from g3o.run.presweep import plan_run
+    from g3o.run.presweep.planning import (
+        _assert_manifest_matches_on_resume,
+        build_manifest,
+    )
+
+    monkeypatch.setattr(config, "UNLOCKER_API_TOKEN", None)
+    cfg = _config(tmp_path)
+    plan = plan_run(cfg)
+    state_dir(plan.run_dir).mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(config, "UNLOCKER_API_TOKEN", "test-token")
+    with pytest.raises(RuntimeError, match="run_egress"):
+        _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg, plan.sample))
+
+
+def test_resuming_a_pre_unlocker_run_with_the_unlocker_enabled_is_refused(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    """A manifest predating the unlocker flags resumed with them on.
+
+    Every manifest written before 2026-09-17 lacks ``scrape_unlocker_on_block``
+    and ``scrape_unlocker_on_empty``. Resuming such a run with the flags on
+    would pair pages recovered via the unlocker with stale ``scrape_failed``
+    rows from the first pass — the exact mixed-instrument failure the guard
+    exists to prevent.
+    """
+    from g3o.common.run_state import state_dir
+    from g3o.run.presweep import PresweepConfig, plan_run
+    from g3o.run.presweep.planning import (
+        _assert_manifest_matches_on_resume,
+        build_manifest,
+    )
+
+    monkeypatch.setattr(config, "UNLOCKER_API_TOKEN", "test-token")
+    cfg = _config(tmp_path)
+    plan = plan_run(cfg)
+    state_dir(plan.run_dir).mkdir(parents=True, exist_ok=True)
+    path = plan.run_dir / "manifest.json"
+    stripped = json.loads(path.read_text(encoding="utf-8"))
+    del stripped["config"]["scrape_unlocker_on_block"]
+    del stripped["config"]["scrape_unlocker_on_empty"]
+    path.write_text(json.dumps(stripped), encoding="utf-8")
+
+    # Flags on: refused.
+    cfg_on = PresweepConfig(
+        run_id=cfg.run_id,
+        runs_dir=cfg.runs_dir,
+        master_csv=cfg.master_csv,
+        sample_size=cfg.sample_size,
+        seed=cfg.seed,
+        dry_run=cfg.dry_run,
+        scrape_unlocker_on_block=True,
+    )
+    with pytest.raises(RuntimeError, match="scrape_unlocker_on_block"):
+        _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg_on, plan.sample))
+
+    # Flags off (the default): resumes clean.
+    _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg, plan.sample))
+
+
+
 # ---------------------------------------------------------------------------
 # Adversarial credential hygiene (2026-08-27, card 3)
 #
@@ -405,14 +513,23 @@ def test_resume_guard_tolerates_a_manifest_that_predates_the_key(
 # marker -- absence is the property that matters, and a marker can be present
 # while a second copy of the secret survives elsewhere in the same string.
 #
-# The leak they were written against is real and was measured, not assumed. Two
+# The leak they were written against was real and was measured, not assumed: two
 # realistic operator typos in G3O_SCRAPE_PROXY -- a trailing space, and a
-# non-numeric port -- make requests raise
+# non-numeric port -- made requests raise
 #     InvalidURL: Failed to parse: http://user:s3cr3t-longpass@host:port
 # with the credentials intact, and Stage 4 wrote that string to _attrition.jsonl
 # and _scrape_telemetry.jsonl unredacted, once per URL. The trailing-space case
 # is the dangerous one: it survives a copy-paste out of a password manager, the
 # proxy then never works, and the run leaks for its whole length.
+#
+# Re-grounded 2026-09-18. requests 2.34.2 -- admitted by the loose ``>=2.31``
+# pin -- stopped echoing the userinfo; its parse errors now name only the host.
+# The guard below was flipped to pin that, so a regression to echoing trips it
+# loudly instead of silently re-hollowing these tests. Where a test needs an
+# exception that actually holds the secret, it plants the pre-2.34.2 message
+# shape by hand (``_historical_parse_error``, the fixture idea
+# ``test_verify_egress`` already uses), so the redaction net keeps real work
+# to do.
 #
 # Three surfaces were tested and found already clean, so they get no test here
 # beyond this note: connection-level ProxyErrors (the message names the proxy
@@ -425,23 +542,48 @@ SECRET = "s3cr3t-longpass"
 
 
 def _requests_url_parse_error(proxy: str) -> Exception:
-    """The real exception, from the real library, not a hand-written stand-in.
+    """The genuine exception the *installed* requests raises, not a stand-in.
 
-    Building this by hand would test the redactor against our own guess at what
-    requests says. The bug was that the guess would have been wrong in the
-    reassuring direction, so the fixture is the genuine article: a Session with
-    a malformed proxy, pointed at a host that does not resolve. Nothing leaves
-    the machine -- the URL fails to parse before any socket is opened.
+    Nothing leaves the machine -- the URL fails to parse before any socket is
+    opened. What it contains is version-dependent (2.34.2 names only the host;
+    every release before it echoed the whole URL, credential included), which
+    is why the guard below asserts the shape the *installed* version is known
+    to produce rather than one fixed shape.
     """
-    import requests
-
     session = requests.Session()
     session.proxies = {"http": proxy, "https": proxy}
     try:
         session.get("http://g3o-egress-test.invalid/x", timeout=1)
     except Exception as exc:  # noqa: BLE001 - the exception *is* the fixture
         return exc
-    raise AssertionError("expected the malformed proxy URL to raise")
+    raise AssertionError(
+        "expected the malformed proxy URL to raise -- with no exception this "
+        "fixture returns None and every guard built on it is vacuous"
+    )
+
+
+#: The release that stopped echoing the userinfo in URL parse errors. Below it
+#: the live exception still carries the credential and the redaction net has
+#: real work to do on it; at or above it the leak has to be planted by hand
+#: (``_historical_parse_error``).
+REQUESTS_USERINFO_FIX = Version("2.34.2")
+
+
+def _installed_requests_echoes_userinfo() -> bool:
+    """Whether the installed requests still echoes the credential."""
+    return Version(requests.__version__) < REQUESTS_USERINFO_FIX
+
+
+def _historical_parse_error(proxy: str) -> Exception:
+    """The pre-2.34.2 message shape: ``Failed to parse: <url with credentials>``.
+
+    Where requests no longer raises anything that holds the secret, a test that
+    must scrub a real leak plants this. Every consumer asserts the secret is
+    present before scrubbing, so the fixture cannot go vacuous the way the real
+    exception silently did -- and planting it keeps those tests identical on
+    both sides of the 2.34.2 boundary.
+    """
+    return requests.exceptions.InvalidURL(f"Failed to parse: {proxy}")
 
 
 @pytest.mark.parametrize(
@@ -451,18 +593,32 @@ def _requests_url_parse_error(proxy: str) -> Exception:
         ("non-numeric port", f"http://user:{SECRET}@gw.residential.example:notaport"),
     ],
 )
-def test_a_malformed_proxy_url_really_does_leak_before_redaction(
+def test_the_live_parse_error_matches_its_versions_known_shape(
     label: str, proxy: str
 ) -> None:
     """Non-vacuity guard, in the shape ``test_credentials`` established.
 
-    If requests ever stops echoing the URL, every redaction test below would
-    pass against a string that never held a secret. This one fails first and
-    says so, rather than letting the suite quietly stop testing anything.
+    ``pyproject`` pins ``requests>=2.31``, so both shapes are installable and
+    this suite has to run green on either. Asserting one fixed shape couples
+    the suite to one release: the flipped form of this guard passed on 2.34.2
+    (CI, and the lockfile) and failed on 2.32.5 (the run machine), which is a
+    red suite on the box the sweeps actually run from.
+
+    So assert the shape the *installed* version is known to produce. A
+    regression to echoing the credential fails here; so does a silent change
+    that stops the live exception carrying what the redaction tests below
+    assume of it. Either way this test fails first and says which, rather than
+    letting those tests quietly stop testing anything.
     """
-    assert SECRET in str(_requests_url_parse_error(proxy)), (
-        f"requests no longer echoes the proxy URL for {label!r} -- the redaction "
-        "tests below are now vacuous and should be re-grounded, not deleted"
+    message = str(_requests_url_parse_error(proxy))
+    echoes = SECRET in message
+    expected = _installed_requests_echoes_userinfo()
+    assert echoes == expected, (
+        f"requests {requests.__version__} {'echoes' if echoes else 'does not echo'} "
+        f"the proxy credential for {label!r}, but the {REQUESTS_USERINFO_FIX} "
+        f"boundary says it {'should' if expected else 'should not'}. Re-ground "
+        "these tests on what the library now raises -- do not delete them, and "
+        "move REQUESTS_USERINFO_FIX rather than asserting one shape."
     )
 
 
@@ -477,7 +633,10 @@ def test_redact_scrubs_a_real_library_exception(
     proxy: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(config, "SCRAPE_PROXY_URL", proxy)
+    historical = _historical_parse_error(proxy)
+    assert SECRET in str(historical), "planted leak is absent -- nothing to scrub"
     assert SECRET not in egress.redact(str(_requests_url_parse_error(proxy)))
+    assert SECRET not in egress.redact(str(historical))
 
 
 def test_stage4_writes_no_secret_to_either_ledger(
@@ -486,7 +645,7 @@ def test_stage4_writes_no_secret_to_either_ledger(
     """``_attrition.jsonl`` and ``_scrape_telemetry.jsonl`` -- neither is named
     in the module docstring, and both had the gap.
 
-    Drives the real Stage 4 runner with a fetcher that raises the real requests
+    Drives the real Stage 4 runner with a fetcher that raises the historical
     exception, then greps the ledger bytes on disk. Asserting on the files
     rather than on the formatting expression means a new call site that forgets
     to redact is caught here rather than in production.
@@ -494,7 +653,8 @@ def test_stage4_writes_no_secret_to_either_ledger(
     from g3o.common import attrition, scrape_telemetry
     from g3o.run.presweep import stage_scrape
 
-    leaky = _requests_url_parse_error(PROXY_MALFORMED)
+    leaky = _historical_parse_error(PROXY_MALFORMED)
+    assert SECRET in str(leaky), "fixture holds no secret -- the grep is vacuous"
     monkeypatch.setattr(config, "SCRAPE_PROXY_URL", PROXY_MALFORMED)
 
     def boom(*args: Any, **kwargs: Any) -> Any:
@@ -547,7 +707,8 @@ def test_the_events_log_never_receives_the_secret(tmp_path: Any) -> None:
     """
     from g3o.run import telemetry as telemetry_mod
 
-    leaky = _requests_url_parse_error(PROXY_MALFORMED)
+    leaky = _historical_parse_error(PROXY_MALFORMED)
+    assert SECRET in str(leaky), "fixture holds no secret -- the grep is vacuous"
     events = tmp_path / "events.jsonl"
 
     emitter = telemetry_mod.RunTelemetry(session_id="egress-test")
