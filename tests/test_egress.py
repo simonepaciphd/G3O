@@ -511,14 +511,23 @@ def test_resuming_a_pre_unlocker_run_with_the_unlocker_enabled_is_refused(
 # marker -- absence is the property that matters, and a marker can be present
 # while a second copy of the secret survives elsewhere in the same string.
 #
-# The leak they were written against is real and was measured, not assumed. Two
+# The leak they were written against was real and was measured, not assumed: two
 # realistic operator typos in G3O_SCRAPE_PROXY -- a trailing space, and a
-# non-numeric port -- make requests raise
+# non-numeric port -- made requests raise
 #     InvalidURL: Failed to parse: http://user:s3cr3t-longpass@host:port
 # with the credentials intact, and Stage 4 wrote that string to _attrition.jsonl
 # and _scrape_telemetry.jsonl unredacted, once per URL. The trailing-space case
 # is the dangerous one: it survives a copy-paste out of a password manager, the
 # proxy then never works, and the run leaks for its whole length.
+#
+# Re-grounded 2026-09-18. requests 2.34.2 -- admitted by the loose ``>=2.31``
+# pin -- stopped echoing the userinfo; its parse errors now name only the host.
+# The guard below was flipped to pin that, so a regression to echoing trips it
+# loudly instead of silently re-hollowing these tests. Where a test needs an
+# exception that actually holds the secret, it plants the pre-2.34.2 message
+# shape by hand (``_historical_parse_error``, the fixture idea
+# ``test_verify_egress`` already uses), so the redaction net keeps real work
+# to do.
 #
 # Three surfaces were tested and found already clean, so they get no test here
 # beyond this note: connection-level ProxyErrors (the message names the proxy
@@ -531,13 +540,12 @@ SECRET = "s3cr3t-longpass"
 
 
 def _requests_url_parse_error(proxy: str) -> Exception:
-    """The real exception, from the real library, not a hand-written stand-in.
+    """The genuine exception the *installed* requests raises, not a stand-in.
 
-    Building this by hand would test the redactor against our own guess at what
-    requests says. The bug was that the guess would have been wrong in the
-    reassuring direction, so the fixture is the genuine article: a Session with
-    a malformed proxy, pointed at a host that does not resolve. Nothing leaves
-    the machine -- the URL fails to parse before any socket is opened.
+    Nothing leaves the machine -- the URL fails to parse before any socket is
+    opened. What it contains is version-dependent (2.34.2 names only the host;
+    the version this suite was written against echoed the whole URL), which is
+    exactly why the guard below pins it rather than any test assuming a shape.
     """
     import requests
 
@@ -547,7 +555,19 @@ def _requests_url_parse_error(proxy: str) -> Exception:
         session.get("http://g3o-egress-test.invalid/x", timeout=1)
     except Exception as exc:  # noqa: BLE001 - the exception *is* the fixture
         return exc
-    raise AssertionError("expected the malformed proxy URL to raise")
+
+
+def _historical_parse_error(proxy: str) -> Exception:
+    """The pre-2.34.2 message shape: ``Failed to parse: <url with credentials>``.
+
+    The installed requests no longer raises anything that holds the secret, so
+    a test that must scrub a real leak plants this. Every consumer asserts the
+    secret is present before scrubbing, so the fixture cannot go vacuous the
+    way the real exception silently did.
+    """
+    import requests
+
+    return requests.exceptions.InvalidURL(f"Failed to parse: {proxy}")
 
 
 @pytest.mark.parametrize(
@@ -557,18 +577,22 @@ def _requests_url_parse_error(proxy: str) -> Exception:
         ("non-numeric port", f"http://user:{SECRET}@gw.residential.example:notaport"),
     ],
 )
-def test_a_malformed_proxy_url_really_does_leak_before_redaction(
+def test_a_malformed_proxy_url_no_longer_leaks_before_redaction(
     label: str, proxy: str
 ) -> None:
     """Non-vacuity guard, in the shape ``test_credentials`` established.
 
-    If requests ever stops echoing the URL, every redaction test below would
-    pass against a string that never held a secret. This one fails first and
-    says so, rather than letting the suite quietly stop testing anything.
+    requests 2.34.2 stopped echoing the proxy URL in its parse errors, so the
+    real exception no longer carries the secret on its own. This guard pins
+    that new reality: if requests ever regresses to echoing the credential,
+    this fails first and says so, rather than letting the planted-shape tests
+    below quietly become the only line of defence -- and stop matching what
+    the library actually raises.
     """
-    assert SECRET in str(_requests_url_parse_error(proxy)), (
-        f"requests no longer echoes the proxy URL for {label!r} -- the redaction "
-        "tests below are now vacuous and should be re-grounded, not deleted"
+    assert SECRET not in str(_requests_url_parse_error(proxy)), (
+        f"requests is echoing the proxy credential for {label!r} again -- the "
+        "upstream fix is gone. Re-ground these tests on the live leak and keep "
+        "the guard flipped until it returns."
     )
 
 
@@ -583,7 +607,10 @@ def test_redact_scrubs_a_real_library_exception(
     proxy: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(config, "SCRAPE_PROXY_URL", proxy)
+    historical = _historical_parse_error(proxy)
+    assert SECRET in str(historical), "planted leak is absent -- nothing to scrub"
     assert SECRET not in egress.redact(str(_requests_url_parse_error(proxy)))
+    assert SECRET not in egress.redact(str(historical))
 
 
 def test_stage4_writes_no_secret_to_either_ledger(
@@ -592,7 +619,7 @@ def test_stage4_writes_no_secret_to_either_ledger(
     """``_attrition.jsonl`` and ``_scrape_telemetry.jsonl`` -- neither is named
     in the module docstring, and both had the gap.
 
-    Drives the real Stage 4 runner with a fetcher that raises the real requests
+    Drives the real Stage 4 runner with a fetcher that raises the historical
     exception, then greps the ledger bytes on disk. Asserting on the files
     rather than on the formatting expression means a new call site that forgets
     to redact is caught here rather than in production.
@@ -600,7 +627,8 @@ def test_stage4_writes_no_secret_to_either_ledger(
     from g3o.common import attrition, scrape_telemetry
     from g3o.run.presweep import stage_scrape
 
-    leaky = _requests_url_parse_error(PROXY_MALFORMED)
+    leaky = _historical_parse_error(PROXY_MALFORMED)
+    assert SECRET in str(leaky), "fixture holds no secret -- the grep is vacuous"
     monkeypatch.setattr(config, "SCRAPE_PROXY_URL", PROXY_MALFORMED)
 
     def boom(*args: Any, **kwargs: Any) -> Any:
@@ -653,7 +681,8 @@ def test_the_events_log_never_receives_the_secret(tmp_path: Any) -> None:
     """
     from g3o.run import telemetry as telemetry_mod
 
-    leaky = _requests_url_parse_error(PROXY_MALFORMED)
+    leaky = _historical_parse_error(PROXY_MALFORMED)
+    assert SECRET in str(leaky), "fixture holds no secret -- the grep is vacuous"
     events = tmp_path / "events.jsonl"
 
     emitter = telemetry_mod.RunTelemetry(session_id="egress-test")
