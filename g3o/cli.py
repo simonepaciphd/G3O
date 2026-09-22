@@ -830,6 +830,10 @@ def _presweep_config(
         poll_interval=args.poll_interval,
         max_wait_per_stage=args.max_wait_per_stage,
         model=args.model,
+        classify_official_site_model=args.classify_official_site_model,
+        classify_triage_model=args.classify_triage_model,
+        extract_model=args.extract_model,
+        validate_model=args.validate_model,
         max_workers=args.max_workers,
         budget_usd=budget_usd,
         cost_monitor_dry_run=cost_monitor_dry_run,
@@ -1776,6 +1780,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Max seconds to wait per Batch API stage (default: 25h ~ SLA + jitter).",
     )
     presweep.add_argument("--model", default=DEFAULT_MODEL)
+    presweep.add_argument(
+        "--classify-official-site-model",
+        default=None,
+        help="Override model for Stage 2 (official-site classification). "
+             "Use 'jev-1.13.0' for TypeSafe jev decision model.",
+    )
+    presweep.add_argument(
+        "--classify-triage-model",
+        default=None,
+        help="Override model for Stage 3 (URL triage). "
+             "Use 'jev-1.13.0' for TypeSafe jev decision model.",
+    )
+    presweep.add_argument(
+        "--extract-model",
+        default=None,
+        help="Override model for Stage 5 (extraction). "
+             "Note: jev is not suitable for extraction (generation task).",
+    )
+    presweep.add_argument(
+        "--validate-model",
+        default=None,
+        help="Override model for Stage 6 (validation/consolidation). "
+             "Use 'jev-1.13.0' for TypeSafe jev decision model.",
+    )
     presweep.add_argument(
         "--max-workers", type=int, default=1,
         help=(
