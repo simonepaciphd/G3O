@@ -1784,25 +1784,29 @@ def build_parser() -> argparse.ArgumentParser:
         "--classify-official-site-model",
         default=None,
         help="Override model for Stage 2 (official-site classification). "
-             "Use 'jev-1.13.0' for TypeSafe jev decision model.",
+             "Default: jev-1.13.0 (TypeSafe decision model). "
+             "Use 'gpt-5-nano' to revert to generative model.",
     )
     presweep.add_argument(
         "--classify-triage-model",
         default=None,
         help="Override model for Stage 3 (URL triage). "
-             "Use 'jev-1.13.0' for TypeSafe jev decision model.",
+             "Default: jev-1.13.0 (TypeSafe decision model). "
+             "Use 'gpt-5-nano' to revert to generative model.",
     )
     presweep.add_argument(
         "--extract-model",
         default=None,
         help="Override model for Stage 5 (extraction). "
+             "Default: gpt-5-nano (generative model). "
              "Note: jev is not suitable for extraction (generation task).",
     )
     presweep.add_argument(
         "--validate-model",
         default=None,
         help="Override model for Stage 6 (validation/consolidation). "
-             "Use 'jev-1.13.0' for TypeSafe jev decision model.",
+             "Default: jev-1.13.0 (TypeSafe decision model). "
+             "Use 'gpt-5-nano' to revert to generative model.",
     )
     presweep.add_argument(
         "--max-workers", type=int, default=1,

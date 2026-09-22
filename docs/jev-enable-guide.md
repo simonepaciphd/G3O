@@ -1,15 +1,17 @@
-# Enabling TypeSafe jev Decision Model
+# TypeSafe jev Decision Model Integration
 
-This guide explains how to enable the TypeSafe jev decision model for different stages of the G3O pipeline.
+This guide explains how to use the TypeSafe jev decision model in the G3O pipeline.
 
 ## Overview
 
-The jev integration replaces gpt-5-nano with TypeSafe's jev decision model for decision-shaped stages:
+**As of the latest release, jev is enabled by default for all decision-shaped stages:**
 - **Stage 2** (classify_official_site): Official website classification
 - **Stage 3** (classify_triage): URL triage (keep/drop decisions)
 - **Stage 6** (validate): Validation and consolidation
 
-Stage 5 (extract) remains on gpt-5-nano as it performs text generation, not decision-making.
+**Stage 5 (extract) remains on gpt-5-nano** as it performs text generation, not decision-making.
+
+You can override these defaults using CLI flags or programmatic configuration if needed.
 
 ## Prerequisites
 
@@ -19,29 +21,46 @@ Stage 5 (extract) remains on gpt-5-nano as it performs text generation, not deci
    export TYPESAFE_API_KEY="your-api-key-here"
    ```
 
-## Method 1: CLI Flags (Recommended for Testing)
+## Running with Defaults (jev enabled)
 
-Use per-stage model override flags to enable jev for specific stages:
-
-### Enable jev for All Decision Stages
+Since jev is now the default for decision stages, you can run the pipeline without any special flags:
 
 ```bash
 python -m g3o presweep \
   --master-csv data/master_institutions.csv \
   --sample-size 100 \
-  --classify-official-site-model jev-1.13.0 \
-  --classify-triage-model jev-1.13.0 \
-  --validate-model jev-1.13.0 \
   --execute
 ```
 
-### Enable jev for Specific Stages
+This automatically uses:
+- Stage 2: jev-1.13.0
+- Stage 3: jev-1.13.0
+- Stage 5: gpt-5-nano (default)
+- Stage 6: jev-1.13.0
+
+## Overriding Defaults via CLI
+
+You typically only need to override when you want to revert to gpt-5-nano or use a different model.
+
+### Revert to gpt-5-nano for All Stages
+
+```bash
+python -m g3o presweep \
+  --master-csv data/master_institutions.csv \
+  --sample-size 100 \
+  --classify-official-site-model gpt-5-nano \
+  --classify-triage-model gpt-5-nano \
+  --validate-model gpt-5-nano \
+  --execute
+```
+
+### Revert for Specific Stages
 
 **Stage 2 only (official site classification):**
 ```bash
 python -m g3o presweep \
   --master-csv data/master_institutions.csv \
-  --classify-official-site-model jev-1.13.0 \
+  --classify-official-site-model gpt-5-nano \
   --execute
 ```
 
@@ -49,7 +68,7 @@ python -m g3o presweep \
 ```bash
 python -m g3o presweep \
   --master-csv data/master_institutions.csv \
-  --classify-triage-model jev-1.13.0 \
+  --classify-triage-model gpt-5-nano \
   --execute
 ```
 
@@ -57,7 +76,7 @@ python -m g3o presweep \
 ```bash
 python -m g3o presweep \
   --master-csv data/master_institutions.csv \
-  --validate-model jev-1.13.0 \
+  --validate-model gpt-5-nano \
   --execute
 ```
 
@@ -68,36 +87,38 @@ You can mix jev and gpt-5-nano across stages:
 ```bash
 python -m g3o presweep \
   --master-csv data/master_institutions.csv \
-  --model gpt-5-nano \
-  --classify-official-site-model jev-1.13.0 \
+  --classify-official-site-model gpt-5-nano \
   --classify-triage-model jev-1.13.0 \
-  --extract-model gpt-5-nano \
   --validate-model jev-1.13.0 \
   --execute
 ```
 
-## Method 2: Programmatic Configuration
+## Programmatic Configuration
 
-For programmatic usage, set per-stage models in `PresweepConfig`:
+For programmatic usage, the defaults are already set in `PresweepConfig`:
 
 ```python
 from g3o.run.presweep.config import PresweepConfig
 from pathlib import Path
 
+# Defaults use jev for decision stages
 config = PresweepConfig(
     run_id="my-run",
     runs_dir=Path("./runs"),
     master_csv=Path("./data/master_institutions.csv"),
     sample_size=100,
-    
-    # Pipeline-wide default (used when stage-specific model not set)
-    model="gpt-5-nano",
-    
-    # Per-stage overrides
-    classify_official_site_model="jev-1.13.0",
-    classify_triage_model="jev-1.13.0",
-    extract_model="gpt-5-nano",  # Stage 5 must use gpt-5-nano
-    validate_model="jev-1.13.0",
+)
+
+# Override if needed
+config = PresweepConfig(
+    run_id="my-run",
+    runs_dir=Path("./runs"),
+    master_csv=Path("./data/master_institutions.csv"),
+    sample_size=100,
+    classify_official_site_model="gpt-5-nano",  # Override to gpt-5-nano
+    classify_triage_model="jev-1.13.0",          # Keep jev
+    extract_model="gpt-5-nano",                  # Stage 5 must use gpt-5-nano
+    validate_model="jev-1.13.0",                 # Keep jev
 )
 ```
 
@@ -108,10 +129,10 @@ config = PresweepConfig(
 The `model_for_stage()` method returns the effective model for each stage:
 
 ```python
-print(config.model_for_stage("classify_official_site"))  # jev-1.13.0
-print(config.model_for_stage("classify_triage"))          # jev-1.13.0
-print(config.model_for_stage("extract"))                  # gpt-5-nano
-print(config.model_for_stage("validate"))                 # jev-1.13.0
+print(config.model_for_stage("classify_official_site"))  # jev-1.13.0 (default)
+print(config.model_for_stage("classify_triage"))          # jev-1.13.0 (default)
+print(config.model_for_stage("extract"))                  # gpt-5-nano (default)
+print(config.model_for_stage("validate"))                 # jev-1.13.0 (default)
 ```
 
 ### Verify API Connectivity
@@ -233,9 +254,6 @@ These are recorded in the output artifacts for reproducibility.
 python -m g3o presweep \
   --master-csv data/master_institutions.csv \
   --sample-size 10 \
-  --classify-official-site-model jev-1.13.0 \
-  --classify-triage-model jev-1.13.0 \
-  --validate-model jev-1.13.0 \
   --execute
 ```
 
@@ -247,7 +265,9 @@ Run the same sample with gpt-5-nano:
 python -m g3o presweep \
   --master-csv data/master_institutions.csv \
   --sample-size 10 \
-  --model gpt-5-nano \
+  --classify-official-site-model gpt-5-nano \
+  --classify-triage-model gpt-5-nano \
+  --validate-model gpt-5-nano \
   --execute
 ```
 
@@ -258,10 +278,10 @@ python -m g3o run-diff runs/baseline-run runs/jev-run
 
 ### Phase 3: Gradual Rollout
 
-1. Enable jev for Stage 2 only, validate results
-2. Enable jev for Stage 3, validate results
-3. Enable jev for Stage 6, validate results
-4. Full rollout with all decision stages on jev
+1. Run with defaults (jev enabled), validate results
+2. If issues arise, revert specific stages to gpt-5-nano
+3. Monitor cost savings and accuracy metrics
+4. Adjust confidence thresholds if needed
 
 ## Support
 

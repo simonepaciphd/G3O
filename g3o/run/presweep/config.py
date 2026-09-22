@@ -231,10 +231,10 @@ class PresweepConfig:
     # interim state, and permanent surface: stages will legitimately run
     # different vendors. Manifest ``llm_provenance`` is already per-stage
     # (planning.py::update_manifest_llm_provenance) — no shape change needed.
-    classify_official_site_model: str | None = None
-    classify_triage_model: str | None = None
+    classify_official_site_model: str | None = DEFAULT_JEV_MODEL
+    classify_triage_model: str | None = DEFAULT_JEV_MODEL
     extract_model: str | None = None
-    validate_model: str | None = None
+    validate_model: str | None = DEFAULT_JEV_MODEL
     # Stage 5 page-text handling (Session F.2, 2026-06-10). The cap is the D3
     # methodology decision (60k chars, head+tail); the empty-page floor is an
     # engineering parameter (review F5). Surfaced as config so both are
