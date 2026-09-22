@@ -52,6 +52,7 @@ from g3o.common.batch_client import (
     poll_batch,
     submit_batch,
 )
+from g3o.common.jev_client import DEFAULT_JEV_MODEL
 from g3o.discovery.domain_pick import pick_domain
 from g3o.discovery.query_builder import (
     DEFAULT_EVIDENCE_TERM,
@@ -1782,16 +1783,16 @@ def build_parser() -> argparse.ArgumentParser:
     presweep.add_argument("--model", default=DEFAULT_MODEL)
     presweep.add_argument(
         "--classify-official-site-model",
-        default=None,
+        default=DEFAULT_JEV_MODEL,
         help="Override model for Stage 2 (official-site classification). "
-             "Default: jev-1.13.0 (TypeSafe decision model). "
+             f"Default: {DEFAULT_JEV_MODEL} (TypeSafe decision model). "
              "Use 'gpt-5-nano' to revert to generative model.",
     )
     presweep.add_argument(
         "--classify-triage-model",
-        default=None,
+        default=DEFAULT_JEV_MODEL,
         help="Override model for Stage 3 (URL triage). "
-             "Default: jev-1.13.0 (TypeSafe decision model). "
+             f"Default: {DEFAULT_JEV_MODEL} (TypeSafe decision model). "
              "Use 'gpt-5-nano' to revert to generative model.",
     )
     presweep.add_argument(
@@ -1803,9 +1804,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     presweep.add_argument(
         "--validate-model",
-        default=None,
+        default=DEFAULT_JEV_MODEL,
         help="Override model for Stage 6 (validation/consolidation). "
-             "Default: jev-1.13.0 (TypeSafe decision model). "
+             f"Default: {DEFAULT_JEV_MODEL} (TypeSafe decision model). "
              "Use 'gpt-5-nano' to revert to generative model.",
     )
     presweep.add_argument(
