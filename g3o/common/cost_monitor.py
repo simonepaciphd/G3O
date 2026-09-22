@@ -212,7 +212,6 @@ class CostMonitor:
     unpriced model is allowed through and every USD figure it produces is
     ``None`` — see :class:`StageCost`.
     """
-
     budget_usd: float | None
     model: str = DEFAULT_MODEL
     # Resolved from ``model`` in __post_init__ when not given. It cannot be a
@@ -230,12 +229,33 @@ class CostMonitor:
     # Keyed by stage name. Cleared when the stage completes and record_stage
     # replaces the partial tracking with final numbers.
     _partial_stage_usage: dict[str, dict[str, int]] = field(default_factory=dict)
+    # Per-stage model overrides (review 2026-09-23: jev integration). When a
+    # stage runs on a different model than the pipeline-wide default, its
+    # tokens are priced off this stage's rate row rather than the run model.
+    # Populated by the orchestrator from ``config.model_for_stage``.
+    stage_models: dict[str, str] = field(default_factory=dict)
+    # Cached pricing rows for stage_models, keyed by model id. Populated
+    # lazily by ``_pricing_for_stage``.
+    _stage_pricing_cache: dict[str, dict[str, Any] | None] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self.pricing is None:
             self.pricing = pricing_for(self.model)
         if self.pricing is None and self.budget_usd is not None:
             raise UnpricedModelError(self.model, budget_usd=self.budget_usd)
+    def _pricing_for_stage(self, stage: str) -> dict[str, Any] | None:
+        """The rate row for ``stage``'s model, or ``None`` if unpriced.
+
+        Uses ``stage_models[stage]`` when set, otherwise the run-wide
+        ``self.pricing``. Cached per model id so repeated lookups for the same
+        stage don't re-resolve the rate row.
+        """
+        stage_model = self.stage_models.get(stage)
+        if stage_model is None:
+            return self.pricing
+        if stage_model not in self._stage_pricing_cache:
+            self._stage_pricing_cache[stage_model] = pricing_for(stage_model)
+        return self._stage_pricing_cache[stage_model]
 
     @property
     def is_priced(self) -> bool:
@@ -249,6 +269,7 @@ class CostMonitor:
         cached_tokens: int,
         *,
         label: str,
+        pricing: dict[str, Any] | None = None,
     ) -> tuple[float | None, float | None, float | None]:
         """``(input_usd, output_usd, total_usd)`` for one bundle of tokens.
 
@@ -262,10 +283,14 @@ class CostMonitor:
         ``label`` names the caller in the corruption warning, which is the only
         thing that legitimately differed between the three.
 
+        ``pricing`` overrides the run-wide rate row for per-stage pricing (review
+        2026-09-23: jev integration). When ``None``, uses ``self.pricing``.
+
         Returns ``(None, None, None)`` when the model has no rate row: the token
         counts are still exact, and only the conversion is unavailable.
         """
-        if self.pricing is None:
+        rate_row = pricing if pricing is not None else self.pricing
+        if rate_row is None:
             return (None, None, None)
         # cached_tokens should never exceed prompt_tokens, but if it does (API
         # inconsistency or a hand-edited state file), clamp rather than emit a
@@ -278,10 +303,10 @@ class CostMonitor:
             )
         non_cached_prompt = max(0, prompt_tokens - cached_tokens)
         input_usd = (
-            usd(non_cached_prompt, self.pricing["batch_input_per_1m_usd"])
-            + usd(cached_tokens, self.pricing["batch_cached_input_per_1m_usd"])
+            usd(non_cached_prompt, rate_row["batch_input_per_1m_usd"])
+            + usd(cached_tokens, rate_row["batch_cached_input_per_1m_usd"])
         )
-        output_usd = usd(completion_tokens, self.pricing["batch_output_per_1m_usd"])
+        output_usd = usd(completion_tokens, rate_row["batch_output_per_1m_usd"])
         return (input_usd, output_usd, input_usd + output_usd)
 
     def record_stage(self, run_dir: Path, stage: str) -> StageCost:
@@ -290,6 +315,10 @@ class CostMonitor:
         The stage must have completed (``.done/<stage>.json`` must exist). If
         the state file lacks usage data (pre-existing run, backward compat),
         all token counts are treated as 0.
+
+        For non-batch stages (e.g., jev), reads top-level ``usage`` and
+        ``n_jobs`` from the marker when no chunks are present (review
+        2026-09-23: jev integration writes usage into the marker).
 
         Returns the :class:`StageCost` for this stage, which is also appended
         to ``self.stages`` for the running total.
@@ -328,20 +357,31 @@ class CostMonitor:
         state = json.loads(done_file.read_text(encoding="utf-8"))
         chunks = state.get("chunks", {})
 
-        # Sum usage across all chunks
+        # Sum usage across all chunks (batch path) or read top-level usage
+        # (non-batch path, e.g., jev stages that write usage into the marker).
         prompt_tokens = 0
         completion_tokens = 0
         cached_tokens = 0
-        for _chunk_key, chunk_entry in chunks.items():
-            usage = chunk_entry.get("usage")
-            if usage:
-                prompt_tokens += int(usage.get("prompt_tokens", 0))
-                completion_tokens += int(usage.get("completion_tokens", 0))
-                cached_tokens += int(usage.get("cached_tokens", 0))
+        if chunks:
+            for _chunk_key, chunk_entry in chunks.items():
+                usage = chunk_entry.get("usage")
+                if usage:
+                    prompt_tokens += int(usage.get("prompt_tokens", 0))
+                    completion_tokens += int(usage.get("completion_tokens", 0))
+                    cached_tokens += int(usage.get("cached_tokens", 0))
+        elif "usage" in state:
+            # Non-batch stage (jev): usage recorded at top level.
+            usage = state["usage"]
+            prompt_tokens = int(usage.get("prompt_tokens", 0))
+            completion_tokens = int(usage.get("completion_tokens", 0))
+            cached_tokens = int(usage.get("cached_tokens", 0))
 
-        # Cached tokens are priced at the cached rate, not the full input rate.
+        # Per-stage pricing: use the stage's model rate row when set, else the
+        # run-wide rate row (review 2026-09-23: jev integration).
+        stage_pricing = self._pricing_for_stage(stage)
         input_usd, output_usd, total_usd = self._usd_for(
-            prompt_tokens, completion_tokens, cached_tokens, label=f"Stage {stage}"
+            prompt_tokens, completion_tokens, cached_tokens,
+            label=f"Stage {stage}", pricing=stage_pricing,
         )
 
         n_jobs = state.get("n_jobs", 0)
@@ -388,6 +428,9 @@ class CostMonitor:
         Like :meth:`check_budget`, but also folds in the accumulated partial
         usage for ``stage`` (from :meth:`accumulate_chunk_usage`). Returns
         True if within budget, False if the combined total exceeds the limit.
+
+        Uses per-stage pricing when ``stage_models[stage]`` is set (review
+        2026-09-23: jev integration).
         """
         if self.budget_usd is None:
             return True
@@ -395,11 +438,13 @@ class CostMonitor:
         # Add partial stage cost if we have accumulated usage for it
         if stage in self._partial_stage_usage:
             acc = self._partial_stage_usage[stage]
+            stage_pricing = self._pricing_for_stage(stage)
             _, _, partial_cost = self._usd_for(
                 acc["prompt_tokens"],
                 acc["completion_tokens"],
                 acc["cached_tokens"],
                 label=f"Partial stage {stage}",
+                pricing=stage_pricing,
             )
             running += partial_cost or 0.0
         return running <= self.budget_usd
@@ -564,11 +609,13 @@ class CostMonitor:
                 cached_tokens += int(usage.get("cached_tokens", 0))
                 n_completed_chunks += 1
 
+        stage_pricing = self._pricing_for_stage(stage)
         input_usd, output_usd, total_usd = self._usd_for(
             prompt_tokens,
             completion_tokens,
             cached_tokens,
             label=f"Partial stage {stage}",
+            pricing=stage_pricing,
         )
 
         n_jobs = state.get("n_jobs", 0)

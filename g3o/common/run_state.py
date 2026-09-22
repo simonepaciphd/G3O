@@ -304,13 +304,25 @@ def iter_chunks(state: dict[str, Any]) -> Iterator[tuple[str, dict[str, Any]]]:
         yield key, chunks[key]
 
 
-def mark_done(run_dir: Path, stage: str, *, no_batch: bool = False) -> Path:
+def mark_done(
+    run_dir: Path,
+    stage: str,
+    *,
+    no_batch: bool = False,
+    usage: dict[str, int] | None = None,
+    n_jobs: int | None = None,
+) -> Path:
     """Move the active state file to ``.done/{stage}.json`` (Q2=iii).
 
     For deterministic stages (1a, 1b, scrape) and the all-bypassed Stage 2
     case, no active state file exists; pass ``no_batch=True`` to write a
     minimal completion marker. Idempotent: re-marking an already-done stage
     is a no-op. Writes are atomic via temp-file + ``os.replace``.
+
+    For non-batch stages (e.g., jev) that track usage but don't submit OpenAI
+    batches, pass ``usage`` (``{prompt_tokens, completion_tokens, cached_tokens}``)
+    and ``n_jobs`` to record the totals in the marker. ``CostMonitor.record_stage``
+    reads these when no chunks are present.
     """
     src = state_path(run_dir, stage)
     dst = done_path(run_dir, stage)
@@ -324,6 +336,10 @@ def mark_done(run_dir: Path, stage: str, *, no_batch: bool = False) -> Path:
         src.unlink()
         return dst
     payload = {"stage": stage, "fetched_at": _utc_iso(), "no_batch": no_batch}
+    if usage is not None:
+        payload["usage"] = usage
+    if n_jobs is not None:
+        payload["n_jobs"] = n_jobs
     _write_json_atomic(dst, payload)
     return dst
 

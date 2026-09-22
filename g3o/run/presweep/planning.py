@@ -286,6 +286,13 @@ def write_run_layout(
     _write_manifest_atomic(manifest_path, manifest)
     for row in sample:
         institution = institution_record(row)
+        # Add institution_search_languages to the record before writing.
+        # This is a derived property from the config, not the master CSV row,
+        # but Stage 6 needs it when reading institution.json back.
+        if config.language_policy:
+            institution["institution_search_languages"] = config.institution_search_languages_for(institution)
+        else:
+            institution["institution_search_languages"] = config.institution_search_languages
         inst_dir = institution_dir(run_dir, institution["institution_id"])
         inst_dir.mkdir(parents=True, exist_ok=True)
         (inst_dir / "institution.json").write_text(

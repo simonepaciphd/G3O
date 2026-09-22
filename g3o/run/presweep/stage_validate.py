@@ -133,7 +133,15 @@ def _run_validate_jev(
     )
 
     if n_success > 0 or n_skipped > 0:
-        mark_done(run_dir, stage)
+        mark_done(
+            run_dir, stage, no_batch=True,
+            usage={
+                "prompt_tokens": total_input_tokens,
+                "completion_tokens": total_output_tokens,
+                "cached_tokens": 0,
+            },
+            n_jobs=n_success,
+        )
 
     return results
 

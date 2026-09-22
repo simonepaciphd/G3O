@@ -239,6 +239,18 @@ def run_presweep(
 
     # Continuous cost monitoring: instantiate once at run start, check after each LLM stage.
     # None budget means no limit (check_budget returns True unconditionally).
+    # Per-stage model overrides (review 2026-09-23: jev integration): each
+    # stage's tokens are priced off its own model's rate row, not the run-wide
+    # default. Stages not in the map fall back to ``config.model``.
+    stage_models = {
+        stage: config.model_for_stage(stage)
+        for stage in (
+            "classify_official_site",
+            "classify_triage",
+            "extract",
+            "validate",
+        )
+    }
     monitor = CostMonitor(
         budget_usd=config.budget_usd,
         # The model this run submits selects its own rate row (review F2). Without
@@ -246,19 +258,23 @@ def run_presweep(
         # enforcing was not the budget of the run it was watching.
         model=config.model,
         preflight_stage_estimates=config.preflight_stage_estimates,
+        stage_models=stage_models,
     )
     budget_abort_stage: str | None = None
     budget_exceeded_stages: list[str] = []  # Track all stages that exceeded budget (for dry-run mode)
 
     # Within-stage budget callback (Gap 1): called after each chunk completes.
     # Returns False to stop submitting new chunks (but let in-flight finish).
-    def _within_stage_budget_callback(stage: str, chunk_usage: dict[str, int]) -> None:
+    def _within_stage_budget_callback(stage: str, chunk_usage: dict[str, int]) -> bool:
         """Check budget after each chunk completes within a stage.
 
         Accumulates usage and raises BudgetExceededError if over budget
         (unless in dry-run mode). The exception propagates past mark_done
         so no .done marker is written, leaving un-submitted chunks in the
         active state file as a truncation signal.
+
+        Returns True to continue, False to stop (only in dry-run mode when
+        over budget; otherwise raises).
         """
         monitor.accumulate_chunk_usage(stage, chunk_usage)
         if not monitor.check_budget_with_partial(stage):
@@ -268,12 +284,13 @@ def run_presweep(
                     "Stage %s partial spend: $%.4f of $%.4f limit",
                     stage, monitor.running_total_usd, monitor.budget_usd,
                 )
-                return
+                return True  # Continue in dry-run mode
             raise BudgetExceededError(
                 spent=monitor.running_total_usd,
                 budget=monitor.budget_usd,
                 stage=stage,
             )
+        return True  # Within budget, continue
 
     # Helper to check projection after each stage (Gap 2)
     # Note: This is a closure that captures `config` from the enclosing scope.
