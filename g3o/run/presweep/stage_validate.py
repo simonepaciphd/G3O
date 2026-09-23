@@ -13,6 +13,7 @@ from typing import Any
 
 from g3o.common.credentials import ResolvedCredentials
 from g3o.run.presweep.records import synth_institution_id
+from g3o.common.timing import record_stage_timing
 
 
 def _is_jev_model(model: str) -> bool:
@@ -64,7 +65,6 @@ def _run_validate_jev(
 
     client = client_from_credentials(credentials, model=model)
 
-    results: dict[str, Any] = {}
     n_success = 0
     n_failed = 0
     n_skipped = 0
@@ -82,6 +82,8 @@ def _run_validate_jev(
             continue
 
         try:
+            import time
+            start = time.time()
             # Build state and questions
             state = build_validate_state(institution_row, input_rows, n_input_pages)
             questions = build_validate_questions(input_rows)
@@ -97,7 +99,12 @@ def _run_validate_jev(
             # Write artifact
             write_consolidated_output(run_dir, institution_id, jev_result.response)
 
-            results[institution_id] = jev_result.response.model_dump()
+            duration = time.time() - start
+            record_stage_timing(
+                run_dir, institution_id, "validate", duration_seconds=duration,
+                timing_type="per_institution",
+            )
+
             n_success += 1
             total_input_tokens += result.input_tokens
             total_output_tokens += result.output_tokens
@@ -143,7 +150,13 @@ def _run_validate_jev(
             n_jobs=n_success,
         )
 
-    return results
+    return {
+        "run_dir": str(run_dir),
+        "n_institutions": len(per_inst_inputs),
+        "n_consolidated": n_success + n_skipped,
+        "n_failed": n_failed,
+        "batch_ids": [],  # jev is sync, no batch API
+    }
 
 
 def _run_validate(

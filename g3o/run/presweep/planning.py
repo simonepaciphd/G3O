@@ -633,6 +633,42 @@ def _assert_manifest_matches_on_resume(
         )
 
 
+def _extract_jev_response_models(run_dir: Path, stage: str) -> set[str]:
+    """Scan per-institution artifacts for a jev stage and collect response_model values.
+
+    jev stages record response_model in each artifact (2_official_site.json,
+    3_triage.json, 6_validate.json). This helper reads up to 10 artifacts to
+    find the model id(s) that actually answered.
+    """
+    from g3o.common.paths import institution_dir
+    import glob
+
+    artifact_names = {
+        "classify_official_site": "2_official_site.json",
+        "classify_triage": "3_triage.json",
+        "validate": "6_validate.json",
+    }
+    artifact_name = artifact_names.get(stage)
+    if not artifact_name:
+        return set()
+
+    models: set[str] = set()
+    # Scan institutions in shard dirs (e.g., institutions/00/INST-*/2_official_site.json)
+    pattern = str(run_dir / "institutions" / "*" / "*" / artifact_name)
+    count = 0
+    for path in glob.glob(pattern):
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+            model = data.get("response_model")
+            if model:
+                models.add(model)
+            count += 1
+            if count >= 10:
+                break
+        except Exception:
+            continue
+    return models
+
 def update_manifest_llm_provenance(run_dir: Path) -> dict[str, Any]:
     """Fold response-side LLM provenance from stage state files into the manifest.
 
@@ -661,7 +697,26 @@ def update_manifest_llm_provenance(run_dir: Path) -> dict[str, Any]:
         payload = json.loads(path.read_text(encoding="utf-8"))
         stage = payload.get("stage")
         chunks = payload.get("chunks")
-        if not stage or not isinstance(chunks, dict):
+        no_batch = payload.get("no_batch", False)
+        if not stage:
+            continue
+
+        # jev stages: no_batch=True, extract response_model from artifacts
+        if no_batch and not chunks:
+            models = _extract_jev_response_models(run_dir, stage)
+            if models:
+                provenance[stage] = {
+                    "request_model": payload.get("model", "jev-1.13.0"),
+                    "response_models": sorted(models),
+                    "system_fingerprints": [],
+                    "batch_ids": [],
+                    "n_chunks_planned": 0,
+                    "n_chunks_fetched": 0,
+                    "jev": True,
+                }
+            continue
+
+        if not isinstance(chunks, dict):
             continue  # no-batch done markers carry no provenance
         models: set[str] = set()
         fingerprints: set[str] = set()
@@ -689,6 +744,17 @@ def update_manifest_llm_provenance(run_dir: Path) -> dict[str, Any]:
         return {}
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["llm_provenance"] = provenance
+
+    # Update model_ids to reflect all models actually used (from provenance)
+    all_models: set[str] = set()
+    for stage_data in provenance.values():
+        all_models.update(stage_data.get("response_models", []))
+    if all_models:
+        manifest["model_ids"] = {
+            "requested": manifest.get("model_ids", {}).get("requested", {}),
+            "response": sorted(all_models),
+        }
+
     tmp = manifest_path.with_name(manifest_path.name + ".tmp")
     tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     os.replace(tmp, manifest_path)

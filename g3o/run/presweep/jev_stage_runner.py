@@ -43,6 +43,7 @@ from g3o.common.jev_client import (
     client_from_credentials,
 )
 from g3o.common.paths import institution_dir
+from g3o.common.timing import record_stage_timing
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,8 @@ def run_jev_stage(
             metrics.n_skipped += 1
             return
 
+        import time
+        start = time.time()
         try:
             state, questions = build_request(institution)
             result = ask(state, questions, client=client, model=model)
@@ -130,6 +133,11 @@ def run_jev_stage(
 
         try:
             process_result(inst_id, result, institution)
+            duration = time.time() - start
+            record_stage_timing(
+                run_dir, inst_id, stage, duration_seconds=duration,
+                timing_type="per_institution",
+            )
             metrics.n_success += 1
             metrics.total_input_tokens += result.input_tokens
             metrics.total_output_tokens += result.output_tokens
