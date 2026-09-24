@@ -115,7 +115,9 @@ def run_jev_stage(
             return
 
         import time
+        from datetime import datetime, timezone
         start = time.time()
+        start_time = datetime.fromtimestamp(start, tz=timezone.utc).isoformat()
         try:
             state, questions = build_request(institution)
             result = ask(state, questions, client=client, model=model)
@@ -134,8 +136,13 @@ def run_jev_stage(
         try:
             process_result(inst_id, result, institution)
             duration = time.time() - start
+            end_time = datetime.fromtimestamp(time.time(), tz=timezone.utc).isoformat()
             record_stage_timing(
-                run_dir, inst_id, stage, duration_seconds=duration,
+                run_dir, inst_id, stage,
+                start_time=start_time,
+                end_time=end_time,
+                duration_seconds=duration,
+                status="success",
                 timing_type="per_institution",
             )
             metrics.n_success += 1

@@ -211,8 +211,6 @@ def _run_classify_official_site_jev(
                 "confidence": parsed.confidence,
                 "jev_confidence": parsed.jev_confidence,
                 "choice_probabilities": parsed.choice_probabilities,
-                "score": parsed.score,
-                "score_probabilities": parsed.score_probabilities,
                 "response_model": parsed.response_model,
                 "request_id": parsed.request_id,
                 "jev_question_set_version": "g3o.classify.official_site.jev.v1",

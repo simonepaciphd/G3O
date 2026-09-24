@@ -98,21 +98,19 @@ class TestJevOfficialSiteState:
 
 
 class TestJevOfficialSiteQuestions:
-    """build_official_site_questions builds Choice + Score questions."""
+    """build_official_site_questions builds a single Choice question."""
 
     def test_build_questions(self):
         candidate_urls = ["https://example.gov", "https://wikipedia.org/example"]
         questions = build_official_site_questions(candidate_urls)
         assert "official_site" in questions
-        assert "site_confidence" in questions
+        # Only one question now (site_confidence removed)
+        assert len(questions) == 1
         # Check Choice criteria has positional ids
         choice_q = questions["official_site"]
         assert "u0" in choice_q.criteria
         assert "u1" in choice_q.criteria
         assert "none" in choice_q.criteria
-        # Check Score criteria has 4 levels
-        score_q = questions["site_confidence"]
-        assert len(score_q.criteria) == 4
 
     def test_build_questions_empty(self):
         questions = build_official_site_questions([])
@@ -136,13 +134,6 @@ class TestJevOfficialSiteParse:
                     confidence=0.9,
                     probabilities={"u0": 0.9, "u1": 0.1, "none": 0.0},
                 ),
-                "site_confidence": JevAnswer(
-                    question_id="site_confidence",
-                    type="score",
-                    score=3.0,
-                    confidence=0.85,
-                    probabilities={0: 0.0, 1: 0.05, 2: 0.1, 3: 0.85},
-                ),
             },
             response_model="jev-1.13.0",
             request_id="req-123",
@@ -154,7 +145,6 @@ class TestJevOfficialSiteParse:
         assert parsed.url == "https://example.gov"
         assert parsed.confidence == "high"
         assert parsed.jev_confidence == 0.9
-        assert parsed.score == 3.0
         assert parsed.response_model == "jev-1.13.0"
 
     def test_parse_low_confidence_gate(self):
@@ -167,13 +157,6 @@ class TestJevOfficialSiteParse:
                     choice="u0",
                     confidence=0.3,  # Below threshold
                     probabilities={"u0": 0.3, "u1": 0.7, "none": 0.0},
-                ),
-                "site_confidence": JevAnswer(
-                    question_id="site_confidence",
-                    type="score",
-                    score=1.0,
-                    confidence=0.4,
-                    probabilities={0: 0.1, 1: 0.8, 2: 0.1, 3: 0.0},
                 ),
             },
             response_model="jev-1.13.0",
@@ -197,13 +180,6 @@ class TestJevOfficialSiteParse:
                     confidence=0.8,
                     probabilities={"u0": 0.1, "u1": 0.1, "none": 0.8},
                 ),
-                "site_confidence": JevAnswer(
-                    question_id="site_confidence",
-                    type="score",
-                    score=0.0,
-                    confidence=0.9,
-                    probabilities={0: 0.9, 1: 0.1, 2: 0.0, 3: 0.0},
-                ),
             },
             response_model="jev-1.13.0",
             request_id="req-789",
@@ -224,13 +200,6 @@ class TestJevOfficialSiteParse:
                     type="choice",
                     choice="u5",  # Out of range
                     confidence=0.9,
-                    probabilities={},
-                ),
-                "site_confidence": JevAnswer(
-                    question_id="site_confidence",
-                    type="score",
-                    score=3.0,
-                    confidence=0.8,
                     probabilities={},
                 ),
             },

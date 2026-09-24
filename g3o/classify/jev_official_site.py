@@ -1,7 +1,7 @@
 """Stage 2 — Official-site classification via TypeSafe jev.
 
 Converts the Stage 2 task (pick the official homepage from candidates) into
-jev typed questions:
+a jev typed question:
 
 - ``official_site``: Choice over positional ids (u0..uN, none). Option keys
   are positional ids, NOT the URLs themselves; each option's criteria carries
@@ -9,16 +9,16 @@ jev typed questions:
   construction — this closes documented gap F13 (fabricated-URL xfail-strict
   test): a URL that was never a candidate is unrepresentable.
 
-- ``site_confidence``: Score with the four existing rubric levels
-  (high/medium/low/none) lifted from the current SYSTEM_PROMPT — maps 1:1
-  onto the artifact field, schema-preserving.
-
 The state carries the institution row plus the search results (url/title/
-snippet). Jev evaluates both questions in parallel against the same state.
+snippet). Confidence level is derived from the Choice probability:
+- max_prob >= 0.8 → "high"
+- max_prob >= 0.5 → "medium"
+- max_prob >= 0.3 → "low"
+- max_prob < 0.3 → "none"
 
 Confidence gate: jev Choice confidence < 0.5 → treat as no-site (url=None) +
-attrition record; 0.5–0.8 → proceed, record. Thresholds are named code
-constants; probabilities are stored so they can be re-tuned offline.
+attrition record. Thresholds are named code constants; probabilities are
+stored so they can be re-tuned offline.
 
 See jev-integration-plan.md §3 for the full design.
 """
@@ -57,8 +57,6 @@ class JevOfficialSiteResult:
     confidence: Literal["high", "medium", "low", "none"]
     jev_confidence: float  # 0–1, from jev Choice answer
     choice_probabilities: dict[str, float]  # positional id → probability
-    score: float  # 0–3, from jev Score answer
-    score_probabilities: dict[int, float]  # level index → probability
     response_model: str
     request_id: str | None
 
@@ -88,12 +86,11 @@ def build_official_site_state(
 
 def build_official_site_questions(
     candidate_urls: list[str],
-) -> dict[str, ts.Choice | ts.Score]:
+) -> dict[str, ts.Choice]:
     """Build the jev questions for Stage 2.
 
-    ``candidate_urls`` is the list of URLs from discovery. Questions:
+    ``candidate_urls`` is the list of URLs from discovery. One question:
     - ``official_site``: Choice over positional ids (u0..uN, none).
-    - ``site_confidence``: Score with 4 levels (none/low/medium/high).
     """
     # Choice: positional ids, not URLs. Each option's criteria carries the
     # url/title/snippet from the state (jev reads the state, not the criteria).
@@ -115,23 +112,8 @@ def build_official_site_questions(
         criteria=choice_criteria,
     )
 
-    # Score: 4 levels (none/low/medium/high), lifted from the nano prompt.
-    site_confidence = ts.Score(
-        instructions=(
-            "Rate your confidence that the chosen URL is the institution's "
-            "official primary homepage."
-        ),
-        criteria=[
-            "none: used only when no candidate is chosen",
-            "low: plausible candidate but with real concerns (third-party mirror, weak signals)",
-            "medium: likely-official page with one minor concern (subpage rather than landing, language ambiguity, similar-name disambiguation)",
-            "high: official-domain landing page that unambiguously names this institution",
-        ],
-    )
-
     return {
         "official_site": official_site,
-        "site_confidence": site_confidence,
     }
 
 
@@ -142,15 +124,17 @@ def parse_official_site_result(
     """Parse a JevResult from Stage 2 into a JevOfficialSiteResult.
 
     Maps the Choice answer's positional id back to the candidate URL. Applies
-    the confidence gate: < 0.5 → url=None; 0.5–0.8 → proceed with record.
+    the confidence gate: < 0.5 → url=None. Derives confidence level from the
+    Choice probability (max_prob):
+    - >= 0.8 → "high"
+    - >= 0.5 → "medium"
+    - >= 0.3 → "low"
+    - < 0.3 → "none"
     """
     choice_answer = result.answers.get("official_site")
-    score_answer = result.answers.get("site_confidence")
 
     if not isinstance(choice_answer, JevAnswer) or choice_answer.type != "choice":
         raise RuntimeError(f"Stage 2 jev result missing or invalid 'official_site' answer")
-    if not isinstance(score_answer, JevAnswer) or score_answer.type != "score":
-        raise RuntimeError(f"Stage 2 jev result missing or invalid 'site_confidence' answer")
 
     # Map choice back to URL.
     choice = choice_answer.choice
@@ -170,11 +154,18 @@ def parse_official_site_result(
     if jev_confidence < CONFIDENCE_THRESHOLD_LOW:
         url = None
 
-    # Map score to confidence level.
-    score = score_answer.score or 0.0
-    score_idx = int(round(score))
-    score_idx = max(0, min(3, score_idx))
-    confidence_level = CONFIDENCE_LEVELS[score_idx]
+    # Derive confidence level from the max probability in the Choice answer.
+    probabilities = choice_answer.probabilities or {}
+    max_prob = max(probabilities.values()) if probabilities else 0.0
+
+    if max_prob >= CONFIDENCE_THRESHOLD_HIGH:
+        confidence_level = "high"
+    elif max_prob >= CONFIDENCE_THRESHOLD_LOW:
+        confidence_level = "medium"
+    elif max_prob >= 0.3:
+        confidence_level = "low"
+    else:
+        confidence_level = "none"
 
     # If confidence gate forced url=None, confidence level is "none".
     if url is None:
@@ -184,9 +175,7 @@ def parse_official_site_result(
         url=url,
         confidence=confidence_level,
         jev_confidence=jev_confidence,
-        choice_probabilities=choice_answer.probabilities or {},
-        score=score,
-        score_probabilities=score_answer.probabilities or {},
+        choice_probabilities=probabilities,
         response_model=result.response_model,
         request_id=result.request_id,
     )
