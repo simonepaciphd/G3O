@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common.credentials import ResolvedCredentials
-from g3o.run.presweep.records import synth_institution_id
 from g3o.common.timing import record_stage_timing
+from g3o.run.presweep.records import synth_institution_id
 
 
 def _is_jev_model(model: str) -> bool:
@@ -36,9 +36,13 @@ def _run_validate_jev(
     synchronously, and assembles the ConsolidatedInstitutionResponse with
     deterministic bookkeeping. See jev-integration-plan.md §4 for the design.
     """
+    import logging
+
+    from g3o.common.jev_client import ask, client_from_credentials
+    from g3o.common.paths import institution_dir
+    from g3o.common.run_state import is_done, mark_done
     from g3o.validate.consolidate import (
         assemble_per_institution_inputs,
-        load_extract_outputs,
         write_consolidated_output,
     )
     from g3o.validate.jev_validate import (
@@ -46,11 +50,6 @@ def _run_validate_jev(
         build_validate_state,
         parse_validate_result,
     )
-    from g3o.common.jev_client import ask, client_from_credentials
-    from g3o.common.paths import institution_dir
-    from g3o.common.run_state import is_done, mark_done
-    import json
-    import logging
 
     logger = logging.getLogger(__name__)
 

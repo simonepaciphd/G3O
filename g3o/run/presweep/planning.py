@@ -640,7 +640,6 @@ def _extract_jev_response_models(run_dir: Path, stage: str) -> set[str]:
     3_triage.json, 6_validate.json). This helper reads up to 10 artifacts to
     find the model id(s) that actually answered.
     """
-    from g3o.common.paths import institution_dir
     import glob
 
     artifact_names = {

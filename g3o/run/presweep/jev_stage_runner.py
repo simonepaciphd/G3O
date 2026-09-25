@@ -25,15 +25,12 @@ See jev-integration-plan.md §3 for the full design.
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-
-import typesafe_sdk as ts
 
 from g3o.common import attrition
 from g3o.common.credentials import ResolvedCredentials

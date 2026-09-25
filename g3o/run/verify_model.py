@@ -33,7 +33,6 @@ from g3o.common.batch_client import (
 )
 from g3o.common.credentials import ResolvedCredentials
 from g3o.common.jev_client import (
-    DEFAULT_JEV_MODEL,
     client_from_credentials as jev_client_from_credentials,
 )
 

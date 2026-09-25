@@ -9,22 +9,20 @@ Covers:
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 import typesafe_sdk as ts
 
-from g3o.common.credentials import Credentials, ResolvedCredentials, resolve
+from g3o.common.credentials import Credentials, resolve
 from g3o.common.jev_client import (
     DEFAULT_JEV_MODEL,
-    JevAnswer,
     JevResult,
     _parse_answer,
     ask,
     client_from_credentials,
     serialize_state,
 )
-
 
 # ---------------------------------------------------------------------------
 # JevAnswer parsing

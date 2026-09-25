@@ -13,6 +13,28 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
+# ── jev routing (jev-integration-plan.md §3) ──────────────────────────────
+# When the model id starts with "jev-", route to the TypeSafe jev path instead
+# of the OpenAI Batch API path. The jev modules build typed questions and parse
+# typed answers; the jev_stage_runner drives them synchronously.
+from g3o.classify.jev_official_site import (
+    build_official_site_questions as jev_build_official_site_questions,
+)
+from g3o.classify.jev_official_site import (
+    build_official_site_state as jev_build_official_site_state,
+)
+from g3o.classify.jev_official_site import (
+    parse_official_site_result as jev_parse_official_site_result,
+)
+from g3o.classify.jev_url_triage import (
+    build_triage_questions as jev_build_triage_questions,
+)
+from g3o.classify.jev_url_triage import (
+    build_triage_state as jev_build_triage_state,
+)
+from g3o.classify.jev_url_triage import (
+    parse_triage_result as jev_parse_triage_result,
+)
 from g3o.classify.official_site import (
     build_official_site_job,
     parse_official_site_result,
@@ -29,27 +51,12 @@ from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
 from g3o.common.timing import llm_stage_timer
 from g3o.report.discovery_yield import registrable_domain
+from g3o.run.presweep.jev_stage_runner import run_jev_stage
 from g3o.run.presweep.records import (
     _dedupe_key,
     institution_record,
     synth_institution_id,
 )
-
-# ── jev routing (jev-integration-plan.md §3) ──────────────────────────────
-# When the model id starts with "jev-", route to the TypeSafe jev path instead
-# of the OpenAI Batch API path. The jev modules build typed questions and parse
-# typed answers; the jev_stage_runner drives them synchronously.
-from g3o.classify.jev_official_site import (
-    build_official_site_questions as jev_build_official_site_questions,
-    build_official_site_state as jev_build_official_site_state,
-    parse_official_site_result as jev_parse_official_site_result,
-)
-from g3o.classify.jev_url_triage import (
-    build_triage_questions as jev_build_triage_questions,
-    build_triage_state as jev_build_triage_state,
-    parse_triage_result as jev_parse_triage_result,
-)
-from g3o.run.presweep.jev_stage_runner import run_jev_stage
 
 
 def _is_jev_model(model: str) -> bool:
@@ -224,7 +231,6 @@ def _run_classify_official_site_jev(
             )
 
     # Wrap build_request and process_result to handle the tuple unpacking.
-    inst_list = [inst for inst in institutions_to_process]
     def build_request_wrapper(inst: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
         # Find the matching tuple.
         for inst_tuple in institutions_to_process:

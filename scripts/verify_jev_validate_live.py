@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 """Live API verification for jev_validate module."""
 
-import json
-import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 
 from g3o.common.credentials import Credentials, resolve
-from g3o.common.jev_client import client_from_credentials
+from g3o.common.jev_client import ask, client_from_credentials
 from g3o.validate.jev_validate import (
     build_validate_questions,
     build_validate_state,
     parse_validate_result,
 )
 
-from g3o.common.jev_client import ask, client_from_credentials
 load_dotenv()
 
 
@@ -117,7 +113,7 @@ def verify_jev_validate():
 
     n_input_pages = 2
 
-    print(f"\n✓ Test data prepared:")
+    print("\n✓ Test data prepared:")
     print(f"  - Institution: {institution_row['institution_name']}")
     print(f"  - Input rows: {len(input_rows)}")
     print(f"  - Input pages: {n_input_pages}")
@@ -137,7 +133,7 @@ def verify_jev_validate():
             client=client,
             model="jev-1.13.0",
         )
-        print(f"✓ API call successful")
+        print("✓ API call successful")
         print(f"  - Response model: {result.response_model}")
         print(f"  - Request ID: {result.request_id}")
         print(f"  - Usage: {result.input_tokens} input tokens, {result.output_tokens} output tokens")
@@ -145,21 +141,21 @@ def verify_jev_validate():
         # Parse result
         print("\n→ Parsing jev result...")
         parsed = parse_validate_result(result, institution_row, input_rows, n_input_pages)
-        print(f"✓ Result parsed successfully")
+        print("✓ Result parsed successfully")
         print(f"  - Activity groups: {len(parsed.activity_groups)}")
         print(f"  - Conflict resolutions: {len(parsed.conflict_resolutions)}")
         print(f"  - Summary choice: {parsed.summary_choice}")
 
         # Validate response
         response = parsed.response
-        print(f"\n✓ ConsolidatedInstitutionResponse validated:")
+        print("\n✓ ConsolidatedInstitutionResponse validated:")
         print(f"  - Institution ID: {response.institution.institution_id}")
         print(f"  - Has GenAI activity: {response.institution.has_genai_activity}")
         print(f"  - Activities: {len(response.activities)}")
         print(f"  - Sources: {len(response.sources)}")
 
         if response.activities:
-            print(f"\n  Activity details:")
+            print("\n  Activity details:")
             for i, activity in enumerate(response.activities, 1):
                 print(f"    {i}. {activity.activity_name}")
                 print(f"       - Type: {activity.activity_type}")

@@ -20,10 +20,9 @@ See jev-integration-plan.md §4 for the full design.
 
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any
 
 import typesafe_sdk as ts
 
@@ -224,7 +223,7 @@ def parse_validate_result(
     by_name: dict[str, list[int]] = defaultdict(list)
     for i, row in activity_rows:
         by_name[row.get("activity_name", "")].append(i)
-    for name, indices in by_name.items():
+    for _name, indices in by_name.items():
         if len(indices) > 1:
             for i in indices[1:]:
                 union(indices[0], i)
@@ -331,12 +330,12 @@ def _assemble_response(
         activity_name = base_row.get("activity_name", "")
 
         # Build Group D fields: use conflict_resolutions if available, else first row
-        def get_field(field: str, default: str = "unknown") -> str:
+        def get_field(field: str, default: str = "unknown", _row_indices=row_indices, _base_row=base_row) -> str:
             if field in conflict_resolutions:
                 winning_idx = conflict_resolutions[field]
-                if winning_idx in row_indices:
+                if winning_idx in _row_indices:
                     return input_rows[winning_idx].get(field, default)
-            return base_row.get(field, default)
+            return _base_row.get(field, default)
 
         activity = ConsolidatedActivity(
             activity_id=activity_id,

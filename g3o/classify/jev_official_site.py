@@ -25,7 +25,6 @@ See jev-integration-plan.md §3 for the full design.
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -134,7 +133,7 @@ def parse_official_site_result(
     choice_answer = result.answers.get("official_site")
 
     if not isinstance(choice_answer, JevAnswer) or choice_answer.type != "choice":
-        raise RuntimeError(f"Stage 2 jev result missing or invalid 'official_site' answer")
+        raise RuntimeError("Stage 2 jev result missing or invalid 'official_site' answer")
 
     # Map choice back to URL.
     choice = choice_answer.choice

@@ -22,8 +22,7 @@ See jev-integration-plan.md §3 for the full design.
 
 from __future__ import annotations
 
-import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Literal
 
 import typesafe_sdk as ts
@@ -80,7 +79,7 @@ def build_triage_state(
                 "title": r.get("title", ""),
                 "snippet": r.get("snippet", ""),
             }
-            for r, u in zip(search_results, candidate_urls)
+            for r, u in zip(search_results, candidate_urls, strict=False)
         ],
     }
 

@@ -9,9 +9,8 @@ Covers:
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -20,16 +19,15 @@ from g3o.classify.jev_official_site import (
     CONFIDENCE_THRESHOLD_HIGH,
     CONFIDENCE_THRESHOLD_LOW,
     JEV_QUESTION_SET_VERSION,
-    JevOfficialSiteResult,
     build_official_site_questions,
     build_official_site_state,
     parse_official_site_result,
 )
 from g3o.classify.jev_url_triage import (
     JEV_QUESTION_SET_VERSION as TRIAGE_JEV_QUESTION_SET_VERSION,
+)
+from g3o.classify.jev_url_triage import (
     KEEP_THRESHOLD,
-    JevURLDecision,
-    JevURLTriageResult,
     build_triage_questions,
     build_triage_state,
     parse_triage_result,
@@ -39,11 +37,9 @@ from g3o.common.jev_client import JevAnswer, JevResult
 from g3o.common.paths import institution_dir
 from g3o.run.presweep.jev_stage_runner import (
     DEFAULT_JEV_CONCURRENCY,
-    JevStageMetrics,
     run_jev_stage,
 )
 from g3o.run.presweep.stage_classify import _is_jev_model
-
 
 # ---------------------------------------------------------------------------
 # _is_jev_model routing

@@ -7,20 +7,11 @@ Covers:
 
 from __future__ import annotations
 
-from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
-
 from g3o.common.contract import (
-    ConsolidatedActivity,
-    ConsolidatedInstitution,
     ConsolidatedInstitutionResponse,
-    ConsolidationMetadata,
-    SourceRecord,
 )
-from g3o.common.credentials import Credentials, resolve
 from g3o.common.jev_client import JevAnswer, JevResult
+from g3o.run.presweep.stage_validate import _is_jev_model
 from g3o.validate.jev_validate import (
     JEV_QUESTION_SET_VERSION,
     JevValidateResult,
@@ -28,8 +19,6 @@ from g3o.validate.jev_validate import (
     build_validate_state,
     parse_validate_result,
 )
-from g3o.run.presweep.stage_validate import _is_jev_model
-
 
 # ---------------------------------------------------------------------------
 # _is_jev_model routing
