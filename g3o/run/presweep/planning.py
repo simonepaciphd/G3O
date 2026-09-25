@@ -367,6 +367,14 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "discovery_evidence_open",
     "serper_autocorrect",
     "model",
+    # Per-stage model overrides (jev integration, 2026-09-20). Same class as
+    # ``model`` beside it: a run started on jev-1.13.0 for Stage 2 and resumed
+    # with --classify-official-site-model gpt-5-nano would mix instruments
+    # across the resume — the exact failure this guard exists to prevent.
+    "classify_official_site_model",
+    "classify_triage_model",
+    "extract_model",
+    "validate_model",
     # Spending the official-site overlay (2026-08-30). Guarded for the same
     # reason ``discovery_mode`` is: an institution decorated with
     # ``official_site_url`` skips the Stage 2 LLM path entirely, so a run

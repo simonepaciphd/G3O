@@ -311,6 +311,7 @@ def mark_done(
     no_batch: bool = False,
     usage: dict[str, int] | None = None,
     n_jobs: int | None = None,
+    model: str | None = None,
 ) -> Path:
     """Move the active state file to ``.done/{stage}.json`` (Q2=iii).
 
@@ -323,6 +324,10 @@ def mark_done(
     batches, pass ``usage`` (``{prompt_tokens, completion_tokens, cached_tokens}``)
     and ``n_jobs`` to record the totals in the marker. ``CostMonitor.record_stage``
     reads these when no chunks are present.
+
+    ``model`` records the model id actually used for this stage, so the
+    manifest's ``llm_provenance.request_model`` reflects the run's config
+    rather than a hardcoded default.
     """
     src = state_path(run_dir, stage)
     dst = done_path(run_dir, stage)
@@ -332,6 +337,8 @@ def mark_done(
     if src.exists():
         payload = json.loads(src.read_text(encoding="utf-8"))
         payload["fetched_at"] = _utc_iso()
+        if model is not None:
+            payload["model"] = model
         _write_json_atomic(dst, payload)
         src.unlink()
         return dst
@@ -340,6 +347,8 @@ def mark_done(
         payload["usage"] = usage
     if n_jobs is not None:
         payload["n_jobs"] = n_jobs
+    if model is not None:
+        payload["model"] = model
     _write_json_atomic(dst, payload)
     return dst
 

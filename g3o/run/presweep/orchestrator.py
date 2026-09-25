@@ -91,10 +91,11 @@ def _assert_live_keys(
 ) -> None:
     """Hard-fail before a live run if a required API key is unset (review F1).
 
-    Stage 1 discovery always needs Serper; Stages 2/3/5/6 need OpenAI. Failing
-    fast at startup beats discovering a missing key after Serper spend (or, worse
-    for Serper, silently returning mock results). The OpenAI check is skipped
-    when ``--stop-after discovery_general`` means no LLM stage will run.
+    Stage 1 discovery always needs Serper; Stages 2/3/5/6 need OpenAI or TypeSafe
+    depending on the model. Failing fast at startup beats discovering a missing
+    key after Serper spend (or, worse, for Serper, silently returning mock
+    results). The OpenAI/TypeSafe check is skipped when
+    ``--stop-after discovery_general`` means no LLM stage will run.
 
     Reads the run's **resolved** credentials (Run API spec §3.1), so the gate
     covers an explicitly-passed key exactly as it covers an env-sourced one — and
@@ -107,12 +108,28 @@ def _assert_live_keys(
             "for Stage 1 discovery. Refusing to run with mock discovery. Set the "
             "key, or run without --execute (dry run)."
         )
-    if config.stop_after != "discovery_general" and not credentials.has_openai:
-        raise RuntimeError(
-            "OPENAI_API_KEY is not set, but --execute beyond Stage 1a requires a "
-            "live OpenAI key (Stages 2/3/5/6). Set the key, pass "
-            "--stop-after discovery_general, or run a dry run."
-        )
+    if config.stop_after != "discovery_general":
+        # Check which LLM provider is needed based on per-stage models
+        needs_openai = False
+        needs_typesafe = False
+        for stage in ("classify_official_site", "classify_triage", "extract", "validate"):
+            model = config.model_for_stage(stage)
+            if model.startswith("jev-"):
+                needs_typesafe = True
+            else:
+                needs_openai = True
+        if needs_openai and not credentials.has_openai:
+            raise RuntimeError(
+                "OPENAI_API_KEY is not set, but --execute beyond Stage 1a requires a "
+                "live OpenAI key for non-jev stages. Set the key, pass "
+                "--stop-after discovery_general, or run a dry run."
+            )
+        if needs_typesafe and not credentials.has_typesafe:
+            raise RuntimeError(
+                "TYPESAFE_API_KEY is not set, but --execute with jev models requires a "
+                "live TypeSafe key. Set the key, use non-jev models, pass "
+                "--stop-after discovery_general, or run a dry run."
+            )
 
 
 def _check_stage_budget(
@@ -246,6 +263,7 @@ def run_presweep(
         stage: config.model_for_stage(stage)
         for stage in (
             "classify_official_site",
+            STAGE_2_FALLBACK,
             "classify_triage",
             "extract",
             "validate",
@@ -453,7 +471,7 @@ def run_presweep(
                 discovery_general,
                 official_sites,
                 run_id=config.run_id,
-                model=config.model,
+                model=config.model_for_stage(STAGE_2_FALLBACK),
                 poll_interval=config.poll_interval,
                 max_wait=config.max_wait_per_stage,
                 cost_check_callback=_within_stage_budget_callback,

@@ -153,21 +153,19 @@ def parse_official_site_result(
     if jev_confidence < CONFIDENCE_THRESHOLD_LOW:
         url = None
 
-    # Derive confidence level from the max probability in the Choice answer.
+    # Derive confidence level from the chosen option's probability, not the max
+    # across all options including "none" (Major #7 fix).
     probabilities = choice_answer.probabilities or {}
-    max_prob = max(probabilities.values()) if probabilities else 0.0
+    # Get the probability for the chosen option, not the max
+    choice_prob = probabilities.get(choice, 0.0) if choice else 0.0
 
-    if max_prob >= CONFIDENCE_THRESHOLD_HIGH:
+    if choice_prob >= CONFIDENCE_THRESHOLD_HIGH:
         confidence_level = "high"
-    elif max_prob >= CONFIDENCE_THRESHOLD_LOW:
+    elif choice_prob >= CONFIDENCE_THRESHOLD_LOW:
         confidence_level = "medium"
-    elif max_prob >= 0.3:
+    elif choice_prob >= 0.3:
         confidence_level = "low"
     else:
-        confidence_level = "none"
-
-    # If confidence gate forced url=None, confidence level is "none".
-    if url is None:
         confidence_level = "none"
 
     return JevOfficialSiteResult(

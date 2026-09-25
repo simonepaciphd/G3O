@@ -230,20 +230,25 @@ def _run_classify_official_site_jev(
                 encoding="utf-8",
             )
 
+    # Build a dict for O(1) lookups instead of linear scans (Major #5 fix).
+    institutions_by_id: dict[str, tuple[dict[str, Any], list[dict[str, Any]]]] = {
+        inst_tuple[0].get("institution_id"): inst_tuple
+        for inst_tuple in institutions_to_process
+    }
+
     # Wrap build_request and process_result to handle the tuple unpacking.
     def build_request_wrapper(inst: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
-        # Find the matching tuple.
-        for inst_tuple in institutions_to_process:
-            if inst_tuple[0].get("institution_id") == inst.get("institution_id"):
-                return build_request(inst_tuple)
-        raise RuntimeError(f"Stage 2 jev: institution {inst.get('institution_id')} not found")
+        inst_id = inst.get("institution_id")
+        inst_tuple = institutions_by_id.get(inst_id)
+        if inst_tuple is None:
+            raise RuntimeError(f"Stage 2 jev: institution {inst_id} not found")
+        return build_request(inst_tuple)
 
     def process_result_wrapper(inst_id: str, result: Any, inst: dict[str, Any]) -> None:
-        for inst_tuple in institutions_to_process:
-            if inst_tuple[0].get("institution_id") == inst.get("institution_id"):
-                process_result(inst_id, result, inst_tuple)
-                return
-        raise RuntimeError(f"Stage 2 jev: institution {inst.get('institution_id')} not found")
+        inst_tuple = institutions_by_id.get(inst_id)
+        if inst_tuple is None:
+            raise RuntimeError(f"Stage 2 jev: institution {inst_id} not found")
+        process_result(inst_id, result, inst_tuple)
 
     metrics = run_jev_stage(
         run_dir=run_dir,
@@ -269,6 +274,7 @@ def _run_classify_official_site_jev(
             "cached_tokens": 0,
         },
         n_jobs=metrics.n_success,
+        model=model,
     )
     return {**_read_existing_official_sites(run_dir, sample), **out}
 def _run_classify_official_site(
@@ -754,6 +760,7 @@ def _run_classify_triage_jev(
             "cached_tokens": 0,
         },
         n_jobs=metrics.n_success,
+        model=model,
     )
     return {**_read_existing_triaged(run_dir, sample), **kept}
 def _run_classify_triage(

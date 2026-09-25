@@ -127,6 +127,10 @@ def client_from_credentials(
         max_retries=max_retries,
         backoff_initial=DEFAULT_JEV_BACKOFF_INITIAL,
         backoff_max=DEFAULT_JEV_BACKOFF_MAX,
+        # Major #2 fix: SDK defaults timeout to 30s total budget, which can
+        # never reach backoff_max=30.0. Pass None to disable the timeout
+        # and let backoff_max govern the retry envelope.
+        timeout=None,
     )
     return ts.TypeSafeClient(
         api_key=credentials.typesafe_api_key,

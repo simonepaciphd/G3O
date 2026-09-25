@@ -155,7 +155,7 @@ def build_validate_questions(
                     f"r{i}": f"Row {i}: {rows[idx][1].get(field, 'unknown')}"
                     for idx, i in enumerate(row_indices)
                 }
-                questions[f"conflict_{activity_name[:20]}_{field}"] = ts.Choice(
+                questions[f"conflict_{activity_name}_{field}"] = ts.Choice(
                     instructions=(
                         f"Multiple rows disagree on '{field}' for activity '{activity_name}'. "
                         f"Choose the row from the most credible source. "
@@ -168,9 +168,13 @@ def build_validate_questions(
                 )
 
     # 3. institution_summary: Choice over distinct summaries
-    summaries = list(
-        {row.get("institution_summary", "") for row in input_rows if row.get("institution_summary")}
-    )
+    # Blocker #4 fix: use dict.fromkeys to preserve insertion order while
+    # deduplicating, so the s-index matches the assembly list.
+    summaries = list(dict.fromkeys(
+        row.get("institution_summary", "")
+        for row in input_rows
+        if row.get("institution_summary")
+    ))
     if summaries:
         criteria = {f"s{i}": summary for i, summary in enumerate(summaries)}
         questions["institution_summary"] = ts.Choice(
@@ -181,7 +185,6 @@ def build_validate_questions(
             ),
             criteria=criteria,
         )
-
     return questions
 
 
@@ -250,21 +253,26 @@ def parse_validate_result(
     activity_groups = list(groups.values())
 
     # 2. Conflict resolution: parse jev's choices
-    conflict_resolutions: dict[str, int] = {}
+    # Major #4 fix: key by (activity_name, field) to avoid collision
+    conflict_resolutions: dict[tuple[str, str], int] = {}
     for qid, answer in result.answers.items():
         if qid.startswith("conflict_") and isinstance(answer, JevAnswer):
             if answer.type == "choice" and answer.choice:
-                # Parse field name and winning row index
-                # Format: conflict_{activity_name[:20]}_{field}
+                # Parse activity_name, field name and winning row index
+                # Format: conflict_{activity_name}_{field}
                 # Choice: r{i}
                 if answer.choice.startswith("r"):
                     try:
                         winning_idx = int(answer.choice[1:])
-                        # Extract field name from question id
-                        parts = qid.split("_")
-                        if len(parts) >= 3:
-                            field = parts[-1]
-                            conflict_resolutions[field] = winning_idx
+                        # Extract activity_name and field from question id
+                        # Split on first "conflict_" prefix, then split remainder
+                        remainder = qid[len("conflict_"):]
+                        # Find last underscore to split activity_name and field
+                        last_underscore = remainder.rfind("_")
+                        if last_underscore > 0:
+                            activity_name = remainder[:last_underscore]
+                            field = remainder[last_underscore + 1:]
+                            conflict_resolutions[(activity_name, field)] = winning_idx
                     except ValueError:
                         pass
 
@@ -330,9 +338,11 @@ def _assemble_response(
         activity_name = base_row.get("activity_name", "")
 
         # Build Group D fields: use conflict_resolutions if available, else first row
-        def get_field(field: str, default: str = "unknown", _row_indices=row_indices, _base_row=base_row) -> str:
-            if field in conflict_resolutions:
-                winning_idx = conflict_resolutions[field]
+        # Major #4 fix: key is now (activity_name, field) tuple
+        def get_field(field: str, default: str = "unknown", _row_indices=row_indices, _base_row=base_row, _activity_name=activity_name) -> str:
+            key = (_activity_name, field)
+            if key in conflict_resolutions:
+                winning_idx = conflict_resolutions[key]
                 if winning_idx in _row_indices:
                     return input_rows[winning_idx].get(field, default)
             return _base_row.get(field, default)
@@ -401,8 +411,17 @@ def _assemble_response(
         has_genai_activity = "unclear"
 
     # Choose institution_summary
-    summaries = [row.get("institution_summary", "") for row in input_rows if row.get("institution_summary")]
-    institution_summary = summaries[summary_choice] if summaries and summary_choice < len(summaries) else ""
+    # Blocker #4 fix: use same dedup logic as build_validate_questions
+    summaries = list(dict.fromkeys(
+        row.get("institution_summary", "")
+        for row in input_rows
+        if row.get("institution_summary")
+    ))
+    # Reject negative indexes
+    if summaries and 0 <= summary_choice < len(summaries):
+        institution_summary = summaries[summary_choice]
+    else:
+        institution_summary = ""
 
     # Build institution
     institution = ConsolidatedInstitution(
