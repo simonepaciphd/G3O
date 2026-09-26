@@ -656,6 +656,9 @@ class PresweepConfig:
         ``classify_triage``, ``extract``, ``validate``). Unknown stages return
         the pipeline-wide default.
         """
+        # STAGE_2_FALLBACK uses the same model as classify_official_site
+        if stage == "classify_official_site_fallback":
+            stage = "classify_official_site"
         override = {
             "classify_official_site": self.classify_official_site_model,
             "classify_triage": self.classify_triage_model,

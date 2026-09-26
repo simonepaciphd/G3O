@@ -676,12 +676,47 @@ def run_chunked_stage(
         # Identity is the match key; the fingerprint rides along on the submit
         # only (see _submit_metadata for why the two must not be the same dict).
         metadata = _chunk_metadata(run_id, stage, key)
-        existing = batch_client.find_batches_by_metadata(metadata, client=client)
-        # Drop batches an operator has explicitly adjudicated for this chunk
-        # (see `abandon_chunk_batch`); every other match still counts.
         abandoned = set(entry.get("abandoned_batch_ids") or ())
-        if abandoned:
-            existing = [s for s in existing if s.batch_id not in abandoned]
+        
+        # Try direct batch_id lookup first (O(1) instead of O(n) pagination).
+        # This is the fast path for resume: if the state file already has a
+        # batch_id, query it directly rather than searching through recent batches.
+        existing = []
+        batch_id = entry.get("batch_id")
+        if batch_id:
+            try:
+                found = batch_client.poll_batch(batch_id, client=client)
+                if batch_id not in abandoned:
+                    existing = [found]
+                    logger.info(
+                        "Stage %s chunk %s: found batch %s by direct ID lookup (status=%s)",
+                        stage, key, batch_id, found.status,
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "Stage %s chunk %s: direct batch_id lookup failed for %s: %s. "
+                    "Falling back to metadata search.",
+                    stage, key, batch_id, exc,
+                )
+        
+        # Fall back to metadata search if direct lookup failed or no batch_id
+        if not existing:
+            # Narrow search window to batches created after state file
+            min_created_at = None
+            if state.get("created_at"):
+                try:
+                    min_created_at = datetime.fromisoformat(
+                        state["created_at"].replace("Z", "+00:00")
+                    )
+                except (ValueError, AttributeError):
+                    pass
+            
+            existing = batch_client.find_batches_by_metadata(
+                metadata, client=client, min_created_at=min_created_at
+            )
+            if abandoned:
+                existing = [s for s in existing if s.batch_id not in abandoned]
+        
         if len(existing) > 1:
             raise RuntimeError(
                 f"Stage {stage} chunk {key}: found {len(existing)} batches matching "
@@ -701,7 +736,7 @@ def run_chunked_stage(
                 )
             logger.warning(
                 "Stage %s chunk %s: adopted existing batch %s (status=%s) found "
-                "by metadata reconciliation — no resubmit",
+                "by reconciliation — no resubmit",
                 stage, key, found.batch_id, found.status,
             )
             update_chunk(
