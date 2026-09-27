@@ -67,6 +67,9 @@ def _config(
         poll_interval=60,
         max_wait_per_stage=25 * 60 * 60,
         model="gpt-5-nano",
+        classify_official_site_model="gpt-5-nano",
+        classify_triage_model="gpt-5-nano",
+        validate_model="gpt-5-nano",
         max_workers=1,
     )
 
