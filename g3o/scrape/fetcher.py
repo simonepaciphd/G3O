@@ -618,7 +618,7 @@ def scrape_url(
       pushing a playwright render through the residential proxy. The unlocker's
       residential proxy network recovers most IP-blocked, geo-blocked, and
       DNS-filtered hosts. If the unlocker fails, the render fallback (if
-      enabled) is tried next. Defaults to False
+      enabled) is tried next. Defaults to True
       (``PresweepConfig.scrape_unlocker_on_block``).
     - If the deterministic path yields text below the empty-page floor and
       ``prefer_unlocker_on_empty`` is True, the unlocker is tried *before* the

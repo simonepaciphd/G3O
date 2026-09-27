@@ -461,15 +461,15 @@ def test_presweep_config_has_unlocker_flags() -> None:
     assert "scrape_unlocker_on_empty" in field_names
 
 
-def test_presweep_config_unlocker_flags_default_off() -> None:
+def test_presweep_config_unlocker_flags_default_on() -> None:
     from pathlib import Path
 
     from g3o.run.presweep import PresweepConfig
     cfg = PresweepConfig(
         run_id="test", runs_dir=Path("/tmp"), master_csv=Path("/tmp/m.csv"),
     )
-    assert cfg.scrape_unlocker_on_block is False
-    assert cfg.scrape_unlocker_on_empty is False
+    assert cfg.scrape_unlocker_on_block is True
+    assert cfg.scrape_unlocker_on_empty is True
 
 
 def test_resume_guard_includes_unlocker_flags() -> None:
