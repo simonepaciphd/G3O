@@ -159,7 +159,10 @@ def parse_official_site_result(
     # Get the probability for the chosen option, not the max
     choice_prob = probabilities.get(choice, 0.0) if choice else 0.0
 
-    if choice_prob >= CONFIDENCE_THRESHOLD_HIGH:
+    # If url is None (due to confidence gate or choice="none"), confidence is "none"
+    if url is None:
+        confidence_level = "none"
+    elif choice_prob >= CONFIDENCE_THRESHOLD_HIGH:
         confidence_level = "high"
     elif choice_prob >= CONFIDENCE_THRESHOLD_LOW:
         confidence_level = "medium"

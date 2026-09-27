@@ -93,6 +93,9 @@ def _install_stub(
         )
 
     def _poll(batch_id, *, client=None):
+        # Return default status for unknown batch_ids (e.g., from reconciliation)
+        if batch_id not in statuses:
+            return _status("completed", batch_id)
         seq = statuses[batch_id]
         status = seq.pop(0) if len(seq) > 1 else seq[0]
         return _status(status, batch_id)

@@ -683,6 +683,7 @@ def run_chunked_stage(
         # batch_id, query it directly rather than searching through recent batches.
         existing = []
         batch_id = entry.get("batch_id")
+        found_via_metadata = False
         if batch_id:
             try:
                 found = batch_client.poll_batch(batch_id, client=client)
@@ -701,6 +702,7 @@ def run_chunked_stage(
         
         # Fall back to metadata search if direct lookup failed or no batch_id
         if not existing:
+            found_via_metadata = True
             # Narrow search window to batches created after state file
             min_created_at = None
             if state.get("created_at"):
@@ -726,7 +728,10 @@ def run_chunked_stage(
             )
         if len(existing) == 1:
             found = existing[0]
-            if found.is_terminal and not found.is_completed:
+            # Check for terminal states only for batches found via metadata search.
+            # Direct lookup batches are handled by the polling loop to allow
+            # fetching completed chunks before raising errors for failed chunks.
+            if found_via_metadata and found.is_terminal and not found.is_completed:
                 raise RuntimeError(
                     f"Stage {stage} chunk {key}: reconciliation found orphaned "
                     f"batch {found.batch_id} in terminal state {found.status!r} "
@@ -808,21 +813,42 @@ def run_chunked_stage(
         "Stage %s: %d chunk(s) to release under a %s-token enqueued budget",
         stage, state["n_chunks"], f"{budget:,}",
     )
+    # Reconcile chunks that have a batch_id before entering the polling loop.
+    # This handles resume scenarios: direct lookup, fallback to metadata search,
+    # and abandoned batch handling.
+    for key, entry in list(iter_chunks(state)):
+        if entry.get("fetched_at") is not None or entry.get("batch_id") is None:
+            continue
+        if key in failed:
+            continue
+        try:
+            _submit_one(key, entry)
+        except RuntimeError:
+            # Reconciliation errors (orphaned batch, double-submit, etc.) are fatal
+            raise
+        except Exception as exc:
+            logger.error(
+                "Stage %s chunk %s: reconciliation failed: %s",
+                stage, key, exc,
+            )
+            failed[key] = str(exc)
+
     while True:
         state = load_state(run_dir, stage)
         assert state is not None
         in_flight_tokens = sum(
             chunk_tokens(key)
             for key, entry in iter_chunks(state)
-            if entry["batch_id"] is not None
+            if entry.get("batch_id") is not None
             and entry["fetched_at"] is None
             and key not in failed
         )
         # Release as many un-submitted chunks as the remaining budget allows.
         # A chunk larger than the whole budget goes out alone, once nothing else
+
         # is in flight, so an oversized chunk cannot deadlock the stage.
         for key, entry in iter_chunks(state):
-                if entry["fetched_at"] is not None or entry["batch_id"] is not None:
+                if entry.get("fetched_at") is not None or entry.get("batch_id") is not None:
                     continue
                 need = chunk_tokens(key)
                 if in_flight_tokens and in_flight_tokens + need > budget:
@@ -836,19 +862,19 @@ def run_chunked_stage(
             for key, entry in iter_chunks(state)
             if entry["fetched_at"] is None
             and key not in failed
-            and entry["batch_id"] is not None
+            and entry.get("batch_id") is not None
         ]
         unsubmitted = [
             key
             for key, entry in iter_chunks(state)
             if entry["fetched_at"] is None
             and key not in failed
-            and entry["batch_id"] is None
+            and entry.get("batch_id") is None
         ]
         if not pending and not unsubmitted:
             break
         for key, entry in pending:
-            status = batch_client.poll_batch(entry["batch_id"], client=client)
+            status = batch_client.poll_batch(entry.get("batch_id"), client=client)
             update_chunk(
                 run_dir, stage, key,
                 last_polled_at=_utc_iso(), last_status=status.status,
@@ -868,7 +894,7 @@ def run_chunked_stage(
                 fingerprints: set[str] = set()
                 fetched: list[BatchResult] = []
                 for result in batch_client.fetch_results(
-                    entry["batch_id"], client=client, status=status
+                    entry.get("batch_id"), client=client, status=status
                 ):
                     if result.response_model:
                         models.add(result.response_model)
@@ -881,7 +907,7 @@ def run_chunked_stage(
                 if problems:
                     record_path = _write_reconcile_record(
                         run_dir, stage, key,
-                        batch_id=entry["batch_id"],
+                        batch_id=entry.get("batch_id"),
                         planned=planned, observed=observed, problems=problems,
                     )
                     raise RuntimeError(
@@ -920,7 +946,7 @@ def run_chunked_stage(
                 # rejoins the same batch.
                 telemetry.emit(
                     "chunk_terminal", stage=stage, chunk=int(key),
-                    batch_id=entry["batch_id"], terminal_state=status.status,
+                    batch_id=entry.get("batch_id"), terminal_state=status.status,
                     n_output=sum(1 for r in fetched if r.success),
                     n_error=sum(1 for r in fetched if not r.success),
                     resolved_model=(sorted(models)[0] if models else None),
@@ -940,14 +966,14 @@ def run_chunked_stage(
                 failed[key] = status.status
                 telemetry.emit(
                     "chunk_terminal", stage=stage, chunk=int(key),
-                    batch_id=entry["batch_id"], terminal_state=status.status,
+                    batch_id=entry.get("batch_id"), terminal_state=status.status,
                     n_output=0, n_error=None, resolved_model=None,
                 )
                 logger.warning(
                     "Stage %s chunk %s: batch %s ended in terminal state %s; "
                     "will raise after the remaining chunks are fetched "
                     "(no auto-resubmit, Q3=d)",
-                    stage, key, entry["batch_id"], status.status,
+                    stage, key, entry.get("batch_id"), status.status,
                 )
         state = load_state(run_dir, stage)
         assert state is not None
@@ -956,14 +982,14 @@ def run_chunked_stage(
             for key, entry in iter_chunks(state)
             if entry["fetched_at"] is None
             and key not in failed
-            and entry["batch_id"] is not None
+            and entry.get("batch_id") is not None
         ]
         waiting = [
             key
             for key, entry in iter_chunks(state)
             if entry["fetched_at"] is None
             and key not in failed
-            and entry["batch_id"] is None
+            and entry.get("batch_id") is None
         ]
         if not in_flight and not waiting:
             break

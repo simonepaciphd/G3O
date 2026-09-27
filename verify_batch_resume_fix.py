@@ -4,7 +4,6 @@
 This script verifies the fix works by simulating the resume scenario
 without requiring pytest or a full test environment.
 """
-import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -40,7 +39,7 @@ def test_direct_batch_id_lookup():
     def mock_find(metadata, client=None, min_created_at=None):
         nonlocal find_called
         find_called = True
-        print(f"  ✗ find_batches_by_metadata called (should not be called)")
+        print("  ✗ find_batches_by_metadata called (should not be called)")
         return []
     
     # Patch the methods
@@ -54,7 +53,6 @@ def test_direct_batch_id_lookup():
             "batch_id": "batch_abc123",
             "abandoned_batch_ids": [],
         }
-        state = {"created_at": "2026-09-25T16:00:00Z"}
         
         # Direct lookup path
         batch_id = entry.get("batch_id")
@@ -101,7 +99,7 @@ def test_fallback_to_metadata_search():
             min_created_at_passed = True
             print(f"  ✓ find_batches_by_metadata called with min_created_at={min_created_at}")
         else:
-            print(f"  ✗ find_batches_by_metadata called without min_created_at")
+            print("  ✗ find_batches_by_metadata called without min_created_at")
         return [mock_batch_status]
     
     # Patch the methods
@@ -169,13 +167,13 @@ def test_no_batch_id_uses_metadata_search():
     def mock_poll(batch_id, client=None):
         nonlocal poll_called
         poll_called = True
-        print(f"  ✗ poll_batch called (should not be called)")
+        print("  ✗ poll_batch called (should not be called)")
         return mock_batch_status
     
     def mock_find(metadata, client=None, min_created_at=None):
         nonlocal find_called
         find_called = True
-        print(f"  ✓ find_batches_by_metadata called")
+        print("  ✓ find_batches_by_metadata called")
         return [mock_batch_status]
     
     # Patch the methods
@@ -198,7 +196,7 @@ def test_no_batch_id_uses_metadata_search():
             try:
                 found = run_state.batch_client.poll_batch(batch_id, client=mock_client)
                 existing = [found]
-            except Exception as exc:
+            except Exception:
                 pass
         
         # Fallback to metadata search
