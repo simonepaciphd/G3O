@@ -237,23 +237,31 @@ def test_unlocker_does_not_fire_when_opted_out(
     assert events == []
 
 
-def test_unlocker_does_not_fire_on_non_refusal_status(
+def test_unlocker_fires_on_transport_failures(
     unlocker_configured: None, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # A connect timeout has no status and is not a refusal — the unlocker
-    # cannot defeat a dead host. The fetcher falls through to the
-    # hard-failure path.
+    # A connect timeout (transport failure) now triggers the unlocker.
+    # The unlocker's residential proxy network recovers most IP-blocked,
+    # geo-blocked, and DNS-filtered hosts.
     def _raise_timeout(*args: Any, **kwargs: Any) -> Any:
         raise requests.ConnectTimeout("connection timed out")
     monkeypatch.setattr(fetcher, "_download", _raise_timeout)
+    # Mock the unlocker to succeed
+    mock_result = unlocker.UnlockerResult(
+        success=True, content=b"<html><body><p>This is some recovered content that is long enough.</p></body></html>",
+        inner_status=200, error=None, error_code=None, elapsed_ms=100,
+    )
+    monkeypatch.setattr(unlocker, "fetch", lambda url: mock_result)
     events: list[dict[str, Any]] = []
     page = fetcher.scrape_url(
-        "https://dead.gov", force_refresh=True,
+        "https://blocked.gov", force_refresh=True,
         prefer_unlocker_on_block=True,
         on_unlocker_attempt=lambda **kw: events.append(kw),
     )
-    assert page.text == ""
-    assert events == []
+    assert "recovered" in page.text
+    assert len(events) == 1
+    assert events[0]["trigger"] == "block"
+    assert events[0]["outcome"] == "unlocker_succeeded"
 
 
 def test_unlocker_failure_falls_through_to_render(
