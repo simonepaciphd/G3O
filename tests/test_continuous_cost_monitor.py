@@ -537,6 +537,9 @@ def test_cli_exits_3_on_budget_exceeded(tmp_path, monkeypatch, capsys):
         "--master-csv", str(master),
         "--sample-size", "1",
         "--cost-ceiling", "1000.0",  # High enough for preflight to pass
+        "--classify-official-site-model", "gpt-5-nano",
+        "--classify-triage-model", "gpt-5-nano",
+        "--validate-model", "gpt-5-nano",
     ]
 
     # Mock run_presweep to raise BudgetExceededError (simulating mid-run abort)
