@@ -111,7 +111,8 @@ ScrapeFailureCallback = Callable[..., None]
 # "empty_after_strip" fires when the deterministic path yielded below-floor
 # text. The fetcher stays agnostic of the run context; the Stage 4 runner
 # supplies a hook that records the attempt to the attrition ledger. A no-op
-# when None, so standalone callers keep the default behaviour unchanged.
+UnlockerAttemptCallback = Callable[..., None]
+
 
 
 def _cache_key(url: str) -> str:
