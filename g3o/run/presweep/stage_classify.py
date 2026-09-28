@@ -495,6 +495,8 @@ def _run_classify_official_site_fallback(
         return merged, stats
 
     jobs = []
+    # The same institutions as ``jobs``, in the shape the jev path builds from.
+    candidates: list[tuple[dict[str, Any], list[dict[str, Any]]]] = []
     first_pass: dict[str, dict[str, Any]] = {}
     languages_by_inst: dict[str, list[str]] = {}
     for row in sample:
@@ -519,6 +521,7 @@ def _run_classify_official_site_fallback(
         )
         languages_by_inst[inst_id] = list(block.get("languages", []))
         jobs.append(build_official_site_job(institution, candidate_urls, custom_id=inst_id))
+        candidates.append((institution, discovery_general.get(inst_id, [])))
 
     stats = {"n_candidates": len(jobs), "n_found": 0}
     if not jobs and load_state(run_dir, stage) is None:
@@ -530,6 +533,25 @@ def _run_classify_official_site_fallback(
         synth_institution_id(row): (row.get("website") or "").strip()
         for row in sample
     }
+
+    # ── jev routing ──────────────────────────────────────────────────────────
+    # ``model_for_stage`` gives this pass the first pass's model, so a jev
+    # Stage 2 means a jev fallback. Without this branch the jev id reached the
+    # OpenAI Batch API, which refuses it (model_not_found) and fails the run.
+    if _is_jev_model(model):
+        if credentials is None:
+            raise RuntimeError("Stage 2 fallback jev: credentials are required")
+        out = _run_classify_official_site_fallback_jev(
+            run_dir, candidates,
+            model=model, credentials=credentials,
+            first_pass=first_pass, languages_by_inst=languages_by_inst,
+            discovery_general=discovery_general, truth_by_inst=truth_by_inst,
+            cost_check_callback=cost_check_callback,
+        )
+        merged = {**official_sites, **_read_existing_official_sites(run_dir, sample), **out}
+        stats["n_found"] = sum(1 for inst_id in first_pass if merged.get(inst_id))
+        return merged, stats
+    # ── end jev routing ──────────────────────────────────────────────────────
 
     def _persist(results: Iterator[BatchResult]) -> None:
         for result in results:
@@ -574,6 +596,113 @@ def _run_classify_official_site_fallback(
     merged = {**official_sites, **_read_existing_official_sites(run_dir, sample), **out}
     stats["n_found"] = sum(1 for inst_id in first_pass if merged.get(inst_id))
     return merged, stats
+
+
+#: Per-institution resume marker for the jev fallback. ``run_jev_stage`` skips an
+#: institution whose artifact exists, and ``2_official_site.json`` always exists
+#: here — the first pass wrote it — so the fallback needs a file of its own.
+STAGE_2_FALLBACK_JEV_MARKER = "2_official_site_fallback.json"
+
+
+def _run_classify_official_site_fallback_jev(
+    run_dir: Path,
+    candidates: list[tuple[dict[str, Any], list[dict[str, Any]]]],
+    *,
+    model: str,
+    credentials: ResolvedCredentials,
+    first_pass: dict[str, dict[str, Any]],
+    languages_by_inst: dict[str, list[str]],
+    discovery_general: dict[str, list[dict[str, Any]]],
+    truth_by_inst: dict[str, str],
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
+) -> dict[str, str | None]:
+    """Stage 2 second pass via jev — the fallback's counterpart of
+    :func:`_run_classify_official_site_jev`.
+
+    Writes the same merged ``2_official_site.json`` the batch path writes (jev
+    fields plus ``via_fallback``, ``fallback_languages``, ``picked_found_by`` and
+    ``first_pass``), and a copy under :data:`STAGE_2_FALLBACK_JEV_MARKER` so a
+    resumed run skips institutions this pass already adjudicated.
+    """
+    stage = STAGE_2_FALLBACK
+    out: dict[str, str | None] = {}
+    by_id = {inst["institution_id"]: (inst, results) for inst, results in candidates}
+
+    def _urls(results: list[dict[str, Any]]) -> list[str]:
+        return [u for u in (r.get("link", "") for r in results) if u]
+
+    def build_request(inst: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        institution, results = by_id[inst["institution_id"]]
+        state = jev_build_official_site_state(institution, results)
+        return state, jev_build_official_site_questions(_urls(results))
+
+    def process_result(inst_id: str, result: Any, inst: dict[str, Any]) -> None:
+        _, results = by_id[inst_id]
+        try:
+            parsed = jev_parse_official_site_result(result, _urls(results))
+        except Exception as exc:
+            logger.warning("Stage 2 fallback jev parse failed for %s: %s", inst_id, exc)
+            attrition.record(
+                run_dir, institution_id=inst_id, stage=stage,
+                reason="jev_parse_failed", detail=str(exc),
+            )
+            return
+        out[inst_id] = parsed.url
+        inst_dir = institution_dir(run_dir, inst_id)
+        if not inst_dir.exists():
+            return
+        payload: dict[str, Any] = {
+            "url": parsed.url,
+            "confidence": parsed.confidence,
+            "jev_confidence": parsed.jev_confidence,
+            "choice_probabilities": parsed.choice_probabilities,
+            "response_model": parsed.response_model,
+            "request_id": parsed.request_id,
+            "jev_question_set_version": "g3o.classify.official_site.jev.v1",
+        }
+        truth = ground_truth_block(truth_by_inst.get(inst_id), parsed.url)
+        if truth is not None:
+            payload["ground_truth"] = truth
+        payload["via_fallback"] = True
+        payload["fallback_languages"] = languages_by_inst.get(inst_id, [])
+        payload["picked_found_by"] = _picked_found_by(
+            discovery_general.get(inst_id, []), parsed.url
+        )
+        payload["first_pass"] = first_pass.get(inst_id, {})
+        text = json.dumps(payload, ensure_ascii=False, indent=2)
+        (inst_dir / "2_official_site.json").write_text(text, encoding="utf-8")
+        # Marker last: an institution interrupted between the two writes is
+        # re-adjudicated on resume rather than skipped with a stale artifact.
+        (inst_dir / STAGE_2_FALLBACK_JEV_MARKER).write_text(text, encoding="utf-8")
+
+    metrics = run_jev_stage(
+        run_dir=run_dir,
+        stage=stage,
+        institutions=[inst for inst, _ in candidates],
+        build_request=build_request,
+        process_result=process_result,
+        credentials=credentials,
+        model=model,
+        cost_check_callback=cost_check_callback,
+        artifact_filename=STAGE_2_FALLBACK_JEV_MARKER,
+    )
+    logger.info(
+        "Stage 2 fallback jev: %d institutions, %d success, %d failed, %d skipped, "
+        "%d input tokens",
+        metrics.n_institutions, metrics.n_success, metrics.n_failed,
+        metrics.n_skipped, metrics.total_input_tokens,
+    )
+    mark_done(
+        run_dir, stage, no_batch=True,
+        usage={
+            "prompt_tokens": metrics.total_input_tokens,
+            "completion_tokens": metrics.total_output_tokens,
+            "cached_tokens": 0,
+        },
+        n_jobs=metrics.n_success,
+        model=model,
+    )
+    return out
 
 
 def _candidate_urls_union(
