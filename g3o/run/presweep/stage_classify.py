@@ -1,4 +1,9 @@
-"""Stage 2/3 runners — official-site classifier + URL triage (Batch API)."""
+"""Stage 2/3 runners — official-site classifier + URL triage.
+
+Routes to jev (TypeSafe decision model) when the model id starts with
+``jev-``; otherwise routes to the OpenAI Batch API path. See
+jev-integration-plan.md for the design.
+"""
 
 from __future__ import annotations
 
@@ -8,6 +13,28 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
+# ── jev routing (jev-integration-plan.md §3) ──────────────────────────────
+# When the model id starts with "jev-", route to the TypeSafe jev path instead
+# of the OpenAI Batch API path. The jev modules build typed questions and parse
+# typed answers; the jev_stage_runner drives them synchronously.
+from g3o.classify.jev_official_site import (
+    build_official_site_questions as jev_build_official_site_questions,
+)
+from g3o.classify.jev_official_site import (
+    build_official_site_state as jev_build_official_site_state,
+)
+from g3o.classify.jev_official_site import (
+    parse_official_site_result as jev_parse_official_site_result,
+)
+from g3o.classify.jev_url_triage import (
+    build_triage_questions as jev_build_triage_questions,
+)
+from g3o.classify.jev_url_triage import (
+    build_triage_state as jev_build_triage_state,
+)
+from g3o.classify.jev_url_triage import (
+    parse_triage_result as jev_parse_triage_result,
+)
 from g3o.classify.official_site import (
     build_official_site_job,
     parse_official_site_result,
@@ -24,11 +51,17 @@ from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
 from g3o.common.timing import llm_stage_timer
 from g3o.report.discovery_yield import registrable_domain
+from g3o.run.presweep.jev_stage_runner import run_jev_stage
 from g3o.run.presweep.records import (
     _dedupe_key,
     institution_record,
     synth_institution_id,
 )
+
+
+def _is_jev_model(model: str) -> bool:
+    """True if ``model`` is a TypeSafe jev model id."""
+    return model.startswith("jev-")
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +135,148 @@ def _read_existing_triaged(
         out[inst_id] = [d["url"] for d in decisions if d.get("decision") == "keep"]
     return out
 
+def _run_classify_official_site_jev(
+    run_dir: Path,
+    sample: list[dict[str, Any]],
+    discovery: dict[str, list[dict[str, Any]]],
+    *,
+    model: str,
+    credentials: ResolvedCredentials,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
+) -> dict[str, str | None]:
+    """Stage 2 — official-site classifier via jev (TypeSafe decision model).
 
+    Converts the Stage 2 task into jev typed questions (Choice + Score),
+    drives them synchronously via :func:`run_jev_stage`, and persists the
+    results. See jev-integration-plan.md §3 for the design.
+    """
+    stage = "classify_official_site"
+    out: dict[str, str | None] = {}
+    truth_by_inst: dict[str, str] = {
+        synth_institution_id(row): (row.get("website") or "").strip()
+        for row in sample
+    }
+
+    # Build the list of institutions to process (skip bypassed / no-candidates).
+    institutions_to_process: list[tuple[dict[str, Any], list[dict[str, Any]]]] = []
+    bypass_count = 0
+    for row in sample:
+        institution = institution_record(row)
+        inst_id = institution["institution_id"]
+        bypass_url = institution.get("official_site_url")
+        if bypass_url:
+            out[inst_id] = bypass_url
+            bypass_count += 1
+            inst_dir = institution_dir(run_dir, inst_id)
+            if inst_dir.exists():
+                (inst_dir / "2_official_site.json").write_text(
+                    json.dumps(
+                        {"bypassed": True, "source": "master_csv", "url": bypass_url},
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
+                    encoding="utf-8",
+                )
+            continue
+        search_results = discovery.get(inst_id, [])
+        candidate_urls = [r.get("link", "") for r in search_results]
+        candidate_urls = [u for u in candidate_urls if u]
+        if not candidate_urls:
+            continue
+        institutions_to_process.append((institution, search_results))
+
+    if not institutions_to_process:
+        mark_done(run_dir, stage, no_batch=True)
+        return out
+
+    def build_request(inst_tuple: tuple[dict[str, Any], list[dict[str, Any]]]) -> tuple[dict[str, Any], dict[str, Any]]:
+        institution, search_results = inst_tuple
+        candidate_urls = [r.get("link", "") for r in search_results]
+        candidate_urls = [u for u in candidate_urls if u]
+        state = jev_build_official_site_state(institution, search_results)
+        questions = jev_build_official_site_questions(candidate_urls)
+        return state, questions
+
+    def process_result(inst_id: str, result: Any, inst_tuple: tuple[dict[str, Any], list[dict[str, Any]]]) -> None:
+        institution, search_results = inst_tuple
+        candidate_urls = [r.get("link", "") for r in search_results]
+        candidate_urls = [u for u in candidate_urls if u]
+        try:
+            parsed = jev_parse_official_site_result(result, candidate_urls)
+        except Exception as exc:
+            logger.warning("Stage 2 jev parse failed for %s: %s", inst_id, exc)
+            attrition.record(
+                run_dir, institution_id=inst_id, stage=stage,
+                reason="jev_parse_failed", detail=str(exc),
+            )
+            return
+        out[inst_id] = parsed.url
+        inst_dir = institution_dir(run_dir, inst_id)
+        if inst_dir.exists():
+            payload = {
+                "url": parsed.url,
+                "confidence": parsed.confidence,
+                "jev_confidence": parsed.jev_confidence,
+                "choice_probabilities": parsed.choice_probabilities,
+                "response_model": parsed.response_model,
+                "request_id": parsed.request_id,
+                "jev_question_set_version": "g3o.classify.official_site.jev.v1",
+            }
+            truth = ground_truth_block(truth_by_inst.get(inst_id), parsed.url)
+            if truth is not None:
+                payload["ground_truth"] = truth
+            (inst_dir / "2_official_site.json").write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+
+    # Build a dict for O(1) lookups instead of linear scans (Major #5 fix).
+    institutions_by_id: dict[str, tuple[dict[str, Any], list[dict[str, Any]]]] = {
+        inst_tuple[0].get("institution_id"): inst_tuple
+        for inst_tuple in institutions_to_process
+    }
+
+    # Wrap build_request and process_result to handle the tuple unpacking.
+    def build_request_wrapper(inst: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        inst_id = inst.get("institution_id")
+        inst_tuple = institutions_by_id.get(inst_id)
+        if inst_tuple is None:
+            raise RuntimeError(f"Stage 2 jev: institution {inst_id} not found")
+        return build_request(inst_tuple)
+
+    def process_result_wrapper(inst_id: str, result: Any, inst: dict[str, Any]) -> None:
+        inst_tuple = institutions_by_id.get(inst_id)
+        if inst_tuple is None:
+            raise RuntimeError(f"Stage 2 jev: institution {inst_id} not found")
+        process_result(inst_id, result, inst_tuple)
+
+    metrics = run_jev_stage(
+        run_dir=run_dir,
+        stage=stage,
+        institutions=[inst_tuple[0] for inst_tuple in institutions_to_process],
+        build_request=build_request_wrapper,
+        process_result=process_result_wrapper,
+        credentials=credentials,
+        model=model,
+        cost_check_callback=cost_check_callback,
+        artifact_filename="2_official_site.json",
+    )
+    logger.info(
+        "Stage 2 jev: %d institutions, %d success, %d failed, %d skipped, %d input tokens",
+        metrics.n_institutions, metrics.n_success, metrics.n_failed,
+        metrics.n_skipped, metrics.total_input_tokens,
+    )
+    mark_done(
+        run_dir, stage, no_batch=True,
+        usage={
+            "prompt_tokens": metrics.total_input_tokens,
+            "completion_tokens": metrics.total_output_tokens,
+            "cached_tokens": 0,
+        },
+        n_jobs=metrics.n_success,
+        model=model,
+    )
+    return {**_read_existing_official_sites(run_dir, sample), **out}
 def _run_classify_official_site(
     run_dir: Path,
     sample: list[dict[str, Any]],
@@ -136,6 +310,18 @@ def _run_classify_official_site(
       - Mixed bypass + LLM → state file covers the LLM subset only;
         ``bypass_count`` recorded.
     """
+    # ── jev routing ──────────────────────────────────────────────────────────
+    # When the model is jev, route to the jev path instead of the Batch API path.
+    if _is_jev_model(model):
+        if credentials is None:
+            raise RuntimeError("Stage 2 jev: credentials are required")
+        return _run_classify_official_site_jev(
+            run_dir, sample, discovery,
+            model=model, credentials=credentials,
+            cost_check_callback=cost_check_callback,
+        )
+    # ── end jev routing ──────────────────────────────────────────────────────
+
     stage = "classify_official_site"
     if is_done(run_dir, stage):
         logger.info("Stage 2: .done marker present — skipping (resume from disk)")
@@ -467,7 +653,116 @@ def persist_triage_result(
         )
     return match.kept_urls
 
+def _run_classify_triage_jev(
+    run_dir: Path,
+    sample: list[dict[str, Any]],
+    discovery_general: dict[str, list[dict[str, Any]]],
+    discovery_site_restricted: dict[str, list[dict[str, Any]]],
+    official_sites: dict[str, str | None],
+    *,
+    model: str,
+    credentials: ResolvedCredentials,
+    cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
+    discovery_evidence_open: dict[str, list[dict[str, Any]]] | None = None,
+) -> dict[str, list[str]]:
+    """Stage 3 — URL triage via jev (TypeSafe decision model).
 
+    Converts the Stage 3 task into jev Noul questions (one per URL), drives
+    them synchronously via :func:`run_jev_stage`, and persists the results.
+    See jev-integration-plan.md §3 for the design.
+    """
+    stage = "classify_triage"
+    kept: dict[str, list[str]] = {}
+
+    # Build the candidate union for each institution.
+    candidates_by_inst: dict[str, list[str]] = {}
+    for row in sample:
+        institution = institution_record(row)
+        inst_id = institution["institution_id"]
+        candidate_urls = _candidate_urls_union(
+            discovery_general, discovery_site_restricted, inst_id,
+            discovery_evidence_open,
+        )
+        if candidate_urls:
+            candidates_by_inst[inst_id] = candidate_urls
+
+    if not candidates_by_inst:
+        mark_done(run_dir, stage, no_batch=True)
+        return {}
+
+    # Build the list of institutions to process.
+    institutions_to_process: list[tuple[dict[str, Any], list[str]]] = []
+    for row in sample:
+        institution = institution_record(row)
+        inst_id = institution["institution_id"]
+        candidate_urls = candidates_by_inst.get(inst_id)
+        if not candidate_urls:
+            continue
+        institutions_to_process.append((institution, candidate_urls))
+
+    def build_request(inst: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        inst_id = inst.get("institution_id", "")
+        candidate_urls = candidates_by_inst.get(inst_id, [])
+        official_site = official_sites.get(inst_id)
+        state = jev_build_triage_state(inst, candidate_urls, official_site)
+        questions = jev_build_triage_questions(candidate_urls)
+        return state, questions
+
+    def process_result(inst_id: str, result: Any, inst: dict[str, Any]) -> None:
+        candidate_urls = candidates_by_inst.get(inst_id, [])
+        try:
+            parsed = jev_parse_triage_result(result, candidate_urls)
+        except Exception as exc:
+            logger.warning("Stage 3 jev parse failed for %s: %s", inst_id, exc)
+            attrition.record(
+                run_dir, institution_id=inst_id, stage=stage,
+                reason="jev_parse_failed", detail=str(exc),
+            )
+            return
+        kept[inst_id] = parsed.kept_urls
+        inst_dir = institution_dir(run_dir, inst_id)
+        if inst_dir.exists():
+            payload = {
+                "decisions": [
+                    {"url": d.url, "decision": d.decision, "noul": d.noul}
+                    for d in parsed.decisions
+                ],
+                "response_model": parsed.response_model,
+                "request_id": parsed.request_id,
+                "jev_question_set_version": "g3o.classify.url_triage.jev.v1",
+            }
+            (inst_dir / "3_triage.json").write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+
+    metrics = run_jev_stage(
+        run_dir=run_dir,
+        stage=stage,
+        institutions=[inst_tuple[0] for inst_tuple in institutions_to_process],
+        build_request=build_request,
+        process_result=process_result,
+        credentials=credentials,
+        model=model,
+        cost_check_callback=cost_check_callback,
+        artifact_filename="3_triage.json",
+    )
+    logger.info(
+        "Stage 3 jev: %d institutions, %d success, %d failed, %d skipped, %d input tokens",
+        metrics.n_institutions, metrics.n_success, metrics.n_failed,
+        metrics.n_skipped, metrics.total_input_tokens,
+    )
+    mark_done(
+        run_dir, stage, no_batch=True,
+        usage={
+            "prompt_tokens": metrics.total_input_tokens,
+            "completion_tokens": metrics.total_output_tokens,
+            "cached_tokens": 0,
+        },
+        n_jobs=metrics.n_success,
+        model=model,
+    )
+    return {**_read_existing_triaged(run_dir, sample), **kept}
 def _run_classify_triage(
     run_dir: Path,
     sample: list[dict[str, Any]],
@@ -497,6 +792,19 @@ def _run_classify_triage(
     done-marker short-circuit, then :func:`run_chunked_stage` owns chunking,
     reconciliation, polling, and no-auto-resubmit semantics.
     """
+    # ── jev routing ──────────────────────────────────────────────────────────
+    # When the model is jev, route to the jev path instead of the Batch API path.
+    if _is_jev_model(model):
+        if credentials is None:
+            raise RuntimeError("Stage 3 jev: credentials are required")
+        return _run_classify_triage_jev(
+            run_dir, sample, discovery_general, discovery_site_restricted,
+            official_sites, model=model, credentials=credentials,
+            cost_check_callback=cost_check_callback,
+            discovery_evidence_open=discovery_evidence_open,
+        )
+    # ── end jev routing ──────────────────────────────────────────────────────
+
     stage = "classify_triage"
     if is_done(run_dir, stage):
         logger.info("Stage 3: .done marker present — skipping (resume from disk)")

@@ -41,6 +41,7 @@ from typing import Literal
 # the only module that has to know how a key reaches the process.
 OPENAI_ENV_VAR = "OPENAI_API_KEY"
 SERPER_ENV_VAR = "SERPER_API_KEY"
+TYPESAFE_ENV_VAR = "TYPESAFE_API_KEY"
 
 # Fingerprint width. 8 hex chars = 32 bits: enough to tell "key A" from "key B"
 # in a manifest or a server-side batch listing, far too little to attack the key
@@ -82,13 +83,16 @@ class Credentials:
 
     openai_api_key: str | None = None
     serper_api_key: str | None = None
+    typesafe_api_key: str | None = None
     label: str | None = None
 
     def __repr__(self) -> str:  # §3.3 — never render key material
         return (
             f"Credentials(openai={_redact(self.openai_api_key)}, "
-            f"serper={_redact(self.serper_api_key)}, label={self.label!r})"
+            f"serper={_redact(self.serper_api_key)}, "
+            f"typesafe={_redact(self.typesafe_api_key)}, label={self.label!r})"
         )
+
 
 
 @dataclass(frozen=True, repr=False)
@@ -103,8 +107,10 @@ class ResolvedCredentials:
 
     openai_api_key: str | None
     serper_api_key: str | None
+    typesafe_api_key: str | None
     openai_source: Source
     serper_source: Source
+    typesafe_source: Source
     label: str | None = None
 
     @property
@@ -116,12 +122,21 @@ class ResolvedCredentials:
         return fingerprint(self.serper_api_key)
 
     @property
+    def typesafe_fingerprint(self) -> str | None:
+        return fingerprint(self.typesafe_api_key)
+
+    @property
     def has_openai(self) -> bool:
         return bool(self.openai_api_key)
 
     @property
     def has_serper(self) -> bool:
         return bool(self.serper_api_key)
+
+    @property
+    def has_typesafe(self) -> bool:
+        return bool(self.typesafe_api_key)
+
 
     def telemetry(self) -> dict[str, dict[str, str | None]]:
         """The ``credentials`` block of the run manifest (§4.1), key-free.
@@ -142,6 +157,9 @@ class ResolvedCredentials:
         return {
             "openai": self._provider_block(self.openai_api_key, self.openai_source),
             "serper": self._provider_block(self.serper_api_key, self.serper_source),
+            "typesafe": self._provider_block(
+                self.typesafe_api_key, self.typesafe_source
+            ),
         }
 
     def _provider_block(self, key: str | None, source: Source) -> dict[str, str | None]:
@@ -155,7 +173,8 @@ class ResolvedCredentials:
         return (
             f"ResolvedCredentials(openai={_redact(self.openai_api_key)}"
             f"/{self.openai_source}, serper={_redact(self.serper_api_key)}"
-            f"/{self.serper_source}, label={self.label!r})"
+            f"/{self.serper_source}, typesafe={_redact(self.typesafe_api_key)}"
+            f"/{self.typesafe_source}, label={self.label!r})"
         )
 
 
@@ -198,11 +217,16 @@ def resolve(
     serper_key, serper_source = _resolve_one(
         creds.serper_api_key, SERPER_ENV_VAR, environ
     )
+    typesafe_key, typesafe_source = _resolve_one(
+        creds.typesafe_api_key, TYPESAFE_ENV_VAR, environ
+    )
     return ResolvedCredentials(
         openai_api_key=openai_key,
         serper_api_key=serper_key,
+        typesafe_api_key=typesafe_key,
         openai_source=openai_source,
         serper_source=serper_source,
+        typesafe_source=typesafe_source,
         label=creds.label,
     )
 
@@ -211,6 +235,7 @@ __all__ = [
     "FINGERPRINT_CHARS",
     "OPENAI_ENV_VAR",
     "SERPER_ENV_VAR",
+    "TYPESAFE_ENV_VAR",
     "Credentials",
     "ResolvedCredentials",
     "Source",

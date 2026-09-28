@@ -52,6 +52,7 @@ from g3o.common.batch_client import (
     poll_batch,
     submit_batch,
 )
+from g3o.common.jev_client import DEFAULT_JEV_MODEL
 from g3o.discovery.domain_pick import pick_domain
 from g3o.discovery.query_builder import (
     DEFAULT_EVIDENCE_TERM,
@@ -830,6 +831,10 @@ def _presweep_config(
         poll_interval=args.poll_interval,
         max_wait_per_stage=args.max_wait_per_stage,
         model=args.model,
+        classify_official_site_model=args.classify_official_site_model,
+        classify_triage_model=args.classify_triage_model,
+        extract_model=args.extract_model,
+        validate_model=args.validate_model,
         max_workers=args.max_workers,
         budget_usd=budget_usd,
         cost_monitor_dry_run=cost_monitor_dry_run,
@@ -1776,6 +1781,34 @@ def build_parser() -> argparse.ArgumentParser:
         help="Max seconds to wait per Batch API stage (default: 25h ~ SLA + jitter).",
     )
     presweep.add_argument("--model", default=DEFAULT_MODEL)
+    presweep.add_argument(
+        "--classify-official-site-model",
+        default=DEFAULT_JEV_MODEL,
+        help="Override model for Stage 2 (official-site classification). "
+             f"Default: {DEFAULT_JEV_MODEL} (TypeSafe decision model). "
+             "Use 'gpt-5-nano' to revert to generative model.",
+    )
+    presweep.add_argument(
+        "--classify-triage-model",
+        default=DEFAULT_JEV_MODEL,
+        help="Override model for Stage 3 (URL triage). "
+             f"Default: {DEFAULT_JEV_MODEL} (TypeSafe decision model). "
+             "Use 'gpt-5-nano' to revert to generative model.",
+    )
+    presweep.add_argument(
+        "--extract-model",
+        default=None,
+        help="Override model for Stage 5 (extraction). "
+             "Default: gpt-5-nano (generative model). "
+             "Note: jev is not suitable for extraction (generation task).",
+    )
+    presweep.add_argument(
+        "--validate-model",
+        default=DEFAULT_JEV_MODEL,
+        help="Override model for Stage 6 (validation/consolidation). "
+             f"Default: {DEFAULT_JEV_MODEL} (TypeSafe decision model). "
+             "Use 'gpt-5-nano' to revert to generative model.",
+    )
     presweep.add_argument(
         "--max-workers", type=int, default=1,
         help=(

@@ -441,6 +441,13 @@ def _launch_with_legs(tmp_path: Path, monkeypatch, **flags: Any):
         scrape_respect_robots=False,
         scrape_host_delay_seconds=0,
         language_policy=_POLICY_ID,
+        # Explicitly use gpt-5-nano for stages 2/3/6 to keep them on the
+        # OpenAI Batch path (which this test mocks). The dataclass defaults
+        # are now jev-1.13.0, but this test focuses on discovery legs, not
+        # jev routing.
+        classify_official_site_model="gpt-5-nano",
+        classify_triage_model="gpt-5-nano",
+        validate_model="gpt-5-nano",
         **flags,
     )
     monkeypatch.setenv("SERPER_API_KEY", "test-serper-key")

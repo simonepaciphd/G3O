@@ -155,7 +155,7 @@ def test_telemetry_block_carries_source_fingerprint_label_only() -> None:
         env={"SERPER_API_KEY": ENV_SERPER},
     )
     block = resolved.telemetry()
-    assert set(block) == {"openai", "serper"}
+    assert set(block) == {"openai", "serper", "typesafe"}
     for provider in block.values():
         assert set(provider) == {"source", "fingerprint", "label"}
     assert block["openai"] == {
@@ -178,6 +178,7 @@ def test_telemetry_label_is_null_for_a_provider_with_no_key() -> None:
     ).telemetry()
     assert block["openai"]["label"] == "key-B-grant"
     assert block["serper"] == {"source": "unset", "fingerprint": None, "label": None}
+    assert block["typesafe"] == {"source": "unset", "fingerprint": None, "label": None}
 
 
 @pytest.mark.parametrize("render", [repr, str])

@@ -465,6 +465,9 @@ def test_orchestrator_aborts_on_budget_exceeded(tmp_path, monkeypatch):
         poll_interval=60,
         max_wait_per_stage=25 * 60 * 60,
         model="gpt-5-nano",
+        classify_official_site_model="gpt-5-nano",
+        classify_triage_model="gpt-5-nano",
+        validate_model="gpt-5-nano",
         max_workers=1,
         budget_usd=0.001,  # Very low budget
     )
@@ -534,6 +537,9 @@ def test_cli_exits_3_on_budget_exceeded(tmp_path, monkeypatch, capsys):
         "--master-csv", str(master),
         "--sample-size", "1",
         "--cost-ceiling", "1000.0",  # High enough for preflight to pass
+        "--classify-official-site-model", "gpt-5-nano",
+        "--classify-triage-model", "gpt-5-nano",
+        "--validate-model", "gpt-5-nano",
     ]
 
     # Mock run_presweep to raise BudgetExceededError (simulating mid-run abort)
@@ -590,6 +596,9 @@ def test_cost_report_persisted_on_abort(tmp_path, monkeypatch):
         poll_interval=60,
         max_wait_per_stage=25 * 60 * 60,
         model="gpt-5-nano",
+        classify_official_site_model="gpt-5-nano",
+        classify_triage_model="gpt-5-nano",
+        validate_model="gpt-5-nano",
         max_workers=1,
         budget_usd=0.001,
     )
@@ -783,6 +792,9 @@ def test_cost_report_includes_vs_preflight_estimate(tmp_path, monkeypatch):
         poll_interval=60,
         max_wait_per_stage=25 * 60 * 60,
         model="gpt-5-nano",
+        classify_official_site_model="gpt-5-nano",
+        classify_triage_model="gpt-5-nano",
+        validate_model="gpt-5-nano",
         max_workers=1,
         budget_usd=100.0,  # High budget so we don't abort
         preflight_estimate_usd=0.005,  # Simulate a preflight estimate
@@ -1066,6 +1078,9 @@ def test_orchestrator_dry_run_mode_continues(tmp_path, monkeypatch):
         poll_interval=60,
         max_wait_per_stage=25 * 60 * 60,
         model="gpt-5-nano",
+        classify_official_site_model="gpt-5-nano",
+        classify_triage_model="gpt-5-nano",
+        validate_model="gpt-5-nano",
         max_workers=1,
         budget_usd=0.001,  # Very low budget
         cost_monitor_dry_run=True,  # Dry run mode enabled
@@ -1155,6 +1170,9 @@ def test_cost_report_includes_dry_run_field(tmp_path, monkeypatch):
         poll_interval=60,
         max_wait_per_stage=25 * 60 * 60,
         model="gpt-5-nano",
+        classify_official_site_model="gpt-5-nano",
+        classify_triage_model="gpt-5-nano",
+        validate_model="gpt-5-nano",
         max_workers=1,
         budget_usd=100.0,
         cost_monitor_dry_run=True,

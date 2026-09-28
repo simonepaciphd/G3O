@@ -53,12 +53,20 @@ def _utc_iso() -> str:
 
 
 def iso_to_dt(value: str) -> datetime:
-    """Parse a UTC 'Z'-suffixed ISO 8601 timestamp, with or without a
+    """Parse a UTC ISO 8601 timestamp, with or without a
     fractional-seconds component. Handles both this module's own
-    microsecond-precision stamps and :mod:`g3o.common.run_state`'s
+    microsecond-precision stamps (Z-suffixed) and :mod:`g3o.common.run_state`'s
     whole-second ``submitted_at``/``fetched_at`` stamps, since
-    :func:`llm_stage_timer` mixes the two."""
-    return datetime.fromisoformat(value[:-1]).replace(tzinfo=timezone.utc)
+    :func:`llm_stage_timer` mixes the two. Also handles ``+00:00`` suffix
+    from ``datetime.isoformat()`` (blocker #3 fix)."""
+    # Handle +00:00 suffix from datetime.isoformat()
+    if value.endswith("+00:00"):
+        value = value[:-6] + "Z"
+    # Handle Z suffix (strip it for fromisoformat compatibility)
+    if value.endswith("Z"):
+        return datetime.fromisoformat(value[:-1]).replace(tzinfo=timezone.utc)
+    # Fallback: try parsing directly (handles other timezone offsets)
+    return datetime.fromisoformat(value)
 
 
 def _iso_diff_seconds(start: str, end: str) -> float:

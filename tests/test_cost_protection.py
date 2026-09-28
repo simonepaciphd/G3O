@@ -67,6 +67,9 @@ def _config(
         poll_interval=60,
         max_wait_per_stage=25 * 60 * 60,
         model="gpt-5-nano",
+        classify_official_site_model="gpt-5-nano",
+        classify_triage_model="gpt-5-nano",
+        validate_model="gpt-5-nano",
         max_workers=1,
     )
 
@@ -272,6 +275,9 @@ def test_cli_execute_proceeds_under_budget_limit(tmp_path, monkeypatch, capsys):
         "--run-id", "cli-cost-test-4",
         "--master-csv", str(master),
         "--sample-size", "2",
+        "--classify-official-site-model", "gpt-5-nano",
+        "--classify-triage-model", "gpt-5-nano",
+        "--validate-model", "gpt-5-nano",
     ]
 
     # Mock run_presweep to return immediately
@@ -439,6 +445,9 @@ def test_cli_execute_emits_the_projection_that_cleared_it(tmp_path, monkeypatch,
         "--run-id", "cli-cost-test-9",
         "--master-csv", str(master),
         "--sample-size", "2",
+        "--classify-official-site-model", "gpt-5-nano",
+        "--classify-triage-model", "gpt-5-nano",
+        "--validate-model", "gpt-5-nano",
     ]
 
     with patch("g3o.run.presweep.run_presweep") as mock_run:
@@ -488,6 +497,9 @@ def test_cli_execute_without_budget_skips_preflight(tmp_path, monkeypatch, capsy
         "--run-id", "cli-cost-test-10",
         "--master-csv", str(master),
         "--sample-size", "2",
+        "--classify-official-site-model", "gpt-5-nano",
+        "--classify-triage-model", "gpt-5-nano",
+        "--validate-model", "gpt-5-nano",
     ]
 
     with (
