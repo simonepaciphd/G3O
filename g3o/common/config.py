@@ -46,6 +46,22 @@ SERPER_ENDPOINT: str = _env("SERPER_ENDPOINT", "https://google.serper.dev/search
 # the per-invocation ``--model`` CLI flag overrides this in turn.
 OPENAI_MODEL: str = _env("OPENAI_MODEL", "gpt-5-nano") or "gpt-5-nano"
 
+# ── TypeSafe jev (decision model for Stages 2/3/6, 2026-09-20) ─────────────
+# TypeSafe's jev is a decision model, not a text generator: it takes a state
+# plus typed questions (Choice/Score/Noul) and returns typed answers with
+# probability distributions and confidence. See jev-integration-plan.md.
+#
+# ``TYPESAFE_API_KEY`` is a secret (Bearer token) and is never recorded: the
+# manifest stores the key's fingerprint, not the material. Read at call time
+# (not import time) so a per-process rotation takes effect without restart.
+TYPESAFE_API_KEY: str | None = _env("TYPESAFE_API_KEY")
+#: Pinned model id for jev stages. Defaults to ``jev-1.13.0`` (a versioned id,
+#: not the ``jev-latest`` alias) so thresholds tuned against a version stay
+#: reproducible. The --classify-model / --validate-model CLI flags override
+#: this per stage; the per-invocation --model flag overrides the pipeline-wide
+#: default for every LLM stage.
+TYPESAFE_MODEL: str = _env("TYPESAFE_MODEL", "jev-1.13.0") or "jev-1.13.0"
+
 REQUEST_TIMEOUT: int = int(_env("REQUEST_TIMEOUT", "30") or "30")
 # Stage 4 connect timeout (2026-09-06). ``requests`` takes ``(connect, read)``;
 # until this key existed the fetcher passed the single ``REQUEST_TIMEOUT`` and

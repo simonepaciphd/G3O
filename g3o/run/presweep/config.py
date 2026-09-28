@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from g3o.common.batch_client import DEFAULT_MODEL
+from g3o.common.jev_client import DEFAULT_JEV_MODEL
 from g3o.common.languages import (
     LanguagePolicy,
     assert_policy_rostered,
@@ -222,6 +223,18 @@ class PresweepConfig:
     poll_interval: int = 60
     max_wait_per_stage: int = 25 * 60 * 60  # 25h: SLA + jitter
     model: str = DEFAULT_MODEL
+    # ── Per-stage model overrides (jev integration, 2026-09-20) ─────────────
+    # Each stage can run a different model: Stages 2/3 on jev (decision model),
+    # Stages 5/6 on gpt-5-nano (generative model). The pipeline-wide ``model``
+    # above is the default for every stage; these overrides replace it per stage.
+    # ``None`` means "use the pipeline-wide default". Required for every hybrid
+    # interim state, and permanent surface: stages will legitimately run
+    # different vendors. Manifest ``llm_provenance`` is already per-stage
+    # (planning.py::update_manifest_llm_provenance) — no shape change needed.
+    classify_official_site_model: str | None = DEFAULT_JEV_MODEL
+    classify_triage_model: str | None = DEFAULT_JEV_MODEL
+    extract_model: str | None = None
+    validate_model: str | None = DEFAULT_JEV_MODEL
     # Stage 5 page-text handling (Session F.2, 2026-06-10). The cap is the D3
     # methodology decision (60k chars, head+tail); the empty-page floor is an
     # engineering parameter (review F5). Surfaced as config so both are
@@ -634,3 +647,22 @@ class PresweepConfig:
         if self.discovery_mode == "chain":
             return ",".join(self.chain_query_languages)
         return ",".join(self.discovery_languages)
+
+    def model_for_stage(self, stage: str) -> str:
+        """The model id a stage should use.
+
+        Returns the per-stage override if set, otherwise the pipeline-wide
+        ``model``. Stage names match the roster (``classify_official_site``,
+        ``classify_triage``, ``extract``, ``validate``). Unknown stages return
+        the pipeline-wide default.
+        """
+        # STAGE_2_FALLBACK uses the same model as classify_official_site
+        if stage == "classify_official_site_fallback":
+            stage = "classify_official_site"
+        override = {
+            "classify_official_site": self.classify_official_site_model,
+            "classify_triage": self.classify_triage_model,
+            "extract": self.extract_model,
+            "validate": self.validate_model,
+        }.get(stage)
+        return override if override is not None else self.model

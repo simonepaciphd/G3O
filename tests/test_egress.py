@@ -495,6 +495,12 @@ def test_resuming_a_pre_unlocker_run_with_the_unlocker_enabled_is_refused(
         seed=cfg.seed,
         dry_run=cfg.dry_run,
         scrape_unlocker_on_block=True,
+        # Explicitly copy the per-stage models from cfg to ensure they match
+        # the manifest. The dataclass defaults are now jev-1.13.0, but we need
+        # cfg_on to match cfg exactly except for the unlocker flags.
+        classify_official_site_model=cfg.classify_official_site_model,
+        classify_triage_model=cfg.classify_triage_model,
+        validate_model=cfg.validate_model,
     )
     with pytest.raises(RuntimeError, match="scrape_unlocker_on_block"):
         _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg_on, plan.sample))

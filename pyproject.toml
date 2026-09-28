@@ -40,6 +40,9 @@ dependencies = [
     # Configured offline there (suffix_list_urls=()), so it never fetches the
     # public-suffix list at runtime and a score stays reproducible.
     "tldextract>=5.1",
+    # TypeSafe jev decision model for Stages 2/3 (classify_official_site,
+    # classify_triage). See jev-integration-plan.md.
+    "typesafe-sdk>=0.7",
 ]
 
 [project.optional-dependencies]

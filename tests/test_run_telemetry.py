@@ -74,6 +74,9 @@ def _config(tmp_path: Path, **kw) -> PresweepConfig:
         master_csv=_write_master(tmp_path / "master.csv"),
         sample_size=3,
         seed=22294,
+        classify_official_site_model="gpt-5-nano",
+        classify_triage_model="gpt-5-nano",
+        validate_model="gpt-5-nano",
     )
     defaults.update(kw)
     return PresweepConfig(**defaults)

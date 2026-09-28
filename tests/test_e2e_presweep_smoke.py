@@ -213,6 +213,10 @@ def test_presweep_execute_end_to_end_through_validate(tmp_path: Path, monkeypatc
         # politeness is unit-tested in test_politeness.py).
         scrape_respect_robots=False,
         scrape_host_delay_seconds=0,
+        # Use non-jev models so the test uses the mocked batch API path
+        classify_official_site_model=None,
+        classify_triage_model=None,
+        validate_model=None,
     )
 
     # --- Live-mode startup gate (review F1): --execute now hard-fails without
