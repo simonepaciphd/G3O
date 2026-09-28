@@ -102,14 +102,16 @@ RenderAttemptCallback = Callable[..., None]
 ScrapeFailureCallback = Callable[..., None]
 
 # An unlocker-attempt telemetry hook. Called once per unlocker attempt with
-# keyword args ``url``, ``trigger`` ("block" | "empty_after_strip"),
+# keyword args ``url``, ``trigger`` ("transport" | "block" | "empty_after_strip"),
 # ``outcome`` ("unlocker_succeeded" | "unlocker_failed" | "unlocker_disabled"),
 # ``inner_status`` (the target's HTTP status as reported by the unlocker, or
 # None), ``error`` (the ``x-brd-error`` text, or None), and ``elapsed_ms``.
-# The fetcher stays agnostic of the run context; the Stage 4 runner supplies a
-# hook that records the attempt to the attrition ledger. A no-op when None, so
-# standalone callers keep the default behaviour unchanged.
-UnlockerAttemptCallback = Callable[..., None]
+# Trigger "transport" fires when the download failed with no HTTP status
+# (timeout/DNS/SSL); "block" fires on refusal statuses 403/406/401/451;
+# "empty_after_strip" fires when the deterministic path yielded below-floor
+# text. The fetcher stays agnostic of the run context; the Stage 4 runner
+# supplies a hook that records the attempt to the attrition ledger. A no-op
+# when None, so standalone callers keep the default behaviour unchanged.
 
 
 def _cache_key(url: str) -> str:
@@ -610,14 +612,16 @@ def scrape_url(
       IP-reputation risk on government hosts and a multi-hour wall-clock tax at
       ~12k URLs. The Stage 4 runner leaves it off by default
       (``PresweepConfig.scrape_render_on_download_failure``).
-    - If the HTTP GET fails (any exception: timeout, connection error, SSL
-      error, or refusal status 403/406/401/451) and ``prefer_unlocker_on_block``
-      is True, the Bright Data Web Unlocker is tried as a fallback *before* the
-      render fallback. The unlocker renders JS and solves captchas internally
-      at ~$0.002–0.006/page, strictly more capable and ~8–20× cheaper than
-      pushing a playwright render through the residential proxy. The unlocker's
-      residential proxy network recovers most IP-blocked, geo-blocked, and
-      DNS-filtered hosts. If the unlocker fails, the render fallback (if
+    - If the HTTP GET fails with a transport failure (timeout, connection error,
+      SSL error — no HTTP status) or a refusal status (403/406/401/451) and
+      ``prefer_unlocker_on_block`` is True, the Bright Data Web Unlocker is
+      tried as a fallback *before* the render fallback. The unlocker renders JS
+      and solves captchas internally at ~$0.002–0.006/page, strictly more
+      capable and ~8–20× cheaper than pushing a playwright render through the
+      residential proxy. The unlocker's residential proxy network recovers most
+      IP-blocked, geo-blocked, and DNS-filtered hosts. Hard-gone statuses
+      (404/410) and other server-chosen errors do not trigger the unlocker
+      (unrecoverable). If the unlocker fails, the render fallback (if
       enabled) is tried next. Defaults to True
       (``PresweepConfig.scrape_unlocker_on_block``).
     - If the deterministic path yields text below the empty-page floor and
@@ -687,40 +691,44 @@ def scrape_url(
             else _download(url)
         )
     except Exception as download_exc:
-        # Unlocker escalation on any download failure (Phase 3, 2026-09-17;
-        # broadened 2026-09-27 from refusal-status-only to all failures).
-        # The unlocker fires BEFORE the render fallback: it is cheaper (~$0.002
-        # vs ~$0.046 per page) and strictly more capable (renders JS + solves
-        # captchas internally). Fires when the caller opted in AND the
-        # unlocker is configured. The unlocker's residential proxy network
-        # recovers most IP-blocked, geo-blocked, and DNS-filtered hosts.
+        # Unlocker escalation on transport failures or refusal-status blocks
+        # (Phase 3, 2026-09-17; refined 2026-09-28: transport failures have no
+        # HTTP status and may be recoverable via Bright Data's proxy network;
+        # refusal statuses 403/406/401/451 are IP/policy blocks the unlocker
+        # can defeat; hard-gone statuses 404/410 are unrecoverable and skipped
+        # to avoid wasted spend). The unlocker fires BEFORE the render fallback:
+        # it is cheaper (~$0.002 vs ~$0.046 per page) and strictly more capable
+        # (renders JS + solves captchas internally).
         if prefer_unlocker_on_block and unlocker_mod.enabled():
-            try:
-                uresult = unlocker_mod.fetch(url)
-            except Exception as unlocker_exc:
-                # Transport failure: the unlocker API was never reached.
-                # Redact the token from the exception message, report the
-                # attempt, and fall through to the render fallback.
-                _notify_unlocker_attempt(
-                    on_unlocker_attempt, url=url, trigger="block",
-                    outcome="unlocker_failed", inner_status=None,
-                    error=unlocker_mod.redact(str(unlocker_exc)),
-                    elapsed_ms=None,
-                )
-            else:
-                _notify_unlocker_attempt(
-                    on_unlocker_attempt, url=url, trigger="block",
-                    outcome=(
-                        "unlocker_succeeded" if uresult.success
-                        else "unlocker_failed"
-                    ),
-                    inner_status=uresult.inner_status,
-                    error=uresult.error, elapsed_ms=uresult.elapsed_ms,
-                )
-                if uresult.success:
-                    return _unlocker_page(url, uresult, cache_floor=cache_floor)
-            # Unlocker failed or was unreachable. Fall through to the render
-            # fallback (if enabled) or the hard-failure path.
+            exc_status = http_status_from_exception(download_exc)
+            if exc_status is None or unlocker_mod.is_refusal_status(exc_status):
+                trigger = "transport" if exc_status is None else "block"
+                try:
+                    uresult = unlocker_mod.fetch(url)
+                except Exception as unlocker_exc:
+                    # Transport failure: the unlocker API was never reached.
+                    # Redact the token from the exception message, report the
+                    # attempt, and fall through to the render fallback.
+                    _notify_unlocker_attempt(
+                        on_unlocker_attempt, url=url, trigger=trigger,
+                        outcome="unlocker_failed", inner_status=None,
+                        error=unlocker_mod.redact(str(unlocker_exc)),
+                        elapsed_ms=None,
+                    )
+                else:
+                    _notify_unlocker_attempt(
+                        on_unlocker_attempt, url=url, trigger=trigger,
+                        outcome=(
+                            "unlocker_succeeded" if uresult.success
+                            else "unlocker_failed"
+                        ),
+                        inner_status=uresult.inner_status,
+                        error=uresult.error, elapsed_ms=uresult.elapsed_ms,
+                    )
+                    if uresult.success:
+                        return _unlocker_page(url, uresult, cache_floor=cache_floor)
+                # Unlocker failed or was unreachable. Fall through to the render
+                # fallback (if enabled) or the hard-failure path.
         # Render fallback on a failed GET is opt-in (review F14): only when the
         # caller accepts the per-dead-URL browser-launch cost.
         if prefer_render_on_download_failure:

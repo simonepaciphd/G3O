@@ -260,8 +260,30 @@ def test_unlocker_fires_on_transport_failures(
     )
     assert "recovered" in page.text
     assert len(events) == 1
-    assert events[0]["trigger"] == "block"
+    assert events[0]["trigger"] == "transport"
     assert events[0]["outcome"] == "unlocker_succeeded"
+
+
+def test_unlocker_does_not_fire_on_hard_gone_status(
+    unlocker_configured: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A 404 Not Found is a hard-gone status — the unlocker cannot recover a
+    # page that does not exist. The fetcher skips the unlocker to avoid
+    # wasted spend (~$0.002–0.006 per dead URL).
+    def _raise_404(*args: Any, **kwargs: Any) -> Any:
+        resp = requests.Response()
+        resp.status_code = 404
+        resp.url = "https://gone.gov"
+        raise requests.HTTPError(response=resp)
+    monkeypatch.setattr(fetcher, "_download", _raise_404)
+    events: list[dict[str, Any]] = []
+    page = fetcher.scrape_url(
+        "https://gone.gov", force_refresh=True,
+        prefer_unlocker_on_block=True,
+        on_unlocker_attempt=lambda **kw: events.append(kw),
+    )
+    assert page.text == ""
+    assert events == []
 
 
 def test_unlocker_failure_falls_through_to_render(

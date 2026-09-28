@@ -165,16 +165,16 @@ def fetch(url: str, *, timeout: int | None = None) -> UnlockerResult:
     a policy block or a dead target is a successful API call with a failure
     inside, and lands in the result's ``error`` / ``inner_status`` fields.
 
-    ``timeout`` defaults to ``config.REQUEST_TIMEOUT`` (same as the direct
-    fetch timeout; the unlocker's residential proxy network is fast enough
-    that most recoveries complete well within this window).
+    ``timeout`` defaults to ``config.REQUEST_TIMEOUT * 3`` (the unlocker
+    renders JS and solves captchas, so it is slower than a direct fetch;
+    3× the page timeout is the measured ceiling from the recovery probe).
     """
     token = config.UNLOCKER_API_TOKEN
     if not token:
         raise RuntimeError(
             "Web Unlocker called but G3O_UNLOCKER_API_TOKEN is not set"
         )
-    timeout_s = timeout if timeout is not None else config.REQUEST_TIMEOUT
+    timeout_s = timeout if timeout is not None else config.REQUEST_TIMEOUT * 3
     started = time.monotonic()
     try:
         resp = requests.post(
