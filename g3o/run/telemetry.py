@@ -64,9 +64,18 @@ MANIFEST_FILENAME = "manifest.json"
 
 #: Excluded from ``config_hash`` and recorded in-band as ``config_hash_excludes``
 #: so the hash is reproducible without out-of-band knowledge (fixture decision 1,
-#: PI-accepted 2026-08-11). These three are *where a run ran*, not *what it ran*:
+#: PI-accepted 2026-08-11). These are *where a run ran*, not *what it ran*:
 #: two runs differing only in these are the same measurement instrument.
-CONFIG_HASH_EXCLUDES: tuple[str, ...] = ("master_csv", "run_id", "runs_dir")
+#:
+#: ``official_sites_csv`` joins them for the same reason ``master_csv`` is here
+#: (2026-08-30) — it is a location, and the same overlay submitted by two paths
+#: must hash identically. What that file *contributed* is not excluded: the
+#: snapshot carries ``official_sites_hash``, a digest of the (uid, site) pairs
+#: the run would actually spend, so a changed overlay still moves the hash while
+#: a moved one does not.
+CONFIG_HASH_EXCLUDES: tuple[str, ...] = (
+    "master_csv", "official_sites_csv", "run_id", "runs_dir",
+)
 
 #: Prompt assets hashed whole, keyed by repo-relative path (§4.1 ``prompts``).
 #: File *content*, unlike ``contract.*.sha256`` which pins the machine-readable

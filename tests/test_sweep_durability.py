@@ -287,7 +287,7 @@ def _install_session(monkeypatch, responder):
     calls = {"n": 0}
 
     class _Session:
-        def get(self, url, timeout=None, stream=False):
+        def get(self, url, timeout=None, stream=False, allow_redirects=True):
             calls["n"] += 1
             return responder(url)
 

@@ -298,6 +298,129 @@ now passes the UA gate. Backup of the prior env at `~/g3o-env.bak-20260831`.
    sourced only by the shell launching a proxied run, which is the right shape
    for an opt-in secret.
 2. **`~/.g3o/` is root-owned** (`drwxr-xr-x root root`), so you cannot create a
+
+---
+
+## Web Unlocker (Phase 3, 2026-09-17)
+
+The Web Unlocker is a **per-URL escalation** for refused/blocked fetches, not a
+default egress path. It fires only when the default fetch returns a refusal status
+(403/406/401/451) or an empty-after-strip page, and only when explicitly enabled via
+`PresweepConfig` flags.
+
+### How it differs from the residential proxy
+
+| aspect | residential proxy | Web Unlocker |
+|---|---|---|
+| role | default egress for all traffic | per-URL escalation for refusals |
+| billing | per-GB (~$8.4/GB measured) | per-successful-request (CPM, ~$0.002–0.006/page) |
+| capability | forward proxy, no rendering | renders JS, solves captchas internally |
+| cost at 5.44 MB mean | ~$0.046/page | ~$0.002–0.006/page (8–20× cheaper) |
+| configuration | `G3O_SCRAPE_PROXY` env var | `G3O_UNLOCKER_API_TOKEN` env var + config flags |
+
+The unlocker is **strictly more capable** than pushing a playwright render through the
+residential proxy: it renders JS and solves captchas at 8–20× lower cost. A measured
+probe recovered 75.6% of the failed hosts (100% of 403-refused) with the unlocker alone.
+
+### Configuration
+
+Three environment variables, all optional:
+
+```bash
+# Required: Bearer token from Bright Data console (secret, never commit)
+G3O_UNLOCKER_API_TOKEN=<your-bearer-token>
+
+# Optional: zone name (default: web_unlocker1)
+G3O_UNLOCKER_ZONE=web_unlocker1
+
+# Optional: API endpoint (default: https://api.brightdata.com/request)
+G3O_UNLOCKER_API_URL=https://api.brightdata.com/request
+```
+
+**Credential hygiene:** the token is a secret and must never appear in any artifact
+(ledger, log, manifest, exception message). The unlocker module redacts it from every
+string that reaches an artifact. The token is read at call time from
+`config.UNLOCKER_API_TOKEN`, not frozen at import, so a per-process rotation takes
+effect without restart.
+
+### Enabling the unlocker
+
+Two `PresweepConfig` flags, both default off:
+
+```python
+PresweepConfig(
+    # ... other config ...
+    scrape_unlocker_on_block=True,      # fire on 403/406/401/451 refusals
+    scrape_unlocker_on_empty=True,      # fire on empty-after-strip pages
+)
+```
+
+**Dispatch order:** when both the unlocker and render fallback are enabled, the
+unlocker fires first (cheaper). If the unlocker fails, the render fallback is tried
+next. The unlocker cannot defeat a dead host (connect timeout, DNS failure) — only a
+refusal status triggers it.
+
+### Success gate (the measured trap)
+
+The unlocker API returns HTTP 200 for both success and failure. A policy block
+(`policy_20000`) arrives as 200 + 0 bytes with `x-brd-error: policy_20000` in the
+headers. A dead target arrives as 200 + 0 bytes with `x-brd-status-code: 404`.
+
+The success gate requires **all three**:
+1. No `x-brd-error` / `x-brd-error-code` header
+2. `x-brd-status-code` == 200 (or absent)
+3. Body is non-empty
+
+Never trust the transport status code alone. The inner status and error text flow into
+telemetry so a policy block, a dead page, and a captcha defeat are three distinguishable
+rows in the attrition ledger.
+
+### Telemetry
+
+Every unlocker attempt (success or failure) invokes the `on_unlocker_attempt` callback,
+recording:
+- `trigger`: "block" (refusal status) or "empty_after_strip"
+- `outcome`: "unlocker_succeeded" or "unlocker_failed"
+- `inner_status`: the target's HTTP status as reported by the unlocker
+- `error`: the `x-brd-error` text, or None
+- `elapsed_ms`: wall-clock time the unlocker API took
+
+The token is redacted from the error text before recording. The attrition ledger entry
+is `unlocker_attempted`, with the trigger/outcome/inner_status/error in the `detail`
+field so the unlocker rate and cost (CPM billing) are queryable.
+
+### Resume guard
+
+The two unlocker flags are guarded on resume: a run that started with them off and
+resumed with them on has two different scrape instruments in one artifact. The resume
+guard refuses rather than silently producing a mixed-instrument measurement. Every
+manifest written before 2026-09-17 lacks these flags; tolerating their absence lets
+such runs resume.
+
+### Manifest identity
+
+`egress.describe()` records whether the unlocker is configured:
+
+```json
+{
+  "mode": "direct",
+  "endpoint": null,
+  "credentialed": false,
+  "unlocker_configured": true
+}
+```
+
+The unlocker is a separate instrument from the proxy. A run that uses both has a
+different scrape identity than one that uses neither. The resume guard sees both.
+
+### What this does not decide
+
+Whether the observatory *should* route through the unlocker is the PI's call. The
+unlocker is wired, tested, and inert until enabled. The cost model
+(`../budget/cost-model.md`) prices it at ~$0.002–0.006/page vs ~$0.046/page for the
+residential render fallback, but the actual rate depends on the contract. Confirm off
+the console before a production run.
+
    new file there as `g3o`, though the existing `env` file is `g3o`-owned and
    appendable. Write backups elsewhere.
 

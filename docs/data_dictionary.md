@@ -34,11 +34,34 @@ Each CSV has its own grain, stated in the table above:
 - **Institution-summary** — one row per institution per run, rolling up its
   activities and sources.
 
-How institutions that the pipeline never reached (no discovery hits, no kept
-URLs, no scrapeable pages), or that produced no activity, are represented in
-the final product is a pending methodology decision and is **not** asserted
-here. The machine-readable `runs/<run_id>/_attrition.jsonl` ledger records,
-per institution and stage, where coverage was lost.
+An institution reaches these CSVs at all only if Stage 6 produced a
+`6_validate.json` for it. How it is represented then depends on what that
+verdict was — **asserted here as of the PI ruling of 2026-08-25**; this
+paragraph previously recorded the question as open:
+
+- **Judged, with no activity** (`has_genai_activity` = `no` or `unclear`) —
+  **one** row in the institution-summary CSV carrying the verdict, **one or
+  more** rows in the activity-sources CSV (`activity_id` = `_NA_`; the Stage 6
+  contract requires at least one source), and **zero** rows in the activities
+  CSV.
+- **Never judged** — no `6_validate.json`, because the run stopped short or the
+  institution ran out of input upstream (no discovery hits, no kept URLs, no
+  scrapeable pages). **No row in any of the three CSVs.**
+  `institution_report.csv` carries its `final_status`, and
+  `runs/<run_id>/_attrition.jsonl` records, per institution and stage, where
+  coverage was lost.
+
+Both cases produce zero rows in the activities CSV, and that is why they were
+indistinguishable downstream until 2026-08-25: the database inferred an
+institution's verdict from whether any finding rows had arrived, so one the
+pipeline had explicitly declined to judge and one it had never looked at both
+published as `none` — "we searched and found nothing", which is a claim the
+pipeline had not made. `g3o-api sql/009_institution_verdict.sql` retired that
+inference and reads the verdict instead:
+`final/g3o_institution_summary_v1.csv` supplies the Stage 6 verdict and
+`institution_report.csv` the outcome status, both keyed on `institution_uid`.
+**Both files are consequently loader inputs**, and a run ingested without them
+loads its facts while silently publishing the pre-ruling inference.
 
 ## `g3o_activities_v{N}.csv` — `ACTIVITY_COLUMNS` (37)
 
@@ -48,7 +71,7 @@ One row per `(institution × activity)`.
 |--------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Key layer (2)      | `institution_uid` (the master's permanent key, carried verbatim), `sweep_uid` (`G3O-S-` + its 8-digit tail, minted at Stage 7). Both required by the loader; a row missing either is quarantined, not repaired.                                                |
 | Provenance (5)     | `global_row_id`, `run_id`, `run_model`, `run_tool`, `run_date`                                                                                                                                                                                                |
-| Institution + verdict (8) | `institution_id`, `institution_name`, `country`, `branch_of_government`, `level_of_government`, `has_genai_activity`, `institution_summary`, `institution_search_languages`                                                                              |
+| Institution + verdict (8) | `institution_id`, `institution_name`, `country`, `branch_of_government`, `level_of_government`, `has_genai_activity` (invariably `yes` on this CSV — see below), `institution_summary`, `institution_search_languages`                              |
 | Activity key (1)   | `activity_id`                                                                                                                                                                                                                                                  |
 | Activity fields (18) | `activity_name`, `activity_type`, `adoption_stage`, `access_type`, `interaction_type`, `tool_name`, `vendor`, `deployment_mode`, `target_users`, `year_announced`, `year_deployed`, `has_human_oversight`, `has_transparency_notice`, `has_data_classification`, `has_risk_assessment`, `reported_outcomes`, `reported_incidents`, `scope_notes` |
 | Aggregates (3)     | `n_sources` (sources supporting this activity), `confidence`, `uncertainty_flags`                                                                                                                                                                              |
@@ -58,6 +81,13 @@ Provenance: `global_row_id` is `{run_id}::{institution_id}::{activity_id}`;
 module; `run_date` is `YYYY-MM-DD`. The activity-field semantics
 (controlled vocabularies, `_NA_` rules, char limits) are governed by the
 Output Contract.
+
+**`has_genai_activity` does not vary on this CSV.** It is an institution-level
+verdict, denormalised onto every activity row for join-free reading, and a row
+exists here only when there is an activity to describe — `no` and `unclear`
+both force an empty activity list at Stage 6, so every row this CSV can contain
+carries `yes`. Read the verdict from the institution-summary CSV, which is the
+one place it takes all three values.
 
 ## `g3o_activity_sources_v{N}.csv` — `ACTIVITY_SOURCE_COLUMNS` (20)
 
@@ -137,7 +167,7 @@ decision of 2026-05-09).
 
 | Group                         | Columns                                                                                                          |
 |-------------------------------|------------------------------------------------------------------------------------------------------------------|
-| Identity (6)                  | `institution_uid`, `institution_id`, `institution_name`, `country`, `branch_of_government`, `level_of_government`. No `sweep_uid`: this CSV is not a loader input, and at institution grain it restates `institution_uid`. |
+| Identity (6)                  | `institution_uid`, `institution_id`, `institution_name`, `country`, `branch_of_government`, `level_of_government`. No `sweep_uid`: the loader keys this CSV's verdict on `institution_uid` (PI ruling 2026-08-25), and at institution grain `sweep_uid` restates the uid. |
 | Run scope (2)                 | `run_id`, `run_date`                                                                                             |
 | Institution-level verdict (3) | `has_genai_activity`, `institution_summary`, `institution_search_languages`                                     |
 | Counts (6)                    | `n_pages_extracted`, `n_activities`, `n_sources`, `n_high_credibility_sources`, `n_medium_credibility_sources`, `n_low_credibility_sources` |
@@ -148,6 +178,20 @@ decision of 2026-05-09).
 `best_confidence` is the highest activity-level confidence (`high` > `medium` >
 `low`, or `_NA_` when there are no activities). `consolidated_uncertainty_flags`
 is the de-duplicated, sorted union of activity-level flags (or `none`).
+
+This CSV is where `has_genai_activity` takes all three of its values, and since
+2026-08-25 it is read at ingest rather than stopping here — see **Grain** above.
+
+**On the `no` / `unclear` boundary.** The Output Contract §3.1 separates the two
+by the evidence behind them: `no` requires *every* source to be
+`confirms_absence`, while `unclear` requires a mix that includes at least one
+`ambiguous` or `background_only` source. The Stage 6 validator enforces the
+first of those and not the second, so a payload whose sources are all
+`confirms_absence` is accepted as `unclear`. On the published run
+`r20260824T142136Z-7875`, **2 of 194 `unclear` institutions** are of that shape
+(reported by Nolan via the PI's note of 2026-08-26). Recorded here as a count;
+the boundary is under review by the project authors and is deliberately not
+interpreted.
 
 ---
 

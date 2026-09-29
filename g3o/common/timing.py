@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -52,12 +53,20 @@ def _utc_iso() -> str:
 
 
 def iso_to_dt(value: str) -> datetime:
-    """Parse a UTC 'Z'-suffixed ISO 8601 timestamp, with or without a
+    """Parse a UTC ISO 8601 timestamp, with or without a
     fractional-seconds component. Handles both this module's own
-    microsecond-precision stamps and :mod:`g3o.common.run_state`'s
+    microsecond-precision stamps (Z-suffixed) and :mod:`g3o.common.run_state`'s
     whole-second ``submitted_at``/``fetched_at`` stamps, since
-    :func:`llm_stage_timer` mixes the two."""
-    return datetime.fromisoformat(value[:-1]).replace(tzinfo=timezone.utc)
+    :func:`llm_stage_timer` mixes the two. Also handles ``+00:00`` suffix
+    from ``datetime.isoformat()`` (blocker #3 fix)."""
+    # Handle +00:00 suffix from datetime.isoformat()
+    if value.endswith("+00:00"):
+        value = value[:-6] + "Z"
+    # Handle Z suffix (strip it for fromisoformat compatibility)
+    if value.endswith("Z"):
+        return datetime.fromisoformat(value[:-1]).replace(tzinfo=timezone.utc)
+    # Fallback: try parsing directly (handles other timezone offsets)
+    return datetime.fromisoformat(value)
 
 
 def _iso_diff_seconds(start: str, end: str) -> float:
@@ -65,10 +74,28 @@ def _iso_diff_seconds(start: str, end: str) -> float:
 
 
 def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    """Atomic JSON write; temp name carries pid + thread id (review F17).
+
+    This one is reached from Stage-4 worker threads via :func:`stage_timer`.
+    Each institution writes its own ``_timing.json`` and one worker owns an
+    institution, so a fixed ``.tmp`` name does not collide in practice — but
+    that safety rests on the caller's partitioning rather than on this function,
+    which is a thin thing to rest it on. Matches
+    :func:`g3o.common.artifact_io.write_artifact`.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, path)
+    tmp = path.with_name(f"{path.name}.tmp.{os.getpid()}.{threading.get_ident()}")
+    try:
+        tmp.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def record_stage_timing(

@@ -9,11 +9,19 @@ from __future__ import annotations
 
 import threading
 import time
+from urllib.parse import urlsplit
 
+import requests
+import urllib3
+
+from g3o.common import config
+from g3o.scrape import fetcher, politeness
 from g3o.scrape.politeness import (
     DEFAULT_HOST_DELAY_SECONDS,
     HostThrottle,
     RobotsCache,
+    _robots_cache_key,
+    _throttle_key,
     host_key,
 )
 
@@ -25,8 +33,42 @@ Crawl-delay: 2
 
 
 # ---------------------------------------------------------------------------
-# host_key
+# Key split: robots cache key vs throttle key (SCHEME-SPLIT follow-up)
+#
+# Two single-purpose keys with one caller each, on purpose:
+#   - robots cache keys on scheme+netloc (RFC 9309: http/https robots.txt are
+#     distinct resources) and is also the robots.txt URL prefix;
+#   - the throttle keys on the bare hostname (one physical host = one courtesy-
+#     delay bucket), deliberately collapsing scheme AND port.
 # ---------------------------------------------------------------------------
+
+
+def test_robots_cache_key_is_scheme_and_netloc():
+    assert _robots_cache_key("https://x.gov/a/b?c=d#e") == "https://x.gov"
+    assert _robots_cache_key("http://sub.x.gov:8080/p") == "http://sub.x.gov:8080"
+
+
+def test_throttle_key_is_bare_hostname():
+    assert _throttle_key("https://x.gov/a/b?c=d#e") == "x.gov"
+    # port collapsed on purpose: :8080 and (implicit) :443 share one bucket
+    assert _throttle_key("http://sub.x.gov:8080/p") == "sub.x.gov"
+
+
+def test_keys_diverge_on_scheme():
+    """The whole point of the split: same physical host reached over http vs
+    https is ONE throttle bucket but TWO robots-cache resources."""
+    http, https = "http://x.gov/a", "https://x.gov/a"
+    # throttle: scheme-agnostic -> identical key -> same courtesy-delay bucket
+    assert _throttle_key(http) == _throttle_key(https) == "x.gov"
+    # robots: scheme-preserving -> distinct keys -> cached separately (RFC 9309)
+    assert _robots_cache_key(http) != _robots_cache_key(https)
+
+
+def test_keys_diverge_on_port():
+    """Throttle collapses ports (one host = one bucket); the robots cache key,
+    being a URL prefix, keeps the port so the fetch URL stays well-formed."""
+    assert _throttle_key("http://x.gov:8080/p") == _throttle_key("https://x.gov/p")
+    assert _robots_cache_key("http://x.gov:8080/p") == "http://x.gov:8080"
 
 
 def test_host_key_strips_path_query_and_scheme():
@@ -275,6 +317,170 @@ def test_throttle_default_delay_is_one_second_D4():
 
 
 # ---------------------------------------------------------------------------
+# Regression: two politeness findings, now fixed (formerly xfail repros).
+#
+#   Finding 2 — the one-per-host robots.txt GET must count toward the per-host
+#               delay, so the page GET that follows it is spaced, not fired
+#               back-to-back.
+#   Finding 3 — a request that redirects to another host must wait on THAT
+#               host's throttle before the hop's GET (manual hop-following),
+#               so a redirect landing on a host another worker is throttled
+#               against takes its turn instead of racing in.
+# ---------------------------------------------------------------------------
+
+
+def test_robots_fetch_is_spaced_against_the_following_page_fetch():
+    """Finding 2: the Stage-4 runner handles each uncached URL as
+    ``robots.allowed(url)`` (robots.txt GET) → ``throttle.wait(url)`` → page
+    GET. With the shared throttle injected into ``RobotsCache``, the one-per-
+    host robots GET registers against the host throttle, so the following page
+    GET is held the full 1.0s after it rather than firing immediately."""
+    clock = _FakeClock()
+    host_hits: list[tuple[str, float]] = []
+
+    def _robots_fetch(robots_url, **_kw):
+        host_hits.append(("robots.txt", clock.t))
+        return ""  # empty robots.txt -> allow-all, no Crawl-delay
+
+    throttle = HostThrottle(1.0, sleep=clock.sleep, monotonic=clock.monotonic)
+    robots = RobotsCache("G3O/1", fetch=_robots_fetch, throttle=throttle)
+
+    url = "https://agency.gov/page"
+    assert robots.allowed(url)  # triggers the (throttled) robots.txt GET
+    throttle.wait(url, extra_delay=robots.crawl_delay(url))
+    host_hits.append(("page", clock.t))
+
+    robots_t = next(t for name, t in host_hits if name == "robots.txt")
+    page_t = next(t for name, t in host_hits if name == "page")
+    assert page_t - robots_t >= 1.0
+
+
+class _FakeResp:
+    """Minimal ``requests.Response`` stand-in for the manual-redirect path."""
+
+    def __init__(self, status_code, headers, *, content=b"", url=""):
+        self.status_code = status_code
+        self.headers = headers  # lowercase keys; dict.get / `in` suffice
+        self.content = content
+        self.url = url
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(self.status_code)
+
+    # _download streams every hop (size cap, #93) inside a ``with`` block.
+    def iter_content(self, chunk_size=8192):
+        yield self.content
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+class _FakeSession:
+    def __init__(self, responder):
+        self._responder = responder
+
+    def get(self, url, *, timeout=None, allow_redirects=None, stream=False):
+        # _download must drive redirects itself, not delegate to the session.
+        assert allow_redirects is False
+        return self._responder(url)
+
+
+def _redirect_responder(gets, clock):
+    """old.example → 302 → agency.gov/landing; everything else → 200 html."""
+
+    def _responder(url):
+        gets.append((urlsplit(url).hostname, clock.t))
+        if urlsplit(url).netloc == "old.example":
+            return _FakeResp(302, {"location": "https://agency.gov/landing"}, url=url)
+        return _FakeResp(
+            200, {"content-type": "text/html"}, content=b"<html>ok</html>", url=url
+        )
+
+    return _responder
+
+
+def test_download_waits_on_cross_host_redirect_before_the_hop(monkeypatch):
+    """Finding 3 (core): ``_download`` follows redirects manually and waits on a
+    cross-host destination's throttle BEFORE issuing that hop's GET. With
+    ``agency.gov`` already hit by another worker at t=0, the redirect from
+    ``old.example`` must sleep the full 1.0s before the GET to ``agency.gov``
+    fires — not just record after the fact."""
+    clock = _FakeClock()
+    throttle = HostThrottle(1.0, sleep=clock.sleep, monotonic=clock.monotonic)
+    throttle.wait("https://agency.gov/seed")  # concurrent worker: records t=0
+
+    gets: list[tuple[str, float]] = []
+    monkeypatch.setattr(
+        fetcher, "_get_session", lambda: _FakeSession(_redirect_responder(gets, clock))
+    )
+
+    _, _, status, final_url, _ = fetcher._download(
+        "https://old.example/start", on_redirect_hop=throttle.wait
+    )
+
+    old_get = next(t for host, t in gets if host == "old.example")
+    agency_get = next(t for host, t in gets if host == "agency.gov")
+    assert old_get == 0.0  # origin GET is not delayed by _download itself
+    assert agency_get >= 1.0  # destination GET waited its per-host turn
+    assert clock.slept == [1.0]  # exactly one wait, on the cross-host hop
+    assert final_url == "https://agency.gov/landing"
+    assert status == 200
+
+
+def test_download_same_host_redirect_does_not_re_throttle(monkeypatch):
+    """A same-host redirect (path-only) is one logical request already spaced by
+    the origin's throttle entry, so the hop must NOT incur an extra delay."""
+    clock = _FakeClock()
+    throttle = HostThrottle(1.0, sleep=clock.sleep, monotonic=clock.monotonic)
+    throttle.wait("https://x.gov/a")  # origin already spaced by the caller
+
+    def _responder(url):
+        if url == "https://x.gov/a":
+            return _FakeResp(302, {"location": "https://x.gov/b"}, url=url)
+        return _FakeResp(
+            200, {"content-type": "text/html"}, content=b"<html>ok</html>", url=url
+        )
+
+    monkeypatch.setattr(fetcher, "_get_session", lambda: _FakeSession(_responder))
+
+    fetcher._download("https://x.gov/a", on_redirect_hop=throttle.wait)
+    assert clock.slept == []  # no extra courtesy wait on a same-host hop
+
+
+def test_scrape_url_throttles_redirect_destination_end_to_end(tmp_path, monkeypatch):
+    """Finding 3 (wiring): ``scrape_url`` forwards ``on_redirect_hop`` into the
+    real manual-redirect ``_download``, so an end-to-end fetch that redirects
+    cross-host waits on the destination before the hop — and still reports the
+    destination as ``final_url`` while preserving the requested ``url``."""
+    monkeypatch.setattr(config, "CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setattr(fetcher.html_mod, "extract_text", lambda soup: "TEXT")
+
+    clock = _FakeClock()
+    throttle = HostThrottle(1.0, sleep=clock.sleep, monotonic=clock.monotonic)
+    throttle.wait("https://agency.gov/seed")  # concurrent worker: records t=0
+
+    gets: list[tuple[str, float]] = []
+    monkeypatch.setattr(
+        fetcher, "_get_session", lambda: _FakeSession(_redirect_responder(gets, clock))
+    )
+
+    page = fetcher.scrape_url(
+        "https://old.example/start",
+        force_refresh=True,
+        prefer_render_on_empty=False,
+        on_redirect_hop=throttle.wait,
+    )
+
+    agency_get = next(t for host, t in gets if host == "agency.gov")
+    assert agency_get >= 1.0  # destination waited its per-host turn
+    assert page.fetch_metadata.final_url == "https://agency.gov/landing"
+    assert page.url == "https://old.example/start"  # requested url preserved
+
+
 # HostThrottle — max_wait ceiling (issue #96)
 # ---------------------------------------------------------------------------
 
@@ -358,3 +564,47 @@ def test_throttle_zero_delay_is_still_a_no_op_under_a_ceiling():
     assert t.wait("https://x.gov/a", max_wait=0.0) is True
     assert t.wait("https://x.gov/b", max_wait=0.0) is True
     assert slept == []
+
+
+# ---------------------------------------------------------------------------
+# Regression: a robots.txt GET must honour "None on any failure" for urllib3
+# errors too, not just requests ones.
+#
+# Run r20260912T001021Z-f4fb died 2026-09-13T00:16:50Z, 87% through scrape and
+# with extract/validate unrun, on a 302 whose Location carried empty DNS labels
+# (`www.indiatoday...%20twitte`). `requests.get`'s automatic redirect handling
+# raised `urllib3.exceptions.LocationParseError`, which is NOT a
+# `requests.RequestException`; it escaped `_fetch_robots_txt`, then escaped
+# `robots.allowed()` at its Stage 4 call site, which sits OUTSIDE the per-URL
+# `except Exception` sink. One malformed third-party header, one dead sweep.
+# ---------------------------------------------------------------------------
+
+
+def test_robots_fetch_swallows_urllib3_location_parse_error(monkeypatch):
+    """The real 2026-09-13 killer: not a RequestException, so it escaped."""
+
+    def _raise(*_args, **_kwargs):
+        raise urllib3.exceptions.LocationParseError(
+            "www.indiatoday...%20twitte"
+        )
+
+    monkeypatch.setattr(politeness.requests, "get", _raise)
+    assert (
+        politeness._fetch_robots_txt(
+            "https://x.gov/robots.txt", user_agent="g3o", timeout=5
+        )
+        is None
+    )
+
+
+def test_robots_allowed_is_allow_all_when_the_fetch_raises_urllib3(monkeypatch):
+    """End of the escape path: `allowed()` must return, not raise, so Stage 4's
+    pre-fetch block cannot kill the worker (and with it the run)."""
+
+    def _raise(*_args, **_kwargs):
+        raise urllib3.exceptions.LocationParseError("bad...host")
+
+    monkeypatch.setattr(politeness.requests, "get", _raise)
+    cache = RobotsCache(user_agent="g3o")
+    assert cache.allowed("https://x.gov/page") is True
+    assert cache.crawl_delay("https://x.gov/page") is None

@@ -437,7 +437,15 @@ def _terminal(events: list[dict[str, Any]]) -> dict[str, Any] | None:
     is the last one written, not the first.
     """
     for record in reversed(events):
-        if record.get("event") in TERMINAL_EVENTS:
+        name = record.get("event")
+        if name == "resume":
+            # A resume is a new attempt: whatever ended the previous one is
+            # history, not the run's current outcome. Without this stop the
+            # pre-resume `run_failed` read as current for the whole resumed
+            # attempt (sweep 4, 2026-09-14): `status` printed FAILED while the
+            # scrape was running, and the e2e driver exited at its gate.
+            return None
+        if name in TERMINAL_EVENTS:
             return record
     return None
 

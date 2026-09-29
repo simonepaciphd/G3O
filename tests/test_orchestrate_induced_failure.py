@@ -96,6 +96,9 @@ def killed_run(tmp_path: Path, master: Path, monkeypatch) -> tuple[Path, str]:
         seed=1,
         dry_run=False,
         stop_after="extract",
+        classify_official_site_model="gpt-5-nano",
+        classify_triage_model="gpt-5-nano",
+        validate_model="gpt-5-nano",
     )
     with pytest.raises(RuntimeError, match="induced failure"):
         sub.submit(config)

@@ -46,6 +46,22 @@ SERPER_ENDPOINT: str = _env("SERPER_ENDPOINT", "https://google.serper.dev/search
 # the per-invocation ``--model`` CLI flag overrides this in turn.
 OPENAI_MODEL: str = _env("OPENAI_MODEL", "gpt-5-nano") or "gpt-5-nano"
 
+# ── TypeSafe jev (decision model for Stages 2/3/6, 2026-09-20) ─────────────
+# TypeSafe's jev is a decision model, not a text generator: it takes a state
+# plus typed questions (Choice/Score/Noul) and returns typed answers with
+# probability distributions and confidence. See jev-integration-plan.md.
+#
+# ``TYPESAFE_API_KEY`` is a secret (Bearer token) and is never recorded: the
+# manifest stores the key's fingerprint, not the material. Read at call time
+# (not import time) so a per-process rotation takes effect without restart.
+TYPESAFE_API_KEY: str | None = _env("TYPESAFE_API_KEY")
+#: Pinned model id for jev stages. Defaults to ``jev-1.13.0`` (a versioned id,
+#: not the ``jev-latest`` alias) so thresholds tuned against a version stay
+#: reproducible. The --classify-model / --validate-model CLI flags override
+#: this per stage; the per-invocation --model flag overrides the pipeline-wide
+#: default for every LLM stage.
+TYPESAFE_MODEL: str = _env("TYPESAFE_MODEL", "jev-1.13.0") or "jev-1.13.0"
+
 REQUEST_TIMEOUT: int = int(_env("REQUEST_TIMEOUT", "30") or "30")
 # Stage 4 connect timeout (2026-09-06). ``requests`` takes ``(connect, read)``;
 # until this key existed the fetcher passed the single ``REQUEST_TIMEOUT`` and
@@ -80,6 +96,29 @@ USER_AGENT: str = _env("USER_AGENT", "G3O-Observatory/0.1") or "G3O-Observatory/
 # manifest stores ``egress.describe()``, which is host:port and a
 # ``credentialed`` flag.
 SCRAPE_PROXY_URL: str = _env("G3O_SCRAPE_PROXY", "") or ""
+
+#: Bright Data Web Unlocker (Phase 3, 2026-09-17). A per-URL escalation for
+#: refused/blocked fetches — NOT a fourth always-on egress point. The unlocker
+#: fires only when ``PresweepConfig.scrape_unlocker_on_block`` (or
+#: ``scrape_unlocker_on_empty``) is True, and only on URLs that the default
+#: fetch path refused. The all-three-move-together invariant for the default
+#: identity is preserved: robots.txt, page fetches, and the render still share
+#: ``SCRAPE_PROXY_URL``; the unlocker is a separate instrument that the
+#: dispatch wiring in ``fetcher.scrape_url`` invokes as a fallback.
+#:
+#: ``G3O_UNLOCKER_API_TOKEN`` is a secret (Bearer token) and is never recorded:
+#: the manifest stores ``egress.describe()``, which records only that the
+#: unlocker is configured, never the token. The token is read at call time
+#: (not import time) so a per-process rotation takes effect without restart.
+UNLOCKER_API_TOKEN: str | None = _env("G3O_UNLOCKER_API_TOKEN")
+#: The Bright Data zone to use. Defaults to ``web_unlocker1`` (the zone
+#: provisioned for this project).
+UNLOCKER_ZONE: str = _env("G3O_UNLOCKER_ZONE", "web_unlocker1") or "web_unlocker1"
+#: The Web Unlocker REST endpoint. Override only for testing or vendor changes.
+UNLOCKER_API_URL: str = (
+    _env("G3O_UNLOCKER_API_URL", "https://api.brightdata.com/request")
+    or "https://api.brightdata.com/request"
+)
 
 LOG_LEVEL: str = _env("LOG_LEVEL", "INFO") or "INFO"
 

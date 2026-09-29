@@ -79,16 +79,43 @@ _GPT5_NANO: dict[str, Any] = {
     "batch_line_is_estimate": True,
 }
 
+# TypeSafe jev-1.13.0 rates (docs.typesafe.ai/models, verified 2026-09-20).
+# Jev is a decision model with input-only pricing: $0.042 per Mtok input;
+# output tokens are free. No batch discount (the API is synchronous only,
+# no batch endpoint). No cached tokens (the API does not expose prompt caching).
+# The shape differs from the OpenAI row (no batch_* keys, no cached rate)
+# because jev's pricing model is simpler; pricing_for() and CostMonitor
+# handle both shapes.
+_JEV_1_13_0: dict[str, Any] = {
+    "model": "jev-1.13.0",
+    "source": "https://docs.typesafe.ai/models",
+    "verified_on": "2026-09-20",
+    "standard_input_per_1m_usd": 0.042,
+    "standard_output_per_1m_usd": 0.00,
+    # Jev has no batch API (synchronous only) and no prompt caching; the
+    # batch_* keys mirror the standard rates so CostMonitor's arithmetic
+    # works unchanged. No batch discount, no cached rate.
+    "batch_input_per_1m_usd": 0.042,
+    "batch_output_per_1m_usd": 0.00,
+    "batch_cached_input_per_1m_usd": 0.042,
+    "batch_discount": 1.0,
+    "batch_line_is_estimate": False,
+}
+
 #: Model id -> its rate row. Every row carries the flat key set above; the shape
 #: is unchanged from the pre-registry single dict, which is what keeps every
 #: ``pricing[...]`` subscript in :mod:`g3o.common.cost_monitor` working.
 PRICING: dict[str, dict[str, Any]] = {
     _GPT5_NANO["model"]: _GPT5_NANO,
+    _JEV_1_13_0["model"]: _JEV_1_13_0,
 }
 
 #: Back-compatible alias for the row this pipeline runs on by default. Kept as a
 #: live reference into :data:`PRICING` (not a copy) so the two cannot drift.
 GPT5_NANO_PRICING: dict[str, Any] = PRICING["gpt-5-nano"]
+#: Back-compatible alias for the jev-1.13.0 rate row. Kept as a live reference
+#: into :data:`PRICING` (not a copy) so the two cannot drift.
+JEV_1_13_0_PRICING: dict[str, Any] = PRICING["jev-1.13.0"]
 
 #: A dated model snapshot, e.g. ``gpt-5-nano-2025-08-07`` — the form
 #: ``BatchResult.response_model`` actually returns. Matched against a known base
@@ -133,4 +160,4 @@ def usd(n_tokens: float, per_1m: float) -> float:
     return (n_tokens / 1_000_000) * per_1m
 
 
-__all__ = ["GPT5_NANO_PRICING", "PRICING", "pricing_for", "usd"]
+__all__ = ["GPT5_NANO_PRICING", "JEV_1_13_0_PRICING", "PRICING", "pricing_for", "usd"]

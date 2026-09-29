@@ -50,7 +50,28 @@ refused or could not run. Scripts should branch on 2 vs 1: *did not happen* vs
 
 # WATCH — status every minute until it stops changing.
 watch -n 60 ~/venv/bin/python -m g3o.run.orchestrate status --latest
+
+# SPEND THE OFFICIAL-SITE OVERLAY — optional, and it changes the instrument.
+# Stage 2 is BYPASSED for every sampled institution the overlay covers, so the
+# run classifies part of its frame with the LLM and part from a stored value.
+# Recorded in the manifest as `run_official_sites` + `config.official_sites_hash`.
+~/venv/bin/g3o presweep --master-csv "$G3O_MASTER_CSV" --runs-dir "$G3O_RUNS_DIR"     --official-sites "$G3O_RUNS_DIR/_site_overlay/official_sites.csv"     --sample-size 20 --seed 22294 --preflight
 ```
+
+**The overlay is rebuilt for you.** `orchestrate e2e` harvests it after the gate
+and before the load, from every completed run under `--runs-dir`, into
+`_site_overlay/official_sites.csv`. Nothing else has to be scheduled, and a
+rebuild over an unchanged corpus is a byte-identical no-op that says so
+(`overlay unchanged at N institutions`). `--no-harvest` skips it; the harvest
+never stops the chain unless you pass `--require-harvest`, because a derived
+table that could not be rewritten is not a failed publication.
+
+**Pointing `--official-sites` at that file is a deliberate act, not a default.**
+Omitted, the run classifies every institution with Stage 2 exactly as before.
+Passed, it spends `high`-confidence picks whose `site:` host is not shared with
+another institution; `--official-sites-min-confidence` and
+`--official-sites-allow-shared` widen it, and both are data-quality decisions
+rather than tuning. The master is never written either way.
 
 `submit` prints the minted run id **first**, before the run does anything, so a
 detached run can be monitored and resumed while it is still in flight. Copy it.

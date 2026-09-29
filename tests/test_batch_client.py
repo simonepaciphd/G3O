@@ -458,6 +458,42 @@ def test_find_batches_by_metadata_bounded_pages():
     find_batches_by_metadata(_CHUNK_MD, client=client, max_pages=3)
     assert client.batches.list.call_count == 3
 
+def test_find_batches_by_metadata_min_created_at_stops_early():
+    """Pagination stops when batches older than min_created_at are reached."""
+    from datetime import datetime, timezone
+
+    client = MagicMock()
+    # Page 1: recent batches (no match)
+    old_batch = _batch_obj("b-old", metadata={})
+    old_batch.created_at = 1_600_000_000  # well before cutoff
+    match_batch = _batch_obj("b-match", metadata=_CHUNK_MD)
+    match_batch.created_at = 1_800_000_000  # after cutoff
+    page1 = _page([match_batch, old_batch], has_more=True)
+    client.batches.list.return_value = page1
+
+    cutoff = datetime(2025, 1, 1, tzinfo=timezone.utc)
+    matches = find_batches_by_metadata(
+        _CHUNK_MD, client=client, min_created_at=cutoff
+    )
+    # Should find the match and stop at the old batch (no more pages)
+    assert [m.batch_id for m in matches] == ["b-match"]
+    assert client.batches.list.call_count == 1  # stopped early
+
+
+def test_find_batches_by_metadata_warns_when_no_match(caplog):
+    """Logs a warning when pagination exhausts without finding any match."""
+    import logging
+
+    client = MagicMock()
+    client.batches.list.return_value = _page(
+        [_batch_obj("b-x", metadata={})], has_more=False
+    )
+
+    with caplog.at_level(logging.WARNING, logger="g3o.common.batch_client"):
+        matches = find_batches_by_metadata(_CHUNK_MD, client=client, max_pages=2)
+
+    assert matches == []
+    assert any("without finding a match" in record.message for record in caplog.records)
 
 # ---------------------------------------------------------------------------
 # batches.create reconcile-on-retry (Session F.1, review F6a)

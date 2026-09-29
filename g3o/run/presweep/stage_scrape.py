@@ -197,6 +197,8 @@ def _scrape_one(
     robots: RobotsCache | None,
     throttle: HostThrottle,
     render_on_download_failure: bool,
+    unlocker_on_block: bool = False,
+    unlocker_on_empty: bool = False,
     empty_page_min_chars: int,
     sessions: _ThreadLocalRenderSessions,
     budget_seconds: float | None = None,
@@ -262,6 +264,34 @@ def _scrape_one(
         attrition.record(
             run_dir, institution_id=_inst, stage=stage,
             reason="render_attempted", url=url, detail=detail,
+            trigger=trigger, outcome=outcome,
+        )
+
+    def _record_unlocker_attempt(
+        *, url: str, trigger: str, outcome: str, inner_status: int | None,
+        error: str | None, elapsed_ms: int | None,
+        _inst: str = inst_id,
+    ) -> None:
+        # Telemetry for every unlocker attempt (block- or empty-after-strip-
+        # triggered): one record per (inst, url) — attrition dedups on
+        # (institution_id, stage, reason, url), so a failed unlocker attempt is
+        # recorded exactly once, never a silent drop and never a duplicate.
+        # trigger/outcome/inner_status/error stay out of the dedup key so the
+        # unlocker rate + cost (CPM billing) are queryable, and a policy block,
+        # a dead page, and a captcha defeat are three distinguishable rows.
+        detail = f"trigger={trigger};outcome={outcome}"
+        if inner_status is not None:
+            detail += f";inner_status={inner_status}"
+        if error is not None:
+            # Redact the unlocker token from the error text. The token is a
+            # secret and must never appear in any artifact.
+            from g3o.scrape import unlocker as unlocker_mod
+            detail += f";error={unlocker_mod.redact(error)}"
+        if elapsed_ms is not None:
+            detail += f";elapsed_ms={elapsed_ms}"
+        attrition.record(
+            run_dir, institution_id=_inst, stage=stage,
+            reason="unlocker_attempted", url=url, detail=detail,
             trigger=trigger, outcome=outcome,
         )
 
@@ -472,8 +502,16 @@ def _scrape_one(
                     # it. The tunable surface is empty_page_min_chars.
                     prefer_render_on_empty=True,
                     prefer_render_on_download_failure=render_on_download_failure,
+                    prefer_unlocker_on_block=unlocker_on_block,
+                    prefer_unlocker_on_empty=unlocker_on_empty,
                     empty_page_min_chars=empty_page_min_chars,
                     on_render_attempt=_record_render_attempt,
+                    on_unlocker_attempt=_record_unlocker_attempt,
+                    # Throttle each cross-host redirect destination *before* the
+                    # hop's GET, so a request that redirects onto a host another
+                    # worker is throttled against waits its per-host turn instead
+                    # of racing in.
+                    on_redirect_hop=throttle.wait,
                     on_scrape_failure=_record_scrape_failure,
                     on_size_capped=_record_size_capped,
                 )
@@ -533,6 +571,8 @@ def _run_scrape(
     respect_robots: bool = True,
     host_delay_seconds: float = DEFAULT_HOST_DELAY_SECONDS,
     render_on_download_failure: bool = False,
+    unlocker_on_block: bool = False,
+    unlocker_on_empty: bool = False,
     empty_page_min_chars: int = EMPTY_PAGE_MIN_CHARS,
     robots: RobotsCache | None = None,
     throttle: HostThrottle | None = None,
@@ -620,10 +660,10 @@ def _run_scrape(
     if is_done(run_dir, stage):
         logger.info("Stage 4: .done marker present — skipping (resume from disk)")
         return _read_existing_scraped(run_dir, sample)
-    if respect_robots and robots is None:
-        robots = RobotsCache(_config.USER_AGENT)
     if throttle is None:
         throttle = HostThrottle(host_delay_seconds)
+    if respect_robots and robots is None:
+        robots = RobotsCache(_config.USER_AGENT, throttle=throttle)
     if breaker is None and host_failure_threshold is not None:
         breaker = HostBreaker(host_failure_threshold)
     scrape_telemetry.ensure_ledger(run_dir)
@@ -635,6 +675,8 @@ def _run_scrape(
             run_dir, row, triaged.get(synth_institution_id(row), []),
             stage=stage, robots=robots, throttle=throttle,
             render_on_download_failure=render_on_download_failure,
+            unlocker_on_block=unlocker_on_block,
+            unlocker_on_empty=unlocker_on_empty,
             empty_page_min_chars=empty_page_min_chars,
             sessions=sessions,
             budget_seconds=max_institution_seconds,

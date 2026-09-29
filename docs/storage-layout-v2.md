@@ -1,4 +1,4 @@
-> **Repo copy — authoritative.** Committed in Phase 1 per the 2026-07-28 brief, so the design is versioned with the code it governs. The handoff copy at `RAs/Data Validation Team/` and the drafting copy at `agent-workspace/storage-layout-v2-spec-2026-07-28.md` are reference-only from this commit on. Text below is unchanged from the signed-off spec.
+> **Repo copy — authoritative.** Committed in Phase 1 per the 2026-07-28 brief, so the design is versioned with the code it governs. The handoff copy at `RAs/Data Validation Team/` and the drafting copy at `agent-workspace/storage-layout-v2-spec-2026-07-28.md` (both on Drive; neither tracked here) are reference-only from this commit on. Text below is unchanged from the signed-off spec.
 
 # Spec — Pipeline Run-Storage Layout v2 (compression, retention, sharding)
 
@@ -46,7 +46,7 @@ runs/<run_id>/
     _timing.json                    # common/timing.py
 ```
 
-`inst_id` = `synth_institution_id(row)` = `INST-{int(master_row_id):07d}` with a non-numeric fallback `INST-{raw}` (`run/presweep/records.py:13-19`). **Note:** the institution-key spec drafted 2026-07-28 (`agent-workspace/institution-key-spec-2026-07-28.md`) demotes `master_row_id` and introduces a stable master key; the shard scheme below is deliberately agnostic to the ID's internal structure.
+`inst_id` = `synth_institution_id(row)` = `INST-{int(master_row_id):07d}` with a non-numeric fallback `INST-{raw}` (`run/presweep/records.py:13-19`). **Note:** the institution-key spec drafted 2026-07-28 (`agent-workspace/institution-key-spec-2026-07-28.md`; Drive, not tracked here) demotes `master_row_id` and introduces a stable master key; the shard scheme below is deliberately agnostic to the ID's internal structure.
 
 ### 1.2 Fetcher cache
 

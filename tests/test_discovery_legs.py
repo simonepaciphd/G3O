@@ -385,6 +385,88 @@ def test_stage_2_fallback_rewrites_the_official_site_artifact_with_provenance(
     assert seen_jobs == [[fr]]
 
 
+def test_stage_2_fallback_routes_a_jev_model_to_jev_not_the_batch_api(
+    tmp_path, monkeypatch
+):
+    """A jev Stage 2 gets a jev fallback (``model_for_stage`` maps the pass to
+    Stage 2's model). Before the fix the jev id went to the OpenAI Batch API,
+    which refused it with ``model_not_found`` and failed the run."""
+    from g3o.common.credentials import Credentials, resolve
+    from g3o.common.jev_client import JevAnswer, JevResult
+
+    cfg = _config(tmp_path, discovery_leg1_multilingual=True)
+    assert cfg.model_for_stage(STAGE_2_FALLBACK) == cfg.classify_official_site_model
+    plan = plan_run(cfg)
+    ids = _by_country(plan)
+    _first_pass(plan, monkeypatch, cfg)
+    fr, de, us = ids["France"], ids["Germany"], ids["United States"]
+    for inst_id, url in ((fr, None), (de, "https://example.gov/"), (us, None)):
+        (inst_dir_of(plan.run_dir, inst_id) / "2_official_site.json").write_text(
+            json.dumps({"url": url, "confidence": "low", "rationale": "first"}),
+            encoding="utf-8",
+        )
+    official = {fr: None, de: "https://example.gov/", us: None}
+    rec = _Recorder(links=["https://ministere.gouv.fr/"])
+    _patch_search(monkeypatch, rec)
+    general, _ = ps._run_discovery_general_fallback(
+        plan.run_dir, plan.sample,
+        ps.stage_discovery._read_existing_discovery_general(plan.run_dir, plan.sample),
+        official, num_results=10, fallback_languages_for=cfg.leg1_fallback_languages_for,
+    )
+    urls = [r["link"] for r in general[fr] if r.get("link")]
+    pick = f"u{urls.index('https://ministere.gouv.fr/')}"
+
+    def _no_batch(*a, **k):
+        raise AssertionError("a jev fallback must not reach the Batch API")
+
+    monkeypatch.setattr(ps.stage_classify, "run_chunked_stage", _no_batch)
+    asked: list[dict[str, Any]] = []
+
+    def _ask(state, questions, **kw):
+        asked.append(state)
+        return JevResult(
+            answers={"official_site": JevAnswer(
+                question_id="official_site", type="choice", choice=pick, confidence=0.9,
+            )},
+            response_model="jev-1.13.0", request_id="req-fb",
+            input_tokens=100, output_tokens=0,
+        )
+
+    monkeypatch.setattr("g3o.run.presweep.jev_stage_runner.ask", _ask)
+    creds = resolve(Credentials(typesafe_api_key="k"), env={"TYPESAFE_API_KEY": "k"})
+
+    merged, stats = ps._run_classify_official_site_fallback(
+        plan.run_dir, plan.sample, general, official,
+        run_id="legs-test", model="jev-1.13.0", poll_interval=0, max_wait=1,
+        credentials=creds,
+    )
+
+    assert len(asked) == 1
+    assert stats == {"n_candidates": 1, "n_found": 1}
+    assert merged == {fr: "https://ministere.gouv.fr/", de: "https://example.gov/", us: None}
+    payload = _read(plan.run_dir, fr, "2_official_site.json")
+    assert payload["url"] == "https://ministere.gouv.fr/"
+    assert payload["request_id"] == "req-fb"
+    assert payload["via_fallback"] is True
+    assert payload["fallback_languages"] == ["fr"]
+    assert [f["language"] for f in payload["picked_found_by"]] == ["fr"]
+    assert payload["first_pass"] == {"url": None, "confidence": "low", "rationale": "first"}
+    from g3o.run.presweep.stage_classify import STAGE_2_FALLBACK_JEV_MARKER
+
+    assert _read(plan.run_dir, fr, STAGE_2_FALLBACK_JEV_MARKER) == payload
+    assert "via_fallback" not in _read(plan.run_dir, us, "2_official_site.json")
+    assert done_path(plan.run_dir, STAGE_2_FALLBACK).exists()
+
+    # Resume short-circuits on the .done marker: no second request.
+    merged2, stats2 = ps._run_classify_official_site_fallback(
+        plan.run_dir, plan.sample, general, official,
+        run_id="legs-test", model="jev-1.13.0", poll_interval=0, max_wait=1,
+        credentials=creds,
+    )
+    assert (merged2, stats2) == (merged, stats)
+    assert len(asked) == 1
+
+
 def test_stage_2_fallback_submits_nothing_when_the_fallback_found_no_new_url(
     tmp_path, monkeypatch
 ):
@@ -441,6 +523,13 @@ def _launch_with_legs(tmp_path: Path, monkeypatch, **flags: Any):
         scrape_respect_robots=False,
         scrape_host_delay_seconds=0,
         language_policy=_POLICY_ID,
+        # Explicitly use gpt-5-nano for stages 2/3/6 to keep them on the
+        # OpenAI Batch path (which this test mocks). The dataclass defaults
+        # are now jev-1.13.0, but this test focuses on discovery legs, not
+        # jev routing.
+        classify_official_site_model="gpt-5-nano",
+        classify_triage_model="gpt-5-nano",
+        validate_model="gpt-5-nano",
         **flags,
     )
     monkeypatch.setenv("SERPER_API_KEY", "test-serper-key")

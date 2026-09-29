@@ -21,6 +21,7 @@ import threading
 import time
 from collections.abc import Callable
 from typing import Any
+from urllib.parse import urljoin, urlsplit
 
 import requests
 from bs4 import BeautifulSoup
@@ -36,6 +37,7 @@ from g3o.common import config
 from g3o.scrape import egress
 from g3o.scrape import html as html_mod
 from g3o.scrape import pdf as pdf_mod
+from g3o.scrape import unlocker as unlocker_mod
 from g3o.scrape.render import (
     FetchMetadata,
     RenderedPage,
@@ -98,6 +100,18 @@ RenderAttemptCallback = Callable[..., None]
 # drops the page. A no-op when None, so standalone callers keep the Q10
 # failure-page return unchanged.
 ScrapeFailureCallback = Callable[..., None]
+
+# An unlocker-attempt telemetry hook. Called once per unlocker attempt with
+# keyword args ``url``, ``trigger`` ("transport" | "block" | "empty_after_strip"),
+# ``outcome`` ("unlocker_succeeded" | "unlocker_failed" | "unlocker_disabled"),
+# ``inner_status`` (the target's HTTP status as reported by the unlocker, or
+# None), ``error`` (the ``x-brd-error`` text, or None), and ``elapsed_ms``.
+# Trigger "transport" fires when the download failed with no HTTP status
+# (timeout/DNS/SSL); "block" fires on refusal statuses 403/406/401/451;
+# "empty_after_strip" fires when the deterministic path yielded below-floor
+# text. The fetcher stays agnostic of the run context; the Stage 4 runner
+# supplies a hook that records the attempt to the attrition ledger. A no-op
+UnlockerAttemptCallback = Callable[..., None]
 
 # A size-cap accounting hook. Called once when a response body exceeds
 # ``MAX_RESPONSE_BYTES`` and is abandoned unread, with keyword args ``url`` and
@@ -333,6 +347,13 @@ def _reset_attempts() -> None:
     _thread_local.attempts = 0
 
 
+# HTTP redirect statuses that carry a Location (per RFC 9110 / requests'
+# REDIRECT_STATI). Followed manually below so each cross-host hop can be
+# throttled at the boundary it crosses.
+_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
+_MAX_REDIRECTS = 20  # loop guard; mirrors requests' default ceiling
+
+
 def _read_capped(response: requests.Response, url: str) -> bytes:
     """Stream ``response`` into memory, refusing to exceed the cap.
 
@@ -382,26 +403,68 @@ _STREAM_CHUNK_BYTES = 64 * 1024
     # that breakdown legible straight from the ledger.
     reraise=True,
 )
-def _download(url: str) -> tuple[bytes, str, int, str, int]:
+def _download(
+    url: str, *, on_redirect_hop: Callable[[str], None] | None = None
+) -> tuple[bytes, str, int, str, int]:
     """Return ``(content, content_type, http_status, final_url, elapsed_ms)``.
 
+    Redirects are followed **manually** (``allow_redirects=False``) rather than
+    inside the session, so a cross-host redirect can be throttled at the point
+    it crosses hosts: *before* issuing the GET for a hop that lands on a
+    different host, ``on_redirect_hop`` is called with that destination URL.
+    Stage 4 wires it to :meth:`HostThrottle.wait`, so a hop onto a host another
+    worker is currently throttled against **waits its turn** — the same per-host
+    contract a direct request to that host would get — instead of racing in
+    (the redirect-destination finding). A same-host redirect (path-only, or
+    ``http``->``https`` on one host) does not re-throttle: it is one logical
+    request already covered by the origin's throttle entry. ``on_redirect_hop``
+    defaults to None, so standalone/CLI fetches and the unit suite follow
+    redirects with no throttle coupling.
+
     Streams the body under :data:`MAX_RESPONSE_BYTES` rather than buffering it
-    whole, and raises :class:`ResponseTooLarge` past the cap.
+    whole, and raises :class:`ResponseTooLarge` past the cap. Every hop is
+    requested with ``stream=True`` and closed on exit, so a redirect's own body
+    is never read at all.
     """
     started = time.monotonic()
-    with _get_session().get(
-        url, timeout=(config.CONNECT_TIMEOUT, config.REQUEST_TIMEOUT), stream=True
-    ) as r:
-        r.raise_for_status()
-        content = _read_capped(r, url)
-        elapsed_ms = int((time.monotonic() - started) * 1000)
-        return (
-            content,
-            r.headers.get("content-type", "").lower(),
-            r.status_code,
-            r.url,
-            elapsed_ms,
-        )
+    session = _get_session()
+    current = url
+    for _ in range(_MAX_REDIRECTS + 1):
+        with session.get(
+            current,
+            timeout=(config.CONNECT_TIMEOUT, config.REQUEST_TIMEOUT),
+            allow_redirects=False,
+            stream=True,
+        ) as r:
+            location = (
+                r.headers.get("location")
+                if r.status_code in _REDIRECT_STATUSES
+                else None
+            )
+            if location:
+                destination = urljoin(current, location)
+                # Throttle the destination host BEFORE the hop's GET, but only when
+                # the host actually changes — a same-host hop is the same physical
+                # server the origin request already spaced against.
+                if on_redirect_hop is not None and (
+                    urlsplit(destination).hostname != urlsplit(current).hostname
+                ):
+                    on_redirect_hop(destination)
+                current = destination
+                continue
+            r.raise_for_status()
+            content = _read_capped(r, url)
+            elapsed_ms = int((time.monotonic() - started) * 1000)
+            return (
+                content,
+                r.headers.get("content-type", "").lower(),
+                r.status_code,
+                r.url,
+                elapsed_ms,
+            )
+    raise requests.TooManyRedirects(
+        f"Exceeded {_MAX_REDIRECTS} redirects starting from {url}"
+    )
 
 
 def _extract_html_title(soup: BeautifulSoup) -> str:
@@ -486,6 +549,32 @@ def _notify_size_capped(
         callback(url=url, error=error)
 
 
+def _notify_unlocker_attempt(
+    callback: UnlockerAttemptCallback | None,
+    *,
+    url: str,
+    trigger: str,
+    outcome: str,
+    inner_status: int | None,
+    error: str | None,
+    elapsed_ms: int | None,
+) -> None:
+    """Fire the unlocker-attempt telemetry hook, if one was supplied.
+
+    Called on *every* unlocker attempt — block- or empty-after-strip-triggered,
+    success or failure — so the caller can account for the unlocker rate and
+    its cost (CPM billing). ``inner_status`` and ``error`` distinguish a policy
+    block, a dead page, and a captcha defeat in the attrition ledger. A no-op
+    when ``callback`` is None, which keeps the low-level fetcher usable without
+    a run context.
+    """
+    if callback is not None:
+        callback(
+            url=url, trigger=trigger, outcome=outcome,
+            inner_status=inner_status, error=error, elapsed_ms=elapsed_ms,
+        )
+
+
 def unwrap_fetch_error(exc: BaseException | None) -> BaseException | None:
     """The exception that actually failed, behind tenacity's wrapper.
 
@@ -560,6 +649,45 @@ def _failure_page(url: str, *, attempted_method: str) -> RenderedPage:
         ),
     )
 
+def _unlocker_page(
+    url: str, uresult: unlocker_mod.UnlockerResult, *, cache_floor: int
+) -> RenderedPage:
+    """Build a RenderedPage from a successful unlocker result.
+
+    PDF routing via ``url.lower().endswith(".pdf")`` — NOT ``"pdf" in url.lower()``
+    (which misroutes e.g. ``…/pdf-forms.html`` into ``pdf_mod.extract_text``).
+    The deterministic path's content-type half (``"pdf" in ctype``) is
+    unavailable with ``format=raw``: the unlocker returns the body as-is
+    without a content-type header, so URL suffix is the only signal.
+    """
+    ucontent = uresult.content
+    if url.lower().endswith(".pdf"):
+        utext = pdf_mod.extract_text(ucontent)
+        utitle = _extract_pdf_title(ucontent)
+        umethod = "unlocker_pdf"
+        uctype = "pdf"
+    else:
+        usoup = BeautifulSoup(ucontent, "html.parser")
+        utitle = _extract_html_title(usoup)
+        utext = html_mod.extract_text(usoup)
+        umethod = "unlocker"
+        uctype = "html"
+    upage = RenderedPage(
+        url=url, text=utext, title=utitle,
+        content_type=uctype,  # type: ignore[arg-type]
+        fetch_metadata=FetchMetadata(
+            access_date=utc_today_iso(),
+            http_status=uresult.inner_status,
+            final_url=url,
+            fetch_method=umethod,  # type: ignore[arg-type]
+            elapsed_ms=uresult.elapsed_ms,
+            wait_for=None,
+        ),
+    )
+    _save(upage, min_chars=cache_floor)
+    return upage
+
+
 
 def scrape_url(
     url: str,
@@ -568,9 +696,13 @@ def scrape_url(
     force_render: bool = False,
     prefer_render_on_empty: bool = True,
     prefer_render_on_download_failure: bool = False,
+    prefer_unlocker_on_block: bool = False,
+    prefer_unlocker_on_empty: bool = False,
     empty_page_min_chars: int = 1,
     render_session: RenderSession | None = None,
     on_render_attempt: RenderAttemptCallback | None = None,
+    on_unlocker_attempt: UnlockerAttemptCallback | None = None,
+    on_redirect_hop: Callable[[str], None] | None = None,
     on_scrape_failure: ScrapeFailureCallback | None = None,
     on_size_capped: SizeCappedCallback | None = None,
 ) -> RenderedPage:
@@ -595,10 +727,30 @@ def scrape_url(
       IP-reputation risk on government hosts and a multi-hour wall-clock tax at
       ~12k URLs. The Stage 4 runner leaves it off by default
       (``PresweepConfig.scrape_render_on_download_failure``).
+    - If the HTTP GET fails with a transport failure (timeout, connection error,
+      SSL error — no HTTP status) or a refusal status (403/406/401/451) and
+      ``prefer_unlocker_on_block`` is True, the Bright Data Web Unlocker is
+      tried as a fallback *before* the render fallback. The unlocker renders JS
+      and solves captchas internally at ~$0.002–0.006/page, strictly more
+      capable and ~8–20× cheaper than pushing a playwright render through the
+      residential proxy. The unlocker's residential proxy network recovers most
+      IP-blocked, geo-blocked, and DNS-filtered hosts. Hard-gone statuses
+      (404/410) and other server-chosen errors do not trigger the unlocker
+      (unrecoverable). If the unlocker fails, the render fallback (if
+      enabled) is tried next. Defaults to True
+      (``PresweepConfig.scrape_unlocker_on_block``).
+    - If the deterministic path yields text below the empty-page floor and
+      ``prefer_unlocker_on_empty`` is True, the unlocker is tried *before* the
+      render fallback. If the unlocker fails, the render fallback is tried
+      next. Defaults to False (``PresweepConfig.scrape_unlocker_on_empty``).
 
     Every render attempt (either trigger, success or failure) invokes
     ``on_render_attempt`` when supplied, so the caller can account for the
-    render rate/cost; the fetcher itself never silently retries.
+    render rate/cost; the fetcher itself never silently retries. Every unlocker
+    attempt (either trigger, success or failure) invokes ``on_unlocker_attempt``
+    when supplied, carrying the inner status and error text so a policy block,
+    a dead page, and a captcha defeat are three distinguishable rows in the
+    attrition ledger rather than one.
 
     A hard fetch failure — the HTTP GET raises after all retries and the render
     fallback is either off or also raises — invokes ``on_scrape_failure`` when
@@ -616,6 +768,14 @@ def scrape_url(
     The supplied ``url`` is preserved as ``RenderedPage.url`` regardless of
     redirects (pipeline-spec §1: "do not silently redirect-and-attribute").
     Successful fetches are cached on disk under ``config.CACHE_DIR``.
+
+    ``on_redirect_hop`` keeps this fetcher robots/throttle-agnostic while still
+    letting a polite caller (Stage 4) close the redirect-throttle gap. It is
+    forwarded to ``_download``, which follows redirects manually and calls it
+    with each cross-host destination *before* issuing that hop's GET — so a
+    redirect landing on a host another worker is throttled against waits its
+    turn instead of racing in. Defaults to None (standalone/CLI fetches and the
+    unit suite follow redirects with no throttle coupling).
     """
     # The disk cache must neither store nor serve a below-floor page when the
     # caller wants empty-page rendering: otherwise a near-empty page freezes
@@ -638,7 +798,13 @@ def scrape_url(
         return page
 
     try:
-        content, ctype, status, final_url, elapsed_ms = _download(url)
+        # Only pass the hop callback through when set, so callers/tests that
+        # monkeypatch a url-only ``_download`` stay compatible.
+        content, ctype, status, final_url, elapsed_ms = (
+            _download(url, on_redirect_hop=on_redirect_hop)
+            if on_redirect_hop is not None
+            else _download(url)
+        )
     except ResponseTooLarge as oversize_exc:
         # Deliberately its own branch, ahead of the failure path (F3, 2026-08-24).
         # The server answered; we declined to read the whole answer. Routing that
@@ -648,6 +814,44 @@ def scrape_url(
         _notify_size_capped(on_size_capped, url=url, error=oversize_exc)
         return _failure_page(url, attempted_method="html")
     except Exception as download_exc:
+        # Unlocker escalation on transport failures or refusal-status blocks
+        # (Phase 3, 2026-09-17; refined 2026-09-28: transport failures have no
+        # HTTP status and may be recoverable via Bright Data's proxy network;
+        # refusal statuses 403/406/401/451 are IP/policy blocks the unlocker
+        # can defeat; hard-gone statuses 404/410 are unrecoverable and skipped
+        # to avoid wasted spend). The unlocker fires BEFORE the render fallback:
+        # it is cheaper (~$0.002 vs ~$0.046 per page) and strictly more capable
+        # (renders JS + solves captchas internally).
+        if prefer_unlocker_on_block and unlocker_mod.enabled():
+            exc_status = http_status_from_exception(download_exc)
+            if exc_status is None or unlocker_mod.is_refusal_status(exc_status):
+                trigger = "transport" if exc_status is None else "block"
+                try:
+                    uresult = unlocker_mod.fetch(url)
+                except Exception as unlocker_exc:
+                    # Transport failure: the unlocker API was never reached.
+                    # Redact the token from the exception message, report the
+                    # attempt, and fall through to the render fallback.
+                    _notify_unlocker_attempt(
+                        on_unlocker_attempt, url=url, trigger=trigger,
+                        outcome="unlocker_failed", inner_status=None,
+                        error=unlocker_mod.redact(str(unlocker_exc)),
+                        elapsed_ms=None,
+                    )
+                else:
+                    _notify_unlocker_attempt(
+                        on_unlocker_attempt, url=url, trigger=trigger,
+                        outcome=(
+                            "unlocker_succeeded" if uresult.success
+                            else "unlocker_failed"
+                        ),
+                        inner_status=uresult.inner_status,
+                        error=uresult.error, elapsed_ms=uresult.elapsed_ms,
+                    )
+                    if uresult.success:
+                        return _unlocker_page(url, uresult, cache_floor=cache_floor)
+                # Unlocker failed or was unreachable. Fall through to the render
+                # fallback (if enabled) or the hard-failure path.
         # Render fallback on a failed GET is opt-in (review F14): only when the
         # caller accepts the per-dead-URL browser-launch cost.
         if prefer_render_on_download_failure:
@@ -705,6 +909,40 @@ def scrape_url(
     # ``len(strip) < empty_page_min_chars`` mirrors Stage 5's is_near_empty drop
     # test so the render fires for exactly the pages the extractor would discard.
     if prefer_render_on_empty and len(text.strip()) < empty_page_min_chars:
+        # Unlocker escalation on empty-after-strip (Phase 3, 2026-09-17).
+        # The unlocker fires BEFORE the render fallback: it is cheaper (~$0.002
+        # vs ~$0.046 per page) and strictly more capable (renders JS + solves
+        # captchas internally). Only fires when the caller opted in AND the
+        # unlocker is configured.
+        if prefer_unlocker_on_empty and unlocker_mod.enabled():
+            try:
+                uresult = unlocker_mod.fetch(url)
+            except Exception as unlocker_exc:
+                # Transport failure: the unlocker API was never reached.
+                # Redact the token from the exception message, report the
+                # attempt, and fall through to the render fallback.
+                _notify_unlocker_attempt(
+                    on_unlocker_attempt, url=url,
+                    trigger="empty_after_strip", outcome="unlocker_failed",
+                    inner_status=None,
+                    error=unlocker_mod.redact(str(unlocker_exc)),
+                    elapsed_ms=None,
+                )
+            else:
+                _notify_unlocker_attempt(
+                    on_unlocker_attempt, url=url,
+                    trigger="empty_after_strip",
+                    outcome=(
+                        "unlocker_succeeded" if uresult.success
+                        else "unlocker_failed"
+                    ),
+                    inner_status=uresult.inner_status,
+                    error=uresult.error, elapsed_ms=uresult.elapsed_ms,
+                )
+                if uresult.success:
+                    return _unlocker_page(url, uresult, cache_floor=cache_floor)
+            # Unlocker failed or was unreachable. Fall through to the render
+            # fallback (if enabled).
         try:
             page = render_url(
                 url, timeout=config.REQUEST_TIMEOUT * 1000, session=render_session

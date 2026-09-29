@@ -50,7 +50,7 @@ def _isolate(tmp_path, monkeypatch):
 
 
 def _download_raising(msg: str):
-    def _f(url):
+    def _f(url, **_kwargs):
         raise RuntimeError(msg)
 
     return _f
@@ -149,7 +149,7 @@ def test_size_capped_page_is_booked_under_its_own_reason(tmp_path, monkeypatch):
 
     run_dir = tmp_path / "runs" / "r1"
 
-    def _too_big(url):
+    def _too_big(url, *, on_redirect_hop=None):
         raise fetcher.ResponseTooLarge(url, n_bytes=99_999_999, limit=1024)
 
     monkeypatch.setattr(fetcher, "_download", _too_big)
@@ -203,7 +203,7 @@ def _http_error(status: int) -> Exception:
 
 
 def _download_raising_exc(exc: BaseException):
-    def _f(url):
+    def _f(url, **_kwargs):
         raise exc
 
     return _f
@@ -284,7 +284,7 @@ def test_the_status_is_read_through_tenacitys_retry_wrapper(tmp_path, monkeypatc
     scrape_telemetry._reset_cache()
     inner = _http_error(403)
 
-    def _f(url):
+    def _f(url, **_kwargs):
         raise inner
 
     # The real decorator, so the wrapper under test is the one production makes.

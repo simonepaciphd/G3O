@@ -67,6 +67,8 @@
     "scrape_respect_robots": true,
     "scrape_host_delay_seconds": 1.0,
     "scrape_render_on_download_failure": false,
+    "scrape_unlocker_on_block": false,
+    "scrape_unlocker_on_empty": false,
     "max_workers": 1
   },
   "config_hash": "952dfc5fa6e121476797e62c38a2c5425d581367677508bd480739159a801318",

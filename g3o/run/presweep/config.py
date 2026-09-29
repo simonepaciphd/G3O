@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from g3o.common.batch_client import DEFAULT_MODEL
+from g3o.common.jev_client import DEFAULT_JEV_MODEL
 from g3o.common.languages import (
     LanguagePolicy,
     assert_policy_rostered,
@@ -185,6 +186,33 @@ class PresweepConfig:
     # answered, and ``False`` is what the confirmation run measured. Set None to
     # reproduce a pre-2026-08-01 request exactly.
     serper_autocorrect: bool | None = False
+    # ── Spending the official-site overlay (2026-08-30, PI ruling) ───────────
+    # Path to a :mod:`g3o.report.site_overlay` CSV. When set, the drawn sample is
+    # decorated in memory with ``official_site_url`` for every institution the
+    # overlay covers at or above ``official_sites_min_confidence`` — which makes
+    # Stage 2 bypass the LLM path for those institutions and hands Stage 1b the
+    # site directly. ``None`` (the default) is the pre-2026-08-30 behaviour
+    # exactly: nothing is read and nothing is decorated.
+    #
+    # **The registry is never rewritten.** The decoration is in memory, after the
+    # draw; the read-only master and the frame CSV are untouched — the frame in
+    # particular must keep the master's column layout exactly (see
+    # :mod:`g3o.run.frame.build`). See :mod:`g3o.run.presweep.official_sites` for
+    # why both filters below default on.
+    official_sites_csv: Path | None = None
+    # Ruled ``high`` only (PI, 2026-08-30): 6,076 of the 6,684 picks on
+    # ``r20260829T121145Z-233a``, against 564 medium and 44 low. This is the
+    # model's self-rating, not a validated instrument — that run has no
+    # hand-adjudicated subset — so widening it is a data-quality decision rather
+    # than a tuning knob.
+    official_sites_min_confidence: str = "high"
+    # Skip picks whose ``site:`` host is shared with another institution (1,192
+    # of 6,684 on that run — 95 councils on ``nsw.gov.au``, 45 institutions on
+    # ``gov.mt``). Decorating those makes Stage 1b issue one identical
+    # ``site:`` query for all of them, which is worse than leaving the
+    # institution website-free: the website-free path at least searches the
+    # institution's own name. Turn off only to measure what those picks do.
+    official_sites_require_unshared_host: bool = True
     dry_run: bool = True
     stop_after: StageName = "extract"
     # Stage 1c eligibility pre-filter mode (design memo 2026-07-06, decision 2).
@@ -195,6 +223,18 @@ class PresweepConfig:
     poll_interval: int = 60
     max_wait_per_stage: int = 25 * 60 * 60  # 25h: SLA + jitter
     model: str = DEFAULT_MODEL
+    # ── Per-stage model overrides (jev integration, 2026-09-20) ─────────────
+    # Each stage can run a different model: Stages 2/3 on jev (decision model),
+    # Stages 5/6 on gpt-5-nano (generative model). The pipeline-wide ``model``
+    # above is the default for every stage; these overrides replace it per stage.
+    # ``None`` means "use the pipeline-wide default". Required for every hybrid
+    # interim state, and permanent surface: stages will legitimately run
+    # different vendors. Manifest ``llm_provenance`` is already per-stage
+    # (planning.py::update_manifest_llm_provenance) — no shape change needed.
+    classify_official_site_model: str | None = DEFAULT_JEV_MODEL
+    classify_triage_model: str | None = DEFAULT_JEV_MODEL
+    extract_model: str | None = None
+    validate_model: str | None = DEFAULT_JEV_MODEL
     # Stage 5 page-text handling (Session F.2, 2026-06-10). The cap is the D3
     # methodology decision (60k chars, head+tail); the empty-page floor is an
     # engineering parameter (review F5). Surfaced as config so both are
@@ -213,6 +253,29 @@ class PresweepConfig:
     scrape_respect_robots: bool = True
     scrape_host_delay_seconds: float = DEFAULT_HOST_DELAY_SECONDS
     scrape_render_on_download_failure: bool = False
+    # ── Bright Data Web Unlocker escalation (Phase 3, 2026-09-17) ───────────
+    # Per-URL escalation for refused/blocked fetches. The unlocker is NOT a
+    # fourth always-on egress point: it fires only on URLs the default path
+    # refused (403/406-class), preserving the all-three-move-together invariant
+    # for the default identity. Two triggers, both default off:
+    #
+    # ``scrape_unlocker_on_block``: fire on refusal-status download failures
+    #   (403/406/401/451 — the statuses ``_RETRYABLE_STATUSES`` already refuses
+    #   to retry). This is the primary recovery lever: the measured probe
+    #   recovered 75.6% of my-run32's failed hosts (100% of 403-refused).
+    #
+    # ``scrape_unlocker_on_empty``: fire on empty-after-strip pages, as a
+    #   render-fallback replacement. The unlocker renders JS and solves captchas
+    #   internally at ~$0.002–0.006/page vs ~$0.046/page for pushing a playwright
+    #   render through residential — ~8–20× cheaper and strictly more capable.
+    #   When both this and ``scrape_render_on_download_failure`` are set, the
+    #   unlocker fires first (cheaper); the render is the fallback's fallback.
+    #
+    # Both require ``G3O_UNLOCKER_API_TOKEN`` in the environment; without it the
+    # flags are inert (the dispatch wiring checks ``unlocker.enabled()`` before
+    # every call). The token is never recorded in any artifact.
+    scrape_unlocker_on_block: bool = True
+    scrape_unlocker_on_empty: bool = True
     # Per-institution Stage 4 wall-clock budget (issue #96, PI ruling
     # 2026-08-26: budget-then-skip **plus** a named attrition reason). When the
     # budget is spent, the institution completes with the pages it has and every
@@ -584,3 +647,22 @@ class PresweepConfig:
         if self.discovery_mode == "chain":
             return ",".join(self.chain_query_languages)
         return ",".join(self.discovery_languages)
+
+    def model_for_stage(self, stage: str) -> str:
+        """The model id a stage should use.
+
+        Returns the per-stage override if set, otherwise the pipeline-wide
+        ``model``. Stage names match the roster (``classify_official_site``,
+        ``classify_triage``, ``extract``, ``validate``). Unknown stages return
+        the pipeline-wide default.
+        """
+        # STAGE_2_FALLBACK uses the same model as classify_official_site
+        if stage == "classify_official_site_fallback":
+            stage = "classify_official_site"
+        override = {
+            "classify_official_site": self.classify_official_site_model,
+            "classify_triage": self.classify_triage_model,
+            "extract": self.extract_model,
+            "validate": self.validate_model,
+        }.get(stage)
+        return override if override is not None else self.model

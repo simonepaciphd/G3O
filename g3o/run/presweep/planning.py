@@ -21,6 +21,7 @@ from g3o.discovery.query_builder import (
     genai_terms_roster_hash,
 )
 from g3o.run.presweep.config import STAGES, PresweepConfig
+from g3o.run.presweep.official_sites import apply_to_rows, load_bypass_map
 from g3o.run.presweep.records import (
     _read_master,
     _utc_iso,
@@ -68,13 +69,17 @@ def _institution_uids(sample: list[dict[str, Any]]) -> dict[str, str]:
     return uids
 
 
-def config_snapshot(config: PresweepConfig) -> dict[str, Any]:
+def config_snapshot(
+    config: PresweepConfig, *, official_sites_block: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """The JSON-serializable ``PresweepConfig`` snapshot the manifest stores.
 
     Extracted from :func:`build_manifest` so the snapshot the manifest *stores*
     and the snapshot ``config_hash`` is computed *over* cannot be two different
     dicts — the failure mode being a hash nothing can reproduce from the manifest
-    it sits in.
+    it sits in. ``official_sites_block`` is threaded through for exactly that
+    reason: it is resolved in :func:`plan_run`, and both callers must see the same
+    value or ``config_hash`` would describe a run that did not happen.
     """
     config_dict: dict[str, Any] = asdict(config)
     config_dict["runs_dir"] = str(config.runs_dir)
@@ -92,6 +97,19 @@ def config_snapshot(config: PresweepConfig) -> dict[str, Any]:
     # nothing noticing. Recorded explicitly here for the same reason
     # institution_search_languages is, and guarded below.
     config_dict["genai_terms_roster_hash"] = genai_terms_roster_hash()
+    # A Path is not JSON, and the overlay path alone is not the instrument: the
+    # file it points at can be rebuilt under the same name after every run, which
+    # is exactly what the e2e harvest step does. ``official_sites_hash`` is the
+    # digest of the (uid, site) pairs this run would actually spend, computed in
+    # :meth:`BypassMap.content_hash` and filled in by :func:`plan_run`; it is
+    # what the resume guard compares, and it is deliberately insensitive to
+    # overlay rows this run's confidence floor excludes.
+    config_dict["official_sites_csv"] = (
+        str(config.official_sites_csv) if config.official_sites_csv else None
+    )
+    config_dict["official_sites_hash"] = (
+        official_sites_block.get("content_hash") if official_sites_block else None
+    )
     # The chain-mode roster is a second instrument and needs its own fingerprint.
     # Until 2026-08-31 ``EVIDENCE_TERMS_BY_LANG`` held one English row, so the
     # manifest fingerprinted only ``GENAI_TERMS_BY_LANG`` -- which a chain run
@@ -139,6 +157,7 @@ def build_manifest(
     *,
     n_strata_observed: int | None = None,
     telemetry_block: dict[str, Any] | None = None,
+    official_sites_block: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The run manifest: planning state, plus the §4.1 telemetry block when given.
 
@@ -160,7 +179,13 @@ def build_manifest(
     the snapshot as ``jsonb`` (§5.2), so two extra keys cost the loader nothing —
     the fixture's *note* needs correcting, not this shape.
     """
-    config_dict = config_snapshot(config)
+    # The hash of what the overlay actually contributed goes inside ``config``,
+    # so the resume guard and ``config_hash`` both reach it with the other
+    # guarded keys. The full accounting — how many rows the confidence floor and
+    # the shared-host filter excluded — sits beside ``config`` as
+    # ``run_official_sites``, where a reader asking "what did this run spend"
+    # finds it without parsing a hash.
+    config_dict = config_snapshot(config, official_sites_block=official_sites_block)
     stages_planned = list(STAGES[: STAGES.index(config.stop_after) + 1])
     manifest: dict[str, Any] = {
         "run_id": config.run_id,
@@ -200,6 +225,12 @@ def build_manifest(
         # two different instruments.
         "run_egress": egress.describe(),
     }
+    # Only when the overlay was actually used. A key that is absent means "this
+    # run ran the Stage 2 LLM path for every institution", which is what every
+    # manifest written before 2026-08-30 means, and the resume guard tolerates
+    # its absence for exactly that reason.
+    if official_sites_block is not None:
+        manifest["run_official_sites"] = official_sites_block
     if telemetry_block:
         manifest.update(telemetry_block)
     return manifest
@@ -255,6 +286,13 @@ def write_run_layout(
     _write_manifest_atomic(manifest_path, manifest)
     for row in sample:
         institution = institution_record(row)
+        # Add institution_search_languages to the record before writing.
+        # This is a derived property from the config, not the master CSV row,
+        # but Stage 6 needs it when reading institution.json back.
+        if config.language_policy:
+            institution["institution_search_languages"] = config.institution_search_languages_for(institution)
+        else:
+            institution["institution_search_languages"] = config.institution_search_languages
         inst_dir = institution_dir(run_dir, institution["institution_id"])
         inst_dir.mkdir(parents=True, exist_ok=True)
         (inst_dir / "institution.json").write_text(
@@ -329,6 +367,27 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "discovery_evidence_open",
     "serper_autocorrect",
     "model",
+    # Per-stage model overrides (jev integration, 2026-09-20). Same class as
+    # ``model`` beside it: a run started on jev-1.13.0 for Stage 2 and resumed
+    # with --classify-official-site-model gpt-5-nano would mix instruments
+    # across the resume — the exact failure this guard exists to prevent.
+    "classify_official_site_model",
+    "classify_triage_model",
+    "extract_model",
+    "validate_model",
+    # Spending the official-site overlay (2026-08-30). Guarded for the same
+    # reason ``discovery_mode`` is: an institution decorated with
+    # ``official_site_url`` skips the Stage 2 LLM path entirely, so a run
+    # resumed against a different overlay — or against none — would classify
+    # half its institutions one way and half the other and call the result one
+    # measurement. The *hash* is guarded rather than the path because the e2e
+    # harvest rebuilds the file under the same name after every run; the path
+    # is guarded too, because pointing at a different file is a change worth
+    # refusing even when the two happen to agree.
+    "official_sites_csv",
+    "official_sites_hash",
+    "official_sites_min_confidence",
+    "official_sites_require_unshared_host",
     # Scrape/extract job semantics (added 2026-08-04). Same class of gap as the
     # chain keys above: written to the manifest by ``asdict`` since they
     # shipped, never compared. Flipping any of them across a resume leaves the
@@ -343,6 +402,13 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
     "scrape_respect_robots",
     "scrape_host_delay_seconds",
     "scrape_render_on_download_failure",
+    # Web Unlocker escalation (2026-09-17). Same class as the render fallback
+    # flag beside it: decides which URLs were fetched at all (the unlocker
+    # recovers pages the default path refused), so a resume under a different
+    # setting would pair a page fetched through the unlocker with a stale
+    # ``scrape_failed`` row for the same URL from the pass before.
+    "scrape_unlocker_on_block",
+    "scrape_unlocker_on_empty",
     # Issue #96. Same class as the three above — it decides which URLs were
     # fetched at all. Guarded specifically because raising it across a resume
     # produces an institution that holds both a page and a stale
@@ -397,10 +463,21 @@ _GUARDED_CONFIG_KEYS: tuple[str, ...] = (
 # every manifest written before it existed lacks it, including the published run
 # ``r20260824T215623Z-bb4e``. Tolerating its absence lets such a run resume; a
 # manifest that *does* record it and differs still aborts.
+#
+# The four ``official_sites_*`` keys (2026-08-30) use it for the same reason:
+# every manifest written before that date lacks all four, including the
+# published run ``r20260829T121145Z-233a``, and such a run must still be
+# resumable. A manifest that *does* record them and differs still aborts — and
+# since the default is "no overlay", a resume that silently started spending one
+# is exactly what the guard now catches.
 _ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset(
     {
         "genai_terms_roster_hash",
         "scrape_max_institution_seconds",
+        "official_sites_csv",
+        "official_sites_hash",
+        "official_sites_min_confidence",
+        "official_sites_require_unshared_host",
         # Every manifest written before 2026-09-06 lacks the breaker threshold,
         # and every one of those runs attempted every kept URL by construction.
         "scrape_host_failure_threshold",
@@ -413,6 +490,20 @@ _ABSENT_TOLERATED_CONFIG_KEYS: frozenset[str] = frozenset(
         # issued the English suffix by construction, so refusing to resume them
         # would be a cost with no safety gain.
         "domain_suffix_roster_hash",
+        # Every manifest written before 2026-09-17 lacks the two unlocker
+        # flags, and every one of those runs fetched every refused URL without
+        # unlocker escalation. Tolerating their absence lets such runs resume;
+        # a manifest that does record them and differs still aborts.
+        #
+        # Narrowed (2026-09-17): the tolerance is unconditional *unless* this
+        # run activates the unlocker overlay. A manifest predating the flags
+        # resumed with ``scrape_unlocker_on_block=True`` currently would
+        # proceed silently: pages recovered via the unlocker pair with stale
+        # ``scrape_failed`` rows from the first pass — the exact failure the
+        # guarded-key comment at planning.py:390-394 says the guard exists to
+        # prevent. Mirrors the ``official_sites_*`` narrowing below.
+        "scrape_unlocker_on_block",
+        "scrape_unlocker_on_empty",
     }
 )
 
@@ -450,8 +541,43 @@ def _assert_manifest_matches_on_resume(
         )
     old_cfg = existing.get("config", {})
     new_cfg = new_manifest["config"]
+    # Absence is only tolerable when the absent key would have been inert. A
+    # manifest predating the overlay keys is fine to resume *as long as this run
+    # is not spending an overlay either* — otherwise the tolerance would let a
+    # resume silently start bypassing Stage 2 for part of a run that classified
+    # the rest of it with the LLM, which is the exact mixed-instrument failure
+    # the guard exists to prevent.
+    official_sites_active = bool(new_cfg.get("official_sites_csv"))
+    # Same narrowing for the unlocker flags: a manifest predating them is fine
+    # to resume *as long as this run is not activating the unlocker either*.
+    # Otherwise the tolerance would let a resume silently escalate refused
+    # fetches through the unlocker, pairing recovered pages with stale
+    # ``scrape_failed`` rows from the first pass — the exact mixed-instrument
+    # failure the guard exists to prevent. Gate on the config flags, not
+    # ``unlocker_mod.enabled()`` (env): matches the official_sites precedent,
+    # which checks config, not environment. Corner case: flags on + token
+    # absent is inert but still refused; conservative and cheap.
+    unlocker_active = bool(
+        new_cfg.get("scrape_unlocker_on_block")
+        or new_cfg.get("scrape_unlocker_on_empty")
+    )
     for key in _GUARDED_CONFIG_KEYS:
         if key not in old_cfg and key in _ABSENT_TOLERATED_CONFIG_KEYS:
+            if key.startswith("official_sites") and official_sites_active:
+                diffs.append(
+                    f"config.{key}: absent (manifest predates the official-site "
+                    f"overlay) != {new_cfg.get(key)!r} (this run). Resuming a run "
+                    "that classified with Stage 2 into one that bypasses it would "
+                    "mix two instruments in one measurement."
+                )
+            elif key.startswith("scrape_unlocker") and unlocker_active:
+                diffs.append(
+                    f"config.{key}: absent (manifest predates the unlocker) != "
+                    f"{new_cfg.get(key)!r} (this run). Resuming a run that "
+                    "scraped without the unlocker into one that escalates "
+                    "refused fetches through it would mix two instruments in "
+                    "one measurement."
+                )
             continue  # manifest predates the key — nothing to compare
         if old_cfg.get(key) != new_cfg.get(key):
             diffs.append(
@@ -478,12 +604,32 @@ def _assert_manifest_matches_on_resume(
     # 2026-08-26 have no ``run_egress``, and refusing to resume them would be a
     # cost with no safety gain, since every one of them predates the proxy
     # existing and so ran direct by construction.
+    #
+    # Shape change (2026-09-17): ``describe()`` gained ``unlocker_configured``
+    # when the Web Unlocker shipped. Every manifest written between #90
+    # (2026-08-26) and 2026-09-17 carries a 3-key ``run_egress``; after the
+    # merge, ``build_manifest`` emits 4 keys. A strict dict compare would
+    # refuse every in-flight run from that window even with identical env and
+    # CLI args. Tolerate the absent key as ``False``: an old manifest lacking
+    # the key ran with the unlocker off (it did not exist), so a new manifest
+    # with ``unlocker_configured: False`` is the same instrument. A new
+    # manifest with ``unlocker_configured: True`` is tolerated only because
+    # the absent-tolerance narrowing below (A2) refuses the flags-on case —
+    # A1 and A2 land together. If the old manifest *records* the key and it
+    # differs (e.g. ``False`` → ``True``), the unlocker started firing mid-run,
+    # which is a real instrument change and still aborts.
     old_egress = existing.get("run_egress")
     new_egress = new_manifest.get("run_egress")
     if old_egress is not None and old_egress != new_egress:
-        diffs.append(
-            f"run_egress: {old_egress!r} (manifest) != {new_egress!r} (this run)"
-        )
+        # Copy before mutating so the on-disk manifest is not rewritten.
+        old_egress_copy = dict(old_egress)
+        new_egress_copy = dict(new_egress) if new_egress is not None else {}
+        if "unlocker_configured" not in old_egress_copy:
+            old_egress_copy.setdefault("unlocker_configured", False)
+        if old_egress_copy != new_egress_copy:
+            diffs.append(
+                f"run_egress: {old_egress!r} (manifest) != {new_egress!r} (this run)"
+            )
     if diffs:
         raise RuntimeError(
             "Resume aborted: _state/ is present under "
@@ -494,6 +640,41 @@ def _assert_manifest_matches_on_resume(
             + "\n  - ".join(diffs)
         )
 
+
+def _extract_jev_response_models(run_dir: Path, stage: str) -> set[str]:
+    """Scan per-institution artifacts for a jev stage and collect response_model values.
+
+    jev stages record response_model in each artifact (2_official_site.json,
+    3_triage.json, 6_validate.json). This helper reads up to 10 artifacts to
+    find the model id(s) that actually answered.
+    """
+    import glob
+
+    artifact_names = {
+        "classify_official_site": "2_official_site.json",
+        "classify_triage": "3_triage.json",
+        "validate": "6_validate.json",
+    }
+    artifact_name = artifact_names.get(stage)
+    if not artifact_name:
+        return set()
+
+    models: set[str] = set()
+    # Scan institutions in shard dirs (e.g., institutions/00/INST-*/2_official_site.json)
+    pattern = str(run_dir / "institutions" / "*" / "*" / artifact_name)
+    count = 0
+    for path in glob.glob(pattern):
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+            model = data.get("response_model")
+            if model:
+                models.add(model)
+            count += 1
+            if count >= 10:
+                break
+        except Exception:
+            continue
+    return models
 
 def update_manifest_llm_provenance(run_dir: Path) -> dict[str, Any]:
     """Fold response-side LLM provenance from stage state files into the manifest.
@@ -523,7 +704,26 @@ def update_manifest_llm_provenance(run_dir: Path) -> dict[str, Any]:
         payload = json.loads(path.read_text(encoding="utf-8"))
         stage = payload.get("stage")
         chunks = payload.get("chunks")
-        if not stage or not isinstance(chunks, dict):
+        no_batch = payload.get("no_batch", False)
+        if not stage:
+            continue
+
+        # jev stages: no_batch=True, extract response_model from artifacts
+        if no_batch and not chunks:
+            models = _extract_jev_response_models(run_dir, stage)
+            if models:
+                provenance[stage] = {
+                    "request_model": payload.get("model", "jev-1.13.0"),
+                    "response_models": sorted(models),
+                    "system_fingerprints": [],
+                    "batch_ids": [],
+                    "n_chunks_planned": 0,
+                    "n_chunks_fetched": 0,
+                    "jev": True,
+                }
+            continue
+
+        if not isinstance(chunks, dict):
             continue  # no-batch done markers carry no provenance
         models: set[str] = set()
         fingerprints: set[str] = set()
@@ -551,10 +751,45 @@ def update_manifest_llm_provenance(run_dir: Path) -> dict[str, Any]:
         return {}
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     manifest["llm_provenance"] = provenance
+
+    # Update model_ids to reflect all models actually used (from provenance)
+    all_models: set[str] = set()
+    for stage_data in provenance.values():
+        all_models.update(stage_data.get("response_models", []))
+    if all_models:
+        manifest["model_ids"] = {
+            "requested": manifest.get("model_ids", {}).get("requested", {}),
+            "response": sorted(all_models),
+        }
+
     tmp = manifest_path.with_name(manifest_path.name + ".tmp")
     tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     os.replace(tmp, manifest_path)
     return provenance
+
+
+def _apply_official_sites(
+    config: PresweepConfig, sample: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """Decorate ``sample`` from the overlay, or ``None`` when none is configured.
+
+    Returns the manifest block, which always records how many sites were
+    *applied* alongside how many were eligible. The two differ whenever the
+    overlay covers institutions this draw did not take, which is the normal case
+    — the overlay is cumulative across runs and the sample is not.
+    """
+    if config.official_sites_csv is None:
+        return None
+    bypass = load_bypass_map(
+        config.official_sites_csv,
+        min_confidence=config.official_sites_min_confidence,
+        require_unshared_site_host=config.official_sites_require_unshared_host,
+    )
+    applied = apply_to_rows(sample, bypass)
+    block = bypass.manifest_block()
+    block["applied_to_sample"] = applied
+    block["sample_size"] = len(sample)
+    return block
 
 
 def plan_run(
@@ -585,18 +820,28 @@ def plan_run(
         seed=config.seed,
         stratify_keys=config.stratify_keys,
     )
+    # After the draw, never before: decorating the whole master would be 719,588
+    # dictionary writes to change 12,000 of them, and — more importantly — the
+    # draw must not be able to depend on the overlay. A sample that varied with
+    # which sites had been discovered would make the frame a function of the
+    # instrument, and every rate measured on it uninterpretable.
+    official_sites_block = _apply_official_sites(config, sample)
     # The §4.1 telemetry block needs the drawn sample (for the master build id)
     # and the config snapshot (for config_hash), so it is built here, between the
     # draw and the write — still before any spend, which is what §4.1 requires.
     telemetry_block = None
     if telemetry is not None and telemetry.enabled:
         telemetry_block = telemetry.manifest_block_for(
-            config, sample, config_snapshot=config_snapshot(config)
+            config, sample,
+            config_snapshot=config_snapshot(
+                config, official_sites_block=official_sites_block
+            ),
         )
     manifest = build_manifest(
         config, sample,
         n_strata_observed=n_strata_observed,
         telemetry_block=telemetry_block,
+        official_sites_block=official_sites_block,
     )
     _assert_manifest_matches_on_resume(config.runs_dir / config.run_id, manifest)
     run_dir = write_run_layout(config, sample, manifest=manifest)

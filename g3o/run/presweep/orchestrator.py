@@ -91,10 +91,11 @@ def _assert_live_keys(
 ) -> None:
     """Hard-fail before a live run if a required API key is unset (review F1).
 
-    Stage 1 discovery always needs Serper; Stages 2/3/5/6 need OpenAI. Failing
-    fast at startup beats discovering a missing key after Serper spend (or, worse
-    for Serper, silently returning mock results). The OpenAI check is skipped
-    when ``--stop-after discovery_general`` means no LLM stage will run.
+    Stage 1 discovery always needs Serper; Stages 2/3/5/6 need OpenAI or TypeSafe
+    depending on the model. Failing fast at startup beats discovering a missing
+    key after Serper spend (or, worse, for Serper, silently returning mock
+    results). The OpenAI/TypeSafe check is skipped when
+    ``--stop-after discovery_general`` means no LLM stage will run.
 
     Reads the run's **resolved** credentials (Run API spec §3.1), so the gate
     covers an explicitly-passed key exactly as it covers an env-sourced one — and
@@ -107,12 +108,28 @@ def _assert_live_keys(
             "for Stage 1 discovery. Refusing to run with mock discovery. Set the "
             "key, or run without --execute (dry run)."
         )
-    if config.stop_after != "discovery_general" and not credentials.has_openai:
-        raise RuntimeError(
-            "OPENAI_API_KEY is not set, but --execute beyond Stage 1a requires a "
-            "live OpenAI key (Stages 2/3/5/6). Set the key, pass "
-            "--stop-after discovery_general, or run a dry run."
-        )
+    if config.stop_after != "discovery_general":
+        # Check which LLM provider is needed based on per-stage models
+        needs_openai = False
+        needs_typesafe = False
+        for stage in ("classify_official_site", "classify_triage", "extract", "validate"):
+            model = config.model_for_stage(stage)
+            if model.startswith("jev-"):
+                needs_typesafe = True
+            else:
+                needs_openai = True
+        if needs_openai and not credentials.has_openai:
+            raise RuntimeError(
+                "OPENAI_API_KEY is not set, but --execute beyond Stage 1a requires a "
+                "live OpenAI key for non-jev stages. Set the key, pass "
+                "--stop-after discovery_general, or run a dry run."
+            )
+        if needs_typesafe and not credentials.has_typesafe:
+            raise RuntimeError(
+                "TYPESAFE_API_KEY is not set, but --execute with jev models requires a "
+                "live TypeSafe key. Set the key, use non-jev models, pass "
+                "--stop-after discovery_general, or run a dry run."
+            )
 
 
 def _check_stage_budget(
@@ -239,6 +256,19 @@ def run_presweep(
 
     # Continuous cost monitoring: instantiate once at run start, check after each LLM stage.
     # None budget means no limit (check_budget returns True unconditionally).
+    # Per-stage model overrides (review 2026-09-23: jev integration): each
+    # stage's tokens are priced off its own model's rate row, not the run-wide
+    # default. Stages not in the map fall back to ``config.model``.
+    stage_models = {
+        stage: config.model_for_stage(stage)
+        for stage in (
+            "classify_official_site",
+            STAGE_2_FALLBACK,
+            "classify_triage",
+            "extract",
+            "validate",
+        )
+    }
     monitor = CostMonitor(
         budget_usd=config.budget_usd,
         # The model this run submits selects its own rate row (review F2). Without
@@ -246,19 +276,23 @@ def run_presweep(
         # enforcing was not the budget of the run it was watching.
         model=config.model,
         preflight_stage_estimates=config.preflight_stage_estimates,
+        stage_models=stage_models,
     )
     budget_abort_stage: str | None = None
     budget_exceeded_stages: list[str] = []  # Track all stages that exceeded budget (for dry-run mode)
 
     # Within-stage budget callback (Gap 1): called after each chunk completes.
     # Returns False to stop submitting new chunks (but let in-flight finish).
-    def _within_stage_budget_callback(stage: str, chunk_usage: dict[str, int]) -> None:
+    def _within_stage_budget_callback(stage: str, chunk_usage: dict[str, int]) -> bool:
         """Check budget after each chunk completes within a stage.
 
         Accumulates usage and raises BudgetExceededError if over budget
         (unless in dry-run mode). The exception propagates past mark_done
         so no .done marker is written, leaving un-submitted chunks in the
         active state file as a truncation signal.
+
+        Returns True to continue, False to stop (only in dry-run mode when
+        over budget; otherwise raises).
         """
         monitor.accumulate_chunk_usage(stage, chunk_usage)
         if not monitor.check_budget_with_partial(stage):
@@ -268,12 +302,13 @@ def run_presweep(
                     "Stage %s partial spend: $%.4f of $%.4f limit",
                     stage, monitor.running_total_usd, monitor.budget_usd,
                 )
-                return
+                return True  # Continue in dry-run mode
             raise BudgetExceededError(
                 spent=monitor.running_total_usd,
                 budget=monitor.budget_usd,
                 stage=stage,
             )
+        return True  # Within budget, continue
 
     # Helper to check projection after each stage (Gap 2)
     # Note: This is a closure that captures `config` from the enclosing scope.
@@ -373,7 +408,7 @@ def run_presweep(
             plan.sample,
             discovery_general,
             run_id=config.run_id,
-            model=config.model,
+            model=config.model_for_stage("classify_official_site"),
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,
             cost_check_callback=_within_stage_budget_callback,
@@ -436,7 +471,7 @@ def run_presweep(
                 discovery_general,
                 official_sites,
                 run_id=config.run_id,
-                model=config.model,
+                model=config.model_for_stage(STAGE_2_FALLBACK),
                 poll_interval=config.poll_interval,
                 max_wait=config.max_wait_per_stage,
                 cost_check_callback=_within_stage_budget_callback,
@@ -551,7 +586,7 @@ def run_presweep(
             filter_site_restricted,
             official_sites,
             run_id=config.run_id,
-            model=config.model,
+            model=config.model_for_stage("classify_triage"),
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,
             cost_check_callback=_within_stage_budget_callback,
@@ -580,6 +615,8 @@ def run_presweep(
             max_institution_seconds=config.scrape_max_institution_seconds,
             host_failure_threshold=config.scrape_host_failure_threshold,
             render_on_download_failure=config.scrape_render_on_download_failure,
+            unlocker_on_block=config.scrape_unlocker_on_block,
+            unlocker_on_empty=config.scrape_unlocker_on_empty,
             empty_page_min_chars=config.empty_page_min_chars,
             max_workers=config.max_workers,
         )
@@ -603,7 +640,7 @@ def run_presweep(
             scraped,
             institution_search_languages=config.institution_search_languages,
             search_languages_for=search_languages_for,
-            model=config.model,
+            model=config.model_for_stage("extract"),
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,
             run_id=config.run_id,
@@ -629,7 +666,7 @@ def run_presweep(
         validate_summary = _run_validate(
             plan.run_dir,
             plan.sample,
-            model=config.model,
+            model=config.model_for_stage("validate"),
             poll_interval=config.poll_interval,
             max_wait=config.max_wait_per_stage,
             cost_check_callback=_within_stage_budget_callback,
