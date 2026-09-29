@@ -274,8 +274,8 @@ class PresweepConfig:
     # Both require ``G3O_UNLOCKER_API_TOKEN`` in the environment; without it the
     # flags are inert (the dispatch wiring checks ``unlocker.enabled()`` before
     # every call). The token is never recorded in any artifact.
-    scrape_unlocker_on_block: bool = False
-    scrape_unlocker_on_empty: bool = False
+    scrape_unlocker_on_block: bool = True
+    scrape_unlocker_on_empty: bool = True
     # Per-institution Stage 4 wall-clock budget (issue #96, PI ruling
     # 2026-08-26: budget-then-skip **plus** a named attrition reason). When the
     # budget is spent, the institution completes with the pages it has and every

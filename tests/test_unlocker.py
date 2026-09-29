@@ -237,18 +237,48 @@ def test_unlocker_does_not_fire_when_opted_out(
     assert events == []
 
 
-def test_unlocker_does_not_fire_on_non_refusal_status(
+def test_unlocker_fires_on_transport_failures(
     unlocker_configured: None, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    # A connect timeout has no status and is not a refusal — the unlocker
-    # cannot defeat a dead host. The fetcher falls through to the
-    # hard-failure path.
+    # A connect timeout (transport failure) now triggers the unlocker.
+    # The unlocker's residential proxy network recovers most IP-blocked,
+    # geo-blocked, and DNS-filtered hosts.
     def _raise_timeout(*args: Any, **kwargs: Any) -> Any:
         raise requests.ConnectTimeout("connection timed out")
     monkeypatch.setattr(fetcher, "_download", _raise_timeout)
+    # Mock the unlocker to succeed
+    mock_result = unlocker.UnlockerResult(
+        success=True, content=b"<html><body><p>This is some recovered content that is long enough.</p></body></html>",
+        inner_status=200, error=None, error_code=None, elapsed_ms=100,
+    )
+    monkeypatch.setattr(unlocker, "fetch", lambda url: mock_result)
     events: list[dict[str, Any]] = []
     page = fetcher.scrape_url(
-        "https://dead.gov", force_refresh=True,
+        "https://blocked.gov", force_refresh=True,
+        prefer_unlocker_on_block=True,
+        on_unlocker_attempt=lambda **kw: events.append(kw),
+    )
+    assert "recovered" in page.text
+    assert len(events) == 1
+    assert events[0]["trigger"] == "transport"
+    assert events[0]["outcome"] == "unlocker_succeeded"
+
+
+def test_unlocker_does_not_fire_on_hard_gone_status(
+    unlocker_configured: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A 404 Not Found is a hard-gone status — the unlocker cannot recover a
+    # page that does not exist. The fetcher skips the unlocker to avoid
+    # wasted spend (~$0.002–0.006 per dead URL).
+    def _raise_404(*args: Any, **kwargs: Any) -> Any:
+        resp = requests.Response()
+        resp.status_code = 404
+        resp.url = "https://gone.gov"
+        raise requests.HTTPError(response=resp)
+    monkeypatch.setattr(fetcher, "_download", _raise_404)
+    events: list[dict[str, Any]] = []
+    page = fetcher.scrape_url(
+        "https://gone.gov", force_refresh=True,
         prefer_unlocker_on_block=True,
         on_unlocker_attempt=lambda **kw: events.append(kw),
     )
@@ -453,15 +483,15 @@ def test_presweep_config_has_unlocker_flags() -> None:
     assert "scrape_unlocker_on_empty" in field_names
 
 
-def test_presweep_config_unlocker_flags_default_off() -> None:
+def test_presweep_config_unlocker_flags_default_on() -> None:
     from pathlib import Path
 
     from g3o.run.presweep import PresweepConfig
     cfg = PresweepConfig(
         run_id="test", runs_dir=Path("/tmp"), master_csv=Path("/tmp/m.csv"),
     )
-    assert cfg.scrape_unlocker_on_block is False
-    assert cfg.scrape_unlocker_on_empty is False
+    assert cfg.scrape_unlocker_on_block is True
+    assert cfg.scrape_unlocker_on_empty is True
 
 
 def test_resume_guard_includes_unlocker_flags() -> None:

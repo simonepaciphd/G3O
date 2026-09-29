@@ -505,8 +505,18 @@ def test_resuming_a_pre_unlocker_run_with_the_unlocker_enabled_is_refused(
     with pytest.raises(RuntimeError, match="scrape_unlocker_on_block"):
         _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg_on, plan.sample))
 
-    # Flags off (the default): resumes clean.
-    _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg, plan.sample))
+    # Flags off (explicit): resumes clean.
+    cfg_off = PresweepConfig(
+        run_id=cfg.run_id,
+        runs_dir=cfg.runs_dir,
+        master_csv=cfg.master_csv,
+        sample_size=cfg.sample_size,
+        seed=cfg.seed,
+        dry_run=cfg.dry_run,
+        scrape_unlocker_on_block=False,
+        scrape_unlocker_on_empty=False,
+    )
+    _assert_manifest_matches_on_resume(plan.run_dir, build_manifest(cfg_off, plan.sample))
 
 
 
