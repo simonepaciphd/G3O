@@ -368,12 +368,22 @@ class _FakeResp:
         if self.status_code >= 400:
             raise requests.HTTPError(self.status_code)
 
+    # _download streams every hop (size cap, #93) inside a ``with`` block.
+    def iter_content(self, chunk_size=8192):
+        yield self.content
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
 
 class _FakeSession:
     def __init__(self, responder):
         self._responder = responder
 
-    def get(self, url, *, timeout=None, allow_redirects=None):
+    def get(self, url, *, timeout=None, allow_redirects=None, stream=False):
         # _download must drive redirects itself, not delegate to the session.
         assert allow_redirects is False
         return self._responder(url)

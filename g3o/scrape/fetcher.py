@@ -113,6 +113,14 @@ ScrapeFailureCallback = Callable[..., None]
 # supplies a hook that records the attempt to the attrition ledger. A no-op
 UnlockerAttemptCallback = Callable[..., None]
 
+# A size-cap accounting hook. Called once when a response body exceeds
+# ``MAX_RESPONSE_BYTES`` and is abandoned unread, with keyword args ``url`` and
+# ``error`` (the :class:`ResponseTooLarge`). Separate from
+# ``ScrapeFailureCallback`` because the two are different events: a failure means
+# the fetch did not happen; this means it happened and the pipeline refused the
+# payload. Stage 4 books them under different attrition reasons so the funnel can
+# tell "could not read" from "chose not to read". A no-op when None.
+SizeCappedCallback = Callable[..., None]
 
 
 def _cache_key(url: str) -> str:
@@ -252,6 +260,41 @@ def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
     return cached
 
 
+#: Hard ceiling on a single response body. Sized against Stage 5's 60k-char
+#: extraction cap (``g3o.extract.batch.DEFAULT_TEXT_CAP_CHARS``): that cap
+#: already establishes that a larger page carries no extra analytic value, so a
+#: body two orders of magnitude past it is a misconfigured endpoint or a
+#: multi-gigabyte scanned PDF, not evidence.
+#:
+#: The ceiling exists because ``r.content`` buffers the entire body in memory,
+#: once per worker thread, and ``REQUEST_TIMEOUT`` bounds *inactivity between
+#: bytes*, not total transfer — so a slow steady stream is not caught by it. At
+#: ``--max-workers N`` an unbounded read is N simultaneous unbounded reads.
+MAX_RESPONSE_BYTES = 32 * 1024 * 1024
+
+
+class ResponseTooLarge(Exception):
+    """A response exceeded :data:`MAX_RESPONSE_BYTES` and was abandoned.
+
+    Distinct from a download *failure*: the server answered and the pipeline
+    declined to read the whole answer. Stage 4 books it under its own attrition
+    reason so "we declined to read this" never reads as "the fetch failed" —
+    nor, more importantly, as "we read it and found nothing".
+
+    Not retried: the body will be the same size next time.
+    """
+
+    def __init__(self, url: str, *, n_bytes: int | None, limit: int) -> None:
+        self.url = url
+        self.n_bytes = n_bytes
+        self.limit = limit
+        size = f"{n_bytes:,} bytes" if n_bytes is not None else "an unstated size"
+        super().__init__(
+            f"response body for {url} is {size}, above the {limit:,}-byte cap; "
+            f"abandoned without reading it into memory"
+        )
+
+
 #: HTTP statuses a second attempt at the same GET can plausibly turn into a
 #: page: rate limiting and transient server-side failure. Every other status a
 #: server *chose* to send — 403, 404, 406, 405, 401 — is the same answer three
@@ -311,11 +354,54 @@ _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _MAX_REDIRECTS = 20  # loop guard; mirrors requests' default ceiling
 
 
+def _read_capped(response: requests.Response, url: str) -> bytes:
+    """Stream ``response`` into memory, refusing to exceed the cap.
+
+    Checks the advertised ``Content-Length`` first so an oversized body is
+    refused before a byte of it is read. A **missing** header is treated as
+    unknown rather than as zero — plenty of servers omit it under chunked
+    transfer encoding — so the streaming accumulation below is the real
+    enforcement and the header check is only an early exit.
+    """
+    advertised = response.headers.get("content-length")
+    if advertised is not None:
+        try:
+            if int(advertised) > MAX_RESPONSE_BYTES:
+                raise ResponseTooLarge(
+                    url, n_bytes=int(advertised), limit=MAX_RESPONSE_BYTES
+                )
+        except ValueError:
+            pass  # unparseable header: fall through to the streaming check
+    chunks: list[bytes] = []
+    total = 0
+    for chunk in response.iter_content(chunk_size=_STREAM_CHUNK_BYTES):
+        if not chunk:
+            continue
+        total += len(chunk)
+        if total > MAX_RESPONSE_BYTES:
+            raise ResponseTooLarge(url, n_bytes=None, limit=MAX_RESPONSE_BYTES)
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
+#: Read granularity for the capped stream. Large enough not to be syscall-bound
+#: on a normal page, small enough that the overshoot past the cap is bounded.
+_STREAM_CHUNK_BYTES = 64 * 1024
+
+
 @retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=2, max=10),
     retry=retry_if_exception(_is_retryable),
     before=_note_attempt,
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    # Matches g3o.common.batch_client's convention, and this was the one retry in
+    # the codebase without it. Without `reraise`, an exhausted retry surfaces as
+    # `RetryError[...]` and the real exception reaches the attrition ledger's
+    # `detail` only as repr noise — while the class of that exception is exactly
+    # what a scrape-failure diagnosis reads (issue #90's breakdown is HTTPError
+    # 1385 / SSLError 232 / ConnectTimeout 106 ...). Surfacing the original keeps
+    # that breakdown legible straight from the ledger.
+    reraise=True,
 )
 def _download(
     url: str, *, on_redirect_hop: Callable[[str], None] | None = None
@@ -334,39 +420,48 @@ def _download(
     request already covered by the origin's throttle entry. ``on_redirect_hop``
     defaults to None, so standalone/CLI fetches and the unit suite follow
     redirects with no throttle coupling.
+
+    Streams the body under :data:`MAX_RESPONSE_BYTES` rather than buffering it
+    whole, and raises :class:`ResponseTooLarge` past the cap. Every hop is
+    requested with ``stream=True`` and closed on exit, so a redirect's own body
+    is never read at all.
     """
     started = time.monotonic()
     session = _get_session()
     current = url
     for _ in range(_MAX_REDIRECTS + 1):
-        r = session.get(
-            current, timeout=(config.CONNECT_TIMEOUT, config.REQUEST_TIMEOUT), allow_redirects=False
-        )
-        location = (
-            r.headers.get("location")
-            if r.status_code in _REDIRECT_STATUSES
-            else None
-        )
-        if location:
-            destination = urljoin(current, location)
-            # Throttle the destination host BEFORE the hop's GET, but only when
-            # the host actually changes — a same-host hop is the same physical
-            # server the origin request already spaced against.
-            if on_redirect_hop is not None and (
-                urlsplit(destination).hostname != urlsplit(current).hostname
-            ):
-                on_redirect_hop(destination)
-            current = destination
-            continue
-        r.raise_for_status()
-        elapsed_ms = int((time.monotonic() - started) * 1000)
-        return (
-            r.content,
-            r.headers.get("content-type", "").lower(),
-            r.status_code,
-            r.url,
-            elapsed_ms,
-        )
+        with session.get(
+            current,
+            timeout=(config.CONNECT_TIMEOUT, config.REQUEST_TIMEOUT),
+            allow_redirects=False,
+            stream=True,
+        ) as r:
+            location = (
+                r.headers.get("location")
+                if r.status_code in _REDIRECT_STATUSES
+                else None
+            )
+            if location:
+                destination = urljoin(current, location)
+                # Throttle the destination host BEFORE the hop's GET, but only when
+                # the host actually changes — a same-host hop is the same physical
+                # server the origin request already spaced against.
+                if on_redirect_hop is not None and (
+                    urlsplit(destination).hostname != urlsplit(current).hostname
+                ):
+                    on_redirect_hop(destination)
+                current = destination
+                continue
+            r.raise_for_status()
+            content = _read_capped(r, url)
+            elapsed_ms = int((time.monotonic() - started) * 1000)
+            return (
+                content,
+                r.headers.get("content-type", "").lower(),
+                r.status_code,
+                r.url,
+                elapsed_ms,
+            )
     raise requests.TooManyRedirects(
         f"Exceeded {_MAX_REDIRECTS} redirects starting from {url}"
     )
@@ -434,6 +529,24 @@ def _notify_scrape_failure(
     """
     if callback is not None:
         callback(url=url, download_error=download_error, render_error=render_error)
+
+
+def _notify_size_capped(
+    callback: SizeCappedCallback | None,
+    *,
+    url: str,
+    error: ResponseTooLarge,
+) -> None:
+    """Fire the size-cap accounting hook, if one was supplied.
+
+    Its own hook rather than a flavour of ``on_scrape_failure`` because the two
+    say different things and Stage 4 books them under different reasons: a
+    failure means the fetch did not happen, this means it was declined. Folding
+    them together would also disturb the fetcher's failure contract, which PR #32
+    only recently stabilised (issue #46).
+    """
+    if callback is not None:
+        callback(url=url, error=error)
 
 
 def _notify_unlocker_attempt(
@@ -591,6 +704,7 @@ def scrape_url(
     on_unlocker_attempt: UnlockerAttemptCallback | None = None,
     on_redirect_hop: Callable[[str], None] | None = None,
     on_scrape_failure: ScrapeFailureCallback | None = None,
+    on_size_capped: SizeCappedCallback | None = None,
 ) -> RenderedPage:
     """Fetch a URL and return a ``RenderedPage``.
 
@@ -691,6 +805,14 @@ def scrape_url(
             if on_redirect_hop is not None
             else _download(url)
         )
+    except ResponseTooLarge as oversize_exc:
+        # Deliberately its own branch, ahead of the failure path (F3, 2026-08-24).
+        # The server answered; we declined to read the whole answer. Routing that
+        # through on_scrape_failure would book it as `scrape_failed` and lose the
+        # distinction, and no render fallback is attempted — a body past the cap
+        # is not going to become tractable by driving a browser at it.
+        _notify_size_capped(on_size_capped, url=url, error=oversize_exc)
+        return _failure_page(url, attempted_method="html")
     except Exception as download_exc:
         # Unlocker escalation on transport failures or refusal-status blocks
         # (Phase 3, 2026-09-17; refined 2026-09-28: transport failures have no
