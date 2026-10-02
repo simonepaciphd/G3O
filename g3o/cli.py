@@ -777,13 +777,18 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
                         f"Note: Pricing is an estimate (OpenAI batch discount not explicitly "
                         f"published for {run_model}). Reconcile against first live invoice.\n"
                     )
-                # Serper cost disclaimer (Stage 1a/1b discovery uses Serper credits, not tracked)
-                # Always print this disclaimer when budget is set, regardless of whether
-                # discovery ran, to remind operators that Serper costs are not tracked.
+                # Per-API breakdown (2026-10-02: the ceiling covers every paid API).
+                # This line used to say Serper was not tracked; it now is.
+                by_api = cost_report.get("by_api") or {}
+                if by_api:
+                    parts = ", ".join(
+                        f"{name} ${(entry.get('usd') or 0):.4f}"
+                        for name, entry in by_api.items()
+                    )
+                    sys.stderr.write(f"By API: {parts}\n")
                 sys.stderr.write(
-                    "Note: Cost monitoring tracks OpenAI Batch API only. "
-                    "Serper API costs (Stage 1 discovery) are not included in the budget. "
-                    "Monitor Serper credits separately.\n"
+                    "Note: the residential proxy (G3O_SCRAPE_PROXY), if set, is not "
+                    "counted in the budget.\n"
                 )
             except Exception:
                 # Log the exception instead of silently swallowing it

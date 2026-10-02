@@ -40,8 +40,10 @@ say() { echo "deploy: $*"; }
 [ -d "$REPO/.git" ] || die "$REPO is not a git checkout"
 [ -x "$VENV/bin/pip" ] || die "$VENV has no pip"
 
-# 1. No live pipeline run of this user.
-live=$(pgrep -u "$(id -u)" -af 'g3o\.run\.orchestrate|bin/g3o presweep|g3o\.cli presweep|-m g3o ' \
+# 1. No live pipeline run of this user. Python processes only: a shell whose
+#    command line merely mentions the pipeline (an ssh one-liner, an editor) is
+#    not a run.
+live=$(pgrep -u "$(id -u)" -af '^[^ ]*python[0-9.]* .*(-m g3o\.run\.orchestrate|-m g3o( |$)|/bin/g3o )' \
        | awk -v me="$$" '$1 != me' || true)
 if [ -n "$live" ]; then
     echo "$live" >&2
@@ -80,14 +82,21 @@ git checkout -q -B main "$target"
 
 # 6. Doctor, against the production env.
 doctor_ok=true
-doctor_out=$(mktemp)
-if ! (set -a; [ -f "$ENV_FILE" ] && . "$ENV_FILE"; set +a; "$VENV/bin/g3o" doctor) >"$doctor_out"; then
-    doctor_ok=false
+n_warnings=null
+if ! "$VENV/bin/g3o" doctor --help >/dev/null 2>&1; then
+    # A rollback to a commit older than the doctor (2026-10-02).
+    doctor_ok=null
+    say "this commit predates 'g3o doctor'; key and service check skipped"
+else
+    doctor_out=$(mktemp)
+    if ! (set -a; [ -f "$ENV_FILE" ] && . "$ENV_FILE"; set +a; "$VENV/bin/g3o" doctor) >"$doctor_out"; then
+        doctor_ok=false
+    fi
+    cat "$doctor_out"
+    n_warnings=$("$VENV/bin/python" -c 'import json,sys; print(len(json.load(open(sys.argv[1])).get("warnings", [])))' \
+        "$doctor_out" 2>/dev/null || echo null)
+    rm -f "$doctor_out"
 fi
-cat "$doctor_out"
-n_warnings=$("$VENV/bin/python" -c 'import json,sys; print(len(json.load(open(sys.argv[1])).get("warnings", [])))' \
-    "$doctor_out" 2>/dev/null || echo null)
-rm -f "$doctor_out"
 
 # 7. Record.
 now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -98,7 +107,7 @@ printf '%s\n' "$entry" > "$RECORD"
 printf '%s\n' "$entry" >> "$LOG"
 say "recorded in $RECORD and $LOG"
 
-if [ "$doctor_ok" != true ]; then
+if [ "$doctor_ok" = false ]; then
     say "DOCTOR FAILED: a key this commit needs is missing (see warnings above)."
     say "The code IS deployed. Add the key to $ENV_FILE, or roll back with: scripts/deploy.sh $previous"
     exit 1
