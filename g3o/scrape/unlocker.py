@@ -10,7 +10,7 @@ still share ``G3O_SCRAPE_PROXY``; the unlocker is a separate instrument.
 
 The Web Unlocker renders JS and solves captchas internally. Billing (PI,
 2026-10-02): $8/GB on successful requests — see ``pricing.UNLOCKER_PRICING``.
-Measured 2026-10-02 on 12 sweep-4 blocked URLs: 8 succeeded, mean body 128 KB,
+Measured 2026-10-02 on 12 blocked URLs from run r20260912T001021Z-f4fb: 8 succeeded, mean body 128 KB,
 so ~$0.001 per recovered page; a playwright render through the residential
 proxy moves a measured 5.44 MB mean.
 

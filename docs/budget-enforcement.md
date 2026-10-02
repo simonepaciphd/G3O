@@ -25,7 +25,7 @@ The Serper and unlocker rates are PI-supplied and flagged as estimates; the
 unlocker byte count is the body the API returned, which may differ from Bright
 Data's own count. Reconcile both against the first invoice.
 
-The pre-flight gate (in `g3o.run.preflight`) projects the total cost of a planned run across all four APIs: each LLM stage at its own model's rates, Serper at a credits-per-institution figure taken from the discovery config (4.52 for the sweep-4 config, cache hits counted as live), and the unlocker at the measured sweep-4 escalation rate (0.47 requests per institution) times an assumed 250 KB per request — about twice the measured 128 KB mean. If the projection (`est_total_usd`) exceeds your budget, the run aborts with exit code 3 before any API calls are made.
+The pre-flight gate (in `g3o.run.preflight`) projects the total cost of a planned run across all four APIs: each LLM stage at its own model's rates, Serper at a credits-per-institution figure taken from the discovery config (4.50 for the config of run `r20260912T001021Z-f4fb`, n=20,293, with cache hits counted as live), and the unlocker at the escalation rate measured on that run (0.47 requests per institution) times an assumed 250 KB per request — about twice the measured 128 KB mean. If the projection (`est_total_usd`) exceeds your budget, the run aborts with exit code 3 before any API calls are made.
 
 The runtime monitor (in `g3o.common.cost_monitor`) tracks actual token usage as each LLM stage completes, and Serper and unlocker usage as each billable response arrives (via `g3o.common.spend_meter`). If cumulative spend exceeds your budget mid-run, the orchestrator raises `BudgetExceededError` and aborts cleanly, persisting a cost report for post-mortem analysis.
 

@@ -77,13 +77,13 @@ class PreflightAssumptions:
     # Serper credits per institution (2026-10-02). None = derived from the
     # discovery config by :func:`_serper_credits_per_institution`.
     serper_credits_per_institution: float | None = None
-    # Web Unlocker requests per institution. Measured 2026-10-02 on sweep 4
-    # (r20260912T001021Z-f4fb, n=20,293): 6,066 fetches failed with a status the
+    # Web Unlocker requests per institution. Measured 2026-10-02 on run
+    # r20260912T001021Z-f4fb (n=20,293, the Berivox template's config): 6,066 fetches failed with a status the
     # unlocker escalates on (None/401/403) + 3,412 empty-page renders = 9,478,
     # i.e. 0.467 per institution.
     unlocker_requests_per_institution: float = 0.47
     # Billable bytes per unlocker request. ASSUMPTION, about twice the measured
-    # mean: 12 sweep-4 blocked URLs through the unlocker on 2026-10-02 gave 8
+    # mean: 12 f4fb blocked URLs through the unlocker on 2026-10-02 gave 8
     # successes, mean 128,270 B, max 284,492 B. Doubled for PDF-heavy samples,
     # and every request is counted as billed.
     unlocker_bytes_per_request: int = 250_000
@@ -98,9 +98,9 @@ def _serper_credits_per_institution(config: PresweepConfig) -> tuple[float, str]
     if config.discovery_mode == "legacy":
         return 8.52, "measured 2026-08-01 (200 institutions, legacy mode)"
     if config.discovery_leg1_multilingual or config.discovery_evidence_open:
-        return 4.52, (
-            "sweep 4 (n=20,293, chain + leg-1 fallback + open evidence leg): "
-            "91,697 persisted queries, cache hits counted as live"
+        return 4.50, (
+            "run r20260912T001021Z-f4fb (n=20,293, chain + leg-1 fallback + open "
+            "evidence leg): 91,277 persisted queries, cache hits counted as live"
         )
     return 1.84, "measured 2026-08-01 (200 institutions, chain mode, legs 1a+1b only)"
 
@@ -480,8 +480,8 @@ def run_preflight(
             "Every paid API (PI ruling 2026-10-02). LLM stages at their own "
             "model's rates, with the Stage-5 per-job size as an upper bound for "
             "the smaller stages; Serper at the credits-per-institution shown, "
-            "cache hits counted as live; Web Unlocker at the measured sweep-4 "
-            "escalation rate and an assumed 250 KB per request. The residential "
+            "cache hits counted as live; Web Unlocker at the escalation rate "
+            "measured on run f4fb and an assumed 250 KB per request. The residential "
             "proxy, if set, is not priced. Runtime enforcement counts actual "
             "spend; this projection only gates the start."
         ),
