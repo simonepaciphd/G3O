@@ -59,7 +59,10 @@ confirmation run replaces them.** Two independent problems:
    queries. The findings memo prices credits at **$0.001** each. Serper sells
    credits in packs whose unit price falls with pack size, so both can be
    defensible — but they differ by ~1.8×, and this model should not silently
-   pick one. **Flagged for the PI; not resolved here.**
+   pick one. **Resolved for the spend ceiling 2026-10-02 (PI): $0.001 per
+   credit "for now", because the real rate depends on the pack pre-bought.**
+   The code default is `pricing.SERPER_PRICING`; set
+   `G3O_SERPER_USD_PER_CREDIT` on the host to the rate of the pack in use.
 
 ### Measured, not modeled (confirmation run, 2026-08-01)
 

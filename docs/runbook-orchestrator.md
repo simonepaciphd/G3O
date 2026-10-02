@@ -98,6 +98,14 @@ USD-per-credit rate is an unresolved input. At n=20 that is ≈37 credits. Read
 `stage5_projection.n_chunks` too: it chunks on bytes and request count, **not on
 tokens**, so a projection of 4.33 M input tokens still reports one chunk.
 
+**Since 2026-10-02 the preflight prices every paid API.** Read
+`cost_preview.est_total_usd` (what the ceiling is compared against) and
+`est_by_api` (`openai`, `typesafe`, `serper`, `brightdata_unlocker`); the jev
+stages are now priced at jev rates. Read `warnings` too — it names a missing
+optional key (an unlocker that would be silently skipped) and a checkout behind
+`origin/main`. See [`budget-enforcement.md`](budget-enforcement.md) and
+[`deployment.md`](deployment.md).
+
 **Pass `--session-id` on every run you care about.** It is the join key from a
 published database row back to the session that produced it (spec §4.2), and it
 is not recoverable afterwards — omit it and the manifest records the literal
@@ -108,6 +116,10 @@ written out above so the omission is visible rather than implied.
 ---
 
 ## Before the first run: the box
+
+> **Updating an existing box is a deploy, not a re-provision**: run
+> `scripts/deploy.sh` on the host — [`deployment.md`](deployment.md). The steps
+> below are for a new droplet.
 
 ```bash
 # 1. Code, pinned.

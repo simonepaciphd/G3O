@@ -7,7 +7,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from g3o.common import attrition, scrape_telemetry
+from g3o.common import attrition, scrape_telemetry, spend_meter
 from g3o.common import config as _config
 from g3o.common.artifact_io import (
     artifact_exists,
@@ -491,6 +491,10 @@ def _scrape_one(
                     url=url, elapsed=elapsed, crawl_delay=crawl_delay,
                 )
                 continue
+            # Combined spend ceiling (2026-10-02). Here, not in the unlocker
+            # hook: the except below catches Exception per URL and would
+            # swallow a budget abort raised from inside scrape_url.
+            spend_meter.enforce(stage)
             try:
                 page = scrape_url(
                     url,

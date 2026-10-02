@@ -117,6 +117,60 @@ GPT5_NANO_PRICING: dict[str, Any] = PRICING["gpt-5-nano"]
 #: into :data:`PRICING` (not a copy) so the two cannot drift.
 JEV_1_13_0_PRICING: dict[str, Any] = PRICING["jev-1.13.0"]
 
+# ── Metered (non-token) APIs (PI ruling 2026-10-02) ─────────────────────────
+# Serper and the Bright Data Web Unlocker bill per unit, not per token, so they
+# are not rows in PRICING (which is keyed by model id and read by token
+# arithmetic). Until 2026-10-02 neither was priced anywhere in code, so
+# ``G3O_BUDGET_LIMIT_USD`` capped only LLM spend while Stage 1 and Stage 4
+# spent on separate bills. The PI ruled that one combined ceiling covers every
+# paid API; these two rows are what make that ceiling enforceable.
+#
+# Serper: $0.001 per credit (PI, 2026-10-02: "depends on how much I pre-buy,
+# for now let's keep $0.001"). The rate varies with the pre-bought package, so
+# ``G3O_SERPER_USD_PER_CREDIT`` overrides it without a code change. One credit
+# per query at ``num=10``; the live response carries a ``credits`` field
+# (verified 2026-10-02), which the client meters rather than assuming 1.
+SERPER_PRICING: dict[str, Any] = {
+    "api": "serper",
+    "unit": "credit",
+    "usd_per_unit": 0.001,
+    "source": "PI ruling 2026-10-02; package-dependent, see docs/budget/cost-model.md",
+    "verified_on": "2026-10-02",
+    "is_estimate": True,
+}
+
+# Bright Data Web Unlocker: $8 per GB, billed on successful requests only (PI,
+# 2026-10-02). Bytes are the response body the API returned; Bright Data's own
+# byte count (headers, compression) is not visible to us, so this is an
+# estimate to reconcile against the first invoice. 1 GB = 10^9 bytes, the
+# reading that prices higher of the two and so keeps the ceiling conservative.
+UNLOCKER_PRICING: dict[str, Any] = {
+    "api": "brightdata_unlocker",
+    "unit": "GB",
+    "usd_per_unit": 8.0,
+    "bytes_per_unit": 1_000_000_000,
+    "billing": "successful requests only",
+    "source": "PI ruling 2026-10-02 (Bright Data account rate)",
+    "verified_on": "2026-10-02",
+    "is_estimate": True,
+}
+
+
+def serper_usd(credits: float) -> float:
+    """USD for ``credits`` Serper credits, honouring the env override."""
+    from g3o.common import config
+
+    rate = config.SERPER_USD_PER_CREDIT
+    if rate is None:
+        rate = SERPER_PRICING["usd_per_unit"]
+    return credits * rate
+
+
+def unlocker_usd(n_bytes: float) -> float:
+    """USD for ``n_bytes`` of billable Web Unlocker response body."""
+    return (n_bytes / UNLOCKER_PRICING["bytes_per_unit"]) * UNLOCKER_PRICING["usd_per_unit"]
+
+
 #: A dated model snapshot, e.g. ``gpt-5-nano-2025-08-07`` — the form
 #: ``BatchResult.response_model`` actually returns. Matched against a known base
 #: id so a run pinned to a snapshot prices off its base row.
@@ -160,4 +214,14 @@ def usd(n_tokens: float, per_1m: float) -> float:
     return (n_tokens / 1_000_000) * per_1m
 
 
-__all__ = ["GPT5_NANO_PRICING", "JEV_1_13_0_PRICING", "PRICING", "pricing_for", "usd"]
+__all__ = [
+    "GPT5_NANO_PRICING",
+    "JEV_1_13_0_PRICING",
+    "PRICING",
+    "SERPER_PRICING",
+    "UNLOCKER_PRICING",
+    "pricing_for",
+    "serper_usd",
+    "unlocker_usd",
+    "usd",
+]

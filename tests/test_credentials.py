@@ -529,6 +529,7 @@ def test_preflight_key_check_reads_the_passed_credentials(
     master = _write_master(tmp_path / "master.csv")
     monkeypatch.delenv("SERPER_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     config = PresweepConfig(
         run_id="preflight-1",
         runs_dir=tmp_path / "runs",
@@ -543,7 +544,9 @@ def test_preflight_key_check_reads_the_passed_credentials(
     with_keys = run_preflight(
         config,
         credentials=Credentials(
-            openai_api_key=EXPLICIT_OPENAI, serper_api_key=EXPLICIT_SERPER
+            openai_api_key=EXPLICIT_OPENAI, serper_api_key=EXPLICIT_SERPER,
+            # Jev is the default for Stages 2/3/6, so its key is part of readiness.
+            typesafe_api_key="typesafe-explicit",
         ),
     )
     assert with_keys["keys_ok"] is True

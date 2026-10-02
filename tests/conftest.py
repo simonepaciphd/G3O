@@ -15,7 +15,9 @@ silent rather than loud:
   "search failed -> return []" path and the assertion **passes vacuously** — the
   same class of defect as PR #63.
 
-So both key variables are cleared for every test. Tests marked ``network`` are
+So every provider key variable (Serper, OpenAI, TypeSafe) is cleared for every
+test; TypeSafe joined on 2026-10-02, after an ambient developer key made three
+preflight tests pass locally that failed without it. Tests marked ``network`` are
 exempt: they are the ones that legitimately want the operator's real key (the
 live batch smoke, the CI Serper smoke), and they are excluded from the default
 ``pytest -m "not network"`` run anyway.
@@ -35,7 +37,8 @@ from __future__ import annotations
 
 import pytest
 
-from g3o.common.credentials import OPENAI_ENV_VAR, SERPER_ENV_VAR
+from g3o.common import deployment, spend_meter
+from g3o.common.credentials import OPENAI_ENV_VAR, SERPER_ENV_VAR, TYPESAFE_ENV_VAR
 from g3o.discovery import serper_client
 
 
@@ -44,7 +47,7 @@ def _no_ambient_api_keys(request: pytest.FixtureRequest, monkeypatch) -> None:
     """Clear provider keys from the environment unless the test wants network."""
     if "network" in request.keywords:
         return
-    for var in (SERPER_ENV_VAR, OPENAI_ENV_VAR):
+    for var in (SERPER_ENV_VAR, OPENAI_ENV_VAR, TYPESAFE_ENV_VAR):
         monkeypatch.delenv(var, raising=False)
 
 
@@ -52,3 +55,24 @@ def _no_ambient_api_keys(request: pytest.FixtureRequest, monkeypatch) -> None:
 def _reset_serper_live_mode(monkeypatch) -> None:
     """Start every test with live mode off, and undo whatever the test sets."""
     monkeypatch.setattr(serper_client, "_live_mode", False, raising=False)
+
+
+@pytest.fixture(autouse=True)
+def _no_spend_meter_leak():
+    """The spend meter is process-wide; a run that dies mid-test must not leave
+    its sink installed for the next test."""
+    yield
+    spend_meter.uninstall()
+
+
+@pytest.fixture(autouse=True)
+def _no_remote_deployment_check(request: pytest.FixtureRequest, monkeypatch) -> None:
+    """``g3o presweep --preflight`` and ``g3o doctor`` run ``git ls-remote``;
+    keep the suite off the network unless a test is marked ``network``."""
+    if "network" in request.keywords:
+        return
+    real = deployment.deployment_status
+    monkeypatch.setattr(
+        deployment, "deployment_status",
+        lambda *, check_remote=True: real(check_remote=False),
+    )

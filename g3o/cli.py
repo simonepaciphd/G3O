@@ -468,7 +468,7 @@ def _budget_abort_message(estimated_cost: float, budget_limit: float) -> str:
         f"\n{'='*70}\n"
         f"COST CIRCUIT BREAKER TRIGGERED\n"
         f"{'='*70}\n"
-        f"Projected OpenAI Batch cost: ${estimated_cost:.2f} USD\n"
+        f"Projected cost, all paid APIs: ${estimated_cost:.2f} USD\n"
         f"Budget limit: ${budget_limit:.2f} USD\n"
         f"Overrun: ${overrun:.2f} USD\n"
         f"\n"
@@ -611,14 +611,19 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
             verify_model_live=args.verify_model,
             cost_ceiling_usd=effective_budget,
             credentials=credentials,
+            check_deployment=True,
         )
         json.dump(summary, sys.stdout, ensure_ascii=False, indent=2, default=str)
         sys.stdout.write("\n")
+        # Repeated on stderr, after the JSON, so an operator reading the tail of
+        # the output sees them: these are the silent degradations (2026-10-02).
+        for warning in summary.get("warnings") or []:
+            sys.stderr.write(f"WARNING: {warning}\n")
 
         # Cost circuit breaker abort gate
         # If projected cost exceeds budget limit, abort before any batches are submitted
         if summary.get("cost_ceiling_exceeded") and effective_budget is not None:
-            estimated_cost = summary.get("cost_preview", {}).get("est_openai_batch_total_usd", 0)
+            estimated_cost = summary.get("cost_preview", {}).get("est_total_usd", 0)
             sys.stderr.write(_budget_abort_message(estimated_cost, effective_budget))
             return EXIT_CODE_BUDGET_EXCEEDED  # Distinct exit code for budget abort
 
@@ -645,7 +650,7 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
 
             # Extract preflight estimate and thread it into config for actual-vs-estimated
             # reconciliation in the cost report (Task 6 of continuous cost monitoring plan).
-            preflight_est = preflight_summary.get("cost_preview", {}).get("est_openai_batch_total_usd")
+            preflight_est = preflight_summary.get("cost_preview", {}).get("est_total_usd")
             if preflight_est is not None:
                 config.preflight_estimate_usd = preflight_est
             # Extract per-stage estimates for mid-run projection checking (Gap 2)
@@ -661,7 +666,7 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
             sys.stderr.write("\n")
 
             if preflight_summary.get("cost_ceiling_exceeded"):
-                estimated_cost = preflight_summary.get("cost_preview", {}).get("est_openai_batch_total_usd", 0)
+                estimated_cost = preflight_summary.get("cost_preview", {}).get("est_total_usd", 0)
                 sys.stderr.write(_budget_abort_message(estimated_cost, effective_budget))
                 return EXIT_CODE_BUDGET_EXCEEDED
 
@@ -772,13 +777,18 @@ def _cmd_presweep(args: argparse.Namespace) -> int:
                         f"Note: Pricing is an estimate (OpenAI batch discount not explicitly "
                         f"published for {run_model}). Reconcile against first live invoice.\n"
                     )
-                # Serper cost disclaimer (Stage 1a/1b discovery uses Serper credits, not tracked)
-                # Always print this disclaimer when budget is set, regardless of whether
-                # discovery ran, to remind operators that Serper costs are not tracked.
+                # Per-API breakdown (2026-10-02: the ceiling covers every paid API).
+                # This line used to say Serper was not tracked; it now is.
+                by_api = cost_report.get("by_api") or {}
+                if by_api:
+                    parts = ", ".join(
+                        f"{name} ${(entry.get('usd') or 0):.4f}"
+                        for name, entry in by_api.items()
+                    )
+                    sys.stderr.write(f"By API: {parts}\n")
                 sys.stderr.write(
-                    "Note: Cost monitoring tracks OpenAI Batch API only. "
-                    "Serper API costs (Stage 1 discovery) are not included in the budget. "
-                    "Monitor Serper credits separately.\n"
+                    "Note: the residential proxy (G3O_SCRAPE_PROXY), if set, is not "
+                    "counted in the budget.\n"
                 )
             except Exception:
                 # Log the exception instead of silently swallowing it
@@ -1390,6 +1400,31 @@ def _cmd_frame_subset_stratified(args: argparse.Namespace) -> int:
         )
     sys.stdout.write(f"sidecar: {result.sidecar_json}\n")
     return 0
+
+
+def _cmd_doctor(args: argparse.Namespace) -> int:
+    """Deployed commit vs origin/main, and which paid services would be used.
+
+    Exit 1 when a key a live run needs is missing; staleness and an inactive
+    unlocker are warnings (exit 0) so the deploy script can show them and go on.
+    """
+    from g3o.common.deployment import deployment_status, services_status, warnings_for
+
+    deploy = deployment_status(check_remote=not args.no_remote)
+    services = services_status()
+    warnings = warnings_for(services, deploy)
+    json.dump(
+        {"deployment": deploy, "services": services, "warnings": warnings},
+        sys.stdout, ensure_ascii=False, indent=2, default=str,
+    )
+    sys.stdout.write("\n")
+    for warning in warnings:
+        sys.stderr.write(f"WARNING: {warning}\n")
+    missing = [
+        name for name in ("serper", "openai", "typesafe")
+        if services[name].get("used", True) and not services[name]["credential_present"]
+    ]
+    return 1 if missing else 0
 
 
 def _cmd_verify_model(args: argparse.Namespace) -> int:
@@ -2126,6 +2161,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     frame_sub_strat.add_argument("--seed", required=True, type=int)
     frame_sub_strat.set_defaults(func=_cmd_frame_subset_stratified)
+
+    doctor = sub.add_parser(
+        "doctor",
+        help="Deployed commit vs origin/main, and which paid services are configured.",
+    )
+    doctor.add_argument(
+        "--no-remote", action="store_true",
+        help="Skip the git ls-remote check against origin.",
+    )
+    doctor.set_defaults(func=_cmd_doctor)
 
     verify = sub.add_parser(
         "verify-model",

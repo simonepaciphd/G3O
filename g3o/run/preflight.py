@@ -10,7 +10,12 @@ wants before committing real spend and ~4 days of wall-clock to a live run:
   4. Projected Stage-5 job/chunk counts and input-file sizes, reusing the exact
      serializer (:func:`g3o.common.batch_client._serialize_job_line`) and the
      chunk caps from Session 1 — this is the F2 size blocker's early-warning.
-  5. A cost preview from current gpt-5-nano Batch pricing.
+  5. A cost preview covering every paid API (2026-10-02): each LLM stage at its
+     own model's rates (jev or OpenAI), Serper credits, and Web Unlocker bytes.
+  6. Which paid services the run will actually use, the deployed commit against
+     ``origin/main``, and a ``warnings`` list naming every silent degradation
+     (a missing optional key, a stale checkout) — see
+     :mod:`g3o.common.deployment`.
 
 No state files are written and no production batches are submitted. Job counts
 beyond Stage 1 depend on discovery/scrape outputs that do not exist pre-run, so
@@ -32,6 +37,7 @@ import math
 from dataclasses import dataclass
 from typing import Any
 
+from g3o.common import deployment
 from g3o.common.batch_client import (
     CHUNK_MAX_BYTES,
     CHUNK_MAX_REQUESTS,
@@ -40,7 +46,13 @@ from g3o.common.batch_client import (
 )
 from g3o.common.cost_monitor import UnpricedModelError
 from g3o.common.credentials import Credentials, resolve
-from g3o.common.pricing import GPT5_NANO_PRICING, pricing_for, usd
+from g3o.common.pricing import (
+    GPT5_NANO_PRICING,
+    pricing_for,
+    serper_usd,
+    unlocker_usd,
+    usd,
+)
 from g3o.extract.batch import build_extract_jobs
 from g3o.run.presweep import (
     PresweepConfig,
@@ -62,6 +74,35 @@ class PreflightAssumptions:
     page_chars: int = 8_000  # typical extracted gov page; cap is 60k (worst case)
     output_tokens_per_job: int = 600  # mean contract response, rough
     official_site_rate: float = 0.7  # fraction of institutions reaching Stage 1b
+    # Serper credits per institution (2026-10-02). None = derived from the
+    # discovery config by :func:`_serper_credits_per_institution`.
+    serper_credits_per_institution: float | None = None
+    # Web Unlocker requests per institution. Measured 2026-10-02 on run
+    # r20260912T001021Z-f4fb (n=20,293, the Berivox template's config): 6,066 fetches failed with a status the
+    # unlocker escalates on (None/401/403) + 3,412 empty-page renders = 9,478,
+    # i.e. 0.467 per institution.
+    unlocker_requests_per_institution: float = 0.47
+    # Billable bytes per unlocker request. ASSUMPTION, about twice the measured
+    # mean: 12 f4fb blocked URLs through the unlocker on 2026-10-02 gave 8
+    # successes, mean 128,270 B, max 284,492 B. Doubled for PDF-heavy samples,
+    # and every request is counted as billed.
+    unlocker_bytes_per_request: int = 250_000
+
+
+def _serper_credits_per_institution(config: PresweepConfig) -> tuple[float, str]:
+    """Projected Serper credits per institution, and where the figure comes from.
+
+    One credit per query at ``num=10``. Measured as queries persisted per
+    institution, i.e. with no cache discount, which is the conservative reading.
+    """
+    if config.discovery_mode == "legacy":
+        return 8.52, "measured 2026-08-01 (200 institutions, legacy mode)"
+    if config.discovery_leg1_multilingual or config.discovery_evidence_open:
+        return 4.50, (
+            "run r20260912T001021Z-f4fb (n=20,293, chain + leg-1 fallback + open "
+            "evidence leg): 91,277 persisted queries, cache hits counted as live"
+        )
+    return 1.84, "measured 2026-08-01 (200 institutions, chain mode, legs 1a+1b only)"
 
 
 def _key_check(name: str, value: str | None, *, prefix: str | None = None) -> dict[str, Any]:
@@ -202,8 +243,13 @@ def run_preflight(
     cost_ceiling_usd: float | None = None,
     client: Any | None = None,
     credentials: Credentials | None = None,
+    check_deployment: bool = False,
 ) -> dict[str, Any]:
     """Run the no-submit pre-flight checks and return a structured summary.
+
+    ``check_deployment`` adds the deployed-commit check (a ``git ls-remote``
+    against ``origin``). The CLI turns it on; it is off by default so library
+    and test callers do not touch the network.
 
     ``verify_model_live`` opts into a real 1-job ``verify-model`` batch (off by
     default — it submits and can block on the Batch SLA).
@@ -240,12 +286,25 @@ def run_preflight(
     # environment held at import time. The names stay the env-var names because
     # that is what an operator reading the report has to go fix.
     resolved = resolve(credentials)
-    keys = [
-        _key_check("SERPER_API_KEY", resolved.serper_api_key),
-        _key_check("OPENAI_API_KEY", resolved.openai_api_key, prefix="sk-"),
-    ]
+    stage_models = {
+        stage: config.model_for_stage(stage)
+        for stage in ("classify_official_site", "classify_triage", "extract", "validate")
+    }
+    keys = [_key_check("SERPER_API_KEY", resolved.serper_api_key)]
+    if any(not m.startswith("jev-") for m in stage_models.values()):
+        keys.append(_key_check("OPENAI_API_KEY", resolved.openai_api_key, prefix="sk-"))
+    if any(m.startswith("jev-") for m in stage_models.values()):
+        # Jev is the default for Stages 2/3/6, and a live run refuses to start
+        # without its key (orchestrator._assert_live_keys); the preflight did not
+        # check it, so a ready-looking preflight could precede a refused run.
+        keys.append(_key_check("TYPESAFE_API_KEY", resolved.typesafe_api_key))
     summary["keys"] = keys
     summary["keys_ok"] = all(k["well_formed"] for k in keys)
+    services = deployment.services_status(config, resolved)
+    summary["services"] = services
+    deploy = deployment.deployment_status() if check_deployment else None
+    summary["deployment"] = deploy
+    summary["warnings"] = deployment.warnings_for(services, deploy)
 
     # --- 2. Planned sample (drawn, not written).
     with open(config.master_csv, encoding="utf-8") as f:
@@ -317,80 +376,114 @@ def run_preflight(
 
     total_in_tokens = extract_in_tokens + other_in_tokens
     total_out_tokens = extract_out_tokens + other_out_tokens
-    # Rates for the model this run will actually submit (review F2, 2026-08-24).
-    # This was `GPT5_NANO_PRICING` unconditionally, so every projection priced
-    # every model at nano rates — including the projection the cost ceiling is
-    # enforced against, which is what made the ceiling fail open on `--model`.
-    p = pricing_for(config.model)
-    if p is None:
+    # Rates per stage, for the model each stage will actually submit (review F2,
+    # 2026-08-24; per-stage since 2026-10-02). Pricing every stage at the
+    # run-wide model priced the jev stages at OpenAI rates.
+    stage_pricing = {stage: pricing_for(model) for stage, model in stage_models.items()}
+    unpriced = [stage_models[s] for s, row in stage_pricing.items() if row is None]
+    if unpriced:
         # PI ruling half 1: a ceiling cannot be enforced for a model we cannot
         # price, so refuse here — before verify-model spends anything, and on
         # both cost gates at once, since each only runs a preflight when a
         # ceiling is set.
         if cost_ceiling_usd is not None:
-            raise UnpricedModelError(config.model, budget_usd=cost_ceiling_usd)
+            raise UnpricedModelError(unpriced[0], budget_usd=cost_ceiling_usd)
         # Half 2: no ceiling, so the run may proceed — but it is projected in
         # tokens with null USD rather than being quietly priced as nano.
         summary["cost_preview"] = _unpriced_cost_preview(
-            config.model,
+            unpriced[0],
             total_in_tokens=total_in_tokens,
             total_out_tokens=total_out_tokens,
             output_tokens_per_job=a.output_tokens_per_job,
         )
         summary["cost_ceiling_usd"] = None
         return summary
-    input_usd = usd(total_in_tokens, p["batch_input_per_1m_usd"])
-    output_usd = usd(total_out_tokens, p["batch_output_per_1m_usd"])
-    total_usd = input_usd + output_usd
 
-    # Per-stage cost estimates (Gap 2): break down total by stage for mid-run
-    # projection checking. Stages 2, 3, 6 are ~one job per institution each;
-    # Stage 5 is the extract stage (n_institutions × pages_per_institution jobs).
-    # Split the "other" cost equally across stages 2, 3, 6.
-    other_per_stage_in = other_in_tokens / 3
-    other_per_stage_out = other_out_tokens / 3
-    stage_estimates = {
-        "classify_official_site": (
-            usd(other_per_stage_in, p["batch_input_per_1m_usd"])
-            + usd(other_per_stage_out, p["batch_output_per_1m_usd"])
-        ),
-        "classify_triage": (
-            usd(other_per_stage_in, p["batch_input_per_1m_usd"])
-            + usd(other_per_stage_out, p["batch_output_per_1m_usd"])
-        ),
-        "extract": (
-            usd(extract_in_tokens, p["batch_input_per_1m_usd"])
-            + usd(extract_out_tokens, p["batch_output_per_1m_usd"])
-        ),
-        "validate": (
-            usd(other_per_stage_in, p["batch_input_per_1m_usd"])
-            + usd(other_per_stage_out, p["batch_output_per_1m_usd"])
-        ),
+    # Per-stage token volumes (Gap 2). Stages 2, 3, 6 are ~one job per
+    # institution each and split the "other" volume equally; Stage 5 is
+    # n_institutions × pages_per_institution jobs.
+    other_per_stage = (other_in_tokens / 3, other_out_tokens / 3)
+    stage_tokens = {
+        "classify_official_site": other_per_stage,
+        "classify_triage": other_per_stage,
+        "extract": (extract_in_tokens, extract_out_tokens),
+        "validate": other_per_stage,
     }
+    stage_estimates: dict[str, float] = {}
+    stage_in_usd: dict[str, float] = {}
+    stage_out_usd: dict[str, float] = {}
+    for stage, (tin, tout) in stage_tokens.items():
+        row = stage_pricing[stage]
+        stage_in_usd[stage] = usd(tin, row["batch_input_per_1m_usd"])
+        stage_out_usd[stage] = usd(tout, row["batch_output_per_1m_usd"])
+        stage_estimates[stage] = stage_in_usd[stage] + stage_out_usd[stage]
+    openai_stages = [s for s, m in stage_models.items() if not m.startswith("jev-")]
+    input_usd = sum(stage_in_usd[s] for s in openai_stages)
+    output_usd = sum(stage_out_usd[s] for s in openai_stages)
+    openai_usd = input_usd + output_usd
+    typesafe_usd = sum(stage_estimates[s] for s in stage_models if s not in openai_stages)
+    llm_usd = openai_usd + typesafe_usd
+
+    # Metered APIs (PI ruling 2026-10-02: one ceiling covers every paid API).
+    credits_per_inst, credits_source = (
+        (a.serper_credits_per_institution, "operator assumption")
+        if a.serper_credits_per_institution is not None
+        else _serper_credits_per_institution(config)
+    )
+    est_credits = n * credits_per_inst
+    serper_est = serper_usd(est_credits)
+    unlocker_on = services["brightdata_unlocker"]["active"]
+    est_unlocker_requests = n * a.unlocker_requests_per_institution if unlocker_on else 0.0
+    est_unlocker_bytes = est_unlocker_requests * a.unlocker_bytes_per_request
+    unlocker_est = unlocker_usd(est_unlocker_bytes)
+    total_usd = llm_usd + serper_est + unlocker_est
 
     summary["cost_preview"] = {
         "is_estimate": True,
         # Copied, not aliased: this was a direct reference to the module-level
         # rate table, so any consumer mutating the summary would have mutated
         # the pricing registry for the rest of the process.
-        "pricing": dict(p),
+        # The run-wide model's row, as before; per-stage rows beside it.
+        "pricing": dict(pricing_for(config.model) or stage_pricing["extract"]),
+        "stage_pricing": {stage: dict(row) for stage, row in stage_pricing.items()},
+        "stage_models": stage_models,
         "chars_per_token_assumption": _CHARS_PER_TOKEN,
         "assumes_output_tokens_per_job": a.output_tokens_per_job,
         "est_input_tokens": round(total_in_tokens),
         "est_output_tokens": round(total_out_tokens),
+        # OpenAI-vendor stages only (the name says so); jev is in est_by_api.
         "est_openai_batch_input_usd": round(input_usd, 2),
         "est_openai_batch_output_usd": round(output_usd, 2),
-        "est_openai_batch_total_usd": round(total_usd, 2),
+        "est_openai_batch_total_usd": round(openai_usd, 2),
+        "est_by_api": {
+            "openai": round(openai_usd, 2),
+            "typesafe": round(typesafe_usd, 2),
+            "serper": round(serper_est, 2),
+            "brightdata_unlocker": round(unlocker_est, 2),
+        },
+        # The figure the ceiling is compared against: every paid API.
+        "est_total_usd": round(total_usd, 2),
         "stage_estimates": {k: round(v, 6) for k, v in stage_estimates.items()},
+        "serper": {
+            "est_credits": round(est_credits),
+            "credits_per_institution": credits_per_inst,
+            "credits_source": credits_source,
+            "usd_per_credit": serper_usd(1),
+        },
+        "brightdata_unlocker": {
+            "active": unlocker_on,
+            "est_requests": round(est_unlocker_requests),
+            "assumes_requests_per_institution": a.unlocker_requests_per_institution,
+            "assumes_bytes_per_request": a.unlocker_bytes_per_request,
+        },
         "note": (
-            "OpenAI Batch cost only; Serper (Stage 1) is billed separately and "
-            "is not priced here. Measured 2026-08-01 over 200 institutions as "
-            "GET /account balance deltas: 1.84 credits/institution under "
-            "discovery_mode='chain' (the default), 8.52 under 'legacy'. The "
-            "USD-per-credit rate is an unresolved PI input — docs/budget/"
-            "cost-model.md tabulates both $0.00056 and $0.001, which differ "
-            "~1.8x. Estimate scales with the pages-per-institution and "
-            "page-chars assumptions."
+            "Every paid API (PI ruling 2026-10-02). LLM stages at their own "
+            "model's rates, with the Stage-5 per-job size as an upper bound for "
+            "the smaller stages; Serper at the credits-per-institution shown, "
+            "cache hits counted as live; Web Unlocker at the escalation rate "
+            "measured on run f4fb and an assumed 250 KB per request. The residential "
+            "proxy, if set, is not priced. Runtime enforcement counts actual "
+            "spend; this projection only gates the start."
         ),
     }
     summary["cost_ceiling_usd"] = cost_ceiling_usd

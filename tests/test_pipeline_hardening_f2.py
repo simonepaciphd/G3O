@@ -662,6 +662,7 @@ def test_preflight_reports_keys_sample_chunks_cost(tmp_path, monkeypatch):
     master = _write_master(tmp_path / "m.csv", n=5)
     monkeypatch.setenv("SERPER_API_KEY", "serper-key")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
+    monkeypatch.setenv("TYPESAFE_API_KEY", "typesafe-key")  # jev default, Stages 2/3/6
     config = _config(tmp_path, master, sample_size=5, run_id="pf1")
     summary = pf.run_preflight(config, verify_model_live=False)
 

@@ -282,11 +282,9 @@ def cost_gate(
         config, cost_ceiling_usd=cost_ceiling_usd, credentials=credentials
     )
     if summary.get("cost_ceiling_exceeded"):
-        projected = (summary.get("cost_preview") or {}).get(
-            "est_openai_batch_total_usd", 0
-        )
+        projected = (summary.get("cost_preview") or {}).get("est_total_usd", 0)
         raise SubmitError(
-            f"COST CIRCUIT BREAKER: projected OpenAI Batch spend "
+            f"COST CIRCUIT BREAKER: projected spend across all paid APIs "
             f"${projected:.2f} exceeds the ${cost_ceiling_usd:.2f} ceiling. "
             f"Nothing was submitted. Raise --cost-ceiling deliberately, or reduce "
             f"--sample-size."
