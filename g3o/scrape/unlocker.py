@@ -8,10 +8,11 @@ or ``scrape_unlocker_on_empty``. This preserves the all-three-move-together
 invariant for the default identity: robots.txt, page fetches, and the render
 still share ``G3O_SCRAPE_PROXY``; the unlocker is a separate instrument.
 
-The Web Unlocker renders JS and solves captchas internally, at ~$0.002–0.006
-per successful request (CPM billing) — strictly more capable and ~8–20×
-cheaper than pushing a playwright render through the residential proxy at the
-measured 5.44 MB mean ($8.4/GB).
+The Web Unlocker renders JS and solves captchas internally. Billing (PI,
+2026-10-02): $8/GB on successful requests — see ``pricing.UNLOCKER_PRICING``.
+Measured 2026-10-02 on 12 sweep-4 blocked URLs: 8 succeeded, mean body 128 KB,
+so ~$0.001 per recovered page; a playwright render through the residential
+proxy moves a measured 5.44 MB mean.
 
 API contract (measured 2026-09-17):
     POST https://api.brightdata.com/request
@@ -42,7 +43,7 @@ from dataclasses import dataclass
 
 import requests
 
-from g3o.common import config
+from g3o.common import config, spend_meter
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,13 @@ class UnlockerResult:
     error: str | None
     error_code: str | None
     elapsed_ms: int
+    #: Response-body bytes Bright Data is taken to bill for this attempt
+    #: (2026-10-02). Wider than ``success``: any delivered body without an
+    #: ``x-brd-error`` counts, including an inner non-200 whose body the gate
+    #: discards, because Bright Data's notion of a successful request is a
+    #: delivered response, not our stricter gate. The conservative reading for a
+    #: spend ceiling. Zero for errors, empty bodies and transport failures.
+    billable_bytes: int = 0
 
 
 def enabled() -> bool:
@@ -134,6 +142,11 @@ def _parse_response(
         except (ValueError, TypeError):
             pass
     body = resp.content
+    billable = (
+        len(body)
+        if resp.status_code == 200 and not (error or error_code) and body
+        else 0
+    )
     # The success gate: all three must hold.
     if error or error_code:
         return UnlockerResult(
@@ -144,6 +157,7 @@ def _parse_response(
         return UnlockerResult(
             success=False, content=b"", inner_status=inner_status,
             error=None, error_code=None, elapsed_ms=elapsed_ms,
+            billable_bytes=billable,
         )
     if not body or not body.strip():
         return UnlockerResult(
@@ -153,6 +167,7 @@ def _parse_response(
     return UnlockerResult(
         success=True, content=body, inner_status=inner_status,
         error=None, error_code=None, elapsed_ms=elapsed_ms,
+        billable_bytes=billable,
     )
 
 
@@ -197,7 +212,15 @@ def fetch(url: str, *, timeout: int | None = None) -> UnlockerResult:
         safe_msg = redact(str(exc))
         raise requests.RequestException(safe_msg) from exc
     elapsed_ms = int((time.monotonic() - started) * 1000)
-    return _parse_response(resp, elapsed_ms)
+    result = _parse_response(resp, elapsed_ms)
+    # Metered here, the one choke point every unlocker call passes, so both
+    # triggers (block, empty) and any future caller are counted (2026-10-02).
+    spend_meter.record(
+        spend_meter.UNLOCKER,
+        billable_bytes=result.billable_bytes,
+        success=result.success,
+    )
+    return result
 
 
 def is_refusal_status(status: int | None) -> bool:

@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from g3o.common import attrition
+from g3o.common import attrition, spend_meter
 from g3o.common.cost_monitor import (
     BudgetExceededError,
     CostMonitor,
@@ -281,6 +281,31 @@ def run_presweep(
     budget_abort_stage: str | None = None
     budget_exceeded_stages: list[str] = []  # Track all stages that exceeded budget (for dry-run mode)
 
+    # Metered APIs (PI ruling 2026-10-02: one ceiling covers every paid API).
+    # Serper and the Web Unlocker report each billable call to the monitor
+    # through spend_meter; the guard is what the stage loops call at their safe
+    # points (spend_meter.enforce) and what the stage boundaries below call.
+    def _metered_guard(stage: str) -> None:
+        if monitor.check_budget():
+            return
+        if stage not in budget_exceeded_stages:
+            budget_exceeded_stages.append(stage)
+        if config.cost_monitor_dry_run:
+            if stage not in _warned_metered:  # once per stage, not per query
+                _warned_metered.add(stage)
+                logger.warning(
+                    "BUDGET EXCEEDED (warn-only mode — continuing): "
+                    "Stage %s: $%.4f spent of $%.4f limit (all APIs)",
+                    stage, monitor.running_total_usd, monitor.budget_usd,
+                )
+            return
+        raise BudgetExceededError(
+            monitor.running_total_usd, monitor.budget_usd, stage
+        )
+
+    _warned_metered: set[str] = set()
+    spend_meter.install(monitor.record_metered, _metered_guard)
+
     # Within-stage budget callback (Gap 1): called after each chunk completes.
     # Returns False to stop submitting new chunks (but let in-flight finish).
     def _within_stage_budget_callback(stage: str, chunk_usage: dict[str, int]) -> bool:
@@ -399,6 +424,7 @@ def run_presweep(
             if institution_record(row).get("official_site_url")
         )
         tel.stage_end(span, counts_out=summary["n_discovery_general"])
+        _metered_guard("discovery_general")
         if config.stop_after == "discovery_general":
             return _finish("stop_after")
 
@@ -461,6 +487,7 @@ def run_presweep(
                 len(v) for v in discovery_general.values()
             )
             tel.stage_end(span, counts_out=fallback_stats["n_new_records"])
+            _metered_guard(STAGE_1A_FALLBACK)
 
             span = tel.stage_start(
                 STAGE_2_FALLBACK, counts_in=fallback_stats["n_institutions"]
@@ -512,6 +539,7 @@ def run_presweep(
             len(v) for v in discovery_site_restricted.values()
         )
         tel.stage_end(span, counts_out=summary["n_discovery_site_restricted"])
+        _metered_guard("discovery_site_restricted")
 
         # The open evidence leg (PI ruling 2026-09-03) — a sub-step of the
         # ``discovery_site_restricted`` phase. ``None`` when the flag is off, so
@@ -533,6 +561,7 @@ def run_presweep(
                 len(v) for v in discovery_evidence_open.values()
             )
             tel.stage_end(span, counts_out=summary["n_discovery_evidence_open"])
+            _metered_guard(STAGE_1D)
         n_open = summary.get("n_discovery_evidence_open", 0)
 
         if config.stop_after == "discovery_site_restricted":
@@ -630,6 +659,7 @@ def run_presweep(
             # without inventing a second counter that could disagree with it.
             n_failed=summary["n_triaged_kept"] - summary["n_pages_scraped"],
         )
+        _metered_guard("scrape")
         if config.stop_after == "scrape":
             return _finish("stop_after")
 
@@ -692,6 +722,9 @@ def run_presweep(
         tel.run_failed(exc, stop_after=config.stop_after)
         raise
     finally:
+        # The meter is process-wide; a later run in this process must not report
+        # into this run's monitor.
+        spend_meter.uninstall()
         update_manifest_llm_provenance(plan.run_dir)
         # Best-effort (Feature 1): compute + persist institution_report.{jsonl,csv}
         # on every stop_after early return and on a crash, same as the

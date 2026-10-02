@@ -27,7 +27,7 @@ from urllib.parse import urlparse, urlsplit, urlunsplit
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from g3o.common import config
+from g3o.common import config, spend_meter
 from g3o.common.credentials import ResolvedCredentials, resolve
 
 logger = logging.getLogger(__name__)
@@ -449,6 +449,15 @@ def search_google_detailed(
             return SerperResult(
                 results=[], search_parameters={}, from_cache=False, payload=payload
             )
+
+    if api_key:
+        # A live, billed call (the mock branch above has no key). Metered off the
+        # response's own ``credits`` field (verified 2026-10-02: 1 at num=10)
+        # rather than assumed, so a pricier request shape is counted as such.
+        credits = data.get("credits")
+        if not isinstance(credits, (int, float)) or credits < 0:
+            credits = 1
+        spend_meter.record(spend_meter.SERPER, credits=credits, live_queries=1)
 
     results: list[dict] = []
     for idx, item in enumerate(data.get("organic", [])):

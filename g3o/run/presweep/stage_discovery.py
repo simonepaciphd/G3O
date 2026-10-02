@@ -24,7 +24,7 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
-from g3o.common import attrition
+from g3o.common import attrition, spend_meter
 from g3o.common.credentials import ResolvedCredentials
 from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, mark_done
@@ -239,6 +239,11 @@ def _issue_queries(
     """
     n_new = 0
     for query, lang in queries:
+        # Combined spend ceiling (2026-10-02): checked before each query, outside
+        # the try below, so an over-budget run stops spending credits here. The
+        # institution's artifact is not written, exactly as on a Serper failure,
+        # so a resume re-issues it.
+        spend_meter.enforce(stage)
         try:
             result = search_google_detailed(
                 query, num_results=num_results, options=options,

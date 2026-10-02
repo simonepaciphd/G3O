@@ -40,22 +40,37 @@ Limitations:
     A single stage (e.g. a large extract batch) may spend significantly more
     than the remaining budget before the check triggers. The budget ceiling
     should therefore be set with enough headroom for one full stage's cost.
-  - **Serper cost not tracked**: Serper API calls (Stages 1a and 1b) have a
-    separate billing model (per-query credits, not token-based) and are not
-    included in the running total. Only OpenAI Batch API spend is monitored.
-    Factor Serper credits into your budget separately.
+  - **Metered APIs are checked at safe points**: Serper credits and Web
+    Unlocker bytes (2026-10-02, PI ruling: one ceiling covers every paid API)
+    are folded into the running total as each billable response arrives, via
+    :mod:`g3o.common.spend_meter`, but the abort fires only where a stage loop
+    calls :func:`g3o.common.spend_meter.enforce` (after each Serper query and
+    before each Stage 4 fetch) and at stage boundaries. Overrun is bounded by
+    the calls already in flight (``max_workers``).
+  - **The residential proxy is not metered**: ``G3O_SCRAPE_PROXY`` bills per GB
+    of proxied traffic, which this process cannot observe. It is unset on the
+    production host; a run that sets it spends outside this ceiling.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from g3o.common import spend_meter
 from g3o.common.batch_client import DEFAULT_MODEL
-from g3o.common.pricing import pricing_for, usd
+from g3o.common.pricing import (
+    SERPER_PRICING,
+    UNLOCKER_PRICING,
+    pricing_for,
+    serper_usd,
+    unlocker_usd,
+    usd,
+)
 from g3o.common.run_state import done_path, state_path
 
 logger = logging.getLogger(__name__)
@@ -237,12 +252,57 @@ class CostMonitor:
     # Cached pricing rows for stage_models, keyed by model id. Populated
     # lazily by ``_pricing_for_stage``.
     _stage_pricing_cache: dict[str, dict[str, Any] | None] = field(default_factory=dict)
+    # Per-unit API usage (2026-10-02): Serper credits and Web Unlocker bytes,
+    # accumulated from worker threads through ``record_metered``, hence the lock.
+    metered: dict[str, dict[str, float]] = field(
+        default_factory=lambda: {
+            spend_meter.SERPER: {"credits": 0, "live_queries": 0},
+            spend_meter.UNLOCKER: {
+                "billable_bytes": 0, "requests": 0, "requests_succeeded": 0,
+            },
+        }
+    )
+    _metered_lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
     def __post_init__(self) -> None:
         if self.pricing is None:
             self.pricing = pricing_for(self.model)
         if self.pricing is None and self.budget_usd is not None:
             raise UnpricedModelError(self.model, budget_usd=self.budget_usd)
+
+    def record_metered(self, api: str, units: dict[str, Any]) -> None:
+        """Fold one billable Serper or Web Unlocker call into the running total.
+
+        The :mod:`g3o.common.spend_meter` sink. Thread-safe: Stage 1 and Stage 4
+        call it from worker threads.
+        """
+        with self._metered_lock:
+            if api == spend_meter.SERPER:
+                acc = self.metered[spend_meter.SERPER]
+                acc["credits"] += max(0, units.get("credits", 0))
+                acc["live_queries"] += max(0, units.get("live_queries", 0))
+            elif api == spend_meter.UNLOCKER:
+                acc = self.metered[spend_meter.UNLOCKER]
+                acc["billable_bytes"] += max(0, units.get("billable_bytes", 0))
+                acc["requests"] += 1
+                acc["requests_succeeded"] += 1 if units.get("success") else 0
+            else:
+                logger.warning("CostMonitor: unknown metered api %r ignored", api)
+
+    def metered_usd(self) -> dict[str, float]:
+        """USD spent so far per metered API."""
+        with self._metered_lock:
+            credits = self.metered[spend_meter.SERPER]["credits"]
+            n_bytes = self.metered[spend_meter.UNLOCKER]["billable_bytes"]
+        return {
+            spend_meter.SERPER: serper_usd(credits),
+            spend_meter.UNLOCKER: unlocker_usd(n_bytes),
+        }
+
+    @property
+    def metered_total_usd(self) -> float:
+        """USD across the metered APIs (Serper + Web Unlocker)."""
+        return sum(self.metered_usd().values())
     def _pricing_for_stage(self, stage: str) -> dict[str, Any] | None:
         """The rate row for ``stage``'s model, or ``None`` if unpriced.
 
@@ -492,7 +552,10 @@ class CostMonitor:
         # `or 0.0` is unreachable in practice: this returns above when
         # budget_usd is None, and a budget with no rate row cannot be
         # constructed. It is here so the arithmetic below is total.
-        actual_so_far = self.running_total_usd or 0.0
+        # LLM spend only: the preflight stage estimates are LLM-only, so
+        # folding Serper/unlocker spend into the numerator would inflate the
+        # ratio and project a false overrun.
+        actual_so_far = sum(s.total_usd or 0.0 for s in self.stages)
         estimated_so_far = 0.0
         remaining_estimate = 0.0
         recorded_stage_names = {s.stage for s in self.stages}
@@ -545,7 +608,8 @@ class CostMonitor:
         """
         if not self.is_priced:
             return None
-        return sum(s.total_usd or 0.0 for s in self.stages)
+        # Every paid API, not just LLM tokens (PI ruling 2026-10-02).
+        return sum(s.total_usd or 0.0 for s in self.stages) + self.metered_total_usd
 
     @property
     def has_missing_data(self) -> bool:
@@ -673,6 +737,46 @@ class CostMonitor:
             "batch_line_is_estimate": self.pricing["batch_line_is_estimate"],
         }
 
+    def _by_api(self, metered: dict[str, float]) -> dict[str, Any]:
+        """Spend per paid API: the breakdown behind the one combined ceiling.
+
+        LLM stages are attributed by their model's vendor: ``jev-*`` to TypeSafe,
+        everything else to OpenAI.
+        """
+        llm: dict[str, float | None] = {"openai": 0.0, "typesafe": 0.0}
+        for s in self.stages:
+            vendor = (
+                "typesafe"
+                if self.stage_models.get(s.stage, self.model).startswith("jev-")
+                else "openai"
+            )
+            if s.total_usd is None or llm[vendor] is None:
+                llm[vendor] = None
+            else:
+                llm[vendor] = (llm[vendor] or 0.0) + s.total_usd
+        with self._metered_lock:
+            serper = dict(self.metered[spend_meter.SERPER])
+            unl = dict(self.metered[spend_meter.UNLOCKER])
+        return {
+            "openai": {"usd": _round_usd(llm["openai"])},
+            "typesafe": {"usd": _round_usd(llm["typesafe"])},
+            spend_meter.SERPER: {
+                "usd": _round_usd(metered[spend_meter.SERPER]),
+                "credits": serper["credits"],
+                "live_queries": serper["live_queries"],
+                "usd_per_credit": serper_usd(1),
+                "rate_is_estimate": SERPER_PRICING["is_estimate"],
+            },
+            spend_meter.UNLOCKER: {
+                "usd": _round_usd(metered[spend_meter.UNLOCKER]),
+                "requests": unl["requests"],
+                "requests_succeeded": unl["requests_succeeded"],
+                "billable_bytes": unl["billable_bytes"],
+                "usd_per_gb": UNLOCKER_PRICING["usd_per_unit"],
+                "rate_is_estimate": UNLOCKER_PRICING["is_estimate"],
+            },
+        }
+
     def cost_report(self) -> dict[str, Any]:
         """Structured cost report for persistence and CLI output.
 
@@ -695,10 +799,14 @@ class CostMonitor:
         raw_total_output = (
             sum(s.output_usd or 0.0 for s in self.stages) if self.is_priced else None
         )
-        raw_total_usd = (
+        raw_llm_usd = (
             raw_total_input + raw_total_output
             if raw_total_input is not None and raw_total_output is not None
             else None
+        )
+        metered = self.metered_usd()
+        raw_total_usd = (
+            raw_llm_usd + sum(metered.values()) if raw_llm_usd is not None else None
         )
 
         # Surface missing data as an accounting failure in the report.
@@ -718,6 +826,9 @@ class CostMonitor:
             "stages": [
                 {
                     "stage": s.stage,
+                    # The model that priced this row (jev or OpenAI). Without it
+                    # a jev stage read as if it had run on the run-wide model.
+                    "model": self.stage_models.get(s.stage, self.model),
                     "prompt_tokens": s.prompt_tokens,
                     "completion_tokens": s.completion_tokens,
                     "cached_tokens": s.cached_tokens,
@@ -733,9 +844,13 @@ class CostMonitor:
             "total_prompt_tokens": total_prompt,
             "total_completion_tokens": total_completion,
             "total_cached_tokens": total_cached,
+            # LLM token spend only; ``total_usd`` adds the metered APIs.
             "total_input_usd": _round_usd(raw_total_input),
             "total_output_usd": _round_usd(raw_total_output),
+            "llm_total_usd": _round_usd(raw_llm_usd),
+            "metered_total_usd": _round_usd(sum(metered.values())),
             "total_usd": _round_usd(raw_total_usd),
+            "by_api": self._by_api(metered),
             "pricing": self._pricing_block(),
         }
         # Include partial stages if any (diagnostic — not counted in totals)

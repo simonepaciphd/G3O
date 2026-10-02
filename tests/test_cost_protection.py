@@ -195,6 +195,8 @@ def test_cli_preflight_proceeds_under_budget(tmp_path, monkeypatch, capsys):
     master = _write_master(tmp_path / "master.csv", n=3)
     monkeypatch.setenv("SERPER_API_KEY", "serper-key")
     monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
+    # Jev is the default for Stages 2/3/6, so its key is part of readiness.
+    monkeypatch.setenv("TYPESAFE_API_KEY", "typesafe-key")
 
     args = [
         "presweep",

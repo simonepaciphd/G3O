@@ -40,6 +40,11 @@ OPENAI_API_KEY: str | None = _env("OPENAI_API_KEY")
 # ---------------------------------------------------------------------------
 
 SERPER_ENDPOINT: str = _env("SERPER_ENDPOINT", "https://google.serper.dev/search") or ""
+#: USD per Serper credit, overriding ``pricing.SERPER_PRICING`` (2026-10-02). The
+#: real rate depends on the pre-bought package, so it is an operator setting, not
+#: a code constant. Unset means the registry default.
+_serper_rate = _env("G3O_SERPER_USD_PER_CREDIT")
+SERPER_USD_PER_CREDIT: float | None = float(_serper_rate) if _serper_rate else None
 # Pipeline-wide default model id for every LLM stage. Wired into
 # ``batch_client.DEFAULT_MODEL`` (review F9, 2026-06-10), so setting
 # ``OPENAI_MODEL`` in the environment / .env overrides the default everywhere;

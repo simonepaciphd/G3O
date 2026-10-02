@@ -9,13 +9,27 @@ Both layers are opt-in and can be configured via environment variables or CLI fl
 
 ## Overview
 
-The pre-flight gate (in `g3o.run.preflight`) projects the total OpenAI Batch API cost for a planned run based on sample size, pages per institution, and token estimates. If the projection exceeds your budget, the run aborts with exit code 3 before any API calls are made.
+**One ceiling covers every paid API** (PI ruling, 2026-10-02): OpenAI, TypeSafe
+jev, Serper and the Bright Data Web Unlocker. Before that date the ceiling
+covered LLM tokens only, and the preflight priced the jev stages at OpenAI rates.
 
-The runtime monitor (in `g3o.common.cost_monitor`) tracks actual token usage as each LLM stage completes. If cumulative spend exceeds your budget mid-run, the orchestrator raises `BudgetExceededError` and aborts cleanly, persisting a cost report for post-mortem analysis.
+| API | Unit | Rate | Where | Counted at runtime |
+|---|---|---|---|---|
+| OpenAI (Batch) | tokens | per model row | `pricing.PRICING` | after each chunk and stage |
+| TypeSafe jev | input tokens | $0.042 / 1M | `pricing.PRICING["jev-1.13.0"]` | after each call |
+| Serper | credits (response `credits` field; 1 at `num=10`) | **$0.001 / credit**, overridable with `G3O_SERPER_USD_PER_CREDIT` (package-dependent) | `pricing.SERPER_PRICING` | each live query; enforced before the next query |
+| Bright Data Web Unlocker | response bytes, successful requests | **$8 / GB** (10^9 B) | `pricing.UNLOCKER_PRICING` | each call; enforced before the next Stage 4 fetch |
+| Residential proxy (`G3O_SCRAPE_PROXY`) | proxied GB | not priced | — | **not counted**; unset on the production host |
 
-**Important**: The runtime monitor checks budget **after each stage completes**, not continuously. A single stage (e.g., a large extract batch) may spend significantly more than the remaining budget before the check triggers. Set your budget ceiling with enough headroom for one full stage's cost.
+The Serper and unlocker rates are PI-supplied and flagged as estimates; the
+unlocker byte count is the body the API returned, which may differ from Bright
+Data's own count. Reconcile both against the first invoice.
 
-**Serper API costs are not tracked**. Serper uses a separate billing model (per-query credits, not token-based) and is not included in the running total. Only OpenAI Batch API spend is monitored. Factor Serper credits into your budget separately.
+The pre-flight gate (in `g3o.run.preflight`) projects the total cost of a planned run across all four APIs: each LLM stage at its own model's rates, Serper at a credits-per-institution figure taken from the discovery config (4.52 for the sweep-4 config, cache hits counted as live), and the unlocker at the measured sweep-4 escalation rate (0.47 requests per institution) times an assumed 250 KB per request — about twice the measured 128 KB mean. If the projection (`est_total_usd`) exceeds your budget, the run aborts with exit code 3 before any API calls are made.
+
+The runtime monitor (in `g3o.common.cost_monitor`) tracks actual token usage as each LLM stage completes, and Serper and unlocker usage as each billable response arrives (via `g3o.common.spend_meter`). If cumulative spend exceeds your budget mid-run, the orchestrator raises `BudgetExceededError` and aborts cleanly, persisting a cost report for post-mortem analysis.
+
+**Important**: LLM spend is checked after each chunk and each stage; Serper and unlocker spend before every query and every Stage 4 fetch. Calls already in flight (up to `max_workers`) finish after the ceiling is crossed, so set the ceiling with some headroom.
 
 ---
 
@@ -108,7 +122,7 @@ If the pre-flight projection exceeds the budget:
 ======================================================================
 COST CIRCUIT BREAKER TRIGGERED
 ======================================================================
-Projected OpenAI Batch cost: $15.23 USD
+Projected cost, all paid APIs: $15.23 USD
 Budget limit: $10.00 USD
 Overrun: $5.23 USD
 
@@ -173,10 +187,13 @@ The cost report is a JSON file written to `runs/<run_id>/_cost_report.json` on e
 | `total_prompt_tokens` | integer | Sum of prompt tokens across all stages |
 | `total_completion_tokens` | integer | Sum of completion tokens across all stages |
 | `total_cached_tokens` | integer | Sum of cached tokens across all stages |
-| `total_input_usd` | float | Sum of input costs across all stages |
-| `total_output_usd` | float | Sum of output costs across all stages |
-| `total_usd` | float | Total actual spend (input + output) |
-| `pricing` | object | Pricing rates used (see below) |
+| `total_input_usd` | float | Sum of LLM input costs across all stages |
+| `total_output_usd` | float | Sum of LLM output costs across all stages |
+| `llm_total_usd` | float | LLM token spend (input + output) |
+| `metered_total_usd` | float | Serper + Web Unlocker spend |
+| `total_usd` | float | Total actual spend, every paid API (`llm_total_usd + metered_total_usd`) — the figure the ceiling is enforced on |
+| `by_api` | object | Spend per API: `openai`, `typesafe` (`usd`); `serper` (`usd`, `credits`, `live_queries`, `usd_per_credit`); `brightdata_unlocker` (`usd`, `requests`, `requests_succeeded`, `billable_bytes`, `usd_per_gb`) |
+| `pricing` | object | Pricing rates of the run-wide model (see below); per-stage models are on each `stages` row |
 | `vs_preflight_estimate` | object or null | Comparison to pre-flight projection (if preflight was run) |
 
 ### `stages` array
@@ -186,6 +203,7 @@ Each element represents one LLM stage:
 ```json
 {
   "stage": "extract",
+  "model": "gpt-5-nano",
   "prompt_tokens": 500000,
   "completion_tokens": 50000,
   "cached_tokens": 300000,
@@ -200,6 +218,7 @@ Each element represents one LLM stage:
 | Field | Type | Description |
 |-------|------|-------------|
 | `stage` | string | Stage name (e.g., `classify_official_site`, `classify_triage`, `extract`, `validate`) |
+| `model` | string | The model whose rates priced this row (`jev-*` for TypeSafe stages) |
 | `prompt_tokens` | integer | Total prompt tokens for this stage |
 | `completion_tokens` | integer | Total completion tokens for this stage |
 | `cached_tokens` | integer | Total cached tokens for this stage |
@@ -315,16 +334,16 @@ A ratio significantly above 1.0 suggests the preflight assumptions (pages per in
 - Use preflight to estimate per-stage costs and set the budget accordingly
 - Consider breaking large runs into smaller chunks (e.g., multiple runs with smaller sample sizes)
 
-### Scenario 4: Serper cost not included in budget
+### Scenario 4: Run aborts during discovery or scrape
 
-**Symptom**: Serper credits are depleted faster than expected, even though the OpenAI budget was not exceeded.
+**Symptom**: `abort_stage` is a discovery stage or `scrape`, and `by_api` shows most of the spend under `serper` or `brightdata_unlocker`.
 
-**Cause**: The runtime monitor only tracks OpenAI Batch API spend. Serper API calls (Stages 1a and 1b) use a separate billing model (per-query credits) and are not included in the running total.
+**Cause**: Since 2026-10-02 Serper and Web Unlocker spend count toward the ceiling. An institution interrupted mid-discovery writes no artifact, exactly as on a Serper failure, so a resume re-issues it; scrape keeps every page already written.
 
 **Resolution**:
-- Factor Serper credits into your budget separately
-- Monitor Serper credit balance in the Serper dashboard
-- Reduce `--discovery-results-per-query` or use `--discovery-mode legacy` to reduce Serper spend
+- Check `G3O_SERPER_USD_PER_CREDIT` matches the package you bought
+- Raise the ceiling deliberately, or reduce `--sample-size`
+- Compare `by_api` with the preflight's `est_by_api` to see which assumption was off
 
 ---
 
@@ -332,11 +351,11 @@ A ratio significantly above 1.0 suggests the preflight assumptions (pages per in
 
 1. **Check-after-stage only**: Budget is checked after each LLM stage completes, not continuously. A single stage may exceed the budget before the check triggers. The budget ceiling should therefore be set with enough headroom for one full stage's cost.
 
-2. **Serper cost not tracked**: Serper API calls have a separate billing model (per-query credits, not token-based) and are not included in the running total. Only OpenAI Batch API spend is monitored. Factor Serper credits into your budget separately.
+2. **The residential proxy is not counted**: `G3O_SCRAPE_PROXY` bills per proxied GB, which the process cannot observe. It is unset on the production host; a run that sets it spends outside the ceiling, and the preflight and `g3o doctor` say so.
 
 3. **Pricing estimates**: The batch rates for `gpt-5-nano` are labeled as estimates because OpenAI's documentation does not explicitly publish the batch discount for this model. Reconcile against your first live invoice to verify the actual rates.
 
-4. **Mid-stage abort not supported**: If a stage is running when the budget is exceeded, the stage will complete before the abort triggers. The orchestrator cannot interrupt a stage mid-execution.
+4. **In-flight calls finish**: an abort stops new work; LLM batches already submitted, Serper queries and fetches already in flight complete first.
 
 5. **Enforcement can be switched off, and one switch is easy to misread**: `G3O_COST_MONITOR_DRY_RUN=true` makes a budget overrun a **warning rather than an abort** — the run continues spending past its ceiling. It reports; it does not enforce. See "Two further controls" above.
 
