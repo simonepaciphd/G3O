@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import json
 import logging
 from pathlib import Path
@@ -625,6 +626,14 @@ def run_presweep(
         )
         summary["n_triaged_kept"] = sum(len(v) for v in triaged.values())
         tel.stage_end(span, counts_out=summary["n_triaged_kept"])
+        # Nothing after triage reads the discovery or filter records; only their
+        # counts, already in ``summary``. Release them before Stage 4: on the
+        # 50,000-institution run r20261004T181618Z-ed59 they were several GB of
+        # the RSS the kernel OOM-killed (2026-10-05, 2026-10-06). The artifacts
+        # on disk are untouched.
+        del discovery_general, discovery_site_restricted, discovery_evidence_open
+        del filter_general, filter_site_restricted
+        gc.collect()
         # Continuous cost check after Stage 3
         _record_and_track_stage_budget(monitor, config, plan.run_dir, "classify_triage", budget_exceeded_stages)
         # Check projection before next stage (Gap 2)
@@ -649,7 +658,7 @@ def run_presweep(
             empty_page_min_chars=config.empty_page_min_chars,
             max_workers=config.max_workers,
         )
-        summary["n_pages_scraped"] = sum(len(v) for v in scraped.values())
+        summary["n_pages_scraped"] = scraped.page_count()
         tel.stage_end(
             span,
             counts_out=summary["n_pages_scraped"],

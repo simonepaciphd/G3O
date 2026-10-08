@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import threading
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -93,9 +94,44 @@ REASON_CRAWL_DELAY_EXCEEDED = "crawl_delay_exceeded"
 REASON_HOST_UNREACHABLE = "host_unreachable"
 
 
+class ScrapedPages(Mapping[str, list[RenderedPage]]):
+    """Stage 4's output: institution id -> its pages, read from disk on access.
+
+    Stage 4 writes every page it keeps as an artifact before counting it, so the
+    artifact paths are a complete record of the stage's output. Holding the
+    paths instead of the parsed pages keeps Stage 4's memory flat in the number
+    of pages: on the 50,000-institution run ``r20261004T181618Z-ed59`` the
+    in-memory pages and the discovery dicts together exhausted the 8 GB host and
+    the kernel OOM-killed the run twice (2026-10-05, 2026-10-06).
+
+    ``self[inst_id]`` parses that institution's artifacts in the order Stage 4
+    produced them, every time it is called; consumers walk institution by
+    institution, so only one institution's pages are live at a time.
+    ``page_count()`` counts without reading.
+    """
+
+    def __init__(self, artifacts: dict[str, list[Path]]) -> None:
+        self._artifacts = artifacts
+
+    def __getitem__(self, inst_id: str) -> list[RenderedPage]:
+        return [
+            RenderedPage.model_validate_json(read_artifact(path))
+            for path in self._artifacts[inst_id]
+        ]
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._artifacts)
+
+    def __len__(self) -> int:
+        return len(self._artifacts)
+
+    def page_count(self) -> int:
+        return sum(len(paths) for paths in self._artifacts.values())
+
+
 def _read_existing_scraped(
     run_dir: Path, sample: list[dict[str, Any]]
-) -> dict[str, list[RenderedPage]]:
+) -> ScrapedPages:
     """Load Stage 4 output from disk for a stage already marked ``.done``.
 
     Unlike the per-URL resume guard in :func:`_scrape_one`, this path cannot
@@ -103,18 +139,21 @@ def _read_existing_scraped(
     on. An unparseable artifact therefore still raises and aborts, which is the
     loud failure the situation deserves — silently dropping the page here would
     shrink Stage 5's input with nothing but a ledger line to show for it.
+
+    Every artifact is parsed here, so the failure stays at this call; the parsed
+    page is then dropped and re-read by Stage 5 (:class:`ScrapedPages`).
     """
-    out: dict[str, list[RenderedPage]] = {}
+    out: dict[str, list[Path]] = {}
     for row in sample:
         inst_id = synth_institution_id(row)
         scrape_dir = institution_dir(run_dir, inst_id) / "scrape"
         if not scrape_dir.is_dir():
             continue
-        pages: list[RenderedPage] = []
-        for path in glob_artifacts(scrape_dir):
-            pages.append(RenderedPage.model_validate_json(read_artifact(path)))
-        out[inst_id] = pages
-    return out
+        paths = glob_artifacts(scrape_dir)
+        for path in paths:
+            RenderedPage.model_validate_json(read_artifact(path))
+        out[inst_id] = paths
+    return ScrapedPages(out)
 
 
 class _ThreadLocalRenderSessions:
@@ -203,7 +242,7 @@ def _scrape_one(
     sessions: _ThreadLocalRenderSessions,
     budget_seconds: float | None = None,
     breaker: HostBreaker | None = None,
-) -> tuple[str, list[RenderedPage]]:
+) -> tuple[str, list[Path]]:
     """Scrape one institution's kept URLs. Factored out of :func:`_run_scrape`
     (institution-level Stage-4 concurrency, 2026-07) so it can run in a worker
     thread.
@@ -245,7 +284,9 @@ def _scrape_one(
     inst_id = institution["institution_id"]
     scrape_dir = institution_dir(run_dir, inst_id) / "scrape"
     scrape_dir.mkdir(parents=True, exist_ok=True)
-    pages: list[RenderedPage] = []
+    # Artifact paths of the pages kept, in URL order — not the pages themselves
+    # (see :class:`ScrapedPages`).
+    pages: list[Path] = []
     render_session = sessions.session()
 
     def _record_render_attempt(
@@ -438,7 +479,7 @@ def _scrape_one(
                     run_dir, output_path, inst_id=inst_id, url=url, stage=stage
                 )
                 if cached is not None:
-                    pages.append(cached)
+                    pages.append(output_path)
                     scrape_telemetry.record(
                         run_dir, institution_id=inst_id, url=url,
                         outcome=scrape_telemetry.OUTCOME_SKIPPED_CACHED,
@@ -563,7 +604,7 @@ def _scrape_one(
             )
             if breaker is not None:
                 breaker.record_success(url)
-            pages.append(page)
+            pages.append(output_path)
     return inst_id, pages
 
 
@@ -584,7 +625,7 @@ def _run_scrape(
     host_failure_threshold: int | None = None,
     breaker: HostBreaker | None = None,
     max_workers: int = 1,
-) -> dict[str, list[RenderedPage]]:
+) -> ScrapedPages:
     """Stage 4 — scrape per (institution × kept URL).
 
     Per-URL idempotency (Q5=a, Session E 2026-05-09): when the per-run output
@@ -672,7 +713,7 @@ def _run_scrape(
         breaker = HostBreaker(host_failure_threshold)
     scrape_telemetry.ensure_ledger(run_dir)
     sessions = _ThreadLocalRenderSessions()
-    out: dict[str, list[RenderedPage]] = {}
+    out: dict[str, list[Path]] = {}
     results = run_concurrent(
         sample,
         lambda row: _scrape_one(
@@ -693,4 +734,4 @@ def _run_scrape(
     for inst_id, pages in results:
         out[inst_id] = pages
     mark_done(run_dir, stage, no_batch=True)
-    return out
+    return ScrapedPages(out)
