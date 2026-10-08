@@ -1184,6 +1184,43 @@ def test_stage4_skips_refetch_when_url_hash_file_exists(tmp_path: Path):
     assert by_url["https://x.example/b"] == "fresh-https://x.example/b"
 
 
+def test_stage4_output_holds_artifact_paths_not_pages(tmp_path: Path):
+    """Stage 4 keeps paths, not pages (OOM kills of r20261004T181618Z-ed59).
+
+    The pages it returns are re-read from the artifacts it wrote, in URL order,
+    equal to what was fetched; ``page_count`` counts without reading. The
+    stage-done resume path returns the same shape.
+    """
+    from g3o.run import presweep as ps
+    from g3o.run.presweep.stage_scrape import ScrapedPages
+
+    urls = ["https://x.example/b", "https://x.example/a"]
+    plan, inst_id, triaged = _stage4_resume_fixture(tmp_path, urls)
+
+    monkey = ps.stage_scrape.scrape_url
+    ps.stage_scrape.scrape_url = lambda url, **_: _fresh_page(url)  # type: ignore[assignment]
+    try:
+        out = ps._run_scrape(
+            plan.run_dir, plan.sample, triaged,
+            respect_robots=False, host_delay_seconds=0,
+        )
+    finally:
+        ps.stage_scrape.scrape_url = monkey  # type: ignore[assignment]
+
+    assert isinstance(out, ScrapedPages)
+    assert all(
+        isinstance(p, Path) for paths in out._artifacts.values() for p in paths
+    )
+    assert out.page_count() == 2
+    assert [p.url for p in out[inst_id]] == urls
+    assert out[inst_id] == [_fresh_page(u) for u in urls]
+
+    resumed = ps._run_scrape(plan.run_dir, plan.sample, triaged)
+    assert isinstance(resumed, ScrapedPages)
+    assert resumed.page_count() == 2
+    assert sorted(p.url for p in resumed[inst_id]) == sorted(urls)
+
+
 def _stage4_resume_fixture(tmp_path: Path, urls: list[str]):
     """A planned one-institution run plus its triage list, for the resume tests."""
     from g3o.run import presweep as ps

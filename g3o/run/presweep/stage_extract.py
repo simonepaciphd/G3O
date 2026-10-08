@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -125,7 +125,7 @@ def _count_existing_extracts(run_dir: Path, sample: list[dict[str, Any]]) -> int
 def _run_extract(
     run_dir: Path,
     sample: list[dict[str, Any]],
-    scraped: dict[str, list[RenderedPage]],
+    scraped: Mapping[str, list[RenderedPage]],
     *,
     institution_search_languages: str,
     search_languages_for: Callable[[dict[str, Any]], str] | None = None,
