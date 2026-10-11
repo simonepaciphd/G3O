@@ -1,0 +1,54 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/ajuste_llamado-48245",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:45:14Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1370461",
+      "id": "ajuste_llamado-48245",
+      "date": "2026-09-15T10:45:14Z",
+      "tag": [
+        "tenderAmendment"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "4-1",
+          "name": "Secretaría del Ministerio del Interior",
+          "identifier": {
+            "id": "4-1",
+            "legalName": "Secretaría del Ministerio del Interior"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Secretaría del Ministerio del Interior",
+        "id": "4-1"
+      },
+      "tender": {
+        "id": "1370461",
+        "tenderPeriod": {
+          "endDate": "2026-09-15T13:00:00Z"
+        },
+        "amendments": [
+          {
+            "id": "ajuste_llamado-48245",
+            "date": "2026-09-15T10:45:14Z",
+            "description": "ajuste_llamado",
+            "amendsReleaseID": "aclar_llamado-1370461-2",
+            "releaseID": "ajuste_llamado-48245"
+          }
+        ]
+      }
+    }
+  ]
+}

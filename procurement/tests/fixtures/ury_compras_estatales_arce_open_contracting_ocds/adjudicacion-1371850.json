@@ -1,0 +1,82 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371850",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:40:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371850",
+      "id": "adjudicacion-1371850",
+      "date": "2026-09-15T10:40:10Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R211396450014",
+          "name": "URUFARMA S.A.",
+          "identifier": {
+            "id": "R211396450014",
+            "legalName": "URUFARMA S.A."
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "7-5",
+          "name": "Dirección General de Servicios Ganaderos",
+          "identifier": {
+            "id": "7-5",
+            "legalName": "Dirección General de Servicios Ganaderos"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Dirección General de Servicios Ganaderos",
+        "id": "7-5"
+      },
+      "awards": [
+        {
+          "id": "R211396450014",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R211396450014",
+              "name": "URUFARMA S.A."
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "PROTECTOR SOLAR",
+              "classification": {
+                "id": "26364",
+                "description": "PROTECTOR SOLAR"
+              },
+              "quantity": 250,
+              "unit": {
+                "name": "FRASCO",
+                "id": "6",
+                "value": {
+                  "amount": 186.8,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

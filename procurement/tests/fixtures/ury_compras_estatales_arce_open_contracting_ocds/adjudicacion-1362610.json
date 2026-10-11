@@ -1,0 +1,123 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1362610",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:10:13Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1362610",
+      "id": "adjudicacion-1362610",
+      "date": "2026-09-15T10:10:13Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R040099750014",
+          "name": "BARBADOS S A",
+          "identifier": {
+            "id": "R040099750014",
+            "legalName": "BARBADOS S A"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R219825770010",
+          "name": "TODOGASTRO SAS",
+          "identifier": {
+            "id": "R219825770010",
+            "legalName": "TODOGASTRO SAS"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "3-18",
+          "name": "Comando General de la Armada",
+          "identifier": {
+            "id": "3-18",
+            "legalName": "Comando General de la Armada"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Comando General de la Armada",
+        "id": "3-18"
+      },
+      "awards": [
+        {
+          "id": "R040099750014",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R040099750014",
+              "name": "BARBADOS S A"
+            }
+          ],
+          "items": [
+            {
+              "id": "2-1",
+              "description": "HELADERA FAMILIAR",
+              "classification": {
+                "id": "4511",
+                "description": "HELADERA FAMILIAR"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 7999.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R219825770010",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R219825770010",
+              "name": "TODOGASTRO SAS"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "FREEZER HORIZONTAL",
+              "classification": {
+                "id": "7025",
+                "description": "FREEZER HORIZONTAL"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 29754.0984,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

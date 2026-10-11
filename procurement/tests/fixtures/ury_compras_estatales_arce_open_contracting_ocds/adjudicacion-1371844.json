@@ -1,0 +1,92 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371844",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:20:11Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371844",
+      "id": "adjudicacion-1371844",
+      "date": "2026-09-15T10:20:11Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R215550890018",
+          "name": "DE MARIA NUÑEZ SEBASTIAN RODOLFO",
+          "identifier": {
+            "id": "R215550890018",
+            "legalName": "DE MARIA NUÑEZ SEBASTIAN RODOLFO"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "26-15",
+          "name": "Hospital de Clínicas",
+          "identifier": {
+            "id": "26-15",
+            "legalName": "Hospital de Clínicas"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Hospital de Clínicas",
+        "id": "26-15"
+      },
+      "awards": [
+        {
+          "id": "R215550890018",
+          "status": "active",
+          "date": "2026-06-17T00:00:00Z",
+          "documents": [
+            {
+              "id": "resol-1371844",
+              "documentType": "awardNotice",
+              "url": "http://www.comprasestatales.gub.uy/Resoluciones/acta_1371844.pdf",
+              "datePublished": "2026-09-15T10:20:11Z",
+              "format": "application/pdf",
+              "language": "es"
+            }
+          ],
+          "suppliers": [
+            {
+              "id": "R215550890018",
+              "name": "DE MARIA NUÑEZ SEBASTIAN RODOLFO"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "REFORMA DE HOSPITAL",
+              "classification": {
+                "id": "72732",
+                "description": "REFORMA DE HOSPITAL"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 773900.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

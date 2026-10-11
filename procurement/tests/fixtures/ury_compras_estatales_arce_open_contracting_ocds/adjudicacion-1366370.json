@@ -1,0 +1,420 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1366370",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:40:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1366370",
+      "id": "adjudicacion-1366370",
+      "date": "2026-09-15T10:40:10Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R211371480017",
+          "name": "GUNTER SCHAAF SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R211371480017",
+            "legalName": "GUNTER SCHAAF SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R212074270016",
+          "name": "EMEDICAL S.A.",
+          "identifier": {
+            "id": "R212074270016",
+            "legalName": "EMEDICAL S.A."
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R212792120015",
+          "name": "CLAP LABORATORIOS S R L",
+          "identifier": {
+            "id": "R212792120015",
+            "legalName": "CLAP LABORATORIOS S R L"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R213320090013",
+          "name": "SUFARMA SOCIEDAD DE RESPONSABILIDAD LIMITADA",
+          "identifier": {
+            "id": "R213320090013",
+            "legalName": "SUFARMA SOCIEDAD DE RESPONSABILIDAD LIMITADA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R213790700012",
+          "name": "ELECTROMEDICAL S A",
+          "identifier": {
+            "id": "R213790700012",
+            "legalName": "ELECTROMEDICAL S A"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R214058390017",
+          "name": "SAKIRA SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R214058390017",
+            "legalName": "SAKIRA SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R214395670015",
+          "name": "LABIMED SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R214395670015",
+            "legalName": "LABIMED SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R219836710014",
+          "name": "W MEDICAL SA",
+          "identifier": {
+            "id": "R219836710014",
+            "legalName": "W MEDICAL SA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "29-5",
+          "name": "Hospital Maciel",
+          "identifier": {
+            "id": "29-5",
+            "legalName": "Hospital Maciel"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Hospital Maciel",
+        "id": "29-5"
+      },
+      "awards": [
+        {
+          "id": "R211371480017",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R211371480017",
+              "name": "GUNTER SCHAAF SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "7-1",
+              "description": "CANULA DE TRAQUEOSTOMIA CON BALON",
+              "classification": {
+                "id": "32695",
+                "description": "CANULA DE TRAQUEOSTOMIA CON BALON"
+              },
+              "quantity": 10,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 556.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "9-1",
+              "description": "CANULA DE TRAQUEOSTOMIA SIN BALON",
+              "classification": {
+                "id": "17786",
+                "description": "CANULA DE TRAQUEOSTOMIA SIN BALON"
+              },
+              "quantity": 25,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 530.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R212074270016",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R212074270016",
+              "name": "EMEDICAL S.A."
+            }
+          ],
+          "items": [
+            {
+              "id": "12-1",
+              "description": "FRASCO DE DRENAJE DE TORAX",
+              "classification": {
+                "id": "18861",
+                "description": "FRASCO DE DRENAJE DE TORAX"
+              },
+              "quantity": 9,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 3430.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R212792120015",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R212792120015",
+              "name": "CLAP LABORATORIOS S R L"
+            }
+          ],
+          "items": [
+            {
+              "id": "11-1",
+              "description": "EQUIPO PEP OSCILANTE",
+              "classification": {
+                "id": "74579",
+                "description": "EQUIPO PEP OSCILANTE"
+              },
+              "quantity": 15,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 2616.23,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R213320090013",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R213320090013",
+              "name": "SUFARMA SOCIEDAD DE RESPONSABILIDAD LIMITADA"
+            }
+          ],
+          "items": [
+            {
+              "id": "6-1",
+              "description": "ROPA CAMPO FENESTRADO EN TELA NO TEJIDA 40 G/M2 ESTERIL",
+              "classification": {
+                "id": "74072",
+                "description": "ROPA CAMPO FENESTRADO EN TELA NO TEJIDA 40 G/M2 ESTERIL"
+              },
+              "quantity": 2000,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 12.6,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R213790700012",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R213790700012",
+              "name": "ELECTROMEDICAL S A"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "PROLONGADOR (ALARGUE) DE CATETER",
+              "classification": {
+                "id": "20221",
+                "description": "PROLONGADOR (ALARGUE) DE CATETER"
+              },
+              "quantity": 200,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 11.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "5-1",
+              "description": "REPUESTO PARA ESFIGMOMANOMETRO",
+              "classification": {
+                "id": "17566",
+                "description": "REPUESTO PARA ESFIGMOMANOMETRO"
+              },
+              "quantity": 30,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 465.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R214058390017",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R214058390017",
+              "name": "SAKIRA SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "10-1",
+              "description": "COLLAR PHILADELPHIA ADULTO PARA INMOVILIZACION CERVICAL",
+              "classification": {
+                "id": "18438",
+                "description": "COLLAR PHILADELPHIA ADULTO PARA INMOVILIZACION CERVICAL"
+              },
+              "quantity": 15,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 390.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R214395670015",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R214395670015",
+              "name": "LABIMED SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "4-1",
+              "description": "REPUESTO Y/O ACCESORIO PARA BRONCOSCOPIO RIGIDO-ADULTO",
+              "classification": {
+                "id": "65499",
+                "description": "REPUESTO Y/O ACCESORIO PARA BRONCOSCOPIO RIGIDO-ADULTO"
+              },
+              "quantity": 4,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 72072.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R219836710014",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R219836710014",
+              "name": "W MEDICAL SA"
+            }
+          ],
+          "items": [
+            {
+              "id": "2-1",
+              "description": "APOSITO ESTERIL DE CARBON ACTIVADO",
+              "classification": {
+                "id": "26051",
+                "description": "APOSITO ESTERIL DE CARBON ACTIVADO"
+              },
+              "quantity": 200,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 78.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "13-1",
+              "description": "HIDROGEL CON ALGINATO",
+              "classification": {
+                "id": "36928",
+                "description": "HIDROGEL CON ALGINATO"
+              },
+              "quantity": 9,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 110.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

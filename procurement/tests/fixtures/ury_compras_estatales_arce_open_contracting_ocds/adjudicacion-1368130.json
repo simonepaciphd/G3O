@@ -1,0 +1,92 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1368130",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:25:08Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1368130",
+      "id": "adjudicacion-1368130",
+      "date": "2026-09-15T10:25:08Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R215217410015",
+          "name": "SITEB LTDA",
+          "identifier": {
+            "id": "R215217410015",
+            "legalName": "SITEB LTDA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "29-78",
+          "name": "Ctro Inf.y Ref.Nal de Red Drogas",
+          "identifier": {
+            "id": "29-78",
+            "legalName": "Ctro Inf.y Ref.Nal de Red Drogas"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Ctro Inf.y Ref.Nal de Red Drogas",
+        "id": "29-78"
+      },
+      "awards": [
+        {
+          "id": "R215217410015",
+          "status": "active",
+          "date": "2026-09-09T00:00:00Z",
+          "documents": [
+            {
+              "id": "resol-1368130",
+              "documentType": "awardNotice",
+              "url": "http://www.comprasestatales.gub.uy/Resoluciones/acta_1368130.pdf",
+              "datePublished": "2026-09-15T10:25:08Z",
+              "format": "application/pdf",
+              "language": "es"
+            }
+          ],
+          "suppliers": [
+            {
+              "id": "R215217410015",
+              "name": "SITEB LTDA"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "BANDERA NACIONAL",
+              "classification": {
+                "id": "12",
+                "description": "BANDERA NACIONAL"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1950.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

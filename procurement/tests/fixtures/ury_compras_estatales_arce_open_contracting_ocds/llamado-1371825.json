@@ -1,0 +1,90 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/llamado-1371825",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:30:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371825",
+      "id": "llamado-1371825",
+      "date": "2026-09-15T09:30:10Z",
+      "tag": [
+        "tender"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "29-5",
+          "name": "Hospital Maciel",
+          "identifier": {
+            "id": "29-5",
+            "legalName": "Hospital Maciel"
+          },
+          "contactPoint": {
+            "name": "ANDREA SOLEDAD BADELL CANTERO",
+            "email": "rrmm.maciel@asse.com.uy",
+            "telephone": "29153000 INT 1140",
+            "faxNumber": "29153000 INT 1140"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Hospital Maciel",
+        "id": "29-5"
+      },
+      "tender": {
+        "id": "1371825",
+        "title": "Compra Directa 1563/2026",
+        "description": "ADQUISICIÓN ARTÍCULOS DEL SERVICIO BACTERIOLOGÍA *** IMPORTANTE GUIARSE/ PRIORIZAR POR ARCHIVO ADJUNTO***",
+        "status": "active",
+        "procuringEntity": {
+          "name": "Hospital Maciel",
+          "id": "29-5"
+        },
+        "items": [
+          {
+            "id": "3",
+            "description": "CRIOVIAL CON CRIOPERLAS PARA CONSERVACION DE CEPAS MICROBIOLOGICAS",
+            "classification": {
+              "id": "76892",
+              "description": "CRIOVIAL CON CRIOPERLAS PARA CONSERVACION DE CEPAS MICROBIOLOGICAS"
+            },
+            "quantity": 3,
+            "unit": {
+              "name": "KIT",
+              "id": "32"
+            }
+          }
+        ],
+        "procurementMethod": "open",
+        "procurementMethodDetails": "Compra Directa",
+        "submissionMethod": [
+          "electronicSubmission"
+        ],
+        "tenderPeriod": {
+          "startDate": "2026-09-15T09:30:10Z",
+          "endDate": "2026-09-17T10:00:00Z"
+        },
+        "hasEnquiries": false,
+        "documents": [
+          {
+            "id": "pliego-1371825",
+            "documentType": "biddingDocuments",
+            "url": "http://www.comprasestatales.gub.uy/Pliegos/pedido_1371825.pdf",
+            "datePublished": "2026-09-15T09:30:10Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ]
+      }
+    }
+  ]
+}

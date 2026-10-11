@@ -1,0 +1,92 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1370835",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:00:13Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1370835",
+      "id": "adjudicacion-1370835",
+      "date": "2026-09-15T10:00:13Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R210774960019",
+          "name": "APITER S.A.",
+          "identifier": {
+            "id": "R210774960019",
+            "legalName": "APITER S.A."
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "29-2",
+          "name": "Red de Atención Primaria Area Metropolitana",
+          "identifier": {
+            "id": "29-2",
+            "legalName": "Red de Atención Primaria Area Metropolitana"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Red de Atención Primaria Area Metropolitana",
+        "id": "29-2"
+      },
+      "awards": [
+        {
+          "id": "R210774960019",
+          "status": "active",
+          "date": "2026-08-20T00:00:00Z",
+          "documents": [
+            {
+              "id": "resol-1370835",
+              "documentType": "awardNotice",
+              "url": "http://www.comprasestatales.gub.uy/Resoluciones/acta_1370835.pdf",
+              "datePublished": "2026-09-15T10:00:13Z",
+              "format": "application/pdf",
+              "language": "es"
+            }
+          ],
+          "suppliers": [
+            {
+              "id": "R210774960019",
+              "name": "APITER S.A."
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "VENDA CON PASTA DE UNNA",
+              "classification": {
+                "id": "39176",
+                "description": "VENDA CON PASTA DE UNNA"
+              },
+              "quantity": 120,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 890.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/llamado-1371767",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:20:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371767",
+      "id": "llamado-1371767",
+      "date": "2026-09-15T09:20:10Z",
+      "tag": [
+        "tender"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "26-9",
+          "name": "Facultad de Odontología",
+          "identifier": {
+            "id": "26-9",
+            "legalName": "Facultad de Odontología"
+          },
+          "contactPoint": {
+            "name": "Compras - Facultad de Odontología",
+            "email": "compras@odon.edu.uy",
+            "telephone": "24873048",
+            "faxNumber": "24873048"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Facultad de Odontología",
+        "id": "26-9"
+      },
+      "tender": {
+        "id": "1371767",
+        "title": "Concurso de Precios 7/2026",
+        "description": "Adquisición de material bibliográfico para Facultad de Odontología ",
+        "status": "active",
+        "procuringEntity": {
+          "name": "Facultad de Odontología",
+          "id": "26-9"
+        },
+        "items": [
+          {
+            "id": "2",
+            "description": "LIBRO",
+            "classification": {
+              "id": "9924",
+              "description": "LIBRO"
+            },
+            "quantity": 59,
+            "unit": {
+              "name": "UNIDAD",
+              "id": "22"
+            }
+          }
+        ],
+        "procurementMethod": "open",
+        "procurementMethodDetails": "Concurso de Precios",
+        "submissionMethod": [
+          "electronicSubmission"
+        ],
+        "submissionMethodDetails": "Fecha solicitud de prorroga: 2026-10-02T00:00:00Z;Fecha y hora acto de apertura: 2026-10-09T10:00:00Z",
+        "tenderPeriod": {
+          "startDate": "2026-09-15T09:20:10Z",
+          "endDate": "2026-10-09T10:00:00Z"
+        },
+        "enquiryPeriod": {
+          "startDate": "2026-09-15T09:20:10Z",
+          "endDate": "2026-10-02T00:00:00Z"
+        },
+        "hasEnquiries": false,
+        "documents": [
+          {
+            "id": "pliego-1371767",
+            "documentType": "biddingDocuments",
+            "url": "http://www.comprasestatales.gub.uy/Pliegos/pliego_1371767.pdf",
+            "datePublished": "2026-09-15T09:20:10Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ]
+      }
+    }
+  ]
+}

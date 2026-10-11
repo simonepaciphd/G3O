@@ -1,0 +1,82 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371822",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:20:12Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371822",
+      "id": "adjudicacion-1371822",
+      "date": "2026-09-15T09:20:12Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R120073700011",
+          "name": "ALVAREZ LIMITADA",
+          "identifier": {
+            "id": "R120073700011",
+            "legalName": "ALVAREZ LIMITADA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "29-82",
+          "name": "Red de Atención Primaria de Río Negro",
+          "identifier": {
+            "id": "29-82",
+            "legalName": "Red de Atención Primaria de Río Negro"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Red de Atención Primaria de Río Negro",
+        "id": "29-82"
+      },
+      "awards": [
+        {
+          "id": "R120073700011",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R120073700011",
+              "name": "ALVAREZ LIMITADA"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "NEUMATICO PARA AUTOMOVILES, CAMIONETAS Y MICROBUSES",
+              "classification": {
+                "id": "7570",
+                "description": "NEUMATICO PARA AUTOMOVILES, CAMIONETAS Y MICROBUSES"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 5586.06,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

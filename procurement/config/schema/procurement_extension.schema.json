@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://g3o/procurement/procurement_extension.schema.json",
+  "title": "G3O Procurement Extension Record",
+  "description": "Secondary artifact, one row per contract-conformant primary row, joined 1:1 on record_id. Holds ONLY what a procurement document surfaces that the 39-field output contract v2.0 cannot hold (docs/procurement-extension-spec.md section 4). This table is additive detail: it never carries the relevance verdict, the activity typology, or the institution link - those live in the primary row and in institution_link. Every field must be evidenced in the document; never inferred. Created 2026-08-03 per spec section 7.",
+  "type": "object",
+  "required": ["record_id", "pipeline_version"],
+  "properties": {
+    "record_id": {
+      "type": "string",
+      "description": "Join key to the primary contract-conformant row and to institution_link."
+    },
+
+    "value_amount": {
+      "type": ["number", "null"],
+      "description": "Section 4.1. As stated in the document. null when the document states no value."
+    },
+    "value_currency": { "type": ["string", "null"], "description": "ISO 4217." },
+    "value_is_estimated": {
+      "type": ["boolean", "null"],
+      "description": "true = tender estimate, false = awarded sum, null = document does not distinguish."
+    },
+    "value_covers": {
+      "type": "string",
+      "enum": ["single_award", "framework_ceiling", "annual", "unknown"],
+      "default": "unknown",
+      "description": "A framework ceiling is not a spend figure. Do not sum across mixed value_covers."
+    },
+
+    "procedure_type": {
+      "type": "string",
+      "enum": [
+        "open",
+        "restricted",
+        "negotiated",
+        "direct_award",
+        "framework_establishment",
+        "framework_calloff",
+        "unknown"
+      ],
+      "default": "unknown",
+      "description": "Section 4.2. framework_establishment / framework_calloff also drive the attribution rule in spec section 6.3."
+    },
+    "bidder_count": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Competed vs. sole-sourced is a governance signal. null = not stated."
+    },
+    "supplier_role": {
+      "type": "string",
+      "enum": ["prime", "reseller", "integrator", "unknown"],
+      "default": "unknown",
+      "description": "Most governments buy Copilot from a reseller, not from Microsoft. The contract's single vendor field (D17) cannot express this."
+    },
+    "supplier_national_id": { "type": ["string", "null"], "description": "Registry id where stated." },
+    "contract_start_date": { "type": ["string", "null"], "format": "date" },
+    "contract_end_date": { "type": ["string", "null"], "format": "date" },
+    "lot_identifier": { "type": ["string", "null"] },
+
+    "has_audit_rights": {
+      "type": "string",
+      "enum": ["yes", "no", "not_documented"],
+      "default": "not_documented",
+      "description": "Section 4.3. Deepens the contract's has_risk_assessment flag; it does not replace it. Code both."
+    },
+    "ip_ownership": {
+      "type": "string",
+      "enum": ["buyer", "supplier", "shared", "not_documented"],
+      "default": "not_documented"
+    },
+    "liability_terms": {
+      "type": ["string", "null"],
+      "maxLength": 200,
+      "description": "Short verbatim excerpt, original language preserved. Never paraphrase."
+    },
+    "data_residency_clause": {
+      "type": "string",
+      "enum": ["yes", "no", "not_documented"],
+      "default": "not_documented",
+      "description": "Deepens the contract's has_data_classification flag."
+    },
+    "exit_lockin_provision": {
+      "type": ["string", "null"],
+      "maxLength": 200,
+      "description": "Short verbatim anti-lock-in / portability requirement. null when the document states none; do not reduce a substantive clause to an invented yes/no taxonomy."
+    },
+    "penalty_clause": {
+      "type": ["string", "null"],
+      "maxLength": 200,
+      "description": "Short verbatim excerpt."
+    },
+    "human_oversight_requirement": {
+      "type": "string",
+      "enum": ["yes", "no", "not_documented"],
+      "default": "not_documented",
+      "description": "Deepens the contract's has_human_oversight flag. Contractual, not aspirational: a 'responsible AI' slogan is not a requirement."
+    },
+
+    "source_id": { "type": ["string", "null"], "description": "Provenance (spec section 3): adapter source id." },
+    "source_repo_name": { "type": ["string", "null"] },
+    "native_id": { "type": ["string", "null"], "description": "Id as issued by the source." },
+    "ocds_ocid": { "type": ["string", "null"] },
+    "pipeline_version": { "type": "string" },
+    "classifier_version": { "type": ["string", "null"] },
+    "raw_payload_ref": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

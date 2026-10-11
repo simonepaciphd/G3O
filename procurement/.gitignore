@@ -1,0 +1,39 @@
+# Git-ready ignore rules for the later migration off Drive.
+# NOTE: do NOT `git init` inside the Drive folder — a live .git corrupts under
+# Drive File Stream sync. This file is here so the eventual repo starts clean.
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.eggs/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# --- Secrets / credentials (API keys for procurement portals + LLM) ---
+.env
+*.env
+config/secrets.yaml
+config/sources.local.yaml
+credentials/
+
+# --- Ephemeral fetched data (raw payload cache; large, reproducible) ---
+data_cache/
+!data_cache/.gitkeep
+
+# --- Outputs: keep the schema, not the generated data ---
+outputs/staging/*
+outputs/per_source/*
+!outputs/**/.gitkeep
+
+# --- OS / Drive cruft ---
+desktop.ini
+.DS_Store
+
+# --- Local tracker snapshots (source of truth is the Google Sheet) ---
+*.xlsx

@@ -1,0 +1,63 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/aclar_llamado-1366688-19",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:21:01Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1366688",
+      "id": "aclar_llamado-1366688-19",
+      "date": "2026-09-15T10:21:01Z",
+      "tag": [
+        "tenderUpdate"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "66-1",
+          "name": "Administración de las Obras Sanitarias del Estado",
+          "identifier": {
+            "id": "66-1",
+            "legalName": "Administración de las Obras Sanitarias del Estado"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Administración de las Obras Sanitarias del Estado",
+        "id": "66-1"
+      },
+      "tender": {
+        "id": "1366688",
+        "hasEnquiries": true,
+        "documents": [
+          {
+            "id": "aclar-llamado-19",
+            "documentType": "clarifications",
+            "description": "Aclar_llamado_20006784_3.doc",
+            "url": "http://www.comprasestatales.gub.uy/Aclaraciones/aclar_llamado_1366688_19.doc",
+            "datePublished": "2026-09-15T10:21:01Z",
+            "format": "application/msword",
+            "language": "es"
+          }
+        ],
+        "amendments": [
+          {
+            "id": "aclar_llamado-1366688-19",
+            "date": "2026-09-15T10:21:01Z",
+            "description": "aclar_llamado",
+            "amendsReleaseID": "aclar_llamado-1366688-18",
+            "releaseID": "aclar_llamado-1366688-19"
+          }
+        ]
+      }
+    }
+  ]
+}

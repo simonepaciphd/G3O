@@ -1,0 +1,73 @@
+# Per-source configuration — TEMPLATE.
+# Copy to `config/sources.yaml` (git-ignored is optional; this file is the shape)
+# and generate one entry per non-`manual` repository from the tracker sheet.
+# See docs/source-registry.md for the tracker -> config mapping.
+#
+# Secrets (API keys) are NOT stored here. Reference them by name under `auth`
+# and put the values in config/secrets.yaml (git-ignored).
+
+defaults:
+  # Applied to every source unless overridden per-entry.
+  request_timeout_s: 30
+  rate_limit_per_min: 60
+  retry_max: 3
+  retry_backoff_s: 5
+  cache_dir: data_cache        # raw payloads cached here per source_id
+
+sources:
+
+  # --- Example: an OCDS API source (the reuse pool) --------------------------
+  - source_id: chl_mercadopublico          # <iso3_lower>_<slug(repo_name)>
+    country_iso3: CHL
+    country_name: Chile
+    repo_name: Mercado Público (ChileCompra)
+    access_mode: api                        # api | bulk | scrape   (manual = excluded)
+    is_ocds: true                           # true -> core OCDS extractor/standardizer
+    coverage_type: both                     # tenders | awards | both
+    verification_status: unverified_snapshot # change only after endpoint/auth/pagination/rate-limit checks
+    base_url: https://datos-abiertos.chilecompra.cl   # from tracker url_FIXED
+    ocds_base_url: https://apis.mercadopublico.cl     # if different from base_url
+    auth:
+      type: none                            # none | api_key | oauth
+      # key_ref: CHL_MP_API_KEY             # -> resolved from config/secrets.yaml / env
+    pagination:
+      style: page                           # page | cursor | offset  (adapter-specific)
+      page_size: 100
+    notes: "Verify endpoint is live and key-free before building."
+
+  # --- Example: a bulk (file download) source --------------------------------
+  - source_id: aus_austender
+    country_iso3: AUS
+    country_name: Australia
+    repo_name: AusTender
+    access_mode: bulk
+    is_ocds: true
+    coverage_type: both
+    verification_status: unverified_snapshot
+    base_url: https://data.gov.au/data/dataset/historical-australian-government-contract-data
+    bulk:
+      format: csv                           # csv | json | xml | zip | ocds_release_package
+      # release_index_url: ...              # page/endpoint listing the downloadable files
+    auth:
+      type: none
+
+  # --- Example: a scrape source ----------------------------------------------
+  - source_id: xxx_exampleportal
+    country_iso3: XXX
+    country_name: Example
+    repo_name: Example Procurement Portal
+    access_mode: scrape
+    is_ocds: false                          # non-OCDS -> needs a field_map in extract()
+    coverage_type: tenders
+    verification_status: unverified_snapshot
+    base_url: https://example.gov/procurement/search
+    scrape:
+      search_path: /search
+      results_selector: ".tender-result"    # illustrative; adapter defines parsing
+      respect_robots: true
+      polite_delay_s: 2
+    auth:
+      type: none
+    field_map:                              # non-OCDS: map source fields -> intermediate keys
+      title: "h2.tender-title"
+      # ... RA fills these per portal

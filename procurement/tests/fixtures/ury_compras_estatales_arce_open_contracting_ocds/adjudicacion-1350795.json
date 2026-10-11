@@ -1,0 +1,92 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1350795",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:20:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1350795",
+      "id": "adjudicacion-1350795",
+      "date": "2026-09-15T10:20:10Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R211004160019",
+          "name": "JOSE CITTADINO DONATO Y CIA. S.C.",
+          "identifier": {
+            "id": "R211004160019",
+            "legalName": "JOSE CITTADINO DONATO Y CIA. S.C."
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "29-8",
+          "name": "Instituto Nacional del Cáncer",
+          "identifier": {
+            "id": "29-8",
+            "legalName": "Instituto Nacional del Cáncer"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Instituto Nacional del Cáncer",
+        "id": "29-8"
+      },
+      "awards": [
+        {
+          "id": "R211004160019",
+          "status": "active",
+          "date": "2026-08-14T00:00:00Z",
+          "documents": [
+            {
+              "id": "resol-1350795",
+              "documentType": "awardNotice",
+              "url": "http://www.comprasestatales.gub.uy/Resoluciones/acta_1350795.pdf",
+              "datePublished": "2026-09-15T10:20:10Z",
+              "format": "application/pdf",
+              "language": "es"
+            }
+          ],
+          "suppliers": [
+            {
+              "id": "R211004160019",
+              "name": "JOSE CITTADINO DONATO Y CIA. S.C."
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "HUEVO DE GALLINA",
+              "classification": {
+                "id": "3070",
+                "description": "HUEVO DE GALLINA"
+              },
+              "quantity": 3240,
+              "unit": {
+                "name": "DOCENA",
+                "id": "23",
+                "value": {
+                  "amount": 78.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

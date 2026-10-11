@@ -1,0 +1,62 @@
+{
+  "uri": "https://ocds.example.org/releases/synthetic-0001",
+  "version": "1.1",
+  "releases": [
+    {
+      "ocid": "ocds-synthetic-0001",
+      "id": "synthetic-0001-award-01",
+      "date": "2026-03-14T09:00:00Z",
+      "tag": ["award"],
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "ORG-SYN-001",
+          "name": "Ministerio de Administración Pública (SYNTHETIC)",
+          "roles": ["buyer", "procuringEntity"],
+          "identifier": { "scheme": "XX-NATIONAL", "id": "NAT-4471-SYN" },
+          "contactPoint": {
+            "name": "Oficina de Contratación",
+            "email": "contrataciones@ministerio.example.org",
+            "url": "https://ministerio.example.org/contrataciones"
+          }
+        },
+        {
+          "id": "ORG-SYN-900",
+          "name": "Distribuidora Regional de Software SA (SYNTHETIC)",
+          "roles": ["supplier"],
+          "identifier": { "scheme": "XX-REGISTRY", "id": "SUP-9902-SYN" }
+        }
+      ],
+      "buyer": { "id": "ORG-SYN-001", "name": "Ministerio de Administración Pública (SYNTHETIC)" },
+      "tender": {
+        "id": "synthetic-0001",
+        "title": "Licencias de IA generativa para redacción de documentos internos",
+        "description": "Adquisición de 500 licencias de una plataforma de inteligencia artificial generativa (large language model) para asistencia en redacción y resumen de documentos administrativos.",
+        "procurementMethod": "open",
+        "numberOfTenderers": 4,
+        "url": "https://compras.example.org/procesos/synthetic-0001",
+        "value": { "amount": 480000, "currency": "EUR" }
+      },
+      "awards": [
+        {
+          "id": "synthetic-0001-award-01",
+          "date": "2026-03-10T00:00:00Z",
+          "status": "active",
+          "value": { "amount": 452300.5, "currency": "EUR" },
+          "suppliers": [
+            { "id": "ORG-SYN-900", "name": "Distribuidora Regional de Software SA (SYNTHETIC)" }
+          ],
+          "relatedLots": ["lot-1"]
+        }
+      ],
+      "contracts": [
+        {
+          "id": "synthetic-0001-contract-01",
+          "awardID": "synthetic-0001-award-01",
+          "dateSigned": "2026-03-12T00:00:00Z",
+          "period": { "startDate": "2026-04-01T00:00:00Z", "endDate": "2029-03-31T00:00:00Z" }
+        }
+      ]
+    }
+  ]
+}

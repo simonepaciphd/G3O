@@ -1,0 +1,63 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/aclar_llamado-1347192-21",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:57:00Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1347192",
+      "id": "aclar_llamado-1347192-21",
+      "date": "2026-09-15T09:57:00Z",
+      "tag": [
+        "tenderUpdate"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "4-1",
+          "name": "Secretaría del Ministerio del Interior",
+          "identifier": {
+            "id": "4-1",
+            "legalName": "Secretaría del Ministerio del Interior"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Secretaría del Ministerio del Interior",
+        "id": "4-1"
+      },
+      "tender": {
+        "id": "1347192",
+        "hasEnquiries": true,
+        "documents": [
+          {
+            "id": "aclar-llamado-21",
+            "documentType": "clarifications",
+            "description": "Anexo XII",
+            "url": "http://www.comprasestatales.gub.uy/Aclaraciones/aclar_llamado_1347192_21.pdf",
+            "datePublished": "2026-09-15T09:57:00Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ],
+        "amendments": [
+          {
+            "id": "aclar_llamado-1347192-21",
+            "date": "2026-09-15T09:57:00Z",
+            "description": "aclar_llamado",
+            "amendsReleaseID": "aclar_llamado-1347192-20",
+            "releaseID": "aclar_llamado-1347192-21"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,730 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1361213",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:45:11Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1361213",
+      "id": "adjudicacion-1361213",
+      "date": "2026-09-15T10:45:11Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R020529560016",
+          "name": "ALONSO BRUSCIANI MARTIN ENRIQUE",
+          "identifier": {
+            "id": "R020529560016",
+            "legalName": "ALONSO BRUSCIANI MARTIN ENRIQUE"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R210000400017",
+          "name": "FIERRO VIGNOLI S A FIVISA",
+          "identifier": {
+            "id": "R210000400017",
+            "legalName": "FIERRO VIGNOLI S A FIVISA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R210090180011",
+          "name": "VARELA HNOS. SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R210090180011",
+            "legalName": "VARELA HNOS. SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R210118730010",
+          "name": "H RAFULS CAMOU S A",
+          "identifier": {
+            "id": "R210118730010",
+            "legalName": "H RAFULS CAMOU S A"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R211454500015",
+          "name": "MERCOLUZ S A",
+          "identifier": {
+            "id": "R211454500015",
+            "legalName": "MERCOLUZ S A"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R211598530019",
+          "name": "POMPLIN S A",
+          "identifier": {
+            "id": "R211598530019",
+            "legalName": "POMPLIN S A"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R213673710011",
+          "name": "ARANIL S.A.",
+          "identifier": {
+            "id": "R213673710011",
+            "legalName": "ARANIL S.A."
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R214002370010",
+          "name": "SETARIL SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R214002370010",
+            "legalName": "SETARIL SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R214895360015",
+          "name": "NILECOR SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R214895360015",
+            "legalName": "NILECOR SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R217009690015",
+          "name": "SANQUILCO SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R217009690015",
+            "legalName": "SANQUILCO SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R217440130015",
+          "name": "PRIMOSUR S.R.L.",
+          "identifier": {
+            "id": "R217440130015",
+            "legalName": "PRIMOSUR S.R.L."
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "4-26",
+          "name": "Instituto Nacional de Rehabilitación",
+          "identifier": {
+            "id": "4-26",
+            "legalName": "Instituto Nacional de Rehabilitación"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Instituto Nacional de Rehabilitación",
+        "id": "4-26"
+      },
+      "awards": [
+        {
+          "id": "R020529560016",
+          "status": "active",
+          "date": "2026-08-12T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R020529560016",
+              "name": "ALONSO BRUSCIANI MARTIN ENRIQUE"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "CARRO DE LIMPIEZA",
+              "classification": {
+                "id": "4457",
+                "description": "CARRO DE LIMPIEZA"
+              },
+              "quantity": 5,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 4400.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R210000400017",
+          "status": "active",
+          "date": "2026-08-12T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R210000400017",
+              "name": "FIERRO VIGNOLI S A FIVISA"
+            }
+          ],
+          "items": [
+            {
+              "id": "3-1",
+              "description": "ESCOBILLON DE PLASTICO",
+              "classification": {
+                "id": "28374",
+                "description": "ESCOBILLON DE PLASTICO"
+              },
+              "quantity": 15,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 121.82,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R210090180011",
+          "status": "active",
+          "date": "2026-08-12T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R210090180011",
+              "name": "VARELA HNOS. SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "12-1",
+              "description": "CERA PARA PISO DE MADERA",
+              "classification": {
+                "id": "1242",
+                "description": "CERA PARA PISO DE MADERA"
+              },
+              "quantity": 5,
+              "unit": {
+                "name": "L",
+                "id": "12",
+                "value": {
+                  "amount": 165.02,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "24-1",
+              "description": "TIJERA PARA ESQUILAR",
+              "classification": {
+                "id": "14121",
+                "description": "TIJERA PARA ESQUILAR"
+              },
+              "quantity": 10,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 280.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R210118730010",
+          "status": "active",
+          "date": "2026-08-12T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R210118730010",
+              "name": "H RAFULS CAMOU S A"
+            }
+          ],
+          "items": [
+            {
+              "id": "7-1",
+              "description": "FRANELA",
+              "classification": {
+                "id": "214",
+                "description": "FRANELA"
+              },
+              "quantity": 19,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 15.48,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "8-1",
+              "description": "LIQUIDO LIMPIADOR DESODORANTE (CONCENTRADO)",
+              "classification": {
+                "id": "14687",
+                "description": "LIQUIDO LIMPIADOR DESODORANTE (CONCENTRADO)"
+              },
+              "quantity": 25,
+              "unit": {
+                "name": "L",
+                "id": "12",
+                "value": {
+                  "amount": 31.44,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "11-1",
+              "description": "CERA PARA PISO FLOTANTE Y PLASTIFICADO",
+              "classification": {
+                "id": "73451",
+                "description": "CERA PARA PISO FLOTANTE Y PLASTIFICADO"
+              },
+              "quantity": 5,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 54.78,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "17-1",
+              "description": "BALDE PLASTICO",
+              "classification": {
+                "id": "78",
+                "description": "BALDE PLASTICO"
+              },
+              "quantity": 15,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 61.65,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R211454500015",
+          "status": "active",
+          "date": "2026-08-12T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R211454500015",
+              "name": "MERCOLUZ S A"
+            }
+          ],
+          "items": [
+            {
+              "id": "2-1",
+              "description": "ASPIRADORA INDUSTRIAL",
+              "classification": {
+                "id": "35383",
+                "description": "ASPIRADORA INDUSTRIAL"
+              },
+              "quantity": 5,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 2173.05,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R211598530019",
+          "status": "active",
+          "date": "2026-08-12T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R211598530019",
+              "name": "POMPLIN S A"
+            }
+          ],
+          "items": [
+            {
+              "id": "4-1",
+              "description": "ESCOBA",
+              "classification": {
+                "id": "8937",
+                "description": "ESCOBA"
+              },
+              "quantity": 16,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 56.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "5-1",
+              "description": "LAMPAZO DE GOMA CON MANGO",
+              "classification": {
+                "id": "34752",
+                "description": "LAMPAZO DE GOMA CON MANGO"
+              },
+              "quantity": 17,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 59.5,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "6-1",
+              "description": "PAÑO PARA PISO",
+              "classification": {
+                "id": "215",
+                "description": "PAÑO PARA PISO"
+              },
+              "quantity": 18,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 25.889,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R213673710011",
+          "status": "active",
+          "date": "2026-08-12T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R213673710011",
+              "name": "ARANIL S.A."
+            }
+          ],
+          "items": [
+            {
+              "id": "13-1",
+              "description": "LIMPIAVIDRIOS LIQUIDO",
+              "classification": {
+                "id": "42",
+                "description": "LIMPIAVIDRIOS LIQUIDO"
+              },
+              "quantity": 10,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 95.34,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "14-1",
+              "description": "LUSTRAMUEBLE",
+              "classification": {
+                "id": "13516",
+                "description": "LUSTRAMUEBLE"
+              },
+              "quantity": 5,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 135.68,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "15-1",
+              "description": "PULIDOR",
+              "classification": {
+                "id": "2542",
+                "description": "PULIDOR"
+              },
+              "quantity": 5,
+              "unit": {
+                "name": "KG",
+                "id": "11",
+                "value": {
+                  "amount": 65.79,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "18-1",
+              "description": "BOLSA DE PLASTICO BIODEGRADABLE O COMPOSTABLE PARA RESIDUOS",
+              "classification": {
+                "id": "100541",
+                "description": "BOLSA DE PLASTICO BIODEGRADABLE O COMPOSTABLE PARA RESIDUOS"
+              },
+              "quantity": 150,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 3.17,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "20-1",
+              "description": "GUANTES DE GOMA LARGOS DE USO DOMESTICO",
+              "classification": {
+                "id": "14670",
+                "description": "GUANTES DE GOMA LARGOS DE USO DOMESTICO"
+              },
+              "quantity": 40,
+              "unit": {
+                "name": "PAR",
+                "id": "19",
+                "value": {
+                  "amount": 24.81,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "21-1",
+              "description": "GUANTES DE GOMA LARGOS DE USO DOMESTICO",
+              "classification": {
+                "id": "14670",
+                "description": "GUANTES DE GOMA LARGOS DE USO DOMESTICO"
+              },
+              "quantity": 40,
+              "unit": {
+                "name": "PAR",
+                "id": "19",
+                "value": {
+                  "amount": 24.81,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "25-1",
+              "description": "CUERDA DE ALGODON",
+              "classification": {
+                "id": "32533",
+                "description": "CUERDA DE ALGODON"
+              },
+              "quantity": 50,
+              "unit": {
+                "name": "M",
+                "id": "14",
+                "value": {
+                  "amount": 6.09,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R214002370010",
+          "status": "active",
+          "date": "2026-08-12T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R214002370010",
+              "name": "SETARIL SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "9-1",
+              "description": "SOLUCION DE HIPOCLORITO DE SODIO",
+              "classification": {
+                "id": "7738",
+                "description": "SOLUCION DE HIPOCLORITO DE SODIO"
+              },
+              "quantity": 25,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 33.5,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "10-1",
+              "description": "DETERGENTE CONCENTRADO",
+              "classification": {
+                "id": "4716",
+                "description": "DETERGENTE CONCENTRADO"
+              },
+              "quantity": 25,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 34.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R214895360015",
+          "status": "active",
+          "date": "2026-08-12T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R214895360015",
+              "name": "NILECOR SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "23-1",
+              "description": "GUANTES DE CUERO FORRADOS (SEGURIDAD PERSONAL)",
+              "classification": {
+                "id": "14477",
+                "description": "GUANTES DE CUERO FORRADOS (SEGURIDAD PERSONAL)"
+              },
+              "quantity": 75,
+              "unit": {
+                "name": "PAR",
+                "id": "19",
+                "value": {
+                  "amount": 58.27,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R217009690015",
+          "status": "active",
+          "date": "2026-08-12T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R217009690015",
+              "name": "SANQUILCO SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "16-1",
+              "description": "LAMPAZO LIMPIAVIDRIO CON ESPONJA",
+              "classification": {
+                "id": "32792",
+                "description": "LAMPAZO LIMPIAVIDRIO CON ESPONJA"
+              },
+              "quantity": 15,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 41.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R217440130015",
+          "status": "active",
+          "date": "2026-08-12T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R217440130015",
+              "name": "PRIMOSUR S.R.L."
+            }
+          ],
+          "items": [
+            {
+              "id": "19-1",
+              "description": "GUANTES DE NITRILO",
+              "classification": {
+                "id": "14485",
+                "description": "GUANTES DE NITRILO"
+              },
+              "quantity": 5,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 189.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "22-1",
+              "description": "GORRO",
+              "classification": {
+                "id": "6491",
+                "description": "GORRO"
+              },
+              "quantity": 75,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 92.4,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

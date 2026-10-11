@@ -1,0 +1,36 @@
+{
+  "ocid": "ocds-synthetic-0003",
+  "id": "synthetic-0003-award-01",
+  "date": "2026-01-20T10:00:00Z",
+  "tag": ["award"],
+  "parties": [
+    {
+      "id": "ORG-SYN-003",
+      "name": "Município de Exemplo (SYNTHETIC)",
+      "roles": ["buyer"],
+      "identifier": { "scheme": "XX-NATIONAL", "id": "NAT-7731-SYN" },
+      "contactPoint": { "email": "compras@municipio.example.org" }
+    },
+    {
+      "id": "ORG-SYN-901",
+      "name": "Serviços de Rede Lda (SYNTHETIC)",
+      "roles": ["supplier"]
+    }
+  ],
+  "buyer": { "id": "ORG-SYN-003", "name": "Município de Exemplo (SYNTHETIC)" },
+  "tender": {
+    "id": "synthetic-0003",
+    "title": "Manutenção de equipamento de rede e cablagem estruturada",
+    "description": "Contrato de manutenção preventiva e corretiva de switches, routers e cablagem estruturada nas instalações municipais. Inclui substituição de fontes de alimentação.",
+    "procurementMethod": "limited",
+    "url": "https://municipio.example.org/contratos/synthetic-0003"
+  },
+  "awards": [
+    {
+      "id": "synthetic-0003-award-01",
+      "date": "2026-01-15T00:00:00Z",
+      "value": { "amount": 38000, "currency": "EUR" },
+      "suppliers": [{ "id": "ORG-SYN-901", "name": "Serviços de Rede Lda (SYNTHETIC)" }]
+    }
+  ]
+}

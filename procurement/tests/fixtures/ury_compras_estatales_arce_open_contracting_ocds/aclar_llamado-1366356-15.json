@@ -1,0 +1,63 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/aclar_llamado-1366356-15",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:21:01Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1366356",
+      "id": "aclar_llamado-1366356-15",
+      "date": "2026-09-15T10:21:01Z",
+      "tag": [
+        "tenderUpdate"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "66-1",
+          "name": "Administración de las Obras Sanitarias del Estado",
+          "identifier": {
+            "id": "66-1",
+            "legalName": "Administración de las Obras Sanitarias del Estado"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Administración de las Obras Sanitarias del Estado",
+        "id": "66-1"
+      },
+      "tender": {
+        "id": "1366356",
+        "hasEnquiries": true,
+        "documents": [
+          {
+            "id": "aclar-llamado-15",
+            "documentType": "clarifications",
+            "description": "Aclar_llamado_20007541_2.pdf",
+            "url": "http://www.comprasestatales.gub.uy/Aclaraciones/aclar_llamado_1366356_15.pdf",
+            "datePublished": "2026-09-15T10:21:01Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ],
+        "amendments": [
+          {
+            "id": "aclar_llamado-1366356-15",
+            "date": "2026-09-15T10:21:01Z",
+            "description": "aclar_llamado",
+            "amendsReleaseID": "aclar_llamado-1366356-14",
+            "releaseID": "aclar_llamado-1366356-15"
+          }
+        ]
+      }
+    }
+  ]
+}

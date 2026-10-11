@@ -1,0 +1,317 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1370285",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:20:09Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1370285",
+      "id": "adjudicacion-1370285",
+      "date": "2026-09-15T09:20:09Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R211371480017",
+          "name": "GUNTER SCHAAF SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R211371480017",
+            "legalName": "GUNTER SCHAAF SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R213152010011",
+          "name": "DIREBOL SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R213152010011",
+            "legalName": "DIREBOL SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R216733840018",
+          "name": "LATINMED SRL",
+          "identifier": {
+            "id": "R216733840018",
+            "legalName": "LATINMED SRL"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "29-102",
+          "name": "Centro Departamental de Maldonado",
+          "identifier": {
+            "id": "29-102",
+            "legalName": "Centro Departamental de Maldonado"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Centro Departamental de Maldonado",
+        "id": "29-102"
+      },
+      "awards": [
+        {
+          "id": "R211371480017",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R211371480017",
+              "name": "GUNTER SCHAAF SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-2",
+              "description": "CURETA OSEA VOLKMANN",
+              "classification": {
+                "id": "68833",
+                "description": "CURETA OSEA VOLKMANN"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 6112.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R213152010011",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R213152010011",
+              "name": "DIREBOL SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "2-2",
+              "description": "PINZA AMERICANA CURVA (PUNTA FUERTE)",
+              "classification": {
+                "id": "32745",
+                "description": "PINZA AMERICANA CURVA (PUNTA FUERTE)"
+              },
+              "quantity": 6,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1090.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "3-2",
+              "description": "PINZA AMERICANA CURVA (PUNTA DELICADA)",
+              "classification": {
+                "id": "19946",
+                "description": "PINZA AMERICANA CURVA (PUNTA DELICADA)"
+              },
+              "quantity": 6,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1070.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "4-2",
+              "description": "PINZA CORAZON",
+              "classification": {
+                "id": "19978",
+                "description": "PINZA CORAZON"
+              },
+              "quantity": 4,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1970.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "5-1",
+              "description": "PINZA DE CAMPO TIPO BACKHAUS",
+              "classification": {
+                "id": "19988",
+                "description": "PINZA DE CAMPO TIPO BACKHAUS"
+              },
+              "quantity": 20,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 240.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "6-2",
+              "description": "PINZA DE DISECCION SIN DIENTES",
+              "classification": {
+                "id": "20000",
+                "description": "PINZA DE DISECCION SIN DIENTES"
+              },
+              "quantity": 4,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 460.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "7-2",
+              "description": "PINZA FOERSTERS RECTA",
+              "classification": {
+                "id": "20038",
+                "description": "PINZA FOERSTERS RECTA"
+              },
+              "quantity": 6,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1660.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "8-2",
+              "description": "PINZA FOERSTERS CURVA",
+              "classification": {
+                "id": "50743",
+                "description": "PINZA FOERSTERS CURVA"
+              },
+              "quantity": 15,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1460.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "9-2",
+              "description": "PINZA HEMOSTATICA MOSQUITO HALSTED CURVA",
+              "classification": {
+                "id": "20062",
+                "description": "PINZA HEMOSTATICA MOSQUITO HALSTED CURVA"
+              },
+              "quantity": 10,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 860.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R216733840018",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R216733840018",
+              "name": "LATINMED SRL"
+            }
+          ],
+          "items": [
+            {
+              "id": "10-1",
+              "description": "PORTA AGUJA CASTROVIEJO",
+              "classification": {
+                "id": "60645",
+                "description": "PORTA AGUJA CASTROVIEJO"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 20585.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "11-1",
+              "description": "PINZA TIJERA CASTROVIEJO PARA CORNEA",
+              "classification": {
+                "id": "60642",
+                "description": "PINZA TIJERA CASTROVIEJO PARA CORNEA"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 31892.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "12-1",
+              "description": "PINZA TIJERA CASTROVIEJO PARA CORNEA",
+              "classification": {
+                "id": "60642",
+                "description": "PINZA TIJERA CASTROVIEJO PARA CORNEA"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 30673.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/aclar_llamado-1371316-0",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:01:15Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371316",
+      "id": "aclar_llamado-1371316-0",
+      "date": "2026-09-15T10:01:15Z",
+      "tag": [
+        "tenderUpdate"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "90-1",
+          "name": "Intendencia de Río Negro",
+          "identifier": {
+            "id": "90-1",
+            "legalName": "Intendencia de Río Negro"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Intendencia de Río Negro",
+        "id": "90-1"
+      },
+      "tender": {
+        "id": "1371316",
+        "hasEnquiries": true,
+        "documents": [
+          {
+            "id": "aclar-llamado-0",
+            "documentType": "clarifications",
+            "description": "Acta de Apertura",
+            "url": "http://www.comprasestatales.gub.uy/Aclaraciones/aclar_llamado_1371316_0.pdf",
+            "datePublished": "2026-09-15T10:01:15Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ],
+        "amendments": [
+          {
+            "id": "aclar_llamado-1371316-0",
+            "date": "2026-09-15T10:01:15Z",
+            "description": "aclar_llamado",
+            "amendsReleaseID": "llamado-1371316",
+            "releaseID": "aclar_llamado-1371316-0"
+          }
+        ]
+      }
+    }
+  ]
+}

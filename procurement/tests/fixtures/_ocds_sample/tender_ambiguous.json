@@ -1,0 +1,31 @@
+{
+  "ocid": "ocds-synthetic-0002",
+  "id": "synthetic-0002-tender-01",
+  "date": "2026-02-02T08:30:00Z",
+  "tag": ["tender"],
+  "initiationType": "tender",
+  "parties": [
+    {
+      "id": "ORG-SYN-002",
+      "name": "Central Purchasing Agency (SYNTHETIC)",
+      "roles": ["buyer", "centralPurchasingBody"],
+      "identifier": { "scheme": "XX-NATIONAL", "id": "NAT-1180-SYN" },
+      "contactPoint": {
+        "email": "frameworks@cpa.example.test",
+        "url": "https://cpa.example.test"
+      }
+    }
+  ],
+  "buyer": { "id": "ORG-SYN-002", "name": "Central Purchasing Agency (SYNTHETIC)" },
+  "tender": {
+    "id": "synthetic-0002",
+    "title": "Framework agreement for productivity software licences",
+    "description": "Establishment of a four-year framework for desktop productivity software, including Microsoft Copilot licences, for call-off by participating public bodies.",
+    "procurementMethod": "selective",
+    "datePublished": "2026-02-01T00:00:00Z",
+    "url": "https://cpa.example.test/notices/synthetic-0002",
+    "value": { "amount": 12000000, "currency": "GBP" },
+    "techniques": { "hasFrameworkAgreement": true },
+    "lots": [{ "id": "lot-a", "title": "Productivity suite" }]
+  }
+}

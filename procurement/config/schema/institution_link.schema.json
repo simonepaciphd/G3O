@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://g3o/procurement/institution_link.schema.json",
+  "title": "G3O Procurement Institution Link",
+  "description": "Link between one procurement record and one RESOLVED institution in the G3O institution master. Its own table, never a column on the procurement record: one procurement often involves several institutions (a central purchasing body buying on behalf of a department is the normal case, not the edge case). Many rows per record_id are expected. See docs/procurement-extension-spec.md section 5. Created 2026-08-03; amended 2026-08-04 on PI ruling Q5c - unresolved candidates now live in institution_review.schema.json, so every row here is a confirmed link - and for the key-ledger semantics read from inputs/G3O_Institution_Master/scripts/python/institution_keys.py.",
+  "type": "object",
+  "required": [
+    "record_id",
+    "institution_uid",
+    "role",
+    "match_method",
+    "confidence"
+  ],
+  "properties": {
+    "record_id": {
+      "type": "string",
+      "description": "Join key to the primary row."
+    },
+    "institution_uid": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The institution master's PERSISTENT key, column `institution_uid` (e.g. G3O-I-00000001), minted from data_final/institution_key_ledger.csv so it survives rebuilds. NEVER master_row_id: that is a rank in the build's sort order and every row below an insertion shifts (observed when 13,341 US school districts were inserted). Unresolved candidates belong in the review queue, not in this table.",
+      "$comment": "RESOLVE THROUGH THE LEDGER AT READ TIME, never from a uid alone. Three semantics the ledger enforces: (1) status 'absent' is NOT dead - the key layer treats {active, absent} as live, and an absent institution keeps its uid and reactivates if it returns in a later build; only 'retired' is terminal. (2) merges CHAIN - follow merged_into_uid transitively (the build guards at depth 16 and rejects cycles). (3) the build mints and never auto-merges: a renamed institution gets a NEW uid and a review row, and merges apply only from a PI-filled pi_decision on a later build. On mb-2026-07-30 that is 745 uids sitting 'absent' with a decision pending in outputs/qc/key_ledger_review_mb-2026-07-30.csv.",
+      "pattern": "^G3O-I-[0-9]{8}$"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "contracting_authority",
+        "beneficiary",
+        "central_purchasing_body"
+      ],
+      "description": "Attribution role. Drives spec section 6.3: framework_establishment attributes to the central purchasing body, framework_calloff to the calling-off institution."
+    },
+    "match_method": {
+      "type": "string",
+      "enum": [
+        "tier1_domain",
+        "tier2_national_id",
+        "tier3_exact_name",
+        "tier4_fuzzy_name",
+        "tier5_human_review"
+      ],
+      "description": "Which tier resolved the link (spec section 5). Tier 0 country blocking is a precondition for all of them, not a tier that can resolve a match on its own. No 'unresolved' member: per ruling Q5c (2026-08-04) this table holds resolved links only, so an unresolved candidate never gets a row here — it lives in institution_review.schema.json until a reviewer confirms or rejects it."
+    },
+    "match_score": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Tier-specific similarity. null for deterministic tiers (1-3) and for human decisions."
+    },
+    "matched_on": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The literal value that produced the match (registrable domain, registry id, normalized name). Transparency trail - an unauditable match is not a match."
+    },
+    "key_level": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "maximum": 5,
+      "description": "The ledger key level the matched master row is keyed at. L1 is the normalized six-field key; L2-L5 exist because that key is NOT unique in the master - the key layer documents five distinct US school districts all named 'Clay County' which the registry cannot separate. A match against a row keyed above L1 means the name alone did not identify it, so name-only evidence is insufficient there."
+    },
+    "corroborating_signal": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Required for any SUBNATIONAL tier-4 fuzzy match (spec section 5): the master is ~719k rows and dozens of same-named municipalities per country is normal. A fuzzy subnational match without a second signal goes to review instead."
+    },
+    "confidence": {
+      "type": "string",
+      "enum": [
+        "auto_accepted",
+        "human_confirmed"
+      ],
+      "description": "auto_accepted only above a threshold SET FROM MEASUREMENT on the hand-labelled stratified sample - never from a default. No 'review_queue' or 'human_rejected' member: per ruling Q5c this table holds resolved links only, so a candidate awaiting review or a rejected candidate never gets a row here - those states live in institution_review.schema.json's own `status` field (open / confirmed / rejected)."
+    },
+    "reviewer": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Who decided, for human_confirmed / human_rejected."
+    },
+    "reviewed_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "country_iso3": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 3,
+      "maxLength": 3,
+      "description": "The tier-0 blocking key actually used. Kept for auditing the candidate set."
+    },
+    "matcher_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "ledger_status": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "active",
+        "absent",
+        "retired",
+        null
+      ],
+      "description": "The ledger status of institution_uid at match time. 'absent' means the institution was not in that build but keeps its identity and may return - it does NOT invalidate the link. 'retired' means the uid was merged away; follow merged_into_uid."
+    },
+    "resolved_from_uid": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^G3O-I-[0-9]{8}$",
+      "description": "The uid originally matched, when institution_uid is the result of following a merge chain. Keeps the audit trail intact: without it a later reader cannot tell a direct match from a resolved one."
+    },
+    "master_build_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The master build this link was made against, e.g. 'mb-2026-07-30'. Required for audit: 745 uids changed status between the 07-28 and 07-30 builds."
+    }
+  },
+  "additionalProperties": false
+}

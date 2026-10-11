@@ -1,0 +1,90 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/llamado-1371838",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:05:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371838",
+      "id": "llamado-1371838",
+      "date": "2026-09-15T10:05:10Z",
+      "tag": [
+        "tender"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "4-24",
+          "name": "Dirección Nacional de Bomberos",
+          "identifier": {
+            "id": "4-24",
+            "legalName": "Dirección Nacional de Bomberos"
+          },
+          "contactPoint": {
+            "name": "MICHELE BARRETO",
+            "email": "bomberos-compras@minterior.gub.uy",
+            "telephone": "24007168",
+            "faxNumber": "24007168"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Dirección Nacional de Bomberos",
+        "id": "4-24"
+      },
+      "tender": {
+        "id": "1371838",
+        "title": "Compra Directa 277/2026",
+        "description": "Se pretende adquirir 2 (dos) Bombas de Freno, para camión Isuzu, modelo: Giga Doble Cabina, del año 1997.-",
+        "status": "active",
+        "procuringEntity": {
+          "name": "Dirección Nacional de Bomberos",
+          "id": "4-24"
+        },
+        "items": [
+          {
+            "id": "1",
+            "description": "BOMBA DE FRENO PARA EQUIPO DE TRANSPORTE",
+            "classification": {
+              "id": "6377",
+              "description": "BOMBA DE FRENO PARA EQUIPO DE TRANSPORTE"
+            },
+            "quantity": 2,
+            "unit": {
+              "name": "UNIDAD",
+              "id": "22"
+            }
+          }
+        ],
+        "procurementMethod": "open",
+        "procurementMethodDetails": "Compra Directa",
+        "submissionMethod": [
+          "electronicSubmission"
+        ],
+        "tenderPeriod": {
+          "startDate": "2026-09-15T10:05:10Z",
+          "endDate": "2026-09-24T12:00:00Z"
+        },
+        "hasEnquiries": false,
+        "documents": [
+          {
+            "id": "pliego-1371838",
+            "documentType": "biddingDocuments",
+            "url": "http://www.comprasestatales.gub.uy/Pliegos/pedido_1371838.pdf",
+            "datePublished": "2026-09-15T10:05:10Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/aclar_llamado-1367060-2",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:31:01Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1367060",
+      "id": "aclar_llamado-1367060-2",
+      "date": "2026-09-15T10:31:01Z",
+      "tag": [
+        "tenderUpdate"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "61-1",
+          "name": "Administración Nacional de Usinas y Trasmisiones Eléctricas",
+          "identifier": {
+            "id": "61-1",
+            "legalName": "Administración Nacional de Usinas y Trasmisiones Eléctricas"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Administración Nacional de Usinas y Trasmisiones Eléctricas",
+        "id": "61-1"
+      },
+      "tender": {
+        "id": "1367060",
+        "hasEnquiries": true,
+        "documents": [
+          {
+            "id": "aclar-llamado-2",
+            "documentType": "clarifications",
+            "description": "Acta de Apertura",
+            "url": "http://www.comprasestatales.gub.uy/Aclaraciones/aclar_llamado_1367060_2.pdf",
+            "datePublished": "2026-09-15T10:31:01Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ],
+        "amendments": [
+          {
+            "id": "aclar_llamado-1367060-2",
+            "date": "2026-09-15T10:31:01Z",
+            "description": "aclar_llamado",
+            "amendsReleaseID": "aclar_llamado-1367060-1",
+            "releaseID": "aclar_llamado-1367060-2"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1370434",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:30:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1370434",
+      "id": "adjudicacion-1370434",
+      "date": "2026-09-15T09:30:10Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R214395670015",
+          "name": "LABIMED SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R214395670015",
+            "legalName": "LABIMED SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "29-28",
+          "name": "Centro Departamental de Salto",
+          "identifier": {
+            "id": "29-28",
+            "legalName": "Centro Departamental de Salto"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Centro Departamental de Salto",
+        "id": "29-28"
+      },
+      "awards": [
+        {
+          "id": "R214395670015",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R214395670015",
+              "name": "LABIMED SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "SEPARADOR HOOK (LAPAROSCOPIA)",
+              "classification": {
+                "id": "20471",
+                "description": "SEPARADOR HOOK (LAPAROSCOPIA)"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 7380.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

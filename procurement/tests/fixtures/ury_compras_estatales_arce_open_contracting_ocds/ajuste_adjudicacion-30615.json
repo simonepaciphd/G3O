@@ -1,0 +1,137 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/ajuste_adjudicacion-30615",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:30:11Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1366478",
+      "id": "ajuste_adjudicacion-30615",
+      "date": "2026-09-15T09:30:11Z",
+      "tag": [
+        "awardUpdate"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R211014180012",
+          "name": "LABORATORIO GADOR S A",
+          "identifier": {
+            "id": "R211014180012",
+            "legalName": "LABORATORIO GADOR S A"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R210140630015",
+          "name": "GRAMON BAGO DE URUGUAY S A",
+          "identifier": {
+            "id": "R210140630015",
+            "legalName": "GRAMON BAGO DE URUGUAY S A"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "4-30",
+          "name": "Dirección Nacional de Sanidad Policial",
+          "identifier": {
+            "id": "4-30",
+            "legalName": "Dirección Nacional de Sanidad Policial"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Dirección Nacional de Sanidad Policial",
+        "id": "4-30"
+      },
+      "awards": [
+        {
+          "id": "R211014180012",
+          "amendments": [
+            {
+              "id": "ajuste_adjudicacion-30615",
+              "date": "2026-09-15T09:30:11Z",
+              "description": "ajuste_adjudicacion",
+              "amendsReleaseID": "adjudicacion-1366478",
+              "releaseID": "ajuste_adjudicacion-30615"
+            }
+          ],
+          "suppliers": [
+            {
+              "id": "R211014180012",
+              "name": "LABORATORIO GADOR S A"
+            }
+          ],
+          "items": [
+            {
+              "id": "5-1",
+              "description": "LURASIDONA (COMPRIMIDOS)",
+              "classification": {
+                "id": "76439",
+                "description": "LURASIDONA (COMPRIMIDOS)"
+              },
+              "quantity": 180,
+              "unit": {
+                "name": "COMPRIMIDO",
+                "id": "186",
+                "value": {
+                  "amount": 48.8,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R210140630015",
+          "amendments": [
+            {
+              "id": "ajuste_adjudicacion-30615",
+              "date": "2026-09-15T09:30:11Z",
+              "description": "ajuste_adjudicacion",
+              "amendsReleaseID": "adjudicacion-1366478",
+              "releaseID": "ajuste_adjudicacion-30615"
+            }
+          ],
+          "suppliers": [
+            {
+              "id": "R210140630015",
+              "name": "GRAMON BAGO DE URUGUAY S A"
+            }
+          ],
+          "items": [
+            {
+              "id": "5-1",
+              "description": "LURASIDONA (COMPRIMIDOS)",
+              "classification": {
+                "id": "76439",
+                "description": "LURASIDONA (COMPRIMIDOS)"
+              },
+              "quantity": 0,
+              "unit": {
+                "name": "COMPRIMIDO",
+                "id": "186",
+                "value": {
+                  "amount": 54.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

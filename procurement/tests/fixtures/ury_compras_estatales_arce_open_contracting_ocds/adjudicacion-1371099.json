@@ -1,0 +1,82 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371099",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:05:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371099",
+      "id": "adjudicacion-1371099",
+      "date": "2026-09-15T10:05:10Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R218818010016",
+          "name": "VOGELS URUGUAY S.A.S",
+          "identifier": {
+            "id": "R218818010016",
+            "legalName": "VOGELS URUGUAY S.A.S"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "3-23",
+          "name": "Comando General de la Fuerza Aérea",
+          "identifier": {
+            "id": "3-23",
+            "legalName": "Comando General de la Fuerza Aérea"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Comando General de la Fuerza Aérea",
+        "id": "3-23"
+      },
+      "awards": [
+        {
+          "id": "R218818010016",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R218818010016",
+              "name": "VOGELS URUGUAY S.A.S"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "INSPECCION GENERAL DE AERONAVE",
+              "classification": {
+                "id": "73018",
+                "description": "INSPECCION GENERAL DE AERONAVE"
+              },
+              "quantity": 1200,
+              "unit": {
+                "name": "HORA",
+                "id": "46",
+                "value": {
+                  "amount": 8.0833,
+                  "currency": "USD"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/llamado-1371302",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:15:09Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371302",
+      "id": "llamado-1371302",
+      "date": "2026-09-15T10:15:09Z",
+      "tag": [
+        "tender"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "29-2",
+          "name": "Red de Atención Primaria Area Metropolitana",
+          "identifier": {
+            "id": "29-2",
+            "legalName": "Red de Atención Primaria Area Metropolitana"
+          },
+          "contactPoint": {
+            "name": "Nicolás Augusto ",
+            "email": "licitaciones.rap@asse.com.uy",
+            "telephone": "2201 3820 int. 526/566 ",
+            "faxNumber": "2201 3820 int. 526/566 "
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Red de Atención Primaria Area Metropolitana",
+        "id": "29-2"
+      },
+      "tender": {
+        "id": "1371302",
+        "title": "Licitación Abreviada 175/2026",
+        "description": "SERVICIO DE MANTENIMIENTO DE SERVIDORES DELL PARA DEPENDENCIAS DE LA R.A.P. METROPOLITANA ",
+        "status": "active",
+        "procuringEntity": {
+          "name": "Red de Atención Primaria Area Metropolitana",
+          "id": "29-2"
+        },
+        "items": [
+          {
+            "id": "1",
+            "description": "MANTENIMIENTO DE HARDWARE DE RED",
+            "classification": {
+              "id": "10099",
+              "description": "MANTENIMIENTO DE HARDWARE DE RED"
+            },
+            "quantity": 12,
+            "unit": {
+              "name": "UNIDAD",
+              "id": "22"
+            }
+          }
+        ],
+        "procurementMethod": "open",
+        "procurementMethodDetails": "Licitación Abreviada",
+        "submissionMethod": [
+          "electronicSubmission"
+        ],
+        "submissionMethodDetails": "Fecha solicitud de prorroga: 2026-09-22T00:00:00Z;Fecha y hora acto de apertura: 2026-09-29T11:00:00Z",
+        "tenderPeriod": {
+          "startDate": "2026-09-15T10:15:09Z",
+          "endDate": "2026-09-29T11:00:00Z"
+        },
+        "enquiryPeriod": {
+          "startDate": "2026-09-15T10:15:09Z",
+          "endDate": "2026-09-22T00:00:00Z"
+        },
+        "hasEnquiries": false,
+        "documents": [
+          {
+            "id": "pliego-1371302",
+            "documentType": "biddingDocuments",
+            "url": "http://www.comprasestatales.gub.uy/Pliegos/pliego_1371302.pdf",
+            "datePublished": "2026-09-15T10:15:09Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ]
+      }
+    }
+  ]
+}

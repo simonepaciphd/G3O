@@ -1,0 +1,92 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371843",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:45:08Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371843",
+      "id": "adjudicacion-1371843",
+      "date": "2026-09-15T10:45:08Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R212385690017",
+          "name": "UNION DISPROFARMA SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R212385690017",
+            "legalName": "UNION DISPROFARMA SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "29-2",
+          "name": "Red de Atención Primaria Area Metropolitana",
+          "identifier": {
+            "id": "29-2",
+            "legalName": "Red de Atención Primaria Area Metropolitana"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Red de Atención Primaria Area Metropolitana",
+        "id": "29-2"
+      },
+      "awards": [
+        {
+          "id": "R212385690017",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "documents": [
+            {
+              "id": "resol-1371843",
+              "documentType": "awardNotice",
+              "url": "http://www.comprasestatales.gub.uy/Resoluciones/acta_1371843.pdf",
+              "datePublished": "2026-09-15T10:45:08Z",
+              "format": "application/pdf",
+              "language": "es"
+            }
+          ],
+          "suppliers": [
+            {
+              "id": "R212385690017",
+              "name": "UNION DISPROFARMA SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "VENDA COHESIVA (ELASTICA Y AUTOADHESIVA)",
+              "classification": {
+                "id": "21494",
+                "description": "VENDA COHESIVA (ELASTICA Y AUTOADHESIVA)"
+              },
+              "quantity": 1500,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 27.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

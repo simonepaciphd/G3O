@@ -81,6 +81,10 @@ include = ["g3o*"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+# procurement/ is the procurement pipeline, migrated byte-identical from Drive
+# so its code sha256 (printed in every run manifest) still matches. It is not
+# held to this repo's lint rules until its owner adopts them.
+extend-exclude = ["procurement"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]

@@ -1,0 +1,90 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/llamado-1371840",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:45:08Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371840",
+      "id": "llamado-1371840",
+      "date": "2026-09-15T10:45:08Z",
+      "tag": [
+        "tender"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "10-3",
+          "name": "Dirección Nacional de Vialidad",
+          "identifier": {
+            "id": "10-3",
+            "legalName": "Dirección Nacional de Vialidad"
+          },
+          "contactPoint": {
+            "name": "RAFAEL AMOROSO",
+            "email": "rafael.amoroso@mtop.gub.uy",
+            "telephone": "2320 01 99",
+            "faxNumber": "2320 01 99"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Dirección Nacional de Vialidad",
+        "id": "10-3"
+      },
+      "tender": {
+        "id": "1371840",
+        "title": "Compra Directa 241/2026",
+        "description": "Elementos para Camión Regador de Asfalto VW 17.190\n(Ver archivo adjunto)",
+        "status": "active",
+        "procuringEntity": {
+          "name": "Dirección Nacional de Vialidad",
+          "id": "10-3"
+        },
+        "items": [
+          {
+            "id": "6",
+            "description": "CILINDRO NEUMATICO",
+            "classification": {
+              "id": "78341",
+              "description": "CILINDRO NEUMATICO"
+            },
+            "quantity": 4,
+            "unit": {
+              "name": "UNIDAD",
+              "id": "22"
+            }
+          }
+        ],
+        "procurementMethod": "open",
+        "procurementMethodDetails": "Compra Directa",
+        "submissionMethod": [
+          "electronicSubmission"
+        ],
+        "tenderPeriod": {
+          "startDate": "2026-09-15T10:45:08Z",
+          "endDate": "2026-09-25T11:30:00Z"
+        },
+        "hasEnquiries": false,
+        "documents": [
+          {
+            "id": "pliego-1371840",
+            "documentType": "biddingDocuments",
+            "url": "http://www.comprasestatales.gub.uy/Pliegos/pedido_1371840.docx",
+            "datePublished": "2026-09-15T10:45:08Z",
+            "format": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "language": "es"
+          }
+        ]
+      }
+    }
+  ]
+}

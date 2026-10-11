@@ -1,0 +1,716 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1364412",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:00:14Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1364412",
+      "id": "adjudicacion-1364412",
+      "date": "2026-09-15T10:00:14Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R020576520017",
+          "name": "DISTRIMORE SOCIEDAD POR ACCIONES SIMPLIFICADAS",
+          "identifier": {
+            "id": "R020576520017",
+            "legalName": "DISTRIMORE SOCIEDAD POR ACCIONES SIMPLIFICADAS"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R210000400017",
+          "name": "FIERRO VIGNOLI S A FIVISA",
+          "identifier": {
+            "id": "R210000400017",
+            "legalName": "FIERRO VIGNOLI S A FIVISA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R211454500015",
+          "name": "MERCOLUZ S A",
+          "identifier": {
+            "id": "R211454500015",
+            "legalName": "MERCOLUZ S A"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R211599370015",
+          "name": "CERNY S A",
+          "identifier": {
+            "id": "R211599370015",
+            "legalName": "CERNY S A"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R213673710011",
+          "name": "ARANIL S.A.",
+          "identifier": {
+            "id": "R213673710011",
+            "legalName": "ARANIL S.A."
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R214375810016",
+          "name": "PALERMO IMPORTACIONES SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R214375810016",
+            "legalName": "PALERMO IMPORTACIONES SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R214919410017",
+          "name": "OTERO VAQUERO PABLO MATHIAS",
+          "identifier": {
+            "id": "R214919410017",
+            "legalName": "OTERO VAQUERO PABLO MATHIAS"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R215070200018",
+          "name": "SONIBEL SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R215070200018",
+            "legalName": "SONIBEL SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R216549380018",
+          "name": "NALFER S.A.",
+          "identifier": {
+            "id": "R216549380018",
+            "legalName": "NALFER S.A."
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "3-18",
+          "name": "Comando General de la Armada",
+          "identifier": {
+            "id": "3-18",
+            "legalName": "Comando General de la Armada"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Comando General de la Armada",
+        "id": "3-18"
+      },
+      "awards": [
+        {
+          "id": "R020576520017",
+          "status": "active",
+          "date": "2026-09-14T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R020576520017",
+              "name": "DISTRIMORE SOCIEDAD POR ACCIONES SIMPLIFICADAS"
+            }
+          ],
+          "items": [
+            {
+              "id": "4-1",
+              "description": "TIERNIZADOR DE CARNE",
+              "classification": {
+                "id": "26862",
+                "description": "TIERNIZADOR DE CARNE"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 53980.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "9-1",
+              "description": "GUANTES DE AMIANTO (SEGURIDAD PERSONAL - ALTA TEMPERATURA)",
+              "classification": {
+                "id": "14669",
+                "description": "GUANTES DE AMIANTO (SEGURIDAD PERSONAL - ALTA TEMPERATURA)"
+              },
+              "quantity": 10,
+              "unit": {
+                "name": "PAR",
+                "id": "19",
+                "value": {
+                  "amount": 958.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "12-1",
+              "description": "RECIPIENTE GASTRONORM",
+              "classification": {
+                "id": "69176",
+                "description": "RECIPIENTE GASTRONORM"
+              },
+              "quantity": 3,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1310.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R210000400017",
+          "status": "active",
+          "date": "2026-09-14T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R210000400017",
+              "name": "FIERRO VIGNOLI S A FIVISA"
+            }
+          ],
+          "items": [
+            {
+              "id": "6-1",
+              "description": "CUCHILLO CARNICERO",
+              "classification": {
+                "id": "64956",
+                "description": "CUCHILLO CARNICERO"
+              },
+              "quantity": 5,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 6.75,
+                  "currency": "USD"
+                }
+              }
+            },
+            {
+              "id": "14-1",
+              "description": "PINZA PARA SERVIR (MENAGE)",
+              "classification": {
+                "id": "27375",
+                "description": "PINZA PARA SERVIR (MENAGE)"
+              },
+              "quantity": 6,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 2.02,
+                  "currency": "USD"
+                }
+              }
+            },
+            {
+              "id": "15-1",
+              "description": "PINZA PARA SERVIR (MENAGE)",
+              "classification": {
+                "id": "27375",
+                "description": "PINZA PARA SERVIR (MENAGE)"
+              },
+              "quantity": 6,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 2.02,
+                  "currency": "USD"
+                }
+              }
+            },
+            {
+              "id": "23-1",
+              "description": "SARTEN",
+              "classification": {
+                "id": "4527",
+                "description": "SARTEN"
+              },
+              "quantity": 3,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 15.61,
+                  "currency": "USD"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R211454500015",
+          "status": "active",
+          "date": "2026-09-14T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R211454500015",
+              "name": "MERCOLUZ S A"
+            }
+          ],
+          "items": [
+            {
+              "id": "7-1",
+              "description": "PIEDRA MANUAL DE AFILAR",
+              "classification": {
+                "id": "3950",
+                "description": "PIEDRA MANUAL DE AFILAR"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 71.81,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R211599370015",
+          "status": "active",
+          "date": "2026-09-14T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R211599370015",
+              "name": "CERNY S A"
+            }
+          ],
+          "items": [
+            {
+              "id": "2-1",
+              "description": "TERMOCAFETERA",
+              "classification": {
+                "id": "74851",
+                "description": "TERMOCAFETERA"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 4776.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "19-1",
+              "description": "JARRA TERMICA",
+              "classification": {
+                "id": "30268",
+                "description": "JARRA TERMICA"
+              },
+              "quantity": 8,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 668.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "21-1",
+              "description": "OLLA DE ACERO INOXIDABLE",
+              "classification": {
+                "id": "66621",
+                "description": "OLLA DE ACERO INOXIDABLE"
+              },
+              "quantity": 6,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 4374.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "22-1",
+              "description": "OLLA DE ACERO INOXIDABLE",
+              "classification": {
+                "id": "66621",
+                "description": "OLLA DE ACERO INOXIDABLE"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 6978.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R213673710011",
+          "status": "active",
+          "date": "2026-09-14T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R213673710011",
+              "name": "ARANIL S.A."
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "ABRELATA INDUSTRIAL",
+              "classification": {
+                "id": "102764",
+                "description": "ABRELATA INDUSTRIAL"
+              },
+              "quantity": 3,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 4721.31,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "13-1",
+              "description": "ESPATULA PARA COCINA",
+              "classification": {
+                "id": "4517",
+                "description": "ESPATULA PARA COCINA"
+              },
+              "quantity": 3,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 2250.98,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R214375810016",
+          "status": "active",
+          "date": "2026-09-14T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R214375810016",
+              "name": "PALERMO IMPORTACIONES SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "8-1",
+              "description": "CUCHARA DE SERVIR",
+              "classification": {
+                "id": "68080",
+                "description": "CUCHARA DE SERVIR"
+              },
+              "quantity": 8,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 88.52,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "17-1",
+              "description": "BATIDOR MANUAL",
+              "classification": {
+                "id": "307",
+                "description": "BATIDOR MANUAL"
+              },
+              "quantity": 3,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 188.52,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "24-1",
+              "description": "TABLA DE COCINA",
+              "classification": {
+                "id": "27392",
+                "description": "TABLA DE COCINA"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1106.56,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "25-1",
+              "description": "TABLA DE COCINA",
+              "classification": {
+                "id": "27392",
+                "description": "TABLA DE COCINA"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1106.56,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R214919410017",
+          "status": "active",
+          "date": "2026-09-14T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R214919410017",
+              "name": "OTERO VAQUERO PABLO MATHIAS"
+            }
+          ],
+          "items": [
+            {
+              "id": "5-1",
+              "description": "JUEGO DE VASOS",
+              "classification": {
+                "id": "76653",
+                "description": "JUEGO DE VASOS"
+              },
+              "quantity": 250,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 57.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "16-1",
+              "description": "COLADOR INDUSTRIAL",
+              "classification": {
+                "id": "121031",
+                "description": "COLADOR INDUSTRIAL"
+              },
+              "quantity": 4,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 153.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R215070200018",
+          "status": "active",
+          "date": "2026-09-14T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R215070200018",
+              "name": "SONIBEL SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "3-2",
+              "description": "PICADORA DE VEGETALES",
+              "classification": {
+                "id": "58477",
+                "description": "PICADORA DE VEGETALES"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 33851.8,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "20-1",
+              "description": "OLLA DE ACERO INOXIDABLE",
+              "classification": {
+                "id": "66621",
+                "description": "OLLA DE ACERO INOXIDABLE"
+              },
+              "quantity": 3,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 4865.58,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "26-1",
+              "description": "TABLA DE COCINA",
+              "classification": {
+                "id": "27392",
+                "description": "TABLA DE COCINA"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1056.23,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "28-1",
+              "description": "PELAPAPAS INDUSTRIAL",
+              "classification": {
+                "id": "67234",
+                "description": "PELAPAPAS INDUSTRIAL"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 59553.44,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R216549380018",
+          "status": "active",
+          "date": "2026-09-14T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R216549380018",
+              "name": "NALFER S.A."
+            }
+          ],
+          "items": [
+            {
+              "id": "10-1",
+              "description": "TABLA DE COCINA",
+              "classification": {
+                "id": "27392",
+                "description": "TABLA DE COCINA"
+              },
+              "quantity": 8,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1200.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "11-1",
+              "description": "RECIPIENTE GASTRONORM",
+              "classification": {
+                "id": "69176",
+                "description": "RECIPIENTE GASTRONORM"
+              },
+              "quantity": 3,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1400.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "27-1",
+              "description": "CAFETERA",
+              "classification": {
+                "id": "4479",
+                "description": "CAFETERA"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 8000.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

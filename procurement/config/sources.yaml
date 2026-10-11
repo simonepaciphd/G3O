@@ -1,0 +1,2298 @@
+metadata:
+  generated_from: docs/G3O - Procurement Repository Tracker.xlsx
+  generated_at: '2026-07-21'
+  source_rows: 191
+  automated_sources: 150
+  manual_sources_excluded: 41
+  rows_without_url_fixed: 160
+  rows_with_multiple_url_fixed: 8
+  note: Generated mechanically from tracker_clean. Verify endpoints, auth, pagination, formats, rate limits, and url candidates
+    before building an adapter.
+defaults:
+  request_timeout_s: 30
+  rate_limit_per_min: 60
+  retry_max: 3
+  retry_backoff_s: 5
+  cache_dir: data_cache
+sources:
+- source_id: afg_afghanistan_government_electronic_and_open_procurement_system_ageops
+  country_iso3: AFG
+  country_name: Afghanistan
+  repo_name: Afghanistan Government Electronic and Open Procurement System (AGEOPS)
+  access_mode: api
+  is_ocds: false
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://tenders.ageops.af/en/procurement-process?fiscal_year=1405&list_type=public&page_size=10&page_index=0&
+  verification_status: unverified_snapshot
+  tracker_row: 2
+  url_candidates:
+  - https://tenders.ageops.af/en/procurement-process?fiscal_year=1405&list_type=public&page_size=10&page_index=0&
+  - https://tenders.ageops.af/en/procurement-plans?list_type=public&page_size=10&page_index=0&
+  - https://tenders.ageops.af/en/home
+  tracker_notes_ra: '[F2] summary page
+
+
+    https://tenders.ageops.af/en/procurement-process?fiscal_year=1405&list_type=public&page_size=10&page_index=0&
+
+    not sure which is the right one
+
+    https://tenders.ageops.af/en/procurement-plans?list_type=public&page_size=10&page_index=0&'
+- source_id: aus_austender_australian_government_procurement_portal
+  country_iso3: AUS
+  country_name: Australia
+  repo_name: AusTender - Australian Government Procurement Portal
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://data.gov.au/data/dataset/historical-australian-government-contract-data
+  verification_status: unverified_snapshot
+  tracker_row: 3
+  ocds_link: https://data.open-contracting.org/en/publication/19
+  url_candidates:
+  - https://data.gov.au/data/dataset/historical-australian-government-contract-data
+  - https://help.tenders.gov.au/getting-started-with-austender/information-made-easy/what-the-government-buys/
+  - https://www.tenders.gov.au/
+  tracker_notes_ra: '[F10] not a direct link to data
+
+
+    list of all contracts
+
+    https://data.gov.au/data/dataset/historical-australian-government-contract-data
+
+    https://help.tenders.gov.au/getting-started-with-austender/information-made-easy/what-the-government-buys/'
+- source_id: bih_is_e_procurement_ejn
+  country_iso3: BIH
+  country_name: Bosnia and Herzegovina
+  repo_name: IS e-Procurement (EJN)
+  access_mode: api
+  is_ocds: false
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://www.ejn.gov.ba/
+  verification_status: unverified_snapshot
+  tracker_row: 4
+  tracker_notes_ra: '[F23] doesnt appear to be a database on pp website'
+- source_id: bra_portal_nacional_de_contratacoes_publicas_pncp
+  country_iso3: BRA
+  country_name: Brazil
+  repo_name: Portal Nacional de Contratações Públicas (PNCP)
+  access_mode: api
+  is_ocds: false
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao
+  verification_status: unverified_snapshot
+  tracker_row: 5
+  ocds_link: https://data.open-contracting.org/en/publication/157
+  url_candidates:
+  - https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao
+  - https://pncp.gov.br/
+  - https://pncp.gov.br/api/consulta/v1/contratacoes/publicacao
+  verification_note: >-
+    Partially verified 2026-08-07: live, public, key-free JSON endpoint
+    confirmed by direct HTTP call (curl). Params dataInicial/dataFinal
+    (YYYYMMDD)/codigoModalidadeContratacao/pagina/tamanhoPagina(>=10). Response
+    is PNCP's own native shape, NOT an OCDS release, despite the tracker's
+    OCDS=Yes flag (that data.open-contracting.org publication ID belongs to a
+    third-party OCDS republication, not this endpoint) — is_ocds corrected to
+    false accordingly. NOT verified: full rate limits, robots.txt/ToS, complete
+    modality/pagination coverage. verification_status intentionally left
+    unverified_snapshot; only run via --allow-unverified --limit N.
+  tracker_notes_ra: '[F25] says it exists
+
+    https://www.gov.br/pncp/pt-br/catalogo-eletronico-de-padronizacao
+
+    but where???'
+- source_id: chl_mercado_publico_chilecompra
+  country_iso3: CHL
+  country_name: Chile
+  repo_name: Mercado Público (ChileCompra)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://buscador.mercadopublico.cl/ordenes-de-compra?date_from=2026-03-24&date_to=2026-03-25&order_by=recent&page_number=1&status=6
+  verification_status: unverified_snapshot
+  tracker_row: 6
+  ocds_link: https://data.open-contracting.org/en/publication/144
+  url_candidates:
+  - https://buscador.mercadopublico.cl/ordenes-de-compra?date_from=2026-03-24&date_to=2026-03-25&order_by=recent&page_number=1&status=6
+  - https://www.mercadopublico.cl/
+  tracker_notes_ra: '[F36] https://buscador.mercadopublico.cl/ordenes-de-compra?date_from=2026-03-24&date_to=2026-03-25&order_by=recent&page_number=1&status=6
+
+    both requests and confirmed combined. can filter to just accepted contracts'
+- source_id: col_secop_colombia_compra_eficiente_ocds_api
+  country_iso3: COL
+  country_name: Colombia
+  repo_name: SECOP / Colombia Compra Eficiente (OCDS API)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://www.colombiacompra.gov.co/wp-content/uploads/2026/01/Diccionario_de_Datos_RegistrosAdministrativos-1.pdf
+  verification_status: unverified_snapshot
+  tracker_row: 7
+  ocds_link: https://data.open-contracting.org/en/publication/61
+  url_candidates:
+  - https://www.colombiacompra.gov.co/wp-content/uploads/2026/01/Diccionario_de_Datos_RegistrosAdministrativos-1.pdf
+  - https://app.powerbi.com/view?r=eyJrIjoiZTYxMzM0ZGEtMDI4Zi00NWI5LTk3YWQtOTYwYWE5ZjZiMmQyIiwidCI6IjdiMDkwNDFlLTI0NTEtNDlkMC04Y2IxLTc5ZDVlM2Q4YzFiZSIsImMiOjR9
+  - https://www.colombiacompra.gov.co/analisis-de-datos-de-compra-publica
+  - https://www.colombiacompra.gov.co/
+  tracker_notes_ra: "[F38] og link to home page\napi guide? https://www.colombiacompra.gov.co/wp-content/uploads/2026/01/Diccionario_de_Datos_RegistrosAdministrativos-1.pdf\
+    \ \nAPI database\nhttps://app.powerbi.com/view?r=eyJrIjoiZTYxMzM0ZGEtMDI4Zi00NWI5LTk3YWQtOTYwYWE5ZjZiMmQyIiwidCI6IjdiMDkwNDFlLTI0NTEtNDlkMC04Y2IxLTc5ZDVlM2Q4YzFiZSIsImMiOjR9\
+    \ \nmore info\nhttps://www.colombiacompra.gov.co/analisis-de-datos-de-compra-publica (look at dropdowns under public procurement)"
+- source_id: cze_vestnik_verejnych_zakazek_public_procurement_journal
+  country_iso3: CZE
+  country_name: Czechia
+  repo_name: Věstník veřejných zakázek (Public Procurement Journal)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://vvz.nipez.cz/nove-vitezove-zakazek
+  verification_status: unverified_snapshot
+  tracker_row: 8
+  ocds_link: https://data.open-contracting.org/en/publication/12
+  url_candidates:
+  - https://vvz.nipez.cz/nove-vitezove-zakazek
+  - https://vvz.nipez.cz/
+  tracker_notes_ra: '[F46] https://vvz.nipez.cz/nove-vitezove-zakazek
+
+    "public procurement winners" might just be 2026'
+- source_id: dnk_udbud_dk_danish_public_procurement_portal
+  country_iso3: DNK
+  country_name: Denmark
+  repo_name: Udbud.dk (Danish Public Procurement Portal)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: false
+  base_url: https://udbud.dk/
+  verification_status: unverified_snapshot
+  tracker_row: 9
+  ocds_link: https://data.open-contracting.org/en/publication/49
+  url_candidates:
+  - https://udbud.dk/
+  - https://udbud.dk/arkiv
+  tracker_notes_ra: '[F48] https://udbud.dk/
+
+    archive: https://udbud.dk/arkiv'
+- source_id: dom_portal_transaccional_de_contrataciones_publicas_compras_dominicanas
+  country_iso3: DOM
+  country_name: Dominican Republic
+  repo_name: Portal Transaccional de Contrataciones Públicas (Compras Dominicanas)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://comunidad.comprasdominicana.gob.do/Public/Tendering/ContractNoticeManagement/Index
+  verification_status: unverified_snapshot
+  tracker_row: 10
+  ocds_link: https://data.open-contracting.org/en/publication/22
+  tracker_notes_ra: '[F51] only requests'
+- source_id: fra_bulletin_officiel_des_annonces_des_marches_publics_boamp
+  country_iso3: FRA
+  country_name: France
+  repo_name: Bulletin Officiel des Annonces des Marchés Publics (BOAMP)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://www.boamp.fr/pages/donnees-ouvertes-et-api/
+  verification_status: unverified_snapshot
+  tracker_row: 11
+  ocds_link: https://data.open-contracting.org/en/publication/54
+  url_candidates:
+  - https://www.boamp.fr/pages/donnees-ouvertes-et-api/
+  - https://boamp-datadila.opendatasoft.com/explore/dataset/boamp/api/
+  - https://www.boamp.fr
+  tracker_notes_ra: '[F62] https://www.boamp.fr/pages/donnees-ouvertes-et-api/
+
+
+    https://boamp-datadila.opendatasoft.com/explore/dataset/boamp/api/'
+- source_id: geo_unified_electronic_system_of_state_procurement_ge_gp_state_procurement_agency
+  country_iso3: GEO
+  country_name: Georgia
+  repo_name: Unified Electronic System of State Procurement (Ge-GP) – State Procurement Agency
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://procurement.gov.ge
+  verification_status: unverified_snapshot
+  tracker_row: 12
+  ocds_link: https://data.open-contracting.org/en/publication/52
+  tracker_notes_ra: '[F65] password locked'
+- source_id: deu_oeffentliche_vergabe_datenservice_offentlicher_einkauf_federal_open_data_service
+  country_iso3: DEU
+  country_name: Germany
+  repo_name: Oeffentliche Vergabe / Datenservice Öffentlicher Einkauf (Federal Open Data Service)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://oeffentlichevergabe.de/ui/en/publicationPolicy
+  verification_status: unverified_snapshot
+  tracker_row: 13
+  ocds_link: https://data.open-contracting.org/en/publication/53
+  url_candidates:
+  - https://oeffentlichevergabe.de/ui/en/publicationPolicy
+  - https://www.oeffentlichevergabe.de
+  tracker_notes_ra: '[F66] https://oeffentlichevergabe.de/ui/en/publicationPolicy'
+- source_id: hnd_honducompras_national_e_procurement_system_open_contracting_portal
+  country_iso3: HND
+  country_name: Honduras
+  repo_name: HonduCompras (National e-Procurement System) / Open Contracting Portal
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://oncae.gob.hn/datos-abiertos/
+  verification_status: unverified_snapshot
+  tracker_row: 14
+  ocds_link: https://data.open-contracting.org/en/publication/113
+  url_candidates:
+  - https://oncae.gob.hn/datos-abiertos/
+  - https://www.honducompras.gob.hn
+  tracker_notes_ra: '[F75] https://oncae.gob.hn/datos-abiertos/ bulk, might be api soemwhere'
+- source_id: ita_anac_bdncp_open_data_ocds
+  country_iso3: ITA
+  country_name: Italy
+  repo_name: ANAC BDNCP Open Data (OCDS)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://api.anticorruzione.it/opendata/ocds/api/v1/1.0.0
+  verification_status: unverified_snapshot
+  tracker_row: 15
+- source_id: kaz_goszakup_unified_public_procurement_web_portal
+  country_iso3: KAZ
+  country_name: Kazakhstan
+  repo_name: Goszakup – Unified Public Procurement Web Portal
+  access_mode: api
+  is_ocds: false
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://goszakup.gov.kz/ru/registry/order
+  verification_status: unverified_snapshot
+  tracker_row: 16
+  url_candidates:
+  - https://goszakup.gov.kz/ru/registry/order
+  - https://goszakup.gov.kz/
+  tracker_notes_ra: '[F88] https://goszakup.gov.kz/ru/registry/order
+
+    Not very organized, NOT API'
+- source_id: mlt_electronic_public_procurement_system_epps_malta
+  country_iso3: MLT
+  country_name: Malta
+  repo_name: Electronic Public Procurement System (ePPS Malta)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://www.etenders.gov.mt/epps/prepareAdvancedSearch.do?type=cftFTS&viewMode=searchOpened
+  verification_status: unverified_snapshot
+  tracker_row: 17
+  url_candidates:
+  - https://www.etenders.gov.mt/epps/prepareAdvancedSearch.do?type=cftFTS&viewMode=searchOpened
+  - https://www.etenders.gov.mt
+  tracker_notes_ra: "[F108] https://www.etenders.gov.mt/epps/prepareAdvancedSearch.do?type=cftFTS&viewMode=searchOpened \n\
+    tender site"
+- source_id: mex_compras_mx_formerly_compranet_federal_public_procurement_platform
+  country_iso3: MEX
+  country_name: Mexico
+  repo_name: Compras MX (formerly CompraNet) – Federal Public Procurement Platform
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://comprasmx.buengobierno.gob.mx/datos-abiertos
+  verification_status: unverified_snapshot
+  tracker_row: 18
+  url_candidates:
+  - https://comprasmx.buengobierno.gob.mx/datos-abiertos
+  - https://comprasmx.buengobierno.gob.mx
+  tracker_notes_ra: "[F112] bulk: https://comprasmx.buengobierno.gob.mx/datos-abiertos \nbut api might exist"
+- source_id: mda_mtender_moldova_electronic_procurement_system
+  country_iso3: MDA
+  country_name: Moldova
+  repo_name: MTender – Moldova Electronic Procurement System
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://mtender.gov.md
+  verification_status: unverified_snapshot
+  tracker_row: 19
+- source_id: mng_unified_electronic_procurement_system_of_mongolia
+  country_iso3: MNG
+  country_name: Mongolia
+  repo_name: Unified Electronic Procurement System of Mongolia
+  access_mode: api
+  is_ocds: false
+  coverage_type: both
+  has_api: true
+  has_bulk: false
+  base_url: https://bi.open-contracting.org/moldova/
+  verification_status: unverified_snapshot
+  tracker_row: 20
+  url_candidates:
+  - https://bi.open-contracting.org/moldova/
+  - https://www.tender.gov.mn
+  tracker_notes_ra: '[F116] might be an api? definitely a well made portal of some sort: https://bi.open-contracting.org/moldova/'
+- source_id: nld_tenderned
+  country_iso3: NLD
+  country_name: Netherlands
+  repo_name: TenderNed
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://www.tenderned.nl/cms/nl/aanbesteden-in-cijfers/datasets-aanbestedingen
+  verification_status: unverified_snapshot
+  tracker_row: 21
+  url_candidates:
+  - https://www.tenderned.nl/cms/nl/aanbesteden-in-cijfers/datasets-aanbestedingen
+  - https://github.com/tenderned-analyse/code-example-tn-xml-api
+  - https://www.tenderned.nl/
+  tracker_notes_ra: "[F124] data: https://www.tenderned.nl/cms/nl/aanbesteden-in-cijfers/datasets-aanbestedingen \nAPI Github:\n\
+    https://github.com/tenderned-analyse/code-example-tn-xml-api"
+- source_id: nga_nocopo_nigeria_open_contracting_portal
+  country_iso3: NGA
+  country_name: Nigeria
+  repo_name: NOCOPO (Nigeria Open Contracting Portal)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: http://nocopo.bpp.gov.ng/
+  verification_status: unverified_snapshot
+  tracker_row: 22
+  url_candidates:
+  - http://nocopo.bpp.gov.ng/
+  - https://nocopo.bpp.gov.ng/
+  tracker_notes_ra: '[F128] JSON download kind of sketchy:
+
+    http://nocopo.bpp.gov.ng/'
+- source_id: pan_panamacompra_en_cifras_dgcp_panamacompra_ocds
+  country_iso3: PAN
+  country_name: Panama
+  repo_name: PanamaCompra en Cifras (DGCP PanamaCompra OCDS)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://www.panamacompraencifras.gob.pa/
+  verification_status: unverified_snapshot
+  tracker_row: 23
+  tracker_notes_ra: '[F134] different language'
+- source_id: pry_dncp_sicp_contrataciones_publicas
+  country_iso3: PRY
+  country_name: Paraguay
+  repo_name: DNCP SICP / Contrataciones Públicas
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: http://contrataciones.gov.py/datos/
+  verification_status: unverified_snapshot
+  tracker_row: 24
+  url_candidates:
+  - http://contrataciones.gov.py/datos/
+  - https://www.contrataciones.gov.py/
+  tracker_notes_ra: '[F135] http://contrataciones.gov.py/datos/
+
+    out of date (2023)? in spanish so need to double check'
+- source_id: per_seace_open_contracting_portal_oece_contrataciones_abiertas
+  country_iso3: PER
+  country_name: Peru
+  repo_name: SEACE Open Contracting Portal (OECE) / Contrataciones Abiertas
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://public-api.org/api/794/open-government-peru
+  verification_status: unverified_snapshot
+  tracker_row: 25
+  url_candidates:
+  - https://public-api.org/api/794/open-government-peru
+  - https://contratacionesabiertas.oece.gob.pe/
+  tracker_notes_ra: "[F136] https://public-api.org/api/794/open-government-peru \nbroken links ? think its faulty"
+- source_id: pol_platforma_e_zamowienia_bzp
+  country_iso3: POL
+  country_name: Poland
+  repo_name: Platforma e-Zamówienia (BZP)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: false
+  base_url: https://ezamowienia.gov.pl/pl/integracja/
+  verification_status: unverified_snapshot
+  tracker_row: 26
+  url_candidates:
+  - https://ezamowienia.gov.pl/pl/integracja/
+  - https://ezamowienia.gov.pl/
+  tracker_notes_ra: '[F138] https://ezamowienia.gov.pl/pl/integracja/
+
+    think this is where information is, needs translation'
+- source_id: rwa_umucyo_e_procurement_system_rwanda_online_e_procurement_portal
+  country_iso3: RWA
+  country_name: Rwanda
+  repo_name: Umucyo e-Procurement System (Rwanda Online E-Procurement portal)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://umucyo.gov.rw/
+  verification_status: unverified_snapshot
+  tracker_row: 27
+  url_candidates:
+  - https://umucyo.gov.rw/
+  - https://ocds.umucyo.gov.rw/
+  tracker_notes_ra: '[F143] https://umucyo.gov.rw/ open data portal link on website not working'
+- source_id: sau_etimad_portal_unified_government_electronic_procurement_portal
+  country_iso3: SAU
+  country_name: Saudi Arabia
+  repo_name: Etimad Portal (Unified Government Electronic Procurement Portal)
+  access_mode: api
+  is_ocds: false
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://etimad.sa/
+  verification_status: unverified_snapshot
+  tracker_row: 28
+  url_candidates:
+  - https://etimad.sa/
+  - https://portal.etimad.sa/en-us
+  tracker_notes_ra: '[F149] language'
+- source_id: zaf_etender_publication_portal
+  country_iso3: ZAF
+  country_name: South Africa
+  repo_name: eTender Publication Portal
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://ocds-api.etenders.gov.za/swagger/index.html
+  verification_status: unverified_snapshot
+  tracker_row: 29
+  url_candidates:
+  - https://ocds-api.etenders.gov.za/swagger/index.html
+  - https://www.etenders.gov.za/
+  - https://data.etenders.gov.za/
+  tracker_notes_ra: '[F159] https://ocds-api.etenders.gov.za/swagger/index.html
+
+    api'
+- source_id: tza_nest_data_portal_open_contracting_data_portal
+  country_iso3: TZA
+  country_name: Tanzania
+  repo_name: NeST Data Portal (Open Contracting Data Portal)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: false
+  base_url: https://nest.go.tz/tenders/awarded-tenders
+  verification_status: unverified_snapshot
+  tracker_row: 30
+  url_candidates:
+  - https://nest.go.tz/tenders/awarded-tenders
+  - https://data.open-contracting.org/en/publication/152
+  - https://data.nest.go.tz/
+  tracker_notes_ra: '[F170] https://nest.go.tz/tenders/awarded-tenders
+
+    not sure where the api is
+
+
+    https://data.open-contracting.org/en/publication/152
+
+    ocds'
+- source_id: ukr_prozorro_national_e_procurement_system
+  country_iso3: UKR
+  country_name: Ukraine
+  repo_name: Prozorro – National e-Procurement System
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: false
+  base_url: https://prozorro.gov.ua/en
+  verification_status: unverified_snapshot
+  tracker_row: 31
+  tracker_notes_ra: '[F181] language, not sure where api is'
+- source_id: gbr_find_a_tender_fat_service
+  country_iso3: GBR
+  country_name: United Kingdom
+  repo_name: Find a Tender (FAT) Service
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: false
+  base_url: https://www.find-tender.service.gov.uk/Developer/Documentation
+  verification_status: unverified_snapshot
+  tracker_row: 32
+  url_candidates:
+  - https://www.find-tender.service.gov.uk/Developer/Documentation
+  - https://www.find-tender.service.gov.uk
+  tracker_notes_ra: '[F183] https://www.find-tender.service.gov.uk/Developer/Documentation
+
+    api guide'
+- source_id: usa_sam_gov_contract_opportunities
+  country_iso3: USA
+  country_name: United States of America
+  repo_name: SAM.gov – Contract Opportunities
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: false
+  base_url: https://sam.gov
+  verification_status: unverified_snapshot
+  tracker_row: 33
+  tracker_notes_ra: '[F184] login needed'
+- source_id: ury_compras_estatales_arce_open_contracting_ocds
+  country_iso3: URY
+  country_name: Uruguay
+  repo_name: Compras Estatales (ARCE) – Open Contracting (OCDS)
+  access_mode: api
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: http://www.comprasestatales.gub.uy/ocds/rss/{year}/{month}
+  verification_status: unverified_snapshot
+  tracker_row: 34
+  tracker_notes_ra: '[F185] bulk ocds, cant find api (language)'
+  verification_note: >-
+    Partially verified 2026-08-10: the tracker RA's note undersold this as
+    bulk-only. Found and confirmed a real per-record API: monthly RSS index
+    at /ocds/rss/{YYYY}/{MM} (XML, not JSON — 406s if Accept:application/json
+    is forced) lists release ids/links; each links to a genuine OCDS 1.1
+    release package at /ocds/release/{id} (confirmed by direct HTTP call:
+    real ocid/releases[]/tender/parties structure). No API key. HTTP not
+    HTTPS on this host. NOT verified: full rate limits, robots.txt/ToS,
+    complete date-range coverage. verification_status intentionally left
+    unverified_snapshot; only run via --allow-unverified --limit N.
+- source_id: alb_albania_electronic_procurement_system_eps_public_procurement_agency_portal
+  country_iso3: ALB
+  country_name: Albania
+  repo_name: Albania Electronic Procurement System (EPS) - Public Procurement Agency Portal
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://www.app.gov.al/e-procurement/
+  verification_status: unverified_snapshot
+  tracker_row: 35
+  ocds_link: https://data.open-contracting.org/en/publication/134
+  tracker_notes_ra: '[F3] sign in needed?'
+- source_id: arg_compr_ar_national_public_procurement_portal_of_argentina
+  country_iso3: ARG
+  country_name: Argentina
+  repo_name: COMPR.AR - National Public Procurement Portal of Argentina
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://comprar.gob.ar/
+  verification_status: unverified_snapshot
+  tracker_row: 36
+  ocds_link: https://data.open-contracting.org/en/publication/137
+- source_id: can_canadabuys_tender_opportunities
+  country_iso3: CAN
+  country_name: Canada
+  repo_name: CanadaBuys – Tender Opportunities
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://open.canada.ca/data/en/dataset/4fe645a1-ffcd-40c1-9385-2c771be956a4
+  verification_status: unverified_snapshot
+  tracker_row: 37
+  ocds_link: https://data.open-contracting.org/en/publication/4
+  url_candidates:
+  - https://open.canada.ca/data/en/dataset/4fe645a1-ffcd-40c1-9385-2c771be956a4
+  - https://canadabuys.canada.ca/en/tender-opportunities
+  tracker_notes_ra: '[D33] https://data.open-contracting.org/en/publication/21 city of montreal api
+
+    https://data.open-contracting.org/en/publication/79 quebec
+
+
+    [F33] https://open.canada.ca/data/en/dataset/4fe645a1-ffcd-40c1-9385-2c771be956a4
+
+    website under maintenance until april 3 2026'
+- source_id: cri_sistema_integrado_de_compras_publicas_sicop
+  country_iso3: CRI
+  country_name: Costa Rica
+  repo_name: Sistema Integrado de Compras Públicas (SICOP)
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://www.sicop.go.cr/
+  verification_status: unverified_snapshot
+  tracker_row: 38
+  ocds_link: https://data.open-contracting.org/en/publication/16
+- source_id: hrv_electronic_public_procurement_classifieds_eojn_rh
+  country_iso3: HRV
+  country_name: Croatia
+  repo_name: Electronic Public Procurement Classifieds (EOJN RH)
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://eojn.nn.hr/
+  verification_status: unverified_snapshot
+  tracker_row: 39
+  ocds_link: https://data.open-contracting.org/en/publication/45
+  tracker_notes_ra: '[F43] some update with faulty translating'
+- source_id: ecu_sercop_open_contracting_contrataciones_abiertas_ecuador
+  country_iso3: ECU
+  country_name: Ecuador
+  repo_name: SERCOP Open Contracting (Contrataciones Abiertas Ecuador)
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://datosabiertos.compraspublicas.gob.ec/
+  verification_status: unverified_snapshot
+  tracker_row: 40
+  ocds_link: https://data.open-contracting.org/en/publication/110
+- source_id: gha_ghana_electronic_procurement_system_ghaneps
+  country_iso3: GHA
+  country_name: Ghana
+  repo_name: Ghana Electronic Procurement System (GHANEPS)
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://www.ghaneps.gov.gh
+  verification_status: unverified_snapshot
+  tracker_row: 41
+  ocds_link: https://data.open-contracting.org/en/publication/85
+- source_id: gtm_guatecompras_national_public_procurement_portal
+  country_iso3: GTM
+  country_name: Guatemala
+  repo_name: GuateCompras (National Public Procurement Portal)
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://www.guatecompras.gt
+  verification_status: unverified_snapshot
+  tracker_row: 42
+  ocds_link: https://data.open-contracting.org/en/publication/142
+- source_id: ken_ppip_public_procurement_information_portal
+  country_iso3: KEN
+  country_name: Kenya
+  repo_name: PPIP – Public Procurement Information Portal
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://tenders.go.ke/
+  verification_status: unverified_snapshot
+  tracker_row: 43
+- source_id: kgz_official_public_procurement_portal_zakupki_gov_kg
+  country_iso3: KGZ
+  country_name: Kyrgyzstan
+  repo_name: Official Public Procurement Portal (Zakupki.gov.kg)
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://www.zakupki.gov.kg/
+  verification_status: unverified_snapshot
+  tracker_row: 44
+- source_id: lva_iub_public_procurement_database_open_data_service
+  country_iso3: LVA
+  country_name: Latvia
+  repo_name: IUB Public Procurement Database – Open Data Service
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://open.iub.gov.lv/
+  verification_status: unverified_snapshot
+  tracker_row: 45
+- source_id: lbr_ppcc_e_gp_portal_liberia_ocds_portal
+  country_iso3: LBR
+  country_name: Liberia
+  repo_name: PPCC e-GP Portal / Liberia OCDS Portal
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://eprocurement.ppcc.gov.lr/
+  verification_status: unverified_snapshot
+  tracker_row: 46
+- source_id: mwi_malawi_national_electronic_procurement_system_maneps
+  country_iso3: MWI
+  country_name: Malawi
+  repo_name: Malawi National Electronic Procurement System (MANEPS)
+  access_mode: bulk
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://maneps.mw
+  verification_status: unverified_snapshot
+  tracker_row: 47
+- source_id: nzl_gets_government_electronic_tender_service
+  country_iso3: NZL
+  country_name: New Zealand
+  repo_name: GETS (Government Electronic Tender Service)
+  access_mode: bulk
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://www.gets.govt.nz/
+  verification_status: unverified_snapshot
+  tracker_row: 48
+- source_id: mkd_electronic_system_for_public_procurement_espp_e_nabavki
+  country_iso3: MKD
+  country_name: North Macedonia
+  repo_name: Electronic System for Public Procurement (ESPP / E-nabavki)
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://www.e-nabavki.gov.mk
+  verification_status: unverified_snapshot
+  tracker_row: 49
+- source_id: nor_doffin_database_for_public_procurement_announcements
+  country_iso3: NOR
+  country_name: Norway
+  repo_name: Doffin (Database for Public Procurement Announcements)
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://www.doffin.no/
+  verification_status: unverified_snapshot
+  tracker_row: 50
+- source_id: prt_portal_base_contratos_publicos_online
+  country_iso3: PRT
+  country_name: Portugal
+  repo_name: Portal BASE (Contratos Públicos Online)
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: awards
+  has_api: false
+  has_bulk: true
+  base_url: https://www.base.gov.pt/base4
+  verification_status: unverified_snapshot
+  tracker_row: 51
+- source_id: rus_unified_procurement_information_system_official_public_procurements_portal
+  country_iso3: RUS
+  country_name: Russian Federation
+  repo_name: Unified Procurement Information System (Единая информационная система, official public procurements portal)
+  access_mode: bulk
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://zakupki.gov.ru/
+  verification_status: unverified_snapshot
+  tracker_row: 52
+- source_id: srb_portal_javnih_nabavki_public_procurement_portal_of_serbia
+  country_iso3: SRB
+  country_name: Serbia
+  repo_name: Portal javnih nabavki (Public Procurement Portal of Serbia)
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://jnportal.ujn.gov.rs/
+  verification_status: unverified_snapshot
+  tracker_row: 53
+- source_id: svn_portal_javnih_narocil_public_procurement_portal_of_slovenia
+  country_iso3: SVN
+  country_name: Slovenia
+  repo_name: Portal javnih naročil (Public Procurement Portal of Slovenia)
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://www.enarocanje.si/
+  verification_status: unverified_snapshot
+  tracker_row: 54
+  url_candidates:
+  - https://www.enarocanje.si/
+  - https://podatki.gov.si/dataset/zbirka-obvestil-v-zvezi-s-postopki-javnih-narocil
+- source_id: esp_plataforma_de_contratacion_del_sector_publico_public_sector_procurement_platform
+  country_iso3: ESP
+  country_name: Spain
+  repo_name: Plataforma de Contratación del Sector Público (Public Sector Procurement Platform)
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://contrataciondelestado.es/wps/portal/plataforma/datos_abiertos
+  verification_status: unverified_snapshot
+  tracker_row: 55
+- source_id: uga_government_procurement_portal_gpp_ppda
+  country_iso3: UGA
+  country_name: Uganda
+  repo_name: Government Procurement Portal (GPP) – PPDA
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://gpp.ppda.go.ug
+  verification_status: unverified_snapshot
+  tracker_row: 56
+- source_id: zmb_zambia_public_procurement_authority_zppa_ocds_data
+  country_iso3: ZMB
+  country_name: Zambia
+  repo_name: Zambia Public Procurement Authority (ZPPA) – OCDS data
+  access_mode: bulk
+  is_ocds: true
+  coverage_type: both
+  has_api: true
+  has_bulk: true
+  base_url: https://www.zppa.org.zm
+  verification_status: unverified_snapshot
+  tracker_row: 57
+- source_id: dza_portail_electronique_des_marches_publics_electronic_public_procurement_portal
+  country_iso3: DZA
+  country_name: Algeria
+  repo_name: Portail Électronique des Marchés Publics (Electronic Public Procurement Portal)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://marches-publics.gov.dz/en
+  verification_status: unverified_snapshot
+  tracker_row: 58
+  tracker_notes_ra: '[F4] doesnt open'
+  scrape:
+    respect_robots: true
+- source_id: ago_portal_da_contratacao_publica_portal_compras_publicas
+  country_iso3: AGO
+  country_name: Angola
+  repo_name: Portal da Contratação Pública (Portal Compras Públicas)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://compraspublicas.minfin.gov.ao/
+  verification_status: unverified_snapshot
+  tracker_row: 59
+  scrape:
+    respect_robots: true
+- source_id: atg_tenders_board_public_procurement_in_antigua_and_barbuda
+  country_iso3: ATG
+  country_name: Antigua and Barbuda
+  repo_name: Tenders Board - Public Procurement in Antigua and Barbuda
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://tendersboard.gov.ag/
+  verification_status: unverified_snapshot
+  tracker_row: 60
+  tracker_notes_ra: '[F7] just info on public procurement, not actual database'
+  scrape:
+    respect_robots: true
+- source_id: arm_armeps_armenian_electronic_procurement_system
+  country_iso3: ARM
+  country_name: Armenia
+  repo_name: ARMEPS - Armenian Electronic Procurement System
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.armeps.am/epps/home.do
+  verification_status: unverified_snapshot
+  tracker_row: 61
+  tracker_notes_ra: '[F9] doesnt open'
+  scrape:
+    respect_robots: true
+- source_id: aut_usp_eprocurement_ausschreibungssuche_austrian_tenders_search
+  country_iso3: AUT
+  country_name: Austria
+  repo_name: USP eProcurement Ausschreibungssuche (Austrian Tenders Search)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://ausschreibungen.usp.gv.at/
+  verification_status: unverified_snapshot
+  tracker_row: 62
+  ocds_link: https://data.open-contracting.org/en/publication/46
+  scrape:
+    respect_robots: true
+- source_id: aze_etender_unified_public_procurement_portal_of_azerbaijan
+  country_iso3: AZE
+  country_name: Azerbaijan
+  repo_name: Etender - Unified Public Procurement Portal of Azerbaijan
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://etender.gov.az/
+  verification_status: unverified_snapshot
+  tracker_row: 63
+  tracker_notes_ra: '[F12] broken link'
+  scrape:
+    respect_robots: true
+- source_id: bhs_eprocurement_and_suppliers_registry_epsr_government_of_the_bahamas
+  country_iso3: BHS
+  country_name: Bahamas
+  repo_name: eProcurement and Suppliers Registry (ePSR) - Government of The Bahamas
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://mofvendors.gov.bs/
+  verification_status: unverified_snapshot
+  tracker_row: 64
+  tracker_notes_ra: '[F13] info website not database'
+  scrape:
+    respect_robots: true
+- source_id: bhr_bahrain_tender_board_etendering_system
+  country_iso3: BHR
+  country_name: Bahrain
+  repo_name: Bahrain Tender Board - eTendering System
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://etendering.tenderboard.gov.bh/
+  verification_status: unverified_snapshot
+  tracker_row: 65
+  scrape:
+    respect_robots: true
+- source_id: bgd_e_gp_system_central_procurement_technical_unit_cptu
+  country_iso3: BGD
+  country_name: Bangladesh
+  repo_name: e-GP System - Central Procurement Technical Unit (CPTU)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.eprocure.gov.bd/RegistrationDetails.jsp
+  verification_status: unverified_snapshot
+  tracker_row: 66
+  url_candidates:
+  - https://www.eprocure.gov.bd/RegistrationDetails.jsp
+  - https://www.eprocure.gov.bd/
+  tracker_notes_ra: '[F15] home page, data may exist here https://www.eprocure.gov.bd/RegistrationDetails.jsp'
+  scrape:
+    respect_robots: true
+- source_id: blr_icetrade_national_electronic_trading_platform_belarus
+  country_iso3: BLR
+  country_name: Belarus
+  repo_name: ICETRADE - National Electronic Trading Platform (Belarus)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://icetrade.by/
+  verification_status: unverified_snapshot
+  tracker_row: 67
+  tracker_notes_ra: '[F17] broken link'
+  scrape:
+    respect_robots: true
+- source_id: bel_belgian_e_procurement_e_notification_bosa
+  country_iso3: BEL
+  country_name: Belgium
+  repo_name: Belgian e-Procurement - e-Notification (BOSA)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://enot.publicprocurement.be/enot-war/home.do
+  verification_status: unverified_snapshot
+  tracker_row: 68
+  ocds_link: https://data.open-contracting.org/en/publication/47
+  tracker_notes_ra: '[F18] broken link'
+  scrape:
+    respect_robots: true
+- source_id: blz_government_of_belize_procurement_portal
+  country_iso3: BLZ
+  country_name: Belize
+  repo_name: Government of Belize Procurement Portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://procurement.gov.bz/award-of-contract-notices/
+  verification_status: unverified_snapshot
+  tracker_row: 69
+  url_candidates:
+  - https://procurement.gov.bz/award-of-contract-notices/
+  - https://procurement.gov.bz/
+  tracker_notes_ra: '[F19] home page, but data can be found here
+
+    https://procurement.gov.bz/award-of-contract-notices/'
+  scrape:
+    respect_robots: true
+- source_id: ben_portail_des_marches_publics_du_benin_benin_public_procurement_portal
+  country_iso3: BEN
+  country_name: Benin
+  repo_name: Portail des Marchés Publics du Bénin (Benin Public Procurement Portal)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.marches-publics.bj/
+  verification_status: unverified_snapshot
+  tracker_row: 70
+  tracker_notes_ra: '[F20] home page, couldnt find data during quick look'
+  scrape:
+    respect_robots: true
+- source_id: btn_e_gp_electronic_government_procurement_system_royal_government_of_bhutan
+  country_iso3: BTN
+  country_name: Bhutan
+  repo_name: e-GP - Electronic Government Procurement System (Royal Government of Bhutan)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.egp.gov.bt/resources/common/TenderListing.jsp?h=t
+  verification_status: unverified_snapshot
+  tracker_row: 71
+  url_candidates:
+  - https://www.egp.gov.bt/resources/common/TenderListing.jsp?h=t
+  - https://www.egp.gov.bt/
+  tracker_notes_ra: '[F21] https://www.egp.gov.bt/resources/common/TenderListing.jsp?h=t'
+  scrape:
+    respect_robots: true
+- source_id: bol_sistema_de_contrataciones_estatales_sicoes
+  country_iso3: BOL
+  country_name: Bolivia
+  repo_name: Sistema de Contrataciones Estatales (SICOES)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.sicoes.gob.bo/portal/contrataciones/busqueda/convocatorias.php?tipo=convNacional&tipoContratacion=B&token=66aa32857c400469ff951d73d40973eece3adf25ab913453c2b57aeb723bf51b
+  verification_status: unverified_snapshot
+  tracker_row: 72
+  ocds_link: https://data.open-contracting.org/en/publication/20
+  url_candidates:
+  - https://www.sicoes.gob.bo/portal/contrataciones/busqueda/convocatorias.php?tipo=convNacional&tipoContratacion=B&token=66aa32857c400469ff951d73d40973eece3adf25ab913453c2b57aeb723bf51b
+  - https://www.sicoes.gob.bo/portal/contrataciones/busqueda/convocatorias.php?tipo=convNacional&tipoContratacion=O&token=98fd1af1c4cce3c79892089c7761a4bd45e6c6e2331798abce7cafe4bd6d06bb
+  - https://www.sicoes.gob.bo/portal/contrataciones/busqueda/convocatorias.php?tipo=convNacional&tipoContratacion=S&token=3ba612fb094581692f83195b37f3b046b3b598c1cc052cfec609e2ccf6cde4f5
+  - https://www.sicoes.gob.bo/portal/contrataciones/busqueda/convocatorias.php?tipo=convNacional&tipoContratacion=C&token=058869cdea3e9e76ed194994474a76a550c73a11a7f701f069966f72e98318b9
+  - https://www.sicoes.gob.bo/
+  tracker_notes_ra: '[F22] links to four
+
+    goods https://www.sicoes.gob.bo/portal/contrataciones/busqueda/convocatorias.php?tipo=convNacional&tipoContratacion=B&token=66aa32857c400469ff951d73d40973eece3adf25ab913453c2b57aeb723bf51b
+
+    works https://www.sicoes.gob.bo/portal/contrataciones/busqueda/convocatorias.php?tipo=convNacional&tipoContratacion=O&token=98fd1af1c4cce3c79892089c7761a4bd45e6c6e2331798abce7cafe4bd6d06bb
+
+    general services
+
+    https://www.sicoes.gob.bo/portal/contrataciones/busqueda/convocatorias.php?tipo=convNacional&tipoContratacion=S&token=3ba612fb094581692f83195b37f3b046b3b598c1cc052cfec609e2ccf6cde4f5
+
+    consulting services
+
+    https://www.sicoes.gob.bo/portal/contrataciones/busqueda/convocatorias.php?tipo=convNacional&tipoContratacion=C&token=058869cdea3e9e76ed194994474a76a550c73a11a7f701f069966f72e98318b9'
+  scrape:
+    respect_robots: true
+- source_id: bwa_public_procurement_regulatory_authority_ppra_tender_notices
+  country_iso3: BWA
+  country_name: Botswana
+  repo_name: Public Procurement Regulatory Authority (PPRA) – Tender Notices
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.ppadb.co.bw/Pages/Tenders.aspx
+  verification_status: unverified_snapshot
+  tracker_row: 73
+  scrape:
+    respect_robots: true
+- source_id: bgr_public_procurement_portal_cais_eop_public_procurement_register
+  country_iso3: BGR
+  country_name: Bulgaria
+  repo_name: Public Procurement Portal (CAIS EOP) – Public Procurement Register
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://app.eop.bg/today/reporting/search
+  verification_status: unverified_snapshot
+  tracker_row: 74
+  ocds_link: https://data.open-contracting.org/en/publication/44
+  url_candidates:
+  - https://app.eop.bg/today/reporting/search
+  - https://www2.aop.bg/en/
+  tracker_notes_ra: '[F27] https://app.eop.bg/today/reporting/search'
+  scrape:
+    respect_robots: true
+- source_id: bdi_armp_burundi_procurement_notices_portal
+  country_iso3: BDI
+  country_name: Burundi
+  repo_name: ARMP Burundi – Procurement Notices Portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.armp.bi/rapports-annuels/
+  verification_status: unverified_snapshot
+  tracker_row: 75
+  url_candidates:
+  - https://www.armp.bi/rapports-annuels/
+  - https://www.armp.bi/
+  tracker_notes_ra: "[F29] homepage, yearly report may be dataset, need to confirm with translation \nhttps://www.armp.bi/rapports-annuels/"
+  scrape:
+    respect_robots: true
+- source_id: cpv_ecompras_cv_concursos_abertos
+  country_iso3: CPV
+  country_name: Cabo Verde
+  repo_name: eCOMPRAS.cv – Concursos Abertos
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.mf.gov.cv/web/ecompras/concursos-abertos
+  verification_status: unverified_snapshot
+  tracker_row: 76
+  tracker_notes_ra: '[F30] double check'
+  scrape:
+    respect_robots: true
+- source_id: cmr_coleps_cameroon_online_e_procurement_system
+  country_iso3: CMR
+  country_name: Cameroon
+  repo_name: COLEPS (Cameroon Online E-Procurement System)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.marchespublics.cm/
+  verification_status: unverified_snapshot
+  tracker_row: 77
+  tracker_notes_ra: '[F32] bidding website, cant find correct page because of translating issue'
+  scrape:
+    respect_robots: true
+- source_id: caf_ministry_of_finance_and_budget_marches_publics_portal
+  country_iso3: CAF
+  country_name: Central African Republic
+  repo_name: Ministry of Finance & Budget – Marchés publics portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.finances.gouv.cf/article/243/marches-publics
+  verification_status: unverified_snapshot
+  tracker_row: 78
+  tracker_notes_ra: '[F34] home page on pp info, database doesnt seem to exist'
+  scrape:
+    respect_robots: true
+- source_id: tcd_armp_tchad_consultation_des_appels_d_offres
+  country_iso3: TCD
+  country_name: Chad
+  repo_name: ARMP Tchad – Consultation des appels d’offres
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.armp-tchad.com/consultation-des-appels-d-offres
+  verification_status: unverified_snapshot
+  tracker_row: 79
+  tracker_notes_ra: '[F35] i dont see a data collection, might exist, do a second look'
+  scrape:
+    respect_robots: true
+- source_id: chn_china_government_procurement_network
+  country_iso3: CHN
+  country_name: China
+  repo_name: China Government Procurement Network (中国政府采购网)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: http://www.ccgp.gov.cn/
+  verification_status: unverified_snapshot
+  tracker_row: 80
+  tracker_notes_ra: '[F37] translate not working'
+  scrape:
+    respect_robots: true
+- source_id: com_armp_comores_avis_des_appels_d_offres
+  country_iso3: COM
+  country_name: Comoros
+  repo_name: ARMP Comores – Avis des appels d’offres
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://armpcomores.km/
+  verification_status: unverified_snapshot
+  tracker_row: 81
+  tracker_notes_ra: '[F39] cant find anything, official pp website, do second search'
+  scrape:
+    respect_robots: true
+- source_id: cod_sigmap_systeme_integre_de_gestion_des_marches_publics
+  country_iso3: COD
+  country_name: Congo, Democratic Republic of the
+  repo_name: SIGMAP – Système Intégré de Gestion des Marchés Publics
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://marchepublic.cd/
+  verification_status: unverified_snapshot
+  tracker_row: 82
+  tracker_notes_ra: '[F41] can put in approval to sort through all procurement things'
+  scrape:
+    respect_robots: true
+- source_id: cyp_eprocurement_system_epps_cyprus
+  country_iso3: CYP
+  country_name: Cyprus
+  repo_name: eProcurement System (ePPS Cyprus)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.eprocurement.gov.cy/epps/viewInfo.do?section=newItems&entryId=8700820
+  verification_status: unverified_snapshot
+  tracker_row: 83
+  ocds_link: https://data.open-contracting.org/en/publication/48
+  url_candidates:
+  - https://www.eprocurement.gov.cy/epps/viewInfo.do?section=newItems&entryId=8700820
+  - https://www.eprocurement.gov.cy/epps/home.do
+  tracker_notes_ra: '[F45] new procurmenet system https://www.eprocurement.gov.cy/epps/viewInfo.do?section=newItems&entryId=8700820'
+  scrape:
+    respect_robots: true
+- source_id: civ_portail_des_marches_publics_sigomap
+  country_iso3: CIV
+  country_name: Côte d'Ivoire
+  repo_name: Portail des Marchés Publics (SIGOMAP)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.marchespublics.ci/
+  verification_status: unverified_snapshot
+  tracker_row: 84
+  scrape:
+    respect_robots: true
+- source_id: dji_marches_publics_de_djibouti_cnmp_portal
+  country_iso3: DJI
+  country_name: Djibouti
+  repo_name: Marchés Publics de Djibouti (CNMP portal)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://marchespublics.gouv.dj/
+  verification_status: unverified_snapshot
+  tracker_row: 85
+  scrape:
+    respect_robots: true
+- source_id: egy_egyptian_government_procurement_portal
+  country_iso3: EGY
+  country_name: Egypt
+  repo_name: Egyptian Government Procurement Portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://etenders.gov.eg/
+  verification_status: unverified_snapshot
+  tracker_row: 86
+  scrape:
+    respect_robots: true
+- source_id: slv_comprasal_sistema_electronico_de_compras_publicas
+  country_iso3: SLV
+  country_name: El Salvador
+  repo_name: COMPRASAL (Sistema Electrónico de Compras Públicas)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://unac.mh.gob.sv/comprasalweb/procesos
+  verification_status: unverified_snapshot
+  tracker_row: 87
+  scrape:
+    respect_robots: true
+- source_id: est_riigihangete_register_public_procurement_register
+  country_iso3: EST
+  country_name: Estonia
+  repo_name: Riigihangete register (Public Procurement Register)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://riigihanked.riik.ee/
+  verification_status: unverified_snapshot
+  tracker_row: 88
+  ocds_link: https://data.open-contracting.org/en/publication/50
+  scrape:
+    respect_robots: true
+- source_id: swz_e_government_procurement_portal_esppra
+  country_iso3: SWZ
+  country_name: Eswatini
+  repo_name: e-Government Procurement Portal (ESPPRA)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://esppra.co.sz
+  verification_status: unverified_snapshot
+  tracker_row: 89
+  scrape:
+    respect_robots: true
+- source_id: eth_electronic_government_procurement_egp_platform
+  country_iso3: ETH
+  country_name: Ethiopia
+  repo_name: Electronic Government Procurement (eGP) Platform
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://egp.gov.et/
+  verification_status: unverified_snapshot
+  tracker_row: 90
+  scrape:
+    respect_robots: true
+- source_id: fin_hilma_public_procurement_notification_service
+  country_iso3: FIN
+  country_name: Finland
+  repo_name: HILMA (Public Procurement Notification Service)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.hankintailmoitukset.fi/
+  verification_status: unverified_snapshot
+  tracker_row: 91
+  ocds_link: https://data.open-contracting.org/en/publication/51
+  scrape:
+    respect_robots: true
+- source_id: gmb_gambia_public_procurement_authority_gppa_portal
+  country_iso3: GMB
+  country_name: Gambia
+  repo_name: Gambia Public Procurement Authority (GPPA) Portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://gppa.gm
+  verification_status: unverified_snapshot
+  tracker_row: 92
+  scrape:
+    respect_robots: true
+- source_id: grc_national_electronic_public_procurement_system_esidis_promitheus
+  country_iso3: GRC
+  country_name: Greece
+  repo_name: National Electronic Public Procurement System (ESIDIS “Promitheus”)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.promitheus.gov.gr
+  verification_status: unverified_snapshot
+  tracker_row: 93
+  ocds_link: https://data.open-contracting.org/en/publication/55
+  scrape:
+    respect_robots: true
+- source_id: guy_national_procurement_and_tender_administration_board_nptab_portal
+  country_iso3: GUY
+  country_name: Guyana
+  repo_name: National Procurement and Tender Administration Board (NPTAB) Portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.npta.gov.gy
+  verification_status: unverified_snapshot
+  tracker_row: 94
+  scrape:
+    respect_robots: true
+- source_id: hun_kozbeszerzesi_ertesito_public_procurement_bulletin
+  country_iso3: HUN
+  country_name: Hungary
+  repo_name: Közbeszerzési Értesítő (Public Procurement Bulletin)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.kozbeszerzes.hu/ertesito
+  verification_status: unverified_snapshot
+  tracker_row: 95
+  ocds_link: https://data.open-contracting.org/en/publication/56
+  scrape:
+    respect_robots: true
+- source_id: ind_central_public_procurement_portal_cppp
+  country_iso3: IND
+  country_name: India
+  repo_name: Central Public Procurement Portal (CPPP)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://eprocure.gov.in
+  verification_status: unverified_snapshot
+  tracker_row: 96
+  tracker_notes_ra: '[C78] not federal'
+  scrape:
+    respect_robots: true
+- source_id: idn_inaproc_national_public_procurement_portal_lkpp
+  country_iso3: IDN
+  country_name: Indonesia
+  repo_name: INAPROC – National Public Procurement Portal (LKPP)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://inaproc.id
+  verification_status: unverified_snapshot
+  tracker_row: 97
+  scrape:
+    respect_robots: true
+- source_id: irl_etenders_ireland_s_national_tendering_website
+  country_iso3: IRL
+  country_name: Ireland
+  repo_name: eTenders (Ireland’s National Tendering Website)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.etenders.gov.ie
+  verification_status: unverified_snapshot
+  tracker_row: 98
+  scrape:
+    respect_robots: true
+- source_id: isr_government_procurement_administration_portal_merkava
+  country_iso3: ISR
+  country_name: Israel
+  repo_name: Government Procurement Administration Portal (Merkava)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://mr.gov.il/ilgstorefront/en
+  verification_status: unverified_snapshot
+  tracker_row: 99
+  scrape:
+    respect_robots: true
+- source_id: jpn_jetro_government_procurement_notices_database
+  country_iso3: JPN
+  country_name: Japan
+  repo_name: JETRO Government Procurement Notices Database
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.jetro.go.jp/en/database/procurement/
+  verification_status: unverified_snapshot
+  tracker_row: 100
+  scrape:
+    respect_robots: true
+- source_id: jor_joneps_jordan_online_e_procurement_system
+  country_iso3: JOR
+  country_name: Jordan
+  repo_name: JONEPS – Jordan ONline E-Procurement System
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://www.joneps.gov.jo/
+  verification_status: unverified_snapshot
+  tracker_row: 101
+  scrape:
+    respect_robots: true
+- source_id: kir_central_procurement_unit_portal
+  country_iso3: KIR
+  country_name: Kiribati
+  repo_name: Central Procurement Unit Portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://procurement.gov.ki/tender-list
+  verification_status: unverified_snapshot
+  tracker_row: 102
+  scrape:
+    respect_robots: true
+- source_id: kor_koneps_korea_on_line_e_procurement_system_narajangteo
+  country_iso3: KOR
+  country_name: Korea, Republic of
+  repo_name: KONEPS – Korea ON-line E-Procurement System (Narajangteo)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: true
+  has_bulk: false
+  base_url: https://www.g2b.go.kr/
+  verification_status: unverified_snapshot
+  tracker_row: 103
+  scrape:
+    respect_robots: true
+- source_id: kwt_capt_central_agency_for_public_tenders
+  country_iso3: KWT
+  country_name: Kuwait
+  repo_name: CAPT – Central Agency for Public Tenders
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://capt.gov.kw/en/
+  verification_status: unverified_snapshot
+  tracker_row: 104
+  scrape:
+    respect_robots: true
+- source_id: lbn_public_procurement_authority_ppa_portal
+  country_iso3: LBN
+  country_name: Lebanon
+  repo_name: Public Procurement Authority (PPA) Portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.ppa.gov.lb/en/tenders
+  verification_status: unverified_snapshot
+  tracker_row: 105
+  scrape:
+    respect_robots: true
+- source_id: lso_government_of_lesotho_tenders_portal
+  country_iso3: LSO
+  country_name: Lesotho
+  repo_name: Government of Lesotho Tenders Portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.gov.ls/category/tenders/
+  verification_status: unverified_snapshot
+  tracker_row: 106
+  scrape:
+    respect_robots: true
+- source_id: lie_simap_swiss_public_procurement_platform_used_by_liechtenstein
+  country_iso3: LIE
+  country_name: Liechtenstein
+  repo_name: SIMAP (Swiss public procurement platform) – used by Liechtenstein
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.simap.ch/
+  verification_status: unverified_snapshot
+  tracker_row: 107
+  tracker_notes_ra: '[B101] LITHUANIA MISSING:
+
+    https://data.open-contracting.org/en/publication/68'
+  scrape:
+    respect_robots: true
+- source_id: lux_portail_des_marches_publics_luxembourg_public_procurement_portal
+  country_iso3: LUX
+  country_name: Luxembourg
+  repo_name: Portail des Marchés Publics (Luxembourg Public Procurement Portal)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://marches.public.lu
+  verification_status: unverified_snapshot
+  tracker_row: 108
+  scrape:
+    respect_robots: true
+- source_id: mys_myprocurement_portal_ministry_of_finance_malaysia
+  country_iso3: MYS
+  country_name: Malaysia
+  repo_name: MyProcurement Portal (Ministry of Finance, Malaysia)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://myprocurement.treasury.gov.my
+  verification_status: unverified_snapshot
+  tracker_row: 109
+  scrape:
+    respect_robots: true
+- source_id: mdv_government_of_maldives_gazette_raajjeyge_gazet_tender_notices_section
+  country_iso3: MDV
+  country_name: Maldives
+  repo_name: Government of Maldives Gazette (Raajjeyge Gazet) – Tender Notices section
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.gazette.gov.mv
+  verification_status: unverified_snapshot
+  tracker_row: 110
+  scrape:
+    respect_robots: true
+- source_id: mli_portail_malien_des_marches_publics_dgmp_dsp_portal
+  country_iso3: MLI
+  country_name: Mali
+  repo_name: Portail Malien des Marchés Publics (DGMP-DSP Portal)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.dgmp.gouv.ml
+  verification_status: unverified_snapshot
+  tracker_row: 111
+  scrape:
+    respect_robots: true
+- source_id: mrt_portail_national_des_marches_publics_mauritania_public_procurement_portal
+  country_iso3: MRT
+  country_name: Mauritania
+  repo_name: Portail National des Marchés Publics (Mauritania Public Procurement Portal)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.marchespublics.gov.mr
+  verification_status: unverified_snapshot
+  tracker_row: 112
+  scrape:
+    respect_robots: true
+- source_id: mus_government_of_mauritius_e_procurement_system_public_procurement_portal
+  country_iso3: MUS
+  country_name: Mauritius
+  repo_name: Government of Mauritius e-Procurement System (Public Procurement Portal)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://publicprocurement.govmu.org
+  verification_status: unverified_snapshot
+  tracker_row: 113
+  scrape:
+    respect_robots: true
+- source_id: mne_public_procurement_portal_of_montenegro_portal_ujn_gov_me
+  country_iso3: MNE
+  country_name: Montenegro
+  repo_name: Public Procurement Portal of Montenegro (portal.ujn.gov.me)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://portal.ujn.gov.me
+  verification_status: unverified_snapshot
+  tracker_row: 114
+  scrape:
+    respect_robots: true
+- source_id: mar_portail_marocain_des_marches_publics
+  country_iso3: MAR
+  country_name: Morocco
+  repo_name: Portail Marocain des Marchés Publics
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.marchespublics.gov.ma
+  verification_status: unverified_snapshot
+  tracker_row: 115
+  scrape:
+    respect_robots: true
+- source_id: nam_namibia_eprocurement_portal_public_procurement_unit
+  country_iso3: NAM
+  country_name: Namibia
+  repo_name: Namibia eProcurement Portal (Public Procurement Unit)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://eprocurement.gov.na/
+  verification_status: unverified_snapshot
+  tracker_row: 116
+  scrape:
+    respect_robots: true
+- source_id: npl_nepal_e_gp_system_public_procurement_monitoring_office
+  country_iso3: NPL
+  country_name: Nepal
+  repo_name: Nepal e-GP System (Public Procurement Monitoring Office)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://bolpatra.gov.np/egp
+  verification_status: unverified_snapshot
+  tracker_row: 117
+  scrape:
+    respect_robots: true
+- source_id: nic_nicaraguacompra_siscae_sistema_de_contrataciones_administrativas_electronicas
+  country_iso3: NIC
+  country_name: Nicaragua
+  repo_name: NicaraguaCompra / SISCAE (Sistema de Contrataciones Administrativas Electrónicas)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.gestion.nicaraguacompra.gob.ni/
+  verification_status: unverified_snapshot
+  tracker_row: 118
+  scrape:
+    respect_robots: true
+- source_id: ner_portail_des_marches_publics_du_niger_arcop
+  country_iso3: NER
+  country_name: Niger
+  repo_name: Portail des Marchés Publics du Niger (ARCOP)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.marchespublics.ne/
+  verification_status: unverified_snapshot
+  tracker_row: 119
+  scrape:
+    respect_robots: true
+- source_id: omn_oman_tender_board_etendering_portal
+  country_iso3: OMN
+  country_name: Oman
+  repo_name: Oman Tender Board eTendering Portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://etendering.tenderboard.gov.om/product/publicDash?CTRL_STRDIRECTION=LTR
+  verification_status: unverified_snapshot
+  tracker_row: 120
+  scrape:
+    respect_robots: true
+- source_id: pak_epads_e_pak_acquisition_and_disposal_system_ppra
+  country_iso3: PAK
+  country_name: Pakistan
+  repo_name: EPADS (e-Pak Acquisition & Disposal System) / PPRA
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://epads.gov.pk/
+  verification_status: unverified_snapshot
+  tracker_row: 121
+  scrape:
+    respect_robots: true
+- source_id: phl_philgeps_philippine_government_electronic_procurement_system
+  country_iso3: PHL
+  country_name: Philippines
+  repo_name: PhilGEPS (Philippine Government Electronic Procurement System)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://notices.philgeps.gov.ph/
+  verification_status: unverified_snapshot
+  tracker_row: 122
+  scrape:
+    respect_robots: true
+- source_id: qat_monaqasat_unified_state_procurement_portal
+  country_iso3: QAT
+  country_name: Qatar
+  repo_name: Monaqasat (Unified State Procurement Portal)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://monaqasat.mof.gov.qa/
+  verification_status: unverified_snapshot
+  tracker_row: 123
+  scrape:
+    respect_robots: true
+- source_id: rou_electronic_public_procurement_system_sistemul_electronic_de_achizitii_publice_se
+  country_iso3: ROU
+  country_name: Romania
+  repo_name: Electronic Public Procurement System (Sistemul Electronic de Achiziții Publice – SEAP, now SICAP)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.e-licitatie.ro/
+  verification_status: unverified_snapshot
+  tracker_row: 124
+  scrape:
+    respect_robots: true
+- source_id: lca_saint_lucia_electronic_government_procurement_portal_egp_in_tend_system
+  country_iso3: LCA
+  country_name: Saint Lucia
+  repo_name: Saint Lucia Electronic Government Procurement Portal (eGP In-Tend system)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://in-tendhost.co.uk/goslprocurement/aspx/Home
+  verification_status: unverified_snapshot
+  tracker_row: 125
+  scrape:
+    respect_robots: true
+- source_id: vct_central_procurement_portal_government_of_st_vincent_and_the_grenadines
+  country_iso3: VCT
+  country_name: Saint Vincent and the Grenadines
+  repo_name: Central Procurement Portal (Government of St. Vincent & the Grenadines)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://procurement.gov.vc/
+  verification_status: unverified_snapshot
+  tracker_row: 126
+  scrape:
+    respect_robots: true
+- source_id: wsm_samoa_e_tendering_portal_government_of_samoa_procurement_portal_on_tenderlink
+  country_iso3: WSM
+  country_name: Samoa
+  repo_name: Samoa E-Tendering Portal (Government of Samoa Procurement Portal on TenderLink)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://portal.tenderlink.com/mof_samoa/
+  verification_status: unverified_snapshot
+  tracker_row: 127
+  scrape:
+    respect_robots: true
+- source_id: smr_san_marino_public_tenders_bulletin_published_on_the_official_government_portal
+  country_iso3: SMR
+  country_name: San Marino
+  repo_name: San Marino Public Tenders Bulletin (published on the official government portal)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.gov.sm/pub1/GovSM/Appalti-e-Avvisi-Pubblici-di-Lavori-e-Opere-Pubbliche.html
+  verification_status: unverified_snapshot
+  tracker_row: 128
+  scrape:
+    respect_robots: true
+- source_id: sen_portail_des_marches_publics_national_public_procurement_portal_of_senegal
+  country_iso3: SEN
+  country_name: Senegal
+  repo_name: Portail des Marchés Publics (National Public Procurement Portal of Senegal)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.marchespublics.sn/
+  verification_status: unverified_snapshot
+  tracker_row: 129
+  scrape:
+    respect_robots: true
+- source_id: syc_seychelles_national_tenders_portal_procurement_oversight_unit_and_national_tende
+  country_iso3: SYC
+  country_name: Seychelles
+  repo_name: Seychelles National Tenders Portal – Procurement Oversight Unit & National Tender Board
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.pou.gov.sc/
+  verification_status: unverified_snapshot
+  tracker_row: 130
+  url_candidates:
+  - https://www.pou.gov.sc/
+  - https://www.ntb.sc/
+  scrape:
+    respect_robots: true
+- source_id: sle_national_public_procurement_authority_nppa_e_gp_portal
+  country_iso3: SLE
+  country_name: Sierra Leone
+  repo_name: National Public Procurement Authority (NPPA) – e-GP Portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://egp.nppa.gov.sl/
+  verification_status: unverified_snapshot
+  tracker_row: 131
+  scrape:
+    respect_robots: true
+- source_id: sgp_gebiz_government_electronic_business_portal
+  country_iso3: SGP
+  country_name: Singapore
+  repo_name: GeBIZ (Government Electronic Business portal)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.gebiz.gov.sg/
+  verification_status: unverified_snapshot
+  tracker_row: 132
+  scrape:
+    respect_robots: true
+- source_id: svk_vestnik_verejneho_obstaravania_public_procurement_journal_of_slovakia
+  country_iso3: SVK
+  country_name: Slovakia
+  repo_name: Vestník verejného obstarávania (Public Procurement Journal of Slovakia)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: true
+  base_url: https://www.uvo.gov.sk/vestnik-a-registre/vestnik
+  verification_status: unverified_snapshot
+  tracker_row: 133
+  scrape:
+    respect_robots: true
+- source_id: ssd_south_sudan_ppdaa_tender_portal_public_procurement_and_disposal_of_assets_author
+  country_iso3: SSD
+  country_name: South Sudan
+  repo_name: South Sudan PPDAA Tender Portal (Public Procurement and Disposal of Assets Authority)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://tenderportal.ppdaa.gov.ss/
+  verification_status: unverified_snapshot
+  tracker_row: 134
+  scrape:
+    respect_robots: true
+- source_id: lka_sri_lanka_e_government_procurement_egp_portal_promise_lk_launched_2026
+  country_iso3: LKA
+  country_name: Sri Lanka
+  repo_name: Sri Lanka e-Government Procurement (eGP) Portal – “Promise.lk” (launched 2026)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://promise.lk
+  verification_status: unverified_snapshot
+  tracker_row: 135
+  scrape:
+    respect_robots: true
+- source_id: sur_gov_sr_procurement_notices_ministry_of_public_works_spatial_planning_e_procureme
+  country_iso3: SUR
+  country_name: Suriname
+  repo_name: Gov.sr Procurement Notices (Ministry of Public Works, Spatial Planning e- procurement pages)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://gov.sr/ministeries/ministerie-van-openbare-werken-en-ruimtelijke-ordening/aanbestedingen/
+  verification_status: unverified_snapshot
+  tracker_row: 136
+  scrape:
+    respect_robots: true
+- source_id: swe_post_och_inrikes_tidningar_official_gazette
+  country_iso3: SWE
+  country_name: Sweden
+  repo_name: Post- och Inrikes Tidningar (Official Gazette)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://poit.bolagsverket.se/poit/
+  verification_status: unverified_snapshot
+  tracker_row: 137
+  scrape:
+    respect_robots: true
+- source_id: che_simap_swiss_public_procurement_platform
+  country_iso3: CHE
+  country_name: Switzerland
+  repo_name: SIMAP (Swiss public procurement platform)
+  access_mode: scrape
+  is_ocds: true
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.simap.ch/
+  verification_status: unverified_snapshot
+  tracker_row: 138
+  scrape:
+    respect_robots: true
+- source_id: tjk_tajikistan_e_procurement_portal_epp
+  country_iso3: TJK
+  country_name: Tajikistan
+  repo_name: Tajikistan e-Procurement Portal (EPP)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://eprocurement.gov.tj/
+  verification_status: unverified_snapshot
+  tracker_row: 139
+  scrape:
+    respect_robots: true
+- source_id: tha_thai_government_e_procurement_g_procurement_portal
+  country_iso3: THA
+  country_name: Thailand
+  repo_name: Thai Government e-Procurement (G-Procurement) Portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.gprocurement.go.th/
+  verification_status: unverified_snapshot
+  tracker_row: 140
+  scrape:
+    respect_robots: true
+- source_id: tls_timor_leste_e_procurement_portal
+  country_iso3: TLS
+  country_name: Timor-Leste
+  repo_name: Timor-Leste e-Procurement Portal
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.eprocurement.gov.tl/
+  verification_status: unverified_snapshot
+  tracker_row: 141
+  scrape:
+    respect_robots: true
+- source_id: tgo_dnccp_tender_notices_directorate_of_public_contracts
+  country_iso3: TGO
+  country_name: Togo
+  repo_name: DNCCP Tender Notices (Directorate of Public Contracts)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://dnccp.gouv.tg/
+  verification_status: unverified_snapshot
+  tracker_row: 142
+  scrape:
+    respect_robots: true
+- source_id: ton_tonga_government_tender_system_via_ministry_of_finance
+  country_iso3: TON
+  country_name: Tonga
+  repo_name: Tonga Government Tender System (via Ministry of Finance)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: http://www.finance.gov.to/tender
+  verification_status: unverified_snapshot
+  tracker_row: 143
+  scrape:
+    respect_robots: true
+- source_id: tto_procurement_depository_opr
+  country_iso3: TTO
+  country_name: Trinidad and Tobago
+  repo_name: Procurement Depository (OPR)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://depository.oprtt.org/
+  verification_status: unverified_snapshot
+  tracker_row: 144
+  scrape:
+    respect_robots: true
+- source_id: tur_ekap_elektronik_kamu_al_mlar_platformu
+  country_iso3: TUR
+  country_name: Turkey
+  repo_name: EKAP (Elektronik Kamu Alımları Platformu)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://ekap.kik.gov.tr/
+  verification_status: unverified_snapshot
+  tracker_row: 145
+  scrape:
+    respect_robots: true
+- source_id: tuv_government_of_tuvalu_e_procurement_tenderlink_portal
+  country_iso3: TUV
+  country_name: Tuvalu
+  repo_name: Government of Tuvalu E-Procurement (TenderLink portal)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://portal.tenderlink.com/got/login
+  verification_status: unverified_snapshot
+  tracker_row: 146
+  scrape:
+    respect_robots: true
+- source_id: are_digital_procurement_platform_ministry_of_finance
+  country_iso3: ARE
+  country_name: United Arab Emirates
+  repo_name: Digital Procurement Platform (Ministry of Finance)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://procurement.gov.ae
+  verification_status: unverified_snapshot
+  tracker_row: 147
+  scrape:
+    respect_robots: true
+- source_id: vut_central_tender_board_ctb
+  country_iso3: VUT
+  country_name: Vanuatu
+  repo_name: Central Tender Board (CTB)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://ctb.gov.vu
+  verification_status: unverified_snapshot
+  tracker_row: 148
+  scrape:
+    respect_robots: true
+- source_id: ven_servicio_nacional_de_contrataciones_snc
+  country_iso3: VEN
+  country_name: Venezuela
+  repo_name: Servicio Nacional de Contrataciones (SNC)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.snc.gob.ve
+  verification_status: unverified_snapshot
+  tracker_row: 149
+  scrape:
+    respect_robots: true
+- source_id: vnm_vietnam_national_e_procurement_system_vneps
+  country_iso3: VNM
+  country_name: Viet Nam
+  repo_name: Vietnam National e-Procurement System (VNEPS)
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://muasamcong.gov.vn
+  verification_status: unverified_snapshot
+  tracker_row: 150
+  scrape:
+    respect_robots: true
+- source_id: zwe_e_government_procurement_egp_system_praz
+  country_iso3: ZWE
+  country_name: Zimbabwe
+  repo_name: e-Government Procurement (eGP) System – PRAZ
+  access_mode: scrape
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://egp.praz.org.zw
+  verification_status: unverified_snapshot
+  tracker_row: 151
+  scrape:
+    respect_robots: true

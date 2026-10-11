@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://g3o/procurement/procurement_record.schema.json",
+  "title": "G3O Standardized Procurement Record",
+  "description": "EXTRACTION INTERMEDIATE. One standardized record as pulled from a procurement repository. This is NOT the emitted artifact: per docs/procurement-extension-spec.md the pipeline emits (a) rows conforming to the 39-field G3O output contract v2.0 at grain (institution x activity x source), plus (b) one procurement_extension row per primary row joined 1:1 on record_id, plus (c) institution_link rows. This schema is the staging shape those three are built from. Updated 2026-08-03 per spec section 7; 2026-08-04 for PI rulings Q1a/D1 (activity_type), D2/D3 (adoption_stage).",
+  "type": "object",
+  "required": [
+    "record_id",
+    "source_id",
+    "country_iso3",
+    "native_id",
+    "notice_type",
+    "genai_relevant",
+    "fetched_at",
+    "pipeline_version"
+  ],
+  "properties": {
+    "record_id": {
+      "type": "string",
+      "description": "Pipeline-generated stable id, e.g. sha1(source_id + '|' + native_id). Dedup/upsert key, and the join key to procurement_extension and institution_link."
+    },
+    "source_id": {
+      "type": "string",
+      "description": "Adapter source id, e.g. 'chl_mercadopublico'."
+    },
+    "source_repo_name": {
+      "type": "string"
+    },
+    "country_iso3": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3
+    },
+    "country_name": {
+      "type": "string"
+    },
+    "native_id": {
+      "type": "string",
+      "description": "The tender/award id as issued by the source."
+    },
+    "ocds_ocid": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "OCDS open contracting id, when the source is OCDS."
+    },
+    "notice_type": {
+      "type": "string",
+      "enum": [
+        "tender",
+        "award",
+        "unknown"
+      ],
+      "description": "Aligned with tracker coverage_type. Drives adoption_stage (D13) per spec section 6."
+    },
+    "coverage_type": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "tenders",
+        "awards",
+        "both",
+        "unknown",
+        null
+      ]
+    },
+    "title": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "buyer_name": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "buyer_url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Buyer's own web address as stated by the source. Added per spec section 4.4 — highest-value institution-matching signal (matcher tier 1)."
+    },
+    "buyer_national_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Buyer's national registry identifier where the source carries one. Added per spec section 4.4 — matcher tier 2."
+    },
+    "buyer_email_domain": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Derived from a stated buyer contact address. Fallback matching signal (spec section 4.4)."
+    },
+    "supplier_name": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Populated for awards. Maps to contract vendor (D17); see spec section 4.2 on resellers."
+    },
+    "value_amount": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "value_currency": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "ISO 4217."
+    },
+    "publication_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "award_date": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date"
+    },
+    "url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Link to the notice. Never fabricate or alter."
+    },
+    "genai_relevant": {
+      "type": "boolean",
+      "description": "PROVISIONAL candidate-classifier verdict. True means proposed relevant; it is not final contract field C8 until human review confirms it. Contract no/confirms_absence is created at searched-source level, not from one rejected candidate."
+    },
+    "genai_relevance_score": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence/similarity score from the classifier backend."
+    },
+    "genai_category": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "policy_guidance",
+        "pilot_experiment",
+        "program_initiative",
+        "internal_operational",
+        "public_facing_service",
+        "_NA_",
+        null
+      ],
+      "description": "The G3O output contract v2.0 activity_type (D12) enum, closed 2026-08-03 per spec section 7.2. Members copied verbatim from docs/reference/output_contract_v2.0.SNAPSHOT.md; mirrored in pipeline/core/contract.ACTIVITY_TYPE. No procurement-specific taxonomy exists and none may be invented (PI ruling 2026-07-28).",
+      "$comment": "Assigned by pipeline/core/coding.activity_type_for() under PI ruling Q1a (2026-08-04): the contract's section 4.2 'Typical evidence' column names procurement records for pilot_experiment, internal_operational and public_facing_service, so those may be applied directly. null at the STAGING layer means the record was relevant but could not be typed - ruling D1 says such a record is REPORTED, NOT CODED, because 'unknown' is the ruled answer yet is not a legal member until contract v2.2 lands. Contract-conformant output must never carry null: it takes a member, or '_NA_' when genai_evidence is not confirms_activity."
+    },
+    "genai_evidence": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 300,
+      "description": "Matched terms / verbatim text snippet supporting the disposition (transparency trail). Feeds contract source_snippet (column 37), which caps at 300 chars."
+    },
+    "genai_evidence_type": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "confirms_activity",
+        "confirms_absence",
+        "ambiguous",
+        "background_only",
+        null
+      ],
+      "description": "Contract genai_evidence (column 36) for THIS source. Members copied verbatim from the contract snapshot; mirrored in pipeline/core/contract.GENAI_EVIDENCE. Assessable per source - contract Edge Case A codes a page with no GenAI mention as confirms_absence on that row. Distinct from has_genai_activity (column 8), which is institution-level and is NOT derivable from one record.",
+      "$comment": "background_only is never emitted by the current classifier: it means a source gives general context without documenting activity at the institution, and this channel reads only procurement records for a named buyer. Left to the primary-row builder."
+    },
+    "adoption_stage": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "proposed",
+        "announced",
+        "pilot",
+        "production",
+        "discontinued",
+        "unknown",
+        "_NA_",
+        null
+      ],
+      "description": "Contract adoption_stage (column 13). Members copied verbatim from the contract snapshot; mirrored in pipeline/core/contract.ADOPTION_STAGE. Set by pipeline/core/coding.adoption_stage_for(): an award is announced dated by the contract/award date (spec section 6.1), a tender is proposed (PI ruling D2/D3, 2026-08-04, which overrides the recommended default in spec section 6.2) — but ONLY when genai_evidence_type is confirms_activity (bug fix 2026-08-08; the ruling text itself ties proposed to confirms_activity, section 6 check 2). null when the source cannot say whether the record is a tender or an award, OR when the evidence does not confirm activity (confirms_absence / ambiguous / background_only) — the contract-output mapper turns that null into _NA_, not this schema.",
+      "$comment": "'production' is unreachable from procurement evidence by construction: a purchase is not a deployment (spec section 6.1). Contract Edge Case B shows production only because that notice evidences a completed licence deployment."
+    },
+    "review_flags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      },
+      "description": "Operational triggers that must survive staging so accepted human-review rules are not reduced to an in-memory count."
+    },
+    "review_status": {
+      "type": "string",
+      "enum": [
+        "not_required",
+        "pending"
+      ],
+      "description": "Operational staging status only. A full reviewer decision table is still pending."
+    },
+    "fetched_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the raw record was retrieved. Feeds source_access_date (E32), date only."
+    },
+    "pipeline_version": {
+      "type": "string"
+    },
+    "classifier_version": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Version/id of the classifier backend used (NLP model id or LLM model id + params)."
+    },
+    "raw_payload_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Path/key into data_cache for the raw payload this record derives from."
+    }
+  },
+  "additionalProperties": false
+}

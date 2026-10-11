@@ -1,0 +1,150 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371841",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:15:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371841",
+      "id": "adjudicacion-1371841",
+      "date": "2026-09-15T10:15:10Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R215832490017",
+          "name": "POPELKA ANDION FERNANDO",
+          "identifier": {
+            "id": "R215832490017",
+            "legalName": "POPELKA ANDION FERNANDO"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "29-21",
+          "name": "Centro Departamental de Florida",
+          "identifier": {
+            "id": "29-21",
+            "legalName": "Centro Departamental de Florida"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Centro Departamental de Florida",
+        "id": "29-21"
+      },
+      "awards": [
+        {
+          "id": "R215832490017",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R215832490017",
+              "name": "POPELKA ANDION FERNANDO"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "TIMBRE PROFESIONAL",
+              "classification": {
+                "id": "10233",
+                "description": "TIMBRE PROFESIONAL"
+              },
+              "quantity": 91,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 170.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "2-1",
+              "description": "ECOGRAFIA ABDOMINAL - ADULTO",
+              "classification": {
+                "id": "104040",
+                "description": "ECOGRAFIA ABDOMINAL - ADULTO"
+              },
+              "quantity": 4,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1350.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "3-1",
+              "description": "ECOGRAFIA DE APARATO URINARIO - ADULTO",
+              "classification": {
+                "id": "104042",
+                "description": "ECOGRAFIA DE APARATO URINARIO - ADULTO"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1350.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "4-1",
+              "description": "ECOGRAFIA GINECOLOGICA",
+              "classification": {
+                "id": "33105",
+                "description": "ECOGRAFIA GINECOLOGICA"
+              },
+              "quantity": 43,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1350.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "5-1",
+              "description": "ECOGRAFIA OBSTETRICA",
+              "classification": {
+                "id": "39709",
+                "description": "ECOGRAFIA OBSTETRICA"
+              },
+              "quantity": 42,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1350.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

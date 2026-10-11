@@ -1,0 +1,82 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371832",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:45:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371832",
+      "id": "adjudicacion-1371832",
+      "date": "2026-09-15T09:45:10Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R211601480013",
+          "name": "EMME SISTEMAS SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R211601480013",
+            "legalName": "EMME SISTEMAS SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "71-1",
+          "name": "Unidad Reguladora de Servicios de Comunicaciones (URSEC)",
+          "identifier": {
+            "id": "71-1",
+            "legalName": "Unidad Reguladora de Servicios de Comunicaciones (URSEC)"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Unidad Reguladora de Servicios de Comunicaciones (URSEC)",
+        "id": "71-1"
+      },
+      "awards": [
+        {
+          "id": "R211601480013",
+          "status": "active",
+          "date": "2026-09-14T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R211601480013",
+              "name": "EMME SISTEMAS SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "CARTUCHO RODILLO FUSOR",
+              "classification": {
+                "id": "10555",
+                "description": "CARTUCHO RODILLO FUSOR"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 3300.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

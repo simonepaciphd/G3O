@@ -1,0 +1,99 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371823",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:20:12Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371823",
+      "id": "adjudicacion-1371823",
+      "date": "2026-09-15T09:20:12Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R160316360015",
+          "name": "POSIDEO SRL",
+          "identifier": {
+            "id": "R160316360015",
+            "legalName": "POSIDEO SRL"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "4-18",
+          "name": "Jefatura de Policía de Salto",
+          "identifier": {
+            "id": "4-18",
+            "legalName": "Jefatura de Policía de Salto"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Jefatura de Policía de Salto",
+        "id": "4-18"
+      },
+      "awards": [
+        {
+          "id": "R160316360015",
+          "status": "active",
+          "date": "2026-09-10T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R160316360015",
+              "name": "POSIDEO SRL"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "ESMALTE MULTIUSO",
+              "classification": {
+                "id": "74890",
+                "description": "ESMALTE MULTIUSO"
+              },
+              "quantity": 6,
+              "unit": {
+                "name": "L",
+                "id": "12",
+                "value": {
+                  "amount": 2639.13,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "2-1",
+              "description": "ESMALTE SINTETICO",
+              "classification": {
+                "id": "49",
+                "description": "ESMALTE SINTETICO"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 2295.08,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

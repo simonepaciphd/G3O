@@ -1,0 +1,63 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/aclar_llamado-1349247-3",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:01:00Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1349247",
+      "id": "aclar_llamado-1349247-3",
+      "date": "2026-09-15T10:01:00Z",
+      "tag": [
+        "tenderUpdate"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "3-33",
+          "name": "Dirección Nacional de Sanidad de las Fuerzas Armadas",
+          "identifier": {
+            "id": "3-33",
+            "legalName": "Dirección Nacional de Sanidad de las Fuerzas Armadas"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Dirección Nacional de Sanidad de las Fuerzas Armadas",
+        "id": "3-33"
+      },
+      "tender": {
+        "id": "1349247",
+        "hasEnquiries": true,
+        "documents": [
+          {
+            "id": "aclar-llamado-3",
+            "documentType": "clarifications",
+            "description": "Acta de Apertura",
+            "url": "http://www.comprasestatales.gub.uy/Aclaraciones/aclar_llamado_1349247_3.pdf",
+            "datePublished": "2026-09-15T10:01:00Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ],
+        "amendments": [
+          {
+            "id": "aclar_llamado-1349247-3",
+            "date": "2026-09-15T10:01:00Z",
+            "description": "aclar_llamado",
+            "amendsReleaseID": "aclar_llamado-1349247-2",
+            "releaseID": "aclar_llamado-1349247-3"
+          }
+        ]
+      }
+    }
+  ]
+}

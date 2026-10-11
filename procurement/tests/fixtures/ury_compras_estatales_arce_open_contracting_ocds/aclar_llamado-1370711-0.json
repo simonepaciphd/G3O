@@ -1,0 +1,63 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/aclar_llamado-1370711-0",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:01:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1370711",
+      "id": "aclar_llamado-1370711-0",
+      "date": "2026-09-15T10:01:10Z",
+      "tag": [
+        "tenderUpdate"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "29-42",
+          "name": "Red de Atención Primaria de Lavalleja",
+          "identifier": {
+            "id": "29-42",
+            "legalName": "Red de Atención Primaria de Lavalleja"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Red de Atención Primaria de Lavalleja",
+        "id": "29-42"
+      },
+      "tender": {
+        "id": "1370711",
+        "hasEnquiries": true,
+        "documents": [
+          {
+            "id": "aclar-llamado-0",
+            "documentType": "clarifications",
+            "description": "Acta de Apertura",
+            "url": "http://www.comprasestatales.gub.uy/Aclaraciones/aclar_llamado_1370711_0.pdf",
+            "datePublished": "2026-09-15T10:01:10Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ],
+        "amendments": [
+          {
+            "id": "aclar_llamado-1370711-0",
+            "date": "2026-09-15T10:01:10Z",
+            "description": "aclar_llamado",
+            "amendsReleaseID": "llamado-1370711",
+            "releaseID": "aclar_llamado-1370711-0"
+          }
+        ]
+      }
+    }
+  ]
+}

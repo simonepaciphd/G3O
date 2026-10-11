@@ -1,0 +1,63 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/aclar_llamado-1371163-0",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:39:01Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371163",
+      "id": "aclar_llamado-1371163-0",
+      "date": "2026-09-15T10:39:01Z",
+      "tag": [
+        "tenderUpdate"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "4-30",
+          "name": "Dirección Nacional de Sanidad Policial",
+          "identifier": {
+            "id": "4-30",
+            "legalName": "Dirección Nacional de Sanidad Policial"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Dirección Nacional de Sanidad Policial",
+        "id": "4-30"
+      },
+      "tender": {
+        "id": "1371163",
+        "hasEnquiries": true,
+        "documents": [
+          {
+            "id": "aclar-llamado-0",
+            "documentType": "clarifications",
+            "description": "Acta de Apertura",
+            "url": "http://www.comprasestatales.gub.uy/Aclaraciones/aclar_llamado_1371163_0.pdf",
+            "datePublished": "2026-09-15T10:39:01Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ],
+        "amendments": [
+          {
+            "id": "aclar_llamado-1371163-0",
+            "date": "2026-09-15T10:39:01Z",
+            "description": "aclar_llamado",
+            "amendsReleaseID": "llamado-1371163",
+            "releaseID": "aclar_llamado-1371163-0"
+          }
+        ]
+      }
+    }
+  ]
+}

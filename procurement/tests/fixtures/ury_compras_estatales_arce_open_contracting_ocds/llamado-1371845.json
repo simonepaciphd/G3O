@@ -1,0 +1,103 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/llamado-1371845",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:30:11Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371845",
+      "id": "llamado-1371845",
+      "date": "2026-09-15T10:30:11Z",
+      "tag": [
+        "tender"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "4-24",
+          "name": "Dirección Nacional de Bomberos",
+          "identifier": {
+            "id": "4-24",
+            "legalName": "Dirección Nacional de Bomberos"
+          },
+          "contactPoint": {
+            "name": "MICHELE BARRETO",
+            "email": "bomberos-compras@minterior.gub.uy",
+            "telephone": "24007168",
+            "faxNumber": "24007168"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Dirección Nacional de Bomberos",
+        "id": "4-24"
+      },
+      "tender": {
+        "id": "1371845",
+        "title": "Compra Directa 280/2026",
+        "description": "Se pretende adquirir Kit completo de embrague con rulemán de empuje, para omnibus FAW Modelo: XQ6103",
+        "status": "active",
+        "procuringEntity": {
+          "name": "Dirección Nacional de Bomberos",
+          "id": "4-24"
+        },
+        "items": [
+          {
+            "id": "1",
+            "description": "JUEGO DE PLACA Y DISCO DE EMBRAGUE",
+            "classification": {
+              "id": "11709",
+              "description": "JUEGO DE PLACA Y DISCO DE EMBRAGUE"
+            },
+            "quantity": 1,
+            "unit": {
+              "name": "UNIDAD",
+              "id": "22"
+            }
+          },
+          {
+            "id": "2",
+            "description": "RODAMIENTO DE EMBRAGUE",
+            "classification": {
+              "id": "23986",
+              "description": "RODAMIENTO DE EMBRAGUE"
+            },
+            "quantity": 1,
+            "unit": {
+              "name": "UNIDAD",
+              "id": "22"
+            }
+          }
+        ],
+        "procurementMethod": "open",
+        "procurementMethodDetails": "Compra Directa",
+        "submissionMethod": [
+          "electronicSubmission"
+        ],
+        "tenderPeriod": {
+          "startDate": "2026-09-15T10:30:11Z",
+          "endDate": "2026-09-24T12:00:00Z"
+        },
+        "hasEnquiries": false,
+        "documents": [
+          {
+            "id": "pliego-1371845",
+            "documentType": "biddingDocuments",
+            "url": "http://www.comprasestatales.gub.uy/Pliegos/pedido_1371845.pdf",
+            "datePublished": "2026-09-15T10:30:11Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ]
+      }
+    }
+  ]
+}

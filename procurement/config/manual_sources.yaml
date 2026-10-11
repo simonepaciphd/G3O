@@ -1,0 +1,503 @@
+metadata:
+  generated_from: docs/G3O - Procurement Repository Tracker.xlsx
+  generated_at: '2026-07-21'
+  note: Manual sources are outside automation scope and require a human collection protocol.
+sources:
+- source_id: and_butlleti_oficial_del_principat_d_andorra_bopa_official_gazette
+  country_iso3: AND
+  country_name: Andorra
+  repo_name: Butlletí Oficial del Principat d’Andorra (BOPA) - Official Gazette
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.bopa.ad/
+  verification_status: unverified_snapshot
+  tracker_row: 152
+  tracker_notes_ra: '[F5] collection of legislation'
+- source_id: brb_government_of_barbados_tenders_notice_board_gov_bb
+  country_iso3: BRB
+  country_name: Barbados
+  repo_name: Government of Barbados Tenders Notice Board (GOV.BB)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.gov.bb/Government/tenders
+  verification_status: unverified_snapshot
+  tracker_row: 153
+  tracker_notes_ra: '[F16] general government website, no data, only has info for contractors'
+- source_id: brn_pelita_brunei_iklan_tawaran_tender_notices
+  country_iso3: BRN
+  country_name: Brunei Darussalam
+  repo_name: Pelita Brunei – Iklan Tawaran (Tender Notices)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.pelitabrunei.gov.bn/lists/iklaniklan/iklan%20tawaran.aspx
+  verification_status: unverified_snapshot
+  tracker_row: 154
+  tracker_notes_ra: '[F26] having trouble translating website'
+- source_id: bfa_quotidien_des_marches_publics_dgcmef_revue_des_marches_publics
+  country_iso3: BFA
+  country_name: Burkina Faso
+  repo_name: Quotidien des marchés publics (DGCMEF) – Revue des marchés publics
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.dgcmef.gov.bf/fr/taxonomy/term/16
+  verification_status: unverified_snapshot
+  tracker_row: 155
+  tracker_notes_ra: '[F28] maybe right? language issue'
+- source_id: khm_ministry_agency_websites_and_newspapers_no_central_portal
+  country_iso3: KHM
+  country_name: Cambodia
+  repo_name: Ministry/agency websites & newspapers (no central portal)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.mef.gov.kh/
+  verification_status: unverified_snapshot
+  tracker_row: 156
+- source_id: cog_armp_congo_boamp_bulletin_officiel_des_marches_publics
+  country_iso3: COG
+  country_name: Congo
+  repo_name: ARMP Congo – BOAMP (Bulletin Officiel des Marchés Publics)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://armp.cg/services-portal.php
+  verification_status: unverified_snapshot
+  tracker_row: 157
+  tracker_notes_ra: '[F40] tender opportunity portal, doesnt seem to be dataset of past/existing contracts'
+- source_id: cub_no_national_repository_found
+  country_iso3: CUB
+  country_name: Cuba
+  repo_name: No national repository found
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 158
+- source_id: dma_government_notices_dominica
+  country_iso3: DMA
+  country_name: Dominica
+  repo_name: Government Notices (Dominica)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://dominica.gov.dm/notices
+  verification_status: unverified_snapshot
+  tracker_row: 159
+- source_id: gnq_no_national_repository_found
+  country_iso3: GNQ
+  country_name: Equatorial Guinea
+  repo_name: No national repository found
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 160
+- source_id: eri_no_national_repository_found
+  country_iso3: ERI
+  country_name: Eritrea
+  repo_name: No national repository found
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 161
+- source_id: fji_fiji_government_e_tender_portal_tenderlink
+  country_iso3: FJI
+  country_name: Fiji
+  repo_name: Fiji Government e-Tender Portal (TenderLink)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.tenderlink.com/financefiji/
+  verification_status: unverified_snapshot
+  tracker_row: 162
+- source_id: gab_direction_generale_des_marches_publics_dgmp_ministere_de_l_economie
+  country_iso3: GAB
+  country_name: Gabon
+  repo_name: Direction Générale des Marchés Publics (DGMP) – Ministère de l’Économie
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.budget.gouv.ga/dgmp
+  verification_status: unverified_snapshot
+  tracker_row: 163
+- source_id: grd_government_of_grenada_notices_procurement_notices_board
+  country_iso3: GRD
+  country_name: Grenada
+  repo_name: Government of Grenada – Notices (Procurement Notices Board)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.gov.gd/notices
+  verification_status: unverified_snapshot
+  tracker_row: 164
+- source_id: gin_armp_autorite_de_regulation_des_marches_publics_telemo_under_deployment
+  country_iso3: GIN
+  country_name: Guinea
+  repo_name: ARMP – Autorité de Régulation des Marchés Publics (Telemo under deployment)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://armpguinee.org
+  verification_status: unverified_snapshot
+  tracker_row: 165
+- source_id: gnb_no_national_digital_procurement_repository_found
+  country_iso3: GNB
+  country_name: Guinea-Bissau
+  repo_name: No national digital procurement repository found
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 166
+- source_id: hti_commission_nationale_des_marches_publics_cnmp_portal
+  country_iso3: HTI
+  country_name: Haiti
+  repo_name: Commission Nationale des Marchés Publics (CNMP) Portal
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.cnmp.gouv.ht
+  verification_status: unverified_snapshot
+  tracker_row: 167
+- source_id: isl_rikiskaup_central_public_procurement_fjarsyslan_fma
+  country_iso3: ISL
+  country_name: Iceland
+  repo_name: Ríkiskaup / Central Public Procurement (Fjársýslan/FMA)
+  access_mode: manual
+  is_ocds: true
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://island.is/en/o/central-public-procurement/about-rikiskaup
+  verification_status: unverified_snapshot
+  tracker_row: 168
+  ocds_link: https://data.open-contracting.org/en/publication/57
+- source_id: irn_setad_iran_government_e_procurement
+  country_iso3: IRN
+  country_name: Iran, Islamic Republic of
+  repo_name: SETAD – Iran Government e-Procurement
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: http://www.setadiran.ir
+  verification_status: unverified_snapshot
+  tracker_row: 169
+- source_id: irq_no_central_procurement_portal_fragmented_publications
+  country_iso3: IRQ
+  country_name: Iraq
+  repo_name: No central procurement portal (fragmented publications)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 170
+- source_id: jam_gojep_government_of_jamaica_electronic_procurement_system
+  country_iso3: JAM
+  country_name: Jamaica
+  repo_name: GOJEP – Government of Jamaica Electronic Procurement System
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://www.gojep.gov.jm/
+  verification_status: unverified_snapshot
+  tracker_row: 171
+- source_id: prk_no_national_repository_found
+  country_iso3: PRK
+  country_name: Korea, Democratic People's Republic of
+  repo_name: No national repository found
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 172
+- source_id: lao_no_centralized_national_e_procurement_portal
+  country_iso3: LAO
+  country_name: Lao People's Democratic Republic
+  repo_name: No centralized national e-procurement portal
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 173
+- source_id: lby_no_national_public_procurement_portal
+  country_iso3: LBY
+  country_name: Libya
+  repo_name: No national public procurement portal
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 174
+- source_id: mdg_autorite_de_regulation_des_marches_publics_armp_e_gp_portal_subscription
+  country_iso3: MDG
+  country_name: Madagascar
+  repo_name: Autorité de Régulation des Marchés Publics (ARMP) – e-GP Portal (subscription)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 175
+- source_id: mhl_no_central_national_repository_fragmented_publications
+  country_iso3: MHL
+  country_name: Marshall Islands
+  repo_name: No central national repository (fragmented publications)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 176
+- source_id: fsm_no_central_national_repository_departmental_portals_dofa_tenderlink
+  country_iso3: FSM
+  country_name: Micronesia, Federated States of
+  repo_name: No central national repository (departmental portals; DoFA + TenderLink)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://dofa.gov.fm/services/procurement/
+  verification_status: unverified_snapshot
+  tracker_row: 177
+- source_id: mco_no_national_public_procurement_repository
+  country_iso3: MCO
+  country_name: Monaco
+  repo_name: No national public procurement repository
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 178
+- source_id: moz_no_central_e_procurement_portal_ufsa_site_used_for_notices_info
+  country_iso3: MOZ
+  country_name: Mozambique
+  repo_name: No central e-Procurement portal (UFSA site used for notices/info)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.ufsa.gov.mz
+  verification_status: unverified_snapshot
+  tracker_row: 179
+- source_id: mmr_no_fully_functional_national_portal_tenders_via_myanmar_national_portal_ministry
+  country_iso3: MMR
+  country_name: Myanmar
+  repo_name: No fully functional national portal (tenders via Myanmar National Portal/ministry sites)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://myanmar.gov.mm/tenders
+  verification_status: unverified_snapshot
+  tracker_row: 180
+- source_id: nru_no_central_e_procurement_portal_treasury_procurement_agents
+  country_iso3: NRU
+  country_name: Nauru
+  repo_name: No central e-procurement portal (Treasury/procurement agents)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: https://naurufinance.info/treasury-division/procurement/
+  verification_status: unverified_snapshot
+  tracker_row: 181
+- source_id: plw_rop_procurement_notices_palau_government_rfp_bids
+  country_iso3: PLW
+  country_name: Palau
+  repo_name: ROP Procurement Notices (Palau Government RFP/Bids)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://www.palaugov.pw/rfp-bids/
+  verification_status: unverified_snapshot
+  tracker_row: 182
+- source_id: kna_no_national_e_procurement_portal_as_of_2026
+  country_iso3: KNA
+  country_name: Saint Kitts and Nevis
+  repo_name: No national e-Procurement portal (as of 2026)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 183
+- source_id: slb_solomon_islands_government_tenders_portal_sig_tenders_page_on_mysig_portal
+  country_iso3: SLB
+  country_name: Solomon Islands
+  repo_name: Solomon Islands Government Tenders Portal (SIG Tenders page on MySIG portal)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: https://solomons.gov.sb/tenders/
+  verification_status: unverified_snapshot
+  tracker_row: 184
+- source_id: som_no_central_national_procurement_portal
+  country_iso3: SOM
+  country_name: Somalia
+  repo_name: No central national procurement portal
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 185
+- source_id: sdn_tenders_and_contracts_portal_tcp
+  country_iso3: SDN
+  country_name: Sudan
+  repo_name: Tenders and Contracts Portal (TCP)
+  access_mode: manual
+  is_ocds: false
+  coverage_type: both
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 186
+- source_id: syr_none_no_official_e_procurement_portal_found
+  country_iso3: SYR
+  country_name: Syria
+  repo_name: None – no official e-procurement portal found
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 187
+- source_id: stp_no_national_procurement_portal
+  country_iso3: STP
+  country_name: São Tomé and Príncipe
+  repo_name: No national procurement portal
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 188
+- source_id: tun_no_dedicated_national_portal_found
+  country_iso3: TUN
+  country_name: Tunisia
+  repo_name: No dedicated national portal found
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 189
+- source_id: tkm_no_national_e_procurement_portal_found
+  country_iso3: TKM
+  country_name: Turkmenistan
+  repo_name: No national e-procurement portal found
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 190
+- source_id: uzb_no_national_e_procurement_portal_identified
+  country_iso3: UZB
+  country_name: Uzbekistan
+  repo_name: No national e-procurement portal identified
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 191
+- source_id: yem_no_national_repository_found
+  country_iso3: YEM
+  country_name: Yemen
+  repo_name: No national repository found
+  access_mode: manual
+  is_ocds: false
+  coverage_type: tenders
+  has_api: false
+  has_bulk: false
+  base_url: null
+  verification_status: unverified_snapshot
+  tracker_row: 192

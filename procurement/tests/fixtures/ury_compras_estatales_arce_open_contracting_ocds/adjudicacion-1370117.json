@@ -1,0 +1,82 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1370117",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:30:09Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1370117",
+      "id": "adjudicacion-1370117",
+      "date": "2026-09-15T10:30:09Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R218505610014",
+          "name": "MA IMPORTACIONES SAS",
+          "identifier": {
+            "id": "R218505610014",
+            "legalName": "MA IMPORTACIONES SAS"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "3-23",
+          "name": "Comando General de la Fuerza Aérea",
+          "identifier": {
+            "id": "3-23",
+            "legalName": "Comando General de la Fuerza Aérea"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Comando General de la Fuerza Aérea",
+        "id": "3-23"
+      },
+      "awards": [
+        {
+          "id": "R218505610014",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R218505610014",
+              "name": "MA IMPORTACIONES SAS"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "CORTINADO",
+              "classification": {
+                "id": "2924",
+                "description": "CORTINADO"
+              },
+              "quantity": 50,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 811.4754,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1270099",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:40:12Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1270099",
+      "id": "adjudicacion-1270099",
+      "date": "2026-09-15T10:40:12Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "29-77",
+          "name": "Hospital del Cerro",
+          "identifier": {
+            "id": "29-77",
+            "legalName": "Hospital del Cerro"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Hospital del Cerro",
+        "id": "29-77"
+      },
+      "awards": []
+    }
+  ]
+}

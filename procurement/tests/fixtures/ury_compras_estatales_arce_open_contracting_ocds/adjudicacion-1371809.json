@@ -1,0 +1,82 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371809",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:50:09Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371809",
+      "id": "adjudicacion-1371809",
+      "date": "2026-09-15T09:50:09Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R220566400011",
+          "name": "DE LOS SANTOS VIERA OSCAR FEDERICO",
+          "identifier": {
+            "id": "R220566400011",
+            "legalName": "DE LOS SANTOS VIERA OSCAR FEDERICO"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "10-3",
+          "name": "Dirección Nacional de Vialidad",
+          "identifier": {
+            "id": "10-3",
+            "legalName": "Dirección Nacional de Vialidad"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Dirección Nacional de Vialidad",
+        "id": "10-3"
+      },
+      "awards": [
+        {
+          "id": "R220566400011",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R220566400011",
+              "name": "DE LOS SANTOS VIERA OSCAR FEDERICO"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "MANTENIMIENTO DE EQUIPO DE AIRE ACONDICIONADO",
+              "classification": {
+                "id": "3313",
+                "description": "MANTENIMIENTO DE EQUIPO DE AIRE ACONDICIONADO"
+              },
+              "quantity": 11,
+              "unit": {
+                "name": "MENSUAL",
+                "id": "219",
+                "value": {
+                  "amount": 11478.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

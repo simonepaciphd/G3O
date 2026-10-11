@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://g3o/procurement/institution_review.schema.json",
+  "title": "G3O Procurement Institution Review Queue",
+  "description": "Where a procurement record waits while its institution is unresolved. Created 2026-08-04 on PI ruling Q5c: institution_link holds RESOLVED uids only, so anything short of a confirmed match lives here instead. A row leaves this queue in one of two ways - a reviewer confirms a candidate, which writes an institution_link row, or a reviewer rejects it, which closes the row with no link. Nothing is deleted.",
+  "type": "object",
+  "required": ["record_id", "country_iso3", "buyer_name_raw", "status", "opened_at"],
+  "properties": {
+    "record_id": { "type": "string", "description": "Join key to the staged procurement record." },
+
+    "country_iso3": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3,
+      "description": "Tier-0 blocking key. Non-negotiable precondition for every tier (spec section 5)."
+    },
+    "buyer_name_raw": {
+      "type": "string",
+      "description": "The buyer name exactly as the source wrote it, original script preserved. Never transliterated - the master keeps native names too (row 1 is the Arabic-script Afghan central bank), and routing either side through English loses on both."
+    },
+    "buyer_url": { "type": ["string", "null"] },
+    "buyer_national_id": { "type": ["string", "null"], "description": "Kept for completeness; tier 2 is unmatchable - see below." },
+    "buyer_email_domain": { "type": ["string", "null"] },
+
+    "reason": {
+      "type": "string",
+      "enum": [
+        "no_candidate",
+        "multiple_candidates",
+        "subnational_without_corroboration",
+        "below_threshold",
+        "ledger_status_not_active",
+        "tier2_unmatchable"
+      ],
+      "description": "Why this could not be auto-resolved. 'subnational_without_corroboration' is the spec section 5 rule: the master is ~719k rows and dozens of same-named municipalities per country is normal. 'tier2_unmatchable' records the structural gap confirmed by the PI on 2026-08-04 - the master carries no national registry identifier, so tier 2 can never fire; acquiring registry IDs would be a new source, barred by the 28 July ruling."
+    },
+    "candidates": {
+      "type": "array",
+      "description": "Institutions considered, best first. A legitimately ambiguous name produces several: the master's own key layer documents five DISTINCT US school districts all named 'Clay County' that the registry cannot separate, so an exact-name hit is not by itself an identification.",
+      "items": {
+        "type": "object",
+        "required": ["institution_uid"],
+        "properties": {
+          "institution_uid": { "type": "string", "pattern": "^G3O-I-[0-9]{8}$" },
+          "institution_name": { "type": ["string", "null"] },
+          "match_method": { "type": ["string", "null"] },
+          "match_score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "matched_on": { "type": ["string", "null"] },
+          "ledger_status": { "type": ["string", "null"], "enum": ["active", "absent", "retired", null] },
+          "key_level": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 }
+        },
+        "additionalProperties": false
+      }
+    },
+
+    "status": {
+      "type": "string",
+      "enum": ["open", "confirmed", "rejected"],
+      "description": "'confirmed' means a reviewer picked a candidate and an institution_link row now exists. 'rejected' means no institution in the master corresponds; the record keeps its staged row and never enters contract-conformant output."
+    },
+    "chosen_institution_uid": {
+      "type": ["string", "null"],
+      "pattern": "^G3O-I-[0-9]{8}$",
+      "description": "Set only when status is 'confirmed'. Must equal the institution_uid on the institution_link row written from this decision."
+    },
+    "reviewer": { "type": ["string", "null"] },
+    "opened_at": { "type": "string", "format": "date-time" },
+    "reviewed_at": { "type": ["string", "null"], "format": "date-time" },
+    "reviewer_notes": { "type": ["string", "null"], "maxLength": 500 },
+
+    "master_build_id": {
+      "type": ["string", "null"],
+      "description": "The master build the candidates were drawn from, e.g. 'mb-2026-07-30'. A decision is only auditable against the build it was made on: 745 uids went 'absent' between the 07-28 and 07-30 builds."
+    },
+    "matcher_version": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

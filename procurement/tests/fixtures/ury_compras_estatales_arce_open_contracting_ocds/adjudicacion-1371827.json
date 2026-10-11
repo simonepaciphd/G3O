@@ -1,0 +1,82 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371827",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:45:09Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371827",
+      "id": "adjudicacion-1371827",
+      "date": "2026-09-15T09:45:09Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R218338600014",
+          "name": "CABRERA TORRES ADRIAN",
+          "identifier": {
+            "id": "R218338600014",
+            "legalName": "CABRERA TORRES ADRIAN"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "26-15",
+          "name": "Hospital de Clínicas",
+          "identifier": {
+            "id": "26-15",
+            "legalName": "Hospital de Clínicas"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Hospital de Clínicas",
+        "id": "26-15"
+      },
+      "awards": [
+        {
+          "id": "R218338600014",
+          "status": "active",
+          "date": "2026-01-08T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R218338600014",
+              "name": "CABRERA TORRES ADRIAN"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "CONTRATACION DE MANO DE OBRA",
+              "classification": {
+                "id": "28031",
+                "description": "CONTRATACION DE MANO DE OBRA"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "HORA",
+                "id": "46",
+                "value": {
+                  "amount": 154000.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

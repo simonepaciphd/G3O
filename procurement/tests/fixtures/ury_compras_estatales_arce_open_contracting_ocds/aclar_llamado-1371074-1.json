@@ -1,0 +1,63 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/aclar_llamado-1371074-1",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:01:13Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371074",
+      "id": "aclar_llamado-1371074-1",
+      "date": "2026-09-15T10:01:13Z",
+      "tag": [
+        "tenderUpdate"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "29-5",
+          "name": "Hospital Maciel",
+          "identifier": {
+            "id": "29-5",
+            "legalName": "Hospital Maciel"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Hospital Maciel",
+        "id": "29-5"
+      },
+      "tender": {
+        "id": "1371074",
+        "hasEnquiries": true,
+        "documents": [
+          {
+            "id": "aclar-llamado-1",
+            "documentType": "clarifications",
+            "description": "Acta de Apertura",
+            "url": "http://www.comprasestatales.gub.uy/Aclaraciones/aclar_llamado_1371074_1.pdf",
+            "datePublished": "2026-09-15T10:01:13Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ],
+        "amendments": [
+          {
+            "id": "aclar_llamado-1371074-1",
+            "date": "2026-09-15T10:01:13Z",
+            "description": "aclar_llamado",
+            "amendsReleaseID": "aclar_llamado-1371074-0",
+            "releaseID": "aclar_llamado-1371074-1"
+          }
+        ]
+      }
+    }
+  ]
+}

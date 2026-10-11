@@ -1,0 +1,82 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371846",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:25:09Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371846",
+      "id": "adjudicacion-1371846",
+      "date": "2026-09-15T10:25:09Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R215407080016",
+          "name": "KELBLY SA",
+          "identifier": {
+            "id": "R215407080016",
+            "legalName": "KELBLY SA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "26-15",
+          "name": "Hospital de Clínicas",
+          "identifier": {
+            "id": "26-15",
+            "legalName": "Hospital de Clínicas"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Hospital de Clínicas",
+        "id": "26-15"
+      },
+      "awards": [
+        {
+          "id": "R215407080016",
+          "status": "active",
+          "date": "2026-08-07T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R215407080016",
+              "name": "KELBLY SA"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "OXIGENO GASEOSO",
+              "classification": {
+                "id": "971",
+                "description": "OXIGENO GASEOSO"
+              },
+              "quantity": 1000,
+              "unit": {
+                "name": "M3",
+                "id": "16",
+                "value": {
+                  "amount": 380.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

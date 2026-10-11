@@ -1,0 +1,83 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/llamado-1371843",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:20:11Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371843",
+      "id": "llamado-1371843",
+      "date": "2026-09-15T10:20:11Z",
+      "tag": [
+        "tender"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "29-2",
+          "name": "Red de Atención Primaria Area Metropolitana",
+          "identifier": {
+            "id": "29-2",
+            "legalName": "Red de Atención Primaria Area Metropolitana"
+          },
+          "contactPoint": {
+            "name": "DANIELA YAEL VISCONTI DE LEÓN",
+            "email": "compras.rap@gmail.com",
+            "telephone": "2201-3820 INT 524",
+            "faxNumber": "2201-3820 INT 524"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Red de Atención Primaria Area Metropolitana",
+        "id": "29-2"
+      },
+      "tender": {
+        "id": "1371843",
+        "title": "Compra Directa 14510/2026",
+        "description": "ADQUISICION DE VENDA COHESIVA ELÁSTICA Y AUTOADHESIVA",
+        "status": "active",
+        "procuringEntity": {
+          "name": "Red de Atención Primaria Area Metropolitana",
+          "id": "29-2"
+        },
+        "items": [
+          {
+            "id": "1",
+            "description": "VENDA COHESIVA (ELASTICA Y AUTOADHESIVA)",
+            "classification": {
+              "id": "21494",
+              "description": "VENDA COHESIVA (ELASTICA Y AUTOADHESIVA)"
+            },
+            "quantity": 1500,
+            "unit": {
+              "name": "UNIDAD",
+              "id": "22"
+            }
+          }
+        ],
+        "procurementMethod": "open",
+        "procurementMethodDetails": "Compra Directa",
+        "submissionMethod": [
+          "written",
+          "inPerson",
+          "electronicSubmission"
+        ],
+        "submissionMethodDetails": "Lugar entrega de ofertas: BVAR ARTIGAS 3152",
+        "tenderPeriod": {
+          "startDate": "2026-09-15T10:20:11Z",
+          "endDate": "2026-09-15T10:20:00Z"
+        },
+        "hasEnquiries": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,372 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1370106",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:50:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1370106",
+      "id": "adjudicacion-1370106",
+      "date": "2026-09-15T09:50:10Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R212244690010",
+          "name": "ENTOX S R L",
+          "identifier": {
+            "id": "R212244690010",
+            "legalName": "ENTOX S R L"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R212792120015",
+          "name": "CLAP LABORATORIOS S R L",
+          "identifier": {
+            "id": "R212792120015",
+            "legalName": "CLAP LABORATORIOS S R L"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R214002370010",
+          "name": "SETARIL SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R214002370010",
+            "legalName": "SETARIL SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R215389740013",
+          "name": "LIFENIR SOCIEDAD ANONIMA",
+          "identifier": {
+            "id": "R215389740013",
+            "legalName": "LIFENIR SOCIEDAD ANONIMA"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R216155020012",
+          "name": "NIPRO MEDICAL CORPORATION - SUCURSAL URUGUAY",
+          "identifier": {
+            "id": "R216155020012",
+            "legalName": "NIPRO MEDICAL CORPORATION - SUCURSAL URUGUAY"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "R219139890010",
+          "name": "MIDARMA SAS",
+          "identifier": {
+            "id": "R219139890010",
+            "legalName": "MIDARMA SAS"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "29-54",
+          "name": "Hospital de San Carlos",
+          "identifier": {
+            "id": "29-54",
+            "legalName": "Hospital de San Carlos"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Hospital de San Carlos",
+        "id": "29-54"
+      },
+      "awards": [
+        {
+          "id": "R212244690010",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R212244690010",
+              "name": "ENTOX S R L"
+            }
+          ],
+          "items": [
+            {
+              "id": "5-1",
+              "description": "JABON CON CLORHEXIDINA",
+              "classification": {
+                "id": "42222",
+                "description": "JABON CON CLORHEXIDINA"
+              },
+              "quantity": 40,
+              "unit": {
+                "name": "FRASCO",
+                "id": "6",
+                "value": {
+                  "amount": 105.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "7-1",
+              "description": "CLORHEXIDINA (SOLUCION)",
+              "classification": {
+                "id": "26086",
+                "description": "CLORHEXIDINA (SOLUCION)"
+              },
+              "quantity": 40,
+              "unit": {
+                "name": "FRASCO",
+                "id": "6",
+                "value": {
+                  "amount": 118.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "11-2",
+              "description": "SOLUCION DE ACIDO TRICLOROACETICO",
+              "classification": {
+                "id": "65823",
+                "description": "SOLUCION DE ACIDO TRICLOROACETICO"
+              },
+              "quantity": 8,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1100.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R212792120015",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R212792120015",
+              "name": "CLAP LABORATORIOS S R L"
+            }
+          ],
+          "items": [
+            {
+              "id": "4-1",
+              "description": "CAL SODADA GRANULADA (USO MEDICO)",
+              "classification": {
+                "id": "26766",
+                "description": "CAL SODADA GRANULADA (USO MEDICO)"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1200.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R214002370010",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R214002370010",
+              "name": "SETARIL SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "6-1",
+              "description": "FORMOL AL 10%",
+              "classification": {
+                "id": "67341",
+                "description": "FORMOL AL 10%"
+              },
+              "quantity": 20,
+              "unit": {
+                "name": "L",
+                "id": "12",
+                "value": {
+                  "amount": 75.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R215389740013",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R215389740013",
+              "name": "LIFENIR SOCIEDAD ANONIMA"
+            }
+          ],
+          "items": [
+            {
+              "id": "9-1",
+              "description": "DESINFECTANTE PEROXIDO DE HIDROGENO",
+              "classification": {
+                "id": "14806",
+                "description": "DESINFECTANTE PEROXIDO DE HIDROGENO"
+              },
+              "quantity": 12,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 2275.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "10-1",
+              "description": "DETERGENTE ENZIMATICO",
+              "classification": {
+                "id": "28300",
+                "description": "DETERGENTE ENZIMATICO"
+              },
+              "quantity": 8,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 1750.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "16-1",
+              "description": "FORMALDEHIDO 2% PARA ESTILIZADOR",
+              "classification": {
+                "id": "104276",
+                "description": "FORMALDEHIDO 2% PARA ESTILIZADOR"
+              },
+              "quantity": 8,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 9868.0,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "17-1",
+              "description": "DETERGENTE ENZIMATICO",
+              "classification": {
+                "id": "28300",
+                "description": "DETERGENTE ENZIMATICO"
+              },
+              "quantity": 4,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 690.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R216155020012",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R216155020012",
+              "name": "NIPRO MEDICAL CORPORATION - SUCURSAL URUGUAY"
+            }
+          ],
+          "items": [
+            {
+              "id": "13-1",
+              "description": "DESINFECTANTE A BASE DE ORTOFTALALDEHIDO (OPA)",
+              "classification": {
+                "id": "27659",
+                "description": "DESINFECTANTE A BASE DE ORTOFTALALDEHIDO (OPA)"
+              },
+              "quantity": 4,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 2250.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "R219139890010",
+          "status": "active",
+          "date": "2026-09-15T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R219139890010",
+              "name": "MIDARMA SAS"
+            }
+          ],
+          "items": [
+            {
+              "id": "8-1",
+              "description": "GEL PARA ECOGRAFIA",
+              "classification": {
+                "id": "26719",
+                "description": "GEL PARA ECOGRAFIA"
+              },
+              "quantity": 40,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 48.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+# GenAI candidate-retrieval query set.
+#
+# STATUS: PI-APPROVED as of 2026-08-04 (ruling D4). Approved as-is, promoted from
+# config/genai_queries.DRAFT-v0.1.yaml, which is archived at
+# archive/genai_queries.DRAFT-v0.1-promoted-2026-08-04.yaml. The previous
+# placeholder is archived at
+# archive/genai_queries.PLACEHOLDER-superseded-2026-08-04.yaml.
+#
+# KNOWN DEFECT, SHIPPING DELIBERATELY (PI, 2026-08-04): the GPT regex below
+# covers versions 2/3/4 only. Measured behaviour, which is narrower than the
+# ruling's shorthand and is pinned by tests/test_core.py:
+#   "GPT-4"  matches in full;
+#   "GPT-5"  DOES match, but only the bare token "GPT" - so the notice is
+#            retrieved, then routed to review as an acronym-only signal rather
+#            than confirmed;
+#   "GPT5"   (no separator) does not match at all - this is the real blind spot.
+# Accepted for the pilot; the review pass must pick it up. Do NOT silently widen
+# the pattern - a term-set change needs a new version and a PI decision.
+#
+# TEMPORAL WINDOW (PI, 2026-08-04): no fixed start year. Take each source's full
+# available history and record the earliest record date PER SOURCE, so the
+# effective window is measured rather than assumed.
+#
+# LANGUAGES (PI, 2026-08-04): do not expand them here. Per-language term rosters
+# are owned by subprojects/multilingual-pipeline/. Route any language-coverage
+# question there.
+#
+# A match creates a candidate, not a relevance verdict. Apply the inclusion,
+# exclusion, contextual, and human-review rules in
+# docs/genai-procurement-codebook.md before writing to the master database.
+
+version: "1.0"
+
+# Terms pushed to source-side search where supported and used locally otherwise.
+# Grouped by language; the classifier should normalize case and accents while
+# retaining the original-language evidence. Product-only matches require context.
+
+terms:
+  en:
+    - "generative AI"
+    - "generative artificial intelligence"
+    - "large language model"
+    - "large language models"
+    - "foundation model"
+    - "foundation models"
+    - "retrieval-augmented generation"
+    - "retrieval augmented generation"
+    - "generative AI chatbot"
+    - "AI content generation"
+    - "AI-generated content"
+    - "text generation model"
+    - "multimodal model"
+    - "ChatGPT"
+    - "Azure OpenAI"
+    - "Microsoft Copilot"
+    - "GitHub Copilot"
+    - "Google Gemini"
+    - "Amazon Bedrock"
+    - "Anthropic Claude"
+    - "Meta Llama"
+  es:
+    - "IA generativa"
+    - "inteligencia artificial generativa"
+    - "modelo de lenguaje grande"
+    - "modelos de lenguaje grandes"
+    - "modelo de lenguaje de gran escala"
+    - "modelos de lenguaje de gran escala"
+    - "modelo fundacional"
+    - "modelos fundacionales"
+    - "generación aumentada por recuperación"
+    - "chatbot de IA generativa"
+    - "contenido generado por IA"
+    - "generación de texto con IA"
+    - "ChatGPT"
+    - "Azure OpenAI"
+    - "Microsoft Copilot"
+    - "Google Gemini"
+    - "Amazon Bedrock"
+    - "Anthropic Claude"
+    - "Meta Llama"
+  fr:
+    - "IA générative"
+    - "intelligence artificielle générative"
+    - "grand modèle de langage"
+    - "grands modèles de langage"
+    - "modèle de fondation"
+    - "modèles de fondation"
+    - "génération augmentée par récupération"
+    - "agent conversationnel d'IA générative"
+    - "contenu généré par l'IA"
+    - "génération de texte par IA"
+    - "ChatGPT"
+    - "Azure OpenAI"
+    - "Microsoft Copilot"
+    - "Google Gemini"
+    - "Amazon Bedrock"
+    - "Anthropic Claude"
+    - "Meta Llama"
+  pt:
+    - "IA generativa"
+    - "inteligência artificial generativa"
+    - "modelo de linguagem de grande escala"
+    - "modelos de linguagem de grande escala"
+    - "grande modelo de linguagem"
+    - "grandes modelos de linguagem"
+    - "modelo fundacional"
+    - "modelos fundacionais"
+    - "geração aumentada por recuperação"
+    - "chatbot de IA generativa"
+    - "conteúdo gerado por IA"
+    - "geração de texto por IA"
+    - "ChatGPT"
+    - "Azure OpenAI"
+    - "Microsoft Copilot"
+    - "Google Gemini"
+    - "Amazon Bedrock"
+    - "Anthropic Claude"
+    - "Meta Llama"
+
+# Regexes are candidate signals. Acronym matches require contextual review.
+regex:
+  - '(?i)\bLLMs?\b'
+  - '(?i)\bGPT(?:-?[234](?:\.\d+)?)?\b'
+  - '(?i)\bretrieval[- ]augmented generation\b'
+  - '(?i)\bfoundation models?\b'
+
+# No CPV or UNSPSC code is specific enough to establish GenAI relevance in this
+# draft. Keep these empty until the pilot identifies a validated high-recall use.
+codes:
+  cpv: []
+  unspsc: []
+
+# Clear acronym collisions only. General AI terms are not automatic exclusions;
+# they require contextual classification under the codebook.
+exclude_terms:
+  - "GUID partition table"
+  - "GPT partition"
+  - "red amber green status"
+  - "red-amber-green status"
+
+# These are valuable retrieval signals but cannot establish relevance without
+# surrounding evidence about the product, model, government task, or procurement.
+context_required_terms:
+  - "ChatGPT"
+  - "Azure OpenAI"
+  - "Microsoft Copilot"
+  - "GitHub Copilot"
+  - "Google Gemini"
+  - "Amazon Bedrock"
+  - "Anthropic Claude"
+  - "Meta Llama"

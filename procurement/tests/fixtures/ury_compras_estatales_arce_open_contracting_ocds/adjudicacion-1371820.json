@@ -1,0 +1,201 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371820",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:20:11Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371820",
+      "id": "adjudicacion-1371820",
+      "date": "2026-09-15T09:20:11Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R215263770010",
+          "name": "LAGO DORVAL S A",
+          "identifier": {
+            "id": "R215263770010",
+            "legalName": "LAGO DORVAL S A"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "4-21",
+          "name": "Jefatura de Policía de Tacuarembó",
+          "identifier": {
+            "id": "4-21",
+            "legalName": "Jefatura de Policía de Tacuarembó"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Jefatura de Policía de Tacuarembó",
+        "id": "4-21"
+      },
+      "awards": [
+        {
+          "id": "R215263770010",
+          "status": "active",
+          "date": "2026-09-01T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R215263770010",
+              "name": "LAGO DORVAL S A"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "TIRAFONDO PARA TACO FISCHER",
+              "classification": {
+                "id": "62218",
+                "description": "TIRAFONDO PARA TACO FISCHER"
+              },
+              "quantity": 6,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 6.6148,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "2-1",
+              "description": "ARANDELA CONCAVA DE HIERRO GALVANIZADO",
+              "classification": {
+                "id": "78947",
+                "description": "ARANDELA CONCAVA DE HIERRO GALVANIZADO"
+              },
+              "quantity": 6,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 2.4262,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "3-1",
+              "description": "MENSULA PARA AIRE ACONDICIONADO",
+              "classification": {
+                "id": "118825",
+                "description": "MENSULA PARA AIRE ACONDICIONADO"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "KIT",
+                "id": "32",
+                "value": {
+                  "amount": 585.2459,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "4-1",
+              "description": "CELULA FOTOELECTRICA",
+              "classification": {
+                "id": "9542",
+                "description": "CELULA FOTOELECTRICA"
+              },
+              "quantity": 2,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 158.4262,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "5-1",
+              "description": "CONDENSADOR CERAMICO (MF)",
+              "classification": {
+                "id": "4910",
+                "description": "CONDENSADOR CERAMICO (MF)"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 204.4836,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "6-1",
+              "description": "CONDENSADOR CERAMICO (MF)",
+              "classification": {
+                "id": "4910",
+                "description": "CONDENSADOR CERAMICO (MF)"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 178.918,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "7-1",
+              "description": "CONDENSADOR CERAMICO (MF)",
+              "classification": {
+                "id": "4910",
+                "description": "CONDENSADOR CERAMICO (MF)"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 223.6475,
+                  "currency": "UYU"
+                }
+              }
+            },
+            {
+              "id": "8-1",
+              "description": "TACO PARA PARED",
+              "classification": {
+                "id": "3719",
+                "description": "TACO PARA PARED"
+              },
+              "quantity": 6,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 15.1475,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

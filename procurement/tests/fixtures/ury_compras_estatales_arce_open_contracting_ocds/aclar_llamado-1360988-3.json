@@ -1,0 +1,63 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/aclar_llamado-1360988-3",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:01:02Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1360988",
+      "id": "aclar_llamado-1360988-3",
+      "date": "2026-09-15T10:01:02Z",
+      "tag": [
+        "tenderUpdate"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "35-1",
+          "name": "Instituto Nacional de Inclusion Social Adolescente",
+          "identifier": {
+            "id": "35-1",
+            "legalName": "Instituto Nacional de Inclusion Social Adolescente"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Instituto Nacional de Inclusion Social Adolescente",
+        "id": "35-1"
+      },
+      "tender": {
+        "id": "1360988",
+        "hasEnquiries": true,
+        "documents": [
+          {
+            "id": "aclar-llamado-3",
+            "documentType": "clarifications",
+            "description": "Acta de Apertura",
+            "url": "http://www.comprasestatales.gub.uy/Aclaraciones/aclar_llamado_1360988_3.pdf",
+            "datePublished": "2026-09-15T10:01:02Z",
+            "format": "application/pdf",
+            "language": "es"
+          }
+        ],
+        "amendments": [
+          {
+            "id": "aclar_llamado-1360988-3",
+            "date": "2026-09-15T10:01:02Z",
+            "description": "aclar_llamado",
+            "amendsReleaseID": "aclar_llamado-1360988-1",
+            "releaseID": "aclar_llamado-1360988-3"
+          }
+        ]
+      }
+    }
+  ]
+}

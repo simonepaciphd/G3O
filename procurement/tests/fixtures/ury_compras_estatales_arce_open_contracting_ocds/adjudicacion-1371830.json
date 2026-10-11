@@ -1,0 +1,82 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371830",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T09:50:10Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371830",
+      "id": "adjudicacion-1371830",
+      "date": "2026-09-15T09:50:10Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R220447290018",
+          "name": "RODRIGUEZ PERAZZA JOSE GERVASIO",
+          "identifier": {
+            "id": "R220447290018",
+            "legalName": "RODRIGUEZ PERAZZA JOSE GERVASIO"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "4-9",
+          "name": "Jefatura de Policía de Durazno",
+          "identifier": {
+            "id": "4-9",
+            "legalName": "Jefatura de Policía de Durazno"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Jefatura de Policía de Durazno",
+        "id": "4-9"
+      },
+      "awards": [
+        {
+          "id": "R220447290018",
+          "status": "active",
+          "date": "2026-09-14T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R220447290018",
+              "name": "RODRIGUEZ PERAZZA JOSE GERVASIO"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "REPARACION DE EQUIPO DE AIRE ACONDICIONADO",
+              "classification": {
+                "id": "1111",
+                "description": "REPARACION DE EQUIPO DE AIRE ACONDICIONADO"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "UNIDAD",
+                "id": "22",
+                "value": {
+                  "amount": 17500.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

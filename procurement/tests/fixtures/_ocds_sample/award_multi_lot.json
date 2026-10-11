@@ -1,0 +1,45 @@
+{
+  "ocid": "ocds-synthetic-0004",
+  "id": "synthetic-0004-award-batch",
+  "date": "2026-05-06T00:00:00Z",
+  "tag": ["award"],
+  "parties": [
+    {
+      "id": "ORG-SYN-004",
+      "name": "Agencia Digital Municipal (SYNTHETIC)",
+      "roles": ["buyer"],
+      "identifier": { "scheme": "XX-NATIONAL", "id": "NAT-2205-SYN" },
+      "contactPoint": { "url": "https://agencia.example.org", "email": "compras@agencia.example.org" }
+    },
+    { "id": "ORG-SYN-910", "name": "Alfa Integraciones SA (SYNTHETIC)", "roles": ["supplier"] },
+    { "id": "ORG-SYN-911", "name": "Beta Servicios Digitales SL (SYNTHETIC)", "roles": ["supplier"] }
+  ],
+  "buyer": { "id": "ORG-SYN-004", "name": "Agencia Digital Municipal (SYNTHETIC)" },
+  "tender": {
+    "id": "synthetic-0004",
+    "title": "Asistente de IA generativa para atención a la ciudadanía",
+    "description": "Lote 1: plataforma de IA generativa para el chatbot de atención a la ciudadanía. Lote 2: servicios de integración y soporte.",
+    "procurementMethod": "open",
+    "url": "https://agencia.example.org/licitaciones/synthetic-0004",
+    "lots": [
+      { "id": "lote-1", "title": "Plataforma" },
+      { "id": "lote-2", "title": "Integración" }
+    ]
+  },
+  "awards": [
+    {
+      "id": "award-lote-1",
+      "date": "2026-05-01T00:00:00Z",
+      "value": { "amount": 210000, "currency": "EUR" },
+      "suppliers": [{ "id": "ORG-SYN-910", "name": "Alfa Integraciones SA (SYNTHETIC)" }],
+      "relatedLots": ["lote-1"]
+    },
+    {
+      "id": "award-lote-2",
+      "date": "2026-05-02T00:00:00Z",
+      "value": { "amount": 64000, "currency": "EUR" },
+      "suppliers": [{ "id": "ORG-SYN-911", "name": "Beta Servicios Digitales SL (SYNTHETIC)" }],
+      "relatedLots": ["lote-2"]
+    }
+  ]
+}

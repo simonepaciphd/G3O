@@ -1,0 +1,82 @@
+{
+  "uri": "http://www.comprasestatales.gub.uy/ocds/release/adjudicacion-1371839",
+  "version": "1.1",
+  "publishedDate": "2026-09-15T10:05:09Z",
+  "publisher": {
+    "name": "Agencia Reguladora de Compras Estatales"
+  },
+  "license": "https://www.gub.uy/agencia-reguladora-compras-estatales/datos-y-estadisticas/datos/licencia-datos-abiertos",
+  "publicationPolicy": "https://www.gub.uy/agencia-reguladora-compras-estatales/politicas-y-gestion/politica-publicacion-para-estandar-open-contracting",
+  "releases": [
+    {
+      "ocid": "ocds-yfs5dr-1371839",
+      "id": "adjudicacion-1371839",
+      "date": "2026-09-15T10:05:09Z",
+      "tag": [
+        "award"
+      ],
+      "language": "es",
+      "initiationType": "tender",
+      "parties": [
+        {
+          "id": "R215550890018",
+          "name": "DE MARIA NUÑEZ SEBASTIAN RODOLFO",
+          "identifier": {
+            "id": "R215550890018",
+            "legalName": "DE MARIA NUÑEZ SEBASTIAN RODOLFO"
+          },
+          "roles": [
+            "supplier"
+          ]
+        },
+        {
+          "id": "26-15",
+          "name": "Hospital de Clínicas",
+          "identifier": {
+            "id": "26-15",
+            "legalName": "Hospital de Clínicas"
+          },
+          "roles": [
+            "procuringEntity"
+          ]
+        }
+      ],
+      "buyer": {
+        "name": "Hospital de Clínicas",
+        "id": "26-15"
+      },
+      "awards": [
+        {
+          "id": "R215550890018",
+          "status": "active",
+          "date": "2026-03-19T00:00:00Z",
+          "suppliers": [
+            {
+              "id": "R215550890018",
+              "name": "DE MARIA NUÑEZ SEBASTIAN RODOLFO"
+            }
+          ],
+          "items": [
+            {
+              "id": "1-1",
+              "description": "CONTRATACION DE MANO DE OBRA",
+              "classification": {
+                "id": "28031",
+                "description": "CONTRATACION DE MANO DE OBRA"
+              },
+              "quantity": 1,
+              "unit": {
+                "name": "HORA",
+                "id": "46",
+                "value": {
+                  "amount": 161700.0,
+                  "currency": "UYU"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

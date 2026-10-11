@@ -1,0 +1,18 @@
+# Procurement pipeline — pinned runtime deps.
+# Install:  python -m venv .venv && .venv/bin/pip install -r requirements.txt
+# Reproducibility rule (docs/architecture.md §7): everything pinned, including
+# any NLP model ids added later.
+
+# --- core (needed to run the pipeline today) ---
+PyYAML==6.0.3           # config/sources.yaml, config/genai_queries.yaml
+jsonschema==4.26.0      # validate every record before it is written
+requests==2.34.2        # API / bulk adapters (HTTP transport)
+
+# --- test harness ---
+pytest==9.1.1
+
+# --- NOT installed yet (add when the stage that needs them is approved) ---
+# spacy==?              # NLP classifier normalization  (Phase 1, after PI picks the approach)
+# sentence-transformers==?  # optional embedding scoring (same decision)
+# beautifulsoup4==?     # scrape adapters (Phase 4)
+# lxml==?               # scrape adapters (Phase 4)
