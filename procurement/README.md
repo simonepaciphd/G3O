@@ -1,6 +1,6 @@
 # procurement/ — G3O procurement pipeline
 
-Code for the G3O procurement evidence channel: one shared core (`pipeline/core/`) and one thin adapter per source (`pipeline/adapters/{api,bulk,scrape}/`). Migrated from the Drive subproject `G3O/subprojects/procurement-pipeline/` on 2026-10-11, byte-identical (code sha256 `398167e275c48445391a0b64ae4ff3f916837b2524487b4cc198c88f293bbeaa`).
+Code for the G3O procurement evidence channel: one shared core (`pipeline/core/`) and one thin adapter per source (`pipeline/adapters/{api,bulk,scrape}/`). Migrated from the Drive subproject `G3O/subprojects/procurement-pipeline/` on 2026-10-11, byte-identical (code sha256 `398167e275c48445391a0b64ae4ff3f916837b2524487b4cc198c88f293bbeaa`). The fingerprint is printed in every run manifest; it changes whenever any `pipeline/**/*.py` file changes.
 
 Code only. Specs, codebook, protocols, the handoff index, outputs, run caches and logs stay on Drive. Start from `agent-workspace/2026-10-07-handoff-index.md` there.
 
@@ -25,6 +25,6 @@ python -m pipeline.cli run <source_id> --limit 5 --since YYYY-MM --until YYYY-MM
 
 The default `--master`/`--ledger` paths assume the Drive layout and do not resolve from this repo; pass them explicitly. `data_cache/` and `outputs/` are git-ignored; archive run outputs on Drive.
 
-## Not covered by root CI
+## CI
 
-The root `ruff` config excludes this folder, and the root `pytest` collects only `tests/`. Run `pytest -q tests` here before every PR.
+`.github/workflows/procurement.yml` runs `pytest -q tests` from this folder on every push to a `procurement/*` branch and every PR into `main` or a `procurement/*` branch (Ubuntu and Windows, Python 3.11/3.12), and prints the code fingerprint. The root CI does not test this folder, and the root `ruff` config excludes it.

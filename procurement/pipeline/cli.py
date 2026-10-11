@@ -139,7 +139,8 @@ def code_hash() -> str:
     root = Path(__file__).resolve().parent
     digest = hashlib.sha256()
     for path in sorted(root.rglob("*.py")):
-        digest.update(str(path.relative_to(root)).encode())
+        # as_posix(): the same code must hash the same on Windows and macOS/Linux.
+        digest.update(path.relative_to(root).as_posix().encode())
         digest.update(path.read_bytes())
     return digest.hexdigest()
 

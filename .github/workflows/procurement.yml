@@ -1,0 +1,46 @@
+name: Procurement
+
+# Tests for procurement/ (the procurement pipeline). The root CI collects only
+# tests/ and runs only on main, so the long-lived procurement/* branches need
+# their own job. Runs from procurement/ with its own pinned requirements.
+
+on:
+  push:
+    branches: ["procurement/**"]
+    paths: ["procurement/**", ".github/workflows/procurement.yml"]
+  pull_request:
+    branches: [main, "procurement/**"]
+    paths: ["procurement/**", ".github/workflows/procurement.yml"]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    defaults:
+      run:
+        working-directory: procurement
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: procurement/requirements.txt
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Test
+        run: pytest -q tests
+
+      - name: Print code fingerprint
+        run: python -c "from pipeline.cli import code_hash; print(code_hash())"

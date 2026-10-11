@@ -121,3 +121,17 @@ def test_cli_run_writes_a_manifest_with_window_failures_and_qc(tmp_path, monkeyp
     assert m["fetch_failures"][0]["native_id"] == "llamado-2"
     assert all(m["qc"].values())
     assert len(m["versions"]["code_sha256"]) == 64
+
+
+def test_code_hash_is_independent_of_os_path_separator():
+    import hashlib
+    from pathlib import Path
+
+    from pipeline.cli import code_hash
+
+    root = Path(arce.__file__).resolve().parents[2]
+    digest = hashlib.sha256()
+    for path in sorted(root.rglob("*.py")):
+        digest.update("/".join(path.relative_to(root).parts).encode())
+        digest.update(path.read_bytes())
+    assert code_hash() == digest.hexdigest()
