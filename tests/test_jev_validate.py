@@ -468,3 +468,62 @@ class TestRunValidateJevParallel:
         assert summary["n_consolidated"] == len(ids)
         assert summary["n_failed"] == 0
         assert is_done(tmp_path, "validate")
+
+    def test_request_failure_writes_validate_attrition_row(self, tmp_path):
+        from unittest.mock import patch
+
+        from g3o.common import attrition
+        from g3o.common.credentials import Credentials, resolve
+        from g3o.common.paths import institution_dir
+        from g3o.run.presweep.stage_validate import _run_validate_jev
+
+        credentials = resolve(
+            Credentials(typesafe_api_key="test-key"),
+            env={"TYPESAFE_API_KEY": "test-key"},
+        )
+        ids = ["INST-001", "INST-002"]
+        for inst_id in ids:
+            institution_dir(tmp_path, inst_id).mkdir(parents=True)
+        inputs = [({"institution_id": i}, [{"row": i}], 1) for i in ids]
+
+        def fake_ask(state, questions, *, client, model):
+            if state["id"] == "INST-002":
+                raise RuntimeError("TypeSafe 503")
+            return JevResult(
+                answers={}, response_model="jev-1.13.0", request_id="r",
+                input_tokens=10, output_tokens=1,
+            )
+
+        def fake_write(run_dir, institution_id, response):
+            (institution_dir(run_dir, institution_id) / "6_validate.json").write_text("{}")
+
+        attrition._reset_cache()
+        with (
+            patch(
+                "g3o.validate.consolidate.assemble_per_institution_inputs",
+                return_value=inputs,
+            ),
+            patch("g3o.validate.consolidate.write_consolidated_output", side_effect=fake_write),
+            patch(
+                "g3o.validate.jev_validate.build_validate_state",
+                side_effect=lambda row, *_: {"id": row["institution_id"]},
+            ),
+            patch("g3o.validate.jev_validate.build_validate_questions", return_value={}),
+            patch("g3o.validate.jev_validate.parse_validate_result"),
+            patch("g3o.run.presweep.jev_stage_runner.ask", side_effect=fake_ask),
+        ):
+            summary = _run_validate_jev(
+                tmp_path,
+                [{}] * len(ids),
+                model="jev-1.13.0",
+                credentials=credentials,
+                concurrency=1,
+            )
+        attrition._reset_cache()
+
+        assert summary["n_failed"] == 1
+        rows = attrition.read_records(tmp_path)
+        assert [(r["institution_id"], r["stage"], r["reason"]) for r in rows] == [
+            ("INST-002", "validate", "jev_request_failed")
+        ]
+        assert "TypeSafe 503" in rows[0]["detail"]

@@ -543,6 +543,58 @@ class TestJevStageRunner:
 
 
 # ---------------------------------------------------------------------------
+# Stage 2 / Stage 3 jev: no .done marker after an early stop
+# ---------------------------------------------------------------------------
+
+
+class TestJevStagesSkipMarkDoneWhenStoppedEarly:
+    """A jev stage the cost callback stopped is not done, so resume redoes it."""
+
+    def _run(self, tmp_path: Path, stage_fn: str, *, keep_going: bool) -> Path:
+        from g3o.common.run_state import is_done
+        from g3o.run.presweep import stage_classify
+        from g3o.run.presweep.records import institution_record
+
+        run_dir = tmp_path / "run"
+        sample = [{"institution_id": "inst-0001", "institution_name": "Test 1"}]
+        inst_id = institution_record(sample[0])["institution_id"]
+        institution_dir(run_dir, inst_id).mkdir(parents=True)
+        discovery = {inst_id: [{"link": "https://example.gov/ai"}]}
+        credentials = resolve(
+            Credentials(typesafe_api_key="test-key"),
+            env={"TYPESAFE_API_KEY": "test-key"},
+        )
+        with patch("g3o.run.presweep.jev_stage_runner.ask") as mock_ask:
+            mock_ask.return_value = JevResult(
+                answers={}, response_model="jev-1.13.0", request_id="r",
+                input_tokens=10, output_tokens=1,
+            )
+            if stage_fn == "triage":
+                stage = "classify_triage"
+                stage_classify._run_classify_triage_jev(
+                    run_dir, sample, discovery, {}, {},
+                    model="jev-1.13.0", credentials=credentials,
+                    cost_check_callback=lambda _stage, _usage: keep_going,
+                )
+            else:
+                stage = "classify_official_site"
+                stage_classify._run_classify_official_site_jev(
+                    run_dir, sample, discovery,
+                    model="jev-1.13.0", credentials=credentials,
+                    cost_check_callback=lambda _stage, _usage: keep_going,
+                )
+        return is_done(run_dir, stage)
+
+    @pytest.mark.parametrize("stage_fn", ["triage", "official_site"])
+    def test_stopped_early_leaves_no_done_marker(self, tmp_path: Path, stage_fn):
+        assert self._run(tmp_path, stage_fn, keep_going=False) is False
+
+    @pytest.mark.parametrize("stage_fn", ["triage", "official_site"])
+    def test_completed_stage_is_marked_done(self, tmp_path: Path, stage_fn):
+        assert self._run(tmp_path, stage_fn, keep_going=True) is True
+
+
+# ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 

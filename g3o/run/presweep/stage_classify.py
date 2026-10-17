@@ -266,16 +266,19 @@ def _run_classify_official_site_jev(
         metrics.n_institutions, metrics.n_success, metrics.n_failed,
         metrics.n_skipped, metrics.total_input_tokens,
     )
-    mark_done(
-        run_dir, stage, no_batch=True,
-        usage={
-            "prompt_tokens": metrics.total_input_tokens,
-            "completion_tokens": metrics.total_output_tokens,
-            "cached_tokens": 0,
-        },
-        n_jobs=metrics.n_success,
-        model=model,
-    )
+    # Mirrors Stage 6 jev: a stage that stopped early is not done, or resume
+    # would skip the institutions it never reached.
+    if not metrics.stopped_early:
+        mark_done(
+            run_dir, stage, no_batch=True,
+            usage={
+                "prompt_tokens": metrics.total_input_tokens,
+                "completion_tokens": metrics.total_output_tokens,
+                "cached_tokens": 0,
+            },
+            n_jobs=metrics.n_success,
+            model=model,
+        )
     return {**_read_existing_official_sites(run_dir, sample), **out}
 def _run_classify_official_site(
     run_dir: Path,
@@ -881,16 +884,19 @@ def _run_classify_triage_jev(
         metrics.n_institutions, metrics.n_success, metrics.n_failed,
         metrics.n_skipped, metrics.total_input_tokens,
     )
-    mark_done(
-        run_dir, stage, no_batch=True,
-        usage={
-            "prompt_tokens": metrics.total_input_tokens,
-            "completion_tokens": metrics.total_output_tokens,
-            "cached_tokens": 0,
-        },
-        n_jobs=metrics.n_success,
-        model=model,
-    )
+    # Mirrors Stage 6 jev: a stage that stopped early is not done, or resume
+    # would skip the institutions it never reached.
+    if not metrics.stopped_early:
+        mark_done(
+            run_dir, stage, no_batch=True,
+            usage={
+                "prompt_tokens": metrics.total_input_tokens,
+                "completion_tokens": metrics.total_output_tokens,
+                "cached_tokens": 0,
+            },
+            n_jobs=metrics.n_success,
+            model=model,
+        )
     return {**_read_existing_triaged(run_dir, sample), **kept}
 def _run_classify_triage(
     run_dir: Path,
