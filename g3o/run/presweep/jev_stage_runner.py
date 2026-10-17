@@ -78,6 +78,9 @@ def run_jev_stage(
     concurrency: int = DEFAULT_JEV_CONCURRENCY,
     cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
     artifact_filename: str = "jev_result.json",
+    request_fallback: Callable[
+        [dict[str, Any], Exception, Callable[[Any, Any], JevResult]], Any
+    ] | None = None,
 ) -> JevStageMetrics:
     """Run a jev stage synchronously over a list of institutions.
 
@@ -89,6 +92,17 @@ def run_jev_stage(
 
     ``artifact_filename`` is the per-institution artifact name. If the artifact
     already exists, the institution is skipped (resume).
+
+    ``request_fallback`` (optional) is called with ``(institution_row, exc,
+    send)`` when the request fails with a non-account error; ``send(state,
+    questions)`` submits one more request through the same client. It returns
+    a result object exposing ``input_tokens``/``output_tokens`` (handed to
+    ``process_result`` in place of the failed result), or ``None`` to record
+    the original failure as usual. An exception it raises is recorded as
+    ``jev_request_failed``; if that exception carries ``partial_usage``
+    ``(input_tokens, output_tokens)`` — requests that succeeded before it —
+    those tokens still count toward the stage totals. Stage 6 uses this to
+    split an over-long validate request (PI ruling E1=b, 2026-10-17).
 
     Returns metrics: n_institutions, n_success, n_failed, n_skipped, token usage.
     """
@@ -121,7 +135,21 @@ def run_jev_stage(
         start_time = datetime.fromtimestamp(start, tz=timezone.utc).isoformat()
         try:
             state, questions = build_request(institution)
-            result = ask(state, questions, client=client, model=model)
+            try:
+                result = ask(state, questions, client=client, model=model)
+            except JevAccountError:
+                raise
+            except Exception as exc:
+                if request_fallback is None:
+                    raise
+                fallback_result = request_fallback(
+                    institution,
+                    exc,
+                    lambda s, q: ask(s, q, client=client, model=model),
+                )
+                if fallback_result is None:
+                    raise
+                result = fallback_result
         except JevAccountError:
             # Every remaining request would fail the same way: stop the stage.
             stop_event.set()
@@ -137,8 +165,11 @@ def run_jev_stage(
                 reason="jev_request_failed",
                 detail=str(exc),
             )
+            partial_in, partial_out = getattr(exc, "partial_usage", (0, 0))
             with metrics._lock:
                 metrics.n_failed += 1
+                metrics.total_input_tokens += partial_in
+                metrics.total_output_tokens += partial_out
             return
 
         try:

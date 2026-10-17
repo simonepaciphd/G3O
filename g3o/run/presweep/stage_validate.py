@@ -38,15 +38,21 @@ def _run_validate_jev(
     deterministic bookkeeping. See jev-integration-plan.md §4 for the design.
     """
     import logging
+    import threading
 
+    from g3o.common import attrition
     from g3o.common.run_state import is_done, mark_done
     from g3o.validate.consolidate import (
         assemble_per_institution_inputs,
         write_consolidated_output,
     )
     from g3o.validate.jev_validate import (
+        ChunkedJevResult,
         build_validate_questions,
         build_validate_state,
+        chunk_input_rows,
+        is_max_tokens_exceeded,
+        parse_chunked_validate_result,
         parse_validate_result,
     )
 
@@ -71,10 +77,71 @@ def _run_validate_jev(
         state = build_validate_state(institution_row, input_rows, n_input_pages)
         return state, build_validate_questions(input_rows)
 
+    split_lock = threading.Lock()
+    n_oversize_split = 0
+
+    def oversize_fallback(
+        institution_row: dict[str, Any],
+        exc: Exception,
+        send: Callable[[Any, Any], Any],
+    ) -> ChunkedJevResult | None:
+        """PI ruling E1=b (2026-10-17): on a 400 max_tokens_exceeded, validate
+        the institution in page-whole chunks and merge (see
+        ``merge_chunk_responses``). Any other error, or an institution that
+        cannot be split (one page), keeps today's failure path."""
+        nonlocal n_oversize_split
+        if not is_max_tokens_exceeded(exc):
+            return None
+        inst_id = institution_row["institution_id"]
+        _, input_rows, _ = inputs_by_id[inst_id]
+        chunks = chunk_input_rows(institution_row, input_rows)
+        if len(chunks) < 2:
+            return None
+        attrition.record(
+            run_dir,
+            institution_id=inst_id,
+            stage=stage,
+            reason="validate_oversize_split",
+            detail=(
+                f"n_chunks={len(chunks)}; "
+                f"chunk_bytes={[c.request_bytes for c in chunks]}"
+            ),
+        )
+        with split_lock:
+            n_oversize_split += 1
+        done: list[tuple[Any, Any]] = []
+        in_tok = out_tok = 0
+        for chunk in chunks:
+            state = build_validate_state(
+                institution_row, chunk.input_rows, chunk.n_input_pages
+            )
+            try:
+                res = send(state, build_validate_questions(chunk.input_rows))
+            except Exception as chunk_exc:
+                # Chunks already answered were still spent.
+                chunk_exc.partial_usage = (in_tok, out_tok)  # type: ignore[attr-defined]
+                raise
+            in_tok += res.input_tokens
+            out_tok += res.output_tokens
+            done.append((chunk, res))
+        return ChunkedJevResult(
+            chunks=done,
+            input_tokens=in_tok,
+            output_tokens=out_tok,
+            response_model=done[0][1].response_model,
+            request_id=done[0][1].request_id,
+        )
+
     def process_result(
         institution_id: str, result: Any, institution_row: dict[str, Any]
     ) -> None:
         _, input_rows, n_input_pages = inputs_by_id[institution_id]
+        if isinstance(result, ChunkedJevResult):
+            response = parse_chunked_validate_result(
+                result, institution_row, n_input_pages, len(input_rows)
+            )
+            write_consolidated_output(run_dir, institution_id, response)
+            return
         jev_result = parse_validate_result(
             result, institution_row, input_rows, n_input_pages
         )
@@ -94,6 +161,7 @@ def _run_validate_jev(
         concurrency=concurrency,
         cost_check_callback=cost_check_callback,
         artifact_filename="6_validate.json",
+        request_fallback=oversize_fallback,
     )
     n_success = metrics.n_success
     n_failed = metrics.n_failed
@@ -104,11 +172,12 @@ def _run_validate_jev(
 
     logger.info(
         "Stage 6 jev: %d institutions, %d success, %d failed, %d skipped, "
-        "%d input tokens%s",
+        "%d oversize-split, %d input tokens%s",
         len(per_inst_inputs),
         n_success,
         n_failed,
         n_skipped,
+        n_oversize_split,
         total_input_tokens,
         " (stopped early)" if stopped_early else "",
     )
@@ -133,6 +202,7 @@ def _run_validate_jev(
         "n_institutions": len(per_inst_inputs),
         "n_consolidated": n_success + n_skipped,
         "n_failed": n_failed,
+        "n_oversize_split": n_oversize_split,
         "batch_ids": [],  # jev is sync, no batch API
         "stopped_early": stopped_early,
     }
