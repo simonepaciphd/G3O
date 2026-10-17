@@ -60,10 +60,41 @@ class JevStageMetrics:
     n_success: int = 0
     n_failed: int = 0
     n_skipped: int = 0  # resume: artifact already exists
+    # The request succeeded but ``process_result`` returned False (e.g. its
+    # parse failed and it recorded its own attrition row): no artifact was
+    # written, so a resume re-sends it. Not in n_success or n_failed.
+    n_processing_failed: int = 0
     total_input_tokens: int = 0
     total_output_tokens: int = 0
     stopped_early: bool = False  # budget or other early stop
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
+
+
+# PI ruling P1 = a (2026-10-17): a jev stage is marked done only when at most
+# this fraction of the requests attempted in the session failed. Above it the
+# stage stays open, and a resume re-sends only the failed institutions (the
+# runner skips every institution that already has its artifact).
+JEV_MAX_FAILED_FRACTION = 0.01
+
+
+def jev_stage_complete(metrics: JevStageMetrics) -> bool:
+    """True when a jev stage may be marked done (PI ruling P1 = a).
+
+    Not done after an early stop, or when the failures (``n_failed +
+    n_processing_failed``) exceed :data:`JEV_MAX_FAILED_FRACTION` of the
+    attempted requests (every request sent; skipped institutions are not
+    attempted). A session that attempted nothing is complete.
+    """
+    if metrics.stopped_early:
+        return False
+    failed = jev_stage_failed(metrics)
+    attempted = metrics.n_success + failed
+    return failed <= JEV_MAX_FAILED_FRACTION * attempted
+
+
+def jev_stage_failed(metrics: JevStageMetrics) -> int:
+    """Institutions this session sent that are left without an artifact."""
+    return metrics.n_failed + metrics.n_processing_failed
 
 
 def run_jev_stage(
@@ -71,7 +102,7 @@ def run_jev_stage(
     stage: str,
     institutions: list[dict[str, Any]],
     build_request: Callable[[dict[str, Any]], tuple[dict[str, Any], dict[str, Any]]],
-    process_result: Callable[[str, JevResult, dict[str, Any]], None],
+    process_result: Callable[[str, JevResult, dict[str, Any]], bool | None],
     *,
     credentials: ResolvedCredentials,
     model: str,
@@ -88,7 +119,10 @@ def run_jev_stage(
     for the jev API.
 
     ``process_result`` takes ``(institution_id, result, institution_row)`` and
-    persists the result (writes artifact, updates output dict, etc.).
+    persists the result (writes artifact, updates output dict, etc.). It
+    returns ``False`` when it handled a failure itself (recorded attrition, wrote
+    no artifact); that counts as ``n_processing_failed``. Any other return
+    (including ``None``) is a success.
 
     ``artifact_filename`` is the per-institution artifact name. If the artifact
     already exists, the institution is skipped (resume).
@@ -173,7 +207,7 @@ def run_jev_stage(
             return
 
         try:
-            process_result(inst_id, result, institution)
+            processed = process_result(inst_id, result, institution)
             duration = time.time() - start
             end_time = datetime.fromtimestamp(time.time(), tz=timezone.utc).isoformat()
             record_stage_timing(
@@ -185,7 +219,11 @@ def run_jev_stage(
                 timing_type="per_institution",
             )
             with metrics._lock:
-                metrics.n_success += 1
+                if processed is False:
+                    metrics.n_processing_failed += 1
+                else:
+                    metrics.n_success += 1
+                # Billed either way.
                 metrics.total_input_tokens += result.input_tokens
                 metrics.total_output_tokens += result.output_tokens
         except Exception as exc:
@@ -249,6 +287,9 @@ def run_jev_stage(
 
 __all__ = [
     "DEFAULT_JEV_CONCURRENCY",
+    "JEV_MAX_FAILED_FRACTION",
     "JevStageMetrics",
+    "jev_stage_complete",
+    "jev_stage_failed",
     "run_jev_stage",
 ]

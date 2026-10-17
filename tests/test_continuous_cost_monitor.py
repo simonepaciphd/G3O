@@ -25,6 +25,9 @@ from __future__ import annotations
 import json
 from unittest.mock import patch
 
+import pytest
+
+from g3o.common import spend_meter
 from g3o.common.batch_client import BatchResult
 from g3o.common.cost_monitor import BudgetExceededError, CostMonitor
 
@@ -1221,3 +1224,89 @@ def test_cost_report_includes_dry_run_field(tmp_path, monkeypatch):
             # If budget was exceeded, the stage should be recorded
             if cost_report["budget_exceeded"]:
                 assert len(cost_report["budget_exceeded_stages"]) > 0
+
+
+# ---------------------------------------------------------------------------
+# Resume: metered spend from an earlier session is carried forward
+# ---------------------------------------------------------------------------
+
+
+def test_seed_metered_adds_prior_report_totals():
+    """seed_metered folds a prior report's by_api units into the totals."""
+    prior = CostMonitor(budget_usd=None, model="gpt-5-nano")
+    prior.record_metered(spend_meter.SERPER, {"credits": 7, "live_queries": 5})
+    prior.record_metered(
+        spend_meter.UNLOCKER, {"billable_bytes": 2_000_000, "success": True}
+    )
+    prior.record_metered(spend_meter.UNLOCKER, {"billable_bytes": 0, "success": False})
+
+    mon = CostMonitor(budget_usd=None, model="gpt-5-nano")
+    mon.seed_metered(json.loads(json.dumps(prior.cost_report())))
+    mon.record_metered(spend_meter.SERPER, {"credits": 1, "live_queries": 1})
+
+    assert mon.metered[spend_meter.SERPER] == {"credits": 8, "live_queries": 6}
+    assert mon.metered[spend_meter.UNLOCKER] == {
+        "billable_bytes": 2_000_000, "requests": 2, "requests_succeeded": 1,
+    }
+    assert mon.metered_total_usd == pytest.approx(prior.metered_total_usd + 0.001)
+
+
+def test_seed_metered_malformed_report_leaves_totals_untouched():
+    mon = CostMonitor(budget_usd=None, model="gpt-5-nano")
+    with pytest.raises((TypeError, ValueError)):
+        mon.seed_metered({"by_api": {"serper": {"credits": 3}, "brightdata_unlocker": {"requests": "x"}}})
+    assert mon.metered[spend_meter.SERPER]["credits"] == 0
+    mon.seed_metered({})  # no by_api: a no-op, not an error
+    assert mon.metered_total_usd == 0
+
+
+def test_resumed_run_reports_and_budgets_first_session_metered_spend(tmp_path, monkeypatch):
+    """A second session on the same run id counts the first session's
+    Serper/unlocker spend in its cost report and in the budget check."""
+    from g3o.run.presweep import PresweepConfig, run_presweep
+
+    monkeypatch.setenv("SERPER_API_KEY", "serper-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
+    master = tmp_path / "master.csv"
+    master.write_text(
+        "institution_uid,institution_id,name,country,government_level,institution_type,url\n"
+        "G3O-I-00000001,inst-0001,Test Inst,TestCountry,national,university,https://example.edu\n",
+        encoding="utf-8",
+    )
+
+    def _cfg(budget):
+        return PresweepConfig(
+            run_id="resumed", runs_dir=tmp_path / "runs", master_csv=master,
+            sample_size=1, seed=22294, dry_run=False, stop_after="discovery_general",
+            model="gpt-5-nano", classify_official_site_model="gpt-5-nano",
+            classify_triage_model="gpt-5-nano", validate_model="gpt-5-nano",
+            budget_usd=budget,
+        )
+
+    def _fake_discovery(*args, **kwargs):
+        spend_meter.record(spend_meter.SERPER, credits=3, live_queries=3)
+        spend_meter.record(
+            spend_meter.UNLOCKER, billable_bytes=1_000_000, success=True
+        )
+        return {}
+
+    report_path = tmp_path / "runs" / "resumed" / "_cost_report.json"
+    with patch("g3o.run.presweep.orchestrator._run_discovery_general", _fake_discovery):
+        run_presweep(_cfg(None))
+        first = json.loads(report_path.read_text("utf-8"))
+        assert first["by_api"]["serper"]["credits"] == 3
+
+        # This session alone spends $0.003 + $0.008 = $0.011, under the $0.015
+        # ceiling; with the first session's $0.011 carried forward it is over.
+        with pytest.raises(BudgetExceededError):
+            run_presweep(_cfg(0.015))
+
+    second = json.loads(report_path.read_text("utf-8"))
+    assert second["by_api"]["serper"]["credits"] == 6
+    assert second["by_api"]["serper"]["live_queries"] == 6
+    unl = second["by_api"]["brightdata_unlocker"]
+    assert unl["billable_bytes"] == 2_000_000
+    assert unl["requests"] == 2
+    assert unl["requests_succeeded"] == 2
+    assert second["metered_total_usd"] == pytest.approx(2 * first["metered_total_usd"])
+    assert second["abort_stage"] == "discovery_general"

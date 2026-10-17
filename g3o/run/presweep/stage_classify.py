@@ -51,7 +51,12 @@ from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
 from g3o.common.timing import llm_stage_timer
 from g3o.report.discovery_yield import registrable_domain
-from g3o.run.presweep.jev_stage_runner import run_jev_stage
+from g3o.run.presweep.jev_stage_runner import (
+    JEV_MAX_FAILED_FRACTION,
+    jev_stage_complete,
+    jev_stage_failed,
+    run_jev_stage,
+)
 from g3o.run.presweep.records import (
     _dedupe_key,
     institution_record,
@@ -197,7 +202,7 @@ def _run_classify_official_site_jev(
         questions = jev_build_official_site_questions(candidate_urls)
         return state, questions
 
-    def process_result(inst_id: str, result: Any, inst_tuple: tuple[dict[str, Any], list[dict[str, Any]]]) -> None:
+    def process_result(inst_id: str, result: Any, inst_tuple: tuple[dict[str, Any], list[dict[str, Any]]]) -> bool | None:
         institution, search_results = inst_tuple
         candidate_urls = [r.get("link", "") for r in search_results]
         candidate_urls = [u for u in candidate_urls if u]
@@ -209,7 +214,7 @@ def _run_classify_official_site_jev(
                 run_dir, institution_id=inst_id, stage=stage,
                 reason="jev_parse_failed", detail=str(exc),
             )
-            return
+            return False  # no artifact: counts against P1's failure limit
         out[inst_id] = parsed.url
         inst_dir = institution_dir(run_dir, inst_id)
         if inst_dir.exists():
@@ -244,11 +249,11 @@ def _run_classify_official_site_jev(
             raise RuntimeError(f"Stage 2 jev: institution {inst_id} not found")
         return build_request(inst_tuple)
 
-    def process_result_wrapper(inst_id: str, result: Any, inst: dict[str, Any]) -> None:
+    def process_result_wrapper(inst_id: str, result: Any, inst: dict[str, Any]) -> bool | None:
         inst_tuple = institutions_by_id.get(inst_id)
         if inst_tuple is None:
             raise RuntimeError(f"Stage 2 jev: institution {inst_id} not found")
-        process_result(inst_id, result, inst_tuple)
+        return process_result(inst_id, result, inst_tuple)
 
     metrics = run_jev_stage(
         run_dir=run_dir,
@@ -266,16 +271,28 @@ def _run_classify_official_site_jev(
         metrics.n_institutions, metrics.n_success, metrics.n_failed,
         metrics.n_skipped, metrics.total_input_tokens,
     )
-    mark_done(
-        run_dir, stage, no_batch=True,
-        usage={
-            "prompt_tokens": metrics.total_input_tokens,
-            "completion_tokens": metrics.total_output_tokens,
-            "cached_tokens": 0,
-        },
-        n_jobs=metrics.n_success,
-        model=model,
-    )
+    # Not done after an early stop or too many failed requests (PI ruling
+    # P1 = a): resume would otherwise skip the institutions left unanswered.
+    if not jev_stage_complete(metrics):
+        logger.warning(
+            "jev stage %s left open: %d failed of %d attempted (limit %.0f%%)%s; "
+            "a resume re-sends the institutions without an artifact",
+            stage, jev_stage_failed(metrics),
+            metrics.n_success + jev_stage_failed(metrics),
+            JEV_MAX_FAILED_FRACTION * 100,
+            ", stopped early" if metrics.stopped_early else "",
+        )
+    else:
+        mark_done(
+            run_dir, stage, no_batch=True,
+            usage={
+                "prompt_tokens": metrics.total_input_tokens,
+                "completion_tokens": metrics.total_output_tokens,
+                "cached_tokens": 0,
+            },
+            n_jobs=metrics.n_success,
+            model=model,
+        )
     return {**_read_existing_official_sites(run_dir, sample), **out}
 def _run_classify_official_site(
     run_dir: Path,
@@ -636,7 +653,7 @@ def _run_classify_official_site_fallback_jev(
         state = jev_build_official_site_state(institution, results)
         return state, jev_build_official_site_questions(_urls(results))
 
-    def process_result(inst_id: str, result: Any, inst: dict[str, Any]) -> None:
+    def process_result(inst_id: str, result: Any, inst: dict[str, Any]) -> bool | None:
         _, results = by_id[inst_id]
         try:
             parsed = jev_parse_official_site_result(result, _urls(results))
@@ -646,7 +663,7 @@ def _run_classify_official_site_fallback_jev(
                 run_dir, institution_id=inst_id, stage=stage,
                 reason="jev_parse_failed", detail=str(exc),
             )
-            return
+            return False  # no artifact: counts against P1's failure limit
         out[inst_id] = parsed.url
         inst_dir = institution_dir(run_dir, inst_id)
         if not inst_dir.exists():
@@ -692,16 +709,28 @@ def _run_classify_official_site_fallback_jev(
         metrics.n_institutions, metrics.n_success, metrics.n_failed,
         metrics.n_skipped, metrics.total_input_tokens,
     )
-    mark_done(
-        run_dir, stage, no_batch=True,
-        usage={
-            "prompt_tokens": metrics.total_input_tokens,
-            "completion_tokens": metrics.total_output_tokens,
-            "cached_tokens": 0,
-        },
-        n_jobs=metrics.n_success,
-        model=model,
-    )
+    # Not done after an early stop or too many failed requests (PI ruling
+    # P1 = a): resume would otherwise skip the institutions left unanswered.
+    if not jev_stage_complete(metrics):
+        logger.warning(
+            "jev stage %s left open: %d failed of %d attempted (limit %.0f%%)%s; "
+            "a resume re-sends the institutions without an artifact",
+            stage, jev_stage_failed(metrics),
+            metrics.n_success + jev_stage_failed(metrics),
+            JEV_MAX_FAILED_FRACTION * 100,
+            ", stopped early" if metrics.stopped_early else "",
+        )
+    else:
+        mark_done(
+            run_dir, stage, no_batch=True,
+            usage={
+                "prompt_tokens": metrics.total_input_tokens,
+                "completion_tokens": metrics.total_output_tokens,
+                "cached_tokens": 0,
+            },
+            n_jobs=metrics.n_success,
+            model=model,
+        )
     return out
 
 
@@ -837,7 +866,7 @@ def _run_classify_triage_jev(
         questions = jev_build_triage_questions(candidate_urls)
         return state, questions
 
-    def process_result(inst_id: str, result: Any, inst: dict[str, Any]) -> None:
+    def process_result(inst_id: str, result: Any, inst: dict[str, Any]) -> bool | None:
         candidate_urls = candidates_by_inst.get(inst_id, [])
         try:
             parsed = jev_parse_triage_result(result, candidate_urls)
@@ -847,7 +876,7 @@ def _run_classify_triage_jev(
                 run_dir, institution_id=inst_id, stage=stage,
                 reason="jev_parse_failed", detail=str(exc),
             )
-            return
+            return False  # no artifact: counts against P1's failure limit
         kept[inst_id] = parsed.kept_urls
         inst_dir = institution_dir(run_dir, inst_id)
         if inst_dir.exists():
@@ -881,16 +910,28 @@ def _run_classify_triage_jev(
         metrics.n_institutions, metrics.n_success, metrics.n_failed,
         metrics.n_skipped, metrics.total_input_tokens,
     )
-    mark_done(
-        run_dir, stage, no_batch=True,
-        usage={
-            "prompt_tokens": metrics.total_input_tokens,
-            "completion_tokens": metrics.total_output_tokens,
-            "cached_tokens": 0,
-        },
-        n_jobs=metrics.n_success,
-        model=model,
-    )
+    # Not done after an early stop or too many failed requests (PI ruling
+    # P1 = a): resume would otherwise skip the institutions left unanswered.
+    if not jev_stage_complete(metrics):
+        logger.warning(
+            "jev stage %s left open: %d failed of %d attempted (limit %.0f%%)%s; "
+            "a resume re-sends the institutions without an artifact",
+            stage, jev_stage_failed(metrics),
+            metrics.n_success + jev_stage_failed(metrics),
+            JEV_MAX_FAILED_FRACTION * 100,
+            ", stopped early" if metrics.stopped_early else "",
+        )
+    else:
+        mark_done(
+            run_dir, stage, no_batch=True,
+            usage={
+                "prompt_tokens": metrics.total_input_tokens,
+                "completion_tokens": metrics.total_output_tokens,
+                "cached_tokens": 0,
+            },
+            n_jobs=metrics.n_success,
+            model=model,
+        )
     return {**_read_existing_triaged(run_dir, sample), **kept}
 def _run_classify_triage(
     run_dir: Path,

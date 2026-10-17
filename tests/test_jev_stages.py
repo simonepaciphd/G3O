@@ -10,6 +10,7 @@ Covers:
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -540,6 +541,221 @@ class TestJevStageRunner:
         # The stop event short-circuits the queued institutions.
         assert mock_ask.call_count < len(institutions)
         assert not (run_dir / "_attrition.jsonl").exists()
+
+
+# ---------------------------------------------------------------------------
+# Stage 2 / Stage 3 jev: no .done marker after an early stop
+# ---------------------------------------------------------------------------
+
+
+class TestJevStagesSkipMarkDoneWhenStoppedEarly:
+    """A jev stage the cost callback stopped is not done, so resume redoes it."""
+
+    def _run(self, tmp_path: Path, stage_fn: str, *, keep_going: bool) -> Path:
+        from g3o.common.run_state import is_done
+        from g3o.run.presweep import stage_classify
+        from g3o.run.presweep.records import institution_record
+
+        run_dir = tmp_path / "run"
+        sample = [{"institution_id": "inst-0001", "institution_name": "Test 1"}]
+        inst_id = institution_record(sample[0])["institution_id"]
+        institution_dir(run_dir, inst_id).mkdir(parents=True)
+        discovery = {inst_id: [{"link": "https://example.gov/ai"}]}
+        credentials = resolve(
+            Credentials(typesafe_api_key="test-key"),
+            env={"TYPESAFE_API_KEY": "test-key"},
+        )
+        # A parseable answer, so a finished request leaves its artifact.
+        parsed = SimpleNamespace(
+            url="https://example.gov/ai", confidence="high", jev_confidence=0.9,
+            choice_probabilities={}, response_model="jev-1.13.0", request_id="r",
+            kept_urls=[], decisions=[],
+        )
+        with (
+            patch("g3o.run.presweep.jev_stage_runner.ask") as mock_ask,
+            patch(
+                "g3o.run.presweep.stage_classify.jev_parse_triage_result",
+                return_value=parsed,
+            ),
+            patch(
+                "g3o.run.presweep.stage_classify.jev_parse_official_site_result",
+                return_value=parsed,
+            ),
+        ):
+            mock_ask.return_value = JevResult(
+                answers={}, response_model="jev-1.13.0", request_id="r",
+                input_tokens=10, output_tokens=1,
+            )
+            if stage_fn == "triage":
+                stage = "classify_triage"
+                stage_classify._run_classify_triage_jev(
+                    run_dir, sample, discovery, {}, {},
+                    model="jev-1.13.0", credentials=credentials,
+                    cost_check_callback=lambda _stage, _usage: keep_going,
+                )
+            elif stage_fn == "fallback":
+                stage = stage_classify.STAGE_2_FALLBACK
+                stage_classify._run_classify_official_site_fallback_jev(
+                    run_dir,
+                    [(institution_record(sample[0]), discovery[inst_id])],
+                    model="jev-1.13.0", credentials=credentials,
+                    first_pass={}, languages_by_inst={},
+                    discovery_general=discovery, truth_by_inst={},
+                    cost_check_callback=lambda _stage, _usage: keep_going,
+                )
+            else:
+                stage = "classify_official_site"
+                stage_classify._run_classify_official_site_jev(
+                    run_dir, sample, discovery,
+                    model="jev-1.13.0", credentials=credentials,
+                    cost_check_callback=lambda _stage, _usage: keep_going,
+                )
+        return is_done(run_dir, stage)
+
+    @pytest.mark.parametrize("stage_fn", ["triage", "official_site", "fallback"])
+    def test_stopped_early_leaves_no_done_marker(self, tmp_path: Path, stage_fn):
+        assert self._run(tmp_path, stage_fn, keep_going=False) is False
+
+    @pytest.mark.parametrize("stage_fn", ["triage", "official_site", "fallback"])
+    def test_completed_stage_is_marked_done(self, tmp_path: Path, stage_fn):
+        assert self._run(tmp_path, stage_fn, keep_going=True) is True
+
+
+class TestJevStageFailureThreshold:
+    """PI ruling P1 = a: done only when n_failed <= 1% of attempted requests."""
+
+    def test_helper_boundary(self):
+        from g3o.run.presweep.jev_stage_runner import (
+            JEV_MAX_FAILED_FRACTION,
+            JevStageMetrics,
+            jev_stage_complete,
+        )
+
+        assert JEV_MAX_FAILED_FRACTION == 0.01
+        assert jev_stage_complete(JevStageMetrics(n_institutions=0))
+        assert jev_stage_complete(JevStageMetrics(n_institutions=5, n_skipped=5))
+        assert jev_stage_complete(JevStageMetrics(n_institutions=100, n_success=99, n_failed=1))
+        assert not jev_stage_complete(JevStageMetrics(n_institutions=100, n_success=98, n_failed=2))
+        assert not jev_stage_complete(JevStageMetrics(n_institutions=1, n_failed=1))
+        assert not jev_stage_complete(
+            JevStageMetrics(n_institutions=1, n_success=1, stopped_early=True)
+        )
+        assert not jev_stage_complete(
+            JevStageMetrics(n_institutions=100, n_success=98, n_processing_failed=2)
+        )
+
+    def _triage(
+        self, run_dir: Path, n: int, failing: set[str],
+        parse_failing: frozenset[str] = frozenset(),
+    ) -> list[str]:
+        """Run triage jev over ``n`` institutions; return the ids requested.
+
+        ``failing`` requests raise; ``parse_failing`` responses fail to parse.
+        """
+        from g3o.run.presweep import stage_classify
+        from g3o.run.presweep.records import institution_record
+
+        sample = [
+            {"master_row_id": str(i), "institution_name": f"Test {i}"}
+            for i in range(n)
+        ]
+        discovery = {}
+        for row in sample:
+            inst_id = institution_record(row)["institution_id"]
+            institution_dir(run_dir, inst_id).mkdir(parents=True, exist_ok=True)
+            discovery[inst_id] = [{"link": f"https://example.gov/{inst_id}"}]
+        credentials = resolve(
+            Credentials(typesafe_api_key="test-key"),
+            env={"TYPESAFE_API_KEY": "test-key"},
+        )
+        requested: list[str] = []
+
+        def fake_ask(state, questions, *, client, model):
+            requested.append(state["id"])
+            if state["id"] in failing:
+                raise RuntimeError("TypeSafe 503")
+            return JevResult(
+                answers={}, response_model="jev-1.13.0", request_id=state["id"],
+                input_tokens=10, output_tokens=1,
+            )
+
+        def fake_parse(result, candidate_urls):
+            if result.request_id in parse_failing:
+                raise ValueError("unparseable jev answer")
+            return SimpleNamespace(
+                kept_urls=[], decisions=[], response_model="jev-1.13.0",
+                request_id=result.request_id,
+            )
+
+        with (
+            patch(
+                "g3o.run.presweep.stage_classify.jev_build_triage_state",
+                side_effect=lambda inst, *_: {"id": inst["institution_id"]},
+            ),
+            patch("g3o.run.presweep.jev_stage_runner.ask", side_effect=fake_ask),
+            # A parsed result, so a successful request leaves its 3_triage.json.
+            patch(
+                "g3o.run.presweep.stage_classify.jev_parse_triage_result",
+                side_effect=fake_parse,
+            ),
+        ):
+            stage_classify._run_classify_triage_jev(
+                run_dir, sample, discovery, {}, {},
+                model="jev-1.13.0", credentials=credentials,
+            )
+        return requested
+
+    def _ids(self, *nums: int) -> set[str]:
+        from g3o.run.presweep.records import institution_record
+
+        return {
+            institution_record({"master_row_id": str(i)})["institution_id"]
+            for i in nums
+        }
+
+    def test_half_percent_failures_is_done(self, tmp_path: Path):
+        from g3o.common.run_state import is_done
+
+        self._triage(tmp_path, 200, self._ids(7))  # 1 of 200 = 0.5%
+        assert is_done(tmp_path, "classify_triage")
+
+    def test_two_percent_failures_is_left_open(self, tmp_path: Path):
+        from g3o.common.run_state import is_done
+
+        self._triage(tmp_path, 100, self._ids(3, 42))  # 2 of 100 = 2%
+        assert not is_done(tmp_path, "classify_triage")
+
+    def test_resume_after_open_stage_resends_only_failed(self, tmp_path: Path):
+        from g3o.common.run_state import is_done
+
+        failed = self._ids(3, 42)
+        first = self._triage(tmp_path, 100, failed)
+        assert len(first) == 100
+        assert not is_done(tmp_path, "classify_triage")
+
+        second = self._triage(tmp_path, 100, set())
+        assert set(second) == failed and len(second) == 2
+        assert is_done(tmp_path, "classify_triage")
+
+    def test_parse_failures_count_and_are_resent(self, tmp_path: Path):
+        from g3o.common import attrition
+        from g3o.common.run_state import is_done
+
+        bad = frozenset(self._ids(5, 60))  # 2 of 100 responses unparseable
+        attrition._reset_cache()
+        first = self._triage(tmp_path, 100, set(), parse_failing=bad)
+        assert len(first) == 100
+        assert not is_done(tmp_path, "classify_triage")
+        reasons = {
+            (r["institution_id"], r["reason"])
+            for r in attrition.read_records(tmp_path)
+        }
+        assert reasons == {(i, "jev_parse_failed") for i in bad}
+
+        second = self._triage(tmp_path, 100, set())
+        assert set(second) == bad and len(second) == 2
+        assert is_done(tmp_path, "classify_triage")
+        attrition._reset_cache()
 
 
 # ---------------------------------------------------------------------------
