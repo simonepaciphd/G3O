@@ -384,14 +384,87 @@ class TestRunValidateJevAccountError:
             patch("g3o.validate.jev_validate.build_validate_state", return_value={}),
             patch("g3o.validate.jev_validate.build_validate_questions", return_value={}),
             patch(
-                "g3o.common.jev_client.ask",
+                "g3o.run.presweep.jev_stage_runner.ask",
                 side_effect=JevAccountError("402 no credits"),
             ) as mock_ask,
             pytest.raises(JevAccountError),
         ):
             _run_validate_jev(
-                tmp_path, [{}, {}, {}], model="jev-1.13.0", credentials=credentials
+                tmp_path,
+                [{}, {}, {}],
+                model="jev-1.13.0",
+                credentials=credentials,
+                concurrency=1,
             )
 
         assert mock_ask.call_count == 1
         assert not is_done(tmp_path, "validate")
+
+
+class TestRunValidateJevParallel:
+    """Stage 6 jev runs through the bounded-concurrency driver."""
+
+    def test_requests_overlap_and_stage_is_marked_done(self, tmp_path):
+        import threading
+        import time
+        from unittest.mock import patch
+
+        from g3o.common.credentials import Credentials, resolve
+        from g3o.common.paths import institution_dir
+        from g3o.common.run_state import is_done
+        from g3o.run.presweep.stage_validate import _run_validate_jev
+
+        credentials = resolve(
+            Credentials(typesafe_api_key="test-key"),
+            env={"TYPESAFE_API_KEY": "test-key"},
+        )
+        ids = [f"INST-{i:03d}" for i in range(8)]
+        for inst_id in ids:
+            institution_dir(tmp_path, inst_id).mkdir(parents=True)
+        # One institution already validated: resume must skip it.
+        (institution_dir(tmp_path, ids[0]) / "6_validate.json").write_text("{}")
+        inputs = [({"institution_id": i}, [{"row": i}], 1) for i in ids]
+
+        lock = threading.Lock()
+        in_flight = 0
+        peak = 0
+
+        def fake_ask(state, questions, *, client, model):
+            nonlocal in_flight, peak
+            with lock:
+                in_flight += 1
+                peak = max(peak, in_flight)
+            time.sleep(0.05)
+            with lock:
+                in_flight -= 1
+            return JevResult(
+                answers={}, response_model="jev-1.13.0", request_id="r",
+                input_tokens=10, output_tokens=1,
+            )
+
+        def fake_write(run_dir, institution_id, response):
+            (institution_dir(run_dir, institution_id) / "6_validate.json").write_text("{}")
+
+        with (
+            patch(
+                "g3o.validate.consolidate.assemble_per_institution_inputs",
+                return_value=inputs,
+            ),
+            patch("g3o.validate.consolidate.write_consolidated_output", side_effect=fake_write),
+            patch("g3o.validate.jev_validate.build_validate_state", return_value={}),
+            patch("g3o.validate.jev_validate.build_validate_questions", return_value={}),
+            patch("g3o.validate.jev_validate.parse_validate_result"),
+            patch("g3o.run.presweep.jev_stage_runner.ask", side_effect=fake_ask),
+        ):
+            summary = _run_validate_jev(
+                tmp_path,
+                [{}] * len(ids),
+                model="jev-1.13.0",
+                credentials=credentials,
+                concurrency=4,
+            )
+
+        assert peak > 1
+        assert summary["n_consolidated"] == len(ids)
+        assert summary["n_failed"] == 0
+        assert is_done(tmp_path, "validate")
