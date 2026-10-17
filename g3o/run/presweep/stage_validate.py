@@ -39,7 +39,7 @@ def _run_validate_jev(
     import logging
 
     from g3o.common.cost_monitor import BudgetExceededError
-    from g3o.common.jev_client import ask, client_from_credentials
+    from g3o.common.jev_client import JevAccountError, ask, client_from_credentials
     from g3o.common.paths import institution_dir
     from g3o.common.run_state import is_done, mark_done
     from g3o.validate.consolidate import (
@@ -122,6 +122,10 @@ def _run_validate_jev(
             total_input_tokens += result.input_tokens
             total_output_tokens += result.output_tokens
 
+        except JevAccountError:
+            # Every remaining request would fail the same way. Raising skips
+            # mark_done, so a resume redoes the stage.
+            raise
         except Exception as exc:
             logger.warning(
                 "Stage 6 jev: failed for %s: %s", institution_id, exc

@@ -37,6 +37,7 @@ from g3o.common import attrition
 from g3o.common.cost_monitor import BudgetExceededError
 from g3o.common.credentials import ResolvedCredentials
 from g3o.common.jev_client import (
+    JevAccountError,
     JevResult,
     ask,
     client_from_credentials,
@@ -121,6 +122,12 @@ def run_jev_stage(
         try:
             state, questions = build_request(institution)
             result = ask(state, questions, client=client, model=model)
+        except JevAccountError:
+            # Every remaining request would fail the same way: stop the stage.
+            stop_event.set()
+            with metrics._lock:
+                metrics.stopped_early = True
+            raise
         except Exception as exc:
             logger.warning("jev stage %s: request failed for %s: %s", stage, inst_id, exc)
             attrition.record(
@@ -197,8 +204,8 @@ def run_jev_stage(
                 # unexpected errors (including BudgetExceededError).
                 try:
                     future.result()
-                except BudgetExceededError:
-                    # Re-raise budget errors immediately
+                except (BudgetExceededError, JevAccountError):
+                    # Re-raise budget and account errors immediately
                     raise
                 except Exception as exc:
                     logger.error("jev stage %s: unexpected error: %s", stage, exc)

@@ -44,6 +44,22 @@ DEFAULT_JEV_MAX_RETRIES = 5
 DEFAULT_JEV_BACKOFF_INITIAL = 1.0
 DEFAULT_JEV_BACKOFF_MAX = 30.0
 
+# HTTP statuses meaning the account itself cannot be served: 401 bad key, 402
+# no credits, 403 forbidden. Every later request fails the same way, so a stage
+# must stop instead of recording one attrition row per institution. Run
+# r20261016T170104Z-abcd logged and skipped 28,789 triage and 10,009 validate
+# 402s while scrape ran on the survivors for 13 h.
+ACCOUNT_ERROR_STATUSES = frozenset({401, 402, 403})
+
+
+class JevAccountError(RuntimeError):
+    """The TypeSafe account cannot serve any request (credits, key, permission).
+
+    Raised by :func:`ask` in place of the SDK error. jev stage drivers re-raise
+    it rather than counting it as a per-institution failure, so the run fails
+    with this cause and the stage is not marked done (resume redoes it).
+    """
+
 
 @dataclass(frozen=True)
 class JevAnswer:
@@ -154,14 +170,21 @@ def ask(
 
     ``model`` overrides the client's default for this request only.
 
-    Raises :class:`typesafe_sdk.TypeSafeError` on API failure; the client's
-    retry policy handles transient errors (429, timeouts) automatically.
+    Raises :class:`JevAccountError` on a status in
+    :data:`ACCOUNT_ERROR_STATUSES`, and :class:`typesafe_sdk.TypeSafeError` on
+    any other API failure; the client's retry policy handles transient errors
+    (429, timeouts) automatically.
     """
-    response = client.system_one(
-        state=state,
-        questions=dict(questions),
-        model=model,
-    )
+    try:
+        response = client.system_one(
+            state=state,
+            questions=dict(questions),
+            model=model,
+        )
+    except ts.TypeSafeAPIError as exc:
+        if exc.status in ACCOUNT_ERROR_STATUSES:
+            raise JevAccountError(f"TypeSafe account error: {exc}") from exc
+        raise
     answers = {
         qid: _parse_answer(qid, ans) for qid, ans in response.answers.items()
     }
@@ -184,12 +207,14 @@ def serialize_state(state: Any) -> str:
 
 
 __all__ = [
+    "ACCOUNT_ERROR_STATUSES",
     "DEFAULT_JEV_MAX_RETRIES",
     "DEFAULT_JEV_BACKOFF_INITIAL",
     "DEFAULT_JEV_BACKOFF_MAX",
     "DEFAULT_JEV_MODEL",
     "JEV_MAX_TOKENS_PER_REQUEST",
     "JEV_RATE_LIMIT_RPM",
+    "JevAccountError",
     "JevAnswer",
     "JevResult",
     "ask",

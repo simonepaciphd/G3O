@@ -11,12 +11,14 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import httpx2
 import pytest
 import typesafe_sdk as ts
 
 from g3o.common.credentials import Credentials, resolve
 from g3o.common.jev_client import (
     DEFAULT_JEV_MODEL,
+    JevAccountError,
     JevResult,
     _parse_answer,
     ask,
@@ -166,6 +168,25 @@ class TestAsk:
         mock_client.system_one.assert_called_once()
         call_kwargs = mock_client.system_one.call_args.kwargs
         assert call_kwargs["model"] == "jev-1.13.0"
+
+    @pytest.mark.parametrize("status", [401, 402, 403])
+    def test_account_status_raises_account_error(self, status):
+        mock_client = MagicMock(spec=ts.TypeSafeClient)
+        mock_client.system_one.side_effect = ts.TypeSafeAPIError(
+            status, {"error": "no credits"}, httpx2.Headers()
+        )
+        with pytest.raises(JevAccountError) as excinfo:
+            ask({}, {}, client=mock_client)
+        assert excinfo.value.__cause__.status == status
+
+    def test_other_api_status_passes_through(self):
+        mock_client = MagicMock(spec=ts.TypeSafeClient)
+        mock_client.system_one.side_effect = ts.TypeSafeAPIError(
+            500, {"error": "boom"}, httpx2.Headers()
+        )
+        with pytest.raises(ts.TypeSafeAPIError) as excinfo:
+            ask({}, {}, client=mock_client)
+        assert not isinstance(excinfo.value, JevAccountError)
 
 
 # ---------------------------------------------------------------------------

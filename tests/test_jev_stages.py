@@ -33,7 +33,7 @@ from g3o.classify.jev_url_triage import (
     parse_triage_result,
 )
 from g3o.common.credentials import Credentials, resolve
-from g3o.common.jev_client import JevAnswer, JevResult
+from g3o.common.jev_client import JevAccountError, JevAnswer, JevResult
 from g3o.common.paths import institution_dir
 from g3o.run.presweep.jev_stage_runner import (
     DEFAULT_JEV_CONCURRENCY,
@@ -500,6 +500,46 @@ class TestJevStageRunner:
         assert metrics.n_institutions == 1
         assert metrics.n_success == 0
         assert metrics.n_failed == 1
+
+    def test_run_stage_account_error_stops_stage(self, tmp_path: Path):
+        """An account error (e.g. 402 no credits) aborts the stage, not one row."""
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        institutions = [
+            {"institution_id": f"INST-{i:03d}", "name": f"Test {i}"} for i in range(50)
+        ]
+        for inst in institutions:
+            institution_dir(run_dir, inst["institution_id"]).mkdir(parents=True)
+
+        credentials = resolve(
+            Credentials(typesafe_api_key="test-key"),
+            env={"TYPESAFE_API_KEY": "test-key"},
+        )
+
+        def build_request(inst):
+            return {"state": "data"}, {"q1": "question"}
+
+        def process_result(inst_id, result, inst):
+            pass
+
+        with patch("g3o.run.presweep.jev_stage_runner.ask") as mock_ask:
+            mock_ask.side_effect = JevAccountError("402 no credits")
+            with pytest.raises(JevAccountError):
+                run_jev_stage(
+                    run_dir=run_dir,
+                    stage="test_stage",
+                    institutions=institutions,
+                    build_request=build_request,
+                    process_result=process_result,
+                    credentials=credentials,
+                    model="jev-1.13.0",
+                    concurrency=1,
+                    artifact_filename="jev_result.json",
+                )
+
+        # The stop event short-circuits the queued institutions.
+        assert mock_ask.call_count < len(institutions)
+        assert not (run_dir / "_attrition.jsonl").exists()
 
 
 # ---------------------------------------------------------------------------
