@@ -279,6 +279,21 @@ def run_presweep(
         preflight_stage_estimates=config.preflight_stage_estimates,
         stage_models=stage_models,
     )
+    # Resume: the metered totals are in memory only, so carry the earlier
+    # session's Serper/unlocker spend forward from its cost report. Seeded once,
+    # before the meter is installed; the report this process writes includes it.
+    prior_report_path = plan.run_dir / "_cost_report.json"
+    if prior_report_path.exists():
+        try:
+            monitor.seed_metered(
+                json.loads(prior_report_path.read_text(encoding="utf-8"))
+            )
+        except Exception as exc:
+            logger.warning(
+                "Resume: could not seed metered spend from %s (%s); the earlier "
+                "session's Serper/unlocker spend is not counted.",
+                prior_report_path, exc,
+            )
     budget_abort_stage: str | None = None
     budget_exceeded_stages: list[str] = []  # Track all stages that exceeded budget (for dry-run mode)
 

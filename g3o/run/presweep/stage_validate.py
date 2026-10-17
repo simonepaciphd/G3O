@@ -12,7 +12,13 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common.credentials import ResolvedCredentials
-from g3o.run.presweep.jev_stage_runner import DEFAULT_JEV_CONCURRENCY, run_jev_stage
+from g3o.run.presweep.jev_stage_runner import (
+    DEFAULT_JEV_CONCURRENCY,
+    JEV_MAX_FAILED_FRACTION,
+    jev_stage_complete,
+    jev_stage_failed,
+    run_jev_stage,
+)
 from g3o.run.presweep.records import synth_institution_id
 
 
@@ -38,16 +44,27 @@ def _run_validate_jev(
     deterministic bookkeeping. See jev-integration-plan.md §4 for the design.
     """
     import logging
+    import threading
 
+    from g3o.common import attrition
+    from g3o.common.jev_client import JevAccountError
     from g3o.common.run_state import is_done, mark_done
+    from g3o.validate import jev_validate
     from g3o.validate.consolidate import (
         assemble_per_institution_inputs,
         write_consolidated_output,
     )
     from g3o.validate.jev_validate import (
+        MAX_SPLIT_DEPTH,
+        ChunkedJevResult,
         build_validate_questions,
         build_validate_state,
+        chunk_input_rows,
+        estimate_request_bytes,
+        is_max_tokens_exceeded,
+        parse_chunked_validate_result,
         parse_validate_result,
+        split_page_rows,
     )
 
     logger = logging.getLogger(__name__)
@@ -71,10 +88,134 @@ def _run_validate_jev(
         state = build_validate_state(institution_row, input_rows, n_input_pages)
         return state, build_validate_questions(input_rows)
 
+    split_lock = threading.Lock()
+    n_oversize_split = 0
+
+    def oversize_fallback(
+        institution_row: dict[str, Any],
+        exc: Exception,
+        send: Callable[[Any, Any], Any],
+    ) -> ChunkedJevResult | None:
+        """PI ruling E1=b (2026-10-17): on a 400 max_tokens_exceeded, validate
+        the institution in page-whole chunks and merge (see
+        ``merge_chunk_responses``).
+
+        The first split uses ``min(CHUNK_BUDGET_BYTES, full_estimate // 2)``,
+        so an institution with 2+ pages always yields 2+ chunks even when its
+        byte estimate is under the budget (bytes are only a proxy for tokens).
+        A chunk that itself gets max_tokens_exceeded is re-split with half its
+        own estimate as budget, recursively, to at most
+        ``MAX_SPLIT_DEPTH`` split levels counting the first. A multi-page
+        chunk is re-split by pages; a single-page chunk (or a page that alone
+        exceeds the budget at planning time) is split into consecutive row
+        chunks (PI ruling P3=a, 2026-10-17). A single row still oversize, or a
+        chunk at the depth cap, fails the institution as today. Any other
+        error, or a one-row institution, keeps today's failure path."""
+        nonlocal n_oversize_split
+        if not is_max_tokens_exceeded(exc):
+            return None
+        inst_id = institution_row["institution_id"]
+        _, input_rows, n_input_pages = inputs_by_id[inst_id]
+        full_bytes = estimate_request_bytes(
+            build_validate_state(institution_row, input_rows, n_input_pages),
+            build_validate_questions(input_rows),
+        )
+        chunks = chunk_input_rows(
+            institution_row,
+            input_rows,
+            budget_bytes=min(jev_validate.CHUNK_BUDGET_BYTES, full_bytes // 2),
+        )
+        if len(chunks) < 2:
+            return None
+        with split_lock:
+            n_oversize_split += 1
+        done: list[tuple[Any, Any]] = []
+        usage = [0, 0]
+        max_depth = 1
+        n_chunks = len(chunks)  # leaf chunks planned so far
+
+        def run_chunk(chunk: Any, depth: int) -> None:
+            nonlocal max_depth, n_chunks
+            max_depth = max(max_depth, depth)
+            state = build_validate_state(
+                institution_row, chunk.input_rows, chunk.n_input_pages
+            )
+            try:
+                res = send(state, build_validate_questions(chunk.input_rows))
+            except JevAccountError:
+                raise
+            except Exception as chunk_exc:
+                if (
+                    is_max_tokens_exceeded(chunk_exc)
+                    and depth < MAX_SPLIT_DEPTH
+                    and len(chunk.input_rows) >= 2
+                ):
+                    half = chunk.request_bytes // 2
+                    if chunk.n_input_pages >= 2:
+                        sub = chunk_input_rows(
+                            institution_row, chunk.input_rows, budget_bytes=half
+                        )
+                    else:
+                        sub = split_page_rows(
+                            institution_row, chunk.input_rows, budget_bytes=half
+                        )
+                    if len(sub) >= 2:
+                        note_row_split(sub)
+                        n_chunks += len(sub) - 1
+                        for sub_chunk in sub:
+                            run_chunk(sub_chunk, depth + 1)
+                        return
+                raise
+            usage[0] += res.input_tokens
+            usage[1] += res.output_tokens
+            done.append((chunk, res))
+
+        def note_row_split(chunk_list: Any) -> None:
+            for c in chunk_list:
+                if c.row_split:
+                    row_split_urls.update(r.get("source_url", "") for r in c.input_rows)
+
+        row_split_urls: set[str] = set()
+        note_row_split(chunks)
+        try:
+            for chunk in chunks:
+                run_chunk(chunk, 1)
+        except Exception as chunk_exc:
+            # Chunks already answered were still spent.
+            chunk_exc.partial_usage = (usage[0], usage[1])  # type: ignore[attr-defined]
+            raise
+        finally:
+            row_split_pages = len(row_split_urls)
+            attrition.record(
+                run_dir,
+                institution_id=inst_id,
+                stage=stage,
+                reason="validate_oversize_split",
+                detail=(
+                    f"n_chunks={n_chunks}; depth={max_depth}; "
+                    f"row_split={'true' if row_split_pages else 'false'}; "
+                    f"row_split_pages={row_split_pages}; "
+                    f"chunk_bytes={[c.request_bytes for c, _ in done]}"
+                ),
+            )
+        return ChunkedJevResult(
+            chunks=done,
+            input_tokens=usage[0],
+            output_tokens=usage[1],
+            response_model=done[0][1].response_model,
+            request_id=done[0][1].request_id,
+        )
+
     def process_result(
         institution_id: str, result: Any, institution_row: dict[str, Any]
     ) -> None:
         _, input_rows, n_input_pages = inputs_by_id[institution_id]
+        if isinstance(result, ChunkedJevResult):
+            response = parse_chunked_validate_result(
+                result, institution_row, n_input_pages, len(input_rows)
+            )
+            write_consolidated_output(run_dir, institution_id, response)
+            return
         jev_result = parse_validate_result(
             result, institution_row, input_rows, n_input_pages
         )
@@ -94,6 +235,7 @@ def _run_validate_jev(
         concurrency=concurrency,
         cost_check_callback=cost_check_callback,
         artifact_filename="6_validate.json",
+        request_fallback=oversize_fallback,
     )
     n_success = metrics.n_success
     n_failed = metrics.n_failed
@@ -104,11 +246,12 @@ def _run_validate_jev(
 
     logger.info(
         "Stage 6 jev: %d institutions, %d success, %d failed, %d skipped, "
-        "%d input tokens%s",
+        "%d oversize-split, %d input tokens%s",
         len(per_inst_inputs),
         n_success,
         n_failed,
         n_skipped,
+        n_oversize_split,
         total_input_tokens,
         " (stopped early)" if stopped_early else "",
     )
@@ -116,7 +259,22 @@ def _run_validate_jev(
     # Blocker #1 fix: only mark_done when the loop completed without early stop.
     # A partially-run stage should NOT be marked done, or unprocessed institutions
     # would be permanently skipped on resume.
-    if not stopped_early and (n_success > 0 or n_skipped > 0):
+    # PI ruling P1=a (2026-10-17): also not done when more than
+    # JEV_MAX_FAILED_FRACTION of attempted requests failed (shared
+    # jev_stage_complete, which also refuses an early stop). Validate's
+    # process_result never returns False: a parse failure raises and is
+    # counted in n_failed as jev_result_processing_failed, which
+    # jev_stage_failed includes, so n_processing_failed stays 0 here.
+    complete = jev_stage_complete(metrics)
+    if not complete and not stopped_early:
+        n_attempt_failed = jev_stage_failed(metrics)
+        logger.warning(
+            "Stage 6 jev: %d of %d attempted requests failed (> %.0f%%) — "
+            "leaving the stage open (no .done); resume retries the failures",
+            n_attempt_failed, n_success + n_attempt_failed,
+            JEV_MAX_FAILED_FRACTION * 100,
+        )
+    if not stopped_early and complete and (n_success > 0 or n_skipped > 0):
         mark_done(
             run_dir, stage, no_batch=True,
             usage={
@@ -133,6 +291,7 @@ def _run_validate_jev(
         "n_institutions": len(per_inst_inputs),
         "n_consolidated": n_success + n_skipped,
         "n_failed": n_failed,
+        "n_oversize_split": n_oversize_split,
         "batch_ids": [],  # jev is sync, no batch API
         "stopped_early": stopped_early,
     }

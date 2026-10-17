@@ -468,3 +468,739 @@ class TestRunValidateJevParallel:
         assert summary["n_consolidated"] == len(ids)
         assert summary["n_failed"] == 0
         assert is_done(tmp_path, "validate")
+
+    def test_request_failure_writes_validate_attrition_row(self, tmp_path):
+        from unittest.mock import patch
+
+        from g3o.common import attrition
+        from g3o.common.credentials import Credentials, resolve
+        from g3o.common.paths import institution_dir
+        from g3o.run.presweep.stage_validate import _run_validate_jev
+
+        credentials = resolve(
+            Credentials(typesafe_api_key="test-key"),
+            env={"TYPESAFE_API_KEY": "test-key"},
+        )
+        ids = ["INST-001", "INST-002"]
+        for inst_id in ids:
+            institution_dir(tmp_path, inst_id).mkdir(parents=True)
+        inputs = [({"institution_id": i}, [{"row": i}], 1) for i in ids]
+
+        def fake_ask(state, questions, *, client, model):
+            if state["id"] == "INST-002":
+                raise RuntimeError("TypeSafe 503")
+            return JevResult(
+                answers={}, response_model="jev-1.13.0", request_id="r",
+                input_tokens=10, output_tokens=1,
+            )
+
+        def fake_write(run_dir, institution_id, response):
+            (institution_dir(run_dir, institution_id) / "6_validate.json").write_text("{}")
+
+        attrition._reset_cache()
+        with (
+            patch(
+                "g3o.validate.consolidate.assemble_per_institution_inputs",
+                return_value=inputs,
+            ),
+            patch("g3o.validate.consolidate.write_consolidated_output", side_effect=fake_write),
+            patch(
+                "g3o.validate.jev_validate.build_validate_state",
+                side_effect=lambda row, *_: {"id": row["institution_id"]},
+            ),
+            patch("g3o.validate.jev_validate.build_validate_questions", return_value={}),
+            patch("g3o.validate.jev_validate.parse_validate_result"),
+            patch("g3o.run.presweep.jev_stage_runner.ask", side_effect=fake_ask),
+        ):
+            summary = _run_validate_jev(
+                tmp_path,
+                [{}] * len(ids),
+                model="jev-1.13.0",
+                credentials=credentials,
+                concurrency=1,
+            )
+        attrition._reset_cache()
+
+        assert summary["n_failed"] == 1
+        rows = attrition.read_records(tmp_path)
+        assert [(r["institution_id"], r["stage"], r["reason"]) for r in rows] == [
+            ("INST-002", "validate", "jev_request_failed")
+        ]
+        assert "TypeSafe 503" in rows[0]["detail"]
+
+
+# ---------------------------------------------------------------------------
+# Oversize fallback: chunked validation (PI ruling E1=b, 2026-10-17)
+# ---------------------------------------------------------------------------
+
+_INST = {
+    "institution_id": "INST-OVR",
+    "institution_name": "Oversize Institution",
+    "country": "US",
+    "branch_of_government": "executive",
+    "level_of_government": "national",
+    "institution_search_languages": "en",
+}
+
+_GROUP_D = (
+    "activity_name", "activity_type", "adoption_stage", "access_type",
+    "interaction_type", "tool_name", "vendor", "deployment_mode",
+    "target_users", "year_announced", "year_deployed",
+    "has_human_oversight", "has_transparency_notice",
+    "has_data_classification", "has_risk_assessment",
+    "reported_outcomes", "reported_incidents", "scope_notes",
+)
+
+
+def _row(url, *, name="AI Chatbot", evidence="confirms_activity",
+         snippet="snippet", summary="", **overrides):
+    row = {
+        "activity_name": name,
+        "genai_evidence": evidence,
+        "source_url": url,
+        "source_title": "Title",
+        "source_publication_date": "2024-01-01",
+        "source_access_date": "2024-06-01",
+        "source_type": "official_gov",
+        "source_language": "en",
+        "source_credibility": "high",
+        "source_snippet": snippet,
+        "confidence": "medium",
+        "uncertainty_flags": "none",
+        "institution_summary": summary,
+        "activity_type": "public_facing_service",
+        "adoption_stage": "production",
+        "access_type": "proprietary_vendor",
+        "interaction_type": "chatbot",
+        "tool_name": "ChatGPT",
+        "vendor": "OpenAI",
+        "deployment_mode": "standalone",
+        "target_users": "public",
+        "year_announced": "2023",
+        "year_deployed": "2024",
+        "has_human_oversight": "yes",
+        "has_transparency_notice": "yes",
+        "has_data_classification": "yes",
+        "has_risk_assessment": "yes",
+        "reported_outcomes": "none_reported",
+        "reported_incidents": "none_reported",
+        "scope_notes": "none",
+    }
+    if evidence != "confirms_activity":
+        for f in _GROUP_D:
+            row[f] = "_NA_"
+    row.update(overrides)
+    return row
+
+
+def _empty_result(tokens=10):
+    return JevResult(
+        answers={}, response_model="jev-1.13.0", request_id="r",
+        input_tokens=tokens, output_tokens=1,
+    )
+
+
+def _oversize_error():
+    import httpx2
+    import typesafe_sdk as ts
+
+    return ts.TypeSafeBadRequestError(
+        400, {"detail": {"error_type": "max_tokens_exceeded"}}, httpx2.Headers()
+    )
+
+
+def _response(rows, n_pages=1):
+    return parse_validate_result(_empty_result(), _INST, rows, n_pages).response
+
+
+class TestOversizeDetection:
+    def test_max_tokens_400_detected(self):
+        from g3o.validate.jev_validate import is_max_tokens_exceeded
+
+        assert is_max_tokens_exceeded(_oversize_error())
+
+    def test_other_400_not_detected(self):
+        import httpx2
+        import typesafe_sdk as ts
+
+        from g3o.validate.jev_validate import is_max_tokens_exceeded
+
+        exc = ts.TypeSafeBadRequestError(
+            400, {"detail": {"error_type": "invalid_question"}}, httpx2.Headers()
+        )
+        assert not is_max_tokens_exceeded(exc)
+        # No status 400 -> never oversize, whatever the text says.
+        assert not is_max_tokens_exceeded(RuntimeError("max_tokens_exceeded"))
+
+
+class TestChunkInputRows:
+    def _pages(self, n_pages=6, rows_per_page=2):
+        return [
+            _row(f"https://p{p}.gov/", name=f"Act {p}", snippet=f"s{p}-{r}")
+            for p in range(n_pages)
+            for r in range(rows_per_page)
+        ]
+
+    def test_chunks_respect_budget_and_keep_pages_whole(self):
+        from g3o.validate.jev_validate import chunk_input_rows, estimate_request_bytes
+
+        rows = self._pages()
+        two_pages = rows[:4]
+        budget = estimate_request_bytes(
+            build_validate_state(_INST, two_pages, 2),
+            build_validate_questions(two_pages),
+        )
+        chunks = chunk_input_rows(_INST, rows, budget_bytes=budget)
+        assert len(chunks) >= 3
+        # Order preserved; every row exactly once.
+        assert [r for c in chunks for r in c.input_rows] == rows
+        seen_urls: set[str] = set()
+        for c in chunks:
+            urls = {r["source_url"] for r in c.input_rows}
+            assert not urls & seen_urls  # a page never spans two chunks
+            seen_urls |= urls
+            assert c.n_input_pages == len(urls)
+            assert c.request_bytes <= budget
+            assert c.request_bytes == estimate_request_bytes(
+                build_validate_state(_INST, c.input_rows, c.n_input_pages),
+                build_validate_questions(c.input_rows),
+            )
+
+    def test_oversize_page_is_row_split_at_planning(self):
+        """P3=a: a page that alone exceeds the budget is split by rows."""
+        from g3o.validate.jev_validate import chunk_input_rows
+
+        rows = [_row("https://small0.gov/", name="A", snippet="a")]
+        rows += [_row("https://big.gov/", name=f"B{i}", snippet=f"b{i}") for i in range(8)]
+        rows += [_row("https://small1.gov/", name="C", snippet="c")]
+        budget = chunk_input_rows(_INST, rows[1:4], budget_bytes=10**9)[0].request_bytes
+        chunks = chunk_input_rows(_INST, rows, budget_bytes=budget)
+        assert [r for c in chunks for r in c.input_rows] == rows  # order kept
+        assert chunks[0].input_rows == rows[:1] and not chunks[0].row_split
+        assert chunks[-1].input_rows == rows[-1:] and not chunks[-1].row_split
+        middle = chunks[1:-1]
+        assert len(middle) >= 2
+        assert all(c.row_split and c.n_input_pages == 1 for c in middle)
+        assert all(c.request_bytes <= budget for c in middle)
+
+    def test_single_page_many_activities_fits_budget(self):
+        """INST-0501614-like: one page, 31 activity rows, pairwise questions."""
+        from g3o.validate.jev_validate import (
+            CHUNK_BUDGET_BYTES,
+            chunk_input_rows,
+            estimate_request_bytes,
+        )
+
+        rows = [
+            _row("https://one.gov/", name=f"Generative AI activity number {i} " * 2,
+                 snippet=f"s{i}")
+            for i in range(31)
+        ]
+        full = estimate_request_bytes(
+            build_validate_state(_INST, rows, 1), build_validate_questions(rows)
+        )
+        assert full > CHUNK_BUDGET_BYTES
+        chunks = chunk_input_rows(_INST, rows)
+        assert len(chunks) >= 2
+        assert all(c.row_split for c in chunks)
+        assert all(c.request_bytes <= CHUNK_BUDGET_BYTES for c in chunks)
+        assert [r for c in chunks for r in c.input_rows] == rows
+        for c in chunks:  # every chunk's questions build
+            build_validate_questions(c.input_rows)
+
+    def test_non_contiguous_page_rows_grouped_in_order(self):
+        from g3o.validate.jev_validate import chunk_input_rows
+
+        rows = [
+            _row("https://a.gov/", snippet="a1"),
+            _row("https://b.gov/", snippet="b1"),
+            _row("https://a.gov/", snippet="a2"),
+        ]
+        page_a = chunk_input_rows(_INST, [rows[0], rows[2]], budget_bytes=10**9)
+        chunks = chunk_input_rows(_INST, rows, budget_bytes=page_a[0].request_bytes)
+        assert [[r["source_snippet"] for r in c.input_rows] for c in chunks] == [
+            ["a1", "a2"], ["b1"],
+        ]
+
+
+class TestMergeChunkResponses:
+    def _merge(self, parts, n_pages=None):
+        from g3o.validate.jev_validate import merge_chunk_responses
+
+        responses = [(_response(rows), len(rows)) for rows in parts]
+        return merge_chunk_responses(
+            responses,
+            n_input_pages=n_pages or sum(len({r["source_url"] for r in p}) for p in parts),
+            n_input_rows=sum(len(p) for p in parts),
+        )
+
+    def test_exact_name_merge_with_field_fill(self):
+        c1 = [_row("https://a.gov/", name="Bot", vendor="unknown",
+                   has_risk_assessment="not_documented", tool_name="T1")]
+        c2 = [
+            _row("https://b.gov/", name="Other", snippet="o"),
+            _row("https://c.gov/", name="Bot", vendor="OpenAI",
+                 has_risk_assessment="yes", tool_name="T2", confidence="high",
+                 uncertainty_flags="date_uncertain", snippet="b"),
+        ]
+        merged = self._merge([c1, c2])
+        assert [a.activity_name for a in merged.activities] == ["Bot", "Other"]
+        bot = merged.activities[0]
+        assert bot.activity_id == "A1"
+        assert bot.vendor == "OpenAI"  # "unknown" filled from later chunk
+        assert bot.has_risk_assessment == "yes"  # "not_documented" filled
+        assert bot.tool_name == "T1"  # first chunk's real value kept
+        assert bot.confidence == "high"
+        assert bot.uncertainty_flags == "date_uncertain"
+        assert bot.n_sources == 2
+        assert merged.activities[1].n_sources == 1
+
+    def test_source_links_renumbered_and_consistent(self):
+        c1 = [
+            _row("https://a.gov/", name="X", snippet="x"),
+            _row("https://n.gov/", evidence="ambiguous", snippet="n"),
+        ]
+        c2 = [_row("https://b.gov/", name="Y", snippet="y"),
+              _row("https://c.gov/", name="X", snippet="x2")]
+        merged = self._merge([c1, c2])
+        assert [s.source_id for s in merged.sources] == ["S1", "S2", "S3", "S4"]
+        links = {s.source_url: s.activity_id for s in merged.sources}
+        assert links == {
+            "https://a.gov/": "A1", "https://n.gov/": "_NA_",
+            "https://b.gov/": "A2", "https://c.gov/": "A1",
+        }
+
+    def test_cross_chunk_duplicate_source_dropped(self):
+        from g3o.validate.jev_validate import merge_chunk_responses
+
+        c1 = [_row("https://a.gov/", name="X", snippet="dup"),
+              _row("https://n.gov/", evidence="ambiguous", snippet="n")]
+        c2 = [_row("https://a.gov/", name="X", snippet="dup"),
+              _row("https://b.gov/", name="X", snippet="other")]
+        merged = merge_chunk_responses(
+            [(_response(c1), 2), (_response(c2), 2)], n_input_pages=3, n_input_rows=4
+        )
+        assert [s.source_url for s in merged.sources] == [
+            "https://a.gov/", "https://n.gov/", "https://b.gov/",
+        ]
+        assert merged.activities[0].n_sources == 2
+
+    def test_has_genai_precedence(self):
+        absent = [_row("https://n.gov/", evidence="confirms_absence", snippet="n")]
+        unclear = [_row("https://u.gov/", evidence="ambiguous", snippet="u")]
+        yes = [_row("https://y.gov/", name="Y", snippet="y")]
+        assert self._merge([absent, unclear]).institution.has_genai_activity == "unclear"
+        assert self._merge([absent, yes, unclear]).institution.has_genai_activity == "yes"
+        absent2 = [_row("https://m.gov/", evidence="confirms_absence", snippet="m")]
+        assert self._merge([absent, absent2]).institution.has_genai_activity == "no"
+
+    def test_summary_choice_tie_breaks(self):
+        no = [_row("https://n.gov/", evidence="confirms_absence", summary="none here")]
+        yes_small = [_row("https://y1.gov/", name="A", summary="small yes")]
+        yes_big = [_row("https://y2.gov/", name="B", summary="big yes", snippet="1"),
+                   _row("https://y2.gov/", name="B", summary="big yes", snippet="2")]
+        yes_other = [_row("https://y3.gov/", name="C", summary="other yes")]
+        # has_genai rank beats chunk size and order
+        assert self._merge([no, yes_small]).institution.institution_summary == "small yes"
+        # rank tie -> chunk with more input rows
+        assert self._merge([yes_small, yes_big]).institution.institution_summary == "big yes"
+        # rank and size tie -> earlier chunk
+        assert (
+            self._merge([yes_small, yes_other]).institution.institution_summary
+            == "small yes"
+        )
+
+    def test_metadata_totals_and_notes(self):
+        merged = self._merge(
+            [[_row("https://a.gov/", name="A")],
+             [_row("https://b.gov/", name="B"), _row("https://c.gov/", name="C")]],
+            n_pages=3,
+        )
+        meta = merged.consolidation_metadata
+        assert meta.n_input_pages == 3
+        assert meta.n_input_rows == 3
+        assert meta.notes == (
+            "Consolidated via jev decision model; validate_oversize_split: 2 chunks"
+        )
+
+
+class TestRunValidateJevOversize:
+    """Stage 6: a 400 max_tokens_exceeded falls back to chunked validation."""
+
+    def _run(self, tmp_path, rows, fake_ask, budget):
+        from unittest.mock import patch
+
+        from g3o.common import attrition
+        from g3o.common.credentials import Credentials, resolve
+        from g3o.common.paths import institution_dir
+        from g3o.run.presweep.stage_validate import _run_validate_jev
+
+        attrition._reset_cache()
+        credentials = resolve(
+            Credentials(typesafe_api_key="test-key"),
+            env={"TYPESAFE_API_KEY": "test-key"},
+        )
+        institution_dir(tmp_path, _INST["institution_id"]).mkdir(parents=True)
+        n_pages = len({r["source_url"] for r in rows})
+        with (
+            patch(
+                "g3o.validate.consolidate.assemble_per_institution_inputs",
+                return_value=[(_INST, rows, n_pages)],
+            ),
+            patch("g3o.validate.jev_validate.CHUNK_BUDGET_BYTES", budget),
+            patch("g3o.run.presweep.jev_stage_runner.ask", side_effect=fake_ask),
+        ):
+            return _run_validate_jev(
+                tmp_path, [_INST], model="jev-1.13.0", credentials=credentials,
+                concurrency=1,
+            )
+
+    def _rows(self):
+        return [
+            _row(f"https://p{p}.gov/", name=f"Act {p % 2}", snippet=f"s{p}-{r}")
+            for p in range(4)
+            for r in range(2)
+        ]
+
+    def _budget(self, rows):
+        from g3o.validate.jev_validate import estimate_request_bytes
+
+        page = rows[:2]
+        return estimate_request_bytes(
+            build_validate_state(_INST, page, 1), build_validate_questions(page)
+        ) + 50
+
+    def _ledger(self, run_dir):
+        from g3o.common import attrition
+
+        return attrition.read_records(run_dir)
+
+    def test_oversize_400_splits_and_writes_one_merged_artifact(self, tmp_path):
+        import json
+
+        from g3o.common.paths import institution_dir
+        from g3o.common.run_state import done_path
+
+        rows = self._rows()
+        sent = []
+
+        def fake_ask(state, questions, *, client, model):
+            sent.append(state["n_input_rows"])
+            if state["n_input_rows"] > 2:
+                raise _oversize_error()
+            return _empty_result(tokens=100)
+
+        summary = self._run(tmp_path, rows, fake_ask, self._budget(rows))
+        assert sent == [8, 2, 2, 2, 2]  # full request first, then one per page
+        assert summary["n_consolidated"] == 1
+        assert summary["n_failed"] == 0
+        assert summary["n_oversize_split"] == 1
+        payload = json.loads(
+            (institution_dir(tmp_path, "INST-OVR") / "6_validate.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        resp = ConsolidatedInstitutionResponse.model_validate(payload)
+        assert [a.activity_name for a in resp.activities] == ["Act 0", "Act 1"]
+        assert [a.n_sources for a in resp.activities] == [4, 4]
+        assert resp.consolidation_metadata.n_input_rows == 8
+        assert resp.consolidation_metadata.n_input_pages == 4
+        assert "validate_oversize_split: 4 chunks" in resp.consolidation_metadata.notes
+        recs = self._ledger(tmp_path)
+        assert [r["reason"] for r in recs] == ["validate_oversize_split"]
+        assert recs[0]["stage"] == "validate"
+        assert recs[0]["detail"].startswith(
+            "n_chunks=4; depth=1; row_split=false; row_split_pages=0; chunk_bytes=["
+        )
+        # Usage of all four chunk requests reaches the stage totals.
+        done = json.loads(done_path(tmp_path, "validate").read_text(encoding="utf-8"))
+        assert done["usage"]["prompt_tokens"] == 400
+        assert done["usage"]["completion_tokens"] == 4
+
+    def test_other_400_does_not_split(self, tmp_path):
+        import httpx2
+        import typesafe_sdk as ts
+
+        rows = self._rows()
+        calls = []
+
+        def fake_ask(state, questions, *, client, model):
+            calls.append(1)
+            raise ts.TypeSafeBadRequestError(
+                400, {"detail": {"error_type": "invalid_question"}}, httpx2.Headers()
+            )
+
+        summary = self._run(tmp_path, rows, fake_ask, self._budget(rows))
+        assert len(calls) == 1
+        assert summary["n_failed"] == 1
+        assert summary["n_oversize_split"] == 0
+        assert [r["reason"] for r in self._ledger(tmp_path)] == ["jev_request_failed"]
+
+    def test_generic_error_does_not_split(self, tmp_path):
+        rows = self._rows()
+        calls = []
+
+        def fake_ask(state, questions, *, client, model):
+            calls.append(1)
+            raise RuntimeError("boom")
+
+        summary = self._run(tmp_path, rows, fake_ask, self._budget(rows))
+        assert len(calls) == 1
+        assert summary["n_failed"] == 1
+        assert [r["reason"] for r in self._ledger(tmp_path)] == ["jev_request_failed"]
+
+    def test_chunk_failure_fails_the_institution(self, tmp_path):
+        from g3o.common.paths import institution_dir
+
+        rows = self._rows()
+        n = 0
+
+        def fake_ask(state, questions, *, client, model):
+            nonlocal n
+            n += 1
+            if n == 1:
+                raise _oversize_error()
+            if n == 3:
+                raise RuntimeError("chunk boom")
+            return _empty_result()
+
+        summary = self._run(tmp_path, rows, fake_ask, self._budget(rows))
+        assert n == 3  # stops at the failing chunk
+        assert summary["n_failed"] == 1
+        assert summary["n_consolidated"] == 0
+        assert not (institution_dir(tmp_path, "INST-OVR") / "6_validate.json").exists()
+        recs = self._ledger(tmp_path)
+        assert [r["reason"] for r in recs] == [
+            "validate_oversize_split", "jev_request_failed",
+        ]
+        assert "chunk boom" in recs[1]["detail"]
+
+    def test_single_row_institution_is_not_split(self, tmp_path):
+        rows = [_row("https://one.gov/", snippet="s0")]
+        calls = []
+
+        def fake_ask(state, questions, *, client, model):
+            calls.append(1)
+            raise _oversize_error()
+
+        summary = self._run(tmp_path, rows, fake_ask, 1)
+        assert len(calls) == 1
+        assert summary["n_failed"] == 1
+        assert [r["reason"] for r in self._ledger(tmp_path)] == ["jev_request_failed"]
+
+    def test_single_page_institution_is_row_split(self, tmp_path):
+        import json
+
+        from g3o.common.paths import institution_dir
+
+        rows = [_row("https://one.gov/", name=f"Act {i}", snippet=f"s{i}") for i in range(4)]
+        sent = []
+
+        def fake_ask(state, questions, *, client, model):
+            sent.append(state["n_input_rows"])
+            if len(sent) == 1:
+                raise _oversize_error()
+            return _empty_result()
+
+        summary = self._run(tmp_path, rows, fake_ask, 10**9)
+        assert summary["n_consolidated"] == 1
+        assert sent[0] == 4 and sum(sent[1:]) == 4 and len(sent) >= 3
+        payload = json.loads(
+            (institution_dir(tmp_path, "INST-OVR") / "6_validate.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        resp = ConsolidatedInstitutionResponse.model_validate(payload)
+        assert len(resp.activities) == 4
+        assert resp.consolidation_metadata.notes.endswith(
+            f"validate_oversize_split: {len(sent) - 1} chunks, row-split pages: 1"
+        )
+        detail = self._ledger(tmp_path)[0]["detail"]
+        assert "row_split=true; row_split_pages=1" in detail
+
+    # -- forced split and recursive re-split (coordinator refinement) --------
+
+    def _pages_rows(self, n_pages, rows_per_page=1):
+        return [
+            _row(f"https://q{p}.gov/", name="Act", snippet=f"s{p}-{r}")
+            for p in range(n_pages)
+            for r in range(rows_per_page)
+        ]
+
+    def test_forced_split_when_estimate_under_budget(self, tmp_path):
+        rows = self._pages_rows(4)
+        sent = []
+
+        def fake_ask(state, questions, *, client, model):
+            sent.append(state["n_input_rows"])
+            if len(sent) == 1:
+                raise _oversize_error()
+            return _empty_result()
+
+        summary = self._run(tmp_path, rows, fake_ask, 10**9)
+        assert summary["n_consolidated"] == 1
+        assert summary["n_oversize_split"] == 1
+        assert sent[0] == 4 and len(sent) >= 3  # >= 2 chunks despite the budget
+        assert sum(sent[1:]) == 4
+        assert "depth=1" in self._ledger(tmp_path)[0]["detail"]
+
+    def test_chunk_oversize_is_resplit(self, tmp_path):
+        rows = self._pages_rows(8, rows_per_page=2)
+        sent = []
+
+        def fake_ask(state, questions, *, client, model):
+            sent.append((state["n_input_pages"], state["n_input_rows"]))
+            if state["n_input_pages"] > 1:
+                raise _oversize_error()
+            return _empty_result(tokens=7)
+
+        summary = self._run(tmp_path, rows, fake_ask, 10**9)
+        assert summary["n_consolidated"] == 1
+        assert summary["n_failed"] == 0
+        answered = [n_rows for pages, n_rows in sent if pages == 1]
+        assert sum(answered) == 16  # every row answered exactly once
+        assert any(1 < pages < 8 for pages, _ in sent)  # a multi-page chunk re-split
+        detail = self._ledger(tmp_path)[0]["detail"]
+        assert "depth=2" in detail
+
+    def test_single_page_chunk_is_resplit_by_rows(self, tmp_path):
+        """P3=a at run time: a one-page chunk that is still oversize."""
+        rows = [_row("https://small.gov/", name="S", snippet="a")]
+        rows += [_row("https://big.gov/", name=f"B{i}", snippet=f"b{i}") for i in range(4)]
+        sent = []
+
+        def fake_ask(state, questions, *, client, model):
+            urls = {r["source_url"] for r in state["input_rows"]}
+            sent.append(state["n_input_rows"])
+            if len(sent) == 1 or ("https://big.gov/" in urls and state["n_input_rows"] > 1):
+                raise _oversize_error()
+            return _empty_result()
+
+        summary = self._run(tmp_path, rows, fake_ask, 10**9)
+        assert summary["n_consolidated"] == 1
+        assert sent.count(1) == 5  # every row answered alone in the end
+        detail = self._ledger(tmp_path)[0]["detail"]
+        assert "row_split=true; row_split_pages=1" in detail
+
+    def test_depth_cap_fails_the_institution(self, tmp_path):
+        from g3o.common.paths import institution_dir
+        from g3o.validate.jev_validate import MAX_SPLIT_DEPTH
+
+        assert MAX_SPLIT_DEPTH == 3
+        rows = self._pages_rows(64)
+        sent = []
+
+        def fake_ask(state, questions, *, client, model):
+            sent.append(state["n_input_rows"])
+            if state["n_input_rows"] > 1:
+                raise _oversize_error()
+            return _empty_result()
+
+        summary = self._run(tmp_path, rows, fake_ask, 10**9)
+        assert summary["n_failed"] == 1
+        assert min(sent) >= 2  # never split past depth 3 down to single pages
+        assert not (institution_dir(tmp_path, "INST-OVR") / "6_validate.json").exists()
+        recs = self._ledger(tmp_path)
+        assert [r["reason"] for r in recs] == [
+            "validate_oversize_split", "jev_request_failed",
+        ]
+        assert "depth=3" in recs[0]["detail"]
+
+    def test_single_oversize_row_fails(self, tmp_path):
+        rows = [_row("https://small.gov/", name="Act", snippet="a")]
+        rows += [_row("https://big.gov/", name="Act", snippet=f"b{i}") for i in range(3)]
+        sent = []
+
+        def fake_ask(state, questions, *, client, model):
+            sent.append(state["n_input_rows"])
+            if any(r["source_snippet"] == "b0" for r in state["input_rows"]):
+                raise _oversize_error()
+            return _empty_result()
+
+        summary = self._run(tmp_path, rows, fake_ask, 10**9)
+        assert summary["n_failed"] == 1
+        assert sent[-1] == 1  # the row "b0" alone was sent and still oversize
+        recs = self._ledger(tmp_path)
+        assert [r["reason"] for r in recs] == [
+            "validate_oversize_split", "jev_request_failed",
+        ]
+        assert "row_split=true" in recs[0]["detail"]
+
+    # -- P1=a: done gate on the failure fraction ------------------------------
+
+    def _run_many(self, tmp_path, n, failing):
+        from unittest.mock import patch
+
+        from g3o.common import attrition
+        from g3o.common.credentials import Credentials, resolve
+        from g3o.common.paths import institution_dir
+        from g3o.run.presweep.stage_validate import _run_validate_jev
+
+        attrition._reset_cache()
+        credentials = resolve(
+            Credentials(typesafe_api_key="test-key"),
+            env={"TYPESAFE_API_KEY": "test-key"},
+        )
+        ids = [f"INST-{i:04d}" for i in range(n)]
+        for inst_id in ids:
+            institution_dir(tmp_path, inst_id).mkdir(parents=True)
+        inputs = [({"institution_id": i}, [{"row": i}], 1) for i in ids]
+        bad = set(ids[:failing])
+
+        def fake_ask(state, questions, *, client, model):
+            if state["id"] in bad:
+                raise RuntimeError("boom")
+            return _empty_result()
+
+        def fake_write(run_dir, institution_id, response):
+            (institution_dir(run_dir, institution_id) / "6_validate.json").write_text("{}")
+
+        with (
+            patch(
+                "g3o.validate.consolidate.assemble_per_institution_inputs",
+                return_value=inputs,
+            ),
+            patch("g3o.validate.consolidate.write_consolidated_output", side_effect=fake_write),
+            patch(
+                "g3o.validate.jev_validate.build_validate_state",
+                side_effect=lambda inst, rows, n: {"id": inst["institution_id"]},
+            ),
+            patch("g3o.validate.jev_validate.build_validate_questions", return_value={}),
+            patch("g3o.validate.jev_validate.parse_validate_result"),
+            patch("g3o.run.presweep.jev_stage_runner.ask", side_effect=fake_ask),
+        ):
+            return _run_validate_jev(
+                tmp_path, [{}] * n, model="jev-1.13.0", credentials=credentials,
+                concurrency=4,
+            )
+
+    def test_half_percent_failed_marks_done(self, tmp_path):
+        from g3o.common.run_state import is_done
+
+        summary = self._run_many(tmp_path, 200, failing=1)
+        assert summary["n_failed"] == 1
+        assert is_done(tmp_path, "validate")
+
+    def test_two_percent_failed_leaves_stage_open(self, tmp_path):
+        from g3o.common.run_state import is_done
+
+        summary = self._run_many(tmp_path, 100, failing=2)
+        assert summary["n_failed"] == 2
+        assert not is_done(tmp_path, "validate")
+
+    def test_failed_fraction_helper(self):
+        from g3o.run.presweep import stage_validate
+        from g3o.run.presweep.jev_stage_runner import (
+            JEV_MAX_FAILED_FRACTION,
+            JevStageMetrics,
+            jev_stage_complete,
+        )
+
+        # Stage 6 uses the shared helper, not a local copy.
+        assert stage_validate.jev_stage_complete is jev_stage_complete
+        assert JEV_MAX_FAILED_FRACTION == 0.01
+        assert jev_stage_complete(JevStageMetrics(n_institutions=0))
+        assert jev_stage_complete(JevStageMetrics(n_institutions=100, n_success=99, n_failed=1))
+        assert not jev_stage_complete(
+            JevStageMetrics(n_institutions=100, n_success=98, n_failed=2)
+        )

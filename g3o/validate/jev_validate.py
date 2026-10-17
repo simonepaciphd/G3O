@@ -20,6 +20,7 @@ See jev-integration-plan.md §4 for the full design.
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
@@ -37,6 +38,19 @@ from g3o.common.jev_client import JevAnswer, JevResult
 
 # Question-set version (jev-integration-plan.md §4). Pin in goldens.
 JEV_QUESTION_SET_VERSION = "g3o.validate.jev.v1"
+
+# Oversize fallback (PI ruling E1=b, 2026-10-17). Target UTF-8 size of one
+# chunk's request, json(state) + json(questions). In production 5 of ~40k
+# institutions failed with 400 max_tokens_exceeded at ~160k-430k bytes (or an
+# 81k-byte state), while the largest request that succeeded was ~149k bytes;
+# no single threshold separates the two, so the split is reactive and this
+# budget sits well below the largest observed success.
+CHUNK_BUDGET_BYTES = 100_000
+
+# Split levels allowed in the oversize fallback, counting the first split of
+# the institution: a chunk that still gets max_tokens_exceeded is re-split
+# (half its own estimate as budget) at most until this depth.
+MAX_SPLIT_DEPTH = 3
 
 
 @dataclass
@@ -472,10 +486,370 @@ def _union_flags(flags_list: list[str]) -> str:
     return ";".join(sorted(all_flags))
 
 
+# ---------------------------------------------------------------------------
+# Oversize fallback: chunked validation (PI ruling E1=b, 2026-10-17)
+# ---------------------------------------------------------------------------
+
+
+def is_max_tokens_exceeded(exc: BaseException) -> bool:
+    """True if ``exc`` is a TypeSafe 400 whose error_type is ``max_tokens_exceeded``."""
+    if getattr(exc, "status", None) != 400:
+        return False
+    body = getattr(exc, "body", None)
+    body_text = body if isinstance(body, str) else json.dumps(body, default=str)
+    return "max_tokens_exceeded" in body_text or "max_tokens_exceeded" in str(exc)
+
+
+def estimate_request_bytes(state: Any, questions: dict[str, Any]) -> int:
+    """UTF-8 byte size of json(state) + json(questions) for one jev request."""
+    q_json = {
+        qid: q.model_dump() if hasattr(q, "model_dump") else q
+        for qid, q in questions.items()
+    }
+    return len(json.dumps(state, ensure_ascii=False, default=str).encode("utf-8")) + len(
+        json.dumps(q_json, ensure_ascii=False, default=str).encode("utf-8")
+    )
+
+
+@dataclass
+class ValidateChunk:
+    """One chunk of an institution's input rows.
+
+    Whole source pages, except when ``row_split`` is set: then the chunk is a
+    run of consecutive rows of a single page too large to send whole (PI
+    ruling P3=a, 2026-10-17).
+    """
+
+    input_rows: list[dict[str, Any]]
+    n_input_pages: int
+    request_bytes: int
+    row_split: bool = False
+
+
+def _chunk_bytes(
+    institution_row: dict[str, Any], rows: list[dict[str, Any]], n_pages: int
+) -> int:
+    state = build_validate_state(institution_row, rows, n_pages)
+    return estimate_request_bytes(state, build_validate_questions(rows))
+
+
+def split_page_rows(
+    institution_row: dict[str, Any],
+    page_rows: list[dict[str, Any]],
+    *,
+    budget_bytes: int,
+) -> list[ValidateChunk]:
+    """Split one page's rows into consecutive row chunks (PI ruling P3=a).
+
+    Rows are packed greedily, in their original order, while the chunk's
+    estimated request size stays within ``budget_bytes``. A row that alone
+    exceeds the budget is its own chunk (and fails the institution if the API
+    still rejects it).
+    """
+    chunks: list[ValidateChunk] = []
+    cur: list[dict[str, Any]] = []
+    cur_bytes = 0
+    for row in page_rows:
+        cand = cur + [row]
+        cand_bytes = _chunk_bytes(institution_row, cand, 1)
+        if not cur or cand_bytes <= budget_bytes:
+            cur, cur_bytes = cand, cand_bytes
+            continue
+        chunks.append(ValidateChunk(cur, 1, cur_bytes, row_split=True))
+        cur = [row]
+        cur_bytes = _chunk_bytes(institution_row, cur, 1)
+    if cur:
+        chunks.append(ValidateChunk(cur, 1, cur_bytes, row_split=True))
+    return chunks
+
+
+def chunk_input_rows(
+    institution_row: dict[str, Any],
+    input_rows: list[dict[str, Any]],
+    *,
+    budget_bytes: int | None = None,
+) -> list[ValidateChunk]:
+    """Split an institution's rows into chunks of whole source pages.
+
+    Rows are grouped by ``source_url`` (a page's rows stay together, in their
+    original order; pages ordered by first appearance). Pages are packed
+    greedily in that order while the chunk's estimated request size — computed
+    with :func:`build_validate_state` and :func:`build_validate_questions` —
+    stays within ``budget_bytes``. A page that alone exceeds the budget is
+    split into consecutive row chunks by :func:`split_page_rows` (PI ruling
+    P3=a, 2026-10-17); a one-row page that exceeds it is its own chunk.
+    ``budget_bytes`` defaults to :data:`CHUNK_BUDGET_BYTES`.
+    """
+    if budget_bytes is None:
+        budget_bytes = CHUNK_BUDGET_BYTES
+    pages: dict[str, list[dict[str, Any]]] = {}
+    for row in input_rows:
+        pages.setdefault(row.get("source_url", ""), []).append(row)
+
+    chunks: list[ValidateChunk] = []
+    cur_rows: list[dict[str, Any]] = []
+    cur_pages = 0
+    cur_bytes = 0
+    for page_rows in pages.values():
+        if cur_rows:
+            cand_rows = cur_rows + page_rows
+            cand_bytes = _chunk_bytes(institution_row, cand_rows, cur_pages + 1)
+            if cand_bytes <= budget_bytes:
+                cur_rows, cur_pages, cur_bytes = cand_rows, cur_pages + 1, cand_bytes
+                continue
+            chunks.append(ValidateChunk(cur_rows, cur_pages, cur_bytes))
+            cur_rows, cur_pages, cur_bytes = [], 0, 0
+        page_bytes = _chunk_bytes(institution_row, page_rows, 1)
+        if page_bytes > budget_bytes and len(page_rows) > 1:
+            chunks.extend(
+                split_page_rows(institution_row, page_rows, budget_bytes=budget_bytes)
+            )
+            continue
+        cur_rows, cur_pages, cur_bytes = list(page_rows), 1, page_bytes
+    if cur_rows:
+        chunks.append(ValidateChunk(cur_rows, cur_pages, cur_bytes))
+    return chunks
+
+
+@dataclass
+class ChunkedJevResult:
+    """Stands in for one :class:`JevResult` when an institution was validated
+    in chunks. Token fields are the sums over every chunk request, so stage
+    usage and the per-response cost check see the whole institution."""
+
+    chunks: list[tuple[ValidateChunk, JevResult]]
+    input_tokens: int
+    output_tokens: int
+    response_model: str
+    request_id: str | None
+
+
+_HGA_RANK = {"yes": 2, "unclear": 1, "no": 0}
+
+# Placeholder values a later chunk may fill, per Group D field. "unknown" and
+# "" everywhere, plus the field's own "nothing found" default as used by
+# _assemble_response (governance flags have no "unknown" member in the
+# contract; their placeholder is "not_documented").
+_FIELD_PLACEHOLDERS: dict[str, frozenset[str]] = {
+    f: frozenset({"", "unknown", default})
+    for f, default in {
+        "activity_type": "unknown",
+        "adoption_stage": "unknown",
+        "access_type": "unknown",
+        "interaction_type": "unknown",
+        "tool_name": "unknown",
+        "vendor": "unknown",
+        "deployment_mode": "unknown",
+        "target_users": "unknown",
+        "year_announced": "unknown",
+        "year_deployed": "unknown",
+        "has_human_oversight": "not_documented",
+        "has_transparency_notice": "not_documented",
+        "has_data_classification": "not_documented",
+        "has_risk_assessment": "not_documented",
+        "reported_outcomes": "none_reported",
+        "reported_incidents": "none_reported",
+        "scope_notes": "none",
+    }.items()
+}
+
+
+def merge_chunk_responses(
+    chunk_responses: list[tuple[ConsolidatedInstitutionResponse, int]],
+    *,
+    n_input_pages: int,
+    n_input_rows: int,
+    n_row_split_pages: int = 0,
+) -> ConsolidatedInstitutionResponse:
+    """Merge per-chunk responses into one response (cross-chunk merge rule).
+
+    ``chunk_responses`` is ``[(response, n_chunk_input_rows), ...]`` in chunk
+    order. The rule (PI ruling E1=b, 2026-10-17; extended to row-split
+    pages by P3=a, 2026-10-17 — row chunks of one page merge exactly like
+    page chunks):
+
+    - **activities**: concatenated in chunk order. Activities with an
+      identical ``activity_name`` (exact string match) in different chunks are
+      merged into the first one: their sources are unioned; for each Group D
+      field the first chunk's value is kept unless it is a placeholder
+      ("unknown"/empty, or the field's "nothing found" default —
+      "not_documented" for governance flags, "none_reported" for
+      reported_outcomes/incidents, "none" for scope_notes), in which case the
+      first non-placeholder later value is taken. ``confidence`` is the max
+      and ``uncertainty_flags`` the union, as within a chunk; ``n_sources`` is
+      recomputed from the merged source links. No semantic (jev) dedup is done
+      across chunks.
+    - **has_genai_activity**: "yes" if any chunk says yes; else "unclear" if
+      any says unclear; else "no".
+    - **institution_summary**: from the chunk with the highest
+      has_genai_activity rank (yes > unclear > no); tie → the chunk with more
+      input rows; tie → the earlier chunk.
+    - **sources**: concatenated in chunk order; a source whose
+      (source_url, source_snippet) already appeared in an *earlier* chunk
+      linked to the same merged activity (or both ``_NA_``) is dropped
+      (duplicates within one chunk are kept, exactly as the unsplit path
+      keeps them); renumbered S1..Sn, and each ``activity_id`` remapped to
+      its merged, renumbered activity (A1..Am). The link is part of the key
+      so a drop can never leave an activity without a source. Page chunks
+      never share a URL, so the dedup can only fire between row chunks of
+      one row-split page.
+    - **consolidation_metadata**: ``n_input_pages``/``n_input_rows`` are the
+      institution totals; ``notes`` is the first chunk's notes with
+      "; validate_oversize_split: N chunks" appended, plus
+      ", row-split pages: K" when ``n_row_split_pages`` K > 0;
+      ``model_label`` from the first chunk.
+    """
+    from datetime import datetime, timezone
+
+    responses = [r for r, _ in chunk_responses]
+    first = responses[0]
+
+    # Activities: merged-by-name, in first-appearance order.
+    merged: list[dict[str, Any]] = []  # activity dicts, keyed by position
+    index_by_name: dict[str, int] = {}
+    # (chunk index, local activity_id) -> merged position
+    act_map: dict[tuple[int, str], int] = {}
+    for c, resp in enumerate(responses):
+        for act in resp.activities:
+            data = act.model_dump()
+            pos = index_by_name.get(data["activity_name"])
+            if pos is None:
+                pos = len(merged)
+                index_by_name[data["activity_name"]] = pos
+                merged.append(data)
+            else:
+                base = merged[pos]
+                for fname, placeholders in _FIELD_PLACEHOLDERS.items():
+                    if base[fname] in placeholders and data[fname] not in placeholders:
+                        base[fname] = data[fname]
+                base["confidence"] = _max_confidence(
+                    [base["confidence"], data["confidence"]]
+                )
+                base["uncertainty_flags"] = _union_flags(
+                    [base["uncertainty_flags"], data["uncertainty_flags"]]
+                )
+            act_map[(c, act.activity_id)] = pos
+
+    # Sources: union, dedup on (url, snippet), remapped activity links.
+    sources: list[SourceRecord] = []
+    seen: set[tuple[str, str, int]] = set()
+    n_by_pos: dict[int, int] = defaultdict(int)
+    for c, resp in enumerate(responses):
+        chunk_keys: set[tuple[str, str, int]] = set()
+        for src in resp.sources:
+            pos = -1 if src.activity_id == "_NA_" else act_map[(c, src.activity_id)]
+            key = (src.source_url, src.source_snippet, pos)
+            if key in seen:
+                continue
+            chunk_keys.add(key)
+            data = src.model_dump()
+            data["source_id"] = f"S{len(sources) + 1}"
+            if pos >= 0:
+                data["activity_id"] = f"A{pos + 1}"
+                n_by_pos[pos] += 1
+            sources.append(SourceRecord(**data))
+        seen |= chunk_keys
+
+    activities = []
+    for pos, data in enumerate(merged):
+        data["activity_id"] = f"A{pos + 1}"
+        data["n_sources"] = n_by_pos[pos]
+        activities.append(ConsolidatedActivity(**data))
+
+    ranks = [_HGA_RANK.get(r.institution.has_genai_activity, 0) for r in responses]
+    has_genai_activity = {2: "yes", 1: "unclear", 0: "no"}[max(ranks)]
+    best = max(
+        range(len(responses)),
+        key=lambda c: (ranks[c], chunk_responses[c][1], -c),
+    )
+
+    institution = first.institution.model_copy(
+        update={
+            "has_genai_activity": has_genai_activity,
+            "institution_summary": responses[best].institution.institution_summary,
+        }
+    )
+    metadata = first.consolidation_metadata.model_copy(
+        update={
+            "n_input_pages": n_input_pages,
+            "n_input_rows": n_input_rows,
+            "response_timestamp": datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            ),
+            "notes": (
+                f"{first.consolidation_metadata.notes}; "
+                f"validate_oversize_split: {len(responses)} chunks"
+                + (
+                    f", row-split pages: {n_row_split_pages}"
+                    if n_row_split_pages
+                    else ""
+                )
+            ),
+        }
+    )
+    # Re-validate the merged whole: the contract's cross-field invariants
+    # (yes/no/unclear, id sequences, FK links, n_sources) must hold.
+    return ConsolidatedInstitutionResponse.model_validate(
+        {
+            "consolidation_metadata": metadata.model_dump(),
+            "institution": institution.model_dump(),
+            "activities": [a.model_dump() for a in activities],
+            "sources": [s.model_dump() for s in sources],
+        }
+    )
+
+
+def parse_chunked_validate_result(
+    result: ChunkedJevResult,
+    institution_row: dict[str, Any],
+    n_input_pages: int,
+    n_input_rows: int,
+) -> ConsolidatedInstitutionResponse:
+    """Parse each chunk with :func:`parse_validate_result`, then merge them."""
+    chunk_responses = [
+        (
+            parse_validate_result(
+                jev_result, institution_row, chunk.input_rows, chunk.n_input_pages
+            ).response,
+            len(chunk.input_rows),
+        )
+        for chunk, jev_result in result.chunks
+    ]
+    return merge_chunk_responses(
+        chunk_responses,
+        n_input_pages=n_input_pages,
+        n_input_rows=n_input_rows,
+        n_row_split_pages=count_row_split_pages(c for c, _ in result.chunks),
+    )
+
+
+def count_row_split_pages(chunks: Any) -> int:
+    """Distinct source pages that were split by rows across ``chunks``."""
+    return len(
+        {
+            row.get("source_url", "")
+            for c in chunks
+            if c.row_split
+            for row in c.input_rows
+        }
+    )
+
+
 __all__ = [
+    "CHUNK_BUDGET_BYTES",
     "JEV_QUESTION_SET_VERSION",
+    "MAX_SPLIT_DEPTH",
+    "ChunkedJevResult",
     "JevValidateResult",
+    "ValidateChunk",
     "build_validate_questions",
     "build_validate_state",
+    "chunk_input_rows",
+    "count_row_split_pages",
+    "estimate_request_bytes",
+    "is_max_tokens_exceeded",
+    "merge_chunk_responses",
+    "split_page_rows",
+    "parse_chunked_validate_result",
     "parse_validate_result",
 ]

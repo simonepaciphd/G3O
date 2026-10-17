@@ -124,8 +124,31 @@ _FAILURE_REASONS: frozenset[str] = frozenset(
         # reason it must be a member here: outside this frozenset the skip is
         # on the ledger and the institution publishes as NO_EVIDENCE_FOUND.
         "host_unreachable",
+        # PI ruling E2=a (2026-10-17). A jev request that failed at triage or
+        # validate left the institution without a conclusion; outside this
+        # set it published as NO_EVIDENCE_FOUND. Scoped to those two stages
+        # (Stage 2 jev failures keep their prior meaning) and NOT sticky
+        # across a resume: see _JEV_STAGE_ARTIFACTS.
+        "jev_request_failed",
     }
 )
+
+# Stages whose jev_request_failed rows count as failures, each with the
+# artifact that supersedes the row once written (a resumed run that
+# succeeded): the later success wins over the stale failure row.
+_JEV_STAGE_ARTIFACTS: dict[str, str] = {
+    "classify_triage": "3_triage.json",
+    "validate": "6_validate.json",
+}
+
+
+def _is_ignored_jev_failure(rec: dict[str, Any], inst_dir: Path) -> bool:
+    """True for a jev_request_failed row that must not count as a failure:
+    from a stage outside E2's scope, or superseded by that stage's artifact."""
+    if rec.get("reason") != "jev_request_failed":
+        return False
+    artifact = _JEV_STAGE_ARTIFACTS.get(rec.get("stage", ""))
+    return artifact is None or (inst_dir / artifact).exists()
 
 
 def _load_manifest(run_dir: Path) -> dict[str, Any]:
@@ -272,7 +295,11 @@ def compute_institution_report(run_dir: str | Path) -> list[dict[str, Any]]:
         else:
             validation_status = "not_run"
 
-        failures = failures_by_inst.get(inst_id, [])
+        failures = [
+            f
+            for f in failures_by_inst.get(inst_id, [])
+            if not _is_ignored_jev_failure(f, inst_dir)
+        ]
         attrition_detail = "; ".join(
             f"{f['stage']}:{f['reason']}" + (f" ({f['detail']})" if f.get("detail") else "")
             for f in failures

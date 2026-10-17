@@ -648,3 +648,137 @@ def test_the_new_status_is_counted_in_the_run_summary(tmp_path: Path) -> None:
     from g3o.report import run_summary as _run_summary
 
     assert "EVIDENCE_FOUND_PARTIAL" in _run_summary._FINAL_STATUSES
+
+
+# ---------------------------------------------------------------------------
+# jev_request_failed (PI ruling E2=a, 2026-10-17)
+# ---------------------------------------------------------------------------
+
+
+def _jev_failed(run_dir: Path, inst_id: str, stage: str) -> None:
+    _attrition.record(
+        run_dir,
+        institution_id=inst_id,
+        stage=stage,
+        reason="jev_request_failed",
+        detail="400 max_tokens_exceeded",
+    )
+
+
+def test_jev_request_failed_is_a_failure_reason() -> None:
+    assert "jev_request_failed" in outcomes._FAILURE_REASONS
+
+
+def test_triage_jev_failure_is_processing_failed(tmp_path: Path) -> None:
+    """Before E2 this read "zero URLs passed triage" -> NO_EVIDENCE_FOUND."""
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _jev_failed(run_dir, "INST-0000001", "classify_triage")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert "classify_triage:jev_request_failed" in rec["reason"]
+
+
+def test_validate_jev_failure_is_processing_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=2)
+    _scraped(run_dir, "INST-0000001")
+    monkeypatch.setattr(outcomes, "_extracted_row_count", lambda _dir: 5)
+    _jev_failed(run_dir, "INST-0000001", "validate")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert "validate:jev_request_failed" in rec["reason"]
+
+
+@pytest.mark.parametrize(
+    ("has_genai", "n_activities", "expected"),
+    [("no", 0, "NO_EVIDENCE_FOUND"), ("yes", 1, "EVIDENCE_FOUND")],
+)
+def test_later_validate_success_wins_over_stale_jev_failure(
+    tmp_path: Path, has_genai: str, n_activities: int, expected: str
+) -> None:
+    """A resumed run validated the institution after an earlier jev failure."""
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=2)
+    _scraped(run_dir, "INST-0000001")
+    _jev_failed(run_dir, "INST-0000001", "validate")
+    _validated(run_dir, "INST-0000001", has_genai=has_genai, n_activities=n_activities)
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == expected
+    assert rec["error"] is None
+
+
+def test_later_triage_success_wins_over_stale_jev_failure(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _jev_failed(run_dir, "INST-0000001", "classify_triage")
+    _triage(run_dir, "INST-0000001", keeps=0)
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "NO_EVIDENCE_FOUND"
+    assert rec["reason"] == "zero URLs passed triage"
+
+
+def test_stale_triage_failure_does_not_mask_a_validate_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Superseding is per stage: a later triage success leaves validate's row."""
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _jev_failed(run_dir, "INST-0000001", "classify_triage")
+    _triage(run_dir, "INST-0000001", keeps=2)
+    _scraped(run_dir, "INST-0000001")
+    monkeypatch.setattr(outcomes, "_extracted_row_count", lambda _dir: 5)
+    _jev_failed(run_dir, "INST-0000001", "validate")
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "PROCESSING_FAILED"
+    assert rec["reason"].startswith("validate:jev_request_failed")
+
+
+def test_oversize_split_row_is_not_a_failure(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _triage(run_dir, "INST-0000001", keeps=2)
+    _scraped(run_dir, "INST-0000001")
+    _attrition.record(
+        run_dir,
+        institution_id="INST-0000001",
+        stage="validate",
+        reason="validate_oversize_split",
+        detail="n_chunks=2; chunk_bytes=[90000, 80000]",
+    )
+    _validated(run_dir, "INST-0000001", has_genai="yes", n_activities=1)
+
+    assert _only(run_dir)["final_status"] == "EVIDENCE_FOUND"
+
+
+@pytest.mark.parametrize(
+    "stage", ["classify_official_site", "classify_official_site_fallback"]
+)
+def test_stage2_jev_failure_keeps_prior_behaviour(tmp_path: Path, stage: str) -> None:
+    """E2 is scoped to triage and validate; a Stage 2 jev failure is not a
+    failure reason, so the institution reads exactly as it did before."""
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _jev_failed(run_dir, "INST-0000001", stage)
+    _triage(run_dir, "INST-0000001", keeps=0)
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "NO_EVIDENCE_FOUND"
+    assert rec["reason"] == "zero URLs passed triage"
+    assert rec["error"] is None

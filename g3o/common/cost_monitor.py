@@ -289,6 +289,34 @@ class CostMonitor:
             else:
                 logger.warning("CostMonitor: unknown metered api %r ignored", api)
 
+    def seed_metered(self, prior_report: dict[str, Any]) -> None:
+        """Start the metered totals from a prior session's ``_cost_report.json``.
+
+        ``metered`` lives in memory only, so a resumed run (same run id, fresh
+        monitor) would otherwise report and budget-check the earlier session's
+        Serper and Web Unlocker spend as zero. Call once per process, before any
+        call is metered: the report this process writes is built from the seeded
+        totals, so seeding again from that report would double count.
+        """
+        by_api = prior_report.get("by_api") or {}
+        fields = {
+            spend_meter.SERPER: ("credits", "live_queries"),
+            spend_meter.UNLOCKER: ("billable_bytes", "requests", "requests_succeeded"),
+        }
+        # Parse everything before touching the totals, so a malformed report
+        # raises without leaving them half-seeded.
+        seed = {
+            api: {
+                key: max(0.0, float((by_api.get(api) or {}).get(key) or 0))
+                for key in keys
+            }
+            for api, keys in fields.items()
+        }
+        with self._metered_lock:
+            for api, units in seed.items():
+                for key, value in units.items():
+                    self.metered[api][key] += int(value) if value.is_integer() else value
+
     def metered_usd(self) -> dict[str, float]:
         """USD spent so far per metered API."""
         with self._metered_lock:
