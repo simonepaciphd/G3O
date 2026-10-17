@@ -576,6 +576,16 @@ class TestJevStagesSkipMarkDoneWhenStoppedEarly:
                     model="jev-1.13.0", credentials=credentials,
                     cost_check_callback=lambda _stage, _usage: keep_going,
                 )
+            elif stage_fn == "fallback":
+                stage = stage_classify.STAGE_2_FALLBACK
+                stage_classify._run_classify_official_site_fallback_jev(
+                    run_dir,
+                    [(institution_record(sample[0]), discovery[inst_id])],
+                    model="jev-1.13.0", credentials=credentials,
+                    first_pass={}, languages_by_inst={},
+                    discovery_general=discovery, truth_by_inst={},
+                    cost_check_callback=lambda _stage, _usage: keep_going,
+                )
             else:
                 stage = "classify_official_site"
                 stage_classify._run_classify_official_site_jev(
@@ -585,11 +595,11 @@ class TestJevStagesSkipMarkDoneWhenStoppedEarly:
                 )
         return is_done(run_dir, stage)
 
-    @pytest.mark.parametrize("stage_fn", ["triage", "official_site"])
+    @pytest.mark.parametrize("stage_fn", ["triage", "official_site", "fallback"])
     def test_stopped_early_leaves_no_done_marker(self, tmp_path: Path, stage_fn):
         assert self._run(tmp_path, stage_fn, keep_going=False) is False
 
-    @pytest.mark.parametrize("stage_fn", ["triage", "official_site"])
+    @pytest.mark.parametrize("stage_fn", ["triage", "official_site", "fallback"])
     def test_completed_stage_is_marked_done(self, tmp_path: Path, stage_fn):
         assert self._run(tmp_path, stage_fn, keep_going=True) is True
 
