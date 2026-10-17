@@ -764,3 +764,21 @@ def test_oversize_split_row_is_not_a_failure(tmp_path: Path) -> None:
     _validated(run_dir, "INST-0000001", has_genai="yes", n_activities=1)
 
     assert _only(run_dir)["final_status"] == "EVIDENCE_FOUND"
+
+
+@pytest.mark.parametrize(
+    "stage", ["classify_official_site", "classify_official_site_fallback"]
+)
+def test_stage2_jev_failure_keeps_prior_behaviour(tmp_path: Path, stage: str) -> None:
+    """E2 is scoped to triage and validate; a Stage 2 jev failure is not a
+    failure reason, so the institution reads exactly as it did before."""
+    run_dir = tmp_path / "run"
+    _make_run(run_dir, institutions=["INST-0000001"], done=ALL_STAGES)
+    _discovery(run_dir, "INST-0000001")
+    _jev_failed(run_dir, "INST-0000001", stage)
+    _triage(run_dir, "INST-0000001", keeps=0)
+
+    rec = _only(run_dir)
+    assert rec["final_status"] == "NO_EVIDENCE_FOUND"
+    assert rec["reason"] == "zero URLs passed triage"
+    assert rec["error"] is None
