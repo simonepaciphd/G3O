@@ -47,6 +47,11 @@ JEV_QUESTION_SET_VERSION = "g3o.validate.jev.v1"
 # budget sits well below the largest observed success.
 CHUNK_BUDGET_BYTES = 100_000
 
+# Split levels allowed in the oversize fallback, counting the first split of
+# the institution: a chunk that still gets max_tokens_exceeded is re-split
+# (half its own estimate as budget) at most until this depth.
+MAX_SPLIT_DEPTH = 3
+
 
 @dataclass
 class JevValidateResult:
@@ -759,6 +764,7 @@ def parse_chunked_validate_result(
 __all__ = [
     "CHUNK_BUDGET_BYTES",
     "JEV_QUESTION_SET_VERSION",
+    "MAX_SPLIT_DEPTH",
     "ChunkedJevResult",
     "JevValidateResult",
     "ValidateChunk",

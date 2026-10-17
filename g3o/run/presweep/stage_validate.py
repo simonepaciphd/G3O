@@ -41,16 +41,20 @@ def _run_validate_jev(
     import threading
 
     from g3o.common import attrition
+    from g3o.common.jev_client import JevAccountError
     from g3o.common.run_state import is_done, mark_done
+    from g3o.validate import jev_validate
     from g3o.validate.consolidate import (
         assemble_per_institution_inputs,
         write_consolidated_output,
     )
     from g3o.validate.jev_validate import (
+        MAX_SPLIT_DEPTH,
         ChunkedJevResult,
         build_validate_questions,
         build_validate_state,
         chunk_input_rows,
+        estimate_request_bytes,
         is_max_tokens_exceeded,
         parse_chunked_validate_result,
         parse_validate_result,
@@ -87,47 +91,93 @@ def _run_validate_jev(
     ) -> ChunkedJevResult | None:
         """PI ruling E1=b (2026-10-17): on a 400 max_tokens_exceeded, validate
         the institution in page-whole chunks and merge (see
-        ``merge_chunk_responses``). Any other error, or an institution that
-        cannot be split (one page), keeps today's failure path."""
+        ``merge_chunk_responses``).
+
+        The first split uses ``min(CHUNK_BUDGET_BYTES, full_estimate // 2)``,
+        so an institution with 2+ pages always yields 2+ chunks even when its
+        byte estimate is under the budget (bytes are only a proxy for tokens).
+        A chunk that itself gets max_tokens_exceeded is re-split with half its
+        own estimate as budget, recursively, to at most
+        ``MAX_SPLIT_DEPTH`` split levels counting the first. A chunk that
+        cannot be split further (one page, or the depth cap) fails the
+        institution as today. Any other error, or a one-page institution,
+        keeps today's failure path."""
         nonlocal n_oversize_split
         if not is_max_tokens_exceeded(exc):
             return None
         inst_id = institution_row["institution_id"]
-        _, input_rows, _ = inputs_by_id[inst_id]
-        chunks = chunk_input_rows(institution_row, input_rows)
+        _, input_rows, n_input_pages = inputs_by_id[inst_id]
+        full_bytes = estimate_request_bytes(
+            build_validate_state(institution_row, input_rows, n_input_pages),
+            build_validate_questions(input_rows),
+        )
+        chunks = chunk_input_rows(
+            institution_row,
+            input_rows,
+            budget_bytes=min(jev_validate.CHUNK_BUDGET_BYTES, full_bytes // 2),
+        )
         if len(chunks) < 2:
             return None
-        attrition.record(
-            run_dir,
-            institution_id=inst_id,
-            stage=stage,
-            reason="validate_oversize_split",
-            detail=(
-                f"n_chunks={len(chunks)}; "
-                f"chunk_bytes={[c.request_bytes for c in chunks]}"
-            ),
-        )
         with split_lock:
             n_oversize_split += 1
         done: list[tuple[Any, Any]] = []
-        in_tok = out_tok = 0
-        for chunk in chunks:
+        usage = [0, 0]
+        max_depth = 1
+        n_chunks = len(chunks)  # leaf chunks planned so far
+
+        def run_chunk(chunk: Any, depth: int) -> None:
+            nonlocal max_depth, n_chunks
+            max_depth = max(max_depth, depth)
             state = build_validate_state(
                 institution_row, chunk.input_rows, chunk.n_input_pages
             )
             try:
                 res = send(state, build_validate_questions(chunk.input_rows))
-            except Exception as chunk_exc:
-                # Chunks already answered were still spent.
-                chunk_exc.partial_usage = (in_tok, out_tok)  # type: ignore[attr-defined]
+            except JevAccountError:
                 raise
-            in_tok += res.input_tokens
-            out_tok += res.output_tokens
+            except Exception as chunk_exc:
+                if (
+                    is_max_tokens_exceeded(chunk_exc)
+                    and depth < MAX_SPLIT_DEPTH
+                    and chunk.n_input_pages >= 2
+                ):
+                    sub = chunk_input_rows(
+                        institution_row,
+                        chunk.input_rows,
+                        budget_bytes=chunk.request_bytes // 2,
+                    )
+                    if len(sub) >= 2:
+                        n_chunks += len(sub) - 1
+                        for sub_chunk in sub:
+                            run_chunk(sub_chunk, depth + 1)
+                        return
+                raise
+            usage[0] += res.input_tokens
+            usage[1] += res.output_tokens
             done.append((chunk, res))
+
+        try:
+            for chunk in chunks:
+                run_chunk(chunk, 1)
+        except Exception as chunk_exc:
+            # Chunks already answered were still spent.
+            chunk_exc.partial_usage = (usage[0], usage[1])  # type: ignore[attr-defined]
+            raise
+        finally:
+            attrition.record(
+                run_dir,
+                institution_id=inst_id,
+                stage=stage,
+                reason="validate_oversize_split",
+                detail=(
+                    f"n_chunks={n_chunks}; depth={max_depth}; "
+                    f"chunk_bytes={[c.request_bytes for c, _ in done]}"
+                ),
+            )
         return ChunkedJevResult(
             chunks=done,
-            input_tokens=in_tok,
-            output_tokens=out_tok,
+            input_tokens=usage[0],
+            output_tokens=usage[1],
             response_model=done[0][1].response_model,
             request_id=done[0][1].request_id,
         )

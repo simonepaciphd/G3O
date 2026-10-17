@@ -818,7 +818,7 @@ class TestRunValidateJevOversize:
         recs = self._ledger(tmp_path)
         assert [r["reason"] for r in recs] == ["validate_oversize_split"]
         assert recs[0]["stage"] == "validate"
-        assert recs[0]["detail"].startswith("n_chunks=4; chunk_bytes=[")
+        assert recs[0]["detail"].startswith("n_chunks=4; depth=1; chunk_bytes=[")
         # Usage of all four chunk requests reaches the stage totals.
         done = json.loads(done_path(tmp_path, "validate").read_text(encoding="utf-8"))
         assert done["usage"]["prompt_tokens"] == 400
@@ -894,3 +894,92 @@ class TestRunValidateJevOversize:
         assert len(calls) == 1
         assert summary["n_failed"] == 1
         assert [r["reason"] for r in self._ledger(tmp_path)] == ["jev_request_failed"]
+
+    # -- forced split and recursive re-split (coordinator refinement) --------
+
+    def _pages_rows(self, n_pages, rows_per_page=1):
+        return [
+            _row(f"https://q{p}.gov/", name="Act", snippet=f"s{p}-{r}")
+            for p in range(n_pages)
+            for r in range(rows_per_page)
+        ]
+
+    def test_forced_split_when_estimate_under_budget(self, tmp_path):
+        rows = self._pages_rows(4)
+        sent = []
+
+        def fake_ask(state, questions, *, client, model):
+            sent.append(state["n_input_rows"])
+            if len(sent) == 1:
+                raise _oversize_error()
+            return _empty_result()
+
+        summary = self._run(tmp_path, rows, fake_ask, 10**9)
+        assert summary["n_consolidated"] == 1
+        assert summary["n_oversize_split"] == 1
+        assert sent[0] == 4 and len(sent) >= 3  # >= 2 chunks despite the budget
+        assert sum(sent[1:]) == 4
+        assert "depth=1" in self._ledger(tmp_path)[0]["detail"]
+
+    def test_chunk_oversize_is_resplit(self, tmp_path):
+        rows = self._pages_rows(8, rows_per_page=2)
+        sent = []
+
+        def fake_ask(state, questions, *, client, model):
+            sent.append(state["n_input_pages"])
+            if state["n_input_pages"] > 1:
+                raise _oversize_error()
+            return _empty_result(tokens=7)
+
+        summary = self._run(tmp_path, rows, fake_ask, 10**9)
+        assert summary["n_consolidated"] == 1
+        assert summary["n_failed"] == 0
+        assert sent.count(1) == 8  # every page answered exactly once
+        assert any(1 < n < 8 for n in sent)  # a multi-page chunk was re-split
+        detail = self._ledger(tmp_path)[0]["detail"]
+        assert "n_chunks=8" in detail
+        assert "depth=2" in detail
+
+    def test_depth_cap_fails_the_institution(self, tmp_path):
+        from g3o.common.paths import institution_dir
+        from g3o.validate.jev_validate import MAX_SPLIT_DEPTH
+
+        assert MAX_SPLIT_DEPTH == 3
+        rows = self._pages_rows(64)
+        sent = []
+
+        def fake_ask(state, questions, *, client, model):
+            sent.append(state["n_input_rows"])
+            if state["n_input_rows"] > 1:
+                raise _oversize_error()
+            return _empty_result()
+
+        summary = self._run(tmp_path, rows, fake_ask, 10**9)
+        assert summary["n_failed"] == 1
+        assert min(sent) >= 2  # never split past depth 3 down to single pages
+        assert not (institution_dir(tmp_path, "INST-OVR") / "6_validate.json").exists()
+        recs = self._ledger(tmp_path)
+        assert [r["reason"] for r in recs] == [
+            "validate_oversize_split", "jev_request_failed",
+        ]
+        assert "depth=3" in recs[0]["detail"]
+
+    def test_single_page_chunk_still_oversize_fails(self, tmp_path):
+        rows = [_row("https://small.gov/", name="Act", snippet="a")]
+        rows += [_row("https://big.gov/", name="Act", snippet=f"b{i}") for i in range(3)]
+        sent = []
+
+        def fake_ask(state, questions, *, client, model):
+            sent.append(state["n_input_rows"])
+            if any(r["source_url"] == "https://big.gov/" for r in state["input_rows"]):
+                raise _oversize_error()
+            return _empty_result()
+
+        summary = self._run(tmp_path, rows, fake_ask, 10**9)
+        assert summary["n_failed"] == 1
+        assert sent == [4, 1, 3]  # full, small page, big page (not re-splittable)
+        recs = self._ledger(tmp_path)
+        assert [r["reason"] for r in recs] == [
+            "validate_oversize_split", "jev_request_failed",
+        ]
+        assert "depth=1" in recs[0]["detail"]
