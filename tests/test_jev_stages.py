@@ -10,6 +10,7 @@ Covers:
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -602,6 +603,109 @@ class TestJevStagesSkipMarkDoneWhenStoppedEarly:
     @pytest.mark.parametrize("stage_fn", ["triage", "official_site", "fallback"])
     def test_completed_stage_is_marked_done(self, tmp_path: Path, stage_fn):
         assert self._run(tmp_path, stage_fn, keep_going=True) is True
+
+
+class TestJevStageFailureThreshold:
+    """PI ruling P1 = a: done only when n_failed <= 1% of attempted requests."""
+
+    def test_helper_boundary(self):
+        from g3o.run.presweep.jev_stage_runner import (
+            JEV_MAX_FAILED_FRACTION,
+            JevStageMetrics,
+            jev_stage_complete,
+        )
+
+        assert JEV_MAX_FAILED_FRACTION == 0.01
+        assert jev_stage_complete(JevStageMetrics(n_institutions=0))
+        assert jev_stage_complete(JevStageMetrics(n_institutions=5, n_skipped=5))
+        assert jev_stage_complete(JevStageMetrics(n_institutions=100, n_success=99, n_failed=1))
+        assert not jev_stage_complete(JevStageMetrics(n_institutions=100, n_success=98, n_failed=2))
+        assert not jev_stage_complete(JevStageMetrics(n_institutions=1, n_failed=1))
+        assert not jev_stage_complete(
+            JevStageMetrics(n_institutions=1, n_success=1, stopped_early=True)
+        )
+
+    def _triage(self, run_dir: Path, n: int, failing: set[str]) -> list[str]:
+        """Run triage jev over ``n`` institutions; return the ids requested."""
+        from g3o.run.presweep import stage_classify
+        from g3o.run.presweep.records import institution_record
+
+        sample = [
+            {"master_row_id": str(i), "institution_name": f"Test {i}"}
+            for i in range(n)
+        ]
+        discovery = {}
+        for row in sample:
+            inst_id = institution_record(row)["institution_id"]
+            institution_dir(run_dir, inst_id).mkdir(parents=True, exist_ok=True)
+            discovery[inst_id] = [{"link": f"https://example.gov/{inst_id}"}]
+        credentials = resolve(
+            Credentials(typesafe_api_key="test-key"),
+            env={"TYPESAFE_API_KEY": "test-key"},
+        )
+        requested: list[str] = []
+
+        def fake_ask(state, questions, *, client, model):
+            requested.append(state["id"])
+            if state["id"] in failing:
+                raise RuntimeError("TypeSafe 503")
+            return JevResult(
+                answers={}, response_model="jev-1.13.0", request_id="r",
+                input_tokens=10, output_tokens=1,
+            )
+
+        with (
+            patch(
+                "g3o.run.presweep.stage_classify.jev_build_triage_state",
+                side_effect=lambda inst, *_: {"id": inst["institution_id"]},
+            ),
+            patch("g3o.run.presweep.jev_stage_runner.ask", side_effect=fake_ask),
+            # A parsed result, so a successful request leaves its 3_triage.json.
+            patch(
+                "g3o.run.presweep.stage_classify.jev_parse_triage_result",
+                return_value=SimpleNamespace(
+                    kept_urls=[], decisions=[], response_model="jev-1.13.0",
+                    request_id="r",
+                ),
+            ),
+        ):
+            stage_classify._run_classify_triage_jev(
+                run_dir, sample, discovery, {}, {},
+                model="jev-1.13.0", credentials=credentials,
+            )
+        return requested
+
+    def _ids(self, *nums: int) -> set[str]:
+        from g3o.run.presweep.records import institution_record
+
+        return {
+            institution_record({"master_row_id": str(i)})["institution_id"]
+            for i in nums
+        }
+
+    def test_half_percent_failures_is_done(self, tmp_path: Path):
+        from g3o.common.run_state import is_done
+
+        self._triage(tmp_path, 200, self._ids(7))  # 1 of 200 = 0.5%
+        assert is_done(tmp_path, "classify_triage")
+
+    def test_two_percent_failures_is_left_open(self, tmp_path: Path):
+        from g3o.common.run_state import is_done
+
+        self._triage(tmp_path, 100, self._ids(3, 42))  # 2 of 100 = 2%
+        assert not is_done(tmp_path, "classify_triage")
+
+    def test_resume_after_open_stage_resends_only_failed(self, tmp_path: Path):
+        from g3o.common.run_state import is_done
+
+        failed = self._ids(3, 42)
+        first = self._triage(tmp_path, 100, failed)
+        assert len(first) == 100
+        assert not is_done(tmp_path, "classify_triage")
+
+        second = self._triage(tmp_path, 100, set())
+        assert set(second) == failed and len(second) == 2
+        assert is_done(tmp_path, "classify_triage")
 
 
 # ---------------------------------------------------------------------------

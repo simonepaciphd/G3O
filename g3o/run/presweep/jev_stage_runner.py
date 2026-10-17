@@ -66,6 +66,27 @@ class JevStageMetrics:
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
 
+# PI ruling P1 = a (2026-10-17): a jev stage is marked done only when at most
+# this fraction of the requests attempted in the session failed. Above it the
+# stage stays open, and a resume re-sends only the failed institutions (the
+# runner skips every institution that already has its artifact).
+JEV_MAX_FAILED_FRACTION = 0.01
+
+
+def jev_stage_complete(metrics: JevStageMetrics) -> bool:
+    """True when a jev stage may be marked done (PI ruling P1 = a).
+
+    Not done after an early stop, or when ``n_failed`` exceeds
+    :data:`JEV_MAX_FAILED_FRACTION` of the attempted requests
+    (``n_success + n_failed``; skipped institutions are not attempted). A
+    session that attempted nothing is complete.
+    """
+    if metrics.stopped_early:
+        return False
+    attempted = metrics.n_success + metrics.n_failed
+    return metrics.n_failed <= JEV_MAX_FAILED_FRACTION * attempted
+
+
 def run_jev_stage(
     run_dir: Path,
     stage: str,
@@ -218,6 +239,8 @@ def run_jev_stage(
 
 __all__ = [
     "DEFAULT_JEV_CONCURRENCY",
+    "JEV_MAX_FAILED_FRACTION",
     "JevStageMetrics",
+    "jev_stage_complete",
     "run_jev_stage",
 ]

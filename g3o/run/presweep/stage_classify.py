@@ -51,7 +51,11 @@ from g3o.common.paths import institution_dir
 from g3o.common.run_state import is_done, load_state, mark_done, run_chunked_stage
 from g3o.common.timing import llm_stage_timer
 from g3o.report.discovery_yield import registrable_domain
-from g3o.run.presweep.jev_stage_runner import run_jev_stage
+from g3o.run.presweep.jev_stage_runner import (
+    JEV_MAX_FAILED_FRACTION,
+    jev_stage_complete,
+    run_jev_stage,
+)
 from g3o.run.presweep.records import (
     _dedupe_key,
     institution_record,
@@ -266,9 +270,17 @@ def _run_classify_official_site_jev(
         metrics.n_institutions, metrics.n_success, metrics.n_failed,
         metrics.n_skipped, metrics.total_input_tokens,
     )
-    # Mirrors Stage 6 jev: a stage that stopped early is not done, or resume
-    # would skip the institutions it never reached.
-    if not metrics.stopped_early:
+    # Not done after an early stop or too many failed requests (PI ruling
+    # P1 = a): resume would otherwise skip the institutions left unanswered.
+    if not jev_stage_complete(metrics):
+        logger.warning(
+            "jev stage %s left open: %d failed of %d attempted (limit %.0f%%)%s; "
+            "a resume re-sends the institutions without an artifact",
+            stage, metrics.n_failed, metrics.n_success + metrics.n_failed,
+            JEV_MAX_FAILED_FRACTION * 100,
+            ", stopped early" if metrics.stopped_early else "",
+        )
+    else:
         mark_done(
             run_dir, stage, no_batch=True,
             usage={
@@ -695,9 +707,17 @@ def _run_classify_official_site_fallback_jev(
         metrics.n_institutions, metrics.n_success, metrics.n_failed,
         metrics.n_skipped, metrics.total_input_tokens,
     )
-    # Mirrors Stage 6 jev: a stage that stopped early is not done, or resume
-    # would skip the institutions it never reached.
-    if not metrics.stopped_early:
+    # Not done after an early stop or too many failed requests (PI ruling
+    # P1 = a): resume would otherwise skip the institutions left unanswered.
+    if not jev_stage_complete(metrics):
+        logger.warning(
+            "jev stage %s left open: %d failed of %d attempted (limit %.0f%%)%s; "
+            "a resume re-sends the institutions without an artifact",
+            stage, metrics.n_failed, metrics.n_success + metrics.n_failed,
+            JEV_MAX_FAILED_FRACTION * 100,
+            ", stopped early" if metrics.stopped_early else "",
+        )
+    else:
         mark_done(
             run_dir, stage, no_batch=True,
             usage={
@@ -887,9 +907,17 @@ def _run_classify_triage_jev(
         metrics.n_institutions, metrics.n_success, metrics.n_failed,
         metrics.n_skipped, metrics.total_input_tokens,
     )
-    # Mirrors Stage 6 jev: a stage that stopped early is not done, or resume
-    # would skip the institutions it never reached.
-    if not metrics.stopped_early:
+    # Not done after an early stop or too many failed requests (PI ruling
+    # P1 = a): resume would otherwise skip the institutions left unanswered.
+    if not jev_stage_complete(metrics):
+        logger.warning(
+            "jev stage %s left open: %d failed of %d attempted (limit %.0f%%)%s; "
+            "a resume re-sends the institutions without an artifact",
+            stage, metrics.n_failed, metrics.n_success + metrics.n_failed,
+            JEV_MAX_FAILED_FRACTION * 100,
+            ", stopped early" if metrics.stopped_early else "",
+        )
+    else:
         mark_done(
             run_dir, stage, no_batch=True,
             usage={
