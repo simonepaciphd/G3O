@@ -565,7 +565,23 @@ class TestJevStagesSkipMarkDoneWhenStoppedEarly:
             Credentials(typesafe_api_key="test-key"),
             env={"TYPESAFE_API_KEY": "test-key"},
         )
-        with patch("g3o.run.presweep.jev_stage_runner.ask") as mock_ask:
+        # A parseable answer, so a finished request leaves its artifact.
+        parsed = SimpleNamespace(
+            url="https://example.gov/ai", confidence="high", jev_confidence=0.9,
+            choice_probabilities={}, response_model="jev-1.13.0", request_id="r",
+            kept_urls=[], decisions=[],
+        )
+        with (
+            patch("g3o.run.presweep.jev_stage_runner.ask") as mock_ask,
+            patch(
+                "g3o.run.presweep.stage_classify.jev_parse_triage_result",
+                return_value=parsed,
+            ),
+            patch(
+                "g3o.run.presweep.stage_classify.jev_parse_official_site_result",
+                return_value=parsed,
+            ),
+        ):
             mock_ask.return_value = JevResult(
                 answers={}, response_model="jev-1.13.0", request_id="r",
                 input_tokens=10, output_tokens=1,
@@ -624,9 +640,18 @@ class TestJevStageFailureThreshold:
         assert not jev_stage_complete(
             JevStageMetrics(n_institutions=1, n_success=1, stopped_early=True)
         )
+        assert not jev_stage_complete(
+            JevStageMetrics(n_institutions=100, n_success=98, n_processing_failed=2)
+        )
 
-    def _triage(self, run_dir: Path, n: int, failing: set[str]) -> list[str]:
-        """Run triage jev over ``n`` institutions; return the ids requested."""
+    def _triage(
+        self, run_dir: Path, n: int, failing: set[str],
+        parse_failing: frozenset[str] = frozenset(),
+    ) -> list[str]:
+        """Run triage jev over ``n`` institutions; return the ids requested.
+
+        ``failing`` requests raise; ``parse_failing`` responses fail to parse.
+        """
         from g3o.run.presweep import stage_classify
         from g3o.run.presweep.records import institution_record
 
@@ -650,8 +675,16 @@ class TestJevStageFailureThreshold:
             if state["id"] in failing:
                 raise RuntimeError("TypeSafe 503")
             return JevResult(
-                answers={}, response_model="jev-1.13.0", request_id="r",
+                answers={}, response_model="jev-1.13.0", request_id=state["id"],
                 input_tokens=10, output_tokens=1,
+            )
+
+        def fake_parse(result, candidate_urls):
+            if result.request_id in parse_failing:
+                raise ValueError("unparseable jev answer")
+            return SimpleNamespace(
+                kept_urls=[], decisions=[], response_model="jev-1.13.0",
+                request_id=result.request_id,
             )
 
         with (
@@ -663,10 +696,7 @@ class TestJevStageFailureThreshold:
             # A parsed result, so a successful request leaves its 3_triage.json.
             patch(
                 "g3o.run.presweep.stage_classify.jev_parse_triage_result",
-                return_value=SimpleNamespace(
-                    kept_urls=[], decisions=[], response_model="jev-1.13.0",
-                    request_id="r",
-                ),
+                side_effect=fake_parse,
             ),
         ):
             stage_classify._run_classify_triage_jev(
@@ -706,6 +736,26 @@ class TestJevStageFailureThreshold:
         second = self._triage(tmp_path, 100, set())
         assert set(second) == failed and len(second) == 2
         assert is_done(tmp_path, "classify_triage")
+
+    def test_parse_failures_count_and_are_resent(self, tmp_path: Path):
+        from g3o.common import attrition
+        from g3o.common.run_state import is_done
+
+        bad = frozenset(self._ids(5, 60))  # 2 of 100 responses unparseable
+        attrition._reset_cache()
+        first = self._triage(tmp_path, 100, set(), parse_failing=bad)
+        assert len(first) == 100
+        assert not is_done(tmp_path, "classify_triage")
+        reasons = {
+            (r["institution_id"], r["reason"])
+            for r in attrition.read_records(tmp_path)
+        }
+        assert reasons == {(i, "jev_parse_failed") for i in bad}
+
+        second = self._triage(tmp_path, 100, set())
+        assert set(second) == bad and len(second) == 2
+        assert is_done(tmp_path, "classify_triage")
+        attrition._reset_cache()
 
 
 # ---------------------------------------------------------------------------
