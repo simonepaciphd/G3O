@@ -1189,14 +1189,18 @@ class TestRunValidateJevOversize:
         assert not is_done(tmp_path, "validate")
 
     def test_failed_fraction_helper(self):
-        from types import SimpleNamespace
-
-        from g3o.run.presweep.stage_validate import (
+        from g3o.run.presweep import stage_validate
+        from g3o.run.presweep.jev_stage_runner import (
             JEV_MAX_FAILED_FRACTION,
-            _jev_stage_complete,
+            JevStageMetrics,
+            jev_stage_complete,
         )
 
+        # Stage 6 uses the shared helper, not a local copy.
+        assert stage_validate.jev_stage_complete is jev_stage_complete
         assert JEV_MAX_FAILED_FRACTION == 0.01
-        assert _jev_stage_complete(SimpleNamespace(n_success=0, n_failed=0))
-        assert _jev_stage_complete(SimpleNamespace(n_success=99, n_failed=1))
-        assert not _jev_stage_complete(SimpleNamespace(n_success=98, n_failed=2))
+        assert jev_stage_complete(JevStageMetrics(n_institutions=0))
+        assert jev_stage_complete(JevStageMetrics(n_institutions=100, n_success=99, n_failed=1))
+        assert not jev_stage_complete(
+            JevStageMetrics(n_institutions=100, n_success=98, n_failed=2)
+        )

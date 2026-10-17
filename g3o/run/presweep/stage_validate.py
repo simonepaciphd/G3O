@@ -12,23 +12,14 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common.credentials import ResolvedCredentials
-from g3o.run.presweep.jev_stage_runner import DEFAULT_JEV_CONCURRENCY, run_jev_stage
+from g3o.run.presweep.jev_stage_runner import (
+    DEFAULT_JEV_CONCURRENCY,
+    JEV_MAX_FAILED_FRACTION,
+    jev_stage_complete,
+    jev_stage_failed,
+    run_jev_stage,
+)
 from g3o.run.presweep.records import synth_institution_id
-
-# PI ruling P1=a (2026-10-17): a jev stage is marked done only if at most
-# this fraction of attempted requests failed. DUPLICATES the
-# ``jev_stage_complete`` helper / ``JEV_MAX_FAILED_FRACTION`` being added for
-# Stages 2/3 on another branch; dedupe at rebase.
-JEV_MAX_FAILED_FRACTION = 0.01
-
-
-def _jev_stage_complete(metrics: Any) -> bool:
-    """True unless more than JEV_MAX_FAILED_FRACTION of attempted requests
-    (n_success + n_failed) failed. Nothing attempted keeps today's rule."""
-    attempted = metrics.n_success + metrics.n_failed
-    if attempted == 0:
-        return True
-    return metrics.n_failed <= JEV_MAX_FAILED_FRACTION * attempted
 
 
 def _is_jev_model(model: str) -> bool:
@@ -268,12 +259,20 @@ def _run_validate_jev(
     # Blocker #1 fix: only mark_done when the loop completed without early stop.
     # A partially-run stage should NOT be marked done, or unprocessed institutions
     # would be permanently skipped on resume.
-    complete = _jev_stage_complete(metrics)
-    if not complete:
+    # PI ruling P1=a (2026-10-17): also not done when more than
+    # JEV_MAX_FAILED_FRACTION of attempted requests failed (shared
+    # jev_stage_complete, which also refuses an early stop). Validate's
+    # process_result never returns False: a parse failure raises and is
+    # counted in n_failed as jev_result_processing_failed, which
+    # jev_stage_failed includes, so n_processing_failed stays 0 here.
+    complete = jev_stage_complete(metrics)
+    if not complete and not stopped_early:
+        n_attempt_failed = jev_stage_failed(metrics)
         logger.warning(
             "Stage 6 jev: %d of %d attempted requests failed (> %.0f%%) — "
             "leaving the stage open (no .done); resume retries the failures",
-            n_failed, n_success + n_failed, JEV_MAX_FAILED_FRACTION * 100,
+            n_attempt_failed, n_success + n_attempt_failed,
+            JEV_MAX_FAILED_FRACTION * 100,
         )
     if not stopped_early and complete and (n_success > 0 or n_skipped > 0):
         mark_done(
