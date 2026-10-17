@@ -307,7 +307,7 @@ class CostMonitor:
         # raises without leaving them half-seeded.
         seed = {
             api: {
-                key: max(0, float((by_api.get(api) or {}).get(key) or 0))
+                key: max(0.0, float((by_api.get(api) or {}).get(key) or 0))
                 for key in keys
             }
             for api, keys in fields.items()
