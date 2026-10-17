@@ -513,11 +513,54 @@ def estimate_request_bytes(state: Any, questions: dict[str, Any]) -> int:
 
 @dataclass
 class ValidateChunk:
-    """One chunk of an institution's input rows (whole source pages only)."""
+    """One chunk of an institution's input rows.
+
+    Whole source pages, except when ``row_split`` is set: then the chunk is a
+    run of consecutive rows of a single page too large to send whole (PI
+    ruling P3=a, 2026-10-17).
+    """
 
     input_rows: list[dict[str, Any]]
     n_input_pages: int
     request_bytes: int
+    row_split: bool = False
+
+
+def _chunk_bytes(
+    institution_row: dict[str, Any], rows: list[dict[str, Any]], n_pages: int
+) -> int:
+    state = build_validate_state(institution_row, rows, n_pages)
+    return estimate_request_bytes(state, build_validate_questions(rows))
+
+
+def split_page_rows(
+    institution_row: dict[str, Any],
+    page_rows: list[dict[str, Any]],
+    *,
+    budget_bytes: int,
+) -> list[ValidateChunk]:
+    """Split one page's rows into consecutive row chunks (PI ruling P3=a).
+
+    Rows are packed greedily, in their original order, while the chunk's
+    estimated request size stays within ``budget_bytes``. A row that alone
+    exceeds the budget is its own chunk (and fails the institution if the API
+    still rejects it).
+    """
+    chunks: list[ValidateChunk] = []
+    cur: list[dict[str, Any]] = []
+    cur_bytes = 0
+    for row in page_rows:
+        cand = cur + [row]
+        cand_bytes = _chunk_bytes(institution_row, cand, 1)
+        if not cur or cand_bytes <= budget_bytes:
+            cur, cur_bytes = cand, cand_bytes
+            continue
+        chunks.append(ValidateChunk(cur, 1, cur_bytes, row_split=True))
+        cur = [row]
+        cur_bytes = _chunk_bytes(institution_row, cur, 1)
+    if cur:
+        chunks.append(ValidateChunk(cur, 1, cur_bytes, row_split=True))
+    return chunks
 
 
 def chunk_input_rows(
@@ -532,8 +575,10 @@ def chunk_input_rows(
     original order; pages ordered by first appearance). Pages are packed
     greedily in that order while the chunk's estimated request size — computed
     with :func:`build_validate_state` and :func:`build_validate_questions` —
-    stays within ``budget_bytes``. A page that alone exceeds the budget is its
-    own chunk. ``budget_bytes`` defaults to :data:`CHUNK_BUDGET_BYTES`.
+    stays within ``budget_bytes``. A page that alone exceeds the budget is
+    split into consecutive row chunks by :func:`split_page_rows` (PI ruling
+    P3=a, 2026-10-17); a one-row page that exceeds it is its own chunk.
+    ``budget_bytes`` defaults to :data:`CHUNK_BUDGET_BYTES`.
     """
     if budget_bytes is None:
         budget_bytes = CHUNK_BUDGET_BYTES
@@ -541,23 +586,26 @@ def chunk_input_rows(
     for row in input_rows:
         pages.setdefault(row.get("source_url", ""), []).append(row)
 
-    def _size(rows: list[dict[str, Any]], n_pages: int) -> int:
-        state = build_validate_state(institution_row, rows, n_pages)
-        return estimate_request_bytes(state, build_validate_questions(rows))
-
     chunks: list[ValidateChunk] = []
     cur_rows: list[dict[str, Any]] = []
     cur_pages = 0
     cur_bytes = 0
     for page_rows in pages.values():
-        cand_rows = cur_rows + page_rows
-        cand_bytes = _size(cand_rows, cur_pages + 1)
-        if not cur_rows or cand_bytes <= budget_bytes:
-            cur_rows, cur_pages, cur_bytes = cand_rows, cur_pages + 1, cand_bytes
+        if cur_rows:
+            cand_rows = cur_rows + page_rows
+            cand_bytes = _chunk_bytes(institution_row, cand_rows, cur_pages + 1)
+            if cand_bytes <= budget_bytes:
+                cur_rows, cur_pages, cur_bytes = cand_rows, cur_pages + 1, cand_bytes
+                continue
+            chunks.append(ValidateChunk(cur_rows, cur_pages, cur_bytes))
+            cur_rows, cur_pages, cur_bytes = [], 0, 0
+        page_bytes = _chunk_bytes(institution_row, page_rows, 1)
+        if page_bytes > budget_bytes and len(page_rows) > 1:
+            chunks.extend(
+                split_page_rows(institution_row, page_rows, budget_bytes=budget_bytes)
+            )
             continue
-        chunks.append(ValidateChunk(cur_rows, cur_pages, cur_bytes))
-        cur_rows, cur_pages = list(page_rows), 1
-        cur_bytes = _size(cur_rows, 1)
+        cur_rows, cur_pages, cur_bytes = list(page_rows), 1, page_bytes
     if cur_rows:
         chunks.append(ValidateChunk(cur_rows, cur_pages, cur_bytes))
     return chunks
@@ -611,11 +659,14 @@ def merge_chunk_responses(
     *,
     n_input_pages: int,
     n_input_rows: int,
+    n_row_split_pages: int = 0,
 ) -> ConsolidatedInstitutionResponse:
     """Merge per-chunk responses into one response (cross-chunk merge rule).
 
     ``chunk_responses`` is ``[(response, n_chunk_input_rows), ...]`` in chunk
-    order. The rule (PI ruling E1=b, 2026-10-17):
+    order. The rule (PI ruling E1=b, 2026-10-17; extended to row-split
+    pages by P3=a, 2026-10-17 — row chunks of one page merge exactly like
+    page chunks):
 
     - **activities**: concatenated in chunk order. Activities with an
       identical ``activity_name`` (exact string match) in different chunks are
@@ -634,16 +685,19 @@ def merge_chunk_responses(
       has_genai_activity rank (yes > unclear > no); tie → the chunk with more
       input rows; tie → the earlier chunk.
     - **sources**: concatenated in chunk order; a source whose
-      (source_url, source_snippet) already appeared in an *earlier* chunk is
-      dropped (duplicates within one chunk are kept, exactly as the unsplit
-      path keeps them); renumbered S1..Sn, and each ``activity_id`` remapped
-      to its merged, renumbered activity (A1..Am). Chunks never split a
-      source page, so a URL cannot recur in a later chunk and the dedup is a
-      guard that does not fire on chunks from :func:`chunk_input_rows`.
+      (source_url, source_snippet) already appeared in an *earlier* chunk
+      linked to the same merged activity (or both ``_NA_``) is dropped
+      (duplicates within one chunk are kept, exactly as the unsplit path
+      keeps them); renumbered S1..Sn, and each ``activity_id`` remapped to
+      its merged, renumbered activity (A1..Am). The link is part of the key
+      so a drop can never leave an activity without a source. Page chunks
+      never share a URL, so the dedup can only fire between row chunks of
+      one row-split page.
     - **consolidation_metadata**: ``n_input_pages``/``n_input_rows`` are the
       institution totals; ``notes`` is the first chunk's notes with
-      "; validate_oversize_split: N chunks" appended; ``model_label`` from the
-      first chunk.
+      "; validate_oversize_split: N chunks" appended, plus
+      ", row-split pages: K" when ``n_row_split_pages`` K > 0;
+      ``model_label`` from the first chunk.
     """
     from datetime import datetime, timezone
 
@@ -678,19 +732,19 @@ def merge_chunk_responses(
 
     # Sources: union, dedup on (url, snippet), remapped activity links.
     sources: list[SourceRecord] = []
-    seen: set[tuple[str, str]] = set()
+    seen: set[tuple[str, str, int]] = set()
     n_by_pos: dict[int, int] = defaultdict(int)
     for c, resp in enumerate(responses):
-        chunk_keys: set[tuple[str, str]] = set()
+        chunk_keys: set[tuple[str, str, int]] = set()
         for src in resp.sources:
-            key = (src.source_url, src.source_snippet)
+            pos = -1 if src.activity_id == "_NA_" else act_map[(c, src.activity_id)]
+            key = (src.source_url, src.source_snippet, pos)
             if key in seen:
                 continue
             chunk_keys.add(key)
             data = src.model_dump()
             data["source_id"] = f"S{len(sources) + 1}"
-            if src.activity_id != "_NA_":
-                pos = act_map[(c, src.activity_id)]
+            if pos >= 0:
                 data["activity_id"] = f"A{pos + 1}"
                 n_by_pos[pos] += 1
             sources.append(SourceRecord(**data))
@@ -725,6 +779,11 @@ def merge_chunk_responses(
             "notes": (
                 f"{first.consolidation_metadata.notes}; "
                 f"validate_oversize_split: {len(responses)} chunks"
+                + (
+                    f", row-split pages: {n_row_split_pages}"
+                    if n_row_split_pages
+                    else ""
+                )
             ),
         }
     )
@@ -757,7 +816,22 @@ def parse_chunked_validate_result(
         for chunk, jev_result in result.chunks
     ]
     return merge_chunk_responses(
-        chunk_responses, n_input_pages=n_input_pages, n_input_rows=n_input_rows
+        chunk_responses,
+        n_input_pages=n_input_pages,
+        n_input_rows=n_input_rows,
+        n_row_split_pages=count_row_split_pages(c for c, _ in result.chunks),
+    )
+
+
+def count_row_split_pages(chunks: Any) -> int:
+    """Distinct source pages that were split by rows across ``chunks``."""
+    return len(
+        {
+            row.get("source_url", "")
+            for c in chunks
+            if c.row_split
+            for row in c.input_rows
+        }
     )
 
 
@@ -771,9 +845,11 @@ __all__ = [
     "build_validate_questions",
     "build_validate_state",
     "chunk_input_rows",
+    "count_row_split_pages",
     "estimate_request_bytes",
     "is_max_tokens_exceeded",
     "merge_chunk_responses",
+    "split_page_rows",
     "parse_chunked_validate_result",
     "parse_validate_result",
 ]
