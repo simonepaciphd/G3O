@@ -349,3 +349,49 @@ class TestConstants:
 
     def test_jev_question_set_version(self):
         assert JEV_QUESTION_SET_VERSION == "g3o.validate.jev.v1"
+
+
+# ---------------------------------------------------------------------------
+# Stage 6 runner: account errors
+# ---------------------------------------------------------------------------
+
+
+class TestRunValidateJevAccountError:
+    """An account error (e.g. 402 no credits) aborts Stage 6 without .done."""
+
+    def test_account_error_raises_and_skips_mark_done(self, tmp_path):
+        from unittest.mock import patch
+
+        import pytest
+
+        from g3o.common.credentials import Credentials, resolve
+        from g3o.common.jev_client import JevAccountError
+        from g3o.common.run_state import is_done
+        from g3o.run.presweep.stage_validate import _run_validate_jev
+
+        credentials = resolve(
+            Credentials(typesafe_api_key="test-key"),
+            env={"TYPESAFE_API_KEY": "test-key"},
+        )
+        inputs = [
+            ({"institution_id": f"INST-{i:03d}"}, [{"row": i}], 1) for i in range(3)
+        ]
+        with (
+            patch(
+                "g3o.validate.consolidate.assemble_per_institution_inputs",
+                return_value=inputs,
+            ),
+            patch("g3o.validate.jev_validate.build_validate_state", return_value={}),
+            patch("g3o.validate.jev_validate.build_validate_questions", return_value={}),
+            patch(
+                "g3o.common.jev_client.ask",
+                side_effect=JevAccountError("402 no credits"),
+            ) as mock_ask,
+            pytest.raises(JevAccountError),
+        ):
+            _run_validate_jev(
+                tmp_path, [{}, {}, {}], model="jev-1.13.0", credentials=credentials
+            )
+
+        assert mock_ask.call_count == 1
+        assert not is_done(tmp_path, "validate")
