@@ -18,6 +18,11 @@ is no incremental state to corrupt and no ordering to get wrong.
 **Advisory by construction.** The overlay feeds a *future* run; nothing in the current
 one reads it. A failure here must never make a published run read as stopped, so the leg
 reports green with the failure in its message unless the caller asked otherwise.
+
+**Then the master-sites refresh** (:func:`refresh_master_sites`, 2026-10-21 ruling
+D5 a): the rebuilt overlay joined onto the master the run sampled from, written under
+``_site_overlay/master_sites/``, latest copy only. Advisory on the same terms, and it
+never writes a fold proposal — that is the PI-gated wave-close step.
 """
 
 from __future__ import annotations
@@ -40,10 +45,13 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "DEFAULT_OVERLAY_DIRNAME",
+    "MASTER_SITES_DIRNAME",
     "OVERLAY_FILENAME",
     "HarvestResult",
+    "MasterSitesLegResult",
     "harvest_official_sites",
     "overlay_dir_for",
+    "refresh_master_sites",
 ]
 
 #: Underscore-prefixed so :func:`g3o.report.site_overlay.iter_run_dirs` skips it when
@@ -190,3 +198,109 @@ def _previous_sha(target_dir: Path) -> str:
         return str(json.loads(manifest.read_text(encoding="utf-8")).get("sha256") or "")
     except (OSError, json.JSONDecodeError):
         return ""
+
+
+# ----------------------------------------------------------------------------------
+# master-sites — the overlay against the master, refreshed after every harvest
+# ----------------------------------------------------------------------------------
+
+#: Under the overlay dir, beside ``official_sites.csv``. Latest copy only.
+MASTER_SITES_DIRNAME = "master_sites"
+
+
+@dataclass
+class MasterSitesLegResult:
+    """What the master-sites refresh did, or why it did not run."""
+
+    out_dir: str = ""
+    master_csv: str = ""
+    skipped: str = ""
+    report: dict[str, Any] = field(default_factory=dict)
+    error: str = ""
+
+    @property
+    def green(self) -> bool:
+        """A skip is green: no master configured is a state, not a failure."""
+        return not self.error
+
+    @property
+    def message(self) -> str:
+        if self.error:
+            return f"master-sites NOT refreshed: {self.error}"
+        if self.skipped:
+            return f"skipped: {self.skipped}"
+        vs = self.report.get("eligible_vs_master") or {}
+        return (
+            f"master-sites refreshed: {self.report.get('status_counts', {}).get('eligible', 0)}"
+            f" eligible picks against {self.report.get('master_rows', 0)} master rows "
+            f"(master empty {vs.get('master_empty', 0)}, same host "
+            f"{vs.get('same_host', 0)}, different host {vs.get('different_host', 0)})"
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        out: dict[str, Any] = {"out_dir": self.out_dir, "master_csv": self.master_csv}
+        for key in (
+            "master_sha256",
+            "overlay_sha256",
+            "out_sha256",
+            "master_rows",
+            "status_counts",
+            "eligible_vs_master",
+        ):
+            if key in self.report:
+                out[key] = self.report[key]
+        if self.skipped:
+            out["skipped"] = self.skipped
+        if self.error:
+            out["error"] = self.error
+        return out
+
+
+def refresh_master_sites(
+    runs_dir: Path,
+    *,
+    master_csv: Path | None,
+    overlay_dir: Path | None = None,
+) -> MasterSitesLegResult:
+    """Join the freshly harvested overlay onto ``master_csv``, overwriting the last copy.
+
+    Writes ``<overlay-dir>/master_sites/{master_with_official_sites.csv, report.json,
+    conflicts.csv}`` via :func:`g3o.report.master_sites.build_master_sites`. **Never a
+    fold proposal**: proposing a fold is the wave-close step, run by hand, and an
+    approval binds to a proposal's sha — a chain that rewrote proposals after every run
+    would be generating things for the PI to sign that nobody asked for.
+
+    Advisory in exactly the harvest's sense, and for the same reason: nothing in this
+    run reads it. No master (none passed, none in the run's manifest, or the path is
+    not on this machine) is a clean skip; anything else that goes wrong lands on the
+    result, never as an exception.
+    """
+    result = MasterSitesLegResult()
+    try:
+        target_dir = overlay_dir_for(runs_dir, overlay_dir)
+        result.out_dir = str(target_dir / MASTER_SITES_DIRNAME)
+        if master_csv is None:
+            result.skipped = (
+                "no master CSV (none passed and the run's manifest records none)"
+            )
+            return result
+        result.master_csv = str(master_csv)
+        if not Path(master_csv).is_file():
+            result.skipped = f"master CSV not found on this machine: {master_csv}"
+            return result
+        overlay_path = target_dir / OVERLAY_FILENAME
+        if not overlay_path.is_file():
+            result.skipped = f"no overlay at {overlay_path}"
+            return result
+
+        from g3o.report.master_sites import build_master_sites
+
+        built = build_master_sites(
+            Path(master_csv), overlay_path, target_dir / MASTER_SITES_DIRNAME
+        )
+        result.report = built.report
+        logger.info("master-sites: %s", result.message)
+    except Exception as exc:  # noqa: BLE001 — advisory, like the harvest: never raise
+        result.error = f"{type(exc).__name__}: {exc}"
+        logger.warning("master-sites failed: %s", result.error)
+    return result

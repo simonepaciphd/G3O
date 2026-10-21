@@ -1,4 +1,5 @@
-"""The whole chain, with nobody watching: wait → gate → harvest → Stage 7 → load → verify.
+"""The whole chain, with nobody watching: wait → gate → harvest → master-sites → Stage 7 →
+load → verify.
 
 Every leg this composes already existed and already reported honestly. What did
 not exist was the composition, and the four things that go wrong in it were all
@@ -66,8 +67,13 @@ from pathlib import Path
 from typing import Any
 
 from g3o.report.site_overlay import PRECEDENCE_MODES
-from g3o.run.orchestrate.harvest import harvest_official_sites
-from g3o.run.orchestrate.ingest import IngestError, IngestResult, ingest_run
+from g3o.run.orchestrate.harvest import harvest_official_sites, refresh_master_sites
+from g3o.run.orchestrate.ingest import (
+    IngestError,
+    IngestResult,
+    ingest_run,
+    master_csv_from_manifest,
+)
 from g3o.run.orchestrate.loader_pin import PINNED_SENTINEL, resolve_expected_sha
 from g3o.run.orchestrate.persist_leg import PersistError, PersistResult, persist_run
 from g3o.run.orchestrate.publish import API_BASE_ENV_VAR
@@ -236,6 +242,7 @@ def run_e2e(
     max_load_failures: int = 0,
     harvest: bool = True,
     require_harvest: bool = False,
+    master_sites: bool = True,
     overlay_dir: Path | None = None,
     overlay_precedence: str = PRECEDENCE_MODES[0],
     sleep: Callable[[float], None] = time.sleep,
@@ -356,6 +363,35 @@ def run_e2e(
                     "skipped: harvest disabled. The overlay was not rebuilt, so a "
                     "later run spends the sites known before this one."
                 ),
+            )
+        )
+
+    # --- 3b. master-sites ---------------------------------------------------
+    # The overlay just rebuilt, joined onto the master this run sampled from
+    # (ruling D5 a, 2026-10-21). Always green, for the harvest's reason: it is a
+    # derived, advisory table and nothing in this run reads it. It runs only on an
+    # overlay this chain rebuilt — a disabled or failed harvest leaves an overlay
+    # that describes an earlier corpus, and a join of it under today's date would
+    # say something the chain did not establish. It never writes a fold proposal.
+    if not master_sites:
+        result._record(StepOutcome("master-sites", True, message="skipped: disabled"))
+    elif not (harvest and harvested.green):
+        result._record(
+            StepOutcome(
+                "master-sites", True,
+                message="skipped: the overlay was not rebuilt by this chain",
+            )
+        )
+    else:
+        master_for_sites = master_csv or master_csv_from_manifest(Path(runs_dir) / run_id)
+        refreshed = refresh_master_sites(
+            runs_dir, master_csv=master_for_sites, overlay_dir=overlay_dir
+        )
+        result._record(
+            StepOutcome(
+                "master-sites", True,
+                detail=refreshed.to_dict(),
+                message=refreshed.message,
             )
         )
 

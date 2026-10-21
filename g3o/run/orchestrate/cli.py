@@ -301,6 +301,15 @@ def _cmd_e2e(args: argparse.Namespace) -> int:
             max_wait_seconds=args.max_wait_hours * 3600.0,
             version=args.version,
             max_load_failures=args.max_load_failures,
+            # These four were parsed and never forwarded (since c565c68), so
+            # --no-harvest, --require-harvest, --overlay-dir and
+            # --overlay-precedence silently did nothing. Found 2026-10-21 while
+            # wiring the master-sites leg, which writes under --overlay-dir.
+            harvest=not args.no_harvest,
+            require_harvest=args.require_harvest,
+            master_sites=not args.no_master_sites,
+            overlay_dir=Path(args.overlay_dir) if args.overlay_dir else None,
+            overlay_precedence=args.overlay_precedence,
             log=lambda msg: sys.stderr.write(f"{msg}\n"),
         )
     except E2EError as exc:
@@ -578,7 +587,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="Drive a submitted run to published, unattended, stopping at the "
              "first failure.",
         description=(
-            "wait -> gate -> harvest -> Stage 7 -> load -> verify, for a run that "
+            "wait -> gate -> harvest -> master-sites -> Stage 7 -> load -> verify, "
+            "for a run that "
             "is already "
             "running. Does not submit: submitting spends money and has its own "
             "ceiling, and one verb holding two irreversible acts is one too many. "
@@ -648,6 +658,12 @@ def build_parser() -> argparse.ArgumentParser:
              "deliberately: the overlay is derived, nothing in THIS run reads it, "
              "and a chain that published must not report itself stopped because a "
              "derived table could not be rewritten.",
+    )
+    e2e.add_argument(
+        "--no-master-sites", action="store_true",
+        help="Skip refreshing <overlay-dir>/master_sites/ (the overlay joined onto "
+             "the master the run sampled from). Advisory either way; the chain "
+             "never writes a fold proposal.",
     )
     e2e.add_argument(
         "--overlay-dir", default=None, metavar="DIR",

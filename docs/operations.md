@@ -298,6 +298,22 @@ format, so the command above is unaffected.
     institutions and Stage 1b gets the site directly. The read-only master and the
     frame CSV are never touched.
 
+  **Since 2026-10-21 approved picks are folded into the master between waves**
+  (rulings D1 b, D5 a, D6 a; contract `agent-workspace/2026-10-21-site-import/FOLD-CONTRACT.md`):
+
+  - After the harvest, `orchestrate e2e` runs a **master-sites** leg: `g3o report
+    master-sites` joins the overlay onto the master the run sampled from (`--master-csv`,
+    else the run manifest's `config.master_csv`) and writes
+    `<runs-dir>/_site_overlay/master_sites/{master_with_official_sites.csv,report.json,conflicts.csv}`,
+    latest copy only. Advisory like the harvest; skipped when no master is available,
+    when the harvest did not rebuild the overlay, or with `--no-master-sites`.
+  - At wave close, by hand: `python -m g3o report master-sites --overlay … --master-csv …
+    --out-dir … --fold-proposal-dir <dir> --fold-id fold-YYYYMMDD-<wave>` writes
+    `proposal.csv` (`fill` where the master `website` is blank, `replace` where the
+    `site:` host differs) and `proposal.json`. Eligibility is the presweep's exactly.
+    The chain never writes a proposal; it is inert until the PI's `approval.json`
+    names its sha256, and the master build applies it.
+
   Two filters are on by default and both are recorded in the manifest under
   `run_official_sites`. `--official-sites-min-confidence` defaults to `high` — the
   model's rating of its own pick, not a validated accuracy figure. Picks whose
