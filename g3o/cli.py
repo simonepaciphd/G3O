@@ -12,6 +12,7 @@ Subcommands:
   presweep                — Phase 3 of Session B: stratified pre-sweep runner.
   presweep-report         — Stage-by-stage funnel health report for a finished run.
   run-diff                — Cross-run determinism report over 2+ run dirs (disk-only).
+  report master-sites     — Official-site overlay joined onto the master; fold proposal.
   archive                 — Tar a completed run's institution shards (retention, layout v2).
   verify-model            — One-job Batch API submit to confirm the model id (Q4).
 
@@ -1207,6 +1208,40 @@ def _cmd_frame_snapshot(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_report_master_sites(args: argparse.Namespace) -> int:
+    """Join the overlay onto the master; with ``--fold-proposal-dir``, propose a fold."""
+    from g3o.report.master_sites import MasterSitesError, build_master_sites
+    from g3o.run.presweep.official_sites import OfficialSitesError
+
+    if bool(args.fold_proposal_dir) != bool(args.fold_id):
+        sys.stderr.write("--fold-proposal-dir and --fold-id go together.\n")
+        return 2
+    try:
+        result = build_master_sites(
+            Path(args.master_csv),
+            Path(args.overlay),
+            Path(args.out_dir),
+            fold_proposal_dir=Path(args.fold_proposal_dir) if args.fold_proposal_dir else None,
+            fold_id=args.fold_id,
+        )
+    except (MasterSitesError, OfficialSitesError) as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 2
+    summary: dict[str, Any] = {
+        "out_dir": result.out_dir,
+        "master_rows": result.report["master_rows"],
+        "status_counts": result.report["status_counts"],
+        "eligible_vs_master": result.report["eligible_vs_master"],
+        "overlay_uids_not_in_master": result.report["overlay_uids_not_in_master"],
+    }
+    if result.proposal is not None:
+        summary["proposal_dir"] = result.proposal_dir
+        summary["proposal_csv_sha256"] = result.proposal["proposal_csv_sha256"]
+        summary["proposal_counts"] = result.proposal["counts"]
+    sys.stdout.write(json.dumps(summary, ensure_ascii=False, indent=2) + "\n")
+    return 0
+
+
 def _cmd_frame_build(args: argparse.Namespace) -> int:
     """Draw a wave frame from the master. Refuses rather than short-drawing."""
     from g3o.run.frame.build import build_frame
@@ -1992,6 +2027,43 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     archive.set_defaults(func=_cmd_archive)
+
+    report = sub.add_parser(
+        "report",
+        help="Derived reports over finished artifacts (read-only on their inputs).",
+    )
+    report_sub = report.add_subparsers(dest="report_command", required=True)
+
+    report_ms = report_sub.add_parser(
+        "master-sites",
+        help="Join the official-site overlay onto the master; optionally propose a fold.",
+        description=(
+            "Writes master_with_official_sites.csv, report.json and conflicts.csv "
+            "under --out-dir, replacing any previous copy. Eligibility is exactly the "
+            "presweep's (high confidence, unshared site host). With --fold-proposal-dir "
+            "and --fold-id it also writes proposal.csv + proposal.json "
+            "(FOLD-CONTRACT v1) -- inert until the PI signs an approval.json, and "
+            "never written by `orchestrate e2e`."
+        ),
+    )
+    report_ms.add_argument(
+        "--overlay", required=True, type=_existing_file,
+        help="Overlay CSV, e.g. <runs-dir>/_site_overlay/official_sites.csv.",
+    )
+    report_ms.add_argument(
+        "--master-csv", required=True, type=_existing_file,
+        help="The institution master. Read only; every column passes through verbatim.",
+    )
+    report_ms.add_argument("--out-dir", required=True, help="Where the join is written.")
+    report_ms.add_argument(
+        "--fold-proposal-dir", default=None, metavar="DIR",
+        help="Also write a fold proposal here. Refused if DIR holds an approval.json.",
+    )
+    report_ms.add_argument(
+        "--fold-id", default=None,
+        help="fold-YYYYMMDD-<wave>. Required with --fold-proposal-dir.",
+    )
+    report_ms.set_defaults(func=_cmd_report_master_sites)
 
     frame = sub.add_parser(
         "frame",

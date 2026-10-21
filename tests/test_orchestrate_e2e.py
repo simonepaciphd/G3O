@@ -407,15 +407,30 @@ def _chain(monkeypatch: pytest.MonkeyPatch, **overrides: Any) -> Any:
         calls.append("harvest")
         return overrides.get("harvest_result", _green_harvest())
 
+    def fake_master_sites(*_a: Any, **kwargs: Any) -> Any:
+        calls.append("master-sites")
+        master_sites_kwargs.append(kwargs)
+        if "master_sites_result" in overrides:
+            return overrides["master_sites_result"]
+        from g3o.run.orchestrate.harvest import MasterSitesLegResult
+
+        return MasterSitesLegResult(
+            out_dir="runs/_site_overlay/master_sites",
+            master_csv=str(kwargs.get("master_csv") or ""),
+            report={"master_rows": 3, "status_counts": {"eligible": 1}},
+        )
+
     def fake_verify(*_a: Any, **_k: Any) -> Any:
         calls.append("publish-verify")
         return overrides.get("verify", lambda *a, **k: _passing_verify())()
 
     recorded_sha: list[Any] = []
+    master_sites_kwargs: list[dict[str, Any]] = overrides.get("master_sites_kwargs", [])
     monkeypatch.setattr(e2e_mod, "wait_for_terminal", fake_wait)
     monkeypatch.setattr(e2e_mod, "persist_run", fake_persist)
     monkeypatch.setattr(e2e_mod, "ingest_run", fake_ingest)
     monkeypatch.setattr(e2e_mod, "harvest_official_sites", fake_harvest)
+    monkeypatch.setattr(e2e_mod, "refresh_master_sites", fake_master_sites)
     monkeypatch.setattr(publish_mod, "verify_published", fake_verify)
     if "env_base" in overrides:
         monkeypatch.setenv("G3O_API_BASE", overrides["env_base"])
@@ -423,7 +438,7 @@ def _chain(monkeypatch: pytest.MonkeyPatch, **overrides: Any) -> Any:
         monkeypatch.delenv("G3O_API_BASE", raising=False)
 
     result = e2e_mod.run_e2e(
-        Path("runs"), "r1", frame_id="mb-TEST",
+        overrides.get("runs_dir", Path("runs")), "r1", frame_id="mb-TEST",
         api_base=overrides.get("api_base", "https://api.example.test"),
         **overrides.get("e2e_kwargs", {}),
     )
@@ -465,9 +480,11 @@ def test_the_chain_runs_wait_gate_persist_ingest_in_that_order(
     """Stage 7 before the load, and every gate before the irreversible step."""
     result, calls, sha = _chain(monkeypatch)
 
-    assert calls == ["wait", "harvest", "persist", "ingest", "publish-verify"]
+    assert calls == [
+        "wait", "harvest", "master-sites", "persist", "ingest", "publish-verify"
+    ]
     assert [s.step for s in result.steps] == [
-        "wait", "gate", "harvest", "persist", "ingest", "publish-verify"
+        "wait", "gate", "harvest", "master-sites", "persist", "ingest", "publish-verify"
     ]
     assert result.green
     assert result.published is True
@@ -499,7 +516,7 @@ def test_a_stage_7_refusal_stops_the_chain_before_the_load(
 ) -> None:
     result, calls, _ = _chain(monkeypatch, persist_error="final/ is not loadable")
 
-    assert calls == ["wait", "harvest", "persist"]
+    assert calls == ["wait", "harvest", "master-sites", "persist"]
     assert result.stopped_at == "persist"
     assert result.published is False
 
@@ -516,7 +533,7 @@ def test_an_aborted_load_is_reported_as_not_published(
     )
     result, calls, _ = _chain(monkeypatch, ingest_result=aborted)
 
-    assert calls == ["wait", "harvest", "persist", "ingest"]
+    assert calls == ["wait", "harvest", "master-sites", "persist", "ingest"]
     assert result.stopped_at == "ingest"
     assert result.published is False
 
@@ -706,3 +723,110 @@ def test_harvest_can_be_skipped_and_says_so(monkeypatch: pytest.MonkeyPatch) -> 
     assert step.green is True
     assert "skipped" in step.message
     assert result.green is True
+
+
+# ---------------------------------------------------------------------------
+# master-sites — the overlay against the master, advisory like the harvest
+# ---------------------------------------------------------------------------
+
+
+def test_master_sites_runs_after_the_harvest_and_before_the_load(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, calls, _ = _chain(monkeypatch)
+
+    assert calls.index("harvest") < calls.index("master-sites") < calls.index("persist")
+
+
+def test_master_sites_uses_the_master_the_run_recorded(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """No --master-csv: the run manifest's config.master_csv, as the loader does."""
+    (tmp_path / "r1").mkdir()
+    (tmp_path / "r1" / "manifest.json").write_text(
+        json.dumps({"config": {"master_csv": "/data/master_institutions.csv"}}),
+        encoding="utf-8",
+    )
+    seen: list[dict[str, Any]] = []
+    _chain(monkeypatch, runs_dir=tmp_path, master_sites_kwargs=seen)
+
+    assert seen[0]["master_csv"] == Path("/data/master_institutions.csv")
+
+
+def test_an_explicit_master_wins_over_the_manifest(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (tmp_path / "r1").mkdir()
+    (tmp_path / "r1" / "manifest.json").write_text(
+        json.dumps({"config": {"master_csv": "/data/old.csv"}}), encoding="utf-8"
+    )
+    seen: list[dict[str, Any]] = []
+    _chain(
+        monkeypatch, runs_dir=tmp_path, master_sites_kwargs=seen,
+        e2e_kwargs={"master_csv": Path("/data/new.csv")},
+    )
+
+    assert seen[0]["master_csv"] == Path("/data/new.csv")
+
+
+def test_a_failed_master_sites_refresh_does_not_stop_the_chain(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from g3o.run.orchestrate.harvest import MasterSitesLegResult
+
+    result, calls, _ = _chain(
+        monkeypatch,
+        master_sites_result=MasterSitesLegResult(error="OSError: disk full"),
+    )
+
+    assert calls[-1] == "publish-verify"
+    assert result.green is True and result.stopped_at is None
+    step = next(s for s in result.steps if s.step == "master-sites")
+    assert step.green is True
+    assert "NOT refreshed" in step.message
+
+
+def test_master_sites_is_skipped_when_the_harvest_did_not_rebuild(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A failed or disabled harvest leaves an overlay describing an earlier corpus."""
+    for kwargs in ({"harvest_result": _failed_harvest()}, {"e2e_kwargs": {"harvest": False}}):
+        result, calls, _ = _chain(monkeypatch, **kwargs)
+        assert "master-sites" not in calls
+        step = next(s for s in result.steps if s.step == "master-sites")
+        assert step.green is True
+        assert "skipped" in step.message
+
+
+def test_master_sites_can_be_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
+    result, calls, _ = _chain(monkeypatch, e2e_kwargs={"master_sites": False})
+
+    assert "master-sites" not in calls
+    step = next(s for s in result.steps if s.step == "master-sites")
+    assert step.green is True and "disabled" in step.message
+    assert result.green is True
+
+
+def test_the_e2e_cli_forwards_the_overlay_flags(monkeypatch: pytest.MonkeyPatch) -> None:
+    """--no-harvest and friends were parsed and dropped until 2026-10-21."""
+    from g3o.run.orchestrate import cli as orch_cli
+
+    seen: dict[str, Any] = {}
+
+    def fake_run_e2e(*_a: Any, **kwargs: Any) -> Any:
+        seen.update(kwargs)
+        return e2e_mod.E2EResult(run_id="r1")
+
+    monkeypatch.setattr(e2e_mod, "run_e2e", fake_run_e2e)
+    orch_cli.main([
+        "e2e", "--run-id", "r1", "--runs-dir", "runs", "--frame-id", "mb-TEST",
+        "--api-base", "https://api.example.test",
+        "--no-harvest", "--require-harvest", "--no-master-sites",
+        "--overlay-dir", "ov", "--overlay-precedence", "recency-then-confidence",
+    ])
+
+    assert seen["harvest"] is False
+    assert seen["require_harvest"] is True
+    assert seen["master_sites"] is False
+    assert seen["overlay_dir"] == Path("ov")
+    assert seen["overlay_precedence"] == "recency-then-confidence"

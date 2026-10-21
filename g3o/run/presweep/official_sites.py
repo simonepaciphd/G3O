@@ -6,10 +6,13 @@ before it. The two are deliberately separate modules: harvesting is a read of fi
 artifacts and can never affect a run; spending changes what a run *does*, and every
 parameter of it is guarded, hashed and recorded in the manifest.
 
-**The registry is never rewritten.** The map is applied to the sample rows in memory,
-after the draw, inside :func:`g3o.run.presweep.planning.plan_run`. The canonical master
-is read-only by project rule and stays untouched; so does the frame CSV, which
-:mod:`g3o.run.frame.build` requires to carry the master's column layout exactly.
+**A run never rewrites the registry.** The map is applied to the sample rows in memory,
+after the draw, inside :func:`g3o.run.presweep.planning.plan_run`; neither the master
+nor the frame CSV (which :mod:`g3o.run.frame.build` requires to carry the master's
+column layout exactly) is touched. Picks reach the master only *between* waves, and
+only approved ones: :mod:`g3o.report.master_sites` proposes a fold under this same
+eligibility rule, and the PI-gated master build applies it (rulings D1 b / D6 a,
+2026-10-21).
 
 What a decorated row does
 -------------------------
