@@ -31,9 +31,11 @@ offered — one rule, one implementation, one ``content_hash`` recorded on both 
 calls a master website ``master_empty`` when ``site_host`` cannot parse it — the
 question there is "does the master give Stage 1b a host?". The proposal's ``fill`` is
 stricter: the cell must be blank, because the fold applies a fill only to a blank cell
-and anything else would arrive stale. On the 2026-10-21 master that moves 136 rows
-(135 ``TBD`` placeholders and one ``http:///www.…``) from fill to replace — where they
-need the PI's explicit approval rather than riding on ``approve_fill``.
+and anything else would arrive stale. "Blank" means empty after stripping, or exactly
+the placeholder ``TBD`` (PI ruling 2026-10-21: TBD is treated as empty, so the 135
+eligible ``TBD`` rows ride on ``approve_fill``). ``build_master.py``'s fold uses the
+same definition. Other junk (``http:///www.…``, ``http://N/A``) is not blank and stays
+a replace, needing the PI's explicit approval.
 
 **Deterministic.** ``proposal.csv`` is a pure function of (master, overlay): sorted by
 ``institution_uid``, ``\\n`` line endings, the csv module's default quoting, no clock or
@@ -188,9 +190,20 @@ def _vs_master(master_website: str, site: str) -> str:
     return "same_host" if master_host == site_host(site) else "different_host"
 
 
+#: Master ``website`` values the fold treats as empty (PI ruling 2026-10-21). Must match
+#: ``PLACEHOLDER_WEBSITES`` in the master build's ``site_fold.py``.
+PLACEHOLDER_WEBSITES = frozenset({"TBD"})
+
+
+def website_blank(value: str | None) -> bool:
+    """True when a master ``website`` cell counts as empty for a ``fill``."""
+    v = (value or "").strip()
+    return not v or v in PLACEHOLDER_WEBSITES
+
+
 def _proposal_action(master_website: str, site: str) -> str | None:
     """``fill``, ``replace`` or ``None`` (same host: nothing to do). Contract v1."""
-    if not (master_website or "").strip():
+    if website_blank(master_website):
         return "fill"
     if site_host(master_website) != site_host(site):
         return "replace"

@@ -20,6 +20,7 @@ from g3o.report.master_sites import (
     PROPOSAL_COLUMNS,
     MasterSitesError,
     build_master_sites,
+    website_blank,
 )
 from g3o.run.orchestrate.harvest import MASTER_SITES_DIRNAME, refresh_master_sites
 from g3o.run.presweep.official_sites import load_bypass_map
@@ -179,8 +180,8 @@ def _propose(master: Path, overlay: Path, tmp_path: Path, name="fold"):
 def test_fill_replace_and_nothing(master: Path, overlay: Path, tmp_path: Path):
     """Blank → fill; different host → replace; same host, medium, shared → no row.
 
-    ``TBD`` is not blank, so it is a replace with the placeholder as the expected
-    current value — the fold applies a fill only to a blank cell.
+    ``TBD`` counts as blank (PI ruling 2026-10-21), so it is a fill with an empty
+    expected current value.
     """
     fold, meta = _propose(master, overlay, tmp_path)
     rows = _read(fold / "proposal.csv")
@@ -188,18 +189,18 @@ def test_fill_replace_and_nothing(master: Path, overlay: Path, tmp_path: Path):
     assert [(r["institution_uid"], r["action"]) for r in rows] == [
         ("G3O-I-00000001", "fill"),
         ("G3O-I-00000003", "replace"),
-        ("G3O-I-00000006", "replace"),
+        ("G3O-I-00000006", "fill"),
     ]
     by_uid = {r["institution_uid"]: r for r in rows}
     assert by_uid["G3O-I-00000001"]["expected_current_website"] == ""
     assert by_uid["G3O-I-00000003"]["expected_current_website"] == "https://old.gamma.org/"
-    assert by_uid["G3O-I-00000006"]["expected_current_website"] == "TBD"
+    assert by_uid["G3O-I-00000006"]["expected_current_website"] == ""
     assert by_uid["G3O-I-00000003"]["proposed_website"] == "https://gamma.gov/"
     assert by_uid["G3O-I-00000003"]["official_site_run_id"] == "r20261001T000000Z-aaaa"
     assert by_uid["G3O-I-00000003"]["source_dataset_id"] == "src_b"
     assert meta["counts"] == {
-        "fill": 1, "replace": 2,
-        "replace_by_source_dataset_id": {"src_a": 1, "src_b": 1},
+        "fill": 2, "replace": 1,
+        "replace_by_source_dataset_id": {"src_b": 1},
     }
 
 
@@ -332,7 +333,7 @@ def test_report_master_sites_cli(master, overlay, tmp_path, capsys):
 
     assert code == 0
     assert summary["status_counts"]["eligible"] == 4
-    assert summary["proposal_counts"]["fill"] == 1
+    assert summary["proposal_counts"]["fill"] == 2
     assert (tmp_path / "fold" / "proposal.csv").is_file()
 
 
@@ -345,3 +346,13 @@ def test_report_master_sites_cli_wants_both_fold_flags(master, overlay, tmp_path
     ])
     assert code == 2
     assert not (tmp_path / "out").exists()
+
+
+@pytest.mark.parametrize(
+    ("value", "blank"),
+    [("", True), ("  ", True), ("TBD", True), (" TBD ", True),
+     ("tbd", False), ("http:///www.x.gov", False), ("http://N/A", False),
+     ("https://a.gov/", False)],
+)
+def test_only_empty_and_tbd_count_as_blank(value, blank):
+    assert website_blank(value) is blank
