@@ -281,6 +281,26 @@ sources:
   has_bulk: true
   base_url: https://api.anticorruzione.it/opendata/ocds/api/v1/1.0.0
   verification_status: unverified_snapshot
+  verification_note: >-
+    Partially checked 2026-10-26 (Asenat Mantovani, with Claude Code); terms,
+    robots and docs only, no API or data request made. robots.txt:
+    www.anticorruzione.it = "User-Agent: * / Allow: /"; api.anticorruzione.it
+    has none (404 from a WSO2 API gateway); dati.anticorruzione.it returned
+    an F5-style "Request Rejected" page instead of robots.txt: the portal
+    rejected automated requests from curl and a fetch tool. Not circumvented.
+    Portal OCDS page (dati.anticorruzione.it/opendata/ocds, read by Asenat in
+    a browser) states: licence CC BY 4.0, monthly updates, contracts above
+    EUR 40,000. www.anticorruzione.it/copyright also states CC BY 4.0
+    (attribution required; cite the source and its URL where possible).
+    API swagger declares no security scheme, but that does not prove no key
+    is needed. GET /releases takes only a "limit" parameter (no date-window
+    or paging parameter declared). No published rate limit or
+    automated-access clause found. Bulk: OCP Data Registry
+    (data.open-contracting.org/en/publication/117) hosts jsonl.gz, Excel and
+    CSV files, 2020 to 2025 (a copy hosted by OCP, not by ANAC). Per OCP
+    registry (secondary source, not verified on ANAC's site): data Jan 2020
+    to Sep 2025, with full and per-year files. Still open: whether the API
+    needs a WSO2 subscription key; actual rate limits.
   tracker_row: 15
 - source_id: kaz_goszakup_unified_public_procurement_web_portal
   country_iso3: KAZ
