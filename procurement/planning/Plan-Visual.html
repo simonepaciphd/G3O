@@ -1,0 +1,1075 @@
+<title>G3O Procurement Plan</title>
+<style>
+  :root {
+    --paper: #F3F5F6;
+    --surface: #FFFFFF;
+    --ink: #1A2530;
+    --muted: #5C6C78;
+    --line: #D9E0E5;
+    --band: #E9EDF0;
+    --band-soft: #EFF2F4;
+    --ppzone: rgba(90, 110, 125, 0.07);
+    --deadline: #B3372B;
+    --ok: #2F7D5B;
+    --simone: #A16B14;
+    --content: #2B6CB0;
+    --kit: #2F7D5B;
+    --build: #7B4FA6;
+    --joint: #44566B;
+    --chip-bg: #EDF1F4;
+    --bar-text: #FFFFFF;
+    --edge: #93A2AE;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #131A21;
+      --surface: #1B242D;
+      --ink: #E7EDF2;
+      --muted: #97A6B2;
+      --line: #2C3945;
+      --band: #222D37;
+      --band-soft: #1F2933;
+      --ppzone: rgba(150, 175, 195, 0.06);
+      --deadline: #E06550;
+      --ok: #52A181;
+      --simone: #C89031;
+      --content: #5D97D6;
+      --kit: #52A181;
+      --build: #A97FD1;
+      --joint: #7488A0;
+      --chip-bg: #26313C;
+      --bar-text: #10161C;
+      --edge: #5C6C78;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #131A21;
+    --surface: #1B242D;
+    --ink: #E7EDF2;
+    --muted: #97A6B2;
+    --line: #2C3945;
+    --band: #222D37;
+    --band-soft: #1F2933;
+    --ppzone: rgba(150, 175, 195, 0.06);
+    --deadline: #E06550;
+    --ok: #52A181;
+    --simone: #C89031;
+    --content: #5D97D6;
+    --kit: #52A181;
+    --build: #A97FD1;
+    --joint: #7488A0;
+    --chip-bg: #26313C;
+    --bar-text: #10161C;
+    --edge: #5C6C78;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font: 15px/1.5 "Segoe UI", -apple-system, system-ui, sans-serif;
+    margin: 0;
+    padding: 32px 28px 48px;
+  }
+  .mono { font-family: "Cascadia Mono", ui-monospace, SFMono-Regular, Consolas, monospace; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  header.page { max-width: 1280px; margin: 0 auto 14px; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; }
+  header.page h1 { font-size: 1.45rem; font-weight: 650; letter-spacing: -0.01em; margin: 0 0 4px; text-wrap: balance; }
+  header.page .meta { color: var(--muted); font-size: 0.85rem; }
+  header.page .meta b { color: var(--ink); font-weight: 600; }
+  .hright { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .hrow { display: flex; align-items: center; gap: 8px; }
+
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); padding: 3px; gap: 3px; }
+  .seg button {
+    font: 600 0.8rem/1 "Segoe UI", system-ui, sans-serif;
+    color: var(--muted); background: transparent; border: 0; border-radius: 5px;
+    padding: 7px 16px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--band); color: var(--ink); }
+  .seg button:focus-visible { outline: 2px solid var(--content); outline-offset: 1px; }
+
+  select#who {
+    font: 600 0.8rem/1.2 "Segoe UI", system-ui, sans-serif;
+    color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px;
+  }
+  select#who:focus-visible { outline: 2px solid var(--content); outline-offset: 1px; }
+  select#who.attn { outline: 2px solid var(--deadline); }
+
+  #progress { font-size: 0.78rem; font-weight: 600; color: var(--muted); }
+  #progress b { color: var(--ok); }
+  #sync { font-size: 0.68rem; font-weight: 600; padding: 2px 9px; border-radius: 10px; }
+  #sync.ok { color: var(--ok); background: var(--chip-bg); }
+  #sync.bad { color: var(--surface); background: var(--deadline); }
+
+  .banner {
+    max-width: 1280px; margin: 0 auto 14px;
+    font-size: 0.78rem; padding: 8px 14px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+  }
+
+  .legend {
+    max-width: 1280px; margin: 0 auto 14px;
+    display: flex; flex-wrap: wrap; gap: 14px 22px;
+    font-size: 0.78rem; color: var(--muted); align-items: center;
+  }
+  .legend .key { display: inline-flex; align-items: center; gap: 7px; }
+  .swatch { width: 22px; height: 11px; border-radius: 2px; display: inline-block; }
+  .swatch.outline { background: transparent; border: 1.5px dashed var(--muted); }
+  .cp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--deadline); display: inline-block; }
+  .dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+  .edge-sample { width: 26px; height: 0; border-top: 2px solid var(--edge); display: inline-block; }
+  .edge-sample.soft { border-top-style: dashed; }
+  .edge-sample.ff { border-top-style: dotted; }
+
+  .frame {
+    max-width: 1280px; margin: 0 auto;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    overflow-x: auto;
+  }
+
+  .chip {
+    font-size: 0.66rem; font-weight: 600; letter-spacing: 0.03em;
+    padding: 1px 7px; border-radius: 9px; background: var(--chip-bg); color: var(--muted);
+    white-space: nowrap;
+  }
+  .chip.owner { color: var(--surface); }
+  .chip.owner.simone { background: var(--simone); }
+  .chip.owner.content { background: var(--content); }
+  .chip.owner.kit { background: var(--kit); }
+  .chip.owner.build { background: var(--build); }
+  .chip.owner.joint { background: var(--joint); }
+  .chip.dep { font-family: "Cascadia Mono", ui-monospace, Consolas, monospace; font-weight: 500; }
+
+  /* ================= shared grid pieces ================= */
+  .dh {
+    padding: 10px 6px 6px; text-align: center;
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--muted); border-bottom: 1px solid var(--line);
+  }
+  .dh.first { text-align: left; padding-left: 14px; }
+  .dh.dl { color: var(--deadline); }
+  .ov { pointer-events: none; }
+  .ov.ppzone { background: var(--ppzone); }
+  .ov.deadline { border-left: 2px dashed var(--deadline); }
+  .ov.spill { background: repeating-linear-gradient(45deg, var(--ppzone) 0 4px, transparent 4px 10px); }
+
+  /* ================= network ================= */
+  #view-network[hidden], #view-timeline[hidden] { display: none; }
+  .net-outer { position: relative; min-width: 1060px; padding: 14px 16px; }
+  .net { position: relative; display: grid; grid-template-columns: 96px repeat(9, minmax(96px, 1fr)); }
+  .laneband { grid-column: 1 / -1; border-radius: 5px; }
+  .laneband.alt { background: var(--band-soft); }
+  .lanelabel {
+    grid-column: 1; align-self: center;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 6px 4px 6px 8px;
+  }
+  .lanelabel.simone { color: var(--simone); } .lanelabel.content { color: var(--content); }
+  .lanelabel.kit { color: var(--kit); } .lanelabel.build { color: var(--build); }
+  .lanelabel.joint { color: var(--joint); }
+
+  .node {
+    position: relative; z-index: 2; align-self: center;
+    margin: 8px 4px; min-height: 44px;
+    border: 0; border-radius: 6px; cursor: pointer;
+    padding: 6px 9px 7px; text-align: left;
+    color: var(--bar-text);
+    font: 600 0.74rem/1.22 "Segoe UI", system-ui, sans-serif;
+    box-shadow: 0 1px 2px rgba(10, 20, 30, 0.18);
+    transition: opacity 0.15s ease, box-shadow 0.15s ease;
+  }
+  .node .nid {
+    display: block; font: 500 0.6rem/1 "Cascadia Mono", ui-monospace, Consolas, monospace;
+    opacity: 0.75; margin-bottom: 3px; letter-spacing: 0.04em;
+  }
+  .node.simone { background: var(--simone); } .node.content { background: var(--content); }
+  .node.kit { background: var(--kit); } .node.build { background: var(--build); }
+  .node.joint { background: var(--joint); }
+  .node.stretch { opacity: 0.75; background: transparent; border: 1.5px dashed var(--build); color: var(--build); box-shadow: none; }
+  .node.dim { opacity: 0.22; }
+  .node.sel { box-shadow: 0 0 0 2.5px var(--deadline), 0 1px 3px rgba(10,20,30,0.25); }
+  .node.done { opacity: 0.5; }
+  .node.done .nid::after { content: " ✓ done"; font-weight: 700; opacity: 1; }
+  .node:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  #edges { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: visible; }
+  #edges path { fill: none; stroke: var(--edge); stroke-width: 1.6; opacity: 0.6; transition: opacity 0.15s ease; }
+  #edges path.soft { stroke-dasharray: 5 4; }
+  #edges path.ff { stroke-dasharray: 2 3; }
+  #edges path.hi { opacity: 1; stroke-width: 2.4; stroke: var(--deadline); }
+  #edges path.lo { opacity: 0.08; }
+
+  .below { max-width: 1280px; margin: 14px auto 0; display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 14px; align-items: start; }
+  @media (max-width: 900px) { .below { grid-template-columns: 1fr; } }
+
+  .detail {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+    padding: 16px 18px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .detail .dt-top { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; }
+  .detail h2 { margin: 0; font-size: 1.02rem; font-weight: 650; }
+  .detail .dt-id { font-family: "Cascadia Mono", ui-monospace, Consolas, monospace; font-size: 0.75rem; color: var(--muted); }
+  .detail p { margin: 0; font-size: 0.9rem; max-width: 72ch; }
+  .detail .dt-deps { font-size: 0.76rem; color: var(--muted); }
+  .detail .dt-deps b { color: var(--ink); font-weight: 600; }
+  .detail .placeholder { color: var(--muted); font-size: 0.88rem; }
+  .dt-state { font-size: 0.78rem; color: var(--muted); }
+  .dt-state b.done { color: var(--ok); }
+
+  .dt-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 2px; }
+  .btn {
+    font: 600 0.8rem/1 "Segoe UI", system-ui, sans-serif;
+    border: 0; border-radius: 6px; padding: 9px 14px; cursor: pointer;
+    background: var(--ok); color: var(--surface);
+  }
+  .btn.reopen { background: var(--muted); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .dt-note {
+    flex: 1 1 220px; font: 400 0.82rem/1.4 "Segoe UI", system-ui, sans-serif;
+    color: var(--ink); background: var(--paper);
+    border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px;
+  }
+  .flagline { font-size: 0.76rem; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .dt-err { font-size: 0.76rem; color: var(--deadline); }
+
+  .feed { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; }
+  .feed h3 { margin: 0 0 8px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  .feed h3 button { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; }
+  .feed ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .feed li { font-size: 0.78rem; line-height: 1.4; border-bottom: 1px solid var(--line); padding-bottom: 7px; }
+  .feed li:last-child { border-bottom: 0; padding-bottom: 0; }
+  .feed .fwho { font-weight: 650; }
+  .feed .ftime { color: var(--muted); font-size: 0.7rem; }
+  .feed .fnote { color: var(--muted); }
+  .feed .fflag { color: var(--deadline); font-weight: 600; }
+  .feed .empty { color: var(--muted); font-size: 0.8rem; }
+
+  /* ================= timeline ================= */
+  .chart {
+    display: grid;
+    grid-template-columns: minmax(330px, 380px) repeat(9, minmax(66px, 1fr));
+    min-width: 1020px;
+    position: relative;
+    font-variant-numeric: tabular-nums;
+  }
+  .wavecell {
+    margin: 5px 3px; padding: 2px 8px;
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+    color: var(--muted); background: var(--band); border-radius: 3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sec {
+    grid-column: 1 / -1; padding: 12px 14px 5px;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+    border-bottom: 1px solid var(--line);
+  }
+  .sec.simone { color: var(--simone); } .sec.content { color: var(--content); }
+  .sec.kit { color: var(--kit); } .sec.build { color: var(--build); }
+  .sec.joint { color: var(--joint); }
+  .lbl {
+    grid-column: 1; padding: 7px 12px 7px 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 3px; justify-content: center;
+  }
+  .lbl .name { font-size: 0.83rem; font-weight: 600; line-height: 1.25; }
+  .lbl .name .tid { font-family: "Cascadia Mono", ui-monospace, Consolas, monospace; font-size: 0.74rem; font-weight: 500; color: var(--muted); margin-right: 6px; }
+  .lbl .tags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .cp .name::after {
+    content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--deadline); margin-left: 7px; vertical-align: 2px;
+  }
+  .rowline { border-bottom: 1px solid var(--line); grid-column: 2 / -1; }
+  .bar {
+    align-self: center; margin: 6px 3px;
+    height: 22px; border-radius: 4px;
+    font-size: 0.7rem; font-weight: 600; color: var(--bar-text);
+    display: flex; align-items: center; padding: 0 8px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    position: relative; z-index: 1;
+  }
+  .bar.simone { background: var(--simone); } .bar.content { background: var(--content); }
+  .bar.kit { background: var(--kit); } .bar.build { background: var(--build); }
+  .bar.joint { background: var(--joint); }
+  .bar.ghost { background: transparent; border-style: dashed; border-width: 1.5px; }
+  .bar.ghost.build { border-color: var(--build); color: var(--build); }
+  .ms {
+    align-self: center; justify-self: center; z-index: 1;
+    width: 15px; height: 15px; transform: rotate(45deg); border-radius: 2px;
+    background: var(--simone);
+  }
+  footer.note {
+    max-width: 1280px; margin: 14px auto 0;
+    font-size: 0.78rem; color: var(--muted); line-height: 1.6;
+  }
+  footer.note b { color: var(--ink); font-weight: 600; }
+</style>
+
+<header class="page">
+  <div>
+    <h1>G3O procurement pipeline — access → core → Uruguay run → contract rows → fan-out</h1>
+    <div class="meta">PLAN.md (baseline locked 2026-10-27) · columns are waves, not dates · dashed = blocked on a PI ruling or deferred · <b>click a task</b> to read it, mark it complete, or leave a note</div>
+  </div>
+  <div class="hright">
+    <div class="hrow">
+      <label for="who" style="font-size:0.75rem;color:var(--muted);font-weight:600">I am</label>
+      <select id="who">
+        <option value="">— pick —</option>
+        <option value="simone">Simone</option>
+        <option value="ainhoa">Ainhoa</option>
+        <option value="asenat">Asenat</option>
+        <option value="integrator">Integrator session</option>
+      </select>
+      <div class="seg" role="group" aria-label="View" id="segwrap" hidden>
+        <button id="btn-net" aria-pressed="true">Task network</button>
+        <button id="btn-tl" aria-pressed="false">Timeline</button>
+      </div>
+    </div>
+    <div class="hrow"><span id="progress"></span><span id="sync" title="">checking…</span></div>
+  </div>
+</header>
+
+<div class="banner" id="banner">Standalone page — completions and notes save in this browser only. Source of truth: <span class="mono">simonepaciphd/G3O procurement/planning/PLAN.md</span>.</div>
+
+<!-- ===================== NETWORK ===================== -->
+<div id="view-network">
+  <div class="legend">
+    <span class="key"><span class="dot" style="background:var(--simone)"></span>PI / integrator</span>
+    <span class="key"><span class="dot" style="background:var(--content)"></span>Ainhoa — core + Uruguay</span>
+    <span class="key"><span class="dot" style="background:var(--kit)"></span>Asenat — Italy</span>
+    <span class="key"><span class="dot" style="background:var(--build)"></span>Coders / reproducer / reviewer</span>
+    <span class="key"><span class="dot" style="background:var(--joint)"></span>External / deferred</span>
+    <span class="key"><span class="edge-sample"></span>finish → start</span>
+    <span class="key"><span class="edge-sample ff"></span>merge-order</span>
+    <span class="key"><span class="edge-sample soft"></span>soft</span>
+    <span class="key"><span class="dot" style="background:var(--content);opacity:.45"></span>✓ complete</span>
+  </div>
+  <div class="frame">
+    <div class="net-outer">
+      <div class="net" id="net"></div>
+      <svg id="edges" aria-hidden="true"></svg>
+    </div>
+  </div>
+  <div class="below">
+    <div class="detail" id="detail" aria-live="polite">
+      <p class="placeholder">Click any task to see what it is, who owns it, and what it waits on — and to mark it complete or leave a note.</p>
+    </div>
+    <div class="feed">
+      <h3>Plan activity <button id="refresh" title="Refresh">↻</button></h3>
+      <ul id="feedlist"><li class="empty">Loading…</li></ul>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== TIMELINE ===================== -->
+<div id="view-timeline" hidden>
+  <div class="legend">
+    <span class="key"><span class="swatch" style="background:var(--simone)"></span>PI / integrator</span>
+    <span class="key"><span class="swatch" style="background:var(--content)"></span>Ainhoa — core + Uruguay</span>
+    <span class="key"><span class="swatch" style="background:var(--kit)"></span>Asenat — Italy</span>
+    <span class="key"><span class="swatch" style="background:var(--build)"></span>Coders / reproducer / reviewer</span>
+    <span class="key"><span class="swatch" style="background:var(--joint)"></span>External / deferred</span>
+    <span class="key"><span class="swatch outline"></span>blocked or deferred (dashed)</span>
+    <span class="key"><span class="cp-dot"></span>critical path</span>
+    <span class="key"><span class="chip dep">← T-…</span>&nbsp;cannot start/merge before</span>
+  </div>
+  <div class="frame"><div class="chart" id="chart"></div></div>
+  <footer class="note">
+    <b>How to read.</b> Columns are execution waves from PLAN.md, not calendar dates; no timeline has been ruled (Q-027), so no dates are committed. W0 is work already delivered. Within Ainhoa's lane, tasks in one wave run one after another (they share core files). Across lanes only the ← chips bind. Red dots mark the critical path: T-011 → T-016 → T-017 → T-019 → T-020 → T-035 → T-041. Dashed bars are blocked on a named PI ruling (see each task) or deferred. Source of truth is PLAN.md; this page only renders it.
+  </footer>
+</div>
+
+<script type="module">
+const SHOW_TIMELINE = true;
+const SHOW_DAYS = true;
+
+/* ============ ONE schedule source for both views ============
+   DATA REGION — everything from here through NAMES below is
+   plan-specific; the machinery underneath should not need edits.
+
+   Column model
+   - DAYS.length day/phase columns occupy CSS grid columns
+     2..(DAYS.length + 1); column 1 is the label rail. A task's
+     s / e are [start, end) in grid-column numbers, so the first
+     day column is s:2, e:3.
+   - DAYS.length must equal the `repeat(9, ...)` count in the
+     .net and .chart grid-template-columns rules — change all
+     three together.
+   - The header paints DAYS index 7 in the deadline color (`dl`),
+     and buildTimeline()/buildNetwork() draw ppzone / deadline /
+     spill overlays at hardcoded columns — retarget or remove
+     those call sites per plan.
+
+   Edge semantics — EDGES rows are [from, to, type]
+   - "fs"   finish→start; one shared boundary column tolerated
+            (verifySync() flags only t.s < d.e - 1).
+   - "ff"   merge-order (finish-to-finish): the dependency must
+            not end after its dependent.
+   - "soft" non-blocking; drawn dashed; exempt from verifySync().
+
+   Task row extras
+   - cp:true       critical path (red dot; highlighted edges).
+   - ms:true       milestone diamond at column s in the timeline —
+                   declare e = s + 1 so verifySync() passes.
+   - stretch:true  dashed ghost styling (optional / post-MVP work).
+   - net:false     timeline-only row, omitted from the network.
+   - Sub-rows: tasks that overlap in time within one lane are
+     auto-packed into stacked sub-rows in the network view.
+
+   Lanes
+   - LANES keys must match the five CSS lane slots (simone /
+     content / kit / build / joint: the --simone… color tokens and
+     the .chip.owner.*, .lanelabel.*, .node.*, .sec.*, .bar.*
+     rules, plus the legend spans above). Reuse the slot names for
+     up to five lanes, or rename them consistently across
+     CSS + HTML + LANES.
+
+   State / backend
+   - Standalone: completions are localStorage rows in the lab
+     activity-log schema (see submitToggle()). PLAN_KEY, KEY_RE,
+     LOCAL_KEY, WHO_KEY, NAMES, and the who-select options must
+     stay mutually consistent.
+   - Optional shared-state backend adapter: see the G3O instance
+     (Research-Lab-Control-Room\dashboard\sprint-g3o.html) — it
+     imports ./src/backend.js + config, reads/writes the lab
+     Apps Script `activity` tab, and falls back to localStorage
+     when the import fails. Not duplicated here.
+
+   After filling every {{PLACEHOLDER}}: open in a browser and
+   confirm the sync pill reads "✓ plan checks pass" (verifySync
+   fails visibly if the views diverge from the schedule).       */
+const DAYS = ["W0 done", "W1 lock", "W2", "W3", "W4", "W5", "W6+ fan-out", "W7 final", "Close"];
+const LANES = [
+  { key: "simone", label: "PI / integ.", sec: "PI (Simone) and the integrator session acting for her (DEC-009) · rulings, access, merges" },
+  { key: "content", label: "Ainhoa", sec: "Ainhoa Zamora · shared core on procurement/main + Uruguay · availability not yet confirmed (Q-037)" },
+  { key: "kit", label: "Asenat", sec: "Asenat Mantovani · Italy on procurement/italy" },
+  { key: "build", label: "Review", sec: "Human coders, reproducer role, independent reviewer" },
+  { key: "joint", label: "Ext./defer", sec: "Multilingual subproject (external) and fan-out deferred until Italy settles (T-060)" },
+];
+
+const TASKS = [
+  { id:"T-001", lane:"content", s:2, e:3, bar:"Staging core",
+    title4:"Staging core", long:"Shared staging core (classify, extract, store)", ownerShort:"RA", owner:"RA (done)",
+    depsTxt:"done", desc:"Delivered: term classifier, one record per award/lot, item rules R1-R5/R8, coding rules, extension builder, four schema-validated tables. Evidence: 105 tests pass at cee79b2." },
+  { id:"T-002", lane:"content", s:2, e:3, bar:"Matcher tiers 0-5",
+    title4:"Matcher tiers 0-5", long:"Matcher, ledger, tier-1/3 auto-accept", ownerShort:"RA", owner:"RA (done)",
+    depsTxt:"done", desc:"Delivered: matcher tiers 0/1/3/4/5 with ledger resolution. Tier-1 and tier-3 deterministic auto-accepts are allowed (U-6 a); tier 4 goes to review." },
+  { id:"T-003", lane:"content", s:2, e:3, bar:"Run controls, manifest",
+    title4:"Run controls, manifest", long:"Run controls and manifest writer", ownerShort:"RA", owner:"RA (done)",
+    depsTxt:"done", desc:"Delivered: unverified-source guard, window, retries, failure records and the manifest writer." },
+  { id:"T-004", lane:"content", s:2, e:3, bar:"ARCE adapter",
+    title4:"ARCE adapter", long:"Uruguay ARCE adapter + 101 fixtures", ownerShort:"RA", owner:"RA (done)",
+    depsTxt:"done", desc:"Delivered: the Uruguay ARCE OCDS adapter and 101 real fixture payloads." },
+  { id:"T-005", lane:"content", s:2, e:3, bar:"n=100 replay",
+    title4:"n=100 replay", long:"n=100 diagnostic and offline replay", ownerShort:"RA", owner:"RA (done)",
+    depsTxt:"done", desc:"Delivered: the n=100 diagnostic, reconciliation and replay (132 rows, 71 absence, 61 not assessable, 0 linked)." },
+  { id:"T-006", lane:"content", s:2, e:3, bar:"Checkpoint package",
+    title4:"Checkpoint package", long:"OCDS-API 5+5 checkpoint package (prepared)", ownerShort:"RA", owner:"RA (done)",
+    depsTxt:"done", desc:"Prepared 2026-08-29, before the item-level rules and the migration; never presented. Presented in T-031." },
+  { id:"T-007", lane:"simone", s:2, e:3, bar:"Repo migration, CI",
+    title4:"Repo migration, CI", long:"Code in git, fingerprint fix, CI", ownerShort:"PI", owner:"PI (done)",
+    depsTxt:"done", desc:"Delivered: migration to simonepaciphd/G3O (55fe353), OS-independent fingerprint and CI (8b4e211), repo manual (cee79b2)." },
+  { id:"T-008", lane:"content", s:2, e:3, bar:"Draft protocols",
+    title4:"Draft protocols", long:"Interface, run and validation drafts", ownerShort:"RA", owner:"RA (done)",
+    depsTxt:"done", desc:"Drafts exist (adapter interface v0.1, Uruguay run protocol, validation protocol). Sign-off happens in T-037 / Q-016." },
+  { id:"T-009", lane:"content", s:2, e:3, bar:"PNCP adapter (check)",
+    title4:"PNCP adapter (check)", long:"Brazil PNCP adapter — check owed", ownerShort:"RA", owner:"RA",
+    depsTxt:"done", desc:"Adapter and 5-record sample exist but were not opened and have no test: a check is owed. Brazil's assignment is open (Q-028)." },
+  { id:"T-011", lane:"simone", s:3, e:4, cp:true, bar:"RA access + push",
+    title4:"RA access + push", long:"Repo + Drive access; Asenat pushes 781cf0c", ownerShort:"PI", owner:"PI + RAs",
+    depsTxt:"← none · unblocks Wave 2", desc:"Both RAs get push and Drive access, and Asenat's Italy commit lands on the remote. Gate: confirm Ainhoa's availability and login." },
+  { id:"T-058", lane:"simone", s:3, e:4, bar:"Protect procurement/main",
+    title4:"Protect procurement/main", long:"Branch protection (PR + CI)", ownerShort:"PI", owner:"PI",
+    depsTxt:"← none · enables T-046", desc:"Turn on branch protection for procurement/main so changes to the shared core go through a PR with green CI (U-7 a)." },
+  { id:"T-031", lane:"content", s:3, e:4, bar:"Present checkpoint",
+    title4:"Present checkpoint", long:"Present historical checkpoint + replay", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-006 · gates OCDS fan-out", desc:"Present the 2026-08-29 package labelled as historical, together with the n=100 replay, so the PI can rule on OCDS-API fan-out (Q-009a)." },
+  { id:"T-047", lane:"content", s:3, e:4, bar:"Record fingerprint",
+    title4:"Record fingerprint", long:"Baseline code fingerprint at cee79b2", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← none · → T-035", desc:"Compute and record the code hash of the repo baseline and keep a hash-to-commit table, so run manifests can be traced to commits." },
+  { id:"T-022", lane:"content", s:3, e:4, bar:"Matcher sample design",
+    title4:"Matcher sample design", long:"Stratified matcher sample design", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← none · → T-059", desc:"Design the buyer sample the extension spec requires (countries × national/subnational × script) and state what cannot be filled yet. PI approves." },
+  { id:"T-048", lane:"content", s:3, e:4, bar:"Roadmap hygiene",
+    title4:"Roadmap hygiene", long:"Roadmap ticks; registry discrepancy logged", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← none", desc:"Tick the roadmap matcher items with evidence and log the missing registry path; the registry is not hand-edited." },
+  { id:"T-037", lane:"kit", s:3, e:4, bar:"Interface review",
+    title4:"Interface review", long:"Both RAs review interface v0.1", ownerShort:"Asenat", owner:"Asenat + Ainhoa",
+    depsTxt:"← none", desc:"Read the adapter interface draft against the code and send comments; the PI decides on v1.0 (Q-016)." },
+  { id:"T-012", lane:"kit", s:4, e:5, bar:"Italy findings note",
+    title4:"Italy findings note", long:"ANAC terms/robots note in Italy row", ownerShort:"Asenat", owner:"Asenat",
+    depsTxt:"← T-011 · → T-036", desc:"Record the ANAC terms, robots and blocking findings in the Italy config row. No live requests; the source stays unverified." },
+  { id:"T-053", lane:"content", s:4, e:5, bar:"ARCE terms record",
+    title4:"ARCE terms record", long:"Uruguay ARCE terms/robots/rate limits", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-011 · → T-035", desc:"Record Uruguay ARCE's terms, robots and rate limits before any full run (R-029)." },
+  { id:"T-052", lane:"content", s:4, e:5, bar:"Replay into repo",
+    title4:"Replay into repo", long:"Port n=100 replay into the repo", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-011 · → T-019, T-045", desc:"Make the n=100 replay a repo test that uses the branch's own code, instead of the Drive copy." },
+  { id:"T-015", lane:"content", s:4, e:5, bar:"Activity key safety",
+    title4:"Activity key safety", long:"Activity key via ocds_ocid; non-OCDS flag", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-011 · → T-014", desc:"Use the existing ocds_ocid as the activity key; non-OCDS records get a flag instead of failing." },
+  { id:"T-056", lane:"content", s:4, e:5, bar:"Source languages field",
+    title4:"Source languages field", long:"Per-source languages field", ownerShort:"Ainhoa", owner:"Ainhoa (+ Asenat row)",
+    depsTxt:"← T-011 · → T-020", desc:"Add a languages field to each source row, filled by the RAs from the portal (U-3 a). Multi-language counting is open (Q-039)." },
+  { id:"T-051", lane:"content", s:4, e:5, bar:"Cache-replay mode",
+    title4:"Cache-replay mode", long:"--from-cache replay mode", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-011 · → T-041", desc:"Let a run replay archived payloads instead of fetching, so a second person can reproduce it identically on a PI-signed field set." },
+  { id:"T-057", lane:"content", s:4, e:5, bar:"Snippet translation",
+    title4:"Snippet translation", long:"LLM English translation of snippets", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-011 · → T-014", desc:"Translate evidence snippets into English with an LLM, keeping the original (U-4 c). Never used for relevance. PI approves model and prompt." },
+  { id:"T-059", lane:"content", s:4, e:5, bar:"Amend VP §B",
+    title4:"Amend VP §B", long:"Apply approved matcher-sample amendment", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-022 · → T-023", desc:"Apply the PI-approved amendment to the validation protocol's matcher section." },
+  { id:"T-016", lane:"content", s:5, e:6, cp:true, bar:"Relevance decisions",
+    title4:"Relevance decisions", long:"Relevance review decision table", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-011 · → T-017", desc:"Persist human relevance decisions in a schema-validated table loaded from a reviewer CSV." },
+  { id:"T-017", lane:"content", s:5, e:6, cp:true, bar:"Close review rows",
+    title4:"Close review rows", long:"Confirm/reject institution review rows", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-016 · → T-019", desc:"Let a reviewer confirm or reject a matcher candidate, so resolved links exist for absence rows and contract rows." },
+  { id:"T-019", lane:"content", s:5, e:6, cp:true, bar:"Absence rows",
+    title4:"Absence rows", long:"Absence table per institution × source × window", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-017, T-052 · → T-020", desc:"Emit one negative-evidence row per institution, source and window in a separate table (SF-002 b). Uruguay output waits on Q-010." },
+  { id:"T-020", lane:"content", s:5, e:6, cp:true, bar:"Run report + QC",
+    title4:"Run report + QC", long:"Language coverage, accounting, QC in report", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-019, T-056 · → T-035", desc:"Put language coverage, full accounting and QC in each run's manifest and report." },
+  { id:"T-028", lane:"content", s:5, e:6, stretch:true, bar:"Source docs surface",
+    title4:"Source docs surface", long:"Per-source documentation surface", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"blocked: Q-032", desc:"Create the per-source documentation home once the PI picks it (Q-032 residual)." },
+  { id:"T-029", lane:"content", s:5, e:6, stretch:true, bar:"Verification procedure",
+    title4:"Verification procedure", long:"Source verification procedure", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-028 · blocked: Q-038", desc:"Write how a source becomes verified (end-to-end run, output checked) once the run size, check and frame are ruled." },
+  { id:"T-045", lane:"simone", s:5, e:6, stretch:true, bar:"Archive Drive code",
+    title4:"Archive Drive code", long:"Archive the Drive code copy", ownerShort:"PI", owner:"PI / RA",
+    depsTxt:"← T-052 · blocked: Q-025", desc:"Move the Drive code copy to archive after the replay is in the repo, if the PI rules so." },
+  { id:"T-025", lane:"build", s:5, e:6, stretch:true, bar:"Classifier frame",
+    title4:"Classifier frame", long:"Classification frame with positives", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"blocked: Q-015", desc:"Assemble the validation frame including positives from beyond Uruguay." },
+  { id:"T-035", lane:"content", s:6, e:7, cp:true, stretch:true, bar:"Uruguay full run",
+    title4:"Uruguay full run", long:"Uruguay full run — first archive", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-020, T-047, T-053, T-029 · blocked: Q-006/7/8/10", desc:"The first documented, archived run. Starts with a 5-record smoke run; PI go for runs over 24 hours." },
+  { id:"T-013", lane:"content", s:6, e:7, stretch:true, bar:"Contract re-pin",
+    title4:"Contract re-pin", long:"Re-pin contract mirror to version of record", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"blocked: Q-001-Q-003", desc:"Update the code's contract vocabulary to the version the PI rules (currently mirrors v2.0; root is v2.5)." },
+  { id:"T-018", lane:"content", s:6, e:7, stretch:true, bar:"Institution aggregation",
+    title4:"Institution aggregation", long:"has_genai_activity per institution", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-016, T-017 · blocked: Q-018", desc:"Compute the one institution-level value after review, over the scope the PI rules." },
+  { id:"T-021", lane:"content", s:6, e:7, stretch:true, bar:"Money fields",
+    title4:"Money fields", long:"Item-level money extension fields", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"blocked: Q-005", desc:"Add the proposed money fields once the PI rules on the item-level rules." },
+  { id:"T-026", lane:"build", s:6, e:7, stretch:true, bar:"Classifier labels",
+    title4:"Classifier labels", long:"Blind two-coder classification labels", ownerShort:"Coders", owner:"Coders",
+    depsTxt:"← T-025", desc:"Two coders label the classification frame without seeing the classifier." },
+  { id:"T-014", lane:"content", s:7, e:8, stretch:true, bar:"Contract rows",
+    title4:"Contract rows", long:"Map staged records to contract rows", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-013, T-015, T-018, T-019, T-057", desc:"Produce the G3O contract rows at the institution × activity × source grain, plus the extension at contract grain. Several PI gates." },
+  { id:"T-041", lane:"build", s:7, e:8, cp:true, bar:"Reproduction rerun",
+    title4:"Reproduction rerun", long:"Clean-checkout reproduction rerun", ownerShort:"Reproducer", owner:"Reproducer",
+    depsTxt:"← T-035, T-051", desc:"A second person reruns a sample from a clean clone in replay mode and diffs it on the signed field set." },
+  { id:"T-027", lane:"build", s:7, e:8, stretch:true, bar:"Classifier report",
+    title4:"Classifier report", long:"Classification validation report", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-026 · gate Q-020", desc:"Report agreement, precision and recall among retrieved records, stating that misses by the terms are unmeasured." },
+  { id:"T-044", lane:"joint", s:4, e:8, stretch:true, bar:"Italian terms (ext.)",
+    title4:"Italian terms (ext.)", long:"Italian query terms (multilingual)", ownerShort:"Multilingual", owner:"Multilingual",
+    depsTxt:"external", desc:"Italian terms come only from the multilingual subproject (RQ-005 b). Nothing is done here." },
+  { id:"T-043", lane:"joint", s:4, e:8, stretch:true, bar:"Non-English typing (ext.)",
+    title4:"Non-English typing (ext.)", long:"Non-English activity typing (multilingual)", ownerShort:"Multilingual", owner:"Multilingual",
+    depsTxt:"external", desc:"Non-English activity typing comes from the multilingual subproject (board #87)." },
+  { id:"T-036", lane:"kit", s:8, e:9, stretch:true, bar:"Italy adapter + run",
+    title4:"Italy adapter + run", long:"Italy ANAC adapter and bounded run", ownerShort:"Asenat", owner:"Asenat",
+    depsTxt:"← T-012, T-044 · blocked: Q-012/14/23", desc:"Build the Italy adapter and a bounded run once access is lawful, Italian terms exist, and the PI adopts query set v1.x." },
+  { id:"T-060", lane:"simone", s:8, e:9, stretch:true, bar:"Assign fan-out",
+    title4:"Assign fan-out", long:"Assign fan-out owners (deferred)", ownerShort:"PI", owner:"PI",
+    depsTxt:"← T-036 (Italy settled)", desc:"The PI assigns who runs the remaining sources after Italy is settled (U-8)." },
+  { id:"T-032", lane:"joint", s:8, e:9, stretch:true, bar:"First bulk source",
+    title4:"First bulk source", long:"First bulk source + checkpoint", ownerShort:"TBD", owner:"TBD (T-060)",
+    depsTxt:"blocked: PI picks source", desc:"Build and checkpoint the first bulk-file source; the PI picks which." },
+  { id:"T-033", lane:"joint", s:8, e:9, stretch:true, bar:"First scrape source",
+    title4:"First scrape source", long:"First scrape source + checkpoint", ownerShort:"TBD", owner:"TBD (T-060)",
+    depsTxt:"blocked: PI picks source", desc:"Build and checkpoint the first scraped source; the PI picks which." },
+  { id:"T-034", lane:"joint", s:8, e:9, stretch:true, bar:"Per-source fan-out",
+    title4:"Per-source fan-out", long:"Per-source fan-out (template T-034.x)", ownerShort:"TBD", owner:"TBD (T-060)",
+    depsTxt:"← T-031/32/33, T-029, T-060", desc:"For each source: terms record, 5-record smoke run, adapter, bounded probe, verification, full run." },
+  { id:"T-038", lane:"joint", s:8, e:9, stretch:true, bar:"Brazil PNCP",
+    title4:"Brazil PNCP", long:"Brazil PNCP", ownerShort:"TBD", owner:"TBD",
+    depsTxt:"blocked: Q-028", desc:"Brazil waits on the PI's assignment." },
+  { id:"T-039", lane:"simone", s:8, e:9, stretch:true, bar:"Manual sources",
+    title4:"Manual sources", long:"41 manual sources", ownerShort:"PI", owner:"PI",
+    depsTxt:"blocked: Q-024", desc:"Whether the 41 manual sources stay flagged-only or become human-collection work." },
+  { id:"T-023", lane:"build", s:8, e:9, stretch:true, bar:"Matcher labels",
+    title4:"Matcher labels", long:"Blind two-coder matcher labels", ownerShort:"Coders", owner:"Coders",
+    depsTxt:"← T-059, T-034 (strata)", desc:"Two coders label the matcher sample once fan-out provides the non-Latin and multi-country strata." },
+  { id:"T-024", lane:"build", s:9, e:10, stretch:true, bar:"Matcher report",
+    title4:"Matcher report", long:"Matcher validation report", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-023 · gate Q-009b", desc:"Precision and recall per tier and a tier-4 curve; the PI sets the tier-4 threshold or none." },
+  { id:"T-040", lane:"content", s:9, e:10, stretch:true, bar:"Consolidation",
+    title4:"Consolidation", long:"Cross-source consolidation", ownerShort:"Ainhoa", owner:"Ainhoa",
+    depsTxt:"← T-014 · blocked: Q-019", desc:"Deduplicate and QC across sources into the landing form the PI rules." },
+  { id:"T-049", lane:"build", s:9, e:10, stretch:true, bar:"Verify contract output",
+    title4:"Verify contract output", long:"Independent contract-output verification", ownerShort:"Reviewer", owner:"Reviewer",
+    depsTxt:"← T-014, T-040", desc:"Someone other than the author runs the acceptance checks on mapped output." },
+  { id:"T-042", lane:"simone", s:9, e:10, stretch:true, bar:"Coverage of 191",
+    title4:"Coverage of 191", long:"Coverage table of the 191 repositories", ownerShort:"Integrator", owner:"Integrator",
+    depsTxt:"← T-034, T-039 · blocked: Q-024/Q-038", desc:"Every repository gets a recorded status." },
+  { id:"T-054", lane:"simone", s:3, e:10, bar:"Propagate rulings",
+    title4:"Propagate rulings", long:"Record rulings, version, release cards (recurring)", ownerShort:"Integrator", owner:"Integrator",
+    depsTxt:"on each ruling", desc:"Each time the PI rules, the integrator records it, writes the changelog and releases the unblocked handoffs. Simone approves each change." },
+  { id:"T-046", lane:"simone", s:3, e:10, bar:"Merge branches",
+    title4:"Merge branches", long:"Merge branches via PR (recurring)", ownerShort:"Integrator", owner:"Integrator",
+    depsTxt:"← T-058", desc:"Merge country branches into procurement/main by PR after CI, with no core changes from country branches." },
+  { id:"T-055", lane:"simone", s:10, e:11, bar:"Reconcile spec",
+    title4:"Reconcile spec", long:"Spec reconciliation at close", ownerShort:"Integrator", owner:"Integrator",
+    depsTxt:"← all executed tasks", desc:"Compare everything delivered against the locked spec and write Spec-Reconciliation.md." },
+];
+
+/* edges: [from, to, type] — fs (finish→start, one shared boundary day
+   tolerated) | ff (merge-order) | soft (non-blocking) */
+const EDGES = [
+  ["T-011","T-012","fs"],
+  ["T-011","T-052","fs"],
+  ["T-011","T-053","fs"],
+  ["T-011","T-015","fs"],
+  ["T-011","T-056","fs"],
+  ["T-011","T-051","fs"],
+  ["T-011","T-057","fs"],
+  ["T-011","T-016","fs"],
+  ["T-016","T-017","fs"],
+  ["T-017","T-019","fs"],
+  ["T-052","T-019","fs"],
+  ["T-019","T-020","fs"],
+  ["T-056","T-020","fs"],
+  ["T-017","T-018","fs"],
+  ["T-013","T-014","fs"],
+  ["T-018","T-014","fs"],
+  ["T-019","T-014","fs"],
+  ["T-057","T-014","fs"],
+  ["T-015","T-014","fs"],
+  ["T-014","T-040","fs"],
+  ["T-040","T-049","fs"],
+  ["T-020","T-035","fs"],
+  ["T-047","T-035","fs"],
+  ["T-053","T-035","fs"],
+  ["T-029","T-035","fs"],
+  ["T-028","T-029","fs"],
+  ["T-035","T-041","fs"],
+  ["T-051","T-041","fs"],
+  ["T-022","T-059","fs"],
+  ["T-059","T-023","fs"],
+  ["T-034","T-023","fs"],
+  ["T-023","T-024","fs"],
+  ["T-025","T-026","fs"],
+  ["T-026","T-027","fs"],
+  ["T-031","T-034","fs"],
+  ["T-032","T-034","fs"],
+  ["T-033","T-034","fs"],
+  ["T-029","T-034","fs"],
+  ["T-060","T-034","fs"],
+  ["T-012","T-036","fs"],
+  ["T-044","T-036","fs"],
+  ["T-036","T-060","fs"],
+  ["T-034","T-042","fs"],
+  ["T-039","T-042","fs"],
+  ["T-052","T-045","fs"],
+  ["T-058","T-046","fs"],
+  ["T-006","T-031","fs"],
+  ["T-043","T-034","soft"],
+];
+
+const byId = Object.fromEntries(TASKS.map(t => [t.id, t]));
+const netTasks = TASKS.filter(t => t.net !== false);
+const nodeEls = {}, tlEls = {};
+
+/* ---------------- state: standalone, this-browser localStorage ----------------
+   Same row schema as the lab dashboards so a future shared backend can ingest
+   the export unchanged. Machine key prefix distinguishes this plan.          */
+const PLAN_KEY = "g3o-proc-plan:";      // machine key prefix — KEY_RE below must match
+const LOCAL_KEY = "g3oProcPlanLocal.v1";
+const WHO_KEY = "g3oProcPlanWho.v1";
+const NAMES = { simone: "Simone", ainhoa: "Ainhoa", asenat: "Asenat", integrator: "Integrator session" };   // must match the who-select options
+
+function localRows() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]"); } catch { return []; }
+}
+async function readPlanRows() { return localRows(); }
+async function appendPlanRow(row) {
+  const rows = localRows(); rows.push(row);
+  localStorage.setItem(LOCAL_KEY, JSON.stringify(rows));
+}
+
+/* ---------------- completion state ---------------- */
+let stateByTask = {};   // id -> {done, actor_id, ts, note, flag}
+let feedRows = [];
+const KEY_RE = /^g3o-proc-plan:([A-Z0-9-]+):(done|open)$/;   // must match PLAN_KEY
+function foldState(rows) {
+  const m = {};
+  for (const r of rows) {
+    const match = String(r.linked_artifact || "").match(KEY_RE);
+    if (!match) continue;
+    const [ , tid, st ] = match;
+    const ts = String(r.timestamp || "");
+    if (!m[tid] || ts > m[tid].ts) {
+      m[tid] = { done: st === "done", actor_id: r.actor_id, ts, note: r.details || "", flag: r.needs_pi_attention === "yes" };
+    }
+  }
+  return m;
+}
+async function reloadState() {
+  try {
+    const rows = await readPlanRows();
+    feedRows = rows.slice().sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+    stateByTask = foldState(rows);
+  } catch (err) {
+    console.warn("plan state load failed:", err);
+  }
+  renderState();
+}
+function renderState() {
+  let done = 0;
+  for (const t of netTasks) {
+    const st = stateByTask[t.id];
+    nodeEls[t.id].classList.toggle("done", !!(st && st.done));
+    if (st && st.done) done++;
+  }
+  document.getElementById("progress").innerHTML = "<b>" + done + "</b> / " + netTasks.length + " complete";
+  renderFeed();
+  if (selectedId) renderDetail(selectedId);
+}
+function relTime(iso) {
+  const ms = Date.now() - Date.parse(iso);
+  if (!isFinite(ms)) return "";
+  const min = Math.round(ms / 60000);
+  if (min < 2) return "just now";
+  if (min < 60) return min + " min ago";
+  const h = Math.round(min / 60);
+  if (h < 36) return h + " h ago";
+  return Math.round(h / 24) + " d ago";
+}
+function esc(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+function renderFeed() {
+  const ul = document.getElementById("feedlist");
+  if (!feedRows.length) { ul.innerHTML = '<li class="empty">Nothing yet — completions and notes will show up here.</li>'; return; }
+  ul.innerHTML = feedRows.slice(0, 12).map(r => {
+    const m = String(r.linked_artifact || "").match(KEY_RE);
+    const tid = m ? m[1] : "?";
+    const verb = m && m[2] === "done" ? "completed" : "reopened";
+    const who = NAMES[r.actor_id] || r.actor_id || "?";
+    return "<li><span class='fwho'>" + esc(who) + "</span> " + verb + " <span class='mono'>" + tid + "</span>" +
+      (r.needs_pi_attention === "yes" ? " <span class='fflag'>⚑ for Simone</span>" : "") +
+      " <span class='ftime'>· " + relTime(r.timestamp) + "</span>" +
+      (r.details ? "<br><span class='fnote'>“" + esc(r.details) + "”</span>" : "") + "</li>";
+  }).join("");
+}
+
+/* ---------------- identity ---------------- */
+const whoSel = document.getElementById("who");
+whoSel.value = localStorage.getItem(WHO_KEY) || "";
+whoSel.addEventListener("change", () => { localStorage.setItem(WHO_KEY, whoSel.value); whoSel.classList.remove("attn"); });
+
+/* ---------------- timeline ---------------- */
+function buildTimeline() {
+  const chart = document.getElementById("chart");
+  const add = (cls, row, col, html) => {
+    const d = document.createElement("div");
+    d.className = cls; d.style.gridRow = String(row);
+    if (col) d.style.gridColumn = col;
+    if (html !== undefined) d.innerHTML = html;
+    chart.appendChild(d); return d;
+  };
+  let row = 1;
+  add("dh first", row, "1", "Task · owner · dependencies");
+  DAYS.forEach((d, i) => add("dh", row, String(i + 2), SHOW_DAYS ? d : ""));
+  row++;
+  [["2/3","delivered"],["3/6","build core (Ainhoa sequential)"],["6/8","runs + contract rows (gated)"],["8/11","fan-out, verification, close"]]
+    .forEach(([c, t]) => add("wavecell", row, c, t));
+  row++;
+  for (const lane of LANES) {
+    add("sec " + lane.key, row++, "1 / -1", lane.sec);
+    for (const t of TASKS.filter(x => x.lane === lane.key)) {
+      add("lbl" + (t.cp ? " cp" : ""), row, "1",
+        '<span class="name"><span class="tid">' + t.id + "</span>" + t.long + "</span>" +
+        '<span class="tags"><span class="chip owner ' + t.lane + '">' + t.ownerShort +
+        '</span><span class="chip dep">' + t.depsTxt + "</span></span>");
+      add("rowline", row, "2 / -1");
+      const spans = [];
+      if (t.ms) { add("ms", row, String(t.s)); spans.push([t.s, t.s + 1]); }
+      else {
+        add("bar " + (t.stretch ? "ghost build" : t.lane), row, t.s + "/" + t.e, t.bar || "");
+        spans.push([t.s, t.e]);
+      }
+      tlEls[t.id] = { spans };
+      row++;
+    }
+  }
+  const end = row;
+  const ov = cls_col => {
+    const d = document.createElement("div");
+    d.className = "ov " + cls_col[0]; d.style.gridRow = "1 / " + end; d.style.gridColumn = cls_col[1];
+    chart.appendChild(d);
+  };
+  // no deadline: no timeline ruled (Q-027); overlays removed
+}
+
+/* ---------------- network ---------------- */
+function buildNetwork() {
+  const net = document.getElementById("net");
+  let row = 1;
+  if (SHOW_DAYS) {
+    const add = (cls, col, html) => {
+      const d = document.createElement("div");
+      d.className = cls; d.style.gridRow = String(row); d.style.gridColumn = col; d.innerHTML = html;
+      net.appendChild(d);
+    };
+    add("dh first", "1", "");
+    DAYS.forEach((d, i) => add("dh", String(i + 2), d));
+    row++;
+  }
+  LANES.forEach((lane, li) => {
+    const laneTasks = netTasks.filter(t => t.lane === lane.key).sort((a, b) => a.s - b.s || a.e - b.e);
+    const subEnd = [];
+    for (const t of laneTasks) {
+      let k = subEnd.findIndex(e => e <= t.s);
+      if (k === -1) { k = subEnd.length; subEnd.push(0); }
+      subEnd[k] = t.e; t._sub = k;
+    }
+    const n = Math.max(1, subEnd.length);
+    const band = document.createElement("div");
+    band.className = "laneband" + (li % 2 ? " alt" : "");
+    band.style.gridRow = row + " / " + (row + n); band.style.gridColumn = "1 / -1";
+    net.appendChild(band);
+    const lab = document.createElement("div");
+    lab.className = "lanelabel " + lane.key;
+    lab.style.gridRow = row + " / " + (row + n); lab.style.gridColumn = "1";
+    lab.textContent = lane.label;
+    net.appendChild(lab);
+    for (const t of laneTasks) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "node " + (t.stretch ? "stretch" : t.lane);
+      b.style.gridRow = String(row + t._sub);
+      b.style.gridColumn = t.s + "/" + t.e;
+      b.innerHTML = '<span class="nid">' + t.id + "</span>" + t.title4;
+      b.addEventListener("click", ev => { ev.stopPropagation(); select(t.id); });
+      nodeEls[t.id] = b;
+      net.appendChild(b);
+    }
+    row += n;
+  });
+  if (SHOW_DAYS) {
+    const end = row;
+    const ov = (cls, col) => {
+      const d = document.createElement("div"); d.className = "ov " + cls;
+      d.style.gridRow = "1 / " + end; d.style.gridColumn = col; net.appendChild(d);
+    };
+    void ov; // no deadline overlays (Q-027)
+  }
+}
+
+function drawEdges() {
+  const net = document.getElementById("net");
+  const svg = document.getElementById("edges");
+  const nr = net.getBoundingClientRect();
+  svg.setAttribute("width", net.scrollWidth);
+  svg.setAttribute("height", net.scrollHeight);
+  svg.innerHTML =
+    '<defs><marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">' +
+    '<path d="M0,0 L8,4 L0,8 z" fill="var(--edge)"></path></marker>' +
+    '<marker id="arrhi" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">' +
+    '<path d="M0,0 L8,4 L0,8 z" fill="var(--deadline)"></path></marker></defs>';
+  for (const [a, b, kind] of EDGES) {
+    const ea = nodeEls[a], eb = nodeEls[b];
+    if (!ea || !eb) continue;
+    const ra = ea.getBoundingClientRect(), rb = eb.getBoundingClientRect();
+    let d;
+    if (rb.left - nr.left >= ra.right - nr.left + 12) {
+      const x1 = ra.right - nr.left, y1 = ra.top + ra.height / 2 - nr.top;
+      const x2 = rb.left - nr.left - 2, y2 = rb.top + rb.height / 2 - nr.top;
+      const dx = Math.max(24, (x2 - x1) / 2);
+      d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+    } else {
+      const below = rb.top > ra.bottom;
+      const sx = Math.max(ra.left, Math.min(ra.right, (Math.max(ra.left, rb.left) + Math.min(ra.right, rb.right)) / 2)) - nr.left;
+      const tx = Math.max(rb.left + 8, Math.min(rb.right - 8, sx + nr.left)) - nr.left;
+      const sy = (below ? ra.bottom : ra.top) - nr.top;
+      const ty = (below ? rb.top - 2 : rb.bottom + 2) - nr.top;
+      const dy = Math.max(14, Math.abs(ty - sy) / 2) * (below ? 1 : -1);
+      d = `M ${sx} ${sy} C ${sx} ${sy + dy}, ${tx} ${ty - dy}, ${tx} ${ty}`;
+    }
+    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    p.setAttribute("d", d);
+    p.setAttribute("marker-end", "url(#arr)");
+    p.dataset.a = a; p.dataset.b = b;
+    if (kind === "soft") p.classList.add("soft");
+    if (kind === "ff") p.classList.add("ff");
+    svg.appendChild(p);
+  }
+}
+
+/* ---------------- selection + completion UI ---------------- */
+const detail = document.getElementById("detail");
+let selectedId = null;
+function renderDetail(id) {
+  const t = byId[id];
+  const st = stateByTask[id];
+  const deps = EDGES.filter(([, b]) => b === id).map(([a]) => a);
+  const enables = EDGES.filter(([a]) => a === id).map(([, b]) => b);
+  const stateLine = st
+    ? '<div class="dt-state">Status: <b class="' + (st.done ? "done" : "") + '">' + (st.done ? "complete" : "not complete") + "</b>" +
+      (st.actor_id ? " — " + esc(NAMES[st.actor_id] || st.actor_id) + ", " + relTime(st.ts) : "") +
+      (st.note ? ' · “' + esc(st.note) + '”' : "") + "</div>"
+    : '<div class="dt-state">Status: <b>not complete</b></div>';
+  detail.innerHTML =
+    '<div class="dt-top"><span class="dt-id">' + t.id + "</span><h2>" + t.title4 + "</h2>" +
+    '<span class="chip owner ' + t.lane + '">' + t.owner + "</span>" +
+    (SHOW_DAYS ? '<span class="chip dep">' + (DAYS[t.s - 2] || "") + " → " + (DAYS[t.e - 3] || "post") + "</span>" : "") +
+    "</div>" +
+    "<p>" + t.desc + "</p>" +
+    '<div class="dt-deps"><b>Waits on:</b> ' + (deps.length ? deps.join(" · ") : "nothing") +
+    " &nbsp;·&nbsp; <b>Unblocks:</b> " + (enables.length ? enables.join(" · ") : "—") + "</div>" +
+    stateLine +
+    '<div class="dt-actions">' +
+    '<button class="btn ' + (st && st.done ? "reopen" : "") + '" id="dt-toggle">' + (st && st.done ? "Reopen" : "Mark complete") + "</button>" +
+    '<input class="dt-note" id="dt-note" maxlength="200" placeholder="optional note…">' +
+    '<label class="flagline"><input type="checkbox" id="dt-flag"> flag for Simone</label>' +
+    "</div>" +
+    '<div class="dt-err" id="dt-err"></div>';
+  document.getElementById("dt-toggle").addEventListener("click", () => submitToggle(id));
+}
+async function submitToggle(id) {
+  const who = whoSel.value;
+  const errEl = document.getElementById("dt-err");
+  if (!who) {
+    whoSel.classList.add("attn"); whoSel.focus();
+    errEl.textContent = "Pick who you are (top right) first.";
+    return;
+  }
+  const st = stateByTask[id];
+  const toDone = !(st && st.done);
+  const note = (document.getElementById("dt-note").value || "").trim();
+  const flag = document.getElementById("dt-flag").checked;
+  const t = byId[id];
+  const nowIso = new Date().toISOString();
+  const row = {
+    log_id: "log_g3oprocplan_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6),
+    timestamp: nowIso,
+    actor_id: who,
+    actor_type: who === "simone" ? "pi" : who,
+    project_id: "proj_g3o",
+    activity_type: "plan_task",
+    summary: (toDone ? "Completed" : "Reopened") + " plan task " + id + " — " + t.title4,
+    details: note,
+    linked_artifact: PLAN_KEY + id + ":" + (toDone ? "done" : "open"),
+    hours_spent: "",
+    next_step: "",
+    needs_pi_attention: flag ? "yes" : "no",
+    last_updated: nowIso.slice(0, 10),
+  };
+  const btn = document.getElementById("dt-toggle");
+  btn.disabled = true; errEl.textContent = "";
+  try {
+    await appendPlanRow(row);
+    await reloadState();
+  } catch (err) {
+    errEl.textContent = "Write failed — " + (err && err.message ? err.message : err) + ". Try again.";
+    btn.disabled = false;
+  }
+}
+function select(id) {
+  selectedId = id;
+  for (const [tid, el] of Object.entries(nodeEls)) {
+    const related = tid === id ||
+      EDGES.some(([a, b]) => (a === id && b === tid) || (b === id && a === tid));
+    el.classList.toggle("sel", tid === id);
+    el.classList.toggle("dim", !related);
+  }
+  const svg = document.getElementById("edges");
+  for (const p of svg.querySelectorAll("path[data-a]")) {
+    const on = p.dataset.a === id || p.dataset.b === id;
+    p.classList.toggle("hi", on);
+    p.classList.toggle("lo", !on);
+    p.setAttribute("marker-end", on ? "url(#arrhi)" : "url(#arr)");
+  }
+  renderDetail(id);
+}
+function clearSelect() {
+  selectedId = null;
+  for (const el of Object.values(nodeEls)) el.classList.remove("sel", "dim");
+  for (const p of document.querySelectorAll("#edges path[data-a]")) {
+    p.classList.remove("hi", "lo"); p.setAttribute("marker-end", "url(#arr)");
+  }
+  detail.innerHTML = '<p class="placeholder">Click any task to see what it is, who owns it, and what it waits on — and to mark it complete or leave a note.</p>';
+}
+document.getElementById("view-network").addEventListener("click", e => {
+  if (!e.target.closest(".node") && !e.target.closest(".detail") && !e.target.closest(".feed")) clearSelect();
+});
+document.getElementById("refresh").addEventListener("click", reloadState);
+
+/* ---------------- consistency check (both views, one schedule) ---------------- */
+function spanOf(el) {
+  const cs = getComputedStyle(el);
+  let a = parseInt(cs.gridColumnStart, 10);
+  let b = parseInt(cs.gridColumnEnd, 10);
+  if (isNaN(b) && !isNaN(a)) b = a + 1;
+  return [a, b];
+}
+function verifySync() {
+  const issues = [];
+  for (const t of netTasks) {
+    const [ns, ne] = spanOf(nodeEls[t.id]);
+    if (ns !== t.s || ne !== t.e)
+      issues.push(t.id + ": network shows " + ns + "–" + ne + ", schedule says " + t.s + "–" + t.e);
+  }
+  for (const t of TASKS) {
+    const spans = tlEls[t.id].spans;
+    const s = Math.min(...spans.map(x => x[0]));
+    const e = Math.max(...spans.map(x => x[1]));
+    if (s !== t.s || e !== t.e)
+      issues.push(t.id + ": timeline shows " + s + "–" + e + ", schedule says " + t.s + "–" + t.e);
+  }
+  for (const [a, b, kind] of EDGES) {
+    const d = byId[a], t = byId[b];
+    if (!d || !t || kind === "soft") continue;
+    if (kind === "ff") {
+      if (d.e > t.e) issues.push(a + "→" + b + " (merge-order): " + a + " ends after " + b);
+    } else if (t.s < d.e - 1) {
+      issues.push(a + "→" + b + ": " + b + " starts before " + a + " can hand off");
+    }
+  }
+  const pill = document.getElementById("sync");
+  if (issues.length === 0) {
+    pill.className = "ok";
+    pill.textContent = "✓ plan checks pass";
+    pill.title = "Both views render from one schedule; spans and dependency order verified (" + netTasks.length + " tasks, " + EDGES.length + " edges).";
+  } else {
+    pill.className = "bad";
+    pill.textContent = "⚠ " + issues.length + " mismatch" + (issues.length > 1 ? "es" : "") + " — see console";
+    pill.title = issues.join("\n");
+    console.warn("Plan-Visual consistency check failed:\n" + issues.join("\n"));
+  }
+}
+
+/* ---------------- view toggle ---------------- */
+const vNet = document.getElementById("view-network");
+const vTl = document.getElementById("view-timeline");
+const bNet = document.getElementById("btn-net");
+const bTl = document.getElementById("btn-tl");
+function show(which) {
+  const isNet = which === "net";
+  vNet.hidden = !isNet; vTl.hidden = isNet;
+  bNet.setAttribute("aria-pressed", String(isNet));
+  bTl.setAttribute("aria-pressed", String(!isNet));
+  if (isNet) requestAnimationFrame(drawEdges);
+}
+bNet.addEventListener("click", () => show("net"));
+bTl.addEventListener("click", () => show("tl"));
+if (SHOW_TIMELINE) document.getElementById("segwrap").hidden = false;
+
+buildTimeline();
+buildNetwork();
+requestAnimationFrame(() => { drawEdges(); verifySync(); });
+addEventListener("resize", () => { if (!vNet.hidden) drawEdges(); });
+reloadState();
+</script>
