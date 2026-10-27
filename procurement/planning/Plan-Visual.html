@@ -311,7 +311,7 @@
 <header class="page">
   <div>
     <h1>G3O procurement pipeline — access → core → Uruguay run → contract rows → fan-out</h1>
-    <div class="meta">PLAN.md v2 (SD-001: RA-agnostic; locked 2026-10-27) · columns are waves, not dates · dashed = blocked on a PI ruling or deferred · <b>click a task</b> to read it, mark it complete, or leave a note</div>
+    <div class="meta">PLAN.md v3 (SD-002: jev classification; locked 2026-10-27) · columns are waves, not dates · dashed = blocked on a PI ruling or deferred · <b>click a task</b> to read it, mark it complete, or leave a note</div>
   </div>
   <div class="hright">
     <div class="hrow">
@@ -378,7 +378,7 @@
   </div>
   <div class="frame"><div class="chart" id="chart"></div></div>
   <footer class="note">
-    <b>How to read.</b> Columns are execution waves from PLAN.md, not calendar dates; no timeline has been ruled (Q-027), so no dates are committed. W0 is work already delivered. Within Ainhoa's lane, tasks in one wave run one after another (they share core files). Across lanes only the ← chips bind. Red dots mark the critical path: T-061 (assign the core RA) → T-016 → T-017 → T-019 → T-020 → T-035 (Ainhoa, Uruguay) → T-041. Dashed bars are blocked on a named PI ruling (see each task) or deferred. Source of truth is PLAN.md; this page only renders it.
+    <b>How to read.</b> Columns are execution waves from PLAN.md, not calendar dates; no timeline has been ruled (Q-027), so no dates are committed. W0 is work already delivered. Within Ainhoa's lane, tasks in one wave run one after another (they share core files). Across lanes only the ← chips bind. Red dots mark the critical path: T-061 (assign the core RA) → T-016 → T-017 → T-019 → T-020 → T-035 (Ainhoa, Uruguay) → T-041, joined by T-062 (main-pipeline jev rewrite) → T-063 → T-064 → T-035. Dashed bars are blocked on a named PI ruling (see each task) or deferred. Source of truth is PLAN.md; this page only renders it.
   </footer>
 </div>
 
@@ -520,9 +520,6 @@ const TASKS = [
   { id:"T-051", lane:"content", s:4, e:5, bar:"Cache-replay mode",
     title4:"Cache-replay mode", long:"--from-cache replay mode", ownerShort:"Core", owner:"Core RA",
     depsTxt:"← T-011 · → T-041", desc:"Let a run replay archived payloads instead of fetching, so a second person can reproduce it identically on a PI-signed field set." },
-  { id:"T-057", lane:"content", s:4, e:5, bar:"Snippet translation",
-    title4:"Snippet translation", long:"LLM English translation of snippets", ownerShort:"Core", owner:"Core RA",
-    depsTxt:"← T-011 · → T-014", desc:"Translate evidence snippets into English with an LLM, keeping the original (U-4 c). Never used for relevance. PI approves model and prompt." },
   { id:"T-059", lane:"content", s:4, e:5, bar:"Amend VP §B",
     title4:"Amend VP §B", long:"Apply approved matcher-sample amendment", ownerShort:"Core", owner:"Core RA",
     depsTxt:"← T-022 · → T-023", desc:"Apply the PI-approved amendment to the validation protocol's matcher section." },
@@ -547,7 +544,7 @@ const TASKS = [
   { id:"T-045", lane:"simone", s:5, e:6, stretch:true, bar:"Archive Drive code",
     title4:"Archive Drive code", long:"Archive the Drive code copy", ownerShort:"PI", owner:"PI / RA",
     depsTxt:"← T-052 · blocked: Q-025", desc:"Move the Drive code copy to archive after the replay is in the repo, if the PI rules so." },
-  { id:"T-025", lane:"content", s:5, e:6, stretch:true, bar:"Classifier frame",
+  { id:"T-025", lane:"content", s:7, e:8, stretch:true, bar:"Classifier frame",
     title4:"Classifier frame", long:"Classification frame with positives", ownerShort:"Core", owner:"Core RA",
     depsTxt:"blocked: Q-015", desc:"Assemble the validation frame including positives from beyond Uruguay." },
   { id:"T-035", lane:"build", s:6, e:7, cp:true, stretch:true, bar:"Uruguay full run",
@@ -558,11 +555,11 @@ const TASKS = [
     depsTxt:"blocked: Q-001-Q-003", desc:"Update the code's contract vocabulary to the version the PI rules (currently mirrors v2.0; root is v2.5)." },
   { id:"T-018", lane:"content", s:6, e:7, stretch:true, bar:"Institution aggregation",
     title4:"Institution aggregation", long:"has_genai_activity per institution", ownerShort:"Core", owner:"Core RA",
-    depsTxt:"← T-016, T-017 · blocked: Q-018", desc:"Compute the one institution-level value after review, over the scope the PI rules." },
+    depsTxt:"← T-016, T-017, T-064 · blocked: Q-018", desc:"Run the main pipeline's Stage 6 jev consolidation on procurement rows: one institution-level value, near-duplicates merged (SD-002)." },
   { id:"T-021", lane:"content", s:6, e:7, stretch:true, bar:"Money fields",
     title4:"Money fields", long:"Item-level money extension fields", ownerShort:"Core", owner:"Core RA",
     depsTxt:"blocked: Q-005", desc:"Add the proposed money fields once the PI rules on the item-level rules." },
-  { id:"T-026", lane:"joint", s:6, e:7, stretch:true, bar:"Classifier labels",
+  { id:"T-026", lane:"joint", s:8, e:9, stretch:true, bar:"Classifier labels",
     title4:"Classifier labels", long:"Blind two-coder classification labels", ownerShort:"Coders", owner:"Coders",
     depsTxt:"← T-025", desc:"Two coders label the classification frame without seeing the classifier." },
   { id:"T-014", lane:"content", s:7, e:8, stretch:true, bar:"Contract rows",
@@ -571,7 +568,7 @@ const TASKS = [
   { id:"T-041", lane:"joint", s:7, e:8, cp:true, bar:"Reproduction rerun",
     title4:"Reproduction rerun", long:"Clean-checkout reproduction rerun", ownerShort:"Reproducer", owner:"Reproducer",
     depsTxt:"← T-035, T-051", desc:"A second person reruns a sample from a clean clone in replay mode and diffs it on the signed field set." },
-  { id:"T-027", lane:"content", s:7, e:8, stretch:true, bar:"Classifier report",
+  { id:"T-027", lane:"content", s:9, e:10, stretch:true, bar:"Classifier report",
     title4:"Classifier report", long:"Classification validation report", ownerShort:"Core", owner:"Core RA",
     depsTxt:"← T-026 · gate Q-020", desc:"Report agreement, precision and recall among retrieved records, stating that misses by the terms are unmeasured." },
   { id:"T-044", lane:"joint", s:4, e:8, stretch:true, bar:"Italian terms (ext.)",
@@ -625,6 +622,18 @@ const TASKS = [
   { id:"T-055", lane:"simone", s:10, e:11, bar:"Reconcile spec",
     title4:"Reconcile spec", long:"Spec reconciliation at close", ownerShort:"Integrator", owner:"Integrator",
     depsTxt:"← all executed tasks", desc:"Compare everything delivered against the locked spec and write Spec-Reconciliation.md." },
+  { id:"T-062", lane:"joint", s:3, e:6, cp:true, bar:"Main jev rewrite (ext.)",
+    title4:"Main jev rewrite (ext.)", long:"Main-pipeline jev classification rewrite (PI)", ownerShort:"PI", owner:"PI (main pipeline)",
+    depsTxt:"external · → T-063", desc:"The main G3O pipeline moves to jev for classification, with gpt-5-nano pulling the source text for each decision. Procurement reuses it, so it must land first." },
+  { id:"T-065", lane:"simone", s:3, e:4, bar:"TypeSafe key + ceilings",
+    title4:"TypeSafe key + ceilings", long:"TypeSafe key and spending ceilings", ownerShort:"PI", owner:"PI",
+    depsTxt:"← none · → T-064", desc:"Make the TypeSafe key available through the environment and set a spending ceiling per run type, so no run spends without approval." },
+  { id:"T-063", lane:"content", s:5, e:6, cp:true, stretch:true, bar:"Question-set mapping",
+    title4:"Question-set mapping", long:"Map main jev questions onto procurement", ownerShort:"Core", owner:"Core RA",
+    depsTxt:"← T-062, T-061 · gate: PI approves", desc:"Decide which of the main pipeline's questions apply to procurement, which don't, and which procurement-only questions to add. Becomes a new codebook version." },
+  { id:"T-064", lane:"content", s:6, e:7, cp:true, stretch:true, bar:"jev classification",
+    title4:"jev classification", long:"Classify notices with jev + evidence pass", ownerShort:"Core", owner:"Core RA",
+    depsTxt:"← T-063, T-065 · → T-014, T-018, T-035", desc:"Term search picks candidates; jev decides; procurement rules override; gpt-5-nano extracts the supporting text and English snippet." },
 ];
 
 /* edges: [from, to, type] — fs (finish→start, one shared boundary day
@@ -636,7 +645,6 @@ const EDGES = [
   ["T-011","T-015","fs"],
   ["T-011","T-056","fs"],
   ["T-011","T-051","fs"],
-  ["T-011","T-057","fs"],
   ["T-011","T-016","fs"],
   ["T-016","T-017","fs"],
   ["T-017","T-019","fs"],
@@ -647,7 +655,6 @@ const EDGES = [
   ["T-013","T-014","fs"],
   ["T-018","T-014","fs"],
   ["T-019","T-014","fs"],
-  ["T-057","T-014","fs"],
   ["T-015","T-014","fs"],
   ["T-014","T-040","fs"],
   ["T-040","T-049","fs"],
@@ -677,6 +684,14 @@ const EDGES = [
   ["T-052","T-045","fs"],
   ["T-058","T-046","fs"],
   ["T-006","T-031","fs"],
+  ["T-062","T-063","fs"],
+  ["T-061","T-063","fs"],
+  ["T-063","T-064","fs"],
+  ["T-065","T-064","fs"],
+  ["T-064","T-014","fs"],
+  ["T-064","T-018","fs"],
+  ["T-064","T-035","fs"],
+  ["T-064","T-025","fs"],
   ["T-061","T-031","fs"],
   ["T-061","T-047","fs"],
   ["T-061","T-022","fs"],
@@ -684,7 +699,6 @@ const EDGES = [
   ["T-061","T-052","fs"],
   ["T-061","T-015","fs"],
   ["T-061","T-051","fs"],
-  ["T-061","T-057","fs"],
   ["T-061","T-016","fs"],
   ["T-061","T-013","fs"],
   ["T-043","T-034","soft"],

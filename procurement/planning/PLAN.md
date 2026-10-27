@@ -1,9 +1,9 @@
 # PLAN: G3O procurement pipeline (whole pipeline, retrofit)
 
 Status: READY-WITH-BLOCKS (readiness; lock state is "Baseline lock" below)
-Spec: `procurement/planning/SPEC.md` v002 (LOCKED 2026-10-27T08:54-07:00; SD-001). Resources: `procurement/planning/RESOURCES.md` v001 (unchanged by SD-001)
-Plan version: v2 (SD-001, 2026-10-27: RA-agnostic ownership). v1 = the 2026-10-27 baseline, in git at `409e00b`
-Baseline lock: 2026-10-27T08:02-07:00, Simone Paci (chat "LOCK"); SPEC v001-draft.4 + RESOURCES v001 + PLAN v1. Re-locked 2026-10-27T08:54-07:00, Simone Paci (chat "LOCK"): SPEC v002 + RESOURCES v001 + PLAN v2 (SD-001)
+Spec: `procurement/planning/SPEC.md` v003 (LOCKED 2026-10-27T09:20-07:00; SD-002). Resources: `procurement/planning/RESOURCES.md` v001 (unchanged by SD-001)
+Plan version: v3 (SD-002, 2026-10-27: jev classification). v2 = SD-001 RA-agnostic ownership (`45155ae`); v1 = the 2026-10-27 baseline (`409e00b`)
+Baseline lock: 2026-10-27T08:02-07:00, Simone Paci (chat "LOCK"); SPEC v001-draft.4 + RESOURCES v001 + PLAN v1. Re-locked 2026-10-27T08:54-07:00 (SD-001, PLAN v2); re-locked 2026-10-27T09:20-07:00, Simone Paci (chat "LOCK"): SPEC v003 + RESOURCES v001 + PLAN v3 (SD-002)
 Source draft plan / review: `procurement/planning/Plan-Draft.md` v001-draft.1; `procurement/planning/Plan-Review.md` (both kept unchanged)
 Mode: `PLAN_ONLY` (ruling 4). RAs execute from Stage 7 handoffs. Agents launch no execution lanes.
 Adjudicated: 2026-10-27, researcher session `20261027-claude-v2-0307d4d58c63fd23` (claude-opus-5-5), per `planning-adjudication-protocol.md` v0.2.
@@ -35,12 +35,16 @@ The S3 plan rulings:
   - Ainhoa Zamora owns only the Uruguay tasks: T-034.x for Uruguay, T-035 and T-053, plus filling the Uruguay row in T-056.
   - Asenat Mantovani owns the Italy tasks and is a possible core RA after Italy (a PI remark, not a ruling).
 - **A1-A3:** accepted (procedural).
+- **S5 / SD-002 (after the v002 lock):** jev is the classification engine, as in the main G3O pipeline; a gpt-5-nano second pass extracts the source text for each jev decision.
+  - 1a: the procurement coding rules stay as fixed rules applied on top of jev.
+  - 2a: procurement calls the main pipeline's jev code and question sets for the part of the codebook that applies, plus procurement-only extension questions.
+  - 3: the main-pipeline rewrite is an external dependency (T-062).
 
 **Code and instruments:**
 - Code baseline: `procurement/main` @ `cee79b2` (RQ-001 a).
 - Query set v1.0 (D4) and codebook v0.4 stand.
 - The contract file is read-only. `inputs/` and the master are read-only.
-- No LLM adjudication; LLM translation is allowed (U-4 c).
+- Classification by jev plus a gpt-5-nano evidence pass (SD-002); the term query set is retrieval only.
 - No secrets in code. No new unit, taxonomy or source.
 
 **Preserved strengths (reviewer):**
@@ -100,6 +104,7 @@ The Plan-Draft decisions carry over unless revised here.
 | DEC-012 | Absence-row storage | Separate `absence` table: own schema, key (`institution_uid`, `source_id`, window). Per-record `confirms_absence` stays staging evidence. T-014 emits contract absence rows only from the table | PF-005 | R-021, D-001 | yes |
 | DEC-013 | Snippet translation | LLM translation step, versioned (model + prompt recorded per row); original kept in parentheses; never used for relevance | U-4 c; R-025; N-005 | R-025 | yes |
 | DEC-014 | Fan-out owner | None yet; decided after Italy is settled (T-060) | U-8 | G-001 | yes |
+| DEC-016 | Classification engine | Shared main-pipeline jev client, question sets and Stage 6 consolidation (dependency, not a copy); procurement-only extension questions; gpt-5-nano evidence pass also produces the English snippet (replaces T-057); deterministic procurement coding rules applied after jev; term search stays the retrieval step | S5 / SD-002 | R-009, R-022, R-025, R-042, R-043 | yes |
 | DEC-015 | Core owner | RA-agnostic: a core RA role, assigned by the PI (T-061); until then every core card is blocked on T-061. Ainhoa owns Uruguay only. Wherever a card says "as in the draft" and the draft named Ainhoa for core work, the owner is the core RA | S4 / SD-001 | Actors | yes |
 
 ## Requirement traceability
@@ -121,7 +126,7 @@ Status values: `covered` (producer complete), `planned`, `blocked` (gate named).
 | D-005 | T-016 | T-049 | planned |
 | D-006 | T-003 (writer), T-035 (first archive) | T-041 | planned |
 | D-007 | T-012, T-053, T-028 | T-041 | blocked (T-028: Q-032) |
-| D-008 | T-025, T-026, T-027 | PI gate on T-027 | blocked (Q-015) |
+| D-008 | T-025, T-026, T-027 (of jev decisions) | PI gate on T-027 | blocked (Q-015, T-064) |
 | D-009 | T-022, T-023, T-024, T-059 | PI gate on T-024 | blocked (strata need fan-out, T-060) |
 | D-010 | T-006 (prepared), T-031, T-032, T-033 | PI gate | planned |
 | D-011 | T-003, T-020, T-056 | T-049 | planned |
@@ -133,17 +138,21 @@ Status values: `covered` (producer complete), `planned`, `blocked` (gate named).
 | R-004 | T-001; T-021 | T-049 | covered / blocked |
 | R-005, R-006 | T-001 (`coding.py`); T-013 (`proposed` vs §4.3) | T-049 (A-003) | blocked (Q-002) for tenders |
 | R-007 | T-013 | T-049 (A-011) | blocked (Q-001, Q-003) |
-| R-008-R-010 | T-001 | T-027 | covered |
+| R-008, R-010 | T-001 (typing signals, retrieval) | T-027 | covered |
+| R-009 | T-063, T-064 | T-027, T-049 | blocked (T-062) |
+| R-042 | T-063 | PI gate | blocked (T-062) |
+| R-043 | T-064, T-020 (versions in manifest) | T-041 | blocked (T-062) |
+| R-044 | T-065 | PI | planned |
 | R-011 | T-003; T-035 | T-041 | blocked (Q-007) |
 | R-012 | T-001, T-015, T-014 (Q-004 gate) | T-049 | planned |
 | R-013-R-015, R-017 | T-002 | T-024 | covered |
 | R-016 | T-002 (tiers 1/3 allowed, U-6 a); T-024 → PI threshold for tier 4 | PI | planned |
 | R-018 | T-014 | T-049 (A-002) | blocked |
 | R-020, R-024 | T-001; T-014 | T-049 | covered / blocked |
-| R-025 | T-057 | T-049 | planned |
+| R-025 | T-064 (evidence pass) | T-049 | blocked (T-062) |
 | R-026 | T-014 | T-049 | blocked |
 | R-021 | T-019, T-020, T-056 | T-049 | planned |
-| R-022 | T-018 | T-049 | blocked (Q-018, Q-032) |
+| R-022 | T-018 (main Stage 6 consolidation) | T-049 | blocked (T-062, Q-018, Q-032) |
 | R-023 | T-001; T-020 | T-049 (A-011) | covered |
 | R-027 | T-016 | T-049 | planned (Q-022 gate) |
 | R-028, R-029 | T-034.x steps 1-2; T-012, T-053, T-028 | T-034.x review | planned |
@@ -174,7 +183,8 @@ Status values: `covered` (producer complete), `planned`, `blocked` (gate named).
 | C-007 | T-035 | PI gate Q-007 | planned |
 | C-008 | Q-010 gate on T-019 (Uruguay), T-035, T-014 | — | blocked |
 | N-004 | T-043, T-044 EXTERNAL | — | covered |
-| N-005 | Defaults; DEC-013 | T-050 | covered |
+| N-005 | SUPERSEDED-BY:SD-002 | — | — |
+| C-009 | T-062 (EXTERNAL) | PI | blocked |
 | N-006 | Defaults; T-040 | T-049 | covered |
 | N-007 | T-014 (Q-017 gate) | T-049 | covered |
 | N-008 | T-027 | PI | covered |
@@ -196,7 +206,7 @@ Status values: `covered` (producer complete), `planned`, `blocked` (gate named).
   - The write claim is only the card's paths.
   - `procurement/pipeline/core/` has one owner, the core RA (DEC-015).
   - All merges to `procurement/main` go through the integrator, by PR (DEC-006).
-- **Fixed decisions:** as listed above. Q-021 (classification beyond the pilot) is a standing gate: no card changes R-009's scope.
+- **Fixed decisions:** as listed above. Q-021 is resolved by SD-002; no card changes the classification design except through the main-pipeline dependency (T-062) and a PI-approved mapping (T-063).
 - **Spec-change reporting (DEC-010):**
   - Report by email to Simone; she forwards to the integrator.
   - Report when: source data contradicts a spec rule; a rule is ambiguous on a real record; a new constraint appears (terms, blocking, cost, credentials); or output would deviate from an acceptance test.
@@ -230,18 +240,18 @@ Status values: `covered` (producer complete), `planned`, `blocked` (gate named).
 | T-011 | ready | — | T-012, T-053 and (with T-061) the core cards | `procurement/italy` push | Ainhoa availability + login for Uruguay (Q-037 residual) | — |
 | T-012 | pending | T-011 | T-036 | Italy config row | — | — |
 | T-013 | blocked | T-061 | T-014 | `contract.py`, `coding.py`, `docs/reference/`, `cli.py` (`contract_version` field), tests | Q-001, Q-002, Q-003 | A-001 (part) |
-| T-014 | blocked | T-013, T-015, T-016, T-017, T-018, T-019, T-057, T-061 | T-049, T-040 | `contract_rows.py`, `cli.py` export, tests | Q-001, Q-004, Q-017, Q-019, Q-026, Q-030/Q-031 residuals, Q-010 (Uruguay), first-sample PI checkpoint | A-001-A-003 |
+| T-014 | blocked | T-013, T-015, T-016, T-017, T-018, T-019, T-064, T-061 | T-049, T-040 | `contract_rows.py`, `cli.py` export, tests | Q-001, Q-004, Q-017, Q-019, Q-026, Q-030/Q-031 residuals, Q-010 (Uruguay), first-sample PI checkpoint | A-001-A-003 |
 | T-015 | pending | T-011, T-061 | T-014 | `standardize.py` (flag), tests | — | — |
 | T-016 | pending | T-011, T-061 | T-017, T-014 | relevance schema, `store.py`, `models.py`, `cli.py` subcommand, tests | CB §8 field check; Q-022 | — |
 | T-017 | pending | T-016 | T-019, T-014 | `store.py`, `matcher.py`, `cli.py` subcommand, tests | Q-011 (completion gate) | A-002 (part) |
-| T-018 | blocked | T-016, T-017, T-061 | T-014 | `aggregate.py`, tests | Q-018, Q-032 residual | — |
+| T-018 | blocked | T-016, T-017, T-064, T-061 | T-014 | procurement wiring of main Stage 6 consolidation, tests | Q-018, Q-032 residual; T-062 | — |
 | T-019 | pending | T-017, T-052 | T-020, T-014, T-035 | absence schema + `absence.py`, `store.py` (table), tests, linked fixture | Q-030 residual (extension rows); Q-010 (Uruguay output) | — |
 | T-020 | pending | T-019, T-056 | T-035 | `cli.py` manifest, `base.py` RunReport, record schema (version fields), tests | Q-039 (multi-language) | A-004, A-011 |
 | T-021 | blocked | T-061 | — | extension schema, `standardize.py`, tests | Q-005 | — |
 | T-022 | pending | T-061 | T-023, T-059 | Drive validation files | PI approves design | — |
 | T-023 | blocked | T-022, T-034.x (≥1 non-Latin + ≥2 more countries) | T-024 | labels | coder assignment | — |
 | T-024 | pending | T-023, T-061 | — | report + `procurement/tools/matcher_validation.py` | Q-009b, Q-020 | A-008 |
-| T-025 | blocked | T-061 | T-026 | classification frame | Q-015 | — |
+| T-025 | blocked | T-061, T-064 | T-026 | classification frame | Q-015 | — |
 | T-026 | pending | T-025 | T-027 | labels | coder assignment | — |
 | T-027 | pending | T-026, T-061 | — | report + `procurement/tools/classification_validation.py` | Q-020 | A-007 |
 | T-028 | blocked | T-061 | T-034.x, T-041 | documentation template | Q-032 residual | — |
@@ -250,7 +260,7 @@ Status values: `covered` (producer complete), `planned`, `blocked` (gate named).
 | T-032 | blocked | — | T-034.x (bulk) | bulk adapter (country branch) | PI picks first bulk source; Q-023 | A-005, A-006 |
 | T-033 | blocked | — | T-034.x (scrape) | scrape adapter | PI picks first scrape source; Q-023 | A-005, A-006 |
 | T-034.x | blocked | mode checkpoint; T-028, T-029 | T-023, T-042 | per-source paths | owner (T-060); Q-023; window | A-005 |
-| T-035 | blocked | T-019, T-020, T-047, T-053, T-029 | T-041 | Drive run folder | Q-006, Q-007, Q-008, Q-010, Q-038; PI go above 24 h | A-004 |
+| T-035 | blocked | T-019, T-020, T-047, T-053, T-029, T-064, T-065 | T-041 | Drive run folder | Q-006, Q-007, Q-008, Q-010, Q-038; PI go above 24 h | A-004 |
 | T-036 | blocked | T-012, T-044 | — | Italy adapter, row, tests | Q-012, Q-014, Q-023; adopt query set v1.x (A3) | A-005 |
 | T-037 | ready | — | — | board/email comments; `PP\docs\adapter-output-interface.md` after ruling | Q-016 | — |
 | T-038 | blocked | — | — | — | Q-028; Q-031 residual | — |
@@ -271,11 +281,15 @@ Status values: `covered` (producer complete), `planned`, `blocked` (gate named).
 | T-054 | pending (on each ruling) | — | the unblocked cards | `SPEC.md`, `PLAN.md`, `CHANGELOG.md` (integrator only) | Simone approves each | — |
 | T-055 | pending (end) | all executed tasks | — | `Spec-Reconciliation.md` | Simone | — |
 | T-056 | pending | T-011 | T-020 | `config/sources.yaml` `languages` field (+ `sources.example.yaml`) | Q-039 | — |
-| T-057 | pending | T-011, T-061 | T-014 | `pipeline/core/translate.py`, tests | prompt + model approval (PI) | — |
+| T-057 | superseded (Superseded-by: T-064) | — | — | — | — | — |
 | T-058 | ready | — | T-046 | repo branch-protection setting | — | — |
 | T-059 | pending | T-022, T-061 | T-023 | `PP\docs\classification-validation-protocol.md` §B | PI approves amendment | — |
 | T-060 | blocked (deferred) | Italy settled (T-036) | T-034.x owners | — | PI assigns (U-8) | — |
 | T-061 | blocked (PI) | — | every core-RA card | — | PI assigns the core RA (possibly Asenat after Italy) | — |
+| T-062 | blocked (EXTERNAL) | — | T-063, T-064, T-018 | none here (main G3O pipeline) | PI's main-pipeline rewrite lands | — |
+| T-063 | blocked | T-062, T-061 | T-064 | question-set mapping doc + procurement extension question set + codebook version | PI approves the mapping (R-042) | — |
+| T-064 | blocked | T-063, T-065, T-061 | T-014, T-018, T-035, T-025 | `pipeline/core/classify_jev.py` (wiring), deterministic-override layer, evidence pass, tests, `requirements.txt` | golden-test sign-off; spending ceiling (T-065) | — |
+| T-065 | ready | — | T-064, T-035 | none (PI: key in environment, ceilings) | PI sets ceilings (R-044) | — |
 
 ## Task cards
 
@@ -354,13 +368,13 @@ Only what differs from the defaults is stated. The cards of Plan-Draft v001-draf
   - Q-010 (Uruguay yield);
   - PI checkpoint on the first mapped sample.
 - **Spec refs:** D-001, D-002, G-002, R-001, R-005-R-007, R-012, R-018-R-020, R-024-R-026, N-007.
-- **Requires:** T-013, T-015, T-016, T-017, T-018, T-019, T-057.
+- **Requires:** T-013, T-015, T-016, T-017, T-018, T-019, T-064.
 - **Objective:**
   - Produce CT §3.2 columns at the triple grain.
   - Use one activity per `ocds_ocid` with the higher-evidence stage.
   - Use accepted decisions (T-016), resolved links (T-017) and aggregation (T-018).
   - Absence rows come only from the absence table (DEC-012).
-  - Snippets are translated by T-057.
+  - Decisions come from jev with deterministic procurement overrides; evidence text and English snippets come from the gpt-5-nano pass (T-064).
   - Drop `internal_*` flags (R-026).
   - No row without a resolved institution, no `null`.
   - Also produce D-002 at contract grain.
@@ -419,12 +433,13 @@ Only what differs from the defaults is stated. The cards of Plan-Draft v001-draf
 - **Write claim:** `store.py`, `matcher.py`, `cli.py` (subcommand), tests.
 - **Self-checks:** confirm → link with `match_method` reviewed; reject → no link; a non-ledger uid is refused (A-002).
 
-### T-018 — Aggregate `has_genai_activity` per institution
-- **Status:** blocked (Q-018, Q-032 residual). Type: build. Priority: critical-path.
-- **Spec refs:** R-022, D-001.
-- **Requires:** T-016, T-017.
+### T-018 — Aggregate `has_genai_activity` per institution (revised, SD-002)
+- **Status:** blocked (T-062; Q-018, Q-032 residual). Type: integrate. Priority: critical-path.
+- **Spec refs:** R-022, R-043, D-001.
+- **Requires:** T-016, T-017, T-064.
+- **Objective:** run the main pipeline's Stage 6 jev consolidation on procurement rows (near-duplicate grouping, conflict resolution, one institution-level value), called as a shared dependency.
 - **Owner:** core RA (unassigned; PI assigns, T-061), on `procurement/main`.
-- **Write claim:** `pipeline/core/aggregate.py`, tests.
+- **Write claim:** the procurement wiring module for Stage 6 (`pipeline/core/consolidate.py`), tests.
 - **Self-checks:**
   - one value per institution;
   - one rejected record never yields `no`;
@@ -458,6 +473,7 @@ Only what differs from the defaults is stated. The cards of Plan-Draft v001-draf
   - the counts yes / unclear / no / not-assessable / cannot-type / review / linked / absence rows / failures;
   - the reconciliation fetched + failed = items read;
   - the codebook and query-set version on each record;
+  - the shared main-pipeline code version, jev model version and question-set version (R-043, SD-002);
   - the UP §6 QC booleans (reported, not enforced, until Q-016).
 - **Owner:** core RA (unassigned; PI assigns, T-061), on `procurement/main`.
 - **Gate:** Q-039 (multi-language counting). Until ruled, list the languages per source and mark the status "mixed".
@@ -666,7 +682,8 @@ Only what differs from the defaults is stated. The cards of Plan-Draft v001-draf
 - **Self-checks:** the loader accepts the field; rows without it report "unknown", never "covered".
 
 ### T-057 — Translate snippets into English (new; PF-007, U-4 c)
-- **Status:** pending. Type: build.
+- **Status:** superseded. Superseded-by: T-064 (SD-002: the gpt-5-nano evidence pass produces the English snippet). Kept for provenance.
+- Former status: pending. Type: build.
 - **Spec refs:** R-025, N-005. **Decision refs:** DEC-013.
 - **Requires:** T-011.
 - **Objective:**
@@ -704,22 +721,65 @@ Only what differs from the defaults is stated. The cards of Plan-Draft v001-draf
 - **Owner:** PI.
 - **Done:** a ruling sent to the integrator (T-054); the held core handoffs are reissued with the owner's name.
 
+### T-062 — Main-pipeline jev classification rewrite (EXTERNAL dependency; SD-002)
+- **Status:** blocked (EXTERNAL). Owner: the PI, in the main G3O pipeline. Location not recorded in this plan.
+- **What procurement needs from it:** the jev client and question sets for classification; the gpt-5-nano evidence pass; Stage 6 consolidation; a pinned jev model version.
+- **Done (for this plan):** the PI says the rewrite has landed, and names the commit or branch. The integrator records it (T-054) and releases T-063.
+
+### T-063 — Map the main question sets onto procurement (new; SD-002)
+- **Status:** blocked (T-062, T-061). Type: spike, one mapping. Priority: critical-path.
+- **Spec refs:** R-009, R-035, R-042.
+- **Objective:**
+  - A table of every main-pipeline question or codebook item: applies to procurement / does not apply (with reason) / applies with a procurement note.
+  - Procurement-only extension questions for categories that exist only in procurement. Candidates come from codebook v0.4 and the extension spec; nothing is added without PI approval.
+  - Which procurement coding rules override jev answers (R-005, R-006, R-012, R-024).
+  - The result is a new procurement codebook version (R-035).
+- **Owner:** core RA (unassigned; PI assigns, T-061).
+- **Gate:** the PI approves the mapping and the extension questions.
+- **Write claim:** `PP\agent-workspace\<date>-jev-question-mapping-PROPOSAL.md`; after approval, `procurement/config/jev_procurement_questions.*` and the new codebook version.
+- **Self-checks:** every main question has a row; every extension question cites a spec item or ruling; no new unit, taxonomy or source (R-003).
+
+### T-064 — Run classification through jev (new; SD-002)
+- **Status:** blocked (T-063, T-065, T-061). Type: build. Priority: critical-path.
+- **Spec refs:** R-009, R-022, R-025, R-043, R-044, N-006.
+- **Objective:**
+  - The term search still picks candidate notices.
+  - jev decides relevance and the coded fields using the shared main-pipeline question sets plus the procurement extension.
+  - The procurement coding rules are applied after jev as fixed overrides.
+  - The gpt-5-nano pass extracts the supporting source text for each decision, including the English snippet with the original kept (R-025).
+  - The manifest records the shared-code version, the jev model version and the question-set version.
+- **Owner:** core RA (unassigned; PI assigns, T-061), on `procurement/main`.
+- **Gates:** golden-test sign-off by the PI; spending ceiling (T-065).
+- **Write claim:** `pipeline/core/classify_jev.py`, the override layer, `requirements.txt` (dependency on the main `g3o` package), tests. The existing `classify.py` stays as the retrieval and `not_assessable` step.
+- **Self-checks:**
+  - golden tests with jev stubbed: each question gets a typed answer;
+  - overrides: a tender is always `proposed` and an award `announced` whatever jev answers, and the disagreement is logged;
+  - no API key in code; the run refuses to start without a ceiling;
+  - on the 101 Uruguay fixtures (offline, stubbed), counts are reported against the term-only result for comparison.
+
+### T-065 — TypeSafe key and spending ceilings (new; SD-002)
+- **Status:** ready. Type: operate.
+- **Spec refs:** R-044, R-039.
+- **Objective:** the key is available to whoever runs procurement, through the environment only; the PI sets a spending ceiling per run type (smoke, bounded, full).
+- **Owner:** PI.
+- **Self-checks:** a run without the key or ceiling refuses to start (tested in T-064).
+
 ## Parallel waves
 
 | Wave | Ready condition | Lanes/tasks | Collision result | Integration/review gate |
 |---|---|---|---|---|
 | 0 | done | T-001-T-005, T-007 complete; T-006, T-008 verified; T-009 verified-pending | — | integrator records at lock |
 | 1 | re-lock (SD-001) | PI: T-011, T-058, T-061 (when ready). Asenat: T-037. Core RA, once T-061 is ruled: T-031, T-047, T-022, T-048 | Disjoint (a repo setting, comments; core cards held) | PI on T-031, T-022 |
-| 2 | T-011 done (+ T-061 for core) | Ainhoa: T-053 (Uruguay terms). Core RA, sequential: T-052 → T-015 → T-056 (core field) → T-051 → T-057. Asenat: T-012, then the T-056 Italy row; Ainhoa: the T-056 Uruguay row | the core lane is sequential (shared `cli.py`/`base.py`/`standardize.py`/`sources.yaml`); Asenat and Ainhoa write only their country rows on their branches; the `sources.yaml` merge goes through the integrator | integrator merges by PR |
+| 2 | T-011 done (+ T-061 for core) | Ainhoa: T-053 (Uruguay terms). Core RA, sequential: T-052 → T-015 → T-056 (core field) → T-051. Asenat: T-012, then the T-056 Italy row; Ainhoa: the T-056 Uruguay row | the core lane is sequential (shared `cli.py`/`base.py`/`standardize.py`/`sources.yaml`); Asenat and Ainhoa write only their country rows on their branches; the `sources.yaml` merge goes through the integrator | integrator merges by PR |
 | 3 | Wave 2 merged | Core RA, sequential: T-016 → T-017 → T-019 → T-020 | Sequential lane | integrator |
-| 4 | Wave 3 + gates | Ainhoa: T-035 (if gates clear). Core RA, sequential: T-013 (if Q-001 ruled), T-018 (if Q-018 ruled) | Disjoint (Drive run folder vs core code) | PI on T-035 |
+| 4 | Wave 3 + gates + T-062 | Core RA, sequential: T-063 → T-064 (once the main rewrite lands), then T-013 (if Q-001 ruled), T-018 (if Q-018 ruled). Ainhoa: T-035 after T-064 and the gates | Disjoint (Drive run folder vs core code) | PI on T-035 |
 | 5 | T-035, T-013, T-018 | Core RA: T-014. Reproducer: T-041 | Disjoint (code vs Drive reproduction folder) | T-049 |
 | 6+ | mode checkpoints, T-060 | T-034.x, T-032, T-033, T-036, T-038; T-023 → T-024 after strata exist | Per-country branches; integrator merges | PI per mode |
 | 7 | T-014 | T-049, T-040, T-042; T-055 at close | — | PI |
 
 On each ruling, the integrator runs T-054. At each wave close, it runs T-050 and T-046.
 
-**Critical path:** T-061 (assign the core RA) → T-016 → T-017 → T-019 → T-020 → T-035 (Ainhoa) → T-041. T-011 and T-052 join at T-016/T-019; T-053, T-047 and T-029 join at T-035. Until T-061 is ruled, the only work that can move is the PI's (T-011, T-058), Asenat's (T-037, then T-012), and Ainhoa's T-053. Contract output runs on a second path, T-013 → T-018 → T-014 → T-049, behind gates Q-001, Q-018 and Q-019. T-015 is off the critical path (PF-011).
+**Critical path:** T-061 (assign the core RA) → T-016 → T-017 → T-019 → T-020 → T-035 (Ainhoa) → T-041, and in parallel T-062 (main-pipeline rewrite, EXTERNAL) → T-063 → T-064 → T-035. The Uruguay run now waits on the main-pipeline rewrite as well. T-011 and T-052 join at T-016/T-019; T-053, T-047 and T-029 join at T-035. Until T-061 is ruled, the only work that can move is the PI's (T-011, T-058), Asenat's (T-037, then T-012), and Ainhoa's T-053. Contract output runs on a second path, T-013 → T-018 → T-014 → T-049, behind gates Q-001, Q-018 and Q-019. T-015 is off the critical path (PF-011).
 
 **DAG check:** every edge points to a later wave or an earlier position in a sequential lane. No cycles.
 
@@ -762,11 +822,11 @@ Ready at lock:
 | T-048 | core RA | Held until T-061 |
 | T-037 | Asenat (core RA adds a review later) | Reissued for SD-001 |
 
-Released by T-011: T-012 (Asenat); T-053 (Ainhoa). Released by T-011 + T-061: T-052, T-015, T-056 (core field), T-051, T-057 (core RA, one sequential series).
+Released by T-011: T-012 (Asenat); T-053 (Ainhoa). Released by T-011 + T-061: T-052, T-015, T-056 (core field), T-051 (core RA, one sequential series). T-063 and T-064 wait on T-062. T-065 is the PI's and ready now.
 
 ## Spec-change control
 
-- **Current spec:** `SPEC.md` v002 (SD-001), LOCKED 2026-10-27T08:54-07:00; prior lock v001-draft.4, 2026-10-27T08:02-07:00.
+- **Current spec:** `SPEC.md` v003 (SD-002), LOCKED 2026-10-27T09:20-07:00; earlier v002 LOCKED 2026-10-27T08:54-07:00; prior lock v001-draft.4, 2026-10-27T08:02-07:00.
 - **Delta log:** `procurement/planning/CHANGELOG.md`, created before Wave 1. The integrator session is the sole writer.
 - **Delta recipient:** Simone by email (DEC-010), forwarded to the integrator.
 - **Lane reporting contract:** card defaults. Triggers: contradiction, ambiguity, new constraint, acceptance deviation. Stop: dependent output. Continue: independent work.
@@ -776,13 +836,16 @@ Released by T-011: T-012 (Asenat); T-053 (Ainhoa). Released by T-011 + T-061: T-
 
 | Risk | Trigger | Likelihood/impact | Prevention | Detection | Containment | Owner |
 |---|---|---|---|---|---|---|
+| Main-pipeline rewrite late or changes shape | C-009, T-062 | medium / high | Shared dependency, pinned versions | T-064 golden tests | Procurement staging continues; classification waits | PI |
+| TypeSafe credits run out mid-run | wave-2 precedent (credits exhausted 2026-10-16) | medium / high | Ceilings (T-065); resume-safe runs | `jev_request_failed` in attrition | Stop; partial runs are not representative | PI |
+| Shared code changes break procurement | R-043 | medium / medium | Pin the main `g3o` version in `requirements.txt` | CI | Revert the pin | integrator |
 | No core RA assigned | SD-001; T-061 open | high / high (critical path) | PI rules T-061 | Core cards stay held | Integrator prepares T-031 only (approved fallback) | PI |
 | Ainhoa unavailable | Q-037 residual; LOG 10-11 | medium / medium (Uruguay only) | Confirm before releasing T-053 | T-011 not accepted | PI reassigns Uruguay | PI |
 | Contract version unresolved | Q-001 | high / high | Gate T-013 | — | Staging-only output continues | PI |
 | Uruguay yields ~0 contract rows | C-008; 0/132 linked | high / high | Q-010 gate | T-052 replay | Report-only Uruguay | PI / Master team |
 | Italy access blocked or unlawful | Q-014, Q-023 | high / medium | Gate T-036 | T-012 | Skip or request permission | PI |
 | No Italian terms | RS-054 empty | high / medium | T-044 EXTERNAL; A3 gate | — | Language status "not covered" (T-020) | multilingual |
-| LLM translation errors in evidence text | T-057 | medium / medium | Original kept; model and prompt recorded; never used for coding | T-049 sample check | Re-translate (versioned) | core RA / PI |
+| LLM translation errors in evidence text | T-064 | medium / medium | Original kept; model and prompt recorded; never used for coding | T-049 sample check | Re-translate (versioned) | core RA / PI |
 | Fingerprint confusion | RQ-001 | medium / medium | T-047 table | Manifest hash ≠ recorded commit | Relabel | core RA |
 | Uruguay full history ~200 h | C-007 | high / medium | Q-007; cache; T-051 | Run time | Bounded window | PI |
 | Direct push to the shared core | R-037 | low / high | T-058 protection | CI + T-046 diff | Revert | integrator |
@@ -793,7 +856,8 @@ Released by T-011: T-012 (Asenat); T-053 (Ainhoa). Released by T-011 + T-061: T-
 - **Destructive:** T-045.
 - **External communication:** T-031; the PI's email to Asenat.
 - **Long-running:** T-035, T-034.x (smoke run of 5 first; PI go above 24 h).
-- **Credentials:** API keys for T-057 and Q-014 (environment only).
+- **Credentials:** TypeSafe and OpenAI keys for T-064 (T-065), and Q-014 (environment only).
+- **Spending:** every jev or gpt-5-nano run needs a PI-approved ceiling (T-065).
 - **Shared infrastructure:** T-058, T-046.
 - **Substantive:** every researcher gate.
 
@@ -803,7 +867,7 @@ Released by T-011: T-012 (Asenat); T-053 (Ainhoa). Released by T-011 + T-061: T-
 |---|---|
 | T-013 | Q-001, Q-002, Q-003 |
 | T-014 | Q-001, Q-004, Q-017, Q-019, Q-026, Q-030/Q-031 residuals, Q-010 |
-| T-018 | Q-018, Q-032 |
+| T-018 | T-062, Q-018, Q-032 |
 | T-021 | Q-005 |
 | T-023 | fan-out strata (T-060) |
 | T-025 | Q-015 |
@@ -811,7 +875,7 @@ Released by T-011: T-012 (Asenat); T-053 (Ainhoa). Released by T-011 + T-061: T-
 | T-029 | Q-038 |
 | T-032, T-033 | PI's first-source choice, Q-023, T-060 |
 | T-034.x | mode checkpoints, T-028, T-029, T-060 |
-| T-035 | Q-006, Q-007, Q-008, Q-010, Q-038 |
+| T-035 | Q-006, Q-007, Q-008, Q-010, Q-038, T-064, T-065 |
 | T-036 | Q-012 (T-044), Q-014, Q-023, A3 |
 | T-038 | Q-028 |
 | T-039 | Q-024 |
@@ -820,8 +884,9 @@ Released by T-011: T-012 (Asenat); T-053 (Ainhoa). Released by T-011 + T-061: T-
 | T-045 | Q-025 |
 | T-060 | deferred until Italy is settled |
 | T-061 | PI assigns the core RA; every core card waits on it |
+| T-062-T-064 | main-pipeline rewrite lands (T-062); mapping approved (T-063) |
 
-Open questions with no task gated on them: Q-021 (standing default), Q-027 (timeline; no dates are committed).
+Open questions with no task gated on them: Q-027 (timeline; no dates are committed). Q-021 is resolved by SD-002.
 
 ## Readiness-audit results
 

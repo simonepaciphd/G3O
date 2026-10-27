@@ -27,6 +27,6 @@ Also noted: BOARD 2026-10-25T13:02 says plans begun before v0.4 "(G3O)" finish u
 | 5 Adjudicate | `PLAN.md` + `Plan-Visual.html` | `procurement/planning/` | complete | 2026-10-27; U-1-U-8 ruled (S3); 25 dispositions; READY-WITH-BLOCKS; visual sync badge passes |
 | 6 Baseline lock | `SPEC.md` + `RESOURCES.md` + `PLAN.md` | `procurement/planning/` | locked | 2026-10-27T08:02-07:00, Simone Paci (chat); committed locally on `procurement/main`, not pushed |
 | 7 Launch | RA handoffs | `procurement/planning/handoffs/` (U-2 c) | Wave 1 packaged | 2026-10-27: T-011, T-058, T-031, T-047, T-022, T-048, T-037; PLAN_ONLY stops here (no launch); Ainhoa handoffs held until her availability is confirmed |
-| 8 Reconcile | `CHANGELOG.md` + `Spec-Reconciliation.md` | `procurement/planning/` | in-progress (deltas) | SD-001 2026-10-27: RA-agnostic ownership; SPEC v002 + PLAN v2 re-locked 2026-10-27T08:54-07:00 |
+| 8 Reconcile | `CHANGELOG.md` + `Spec-Reconciliation.md` | `procurement/planning/` | in-progress (deltas) | SD-001 2026-10-27: RA-agnostic ownership; SPEC v002 + PLAN v2 re-locked 2026-10-27T08:54-07:00; SD-002 jev classification, SPEC v003 + PLAN v3 re-locked 2026-10-27T09:20-07:00 |
 
 Process notes: `procurement/planning/Retrofit-Notes.md`.
