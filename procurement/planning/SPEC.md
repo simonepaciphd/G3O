@@ -1,7 +1,7 @@
 # SPEC: G3O procurement pipeline (whole pipeline, retrofit)
 
-Status: LOCKED (Stage 6 baseline, 2026-10-27T08:02-07:00, Simone Paci in chat: "LOCK"); approved 2026-10-27
-Version: v001-draft.4 (2026-10-27: Stage-5 plan-review rulings U-3 a, U-4 c, U-6 a applied; approved spec, pre-lock change with PI approval)
+Status: LOCKED v002 (2026-10-27T08:54-07:00, Simone Paci in chat: "LOCK"; spec delta SD-001). Prior locked baseline: v001-draft.4, LOCKED 2026-10-27T08:02-07:00, snapshot `SPEC-v001-draft.4.md`
+Version: v002 (2026-10-27: SD-001, RA-agnostic ownership; Ainhoa Zamora on Uruguay only)
 Supersedes: none (first planning-protocol spec for this subproject; prior governing documents are cited, not replaced)
 Owner: Simone Paci (PI)
 Mode: revision (retrofit: extracted from existing documents; ruling 2a, 2026-10-26)
@@ -37,6 +37,7 @@ Drive root `H:\My Drive\Research\G3O\subprojects\procurement-pipeline\` = `PP\`.
 | LOG | `PP\interaction-log.csv` row 2026-10-26 (Asenat session `e74cc28d`) | Session record | Italy source findings, open asks |
 | S1 | PI answers in chat to the Stage-1 decision list, 2026-10-27, this session: "accept all procedural; SF-001 b, SF-002 b, SF-003 b, 4b, 5a, 6a, 7a, 8a, 9a, 10 RA or PI, verified when we've run the pipeline on it end to end and verified that the output conforms the expected" | PI rulings | Q-029-Q-038, P1-P3 |
 | S3 | PI answers in chat to the Stage-5 plan-review decisions U-1-U-8, 2026-10-27, this session: "1 c, 2 c 3 a 4 c 5 a 6 a 7 a 8 granted, let's add this to the email to asenat …, no assigned RA for the fan-out yet, keep deferred for now, we'll decide after Italy is settled; defaults accepted" (U-items in `Plan-Review.md`) | PI rulings | R-016, R-025, A-008, N-005, Q-039; plan decisions |
+| S4 | PI instruction in chat, 2026-10-27, after the baseline lock: "I would like to untie Aihnoa from the critical path -- she stays in charge of uruguay and that's it for now. Let's have the full plan RA-agnostic (maybe we'll give it to asenata if she does well on italy)" | PI ruling (spec delta SD-001) | Actors, Q-037 |
 
 Facts checked by the drafting agent on 2026-10-27: CT is v2.5 on both `main` and `procurement/main`; CT §4.2 contains `unknown` in `activity_type`; CT §4.3 `proposed` still reads "no signed MoU or contract, no budget line"; CT §3.2 lists 39 columns; CT §3.1 states the Stage-7 shipped product is three normalized CSVs, with the triple grain governing Stage-5 extraction output.
 
@@ -54,7 +55,8 @@ Facts checked by the drafting agent on 2026-10-27: CT is v2.5 on both `main` and
 | Actor | Needs / permissions | Context of use | Successful experience |
 |---|---|---|---|
 | PI (Simone) | Rules on meaning: relevance, coding, taxonomy, thresholds, contract versions, sources, windows [SOURCE: PC "Still the PI's"; RC "Simone's"] | Checkpoints on staged samples before fan-out [SOURCE: ES §8.4, RM Phase 2-4] | Can rule from a checkpoint package without reading code [INFERRED] |
-| RA, shared core + Uruguay (Ainhoa Zamora) | Engineering: setup, adapters, core plumbing, matcher, tests, runs, QC, tracker notes [SOURCE: PC "Yours"] | Repo `procurement/main` + `procurement/uruguay` [USER: LC 4; SOURCE: RC "Branches"] | — |
+| RA, shared core (unassigned) | Engineering of the shared core on `procurement/main`: setup, core plumbing, matcher, tests, QC [SOURCE: PC "Yours"]. No named person; the PI assigns one [USER 2026-10-27 (S4, SD-001)]. A possible assignee after Italy is Asenat Mantovani (PI remark, not a ruling) | Repo `procurement/main` [SOURCE: RC "Branches"] | — |
+| RA, Uruguay (Ainhoa Zamora) | Engineering for Uruguay only: Uruguay adapter, config row, fixtures/tests, runs, source documentation [USER 2026-10-27 (S4, SD-001); previously shared core + Uruguay, USER LC 4] | Branch `procurement/uruguay` [SOURCE: RC "Branches"] | — |
 | RA, Italy (Asenat Mantovani) | Same engineering scope, Italy only; never edits `pipeline/core/` [SOURCE: RC "Branches", AI §1 (proposal)] | Branch `procurement/italy` [USER: LC 4] | — |
 | Reproducer (a role, not a named person) | Reruns another person's run from written instructions and archived inputs [SOURCE: AI §7.4 (proposal); role USER 2026-10-27 (S1) (Q-037 a)] | Assigned per run in the plan [INFERRED] | Identical staged rows and code hash [SOURCE: AI §7.4 (proposal)] |
 | Human reviewers / coders | Label validation sets blind; adjudicate review-queue items [SOURCE: VP §A-B (proposal); CB §8] | — | — |
@@ -257,7 +259,7 @@ Per procedural P1 (USER 2026-10-27 (S1)): "Blocking" below names the tasks or de
 | Q-034 | **Did committing `RC` (2026-10-11) ratify its hard rules?** If not, R-023, R-031, R-037 drop to proposal; G-005/D-006 "reproduction by another person" rests on AI §7.4/SP I3 (proposals), not AR §7 (SF-006). | R-023, R-031, R-037, G-005, D-006 | PI | no | RESOLVED USER 2026-10-27 (S1), 6a: yes; R-023, R-031 (currency rule), R-037 stay `must` |
 | Q-035 | **Recall claim of D-008** (SF-007): term-retrieved positives cannot measure retrieval misses; scope D-008 to precision + conditional recall, add a retrieval-independent positive stratum, and/or make codebook 1.0 (CB §9) a deliverable. | D-008, G-003 | PI | no | RESOLVED USER 2026-10-27 (S1), 7a: D-008 claims precision + recall among retrieved records and states that limit |
 | Q-036 | **Matcher validation design** (SF-008): ES §5 stratified sample (ruled 2026-07-28) vs. VP §B Uruguay review-queue sample; global vs. per-country/script threshold. | D-009, R-016 | PI | no | RESOLVED USER 2026-10-27 (S1), 8a: ES §5 governs; VP §B to be amended (plan task; VP sits in the Drive subproject) |
-| Q-037 | **Reproducer and RA availability** (SF-009): who executes A-009; is Ainhoa available for shared core + Uruguay (LOG 2026-10-11: "starting a new job")? | A-009, G-005, actors | PI | no | RESOLVED USER 2026-10-27 (S1), 9a: reproducer named as a role. Ainhoa's availability was not part of the ruling; carried to the Stage 7 handoffs |
+| Q-037 | **Reproducer and RA availability** (SF-009): who executes A-009; is Ainhoa available for Uruguay (scope reduced by SD-001) (LOG 2026-10-11: "starting a new job")? | A-009, G-005, actors | PI | no | RESOLVED USER 2026-10-27 (S1), 9a: reproducer named as a role. Ainhoa's availability was not part of the ruling; carried to the Stage 7 handoffs; scope of the availability question reduced to Uruguay by SD-001 |
 | Q-038 | **Source verification criterion and approver; frame pin** (SF-010): what evidence flips `verification_status`, who approves it, and which tracker version fixes the 191. | R-030, A-012 | PI | yes for any full run | PARTLY RESOLVED USER 2026-10-27 (S1): approver RA or PI; verified = pipeline run end to end on the source and output checked to conform to what is expected (R-030). **Still OPEN:** (i) whether that end-to-end run is the bounded probe R-030 allows or a larger run; (ii) what "expected" is checked against (e.g. A-001 contract validation, a hand-checked sample); (iii) frame pin: which tracker version fixes the 191 |
 | Q-039 | **Per-source languages** (plan review PF-006): RAs record each source's language(s) [USER 2026-10-27 (S3) (U-3 a)]. **Still OPEN:** how a source with several languages is counted for the language-coverage status (R-021, D-011). | R-021, D-011 | PI | yes for multi-language sources' coverage status | — |
 
@@ -270,10 +272,11 @@ Per procedural P1 (USER 2026-10-27 (S1)): "Blocking" below names the tasks or de
 | v001-draft.3 | — | inputs (S1), actors, D-008, D-009, D-011, R-005, R-007, R-012, R-016, R-021, R-023, R-030, R-031, R-037, SC-03, SC-06, A-009, open-questions preamble, Q-001, Q-029-Q-038 | PI rulings S1 applied: SF-001 b, SF-002 b, SF-003 b (amends the activity half of D6), SF-004 b, SF-005 a, SF-006 a, SF-007 a, SF-008 a, SF-009 a, SF-010 (approver RA or PI; criterion as stated); P1-P3 accepted. Unruled residuals kept OPEN in Q-030, Q-031, Q-032, Q-038 | Simone Paci 2026-10-27 (chat) | PI rulings 2026-10-27 | none |
 | v001-draft.3 | R-1 | D-001-D-014 Resources column | Resource links from `RESOURCES.md` v001 (Stage 2); no content change | link-only | Stage 2 | none |
 | v001-draft.4 | — | inputs (S3), R-016, R-025, A-008, N-005, Q-039 | PI rulings S3 from plan review: U-4 c (LLM translation for R-025, not adjudication), U-6 a (tiers 1/3 auto-accept before validation), U-3 a (RAs record source languages; multi-language counting OPEN as Q-039) | Simone Paci 2026-10-27 (chat) | Plan review PF-006, PF-007, PF-013 | none |
+| v002 | SD-001 | Actors (core RA row added; Ainhoa row narrowed to Uruguay), inputs (S4), Q-037 | Ownership made RA-agnostic after the baseline lock; Ainhoa Zamora keeps Uruguay only | Simone Paci 2026-10-27 (chat) | PI instruction S4 | PLAN task owners, waves, critical path; handoffs T-011, T-022, T-031, T-037, T-047, T-048 superseded |
 
 ## Sign-off
 
 - Spec review: `Spec-Review.md` (2026-10-27; 13 findings; mechanical fixes applied; PI decisions applied in v001-draft.3)
 - Approved by/at: Simone Paci, 2026-10-27, in chat ("APPROVED let's move to resource"), v001-draft.3; D6 reading in R-012 not corrected
-- Locked by/at (Stage 6 baseline): Simone Paci, 2026-10-27T08:02-07:00 (v001-draft.4 is the locked baseline; later changes only as spec deltas)
+- Locked by/at (Stage 6 baseline): Simone Paci, 2026-10-27T08:02-07:00 (v001-draft.4). v002 (SD-001): re-locked 2026-10-27T08:54-07:00 by Simone Paci
 - Delegated inferences accepted: none
