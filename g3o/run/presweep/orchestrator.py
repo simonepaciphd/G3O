@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import ctypes
 import gc
 import json
 import logging
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -85,6 +87,75 @@ _PROJECTION_SKIP_AFTER: dict[str, frozenset[str]] = {
 # Failed/cancelled/expired batches do NOT auto-resubmit (Q3=d). The active
 # state file remains and the orchestrator raises with the path to the file.
 # ---------------------------------------------------------------------------
+
+
+# Why ``del`` alone did not keep r20261023T134656Z-be8a flat (92,000
+# institutions, resumed 2026-10-27): twelve hours into Stage 4 the main process
+# still held ~2.2 GB RSS + ~6.7 GB swap, after #128's del. CPython's small-object
+# allocator hands memory back to the OS one 1 MiB arena at a time, and only once
+# every object in the arena is dead. Objects that outlive a large transient —
+# the sampled master rows outliving the 719,588-row master read, the triage URL
+# lists outliving the 2.6M discovery/filter records they were picked from — are
+# scattered through its arenas, so each arena keeps one survivor and none is
+# returned. Copying a survivor while the transient is alive does not help: the
+# copy lands in the same partly-used pools. Serialising it to one string, freeing
+# both, and parsing it back puts it in fresh, dense arenas.
+
+
+def _json_exact(obj: Any) -> bool:
+    """True when a JSON round trip gives back an equal object of the same types.
+
+    Dicts with str keys, lists, str, int, float, bool and None. Anything else —
+    a tuple, or the ``None`` key ``csv.DictReader`` uses for a row's surplus
+    fields — would come back changed, so the caller keeps the original.
+    """
+    stack = [obj]
+    while stack:
+        item = stack.pop()
+        if item is None or type(item) in (str, int, float, bool):
+            continue
+        if type(item) is list:
+            stack.extend(item)
+        elif type(item) is dict:
+            for key, value in item.items():
+                if type(key) is not str:
+                    return False
+                stack.append(value)
+        else:
+            return False
+    return True
+
+
+def _compact_blob(obj: Any) -> str | None:
+    """``obj`` as one JSON string to re-parse after the transient is freed, or None."""
+    if not _json_exact(obj):
+        return None
+    return json.dumps(obj, ensure_ascii=False)
+
+
+def _return_freed_memory() -> None:
+    """Collect, then ask glibc to hand free heap pages back to the OS.
+
+    Freed objects larger than CPython's 512-byte small-object limit (record
+    lists, dict tables, page and artifact strings) live on the glibc heap, which
+    only shrinks from the top on its own; ``malloc_trim(0)`` releases free pages
+    anywhere in every arena. Best effort and a no-op off Linux/glibc (macOS,
+    Windows, musl have no such symbol): it changes no data, only what the kernel
+    counts against this process.
+    """
+    gc.collect()
+    if not sys.platform.startswith("linux"):
+        return
+    try:
+        trim = ctypes.CDLL(None).malloc_trim
+    except (OSError, AttributeError):
+        return
+    trim.argtypes = [ctypes.c_size_t]
+    trim.restype = ctypes.c_int
+    try:
+        trim(0)
+    except Exception:  # pragma: no cover - best effort only
+        logger.debug("malloc_trim failed", exc_info=True)
 
 
 def _assert_live_keys(
@@ -254,6 +325,19 @@ def run_presweep(
         )
         tel.run_stopped(stop_after=config.stop_after, reason="dry_run")
         return summary
+
+    # plan_run read the whole master to draw from it; the drawn rows outlive the
+    # rest, one in eight at n=92,000, and keep nearly every arena of that read
+    # mapped for the life of the run. Synthetic measurement (CPython 3.14, the
+    # 719,588-row master, 92,000 rows drawn at random): 910 MiB of small-object
+    # arenas still mapped after the master list is freed, 120 MiB after this
+    # round trip. Equal rows come back, in order; only their addresses change.
+    sample_blob = _compact_blob(plan.sample)
+    if sample_blob is not None:
+        plan.sample = []
+        _return_freed_memory()
+        plan.sample = json.loads(sample_blob)
+        del sample_blob
 
     # Continuous cost monitoring: instantiate once at run start, check after each LLM stage.
     # None budget means no limit (check_budget returns True unconditionally).
@@ -646,9 +730,23 @@ def run_presweep(
         # 50,000-institution run r20261004T181618Z-ed59 they were several GB of
         # the RSS the kernel OOM-killed (2026-10-05, 2026-10-06). The artifacts
         # on disk are untouched.
+        #
+        # Freeing them was not enough on r20261023T134656Z-be8a (see the note
+        # above _json_exact): ``triaged``'s URL strings are the discovery
+        # records' own on a fresh run, and were parsed in among them on a
+        # resume; either way they pin those records' arenas. Round-trip it
+        # through one string so it is re-allocated after they are gone.
+        # ``official_sites`` is not read after triage either. Equal contents,
+        # same order.
+        triaged_blob = _compact_blob(triaged)
+        if triaged_blob is not None:
+            triaged = {}
         del discovery_general, discovery_site_restricted, discovery_evidence_open
-        del filter_general, filter_site_restricted
-        gc.collect()
+        del filter_general, filter_site_restricted, official_sites
+        _return_freed_memory()
+        if triaged_blob is not None:
+            triaged = json.loads(triaged_blob)
+            del triaged_blob
         # Continuous cost check after Stage 3
         _record_and_track_stage_budget(monitor, config, plan.run_dir, "classify_triage", budget_exceeded_stages)
         # Check projection before next stage (Gap 2)
@@ -687,6 +785,10 @@ def run_presweep(
         if config.stop_after == "scrape":
             return _finish("stop_after")
 
+        # Stage 4's fetched HTML is freed by now, but it sat on the glibc heap of
+        # twelve worker threads; trim before Stage 5 loads its capped page texts
+        # (~0.74 GB at 50k, #128) so they are not stacked on top of it.
+        _return_freed_memory()
         span = tel.stage_start("extract", counts_in=summary["n_pages_scraped"])
         n_extracted = _run_extract(
             plan.run_dir,

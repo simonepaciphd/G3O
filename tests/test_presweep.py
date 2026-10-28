@@ -2580,3 +2580,145 @@ def test_scrape_budget_is_guarded_across_a_resume():
 
     assert "scrape_max_institution_seconds" in _GUARDED_CONFIG_KEYS
     assert "scrape_max_institution_seconds" in _ABSENT_TOLERATED_CONFIG_KEYS
+
+
+# ---------------------------------------------------------------------------
+# Resident memory after triage (r20261023T134656Z-be8a, 2026-10-27)
+# ---------------------------------------------------------------------------
+
+
+class _Tracked(dict):
+    """A dict that can be weakly referenced, so a test can see it was freed."""
+
+
+def test_presweep_releases_intermediates_and_compacts_survivors(
+    tmp_path: Path, monkeypatch
+):
+    """Nothing from Stages 1a-3 but ``triaged`` reaches Stage 4, and not in place.
+
+    r20261023T134656Z-be8a held ~6.7 GB of swap through Stage 4 after #128's
+    del: the survivors (``triaged``, the drawn sample) kept the freed records'
+    arenas mapped. Here the discovery, filter and official-site dicts must be
+    dead when Stage 4 starts, and ``triaged`` must arrive equal but re-allocated
+    — none of its URL strings may be the discovery records' own objects.
+    """
+    import gc
+    import weakref
+
+    from g3o.common.credentials import Credentials
+    from g3o.run.presweep import orchestrator as orch
+
+    rows = _build_master(n_strata=4, rows_per_stratum=3)
+    master = _write_master_csv(tmp_path / "master.csv", rows)
+    config = PresweepConfig(
+        run_id="mem-1",
+        runs_dir=tmp_path / "runs",
+        master_csv=master,
+        sample_size=4,
+        seed=22294,
+        dry_run=False,
+        stop_after="scrape",
+        discovery_leg1_multilingual=False,
+        discovery_evidence_open=False,
+        max_workers=1,
+    )
+
+    made: dict[str, weakref.ref] = {}
+    # Held strongly, so their ids cannot be reused by the compacted copies.
+    discovery_links: list[str] = []
+
+    def _discovery(run_dir, sample, *a, **kw):
+        out = _Tracked(
+            {
+                synth_institution_id(r): [
+                    {"link": f"https://{synth_institution_id(r)}.example/{j}"}
+                    for j in range(3)
+                ]
+                for r in sample
+            }
+        )
+        discovery_links.extend(rec["link"] for recs in out.values() for rec in recs)
+        return out
+
+    def _general(*a, **kw):
+        out = _discovery(*a, **kw)
+        made["discovery_general"] = weakref.ref(out)
+        return out
+
+    def _site(run_dir, sample, *a, **kw):
+        out = _discovery(run_dir, sample)
+        made["discovery_site_restricted"] = weakref.ref(out)
+        return out
+
+    def _official(run_dir, sample, *a, **kw):
+        out = _Tracked({synth_institution_id(r): None for r in sample})
+        made["official_sites"] = weakref.ref(out)
+        return out
+
+    def _filter(run_dir, sample, general, site, **kw):
+        fg, fs = _Tracked(general), _Tracked(site)
+        made["filter_general"] = weakref.ref(fg)
+        made["filter_site_restricted"] = weakref.ref(fs)
+        return fg, fs, {"mode": "shadow", "n_would_drop": 0, "n_enforced_drop": 0}
+
+    expected_triaged: dict[str, list[str]] = {}
+
+    def _triage(run_dir, sample, general, site, official, **kw):
+        out = {k: [v[0]["link"]] for k, v in general.items()}
+        expected_triaged.update({k: list(v) for k, v in out.items()})
+        return out
+
+    seen: dict[str, Any] = {}
+
+    class _Scraped:
+        def page_count(self) -> int:
+            return 0
+
+    def _scrape(run_dir, sample, triaged, **kw):
+        gc.collect()
+        seen["alive"] = sorted(n for n, ref in made.items() if ref() is not None)
+        seen["triaged"] = triaged
+        link_ids = {id(u) for u in discovery_links}
+        seen["shared"] = [
+            u for urls in triaged.values() for u in urls if id(u) in link_ids
+        ]
+        return _Scraped()
+
+    monkeypatch.setattr(orch, "_run_discovery_general", _general)
+    monkeypatch.setattr(orch, "_run_classify_official_site", _official)
+    monkeypatch.setattr(orch, "_run_discovery_site_restricted", _site)
+    monkeypatch.setattr(orch, "_run_filter_eligibility", _filter)
+    monkeypatch.setattr(orch, "_run_classify_triage", _triage)
+    monkeypatch.setattr(orch, "_run_scrape", _scrape)
+
+    summary = run_presweep(
+        config,
+        credentials=Credentials(
+            openai_api_key="sk-test", serper_api_key="s", typesafe_api_key="t"
+        ),
+    )
+
+    assert summary["n_triaged_kept"] == 4
+    assert seen["alive"] == []
+    assert seen["triaged"] == expected_triaged
+    assert list(seen["triaged"]) == list(expected_triaged)
+    assert seen["shared"] == []
+
+
+def test_compact_blob_refuses_what_json_would_change():
+    """Only exact round trips are compacted; the rest are kept as they are."""
+    from g3o.run.presweep.orchestrator import _compact_blob
+
+    row = {"institution_id": "a", "website": None, "n": 3, "x": 1.5, "ok": True,
+           "extra": ["p", "q"]}
+    assert json.loads(_compact_blob([row])) == [row]
+    # csv.DictReader files a row's surplus fields under the None key.
+    assert _compact_blob([{None: ["surplus"], "a": "b"}]) is None
+    assert _compact_blob({"a": ("tuple",)}) is None
+
+
+def test_return_freed_memory_is_safe_everywhere():
+    """Best effort: a no-op off glibc, and never raises."""
+    from g3o.run.presweep.orchestrator import _return_freed_memory
+
+    _return_freed_memory()
