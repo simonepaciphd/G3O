@@ -1,0 +1,36 @@
+{
+  "format": "g3o-baseline-lock-v1",
+  "baseline_id": "RC-BL-001",
+  "plan": "G3O pipeline reclassification",
+  "locked_at": "2026-10-28T16:50:09Z",
+  "approver": "Simone Paci",
+  "source": "explicit current-chat user reply",
+  "exact_reply": "1 free 2 lock",
+  "activation": "20261028-claude-v2-20be995c13d4020f",
+  "model": "claude-opus-5-5",
+  "versions": {
+    "SPEC.md": "v001.4",
+    "RESOURCES.md": "v001",
+    "PLAN.md": "v001 (Stage 5, 44 cards, 27 waves)"
+  },
+  "reviewed_files": {
+    "SPEC.md": "5f7b859dbec1d9f14b3027dc2717b28b9d283a55a2c21c7633c1a5fd11e422f1",
+    "RESOURCES.md": "40e67bde8383d90f88747eb3019c9835381d2d11a07f50595c4c59e1077f23fa",
+    "PLAN.md": "a70480bda31b298b7f56e9b023263c6e2570fa604740a8e0adfd712db94f9095",
+    "Plan-Manifest.md": "d631d807b140bfb923587e4f28e79cbf8c18642f2361dc9236f8abfb0a35472a"
+  },
+  "locked_files": {
+    "SPEC.md": "5d3ff45591e0212270218ef7a25bb9edc44b8883dfa2a981b9f7a87336d4ad67",
+    "RESOURCES.md": "9654f224a1759072da5dd482e4b1b9e07127119be3c494edff8f1292e1f31bcf",
+    "PLAN.md": "c57f19c0e52961b2d51f99a5019faf2cb7bb2dff1650c24c562d4549c703956a",
+    "Plan-Manifest.md": "1195627818675fa3b7f85f528b778b5e5642778a94adc432ed74bea88b511a7b",
+    "CHANGELOG.md": "fb070d6856ae854639d3a2f4fa8c87b2f9993f0f2ee46c7eea7707e40228bd57",
+    "Plan-Visual.html": "7b57f8aea7e45f623492265068cfbab7512934cd99928d7c097e3be53fa1e96f",
+    "Stage5-Rulings.md": "eddd631046e659f06077d1bd65b53929f39578136c6ee186d6e774ffed98f4e4"
+  },
+  "prelock_archive": "archive/2026-10-28-baseline-prelock/",
+  "changes_at_lock": "Lock metadata only, plus the Neon-is-free ruling (item 1 of the same reply) applied before the lock: Neon branch/snapshot commands run by agents under existing PI DB-write gates.",
+  "scope": "Joint baseline lock of local governance files only. No commit, push or implementation.",
+  "execution_authorized": false,
+  "separate_from": "G3O validation D001-D005 baseline BL-001 (C:/Users/spaci/repos/g3o_validation/planning/)"
+}

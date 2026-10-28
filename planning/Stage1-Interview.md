@@ -1,0 +1,27 @@
+# Stage 1 interview record
+
+Verbatim PI answers, in order. Earlier rulings (1-11, S1-S9, P-A..P-H) are in
+`H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/HANDOFF.md` and are treated as given.
+Session `20261027-claude-v2-3d85fb1367912304` (Claude Code, claude-opus-5-5), 2026-10-27, chat.
+
+| ID | Question (short) | Options shown | PI answer (verbatim) | Effect |
+|---|---|---|---|---|
+| Q1 | Separate plan or SCOPE-ADD to validation BL-001 | a delta / b separate | "q1 this is a different plan, about the main pipeline, validation is about human validation of the database" | Separate plan |
+| Q2 | Location | b1 G3O repo planning/ / b2 new repo / b3 agent-workspace | "q2 b1" | `C:/Users/spaci/repos/G3O/planning/` |
+| Q3 | Who codes activity-level fields on multi-activity pages | a page codes inherited / b two jev passes (page, then per activity after nano segments) / c nano codes activity enums | "q3 b, let's also add in the first pass whether the page has all the info or whether it has links to more pages with info about any activity mentioned & if so it tell the llm to extract those links & send those links back to the scrape phase" | Two jev passes; first pass adds a completeness question; if incomplete, the LLM extracts follow-up links that go back to scraping (new requirement) |
+| Q4 | Back-fill coverage | a all reviewed incl. none / b documented + unclear (~37k) / c b now, none later | "q4 b" | Documented + unclear only; `none` keeps v2.5; wave 5 inclusion not yet answered |
+| Q5 | Mixed-version display during back-fill | a per-row contract version shown / b publish at end / c verdicts row by row, fields at full coverage | "q5 a" | Per-row contract version, shown on API and site |
+| Q6 | Follow-up links: a hops / b eligibility / c back-fill | a: i one hop, ii N hops, iii until complete with per-institution cap; b: i own/official domains, ii any cited link, iii (i) + named source documents; c: i back-fill follows links (live), ii stored text only, iii (ii) + store links | "q6 iii, ii, i" | Until complete with cap (cap OPEN); any cited link; back-fill follows links live |
+| Q7 | Generative-AI wording conflicts | a contract/prompt stand / b re-pilot wording stands, amend §4.1 + prompt / c split | "q7 b" | Re-pilot 2 wording governs. Agent correction after the answer: that wording keeps generic "AI strategy" as ambiguous (unclear2.py L45), so it does not conflict with §4.1; only the chatbot/assistant rule (system_prompt.md L15) is amended. The 17 ambiguous->no moves were instrument behaviour. Carried as SPEC Q-003 |
+| Q8 | R-060 index withholding | a redefine coverage / b keep as written / c drop | "q8 b" | R-060 unchanged; indices withheld beyond this plan |
+| P2, P3 | Procedural defaults (Colin publishes; wave 5 only if published at freeze) | — | not answered | Carried as SPEC Q-014, Q-015 |
+| SF-001..004 | Spec-review high findings (see Spec-Review.md) | as listed there | "1 b, then a for what jev can't cover, 2 a, 3 b, 4b" | R-006, R-036, R-076, R-082 + Q-017 |
+| Q-001, Q-002, Q-003/SF-008, P2-P5 | link cap; jev thresholds; 17 moves + chatbot override; defaults | see chat | "1 b, 2 i, 3 / 8 a -- defaults good" | Q-001 b (hop limit, K pending); Q-003 a; P2-P5 accepted. "2 i" and "8 a" ambiguous: asked back |
+| Q-001 K, Q-002, SF-008 | clarifications | see chat | "1. 3 hops, 2 all codex, .8, downgrade, 3 a" | K = 3 hops; one threshold 0.8 for all codes ("codex" read as "codes"), below -> downgrade; SF-008 a (named AI chatbot/assistant counts as generative) |
+| Q-019, SF-009, Q-011, Q-013, SF-013, Q-017+SF-006, P6, P7 | batch 3 | see chat | "1 a, 2 b, 3a, 4a, 5b, 6 after, a, procedural accepted" | Q-019 a; SF-009 b; Q-011 a; Q-013 a; SF-013 b; Q-017 set after Stage 2 counts ("after" read as covering sizes, strata and release rule); SF-006 a; P6, P7 accepted |
+| SF-007, SF-011, SF-012, SF-014, SF-015, Q-010, Q-016 | batch 4 | see chat | "1 c 2 show just the most recent on the website, changed my mind; backedn will have a row per institution per run with version info 3 b 4 i superseded, ii c; 5 c 6 a 7 a" | SF-007 c; R-051 revised (supersedes Q5 a side-by-side); SF-012 b; R-053 superseded; fuzzy quote match (threshold Q-020); SF-015 c; Q-010 a; Q-016 a |
+| SF-007 follow-up, Q-020, Q-021, Q-017 | approval gate | see chat | "1 walk me through this a bit more with no jargon context 2 b 3 a 4 defer" | Q-020 b; Q-021 a; Q-017 deferred; SF-007 follow-up explained again |
+| SF-007 follow-up | replace vs new column | a replace / b new column | "ok then a, bc we're remapping anyways, old rows keep the old ones until they get rerun" | R-015: 8 values replace `genai_evidence`; v2.5 rows unconverted until rerun |
+| Approval | Stage 1 gate | APPROVE | "approved" | SPEC v001 approved, INFERRED items accepted |
+| Stage 2 gaps | G1, G8, G7, G11, G12, RQ-006, RQ-003, RQ-007 | see chat | "1 b 2 c 3 b 4 b -- add a message on the procurement pipeline about this 5 still running, we'll do the full update once it's in 6 yes 7 i and ii yes" | G1 b (R-077); G8 c (API harvest); G7 b (R-055); G11 b + message (D-008, R-085); wave 5 included, back-fill waits (R-070); fetch done; 114 list authoritative; Colin owns g3o-api |
+| Q-017, procurement channel | sampling; message location | see chat | "1 b (with a swarm of subagents at 25 institutions each (or change it if you think it's better to): 100 with sonnet, all 400 with haiku, looking at the difference between the two) 2 a 3c 4c -- procurement as issue on the github repo" | R-086; G3O issue #134 opened |

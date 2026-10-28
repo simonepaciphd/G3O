@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan Viewer</title>
+<style>
+:root{
+  --bg:#fbf8f4; --card:#ffffff; --ink:#161719; --muted:#62666c; --rule:#e8e1da;
+  --accent:#8c1515; --accent-tint:#f3e6e6;
+  --o1:#4a6a8a; --o2:#5f7d5a; --o3:#a07a2c; --o4:#6d5a7d; --o5:#7a6f66;
+  --serif:"Source Serif 4","Source Serif Pro",Georgia,"Times New Roman",serif;
+  --sans:"Source Sans 3","Source Sans Pro","Segoe UI",system-ui,sans-serif;
+  --colw:200px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--sans)}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 16px 40px}
+.empty{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:18px 20px;color:var(--muted)}
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--rule);padding-bottom:16px}
+h1{font:600 30px/1.15 var(--serif);margin:0 0 6px}
+.goal{font:18px/1.4 var(--serif);margin:0;max-width:62ch}
+.meta{color:var(--muted);font-size:13px;margin-top:8px}
+.tag{display:inline-block;border:1px solid currentColor;border-radius:999px;padding:0 8px;font-size:12px;line-height:18px}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:none;padding:7px 16px;font:600 14px var(--sans);color:var(--muted);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;color:var(--muted);font-size:13px;margin:16px 0 10px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.gate-key{display:inline-block;width:14px;height:10px;border:1.5px solid var(--accent);border-radius:3px;margin-right:6px;vertical-align:0}
+.scroller{overflow-x:auto;overflow-y:hidden;border:1px solid var(--rule);border-radius:10px;background:var(--card)}
+.note{color:var(--muted);font-size:12.5px;margin-top:8px}
+/* map */
+.map{position:relative;display:grid;grid-auto-flow:row;grid-template-columns:repeat(var(--nw,5),minmax(150px,1fr)) minmax(260px,1.3fr);gap:0;padding:0 0 18px;min-width:min-content}
+.col{padding:0 14px;border-right:1px dashed var(--rule)}
+.col:last-child{border-right:0;background:#fdfbf8}
+.col.dl{border-left:2px solid var(--ink)}
+.colhead{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:12px 0 14px}
+.colhead b{display:block;color:var(--ink);font:600 15px var(--serif);text-transform:none;letter-spacing:0}
+.colempty{color:var(--muted);font-size:12px;font-style:italic;margin:0 0 14px}
+.node{position:relative;z-index:1;display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--rule);border-radius:9px;padding:9px 11px;margin-bottom:14px;cursor:pointer;font:inherit;color:inherit}
+.node:hover,.tile:hover,.node.peer,.tile.peer{border-color:var(--muted)}
+.node:focus-visible,.tile:focus-visible,.bar:focus-visible,.chip:focus-visible,.close:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.node .lbl{font-weight:600;line-height:1.25}
+.node .sub{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:12px;margin-top:5px}
+.node.gate{border:1.5px solid var(--accent)}
+.node.gate .you{color:var(--accent);font-weight:600}
+.node.compact{padding:6px 10px;margin-bottom:10px;width:100%;display:flex;gap:8px;align-items:flex-start;background:#fffdfd}
+.node.compact .lbl{font-size:13.5px}
+.node.compact .sub{margin-top:2px;justify-content:flex-start;gap:6px}
+.dmd{flex:none;margin-top:3px}
+.tile{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:var(--card);border:1px solid var(--rule);border-radius:9px;padding:9px 11px;margin-bottom:14px;cursor:pointer;font:inherit;color:inherit;position:relative;z-index:1}
+.tile svg{flex:none;width:24px;height:24px;margin-top:1px}
+.tile .lbl{display:block;font-weight:600;line-height:1.2}
+.tile .id{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.tile .sub{color:var(--muted);font-size:12px;line-height:1.35;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+svg.edges{position:absolute;left:0;top:0;pointer-events:none;z-index:0;overflow:visible}
+svg.edges path{fill:none;stroke:#ebe5de;stroke-width:1;transition:stroke .12s,stroke-width .12s,opacity .12s}
+svg.edges path.soft{stroke-dasharray:4 4}
+svg.edges.hl path{opacity:.25}
+svg.edges.hl path.on{opacity:1;stroke:var(--muted);stroke-width:1.4}
+svg.edges.hl path.on.cp{stroke:var(--ink);stroke-width:1.8}
+/* timeline */
+.tl{position:relative;display:grid;min-width:min-content;font-size:14px}
+.tl .h{font-size:12px;color:var(--muted);padding:12px 8px;border-bottom:1px solid var(--rule)}
+.tl .h b{display:block;color:var(--ink);font:600 14px var(--serif)}
+.tl .owner{grid-column:1/-1;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:12px 10px 4px}
+.tl .rl{grid-column:1;padding:6px 10px;color:var(--muted);font-size:12px;white-space:nowrap}
+.bar{margin:4px 3px;border-radius:6px;border:1px solid transparent;padding:4px 9px;text-align:left;font:600 13px var(--sans);color:#fff;cursor:pointer;white-space:normal;line-height:1.2;overflow:hidden;min-width:0}
+.bar .bl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.bar.gate{background:var(--card)!important;color:var(--accent);border:1.5px solid var(--accent)}
+.bar.gate.mark{justify-self:start;display:flex;align-items:center;gap:6px;margin-left:0;background:none!important;border:0;border-left:3px solid var(--accent);border-radius:0;max-width:none;overflow:visible;white-space:nowrap;padding:2px 0 2px 8px}
+.bar.gate.mark .you{font-weight:400;font-size:12px}
+.bar.deliv{background:var(--card)!important;color:var(--ink);border:1px solid var(--rule);font-weight:600}
+.dlrule{position:absolute;top:0;bottom:0;left:0;border-left:2px solid var(--ink);pointer-events:none}
+/* dialog */
+dialog{border:0;border-radius:12px;padding:0;width:min(720px,calc(100vw - 32px));max-height:calc(100vh - 48px);overflow:auto;box-shadow:0 18px 60px rgba(0,0,0,.18);color:var(--ink);background:var(--card)}
+dialog::backdrop{background:rgba(22,23,25,.35)}
+.dh{padding:20px 22px 12px;border-bottom:1px solid var(--rule);position:sticky;top:0;background:var(--card);z-index:2}
+.dh h2{font:600 22px/1.2 var(--serif);margin:0 0 6px;padding-right:28px}
+.dh p{margin:0;font:16px/1.45 var(--serif)}
+.dh .close{position:absolute;right:12px;top:12px;border:0;background:none;font-size:22px;color:var(--muted);cursor:pointer;line-height:1;padding:2px 6px}
+.facts{display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--muted);font-size:13px;margin-top:10px}
+.facts .you{color:var(--accent);font-weight:600}
+.db{padding:6px 22px 22px}
+.db h3{font:600 13px var(--sans);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 6px;display:flex;justify-content:space-between;gap:10px}
+.db h3 .src{text-transform:none;letter-spacing:0;font-weight:400;font-size:12px}
+.verb{border-left:3px solid var(--rule);padding:4px 0 4px 12px;margin:0;overflow-x:auto}
+.verb p{margin:0 0 6px}.verb p:last-child{margin-bottom:0}
+.verb table.cb{margin:4px 0 8px}
+.db ul{margin:0;padding-left:18px}
+.db li{margin:2px 0}
+.rdesc{color:var(--muted)}
+.score{display:block;color:var(--muted);font-size:12.5px}
+.score .sub{color:var(--accent);font-weight:600}
+.chip{border:1px solid var(--rule);background:var(--bg);border-radius:6px;padding:2px 8px;font:inherit;font-size:13px;cursor:pointer;margin:2px 4px 2px 0;color:inherit}
+.chip:hover{border-color:var(--muted)}
+.order div{margin:2px 0}
+.mockbox{position:relative;border:1px solid var(--rule);border-radius:8px;padding:14px;overflow:auto;background:#fff}
+.mockbox::after{content:"";position:absolute;inset:0;pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='200'%3E%3Ctext x='200' y='122' text-anchor='middle' transform='rotate(-18 200 100)' font-family='sans-serif' font-weight='700' font-size='64' fill='rgba(98,102,108,.08)'%3EMOCKUP%3C/text%3E%3C/svg%3E") center/min(100%,400px) no-repeat}
+.mockcap{color:var(--muted);font-size:12.5px;margin-top:6px}
+.nomock{color:var(--muted);font-style:italic;margin:14px 0 0}
+table.rt{border-collapse:collapse;font:14px var(--serif);margin:0 auto}
+table.rt th,table.rt td{padding:3px 14px;text-align:center}
+table.rt td:first-child,table.rt th:first-child{text-align:left}
+table.rt thead tr{border-top:1.5px solid var(--ink);border-bottom:1px solid var(--ink)}
+table.rt tbody tr.ft{border-top:1px solid var(--ink)}
+table.rt tbody tr.end{border-bottom:1.5px solid var(--ink)}
+table.rt .se{color:var(--muted)}
+table.cb{border-collapse:collapse;width:100%;font-size:13.5px}
+table.cb th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--ink);padding:4px 8px}
+table.cb td{border-bottom:1px solid var(--rule);padding:4px 8px;vertical-align:top}
+.dims{font:600 14px var(--serif);margin-bottom:8px}
+.dims small{font:400 12px var(--sans);color:var(--muted)}
+.mlegend{font-size:12px;color:var(--muted);margin-top:4px}
+.ro{list-style:none;margin:0;padding:0;font-family:var(--serif)}
+.ro li{display:grid;grid-template-columns:2.2em 1fr auto;gap:4px 10px;padding:8px 0;border-bottom:1px solid var(--rule)}
+.ro .n{color:var(--muted)}
+.ro .t{font-weight:600}
+.ro .pp{color:var(--muted);font:13px var(--sans);white-space:nowrap}
+.ro .sk{grid-column:2/3;display:grid;gap:4px}
+.ro .sk i{display:block;height:6px;border-radius:3px;background:#efe9e2}
+.ro .tot{border-bottom:0;font:600 13px var(--sans);color:var(--muted)}
+.deck{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.slide{border:1px solid var(--rule);border-radius:4px;background:#fff;aspect-ratio:16/9;padding:8px 10px;display:flex;flex-direction:column;gap:5px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.slide .sn{font-size:11px;color:var(--muted)}
+.slide .st{font:600 13px/1.2 var(--serif)}
+.slide i{display:block;height:5px;border-radius:3px;background:#efe9e2}
+.tree,.tree ul{list-style:none;margin:0;padding:0}
+.tree{font:14px/1.35 var(--serif)}
+.tree ul{margin-left:9px;padding-left:16px;border-left:1px solid var(--rule)}
+.tree li{padding:3px 0}
+.tree .f{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.tree .f svg{flex:none}
+.tree .dir>.f{color:var(--ink)}
+.tree .nt{color:var(--muted);font:12.5px var(--sans);margin-left:8px}
+.tree .ls{list-style:none;margin:2px 0 0 22px;padding:0;border-left:0;font:13px var(--sans);color:var(--muted)}
+.tree .ls li{padding:1px 0}
+.tree .ls b{font-weight:600;color:var(--ink)}
+code{font-size:12.5px}
+footer{color:var(--muted);font-size:12px;margin-top:22px;border-top:1px solid var(--rule);padding-top:10px}
+footer details{margin-top:6px}
+footer summary{cursor:pointer;width:max-content}
+footer ul{margin:4px 0 0;padding-left:18px}
+@media (max-width:640px){
+  :root{--colw:170px}
+  h1{font-size:24px}
+  .map{display:block;min-width:0;padding:0 0 4px}
+  .col{padding:0 12px 2px;border-right:0;border-bottom:1px dashed var(--rule)}
+  .col:last-child{border-bottom:0}
+  .col.dl{border-left:0;border-top:2px solid var(--ink)}
+  .colhead{display:flex;flex-direction:row-reverse;justify-content:flex-end;align-items:baseline;gap:8px;padding:12px 0 10px}
+  .colhead b{display:inline}
+  .node,.tile{margin-bottom:10px}
+  svg.edges{display:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header>
+    <div>
+      <h1 id="title"></h1>
+      <p class="goal" id="goal"></p>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="seg" role="group" aria-label="View">
+      <button type="button" id="bMap" aria-pressed="true">Map</button>
+      <button type="button" id="bTl" aria-pressed="false">Timeline</button>
+    </div>
+  </header>
+  <div class="legend" id="legend"></div>
+  <div class="scroller" id="scroller"></div>
+  <div class="note">Wave dates are targets, not commitments. Click any step or result for details.</div>
+  <footer id="foot"></footer>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle"><div id="dlgBody"></div></dialog>
+
+<script>
+"use strict";
+const PLAN = {"title":"G3O pipeline reclassification","goal":"The production G3O pipeline classifies and extracts, for every institution it reviews, more fields about each GenAI activity, under an updated output contract (v2.6 rules plus the CX-01.2 fields), and the published database carries them.","status":"LOCKED 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat \"lock\")","built":"2026-10-28","deadline":null,"waves":[{"k":"W1","d":"after lock"},{"k":"W2","d":"after W1"},{"k":"W3","d":"after W2"},{"k":"W4","d":"after W3"},{"k":"W5","d":"after W4"},{"k":"W6","d":"after W5"},{"k":"W7","d":"after W6"},{"k":"W8","d":"after W7"},{"k":"W9","d":"after W8"},{"k":"W10","d":"after W9"},{"k":"W11","d":"after W10"},{"k":"W12","d":"after W11"},{"k":"W13","d":"after W12"},{"k":"W14","d":"after W13"},{"k":"W15","d":"after W14"},{"k":"W16","d":"after W15"},{"k":"W17","d":"after W16"},{"k":"W18","d":"after W17"},{"k":"W19","d":"after W18"},{"k":"W20","d":"after W19"},{"k":"W21","d":"after W20"},{"k":"W22","d":"after W21"},{"k":"W23","d":"after W22"},{"k":"W24","d":"after W23"},{"k":"W25","d":"after W24"},{"k":"W26","d":"after W25"},{"k":"W27","d":"after W26"}],"lanes":{"researcher":{"n":"You","c":"accent","you":true},"integrator":{"n":"Plan integrator","c":"o1","you":false},"eng-a":{"n":"Engineer A","c":"o2","you":false},"eng-b":{"n":"Engineer B (code integrator)","c":"o3","you":false},"eng-c":{"n":"Engineer C","c":"o4","you":false},"colin":{"n":"Colin (API / website)","c":"o5","you":false},"reviewer":{"n":"Independent reviewer","c":"o1","you":false},"quality":{"n":"Agent-read coordinator","c":"o2","you":false}},"resources":{"RS-001":{"label":"2,816 lines; pipeline-code rows scattered (old `agent-workspace/G3O-public/...` and branch rows)","desc":"2,816 lines; pipeline-code rows scattered (old `agent-workspace/G3O-public/...` and branch rows)"},"RS-002":{"label":"Approved SPEC v001.1 and rulings","desc":"Approved SPEC v001.1 and rulings"},"RS-003":{"label":"Rulings 1-11, S1-S9; verified counts; new-field footprint","desc":"Rulings 1-11, S1-S9; verified counts; new-field footprint"},"RS-004":{"label":"Read-only enumerators over `/home/g3o/runs`; jev re-pilot","desc":"Read-only enumerators over `/home/g3o/runs`; jev re-pilot"},"RS-005":{"label":"Unclear-set counts; re-pilot answers (372 pages, 250 institutions)","desc":"Unclear-set counts; re-pilot answers (372 pages, 250 institutions)"},"RS-006":{"label":"Per-uid latest run, ambiguous/text flags, `lang` for the 27,648","desc":"Per-uid latest run, ambiguous/text flags, `lang` for the 27,648"},"RS-007":{"label":"Stored page text and final CSVs (33 runs with final CSVs at 2026-10-27)","desc":"Stored page text and final CSVs (33 runs with final CSVs at 2026-10-27)"},"RS-008":{"label":"Local copy of one run's stored text","desc":"Local copy of one run's stored text"},"RS-009":{"label":"jev-vs-nano agreement (not accuracy); offline page corpus","desc":"jev-vs-nano agreement (not accuracy); offline page corpus"},"RS-010":{"label":"Contract of record; `genai_evidence` 4-value enum (§4.7, col 36); `source_snippet` exists; pins v2.5 / v1.3","desc":"Contract of record; `genai_evidence` 4-value enum (§4.7, col 36); `source_snippet` exists; pins v2.5 / v1.3"},"RS-011":{"label":"v2.6 rules; `check_quotes` is whitespace-normalised substring (L145-146); consolidation targets retired OpenAI Stage 6; patch conflicts on `validate/consolidate.py`","desc":"v2.6 rules; `check_quotes` is whitespace-normalised substring (L145-146); consolidation targets retired OpenAI Stage 6; patch conflicts on `validate/consolidate.py`"},"RS-012":{"label":"`JEV_MAX_TOKENS_PER_REQUEST=64_000`; `JevAnswer` confidence + probabilities; `JevResult` response_model, request_id","desc":"`JEV_MAX_TOKENS_PER_REQUEST=64_000`; `JevAnswer` confidence + probabilities; `JevResult` response_model, request_id"},"RS-013":{"label":"Stages 2/3 write probabilities, confidence, model, request id, question-set version to per-institution JSON (files only, not DB)","desc":"Stages 2/3 write probabilities, confidence, model, request id, question-set version to per-institution JSON (files only, not DB)"},"RS-014":{"label":"Stage 6 jev; byte-chunk fallback (`CHUNK_BUDGET_BYTES=100_000`, `MAX_SPLIT_DEPTH=3`); keeps first chunk's ids only; no probabilities in `6_validate.json`; question-set version not stamped","desc":"Stage 6 jev; byte-chunk fallback (`CHUNK_BUDGET_BYTES=100_000`, `MAX_SPLIT_DEPTH=3`); keeps first chunk's ids only; no probabilities in `6_validate.json`; question-set version not stamped"},"RS-015":{"label":"Stage 5 nano Batch per (institution × page); `cap_page_text` 60k chars head+tail; salvage defaults","desc":"Stage 5 nano Batch per (institution × page); `cap_page_text` 60k chars head+tail; salvage defaults"},"RS-016":{"label":"Fetches triage-kept URLs; robots, throttle, redirects. `extract_links` helpers exist but are uncalled; no link following, hop limit or provenance chain","desc":"Fetches triage-kept URLs; robots, throttle, redirects. `extract_links` helpers exist but are uncalled; no link following, hop limit or provenance chain"},"RS-017":{"label":"`stop_after`; `--resume` via `_state/.done`; sample from `--master-csv`; no fixed-list / start-from-stored-pages entry; contract stamps per run, kept on resume","desc":"`stop_after`; `--resume` via `_state/.done`; sample from `--master-csv`; no fixed-list / start-from-stored-pages entry; contract stamps per run, kept on resume"},"RS-018":{"label":"Stage 7 CSV writer; data dictionary; no contract changelog file","desc":"Stage 7 CSV writer; data dictionary; no contract changelog file"},"RS-019":{"label":"Mock-based unit/e2e harness; no fixtures for multi-activity, links, chunking, 8 verdicts, C2-C4","desc":"Mock-based unit/e2e harness; no fixtures for multi-activity, links, chunking, 8 verdicts, C2-C4"},"RS-020":{"label":"`runs.contracts` jsonb per run; v2.5 columns; `evidence.genai_evidence` text, no CHECK; no correction table, per-row version or jev fields; `backfill_verdicts.py` precedent; `export_bulk.py` = #175","desc":"`runs.contracts` jsonb per run; v2.5 columns; `evidence.genai_evidence` text, no CHECK; no correction table, per-row version or jev fields; `backfill_verdicts.py` precedent; `export_bulk.py` = #175"},"RS-021":{"label":"Visibility = `run_started_at` in `wave_windows`; file span ends 2026-10-01; memory: extended to 2027-01-01","desc":"Visibility = `run_started_at` in `wave_windows`; file span ends 2026-10-01; memory: extended to 2027-01-01"},"RS-022":{"label":"Publication surfaces","desc":"Publication surfaces"},"RS-023":{"label":"Existing public API contract; base for D-007","desc":"Existing public API contract; base for D-007"},"RS-024":{"label":"Frozen wording; CX-05; §11.1 chunk rule (L184); C2-C4 never run (L204)","desc":"Frozen wording; CX-05; §11.1 chunk rule (L184); C2-C4 never run (L204)"},"RS-025":{"label":"All 9,705 documented (uid, country, level, branch, type, finding_count); 800 detail sample (as_of 2026-10-24T14:04:52Z)","desc":"All 9,705 documented (uid, country, level, branch, type, finding_count); 800 detail sample (as_of 2026-10-24T14:04:52Z)"},"RS-026":{"label":"WS10 D1-D6; transfer list; suggested correction-layer fields","desc":"WS10 D1-D6; transfer list; suggested correction-layer fields"},"RS-027":{"label":"Combined review incomplete (51/1,464 activities; groups 0-13 of 45); no row diff","desc":"Combined review incomplete (51/1,464 activities; groups 0-13 of 45); no row diff"},"RS-028":{"label":"Stage14 unsigned attribution-correction package","desc":"Stage14 unsigned attribution-correction package"},"RS-029":{"label":"Pinned v2.0; v2.2 §4.3 owed; `contract.py` L73 copies 4-value `GENAI_EVIDENCE`","desc":"Pinned v2.0; v2.2 §4.3 owed; `contract.py` L73 copies 4-value `GENAI_EVIDENCE`"},"RS-030":{"label":"Published verdicts; 27,648 unclear and 535,546 of 719,588 reviewed confirmed by API meta (as_of 2026-10-24T14:04:52Z)","desc":"Published verdicts; 27,648 unclear and 535,546 of 719,588 reviewed confirmed by API meta (as_of 2026-10-24T14:04:52Z)"},"RS-031":{"label":"Classifier; extractor","desc":"Classifier; extractor"},"RS-032":{"label":"`final: false` on 2026-10-27; still running per PI","desc":"`final: false` on 2026-10-27; still running per PI"},"RS-033":{"label":"Sibling plan; its RS-016 pins this contract surface","desc":"Sibling plan; its RS-016 pins this contract surface"},"RS-034":{"label":"Run-diff and rehearsal tooling","desc":"Run-diff and rehearsal tooling"},"RS-035":{"label":"Contaminated e2e; pilot v1 (barred C-006)","desc":"Contaminated e2e; pilot v1 (barred C-006)"},"RS-036":{"label":"Public-API harvest (G8 c), 2026-10-27, meta coverage as_of 2026-10-24T14:04:52Z: 27,648 unclear (total_is_exact). Level: local 22,253; second_subnational 2,635; national 2,279; first_subnational 481. Branch: executive 24,700; bureaucratic 2,789; legislative 108; judicial 51. 205 countries (USA 4,217; FRA 2,068; IDN 2,030; IND 1,848; ITA 1,309; ...). 800 sample (seed 20261027): evidence rows/institution p50 4, p90 12, max 41; distinct URLs mean 5.6; 58 source languages (en 36.2%, fr 8.7%, es 7.6%, id 5.6%, de 4.8%, ...); `genai_evidence` confirms_absence 2,560 / ambiguous 2,100 / background_only 8","desc":"Public-API harvest (G8 c), 2026-10-27, meta coverage as_of 2026-10-24T14:04:52Z: 27,648 unclear (total_is_exact). Level: local 22,253; second_subnational 2,635; national 2,279; first_subnational 481. Branch: executive 24,700; bureaucratic 2,789; legislative 108; judicial 51. 205 countries (USA 4,217; FRA 2,068; IDN 2,030; IND 1,848; ITA 1,309; ...). 800 sample (seed 20261027): evidence rows/institution p50 4, p90 12, max 41; distinct URLs mean 5.6; 58 source languages (en 36.2%, fr 8.7%, es 7.6%, id 5.6%, de 4.8%, ...); `genai_evidence` confirms_absence 2,560 / ambiguous 2,100 / background_only 8"}},"tasks":[{"id":"T-001","name":"Count stored-text availability for documented and unclear institutions","lane":"eng-b","s":0,"e":1,"label":"Count stored-text availability for documented and unclear institutions","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Counts file | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/spikes/count-backfill.json`† | T-029, T-072, integrator | per-uid counts for both groups (pages, pages ≥200 chars, raw `%PDF`), group totals, script hash |\n| Spike report | `.../spikes/SPIKE-T001.md`† | T-029, T-072, PI | totals reconciled to RS-025 (9,705 documented; 27,648 unclear); free disk and run-dir footprint; RS-006 scratch status |","ver":["Self-check: group totals reconcile with RS-025 counts (9,705 documented; 27,648 unclear)","Independent review: integrator re-runs the count on 20 uids","Acceptance tests: feeds A-015","Failure/rollback: delete droplet scratch; spike outputs are read-only evidence"],"res":["RS-004","RS-006","RS-007","RS-025","RS-036"],"deliv":[],"deps":[],"soft":[],"cp":false,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-002","name":"Measure jev two-pass cost, latency and fan-out on a small set","lane":"eng-c","s":0,"e":1,"label":"Measure jev two-pass cost, latency and fan-out on a small set","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Spike report | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/spikes/SPIKE-T002.md`† | T-003, T-020, T-021, T-025, DEC-003 d, risk register, PI (URL cap) | cost per 1k pages; p50/p95 latency; chunk counts; fan-out distribution; Batch round count and latency; estimator constant and error per script |\n| Raw answers | `.../spikes/SPIKE-T002-answers.jsonl`† | T-003 (quotes), integrator | every request id and response kept; nano quotes with page id and chunk id, one row per (code, quote) |\n| Paid-run command | `.../spikes/SPIKE-T002-command.md`† | Simone | exact `! <command>` line plus cost estimate |","ver":["Self-check: call counts equal page count × passes; estimator error reported per script; every positive proxy code has a quote row (or a recorded empty result) in `SPIKE-T002-answers.jsonl`","Independent review: integrator spot-checks 5 request ids against raw answers","Acceptance tests: none directly (informs A-004, A-021)","Failure/rollback: none needed (measurement only)"],"res":["RS-004","RS-008","RS-009","RS-012","RS-015","RS-024","RS-031"],"deliv":[],"deps":[],"soft":[],"cp":true,"gate":false,"dps":[{"id":"DP-001","text":"Composition of the up-to-50-page sample","default":"documented and unclear pages in proportion, drawn from RS-008/RS-009","rec":null,"sub":null,"proc":null,"cls":null},{"id":"DP-002","text":"Whether to time synchronous nano calls as well as Batch","default":"Batch only","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-003","name":"Calibrate the fuzzy quote matcher (Q-020 b)","lane":"eng-c","s":1,"e":2,"label":"Calibrate the fuzzy quote matcher (Q-020 b)","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Spike report | `.../spikes/SPIKE-T003.md`† | T-024, PI | metric, threshold, error table by language/script; `rapidfuzz` version pin, licence and wheel availability for droplet Python |\n| Labelled pairs | `.../spikes/SPIKE-T003-pairs.csv`† | T-024, PI | true/false labels, hold-out split marked |\n| Display-cap proposal | in `SPIKE-T003.md` | PI, T-050, T-053 | quote-length distribution and a proposed website cap value |","ver":["Self-check: hold-out split; error rates reported on the hold-out","Independent review: PI labels 30 pairs","Acceptance tests: A-002 (via T-024, T-041)","Failure/rollback: n/a"],"res":["RS-009","RS-011","RS-025"],"deliv":[],"deps":["T-002"],"soft":[],"cp":true,"gate":false,"dps":[{"id":"DP-003","text":"A single threshold or one per script","default":"a single threshold","rec":null,"sub":null,"proc":null,"cls":null},{"id":"DP-004","text":"Rule for the proposed website display cap","default":"propose the length that covers 90% of quotes","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-010","name":"Draft Output Contract v2.7 and the validate-contract v1.5 bump","lane":"integrator","s":0,"e":1,"label":"Draft Output Contract v2.7 and the validate-contract v1.5 bump","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Extract contract | `g3o/extract/prompts/output_contract.md` on branch `reclass/t010-contract`† | T-011, T-012, T-022, T-040, T-050, T-060, T-061, T-090 | every A-001 rule present; 8-value verdict (R-015); label v2.7; §4.3 (R-087) |\n| System prompt | `g3o/extract/prompts/system_prompt.md` | same | R-016 amendment to the \"chatbot\" rule |\n| Validate contract | `g3o/validate/prompts/output_contract.md` | same | label v1.5 |\n| Signed hash | integrator record | T-031, T-097 | hash of the three files at PI sign-off |","ver":["Self-check: checklist mapping R-010..R-044 and R-087 to contract section anchors","Independent review: T-031 reviewer cross-check","Acceptance tests: A-001","Failure/rollback: branch only"],"res":["RS-004","RS-010","RS-011","RS-024","RS-026"],"deliv":["D-001"],"deps":[],"soft":[],"cp":true,"gate":false,"dps":[{"id":"DP-005","text":"How to proceed if procurement's §4.3 text has not arrived when the rest is ready","default":"T-011 and T-012 wait for the signed contract hash; drafting of T-010 itself may proceed with a §4.3 placeholder","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-011","name":"Build the v2.7 jev question sets (pass 1, pass 2, Stage 6)","lane":"eng-a","s":1,"e":2,"label":"Build the v2.7 jev question sets (pass 1, pass 2, Stage 6)","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Question sets | `g3o/classify/questions/v27/{page,activity,institution}.json`† + `JEV_QUESTION_SET_VERSION` on branch `reclass/t011-questions`† | T-021, T-023, T-026, T-040 | each question cites its contract section; version stamped; CX text identical to RS-024 |","ver":["Self-check: diff of CX questions against RS-024 is empty; schema validation passes","Independent review: T-031","Acceptance tests: A-011, A-012 (via T-041)","Failure/rollback: branch"],"res":["RS-013","RS-024"],"deliv":[],"deps":["T-010"],"soft":[],"cp":true,"gate":false,"dps":[{"id":"DP-006","text":"Bounds of the year choice set for `year_announced` / `year_deployed`","default":"the engineer proposes a closed range covering every year present in published v2.5 data, plus a \"not stated\" choice","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-012","name":"Update enums, schema and contract constants in code","lane":"eng-b","s":1,"e":2,"label":"Update enums, schema and contract constants in code","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Touchpoint inventory (chunk 1) | `C:/Users/spaci/repos/G3O/planning/handoffs/T-012-touchpoints.md`† | integrator, T-050, T-060 | every file with an enum/contract/version reference, by repo; proposed owner card |\n| Enum and schema code (chunk 2) | `g3o/common/contract.py`, `g3o/common/schema.py`, enum modules, `tests/test_schema_consistency.py` on branch `reclass/t012-enums`† | T-021..T-028, T-032, T-050, T-051 | v2.5 rows still validate (4-value kept under a version guard); `contract_version` field present |","ver":["Self-check: `git grep` over all enum touchpoints matches the inventory; pytest schema tests pass","Independent review: T-031","Acceptance tests: supports A-011, A-013 (via T-041)","Failure/rollback: branch"],"res":["RS-010"],"deliv":[],"deps":["T-010"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-020","name":"Build the token-based page chunker and combination rule","lane":"eng-a","s":0,"e":1,"label":"Build the token-based page chunker and combination rule","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Chunker module | `g3o/common/page_chunks.py`†, `tests/test_page_chunks.py`† on branch `reclass/t020-chunks`† | T-021, T-022, T-023 | deterministic; chunk ids carried; estimator constant per script configurable |","ver":["Self-check: unit tests on ordered vocabularies, yes/no items and page fields; tests that over-limit chunks trigger halve-and-retry","Independent review: T-031","Acceptance tests: A-021 (via T-041)","Failure/rollback: branch"],"res":["RS-004","RS-014","RS-024"],"deliv":[],"deps":[],"soft":["T-002"],"cp":true,"gate":false,"dps":[{"id":"DP-007","text":"Safety margin below the 32k-token limit for the estimator","default":"a margin equal to the largest estimator error T-002 observes for the page's script","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-021","name":"Build the jev pass-1 page coder stage","lane":"eng-a","s":3,"e":4,"label":"Build the jev pass-1 page coder stage","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Pass-1 stage | `g3o/classify/jev_page_code.py`†, `g3o/run/presweep/stage_page_code.py`†, tests on branch `reclass/t021-pass1`† | T-023, T-025, T-030 | per-page artifact with verdict, CX page fields, completeness flag, chunk ids |","ver":["Self-check: mocked tests for threshold flags and chunked pages","Independent review: T-031","Acceptance tests: A-011, A-013 (via T-041)","Failure/rollback: branch"],"res":["RS-012","RS-019"],"deliv":[],"deps":["T-002","T-011","T-012","T-020","T-027"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-022","name":"Rework the nano extraction call (spans, pass-1 quotes, links, residual free text)","lane":"eng-c","s":2,"e":3,"label":"Rework the nano extraction call (spans, pass-1 quotes, links, residual free text)","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Nano extraction | `g3o/extract/{batch,client,parser,salvage}.py`, `g3o/extract/prompts/extract_v27.md`†, `g3o/run/presweep/stage_extract.py` on branch `reclass/t022-nano`† | T-023, T-024, T-025, T-032 | output never carries a code field (C-001); spans as offsets, only for the 5 R-003 verdicts; a quote (or recorded empty result) for every positive / substantive pass-1 page code on every page; links for every incomplete page; every nano free-text value has supporting text; quotes tagged with chunk id; no head+tail truncation on the v2.7 path |","ver":["Self-check: parser tests; grep confirms no code value is parsed from nano output; tests that quotes carry chunk ids","Self-check: request-selection tests — a `background_only` page with a positive CX page code gets a quote request; an incomplete `no_genai` page gets a links request; spans are requested only for the 5 R-003 verdicts; every nano free-text value in the fixtures has supporting text","Independent review: T-031","Acceptance tests: A-003, A-021 (via T-041)","Failure/rollback: branch"],"res":["RS-015"],"deliv":[],"deps":["T-010","T-012","T-020"],"soft":[],"cp":true,"gate":false,"dps":[{"id":"DP-008","text":"Coordinate base for the character spans on chunked pages","default":"offsets into the full page text","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-023","name":"Build the jev pass-2 activity coder","lane":"eng-a","s":4,"e":5,"label":"Build the jev pass-2 activity coder","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Pass-2 stage | `g3o/classify/jev_activity_code.py`†, `g3o/run/presweep/stage_activity_code.py`†, tests on branch `reclass/t023-pass2`† | T-026, T-032 | one record per activity, linked to page, span and chunk |","ver":["Self-check: mocked multi-activity tests; tests that no nano text other than span offsets enters the jev request","Independent review: T-031","Acceptance tests: A-003 (via T-041)","Failure/rollback: branch"],"res":["RS-012"],"deliv":[],"deps":["T-011","T-020","T-021","T-022","T-027"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-032","name":"Build the pass-2 supporting-text call","lane":"eng-c","s":5,"e":6,"label":"Build the pass-2 supporting-text call","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Pass-2 support module | `g3o/extract/pass2_support.py`† + tests on branch `reclass/t032-pass2-quotes`† | T-024, T-030 | one quote record per (activity, code) with chunk id; no code field |","ver":["Self-check: fixture tests with multi-activity and chunked pages; grep confirms no code value parsed from nano","Independent review: T-031","Acceptance tests: A-003, A-021 (via T-041)","Failure/rollback: branch"],"res":["RS-015"],"deliv":[],"deps":["T-022","T-023"],"soft":[],"cp":true,"gate":false,"dps":[{"id":"DP-009","text":"One nano request per (page × activity) or one per page covering all its activities","default":"one request per page covering all activity spans","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-024","name":"Build support check, downgrade and deterministic extraction","lane":"eng-c","s":6,"e":7,"label":"Build support check, downgrade and deterministic extraction","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Support check, downgrade and deterministic extraction module, plus tests | `g3o/common/support_check.py`†, tests; branch `reclass/t024-support`† | T-026, T-028, T-041 | each downgrade records its reason (`no_quote`, `low_confidence`); matcher library pinned |","ver":["Self-check: tests per the R-041 value list (Q-010 a), including a negative code below 0.8","Self-check: quotes from both passes are checked, and a chunked-page quote is matched in the chunk that produced the code (R-044)","Independent review: T-031","Acceptance tests: A-002; A-016 via T-082","Failure/rollback: branch"],"res":[],"deliv":[],"deps":["T-003","T-012","T-022","T-032"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-025","name":"Build link following (3 hops, URL cap, once per URL, provenance)","lane":"eng-b","s":4,"e":5,"label":"Build link following (3 hops, URL cap, once per URL, provenance)","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Follow-up leg modules, plus tests | `g3o/scrape/follow.py`†, `g3o/run/presweep/stage_follow.py`†, tests; branch `reclass/t025-links`† | T-029, T-030 | provenance fields: origin page, hop, fetch date, release id; per-institution \"cap reached\" record |","ver":["Self-check: loop, dedup and hop-limit tests (A-004)","Self-check: cap-reached test: following stops at the cap and \"cap reached\" is recorded (SC-03)","Independent review: T-031","Acceptance tests: A-004, A-014","Failure/rollback: feature flag off"],"res":["RS-016"],"deliv":[],"deps":["T-002","T-021","T-022"],"soft":[],"cp":false,"gate":false,"dps":[{"id":"DP-030","text":"Whether the nano calls in the follow-up legs go through the Batch queue or are made synchronously (DEC-003 d)","default":"Batch queue, as in the rest of the pipeline","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-026","name":"Rewrite v2.6 consolidation against jev Stage 6","lane":"eng-a","s":7,"e":8,"label":"Rewrite v2.6 consolidation against jev Stage 6","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Rewritten Stage 6 consolidation, plus tests | `g3o/validate/jev_validate.py`, `g3o/run/presweep/stage_validate.py`, `g3o/common/evidence_review.py`†, tests; branch `reclass/t026-stage6`† | T-028 | institution verdict + dispositions; question-set version stamped |","ver":["Self-check: the 30 `exval_cases`, adapted, pass","Self-check: A-010 fixtures (complete context vs open signals) pass","Independent review: T-031","Acceptance tests: A-010","Failure/rollback: branch"],"res":["RS-011","RS-014"],"deliv":[],"deps":["T-011","T-012","T-023","T-024","T-027"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-027","name":"Build the shared jev answer record","lane":"eng-b","s":2,"e":3,"label":"Build the shared jev answer record","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Shared jev record module, plus tests | `g3o/common/jev_record.py`†, tests; branch `reclass/t027-record`† | T-021, T-023, T-026, T-028, T-050 | serialises to per-institution JSON artifacts; fields map to DB columns per DEC-004 a; fixes the RS-014 gap (first-chunk ids only) |","ver":["Self-check: round-trip tests (record → JSON → record) for every field, including chunk id","Independent review: T-031","Acceptance tests: A-013","Failure/rollback: branch"],"res":["RS-012","RS-013","RS-014"],"deliv":[],"deps":["T-012"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-028","name":"Update the Stage 7 writer for v2.7 rows","lane":"eng-a","s":8,"e":9,"label":"Update the Stage 7 writer for v2.7 rows","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Updated writer, plus tests | `g3o/persist/writer.py`, tests; branch `reclass/t028-writer`† | T-030, T-052, T-090 | column list matches T-050; `contract_version` on every row; supporting text not truncated in CSV (DEC-016 c) |","ver":["Self-check: golden CSV for 3 fixture institutions","Self-check: every row carries `contract_version` (R-050 rejection condition)","Independent review: T-031","Acceptance tests: A-007 (via T-095), A-017 (via T-090)","Failure/rollback: branch"],"res":["RS-018"],"deliv":[],"deps":["T-012","T-024","T-026","T-027","T-050"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-030","name":"Integrate the v2.7 new-run path (code integrator task)","lane":"eng-b","s":9,"e":10,"label":"Integrate the v2.7 new-run path (code integrator task)","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Integrated v2.7 pipeline | `g3o/run/presweep/{orchestrator,config}.py`, `g3o/run/telemetry.py`, `tests/test_e2e_presweep_smoke.py`; branch `reclass/v2.7`† | T-029 | new-run e2e green; pins untouched (regenerated in T-035) |","ver":["Self-check: full test suite green on `reclass/v2.7`†","Self-check: mocked e2e passes through the new-run entry point","Independent review: T-031","Failure/rollback: revert merge commits"],"res":[],"deliv":[],"deps":["T-021","T-025","T-028","T-032"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-029","name":"Build the back-fill entry point","lane":"eng-a","s":10,"e":11,"label":"Build the back-fill entry point","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Back-fill package and CLI subcommand | `g3o/run/backfill/`†; the `backfill` subcommand hunk for `g3o/cli.py` handed to T-035 as a patch, not written to `cli.py`; branch `reclass/t029-backfill`† | T-034, T-035 | named failure states enumerated; fresh release id; no run_id reuse; rows marked hidden until release |","ver":["Self-check: mocked back-fill of 5 institutions, including a no-text page and a raw-PDF page","Self-check: a test that the entry point refuses to write under an existing run_id, and that rows carry the hidden flag","Independent review: T-031","Acceptance tests: A-005, A-015 (at release)","Failure/rollback: branch"],"res":["RS-017"],"deliv":[],"deps":["T-001","T-025","T-030"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-034","name":"Build the WS10 transfer path","lane":"eng-a","s":11,"e":12,"label":"Build the WS10 transfer path","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Transfer module, plus tests | `g3o/run/backfill/transfers.py`†, tests; branch `reclass/t034-ws10`†; any `cli.py` hunk handed to T-035 as a patch | T-035 | each transfer coded under its verified owner with its WS10 disposition; linked to the original source observation; no search record, draw membership or pipeline stamp invented |","ver":["Self-check: mocked run of 5 transfers, including one owner currently published as `none`","Self-check: sweep and denominator counts are unchanged by the transfer path (C-005)","Independent review: T-031","Acceptance tests: A-022 (at release)","Failure/rollback: branch"],"res":["RS-026"],"deliv":[],"deps":["T-029"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-035","name":"Integrate the back-fill and transfer paths","lane":"eng-b","s":12,"e":13,"label":"Integrate the back-fill and transfer paths","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Fully integrated v2.7 pipeline | `g3o/cli.py`, `tests/goldens/{contract_version_pin,reproducibility}.json`, `tests/test_e2e_presweep_smoke.py` (back-fill and transfer cases); branch `reclass/v2.7`† | T-031, T-041 | e2e green on new-run, back-fill and transfer entry points; pins regenerated once and match extract v2.7 + validate v1.5 (DEC-013 a) |","ver":["Self-check: full test suite green on `reclass/v2.7`†","Self-check: mocked e2e passes through the new-run, back-fill and transfer entry points (PF-018)","Self-check: pin test matches extract v2.7 + validate v1.5; pins regenerated exactly once (one commit)","Self-check: the transfer e2e leaves sweep and denominator counts unchanged (C-005)","Independent review: T-031","Failure/rollback: revert merge commits"],"res":[],"deliv":["D-002"],"deps":["T-029","T-034"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-031","name":"Independent code and contract review","lane":"reviewer","s":13,"e":14,"label":"Independent code and contract review","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Review report | `C:/Users/spaci/repos/G3O/planning/reviews/Code-Review-T031.md`† | integrator, PI | findings ranked; each with file:line |","ver":["Check: no nano-decided code fields (C-001); only character spans from nano reach jev pass 2 (DEC-010 a)","Check: CX-01.2 wording byte-diff against the frozen text (R-025)","Check: pin test (C-007) on the pins regenerated in T-035","Check: the procurement §4.3 amendment is present in contract v2.7 under the same version bumps, extract v2.7 + validate v1.5 (R-087)","Check: no `pilot_v1` input and no `inputs/` writes (C-006, C-008)","Check: the Stage 1-3 diff is empty except link intake (N-004)","Check: no write under an original run_id; the hidden-until-release flag is set on v2.7 rows (R-056, R-073)","Check: the transfer path invents no search records and adds nothing to denominators (C-005)"],"res":[],"deliv":[],"deps":["T-035"],"soft":[],"cp":false,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-040","name":"Build the v2.7 fixture set","lane":"integrator","s":1,"e":2,"label":"Build the v2.7 fixture set","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Fixture set + label sheet | `tests/fixtures/v27/`† + label sheet; branch `reclass/t040-fixtures`† | T-041 | each fixture: expected value + PI label ref; synthetic/real marked |","ver":["Self-check: every listed A-ID has at least 3 fixtures","Independent review: PI approves the real-page labels","Acceptance tests: A-003, A-004, A-010, A-011, A-012, A-020, A-021 (run in T-041)","Failure/rollback: branch"],"res":["RS-005","RS-008","RS-009","RS-011","RS-024"],"deliv":[],"deps":["T-010"],"soft":[],"cp":false,"gate":false,"dps":[{"id":"DP-031","text":"How many fixtures per acceptance ID","default":"at least 3 per A-ID, as in the draft card","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-041","name":"Run the fixtures on the integrated pipeline (paid, small)","lane":"eng-b","s":13,"e":14,"label":"Run the fixtures on the integrated pipeline (paid, small)","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Fixture-run results and report | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/fixture-run/`† + `T041-REPORT.md`† | T-054, T-060, T-071, PI | per-fixture expected vs got, per entry point; cost estimate vs actual |\n| Real-id back-fill output (≤5 institutions) | fixture-run folder, `real-id-subset/`† | T-054 | rows keyed to real original observation ids, fresh release id, hidden flag set |","ver":["Self-check: every listed A-ID reported, for each entry point","Self-check: the real-id subset's rows carry their original observation ids, a fresh release id and the hidden flag","Independent review: PI reads the failures","Acceptance tests: A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, A-022","Failure/rollback: n/a (no live state changed)"],"res":["RS-031"],"deliv":[],"deps":["T-024","T-035","T-040"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-050","name":"Write the D-007 interface specification for Colin","lane":"integrator","s":3,"e":4,"label":"Write the D-007 interface specification for Colin","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| D-007 interface spec | `C:/Users/spaci/repos/G3O/planning/handoffs/D-007-interface-spec.md`† | Colin, T-028, T-051, T-052, T-053 | Covers: correction tables linked to original observation ids + most-recent projection view (DEC-001 a); `contract_version` column on every row (DEC-005 a); jev columns (confidence, model id, request id) with the distribution jsonb not served by the API (DEC-004 a); history parameter/endpoint for older rows (DEC-015 a); full supporting text in API, website display cap (DEC-016 c); release flag hiding every v2.7 row until release (R-056); ownership of `v_wave_*` views, materialized aggregates, `sql/013..020` and refresh, including an explicit refresh + watermark check because `sql/007` does not fire on updates (PF-007); ordinary runs keep per-wave latest-run-wins under wave windows, correction rows wave-free (R-055); ingest guard refusing a back-fill that reuses an original run_id (PF-004); `scripts/export_bulk.py` + `scripts/test_export_bulk.py` updated for v2.7 fields (PF-023); CSV column list agreed with T-028; acceptance block for A-019 |\n| GitHub issues | g3o-api and g3o-website issues linking the spec | Colin | One issue per downstream card (T-051, T-052, T-053) unless DP-060 is changed |","ver":["Self-check: every published field in the T-028 column list appears in the spec","Self-check: every item in the Outputs contract is present","Independent review: Colin's acceptance (A-019)","Failure/rollback: n/a (document)"],"res":["RS-020","RS-023"],"deliv":["D-007"],"deps":["T-010","T-012","T-027"],"soft":[],"cp":true,"gate":false,"dps":[{"id":"DP-060","text":"Deliver the spec to Colin as one GitHub issue per downstream card, or one umbrella issue per repo","default":"one issue per downstream card (T-051, T-052 on g3o-api; T-053 on g3o-website), each linking the spec","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-051","name":"g3o-api migration: correction layer, per-row version, jev fields, page verdict","lane":"colin","s":4,"e":5,"label":"g3o-api migration: correction layer, per-row version, jev fields, page verdict","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Forward migration | `g3o-api/sql/021_reclass_v27.sql`† | T-052, T-054, T-055, T-074 | No ALTER of original values; added columns nullable; correction tables + projection view; release flag; `contract_version`; jev columns |\n| Down migration | `g3o-api/sql/down/021_reclass_v27.sql`† | T-054, T-055, T-074 | Restores pre-021 schema without touching original rows |\n| Correction loader | `g3o-api/scripts/load_corrections.py`† | T-054, T-074 | Built on the `backfill_verdicts.py` safety pattern: dry-run by default, `--apply` required, shared parse function with ingest, explicit refresh + watermark verification |","ver":["Self-check: apply and down on a disposable branch; schema diff shows only additive objects","Self-check: loader dry-run prints planned writes and touches nothing","Independent review: T-054 rehearsal","Failure/rollback: down migration"],"res":["RS-020"],"deliv":[],"deps":["T-050"],"soft":[],"cp":true,"gate":false,"dps":[{"id":"DP-061","text":"Implement the most-recent projection as a plain view or a materialized view","default":"plain view","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-052","name":"g3o-api ingest and endpoints for v2.7","lane":"colin","s":9,"e":10,"label":"g3o-api ingest and endpoints for v2.7","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Ingest | `g3o-api/scripts/ingest.py` | T-054, T-055, T-074 | Reads v2.7 columns; refuses a back-fill load that reuses an original run_id (PF-004) |\n| API worker | `g3o-api/worker/src/index.js`, `g3o-api/schema/schema_core.sql` | T-053, public | Most-recent row by default, history parameter, version label, release flag honoured, distribution jsonb not served |\n| Aggregates | `v_wave_*` views, materialized aggregates (`sql/013..020`) and refresh path | T-074, site | Explicit refresh + watermark check after any correction load (PF-007); ordinary runs keep per-wave latest-run-wins (item 24 b) |\n| Bulk export | `g3o-api/scripts/export_bulk.py`, `scripts/test_export_bulk.py` | #175 lane | v2.7 fields and `contract_version` exported (PF-023) |\n| API contract doc | RS-023 | Colin, public | Updated for v2.7 |","ver":["Self-check: `verify_api.py` against staging","Self-check: unreleased v2.7 rows absent from every public endpoint and aggregate","Self-check: `test_export_bulk.py` passes with v2.7 fields","Independent review: T-054","Failure/rollback: worker revert"],"res":["RS-023"],"deliv":[],"deps":["T-028","T-051"],"soft":[],"cp":true,"gate":false,"dps":[{"id":"DP-062","text":"Expose older rows as a query parameter on existing endpoints or as a separate history endpoint","default":"query parameter on existing institution endpoints","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-053","name":"Website changes for v2.7","lane":"colin","s":10,"e":11,"label":"Website changes for v2.7","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Site changes | `src/pages/Institution.jsx`, `src/data/vocabulary.js`, `src/copy.js`, tests | T-095, public | Most-recent row + version label; supporting text capped with marker and \"show full\"; v2.5-latest rows hide new fields; copy strings PI-approved |","ver":["Self-check: site tests","Independent review: T-095 (A-007)","Failure/rollback: GitHub Pages revert"],"res":["RS-022"],"deliv":[],"deps":["T-052"],"soft":[],"cp":false,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-054","name":"Rehearse migration, load and rollback on a disposable DB branch","lane":"eng-b","s":14,"e":15,"label":"Rehearse migration, load and rollback on a disposable DB branch","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Rehearsal report | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/rehearsal/T054-REPORT.md`† | T-055, T-074 | Diff empty on original columns and rows; correction rows linked to real original ids; rollback by release id clean; down restores; refresh moved the watermark; unreleased rows not public; history parameter returns older rows; correction rows visible outside wave windows; timings |","ver":["Self-check: row-count and hash diff of original columns and rows before/after (A-006)","Self-check: refresh watermark moved after load","Self-check: unreleased rows absent from public endpoints","Self-check: correction rows link to real original observation ids (real-id subset)","Self-check: history parameter returns older rows (R-051)","Self-check: correction rows visible regardless of wave windows (R-055)","Independent review: integrator","Failure/rollback: drop the disposable branch"],"res":[],"deliv":[],"deps":["T-041","T-051","T-052"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-055","name":"Take the v2.7 schema and ingest live before deploy","lane":"colin","s":15,"e":16,"label":"Take the v2.7 schema and ingest live before deploy","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Pre-apply snapshot | Neon branch of live taken just before apply† | rollback | Restorable |\n| Live schema | migration 021 applied on `br-wave1-cutover` | T-071, T-074, ordinary runs | Additive only; originals untouched (A-006) |\n| Production ingest/worker | g3o-api production deploy | T-071, T-074 | v2.5 rows ingest and publish unchanged; v2.7 rows hidden until release |\n| Go-live record | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/golive/T055-GOLIVE.md`† | T-071, integrator | Snapshot name; apply log; v2.5 ingest check; synthetic v2.7 hidden-row check; watermark before/after |","ver":["Self-check: hash diff of original columns and rows before/after apply (A-006)","Self-check: a v2.5 ordinary-run CSV ingests and publishes exactly as before the deploy","Self-check: a synthetic v2.7 row loads and is absent from every public endpoint and aggregate (R-056)","Self-check: explicit refresh moves the watermark","Independent review: integrator","Failure/rollback: down migration + restore from the pre-apply snapshot; revert the worker"],"res":[],"deliv":[],"deps":["T-052","T-054"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-060","name":"Send the D-008 delta to the procurement integrator","lane":"integrator","s":14,"e":15,"label":"Send the D-008 delta to the procurement integrator","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Delta | `C:/Users/spaci/repos/G3O/planning/handoffs/D-008-procurement-delta.md`† | procurement integrator | Old→new mapping; pins; §4.3 status; timing |\n| Delivery | email via Simone (procurement DEC-010) + comment on G3O #134 | procurement integrator | Acceptance recorded for A-018 |","ver":["Self-check: delta lists every enum surface from T-012's inventory","Independent review: procurement integrator's acceptance (A-018)","Failure/rollback: n/a"],"res":["RS-029"],"deliv":["D-008"],"deps":["T-010","T-012","T-041"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-061","name":"Notify the G3O validation plan of the contract change","lane":"integrator","s":1,"e":2,"label":"Notify the G3O validation plan of the contract change","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Notice | `C:/Users/spaci/repos/G3O/planning/handoffs/validation-notice.md`† | validation plan integrator | Labels, timing, statement that this plan does not edit the validation plan |\n| Message | coord mailbox message to the validation plan's integrator | validation plan integrator | Links the notice |","ver":["Self-check: notice names both version labels and the deployment timing","Independent review: PI approves text","Failure/rollback: n/a"],"res":["RS-033"],"deliv":[],"deps":["T-010"],"soft":[],"cp":false,"gate":false,"dps":[{"id":"DP-063","text":"Send the notice by coord mailbox to the validation plan's integrator or by email via Simone","default":"coord mailbox message plus the notice file","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-071","name":"Deploy v2.7 pipeline to the droplet","lane":"eng-a","s":16,"e":17,"label":"Deploy v2.7 pipeline to the droplet","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Droplet checkout | `/home/g3o/...` checkout at merge sha | T-070, T-072 | sha recorded |\n| Deploy record | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/deploy/DEPLOY.md`† | integrator | sha, config/key check, free disk (PF-017) |","ver":["Self-check: `git rev-parse HEAD` on the droplet equals the merge sha","Self-check: required keys and optional features present (unlocker etc.)","Self-check: free disk vs projected footprint","Independent review: integrator","Failure/rollback: check out the previous sha"],"res":[],"deliv":[],"deps":["T-031","T-041","T-055","T-060","T-061"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-070","name":"Freeze and draw the back-fill set","lane":"eng-a","s":17,"e":18,"label":"Freeze and draw the back-fill set","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Back-fill set | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/freeze/backfill-set.json`† | T-072, T-073, T-074, T-080 | Count = documented + unclear at `as_of`, plus transfer owners flagged; other `none` excluded |\n| Freeze record | `.../freeze/FREEZE.md`† | integrator, PI | `as_of`, `total`, snapshot file (DEC-019) |","ver":["Self-check: totals vs API meta","Self-check: all 45 owners present, `none` owners flagged","Independent review: integrator recount","Failure/rollback: re-snapshot"],"res":["RS-026","RS-030"],"deliv":[],"deps":["T-071"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-072","name":"Back-fill smoke run (small sample)","lane":"eng-a","s":18,"e":19,"label":"Back-fill smoke run (small sample)","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Smoke run | `/home/g3o/runs/<backfill-smoke-id>/` | T-073 | Every institution has an end state |\n| Smoke report | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/smoke/SMOKE.md`† | PI, T-073 | End states; failure-state share; cap-reached counts; per-field downgrade counts; full-set cost and runtime projection |","ver":["Self-check: end-state count = input count","Independent review: integrator samples 10 institutions","Failure/rollback: discard the run"],"res":[],"deliv":[],"deps":["T-001","T-070"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-073","name":"Full back-fill run","lane":"eng-a","s":19,"e":20,"label":"Full back-fill run","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Back-fill run | `/home/g3o/runs/<backfill-id>/` + run log | T-074 | Progress and cost per batch; batches mixed by country |","ver":["Self-check: per-batch counts against the list","Independent review: integrator","Failure/rollback: run is additive; discard"],"res":[],"deliv":[],"deps":["T-072"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-074","name":"Load the correction layer and reconcile","lane":"eng-a","s":20,"e":21,"label":"Load the correction layer and reconcile","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Snapshot | Neon branch of live taken before load (name per DP-064) | rollback | Restorable |\n| Live correction rows | live DB, release id | T-080, T-095 | Hidden until release; originals untouched |\n| Reconciliation | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/reconciliation/RECON.md` + csv† | T-080, T-082, T-095 | A-005 count identity; A-006 diff empty; A-015 no-text list; A-022 transfers under verified owners; denominator unchanged |","ver":["Self-check: hash diff of original columns and rows (A-006)","Self-check: counts reconcile (A-005); 114-transfer check (A-022)","Self-check: watermark moved; unreleased rows not public","Independent review: integrator","Failure/rollback: delete by release id; restore from snapshot"],"res":[],"deliv":["D-003"],"deps":["T-052","T-054","T-055","T-073"],"soft":[],"cp":true,"gate":false,"dps":[{"id":"DP-064","text":"Take the pre-load snapshot as a Neon branch of live or as a pg_dump","default":"Neon branch of live named `pre-reclass-<date>` just before load","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-080","name":"Draw the 400-institution quality sample","lane":"eng-b","s":21,"e":22,"label":"Draw the 400-institution quality sample","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Samples | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/quality/sample-400.json`, `sample-transfers.json`, `sample-sonnet-100.json`† | T-081, T-082 | Seeds, strata counts, stratum population sizes (for weights) |","ver":["Self-check: counts per stratum; Sonnet subset is 25 per stratum","Independent review: integrator","Failure/rollback: redraw with a new seed (logged)"],"res":[],"deliv":[],"deps":["T-074"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-081","name":"Agent-read swarm (Haiku 400 + transfer stratum, Sonnet 100)","lane":"quality","s":22,"e":23,"label":"Agent-read swarm (Haiku 400 + transfer stratum, Sonnet 100)","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Reads | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/quality/reads/{haiku,sonnet}-NN.jsonl`† | T-082 | Per-record model id; institution verdict + page verdicts |\n| Trace bundle | `.../quality/reads/manifest.json`, `prompt.sha256`, transcripts† | T-082, T-096 | Input manifests, prompt hash, identical inputs across models, transcripts kept |","ver":["Self-check: record counts = sample sizes for each model","Self-check: prompt hash and input manifest identical across Haiku and Sonnet","Self-check: no pipeline codes present in any subagent input","Independent review: T-083","Failure/rollback: rerun the affected subagent"],"res":[],"deliv":[],"deps":["T-080"],"soft":[],"cp":true,"gate":false,"dps":[{"id":"DP-065","text":"Does the Claude subagent swarm count as \"costs money\" under red line 4","default":"treat it as paid — Simone authorises the launch before any subagent starts","rec":null,"sub":null,"proc":null,"cls":null},{"id":"DP-066","text":"Run the reads as Agent-tool subagents or as a Workflow","default":"Agent-tool subagents, at most 4 concurrent","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-082","name":"Compile the quality packet","lane":"integrator","s":23,"e":24,"label":"Compile the quality packet","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Quality packet | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/quality/QUALITY-PACKET.md`† | T-083 | Weighted overall figures; Sonnet–Haiku difference; disagreement list + count; 25 random audit picks with seed |","ver":["Self-check: every number recomputed from raw reads","Self-check: weights sum to the back-fill set; transfer-owner stratum excluded from weighted figures and reported on its own","Independent review: PI","Failure/rollback: n/a"],"res":[],"deliv":["D-005"],"deps":["T-074","T-081"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-083","name":"PI audit","lane":"researcher","s":24,"e":24,"label":"PI audit","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Signed audit | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/quality/PI-AUDIT.md`† | T-095 | Ruling per audited case; signature |","ver":["Signature recorded"],"res":[],"deliv":[],"deps":["T-082"],"soft":[],"cp":true,"gate":true,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-090","name":"Documentation: data dictionary, contract changelog, methods note","lane":"integrator","s":9,"e":10,"label":"Documentation: data dictionary, contract changelog, methods note","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Docs | `docs/data_dictionary.md`, `docs/contract-changelog.md`†, `docs/methods-v27.md`† on branch `reclass/t090-docs`† | public, Kaser, RAs, T-095 | Every field in T-028 documented |\n| #175 README text | README for the bulk-access handoff (g3o-website#175)†; repo confirmed by T-050 | #175 lane | v2.7 fields and versions described; if the README lives in g3o-website or g3o-api, Colin's lane makes the edit from this card's PI-approved text; `export_bulk.py` itself owned by T-052 |","ver":["Self-check: field-coverage script against T-028 columns","Independent review: PI (A-017)","Failure/rollback: branch"],"res":[],"deliv":["D-006"],"deps":["T-010","T-012","T-028"],"soft":[],"cp":false,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-095","name":"Release decision and publication","lane":"colin","s":25,"e":26,"label":"Release decision and publication","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Release record | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/release/RELEASE.md`† | public, T-096 | Release flag state; screenshots and API responses (A-007, A-009) |","ver":["Self-check: API responses for 20 sampled institutions show v2.7 fields, quotes and version labels","Self-check: no CX-01 index published (A-009)","Self-check: website shows supporting text up to the display cap, with the truncation marker and access to the full text (R-043)","Self-check: the history parameter returns older rows (R-051)","Self-check: correction rows visible regardless of wave windows (R-055)","Independent review: PI","Failure/rollback: flip the release flag back (hide by release id) and revert the site"],"res":[],"deliv":["D-004"],"deps":["T-053","T-074","T-083","T-090"],"soft":[],"cp":true,"gate":false,"dps":[],"from_dp":null,"gate_mode":null},{"id":"T-096","name":"Final traceability review and reproduction rerun","lane":"reviewer","s":26,"e":27,"label":"Final traceability review and reproduction rerun","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| Trace review | `C:/Users/spaci/repos/G3O/planning/reviews/TRACE.md`† | integrator (Stage 8) | 20/20 traced or deltas raised; rerun agreement against the criterion |","ver":["Self-check: trace table complete for 20 institutions","Independent review: PI","Failure/rollback: n/a"],"res":[],"deliv":[],"deps":["T-095"],"soft":[],"cp":false,"gate":false,"dps":[{"id":"DP-067","text":"Agreement criterion for the reproduction rerun","default":"criterion proposed in the card's first chunk and approved by the PI before the rerun","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null},{"id":"T-097","name":"Standing integration: deltas, CHANGELOG, claims","lane":"integrator","s":0,"e":27,"label":"Standing integration: deltas, CHANGELOG, claims","plain":"","out":"| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |\n|---|---|---|---|\n| CHANGELOG | `C:/Users/spaci/repos/G3O/planning/CHANGELOG.md`† | PI, all lanes | One entry per delta with PI approval ref |\n| Governance updates | SPEC/RESOURCES/PLAN after PI approval | all lanes | Version propagated |\n| Wave-window reminder | message to Simone | PI | Sent before w001 expiry |","ver":["Self-check: one CHANGELOG entry per delta with a PI approval reference","Self-check: wave-window check recorded before the reminder date","Independent review: PI"],"res":[],"deliv":[],"deps":[],"soft":[],"cp":false,"gate":false,"dps":[{"id":"DP-068","text":"When to check and remind about the wave window beyond w001 (expires 2027-01-01)","default":"check on 2026-12-01 and remind Simone then","rec":null,"sub":null,"proc":null,"cls":null}],"from_dp":null,"gate_mode":null}],"deliverables":[{"id":"D-001","name":"Output Contract v2.7 (codebook of record; label per Q-018)","label":"Output Contract v2.7 (codebook of record; label per Q-018)","plain":"","req":"v2.6 rules (R-010..R-014); CX-01.2 fields (R-020..R-024); page-verdict vocabulary incl. `other_body` (R-015); generative-AI wording (R-016); page completeness and follow-up links (R-030); per-code supporting text (R-040); downgrade rule (R-041); contract version per row (R-050); procurement's owed §4.3 amendment (R-087); labels extract v2.7 + validate v1.5 (USER DEC-013 a)","type":null,"fields":{}},{"id":"D-002","name":"Production pipeline producing v2.7 output","label":"Production pipeline producing v2.7 output","plain":"","req":"Behaviour R-001..R-006, R-026, R-030..R-034, R-040..R-044","type":null,"fields":{}},{"id":"D-003","name":"Back-filled reclassification release","label":"Back-filled reclassification release","plain":"","req":"All documented + unclear institutions reclassified (R-070..R-075)","type":null,"fields":{}},{"id":"D-004","name":"Published v2.7 data","label":"Published v2.7 data","plain":"","req":"New fields, supporting text, per-row contract version; website shows each institution's most recent row, backend keeps every run (R-050..R-052)","type":null,"fields":{}},{"id":"D-005","name":"Quality evidence packet","label":"Quality evidence packet","plain":"","req":"Agent read, PI audit, jev confidence thresholds applied (R-080..R-083)","type":null,"fields":{}},{"id":"D-006","name":"Updated documentation","label":"Updated documentation","plain":"","req":"Every new field, value, version and downgrade rule documented (R-090)","type":null,"fields":{}},{"id":"D-007","name":"Publication handoff for API/site owner","label":"Publication handoff for API/site owner","plain":"","req":"Exact fields, types, version display, mixed-version behaviour (R-052)","type":null,"fields":{}},{"id":"D-008","name":"Coordinated procurement contract update","label":"Coordinated procurement contract update","plain":"","req":"The 8-value page verdict replacing `genai_evidence` (procurement `contract.py` copies the 4-value enum), the §4.3 amendment (R-087), the version bumps (extract v2.7, validate v1.5), and timing against deployment (R-085: after the fixture run passes, before deployment, USER DEC-014 b)","type":null,"fields":{}}],"sources":{"SPEC.md":"5d3ff45591e0","RESOURCES.md":"9654f224a175","PLAN.md":"c57f19c0e529"},"labels":{"by":null,"on":null,"stale":false},"classes":null,"tool":"plan-viewer 1.0.0","warnings":["WARN W-NO-LABEL: Plan-Labels.json: file not found; every task and deliverable falls back to its source name","WARN W-UNTYPED: SPEC.md:45: D-001 has no deliverable block (plain tile, no mockup)","WARN W-UNTYPED: SPEC.md:46: D-002 has no deliverable block (plain tile, no mockup)","WARN W-UNTYPED: SPEC.md:47: D-003 has no deliverable block (plain tile, no mockup)","WARN W-UNTYPED: SPEC.md:48: D-004 has no deliverable block (plain tile, no mockup)","WARN W-UNTYPED: SPEC.md:49: D-005 has no deliverable block (plain tile, no mockup)","WARN W-UNTYPED: SPEC.md:50: D-006 has no deliverable block (plain tile, no mockup)","WARN W-UNTYPED: SPEC.md:51: D-007 has no deliverable block (plain tile, no mockup)","WARN W-UNTYPED: SPEC.md:52: D-008 has no deliverable block (plain tile, no mockup)"]};
+
+(function(){
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const CAPTION = 'Mockup — placeholder values (b = 0, SE = 0.5). Not a result.';
+const OHEX = ['#4a6a8a','#5f7d5a','#a07a2c','#6d5a7d','#7a6f66'];
+
+if (!PLAN || typeof PLAN !== 'object') {
+  $('#app').innerHTML = '<div class="empty">No plan data — build this page with <code>plan_viewer.py</code>.</div>';
+  return;
+}
+
+/* ---- safe Markdown subset: escape everything, then `code`, **bold** and pipe tables ---- */
+function inl(s){
+  return String(s == null ? '' : s).split(/(`[^`\n]+`)/).map((p,i) =>
+    i % 2 ? `<code>${esc(p.slice(1,-1))}</code>` : esc(p).replace(/\*\*(?=\S)([^*]*?\S)\*\*/g, '<strong>$1</strong>')
+  ).join('');
+}
+function cells(line){
+  let s = line.trim();
+  if (s.startsWith('|')) s = s.slice(1);
+  if (s.endsWith('|') && !s.endsWith('\\|')) s = s.slice(0,-1);
+  const out = []; let cur = '', tick = false;
+  for (let i = 0; i < s.length; i++){
+    const c = s[i];
+    if (c === '\\' && s[i+1] === '|'){ cur += '|'; i++; continue; }
+    if (c === '`') tick = !tick;
+    if (c === '|' && !tick){ out.push(cur.trim()); cur = ''; continue; }
+    cur += c;
+  }
+  out.push(cur.trim());
+  return out;
+}
+const SEP = /^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/;
+function mdBlock(src){
+  const lines = String(src == null ? '' : src).replace(/\r\n?/g,'\n').split('\n');
+  let h = '', para = [];
+  const flush = () => { if (para.length) h += `<p>${para.map(inl).join('<br>')}</p>`; para = []; };
+  for (let i = 0; i < lines.length; i++){
+    const l = lines[i];
+    if (l.trim().startsWith('|') && i + 1 < lines.length && lines[i+1].includes('-') && SEP.test(lines[i+1])){
+      flush();
+      const head = cells(l); i += 2;
+      let body = '';
+      while (i < lines.length && lines[i].trim().startsWith('|')){
+        const r = cells(lines[i]);
+        body += '<tr>' + head.map((_,k) => `<td>${inl(r[k] || '')}</td>`).join('') + '</tr>'; i++;
+      }
+      i--;
+      h += `<table class="cb"><thead><tr>${head.map(c => `<th>${inl(c)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
+    } else if (!l.trim()) flush();
+    else para.push(l);
+  }
+  flush();
+  return h || '<p>—</p>';
+}
+
+/* ---- data access ---- */
+const arr = a => Array.isArray(a) ? a : [];
+const waves = arr(PLAN.waves);
+const tasks = arr(PLAN.tasks), delivs = arr(PLAN.deliverables);
+const lanes = PLAN.lanes && typeof PLAN.lanes === 'object' ? PLAN.lanes : {};
+const resources = PLAN.resources && typeof PLAN.resources === 'object' ? PLAN.resources : {};
+const T = Object.fromEntries(tasks.map(t => [t.id, t]));
+const D = Object.fromEntries(delivs.map(d => [d.id, d]));
+const clampW = v => Math.max(0, Math.min(waves.length, v|0));
+tasks.forEach(t => { t.s = clampW(t.s); t.e = Math.max(t.s, clampW(t.e)); if (t.gate) t.e = t.s;
+  ['ver','res','deliv','deps','soft','dps'].forEach(k => { t[k] = arr(t[k]); }); });
+const laneOf = t => lanes[t.lane] || {n: t.lane, c: 'o5', you: false};
+const laneName = l => l.you ? 'You' : (l.n || '');
+const laneCol = l => /^(o[1-5]|accent)$/.test(l.c) ? `var(--${l.c})` : 'var(--o5)';
+const lbl = x => x.label || x.name || x.id;
+const unblocks = id => tasks.filter(t => t.deps.includes(id)).map(t => t.id);
+const softUnblocks = id => tasks.filter(t => t.soft.includes(id)).map(t => t.id);
+const producers = did => tasks.filter(t => t.deliv.includes(did)).map(t => t.id);
+const dpOwner = dp => tasks.find(t => t.dps.some(x => x.id === dp));
+const gatesFor = dp => tasks.filter(t => t.gate && t.from_dp === dp);
+const gateTag = t => t.gate_mode === 'approve' ? 'You approve' : 'You decide';
+const wk = i => waves[i] ? waves[i].k : '';
+const span = t => t.gate ? `start of ${wk(t.s)}` : wk(t.s) + (t.e - t.s > 1 ? '–' + wk(t.e - 1) : '');
+const order = (a, b) => (b.gate ? 1 : 0) - (a.gate ? 1 : 0);
+
+/* ---- header, legend, footer ---- */
+const gates = tasks.filter(t => t.gate).length;
+$('#title').textContent = PLAN.title || '';
+$('#goal').textContent = PLAN.goal || '';
+document.title = (PLAN.title ? PLAN.title + ' — ' : '') + 'Plan Viewer';
+$('#meta').innerHTML = `<span class="tag">${esc(PLAN.status || 'DRAFT')}</span>&nbsp; built ${esc(PLAN.built)} · ${tasks.length} steps · ${delivs.length} results · ${gates} decision${gates === 1 ? '' : 's'} for you` + (PLAN.deadline ? ` · deadline ${esc(PLAN.deadline)}` : '');
+$('#legend').innerHTML = Object.values(lanes).filter(l => !l.you).map(l => `<span><span class="dot" style="background:${laneCol(l)}"></span>${esc(l.n)}</span>`).join('')
+  + `<span><span class="gate-key"></span>You approve / You decide</span><span>━ main path (shown on hover) &nbsp;┄ optional link</span>`;
+
+(function footer(){
+  const f = [];
+  f.push(esc(PLAN.tool || 'plan-viewer'));
+  f.push(`built ${esc(PLAN.built)}`);
+  const src = PLAN.sources && typeof PLAN.sources === 'object' ? Object.entries(PLAN.sources) : [];
+  if (src.length) f.push('sources ' + src.map(([k,h]) => `${esc(k)} <code>${esc(h)}</code>`).join(' · '));
+  const L = PLAN.labels || {};
+  if (L.by) f.push(`plain labels by ${esc(L.by)}${L.on ? ', ' + esc(L.on) : ''}${L.stale ? ' <strong>(stale: source files changed since; re-run the writer pass)</strong>' : ''}`);
+  else f.push('no plain labels file (source names shown)');
+  if (PLAN.classes && PLAN.classes.by) f.push(`decision classes by ${esc(PLAN.classes.by)}${PLAN.classes.on ? ', ' + esc(PLAN.classes.on) : ''}`);
+  let h = f.join(' · ') + '; details shown verbatim from the source files.';
+  const w = arr(PLAN.warnings);
+  if (w.length) h += `<details><summary>${w.length} build warning${w.length === 1 ? '' : 's'}</summary><ul>${w.map(x => `<li><code>${esc(x)}</code></li>`).join('')}</ul></details>`;
+  $('#foot').innerHTML = h;
+})();
+
+/* ---- glyphs for deliverable types ---- */
+function glyph(type){
+  const g = {
+    "coef-plot":'<line x1="16" y1="3" x2="16" y2="29" stroke="#c9c1b8"/><line x1="8" y1="9" x2="24" y2="9" stroke="#62666c"/><circle cx="16" cy="9" r="2.4" fill="#161719"/><line x1="6" y1="16" x2="26" y2="16" stroke="#62666c"/><circle cx="16" cy="16" r="2.4" fill="#161719"/><line x1="10" y1="23" x2="22" y2="23" stroke="#62666c"/><circle cx="16" cy="23" r="2.4" fill="#161719"/>',
+    "regression-table":'<rect x="4" y="5" width="24" height="22" fill="none" stroke="#62666c"/><line x1="4" y1="11" x2="28" y2="11" stroke="#62666c"/><line x1="12" y1="5" x2="12" y2="27" stroke="#c9c1b8"/><line x1="20" y1="5" x2="20" y2="27" stroke="#c9c1b8"/>',
+    "dataset":'<ellipse cx="16" cy="8" rx="10" ry="3.5" fill="none" stroke="#62666c"/><path d="M6 8v16c0 2 4.5 3.5 10 3.5s10-1.5 10-3.5V8" fill="none" stroke="#62666c"/><path d="M6 16c0 2 4.5 3.5 10 3.5s10-1.5 10-3.5" fill="none" stroke="#c9c1b8"/>',
+    "chart":'<line x1="5" y1="4" x2="5" y2="27" stroke="#62666c"/><line x1="5" y1="27" x2="28" y2="27" stroke="#62666c"/><rect x="9" y="17" width="4" height="10" fill="#c9c1b8"/><rect x="16" y="11" width="4" height="16" fill="#62666c"/><rect x="23" y="20" width="4" height="7" fill="#c9c1b8"/>',
+    "summary-table":'<rect x="4" y="5" width="24" height="22" fill="none" stroke="#62666c"/><line x1="4" y1="11" x2="28" y2="11" stroke="#62666c"/><line x1="4" y1="16.5" x2="28" y2="16.5" stroke="#c9c1b8"/><line x1="4" y1="22" x2="28" y2="22" stroke="#c9c1b8"/><line x1="13" y1="5" x2="13" y2="27" stroke="#c9c1b8"/>',
+    "report-outline":'<path d="M8 3h12l5 5v21H8z" fill="none" stroke="#62666c"/><path d="M20 3v5h5" fill="none" stroke="#62666c"/><line x1="11" y1="13" x2="22" y2="13" stroke="#62666c"/><line x1="11" y1="18" x2="22" y2="18" stroke="#c9c1b8"/><line x1="11" y1="23" x2="19" y2="23" stroke="#c9c1b8"/>',
+    "deck-outline":'<rect x="3" y="6" width="26" height="16" rx="1.5" fill="none" stroke="#62666c"/><line x1="7" y1="11" x2="19" y2="11" stroke="#62666c"/><line x1="7" y1="15" x2="24" y2="15" stroke="#c9c1b8"/><line x1="16" y1="22" x2="16" y2="27" stroke="#62666c"/><line x1="11" y1="27" x2="21" y2="27" stroke="#62666c"/>',
+    "replication-package":'<path d="M3 8.5V25.5h26V11H15l-2.5-2.5z" fill="none" stroke="#62666c"/><line x1="3" y1="13.5" x2="29" y2="13.5" stroke="#62666c"/><line x1="8" y1="18" x2="20" y2="18" stroke="#c9c1b8"/><line x1="8" y1="21.5" x2="16" y2="21.5" stroke="#c9c1b8"/>'
+  }[type] || '<rect x="6" y="5" width="20" height="22" rx="2" fill="none" stroke="#62666c"/>';
+  return `<svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">${g}</svg>`;
+}
+const diamond = (sz=10) => `<svg class="dmd" width="${sz}" height="${sz}" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 .8 9.2 5 5 9.2 .8 5z" fill="#f3e6e6" stroke="#8c1515" stroke-width="1.3"/></svg>`;
+
+/* ---- MAP ---- */
+const narrow = window.matchMedia ? window.matchMedia('(max-width:640px)') : {matches:false};
+function nodeHTML(t){
+  const l = laneOf(t);
+  if (t.gate) return `<button type="button" class="node gate compact" data-t="${esc(t.id)}">${diamond()}<span><span class="lbl">${esc(lbl(t))}</span><span class="sub"><span class="you">${gateTag(t)}</span><span>${esc(t.id)}</span></span></span></button>`;
+  const sp = t.e - t.s > 1 ? `${esc(span(t))} · ` : '';
+  return `<button type="button" class="node" data-t="${esc(t.id)}"><div class="lbl">${esc(lbl(t))}</div><div class="sub"><span><span class="dot" style="background:${laneCol(l)}"></span>${esc(laneName(l))}</span><span>${sp}${esc(t.id)}</span></div></button>`;
+}
+function renderMap(){
+  const cols = waves.map((w,i) => {
+    const ts = tasks.filter(t => t.s === i).sort(order);
+    return `<div class="col" data-c="${i}"><div class="colhead">${esc(w.d)}<b>${esc(w.k)}</b></div>${ts.length ? ts.map(nodeHTML).join('') : '<p class="colempty">No new steps start here.</p>'}</div>`;
+  }).join('');
+  const res = `<div class="col${PLAN.deadline ? ' dl' : ''}"><div class="colhead">${PLAN.deadline ? 'deadline ' + esc(PLAN.deadline) : 'at the end'}<b>What you’ll get</b></div>${
+    delivs.map(d => `<button type="button" class="tile" data-d="${esc(d.id)}">${glyph(d.type)}<span><span class="lbl">${esc(lbl(d))}</span><span class="id">${esc(d.id)}</span>${d.plain ? `<span class="sub">${esc(d.plain)}</span>` : ''}</span></button>`).join('')}</div>`;
+  hoverId = null; hlId = null;
+  $('#scroller').innerHTML = `<div class="map" id="map" style="--nw:${waves.length}">${cols}${res}<svg class="edges" id="edges" aria-hidden="true"></svg></div>`;
+  requestAnimationFrame(drawEdges);
+}
+function drawEdges(){
+  const map = $('#map'), svg = $('#edges'); if (!map || !svg) return;
+  if (narrow.matches){ svg.innerHTML = ''; return; }
+  const box = map.getBoundingClientRect();
+  const r = el => { const b = el.getBoundingClientRect(); return {l:b.left-box.left, r:b.right-box.left, t:b.top-box.top, b:b.bottom-box.top, y:b.top-box.top+b.height/2}; };
+  const el = id => map.querySelector(`[data-t="${CSS.escape(id)}"],[data-d="${CSS.escape(id)}"]`);
+  const E = [];
+  tasks.forEach(t => t.deps.forEach(d => { if (T[d]) E.push({a:d, b:t.id, cls:t.cp && T[d].cp ? 'cp' : ''}); }));
+  tasks.forEach(t => t.soft.forEach(d => { if (T[d]) E.push({a:d, b:t.id, cls:'soft'}); }));
+  tasks.forEach(t => t.deliv.forEach(d => { if (D[d]) E.push({a:t.id, b:d, cls:''}); }));
+  const R = {};
+  const rect = id => { if (!(id in R)){ const e = el(id); R[id] = e ? r(e) : null; } return R[id]; };
+  const live = E.filter(x => rect(x.a) && rect(x.b));
+  /* spread anchors along each side: outgoing sorted by target height, incoming by source height */
+  const outs = {}, ins = {};
+  live.forEach(x => { (outs[x.a] = outs[x.a] || []).push(x); (ins[x.b] = ins[x.b] || []).push(x); });
+  const yAt = (R1, i, n) => R1.t + (R1.b - R1.t) * (i + 1) / (n + 1);
+  Object.values(outs).forEach(xs => xs.sort((p, q) => rect(p.b).y - rect(q.b).y).forEach((x, i) => { x.ya = yAt(rect(x.a), i, xs.length); }));
+  Object.values(ins).forEach(xs => xs.sort((p, q) => rect(p.a).y - rect(q.a).y).forEach((x, i) => { x.yb = yAt(rect(x.b), i, xs.length); }));
+  const path = x => {
+    const A = rect(x.a), B = rect(x.b);
+    const at = `class="e${x.cls ? ' ' + x.cls : ''}" data-a="${esc(x.a)}" data-b="${esc(x.b)}"`;
+    if (B.l >= A.r - 1){ const mx = (A.r + B.l) / 2;
+      return `<path ${at} d="M${A.r},${x.ya} C${mx},${x.ya} ${mx},${x.yb} ${B.l},${x.yb}"/>`; }
+    if (B.r > A.l && B.l < A.r){ /* same column: vertical connector on the left edge */
+      const cx = Math.max(A.l, B.l) + 14, down = B.t >= A.b;
+      const y1 = down ? A.b : A.t, y2 = down ? B.t : B.b, my = (y1 + y2) / 2;
+      return `<path ${at} d="M${cx},${y1} C${cx},${my} ${cx},${my} ${cx},${y2}"/>`; }
+    const mx = (A.l + B.r) / 2; /* backward link */
+    return `<path ${at} d="M${A.l},${x.ya} C${mx},${x.ya} ${mx},${x.yb} ${B.r},${x.yb}"/>`;
+  };
+  svg.setAttribute('width', map.scrollWidth); svg.setAttribute('height', map.scrollHeight);
+  svg.innerHTML = live.map(path).join('');
+  highlight(hlId);
+}
+/* edge highlight on hover and keyboard focus */
+let hlId = null, hoverId = null;
+function highlight(id){
+  hlId = id;
+  const map = $('#map'), svg = $('#edges'); if (!map || !svg) return;
+  map.querySelectorAll('.peer').forEach(x => x.classList.remove('peer'));
+  svg.querySelectorAll('path.on').forEach(x => x.classList.remove('on'));
+  if (!id){ svg.classList.remove('hl'); return; }
+  svg.classList.add('hl');
+  svg.querySelectorAll('path').forEach(pth => {
+    const a = pth.getAttribute('data-a'), b = pth.getAttribute('data-b');
+    if (a !== id && b !== id) return;
+    pth.classList.add('on');
+    const other = map.querySelector(`[data-t="${CSS.escape(a === id ? b : a)}"],[data-d="${CSS.escape(a === id ? b : a)}"]`);
+    if (other) other.classList.add('peer');
+  });
+}
+const hlTarget = e => { const n = e.target && e.target.closest ? e.target.closest('.map .node,.map .tile') : null; return n ? (n.dataset.t || n.dataset.d) : null; };
+const focusedId = () => { const a = document.activeElement; return a && a.closest && a.closest('.map .node,.map .tile') ? (a.dataset.t || a.dataset.d) : null; };
+const sc = $('#scroller');
+sc.addEventListener('mouseover', e => { const id = hlTarget(e); if (id && id !== hoverId){ hoverId = id; highlight(id); } });
+sc.addEventListener('mouseout', e => { const id = hlTarget(e); if (!id) return;
+  const to = e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest('.map .node,.map .tile') : null;
+  if (to && (to.dataset.t || to.dataset.d) === id) return;
+  hoverId = null; highlight(focusedId()); });
+sc.addEventListener('focusin', e => { const id = hlTarget(e); highlight(id || hoverId); });
+sc.addEventListener('focusout', e => { const to = e.relatedTarget && e.relatedTarget.closest ? e.relatedTarget.closest('.map .node,.map .tile') : null;
+  if (!to) highlight(hoverId); });
+
+/* ---- TIMELINE ---- */
+function renderTimeline(){
+  const n = waves.length;
+  let h = `<div class="tl" style="grid-template-columns:170px repeat(${n},minmax(150px,1fr)) 170px">`;
+  h += `<div class="h"></div>` + waves.map(w => `<div class="h">${esc(w.d)}<b>${esc(w.k)}</b></div>`).join('')
+    + `<div class="h">${PLAN.deadline ? 'deadline ' + esc(PLAN.deadline) : 'at the end'}<b>What you’ll get</b></div>`;
+  for (const [key, l] of Object.entries(lanes)){
+    const ts = tasks.filter(t => t.lane === key); if (!ts.length) continue;
+    h += `<div class="owner">${esc(laneName(l))}</div>`;
+    ts.forEach(t => {
+      h += `<div class="rl">${esc(t.id)}</div>`;
+      if (t.gate) h += `<button type="button" class="bar gate mark" data-t="${esc(t.id)}" style="grid-column:${t.s+2}/span 1" title="${esc(lbl(t))} (${gateTag(t).toLowerCase()}, ${esc(span(t))})">${diamond()}<span>${esc(lbl(t))}</span><span class="you">${gateTag(t)}</span></button>`;
+      else h += `<button type="button" class="bar" data-t="${esc(t.id)}" style="grid-column:${t.s+2}/${Math.max(t.e, t.s+1)+2};background:${laneCol(l)}" title="${esc(lbl(t))}"><span class="bl">${esc(lbl(t))}</span></button>`;
+    });
+  }
+  const orphans = tasks.filter(t => !lanes[t.lane]);
+  if (orphans.length){ h += `<div class="owner">Other</div>`;
+    orphans.forEach(t => { h += `<div class="rl">${esc(t.id)}</div><button type="button" class="bar" data-t="${esc(t.id)}" style="grid-column:${t.s+2}/${Math.max(t.e, t.s+1)+2};background:var(--o5)" title="${esc(lbl(t))}"><span class="bl">${esc(lbl(t))}</span></button>`; }); }
+  h += `<div class="owner">What you’ll get</div>`;
+  delivs.forEach(d => { h += `<div class="rl">${esc(d.id)}</div><button type="button" class="bar deliv" data-d="${esc(d.id)}" style="grid-column:${n+2}" title="${esc(lbl(d))}"><span class="bl">${esc(lbl(d))}</span></button>`; });
+  if (PLAN.deadline) h += `<div class="dlrule" style="grid-column:${n+2}/${n+3}" aria-hidden="true"></div>`;
+  $('#scroller').innerHTML = h + `</div>`;
+}
+
+/* ---- MOCKUPS (all numbers are nulls: b = 0, SE = 0.5) ---- */
+const sarr = a => arr(a).map(x => String(x));
+function coefPanel(terms, models, title){
+  const W = 560, rowH = 22, gap = 12, left = 120, right = W - 20, x = v => left + (v + 2) / 4 * (right - left);
+  const top = title ? 30 : 14, groupH = models.length * rowH + gap;
+  const H = top + terms.length * groupH + 40;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;font:12px var(--sans)" role="img" aria-label="Coefficient plot mockup">`;
+  if (title) s += `<text x="${left}" y="16" fill="#161719" style="font:600 13px var(--serif)">${esc(title)}</text>`;
+  s += `<line x1="${x(0)}" y1="${top-6}" x2="${x(0)}" y2="${H-34}" stroke="#c9c1b8" stroke-dasharray="3 3"/>`;
+  terms.forEach((term, ti) => {
+    const y0 = top + ti * groupH + rowH / 2;
+    s += `<text x="${left-12}" y="${y0 + (models.length - 1) * rowH / 2 + 4}" text-anchor="end" fill="#161719">${esc(term)}</text>`;
+    models.forEach((m, mi) => { const y = y0 + mi * rowH, c = OHEX[mi % 5];
+      s += `<line x1="${x(-0.98)}" y1="${y}" x2="${x(0.98)}" y2="${y}" stroke="${c}" stroke-width="1.6"/><circle cx="${x(0)}" cy="${y}" r="4" fill="${c}"/>`; });
+  });
+  [-2,-1,0,1,2].forEach(v => { s += `<text x="${x(v)}" y="${H-18}" text-anchor="middle" fill="#62666c">${v}</text>`; });
+  return s + `<text x="${(left+right)/2}" y="${H-3}" text-anchor="middle" fill="#62666c">Estimate (95% CI)</text></svg>`;
+}
+function mockCoef(f){
+  const terms = sarr(f.terms), models = sarr(f.models), facets = sarr(f.facets);
+  const s = facets.length ? facets.map(fc => coefPanel(terms, models, fc)).join('') : coefPanel(terms, models, '');
+  return s + `<div class="mlegend">${models.map((m,i) => `<span class="dot" style="background:${OHEX[i%5]}"></span>${esc(m)}`).join(' &nbsp; ')}</div>`;
+}
+function mockReg(f){
+  const terms = sarr(f.terms), models = sarr(f.models), foot = sarr(f.footer);
+  let s = `<table class="rt"><thead><tr><th></th>${models.map(m => `<th>(${esc(m)})</th>`).join('')}</tr></thead><tbody>`;
+  terms.forEach((t, i) => { s += `<tr><td>${esc(t)}</td>${models.map(() => '<td>0.000</td>').join('')}</tr><tr${!foot.length && i === terms.length - 1 ? ' class="end"' : ''}><td></td>${models.map(() => '<td class="se">(0.500)</td>').join('')}</tr>`; });
+  foot.forEach((r, i) => { const cls = [i === 0 ? 'ft' : '', i === foot.length - 1 ? 'end' : ''].filter(Boolean).join(' ');
+    s += `<tr${cls ? ` class="${cls}"` : ''}><td>${esc(r)}</td>${models.map(() => '<td>—</td>').join('')}</tr>`; });
+  return s + `</tbody></table>`;
+}
+function mockData(f){
+  const vars = arr(f.variables).map(v => arr(v));
+  return `<div class="dims">Unit: ${esc(f.unit)} · Dimensions: ${esc(f.target)} <small>(target from SPEC)</small></div><table class="cb"><thead><tr><th>Variable</th><th>Label</th><th>Type</th><th>Values</th></tr></thead><tbody>${
+    vars.map(v => `<tr><td><code>${esc(v[0])}</code></td><td>${esc(v[1])}</td><td>${esc(v[2])}</td><td>${esc(v[3])}</td></tr>`).join('')}<tr><td colspan="4" style="color:var(--muted)">… one row per column in the final file</td></tr></tbody></table>`;
+}
+function mockChart(f){
+  const kind = f.kind === 'line' ? 'line' : 'bar', groups = sarr(f.groups).length ? sarr(f.groups) : [''];
+  const W = 560, H = 280, L = 64, R = W - 20, Tp = 16, B = H - 58, cats = 5;
+  const y = v => Tp + (1 - v) / 2 * (B - Tp), y0 = y(0), cw = (R - L) / cats;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:${W}px;display:block;font:12px var(--sans)" role="img" aria-label="${kind} chart mockup">`;
+  [-1,-0.5,0,0.5,1].forEach(v => { s += `<line x1="${L}" y1="${y(v)}" x2="${R}" y2="${y(v)}" stroke="${v === 0 ? '#c9c1b8' : '#f1ece6'}"${v === 0 ? '' : ' stroke-dasharray="2 3"'}/><text x="${L-8}" y="${y(v)+4}" text-anchor="end" fill="#62666c">${v}</text>`; });
+  s += `<line x1="${L}" y1="${Tp}" x2="${L}" y2="${B}" stroke="#62666c"/><line x1="${L}" y1="${B}" x2="${R}" y2="${B}" stroke="#62666c"/>`;
+  for (let c = 0; c < cats; c++) s += `<text x="${L + cw * (c + .5)}" y="${B+16}" text-anchor="middle" fill="#62666c">${c+1}</text>`;
+  if (kind === 'bar'){
+    const bw = Math.min(26, (cw - 16) / groups.length);
+    for (let c = 0; c < cats; c++) groups.forEach((g, gi) => {
+      const x0 = L + cw * c + (cw - bw * groups.length) / 2 + gi * bw;
+      s += `<rect x="${x0+1}" y="${y0-1.5}" width="${bw-2}" height="3" fill="${OHEX[gi%5]}"/>`; });
+  } else {
+    groups.forEach((g, gi) => { const pts = []; for (let c = 0; c < cats; c++) pts.push(`${L + cw * (c + .5)},${y0}`);
+      s += `<polyline points="${pts.join(' ')}" fill="none" stroke="${OHEX[gi%5]}" stroke-width="1.8"${gi ? ` stroke-dasharray="${2+gi*2} 3"` : ''}/>` + pts.map(p => `<circle cx="${p.split(',')[0]}" cy="${y0}" r="3.2" fill="${OHEX[gi%5]}"/>`).join(''); });
+  }
+  s += `<text x="${(L+R)/2}" y="${H-18}" text-anchor="middle" fill="#62666c">${esc(f.x)}</text>`;
+  s += `<text transform="translate(16 ${(Tp+B)/2}) rotate(-90)" text-anchor="middle" fill="#62666c">${esc(f.y)}</text></svg>`;
+  if (groups[0] !== '') s += `<div class="mlegend">${groups.map((g,i) => `<span class="dot" style="background:${OHEX[i%5]}"></span>${esc(g)}`).join(' &nbsp; ')}</div>`;
+  return s;
+}
+function mockSummary(f){
+  const vars = sarr(f.variables);
+  return `<table class="rt"><thead><tr><th>Variable</th><th>Mean</th><th>SD</th><th>Min</th><th>Max</th><th>N</th></tr></thead><tbody>${
+    vars.map((v, i) => `<tr${i === vars.length - 1 ? ' class="end"' : ''}><td>${esc(v)}</td><td>0.000</td><td>0.500</td><td>—</td><td>—</td><td>—</td></tr>`).join('')}</tbody></table>`;
+}
+function mockReport(f){
+  const secs = arr(f.sections).map(x => Array.isArray(x) ? x : [x, '']);
+  let tot = 0, allNum = true;
+  const items = secs.map((x, i) => {
+    const p = parseFloat(x[1]); if (isFinite(p)) tot += p; else allNum = false;
+    const pp = x[1] === '' || x[1] == null ? '' : `≈ ${esc(x[1])} pp.`;
+    const nl = Math.max(1, Math.min(4, isFinite(p) ? Math.ceil(p / 3) : 2));
+    const sk = Array.from({length: nl}, (_, k) => `<i style="width:${[92,84,96,70][k]}%"></i>`).join('');
+    return `<li><span class="n">${i+1}</span><span class="t">${esc(x[0])}</span><span class="pp">${pp}</span><span class="sk">${sk}</span></li>`;
+  }).join('');
+  return `<ol class="ro">${items}${allNum && secs.length ? `<li class="tot"><span></span><span>Total</span><span class="pp">≈ ${tot} pp. (target from SPEC)</span></li>` : ''}</ol>`;
+}
+function mockDeck(f){
+  return `<div class="deck">${sarr(f.slides).map((t, i) => `<div class="slide"><span class="sn">${i+1}</span><span class="st">${esc(t)}</span><i style="width:80%"></i><i style="width:64%"></i><i style="width:72%"></i></div>`).join('')}</div>`;
+}
+const FOLDER = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M1.5 3.5v8h11v-6.5h-6l-1.5-1.5z" fill="#f3efe9" stroke="#62666c"/></svg>';
+const FILE = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5h5.5l2.5 2.5v8.5h-8z" fill="none" stroke="#62666c"/><path d="M8.5 1.5v2.5h2.5" fill="none" stroke="#62666c"/></svg>';
+function mockRepl(f){
+  const ext = String(f.language == null ? '' : f.language).trim().replace(/^\.+/, '');
+  const ins = arr(f.inputs).map(r => arr(r)), tabs = sarr(f.tables), figs = sarr(f.figures), dsets = sarr(f.datasets);
+  const file = (name, note, extra) => `<li><span class="f">${FILE}${esc(name)}</span>${note ? `<span class="nt">${esc(note)}</span>` : ''}${extra || ''}</li>`;
+  const dir = (name, note, kids) => `<li class="dir"><span class="f">${FOLDER}${esc(name)}</span>${note ? `<span class="nt">${esc(note)}</span>` : ''}<ul>${kids}</ul></li>`;
+  const ls = xs => xs.length ? `<ul class="ls">${xs.join('')}</ul>` : '';
+  return `<ul class="tree" aria-label="Replication package mockup">`
+    + file('README.txt', 'what the package holds and how to run it')
+    + file('codebook.pdf', 'variables in the final analysis dataset')
+    + dir('inputs/', 'raw files, kept flat',
+        file('README.txt', 'where each raw input below comes from')
+        + ins.map(r => file(r[0], r[1])).join(''))
+    + dir('outputs/', 'final results',
+        dir('tables/', 'one file per table', tabs.map(x => file(x, '')).join(''))
+        + dir('figures/', 'one file per figure', figs.map(x => file(x, '')).join('')))
+    + dir('scripts/', 'run in this order',
+        file(`data_builder.${ext}`, 'raw inputs → analysis-ready datasets',
+          dsets.length ? ls(dsets.map(x => `<li>writes <b>${esc(x)}</b></li>`)) : '')
+        + file(`analysis.${ext}`, 'analysis datasets → final outputs'))
+    + `</ul>`;
+}
+const MOCK = {"coef-plot":mockCoef,"regression-table":mockReg,"dataset":mockData,"chart":mockChart,"summary-table":mockSummary,"report-outline":mockReport,"deck-outline":mockDeck,"replication-package":mockRepl};
+
+/* ---- DIALOGS ---- */
+const dlg = $('#dlg');
+let opener = null;
+const sec = (title, src, body) => `<h3><span>${title}</span><span class="src">${src}</span></h3>${body}`;
+const chip = id => T[id] ? `<button type="button" class="chip" data-t="${esc(id)}">${esc(id)} ${esc(lbl(T[id]))}</button>` : `<span class="chip">${esc(id)}</span>`;
+const fmt = v => typeof v === 'number' && isFinite(v) ? v.toFixed(2) : '—';
+const dtile = d => `<button type="button" class="tile" data-d="${esc(d)}" style="max-width:360px">${glyph(D[d].type)}<span><span class="lbl">${esc(lbl(D[d]))}</span><span class="id">${esc(d)} · ${D[d].type ? 'see the mockup' : 'details'}</span></span></button>`;
+function head(title, plain, facts){
+  return `<div class="dh"><button type="button" class="close" aria-label="Close">×</button><h2 id="dlgTitle">${esc(title)}</h2>${plain ? `<p>${esc(plain)}</p>` : ''}<div class="facts">${facts}</div></div><div class="db">`;
+}
+function openTask(id){
+  const t = T[id]; if (!t) return;
+  const l = laneOf(t);
+  const facts = `<span>${esc(t.id)}</span>` + (t.label && t.label !== t.name ? `<span>${esc(t.name)}</span>` : '')
+    + (t.gate ? '' : `<span><span class="dot" style="background:${laneCol(l)}"></span>${esc(laneName(l))}</span>`)
+    + `<span>${esc(span(t))}</span>` + (t.gate ? `<span class="you">${gateTag(t)}</span>` : '') + (t.cp ? '<span>on the main path</span>' : '');
+  let b = head(lbl(t), t.plain, facts);
+  if (t.gate && t.from_dp){
+    const own = dpOwner(t.from_dp), dp = own && own.dps.find(x => x.id === t.from_dp);
+    const q = `<p><strong>${esc(t.from_dp)}</strong>${dp ? ' ' + esc(dp.text) : ''}</p>`;
+    if (t.gate_mode === 'approve')
+      b += sec('Approve the recommendation', `PLAN.md · ${esc(t.from_dp)}`,
+        `<div class="verb">${q}${dp && dp.rec ? `<p>Recommendation: <q>${esc(dp.rec)}</q></p>` : ''}<p>Approve it, or change it.</p></div>`);
+    else if (t.gate_mode === 'decide')
+      b += sec('You decide', `PLAN.md · ${esc(t.from_dp)}`, `<div class="verb">${q}</div>`);
+    b += sec('Why you decide here', `Decision-Classes.json · ${esc(t.from_dp)}`,
+      `<div class="verb">${t.gate_mode ? '' : q}${dp && dp.sub != null ? `<span class="score">substantive ${fmt(dp.sub)} · procedural ${fmt(dp.proc)}${dp.cls ? ` → <span class="${dp.cls === 'substantive' ? 'sub' : ''}">${esc(dp.cls)}</span>` : ''}</span>` : ''}</div>${own ? `<div style="margin-top:6px">Raised in: ${chip(own.id)}</div>` : ''}`);
+  }
+  b += sec('What it produces', `PLAN.md · ${esc(t.id)}`, `<div class="verb">${mdBlock(t.out)}</div>`);
+  b += sec('How it’s checked', `PLAN.md · ${esc(t.id)}`, t.ver.length ? `<ul>${t.ver.map(v => `<li>${inl(v)}</li>`).join('')}</ul>` : '<p>—</p>');
+  if (t.res.length) b += sec('Resources it uses', 'RESOURCES.md', `<ul>${t.res.map(r => { const x = resources[r] || {};
+    return `<li><b>${esc(r)}</b> ${esc(x.label || '')}${x.desc && x.desc !== x.label ? ` <span class="rdesc">— ${esc(x.desc)}</span>` : ''}</li>`; }).join('')}</ul>`);
+  const dv = t.deliv.filter(d => D[d]);
+  if (dv.length) b += sec('Delivers', 'SPEC.md', dv.map(dtile).join(''));
+  if (t.dps.length){
+    const scored = t.dps.some(x => x.sub != null || x.cls);
+    b += sec('Decision points', `PLAN.md · ${esc(t.id)}${scored ? ' · Decision-Classes.json' : ''}`, `<ul>${t.dps.map(x => {
+      const g = gatesFor(x.id), approve = g.some(z => z.gate_mode === 'approve');
+      return `<li><b>${esc(x.id)}</b> ${esc(x.text)}${x.default ? `<div>Default: ${esc(x.default)}</div>` : ''}${approve && x.rec ? `<div>Recommendation: <q>${esc(x.rec)}</q></div>` : ''}${x.sub != null || x.proc != null || x.cls ? `<span class="score">substantive ${fmt(x.sub)} · procedural ${fmt(x.proc)}${x.cls ? ` → <span class="${x.cls === 'substantive' ? 'sub' : ''}">${esc(x.cls)}</span>` : ''}</span>` : ''}${g.length ? `<div>Your decision: ${g.map(z => chip(z.id)).join('')}</div>` : ''}</li>`; }).join('')}</ul>`);
+  }
+  const ub = unblocks(id), su = softUnblocks(id);
+  const list = (xs, sx) => xs.length || sx.length ? xs.map(chip).join('') + sx.map(x => chip(x).replace('</button>', ' <span class="rdesc">(optional)</span></button>')).join('') : 'nothing';
+  b += sec('Order', '', `<div class="order"><div>Waits on: ${list(t.deps, t.soft)}</div><div>Unblocks: ${list(ub, su)}</div></div>`);
+  show(b + `</div>`);
+}
+function openDeliv(id){
+  const d = D[id]; if (!d) return;
+  let b = head(lbl(d), d.plain, `<span>${esc(d.id)}</span>${d.label && d.label !== d.name ? `<span>${esc(d.name)}</span>` : ''}<span>${d.type ? esc(d.type) : 'no mockup type'}</span>`);
+  const fn = d.type && MOCK[d.type];
+  if (fn){
+    let m; try { m = fn(d.fields && typeof d.fields === 'object' ? d.fields : {}); } catch (_) { m = null; }
+    b += `<h3><span>What it will look like</span></h3>` + (m ? `<div class="mockbox">${m}</div><div class="mockcap">${CAPTION}</div>` : '');
+    if (!m) b = b.replace(/<h3><span>What it will look like<\/span><\/h3>$/, '<p class="nomock">No mockup: the SPEC fields could not be drawn.</p>');
+  } else {
+    b += `<p class="nomock">No mockup: this result has no valid type in SPEC.md.</p>`;
+  }
+  b += sec('Required contents', `SPEC.md · ${esc(d.id)}`, `<div class="verb">${mdBlock(d.req)}</div>`);
+  const pr = producers(id);
+  b += sec('Made by', 'PLAN.md', pr.length ? pr.map(chip).join('') : '<p>No task produces this yet.</p>');
+  show(b + `</div>`);
+}
+function show(html){
+  if (!dlg.open){ opener = document.activeElement; }
+  $('#dlgBody').innerHTML = html;
+  dlg.scrollTop = 0;
+  if (!dlg.open){ if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', ''); }
+  const c = dlg.querySelector('.close'); if (c) c.focus();
+}
+function closeDlg(){ if (dlg.open){ if (dlg.close) dlg.close(); else { dlg.removeAttribute('open'); restore(); } } }
+function restore(){ const o = opener; opener = null; if (o && o.isConnected && o.focus) o.focus(); }
+dlg.addEventListener('close', restore);
+dlg.addEventListener('keydown', e => {
+  if (e.key === 'Escape'){ e.preventDefault(); closeDlg(); return; }
+  if (e.key !== 'Tab') return;
+  const f = [...dlg.querySelectorAll('button,[href],summary,[tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && x.offsetParent !== null);
+  if (!f.length){ e.preventDefault(); return; }
+  const first = f[0], last = f[f.length - 1];
+  if (e.shiftKey && (document.activeElement === first || !dlg.contains(document.activeElement))){ e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && (document.activeElement === last || !dlg.contains(document.activeElement))){ e.preventDefault(); first.focus(); }
+});
+document.addEventListener('click', e => {
+  if (e.target.closest('.close')) return closeDlg();
+  if (e.target === dlg) return closeDlg();
+  const t = e.target.closest('[data-t]'), d = e.target.closest('[data-d]');
+  if (t) openTask(t.dataset.t); else if (d) openDeliv(d.dataset.d);
+});
+
+/* ---- view switch ---- */
+let view = 'map';
+function setView(v){
+  view = v === 'tl' ? 'tl' : 'map';
+  $('#bMap').setAttribute('aria-pressed', String(view === 'map')); $('#bTl').setAttribute('aria-pressed', String(view === 'tl'));
+  view === 'map' ? renderMap() : renderTimeline();
+  try { localStorage.setItem('planviewer.view', view); } catch (_) {}
+}
+$('#bMap').onclick = () => setView('map'); $('#bTl').onclick = () => setView('tl');
+let start = 'map'; try { start = localStorage.getItem('planviewer.view') || 'map'; } catch (_) {}
+setView(start);
+let raf = 0;
+addEventListener('resize', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { if ($('#map')) drawEdges(); }); });
+})();
+</script>
+</body>
+</html>
