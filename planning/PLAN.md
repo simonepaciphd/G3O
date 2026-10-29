@@ -1,12 +1,13 @@
 # PLAN: G3O pipeline reclassification
 
 Status: READY-WITH-BLOCKS
-Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.5 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, 2026-10-29); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.1 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001)
+Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.6 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.2 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
 Baseline lock: 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock")
 Deadline: none
 Source draft plan/review: `C:/Users/spaci/repos/G3O/planning/Plan-Draft.md` (v001-draft1), `C:/Users/spaci/repos/G3O/planning/Plan-Review.md` (27 findings); rulings `C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md`
 Mode: PLAN_ONLY
 Delta RC-D-001 (approved 2026-10-29, Simone, chat "approve delta"; text `planning/deltas/RC-D-001.md`): the extractor is now Claude Haiku 5.5 (`claude-haiku-5-5`, medium effort, direct Anthropic API, RS-037). **Throughout this plan, "nano", "gpt-5-nano" and "OpenAI" in extraction context mean the extractor** (C-001, SPEC v001.5). Calls are sync for testing (T-002, T-041, T-072, T-096) and Message Batches for full runs (T-073, ordinary runs after deploy). Berivox reviews (T-031; card PRs, non-blocking). W1 runs sequentially: T-010 → T-002 → T-020 → T-001. Waves 6 and 7 run after deploy as ordinary v2.7 runs; wave 5 is finished.
+Delta RC-D-002 (approved 2026-10-29, Simone, chat "approve delta"; text `planning/deltas/RC-D-002.md`; change schedule `planning/t010/governance-impacts.md`, whose Resolutions table overrides any conflicting row): the codebook (`codebook/codebook.yaml`†, SPEC R-007) is the machine-readable single source of truth; jev questions, extractor prompts, enums, schema, the data dictionary and the contract docs are generated from it (new T-013). **Throughout this plan, "contract v2.7" or "the signed contract" as a T-010 output means the signed codebook release and the contract docs generated from it, and "`contract_version`" on a row means the codebook release label plus the setup pointer and `evidence_channel`** (SPEC R-050 v001.6; extract v2.7 / validate v1.5 are recorded only in the setup record, C3 a). New cards (plain IDs, per this plan's convention; RC-D-002 names the first two T-013† and T-014†): T-013 (codebook schema, generators, CI), T-014 (scraper chrome text and links), T-015 (source-level field coder), T-016 (re-pilot of the re-signed items, paid, Simone-run), T-062 (D-009 handoff, after v2.7 deploys), T-063 (D-010 calendar-conversion heads-up). T-002 now requires T-010 and T-013 (RC-D-002 D); W1-W4 re-laid. Coding-rule wording is the PI's: SPEC v001.6 carries `[wording: PI ...]` markers where a rule's text must change, and the six choices the schedule left unruled were resolved as RC-D-002 O1-O6 (PI, 2026-10-29, chat "all accepted"): O1 R-043 unchanged; O2 T-015 owns every source-level field; O3 T-010 and T-013 are soft both ways; O4 T-024 ships its checks as a library the passes call; O5 lanes T-014 and T-015 to eng-a, T-016 to the integrator (Simone runs the paid re-pilot); O6 the inferred priorities and missing-input behaviour stand.
 
 Prepared by: session `20261028-claude-v2-20be995c13d4020f` (Claude Code, claude-opus-5-5, researcher persona) under `planning-adjudication-protocol.md` v0.3; task cards converted by three forks of that session from the Plan-Draft cards and the integrator's delta brief, then assembled and checked by the parent.
 Base refs (fetched 2026-10-28): G3O `origin/main` `375f1ff` (Plan-Draft used `c6349d6`; #135 since changed `g3o/run/presweep/orchestrator.py` and `tests/test_presweep.py`); g3o-api `origin/main` `acdb030`; g3o-website `origin/main` `282ca6a`. Local G3O checkout is on `perf/validate-jev-parallel`; work branches from `origin/main`.
@@ -20,18 +21,18 @@ PI rulings (Stage 5, 2026-10-28; verbatim answers in `Stage5-Rulings.md`):
 - DEC-002 a: first-class `backfill` command, Stages 4-7 on a fixed list from stored pages, no re-triage.
 - DEC-003 b: link following is a separate follow-up leg after pass 1, ≤3 hops; option d closed by RC-D-001 (B): Message Batches for full runs, sync for testing.
 - DEC-004 a: jev answers in per-institution JSON artifacts + DB columns (confidence, model id, request id) + full distribution in jsonb; the API does not serve the distribution.
-- DEC-005 a: explicit `contract_version` column on every CSV / DB row.
+- DEC-005 a: explicit `contract_version` column on every CSV / DB row. RC-D-002 N24 (r2#32): becomes the codebook release label, plus the setup pointer and `evidence_channel` (SPEC R-050 v001.6).
 - DEC-006 c: synthetic fixtures for mechanics, real pages for verdicts / CX (agent then PI labels).
 - DEC-007 a: pinned fuzzy-match library (rapidfuzz); threshold from T-003, PI approves (Q-020 b).
 - DEC-008 c: page chunker splits by estimated tokens, halve-and-retry fallback.
-- DEC-009 a: free-text routing table (SPEC R-006 note).
+- DEC-009 a: free-text routing table (SPEC R-006 note). Superseded by RC-D-002 N24 (r2#28): the per-item `coder` column in the codebook (SPEC R-006, R-007 v001.6).
 - DEC-010 a: nano returns character spans only; jev pass 2 sees the page with the span marked.
 - DEC-011 a + item 27: 400 = 100 per stratum; Sonnet 100 = 25 per stratum, fixed seed; overall figures weighted.
 - DEC-012 a: integrator = a researcher session acting for the PI, started by Simone; sole writer of SPEC / RESOURCES / PLAN / CHANGELOG / delta log.
-- DEC-013 a: labels extract v2.7 + validate v1.5.
+- DEC-013 a: labels extract v2.7 + validate v1.5. Amended by RC-D-002 C3 a (N24): the two labels are recorded only in the setup record; each row carries one codebook release label.
 - DEC-014 b: procurement delta after T-041 passes, before deployment.
 - DEC-015 a: API default most recent row; older rows via history parameter / endpoint.
-- DEC-016 c: full supporting text in API; website display cap (value set by PI after T-003).
+- DEC-016 c: full supporting text in API; website display cap (value set by PI after T-003). Unchanged (RC-D-002 N24, r2#17).
 - DEC-017 b: agent read compares institution verdict + page verdicts; agents read blind.
 - DEC-018 b: rewrite consolidation against jev Stage 6; `052fcb2` reference only, its 30 fixtures as tests.
 - SD-g: both R-086 inferences confirmed.
@@ -39,7 +40,7 @@ PI rulings (Stage 5, 2026-10-28; verbatim answers in `Stage5-Rulings.md`):
 
 Mechanical (unchanged from Plan-Draft §1): DEC-019 freeze record from public API `meta.coverage`; DEC-020 one feature branch per card into `reclass/v2.7`†; DEC-021 pins are regenerated once, at the final integration step (T-035, moved from T-030 after the second review); DEC-022 agent-read model ids recorded at T-081 launch.
 
-Global red line added 2026-10-28 (Simone, `~/.claude/CLAUDE.md` red line 4): agents never run anything that costs money. Every paid step (jev, extractor Batch/sync, VM compute) is prepared by the card's agent with the exact command and a cost estimate and run by Simone as a one-line `! <command>`. Applies to T-002, T-041, T-072, T-073, T-096; T-081 carries a decision point on whether the Claude subagent swarm counts.
+Global red line added 2026-10-28 (Simone, `~/.claude/CLAUDE.md` red line 4): agents never run anything that costs money. Every paid step (jev, extractor Batch/sync, VM compute) is prepared by the card's agent with the exact command and a cost estimate and run by Simone as a one-line `! <command>`. Applies to T-002, T-016 (RC-D-002 N28), T-041, T-072, T-073, T-096; T-081 carries a decision point on whether the Claude subagent swarm counts.
 
 Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; sole integrator per shared surface; T-096 / Stage 8 reconciliation; complete gate list for paid / SSH / DB / push / deploy / external; T-072 smoke never touches the live DB; the plan proposes spec fixes without editing; R-083 / C-006 guarded.
 
@@ -96,7 +97,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | G-003 | T-029, T-073, T-074 | T-074 (A-005), T-096 | mapped |
 | G-004 | T-095 (single versioned state), T-052 export_bulk, T-090 #175 README | T-096 | mapped (guard N-006) |
 | G-005 | T-011, T-021, T-023 | T-095 (A-009) | mapped |
-| D-001 | T-010, T-011, T-012 | T-031, PI gate T-010 (A-001) | mapped |
+| D-001 | T-010, T-013, T-011, T-012 | T-031, PI gate T-010 (A-001), CI drift check (T-013) | mapped |
 | D-002 | T-020..T-030, T-032, T-034 | T-031, T-041 | mapped |
 | D-003 | T-029, T-034, T-070, T-072..T-074 | T-074, T-082, T-096 | mapped |
 | D-004 | T-051..T-053, T-095 | T-054, T-095 (A-007) | mapped |
@@ -104,17 +105,22 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | D-006 | T-090 | PI (A-017) | mapped |
 | D-007 | T-050 | Colin acceptance (A-019) | mapped |
 | D-008 | T-060 | procurement integrator (A-018) | mapped |
+| D-009 | T-062 | AI-text-detection owner acceptance | mapped (RC-D-002 N35) |
+| D-010 | T-063 | multilingual subproject reply | mapped (RC-D-002 L) |
 | R-001 | T-021, T-023, T-026 | T-031 (no nano output read as a code) | mapped |
 | R-002 | T-011, T-021 | T-041 (A-011) | mapped |
 | R-003 | T-022 (spans), T-023 | T-041 (A-003) | mapped |
 | R-004 | T-011, T-023 | T-041 (A-003) | mapped |
 | R-005 | T-026 | T-041 (A-010) | mapped |
-| R-006 | T-011 (Choice), T-022 (nano), T-024 (deterministic) per DEC-009 a | T-041, T-082 | mapped |
+| R-006 | T-011 (Choice), T-022 (nano), T-024 (deterministic) per DEC-009 a (superseded by the codebook coder column, RC-D-002 row 5) | T-041, T-082 | mapped |
+| R-007 | T-010 (items), T-013 (schema, generators, CI) | T-031, CI drift check, A-001 linkage | mapped (RC-D-002 N35) |
+| R-008 | T-011 (round / gate order), T-021, T-023 | T-041 | mapped (RC-D-002 N35) |
 | R-010..R-014 | T-010, T-011, T-026 | PI gate T-010 (A-001), T-041 | mapped |
 | R-015 | T-010, T-012, T-028, T-051 | T-041 (A-011), T-031 | mapped |
 | R-016 | T-010, T-011 | T-041 (A-012) | mapped |
+| R-017 | T-010, T-011, T-022 (segmentation), T-023, T-026 | T-016, T-041 (A-003) | mapped (RC-D-002 N35) |
 | R-020..R-024 | T-011, T-021, T-023, T-024 | T-041 (A-020) | mapped |
-| R-025 | T-011 | T-031 (byte diff vs RS-024) | mapped |
+| R-025 | T-010 (re-signed CX version), T-011 | T-016 (re-pilot), T-031 (byte diff vs the re-signed CX version, RC-D-002 row 39) | mapped |
 | R-026 | T-027, T-051 | T-041, T-082 (A-013) | mapped |
 | R-030 | T-011, T-021 | T-041 (A-004) | mapped |
 | R-031..R-034 | T-022, T-025 (hop limit + URL cap) | T-041 (A-004) | mapped |
@@ -125,6 +131,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | R-042 | T-003, T-024 | T-003 PI gate (Q-020 b), T-082 (A-002) | mapped |
 | R-043 | T-028, T-052 (full text), T-053 (display cap) | T-095 (A-007) | mapped |
 | R-044 | T-020, T-022, T-032 | T-041 (A-021) | mapped |
+| R-045 | T-010, T-013 | T-031 | mapped (RC-D-002 N35) |
 | R-050 | T-012, T-028, T-051 (`contract_version`) | T-095 (A-007) | mapped |
 | R-051 | T-051..T-053 (projection, history parameter) | T-054, T-095 (A-007) | mapped |
 | R-052 | T-050, T-052, T-053 | A-019, T-095 | mapped |
@@ -132,6 +139,9 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | R-054 | T-053 (guard) | T-095 (A-009) | mapped |
 | R-055 | T-051, T-052; T-097 wave-window check | T-054, T-095 | mapped |
 | R-056 | T-050, T-051, T-052 (release flag), T-074 (load hidden), T-095 (release) | T-054, T-095 | mapped |
+| R-057 | T-050, T-028, T-052, T-053 | T-095 (A-007) | mapped (RC-D-002 N35) |
+| R-058 | T-024 (e-mails), T-028, T-052, T-053 | T-095 (A-007) | mapped (RC-D-002 N35) |
+| R-059 | T-014, T-029 (`text_source`), T-028, T-090 (translation table, methods note) | T-095, A-017 | mapped (RC-D-002 N35) |
 | R-070 | T-070 (DEC-019) | T-074 (A-005) | mapped |
 | R-071 | T-070 (filter, transfer-owner exception) | T-074 | mapped |
 | R-072 | T-073 | T-074 | mapped |
@@ -171,13 +181,13 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | A-020 | T-040, T-041 | agent + PI | mapped |
 | A-021 | T-040, T-041 | agent | mapped |
 | A-022 | T-034, T-074 | PI | mapped |
-| C-001 | T-022, T-023 (spans only, DEC-010 a) | T-031 | enforced by review |
-| C-002 | Simone-run paid steps: T-002, T-041, T-072, T-073, T-096; T-081 per DP | integrator | gate |
+| C-001 | T-022, T-023 (spans only, DEC-010 a); T-022, T-032 (named selections, RC-D-002 row 33) | T-031 (incl. the named selections, RC-D-002 N30) | enforced by review |
+| C-002 | Simone-run paid steps: T-002, T-016, T-041, T-072, T-073, T-096; T-081 per DP | integrator | gate |
 | C-003 | all cards | integrator | gate |
-| C-004 | T-020 | T-041 (A-021) | enforced by test |
+| C-004 | T-020; T-026 (pooled Stage 6 split, RC-D-002 row 34) | T-041 (A-021, A-010) | enforced by test |
 | C-005 | T-034, T-051, T-074 | T-074 denominator check | enforced by check |
 | C-006 | T-040, T-080, T-082 | T-031 (grep for pilot v1 inputs) | enforced by review |
-| C-007 | T-012, T-030, T-060 (DEC-013 a) | T-031 (pin test) | enforced by test |
+| C-007 | T-012, T-013 (release versioning), T-030, T-060, T-062 (DEC-013 a as amended by C3 a) | T-031 (pin test) | enforced by test |
 | C-008 | all | T-031 (no write path under `inputs/`) | boundary |
 | N-001 | T-070 filter (transfer-owner exception) | T-074 | guard |
 | N-002 | T-081 scope note | integrator | guard |
@@ -206,21 +216,25 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | Task | Lane | Waves | Status | Requires | Soft | Enables | Resources | Delivers | Write claim | Researcher gates | Acceptance IDs |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | T-001 | eng-b | W1 | blocked | none | none | T-029, T-072 | RS-004, RS-006, RS-007, RS-025, RS-036 | none | spikes folder (`count-backfill.json`, `SPIKE-T001*`); droplet `~/reclass-spike-*/` | PI authorises read-only droplet SSH | A-015 |
-| T-002 | eng-c | W1 | blocked | none | none | T-003, T-021, T-025 | RS-004, RS-008, RS-009, RS-012, RS-015, RS-024, RS-031 | none | spikes folder, files prefixed `SPIKE-T002*` | PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28) | A-004, A-021 |
-| T-003 | eng-c | W2 | pending | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c) | A-002 |
-| T-010 | integrator | W1 | pending | none | none | T-011, T-012, T-022, T-040, T-050, T-060, T-061, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026 | D-001 | the three contract files only | PI writes or line-edits every coding rule; PI signs the text hash (A-001); push gate | A-001 |
-| T-011 | eng-a | W2 | pending | T-010 | none | T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
-| T-012 | eng-b | W2 | pending | T-010 | none | T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; the inventory file | none beyond push | A-011, A-013 |
+| T-002 | eng-c | W2 | blocked | T-010, T-013 | none | T-003, T-021, T-025 | RS-004, RS-008, RS-009, RS-012, RS-015, RS-024, RS-031 | none | spikes folder, files prefixed `SPIKE-T002*` | PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28) | A-004, A-021 |
+| T-003 | eng-c | W3 | pending | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c) | A-002 |
+| T-010 | integrator | W1 | pending | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items one by one (CX-01.3†); PI signs the codebook hash (A-001); push gate | A-001 |
+| T-011 | eng-a | W3 | pending | T-010, T-013, T-016 | none | T-015, T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
+| T-012 | eng-b | W2 | pending | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; the inventory file | none beyond push | A-011, A-013 |
+| T-013 | eng-b | W1 | pending | none | T-010 | T-002, T-011, T-012, T-016, T-022, T-032 | RS-010, RS-013, RS-039 | none | `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml` | PI approves the item template and generator checks (r2#59); push of the branch | A-001 |
+| T-014 | eng-a | W2 | pending | none | none | T-022, T-025 | RS-016 | none | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests | push of the branch | none |
+| T-015 | eng-a | W4 | pending | T-011, T-012, T-022, T-027 | none | T-026, T-028 | RS-012 | none | `g3o/common/source_fields.py`† and its tests | push of the branch | none |
+| T-016 | integrator | W2 | pending | T-010, T-013 | none | T-011 | RS-004, RS-005, RS-008, RS-009, RS-024, RS-031 | none | re-pilot folder `agent-workspace/2026-10-27-reclass-plan/repilot-v27/`† | PI approves the cost estimate; Simone runs the paid command via `! <command>` (red line 4); PI rules on the results | none |
 | T-020 | eng-a | W1 | pending | none | T-002 | T-021, T-022, T-023 | RS-004, RS-014, RS-024 | none | the two new files | none beyond push | A-021 |
 | T-021 | eng-a | W4 | pending | T-002, T-011, T-012, T-020, T-027 | none | T-023, T-025, T-030 | RS-012, RS-019 | none | the new modules and tests | none beyond push | A-011, A-013 |
-| T-022 | eng-c | W3 | pending | T-010, T-012, T-020 | none | T-023, T-024, T-025, T-032 | RS-015 | none | the listed extract files | PI approves the nano prompt text; push gate | A-003, A-021 |
+| T-022 | eng-c | W3 | pending | T-010, T-012, T-013, T-014, T-020 | none | T-015, T-023, T-024, T-025, T-032 | RS-015 | none | the listed extract files | PI approves the nano prompt text; push gate | A-003, A-021 |
 | T-023 | eng-a | W5 | pending | T-011, T-020, T-021, T-022, T-027 | none | T-026, T-032 | RS-012 | none | the new modules and tests | none beyond push | A-003 |
-| T-032 | eng-c | W6 | pending | T-022, T-023 | none | T-024, T-030 | RS-015 | none | `g3o/extract/pass2_support.py`† and its tests | PI approves the pass-2 nano prompt text; push gate | A-003, A-021 |
+| T-032 | eng-c | W6 | pending | T-013, T-022, T-023 | none | T-024, T-030 | RS-015 | none | `g3o/extract/pass2_support.py`† and its tests | PI approves the pass-2 nano prompt text; push gate | A-003, A-021 |
 | T-024 | eng-c | W7 | pending | T-003, T-012, T-022, T-032 | none | T-026, T-028, T-041 | none | none | `g3o/common/support_check.py`† and its tests | push of the branch | A-002, A-016 |
-| T-025 | eng-b | W5 | pending | T-002, T-021, T-022 | none | T-029, T-030 | RS-016 | none | new modules `g3o/scrape/follow.py`†, `g3o/run/presweep/stage_follow.py`† and their tests | PI sets the per-institution URL cap value after T-002; push of the branch | A-004, A-014 |
-| T-026 | eng-a | W8 | pending | T-011, T-012, T-023, T-024, T-027 | none | T-028 | RS-011, RS-014 | none | the listed Stage 6 files and tests | push of the branch | A-010 |
-| T-027 | eng-b | W3 | pending | T-012 | none | T-021, T-023, T-026, T-028, T-050 | RS-012, RS-013, RS-014 | none | new module `g3o/common/jev_record.py`† and its tests | push of the branch | A-013 |
-| T-028 | eng-a | W9 | pending | T-012, T-024, T-026, T-027, T-050 | none | T-030, T-052, T-090 | RS-018 | none | `g3o/persist/writer.py` and its tests | push of the branch | A-007, A-017 |
+| T-025 | eng-b | W5 | pending | T-002, T-014, T-021, T-022 | none | T-029, T-030 | RS-016 | none | new modules `g3o/scrape/follow.py`†, `g3o/run/presweep/stage_follow.py`† and their tests | PI sets the per-institution URL cap value after T-002; push of the branch | A-004, A-014 |
+| T-026 | eng-a | W8 | pending | T-011, T-012, T-015, T-023, T-024, T-027 | none | T-028 | RS-011, RS-014 | none | the listed Stage 6 files and tests | push of the branch | A-010 |
+| T-027 | eng-b | W3 | pending | T-012 | none | T-015, T-021, T-023, T-026, T-028, T-050 | RS-012, RS-013, RS-014 | none | new module `g3o/common/jev_record.py`† and its tests | push of the branch | A-013 |
+| T-028 | eng-a | W9 | pending | T-012, T-015, T-024, T-026, T-027, T-050 | none | T-030, T-052, T-090 | RS-018 | none | `g3o/persist/writer.py` and its tests | push of the branch | A-007, A-017 |
 | T-030 | eng-b | W10 | pending | T-021, T-025, T-028, T-032 | none | T-029 | none | none | the listed orchestrator, config, telemetry and e2e files; merges of the new-run card branches into `reclass/v2.7`† | push of the integration branch | none |
 | T-029 | eng-a | W11 | pending | T-001, T-025, T-030 | none | T-034, T-035 | RS-017 | none | new package `g3o/run/backfill/`† and its tests | push of the branch | A-005, A-015 |
 | T-034 | eng-a | W12 | pending | T-029 | none | T-035 | RS-026 | none | `g3o/run/backfill/transfers.py`† and its tests | push of the branch | A-022 |
@@ -236,7 +250,9 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-055 | colin | W16 | blocked | T-052, T-054 | none | T-071, T-074 | none | none | live DB schema (migration 021); production worker; golive folder† | PI authorises the live DB write (snapshot + apply) and the production deploy; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed | none |
 | T-060 | integrator | W15 | pending | T-010, T-012, T-041 | none | T-071 | RS-029 | D-008 | `planning/handoffs/D-008-procurement-delta.md`† | PI approves delta text; posting and email are external | none |
 | T-061 | integrator | W2 | pending | T-010 | none | T-071 | RS-033 | none | `planning/handoffs/validation-notice.md`†; one mailbox file | PI approves the notice text | none |
-| T-071 | eng-a | W17 | blocked | T-031, T-041, T-055, T-060, T-061 | none | T-070 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
+| T-062 | integrator | W18 | pending | T-071 | none | none | RS-038 | D-009 | `planning/handoffs/D-009-ai-text-delta.md`† | PI approves delta text; sending is external | none |
+| T-063 | integrator | W2 | pending | T-010 | none | none | RS-040 | D-010 | `planning/handoffs/D-010-multilingual-heads-up.md`† | PI approves the text; sending is external | none |
+| T-071 | eng-a | W17 | blocked | T-031, T-041, T-055, T-060, T-061 | none | T-062, T-070 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
 | T-070 | eng-a | W18 | blocked | T-071 | none | T-072 | RS-026, RS-030 | none | freeze folder† | PI confirms the freeze date | none |
 | T-072 | eng-a | W19 | blocked | T-001, T-070 | none | T-073 | none | none | smoke run dir; smoke folder† | paid run — the agent prepares the exact command and cost estimate and Simone runs it via `! <command>` (red line 4, 2026-10-28); SSH authorisation; PI reviews the smoke report | none |
 | T-073 | eng-a | W20 | blocked | T-072 | none | T-074 | none | none | back-fill run dir | paid run — the agent prepares the exact command and a cost estimate from the T-072 projection, and Simone runs it via `! <command>` (red line 4); SSH authorisation | none |
@@ -254,10 +270,10 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 
 | Wave | Target | Ready condition | Lanes/tasks | Collision result | Integration/review gate |
 |---|---|---|---|---|---|
-| W1 | after lock | lock + per-card gates | eng-b: T-001, eng-c: T-002, integrator: T-010, eng-a: T-020, T-097 (standing W1-W27) | disjoint claims (one writer per path) | T-001: PI authorises read-only droplet SSH; T-002: PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28); T-010: PI writes or line-edits every coding rule; PI signs the text hash (A-001); push gate; T-020: none beyond push |
-| W2 | after W1 | verified: T-002, T-010 | eng-c: T-003, eng-a: T-011, eng-b: T-012, integrator: T-040, integrator: T-061 | disjoint claims (one writer per path) | T-003: PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c); T-011: PI approves question wording that is not verbatim contract or CX text; push gate; T-012: none beyond push; T-040: PI labels and approves expected values for real-page fixtures; T-061: PI approves the notice text |
-| W3 | after W2 | verified: T-010, T-012, T-020 | eng-c: T-022, eng-b: T-027 | disjoint claims (one writer per path) | T-022: PI approves the nano prompt text; push gate; T-027: push of the branch |
-| W4 | after W3 | verified: T-002, T-010, T-011, T-012, T-020, T-027 | eng-a: T-021, integrator: T-050 | disjoint claims (one writer per path) | T-021: none beyond push; T-050: PI approves the spec before it is sent; posting the GitHub issues is an external message |
+| W1 | after lock | lock + per-card gates | eng-b: T-001, integrator: T-010, eng-b: T-013, eng-a: T-020, T-097 (standing W1-W27) | disjoint claims (one writer per path) | T-001: PI authorises read-only droplet SSH; T-010: PI writes or line-edits every coding rule; PI approves the item template and signs the CX items one by one; PI signs the codebook hash (A-001); push gate; T-013: PI approves the item template and generator checks (r2#59); push of the branch; T-020: none beyond push (RC-D-002 N34: T-002 moved to W2, T-013 added) |
+| W2 | after W1 | verified: T-010, T-013 | eng-c: T-002, eng-b: T-012, tbd: T-014, tbd: T-016, integrator: T-040, integrator: T-061, integrator: T-063 | disjoint claims (one writer per path) | T-002: PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28); T-012: none beyond push; T-014: push of the branch; T-016: PI approves the cost estimate; Simone runs the paid command; PI rules on the results; T-040: PI labels and approves expected values for real-page fixtures; T-061: PI approves the notice text; T-063: PI approves the text; sending is external |
+| W3 | after W2 | verified: T-002, T-010, T-012, T-013, T-014, T-016, T-020 | eng-c: T-003, eng-a: T-011, eng-c: T-022, eng-b: T-027 | disjoint claims (one writer per path) | T-003: PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c); T-011: PI approves question wording that is not verbatim contract or CX text; push gate; T-022: PI approves the nano prompt text; push gate; T-027: push of the branch |
+| W4 | after W3 | verified: T-002, T-010, T-011, T-012, T-020, T-022, T-027 | eng-a: T-021, integrator: T-050, tbd: T-015 | disjoint claims (one writer per path) | T-021: none beyond push; T-050: PI approves the spec before it is sent; posting the GitHub issues is an external message; T-015: push of the branch |
 | W5 | after W4 | verified: T-002, T-011, T-020, T-021, T-022, T-027, T-050 | eng-a: T-023, eng-b: T-025, colin: T-051 | disjoint claims (one writer per path) | T-023: none beyond push; T-025: PI sets the per-institution URL cap value after T-002; push of the branch; T-051: PI authorises creation of and writes to the disposable branch used by this card's self-check; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; live apply is the T-055 gate; push on Colin's branch |
 | W6 | after W5 | verified: T-022, T-023 | eng-c: T-032 | disjoint claims (one writer per path) | T-032: PI approves the pass-2 nano prompt text; push gate |
 | W7 | after W6 | verified: T-003, T-012, T-022, T-032 | eng-c: T-024 | disjoint claims (one writer per path) | T-024: push of the branch |
@@ -271,7 +287,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | W15 | after W14 | verified: T-010, T-012, T-041, T-051, T-052 | eng-b: T-054, integrator: T-060 | disjoint claims (one writer per path) | T-054: PI authorises creation of and writes to the disposable branch; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; T-060: PI approves delta text; posting and email are external |
 | W16 | after W15 | verified: T-052, T-054 | colin: T-055 | disjoint claims (one writer per path) | T-055: PI authorises the live DB write (snapshot + apply) and the production deploy; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed |
 | W17 | after W16 | verified: T-031, T-041, T-055, T-060, T-061 | eng-a: T-071 | disjoint claims (one writer per path) | T-071: PI approves merge and deploy; SSH authorisation; external gate — wave 5 published |
-| W18 | after W17 | verified: T-071 | eng-a: T-070 | disjoint claims (one writer per path) | T-070: PI confirms the freeze date |
+| W18 | after W17 | verified: T-071 | eng-a: T-070, integrator: T-062 | disjoint claims (one writer per path) | T-070: PI confirms the freeze date; T-062: PI approves delta text; sending is external |
 | W19 | after W18 | verified: T-001, T-070 | eng-a: T-072 | disjoint claims (one writer per path) | T-072: paid run — the agent prepares the exact command and cost estimate and Simone runs it via `! <command>` (red line 4, 2026-10-28); SSH authorisation; PI reviews the smoke report |
 | W20 | after W19 | verified: T-072 | eng-a: T-073 | disjoint claims (one writer per path) | T-073: paid run — the agent prepares the exact command and a cost estimate from the T-072 projection, and Simone runs it via `! <command>` (red line 4); SSH authorisation |
 | W21 | after W20 | verified: T-052, T-054, T-055, T-073 | eng-a: T-074 | disjoint claims (one writer per path) | T-074: PI approves live writes (snapshot + load); Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed |
@@ -317,7 +333,7 @@ Per-institution counts for the latest run of every documented and every unclear 
 #### Dependencies
 - Requires: none
 - Enables: T-029, T-072
-- Can run with: T-002, T-010, T-020, T-097
+- Can run with: T-010, T-013, T-020, T-097
 - Researcher gates: PI authorises read-only droplet SSH
 
 #### Ownership and collision control
@@ -361,7 +377,7 @@ Runtime over 2 hours → split by run.
 Status: blocked
 Type: spike
 Priority: critical-path
-Spec refs: R-002, R-003, R-004, R-032, R-044, C-002, C-004
+Spec refs: R-002, R-003, R-004, R-008, R-032, R-044, C-002, C-004
 Decision refs: DEC-003, DEC-008, DEC-010
 
 #### Objective
@@ -370,7 +386,8 @@ Measured on at most 50 real pages, using proxy questions (re-pilot 2 + CX pilot 
 - link fan-out per page and per institution within 3 hops (PF-010; Simone sets the R-032 URL cap from it, item 22 b);
 - Batch round-trip latency and the number of sequential rounds per run (PF-016; feeds DEC-003 d);
 - a calibrated token estimator per script, Latin / CJK / Thai, against jev's token counts (DEC-008 c);
-- a nano supporting-quote extraction leg on the same pages: verbatim quotes for the positive / substantive pass-1 proxy codes, written to `SPIKE-T002-answers.jsonl`† so T-003 has quote-vs-page pairs to calibrate on (review M4).
+- a nano supporting-quote extraction leg on the same pages: verbatim quotes for the positive / substantive pass-1 proxy codes, written to `SPIKE-T002-answers.jsonl`† so T-003 has quote-vs-page pairs to calibrate on (review M4);
+- RC-D-002 row 37 (ruling N2 a): the extractor leg measures the extractor prompts generated by T-013 from the signed codebook (T-010). Sizing drivers: the r2#41 round structure (R-008), C11 functions, four safeguard questions per activity (r2#10), CX-61 over the page, `governance_direction`, `service_domain`, X35 per (code, quote), X30 every pair, X31 pooled with split. X21 is mostly deterministic now (r2#25), and A05's relationship moves to pass 2. The free question-load count comes first: it exists as `planning/t010/question-load.md` (r2#52), and the PI kept the full question set (RC-D-002 L, item 52).
 
 Paid (jev and nano legs, one paid gate): the agent prepares the command and a cost estimate, and Simone runs it.
 
@@ -381,6 +398,9 @@ Paid (jev and nano legs, one paid gate): the agent prepares the command and a co
 | RS-024 `pilot/pilot.py` | Drive | frozen CX pilot v2 | stop |
 | RS-009 / RS-008 pages | local corpora | — | stop |
 | RS-031 jev and OpenAI keys | environment | valid | stop |
+| Signed codebook | T-010 | signed | stop |
+| Generated extractor prompts | T-013 generators run on the signed codebook | generated | stop |
+| Question-load count (r2#52) | `C:/Users/spaci/repos/G3O/planning/t010/question-load.md` | 2026-10-29 | report |
 
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
@@ -396,9 +416,9 @@ Paid (jev and nano legs, one paid gate): the agent prepares the command and a co
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-c/`† (scripts, branched from `origin/main` `375f1ff`; never the shared checkout `C:/Users/spaci/repos/G3O`); outputs to the spikes folder; Simone's shell for the paid run
 
 #### Dependencies
-- Requires: none
+- Requires: T-010, T-013 (RC-D-002 D, row 37; was: none)
 - Enables: T-003, T-021, T-025
-- Can run with: T-001, T-010, T-020, T-097
+- Can run with: T-012, T-014, T-016, T-040, T-061, T-063 (W2)
 - Researcher gates: PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28)
 
 #### Ownership and collision control
@@ -409,7 +429,7 @@ Paid (jev and nano legs, one paid gate): the agent prepares the command and a co
 #### Procedure boundary
 - Included: measurement, estimator calibration and the nano quote leg; preparing the paid command
 - Excluded: any coding-rule choice; executing any paid call (Simone runs it)
-- Fixed decisions: the proxy questions are not v2.7; DEC-003 b placement; DEC-008 c token-based chunking
+- Fixed decisions: the proxy questions are not v2.7 (jev legs); the extractor leg uses the generated v2.7 prompts (RC-D-002 D); DEC-003 b placement; DEC-008 c token-based chunking
 
 #### Spec-change reporting
 - Spec version: SPEC v001.4 → Stage 6 locked version
@@ -451,7 +471,7 @@ Spec refs: R-042, R-043, A-002
 Decision refs: DEC-007, DEC-016
 
 #### Objective
-Using pinned `rapidfuzz` (DEC-007 a), choose a metric and threshold for matching quotes against pages, with false-match and false-reject rates on labelled pairs that include non-English pages. Also produce a quote-length distribution for proposing the website display cap (DEC-016 c). The PI approves the metric, the threshold and the cap.
+Using pinned `rapidfuzz` (DEC-007 a), choose a metric and threshold for matching quotes against pages, with false-match and false-reject rates on labelled pairs that include non-English pages. Also produce a quote-length distribution for proposing the website display cap (DEC-016 c). The PI approves the metric, the threshold and the cap. RC-D-002 N33: the calibration pairs include quotes matched against chrome text, since the check uses the text the quote came from (r2#48; chrome text from T-014); the DEC-016 c cap proposal stays (r2#17).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -476,7 +496,7 @@ Using pinned `rapidfuzz` (DEC-007 a), choose a metric and threshold for matching
 #### Dependencies
 - Requires: T-002
 - Enables: T-024
-- Can run with: T-011, T-012, T-040, T-061
+- Can run with: T-011, T-022, T-027 (W3)
 - Researcher gates: PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c)
 
 #### Ownership and collision control
@@ -525,19 +545,21 @@ More than 1 day of labelling → split labelling from calibration.
 Status: pending
 Type: build
 Priority: critical-path
-Spec refs: D-001, R-006, R-010, R-011, R-012, R-013, R-014, R-015, R-016, R-020, R-021, R-022, R-023, R-024, R-025, R-030, R-040, R-041, R-043, R-044, R-050, R-087, C-007, A-001
+Spec refs: D-001, R-006, R-007, R-010, R-011, R-012, R-013, R-014, R-015, R-016, R-017, R-020, R-021, R-022, R-023, R-024, R-025, R-030, R-040, R-041, R-043, R-044, R-045, R-050, R-087, C-007, A-001
 Decision refs: DEC-009, DEC-013, DEC-016
 
 #### Objective
+RC-D-002 row 38: the output is the signed codebook `codebook/codebook.yaml`† plus the contract docs generated from it (generators: T-013); the hash is the codebook file's at sign-off (A-001). The first step (RC-D-002 B) is done: the adversarial codebook review, rounds 1 and 2, with the PI's per-item rulings (RS-039; SPEC SRC-10, SRC-11) and the open sub-choices (RC-D-002 J). The PI's choices seed the item slots (ruling 1 a for items that keep their SPEC wording); the final CX text is drafted in the codebook and the PI signs it item by item as CX-01.3† (r2#3). The integrator writes the item template and the generator checks (r2#59) for PI approval. The PI writes or line-edits every coding rule.
+
 PI-signed texts, with a hash:
 - the v2.7 extract contract and system prompt;
 - the validate contract, labelled **v1.5** (DEC-013 a; v1.4 is taken by `052fcb2`).
 
 Contents:
-- procurement's owed §4.3 amendment (R-087, item 26 a);
-- the free-text routing of DEC-009 a;
+- procurement's owed §4.3 amendment (R-087, item 26 a), now the removal of purchase language, no longer waiting on procurement's owed text (r2#14; RC-D-002 row 38);
+- the free-text routing of DEC-009 a, replaced by the per-item coder column (r2#28; RC-D-002 row 38);
 - per-chunk supporting quotes (R-044);
-- the supporting-text rule: full text in the API, website display cap (R-043 v001.4).
+- the supporting-text rule: full text in the API, website display cap (R-043 v001.4; DEC-016 c stays, r2#17).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -547,15 +569,18 @@ Contents:
 | RS-004 re-pilot 2 wording | Drive, `unclear2.py` L32-55 | — | stop |
 | RS-024 CX-01.2 | Drive | frozen | stop |
 | RS-026 WS10 D1-D6 | Drive | — | stop |
-| Procurement §4.3 amendment text | procurement integrator, by email via Simone (procurement DEC-010) | agreed text | report; draft with a marked §4.3 placeholder; PI hash sign-off waits |
+| Procurement §4.3 amendment text | no longer an input: §4.3 is the removal of purchase language (r2#14; RC-D-002 row 38). Was: procurement integrator, by email via Simone (procurement DEC-010) | — | — |
+| Codebook-review rulings, rounds 1-2, and sub-choices | RS-039; RC-D-002 J, K, L | PI-ruled 2026-10-29 | stop |
+| Generators | T-013 | merged | sign the codebook first; generate the contract docs once T-013 merges |
 
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
 |---|---|---|---|
-| Extract contract | `g3o/extract/prompts/output_contract.md` on branch `reclass/t010-contract`† | T-011, T-012, T-022, T-040, T-050, T-060, T-061, T-090 | every A-001 rule present; 8-value verdict (R-015); label v2.7; §4.3 (R-087) |
+| Codebook | `codebook/codebook.yaml`† on branch `reclass/t010-contract`† | T-011, T-012, T-013, T-016, T-022, T-032, T-040, T-050, T-060, T-062, T-063, T-090 | every item in the r2#59 template; signed wording verbatim; `core.*` for v2.7 (RC-D-002 A) |
+| Extract contract | `g3o/extract/prompts/output_contract.md` (generated from the codebook) on branch `reclass/t010-contract`† | T-011, T-012, T-022, T-040, T-050, T-060, T-061, T-090 | every A-001 rule present; 9-value verdict (R-015 v001.6); label v2.7 in the setup record (C3 a); §4.3 (R-087) |
 | System prompt | `g3o/extract/prompts/system_prompt.md` | same | R-016 amendment to the "chatbot" rule |
 | Validate contract | `g3o/validate/prompts/output_contract.md` | same | label v1.5 |
-| Signed hash | integrator record | T-031, T-097 | hash of the three files at PI sign-off |
+| Signed hash | integrator record | T-031, T-097 | hash of the codebook file at PI sign-off (A-001, RC-D-002 row 1); was: hash of the three files |
 
 #### Execution resources
 - Persona/role: integrator (researcher session) for structure and cross-references; the PI writes or line-edits every coding rule (researcher persona drafts no prose)
@@ -565,19 +590,20 @@ Contents:
 
 #### Dependencies
 - Requires: none
-- Enables: T-011, T-012, T-022, T-040, T-050, T-060, T-061, T-090
-- Can run with: T-001, T-002, T-020, T-097
-- Researcher gates: PI writes or line-edits every coding rule; PI signs the text hash (A-001); push gate
+- Soft: T-013 (generators emit the contract docs; see the open note in T-013)
+- Enables: T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090
+- Can run with: T-001, T-013, T-020, T-097
+- Researcher gates: PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items one by one (CX-01.3†, r2#3); PI signs the codebook hash (A-001); push gate
 
 #### Ownership and collision control
 - Read scope: inputs above
-- Write claim: the three contract files only
-- Shared surfaces: contract docs — owned by T-010 until signed, then frozen (changes only by delta)
+- Write claim: `codebook/codebook.yaml`† and the three contract files (generated; RC-D-002 row 38)
+- Shared surfaces: codebook and contract docs — owned by T-010 until signed, then frozen (changes only by delta); generator code is T-013's
 
 #### Procedure boundary
 - Included: contract text, cross-references, §4.3 integration
-- Excluded: enums in code (T-012); jev questions (T-011); procurement's own files
-- Fixed decisions: all SPEC v001.4 rulings; DEC-009 a, DEC-013 a, DEC-016 c, R-087
+- Excluded: enums in code (T-012); jev questions (T-011); schema, loader and generators (T-013); procurement's own files
+- Fixed decisions: all SPEC v001.4 rulings; DEC-009 a (superseded by the coder column), DEC-013 a (as amended by C3 a), DEC-016 c, R-087; the RC-D-002 rulings (SPEC SRC-10..SRC-12)
 
 #### Spec-change reporting
 - Spec version: SPEC v001.4 → Stage 6 locked version
@@ -588,13 +614,13 @@ Contents:
 - Forbidden: editing `SPEC.md`, `RESOURCES.md`, `PLAN.md` or `CHANGELOG.md` directly
 
 #### Verification and review
-- Self-check: checklist mapping R-010..R-044 and R-087 to contract section anchors
+- Self-check: checklist mapping R-010..R-044 and R-087 to contract section anchors; every codebook item fills the r2#59 template (RC-D-002 row 38)
 - Independent review: T-031 reviewer cross-check
 - Acceptance tests: A-001
 - Failure/rollback: branch only
 
 #### Decision points
-- DP-005: How to proceed if procurement's §4.3 text has not arrived when the rest is ready
+- DP-005: (closed by RC-D-002 row 38, r2#14: §4.3 is the removal of purchase language and no longer waits on procurement's text) How to proceed if procurement's §4.3 text has not arrived when the rest is ready
   - Default: T-011 and T-012 wait for the signed contract hash; drafting of T-010 itself may proceed with a §4.3 placeholder
   - Recommendation: T-011 and T-012 wait for the signed contract hash; drafting of T-010 itself may proceed with a §4.3 placeholder — consistent with T-011 / T-012 requiring the signed contract (stop)
 
@@ -602,7 +628,7 @@ Contents:
 Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
 
 #### Done condition
-All three files on the branch, §4.3 included, checklist complete, PI-signed hash recorded by the integrator.
+Codebook and the three generated files on the branch, §4.3 included, checklist complete, PI-signed codebook hash recorded by the integrator (RC-D-002 row 38).
 
 #### Chunking trigger
 More than 2 review rounds → split extract contract from validate contract.
@@ -623,17 +649,23 @@ Versioned jev question and choice sets implementing the signed contract:
 
 Year Choice questions for `year_announced` and `year_deployed`, and the CX-60/61 normalisation as Choice questions (DEC-009 a). CX-01.2 wording byte-identical to RS-024.
 
+RC-D-002 row 39: CX wording is byte-identical to the re-signed version (CX-01.3†), not RS-024 (r2#3). Questions are generated from the codebook by T-013 and ordered by round and gate (R-008, r2#41). Year candidates come from C16 / r2#50, with calendar conversion (D-010, T-063); dynamic choice sets only for year candidates (the r2#2 (a) path was not chosen). The Stage 6 set adds X29-X31.
+
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
 |---|---|---|---|
 | T-010 signed contract | branch `reclass/t010-contract`† | signed | stop |
-| RS-024 frozen CX-01.2 wording | Drive | frozen | stop |
+| RS-024 frozen CX-01.2 wording | Drive | frozen | stop (history only after RC-D-002 row 39) |
+| Re-signed CX wording (CX-01.3†) | codebook, T-010 | signed | stop |
+| T-013 generators | branch `reclass/t013-codebook`† | merged | stop |
+| T-016 re-pilot results | re-pilot folder | PI-ruled | stop |
+| Calendar and fiscal-year conversion rule | multilingual subproject via T-063 (D-010) | received | stop the year-candidate questions; report |
 | RS-013 question-set pattern | G3O `origin/main` | `375f1ff` | follow the pattern |
 
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
 |---|---|---|---|
-| Question sets | `g3o/classify/questions/v27/{page,activity,institution}.json`† + `JEV_QUESTION_SET_VERSION` on branch `reclass/t011-questions`† | T-021, T-023, T-026, T-040 | each question cites its contract section; version stamped; CX text identical to RS-024 |
+| Question sets | `g3o/classify/questions/v27/{page,activity,institution}.json`† + `JEV_QUESTION_SET_VERSION` on branch `reclass/t011-questions`† | T-021, T-023, T-026, T-040 | each question cites its contract section and codebook item id and hash; version stamped; CX text identical to the re-signed version (RC-D-002 row 39) |
 
 #### Execution resources
 - Persona/role: engineer, with researcher review
@@ -642,9 +674,9 @@ Year Choice questions for `year_announced` and `year_deployed`, and the CX-60/61
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-a/`† on `reclass/t011-questions`†, branched from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
 
 #### Dependencies
-- Requires: T-010
-- Enables: T-021, T-023, T-026
-- Can run with: T-003, T-012, T-040, T-061
+- Requires: T-010, T-013, T-016 (RC-D-002 rows 39, N34)
+- Enables: T-015, T-021, T-023, T-026
+- Can run with: T-003, T-022, T-027 (W3)
 - Researcher gates: PI approves question wording that is not verbatim contract or CX text; push gate
 
 #### Ownership and collision control
@@ -655,7 +687,7 @@ Year Choice questions for `year_announced` and `year_deployed`, and the CX-60/61
 #### Procedure boundary
 - Included: question text and choice sets
 - Excluded: stage code
-- Fixed decisions: R-025 frozen wording; DEC-009 a routing; DEC-010 a span marking
+- Fixed decisions: R-025 wording (the re-signed version); the codebook coder column (replaces DEC-009 a routing); DEC-010 a span marking
 
 #### Spec-change reporting
 - Spec version: SPEC v001.4 → Stage 6 locked version
@@ -666,13 +698,13 @@ Year Choice questions for `year_announced` and `year_deployed`, and the CX-60/61
 - Forbidden: editing `SPEC.md`, `RESOURCES.md`, `PLAN.md` or `CHANGELOG.md` directly
 
 #### Verification and review
-- Self-check: diff of CX questions against RS-024 is empty; schema validation passes
+- Self-check: diff of CX questions against the re-signed CX version is empty (RC-D-002 row 39); schema validation passes
 - Independent review: T-031
 - Acceptance tests: A-011, A-012 (via T-041)
 - Failure/rollback: branch
 
 #### Decision points
-- DP-006: Bounds of the year choice set for `year_announced` / `year_deployed`
+- DP-006: (obsolete per RC-D-002 row 39: year candidates come from C16 / r2#50 with calendar conversion) Bounds of the year choice set for `year_announced` / `year_deployed`
   - Default: the engineer proposes a closed range covering every year present in published v2.5 data, plus a "not stated" choice
   - Recommendation: same, with the PI approving the range and the "not stated" wording — a data-derived range avoids inventing bounds
 
@@ -699,6 +731,8 @@ Decision refs: DEC-005, DEC-013
 - the new CX columns;
 - an explicit `contract_version` field on every row schema (DEC-005 a).
 
+RC-D-002 row 40: enums and schema are generated from the codebook (T-013); `contract_version` becomes the codebook release label + setup pointer + `evidence_channel` (r2#32, R-050 v001.6); the page verdict has 9 values (R-015 v001.6). Schema-test fix (ruling N3 a; schedule N26, placed here by RC-D-002 L): freeze `PILOT_V1_DATA_COLUMNS` and assert pilot v1 against it instead of the live `DATA_COLUMNS` (`tests/test_schema_consistency.py:93-97` at `375f1ff`); the sibling "extras exactly five" test (`:114-122`) gets the same treatment, since the version and channel columns break it. Pilot v1 stays retired as evidence (C-006).
+
 The first chunk is an inventory of every enum, contract and version touchpoint (PF-014: 34 G3O files per the review, plus lists for g3o-api, website and procurement for T-050/T-060). The integrator assigns each listed file to one owner card before chunk 2.
 
 #### Inputs
@@ -711,7 +745,7 @@ The first chunk is an inventory of every enum, contract and version touchpoint (
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
 |---|---|---|---|
 | Touchpoint inventory (chunk 1) | `C:/Users/spaci/repos/G3O/planning/handoffs/T-012-touchpoints.md`† | integrator, T-050, T-060 | every file with an enum/contract/version reference, by repo; proposed owner card |
-| Enum and schema code (chunk 2) | `g3o/common/contract.py`, `g3o/common/schema.py`, enum modules, `tests/test_schema_consistency.py` on branch `reclass/t012-enums`† | T-021..T-028, T-032, T-050, T-051 | v2.5 rows still validate (4-value kept under a version guard); `contract_version` field present |
+| Enum and schema code (chunk 2) | `g3o/common/contract.py`, `g3o/common/schema.py`, enum modules, `tests/test_schema_consistency.py` on branch `reclass/t012-enums`† | T-021..T-028, T-032, T-050, T-051 | v2.5 rows still validate (4-value kept under a version guard); codebook release label, setup pointer and `evidence_channel` fields present (RC-D-002 row 40); pilot v1 asserted against the frozen `PILOT_V1_DATA_COLUMNS` |
 
 #### Execution resources
 - Persona/role: engineer
@@ -720,9 +754,9 @@ The first chunk is an inventory of every enum, contract and version touchpoint (
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-b/`† on `reclass/t012-enums`†, branched from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
 
 #### Dependencies
-- Requires: T-010
-- Enables: T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090
-- Can run with: T-003, T-011, T-040, T-061
+- Requires: T-010, T-013 (RC-D-002 row 40)
+- Enables: T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090
+- Can run with: T-002, T-014, T-016, T-040, T-061, T-063 (W2)
 - Researcher gates: none beyond push
 
 #### Ownership and collision control
@@ -733,7 +767,7 @@ The first chunk is an inventory of every enum, contract and version touchpoint (
 #### Procedure boundary
 - Included: constants, types, inventory
 - Excluded: pin regeneration (T-035, DEC-021); files outside the write claim
-- Fixed decisions: R-015 mapping (v2.5 rows unconverted); DEC-005 a; DEC-013 a labels
+- Fixed decisions: R-015 mapping (v2.5 rows unconverted); DEC-005 a and DEC-013 a labels, as amended (RC-D-002 N24, C3 a); N3 a
 
 #### Spec-change reporting
 - Spec version: SPEC v001.4 → Stage 6 locked version
@@ -761,6 +795,311 @@ Inventory accepted and owners assigned by the integrator; tests pass; touchpoint
 #### Chunking trigger
 Sequential chunks: chunk 1 inventory → integrator assignment → chunk 2 code.
 
+### T-013 — Build the codebook schema, loader, generators and CI check (RC-D-002 A)
+
+Status: pending
+Type: build
+Priority: critical-path
+Spec refs: D-001, R-007, R-008, R-045, R-050, C-007, A-001
+Decision refs: DEC-013 (as amended by RC-D-002 C3 a)
+
+#### Objective
+The machine-readable codebook (`codebook/codebook.yaml`†, D-001) gets a schema, a loader and generators, plus a CI check (RC-D-002 A, row 53). The generators build, from the codebook:
+- the jev question and choice sets (consumed by T-011);
+- the extractor prompt sections (T-022, T-032);
+- the Python enums and the JSON schema (T-012);
+- the data dictionary (T-090) and the human-readable `output_contract.md` (T-010).
+
+Generators only assemble the signed wording and never rewrite it, so CX text stays byte-identical (R-025). CI fails when a generated file differs from the codebook. The schema supports the r2#59 item template fields, the pipeline coverage and level tags (r2#29, r2#54) and release versioning (r2#5, C-007), and it implements the A-001 linkage check: each generated question or prompt traces to an item id and hash. v2.7 ships `core.*` and the G3O generators; procurement (D-008) and AI-text detection (D-009) move over later, and neither move blocks v2.7 deployment.
+
+#### Inputs
+| Input | Location/producer | Required state/version | Missing-input behavior |
+|---|---|---|---|
+| Item template and generator checks (r2#59) | integrator, under T-010 | PI-approved | build the schema against the draft template; stop before merge until approved |
+| Codebook items | `codebook/codebook.yaml`† on `reclass/t010-contract`† (T-010) | draft, then signed | generate from the draft; regenerate from the signed file |
+| RS-010 contract, enum and pin code | G3O `origin/main` `375f1ff` | — | stop |
+| RS-013 question-set pattern | G3O `origin/main` `375f1ff` | — | follow the pattern |
+| RS-039 codebook-review rulings | `planning/t010/codebook-review/` | PI-ruled 2026-10-29 | stop |
+
+#### Outputs
+| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
+|---|---|---|---|
+| Codebook package | `g3o/codebook/`† (schema, loader, generators), `codebook/schema.json`†, `tests/test_codebook*.py`†, a codebook drift step in `.github/workflows/ci.yml`; branch `reclass/t013-codebook`† | T-002, T-010, T-011, T-012, T-016, T-022, T-032, T-090, T-031 | verbatim assembly only; CI fails on drift; every generated question / prompt / enum carries its item id and hash; release label per C-007 / R-050 |
+
+#### Execution resources
+- Persona/role: engineer (lane eng-b)
+- Tools/connectors: Python, pytest, YAML and JSON-schema validation
+- Skills/protocols: none beyond this plan
+- Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-b/`† on `reclass/t013-codebook`†, branched from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
+
+#### Dependencies
+- Requires: none
+- Soft: T-010 (item template, written by the integrator, r2#59). RC-D-002 O3: soft edges both ways; neither blocks the other (RC-D-002 open item resolved by PI, 2026-10-29, chat "all accepted").
+- Enables: T-002, T-011, T-012, T-016, T-022, T-032
+- Can run with: T-001, T-010, T-020, T-097 (W1)
+- Researcher gates: PI approves the item template and the generator checks (r2#59); push of the branch
+
+#### Ownership and collision control
+- Read scope: RS-010, RS-013, RS-039, T-010 drafts
+- Write claim: `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml`
+- Shared surfaces: `codebook/codebook.yaml`† content is T-010's; generated files are written only by the generators
+
+#### Procedure boundary
+- Included: schema, loader, generators, CI drift check, linkage check
+- Excluded: item wording (PI, under T-010); procurement and AI-text adoption (D-008, D-009); stage code
+- Fixed decisions: RC-D-002 A (architecture, PI "ok as rec"); C3 a (one release label per row); r2#5; r2#59
+
+#### Spec-change reporting
+- Spec version: SPEC v001.6 (RC-D-002)
+- Report to: integrator (coord mailbox `g3o-reclass-integrator`)
+- Report when: an item cannot be expressed in the template; a generator would have to rewrite signed text
+- Stop boundary: the affected generator
+- Safe continuation: the other generators
+- Forbidden: editing `SPEC.md`, `RESOURCES.md`, `PLAN.md` or `CHANGELOG.md` directly
+
+#### Verification and review
+- Self-check: regenerating from the codebook reproduces the committed generated files byte for byte; CI fails on a seeded drift
+- Self-check: a generated CX question is byte-identical to its signed item text; each generated question and prompt carries its item id and hash (A-001 linkage)
+- Independent review: T-031 (reviews the generators and CI, RC-D-002 A)
+- Acceptance tests: A-001 (linkage check)
+- Failure/rollback: branch
+
+#### Decision points
+none
+
+#### Return report
+Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
+
+#### Done condition
+Tests and CI drift check pass on `reclass/t013-codebook`†; template approved by the PI; return report filed with the integrator.
+
+#### Chunking trigger
+Split per generator target (questions, prompts, enums / schema, docs).
+
+### T-014 — Store chrome text and page links in the scraper (RC-D-002 F)
+
+Status: pending
+Type: build
+Priority: required
+Spec refs: R-023 (CX-53), R-031, R-035, R-059, N-004
+Decision refs: none (PI ruling N1 a, RC-D-002 F)
+
+#### Objective
+`g3o/scrape/html.py` strips header / footer / nav / aside (L11, L21 at `375f1ff`) and stores no links. Ruled (PI, 2026-10-29, "n1 a"): the scraper stores the stripped chrome text as a separate field, and the page's links. This serves `content_contact_details`, CX-53 e-mail extraction and follow-up links (R-031). There is no back-fill of stored pages: pages stored before the change lack both, a back-filled institution gains them only for pages fetched live again (R-035), and the row's `text_source` says which (R-059). Procurement is exempt (r2#54).
+
+#### Inputs
+| Input | Location/producer | Required state/version | Missing-input behavior |
+|---|---|---|---|
+| RS-016 scrape modules (`g3o/scrape/html.py`, `extract_links` at `html.py:36` and `pdf.py:53`), `g3o/run/presweep/stage_scrape.py` | G3O `origin/main` `375f1ff` | — | stop |
+
+#### Outputs
+| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
+|---|---|---|---|
+| Scraper change, plus tests | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, tests; branch `reclass/t014-scrape`† | T-003, T-022, T-024, T-025, T-029 | chrome text in its own field; links stored; main-text field unchanged; records stored before the change load with both fields absent |
+
+#### Execution resources
+- Persona/role: engineer, lane eng-a (RC-D-002 O5)
+- Tools/connectors: Python, pytest, BeautifulSoup (existing)
+- Skills/protocols: none beyond this plan
+- Working directory/environment: the lane's worktree `C:/Users/spaci/worktrees/G3O-<lane>/`† on `reclass/t014-scrape`†, branched from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
+
+#### Dependencies
+- Requires: none
+- Enables: T-022, T-025
+- Can run with: T-002, T-012, T-016, T-040, T-061, T-063 (W2)
+- Researcher gates: push of the branch
+
+#### Ownership and collision control
+- Read scope: RS-016
+- Write claim: `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests
+- Shared surfaces: `stage_scrape.py` (T-025 does not own it, DEC-003 b); orchestrator wiring → T-030
+
+#### Procedure boundary
+- Included: chrome-text field, link storage, loading of old records
+- Excluded: link following (T-025); re-fetching stored pages; discovery, site pick, triage (N-004)
+- Fixed decisions: ruling N1 a (RC-D-002 F); no back-fill of stored pages; procurement exempt (r2#54)
+
+#### Spec-change reporting
+- Spec version: SPEC v001.6 (RC-D-002)
+- Report to: integrator (coord mailbox `g3o-reclass-integrator`)
+- Report when: keeping chrome text changes the main-text output on existing fixtures
+- Stop boundary: none (report only)
+- Safe continuation: all
+- Forbidden: editing `SPEC.md`, `RESOURCES.md`, `PLAN.md` or `CHANGELOG.md` directly
+
+#### Verification and review
+- Self-check: fixture pages give the same main text as at `375f1ff`, plus a separate chrome-text field and the stored links
+- Self-check: a record stored before the change loads with both fields absent
+- Independent review: T-031
+- Acceptance tests: supports A-004 (links) via T-041
+- Failure/rollback: branch
+
+#### Decision points
+none
+
+#### Return report
+Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
+
+#### Done condition
+Tests pass on branch `reclass/t014-scrape`†, return report filed with the integrator.
+
+#### Chunking trigger
+none
+
+### T-015 — Build the source-level field coder (RC-D-002 H Q3, N25)
+
+Status: pending
+Type: build
+Priority: required
+Spec refs: R-002, R-026, R-040, R-045, R-090
+Decision refs: none
+
+#### Objective
+One coder for the source-level fields X21-X28 plus X37 / X38 (RC-D-002 H Q3, schedule N25):
+- `source_type`: domain and address first, then the shared classifier question (r2#25, r2#30);
+- the X22 credibility map, without the translation clause;
+- per-source confidence (r2#27);
+- flags kept only where they add information, as one shared list (r2#38, r2#39);
+- verbatim `source_snippet` (r2#35);
+- date: metadata first, then the quote step, with the date origin (X26, r2#31; date-origin values use the shared provenance vocabulary, T3);
+- language ID; title, url, access date.
+
+It takes the deterministic parts from T-024. RC-D-002 O2: this card owns every source-level field, including the residual `source_type` question and X22 / X27 / X28 / X37 / X38 (RC-D-002 open item resolved by PI, 2026-10-29, chat "all accepted").
+
+#### Inputs
+| Input | Location/producer | Required state/version | Missing-input behavior |
+|---|---|---|---|
+| Source-level question set | T-011 | merged | stop |
+| Enums | T-012 | merged | stop |
+| Quote-step dates | T-022 | merged | stop |
+| jev answer record | T-027 | merged | stop |
+
+#### Outputs
+| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
+|---|---|---|---|
+| Source-level coder module, plus tests | `g3o/common/source_fields.py`†, tests; branch `reclass/t015-source`† | T-026, T-028 | every source carries X21-X28, X37, X38 with coder and basis; date origin recorded |
+
+#### Execution resources
+- Persona/role: engineer, lane eng-a (RC-D-002 O5)
+- Tools/connectors: Python, pytest; jev client (RS-012) for the residual `source_type` question
+- Skills/protocols: none beyond this plan
+- Working directory/environment: the lane's worktree `C:/Users/spaci/worktrees/G3O-<lane>/`†, feature branch from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
+
+#### Dependencies
+- Requires: T-011, T-012, T-022, T-027
+- Enables: T-026, T-028
+- Can run with: T-021, T-050 (W4)
+- Researcher gates: push of the branch
+
+#### Ownership and collision control
+- Read scope: T-011, T-012, T-022, T-024, T-027 outputs
+- Write claim: `g3o/common/source_fields.py`† and its tests
+- Shared surfaces: orchestrator wiring → T-030 (eng-b)
+
+#### Procedure boundary
+- Included: the source-level fields listed above
+- Excluded: page and activity codes (T-021, T-023); quote checking (T-024)
+- Fixed decisions: r2#25, r2#27, r2#30, r2#31, r2#35, r2#38, r2#39; T3
+
+#### Spec-change reporting
+- Spec version: SPEC v001.6 (RC-D-002)
+- Report to: integrator (coord mailbox `g3o-reclass-integrator`)
+- Report when: a source field has no defined coder in the codebook
+- Stop boundary: that field
+- Safe continuation: the other fields
+- Forbidden: editing `SPEC.md`, `RESOURCES.md`, `PLAN.md` or `CHANGELOG.md` directly
+
+#### Verification and review
+- Self-check: fixture sources cover an official domain, an archive address, a classifier-typed source and a metadata-less date
+- Independent review: T-031
+- Acceptance tests: supports A-013 via T-041
+- Failure/rollback: branch
+
+#### Decision points
+none
+
+#### Return report
+Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
+
+#### Done condition
+Tests pass on branch `reclass/t015-source`†, return report filed with the integrator.
+
+#### Chunking trigger
+Split `source_type` from the date and flag fields.
+
+### T-016 — Re-pilot the re-signed questionnaire items (paid, small; RC-D-002 N28)
+
+Status: pending
+Type: spike
+Priority: critical-path
+Spec refs: R-015, R-016, R-020..R-025, R-084, A-020, C-002
+Decision refs: none (r2#3)
+
+#### Objective
+A paid re-pilot, run by Simone before the build (r2#3), of every reworded item: the re-signed CX items (CX-01.3†; X01-X11 plus r2#9, #10, #19) and the non-CX items whose rulings commit to a re-pilot: the amended `confirms_activity` / C04, A01, the 9-value verdict question (r2#7), interface (r2#20), `governance_direction` (r2#58), `service_domain` (r2#62) and `governance_form` multi-select (S6 c). The agent prepares the exact command and a cost estimate; Simone runs it via `! <command>` (red line 4). The PI rules on the results before T-011 relies on the wording.
+
+#### Inputs
+| Input | Location/producer | Required state/version | Missing-input behavior |
+|---|---|---|---|
+| Signed items | codebook, T-010 | signed | stop |
+| Generated questions for those items | T-013 | generated | stop |
+| RS-004 re-pilot pattern (`unclear2.py`), RS-005 prior answers, RS-024 `pilot/` | Drive | as listed | stop |
+| RS-008 / RS-009 pages | local | — | stop |
+| RS-031 jev key | environment | valid | stop |
+
+#### Outputs
+| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
+|---|---|---|---|
+| Re-pilot report and answers | `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/repilot-v27/`† (`REPILOT-REPORT.md`†, answers jsonl, command file with the `! <command>` line and cost estimate) | PI, T-011, T-040 | per item: answer distribution, probability, comparison with the prior wording where it exists; every request id kept |
+
+#### Execution resources
+- Persona/role: integrator prepares; Simone runs the paid re-pilot via `!` (RC-D-002 O5)
+- Tools/connectors: Python, jev client (RS-012); command prepared for Simone to run as `! <command>`
+- Skills/protocols: none beyond this plan
+- Working directory/environment: a lane worktree `C:/Users/spaci/worktrees/G3O-<lane>/`† (scripts, branched from `origin/main` `375f1ff`); outputs to the re-pilot folder; Simone's shell for the paid run
+
+#### Dependencies
+- Requires: T-010, T-013
+- Enables: T-011
+- Can run with: T-002, T-012, T-014, T-040, T-061, T-063 (W2)
+- Researcher gates: PI approves the cost estimate; Simone runs the paid command (red line 4); PI rules on the results
+
+#### Ownership and collision control
+- Read scope: codebook, RS-004, RS-005, RS-008, RS-009, RS-024
+- Write claim: the re-pilot folder
+- Shared surfaces: none
+
+#### Procedure boundary
+- Included: preparing the command and estimate; reporting on the run Simone launches
+- Excluded: running any paid call itself; rewording any item (PI)
+- Fixed decisions: r2#3 (re-pilot before the build); red line 4
+
+#### Spec-change reporting
+- Spec version: SPEC v001.6 (RC-D-002)
+- Report to: integrator (coord mailbox `g3o-reclass-integrator`)
+- Report when: an item's answers suggest the wording does not work as signed
+- Stop boundary: T-011 for that item
+- Safe continuation: the other items
+- Forbidden: editing `SPEC.md`, `RESOURCES.md`, `PLAN.md` or `CHANGELOG.md` directly
+
+#### Verification and review
+- Self-check: every listed item has answers; call count matches pages × items
+- Independent review: integrator spot-checks 5 request ids
+- Acceptance tests: informs A-020, A-011, A-012
+- Failure/rollback: none needed (measurement only)
+
+#### Decision points
+none
+
+#### Return report
+Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
+
+#### Done condition
+Report, answers and the paid-run record (command, estimate, actual cost) written; PI ruling on the results recorded by the integrator.
+
+#### Chunking trigger
+More pages or items than in the approved estimate → new paid gate.
+
 ### T-020 — Build the token-based page chunker and combination rule
 
 Status: pending
@@ -770,7 +1109,7 @@ Spec refs: R-044, C-004, A-021
 Decision refs: DEC-008
 
 #### Objective
-Chunk pages by estimated tokens to fit jev's 32k-token state limit, keeping halve-and-retry as a fallback (DEC-008 c). Combine chunk answers per CX-01.2 §11.1 and record which chunk produced each code (chunk ids carried for R-044). The estimator constant comes from T-002 (soft edge): the build starts in W1 and the constant is filled in after T-002.
+Chunk pages by estimated tokens to fit jev's 32k-token state limit, keeping halve-and-retry as a fallback (DEC-008 c). Combine chunk answers per CX-01.2 §11.1 and record which chunk produced each code (chunk ids carried for R-044). The estimator constant comes from T-002 (soft edge): the build starts in W1 and the constant is filled in after T-002. RC-D-002 row 41: the combination implements the per-item combine rules read from the codebook (r2#42, R-044 v001.6), replacing the X16 three-rule list; the S3 a verdict order; and a split routine that T-026 reuses for pooled Stage 6 evidence (r2#6, C-004).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -779,6 +1118,7 @@ Chunk pages by estimated tokens to fit jev's 32k-token state limit, keeping halv
 | RS-014 Stage 6 split logic | G3O `origin/main` `375f1ff` | — | alternative reference |
 | RS-024 §11.1 (L184) | Drive | frozen | stop |
 | T-002 estimator constant | `SPIKE-T002.md`† | done | build with a placeholder constant; fill once T-002 reports |
+| Per-item combining rules (RC-D-002 row 41) | codebook (T-010) via the T-013 loader | merged | build with the rule types as configuration; read them from the codebook once T-013 merges |
 
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
@@ -794,7 +1134,7 @@ Chunk pages by estimated tokens to fit jev's 32k-token state limit, keeping halv
 #### Dependencies
 - Requires: none
 - Enables: T-021, T-022, T-023
-- Can run with: T-001, T-002, T-010, T-097
+- Can run with: T-001, T-010, T-013, T-097
 - Researcher gates: none beyond push
 
 #### Ownership and collision control
@@ -816,7 +1156,7 @@ Chunk pages by estimated tokens to fit jev's 32k-token state limit, keeping halv
 - Forbidden: editing `SPEC.md`, `RESOURCES.md`, `PLAN.md` or `CHANGELOG.md` directly
 
 #### Verification and review
-- Self-check: unit tests on ordered vocabularies, yes/no items and page fields; tests that over-limit chunks trigger halve-and-retry
+- Self-check: unit tests on ordered vocabularies, yes/no items and page fields; tests that over-limit chunks trigger halve-and-retry; one test per combining-rule type and for the S3 a order (RC-D-002 row 41)
 - Independent review: T-031
 - Acceptance tests: A-021 (via T-041)
 - Failure/rollback: branch
@@ -840,16 +1180,17 @@ none
 Status: pending
 Type: build
 Priority: critical-path
-Spec refs: R-001, R-002, R-015, R-020, R-021, R-023, R-026, R-030, R-081
+Spec refs: R-001, R-002, R-008, R-015, R-020, R-021, R-023, R-026, R-030, R-081
 Decision refs: DEC-004
 
 #### Objective
 A stage that:
 - sends each page, chunked, to jev with the page question set;
 - records the answers through the shared jev answer record (T-027): probabilities, confidence, model id, request id;
-- applies the 0.8 threshold flags.
+- applies the 0.8 threshold flags;
+- RC-D-002 row 42: asks X17 and the residual `source_type` (the residual `source_type` question moves to T-015, RC-D-002 O2); sets `not_assessable` mechanically (never asked, C1 a); asks no page `content_*` descriptive or safeguard items (they are derived); the A05 relationship moves to T-023; asks in round and gate order (R-008).
 
-The completeness flag comes from jev; the follow-up links come from the T-022 nano call (P5 / Q-018).
+The completeness flag comes from jev; the follow-up links come from the T-022 nano call (P5 / Q-018). RC-D-002 F: follow-up link candidates come from the stored page links (T-014), and the quote step selects among them (T-022).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -874,7 +1215,7 @@ The completeness flag comes from jev; the follow-up links come from the T-022 na
 #### Dependencies
 - Requires: T-002, T-011, T-012, T-020, T-027
 - Enables: T-023, T-025, T-030
-- Can run with: T-050
+- Can run with: T-015, T-050
 - Researcher gates: none beyond push
 
 #### Ownership and collision control
@@ -930,6 +1271,8 @@ One nano Batch call per page after pass 1, scoped per item to match the SPEC (re
 
 Pages with no positive page code, complete, and outside the 5 verdicts need no nano request.
 
+RC-D-002 row 43: the quote step is blind to the answer for the field it quotes but may see that a gate is not `none` (r2#18), and makes the named selections of C-001 (SPEC v001.6). Item 2 becomes selecting follow-up links among the page's stored links (r2#48; needs T-014). C22 / C23 spans only when the CX-61 gate is not `none` (r2#9). The A09 scale number is copied verbatim, with the unit picked by the classifier (C4 a), and the X26 date is coded by the quote step. It also extracts C12 `model_name` and the A05 actor name. The residual free-text list in item 4 follows the codebook coder column (r2#28: `scope_notes` gone, `vendor` split into developer and contracting party). X19 is dropped: no extraction-time quote cap (r2#17). The prompts are generated from the codebook by T-013.
+
 The 60,000-character head+tail cap (`g3o/extract/batch.py:49` `DEFAULT_TEXT_CAP_CHARS`) does not apply on the v2.7 path. Quotes for pass-2 codes are T-032's job.
 
 #### Inputs
@@ -940,6 +1283,8 @@ The 60,000-character head+tail cap (`g3o/extract/batch.py:49` `DEFAULT_TEXT_CAP_
 | T-012 enums | branch | merged | stop |
 | T-020 chunker | branch | merged | stop |
 | T-021 artifact shape | branch | merged or mocked | use mock |
+| Generated prompt sections | T-013 | merged | stop |
+| Stored chrome text and links | T-014 | merged | stop |
 
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
@@ -953,9 +1298,9 @@ The 60,000-character head+tail cap (`g3o/extract/batch.py:49` `DEFAULT_TEXT_CAP_
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-c/`† on `reclass/t022-nano`†, branched from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
 
 #### Dependencies
-- Requires: T-010, T-012, T-020
-- Enables: T-023, T-024, T-025, T-032
-- Can run with: T-027
+- Requires: T-010, T-012, T-013, T-014, T-020 (RC-D-002 row 43, N34)
+- Enables: T-015, T-023, T-024, T-025, T-032
+- Can run with: T-003, T-011, T-027 (W3)
 - Researcher gates: PI approves the nano prompt text; push gate
 
 #### Ownership and collision control
@@ -1002,11 +1347,13 @@ Split links from quotes if the parser work exceeds 1 week.
 Status: pending
 Type: build
 Priority: critical-path
-Spec refs: R-001, R-003, R-004, R-006, R-022, R-026
+Spec refs: R-001, R-003, R-004, R-006, R-008, R-017, R-022, R-026
 Decision refs: DEC-009, DEC-010
 
 #### Objective
 jev coding per (page × activity span), with the span marked in the page text (DEC-010 a): Group D enums and flags under v2.6 rules, the CX-01.2 finding fields, and the jev Choice free-text fields (DEC-009 a).
+
+RC-D-002 row 44: pass 2 adds applicability keyed on `activity_type` (r2#8; governance-only items gate on action type `governance`, T4); C10; C11 per r2#20; developer and contracting party (r2#24; core supplier role = contracting party, T5); A04; the C17 year method (r2#50); C09 as the only purchase home (r2#14); A01; A02 narrowed (r2#11); A03 multi-select (S6 c); A09 unit (C4 a); four-answer safeguards (r2#10); the CX-61 gate (r2#9); `governance_direction`, `service_domain`; the per-activity relationship (r2#23); the C07 relation question with the shared relation list (R-017, r2#22); the discontinuation value inside signed CX-61 (C2 a). It codes activities on all 5 verdicts (r2#51), in round and gate order (R-008).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -1078,7 +1425,7 @@ Spec refs: R-040, R-044, C-001, A-003, A-021
 Decision refs: DEC-010
 
 #### Objective
-After jev pass 2, nano extracts verbatim supporting text for every positive or substantive activity-level code. Each quote comes from the chunk that produced the code (PF-001, R-040, R-044). Output carries no code values (C-001).
+After jev pass 2, nano extracts verbatim supporting text for every positive or substantive activity-level code. Each quote comes from the chunk that produced the code (PF-001, R-040, R-044). Output carries no code values (C-001). RC-D-002 row 43: the T-022 quote-step rules apply (blind to the answer, gate-aware, r2#18; named selections per C-001 v001.6); C22 / C23 spans only when the CX-61 gate is not `none` (r2#9); prompts generated by T-013.
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -1098,7 +1445,7 @@ After jev pass 2, nano extracts verbatim supporting text for every positive or s
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-c/`† on `reclass/t032-pass2-quotes`†, branched from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
 
 #### Dependencies
-- Requires: T-022, T-023
+- Requires: T-013, T-022, T-023
 - Enables: T-024, T-030
 - Can run with: none
 - Researcher gates: PI approves the pass-2 nano prompt text; push gate
@@ -1152,6 +1499,8 @@ Decision refs: DEC-007, DEC-009
 #### Objective
 A module that fuzzy-matches every supporting quote, from pass 1 (T-022) and pass 2 (T-032), against the stored page text, using pinned `rapidfuzz` and the T-003 threshold. It downgrades unsupported positive or substantive codes, and codes below 0.8 including negatives (to `unclear` / `unknown`), and runs the deterministic extraction for contact emails (when contact = yes) and explicitly stated years (DEC-009 a).
 
+RC-D-002 row 45 adds: X35 entailment per (code, quote) with the chosen-answer probability bar (r2#26); per-item `downgrade_to` except for page verdicts (r2#40); the support-status values incl. "quote does not state the value" and "set by rule" (r2#37, r2#53; SPEC R-041 v001.6); the developer lookup (r2#24), no longer filling `vendor`; contact e-mails stored in full, with domain + count for publication (S4 a, R-058). It runs between rounds (r2#41), not after both passes. RC-D-002 O4: T-024 delivers its checks as a library that T-021 and T-023 call between rounds; no new graph edge (RC-D-002 open item resolved by PI, 2026-10-29, chat "all accepted"). X22 / X27 / X28 / X37 / X38 go to T-015 (RC-D-002 O2).
+
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
 |---|---|---|---|
@@ -1185,7 +1534,7 @@ A module that fuzzy-matches every supporting quote, from pass 1 (T-022) and pass
 #### Procedure boundary
 - Included: quote check, downgrade, deterministic fields (contact emails, explicit years)
 - Excluded: the threshold choice (T-003, PI); quote extraction (T-022, T-032)
-- Fixed decisions: one threshold 0.8 for all codes (R-081); only positive or substantive codes need support (Q-010 a); presence check only, not entailment (R-042); DEC-007 a; DEC-009 a
+- Fixed decisions: one threshold 0.8 for all codes (R-081; chosen-answer probability, RC-D-002 row 24); only positive or substantive codes need support (Q-010 a); presence check only, not entailment (R-042), with X35 entailment as a separate layer (RC-D-002 row 17); DEC-007 a; DEC-009 a
 
 #### Spec-change reporting
 - Spec version: SPEC v001.4 (`C:/Users/spaci/repos/G3O/planning/SPEC.md`), the Stage 6 locked version once locked
@@ -1223,7 +1572,7 @@ Spec refs: R-030, R-031, R-032, R-033, R-034, R-035, R-036, N-004, SC-03
 Decision refs: DEC-003
 
 #### Objective
-Links from incomplete pages enter a separate follow-up leg after pass 1 (DEC-003 b). They are fetched and sent back through pass 1, up to 3 hops and up to the per-institution URL cap (R-032 v001.4). Each URL is fetched once per institution per run, the provenance chain is stored, "cap reached" is recorded per institution, and back-fill fetches are tagged per R-036.
+Links from incomplete pages enter a separate follow-up leg after pass 1 (DEC-003 b). They are fetched and sent back through pass 1, up to 3 hops and up to the per-institution URL cap (R-032 v001.4). Each URL is fetched once per institution per run, the provenance chain is stored, "cap reached" is recorded per institution, and back-fill fetches are tagged per R-036. RC-D-002 row 46: `discovery_path` (X18) is set on every source in all runs; X39 keeps only `fetch_failed` and link-not-followed states (r2#7); procurement is exempt (r2#54).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -1231,7 +1580,7 @@ Links from incomplete pages enter a separate follow-up leg after pass 1 (DEC-003
 | RS-016 scrape fetcher + `extract_links` (`g3o/scrape/html.py:36`, `pdf.py:53`) | `origin/main` | — | reuse |
 | Link fan-out and Batch latency measurements; URL cap value | T-002 report; PI sets cap value | report done; cap value set by PI | build with cap as a config value; stop before merge until set |
 | Page completeness flag | T-021 | merged | stop |
-| Follow-up links | T-022 | merged | stop |
+| Follow-up link candidates: the page's stored links (T-014) filtered by the quote step's selection (T-022) (RC-D-002 row 46; was "Follow-up links, T-022") | T-014, T-022 | merged | stop |
 
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
@@ -1245,7 +1594,7 @@ Links from incomplete pages enter a separate follow-up leg after pass 1 (DEC-003
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-b/`†, feature branch from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
 
 #### Dependencies
-- Requires: T-002, T-021, T-022
+- Requires: T-002, T-014, T-021, T-022
 - Enables: T-029, T-030
 - Can run with: T-023, T-051 (W5)
 - Researcher gates: PI sets the per-institution URL cap value after T-002; push of the branch
@@ -1294,11 +1643,13 @@ Split back-fill tagging into its own chunk.
 Status: pending
 Type: build
 Priority: critical-path
-Spec refs: R-005, R-012, R-014, R-015, R-081, A-010
+Spec refs: R-005, R-012, R-014, R-015, R-017, R-081, A-010
 Decision refs: DEC-018
 
 #### Objective
 Stage 6 applies v2.6/v2.7 consolidation (explicit relations, no merge of unresolved relations, the `no` rule per SF-009 b) to the new page and activity records. It is rewritten against the jev Stage 6 (DEC-018 b), using `052fcb2` as reference only and its 30 `exval_cases` as tests.
+
+RC-D-002 row 47: implements SPEC R-005 v001.6 (`background_only` in the `no` set, S2 b; a downgraded page counts as unresolved; `yes` from any pipeline and `no` from web pages only, with supported purchase records able to give `yes`, C5 a; `not_assessable` does not block `no`, C1 a; the chosen-answer probability bar); X30 with the shared relation list (R-017); X31 pooled with split (the T-020 routine); A06 per r2#21; A07 with 9 counts per pipeline; the r2#27 confidence; the unit-credit flag; X33; X34. Activities from non-confirmed pages are used for relations only (r2#51). The Stage 6 identical-name defect (RC-D-002 H Q2, `RC-D-002.md:105`; `g3o/validate/jev_validate.py:113` at `375f1ff` skips the same-activity question when names are identical) is the X30 case.
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -1324,7 +1675,7 @@ Stage 6 applies v2.6/v2.7 consolidation (explicit relations, no merge of unresol
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-a/`†, feature branch from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
 
 #### Dependencies
-- Requires: T-011, T-012, T-023, T-024, T-027
+- Requires: T-011, T-012, T-015, T-023, T-024, T-027
 - Enables: T-028
 - Can run with: none (W8)
 - Researcher gates: push of the branch
@@ -1375,7 +1726,7 @@ Spec refs: R-026, A-013
 Decision refs: DEC-004
 
 #### Objective
-One record type for every jev answer (probability distribution, confidence, model id, request id, question-set version, chunk id), used by T-021, T-023 and T-026. Under DEC-004 a it is written to per-institution JSON artifacts, with DB columns for confidence, model id and request id plus the full distribution in jsonb, via T-051/T-052. The API does not serve the distribution column (specified in T-050).
+One record type for every jev answer (probability distribution, confidence, model id, request id, question-set version, chunk id), used by T-021, T-023 and T-026. Under DEC-004 a it is written to per-institution JSON artifacts, with DB columns for confidence, model id and request id plus the full distribution in jsonb, via T-051/T-052. The API does not serve the distribution column (specified in T-050). RC-D-002 row 48: the record type covers every automated coder (P10a), stores the chosen-answer probability (r2#26), and links per-code coder details to the per-run version record (r2#57).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -1396,8 +1747,8 @@ One record type for every jev answer (probability distribution, confidence, mode
 
 #### Dependencies
 - Requires: T-012
-- Enables: T-021, T-023, T-026, T-028, T-050
-- Can run with: T-022 (W3)
+- Enables: T-015, T-021, T-023, T-026, T-028, T-050
+- Can run with: T-003, T-011, T-022 (W3)
 - Researcher gates: push of the branch
 
 #### Ownership and collision control
@@ -1445,7 +1796,7 @@ Spec refs: R-015, R-043, R-050, R-051
 Decision refs: DEC-005, DEC-016
 
 #### Objective
-The CSV writer emits the page verdict, CX fields, full-length supporting text, jev summary fields and an explicit `contract_version` column on every row (DEC-005 a), with the column list as specified in T-050.
+The CSV writer emits the page verdict, CX fields, full-length supporting text, jev summary fields and an explicit `contract_version` column on every row (DEC-005 a), with the column list as specified in T-050. RC-D-002 row 49: columns for every published item (R-057); codebook release label + setup pointer + `evidence_channel` in place of `contract_version` (r2#32); legacy-column fill (r2#46); `text_source` and the v2.5-rule label (R-059); support status; 9-value counts; e-mail domain + count and unmasked quotes (R-058); A06 / A07; the full quote text stays in CSV (DEC-016 c, r2#17).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -1460,7 +1811,7 @@ The CSV writer emits the page verdict, CX fields, full-length supporting text, j
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
 |---|---|---|---|
-| Updated writer, plus tests | `g3o/persist/writer.py`, tests; branch `reclass/t028-writer`† | T-030, T-052, T-090 | column list matches T-050; `contract_version` on every row; supporting text not truncated in CSV (DEC-016 c) |
+| Updated writer, plus tests | `g3o/persist/writer.py`, tests; branch `reclass/t028-writer`† | T-030, T-052, T-090 | column list matches T-050; codebook release label + setup pointer + `evidence_channel` on every row (RC-D-002 row 49; was `contract_version`); supporting text not truncated in CSV (DEC-016 c) |
 
 #### Execution resources
 - Persona/role: engineer (lane eng-a)
@@ -1469,7 +1820,7 @@ The CSV writer emits the page verdict, CX fields, full-length supporting text, j
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-a/`†, feature branch from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
 
 #### Dependencies
-- Requires: T-012, T-024, T-026, T-027, T-050
+- Requires: T-012, T-015, T-024, T-026, T-027, T-050
 - Enables: T-030, T-052, T-090
 - Can run with: none (W9)
 - Researcher gates: push of the branch
@@ -1591,7 +1942,7 @@ Spec refs: R-035, R-036, R-056, R-070, R-071, R-072, R-073, R-074, R-075, R-076,
 Decision refs: DEC-002
 
 #### Objective
-A first-class `backfill` command (DEC-002 a) that runs the v2.7 stages for a fixed institution list from stored pages. It covers all pages of the latest run for documented and unclear institutions alike (R-076 v001.4, item 20 a), re-scrapes pages without usable text, follows links, does no re-triage, and gives each institution an end state (R-075). Every back-fill write carries a fresh release id and never reuses an original run_id (PF-004). Rows load hidden until release (R-056).
+A first-class `backfill` command (DEC-002 a) that runs the v2.7 stages for a fixed institution list from stored pages. It covers all pages of the latest run for documented and unclear institutions alike (R-076 v001.4, item 20 a), re-scrapes pages without usable text, follows links, does no re-triage, and gives each institution an end state (R-075). Every back-fill write carries a fresh release id and never reuses an original run_id (PF-004). Rows load hidden until release (R-056). RC-D-002 N32: back-fill rows carry `text_source` (stored vs live re-fetch, R-059); chrome text and links exist only for pages fetched live again (T-014), and the setup record says which.
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -1804,7 +2155,7 @@ none
 Status: pending
 Type: verify
 Priority: required
-Spec refs: R-001, R-025, R-056, R-073, R-087, C-001, C-005, C-006, C-007, C-008, N-004, N-005
+Spec refs: R-001, R-007, R-025, R-056, R-073, R-087, C-001, C-005, C-006, C-007, C-008, N-004, N-005
 Decision refs: DEC-010
 
 #### Objective
@@ -1853,7 +2204,9 @@ A reviewer not involved in T-010 to T-035 checks the fully integrated branch fro
 
 #### Verification and review
 - Check: no nano-decided code fields (C-001); only character spans from nano reach jev pass 2 (DEC-010 a)
-- Check: CX-01.2 wording byte-diff against the frozen text (R-025)
+- Check: CX wording byte-diff against the re-signed CX version, CX-01.3† (R-025 v001.6; RC-D-002 row 39; was: against the frozen CX-01.2 text)
+- Check (RC-D-002 N30): the codebook generators and CI (T-013): generated files match the codebook, generators assemble signed text verbatim, and the A-001 linkage holds
+- Check (RC-D-002 N30): the quote step's named selections stay within the C-001 v001.6 list, each with a quote and a support check
 - Check: pin test (C-007) on the pins regenerated in T-035
 - Check: the procurement §4.3 amendment is present in contract v2.7 under the same version bumps, extract v2.7 + validate v1.5 (R-087)
 - Check: no `pilot_v1` input and no `inputs/` writes (C-006, C-008)
@@ -1884,7 +2237,8 @@ Decision refs: DEC-006
 #### Objective
 Labelled fixtures under DEC-006 c:
 - synthetic pages for mechanics: hops, dedup, cap reached, loops, chunk combination;
-- real pages for verdicts and CX coding: all 8 page verdicts, the GenAI boundary, C2-C4, consolidation cases, multi-activity pages;
+- real pages for verdicts and CX coding: all 8 page verdicts (RC-D-002 row 50: all 9, incl. page-stated absence), the GenAI boundary, C2-C4, consolidation cases, multi-activity pages;
+- RC-D-002 row 50 adds fixtures for: S1 translation; S2 `background_only` in `no`; the S3 order on chunked pages; S5 units and relations (R-017); S6 multi-select; C04 unit / parent / joint; A01 bases; X01 / X03 boundaries; X29 failure cases; applicability by activity_type; four-answer safeguards; the CX-61 gate; the new fields; calendar years; chrome-text contact / e-mail cases;
 - WS10 transfer fixtures for T-034.
 Real ones are labelled by the agent, then by the PI.
 
@@ -1910,7 +2264,7 @@ Real ones are labelled by the agent, then by the PI.
 #### Dependencies
 - Requires: T-010
 - Enables: T-041
-- Can run with: T-003, T-011, T-012, T-061 (W2)
+- Can run with: T-002, T-012, T-014, T-016, T-061, T-063 (W2)
 - Researcher gates: PI labels and approves expected values for real-page fixtures
 
 #### Ownership and collision control
@@ -2035,7 +2389,7 @@ Spec refs: D-007, R-043, R-050, R-051, R-052, R-055, R-056, R-073, A-019, C-005
 Decision refs: DEC-001, DEC-004, DEC-005, DEC-015, DEC-016
 
 #### Objective
-An accepted interface specification giving Colin the exact fields, types, version display, most-recent rule, hidden-fields rule (Q-021 a), release flag, back-fill visibility (R-055, R-056), and the correction-layer interface, delivered as GitHub issues on g3o-api / g3o-website.
+An accepted interface specification giving Colin the exact fields, types, version display, most-recent rule, hidden-fields rule (Q-021 a), release flag, back-fill visibility (R-055, R-056), and the correction-layer interface, delivered as GitHub issues on g3o-api / g3o-website. RC-D-002 row 49: columns for every published item (R-057), with only confirmed activities in the public activity table (r2#51); codebook release label + setup pointer + `evidence_channel` in place of `contract_version` (r2#32); legacy-column fill (r2#46); `text_source` and the v2.5-rule label (R-059); support status; 9-value counts; e-mail domain + count and unmasked quotes (R-058); X41 display-only translation on the website; A06 / A07; full quote text in CSV / API (DEC-016 c, r2#17). Under Q6 the generated data dictionary owns the published definitions, and the API's evidence-status doc (g3o-api `docs/evidence-status-contract.md`) is restated for 9 values.
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -2049,7 +2403,7 @@ An accepted interface specification giving Colin the exact fields, types, versio
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
 |---|---|---|---|
-| D-007 interface spec | `C:/Users/spaci/repos/G3O/planning/handoffs/D-007-interface-spec.md`† | Colin, T-028, T-051, T-052, T-053 | Covers: correction tables linked to original observation ids + most-recent projection view (DEC-001 a); `contract_version` column on every row (DEC-005 a); jev columns (confidence, model id, request id) with the distribution jsonb not served by the API (DEC-004 a); history parameter/endpoint for older rows (DEC-015 a); full supporting text in API, website display cap (DEC-016 c); release flag hiding every v2.7 row until release (R-056); ownership of `v_wave_*` views, materialized aggregates, `sql/013..020` and refresh, including an explicit refresh + watermark check because `sql/007` does not fire on updates (PF-007); ordinary runs keep per-wave latest-run-wins under wave windows, correction rows wave-free (R-055); ingest guard refusing a back-fill that reuses an original run_id (PF-004); `scripts/export_bulk.py` + `scripts/test_export_bulk.py` updated for v2.7 fields (PF-023); CSV column list agreed with T-028; acceptance block for A-019 |
+| D-007 interface spec | `C:/Users/spaci/repos/G3O/planning/handoffs/D-007-interface-spec.md`† | Colin, T-028, T-051, T-052, T-053 | Covers: correction tables linked to original observation ids + most-recent projection view (DEC-001 a); `contract_version` column on every row (DEC-005 a); jev columns (confidence, model id, request id) with the distribution jsonb not served by the API (DEC-004 a); history parameter/endpoint for older rows (DEC-015 a); full supporting text in API, website display cap (DEC-016 c); release flag hiding every v2.7 row until release (R-056); ownership of `v_wave_*` views, materialized aggregates, `sql/013..020` and refresh, including an explicit refresh + watermark check because `sql/007` does not fire on updates (PF-007); ordinary runs keep per-wave latest-run-wins under wave windows, correction rows wave-free (R-055); ingest guard refusing a back-fill that reuses an original run_id (PF-004); `scripts/export_bulk.py` + `scripts/test_export_bulk.py` updated for v2.7 fields (PF-023); CSV column list agreed with T-028; acceptance block for A-019; the RC-D-002 row 49 additions |
 | GitHub issues | g3o-api and g3o-website issues linking the spec | Colin | One issue per downstream card (T-051, T-052, T-053) unless DP-060 is changed |
 
 #### Execution resources
@@ -2061,7 +2415,7 @@ An accepted interface specification giving Colin the exact fields, types, versio
 #### Dependencies
 - Requires: T-010, T-012, T-027
 - Enables: T-028, T-051
-- Can run with: T-021
+- Can run with: T-015, T-021
 - Researcher gates: PI approves the spec before it is sent; posting the GitHub issues is an external message
 
 #### Ownership and collision control
@@ -2111,7 +2465,7 @@ Spec refs: R-015, R-026, R-036, R-050, R-051, R-055, R-056, R-073, C-005
 Decision refs: DEC-001, DEC-004, DEC-005
 
 #### Objective
-Reviewed forward and down migrations implementing T-050: new correction tables linked to original observation ids plus a most-recent projection view (DEC-001 a), release flag, `contract_version` column, jev columns, 8-value page verdict — additive only.
+Reviewed forward and down migrations implementing T-050: new correction tables linked to original observation ids plus a most-recent projection view (DEC-001 a), release flag, `contract_version` column, jev columns, 8-value page verdict — additive only. RC-D-002 row 49: the T-050 additions, incl. the codebook release label + setup pointer + `evidence_channel` columns and the 9-value page verdict.
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -2186,7 +2540,7 @@ Spec refs: R-043, R-050, R-051, R-052, R-055, R-056, G-004
 Decision refs: DEC-004, DEC-015, DEC-016
 
 #### Objective
-Ingest reads T-028 CSVs; the API serves v2.7 fields, version label, most-recent selection, older rows via the history parameter (DEC-015 a), full supporting text, back-fill rows outside wave gating, and hides all v2.7 rows until release (R-056); aggregates refresh and bulk export updated.
+Ingest reads T-028 CSVs; the API serves v2.7 fields, version label, most-recent selection, older rows via the history parameter (DEC-015 a), full supporting text, back-fill rows outside wave gating, and hides all v2.7 rows until release (R-056); aggregates refresh and bulk export updated. RC-D-002 row 49: serves the T-050 additions (every published item, confirmed activities only, support status, 9-value counts, e-mail domain + count, unmasked full quotes, `text_source` and the v2.5-rule label).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -2264,7 +2618,7 @@ Spec refs: R-043, R-051, R-052, R-053 residual (Q-021 a), R-054, R-056, N-003
 Decision refs: DEC-015, DEC-016
 
 #### Objective
-The staging site shows each institution's most recent row with its version label, new fields and supporting text (with the website display cap and access to the full text), hides new fields where the most recent row is v2.5, and shows no index UI.
+The staging site shows each institution's most recent row with its version label, new fields and supporting text (with the website display cap and access to the full text), hides new fields where the most recent row is v2.5, and shows no index UI. RC-D-002 row 49: shows the T-050 additions, incl. confirmed activities only, e-mail domain + count, the v2.5-rule label and the X41 display-only translation.
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -2488,7 +2842,7 @@ Spec refs: D-008, R-085, R-087, C-007, A-018
 Decision refs: DEC-013, DEC-014
 
 #### Objective
-After T-041 passes and before deployment (DEC-014 b), the procurement integrator accepts a delta listing the old→new enum mapping (4-value `genai_evidence` → 8-value page verdict), version pins (extract v2.7, validate v1.5) and the §4.3 amendment status (R-087) (PF-022).
+After T-041 passes and before deployment (DEC-014 b), the procurement integrator accepts a delta listing the old→new enum mapping (4-value `genai_evidence` → 8-value page verdict; 9 values under R-015 v001.6), version pins (extract v2.7, validate v1.5; per C3 a, a pinned codebook release) and the §4.3 amendment status (R-087) (PF-022). RC-D-002 row 51: the delta content is SPEC D-008 v001.6 (schedule row 27). A heads-up draft (not sent) is prepared once the codebook is settled (Q1, Q4: procurement's stale documents). Procurement's plan change and migration are ruled by the PI in that plan (r2#12); acceptance stays before deploy (DEC-014 b).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -2560,7 +2914,7 @@ Spec refs: N-002, C-007, D-001
 Decision refs: DEC-013
 
 #### Objective
-The G3O validation plan's integrator (`C:/Users/spaci/repos/g3o_validation/planning/`, BL-001) receives a notice that this plan changes the output contract (extract v2.7, validate v1.5), with timing against deployment, so its contract-pinned comparison inputs (its SRC-12) can be assessed by that plan (PF-020).
+The G3O validation plan's integrator (`C:/Users/spaci/repos/g3o_validation/planning/`, BL-001) receives a notice that this plan changes the output contract, naming the codebook release label (RC-D-002 N31, C3 a; extract v2.7 / validate v1.5 are recorded in the setup record), with timing against deployment, so its contract-pinned comparison inputs (its SRC-12) can be assessed by that plan (PF-020).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -2583,7 +2937,7 @@ The G3O validation plan's integrator (`C:/Users/spaci/repos/g3o_validation/plann
 #### Dependencies
 - Requires: T-010
 - Enables: T-071
-- Can run with: T-003, T-011, T-012, T-040
+- Can run with: T-002, T-012, T-014, T-016, T-040, T-063 (W2)
 - Researcher gates: PI approves the notice text
 
 #### Ownership and collision control
@@ -2623,6 +2977,147 @@ PI-approved notice delivered; receipt or reply recorded.
 #### Chunking trigger
 none
 
+### T-062 — Send the D-009 delta to the AI-text-detection lane (RC-D-002 C, N29)
+
+Status: pending
+Type: integrate
+Priority: required
+Spec refs: D-009, C-007
+Decision refs: none (RC-D-002 C, C6 b, Q1, Q5)
+
+#### Objective
+Sibling of T-060 for the AI-text-detection lane. After v2.7 deploys (C6 b), the AI-text-detection owner receives a delta, drafted per SPEC D-009 (schedule row 36), that moves the AI-text pipeline from its vendored `g3o/common/contract.py` to a pinned codebook release. It targets the cue SPEC (LOCKED v1.3) and the PI pilot spec (Q5). It is drafted, not sent, until the PI approves (Q1).
+
+#### Inputs
+| Input | Location/producer | Required state/version | Missing-input behavior |
+|---|---|---|---|
+| Codebook release | T-010, T-013 | signed, deployed | stop |
+| Deployed v2.7 | T-071 | deployed | stop |
+| AI-text repo, cue SPEC, PS v1 | RS-038 | read-only | stop |
+
+#### Outputs
+| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
+|---|---|---|---|
+| Delta | `C:/Users/spaci/repos/G3O/planning/handoffs/D-009-ai-text-delta.md`† | AI-text-detection owner | every D-009 item; release pin; timing |
+| Delivery | channel chosen by the PI | AI-text-detection owner | acceptance recorded |
+
+#### Execution resources
+- Persona/role: integrator
+- Tools/connectors: Read; external message gated on the PI
+- Skills/protocols: none beyond this card
+- Working directory/environment: `C:/Users/spaci/repos/G3O/planning/`
+
+#### Dependencies
+- Requires: T-071
+- Enables: none
+- Can run with: T-070 (W18)
+- Researcher gates: PI approves delta text; sending is external
+
+#### Ownership and collision control
+- Read scope: AI-text repo (read-only), the codebook
+- Write claim: `planning/handoffs/D-009-ai-text-delta.md`†
+- Shared surfaces: none (never edits AI-text files)
+
+#### Procedure boundary
+- Included: delta and delivery
+- Excluded: AI-text code and plan files
+- Fixed decisions: C6 b (after v2.7 deploys); Q1 (drafted, not sent); Q5 (targets)
+
+#### Spec-change reporting
+- Spec version: SPEC v001.6 (RC-D-002)
+- Report to: integrator (coord mailbox `g3o-reclass-integrator`)
+- Report when: the AI-text plan has no integrator or locked plan to receive the delta (RC-D-002 C, open)
+- Stop boundary: this card
+- Safe continuation: all else
+- Forbidden: editing `SPEC.md` or `CHANGELOG.md` directly
+
+#### Verification and review
+- Self-check: the delta covers every D-009 item
+- Independent review: PI approves text
+- Failure/rollback: n/a
+
+#### Decision points
+none
+
+#### Return report
+Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
+
+#### Done condition
+PI-approved delta delivered; acceptance recorded in the delta file.
+
+#### Chunking trigger
+none
+
+### T-063 — Send the calendar-conversion heads-up to the multilingual subproject (RC-D-002 L, N23)
+
+Status: pending
+Type: integrate
+Priority: required
+Spec refs: D-010
+Decision refs: none (RC-D-002 L, procedural; Q1)
+
+#### Objective
+The multilingual subproject (`subprojects/multilingual-pipeline/`, RS-040) receives a heads-up asking for the calendar and fiscal-year conversion rule the year method needs (r2#50), and noting that language coverage is its shared item and the language-barrier flag is dropped (r2#39, P16a). Drafted, not sent, until the PI approves (Q1).
+
+#### Inputs
+| Input | Location/producer | Required state/version | Missing-input behavior |
+|---|---|---|---|
+| Year method and language items | codebook, T-010 | settled | stop |
+| Multilingual subproject files | RS-040 | read-only | report |
+
+#### Outputs
+| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
+|---|---|---|---|
+| Heads-up | `C:/Users/spaci/repos/G3O/planning/handoffs/D-010-multilingual-heads-up.md`† | multilingual subproject | the rule requested, the items it serves, timing against T-011 |
+| Delivery | channel chosen by the PI | multilingual subproject | reply recorded |
+
+#### Execution resources
+- Persona/role: integrator
+- Tools/connectors: Read; external message gated on the PI
+- Skills/protocols: the subproject's `CLAUDE.md` / `AGENTS.md` (read-only)
+- Working directory/environment: `C:/Users/spaci/repos/G3O/planning/`
+
+#### Dependencies
+- Requires: T-010
+- Enables: none (the rule it asks for is an input to T-011)
+- Can run with: T-002, T-012, T-014, T-016, T-040, T-061 (W2)
+- Researcher gates: PI approves the text; sending is external
+
+#### Ownership and collision control
+- Read scope: subproject files (read-only)
+- Write claim: `planning/handoffs/D-010-multilingual-heads-up.md`†
+- Shared surfaces: none (never edits the subproject's files)
+
+#### Procedure boundary
+- Included: heads-up and delivery
+- Excluded: writing the conversion rule (the subproject owns it)
+- Fixed decisions: RC-D-002 L (deliverable plus handoff); Q1
+
+#### Spec-change reporting
+- Spec version: SPEC v001.6 (RC-D-002)
+- Report to: integrator (coord mailbox `g3o-reclass-integrator`)
+- Report when: the subproject cannot supply the rule before T-011
+- Stop boundary: the year-candidate questions in T-011
+- Safe continuation: all else
+- Forbidden: editing `SPEC.md` or `CHANGELOG.md` directly
+
+#### Verification and review
+- Self-check: the heads-up names every item that needs the rule
+- Independent review: PI approves text
+- Failure/rollback: n/a
+
+#### Decision points
+none
+
+#### Return report
+Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
+
+#### Done condition
+PI-approved heads-up delivered; reply recorded.
+
+#### Chunking trigger
+none
+
 ### T-071 — Deploy v2.7 pipeline to the droplet
 
 Status: blocked (gate: deploy)
@@ -2658,7 +3153,7 @@ Decision refs: DEC-020, DEC-021
 
 #### Dependencies
 - Requires: T-031, T-041, T-055, T-060, T-061
-- Enables: T-070
+- Enables: T-062, T-070
 - Can run with: none
 - Researcher gates: PI approves merge and deploy; SSH authorisation; external gate — wave 5 published
 
@@ -2731,7 +3226,7 @@ A PI-confirmed fixed back-fill list: every institution published as documented o
 #### Dependencies
 - Requires: T-071
 - Enables: T-072
-- Can run with: none
+- Can run with: T-062 (W18)
 - Researcher gates: PI confirms the freeze date
 
 #### Ownership and collision control
@@ -3278,7 +3773,7 @@ Spec refs: D-006, R-090, A-017, N-007, G-004
 Decision refs: DEC-013
 
 #### Objective
-Documentation of every new field, value, version (extract v2.7, validate v1.5), downgrade and link rule, plus the #175 README update (PF-023), with public prose approved by the PI.
+Documentation of every new field, value, version (extract v2.7, validate v1.5), downgrade and link rule, plus the #175 README update (PF-023), with public prose approved by the PI. RC-D-002 row 52: the data dictionary is generated from the codebook (T-013 generator) and owns the published definitions (Q6); the docs list follows SPEC R-090 v001.6 (row 28); the methods note covers R-059 and the r2#55 activity-unit change; the version label is the codebook release (C3 a).
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -3561,7 +4056,7 @@ none
 
 ## Launch manifest
 
-Wave 1 only. RC-D-001 (E): the W1 lanes run one at a time, in the order T-010 → T-002 → T-020 → T-001; the next lane starts when the previous lane returns its report. later waves get their lanes from the task-engineering queue as predecessors verify. No lane launches before the Stage 6 baseline lock and Simone's separate execution authorization (C-003). Engineer lanes work in git worktrees outside Drive (`C:/Users/spaci/worktrees/G3O-<lane>/`†, branched from `origin/main` `375f1ff`). Coord: native admission at start, claims via the native writer, mailbox `g3o-reclass-integrator` for questions and spec deltas, semantic close at exit (`coord/SPEC.md`, "Native coordination and startup read policy").
+Wave 1 only. RC-D-001 (E): the W1 lanes run one at a time, in the order T-010 → T-002 → T-020 → T-001; the next lane starts when the previous lane returns its report. RC-D-002 (D): T-002 still follows T-010, and it now also waits for T-013 so that it measures the generated extractor prompt; T-013 is a new W1 card that the 2026-10-29 authorization does not cover. later waves get their lanes from the task-engineering queue as predecessors verify. No lane launches before the Stage 6 baseline lock and Simone's separate execution authorization (C-003). Engineer lanes work in git worktrees outside Drive (`C:/Users/spaci/worktrees/G3O-<lane>/`†, branched from `origin/main` `375f1ff`). Coord: native admission at start, claims via the native writer, mailbox `g3o-reclass-integrator` for questions and spec deltas, semantic close at exit (`coord/SPEC.md`, "Native coordination and startup read policy").
 
 | Lane | Task/chunk | Persona | CWD | Inputs | Claim | Output | Researcher gates | Review | Release |
 |---|---|---|---|---|---|---|---|---|---|
@@ -3569,11 +4064,12 @@ Wave 1 only. RC-D-001 (E): the W1 lanes run one at a time, in the order T-010 �
 | integrator | T-097 | researcher | `H:/My Drive/Research/G3O` | delta reports | `planning/CHANGELOG.md`†, delta log | CHANGELOG entries | PI approves every delta | PI | standing |
 | eng-a | T-020 | engineer | `C:/Users/spaci/worktrees/G3O-eng-a/`† | RS-004 `byte_chunks`, RS-014 split | `g3o/common/page_chunks.py`† + tests | token-based chunker | push | T-031 | tests pass |
 | eng-b | T-001 | engineer | `C:/Users/spaci/worktrees/G3O-eng-b/`† | RS-004 scripts, RS-025 lists, RS-007 runs | `agent-workspace/2026-10-27-reclass-plan/spikes/` (`SPIKE-T001*`) + droplet `~/reclass-spike-*/` | stored-text counts, disk check | PI authorises read-only SSH | integrator | counts file + note |
-| eng-c | T-002 | engineer | `C:/Users/spaci/worktrees/G3O-eng-c/`† | RS-004, RS-024, RS-008, RS-009, RS-031 | spikes folder (`SPIKE-T002*`) | cost / latency / fan-out / token-estimator report | PI approves paid-spike budget; Simone runs the paid command (`! <command>`) | integrator | report + raw logs |
+| eng-b | T-013 | engineer | `C:/Users/spaci/worktrees/G3O-eng-b/`† | RS-010, RS-013, RS-039; T-010 item template | `g3o/codebook/`†, `codebook/schema.json`†, tests, CI step | codebook schema, loader, generators, CI drift check | not authorized yet (RC-D-002); PI approves the item template; push | T-031 | tests + CI pass |
+| eng-c | T-002 | engineer | `C:/Users/spaci/worktrees/G3O-eng-c/`† | RS-004, RS-024, RS-008, RS-009, RS-031; signed codebook (T-010) and generated prompts (T-013) (RC-D-002 D) | spikes folder (`SPIKE-T002*`) | cost / latency / fan-out / token-estimator report | PI approves paid-spike budget; Simone runs the paid command (`! <command>`) | integrator | report + raw logs |
 
 ## Task-engineering queue
 
-One packet per ready task, built by `task-engineering-protocol.md` from the card in `## Task cards` at launch time; each packet carries the card's inputs, outputs, write claim, researcher gates, checks, acceptance IDs, spec version (Stage 6 locked), delta triggers and stop/continue rule verbatim. Ready after the lock: T-010, T-020, T-097 (no gate beyond push / PI hash); ready pending gate: T-001 (SSH), T-002 (paid; Simone runs). Every other card enters the queue when its Requires are `verified` and its gates have passed.
+One packet per ready task, built by `task-engineering-protocol.md` from the card in `## Task cards` at launch time; each packet carries the card's inputs, outputs, write claim, researcher gates, checks, acceptance IDs, spec version (Stage 6 locked), delta triggers and stop/continue rule verbatim. Ready after the lock: T-010, T-020, T-097 (no gate beyond push / PI hash); ready pending gate: T-001 (SSH), T-002 (paid; Simone runs; after T-010 and T-013, RC-D-002 D); T-013 (needs Simone's authorization, RC-D-002). Every other card enters the queue when its Requires are `verified` and its gates have passed.
 
 ## Spec-change control
 
@@ -3612,14 +4108,14 @@ Gate list (researcher gates; none passes by lock alone):
 
 | Gate | Cards |
 |---|---|
-| PI coding-rule wording / contract hash | T-010, T-011 (non-verbatim questions), T-022 / T-032 (nano prompts) |
+| PI coding-rule wording / contract hash | T-010 (incl. the item template and the item-by-item CX signature, CX-01.3†), T-013 (item template, r2#59), T-011 (non-verbatim questions), T-022 / T-032 (nano prompts) |
 | PI labels / thresholds / caps | T-003 (match threshold, website cap), T-025 (URL cap value after T-002), T-040, T-041 failures |
-| Paid calls (Simone runs `! <command>`) | T-002, T-041, T-072, T-073, T-096; T-081 per its DP |
+| Paid calls (Simone runs `! <command>`) | T-002, T-016, T-041, T-072, T-073, T-096; T-081 per its DP |
 | SSH / droplet | T-001, T-071, T-072, T-073, T-081 (page pull), T-096 |
 | DB writes (Neon branches / snapshots free; PI gate still required) | T-051 (disposable self-check), T-054 (disposable branch), T-055 (live schema), T-074 (live load) |
 | Push / merge / deploy | every build card push; T-030 / T-035 integration branch; T-071; T-052 staging; T-055 production ingest; T-053 / T-095 deploy |
-| External messages | T-050 (GitHub issues to Colin), T-060 (procurement email via Simone + #134), T-061 (validation-plan notice) |
-| External wait | T-071 (wave 5 published), T-010 (procurement §4.3 text) |
+| External messages | T-050 (GitHub issues to Colin), T-060 (procurement email via Simone + #134; heads-up draft first), T-061 (validation-plan notice), T-062 (D-009, after deploy), T-063 (D-010 heads-up) |
+| External wait | T-071 (wave 5 published); T-011 year-candidate questions (calendar rule via T-063); T-010 §4.3 wait closed by RC-D-002 row 38 |
 | Public wording | T-053 copy, T-090 prose |
 | Release | T-083, T-095 |
 
@@ -3627,7 +4123,8 @@ Gate list (researcher gates; none passes by lock alone):
 
 - T-001 blocked on PI authorisation of read-only droplet SSH.
 - T-002 blocked on PI approval of the paid-spike budget; Simone runs it.
-- T-010 completion blocked on the procurement integrator's §4.3 text (R-087); drafting may start with a placeholder.
+- T-010 §4.3 block closed by RC-D-002 row 38 (r2#14): §4.3 is the removal of purchase language. Was: T-010 completion blocked on the procurement integrator's §4.3 text (R-087); drafting may start with a placeholder.
+- T-002 waits for T-010 and T-013 (RC-D-002 D). T-016 is paid; Simone runs it.
 - T-071 blocked on wave 5 publication (external) plus its edges.
 - DEC-003 d closed by RC-D-001 (B).
 - T-025 URL cap value, T-003 threshold and website cap: PI values set after the spikes; the cards carry them as gates / DPs.
@@ -3659,4 +4156,4 @@ Overall: READY-WITH-BLOCKS (W1 blocks: SSH and paid-spike gates; external waits 
 
 ## User authorization to execute
 
-2026-10-29 (Simone, chat "5 all but we go sequentially, first contract"; recorded in RC-D-001 E): W1 lanes T-010, T-002, T-020, T-001 are authorized, one at a time in that order, each under its own card gates. Nothing else is authorized. Original text: None. Mode PLAN_ONLY. Execution needs (1) the Stage 6 baseline lock of SPEC v001.4 + RESOURCES v001 + this PLAN, and (2) Simone's separate authorization per lane; the lock alone grants no implementation, push, spend, SSH, DB write, deployment or external message.
+2026-10-29 (Simone, chat "5 all but we go sequentially, first contract"; recorded in RC-D-001 E): W1 lanes T-010, T-002, T-020, T-001 are authorized, one at a time in that order, each under its own card gates. Nothing else is authorized. RC-D-002 (D) keeps that order and adds that T-002 waits for T-013; T-013 and the other new cards (T-014, T-015, T-016, T-062, T-063) are not authorized. Original text: None. Mode PLAN_ONLY. Execution needs (1) the Stage 6 baseline lock of SPEC v001.4 + RESOURCES v001 + this PLAN, and (2) Simone's separate authorization per lane; the lock alone grants no implementation, push, spend, SSH, DB write, deployment or external message.
