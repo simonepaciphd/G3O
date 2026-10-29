@@ -1,11 +1,12 @@
 # PLAN: G3O pipeline reclassification
 
 Status: READY-WITH-BLOCKS
-Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.4 (APPROVED 2026-10-28); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001 (APPROVED 2026-10-27)
+Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.5 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, 2026-10-29); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.1 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001)
 Baseline lock: 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock")
 Deadline: none
 Source draft plan/review: `C:/Users/spaci/repos/G3O/planning/Plan-Draft.md` (v001-draft1), `C:/Users/spaci/repos/G3O/planning/Plan-Review.md` (27 findings); rulings `C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md`
 Mode: PLAN_ONLY
+Delta RC-D-001 (approved 2026-10-29, Simone, chat "approve delta"; text `planning/deltas/RC-D-001.md`): the extractor is now Claude Haiku 5.5 (`claude-haiku-5-5`, medium effort, direct Anthropic API, RS-037). **Throughout this plan, "nano", "gpt-5-nano" and "OpenAI" in extraction context mean the extractor** (C-001, SPEC v001.5). Calls are sync for testing (T-002, T-041, T-072, T-096) and Message Batches for full runs (T-073, ordinary runs after deploy). Berivox reviews (T-031; card PRs, non-blocking). W1 runs sequentially: T-010 → T-002 → T-020 → T-001. Waves 6 and 7 run after deploy as ordinary v2.7 runs; wave 5 is finished.
 
 Prepared by: session `20261028-claude-v2-20be995c13d4020f` (Claude Code, claude-opus-5-5, researcher persona) under `planning-adjudication-protocol.md` v0.3; task cards converted by three forks of that session from the Plan-Draft cards and the integrator's delta brief, then assembled and checked by the parent.
 Base refs (fetched 2026-10-28): G3O `origin/main` `375f1ff` (Plan-Draft used `c6349d6`; #135 since changed `g3o/run/presweep/orchestrator.py` and `tests/test_presweep.py`); g3o-api `origin/main` `acdb030`; g3o-website `origin/main` `282ca6a`. Local G3O checkout is on `perf/validate-jev-parallel`; work branches from `origin/main`.
@@ -17,7 +18,7 @@ PI rulings (Stage 5, 2026-10-28; verbatim answers in `Stage5-Rulings.md`):
 
 - DEC-001 a: correction layer = new g3o-api correction tables linked to original observation ids + most-recent projection view; loader reuses the `scripts/backfill_verdicts.py` safety pattern (dry-run default, `--apply`, shared parse function, explicit refresh with watermark check). Rejected: c (in-place UPDATE breaks R-073, cannot carry 1:N activities), b / b′ (run rows conflict with C-005 and wave windows; silent-miscount risk).
 - DEC-002 a: first-class `backfill` command, Stages 4-7 on a fixed list from stored pages, no re-triage.
-- DEC-003 b: link following is a separate follow-up leg after pass 1, ≤3 hops; option d (synchronous nano for follow-up legs) decided after T-002 (DP in T-025).
+- DEC-003 b: link following is a separate follow-up leg after pass 1, ≤3 hops; option d closed by RC-D-001 (B): Message Batches for full runs, sync for testing.
 - DEC-004 a: jev answers in per-institution JSON artifacts + DB columns (confidence, model id, request id) + full distribution in jsonb; the API does not serve the distribution.
 - DEC-005 a: explicit `contract_version` column on every CSV / DB row.
 - DEC-006 c: synthetic fixtures for mechanics, real pages for verdicts / CX (agent then PI labels).
@@ -38,7 +39,7 @@ PI rulings (Stage 5, 2026-10-28; verbatim answers in `Stage5-Rulings.md`):
 
 Mechanical (unchanged from Plan-Draft §1): DEC-019 freeze record from public API `meta.coverage`; DEC-020 one feature branch per card into `reclass/v2.7`†; DEC-021 pins are regenerated once, at the final integration step (T-035, moved from T-030 after the second review); DEC-022 agent-read model ids recorded at T-081 launch.
 
-Global red line added 2026-10-28 (Simone, `~/.claude/CLAUDE.md` red line 4): agents never run anything that costs money. Every paid step (jev, OpenAI Batch/sync, VM compute) is prepared by the card's agent with the exact command and a cost estimate and run by Simone as a one-line `! <command>`. Applies to T-002, T-041, T-072, T-073, T-096; T-081 carries a decision point on whether the Claude subagent swarm counts.
+Global red line added 2026-10-28 (Simone, `~/.claude/CLAUDE.md` red line 4): agents never run anything that costs money. Every paid step (jev, extractor Batch/sync, VM compute) is prepared by the card's agent with the exact command and a cost estimate and run by Simone as a one-line `! <command>`. Applies to T-002, T-041, T-072, T-073, T-096; T-081 carries a decision point on whether the Claude subagent swarm counts.
 
 Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; sole integrator per shared surface; T-096 / Stage 8 reconciliation; complete gate list for paid / SSH / DB / push / deploy / external; T-072 smoke never touches the live DB; the plan proposes spec fixes without editing; R-083 / C-006 guarded.
 
@@ -196,7 +197,8 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | eng-b | Engineer B (code integrator) | engineer |
 | eng-c | Engineer C | engineer |
 | colin | Colin (API / website) | Colin; fallback engineer under PI sign-off |
-| reviewer | Independent reviewer | engineer or researcher, fresh context, read-only |
+| reviewer | Independent reviewer | engineer or researcher, fresh context, read-only (T-096) |
+| berivox | Berivox review (Harsh, Geet) | human reviewers (RC-D-001 D): T-031, plus non-blocking review of card PRs into `reclass/v2.7`† after merge; findings as GitHub issues labelled `reclass-v2.7` |
 | quality | Agent-read coordinator | researcher |
 
 ## Task graph
@@ -223,7 +225,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-029 | eng-a | W11 | pending | T-001, T-025, T-030 | none | T-034, T-035 | RS-017 | none | new package `g3o/run/backfill/`† and its tests | push of the branch | A-005, A-015 |
 | T-034 | eng-a | W12 | pending | T-029 | none | T-035 | RS-026 | none | `g3o/run/backfill/transfers.py`† and its tests | push of the branch | A-022 |
 | T-035 | eng-b | W13 | pending | T-029, T-034 | none | T-031, T-041 | none | D-002 | `g3o/cli.py` hunks, the two pin files, e2e test additions; merges of T-029 and T-034 into `reclass/v2.7`† | push of the integration branch | none |
-| T-031 | reviewer | W14 | pending | T-035 | none | T-071 | none | none | the review file only | none | none |
+| T-031 | berivox | W14 | pending | T-035 | none | T-071 | none | none | the review file only | none | none |
 | T-040 | integrator | W2 | pending | T-010 | none | T-041 | RS-005, RS-008, RS-009, RS-011, RS-024 | none | `tests/fixtures/v27/`† and the label sheet | PI labels and approves expected values for real-page fixtures | A-003, A-004, A-010, A-011, A-012, A-020, A-021 |
 | T-041 | eng-b | W14 | blocked | T-024, T-035, T-040 | none | T-054, T-060, T-071 | RS-031 | none | the fixture-run folder | PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures | A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, A-022 |
 | T-050 | integrator | W4 | pending | T-010, T-012, T-027 | none | T-028, T-051 | RS-020, RS-023 | D-007 | `C:/Users/spaci/repos/G3O/planning/handoffs/D-007-interface-spec.md`† | PI approves the spec before it is sent; posting the GitHub issues is an external message | none |
@@ -265,7 +267,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | W11 | after W10 | verified: T-001, T-025, T-030, T-052 | eng-a: T-029, colin: T-053 | disjoint claims (one writer per path) | T-029: push of the branch; T-053: PI approves public copy and the display cap value; deploy gate |
 | W12 | after W11 | verified: T-029 | eng-a: T-034 | disjoint claims (one writer per path) | T-034: push of the branch |
 | W13 | after W12 | verified: T-029, T-034 | eng-b: T-035 | disjoint claims (one writer per path) | T-035: push of the integration branch |
-| W14 | after W13 | verified: T-024, T-035, T-040 | reviewer: T-031, eng-b: T-041 | disjoint claims (one writer per path) | T-031: none; T-041: PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures |
+| W14 | after W13 | verified: T-024, T-035, T-040 | berivox: T-031, eng-b: T-041 | disjoint claims (one writer per path) | T-031: none; T-041: PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures |
 | W15 | after W14 | verified: T-010, T-012, T-041, T-051, T-052 | eng-b: T-054, integrator: T-060 | disjoint claims (one writer per path) | T-054: PI authorises creation of and writes to the disposable branch; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; T-060: PI approves delta text; posting and email are external |
 | W16 | after W15 | verified: T-052, T-054 | colin: T-055 | disjoint claims (one writer per path) | T-055: PI authorises the live DB write (snapshot + apply) and the production deploy; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed |
 | W17 | after W16 | verified: T-031, T-041, T-055, T-060, T-061 | eng-a: T-071 | disjoint claims (one writer per path) | T-071: PI approves merge and deploy; SSH authorisation; external gate — wave 5 published |
@@ -389,7 +391,7 @@ Paid (jev and nano legs, one paid gate): the agent prepares the command and a co
 
 #### Execution resources
 - Persona/role: engineer
-- Tools/connectors: Python, jev client (RS-012), OpenAI Batch and sync clients (RS-015); no Claude API skill (OpenAI/jev work)
+- Tools/connectors: Python, jev client (RS-012), Anthropic Messages client for `claude-haiku-5-5` at medium effort (sync), plus a small Message Batches subset (RC-D-001 A, B); load the `claude-api` skill; records the account's rate-limit tier (RS-037) and confirms how the effort setting is applied
 - Skills/protocols: none beyond this plan
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-c/`† (scripts, branched from `origin/main` `375f1ff`; never the shared checkout `C:/Users/spaci/repos/G3O`); outputs to the spikes folder; Simone's shell for the paid run
 
@@ -427,9 +429,9 @@ Paid (jev and nano legs, one paid gate): the agent prepares the command and a co
 - DP-001: Composition of the up-to-50-page sample
   - Default: documented and unclear pages in proportion, drawn from RS-008/RS-009
   - Recommendation: include at least 10 CJK/Thai pages and some long PDFs — the estimator and chunking need non-Latin and long-page evidence
-- DP-002: Whether to time synchronous nano calls as well as Batch
-  - Default: Batch only
-  - Recommendation: time both on a subset — DEC-003 d (sync vs Batch for follow-up legs) is decided from these numbers
+- DP-002: Batch timing subset (RC-D-001 B; was: whether to time synchronous nano calls as well as Batch)
+  - Default: sync on all pages, plus a small Message Batches subset
+  - Recommendation: keep the subset — it is the only source of the Batch round-trip figure for projecting T-073's runtime
 
 #### Return report
 Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
@@ -942,11 +944,11 @@ The 60,000-character head+tail cap (`g3o/extract/batch.py:49` `DEFAULT_TEXT_CAP_
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
 |---|---|---|---|
-| Nano extraction | `g3o/extract/{batch,client,parser,salvage}.py`, `g3o/extract/prompts/extract_v27.md`†, `g3o/run/presweep/stage_extract.py` on branch `reclass/t022-nano`† | T-023, T-024, T-025, T-032 | output never carries a code field (C-001); spans as offsets, only for the 5 R-003 verdicts; a quote (or recorded empty result) for every positive / substantive pass-1 page code on every page; links for every incomplete page; every nano free-text value has supporting text; quotes tagged with chunk id; no head+tail truncation on the v2.7 path |
+| Nano extraction | `g3o/extract/{batch,client,parser,salvage}.py`, `g3o/extract/prompts/extract_v27.md`†, `g3o/run/presweep/stage_extract.py`, plus the new Anthropic client module† (RC-D-001), on branch `reclass/t022-nano`† | T-023, T-024, T-025, T-032 | output never carries a code field (C-001); spans as offsets, only for the 5 R-003 verdicts; a quote (or recorded empty result) for every positive / substantive pass-1 page code on every page; links for every incomplete page; every nano free-text value has supporting text; quotes tagged with chunk id; no head+tail truncation on the v2.7 path |
 
 #### Execution resources
 - Persona/role: engineer
-- Tools/connectors: OpenAI Batch client (RS-015), pytest
+- Tools/connectors: new Anthropic Messages + Message Batches client for `claude-haiku-5-5` at medium effort (RC-D-001 A; the OpenAI client in RS-015 stays for the v2.5 path), pytest; load the `claude-api` skill
 - Skills/protocols: none beyond this plan
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-c/`† on `reclass/t022-nano`†, branched from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
 
@@ -1274,9 +1276,9 @@ Links from incomplete pages enter a separate follow-up leg after pass 1 (DEC-003
 - Failure/rollback: feature flag off
 
 #### Decision points
-- DP-030: Whether the nano calls in the follow-up legs go through the Batch queue or are made synchronously (DEC-003 d)
-  - Default: Batch queue, as in the rest of the pipeline
-  - Recommendation: decided from the T-002 numbers — synchronous only if the measured Batch round-trips × rounds per run make the back-fill runtime unacceptable to the PI
+- DP-030: closed by RC-D-001 (B): in full runs the extractor calls in the follow-up legs use Message Batches; in test runs (T-041, T-072) they are sync. Original options: Batch queue vs synchronous, decided from T-002.
+  - Default: Message Batches in full runs; sync in test runs (RC-D-001 B)
+  - Recommendation: as default — ruled by the PI 2026-10-29 (RC-D-001 B)
 
 #### Return report
 Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
@@ -1820,7 +1822,7 @@ A reviewer not involved in T-010 to T-035 checks the fully integrated branch fro
 | Review report | `C:/Users/spaci/repos/G3O/planning/reviews/Code-Review-T031.md`† | integrator, PI | findings ranked; each with file:line |
 
 #### Execution resources
-- Persona/role: independent reviewer, fresh session (lane reviewer)
+- Persona/role: independent reviewer, fresh session (lane berivox: Harsh `babulpatel1309`, Geet `geet000`; RC-D-001 D)
 - Tools/connectors: Read, Grep, git (read-only), pytest
 - Skills/protocols: `planning-adversarial-review-protocol.md`; `/code-review` skill
 - Working directory/environment: its own read-only worktree `C:/Users/spaci/worktrees/G3O-reviewer/`†, branch `reclass/v2.7`† at the T-035 head (never the shared checkout `C:/Users/spaci/repos/G3O`)
@@ -3445,7 +3447,7 @@ A rerun of the documented pipeline on 20 sampled institutions from the release r
 - Requires: T-095
 - Enables: none
 - Can run with: none
-- Researcher gates: paid rerun — the agent prepares the command and cost estimate and Simone runs it via `! <command>` (red line 4); SSH authorisation; PI approves the agreement criterion
+- Researcher gates: paid rerun (sync calls, RC-D-001 E1) — the agent prepares the command and cost estimate and Simone runs it via `! <command>` (red line 4); SSH authorisation; PI approves the agreement criterion
 
 #### Ownership and collision control
 - Read scope: release record, run artifacts
@@ -3559,7 +3561,7 @@ none
 
 ## Launch manifest
 
-Wave 1 only; later waves get their lanes from the task-engineering queue as predecessors verify. No lane launches before the Stage 6 baseline lock and Simone's separate execution authorization (C-003). Engineer lanes work in git worktrees outside Drive (`C:/Users/spaci/worktrees/G3O-<lane>/`†, branched from `origin/main` `375f1ff`). Coord: native admission at start, claims via the native writer, mailbox `g3o-reclass-integrator` for questions and spec deltas, semantic close at exit (`coord/SPEC.md`, "Native coordination and startup read policy").
+Wave 1 only. RC-D-001 (E): the W1 lanes run one at a time, in the order T-010 → T-002 → T-020 → T-001; the next lane starts when the previous lane returns its report. later waves get their lanes from the task-engineering queue as predecessors verify. No lane launches before the Stage 6 baseline lock and Simone's separate execution authorization (C-003). Engineer lanes work in git worktrees outside Drive (`C:/Users/spaci/worktrees/G3O-<lane>/`†, branched from `origin/main` `375f1ff`). Coord: native admission at start, claims via the native writer, mailbox `g3o-reclass-integrator` for questions and spec deltas, semantic close at exit (`coord/SPEC.md`, "Native coordination and startup read policy").
 
 | Lane | Task/chunk | Persona | CWD | Inputs | Claim | Output | Researcher gates | Review | Release |
 |---|---|---|---|---|---|---|---|---|---|
@@ -3586,14 +3588,15 @@ One packet per ready task, built by `task-engineering-protocol.md` from the card
 | Risk | Trigger | Likelihood/impact | Prevention | Detection | Containment/rollback | Owner/task |
 |---|---|---|---|---|---|---|
 | jev two-pass cost / latency too high at ~37k institutions, now with all pages of unclear institutions (item 20 a) | T-002 numbers, T-001 page counts | M / H | spikes before build; token chunker; URL cap | T-002, T-072 projection | PI scope delta before T-073 | T-002, T-072, integrator |
-| ~8 sequential Batch rounds per run make the back-fill slow | T-002 round latency | M / M | DEC-003 d decided from T-002 | T-002, T-072 | switch follow-up legs to sync (DP in T-025) | T-025 |
+| ~8 sequential Batch rounds per run make the back-fill slow | T-002 round latency | M / M | T-002 Batch subset projects runtime | T-002, T-072 | PI delta (full runs are Batch, RC-D-001 B) | T-025 |
 | Many negatives fall below 0.8 → mass move to `unclear` (Q-019 a) | T-041, T-072 counts | M / H | per-field counts early | T-072 smoke | PI may revisit threshold via delta before T-073 | T-024, T-072 |
 | Fuzzy matcher fails on CJK / Thai | T-003 error table | M / M | per-script calibration | T-003 | per-script threshold delta | T-003 |
 | nano text steers jev (C-001) | spans leak paraphrase | L / H | spans only (DEC-010 a) | T-031 | fix T-022 | T-022, T-031 |
 | Original observations overwritten | back-fill reuses a run_id; migration bug | L / critical | fresh release id + ingest guard; additive schema; rehearsal on live copy; pre-load snapshot | A-006 diff in T-054 / T-074 | restore snapshot; delete by release id; down migration | T-051, T-052, T-054, T-074 |
 | v2.7 rows public before audit, or ordinary runs fail at ingest after deploy | release flag or schema not live at deploy | L / H | T-055 takes 021 and the ingest live before T-071 | T-054, T-055, T-095 | hide by flag; roll back by down migration + snapshot | T-051, T-052, T-055 |
 | Corrected rows never reach the site | `sql/007` trigger ignores updates | M / H | explicit refresh + watermark check | T-054, T-074 | rerun refresh | T-052, T-074 |
-| New ordinary runs vanish after w001 expiry 2027-01-01 | no open window | M / H | T-097 standing check | T-097 | PI opens next window | T-097, PI |
+| gpt-5-nano shutdown 2026-12-11 breaks any v2.5 run whose Stage 5 has not finished | date | H / H | wave 5 finished; waves 6 and 7 wait for v2.7 (RC-D-001 C) | calendar | no v2.5 runs after 2026-12-11 | integrator |
+| New ordinary runs vanish after w001 expiry 2027-01-01 | no open window | M / H | T-097 standing check; waves 6 and 7 start after deploy (RC-D-001 C) | T-097 | PI opens next window | T-097, PI |
 | Droplet checkout drifts / missing keys switch features off | deploy | M / H | config check in T-071 | DEPLOY record | redeploy | T-071 |
 | Droplet disk fills | T-073 | U / M | T-001 / T-071 disk check | T-001, T-071 | prune scratch, PI decides | T-071 |
 | Failures cluster by country | T-073 | M / M | batch by country mix | per-batch log | targeted rerun | T-073 |
@@ -3626,7 +3629,8 @@ Gate list (researcher gates; none passes by lock alone):
 - T-002 blocked on PI approval of the paid-spike budget; Simone runs it.
 - T-010 completion blocked on the procurement integrator's §4.3 text (R-087); drafting may start with a placeholder.
 - T-071 blocked on wave 5 publication (external) plus its edges.
-- T-025 URL cap value, T-003 threshold and website cap, DEC-003 d (sync vs Batch): PI values set after the spikes; the cards carry them as gates / DPs.
+- DEC-003 d closed by RC-D-001 (B).
+- T-025 URL cap value, T-003 threshold and website cap: PI values set after the spikes; the cards carry them as gates / DPs.
 - T-080: no fallback rule if a stratum is under 100 (R-086 v001.4); a delta is raised at draw time.
 - Deferred: none. R11 prevalence restatement stays a non-goal (N-007).
 
@@ -3655,4 +3659,4 @@ Overall: READY-WITH-BLOCKS (W1 blocks: SSH and paid-spike gates; external waits 
 
 ## User authorization to execute
 
-None. Mode PLAN_ONLY. Execution needs (1) the Stage 6 baseline lock of SPEC v001.4 + RESOURCES v001 + this PLAN, and (2) Simone's separate authorization per lane; the lock alone grants no implementation, push, spend, SSH, DB write, deployment or external message.
+2026-10-29 (Simone, chat "5 all but we go sequentially, first contract"; recorded in RC-D-001 E): W1 lanes T-010, T-002, T-020, T-001 are authorized, one at a time in that order, each under its own card gates. Nothing else is authorized. Original text: None. Mode PLAN_ONLY. Execution needs (1) the Stage 6 baseline lock of SPEC v001.4 + RESOURCES v001 + this PLAN, and (2) Simone's separate authorization per lane; the lock alone grants no implementation, push, spend, SSH, DB write, deployment or external message.

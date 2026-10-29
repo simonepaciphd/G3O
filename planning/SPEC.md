@@ -1,8 +1,8 @@
 # SPEC: G3O pipeline reclassification
 
 Status: LOCKED
-Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock")
-Version: v001.4
+Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); v001.5 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta")
+Version: v001.5
 Supersedes: none
 Owner: Simone Paci (sole substantive approver)
 Mode: revision (changes the production G3O pipeline and its published outputs)
@@ -57,11 +57,11 @@ Evidence tags: `USER` = PI ruling (ID given); `SOURCE:` = artifact; `INFERRED` =
 
 | ID | Requirement | Applies to | Source | Priority | Notes/example |
 |---|---|---|---|---|---|
-| R-001 | Classification is made by jev; gpt-5-nano does not decide codes. | D-002 | USER 6, S7 a | must | Fixed constraint C-001 |
+| R-001 | Classification is made by jev; the extractor (C-001) does not decide codes. | D-002 | USER 6, S7 a | must | Fixed constraint C-001 |
 | R-002 | First pass, per page: jev assigns the page-level codes: page verdict (R-015), CX-01.2 page fields (R-020, R-021, R-023), and page completeness (R-030). | D-002 | USER S7 a, Q3 b | must | |
 | R-003 | After the first pass, the extraction model segments the page into one or more activities; each activity is a separate unit for the second pass. The second pass runs on every page with GenAI content: `confirms_activity`, `ambiguous_genai`, `ambiguous_attribution`, `other_body`, `event_only`. | D-002 | USER S7 a, Q3 b, SF-015 c | must | A page may carry 2+ activities with different types and stages. `background_only` excluded (documents no activity): INFERRED |
 | R-004 | Second pass, per (page × activity): jev assigns every activity-level code (v2.5 Group D enums and flags under v2.6 rules; CX-01.2 finding fields R-022) with that activity as context. | D-002 | USER Q3 b; SOURCE:SRC-6 CX-02 | must | |
-| R-006 | Free-text activity fields (`activity_name`, `tool_name`, `vendor`, `year_announced`, `year_deployed`, `reported_outcomes`, `reported_incidents`, `scope_notes`): jev answers them as Choice questions where a closed set exists, values are taken by deterministic extraction where possible, and gpt-5-nano extracts only what neither covers. Each value carries supporting text (R-040). | D-002 | USER SF-001 "b, then a for what jev can't cover" | must | Routing ruled DEC-009 a (SRC-9): jev Choice for `year_announced`, `year_deployed` and CX-60/61 normalisation; deterministic for contact emails and explicit years; nano for `activity_name`, `tool_name`, `vendor`, `reported_outcomes`, `reported_incidents`, `scope_notes` |
+| R-006 | Free-text activity fields (`activity_name`, `tool_name`, `vendor`, `year_announced`, `year_deployed`, `reported_outcomes`, `reported_incidents`, `scope_notes`): jev answers them as Choice questions where a closed set exists, values are taken by deterministic extraction where possible, and the extractor (C-001) extracts only what neither covers. Each value carries supporting text (R-040). | D-002 | USER SF-001 "b, then a for what jev can't cover" | must | Routing ruled DEC-009 a (SRC-9): jev Choice for `year_announced`, `year_deployed` and CX-60/61 normalisation; deterministic for contact emails and explicit years; nano for `activity_name`, `tool_name`, `vendor`, `reported_outcomes`, `reported_incidents`, `scope_notes` |
 | R-005 | Institution-level consolidation (Stage 6) applies the v2.6 consolidation rules as jev questions or deterministic rules: explicit relations before merging observations; distinct/unresolved relations never merge; institution-level `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a low-confidence negative downgraded under R-081 counts as one). | D-002 | USER S9 a, SF-009 b; SOURCE:SRC-4 | must | Replaces v1.4 rules that targeted the retired OpenAI Stage 6 path |
 | R-010 | WS10 D1 action boundary: a public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance. | D-001 | SOURCE:SRC-5 D1 | must | |
 | R-011 | WS10 D2: formal institution-issued GenAI governance qualifies whether it governs staff or external users; governance is recorded separately from deployment. | D-001 | SOURCE:SRC-5 D2 | must | |
@@ -94,7 +94,7 @@ Evidence tags: `USER` = PI ruling (ID given); `SOURCE:` = artifact; `INFERRED` =
 
 | ID | Requirement | Applies to | Source | Priority | Notes/example |
 |---|---|---|---|---|---|
-| R-040 | For every jev code on a page or activity, gpt-5-nano extracts the verbatim supporting text from the page, after jev has coded. | D-002 | USER 6, S7 a | must | |
+| R-040 | For every jev code on a page or activity, the extractor (C-001) extracts the verbatim supporting text from the page, after jev has coded. | D-002 | USER 6, S7 a | must | |
 | R-041 | A positive or substantive code with no supporting text is downgraded: field to `unknown` (or the field's no-evidence value); institution verdict to `unclear` when no supported positive remains. Only positive or substantive values need support; `no`, `unknown`, `not_documented`, `_NA_` and negative page verdicts need none. | D-001, D-002 | USER S8 a, Q-010 a | must | |
 | R-042 | Supporting text is checked against the stored page text by fuzzy match; a quote below the match threshold counts as no supporting text. | D-002 | USER SF-014 ii c; SOURCE:SRC-4 quote-presence check | must | Presence only, not entailment. Threshold and metric calibrated on fixtures at Stage 3, PI approves (Q-020 b) |
 | R-044 | Chunked pages (> 32k tokens, C-004): the CX-01.2 §11.1 combination rule applies to every field. Page fields take the first chunk's value; yes/no items are yes if any chunk says yes; ordered vocabularies take the first value in table order found in any chunk. The supporting quote comes from the chunk that produced the code. | D-002 | USER P6 (SF-005); SOURCE:SRC-6 §11.1 | must | |
@@ -212,7 +212,7 @@ Evidence tags: `USER` = PI ruling (ID given); `SOURCE:` = artifact; `INFERRED` =
 
 ## Constraints
 
-- C-001 [USER 6]: jev classifies; gpt-5-nano extracts activities and supporting text after jev; nano is not a classifier.
+- C-001 [USER 6; model changed by RC-D-001]: jev classifies; Claude Haiku 5.5 (`claude-haiku-5-5`, medium effort; the *extractor*) extracts activities and supporting text after jev; the extractor is not a classifier. (Was gpt-5-nano, which OpenAI shuts down 2026-12-11. In older rows and in SRC-8, "nano" refers to that model.)
 - C-002 [USER S6]: no deadline and no cost ceiling for the plan. Each paid run still needs PI sign-off before launch (C-003).
 - C-003 [SOURCE:card; CLAUDE.md]: PLAN_ONLY. No code change, paid run, DB write, push or deployment without separate PI sign-off after the baseline lock.
 - C-004 [SOURCE:SRC-1]: jev returns codes only (no text); state limit 32k tokens per request, so long pages are chunked.
@@ -248,7 +248,7 @@ Evidence tags: `USER` = PI ruling (ID given); `SOURCE:` = artifact; `INFERRED` =
 | Q-013 | Does this release subsume the historical WS10 combined correction (114 activities from 64 source institutions to verified owners) or does that stay separate? | Overlaps R-073; D5 requires one combined publication | PI | — | Resolved a: included (R-077) |
 | Q-014 | P2: API/site publication carried out by Colin from this plan's handoff | D-007 owner | PI | — | Default accepted ("defaults good"); Colin's acceptance tracked by A-019 |
 | Q-015 | P3: wave 5 `r20261023T134656Z-be8a` included only if published on the site at the freeze date | R-070 | PI | — | Superseded by G12 ruling: wave 5 included; back-fill waits for it (R-070) |
-| Q-018 | P4: contract label v2.7 (v2.6 = unpushed `052fcb2`, unpublished history); P5: nano extracts follow-up links in the supporting-text call | D-001, R-031, R-050 | PI | no | Defaults accepted |
+| Q-018 | P4: contract label v2.7 (v2.6 = unpushed `052fcb2`, unpublished history); P5: nano extracts follow-up links in the supporting-text call | D-001, R-031, R-050 | PI | no | Defaults accepted (nano → the extractor, RC-D-001) |
 | Q-017 | Agent-read sample size and strata; PI audit subset size; what a disagreement rate in the sample does to release (block, fix-and-rerun, or release with report) | R-082, A-008 | PI | — | Resolved after Stage 2 counts: R-086 |
 | Q-016 | Do future new runs re-review `none` institutions under v2.6 when they are re-drawn? | Interaction with R-071 | PI | — | Resolved a (R-071) |
 
@@ -257,6 +257,7 @@ Evidence tags: `USER` = PI ruling (ID given); `SOURCE:` = artifact; `INFERRED` =
 | Version | Delta ID | Changed spec IDs | Change | Approved by/at | Reason | Downstream artifacts superseded |
 |---|---|---|---|---|---|---|
 | v001-draft1 | — | all | First draft | not approved | Stage 1 | none |
+| v001.5 | RC-D-001 | R-001, R-006, R-040, C-001, Q-018 (note) | Extractor model gpt-5-nano → Claude Haiku 5.5 at medium effort, direct Anthropic API (delta `planning/deltas/RC-D-001.md`) | Simone Paci, 2026-10-29, chat "approve delta" | gpt-5-nano shutdown 2026-12-11 (OpenAI deprecations page) | none |
 | v001.4 | — | D-001, D-008, R-006, R-032, R-043, R-051, R-055, R-056 (new), R-076, R-077, R-086, R-087 (new), N-001 | Stage 5 PI rulings: DEC-009 a, DEC-011 a, DEC-013 a, DEC-014 b, DEC-015 a, DEC-016 c, DEC-017 b + blind, SD-g, items 20 a, 21 b, 22 b, 23 i/ii, 24 b, 26 a, 27 | Simone Paci, 2026-10-28, chat: "all approved" | Stage 5 adjudication (`Stage5-Rulings.md`) | Plan-Draft task cards touching these IDs (carried into PLAN.md) |
 | v001.3 | — | D-002, D-004, R-075, A-001, A-002, Q-003, Q-014, Sign-off | Mechanical fixes SD-a..SD-f from Plan-Draft §0.3 (labels v2.6→v2.7 where they name this contract; nonexistent R-060..R-062 replaced; A-002 aligned with R-042; stale blocking flags; Resources-column table cells) | fix-mechanical, no PI ruling needed | Stage 3 | none |
 | v001.2 | — | R-082, R-086, A-018, Q-017 | PI ruling Q-017 (400; Haiku all, Sonnet 100; group × change; PI audits disagreements + 25; release with report); procurement message = G3O issue #134 | Simone Paci, 2026-10-27, chat | Q-017 | none |
@@ -278,4 +279,5 @@ Evidence tags: `USER` = PI ruling (ID given); `SOURCE:` = artifact; `INFERRED` =
 - Locked by/at (Stage 6 baseline): 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); record `Baseline-Lock-2026-10-28.json`
 - Delegated inferences accepted: all items tagged INFERRED in v001 (R-003 background_only, R-034, R-043 length limits open, R-051 API exposure to Stage 3, R-074 re-fetch record, R-075, R-090, C-007, N-004..N-007)
 - v001.4 approved by/at: Simone Paci, 2026-10-28, chat: "all approved" (session `20261028-claude-v2-20be995c13d4020f`)
+- v001.5 approved by/at: Simone Paci, 2026-10-29, chat: "approve delta" (RC-D-001; session `20261029-claude-v2-4af5481b98caa926`)
 - Open before lock: none
