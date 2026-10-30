@@ -129,3 +129,11 @@ Integrator reading: the PI delegates points 1-5 to a subagent, which settles eac
 PI, chat, verbatim (follow-up, same batch): "even if just indirectly -- if the same logic applies, not necessarily a ruling on the specific item, but a different one of similar nature; if none is possible, then provide three options with a rec"
 
 Integrator reading: a point may be settled by analogy to a PI ruling of similar nature on a different item, citing that ruling and the shared logic. Only where no ruling applies even indirectly does the subagent leave the point open, with three options and one recommendation.
+
+## 2026-10-30 — RC-D-005 clean copy approved (orchestrator session 20261030-claude-v2-74b5a83dce21f038)
+
+Shown in chat: revised clean copy `planning/t010/RC-D-005-clean-copy.md` (`reclass/rc-d-005-codebook` `d5ce6de`, r7 sign-off build sha256 `1b667db0810f69d948e2ab105d11e9a22a255494a3bfba21883d66d432303ad9`), round-2 section G, and one open point: rule 1 of the three year items (`year_announced`, `year_pilot_start`, `year_production_start`) still reads "jev Choice over those years plus `unknown`" though `unknown` is no longer offered; recommendation: cut "plus `unknown`" (cut-only, as in "2a").
+
+PI, chat, verbatim: "approved and cut"
+
+Integrator reading: the clean copy is approved in full, and the words " plus `unknown`" are cut from rule 1 of the three year items (no other change). The cut build becomes the re-signature candidate; the delta text and the signature are still to be put to the PI.
