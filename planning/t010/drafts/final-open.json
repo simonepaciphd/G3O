@@ -1,0 +1,547 @@
+{
+ "draft_by": "subagent",
+ "date": "2026-10-29",
+ "model": "claude-opus-5-5",
+ "status": "DRAFT for PI sign-off; nothing applied",
+ "skipped": {
+  "release.label": "ruled '2.7', set at sign-off (P3)",
+  "release.signature_record": "filled by the integrator at sign-off (P4)"
+ },
+ "diff_notation": "[-removed-] {+added+}",
+ "choices": [
+  {
+   "id": "F01",
+   "field": "core.adoption_stage.long_page_rule (permanent_pilot_across_parts)",
+   "plain": "Long pages: the permanent-pilot rule when its facts sit in different parts",
+   "options": [
+    {
+     "id": "a",
+     "label": "Within-part only, stated as a known limit",
+     "mechanism": "The stage question applies the permanent-pilot rule inside each part. If the facts (over 12 months; full user base) sit in different parts, no part reaches production and the combined stage stays pilot. The codebook states this case.",
+     "benefit": "No new step or question; the signed rule text is unchanged; the case is stated, not left silent.",
+     "risk": "Long pages whose facts are split under-count production."
+    },
+    {
+     "id": "b",
+     "label": "Re-ask the stage over the pooled stage quotes",
+     "mechanism": "When the combined stage is pilot and the activity spans more than one part, ask the stage question once more over the stage quotes pooled from all parts, so the rule sees both facts.",
+     "benefit": "Closes the gap with the existing question and quote machinery; nothing lost.",
+     "risk": "A new kind of combining step and one more paid call per affected activity; needs wording and test pages."
+    },
+    {
+     "id": "c",
+     "label": "New yes/no item on the full user base; derive after combining",
+     "mechanism": "Add an activity question 'serves its full intended user base' (any yes across parts). After combining, stage pilot + earliest pilot year at least 12 months before the source date + that item yes gives production, set by rule, and the permanent-pilot flag yes.",
+     "benefit": "Deterministic; fits the ruling that permanent pilot is a derived flag.",
+     "risk": "A new question to word, sign and pay for; the 12-month test on whole years is coarse."
+    }
+   ],
+   "pick": "a",
+   "confidence": "low",
+   "reason": "States the case explicitly and is the smallest change to the signed permanent-pilot text. When offered new kinds of combining rule for stage and scale, the PI declined them (activity-21 a over c; activity-24 b over c). Nothing is lost from the record: the pilot start year and source date are kept as their own items (activity-24 b's 'nothing lost' logic). Counter-pull: her keep-information pattern (activity-07 b, record-03 c) favours b, and r2#28 (permanent pilot as a derived flag) favours c; hence low."
+  },
+  {
+   "id": "F02",
+   "field": "core.governance_direction.long_page_rule (rank_of_requires_vs_promotes)",
+   "plain": "Long pages: rank of 'requires' against 'promotes' in the rule-direction order",
+   "options": [
+    {
+     "id": "a",
+     "label": "Requires before promotes",
+     "mechanism": "Order: restricts_with_conditions, prohibits, permits, requires, promotes, not_documented, unknown.",
+     "benefit": "A binding duty in any part is not hidden by encouragement elsewhere; this is why the value was split. Matches the placeholder already in the build.",
+     "risk": "A single mandatory clause in a mostly encouraging strategy labels the whole instrument 'requires'."
+    },
+    {
+     "id": "b",
+     "label": "Promotes before requires",
+     "mechanism": "Order: ..., permits, promotes, requires, not_documented, unknown.",
+     "benefit": "The broader stance of the document wins.",
+     "risk": "Hides binding duties, the distinction the split was made to keep."
+    },
+    {
+     "id": "c",
+     "label": "Mixed requires and promotes map to requires (mapping step)",
+     "mechanism": "Priority order as in a, plus an explicit mapping line: requires + promotes across parts gives requires.",
+     "benefit": "States the mixed case explicitly, like the ban-plus-permission mapping.",
+     "risk": "Adds a mapping line that the priority order already implies."
+    }
+   ],
+   "pick": "a",
+   "confidence": "high",
+   "reason": "activity-10 b split the value so that binding duties are kept apart from encouragement; ranking requires first keeps that reading. A specific, stronger statement beats a vaguer one (activity-23 b, all-04 b, page-02 b). It is also the placeholder already in the build, and nothing pushes against it. No earlier choice points the other way."
+  },
+  {
+   "id": "F03",
+   "field": "core.target_users.long_page_rule.mapping.other_lists; core.governed_population.long_page_rule.mapping.other_lists",
+   "plain": "Long pages: audience lists other than staff plus public",
+   "options": [
+    {
+     "id": "a",
+     "label": "Real answers decide; missing labels only when no part gives one",
+     "mechanism": "Drop 'not covered by this part' and missing labels from the list. 'both' present, or staff and public both present, gives 'both'. One real value gives that value. No real value: not_documented if any part says the page is silent, else unknown. Every part 'not covered' gives not_documented.",
+     "benefit": "Uses every real answer; matches the ranking of real answers above missing labels.",
+     "risk": "An 'unknown' part that might name the other audience is outvoted by a part naming one audience."
+    },
+    {
+     "id": "b",
+     "label": "Any unknown alongside a single audience gives unknown",
+     "mechanism": "As a, except that a list holding one real audience plus 'unknown' gives 'unknown'.",
+     "benefit": "Conservative: no single audience is claimed while a part is unsure.",
+     "risk": "Unclear parts beat clear ones, against the ranking ruled for missing labels."
+    }
+   ],
+   "pick": "a",
+   "confidence": "high",
+   "reason": "all-04 b ranks real answers above not_documented above unknown; all-03 says parts not covering the item do not vote and all-silent gives not_documented; activity-22 b's stated aim is that the page as a whole decides. a is these three rules written out for the remaining lists. Nothing points the other way."
+  },
+  {
+   "id": "F04",
+   "field": "core.service_domain.long_page_rule (multi_select_vs_single_winner)",
+   "plain": "Long pages: service area is now tick-all-that-apply",
+   "options": [
+    {
+     "id": "a",
+     "label": "Combined list of every supported area",
+     "mechanism": "Take every area any part ticks with a supported answer. Each area's quote and certainty come from the part most sure of it. Missing labels only if no part ticks a real area.",
+     "benefit": "Cross-ministry tools are recorded fully, the purpose of making the item multi-select; same rule as the multi-select form of a rule.",
+     "risk": "Departs from the 'most sure wins' rule set for this item; one stray tick in a long page adds an area."
+    },
+    {
+     "id": "b",
+     "label": "The most-sure part's whole set",
+     "mechanism": "Take the set of areas from the single part with the highest certainty.",
+     "benefit": "Keeps the 'most sure wins' rule as ruled.",
+     "risk": "Areas named only in other parts are lost, the opposite of the multi-select aim."
+    },
+    {
+     "id": "c",
+     "label": "Combined list, but 'other' dropped when a listed area is present",
+     "mechanism": "As a, then remove 'other' if any listed area was ticked.",
+     "benefit": "Keeps 'other' for activities that truly fit no area.",
+     "risk": "Loses an unlisted area that an activity covers besides a listed one."
+    }
+   ],
+   "pick": "a",
+   "confidence": "medium",
+   "reason": "activity-13 b made the item multi-select so that cross-ministry tools are 'recorded fully', modelled on the multi-select form of a rule, which combines as a combined list. Keeping information is the PI's lead pattern (activity-24 b, activity-07 b). all-05 a (most sure supplies the quote) is kept per area. Counter-pull: activity-20 a chose 'most sure wins' for this item, before it became multi-select; hence medium, not high."
+  },
+  {
+   "id": "F05",
+   "field": "core.content_data.long_page_rule",
+   "plain": "Long pages: the page question on whether data handling is described",
+   "options": [
+    {
+     "id": "a",
+     "label": "Any yes",
+     "mechanism": "Yes if any part says yes; otherwise no if any part says no; then not_documented, then unknown.",
+     "benefit": "Same rule as the other page yes/no questions (page refers onward, named contact); a description in any part counts.",
+     "risk": "One loose 'yes' in any part decides."
+    },
+    {
+     "id": "b",
+     "label": "First part",
+     "mechanism": "Take the first part with a supported answer.",
+     "benefit": "Matches the rule for document type.",
+     "risk": "A description later in the page is missed."
+    }
+   ],
+   "pick": "a",
+   "confidence": "high",
+   "reason": "page-07 a makes it a page yes/no question again; the other page yes/no questions in the build use any yes, and the computed description items are yes if any activity is yes (page-05). Missing labels follow all-04 b. Nothing points the other way."
+  },
+  {
+   "id": "F06",
+   "field": "core.observed_actor_role.long_page_rule",
+   "plain": "Long pages: role of the actor seen on the page",
+   "options": [
+    {
+     "id": "a",
+     "label": "Same part as the relationship",
+     "mechanism": "Take the role from the part that produced the combined relationship; if that part gives no real role, take the most-sure real role from the other parts.",
+     "benefit": "Role and relationship describe the same actor mention, as they were asked together.",
+     "risk": "A detailed role stated in another part can be passed over."
+    },
+    {
+     "id": "b",
+     "label": "Most sure wins",
+     "mechanism": "Take the role with the highest certainty across parts.",
+     "benefit": "The rule chosen for other items with no natural ranking.",
+     "risk": "The role may describe a different mention of the actor from the relationship."
+    }
+   ],
+   "pick": "a",
+   "confidence": "medium",
+   "reason": "The round-1 ruling that kept this role has one question return both the relationship and the role (A05), and the drafted two-part rule, accepted with activity-14 b and activity-19, takes the role part from the part that produced the relationship. The fallback uses activity-20 a. Counter-pull: activity-20 a alone would give b; hence medium."
+  },
+  {
+   "id": "F07",
+   "field": "core.content_contact_named.gate; core.content_contact_details.gate",
+   "plain": "Which pages get the two contact questions",
+   "options": [
+    {
+     "id": "a",
+     "label": "GenAI pages only; 'no' elsewhere",
+     "mechanism": "Gate on the five GenAI verdicts, as the data question; pages with no GenAI get 'no'.",
+     "benefit": "Same base and same value as the other page description items; every page gets a value.",
+     "risk": "'No contact details' is false on many non-GenAI pages (footers give addresses)."
+    },
+    {
+     "id": "b",
+     "label": "GenAI pages only; 'not asked' elsewhere",
+     "mechanism": "Gate on the five GenAI verdicts; pages with no GenAI get 'not asked'.",
+     "benefit": "Follows the round-1 page-item gate; no false 'no'.",
+     "risk": "Contact items alone use a different base from the other description items."
+    },
+    {
+     "id": "c",
+     "label": "Every page",
+     "mechanism": "No gate; both questions are asked on every page.",
+     "benefit": "True values on every page.",
+     "risk": "Paid questions on pages with no GenAI; 'responsible for the activity' has no activity to refer to; more e-mails extracted and stored."
+    }
+   ],
+   "pick": "a",
+   "confidence": "low",
+   "reason": "The round-1 ruling gates all page content items on the five GenAI verdicts (X05); page-09 c turned the gated-out value into 'no' so that every page gets a value, accepting that 'no' can mislead. a extends that pairing to the contact items. Counter-pull: page-09 c names only the description items and the data item; contact details are a fact about the page that 'no' can misstate, which favours b ('clean beats vague'); hence low."
+  },
+  {
+   "id": "F08",
+   "field": "core.observed_actor_relationship.rules (publication as one column)",
+   "plain": "Publishing the two-part 'whose activity' item as one column",
+   "options": [
+    {
+     "id": "a",
+     "label": "One column, compound value",
+     "mechanism": "Publish relationship, then ':' and the role when the role is a real answer (e.g. `unit_of_institution:contracting_authority`); otherwise the relationship alone. Missing role labels stay internal.",
+     "benefit": "One column; combinations are published, not lost.",
+     "risk": "Readers must split the value; many distinct published codes."
+    },
+    {
+     "id": "b",
+     "label": "Relationship only; role internal",
+     "mechanism": "Publish the relationship part; keep the role internally.",
+     "benefit": "Simplest; no compound codes.",
+     "risk": "The role, including 'beneficiary', is not published, against publishing every chosen item."
+    },
+    {
+     "id": "c",
+     "label": "Map each pair to one public value",
+     "mechanism": "A fixed table maps each (relationship, role) pair to one value from a single list.",
+     "benefit": "One plain value per row.",
+     "risk": "Brings back the overlaps the two-part design removed; combinations are lost."
+    }
+   ],
+   "pick": "a",
+   "confidence": "medium",
+   "reason": "activity-14 b was chosen because it 'records combinations'; r2 item 60 (b) publishes every chosen item; the plan row says there is no separate role column, which a respects. Keeping missing role labels internal mirrors all-07 c (codes kept internally, simpler labels published). Flag found on re-check: the activity-14 b option text says the role is 'not asked' when the relationship is 'other', yet its own example is relationship 'other' with role 'beneficiary'. The two cannot both hold; the PI should rule which wins. The draft example avoids that case."
+  },
+  {
+   "id": "F09",
+   "field": "core.service_domain.rules (general_administration)",
+   "plain": "Service area: what happens to 'general administration'",
+   "options": [
+    {
+     "id": "a",
+     "label": "Map it to 'general public services'",
+     "mechanism": "No separate value. A rule says the earlier 'general administration' is coded 'general public services'.",
+     "benefit": "Keeps the international list intact and comparable with Public Sector Tech Watch; whether a tool is internal is already carried by activity type.",
+     "risk": "Internal support tools share an area with tax, legislatures and foreign affairs."
+    },
+    {
+     "id": "b",
+     "label": "Keep it as an extra value",
+     "mechanism": "Add 'general administration' beside the ten functions, for internal support of the institution itself.",
+     "benefit": "Keeps the earlier ruled value and a home for staff tools.",
+     "risk": "Overlaps 'general public services'; breaks the one-to-one match with the standard."
+    },
+    {
+     "id": "c",
+     "label": "Drop it",
+     "mechanism": "Leave it out with no mapping.",
+     "benefit": "Pure standard list.",
+     "risk": "The earlier ruled value disappears without a stated home."
+    }
+   ],
+   "pick": "a",
+   "confidence": "medium",
+   "reason": "activity-12 b chose the international list, and its own option text treats general public services as where general administration sits ('tax disappears into general administration'); the inferred reason PI approved was 'tax sits under general public services'. Mapping states the case explicitly rather than dropping a ruled value (c). Counter-pull: keep-information favours b, and the earlier ruling (r2 item 62) named the value; hence medium."
+  },
+  {
+   "id": "F10",
+   "field": "core.support_status_second_reason.values",
+   "plain": "Codes for the second failure reason",
+   "options": [
+    {
+     "id": "a",
+     "label": "The three downgrade codes; empty unless two reasons hold",
+     "mechanism": "Values: downgraded_no_quote, downgraded_low_confidence, downgraded_quote_not_stating_value. The main status takes the first failed check in check order (quote, then the 0.8 bar); the second item takes the other; empty when only one reason holds.",
+     "benefit": "Uses existing codes; nothing hidden; works if the checks change.",
+     "risk": "In practice only 'low confidence' ever appears second, so two of the three codes are unused."
+    },
+    {
+     "id": "b",
+     "label": "Low confidence only",
+     "mechanism": "One value, downgraded_low_confidence; empty otherwise.",
+     "benefit": "Exactly the cases that occur (a missing quote and a quote that misstates cannot co-occur).",
+     "risk": "Rigid if the check order changes."
+    },
+    {
+     "id": "c",
+     "label": "Combined values in the main status, no second item",
+     "mechanism": "e.g. downgraded_no_quote_and_low_confidence; drop the second item.",
+     "benefit": "One field.",
+     "risk": "Undoes the item the fold built; longer status list."
+    }
+   ],
+   "pick": "a",
+   "confidence": "medium",
+   "reason": "record-03 c ('both reasons recorded', 'nothing hidden'); the fold built a separate item, so a is the smallest change; record-01 a uses 'empty' for an unused companion item. The main-then-second order follows the check order already in the build (quote, then the bar). Counter-pull: putting the quote failure first is a precedence the PI did not choose in record-03 (she declined a and b); hence medium."
+  }
+ ],
+ "pairs_meta": {
+  "sources": "None. No ruling, draft or code gives an allowed-pairs list. Inferred from: activity_type definitions (output_contract.md §4, lines 154-159); action values and 'program = container with named components' (r2 item 11); the activity-unit text (RC-D-002 J, S5); the named mismatches (applicability.json T8, questions-r3 activity-02 situation); activity-04 d (bodies = governance); activity-05 a (unknown type asks everything).",
+  "counts": {
+   "pairs": 30,
+   "allowed": 18,
+   "flag": 12
+  },
+  "confidence": "medium overall; lowest on pilot_experiment x staff_training and on the four 'program' flags",
+  "note": "Flag means review or correct one label (activity-02 c); it does not forbid the pair."
+ },
+ "pairs": [
+  {
+   "type": "policy_guidance",
+   "action": "deployment",
+   "status": "flag",
+   "basis": "Named mismatch: a policy-type activity acting as a deployment gets neither the governance set nor most tool items."
+  },
+  {
+   "type": "policy_guidance",
+   "action": "governance",
+   "status": "allowed",
+   "basis": "Core case: policy instruments are governance actions (activity unit: 'governance instrument')."
+  },
+  {
+   "type": "policy_guidance",
+   "action": "staff_training",
+   "status": "flag",
+   "basis": "Training is its own activity under the activity-unit rule; a policy requiring training is a governance action."
+  },
+  {
+   "type": "policy_guidance",
+   "action": "program",
+   "status": "flag",
+   "basis": "'Program' is a container with named components; containers are typed program_initiative."
+  },
+  {
+   "type": "policy_guidance",
+   "action": "unknown",
+   "status": "flag",
+   "basis": "Neither set: governance questions need action governance, and most tool items are not asked on policy."
+  },
+  {
+   "type": "pilot_experiment",
+   "action": "deployment",
+   "status": "allowed",
+   "basis": "Core case: a trial is a limited deployment."
+  },
+  {
+   "type": "pilot_experiment",
+   "action": "governance",
+   "status": "flag",
+   "basis": "Named mismatch: tool-type plus governance action gets both sets."
+  },
+  {
+   "type": "pilot_experiment",
+   "action": "staff_training",
+   "status": "allowed",
+   "basis": "A trial of staff training is plausible; tool questions apply. Least certain allowed cell."
+  },
+  {
+   "type": "pilot_experiment",
+   "action": "program",
+   "status": "flag",
+   "basis": "'Program' is a container with named components; containers are typed program_initiative."
+  },
+  {
+   "type": "pilot_experiment",
+   "action": "unknown",
+   "status": "allowed",
+   "basis": "Tool set asked from the type; no contradiction."
+  },
+  {
+   "type": "program_initiative",
+   "action": "deployment",
+   "status": "allowed",
+   "basis": "Type definition includes platform rollouts."
+  },
+  {
+   "type": "program_initiative",
+   "action": "governance",
+   "status": "allowed",
+   "basis": "Type definition includes governance bodies; bodies count as governance actions (activity-04 d)."
+  },
+  {
+   "type": "program_initiative",
+   "action": "staff_training",
+   "status": "allowed",
+   "basis": "Type definition includes training programs."
+  },
+  {
+   "type": "program_initiative",
+   "action": "program",
+   "status": "allowed",
+   "basis": "Core case: cross-agency programs with named components."
+  },
+  {
+   "type": "program_initiative",
+   "action": "unknown",
+   "status": "allowed",
+   "basis": "Mixed type; tool set asked; no contradiction."
+  },
+  {
+   "type": "internal_operational",
+   "action": "deployment",
+   "status": "allowed",
+   "basis": "Core case: routine internal use."
+  },
+  {
+   "type": "internal_operational",
+   "action": "governance",
+   "status": "flag",
+   "basis": "Named mismatch: tool-type plus governance action gets both sets."
+  },
+  {
+   "type": "internal_operational",
+   "action": "staff_training",
+   "status": "flag",
+   "basis": "Training is its own activity, typed program_initiative ('training programs')."
+  },
+  {
+   "type": "internal_operational",
+   "action": "program",
+   "status": "flag",
+   "basis": "'Program' is a container with named components; containers are typed program_initiative."
+  },
+  {
+   "type": "internal_operational",
+   "action": "unknown",
+   "status": "allowed",
+   "basis": "Tool set asked from the type; no contradiction."
+  },
+  {
+   "type": "public_facing_service",
+   "action": "deployment",
+   "status": "allowed",
+   "basis": "Core case: citizen-facing tools."
+  },
+  {
+   "type": "public_facing_service",
+   "action": "governance",
+   "status": "flag",
+   "basis": "Named mismatch: tool-type plus governance action gets both sets."
+  },
+  {
+   "type": "public_facing_service",
+   "action": "staff_training",
+   "status": "flag",
+   "basis": "Staff training contradicts a public-facing type."
+  },
+  {
+   "type": "public_facing_service",
+   "action": "program",
+   "status": "flag",
+   "basis": "'Program' is a container with named components; containers are typed program_initiative."
+  },
+  {
+   "type": "public_facing_service",
+   "action": "unknown",
+   "status": "allowed",
+   "basis": "Tool set asked from the type; no contradiction."
+  },
+  {
+   "type": "unknown",
+   "action": "deployment",
+   "status": "allowed",
+   "basis": "Unknown type is asked everything (activity-05 a); no label to contradict."
+  },
+  {
+   "type": "unknown",
+   "action": "governance",
+   "status": "allowed",
+   "basis": "Unknown type is asked everything (activity-05 a); no label to contradict."
+  },
+  {
+   "type": "unknown",
+   "action": "staff_training",
+   "status": "allowed",
+   "basis": "Unknown type is asked everything (activity-05 a); no label to contradict."
+  },
+  {
+   "type": "unknown",
+   "action": "program",
+   "status": "allowed",
+   "basis": "Unknown type is asked everything (activity-05 a); no label to contradict."
+  },
+  {
+   "type": "unknown",
+   "action": "unknown",
+   "status": "allowed",
+   "basis": "Unknown type is asked everything (activity-05 a); no label to contradict."
+  }
+ ],
+ "sentences": [
+  {
+   "id": "W01",
+   "target": "core.disclosure_form.rules, CX-13 cell (cx-01.3-draft.json CX-13)",
+   "plain": "Mandated reports: compliance reports under rules not about AI",
+   "before": "The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report is `formal_record`. This is the one stated exception to CX-03.",
+   "after": "The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`. This is the one stated exception to CX-03.",
+   "diff": "Otherwise a statutory annual report {+or a compliance report under a rule not about AI+} is `formal_record`.",
+   "ruling": "page-04 b: 'Rule in the evidence row, and name compliance reports under rules not about AI as formal records too' / 'Add those reports to the same sentence.'",
+   "recheck": "Adds only the named case, in the same sentence. The same 'Otherwise' sentence also appears in the pilot.py L134 classifier line on this item; not edited here, and it will need the same words to stay in sync."
+  },
+  {
+   "id": "W02",
+   "target": "CX-51 cell (cx-01.3-draft.json CX-51), carried in rules of the content_* items",
+   "plain": "Which activity answers feed the computed page items",
+   "before": "`content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer or contracting party; users: `target_users`; status or date: `adoption_stage` or a year field), otherwise no.",
+   "after": "`content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no.",
+   "diff": "vendor: model developer{+, stated or looked up,+} or contracting party; users: `target_users`{+ or `governed_population`+};",
+   "ruling": "page-08 b ('Users is \"yes\" if any activity states who the tool serves or who a governance rule applies to (`governed_population`)') and c ('Vendor is \"yes\" if a developer is recorded, whether stated on the page or looked up').",
+   "recheck": "Does exactly b and c. The general clause 'stated on the page' stays; the vendor pair carries the exception locally. Composes with W03 (same cell)."
+  },
+  {
+   "id": "W03",
+   "target": "CX-51 cell (cx-01.3-draft.json CX-51), last sentence",
+   "plain": "Pages with no GenAI: 'no' instead of 'not asked'",
+   "before": "The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are not asked.",
+   "after": "The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.",
+   "diff": "on other pages they are [-not asked-]{+`no`+}.",
+   "ruling": "page-09 c: 'Description items and the data item are also \"no\" where the verdict shows no GenAI.'",
+   "recheck": "Changes only the five derived items and the data item, as the ruling names; contact items are left to F07. Side effect, not edited: CX-50's 'or not asked where CX-51 says so' no longer matches anything in CX-51."
+  },
+  {
+   "id": "W04",
+   "target": "core.page_complete.rules, note slot (ruling-r3 page-01 c)",
+   "plain": "Note that 'yes' on the page-complete item means incomplete",
+   "before": "Add a note in the codebook that yes means incomplete.",
+   "after": "Note: `yes` means incomplete (the page refers the reader onward); the name `page_complete` reads the other way.",
+   "diff": "[-Add a note in the codebook that-]{+Note:+} [-yes-]{+`yes`+} means incomplete{+ (the page refers the reader onward); the name `page_complete` reads the other way+}.",
+   "ruling": "page-01 c: 'Keep both as they are and document the reversal' / 'Add a note in the codebook that yes means incomplete.'",
+   "recheck": "Documents the reversal only; name, question and rule unchanged."
+  },
+  {
+   "id": "W05",
+   "target": "core.observed_actor_relationship.rules, open publication slot",
+   "plain": "Publishing the two-part 'whose activity' item as one column",
+   "before": null,
+   "before_note": "Slot is `text: null` with `open_item: rules for publishing the two parts as one column (activity-14 b commits to them; none drafted)`. No current sentence; the draft is all new, built from the ruling's own words ('one column'; 'must not turn into a separate public column').",
+   "after": "Published as one column: the relationship code, then `:` and the role code when the role is a real answer (e.g. `unit_of_institution:contracting_authority`); otherwise the relationship code alone. The role is never published as a separate column.",
+   "diff": "{+Published as one column: the relationship code, then `:` and the role code when the role is a real answer (e.g. `unit_of_institution:contracting_authority`); otherwise the relationship code alone. The role is never published as a separate column.+}",
+   "ruling": "activity-14 b commits_to: 'A two-part item and rules for publishing it as one column'; risk text: 'the role must not turn into a separate public column'. Mechanism per inferred pick F08 a.",
+   "recheck": "Implements F08 a, which is itself unsigned; if the PI picks b or c this sentence changes. Example avoids relationship 'other', because the ruled option both sets role 'not asked' when the relationship is 'other' and uses 'other' + 'beneficiary' as its example (see F08)."
+  }
+ ]
+}

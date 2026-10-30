@@ -1,0 +1,1645 @@
+{
+ "format": "codebook-rulings-round1",
+ "source_reply": "codebook-review-compact-2026-10-29.reply.json",
+ "ruled_by": "Simone Paci, 2026-10-29, chat",
+ "items": [
+  {
+   "id": "C01",
+   "name": "Page verdict vocabulary (`genai_evidence` 4 values vs v2.7 8-value page verdict)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 (production) §4.7:\n\n- `confirms_activity` | Source documents a specific GenAI activity at this institution\n- `confirms_absence` | The supplied page text contains no GenAI evidence relevant to this institution\n- `ambiguous` | Source mentions AI but unclear whether generative AI, or mentions GenAI but unclear whether this institution is involved\n- `background_only` | Source provides general context (country AI strategy, vendor overview) but does not document activity at this specific institution\n\nSPEC R-015 (locked): \"Page-verdict vocabulary has 8 values: the 7 re-pilot 2 values (`confirms_activity`, `ambiguous_genai`, `ambiguous_attribution`, `other_body` = v2.6 `other_actor`, `event_only` = v2.6 `excluded_event`, `background_only`, `no_genai`) plus v2.5 `confirms_absence` (page states absence; distinct from `no_genai`, no relevant content). It replaces v2.5 `genai_evidence` in the same column.\"\n\nRe-pilot 2 jev instruction (unclear2.py L84-85): \"Code this PAGE for the named institution only, using only what the page says. Does it document a generative-AI activity at this institution? If several values fit, take the first in this order.\" Definitions at unclear2.py L33-54 (confirms_activity text quoted under C02/C04; `event_only`: \"The only GenAI content is a public-facing event, workshop, seminar, showcase or educational programme, with no documented adoption, procurement, deployment or governance by the institution itself (WS10 D1: not a qualifying activity).\"; `background_only`: \"The page gives only general context (national AI strategy, vendor overview, news about GenAI in general) and documents no activity at this institution.\"; `no_genai`: \"The page contains no generative-AI content relevant to this institution.\")",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:223-226; C:/Users/spaci/repos/G3O/planning/SPEC.md:71; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:32-55, 84-85",
+   "chosen": {
+    "option_id": "spec-locked",
+    "label": "R-015 as locked: 8 values (re-pilot 2 wording + `confirms_absence` = page states absence)",
+    "mechanism": "One jev Choice with 8 values and a first-in-order tie-break; v2.5 rows keep 4-value answers, told apart by row contract version.",
+    "benefits": "Already ruled. 7 of the 8 values were piloted (re-pilot 2, $0.097). Separates the WS10 categories.",
+    "risks": "The findings above: the same token means three things, `confirms_absence` is undefined and unpiloted, `ambiguous_attribution` is collapsing, and the chunk rule conflicts with R-044.",
+    "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). A-011 fixtures for all 8 values, including a fixture for page-stated absence."
+   },
+   "note": ""
+  },
+  {
+   "id": "C02",
+   "name": "Generative-AI boundary (what counts as GenAI; chatbot / assistant rule)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 system prompt L11: \"**Include:** large language models (GPT, Claude, Gemini, LLaMA, Mistral, etc.), text-to-image generators, code-generation tools (GitHub Copilot, Amazon CodeWhisperer), sovereign/national LLMs (France's Albert, etc.), GenAI-powered chatbots, and any tool explicitly described as using generative AI, LLMs, or foundation models.\" L13: \"**Exclude:** traditional machine learning (fraud detection classifiers, predictive analytics), robotic process automation (RPA) without a generative component, rule-based chatbots without LLM backends, general \"AI strategies\" that do not specifically reference generative AI.\" L15-21: positive signal required (1 named LLM/product, 2 explicit generative-capability description incl. \"drafts, writes, summarizes, translates, or generates\", 3 explicit label); \"A \"chatbot,\" \"virtual assistant,\" or \"automation\" mentioned **without** one of these three signals is not sufficient evidence of GenAI activity\".\n\nRe-pilot 2 (unclear2.py L36, L41-44): \"The text must be explicitly generative AI (LLMs, ChatGPT, Copilot, Gemini, AI chatbots, AI-generated content or equivalents) ... Generic 'AI', 'artificial intelligence', 'smart' systems, automation, analytics, prediction, transcription, translation, image or video recognition, or traditional machine-learning tools do not count unless the page says the tool generates text, images, audio, code or other content, or names a generative product or model (e.g. ChatGPT, Copilot, Gemini, Claude, an LLM, an AI chatbot or AI assistant).\"\n\nSPEC R-016: \"A named \"AI chatbot\" or \"AI assistant\" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming. Contract §4.1 is unchanged: a generic \"AI strategy\" or \"AI tools\" stays `unclear`\".",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:11-23; 052fcb2:g3o/extract/prompts/system_prompt.md:58-59; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:36, 41-44; C:/Users/spaci/repos/G3O/planning/SPEC.md:72",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: R-016 boundary plus a stored mechanism basis",
+    "mechanism": "Keep R-016, and record for every positive which signal established GenAI (A01: named product/model, explicit label, generative capability described, named AI chatbot/assistant only). Also settle translation: (a) \"translation counts only when the page ties it to a named GenAI product or says it is generated by an LLM\", or (b) \"translation counts as generative capability\". The PI picks a or b.",
+    "benefits": "Keeps the ruled boundary while letting analysts drop R-016-only positives in a robustness check. Resolves the translation contradiction explicitly.",
+    "risks": "One more jev question per positive page. The PI still has to choose a or b on translation.",
+    "commits_to": "Adding A01 (a new field: schema, API and site columns). A small re-pilot of the A01 question."
+   },
+   "note": ""
+  },
+  {
+   "id": "C03",
+   "name": "Institution-level `has_genai_activity` and the rule that a page cannot issue institution-wide `no`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 §4.1: \"`yes` | At least one source documents a specific GenAI tool, pilot, policy, or deployment at this institution. `no` | All supplied pages for this institution have been reviewed and contain no mention of GenAI, LLMs, ChatGPT, Copilot, or equivalents. `unclear` | Ambiguous signals that could indicate GenAI activity but cannot be confirmed.\"\n\nv2.6 system prompt (Per-page verdict): \"A single supplied page cannot establish completion of the institution's remaining evidence review. Emit has_genai_activity=yes when this page supports a qualifying activity at the searched institution; otherwise emit unclear, including a clearly excluded event or no-qualifying-content page. Stage 6 determines a reviewed-evidence no only after the pipeline supplies complete context and no unresolved signal.\"\n\nSPEC R-005: \"institution-level `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a low-confidence negative downgraded under R-081 counts as one).\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:146-148; 052fcb2:g3o/extract/prompts/system_prompt.md:113-119; 052fcb2:g3o/validate/prompts/output_contract.md:56-58; C:/Users/spaci/repos/G3O/planning/SPEC.md:65",
+   "chosen": {
+    "option_id": "spec-locked",
+    "label": "v2.6 + R-005: pages emit yes/unclear only; Stage 6 `no` when all pages negative at ≥0.8 and no unresolved signal",
+    "mechanism": "Deterministic Stage 6 rule over the page verdicts and confidences.",
+    "benefits": "Already ruled. Prevents page-level `no`. Simple to implement.",
+    "risks": "The negative set and the failed-page treatment are undefined. The `no` label overstates. The v2.5 §4.1 text still contradicts it.",
+    "commits_to": "Writing the negative-set table and the failed-page rule into the codebook (a PI line-edit). No enum change."
+   },
+   "note": ""
+  },
+  {
+   "id": "C04",
+   "name": "Attribution and other-body rules",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 system prompt L29: \"Check that the page actually pertains to the named institution and not a similarly-named entity (different country, different level of government, parent ministry rather than this agency, etc.). If the page describes a different entity, code `genai_evidence = confirms_absence`\". L32 (step 4): GenAI not tied to this institution -> `ambiguous`. L33 (step 5): country-wide program without naming the institution -> `ambiguous` + `institution_attribution`. L52: \"Attribute activities to the specific institution in the batch, not to its parent ministry or country. If a national initiative exists but this institution's participation is unconfirmed, use `unclear` with flag `institution_attribution`.\"\n\nRe-pilot 2 confirms_activity (L37-41): \"The activity must be carried out or adopted by the named institution itself. Exclude activity by a parent, higher-level or neighbouring body (e.g. a district, county, regency, region, consortium or city department when the named institution is a village, ward or sub-unit), by a similarly named organisation or company, and pages by vendors that only use the place name.\" `other_body` (L47-51): \"The page documents a generative-AI activity, but it clearly belongs to a different body, not the named institution ...\". `ambiguous_attribution` (L46).\n\nv2.6 L39-46: observed actor separate from query target; \"External speakers, service providers, courts, similarly named counties and joint projects do not inherit that identity.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:29, 32-33, 52; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:163, 327-337, 361-367; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:37-41, 46-51; 052fcb2:g3o/extract/prompts/system_prompt.md:39-46",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: add a two-direction grain rule and observed-actor extraction",
+    "mechanism": "Add to confirms_activity: \"An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\" Add a joint rule: \"A joint activity counts when the page names this institution as a participant.\" Extract `observed_actor` (A05) on every confirms_activity, other_body and ambiguous_attribution page.",
+    "benefits": "Settles the downward direction. Keeps other-body evidence usable for later correction-layer transfers.",
+    "risks": "\"Separate court, board or authority\" needs a list per country (the Butler-type case). A county's activity is not credited to its parent state, which may be the wrong call for some analyses. Adds extractor output.",
+    "commits_to": "Re-pilot of the amended confirms_activity text. A05 schema addition. Fixtures for unit, parent and joint cases."
+   },
+   "note": ""
+  },
+  {
+   "id": "C05",
+   "name": "WS10 action boundary (events, governance, staff training, proposals)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.6 system prompt L27-37: \"Record institution-specific GenAI adoption, procurement, deployment, governance, and explicitly GenAI institution-specific proposals. Public workshops, talks and educational events are excluded even when the institution hosts, funds or attends. An event source can independently document a qualifying action: evaluate that separate action, not the venue. Institution-directed staff GenAI training qualifies; training does not establish tool deployment. Formal institution-issued rules for internal personnel OR external users qualify, including prohibitions, submission rules, and approved-tool/privacy conditions. Record the issuing body's governance action separately from software use. A draft or agenda can support proposed activity without proving enactment. Proposed activity has no new commitment bar. Preserve proposed, announced, pilot, production and discontinued distinctions.\"\n\nSPEC R-010..R-013 (WS10 D1-D4). D1 approved wording: \"A public-facing GenAI event or educational program is not itself a qualifying activity. An event page can support a separate record when it explicitly documents the institution's own adoption, procurement, deployment, or governance. A demonstration alone does not establish deployment.\"",
+   "current_source": "052fcb2:g3o/extract/prompts/system_prompt.md:27-37; C:/Users/spaci/repos/G3O/planning/SPEC.md:66-69; H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/DECISIONS.md:11; H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/DECISIONS-followup.md:7; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:52",
+   "chosen": {
+    "option_id": "spec-locked",
+    "label": "R-010..R-013 / v2.6 L27-37 as approved",
+    "mechanism": "Boundary applied inside the verdict question (event_only) and in pass 2.",
+    "benefits": "Signed (D1-D4). Piloted as `event_only`.",
+    "risks": "\"Formal\" and \"institution-directed\" undefined. Incidental clauses count fully. DECYP fixture stale.",
+    "commits_to": "Relabelling the DECYP fixture (PI sign). No enum change."
+   },
+   "note": ""
+  },
+  {
+   "id": "C06",
+   "name": "Group D gating (`_NA_` rule) and pass-2 scope",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 §3.2: \"When `has_genai_activity` = `no` or `unclear`, OR the row's source is `confirms_absence` / `ambiguous` / `background_only`, set **every field in Group D** to the exact string `_NA_`.\" §6 check 2: \"On every row where `genai_evidence` = `confirms_activity`, NO Group D column may be `_NA_` (use `unknown`, `none_reported`, `none`, or `not_documented` as appropriate instead).\"\n\nSPEC R-003: \"The second pass runs on every page with GenAI content: `confirms_activity`, `ambiguous_genai`, `ambiguous_attribution`, `other_body`, `event_only`.\" R-015: \"Rules that read the column (yes needs a `confirms_activity` row; activity fields `_NA_` otherwise) are updated to the 8 values.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:88-92, 289; C:/Users/spaci/repos/G3O/planning/SPEC.md:62, 71",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: add `not_applicable` and an applicability table by action type",
+    "mechanism": "Add `not_applicable` to tool_name, vendor, deployment_mode, target_users, access_type and interaction_type. A published table states which fields apply to each action type (e.g. deployment_mode and access_type do not apply to governance, staff_training or proposal-without-tool). It is applied deterministically after jev, so jev is not asked inapplicable questions.",
+    "benefits": "Separates \"does not apply\" from \"unknown\". Fewer jev questions for governance activities.",
+    "risks": "Six enum changes. v2.5 `unknown` values on policy rows cannot be recoded without a rerun.",
+    "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). Needs an action-type code (C08 alt-1 or A02)."
+   },
+   "note": ""
+  },
+  {
+   "id": "C07",
+   "name": "Activity segmentation and `activity_name`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 11: \"`activity_name` | string | Max 120 chars / `_NA_` | Short name. Use official name if one exists (e.g., \"MyCity Chatbot\", \"Pair Platform\"). Otherwise descriptive (e.g., \"Internal Copilot pilot for document drafting\").\" §4.2 rule: \"If an institution has issued a GenAI policy AND is running a pilot, these are **two distinct activities**.\" §6 check 5: \"For all rows sharing the same `activity_name`, the Group D columns (11-28) must be identical\".\n\nSPEC R-003: \"After the first pass, the extraction model segments the page into one or more activities\"; DEC-010 a: \"nano returns character spans only; jev sees page with span marked\".",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:96, 161, 292; C:/Users/spaci/repos/G3O/planning/SPEC.md:62; C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:31",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: a codebook definition of the activity unit, checked by jev",
+    "mechanism": "Definition (draft): \"One activity = one action (deployment, procurement, governance instrument, training, proposal) by one actor concerning one tool or instrument. Components of a named program are one activity, with the component noted. Repeated transactions for the same product by the same unit are one activity. A policy and the tools it approves are separate activities.\" The extractor proposes spans; jev answers per span: new distinct activity / same as span k / component of span k / not an activity.",
+    "benefits": "jev makes the segmentation decision, so C-001 holds. Relations are recorded at page level, which feeds the R-005 Stage 6 relation rules.",
+    "risks": "One more jev question per span. The definition is substantive and needs PI wording. Pass-1 cost rises on multi-activity pages.",
+    "commits_to": "PI wording. Fixtures from the v2.6 relation cases. A pipeline change in the T-02x cards."
+   },
+   "note": ""
+  },
+  {
+   "id": "C08",
+   "name": "`activity_type`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 §4.2: \"`policy_guidance` | Executive orders, agency memos, acceptable-use rules, procurement standards, internal guidance on permissible GenAI tools and data handling. | `pilot_experiment` | Limited trials, sandboxes, proof-of-concept deployments, or time-bounded experiments. | `program_initiative` | Cross-agency programs, governance bodies, training programs, or platform rollouts spanning multiple units. | `internal_operational` | Routine internal use for drafting, summarization, knowledge search, translation, internal helpdesks, or developer tooling. | `public_facing_service` | Citizen- or business-facing chatbots, service navigation, translation, complaint handling, case triage. | `unknown` | Evidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate ... never as a default.\"\n\nv2.6 changes: policy_guidance adds \"formal rules on permissible GenAI use for internal personnel and external users, including prohibitions and submission rules\"; program_initiative \"institution-directed staff GenAI training (not public events)\"; internal_operational evidence \"Documented tool use; approved-tool lists alone are governance, procurement alone is not production.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:152-159; 052fcb2:g3o/extract/prompts/output_contract.md:154-157",
+   "chosen": {
+    "option_id": "keep",
+    "label": "v2.5 values (v2.6 wording optional)",
+    "mechanism": "One jev Choice, 6 values.",
+    "benefits": "Comparable with every v2.5 activity row.",
+    "risks": "Multi-dimensional, so reliability suffers. No procurement or training values.",
+    "commits_to": "No change (or v2.6 wording only: no enum change)."
+   },
+   "note": ""
+  },
+  {
+   "id": "C09",
+   "name": "`adoption_stage` (incl. §4.3 and the owed procurement amendment)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 §4.3: \"`proposed` | Exploratory or hedged intent with no concrete commitment: \"considering,\" \"exploring,\" \"studying feasibility,\" early discussions, unfunded or undated ideas. The text must still be explicitly generative-AI and tied to this institution. No named tool tied to a timeline, no signed MoU or contract, no budget line, no adopted policy. | `announced` | Publicly stated intent to deploy with a concrete, documented commitment but no evidence of actual use. Includes: MoUs, budget allocations without deployment, strategy timelines. | `pilot` | Limited deployment: subset of users/departments/use cases; described as trial/pilot/PoC/experiment; time-bounded. | `production` | Fully operational: available to intended user base, no longer experimental, in routine operations. | `discontinued` | Previously deployed but explicitly ended, cancelled, or suspended. | `unknown` | Evidence confirms GenAI activity exists but stage is indeterminate.\" \"Permanent pilot\" rule: \"If described as \"pilot\" but running >12 months AND serving the full intended user base, code `production`.\"\n\nOwed: procurement subproject amendment to `proposed` (R-087), text NOT yet received; this review drafts alternatives that procurement must agree.",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:169-176; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:41-43; 052fcb2:g3o/extract/prompts/system_prompt.md:35-37, 52-54; C:/Users/spaci/repos/G3O/planning/SPEC.md:136",
+   "chosen": {
+    "option_id": "alt-2",
+    "label": "Agent-drafted (procurement must agree): separate `procurement_status` field",
+    "mechanism": "Keep adoption_stage for use; add `procurement_status`: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown. Payment-only activities get adoption_stage `unknown` (as in the Clay fixtures) plus procurement_status `payment_or_subscription`.",
+    "benefits": "Two separate dimensions. The procurement pipeline can own the new field. No change to stage semantics.",
+    "risks": "Two fields for related facts, and a new column on every activity.",
+    "commits_to": "A new field (schema/API/site) plus enum steps for procurement. Coordination with the procurement integrator on ownership."
+   },
+   "note": ""
+  },
+  {
+   "id": "C10",
+   "name": "`access_type`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 §4.4: \"`proprietary_vendor` | Commercial product (OpenAI, Microsoft, Google, Anthropic, etc.) via API or license. | `open_source` | Open-source model (LLaMA, Mistral, Falcon, etc.) self-hosted or via hosting provider. | `sovereign_model` | Model developed by/for a government with data-sovereignty goals (e.g., France's Albert, Germany's OpenGPT-X). | `in_house` | Built by the institution's own team, not based on a major external foundation model. | `mixed` | Combines types (e.g., proprietary API fine-tuned in-house, sovereign model on commercial cloud). | `unknown` | Cannot determine.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:182-187; 052fcb2:g3o/extract/prompts/system_prompt.md:53",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: two fields, model origin and build arrangement",
+    "mechanism": "`model_origin`: commercial / open_weight / government_developed / unknown. `build_arrangement`: off_the_shelf_product / custom_application_on_external_model / model_trained_or_fine_tuned_by_institution / unknown.",
+    "benefits": "Each dimension stands alone and the commonest case has an obvious code.",
+    "risks": "Two new fields replace one. The v2.5 series breaks (a crosswalk is only partial).",
+    "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). New columns."
+   },
+   "note": ""
+  },
+  {
+   "id": "C11",
+   "name": "`interaction_type`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 §4.5: chatbot \"Conversational interface for Q&A, navigation, or retrieval\"; document_processing \"Summarization, extraction, classification, or generation of documents\" (examples \"Drafting memos, summarizing reports, processing forms\"); code_generation; decision_support \"Analysis, recommendations, or scoring to aid human decisions\" (examples \"Case triage, fraud detection, eligibility assessment\"); translation; content_creation \"Generating public communications, social media, multimedia\" (examples \"Press releases, social media, report drafting\"); search_retrieval \"Semantic search, knowledge retrieval, RAG over internal stores\"; multiple \"Tool explicitly serves multiple interaction types by design\"; not_applicable \"For `policy_guidance` activities with no specific tool\"; unknown.",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:193-202",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: split into interface plus function items",
+    "mechanism": "`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.",
+    "benefits": "Multi-label without `multiple`. Each item is binary and reliable. Fits jev's Choice-only design.",
+    "risks": "About 9 jev questions per activity instead of 1. Breaks the series (crosswalk from single values to function items is lossy). Overlaps deployment_mode (C14).",
+    "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). New columns (or a JSON list column), API/site changes. Re-pilot."
+   },
+   "note": ""
+  },
+  {
+   "id": "C12",
+   "name": "`tool_name`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 16: \"`tool_name` | string | Max 100 chars / `unknown` / `_NA_` | Specific tool, model, or platform name (e.g., \"Microsoft 365 Copilot\", \"ChatGPT\", \"Albert\").\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:101; 052fcb2:g3o/extract/prompts/system_prompt.md:56-57",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: product and model, list semantics, not_applicable",
+    "mechanism": "`tool_name` = product or platform as written on the page; new `model_name` = model as written (e.g. \"GPT-4o\") or `unknown`. Several tools are `; `-separated in page order. `not_applicable` for activities without a tool (C06).",
+    "benefits": "Clear level of detail; analysable lists.",
+    "risks": "A new column. List parsing downstream.",
+    "commits_to": "Schema addition (two version steps if public)."
+   },
+   "note": ""
+  },
+  {
+   "id": "C13",
+   "name": "`vendor`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 17: \"`vendor` | string | Max 100 chars / `unknown` / `_NA_` | Vendor or provider. For in-house tools: the institution or its parent agency name.\"\n\nv2.6 L56-57: \"Do not infer a vendor from institutional authorship or insert unsupported product names into free text.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:102; 052fcb2:g3o/extract/prompts/system_prompt.md:56-57",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: page-stated vendor plus a lookup with stated basis",
+    "mechanism": "vendor = the organisation the page names as supplying the GenAI product or service, verbatim. If none is named but tool_name matches a published lookup table (product -> developer, versioned), fill it deterministically and set `vendor_basis` = lookup, otherwise `stated`.",
+    "benefits": "Keeps coverage for well-known products, with transparent provenance.",
+    "risks": "The lookup table needs upkeep and is a G3O artifact that can contain errors. Adds a column.",
+    "commits_to": "A new column `vendor_basis` and a maintained table. Schema version step."
+   },
+   "note": ""
+  },
+  {
+   "id": "C14",
+   "name": "`deployment_mode`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 18: \"`deployment_mode` | enum | `standalone` / `integrated` / `unknown` / `_NA_` | `standalone`: separate tool/interface. `integrated`: embedded in existing system (e.g., Copilot inside Outlook).\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:103",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: definitions + not_applicable",
+    "mechanism": "\"integrated: the GenAI feature works inside software or a service channel the institution already used (office suite, case system, existing website service). standalone: a separate application or site created for the GenAI tool.\" Add `not_applicable` for activities without a tool.",
+    "benefits": "Settles the website-widget case (integrated).",
+    "risks": "The classification of a website widget may not match analysts' intuition.",
+    "commits_to": "Enum change if `not_applicable` is added (C06)."
+   },
+   "note": ""
+  },
+  {
+   "id": "C15",
+   "name": "`target_users`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 19: \"`target_users` | enum | `internal_staff` / `public` / `both` / `unknown` / `_NA_` | Who interacts with the GenAI system.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:104",
+   "chosen": {
+    "option_id": "alt-2",
+    "label": "Agent-drafted: split off `governed_population` (A04)",
+    "mechanism": "target_users only for tool activities (`not_applicable` otherwise). A04 for governance.",
+    "benefits": "One meaning per column.",
+    "risks": "A new column; v2.5 governance rows hold the governed population in target_users.",
+    "commits_to": "A04 schema addition plus an enum change (C06)."
+   },
+   "note": ""
+  },
+  {
+   "id": "C16",
+   "name": "`year_announced`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 20: \"`year_announced` | string | `YYYY` / `unknown` / `_NA_` | Year first publicly announced or documented.\"\n\nDEC-009 a routing: \"jev Choice: `year_announced`, `year_deployed`, CX-60/61; deterministic: contact emails, explicit years\".",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:105; C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:30; C:/Users/spaci/repos/G3O/planning/SPEC.md:64",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: hybrid candidates + jev Choice, stated years only",
+    "mechanism": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "benefits": "Implementable. Every value has a quote. Avoids the date traps.",
+    "risks": "More `unknown` values. Two steps.",
+    "commits_to": "Pipeline design in T-02x; a data dictionary entry."
+   },
+   "note": ""
+  },
+  {
+   "id": "C17",
+   "name": "`year_deployed`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 21: \"`year_deployed` | string | `YYYY` / `unknown` / `_NA_` | Year entered pilot or production.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:106; C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:30",
+   "chosen": {
+    "option_id": "alt-2",
+    "label": "Agent-drafted: split into `year_pilot_start` and `year_production_start`",
+    "mechanism": "Two columns, each stated-only.",
+    "benefits": "Lets analysts measure time from pilot to production.",
+    "risks": "More columns, mostly sparse.",
+    "commits_to": "Schema addition (two version steps)."
+   },
+   "note": ""
+  },
+  {
+   "id": "C18",
+   "name": "`has_human_oversight`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 22: \"`has_human_oversight` | enum | `yes` / `no` / `unclear` / `not_documented` / `_NA_` | Is human review required before acting on GenAI outputs?\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:107",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: define the four values and the attachment rule",
+    "mechanism": "\"yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it). no: the page states it does not apply. not_documented: the page is silent. unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\" A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.",
+    "benefits": "Reliable, chunk-safe (yes if any chunk yes, else not_documented), with a quote for every yes.",
+    "risks": "Fewer `yes` values on deployment rows than analysts may expect.",
+    "commits_to": "Wording change (one step). A-012-style fixtures."
+   },
+   "note": ""
+  },
+  {
+   "id": "C19",
+   "name": "`has_transparency_notice`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 23: \"`has_transparency_notice` | enum | `yes` / `no` / `unclear` / `not_documented` / `_NA_` | Are users/citizens notified that GenAI is involved?\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:108",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: define the four values and the attachment rule",
+    "mechanism": "\"yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it). no: the page states it does not apply. not_documented: the page is silent. unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\" A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.",
+    "benefits": "Reliable, chunk-safe (yes if any chunk yes, else not_documented), with a quote for every yes.",
+    "risks": "Fewer `yes` values on deployment rows than analysts may expect.",
+    "commits_to": "Wording change (one step). A-012-style fixtures."
+   },
+   "note": ""
+  },
+  {
+   "id": "C20",
+   "name": "`has_data_classification`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 24: \"`has_data_classification` | enum | `yes` / `no` / `unclear` / `not_documented` / `_NA_` | Are there documented data-handling restrictions for GenAI use?\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:109",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: define the four values and the attachment rule",
+    "mechanism": "\"yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it). no: the page states it does not apply. not_documented: the page is silent. unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\" A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.",
+    "benefits": "Reliable, chunk-safe (yes if any chunk yes, else not_documented), with a quote for every yes.",
+    "risks": "Fewer `yes` values on deployment rows than analysts may expect.",
+    "commits_to": "Wording change (one step). A-012-style fixtures."
+   },
+   "note": ""
+  },
+  {
+   "id": "C21",
+   "name": "`has_risk_assessment`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 25: \"`has_risk_assessment` | enum | `yes` / `no` / `unclear` / `not_documented` / `_NA_` | Has a formal risk/impact assessment been documented?\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:110",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: define the four values and the attachment rule",
+    "mechanism": "\"yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it). no: the page states it does not apply. not_documented: the page is silent. unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\" A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.",
+    "benefits": "Reliable, chunk-safe (yes if any chunk yes, else not_documented), with a quote for every yes.",
+    "risks": "Fewer `yes` values on deployment rows than analysts may expect.",
+    "commits_to": "Wording change (one step). A-012-style fixtures."
+   },
+   "note": ""
+  },
+  {
+   "id": "C22",
+   "name": "`reported_outcomes`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 26: \"`reported_outcomes` | string | Max 200 chars / `none_reported` / `_NA_` | Documented performance claims. Only record if explicitly stated. Never infer.\"\n\nCX-60: deterministic \"nothing found\" -> `none_reported`; CX-61: \"jev `Choice` over the stored text: `quantified` / `qualitative` / `none_reported`\".",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:111; H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:105-106",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: jev gate, then verbatim spans",
+    "mechanism": "jev Choice per activity: page reports realised outcomes / only expected or projected outcomes / usage figures only / none. Unless none, the extractor returns verbatim spans (no length limit in storage, display cap per R-043). CX-61 then runs on the spans.",
+    "benefits": "jev decides presence (C-001). Separates projections. Every value is verbatim.",
+    "risks": "One more jev question. CX-61 runs on different input (spans, not free text) and may need re-checking against the signed CX wording.",
+    "commits_to": "Routing change (C25). A new enum or companion column for the gate. A check that CX-61 still applies as signed (R-025)."
+   },
+   "note": ""
+  },
+  {
+   "id": "C23",
+   "name": "`reported_incidents`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 27: \"`reported_incidents` | string | Max 200 chars / `none_reported` / `_NA_` | Documented errors, failures, or controversies. Only record if explicitly stated.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:112",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: jev gate with incident type, then spans",
+    "mechanism": "jev Choice: page reports a malfunction or error / data or privacy breach / public criticism or complaint / suspension or withdrawal / none. Unless none, the extractor returns verbatim spans.",
+    "benefits": "A typed, auditable incident measure.",
+    "risks": "More questions. The incident types are new substantive wording.",
+    "commits_to": "A new companion column (schema step). Fixtures."
+   },
+   "note": ""
+  },
+  {
+   "id": "C24",
+   "name": "`scope_notes`",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "v2.5 col 28: \"`scope_notes` | string | Max 300 chars / `none` / `_NA_` | Additional context that doesn't fit other fields.\" §4.3: \"Note in `scope_notes`: \"Described as pilot but operational >12 months with full user base.\"\" Edge F scope_notes: \"Based on vendor claim only; no official government confirmation found.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:113, 176, 367",
+   "chosen": {
+    "option_id": "alt-3",
+    "label": "Agent-drafted: retire",
+    "mechanism": "Drop the column in v2.7.",
+    "benefits": "Simplest.",
+    "risks": "Loses context; breaks the column.",
+    "commits_to": "Column removal (two steps)."
+   },
+   "note": ""
+  },
+  {
+   "id": "C25",
+   "name": "Free-text routing rule (jev / deterministic / extractor)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "SPEC R-006: \"Free-text activity fields (`activity_name`, `tool_name`, `vendor`, `year_announced`, `year_deployed`, `reported_outcomes`, `reported_incidents`, `scope_notes`): jev answers them as Choice questions where a closed set exists, values are taken by deterministic extraction where possible, and the extractor (C-001) extracts only what neither covers. Each value carries supporting text (R-040).\" DEC-009 a: \"proposed table (jev Choice: `year_announced`, `year_deployed`, CX-60/61; deterministic: contact emails, explicit years; nano: `activity_name`, `tool_name`, `vendor`, `reported_outcomes`, `reported_incidents`, `scope_notes`)\".",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:64; C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:30",
+   "chosen": {
+    "option_id": "keep",
+    "label": "DEC-009 a as ruled",
+    "mechanism": "As quoted.",
+    "benefits": "Ruled.",
+    "risks": "Contradictions above.",
+    "commits_to": "An integrator clarification for years and CX-60."
+   },
+   "note": ""
+  },
+  {
+   "id": "A01",
+   "name": "`genai_mechanism_basis` (which signal established GenAI)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "add",
+    "label": "Agent-drafted: add as a published activity field",
+    "mechanism": "jev Choice on every confirms_activity page/activity: named_genai_product_or_model / explicit_genai_label / generative_capability_described / ai_chatbot_or_assistant_label_only. The extractor returns the supporting quote.",
+    "benefits": "A robustness check can exclude label-only positives (C02). Directly auditable.",
+    "risks": "One more question. Analysts may over-read the categories as confidence levels.",
+    "commits_to": "A new column (schema, API, site; two version steps). Re-pilot."
+   },
+   "note": ""
+  },
+  {
+   "id": "A02",
+   "name": "`action_type` (single-dimension action typology)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "add",
+    "label": "Agent-drafted: add beside activity_type",
+    "mechanism": "jev Choice per activity: deployment / procurement / governance / staff_training / proposal / program / unknown. (Whether `proposal` is a type or only a stage is a PI choice.)",
+    "benefits": "Matches the WS10 construct; continuity of activity_type is kept.",
+    "risks": "Overlap with activity_type and adoption_stage.",
+    "commits_to": "A new column (two version steps)."
+   },
+   "note": ""
+  },
+  {
+   "id": "A03",
+   "name": "`governance_form`",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "add",
+    "label": "Agent-drafted: add for governance activities",
+    "mechanism": "jev Choice: dedicated_genai_or_ai_policy_or_guideline / approved_tool_list_or_endorsement / clause_in_instrument_on_other_subject / court_or_regulatory_order / procurement_standard / unknown. Applies only when the action is governance (`not_applicable` otherwise).",
+    "benefits": "Keeps D2 intact and lets analysts separate full policies from clauses.",
+    "risks": "New wording; boundary between guideline and endorsement.",
+    "commits_to": "A new column (two version steps). Fixtures from the WS10 cases."
+   },
+   "note": ""
+  },
+  {
+   "id": "A04",
+   "name": "`governed_population`",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "add",
+    "label": "Agent-drafted: add for governance activities",
+    "mechanism": "jev Choice: internal_personnel / external_users / both / unknown; `not_applicable` for non-governance.",
+    "benefits": "Records D2's distinction directly.",
+    "risks": "A new column.",
+    "commits_to": "Two version steps; C15 alt-2."
+   },
+   "note": ""
+  },
+  {
+   "id": "A05",
+   "name": "`observed_actor` (name, role, relationship to searched institution)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "add-internal",
+    "label": "Agent-drafted: internal record on every page with GenAI content",
+    "mechanism": "The extractor returns the verbatim actor name and organisational unit. jev Choice gives the relationship (this institution / unit of it / joint participant / other / unresolved) and the role (as v2.6).",
+    "benefits": "Keeps D5-style corrections possible. No public schema change.",
+    "risks": "Extra output per page.",
+    "commits_to": "Internal storage. Pass-1 question added."
+   },
+   "note": ""
+  },
+  {
+   "id": "A06",
+   "name": "Institution evidence tier (derived from activity codes)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "add",
+    "label": "Agent-drafted: deterministic tier at Stage 6",
+    "mechanism": "Highest of: documented_use (any pilot, production or discontinued deployment) > documented_commitment (announced, or procured if C09 alt-1) > governance_or_training_only > proposal_only > none_found / unclear. Published beside has_genai_activity.",
+    "benefits": "Ranks institutions on a measure closer to adoption. Costs nothing to compute.",
+    "risks": "Inherits errors from stage and type codes.",
+    "commits_to": "A new institution column (API, site, g3o-api migration)."
+   },
+   "note": ""
+  },
+  {
+   "id": "A07",
+   "name": "Review depth at institution level",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "add",
+    "label": "Agent-drafted: publish counts",
+    "mechanism": "n_pages_reviewed, n_pages_by_verdict (8 counts), n_pages_failed, n_followed_links, all computed at Stage 6.",
+    "benefits": "Users can weigh negatives. Supports the D3 wording.",
+    "risks": "More columns. Depth reflects the discovery stage, not institution behaviour.",
+    "commits_to": "New columns (institution level)."
+   },
+   "note": ""
+  },
+  {
+   "id": "A08",
+   "name": "`stage_as_of` (date the stage refers to)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "add",
+    "label": "Agent-drafted: deterministic from dates",
+    "mechanism": "stage_as_of = source_publication_date if supported, else the page's latest stated date for the activity, else the access date; plus `stage_as_of_basis`.",
+    "benefits": "Turns conflicts into timelines.",
+    "risks": "Depends on publication-date quality (other reviewer).",
+    "commits_to": "New columns; Stage 6 rule work."
+   },
+   "note": ""
+  },
+  {
+   "id": "A09",
+   "name": "Deployment scale (licences, users, interactions)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "add",
+    "label": "Agent-drafted: verbatim scale span + jev unit Choice",
+    "mechanism": "The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.",
+    "benefits": "Supports intensity analysis and the permanent-pilot rule.",
+    "risks": "Sparse; numbers are not comparable across units.",
+    "commits_to": "A new column (two version steps)."
+   },
+   "note": ""
+  },
+  {
+   "id": "X01",
+   "name": "disclosure_form (CX-10..CX-18)",
+   "frozen": true,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Question to jev: *What kind of document is this page?* One value. If several fit, take the first in table order.\n\n- `register_cross_institution`: The page is, or is one entry in, a structured list of AI or algorithmic systems kept by a government body, with several entries in a common format (inventory, register, catalogue, algorithmic transparency record in a standard template), **and the list covers more than one institution** (a national or sectoral register, a standard-template record series across agencies).\n- `register_single_institution`: As CX-10, but the list covers **one institution only** (e.g. a city's own table of its AI tools).\n- `mandated_report`: The page is a document produced to meet a reporting obligation, such as a statutory annual-report section or a compliance or transparency report under a named rule.\n- CX-13: The obligation may be named on the page **or inferred from the document's genre** (e.g. an annual report, a statutory compliance report). This is the one stated exception to CX-03.\n- `formal_record`: An official one-off document of record from a government body: adopted policy or guidance, legislation, council or board minutes or resolutions, budget documents, procurement notice or award, audit or inspection report, **response to a freedom-of-information request**.\n- `informal_official`: A government body's own communication with no reporting obligation and no standard format: press release, news item, blog, social post, speech, event page, service or FAQ page.\n- `third_party`: Not published by a government body: news, vendor, academic, NGO or policy organization. A register entry quoted in a news article is `third_party` (code the page, not what it quotes).\n- `unknown`: The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:28-41",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: require an AI-related obligation for mandated_report",
+    "mechanism": "Re-word CX-12/13: `mandated_report` only when the obligation concerns reporting on AI, algorithms or digital systems, named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code `formal_record`.",
+    "benefits": "Restores the 'systematic AI disclosure' construct; removes a CX-03 exception; gives the extractor a quotable anchor (the named rule).",
+    "risks": "Lower `mandated_report` counts (already ~1%); re-opens D-B (b), a signed PI ruling.",
+    "commits_to": "Re-signature of CX-12/13 (D-B); fixture pages for the new boundary (R-084); no enum change, so no version steps beyond the v2.7 already planned."
+   },
+   "note": ""
+  },
+  {
+   "id": "X02",
+   "name": "disclosure_scope (CX-20..CX-25)",
+   "frozen": true,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "- `whole_of_government`: The listing or document the page belongs to covers institutions across the government (all central agencies, or all units of a level).\n- `multi_institution`: It covers several institutions, but not government-wide (a sector, a region, a group of agencies).\n- `single_institution`: It covers one institution only.\n- `unknown`: Coverage cannot be determined from the page.\n- CX-25: which pages are coded: All pages.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:51-56",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: code scope only on register and mandated pages",
+    "mechanism": "Ask `disclosure_scope` only when `disclosure_form` in {register_cross_institution, register_single_institution, mandated_report}; otherwise store `_NA_`.",
+    "benefits": "Scope then measures the disclosure system as intended; fewer low-confidence answers; cheaper.",
+    "risks": "Reverses D-D (b) (all pages); loses activity-scope information that some index variants might want.",
+    "commits_to": "Re-signature of CX-25 (D-D); `_NA_` added to the value set (enum change, two version steps); CX-11's QC check unchanged."
+   },
+   "note": ""
+  },
+  {
+   "id": "X03",
+   "name": "evaluation_documented (CX-30..CX-40, incl. CX-32b/c/d, CX-33)",
+   "frozen": true,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Question to jev: *Does this page document an evaluation of this GenAI activity?* One value. If several fit, take the first in table order.\n\n- `results_reported`: The page states that this activity was tested, evaluated, audited or monitored **and** reports a result (a metric, a finding or a conclusion).\n- `conducted_no_results`: The page states that an evaluation, test, audit, pilot review or monitoring took place or is in place, but reports no result.\n- `required_or_planned`: The page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy finding that requires evaluation of GenAI tools takes this value.\n- CX-32b: A requirement to carry out a risk or impact assessment is **not** `required_or_planned`; it belongs to `has_risk_assessment` alone (consistent with CX-37).\n- CX-32c: A clause requiring periodic review of the GenAI policy itself counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy).\n- CX-32d: A required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as `required_or_planned`. A pure risk or impact assessment requirement stays under CX-32b.\n- `unclear`: The page makes an evaluative statement, but its subject, or whether it concerns this GenAI activity, cannot be settled. An evaluation clearly of a different tool or activity is `not_documented`, not `unclear`.\n- `not_documented`: The page has no evaluation statement about this activity.\n- CX-35..CX-39: no negative value; outcome claims need a described evaluation; risk/impact assessment counts only with testing or measured performance; vendor claims need a named institutional or independent evaluator; a pilot stage alone is `not_documented`.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:62-79",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: narrow CX-32c to evaluation of AI systems",
+    "mechanism": "Delete CX-32c's policy-review clause: a periodic review of the policy document is `not_documented` unless it requires testing, monitoring or evaluation of GenAI tools or their outputs.",
+    "benefits": "Keeps 'evaluation' about system performance; reduces co-movement with policy_guidance.",
+    "risks": "Reverses W3 = b and C3 = a (two signed rulings); policy-heavy institutions score lower.",
+    "commits_to": "Re-signature of CX-32c; fixture pages (R-084); no enum change."
+   },
+   "note": ""
+  },
+  {
+   "id": "X04",
+   "name": "evaluation_type_* (CX-41, six yes/no, gated)",
+   "frozen": true,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:85",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: gate on the post-downgrade value",
+    "mechanism": "Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.",
+    "benefits": "Prevents types without a supported evaluation; no wording change.",
+    "risks": "Adds a dependency between T-024 and pass 2 (may need a third jev round, or post-hoc voiding).",
+    "commits_to": "No re-signature if wording unchanged (procedural, PI approval); `_NA_` handling in T-012 enums."
+   },
+   "note": ""
+  },
+  {
+   "id": "X05",
+   "name": "content_* descriptive items (purpose, tool_or_model, vendor, data, users, status_date)",
+   "frozen": true,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated) ... each `yes` / `no` (yes = stated on the page).",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:93-94",
+   "chosen": {
+    "option_id": "alt-2",
+    "label": "Agent-drafted: keep page grain, gate by verdict",
+    "mechanism": "Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.",
+    "benefits": "Avoids crediting background or no-GenAI pages; defines the referent.",
+    "risks": "New wording, unpiloted; `_NA_` is a new value.",
+    "commits_to": "Re-signature; enum change (two version steps); re-pilot."
+   },
+   "note": ""
+  },
+  {
+   "id": "X06",
+   "name": "content_contact (w4: named OR details)",
+   "frozen": true,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "`content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers).",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:94",
+   "chosen": {
+    "option_id": "alt-3",
+    "label": "Agent-drafted: retain footers in stored text",
+    "mechanism": "Pipeline change: store a separate `chrome_text` (header/footer/nav) next to main text, and give jev both for the contact item only.",
+    "benefits": "Makes the signed 'site footers' clause operational and markup-independent.",
+    "risks": "Scraper change for one item; back-fill pages without stored chrome cannot be fixed without re-scrape.",
+    "commits_to": "Scrape-layer change (new card, outside N-004's 'beyond follow-up links' boundary: needs PI ruling); no CX re-signature."
+   },
+   "note": ""
+  },
+  {
+   "id": "X07",
+   "name": "content_* safeguard items (human_oversight, risk_assessment, user_notification)",
+   "frozen": true,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Safeguard items included, as Kaser does: `content_human_oversight`, `content_risk_assessment`, `content_user_notification`. **`content_user_notification` = yes only if the page describes a notice or label telling users they are interacting with GenAI or that content is AI-generated**; a page announcing that the institution uses GenAI is not by itself a notice (CX-01.1, W1 = a). The overlap with governance G1, G3, G4 is reported under R-070.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:95",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: derive Group D has_* from the same question",
+    "mechanism": "Ask each safeguard once per (page x activity) in pass 2 and derive both the page-level `content_*` (any activity yes) and the activity-level `has_*` (yes / not_documented) from it.",
+    "benefits": "One question, no internal contradiction; cheaper.",
+    "risks": "Changes the signed grain of CX-52 and the v2.5 vocabulary of `has_*` (which has `no` and `unclear`).",
+    "commits_to": "Re-signature; Group D enum review (two version steps if values change); other reviewer's Group D items."
+   },
+   "note": ""
+  },
+  {
+   "id": "X08",
+   "name": "content_contact_emails (CX-53 deterministic @ extraction)",
+   "frozen": true,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "When `content_contact` = yes, extract the contact with a deterministic `@` search over the stored page text (e-mail regex in `pilot/contact.py`, `EMAIL_RE`) and store the list beside the code (`content_contact_emails`). No API call.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:190",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: store internally, publish domain only",
+    "mechanism": "Store the full list internally; publish only the domain part (and a count), or only role addresses (no personal-name pattern).",
+    "benefits": "Keeps the PI's extraction; limits personal data in public/bulk outputs.",
+    "risks": "Less useful to users wanting to contact the institution.",
+    "commits_to": "Publication rule (PI ruling); D-007 interface; methods note. No change to CX-53 extraction text."
+   },
+   "note": ""
+  },
+  {
+   "id": "X09",
+   "name": "CX-60 'nothing found' normalisation (reported_outcomes / reported_incidents)",
+   "frozen": true,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Deterministic step (no API): map all \"nothing found\" spellings to `none_reported`. The mapping table is published with the code.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:105",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: jev decides existence first",
+    "mechanism": "Pass-2 jev Choice on page text: does the page report an outcome (incident) of this activity: quantified / qualitative / none? The extractor extracts verbatim text only when not none; CX-60 then applies to legacy rows only.",
+    "benefits": "Puts the classification with jev (R-001); CX-61 becomes the existence question itself.",
+    "risks": "Changes CX-61's input from stored text to page text (see X10).",
+    "commits_to": "Re-signature of CX-60/61; question-set change."
+   },
+   "note": ""
+  },
+  {
+   "id": "X10",
+   "name": "CX-61 outcome / incident kind (quantified / qualitative / none_reported)",
+   "frozen": true,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Remaining text: a jev `Choice` over the stored text: `quantified` / `qualitative` / `none_reported`.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:106",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: classify over page text with span",
+    "mechanism": "Ask CX-61 in pass 2 over the page text with the activity span marked; the extractor then quotes support for the chosen value.",
+    "benefits": "jev sees the evidence, not a selection; consistent with R-001.",
+    "risks": "Larger state; wording change.",
+    "commits_to": "Re-signature; question-set version bump; re-pilot."
+   },
+   "note": ""
+  },
+  {
+   "id": "X11",
+   "name": "CX coding grain and jev state (CX-01, CX-02, CX-05)",
+   "frozen": true,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "- CX-01: **Page fields** (`disclosure_form`, `disclosure_scope`, the optional `content_*` items) are properties of the source page. They are coded once per (institution × page), on the stored page text, and copied to every evidence row from that page.\n- CX-02: **Finding fields** (`evaluation_documented`, optional `evaluation_type_*`) are coded per (finding × page). The state given to jev is the page text plus that finding's `activity_name`, `activity_type`, `adoption_stage` and `tool_name`.\n- CX-05: The raw jev answer is stored with its probability distribution, confidence, response model id and request id.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:20-24",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: declare the state part of the frozen instrument",
+    "mechanism": "Pin a `state_schema` per question set (fields, order, chunk marker) in the codebook; any change to it counts as a wording change.",
+    "benefits": "Makes 'frozen' meaningful; programmatic linkage (RC-D-002 A) can hash it.",
+    "risks": "Exposes that v2.7 already changes the state, so a re-signature is needed now.",
+    "commits_to": "Re-signature of CX-01/02 with the v2.7 state; fixture re-run."
+   },
+   "note": ""
+  },
+  {
+   "id": "X12",
+   "name": "Supporting text per code (R-040)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "For every jev code on a page or activity, the extractor (C-001) extracts the verbatim supporting text from the page, after jev has coded.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:97",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: extractor quotes blind, before seeing the code",
+    "mechanism": "Extractor is asked for the passages relevant to each field without being told jev's value; jev's code is then checked against them (X35).",
+    "benefits": "Removes the confirmation incentive.",
+    "risks": "More text per call; quotes may not match the specific value.",
+    "commits_to": "SPEC delta to R-040 (PI approval); T-022/T-032 prompt approval."
+   },
+   "note": ""
+  },
+  {
+   "id": "X13",
+   "name": "Quote presence check (R-042)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Supporting text is checked against the stored page text by fuzzy match; a quote below the match threshold counts as no supporting text.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:99",
+   "chosen": {
+    "option_id": "keep",
+    "label": "Keep R-042 with T-003 calibration",
+    "mechanism": "rapidfuzz against stored text; threshold set by the PI after T-003.",
+    "benefits": "As approved (Q-020 b, DEC-007 a).",
+    "risks": "Short quotes pass trivially.",
+    "commits_to": "T-003 spike and PI threshold approval."
+   },
+   "note": ""
+  },
+  {
+   "id": "X14",
+   "name": "Downgrade rule (R-041)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "A positive or substantive code with no supporting text is downgraded: field to `unknown` (or the field's no-evidence value); institution verdict to `unclear` when no supported positive remains. Only positive or substantive values need support; `no`, `unknown`, `not_documented`, `_NA_` and negative page verdicts need none.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:98",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: per-field target table",
+    "mechanism": "Add a codebook column `downgrade_to` for every item (e.g. page verdict `confirms_activity` -> `ambiguous_genai`; yes/no items -> `unknown`, adding the value; genre -> `unknown`).",
+    "benefits": "Makes R-041 executable and auditable; programmatic linkage can read the column.",
+    "risks": "Adds `unknown` to yes/no items (enum change; CX items need re-signature).",
+    "commits_to": "Codebook column; CX re-signature where values are added; two version steps."
+   },
+   "note": ""
+  },
+  {
+   "id": "X15",
+   "name": "Confidence threshold 0.8 for all jev codes (R-081)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "One confidence threshold for all jev codes: 0.8. A code below 0.8 is downgraded as under R-041. This includes negative and absence codes: a page or field coded negative below 0.8 goes to `unclear` / `unknown`.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:133",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: probability threshold by cardinality",
+    "mechanism": "Threshold on the chosen value's probability (e.g. p >= 0.8 for every item), not jev's confidence.",
+    "benefits": "Same meaning across binary and multi-value items.",
+    "risks": "Different numbers from the ruled 0.8; needs re-sizing.",
+    "commits_to": "SPEC delta to R-081 (PI ruling); T-024; quality packet re-sized."
+   },
+   "note": ""
+  },
+  {
+   "id": "X16",
+   "name": "Chunk combination rule (R-044, CX §11.1)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Chunked pages (> 32k tokens, C-004): the CX-01.2 §11.1 combination rule applies to every field. Page fields take the first chunk's value; yes/no items are yes if any chunk says yes; ordered vocabularies take the first value in table order found in any chunk. The supporting quote comes from the chunk that produced the code.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:100",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: name the fields per rule",
+    "mechanism": "Replace 'page fields' with an explicit list: first chunk = `disclosure_form`, `disclosure_scope`; any-yes = `content_*`, completeness 'incomplete', `evaluation_type_*`; ordered = `evaluation_documented`, page verdict (order to be ruled); state that combined confidence is the producing chunk's.",
+    "benefits": "Unambiguous; matches §11.1; programmatic (codebook column `chunk_rule`).",
+    "risks": "Needs a PI order over the 8 verdict values.",
+    "commits_to": "SPEC delta to R-044 (PI); codebook column; A-021 fixtures updated."
+   },
+   "note": ""
+  },
+  {
+   "id": "X17",
+   "name": "Page completeness (R-030)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "The first pass also records whether the page holds all available information about every activity it mentions, or links to further pages with information about any of them.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:85",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: 'refers onward' question",
+    "mechanism": "jev Choice: 'Does the page refer the reader to another page or document for more information about a GenAI activity it mentions?' yes / no; asked only on the five R-003 verdicts.",
+    "benefits": "Answerable from text; fewer wasted fetches.",
+    "risks": "Misses incompleteness the page does not signal.",
+    "commits_to": "SPEC delta to R-030 (PI); T-011."
+   },
+   "note": ""
+  },
+  {
+   "id": "X18",
+   "name": "Follow-up links (R-031..R-036)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "R-031: When a page is not complete, the LLM extracts the follow-up links and they are sent back to the scrape phase; fetched pages then pass through the same classification. R-032: ... up to 3 hops ... A per-institution cap on followed URLs also applies ... R-033: Any link the page cites is eligible, including news and vendor pages. R-034: Each URL is fetched at most once per institution per run; every followed link records the page it came from (provenance chain). R-036: Pages fetched live during the back-fill are new source records tagged with their provenance ... They count as evidence but sit outside the original searched sample and never add to its denominator.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:86-91",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: tag discovery path on every source",
+    "mechanism": "Add a deterministic `discovery_path` (searched / followed hop n / back-fill followed) on every source row in all runs, and report prevalence with and without followed pages.",
+    "benefits": "Keeps comparability; no coding change.",
+    "risks": "One more column.",
+    "commits_to": "SPEC delta extending R-036 to all runs; D-007 field."
+   },
+   "note": ""
+  },
+  {
+   "id": "X19",
+   "name": "Supporting-text publication and length (R-043, DEC-016)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Supporting text is published with the code it supports. The API carries the full text; the website shows it up to a display cap, with a marker and access to the full text. (DEC-016 c: cap on website only, full text in API; cap value proposed by agent after T-003, PI sets.)",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:101",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: cap at extraction",
+    "mechanism": "The extractor returns at most N characters (script-adjusted) per quote; the same cap applies in API and site.",
+    "benefits": "Bounded payload and reuse exposure.",
+    "risks": "Some codes need longer context.",
+    "commits_to": "SPEC delta to R-043; T-022/T-032 prompts."
+   },
+   "note": ""
+  },
+  {
+   "id": "X20",
+   "name": "Contract version per row (R-050)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Every published row carries the contract version that produced it.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:107",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: instrument manifest id",
+    "mechanism": "Add `instrument_id` per row pointing to a manifest (contract versions, question-set version, jev model, extractor model + prompt hash, chunker, matcher + threshold, confidence threshold). See X36.",
+    "benefits": "Full reproducibility; meets the PI's radical-transparency principle.",
+    "risks": "One more table to maintain.",
+    "commits_to": "SPEC addition; D-007; T-027/T-028."
+   },
+   "note": ""
+  },
+  {
+   "id": "X21",
+   "name": "source_type (Group E col 33, §4.6)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "| `official_gov` | Government domain (.gov, .gouv, .go, etc.), gazette, parliamentary record |\n| `procurement_tender` | Tender notice, RFP, contract award, vendor selection document |\n| `news_major` | Major national/international news outlet (Reuters, BBC, NYT, Le Monde, NHK, etc.) |\n| `news_trade` | Technology or government trade press (GovTech, FedScoop, PublicTechnology, etc.) |\n| `vendor` | Vendor website, case study, blog post, or press release |\n| `academic` | Peer-reviewed paper, working paper, university report |\n| `policy_org` | Think tank, IGO, or policy organization (OECD, World Bank, ITU, Brookings, etc.) |\n| `social_media` | Official social media accounts (Twitter/X, LinkedIn from institutional accounts) |\n| `archive` | Wayback Machine, Google Cache, or other archived page |\n| `other` | None of the above; explain in `source_snippet` |",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:123, :204-217",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: jev Choice in pass 1",
+    "mechanism": "Add `source_type` to the pass-1 page question set with an order rule (first in table order) and the master official-site list in the state.",
+    "benefits": "Fits R-001; cheap (page state already sent); keeps the published column.",
+    "risks": "New jev question, unpiloted; overlaps `disclosure_form`.",
+    "commits_to": "T-011 question set; PI approval of non-contract wording (T-011 gate); fixture labels."
+   },
+   "note": ""
+  },
+  {
+   "id": "X22",
+   "name": "source_credibility hierarchy (col 35, §4.8)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "When sources conflict on coded values, the higher-credibility source wins:\n\n1. **`high`**: Government domains, procurement/tender portals, parliamentary/council records, annual reports, regulator publications, gazette notices.\n2. **`medium`**: Major news outlets, vendor case studies with named institutions, trade press, policy organization reports.\n3. **`low`**: Social media, blog posts, undated pages, anonymous sources, machine-translated content you could not fully verify.",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:228-234",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: deterministic mapping",
+    "mechanism": "`source_credibility` = fixed map from `source_type` (X21) plus `low` when `source_publication_date` = unknown; drop the translation clause.",
+    "benefits": "Reproducible, free, consistent.",
+    "risks": "Loses case-level judgement (e.g. an anonymous news blog on a major outlet's domain).",
+    "commits_to": "Codebook mapping table; T-024 or T-028; Stage 6 tests."
+   },
+   "note": ""
+  },
+  {
+   "id": "X23",
+   "name": "Row-level confidence (col 38, §4.9)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "| `high` | Coded values are based on a primary government source or multiple corroborating secondary sources. |\n| `medium` | Based on a single reputable secondary source without primary confirmation, OR primary source is ambiguous. |\n| `low` | Based on indirect evidence, machine-translated sources with potential misinterpretation, or a single non-authoritative source. |",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:133, :236-242",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: derive deterministically in Stage 6",
+    "mechanism": "high = at least one supported `confirms_activity` source with credibility high, or two independent (non-syndicated, X38) sources; medium = one medium source; low otherwise.",
+    "benefits": "Applies the criterion at the grain where it is answerable; reproducible.",
+    "risks": "Mapping choices are substantive and need PI sign-off.",
+    "commits_to": "Codebook rule; T-026; P-6 re-read."
+   },
+   "note": ""
+  },
+  {
+   "id": "X24",
+   "name": "uncertainty_flags vocabulary (col 39, §4.10)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "| `stage_ambiguous` | Cannot determine whether proposed, announced, pilot, or production |\n| `genai_vs_traditional_ai` | Source mentions \"AI\" but unclear whether generative AI specifically |\n| `institution_attribution` | Activity may belong to a parent ministry, sibling agency, or country-wide program rather than this specific institution |\n| `date_uncertain` | Year of announcement or deployment could not be reliably determined |\n| `source_language_barrier` | Key sources in a language you could not fully verify |\n| `vendor_undisclosed` | Tool/vendor identity not publicly stated |\n| `discontinued_uncertain` | Activity may have been discontinued but cannot confirm |\n| `scope_unclear` | Cannot determine whether internal-only or also public-facing |",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:244-271",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: derive flags deterministically",
+    "mechanism": "Compute each flag from codes (table above); add `identity_unresolved` for Stage 6 relations; drop `source_language_barrier`; `discontinued_uncertain` becomes a pass-2 jev yes/no.",
+    "benefits": "No new judgement; consistent with the codes; removes the overload.",
+    "risks": "Flags become a view of other columns (some may see them as redundant).",
+    "commits_to": "Enum change (two version steps); T-024/T-026; data dictionary."
+   },
+   "note": ""
+  },
+  {
+   "id": "X25",
+   "name": "source_snippet (col 37)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Verbatim excerpt or close paraphrase supporting the coded values. For non-English sources: English translation with original in parentheses. (Max 300 chars.)",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:127",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: snippet = the verdict's supporting quote",
+    "mechanism": "Define `source_snippet` on v2.7 rows as the verbatim supporting text of the page verdict (truncated), with no paraphrase.",
+    "benefits": "One verbatim field; no extra call.",
+    "risks": "Non-English snippets unreadable without X41.",
+    "commits_to": "Contract text change; T-022."
+   },
+   "note": ""
+  },
+  {
+   "id": "X26",
+   "name": "source_publication_date (col 31)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "When the source was published or last updated. (`YYYY-MM-DD` / `YYYY-MM` / `YYYY` / `unknown`.)",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:121",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: deterministic first, extractor second",
+    "mechanism": "Take dates from HTML metadata / PDF properties / URL patterns deterministically; if absent, the extractor returns a date with its verbatim quote, validated by R-042.",
+    "benefits": "Mostly free and reproducible; quote-backed otherwise.",
+    "risks": "Metadata dates are often CMS dates, not publication dates.",
+    "commits_to": "New deterministic module; T-022 field; DEC-009 table amended (PI)."
+   },
+   "note": ""
+  },
+  {
+   "id": "X27",
+   "name": "source_language (col 34)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "Primary language of the source (e.g., `en`, `fr`, `ja`). (ISO 639-1 code.)",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:124",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: deterministic language ID",
+    "mechanism": "Pinned local language-ID library on stored text; same tag grammar as `institution_search_languages`; `mul` when no language exceeds a set share.",
+    "benefits": "Free, reproducible, consistent with search tags.",
+    "risks": "Short or boilerplate-heavy pages misidentified.",
+    "commits_to": "New dependency; T-024 or a scrape-side module; tag grammar change (version steps if validated)."
+   },
+   "note": ""
+  },
+  {
+   "id": "X28",
+   "name": "source_title, source_url, source_access_date (cols 29, 30, 32)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "`source_url`: The URL of the supplied page, verbatim from the input. **Never fabricate or alter.** `source_title`: Page or document title as it appears (max 200 chars). `source_access_date`: Date the supplied page was retrieved (provided in the input metadata as the scrape date).",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:119-122",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: all three deterministic",
+    "mechanism": "Take `source_title` from RenderedPage.title (fallback: first heading); never from a model.",
+    "benefits": "Reproducible; removes an extractor field.",
+    "risks": "HTML titles can be generic ('Home').",
+    "commits_to": "T-028 writer; contract text."
+   },
+   "note": ""
+  },
+  {
+   "id": "X29",
+   "name": "Stage 6 institution verdict (R-005; validate v1.3 §3.1; v1.4 complete-context rule)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "R-005: ... institution-level `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a low-confidence negative downgraded under R-081 counts as one).\n\nv1.3 §3.1: `yes` <=> `len(activities) >= 1` AND >=1 source has `genai_evidence = confirms_activity`. `no` <=> `len(activities) == 0` AND every source has `genai_evidence = confirms_absence`. `unclear` <=> `len(activities) == 0` AND no source has `genai_evidence = confirms_activity` (sources are some mix of `ambiguous` / `background_only`; at least one such source exists).",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:65; C:/Users/spaci/worktrees/G3O-integrator/g3o/validate/prompts/output_contract.md:54-58",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: explicit truth table",
+    "mechanism": "Codebook table: `yes` if >= 1 supported `confirms_activity` page with a supported activity; `no` if every attempted page (incl. failed fetches and unfollowed links) ends in {no_genai, confirms_absence, event_only, other_body} at confidence >= 0.8 and no page is ambiguous, background_only or failed; otherwise `unclear`. Variant for PI: allow background_only in `no`.",
+    "benefits": "Reproducible, testable (A-010), no hidden choices.",
+    "risks": "The background_only choice changes `no` rates materially either way.",
+    "commits_to": "SPEC delta to R-005 (PI ruling on background_only and failures); T-026 tests."
+   },
+   "note": ""
+  },
+  {
+   "id": "X30",
+   "name": "Stage 6 activity identity and merging (R-005; v1.4 §9 relations)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "R-005: explicit relations before merging observations; distinct/unresolved relations never merge. v1.4 §9: Allowed relations: same_activity, component_of_program, shared_participation, distinct_action, unresolved. ... Merged observations require a connected set of explicit same-identity relations. Distinct/unresolved relations cannot be silently collapsed; unresolved identities retain scope_unclear.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:65; git show 052fcb2:g3o/validate/prompts/output_contract.md §9",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: no merge without a jev relation",
+    "mechanism": "Every pair of activity observations is asked, including identical names; candidate pairs pre-filtered deterministically only to skip obviously distinct pairs (different activity_type and tool), never to merge.",
+    "benefits": "Identity is always a jev decision with evidence.",
+    "risks": "More questions per institution.",
+    "commits_to": "Codebook rule; T-026; cost estimate."
+   },
+   "note": ""
+  },
+  {
+   "id": "X31",
+   "name": "Stage 6 conflict resolution on Group D fields (v1.3/v1.4 §4.2)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "After an evidence-based same-activity relation is established, compare independently supported Group D values using the source-credibility hierarchy from Output Contract §4.8 (Tier 1 = government / procurement / parliamentary; Tier 2 = major news / vendor case studies / trade press; Tier 3 = social / blogs / undated). Tie within a tier: most recent `source_publication_date`. Tie there: largest `source_snippet`.",
+   "current_source": "git show 052fcb2:g3o/validate/prompts/output_contract.md §4.2 (v1.3 text: C:/Users/spaci/worktrees/G3O-integrator/g3o/validate/prompts/output_contract.md:99-101)",
+   "chosen": {
+    "option_id": "alt-2",
+    "label": "Agent-drafted: jev answers the field over pooled evidence",
+    "mechanism": "For a merged activity, jev answers each Group D question once over the union of the activity's supported quotes from all its sources (state = quotes with source type and date).",
+    "benefits": "One coding rule for single and multi-source activities; no tie-break table.",
+    "risks": "Pooled quotes can exceed state limits; new instrument.",
+    "commits_to": "Codebook change; T-011 Stage 6 set; T-026; fixtures."
+   },
+   "note": ""
+  },
+  {
+   "id": "X32",
+   "name": "Stage 6 aggregates: confidence, flags, n_sources (v1.3 §4.1 rows 20-22)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "| 20 | n_sources | integer >=1 | | Count of `SourceRecord` entries with this `activity_id` |\n| 21 | confidence | enum | `high` / `medium` / `low` | Highest confidence across supporting input rows |\n| 22 | uncertainty_flags | array | ... | The union of the input rows' flags, ordered alphabetically. |",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/validate/prompts/output_contract.md:95-97",
+   "chosen": {
+    "option_id": "keep",
+    "label": "Keep count, max, union",
+    "mechanism": "As v1.3.",
+    "benefits": "Simple.",
+    "risks": "Syndication and optimism.",
+    "commits_to": "Inputs from X23/X24."
+   },
+   "note": ""
+  },
+  {
+   "id": "X33",
+   "name": "institution_summary (Group C col 9; v1.3 §3.2)",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "ONE sentence, max 300 chars. Take the most informative `institution_summary` from the input rows; tie-break by Tier-1 source. If `has_genai_activity = no`, briefly state what was reviewed.",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/validate/prompts/output_contract.md:60-62; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:83",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: deterministic template",
+    "mechanism": "Generate the summary from codes: verdict, number of activities, their types/stages, page counts reviewed and failed.",
+    "benefits": "Always consistent with codes; free.",
+    "risks": "Less informative prose.",
+    "commits_to": "Codebook template; T-026/T-028."
+   },
+   "note": ""
+  },
+  {
+   "id": "X34",
+   "name": "Stage 6 treatment of CX-01.2 fields",
+   "frozen": false,
+   "addition": false,
+   "pipeline": "",
+   "current_text": "CX-04: The codebook stores page-level and finding × page codes only. How page codes roll up to a finding, institution or country is an index decision (index decisions 6–8), not a codebook rule.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:23",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: descriptive roll-up for display only",
+    "mechanism": "Stage 6 computes a display value per activity (any supported positive; first in table order for ordered fields), labelled 'display roll-up, not an index input'.",
+    "benefits": "Users see one value; index remains free.",
+    "risks": "A second 'official-looking' number beside the index.",
+    "commits_to": "Codebook rule (not CX re-signature: CX-04 unchanged for indices); T-026."
+   },
+   "note": ""
+  },
+  {
+   "id": "X35",
+   "name": "Addition: jev entailment check of supporting quotes",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: jev Noul per (code, quote)",
+    "mechanism": "State = quote (plus a short window); question: 'Does this text state that <field> is <value>?' true/false; false or confidence < threshold -> downgrade `no_support`.",
+    "benefits": "Uses the classifier for a closed question; makes G-002 a support claim.",
+    "risks": "Extra requests (small states); jev may share the coding error.",
+    "commits_to": "SPEC addition (PI); T-011/T-024; cost estimate before paid runs."
+   },
+   "note": ""
+  },
+  {
+   "id": "X36",
+   "name": "Addition: instrument manifest per row",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: manifest table + id per row",
+    "mechanism": "A manifest (contract versions, `JEV_QUESTION_SET_VERSION`, jev model, extractor model id + prompt SHA-256, chunker + estimator version, matcher + threshold, confidence threshold, codebook item hashes) keyed by `instrument_id` on every row.",
+    "benefits": "Full provenance; supports RC-D-002's programmatic linkage (each question traces to an item hash).",
+    "risks": "Another table and column.",
+    "commits_to": "SPEC addition; T-027/T-028/T-051; D-007."
+   },
+   "note": ""
+  },
+  {
+   "id": "X37",
+   "name": "Addition: source_on_official_domain (deterministic)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: three-value deterministic field",
+    "mechanism": "`own_official` / `other_official` / `not_official` from URL host vs the master official-site overlay.",
+    "benefits": "Free; reproducible; feeds X21/X22/X18.",
+    "risks": "Overlay coverage gaps produce false `not_official`.",
+    "commits_to": "New column; overlay version recorded in X36."
+   },
+   "note": ""
+  },
+  {
+   "id": "X38",
+   "name": "Addition: syndication / near-duplicate group",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: text-hash group id",
+    "mechanism": "Deterministic near-duplicate hash (e.g. shingled MinHash on normalised text) per page; `syndication_group` id; QC flag when codes differ within a group.",
+    "benefits": "Free; exposes inconsistency; supports X32.",
+    "risks": "Threshold choice; templated pages may group falsely.",
+    "commits_to": "New column; library pin; T-024/T-026."
+   },
+   "note": ""
+  },
+  {
+   "id": "X39",
+   "name": "Addition: page review state (fetch / text / cap)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: `page_review_state`",
+    "mechanism": "`reviewed` / `fetch_failed` / `no_usable_text` / `link_not_followed_cap` / `link_not_followed_hops`; non-`reviewed` states count as unresolved signals in Stage 6.",
+    "benefits": "Makes failures visible; R-075 reconciliation uses it.",
+    "risks": "More `unclear`.",
+    "commits_to": "SPEC addition (PI); T-021/T-025/T-026; D-007."
+   },
+   "note": ""
+  },
+  {
+   "id": "X40",
+   "name": "Addition: public support_status per code",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "alt-1",
+    "label": "Agent-drafted: publish `support_status` beside each code",
+    "mechanism": "`supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `not_required` per code.",
+    "benefits": "Meets the transparency attribute; enables X14 alt-2 and X15 alt-3.",
+    "risks": "Doubles column count for coded fields.",
+    "commits_to": "SPEC addition; D-007; data dictionary."
+   },
+   "note": ""
+  },
+  {
+   "id": "X41",
+   "name": "Addition: supporting-text translation",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "alt-2",
+    "label": "Agent-drafted: translate on display only",
+    "mechanism": "Website translates on demand; nothing stored.",
+    "benefits": "No stored non-verbatim text.",
+    "risks": "Not available in API/bulk.",
+    "commits_to": "Website-only change (Colin)."
+   },
+   "note": ""
+  },
+  {
+   "id": "P01",
+   "name": "procurement notice stage (tender | award | unknown) and award status",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "procurement",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P01b",
+    "label": "Keep in procurement module",
+    "mechanism": "Stays in procurement_record schema; codebook only documents the mapping rule notice_type -> adoption_stage",
+    "benefits": "Core stays channel-neutral; matches ES §1 rule 4 ('extension table, never replacement typology')",
+    "risks": "Rule that sets a core item depends on a value defined outside the codebook",
+    "commits_to": "Mapping table versioned with the procurement module"
+   },
+   "note": ""
+  },
+  {
+   "id": "P02",
+   "name": "contract value block (amount, currency, estimated vs awarded, coverage, source, completeness, tax)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "procurement",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P02b",
+    "label": "Procurement module only",
+    "mechanism": "Extension table remains the home; codebook lists it as module item with IDs",
+    "benefits": "Keeps money rules where the evidence is structured",
+    "risks": "Two places to look for one variable if other channels start coding budgets",
+    "commits_to": "Module versioning; Q-005 still needed"
+   },
+   "note": ""
+  },
+  {
+   "id": "P03",
+   "name": "procedure type and bidder count",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "procurement",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P03b",
+    "label": "Module item; only the attribution outcome enters core",
+    "mechanism": "Core sees the result (role / institution_attribution flag), not the procedure",
+    "benefits": "Core vocabulary unchanged",
+    "risks": "Reviewers of a core row cannot see why attribution went where it did without the module",
+    "commits_to": "Module documents the rule"
+   },
+   "note": ""
+  },
+  {
+   "id": "P04",
+   "name": "supplier role and contracting-party vs provider",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "procurement",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P04a",
+    "label": "Amend core vendor definition + add supplier_role in core",
+    "mechanism": "Split `vendor` into provider vs contracting party, or add role",
+    "benefits": "Fixes a known ambiguity for web pages too (vendor pages vs resellers)",
+    "risks": "Core column change = version bumps (C-007) and back-fill question",
+    "commits_to": "Contract bump; PI wording; back-fill policy"
+   },
+   "note": ""
+  },
+  {
+   "id": "P05",
+   "name": "contractual governance terms (audit rights, IP, liability, data residency, exit/lock-in, penalty, human-oversight requirement)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "procurement",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P05a",
+    "label": "Core governance module shared with CX-01.2",
+    "mechanism": "One governance item family with grain tags (activity / page / contract document); jev codes enums, extractor quotes clauses",
+    "benefits": "One definition of 'human oversight' across grains; reuses jev + R-040 machinery",
+    "risks": "CX-01.2 wording is frozen and signed (CX §10, RSPEC R-025); merging reopens it",
+    "commits_to": "Re-signature of affected CX items; grain rules"
+   },
+   "note": ""
+  },
+  {
+   "id": "P06",
+   "name": "institution attribution role (contracting authority / beneficiary / central purchasing body)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "procurement",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P06a",
+    "label": "Core item",
+    "mechanism": "`attribution_role` on core rows (web pages also show ministries acting for agencies)",
+    "benefits": "Makes multi-institution evidence explicit everywhere",
+    "risks": "Changes core grain semantics (one row per institution) for all channels",
+    "commits_to": "Contract bump; Stage 6 rules"
+   },
+   "note": ""
+  },
+  {
+   "id": "P07",
+   "name": "contract period (start/end) and lot",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "procurement",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P07a",
+    "label": "Module only",
+    "mechanism": "Unchanged",
+    "benefits": "Keeps year_deployed honest",
+    "risks": "Analysts may read contract dates as deployment",
+    "commits_to": "Docs"
+   },
+   "note": ""
+  },
+  {
+   "id": "P08",
+   "name": "assessability outcome (not_assessable / not_scored with reason)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "procurement, ai_text_detection",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P08a",
+    "label": "Add a page/source verdict value (e.g. `not_assessable`) to the core 8-value set",
+    "mechanism": "9th value; excluded from denominators",
+    "benefits": "Uniform handling in Stage 6 and reports",
+    "risks": "Third enum bump on the same column; main pipeline may start using it as an escape hatch",
+    "commits_to": "Version bumps; Stage 6 rule for weight in aggregation"
+   },
+   "note": ""
+  },
+  {
+   "id": "P09",
+   "name": "document-level AI-text score (label, fractions, z_d, y_e)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "ai_text_detection",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P09a",
+    "label": "Shared codebook item with grain = document",
+    "mechanism": "Items with IDs, definitions, value ranges, missingness; coverage ai_text only",
+    "benefits": "Public dictionary in one place; versioned definitions of z_d vs share_ai",
+    "risks": "Places vendor-defined quantities (Pangram labels) inside the observatory codebook; vendor model changes silently (DP brief T1 caveat) and would masquerade as codebook stability",
+    "commits_to": "Detector-version pinning rules in the codebook"
+   },
+   "note": ""
+  },
+  {
+   "id": "P10",
+   "name": "detector identity and version provenance",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "ai_text_detection",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P10a",
+    "label": "Shared provenance schema for every automated coder (jev, extractor, detector, deterministic rules)",
+    "mechanism": "`coder_type`, `coder_model`, `coder_version`, `request_id` common across channels",
+    "benefits": "Uniform transparency record (radical-transparency principle)",
+    "risks": "Schema churn across three repos",
+    "commits_to": "Provenance schema owner"
+   },
+   "note": ""
+  },
+  {
+   "id": "P11",
+   "name": "institution-level AI-drafting estimand and its relation to has_genai_activity",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "ai_text_detection",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P11a",
+    "label": "Separate core item (e.g. `published_text_ai_use`) never merged into has_genai_activity",
+    "mechanism": "Own values (evidence_of_use / no_evidence_of_use / insufficient) and intervals; Stage 6 untouched",
+    "benefits": "Keeps documentary and statistical evidence apart; 'no' cannot be misread as absence",
+    "risks": "Two 'does this institution use GenAI' answers can disagree publicly",
+    "commits_to": "Display rules; PI choice between PS and cue verdicts"
+   },
+   "note": ""
+  },
+  {
+   "id": "P12",
+   "name": "document classification dimensions (genre, drafter, centrality, importance, template share)",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "ai_text_detection",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P12a",
+    "label": "Shared page-level module with crosswalks",
+    "mechanism": "genre, disclosure_form, source_type defined together with explicit crosswalk tables",
+    "benefits": "One document typology family; reuse across pipelines",
+    "risks": "Merging signed CX wording; genre is designed for importance weighting, not transparency",
+    "commits_to": "Re-signature; crosswalk ownership"
+   },
+   "note": ""
+  },
+  {
+   "id": "P13",
+   "name": "sampling frame and design weights",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "ai_text_detection (and main frame sampler)",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P13a",
+    "label": "Keep out of the codebook (design/run metadata registry)",
+    "mechanism": "Separate design manifest schema",
+    "benefits": "Codebook stays about what documents say",
+    "risks": "wb_region is an institution descriptor that may deserve master status",
+    "commits_to": "Master team decision on wb_region"
+   },
+   "note": ""
+  },
+  {
+   "id": "P14",
+   "name": "GenAI-era cutoff and date provenance",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "ai_text_detection (could serve main year fields)",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P14a",
+    "label": "One shared constant + date-provenance items",
+    "mechanism": "Codebook defines cutoff date and date_source/date_confidence vocabulary",
+    "benefits": "Ends X16; main year fields gain provenance",
+    "risks": "Choosing one cutoff is substantive (ChatGPT release vs 2023)",
+    "commits_to": "PI ruling on cutoff"
+   },
+   "note": ""
+  },
+  {
+   "id": "P15",
+   "name": "per-row instrument version and channel tag",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "all",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P15a",
+    "label": "Mandatory `codebook_version` + `evidence_channel` on every row",
+    "mechanism": "Channel enum (web_extract, procurement, text_detection)",
+    "benefits": "Consolidation can apply channel-specific rules; mixed-version display (R-051) works across channels",
+    "risks": "Another column every pipeline must emit",
+    "commits_to": "Enum owner"
+   },
+   "note": ""
+  },
+  {
+   "id": "P16",
+   "name": "language-coverage status",
+   "frozen": false,
+   "addition": true,
+   "pipeline": "procurement, ai_text_detection",
+   "current_text": "",
+   "current_source": "",
+   "chosen": {
+    "option_id": "P16a",
+    "label": "Shared item owned by multilingual-pipeline subproject",
+    "mechanism": "Defined with the language-readiness bar",
+    "benefits": "Matches G3O routing rule (all multilingual work there)",
+    "risks": "Dependency on another subproject's timeline",
+    "commits_to": "Multilingual subproject ownership"
+   },
+   "note": ""
+  }
+ ]
+}

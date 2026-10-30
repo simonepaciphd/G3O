@@ -1,0 +1,2147 @@
+{
+ "area": "classification-core",
+ "items": [
+  {
+   "id": "C01",
+   "name": "Page verdict vocabulary (`genai_evidence` 4 values vs v2.7 8-value page verdict)",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.5 (production) §4.7:\n\n- `confirms_activity` | Source documents a specific GenAI activity at this institution\n- `confirms_absence` | The supplied page text contains no GenAI evidence relevant to this institution\n- `ambiguous` | Source mentions AI but unclear whether generative AI, or mentions GenAI but unclear whether this institution is involved\n- `background_only` | Source provides general context (country AI strategy, vendor overview) but does not document activity at this specific institution\n\nSPEC R-015 (locked): \"Page-verdict vocabulary has 8 values: the 7 re-pilot 2 values (`confirms_activity`, `ambiguous_genai`, `ambiguous_attribution`, `other_body` = v2.6 `other_actor`, `event_only` = v2.6 `excluded_event`, `background_only`, `no_genai`) plus v2.5 `confirms_absence` (page states absence; distinct from `no_genai`, no relevant content). It replaces v2.5 `genai_evidence` in the same column.\"\n\nRe-pilot 2 jev instruction (unclear2.py L84-85): \"Code this PAGE for the named institution only, using only what the page says. Does it document a generative-AI activity at this institution? If several values fit, take the first in this order.\" Definitions at unclear2.py L33-54 (confirms_activity text quoted under C02/C04; `event_only`: \"The only GenAI content is a public-facing event, workshop, seminar, showcase or educational programme, with no documented adoption, procurement, deployment or governance by the institution itself (WS10 D1: not a qualifying activity).\"; `background_only`: \"The page gives only general context (national AI strategy, vendor overview, news about GenAI in general) and documents no activity at this institution.\"; `no_genai`: \"The page contains no generative-AI content relevant to this institution.\")",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:223-226; C:/Users/spaci/repos/G3O/planning/SPEC.md:71; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:32-55, 84-85",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "semantic-drift / comparability",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:224; 052fcb2:g3o/extract/prompts/system_prompt.md:72-74; C:/Users/spaci/repos/G3O/planning/SPEC.md:71",
+     "text": "The token `confirms_absence` carries three different meanings in the same column: v2.5 = page has no GenAI evidence (the v2.7 `no_genai`); v2.6 = excluded event OR no qualifying content OR definite other actor; v2.7 R-015 = \"page states absence\". R-015 keeps v2.5 rows unconverted in the same column and relies on the row's contract version. Any query or join that pools rows by value without filtering on version will silently mix these meanings."
+    },
+    {
+     "severity": "high",
+     "type": "undefined-category",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:71; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/report-repilot2.json; 052fcb2:tests/fixtures/exval_cases.json case Central Coast",
+     "text": "v2.7 `confirms_absence` (\"page states absence\") has no operational definition, worked example, or position in the first-in-order list, and was never piloted (re-pilot 2 had 7 values; report-repilot2.json has no such value). Open cases: \"the council does not currently use AI\"; an AI register listing zero systems; a ban on GenAI use. The ban is qualifying governance under WS10 D2 (Central Coast fixture, expected `qualifying`), so the value overlaps `confirms_activity` unless the definition excludes rules."
+    },
+    {
+     "severity": "high",
+     "type": "empirical / attribution",
+     "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/answers-repilot2.jsonl (0 of 372 pages); H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/report-repilot2.json; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/HANDOFF.md:100-101",
+     "text": "`ambiguous_attribution` was chosen on 0 of 372 re-pilot 2 pages (highest probability on any page 0.31) while `other_body` was chosen on 59. Once `other_body` existed, the uncertain-attribution value effectively disappeared. Because `other_body` maps to v2.6 `other_actor` and then to source-bounded absence, uncertain attribution may now be recorded as definite other-body and count toward an institution `no`. The handoff reports attribution errors 12 -> 3 against the Pilot 4 agent read, but that read is not a gold set."
+    },
+    {
+     "severity": "high",
+     "type": "reliability / confidence",
+     "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/answers-repilot2.jsonl (computed: 284 of 372 page answers confidence < 0.8)",
+     "text": "In re-pilot 2, 284 of 372 page answers (76%) had confidence below 0.8: no_genai 110/149, event_only 41/50, other_body 44/59, ambiguous_genai 49/52, background_only 28/34, confirms_activity 12/28. Median confidence was 0.46-0.59 for every value except confirms_activity (0.83). Under R-081 each of these is downgraded. Caveat: the sample is 250 institutions that v2.5 coded unclear (hard cases), so it is not representative of the back-fill. This depends on the downgrade item owned by the other reviewer."
+    },
+    {
+     "severity": "medium",
+     "type": "chunk-combination conflict",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:R-044; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:137; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/answers-repilot2.jsonl key r20261018T154238Z-c0e5|INST-0032750|60d0cd02f257862154339674d00f6c7c",
+     "text": "R-044 says \"Page fields take the first chunk's value\", but the re-pilot combined chunks by first-in-order, which is what produced the reported numbers. On the cited page, chunk 1 = ambiguous_genai (0.25) and chunk 2 = confirms_activity (0.31): the re-pilot rule gives confirms_activity and R-044 gives ambiguous_genai. The codebook has to say which rule governs the verdict."
+    },
+    {
+     "severity": "medium",
+     "type": "non-exclusive categories / order dependence",
+     "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:85; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/report-repilot2.json page_old_to_new",
+     "text": "The values are not mutually exclusive (one page can hold another body's activity, an event, and a stray generic-AI sentence). Classification therefore depends on the \"take the first in this order\" instruction. The order also makes substantive choices: `ambiguous_genai` ranks above `other_body` and `event_only`, so one generic \"AI strategy\" sentence turns a settled other-body or event page into unclear. jev's probability output does not show whether the order instruction was applied."
+    },
+    {
+     "severity": "medium",
+     "type": "overlap",
+     "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:47-53; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/report-repilot2.json (background_only -> other_body 14 pages)",
+     "text": "`background_only` (\"news about GenAI in general\") and `other_body` (a GenAI activity of a different body) overlap for news about another government's deployment. Between re-pilots, 14 pages moved background_only -> other_body."
+    },
+    {
+     "severity": "medium",
+     "type": "missing state",
+     "evidence": "052fcb2:g3o/common/evidence_review.py:61-63; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/HANDOFF.md:106",
+     "text": "v2.6 had an `inaccessible` disposition (failed access, mapped to ambiguous). The 8 values have nothing for failed fetches, empty text or raw `%PDF` bytes. The handoff notes 2 re-pilot confirms that rested on raw-PDF text (URL and title only). R-074 re-scrapes such pages, but pages that still fail need a verdict or a named pipeline state."
+    },
+    {
+     "severity": "low",
+     "type": "crosswalk",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:223-226; C:/Users/spaci/repos/G3O/planning/SPEC.md:71",
+     "text": "v2.7 -> v2.5 maps many-to-one except `background_only` and the new `confirms_absence`. v2.5 -> v2.7 is one-to-many (`ambiguous` splits in two; v2.5 `confirms_absence` splits into no_genai / event_only / other_body). The two directions are not symmetric, and no crosswalk table is written down."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 4-value `genai_evidence` (production text)",
+     "mechanism": "One jev Choice with 4 values, as defined in §4.7.",
+     "benefits": "Full comparability with every published row; no enum change; procurement copy unchanged.",
+     "risks": "Does not separate event-only, other-body and generic-AI cases, which WS10 D1/D3 and ruling 8 b require. `confirms_absence` absorbs WS10 exclusions.",
+     "commits_to": "Reopening rulings 8 b and SF-007 c and SPEC R-015 (locked). No version bump."
+    },
+    {
+     "id": "spec-locked",
+     "label": "R-015 as locked: 8 values (re-pilot 2 wording + `confirms_absence` = page states absence)",
+     "mechanism": "One jev Choice with 8 values and a first-in-order tie-break; v2.5 rows keep 4-value answers, told apart by row contract version.",
+     "benefits": "Already ruled. 7 of the 8 values were piloted (re-pilot 2, $0.097). Separates the WS10 categories.",
+     "risks": "The findings above: the same token means three things, `confirms_absence` is undefined and unpiloted, `ambiguous_attribution` is collapsing, and the chunk rule conflicts with R-044.",
+     "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). A-011 fixtures for all 8 values, including a fixture for page-stated absence."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: 8 values, with the new absence value renamed and defined",
+     "mechanism": "Rename the 8th value to `states_absence` and retire the token `confirms_absence` for v2.7 rows. Definition (draft): \"The page explicitly states that this institution does not use, has not adopted, or has no generative-AI systems. A rule restricting or prohibiting GenAI use is governance (`confirms_activity`), not absence.\" Order: confirms_activity, ambiguous_genai, ambiguous_attribution, other_body, event_only, states_absence, background_only, no_genai. Add one sentence to `other_body`: \"Use only when the page names the other body as the actor; if it is unclear whether the named institution takes part, use ambiguous_attribution.\" Write the chunk rule as the re-pilot's first-in-order rule, and amend R-044 for the verdict.",
+     "benefits": "A value means one thing across versions. Bans are kept out of absence. Pushes uncertain attribution back into the uncertain value. Matches the combination rule that produced the piloted numbers.",
+     "risks": "A new name breaks the R-015 sentence \"plus v2.5 `confirms_absence`\". The other_body sentence is untested and could lower other_body precision.",
+     "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). SPEC delta on R-015 and R-044 (integrator). A re-pilot of the changed wording on the 250-institution sample (about $0.10, PI-run)."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: split into three single-dimension jev questions and derive the verdict",
+     "mechanism": "Q1 GenAI content: none / generic AI only / explicit GenAI. Q2 attribution of the GenAI content: this institution / organisational unit of this institution / definite other body / uncertain / no actor named. Q3 action: qualifying action / public event or education only / general context only / explicit statement of non-use. A published deterministic table maps (Q1, Q2, Q3) to the 8 verdict values.",
+     "benefits": "Each question is one dimension, which is easier to audit. Combining chunks per question is well defined (e.g. any-yes for explicit GenAI). No ordering instruction. Attribution errors can be measured separately.",
+     "risks": "About three times the jev questions per page (cost and latency). The approved wording is not used as one question, so the re-pilot evidence does not carry over. More combinations need fixtures.",
+     "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). A full re-pilot and new A-011/A-012 fixtures. SPEC delta on R-015/R-016."
+    }
+   ],
+   "depends_on": [
+    "C02",
+    "C03",
+    "C04",
+    "C05"
+   ],
+   "notes": "The downgrade threshold (R-081), supporting text, and source_type/credibility are owned by the other reviewer; finding 4 is reported here only because it decides how the verdict works in practice."
+  },
+  {
+   "id": "C02",
+   "name": "Generative-AI boundary (what counts as GenAI; chatbot / assistant rule)",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.5 system prompt L11: \"**Include:** large language models (GPT, Claude, Gemini, LLaMA, Mistral, etc.), text-to-image generators, code-generation tools (GitHub Copilot, Amazon CodeWhisperer), sovereign/national LLMs (France's Albert, etc.), GenAI-powered chatbots, and any tool explicitly described as using generative AI, LLMs, or foundation models.\" L13: \"**Exclude:** traditional machine learning (fraud detection classifiers, predictive analytics), robotic process automation (RPA) without a generative component, rule-based chatbots without LLM backends, general \"AI strategies\" that do not specifically reference generative AI.\" L15-21: positive signal required (1 named LLM/product, 2 explicit generative-capability description incl. \"drafts, writes, summarizes, translates, or generates\", 3 explicit label); \"A \"chatbot,\" \"virtual assistant,\" or \"automation\" mentioned **without** one of these three signals is not sufficient evidence of GenAI activity\".\n\nRe-pilot 2 (unclear2.py L36, L41-44): \"The text must be explicitly generative AI (LLMs, ChatGPT, Copilot, Gemini, AI chatbots, AI-generated content or equivalents) ... Generic 'AI', 'artificial intelligence', 'smart' systems, automation, analytics, prediction, transcription, translation, image or video recognition, or traditional machine-learning tools do not count unless the page says the tool generates text, images, audio, code or other content, or names a generative product or model (e.g. ChatGPT, Copilot, Gemini, Claude, an LLM, an AI chatbot or AI assistant).\"\n\nSPEC R-016: \"A named \"AI chatbot\" or \"AI assistant\" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming. Contract §4.1 is unchanged: a generic \"AI strategy\" or \"AI tools\" stays `unclear`\".",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:11-23; 052fcb2:g3o/extract/prompts/system_prompt.md:58-59; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:36, 41-44; C:/Users/spaci/repos/G3O/planning/SPEC.md:72",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "conflict with retained fixtures",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json cases Clark Wilma (review_record 3213), Cumberland Ask CCNC; C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:39 (DEC-018 b)",
+     "text": "DEC-018 b keeps the 30 v2.6 fixtures as tests. Two of them expect holds on exactly the wording R-016 now makes positive. Clark Wilma (\"AI Assistant Wilma Clark\") has expected disposition `unresolved`, rationale \"no explicit LLM/generative mechanism found\". Cumberland Ask CCNC (\"launches AI chatbot\") is held. Under R-016 both become `confirms_activity`. The PI has to sign relabelled expectations, or the tests will fail."
+    },
+    {
+     "severity": "high",
+     "type": "construct validity / temporal",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:13, 15; C:/Users/spaci/repos/G3O/planning/SPEC.md:72",
+     "text": "The contract itself says rule-based chatbots without LLM backends are excluded (L13) and that \"chatbot\", \"virtual assistant\" and similar words are \"routinely\" used for non-generative systems (L15). R-016 accepts the label \"AI chatbot\" / \"AI assistant\" with no date or mechanism condition, so non-generative assistants labelled \"AI\" code as GenAI. The error pushes prevalence upward, and it cannot be separated afterwards unless the basis for the GenAI call is stored (see A01)."
+    },
+    {
+     "severity": "medium",
+     "type": "internal contradiction (translation)",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:18; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:42; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:197",
+     "text": "v2.5 counts a system that \"translates\" as an explicit generative-capability signal (L18). Re-pilot 2 lists \"translation\" among things that \"do not count unless the page says the tool generates\" content. `interaction_type` also has a `translation` value. Whether machine translation counts as generating content is undecided."
+    },
+    {
+     "severity": "medium",
+     "type": "reliability (one-word boundary)",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:15; C:/Users/spaci/repos/G3O/planning/SPEC.md:72",
+     "text": "Under the merged rule, \"virtual assistant\" and \"digital assistant\" are still not evidence (v2.5 L15), but \"AI assistant\" is. One word now separates positive from ambiguous, and the codebook does not give equivalents in other languages (a multilingual-pipeline matter). Two coders, or jev across languages, will split on near-synonyms."
+    },
+    {
+     "severity": "medium",
+     "type": "scope breadth",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json case Liverpool Plains (C05); H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:36",
+     "text": "\"AI-generated content\" and \"content generation\" count as GenAI. The Liverpool Plains fixture accepts GenAI by \"functional inference\" from \"AI-enabled systems for research, content generation\". Central Coast qualifies from one sentence refusing \"Works created using AI or other generative technologies\". The boundary now admits mentions as well as tools. This is consistent with WS10, but it widens the construct."
+    },
+    {
+     "severity": "low",
+     "type": "pointer precision",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:72; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:13, 15, 21",
+     "text": "R-016 cites \"contract L12\" for the rule-based-chatbot exclusion and `system_prompt.md` L15 for the chatbot rule. The exclusion is system_prompt.md L13 (L12 is blank), and the chatbot sentence is L21 (L15 is the positive-signal paragraph). Someone editing by pointer could change the wrong sentence."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 three-signal rule, chatbot alone not sufficient",
+     "mechanism": "Positive only with a named model or product, an explicit generative-capability description, or an explicit GenAI label. Bare \"chatbot\" / \"AI assistant\" -> ambiguous.",
+     "benefits": "Conservative and matches the v2.6 fixtures. Lower false-positive risk from legacy assistants.",
+     "risks": "Misses real LLM chatbots that pages describe only as \"AI chatbot\". Reverses R-016 (Q7 b, SF-008 a).",
+     "commits_to": "A PI re-ruling on R-016. No enum change. Re-pilot wording edited to drop \"an AI chatbot or AI assistant\" (as HANDOFF caveat ii suggested)."
+    },
+    {
+     "id": "spec-locked",
+     "label": "R-016: re-pilot 2 wording; named \"AI chatbot\" / \"AI assistant\" counts",
+     "mechanism": "The re-pilot 2 confirms_activity text governs; v2.5 L15/L21 and v2.6 L58 are amended to match.",
+     "benefits": "Already ruled; piloted wording; catches LLM chatbots described only by label.",
+     "risks": "Upward bias from non-generative \"AI\" assistants, which cannot be undone afterwards. Fixture conflicts (Clark Wilma, Ask CCNC). The translation contradiction stays.",
+     "commits_to": "Relabelled fixtures signed by the PI. A-012 fixtures. Amended system-prompt text. No enum change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: R-016 boundary plus a stored mechanism basis",
+     "mechanism": "Keep R-016, and record for every positive which signal established GenAI (A01: named product/model, explicit label, generative capability described, named AI chatbot/assistant only). Also settle translation: (a) \"translation counts only when the page ties it to a named GenAI product or says it is generated by an LLM\", or (b) \"translation counts as generative capability\". The PI picks a or b.",
+     "benefits": "Keeps the ruled boundary while letting analysts drop R-016-only positives in a robustness check. Resolves the translation contradiction explicitly.",
+     "risks": "One more jev question per positive page. The PI still has to choose a or b on translation.",
+     "commits_to": "Adding A01 (a new field: schema, API and site columns). A small re-pilot of the A01 question."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: R-016 with a date condition",
+     "mechanism": "\"An 'AI chatbot' or 'AI assistant' counts as generative only when the page, or the activity's stated launch, is dated 2023 or later. Earlier or undated: `ambiguous_genai` unless another signal is present.\" Applied deterministically after jev from the publication or launch year.",
+     "benefits": "Targets the legacy-assistant error directly.",
+     "risks": "The cutoff year is arbitrary. Many pages are undated (v2.6: footer copyright is not a publication date), so undated LLM chatbots go back to ambiguous. Depends on source_publication_date quality (other reviewer).",
+     "commits_to": "A deterministic rule that depends on a date field outside this scope. The PI chooses the cutoff year. Fixtures for dated and undated cases."
+    }
+   ],
+   "depends_on": [
+    "C01",
+    "A01",
+    "C11"
+   ],
+   "notes": "The 17 ambiguous->no moves were ruled instrument error (Q-003 a). Any v2.7 question generated from the codebook must keep the sentence \"generic 'AI strategy' / 'AI tools' stays ambiguous_genai\" explicit."
+  },
+  {
+   "id": "C03",
+   "name": "Institution-level `has_genai_activity` and the rule that a page cannot issue institution-wide `no`",
+   "kind": "existing",
+   "linkage": "pipeline",
+   "current_text": "v2.5 §4.1: \"`yes` | At least one source documents a specific GenAI tool, pilot, policy, or deployment at this institution. `no` | All supplied pages for this institution have been reviewed and contain no mention of GenAI, LLMs, ChatGPT, Copilot, or equivalents. `unclear` | Ambiguous signals that could indicate GenAI activity but cannot be confirmed.\"\n\nv2.6 system prompt (Per-page verdict): \"A single supplied page cannot establish completion of the institution's remaining evidence review. Emit has_genai_activity=yes when this page supports a qualifying activity at the searched institution; otherwise emit unclear, including a clearly excluded event or no-qualifying-content page. Stage 6 determines a reviewed-evidence no only after the pipeline supplies complete context and no unresolved signal.\"\n\nSPEC R-005: \"institution-level `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a low-confidence negative downgraded under R-081 counts as one).\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:146-148; 052fcb2:g3o/extract/prompts/system_prompt.md:113-119; 052fcb2:g3o/validate/prompts/output_contract.md:56-58; C:/Users/spaci/repos/G3O/planning/SPEC.md:65",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "definition contradicts ruling",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:147; H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/DECISIONS-followup.md:23",
+     "text": "The v2.5 `no` requires pages that \"contain no mention of GenAI\". Under WS10 D3 and the 8 values, event-only and other-body pages mention GenAI and still count as negative. Either the `no` text changes or event-only institutions can never be `no`. Production code follows a third rule: `no` iff every source is `confirms_absence` (jev_validate.py:421-422)."
+    },
+    {
+     "severity": "high",
+     "type": "undefined negative set",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:65; 052fcb2:g3o/validate/prompts/output_contract.md:57-58; 052fcb2:docs/extraction-validation-rulings.md:13",
+     "text": "R-005 does not say which of the 8 values are \"negative\". Candidates: no_genai, confirms_absence, event_only, other_body (v2.6 maps the last two to absence). `background_only` is unclear in v2.6 validate §3.1 (L58), yet the v2.6 rulings mention \"benign background alongside completed event exclusion\" (L13). The `no` count depends directly on this set."
+    },
+    {
+     "severity": "high",
+     "type": "construct validity of the label",
+     "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/DECISIONS-followup.md:23; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/HANDOFF.md:57",
+     "text": "D3: \"do not assert institution-wide nonuse\". The published label (`none` on the site) reads as nonuse, while the evidence behind it is often one page (median ambiguous pages per unclear institution = 1, p90 = 5). `no` partly measures search depth. Nothing in the codebook records how much was reviewed (see A07)."
+    },
+    {
+     "severity": "medium",
+     "type": "weakened guard",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:65; 052fcb2:docs/extraction-validation-rulings.md:13, 25",
+     "text": "R-005's second sentence (all pages negative at ≥0.8 -> `no` directly) can be read as bypassing v2.6's coverage guard (completion markers, a matching artifact set, the attrition ledger, no non-benign failures). It does not say whether a page that failed to scrape or extract counts as an unresolved signal."
+    },
+    {
+     "severity": "medium",
+     "type": "stale example",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:303-315; 052fcb2:g3o/extract/prompts/output_contract.md:406-409",
+     "text": "v2.5 Edge case A has one page emitting institution `no`. v2.6 only adds a note that such examples are \"source-bounded\" and leaves the example in place. A codebook that generates prompts would carry the contradicting example forward."
+    },
+    {
+     "severity": "medium",
+     "type": "construct: what yes means",
+     "evidence": "052fcb2:g3o/extract/prompts/output_contract.md:409-411; C:/Users/spaci/repos/G3O/planning/SPEC.md:67-69",
+     "text": "`yes` is triggered equally by a deployed tool, an agenda item proposing a policy (D4), staff training, or one prohibition clause (D2). The headline \"documented\" mixes use with intention and regulation (see A06)."
+    },
+    {
+     "severity": "low",
+     "type": "redundancy",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:61; 052fcb2:g3o/extract/prompts/system_prompt.md:113-119",
+     "text": "In the two-pass design the page row already carries the page verdict. A page-level has_genai_activity limited to yes/unclear adds nothing and can disagree with the verdict."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5: page and institution `no` per §4.1 (no GenAI mention)",
+     "mechanism": "The extractor or jev emits yes/no/unclear per page row; Stage 6 rule as in production (no iff all sources are absence).",
+     "benefits": "No change; comparable with the published verdicts.",
+     "risks": "Conflicts with WS10 D3 and v2.6 R-014. A page can issue `no`.",
+     "commits_to": "Reopening R-014 and R-005. No enum change."
+    },
+    {
+     "id": "spec-locked",
+     "label": "v2.6 + R-005: pages emit yes/unclear only; Stage 6 `no` when all pages negative at ≥0.8 and no unresolved signal",
+     "mechanism": "Deterministic Stage 6 rule over the page verdicts and confidences.",
+     "benefits": "Already ruled. Prevents page-level `no`. Simple to implement.",
+     "risks": "The negative set and the failed-page treatment are undefined. The `no` label overstates. The v2.5 §4.1 text still contradicts it.",
+     "commits_to": "Writing the negative-set table and the failed-page rule into the codebook (a PI line-edit). No enum change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: spec rule plus an explicit negative-set table and a relabelled value",
+     "mechanism": "Codebook table: negative = {no_genai, confirms_absence (or states_absence), event_only, other_body}. `background_only` is either (i) negative or (ii) unresolved; the PI picks. Any page in a named failure state counts as an unresolved signal. Rename the institution value `no` to `no_qualifying_evidence` (public label \"no qualifying evidence in reviewed pages\") and publish review depth (A07) beside it. Rewrite §4.1 `no`: \"Every reviewed page is a negative verdict at confidence ≥ 0.8, the review context is complete, and no page is in a failure state.\"",
+     "benefits": "Removes the ambiguity in R-005. Makes the published label match D3. Readers can weigh a `no` by its depth.",
+     "risks": "Renaming an institution enum affects the API, the site, g3o-api views and Kaser's extract. Choice (i) on background raises the `no` count; (ii) lowers it.",
+     "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). Plus API and site label changes (Colin, D-007). The PI decides (i) or (ii)."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: drop has_genai_activity from page rows entirely",
+     "mechanism": "Pass 1 emits only the page verdict. has_genai_activity exists only on the Stage 6 institution record, derived by the deterministic rule (spec or alt-1).",
+     "benefits": "No redundant page field, so no inconsistent page rows.",
+     "risks": "Breaks the 39-column page-row schema and the pilot v1 DATA_COLUMNS pin (tests/test_schema_consistency.py). Loaders expect the column.",
+     "commits_to": "A schema change: frozen PILOT_V1 column list, loader and writer changes, two version steps."
+    }
+   ],
+   "depends_on": [
+    "C01",
+    "C05",
+    "A06",
+    "A07"
+   ],
+   "notes": "Source-level completeness and the downgrade rule are the other reviewer's. The negative-set question has to be settled whichever option is chosen."
+  },
+  {
+   "id": "C04",
+   "name": "Attribution and other-body rules",
+   "kind": "existing",
+   "linkage": "mixed",
+   "current_text": "v2.5 system prompt L29: \"Check that the page actually pertains to the named institution and not a similarly-named entity (different country, different level of government, parent ministry rather than this agency, etc.). If the page describes a different entity, code `genai_evidence = confirms_absence`\". L32 (step 4): GenAI not tied to this institution -> `ambiguous`. L33 (step 5): country-wide program without naming the institution -> `ambiguous` + `institution_attribution`. L52: \"Attribute activities to the specific institution in the batch, not to its parent ministry or country. If a national initiative exists but this institution's participation is unconfirmed, use `unclear` with flag `institution_attribution`.\"\n\nRe-pilot 2 confirms_activity (L37-41): \"The activity must be carried out or adopted by the named institution itself. Exclude activity by a parent, higher-level or neighbouring body (e.g. a district, county, regency, region, consortium or city department when the named institution is a village, ward or sub-unit), by a similarly named organisation or company, and pages by vendors that only use the place name.\" `other_body` (L47-51): \"The page documents a generative-AI activity, but it clearly belongs to a different body, not the named institution ...\". `ambiguous_attribution` (L46).\n\nv2.6 L39-46: observed actor separate from query target; \"External speakers, service providers, courts, similarly named counties and joint projects do not inherit that identity.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:29, 32-33, 52; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:163, 327-337, 361-367; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:37-41, 46-51; 052fcb2:g3o/extract/prompts/system_prompt.md:39-46",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "internal contradiction (parent body)",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:29 vs C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:52; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:38-40",
+     "text": "v2.5 codes a parent-body page two ways: absence (L29, \"parent ministry rather than this agency\") and unclear with `institution_attribution` (L52). Re-pilot 2 makes it definite other_body. These are three treatments of one situation, and comparing v2.5 and v2.7 on parent-body pages mixes absence and unclear."
+    },
+    {
+     "severity": "high",
+     "type": "direction gap (sub-units)",
+     "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:38-40; 052fcb2:tests/fixtures/exval_cases.json cases Butler (3197), Van Buren (C11)",
+     "text": "The rules cover only one direction: an activity by a higher body does not count for a lower one. They do not say whether a department's or unit's activity counts for its parent institution, or whether a court counts for its county (Butler: a court order recorded against the county). The master holds institutions at several levels, so one activity can be credited to both or to neither, and that changes prevalence."
+    },
+    {
+     "severity": "medium",
+     "type": "joint and shared activity",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json case NotebookLM joint participation (C13); 052fcb2:g3o/extract/prompts/system_prompt.md:45-46",
+     "text": "Joint initiatives (Van Buren + St. Joseph) support participation, not sole ownership. The 8 values have no shared-participation state, and the joint case is at risk of being coded `other_body` when the page is framed as the other partner's."
+    },
+    {
+     "severity": "medium",
+     "type": "flag misuse in a worked example",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:361-367; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:266",
+     "text": "Edge case F (vendor-only claim) codes `confirms_activity` and adds `institution_attribution`, a flag that means the activity \"may belong to a parent ministry, sibling agency, or country-wide program\". The example uses the flag for evidence quality, not attribution."
+    },
+    {
+     "severity": "medium",
+     "type": "evidence loss",
+     "evidence": "052fcb2:g3o/common/evidence_review.py:40-55; C:/Users/spaci/repos/G3O/planning/SPEC.md:N-005; H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/OWNER-REPRESENTATION.md:11",
+     "text": "An other_body page documents a real activity of an identifiable body. v2.6 stored that body in review.actors. The v2.7 items do not say whether the observed actor is extracted, and without it these observations cannot later go to the owner (as D5 did by hand for 114 activities). See A05."
+    },
+    {
+     "severity": "low",
+     "type": "name-only matching",
+     "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/HANDOFF.md:106; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:96-98",
+     "text": "jev's state holds the institution name, country and level, but no parent/child hierarchy. Attribution is judged from names (example: Bloomburg TX was credited with Bloomsburg PA's activity)."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 attribution rules",
+     "mechanism": "As quoted, applied by the extractor.",
+     "benefits": "Comparable with v2.5 rows.",
+     "risks": "Internally contradictory (L29 vs L52). No other_body value.",
+     "commits_to": "Reopening ruling 8 b. No change."
+    },
+    {
+     "id": "spec-locked",
+     "label": "Re-pilot 2 wording + `other_body` + v2.6 actor rules (R-014, R-015)",
+     "mechanism": "Attribution is judged inside the verdict question; actor details stay in review metadata.",
+     "benefits": "Ruled. Attribution errors fell in the re-pilot (12 -> 3 against the agent read).",
+     "risks": "Downward and sub-unit cases are unspecified. ambiguous_attribution collapses. Observed actor is not published.",
+     "commits_to": "Fixtures for upward, downward and joint cases (A-011). No further enum change beyond R-015."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: add a two-direction grain rule and observed-actor extraction",
+     "mechanism": "Add to confirms_activity: \"An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\" Add a joint rule: \"A joint activity counts when the page names this institution as a participant.\" Extract `observed_actor` (A05) on every confirms_activity, other_body and ambiguous_attribution page.",
+     "benefits": "Settles the downward direction. Keeps other-body evidence usable for later correction-layer transfers.",
+     "risks": "\"Separate court, board or authority\" needs a list per country (the Butler-type case). A county's activity is not credited to its parent state, which may be the wrong call for some analyses. Adds extractor output.",
+     "commits_to": "Re-pilot of the amended confirms_activity text. A05 schema addition. Fixtures for unit, parent and joint cases."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: a separate jev attribution question",
+     "mechanism": "jev Choice (pass 1): this institution / organisational unit of this institution / joint, with this institution named / other body named / uncertain / no actor named. The verdict is derived (see C01 alt-2), and the hierarchy from the master (parent_uid) is passed in jev state.",
+     "benefits": "Attribution reliability can be measured and audited separately. Hierarchy context reduces namesake errors.",
+     "risks": "Extra question cost. The master hierarchy may be incomplete. Moves away from the piloted single-question design.",
+     "commits_to": "A re-pilot. Master fields passed into jev state (a pipeline change). SPEC delta on R-015/R-002."
+    }
+   ],
+   "depends_on": [
+    "C01",
+    "A05"
+   ],
+   "notes": "The WS10 combined correction (R-077) applies D5 owner transfers. Under N-005 these rules only classify; they never transfer."
+  },
+  {
+   "id": "C05",
+   "name": "WS10 action boundary (events, governance, staff training, proposals)",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.6 system prompt L27-37: \"Record institution-specific GenAI adoption, procurement, deployment, governance, and explicitly GenAI institution-specific proposals. Public workshops, talks and educational events are excluded even when the institution hosts, funds or attends. An event source can independently document a qualifying action: evaluate that separate action, not the venue. Institution-directed staff GenAI training qualifies; training does not establish tool deployment. Formal institution-issued rules for internal personnel OR external users qualify, including prohibitions, submission rules, and approved-tool/privacy conditions. Record the issuing body's governance action separately from software use. A draft or agenda can support proposed activity without proving enactment. Proposed activity has no new commitment bar. Preserve proposed, announced, pilot, production and discontinued distinctions.\"\n\nSPEC R-010..R-013 (WS10 D1-D4). D1 approved wording: \"A public-facing GenAI event or educational program is not itself a qualifying activity. An event page can support a separate record when it explicitly documents the institution's own adoption, procurement, deployment, or governance. A demonstration alone does not establish deployment.\"",
+   "current_source": "052fcb2:g3o/extract/prompts/system_prompt.md:27-37; C:/Users/spaci/repos/G3O/planning/SPEC.md:66-69; H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/DECISIONS.md:11; H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/DECISIONS-followup.md:7; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:52",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "construct validity (incidental governance)",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json case Central Coast (C08); H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/DECISIONS-followup.md:7",
+     "text": "One eligibility sentence in an artwork call (\"Works created using AI or other generative technologies will not be accepted\") is expected to be qualifying governance, which makes the institution `yes`. Clauses like this are routine in submission, grant, recruitment and education pages. D2 approved counting them, but the codebook records no form of the rule, so a full GenAI policy and a one-line clause both count as the same `yes` (see A03)."
+    },
+    {
+     "severity": "high",
+     "type": "reliability (\"formal\" undefined)",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json: 6 of 30 cases expected unresolved/governance (Van Buren C11, C12, Adams, Butler, and others)",
+     "text": "\"Formal institution-issued rules\" is not defined. The fixtures show the line is hard to place: the Van Buren department-endorsed tool list with privacy rules is held `unresolved`, while the Central Coast single clause is `qualifying`. Unresolved/governance is the most common fixture category (6 of 30)."
+    },
+    {
+     "severity": "medium",
+     "type": "stale fixture vs rule (training)",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json case DECYP staff training (C19); 052fcb2:g3o/extract/prompts/system_prompt.md:31",
+     "text": "The DECYP fixture expects `unresolved` / staff_training (\"The signed rule does not explicitly settle whether institution-directed staff training itself qualifies\"), but v2.6 L31 and the later ruling say it qualifies. The fixture's expectation predates the ruling. Also undefined: \"institution-directed\" (staff sent to a vendor webinar? an optional lunch-and-learn?)."
+    },
+    {
+     "severity": "medium",
+     "type": "breadth of proposals",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json cases Ferguson (C07), Allen (3188); H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/DECISIONS.md:23",
+     "text": "D4 keeps proposals as qualifying with no commitment threshold. The fixtures make a contract clause letting a consultant upload deliverables to AI software (Ferguson) a qualifying proposal, and also an agenda item (Allen). Neither proves use, but both make the institution `yes` (see A06)."
+    },
+    {
+     "severity": "medium",
+     "type": "boundary case: public service vs education",
+     "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/CODEBOOK-signoff-candidate.md:11; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:52",
+     "text": "\"Public-facing GenAI services remain eligible\", but `event_only` covers any \"educational programme\". A library service giving the public supervised ChatGPT access, or an AI-literacy service with a GenAI tool, fits both."
+    },
+    {
+     "severity": "low",
+     "type": "jev suitability",
+     "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:33-36, 52, 85",
+     "text": "The event exception (an event page that also documents a separate action) relies on first-in-order with confirms_activity first. That works for the verdict, but pass 2 then has to segment the separate action from the event (C07)."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 (no explicit event boundary; `program_initiative` includes \"training programs\")",
+     "mechanism": "v2.5 §4.2 definitions only.",
+     "benefits": "Comparable with v2.5.",
+     "risks": "Public events count as activities, which conflicts with D1 (approved).",
+     "commits_to": "Reopening D1-D4. No change."
+    },
+    {
+     "id": "spec-locked",
+     "label": "R-010..R-013 / v2.6 L27-37 as approved",
+     "mechanism": "Boundary applied inside the verdict question (event_only) and in pass 2.",
+     "benefits": "Signed (D1-D4). Piloted as `event_only`.",
+     "risks": "\"Formal\" and \"institution-directed\" undefined. Incidental clauses count fully. DECYP fixture stale.",
+     "commits_to": "Relabelling the DECYP fixture (PI sign). No enum change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: spec boundary plus definitions and a governance-form code",
+     "mechanism": "Add definitions. \"Formal: issued or adopted by the institution or one of its units as a rule, policy, guideline, order, standard, condition of participation, or approved-tool list. A news item or tip sheet without a rule is not formal.\" \"Institution-directed training: training the institution provides, commissions or requires for its own personnel.\" Record A03 governance_form on every governance activity.",
+     "benefits": "Keeps D2 in full while letting analysts separate full policies from clauses. Makes the fixture boundary explicit.",
+     "risks": "The definitions are new substantive wording and need PI line-editing. A03 adds a question.",
+     "commits_to": "A03 schema addition. Fixture relabelling. A re-pilot of the confirms_activity definition."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: narrow governance to AI-subject instruments",
+     "mechanism": "\"Governance qualifies when the instrument's subject is AI or GenAI use (policy, guideline, standard, court order, approved-tool list). A single clause in an instrument on another subject is recorded as context, not as an activity.\"",
+     "benefits": "`yes` reflects deliberate governance. Fewer boilerplate positives.",
+     "risks": "Reopens D2 (approved \"including prohibitions, submission rules\"). Central Coast-type cases leave the activity count.",
+     "commits_to": "A PI re-ruling on D2. Fixture changes. Comparability break with WS10-corrected rows."
+    }
+   ],
+   "depends_on": [
+    "C01",
+    "C08",
+    "A03",
+    "A06"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C06",
+   "name": "Group D gating (`_NA_` rule) and pass-2 scope",
+   "kind": "existing",
+   "linkage": "pipeline",
+   "current_text": "v2.5 §3.2: \"When `has_genai_activity` = `no` or `unclear`, OR the row's source is `confirms_absence` / `ambiguous` / `background_only`, set **every field in Group D** to the exact string `_NA_`.\" §6 check 2: \"On every row where `genai_evidence` = `confirms_activity`, NO Group D column may be `_NA_` (use `unknown`, `none_reported`, `none`, or `not_documented` as appropriate instead).\"\n\nSPEC R-003: \"The second pass runs on every page with GenAI content: `confirms_activity`, `ambiguous_genai`, `ambiguous_attribution`, `other_body`, `event_only`.\" R-015: \"Rules that read the column (yes needs a `confirms_activity` row; activity fields `_NA_` otherwise) are updated to the 8 values.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:88-92, 289; C:/Users/spaci/repos/G3O/planning/SPEC.md:62, 71",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "spec conflict",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:62 vs C:/Users/spaci/repos/G3O/planning/SPEC.md:71; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:90",
+     "text": "R-003 runs pass 2 (activity codes) on ambiguous_genai, ambiguous_attribution, other_body and event_only pages. R-015 and v2.5 force every Group D field to `_NA_` on those rows. Pass-2 codes for non-qualifying pages therefore have nowhere to go: they are either discarded (paid for and lost) or stored in a place no item defines. This is a spec conflict for the plan integrator."
+    },
+    {
+     "severity": "medium",
+     "type": "forced defaults",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:201, 359",
+     "text": "Because Group D can never be `_NA_` on confirms rows, governance, training, procurement and proposal activities get `unknown` for tool_name, vendor, deployment_mode and target_users (Edge E: a policy gets tool_name `unknown`). Only interaction_type has `not_applicable`, and only for policy_guidance. `unknown` then mixes \"not stated\" with \"does not apply\", so the share of unknown values cannot be interpreted."
+    },
+    {
+     "severity": "low",
+     "type": "scope note",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:92",
+     "text": "The four has_* flags sit inside Group D (columns 22-25), so they also become `_NA_` on held pages, including governance signals on unresolved pages."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 gating; pass 2 only meaningful on confirms rows",
+     "mechanism": "As written.",
+     "benefits": "Simple; matches existing validators (contract.py GROUP_D_FIELDS).",
+     "risks": "Conflicts with R-003. Forced `unknown` for non-tool activities.",
+     "commits_to": "Amending R-003 (integrator delta) to pass 2 on confirms_activity only, or accepting discarded codes."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: add `not_applicable` and an applicability table by action type",
+     "mechanism": "Add `not_applicable` to tool_name, vendor, deployment_mode, target_users, access_type and interaction_type. A published table states which fields apply to each action type (e.g. deployment_mode and access_type do not apply to governance, staff_training or proposal-without-tool). It is applied deterministically after jev, so jev is not asked inapplicable questions.",
+     "benefits": "Separates \"does not apply\" from \"unknown\". Fewer jev questions for governance activities.",
+     "risks": "Six enum changes. v2.5 `unknown` values on policy rows cannot be recoded without a rerun.",
+     "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). Needs an action-type code (C08 alt-1 or A02)."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: store pass-2 codes for non-qualifying pages as held candidates",
+     "mechanism": "Keep Group D `_NA_` on non-confirms rows. Add an internal `held_candidate` record per (page x activity) carrying the pass-2 codes, quotes and the reason for the hold (successor to v2.6 candidate_activity). It is not published, but it is available to Stage 6 and to later correction-layer reviews.",
+     "benefits": "Resolves the R-003/R-015 conflict without changing the public schema. Keeps the signal for audits and transfers.",
+     "risks": "A new internal table and storage. Cost of pass 2 on non-qualifying pages remains.",
+     "commits_to": "An internal schema addition (no public version step if not published). SPEC delta clarifying R-003."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: restrict pass 2 to confirms_activity pages",
+     "mechanism": "Amend R-003 so pass 2 runs only on `confirms_activity`. Other pages keep only the pass-1 verdict and the observed actor (A05).",
+     "benefits": "Removes the conflict and cuts jev cost.",
+     "risks": "Held signals (other-body activity details) are not coded. Later audits must re-run pass 2.",
+     "commits_to": "SPEC delta on R-003 (PI approval). Fixture changes (A-003)."
+    }
+   ],
+   "depends_on": [
+    "C01",
+    "C08",
+    "A02",
+    "A05"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C07",
+   "name": "Activity segmentation and `activity_name`",
+   "kind": "existing",
+   "linkage": "extractor",
+   "current_text": "v2.5 col 11: \"`activity_name` | string | Max 120 chars / `_NA_` | Short name. Use official name if one exists (e.g., \"MyCity Chatbot\", \"Pair Platform\"). Otherwise descriptive (e.g., \"Internal Copilot pilot for document drafting\").\" §4.2 rule: \"If an institution has issued a GenAI policy AND is running a pilot, these are **two distinct activities**.\" §6 check 5: \"For all rows sharing the same `activity_name`, the Group D columns (11-28) must be identical\".\n\nSPEC R-003: \"After the first pass, the extraction model segments the page into one or more activities\"; DEC-010 a: \"nano returns character spans only; jev sees page with span marked\".",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:96, 161, 292; C:/Users/spaci/repos/G3O/planning/SPEC.md:62; C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:31",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "classification by the extractor",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:60, 62; H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/HANDOFF.md:69-70",
+     "text": "Splitting a page into activities decides the activity count, which is the main G3O output. In the September comparison, jev found 32% fewer activities than the old pipeline. Under R-003 the extractor makes this decision, though R-001/C-001 say the extractor does not decide codes. Beyond the policy-vs-pilot rule, the codebook has no definition of what one activity is."
+    },
+    {
+     "severity": "high",
+     "type": "grain undefined",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json cases Cumberland program/chatbot (3229/3230), Clay Business/Plus/unspecified (3217-3219), Van Buren C11/C12",
+     "text": "The fixtures show the hard cases: a program and its chatbot component (one activity or two?); monthly subscription charges (one activity, but separate cohorts per product tier); an approved-tool list with its privacy rules (one governance identity or two?). v2.6 needed a relation vocabulary (same_activity / component_of_program / shared_participation / distinct_action) to handle them. v2.7 pass 1 has no counterpart."
+    },
+    {
+     "severity": "medium",
+     "type": "identity keyed on free text",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:292; C:/Users/spaci/worktrees/G3O-integrator/g3o/validate/prompts/output_contract.md:263-268",
+     "text": "Check 5 and Stage 6 match activities by `activity_name` equality. That name is written by the model, and near-duplicates (\"Microsoft 365 Copilot deployment\" vs \"M365 Copilot rollout\") are kept as separate activities (validate Edge I)."
+    },
+    {
+     "severity": "low",
+     "type": "linkage",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:96; C:/Users/spaci/repos/G3O/planning/SPEC.md:R-040",
+     "text": "A descriptive name is composed, not quoted, so R-040 verbatim support is impossible for it. Either the descriptive name is exempt, or it will be downgraded."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 naming + extractor segmentation (R-003, DEC-010 a)",
+     "mechanism": "The extractor returns spans; names official or descriptive.",
+     "benefits": "Ruled; simple.",
+     "risks": "Segmentation is unguided judgment by the extractor. Identity depends on name equality.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: a codebook definition of the activity unit, checked by jev",
+     "mechanism": "Definition (draft): \"One activity = one action (deployment, procurement, governance instrument, training, proposal) by one actor concerning one tool or instrument. Components of a named program are one activity, with the component noted. Repeated transactions for the same product by the same unit are one activity. A policy and the tools it approves are separate activities.\" The extractor proposes spans; jev answers per span: new distinct activity / same as span k / component of span k / not an activity.",
+     "benefits": "jev makes the segmentation decision, so C-001 holds. Relations are recorded at page level, which feeds the R-005 Stage 6 relation rules.",
+     "risks": "One more jev question per span. The definition is substantive and needs PI wording. Pass-1 cost rises on multi-activity pages.",
+     "commits_to": "PI wording. Fixtures from the v2.6 relation cases. A pipeline change in the T-02x cards."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: split the name into two fields",
+     "mechanism": "`activity_official_name` (verbatim from page, or `none`) and `activity_label` (descriptive, generated, marked as non-evidence and exempt from R-040).",
+     "benefits": "Clear provenance. The verbatim name can be matched across pages.",
+     "risks": "Adds a public column. The label is still unverified text.",
+     "commits_to": "A schema addition (two version steps if the column is public). A data dictionary entry."
+    }
+   ],
+   "depends_on": [
+    "C06",
+    "C25"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C08",
+   "name": "`activity_type`",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.5 §4.2: \"`policy_guidance` | Executive orders, agency memos, acceptable-use rules, procurement standards, internal guidance on permissible GenAI tools and data handling. | `pilot_experiment` | Limited trials, sandboxes, proof-of-concept deployments, or time-bounded experiments. | `program_initiative` | Cross-agency programs, governance bodies, training programs, or platform rollouts spanning multiple units. | `internal_operational` | Routine internal use for drafting, summarization, knowledge search, translation, internal helpdesks, or developer tooling. | `public_facing_service` | Citizen- or business-facing chatbots, service navigation, translation, complaint handling, case triage. | `unknown` | Evidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate ... never as a default.\"\n\nv2.6 changes: policy_guidance adds \"formal rules on permissible GenAI use for internal personnel and external users, including prohibitions and submission rules\"; program_initiative \"institution-directed staff GenAI training (not public events)\"; internal_operational evidence \"Documented tool use; approved-tool lists alone are governance, procurement alone is not production.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:152-159; 052fcb2:g3o/extract/prompts/output_contract.md:154-157",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "multi-dimensional category",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:155-158 vs C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:171 and :104",
+     "text": "The values mix three dimensions: kind of action (policy_guidance, program_initiative), stage (pilot_experiment repeats adoption_stage `pilot`) and audience (internal_operational / public_facing_service repeat target_users). A public chatbot pilot fits both `pilot_experiment` and `public_facing_service`, so careful coders will disagree and jev must choose between dimensions. Contradictions such as internal_operational + target_users public are not prevented."
+    },
+    {
+     "severity": "high",
+     "type": "missing values",
+     "evidence": "052fcb2:g3o/common/evidence_review.py:65-68; 052fcb2:tests/fixtures/exval_cases.json cases Clay (3217-3219), DECYP",
+     "text": "There is no value for procurement, staff training or proposal. The v2.6 review.action typology (adoption, procurement, deployment, governance, proposal, staff_training) is a cleaner single dimension, but it stays internal. Procurement-only cases (Clay) fall to `unknown` or are forced into internal_operational. Training is placed in program_initiative, whose definition says \"spanning multiple units\"."
+    },
+    {
+     "severity": "medium",
+     "type": "overlap with attribution",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:156",
+     "text": "program_initiative includes \"cross-agency programs\" and \"governance bodies\". A cross-agency program raises the attribution question (C04), and an AI working group overlaps policy_guidance."
+    },
+    {
+     "severity": "low",
+     "type": "evidence column",
+     "evidence": "052fcb2:g3o/extract/prompts/output_contract.md:157",
+     "text": "In v2.6 the internal_operational \"Typical evidence\" cell lists what does not count as evidence, not what does."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 values (v2.6 wording optional)",
+     "mechanism": "One jev Choice, 6 values.",
+     "benefits": "Comparable with every v2.5 activity row.",
+     "risks": "Multi-dimensional, so reliability suffers. No procurement or training values.",
+     "commits_to": "No change (or v2.6 wording only: no enum change)."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: replace with a single-dimension action typology",
+     "mechanism": "Values: `deployment` (use of a GenAI tool, any stage), `procurement` (purchase, contract, subscription with no evidence of use), `governance` (rules, policies, orders, approved-tool lists), `staff_training`, `program` (a named multi-unit program or governance body), `unknown`. Stage stays in adoption_stage, audience in target_users. Crosswalk from v2.5: policy_guidance -> governance; pilot_experiment, internal_operational, public_facing_service -> deployment; program_initiative -> program (training rows ambiguous).",
+     "benefits": "One dimension per field. Matches the WS10 actions and the v2.6 review.action list. Procurement and training become visible.",
+     "risks": "Breaks continuity of the published activity_type distribution. The crosswalk loses the v2.5 internal/public split (recoverable from target_users only if coded).",
+     "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). API/site vocabulary changes. Re-pilot. The PI decides whether `proposal` is a type or only a stage."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: keep activity_type and add `action_type` (A02) beside it",
+     "mechanism": "activity_type unchanged for continuity; A02 carries the single-dimension typology.",
+     "benefits": "No break in the published series. The new analysis uses A02.",
+     "risks": "Two overlapping fields can disagree. More jev questions.",
+     "commits_to": "A02 schema addition. Documentation of the overlap."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: keep the values and add precedence rules",
+     "mechanism": "\"Code the kind of undertaking, not its stage or audience. Use pilot_experiment only for sandboxes and experiments with no named service. A pilot of a named public service is public_facing_service (stage in adoption_stage). Staff training -> program_initiative. Procurement with no stated use -> unknown.\"",
+     "benefits": "No enum change. Better reliability.",
+     "risks": "The construct problems stay. Procurement remains invisible.",
+     "commits_to": "Wording change only (one version step). Re-pilot."
+    }
+   ],
+   "depends_on": [
+    "C09",
+    "C15",
+    "A02"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C09",
+   "name": "`adoption_stage` (incl. §4.3 and the owed procurement amendment)",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.5 §4.3: \"`proposed` | Exploratory or hedged intent with no concrete commitment: \"considering,\" \"exploring,\" \"studying feasibility,\" early discussions, unfunded or undated ideas. The text must still be explicitly generative-AI and tied to this institution. No named tool tied to a timeline, no signed MoU or contract, no budget line, no adopted policy. | `announced` | Publicly stated intent to deploy with a concrete, documented commitment but no evidence of actual use. Includes: MoUs, budget allocations without deployment, strategy timelines. | `pilot` | Limited deployment: subset of users/departments/use cases; described as trial/pilot/PoC/experiment; time-bounded. | `production` | Fully operational: available to intended user base, no longer experimental, in routine operations. | `discontinued` | Previously deployed but explicitly ended, cancelled, or suspended. | `unknown` | Evidence confirms GenAI activity exists but stage is indeterminate.\" \"Permanent pilot\" rule: \"If described as \"pilot\" but running >12 months AND serving the full intended user base, code `production`.\"\n\nOwed: procurement subproject amendment to `proposed` (R-087), text NOT yet received; this review drafts alternatives that procurement must agree.",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:169-176; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:41-43; 052fcb2:g3o/extract/prompts/system_prompt.md:35-37, 52-54; C:/Users/spaci/repos/G3O/planning/SPEC.md:136",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "owed amendment / missing procurement state",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:136; 052fcb2:tests/fixtures/exval_cases.json cases Clay Business/Plus/unspecified (saved_field_changes adoption_stage unknown); C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:43",
+     "text": "The vocabulary has no procurement state. v2.6 \"payment is procurement, not production\" leads the Clay fixtures to `unknown`. The v2.5 system prompt (L43) counts \"a signed MoU or contract\" as a commitment, which makes a signed contract `announced`. So a contract is `announced` and a payment is `unknown`, two codes for the same kind of evidence. R-087 puts the procurement amendment in v2.7, but its text has not arrived. Every option below needs the procurement integrator's agreement."
+    },
+    {
+     "severity": "high",
+     "type": "chunk-safety",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:R-044; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:54",
+     "text": "R-044: \"ordered vocabularies take the first value in table order found in any chunk\". Table order is proposed < announced < pilot < production < discontinued, so on a chunked page the least advanced stage found anywhere wins (e.g. a background paragraph mentioning \"exploring\" beats \"now in production\"). This contradicts the temporal rule \"Record the most current status\" (system prompt L54)."
+    },
+    {
+     "severity": "medium",
+     "type": "stage semantics for non-tool actions",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:359; 052fcb2:tests/fixtures/exval_cases.json cases Merthyr (2751), Allen (3188)",
+     "text": "A published policy is coded `production` (Edge E, Merthyr), a draft `proposed` (Allen). `pilot` has no meaning for a policy, and `discontinued` needs \"previously deployed\", so a rescinded policy or a cancelled proposal has no value. The codebook does not write down the mapping for governance or training."
+    },
+    {
+     "severity": "medium",
+     "type": "as-of date",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:54",
+     "text": "\"Record the most current status\" cannot be done from one page. The stage is as of the page's date, not the access date. Without a stored as-of date (A08), a 2023 \"pilot\" page and a 2026 \"production\" page look like a conflict to Stage 6 rather than a progression."
+    },
+    {
+     "severity": "medium",
+     "type": "rule not answerable by jev",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:176",
+     "text": "The permanent-pilot rule needs duration (>12 months) and coverage (full user base), which a single page rarely gives and jev cannot work out across pages. Applied per page it will rarely fire, and when it does it will be unreliable."
+    },
+    {
+     "severity": "low",
+     "type": "wording ambiguity",
+     "evidence": "052fcb2:g3o/extract/prompts/system_prompt.md:36; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:41-43",
+     "text": "v2.6 \"Proposed activity has no new commitment bar\" can be read as removing the commitment bar for `announced`. The bar still applies there; only `proposed` has none."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 §4.3 + system prompt L41-43",
+     "mechanism": "One jev Choice, 6 values.",
+     "benefits": "Comparable; ruled under D4.",
+     "risks": "No procurement state. The chunk rule picks the least advanced stage. Non-tool semantics unwritten.",
+     "commits_to": "No enum change. Procurement amendment still owed (R-087)."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted (procurement must agree): add `procured`",
+     "mechanism": "New value between announced and pilot: \"`procured` | A contract, purchase order, licence, subscription or payment for a GenAI product or service is documented, with no evidence of use. Tender or RFP only -> `announced`; award, contract or payment -> `procured`; documented use -> `pilot` or `production`.\" Amend system prompt L43 so a signed contract means `procured`, not `announced`. Chunk rule for this field: take the most advanced stage found in any chunk, except `discontinued`, which wins only when the page says the activity ended.",
+     "benefits": "One code for contracts and payments. Procurement activity becomes measurable. Chunk rule matches \"most current status\".",
+     "risks": "Puts a procurement milestone in a deployment-stage ladder. Rows previously coded `announced` for contracts are not comparable. Procurement's own text may differ.",
+     "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). Agreement from the procurement integrator (D-008). R-044 exception for this field (SPEC delta). Re-pilot."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted (procurement must agree): separate `procurement_status` field",
+     "mechanism": "Keep adoption_stage for use; add `procurement_status`: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown. Payment-only activities get adoption_stage `unknown` (as in the Clay fixtures) plus procurement_status `payment_or_subscription`.",
+     "benefits": "Two separate dimensions. The procurement pipeline can own the new field. No change to stage semantics.",
+     "risks": "Two fields for related facts, and a new column on every activity.",
+     "commits_to": "A new field (schema/API/site) plus enum steps for procurement. Coordination with the procurement integrator on ownership."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: write the stage mapping by action type and an as-of date",
+     "mechanism": "Mapping: governance: draft, consultation or agenda -> proposed; adopted or in force -> production; rescinded -> discontinued (pilot never used). Staff training: delivered -> production; planned -> proposed. Retire the permanent-pilot rule from page coding and apply it in Stage 6 deterministically from year_deployed and dated sources. Store stage_as_of (A08).",
+     "benefits": "Defined semantics for every action type. Fewer impossible jev judgments.",
+     "risks": "The mapping is substantive. Stage 6 needs reliable dates.",
+     "commits_to": "Wording changes (one version step). Stage 6 rule work (R-005 card). Can be combined with alt-1 or alt-2."
+    }
+   ],
+   "depends_on": [
+    "C08",
+    "A08",
+    "A02"
+   ],
+   "notes": "The procurement amendment text is owed and was not seen. These options are drafts to discuss with the procurement integrator, not proposed text for them."
+  },
+  {
+   "id": "C10",
+   "name": "`access_type`",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.5 §4.4: \"`proprietary_vendor` | Commercial product (OpenAI, Microsoft, Google, Anthropic, etc.) via API or license. | `open_source` | Open-source model (LLaMA, Mistral, Falcon, etc.) self-hosted or via hosting provider. | `sovereign_model` | Model developed by/for a government with data-sovereignty goals (e.g., France's Albert, Germany's OpenGPT-X). | `in_house` | Built by the institution's own team, not based on a major external foundation model. | `mixed` | Combines types (e.g., proprietary API fine-tuned in-house, sovereign model on commercial cloud). | `unknown` | Cannot determine.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:182-187; 052fcb2:g3o/extract/prompts/system_prompt.md:53",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "overlap on the commonest case",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:182, 185-186",
+     "text": "An institution's own application built on a commercial model API fits `proprietary_vendor` (\"via API\") and possibly `mixed` (\"proprietary API fine-tuned in-house\"). The text does not say whether retrieval or prompting over a commercial API counts as \"fine-tuned\". Careful coders will split."
+    },
+    {
+     "severity": "medium",
+     "type": "overlap",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:183-184",
+     "text": "A government-backed model built on an open-weight base fits both `open_source` and `sovereign_model`, and the table gives no precedence."
+    },
+    {
+     "severity": "medium",
+     "type": "redundancy / inference",
+     "evidence": "052fcb2:g3o/extract/prompts/system_prompt.md:53; 052fcb2:tests/fixtures/exval_cases.json case Cumberland program (3229: access_type unknown)",
+     "text": "v2.6: \"internal use does not prove in-house development\". Where the vendor is named, `proprietary_vendor` is mostly implied by vendor (C13). Where pages are silent the answer is `unknown` (Cumberland). The field adds little independent information."
+    },
+    {
+     "severity": "low",
+     "type": "applicability",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:182-187",
+     "text": "Has no meaning for governance or training activities (C06)."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 §4.4",
+     "mechanism": "One jev Choice.",
+     "benefits": "Comparable.",
+     "risks": "Overlaps on the commonest case.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: two fields, model origin and build arrangement",
+     "mechanism": "`model_origin`: commercial / open_weight / government_developed / unknown. `build_arrangement`: off_the_shelf_product / custom_application_on_external_model / model_trained_or_fine_tuned_by_institution / unknown.",
+     "benefits": "Each dimension stands alone and the commonest case has an obvious code.",
+     "risks": "Two new fields replace one. The v2.5 series breaks (a crosswalk is only partial).",
+     "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). New columns."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: keep values, add precedence rules",
+     "mechanism": "\"A custom application on a commercial API is proprietary_vendor unless the page says the institution trained or fine-tuned the model (then mixed). A government-developed model is sovereign_model even when built on open weights. Code from page text only, never from the vendor's name.\" Plus `not_applicable` (C06 alt-1).",
+     "benefits": "No new field. Better reliability.",
+     "risks": "Still mixes origin and build.",
+     "commits_to": "Wording change (one step), or an enum change if `not_applicable` is added."
+    }
+   ],
+   "depends_on": [
+    "C06",
+    "C13"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C11",
+   "name": "`interaction_type`",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.5 §4.5: chatbot \"Conversational interface for Q&A, navigation, or retrieval\"; document_processing \"Summarization, extraction, classification, or generation of documents\" (examples \"Drafting memos, summarizing reports, processing forms\"); code_generation; decision_support \"Analysis, recommendations, or scoring to aid human decisions\" (examples \"Case triage, fraud detection, eligibility assessment\"); translation; content_creation \"Generating public communications, social media, multimedia\" (examples \"Press releases, social media, report drafting\"); search_retrieval \"Semantic search, knowledge retrieval, RAG over internal stores\"; multiple \"Tool explicitly serves multiple interaction types by design\"; not_applicable \"For `policy_guidance` activities with no specific tool\"; unknown.",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:193-202",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "contradicts the GenAI boundary",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:196 vs C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:13",
+     "text": "The decision_support examples include \"fraud detection\" and \"eligibility assessment\". The system prompt (L13) names fraud-detection classifiers as traditional ML and excludes them. The example invites coding excluded systems as GenAI activities."
+    },
+    {
+     "severity": "high",
+     "type": "mixed dimensions / overlap",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:193-199",
+     "text": "The values mix interface (chatbot) with function (summarizing, translating, searching, drafting). A retrieval chatbot over policy documents is both `chatbot` and `search_retrieval`. \"Drafting memos\" (document_processing) and \"report drafting\" (content_creation) are the same function placed under two values."
+    },
+    {
+     "severity": "medium",
+     "type": "information loss",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:200",
+     "text": "`multiple` applies only \"by design\" and records nothing about which functions. Copilot-type suites, probably the most common deployment, fall here or go to an arbitrary single value."
+    },
+    {
+     "severity": "medium",
+     "type": "applicability",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:201",
+     "text": "`not_applicable` is limited to policy_guidance. Training, procurement and proposals without a tool have no value."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 §4.5",
+     "mechanism": "One jev Choice, 10 values.",
+     "benefits": "Comparable.",
+     "risks": "Contradicts the boundary; overlapping values.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: split into interface plus function items",
+     "mechanism": "`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.",
+     "benefits": "Multi-label without `multiple`. Each item is binary and reliable. Fits jev's Choice-only design.",
+     "risks": "About 9 jev questions per activity instead of 1. Breaks the series (crosswalk from single values to function items is lossy). Overlaps deployment_mode (C14).",
+     "commits_to": "An enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, and the procurement copy of the enums (R-085 / D-008). New columns (or a JSON list column), API/site changes. Re-pilot."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: keep values, repair definitions",
+     "mechanism": "Remove \"fraud detection\" and \"eligibility assessment\" from decision_support examples (replace with \"LLM-drafted case summaries for a caseworker\"). Move \"report drafting\" to document_processing only. Precedence: \"code the main function; use chatbot only when Q&A or navigation is the function; use multiple when the page names two or more functions\". Extend not_applicable to any activity without a tool.",
+     "benefits": "Small change. Fixes the boundary contradiction.",
+     "risks": "The interface/function mixture remains.",
+     "commits_to": "Wording change (one step)."
+    }
+   ],
+   "depends_on": [
+    "C02",
+    "C06",
+    "C14"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C12",
+   "name": "`tool_name`",
+   "kind": "existing",
+   "linkage": "extractor",
+   "current_text": "v2.5 col 16: \"`tool_name` | string | Max 100 chars / `unknown` / `_NA_` | Specific tool, model, or platform name (e.g., \"Microsoft 365 Copilot\", \"ChatGPT\", \"Albert\").\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:101; 052fcb2:g3o/extract/prompts/system_prompt.md:56-57",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "conflated levels",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:101; 052fcb2:tests/fixtures/exval_cases.json cases Clay Business (3217), Clay Plus (3218)",
+     "text": "The field takes products, models and platforms in one string, with no level of detail set. The Clay fixtures separate \"ChatGPT Business\" from \"ChatGPT Plus\" as separate cohorts, while most pages name only a product family."
+    },
+    {
+     "severity": "medium",
+     "type": "multiple tools",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json case Van Buren governance (C11)",
+     "text": "An approved-tool list names several tools for one activity. A single string with no separator rule produces inconsistent lists."
+    },
+    {
+     "severity": "medium",
+     "type": "not stated vs not applicable",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:359",
+     "text": "Governance activities get `unknown` (Edge E). See C06."
+    },
+    {
+     "severity": "low",
+     "type": "duplicate instrument",
+     "evidence": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:94",
+     "text": "CX-01.2 `content_tool_or_model` (page-level yes/no: product or model named) measures related information. The two can disagree (page yes, activity `unknown`)."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 col 16 (extractor verbatim)",
+     "mechanism": "The extractor copies the name, or `unknown`.",
+     "benefits": "Simple, and supported by a verbatim quote.",
+     "risks": "Level undefined; no multi-tool rule.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: product and model, list semantics, not_applicable",
+     "mechanism": "`tool_name` = product or platform as written on the page; new `model_name` = model as written (e.g. \"GPT-4o\") or `unknown`. Several tools are `; `-separated in page order. `not_applicable` for activities without a tool (C06).",
+     "benefits": "Clear level of detail; analysable lists.",
+     "risks": "A new column. List parsing downstream.",
+     "commits_to": "Schema addition (two version steps if public)."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: jev presence gate, then extractor span",
+     "mechanism": "jev Choice: does the page name a specific GenAI product or model for this activity? (named / generic description only / none). Only on `named` does the extractor return the verbatim name. `generic` -> `unknown`, `none` -> `unknown` or `not_applicable`.",
+     "benefits": "jev, not the extractor, decides presence (C-001). Consistent with CX-51.",
+     "risks": "One more jev question per activity.",
+     "commits_to": "Routing change (C25). No enum change unless `not_applicable` is added."
+    }
+   ],
+   "depends_on": [
+    "C06",
+    "C25"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C13",
+   "name": "`vendor`",
+   "kind": "existing",
+   "linkage": "extractor",
+   "current_text": "v2.5 col 17: \"`vendor` | string | Max 100 chars / `unknown` / `_NA_` | Vendor or provider. For in-house tools: the institution or its parent agency name.\"\n\nv2.6 L56-57: \"Do not infer a vendor from institutional authorship or insert unsupported product names into free text.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:102; 052fcb2:g3o/extract/prompts/system_prompt.md:56-57",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "v2.5 vs v2.6 contradiction",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:102 vs 052fcb2:g3o/extract/prompts/system_prompt.md:56-57",
+     "text": "v2.5 tells the coder to put the institution's own name as vendor for in-house tools. v2.6 forbids inferring a vendor from institutional authorship. Under v2.7 verbatim support (R-040), the v2.5 instruction produces a vendor value with no quote naming anyone as vendor."
+    },
+    {
+     "severity": "medium",
+     "type": "role ambiguity",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json cases Ferguson (C07: Synthesia), Clark Wilma (3213: AI Media Lab), Otter Tail (3357: external SBDC provider)",
+     "text": "\"Vendor or provider\" can mean the model developer, the product vendor, a reseller, an integrator, a cloud host or a partner. The fixtures put a partner (AI Media Lab) and a training provider (SBDC) in the field."
+    },
+    {
+     "severity": "low",
+     "type": "world-knowledge inference",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:325",
+     "text": "Edge B reads vendor Microsoft from \"Microsoft 365 Copilot\" (in the name, so supported). For \"ChatGPT\", OpenAI is often not on the page, and inferring it is world knowledge, not page text. Under R-041 an unsupported value is downgraded."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 col 17",
+     "mechanism": "As written.",
+     "benefits": "Comparable.",
+     "risks": "Contradicts v2.6 and fails verbatim support for in-house tools.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "v26",
+     "label": "v2.6 rule: no inference from authorship",
+     "mechanism": "Vendor only when the page names one.",
+     "benefits": "Consistent with R-040/R-041.",
+     "risks": "More `unknown` values than v2.5 (series shift).",
+     "commits_to": "Wording change; documentation of the shift."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: page-stated vendor plus a lookup with stated basis",
+     "mechanism": "vendor = the organisation the page names as supplying the GenAI product or service, verbatim. If none is named but tool_name matches a published lookup table (product -> developer, versioned), fill it deterministically and set `vendor_basis` = lookup, otherwise `stated`.",
+     "benefits": "Keeps coverage for well-known products, with transparent provenance.",
+     "risks": "The lookup table needs upkeep and is a G3O artifact that can contain errors. Adds a column.",
+     "commits_to": "A new column `vendor_basis` and a maintained table. Schema version step."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: split the roles",
+     "mechanism": "`model_developer` and `contracting_supplier` (both verbatim or `unknown`).",
+     "benefits": "Separates reseller from developer, which matters for procurement analysis.",
+     "risks": "Most pages name neither. Two sparse columns.",
+     "commits_to": "Schema addition; coordinate with procurement (they code suppliers)."
+    }
+   ],
+   "depends_on": [
+    "C12",
+    "C25"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C14",
+   "name": "`deployment_mode`",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.5 col 18: \"`deployment_mode` | enum | `standalone` / `integrated` / `unknown` / `_NA_` | `standalone`: separate tool/interface. `integrated`: embedded in existing system (e.g., Copilot inside Outlook).\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:103",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "boundary unclear",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:103",
+     "text": "A chatbot widget on the institution's website, a chat app inside an office suite, and an API behind a case system are all arguable either way. The two definitions are each one line."
+    },
+    {
+     "severity": "medium",
+     "type": "applicability",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:103",
+     "text": "Meaningless for governance, training and procurement, where it is forced to `unknown` (C06)."
+    },
+    {
+     "severity": "low",
+     "type": "redundancy",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:193-202",
+     "text": "Partly duplicates an interface dimension if C11 alt-1 is adopted."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5",
+     "mechanism": "Binary Choice.",
+     "benefits": "Comparable.",
+     "risks": "Ambiguous boundary; forced unknown.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: definitions + not_applicable",
+     "mechanism": "\"integrated: the GenAI feature works inside software or a service channel the institution already used (office suite, case system, existing website service). standalone: a separate application or site created for the GenAI tool.\" Add `not_applicable` for activities without a tool.",
+     "benefits": "Settles the website-widget case (integrated).",
+     "risks": "The classification of a website widget may not match analysts' intuition.",
+     "commits_to": "Enum change if `not_applicable` is added (C06)."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: retire, folded into the C11 interface field",
+     "mechanism": "Drop the column in v2.7; the interface field carries the information.",
+     "benefits": "Fewer questions.",
+     "risks": "Breaks the published column.",
+     "commits_to": "Column removal: schema, API, site, the PILOT_V1 pin; two version steps."
+    }
+   ],
+   "depends_on": [
+    "C06",
+    "C11"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C15",
+   "name": "`target_users`",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.5 col 19: \"`target_users` | enum | `internal_staff` / `public` / `both` / `unknown` / `_NA_` | Who interacts with the GenAI system.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:104",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "meaning changes for governance",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json cases Butler (3197: target_users public), Merthyr (2751: internal_staff)",
+     "text": "For a governance activity there is no GenAI system to interact with. The fixtures silently use the field for the governed population: litigants are `public` (Butler court order), staff are `internal_staff` (Merthyr policy). The meaning of the column depends on the activity type, and nothing records that."
+    },
+    {
+     "severity": "medium",
+     "type": "redundancy",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:157-158",
+     "text": "Duplicates the internal_operational / public_facing_service split in activity_type (C08), so contradictory pairs are possible."
+    },
+    {
+     "severity": "low",
+     "type": "coverage",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:104",
+     "text": "`public` covers citizens, businesses, regulated entities, students and applicants. Of these, D2 names entrants, students and regulated bodies explicitly."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5",
+     "mechanism": "As written.",
+     "benefits": "Comparable.",
+     "risks": "Meaning shifts by activity type.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: definition by action type",
+     "mechanism": "\"Deployment: who uses the tool or receives its output. Governance: whom the rule governs. Training: always internal_staff. Procurement with no stated use: unknown.\"",
+     "benefits": "Writes down existing practice (fixtures).",
+     "risks": "One column with two meanings, disambiguated only through activity_type.",
+     "commits_to": "Wording change (one step)."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: split off `governed_population` (A04)",
+     "mechanism": "target_users only for tool activities (`not_applicable` otherwise). A04 for governance.",
+     "benefits": "One meaning per column.",
+     "risks": "A new column; v2.5 governance rows hold the governed population in target_users.",
+     "commits_to": "A04 schema addition plus an enum change (C06)."
+    }
+   ],
+   "depends_on": [
+    "C08",
+    "A04",
+    "C06"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C16",
+   "name": "`year_announced`",
+   "kind": "existing",
+   "linkage": "mixed",
+   "current_text": "v2.5 col 20: \"`year_announced` | string | `YYYY` / `unknown` / `_NA_` | Year first publicly announced or documented.\"\n\nDEC-009 a routing: \"jev Choice: `year_announced`, `year_deployed`, CX-60/61; deterministic: contact emails, explicit years\".",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:105; C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:30; C:/Users/spaci/repos/G3O/planning/SPEC.md:64",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "routing contradiction",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:30; C:/Users/spaci/repos/G3O/planning/SPEC.md:64",
+     "text": "DEC-009 a lists the year fields under jev Choice and \"explicit years\" under deterministic. A jev Choice needs a closed set, and the codebook does not say which years are offered. A workable reading is a hybrid: deterministic candidate years from the text, then jev picks one or `unknown`. This needs writing down, because it decides the jev question design."
+    },
+    {
+     "severity": "medium",
+     "type": "definition",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:105",
+     "text": "\"or documented\" merges the announcement year with the documentation year. \"first\" needs knowledge beyond one page. From a single page the value can only mean \"the earliest year this page gives for announcement\"."
+    },
+    {
+     "severity": "medium",
+     "type": "date traps",
+     "evidence": "052fcb2:g3o/extract/prompts/system_prompt.md:52-54; 052fcb2:tests/fixtures/exval_cases.json case Cumberland kiosk",
+     "text": "v2.6: an award year is not a deployment year, and footer copyright is not a publication date. Whether a page's own publication year may stand in for the announcement year is not stated."
+    },
+    {
+     "severity": "low",
+     "type": "chunk rule",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:R-044",
+     "text": "R-044 does not cover year fields (they are not yes/no or ordered vocabularies). Earliest-across-chunks needs stating."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 + DEC-009 a",
+     "mechanism": "As ruled.",
+     "benefits": "Ruled.",
+     "risks": "Routing not implementable as written.",
+     "commits_to": "Integrator clarification."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: hybrid candidates + jev Choice, stated years only",
+     "mechanism": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.",
+     "benefits": "Implementable. Every value has a quote. Avoids the date traps.",
+     "risks": "More `unknown` values. Two steps.",
+     "commits_to": "Pipeline design in T-02x; a data dictionary entry."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: allow the publication-year fallback with a basis column",
+     "mechanism": "As alt-1, but when no year is stated use the page's publication year (if supported) and set `year_announced_basis` = publication_date.",
+     "benefits": "Fewer unknowns. Transparent basis.",
+     "risks": "Depends on publication-date quality (other reviewer). A new column.",
+     "commits_to": "Schema addition."
+    }
+   ],
+   "depends_on": [
+    "C25",
+    "A08"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C17",
+   "name": "`year_deployed`",
+   "kind": "existing",
+   "linkage": "mixed",
+   "current_text": "v2.5 col 21: \"`year_deployed` | string | `YYYY` / `unknown` / `_NA_` | Year entered pilot or production.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:106; C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:30",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "merged milestones",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:106",
+     "text": "Pilot start and production start share one field, so a 2023 pilot that went to production in 2025 has two valid answers."
+    },
+    {
+     "severity": "medium",
+     "type": "non-tool actions",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json cases Butler (effective 11-21-24), Clay (year_deployed unknown)",
+     "text": "For governance the obvious analogue is the effective or adoption year (Butler: \"effective 11-21-24\"), but the field definition does not say so. For procurement, v2.6 sets unknown (payment is not use)."
+    },
+    {
+     "severity": "medium",
+     "type": "routing",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:30",
+     "text": "Same jev-Choice/deterministic contradiction as C16."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5",
+     "mechanism": "As written.",
+     "benefits": "Comparable.",
+     "risks": "Ambiguous milestones.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: definition by action type",
+     "mechanism": "\"Deployment: first year of documented use (pilot or production). Governance: year in force or adopted. Training: first year delivered. Procurement with no stated use: unknown.\" Routing as in C16 alt-1.",
+     "benefits": "Defined for every type.",
+     "risks": "Overloads the column name for governance.",
+     "commits_to": "Wording change (one step)."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: split into `year_pilot_start` and `year_production_start`",
+     "mechanism": "Two columns, each stated-only.",
+     "benefits": "Lets analysts measure time from pilot to production.",
+     "risks": "More columns, mostly sparse.",
+     "commits_to": "Schema addition (two version steps)."
+    }
+   ],
+   "depends_on": [
+    "C16",
+    "C09",
+    "C25"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C18",
+   "name": "`has_human_oversight`",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.5 col 22: \"`has_human_oversight` | enum | `yes` / `no` / `unclear` / `not_documented` / `_NA_` | Is human review required before acting on GenAI outputs?\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:107",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "duplicate instrument",
+     "evidence": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:95; C:/Users/spaci/repos/G3O/planning/SPEC.md:R-023",
+     "text": "CX-01.2 adds the page-level `content_human_oversight` (yes/no). The two measure the same construct at different grains with different vocabularies, and will produce different oversight rates. CX-01 decision 2 accepted overlap only for transparency notice, outcomes and incidents (CX L153)."
+    },
+    {
+     "severity": "medium",
+     "type": "undefined values",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:107",
+     "text": "The four values have no definitions table, so `unclear` and `not_documented` will be used interchangeably. `no` needs an explicit statement that no human review takes place, which is rare."
+    },
+    {
+     "severity": "medium",
+     "type": "attachment",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json cases Butler (has_human_oversight yes), Merthyr (\"Retain human accountability for final decisions\")",
+     "text": "A governance activity that requires human review gets `yes` on the policy row (Butler). The deployments it governs do not inherit it. \"Human accountability\" vs \"review before acting\" is a boundary the text does not settle."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 `has_human_oversight` (yes/no/unclear/not_documented)",
+     "mechanism": "One jev Choice per activity.",
+     "benefits": "Comparable; ruled under R-004.",
+     "risks": "Values undefined; overlaps CX-52 `content_human_oversight`; attachment between activities undefined.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: define the four values and the attachment rule",
+     "mechanism": "\"yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it). no: the page states it does not apply. not_documented: the page is silent. unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\" A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.",
+     "benefits": "Reliable, chunk-safe (yes if any chunk yes, else not_documented), with a quote for every yes.",
+     "risks": "Fewer `yes` values on deployment rows than analysts may expect.",
+     "commits_to": "Wording change (one step). A-012-style fixtures."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: retire the activity flag in favour of the CX-01.2 page item linked to activities",
+     "mechanism": "Drop the Group D flag in v2.7. Use the frozen CX-52 page item `content_human_oversight` and link it to each activity on the page.",
+     "benefits": "One instrument per construct. CX wording is already signed.",
+     "risks": "Loses activity-level detail on multi-activity pages. Breaks the v2.5 series. Some flags have no CX counterpart.",
+     "commits_to": "Column removal (two version steps). An index-design consequence (CX-01 decision 2)."
+    }
+   ],
+   "depends_on": [
+    "C06",
+    "C08"
+   ],
+   "notes": "CX-01.2 wording is frozen (R-025). Only the Group D side can change without re-signature."
+  },
+  {
+   "id": "C19",
+   "name": "`has_transparency_notice`",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.5 col 23: \"`has_transparency_notice` | enum | `yes` / `no` / `unclear` / `not_documented` / `_NA_` | Are users/citizens notified that GenAI is involved?\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:108",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "duplicate instrument",
+     "evidence": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:95, 153",
+     "text": "CX-52 `content_user_notification` (yes only for a described notice or label, W1) overlaps. CX-01 decision 2 accepted feeding both indices with reported overlap. Definitions still differ: \"notified that GenAI is involved\" vs \"notice or label telling users\"."
+    },
+    {
+     "severity": "medium",
+     "type": "applicability",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:108",
+     "text": "For internal tools the referent of \"users/citizens\" is unclear (are staff notified?). For governance activities, it is unclear whether a policy requiring disclosure counts as `yes`."
+    },
+    {
+     "severity": "low",
+     "type": "scope boundary",
+     "evidence": "",
+     "text": "The CX-01.2 transparency fields belong to the other reviewer. Only the Group D activity flag is reviewed here."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 `has_transparency_notice` (yes/no/unclear/not_documented)",
+     "mechanism": "One jev Choice per activity.",
+     "benefits": "Comparable; ruled under R-004.",
+     "risks": "Values undefined; overlaps CX-52 `content_user_notification`; attachment between activities undefined.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: define the four values and the attachment rule",
+     "mechanism": "\"yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it). no: the page states it does not apply. not_documented: the page is silent. unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\" A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.",
+     "benefits": "Reliable, chunk-safe (yes if any chunk yes, else not_documented), with a quote for every yes.",
+     "risks": "Fewer `yes` values on deployment rows than analysts may expect.",
+     "commits_to": "Wording change (one step). A-012-style fixtures."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: retire the activity flag in favour of the CX-01.2 page item linked to activities",
+     "mechanism": "Drop the Group D flag in v2.7. Use the frozen CX-52 page item `content_user_notification` and link it to each activity on the page.",
+     "benefits": "One instrument per construct. CX wording is already signed.",
+     "risks": "Loses activity-level detail on multi-activity pages. Breaks the v2.5 series. Some flags have no CX counterpart.",
+     "commits_to": "Column removal (two version steps). An index-design consequence (CX-01 decision 2)."
+    }
+   ],
+   "depends_on": [
+    "C06"
+   ],
+   "notes": "Coordinate with the other reviewer's CX-01.2 items."
+  },
+  {
+   "id": "C20",
+   "name": "`has_data_classification`",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.5 col 24: \"`has_data_classification` | enum | `yes` / `no` / `unclear` / `not_documented` / `_NA_` | Are there documented data-handling restrictions for GenAI use?\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:109",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "name vs definition",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:109; 052fcb2:tests/fixtures/exval_cases.json case Van Buren privacy (C12)",
+     "text": "The name suggests a data-classification scheme, but the definition is any \"data-handling restrictions\". \"Restricted or sensitive information should never be uploaded to any AI tool\" (Van Buren) is `yes` by definition but not by name. Coders who read the name will disagree with those who read the definition."
+    },
+    {
+     "severity": "low",
+     "type": "no CX counterpart",
+     "evidence": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:94",
+     "text": "CX-51 `content_data` (data inputs described) is a different construct, so this flag has no duplicate."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 `has_data_classification` (yes/no/unclear/not_documented)",
+     "mechanism": "One jev Choice per activity.",
+     "benefits": "Comparable; ruled under R-004.",
+     "risks": "Values undefined; name and definition disagree; attachment between activities undefined.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: define the four values and the attachment rule",
+     "mechanism": "\"yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it). no: the page states it does not apply. not_documented: the page is silent. unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\" A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.",
+     "benefits": "Reliable, chunk-safe (yes if any chunk yes, else not_documented), with a quote for every yes.",
+     "risks": "Fewer `yes` values on deployment rows than analysts may expect.",
+     "commits_to": "Wording change (one step). A-012-style fixtures."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: rename to `has_data_restrictions`",
+     "mechanism": "Same definition, new name.",
+     "benefits": "Name matches definition.",
+     "risks": "A rename breaks API, site and loader names.",
+     "commits_to": "Column rename: schema step, g3o-api migration, site copy."
+    }
+   ],
+   "depends_on": [
+    "C06"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C21",
+   "name": "`has_risk_assessment`",
+   "kind": "existing",
+   "linkage": "jev-choice",
+   "current_text": "v2.5 col 25: \"`has_risk_assessment` | enum | `yes` / `no` / `unclear` / `not_documented` / `_NA_` | Has a formal risk/impact assessment been documented?\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:110",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "duplicate instrument",
+     "evidence": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:95",
+     "text": "Overlaps CX-52 `content_risk_assessment`."
+    },
+    {
+     "severity": "medium",
+     "type": "requirement vs performance",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json case Merthyr (risk table in policy)",
+     "text": "A policy that requires risk assessments (or lists risks with assurances, as Merthyr does) is different from a documented assessment of this tool. \"Formal\" is undefined (a data-protection impact assessment, an algorithmic impact assessment, a risk register line?)."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 `has_risk_assessment` (yes/no/unclear/not_documented)",
+     "mechanism": "One jev Choice per activity.",
+     "benefits": "Comparable; ruled under R-004.",
+     "risks": "Values undefined; overlaps CX-52 `content_risk_assessment`; attachment between activities undefined.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: define the four values and the attachment rule",
+     "mechanism": "\"yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it). no: the page states it does not apply. not_documented: the page is silent. unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\" A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.",
+     "benefits": "Reliable, chunk-safe (yes if any chunk yes, else not_documented), with a quote for every yes.",
+     "risks": "Fewer `yes` values on deployment rows than analysts may expect.",
+     "commits_to": "Wording change (one step). A-012-style fixtures."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: retire the activity flag in favour of the CX-01.2 page item linked to activities",
+     "mechanism": "Drop the Group D flag in v2.7. Use the frozen CX-52 page item `content_risk_assessment` and link it to each activity on the page.",
+     "benefits": "One instrument per construct. CX wording is already signed.",
+     "risks": "Loses activity-level detail on multi-activity pages. Breaks the v2.5 series. Some flags have no CX counterpart.",
+     "commits_to": "Column removal (two version steps). An index-design consequence (CX-01 decision 2)."
+    }
+   ],
+   "depends_on": [
+    "C06",
+    "C08"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C22",
+   "name": "`reported_outcomes`",
+   "kind": "existing",
+   "linkage": "mixed",
+   "current_text": "v2.5 col 26: \"`reported_outcomes` | string | Max 200 chars / `none_reported` / `_NA_` | Documented performance claims. Only record if explicitly stated. Never infer.\"\n\nCX-60: deterministic \"nothing found\" -> `none_reported`; CX-61: \"jev `Choice` over the stored text: `quantified` / `qualitative` / `none_reported`\".",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:111; H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:105-106",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "classification by extractor",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:64; H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:106",
+     "text": "The extractor decides whether any statement is an \"outcome\" (otherwise `none_reported`). CX-61 has jev classify the extracted text only afterwards, so the presence decision, which matters most, is made by the extractor."
+    },
+    {
+     "severity": "medium",
+     "type": "realised vs projected",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:111; 052fcb2:tests/fixtures/exval_cases.json case Cumberland (\"reported over 2300 resident inquiries\")",
+     "text": "\"Performance claims\" does not separate realised from expected benefits (\"will save hours\") or usage counts from effects. The Cumberland fixture keeps a usage volume as an outcome."
+    },
+    {
+     "severity": "medium",
+     "type": "length vs verbatim",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:111; C:/Users/spaci/repos/G3O/planning/SPEC.md:R-043",
+     "text": "The 200-character limit conflicts with verbatim support. R-043 already separates the display cap from full text in the API, but the column's own limit remains."
+    },
+    {
+     "severity": "low",
+     "type": "source credibility",
+     "evidence": "",
+     "text": "Vendor case studies report outcomes as marketing. The field does not record who claims the outcome (other reviewer: credibility)."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 + CX-60/61",
+     "mechanism": "Extractor text, then deterministic and jev normalisation.",
+     "benefits": "Ruled (CX signed).",
+     "risks": "Extractor decides presence; projected and realised mixed.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: jev gate, then verbatim spans",
+     "mechanism": "jev Choice per activity: page reports realised outcomes / only expected or projected outcomes / usage figures only / none. Unless none, the extractor returns verbatim spans (no length limit in storage, display cap per R-043). CX-61 then runs on the spans.",
+     "benefits": "jev decides presence (C-001). Separates projections. Every value is verbatim.",
+     "risks": "One more jev question. CX-61 runs on different input (spans, not free text) and may need re-checking against the signed CX wording.",
+     "commits_to": "Routing change (C25). A new enum or companion column for the gate. A check that CX-61 still applies as signed (R-025)."
+    }
+   ],
+   "depends_on": [
+    "C25"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C23",
+   "name": "`reported_incidents`",
+   "kind": "existing",
+   "linkage": "mixed",
+   "current_text": "v2.5 col 27: \"`reported_incidents` | string | Max 200 chars / `none_reported` / `_NA_` | Documented errors, failures, or controversies. Only record if explicitly stated.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:112",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "no prior support check",
+     "evidence": "052fcb2:g3o/common/evidence_review.py:15-19",
+     "text": "v2.6 REVIEW_FIELDS cover reported_outcomes but not reported_incidents, so v2.6 never assessed field support for incidents. R-041 now needs support for any non-default value, and the v2.6 fixtures do not cover the field."
+    },
+    {
+     "severity": "medium",
+     "type": "category breadth",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:112, 383",
+     "text": "\"Controversies\" covers public criticism, news coverage, union objections and actual malfunction. Edge H (\"Shut down in 2024 after public complaints about inaccurate responses\") merges failure and complaint. Analysts cannot tell a technical incident from a political controversy."
+    },
+    {
+     "severity": "low",
+     "type": "same routing issue",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:64",
+     "text": "The extractor decides presence, as in C22."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5 + CX-60/61",
+     "mechanism": "As ruled.",
+     "benefits": "Comparable.",
+     "risks": "Mixed categories; no support history.",
+     "commits_to": "No change."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: jev gate with incident type, then spans",
+     "mechanism": "jev Choice: page reports a malfunction or error / data or privacy breach / public criticism or complaint / suspension or withdrawal / none. Unless none, the extractor returns verbatim spans.",
+     "benefits": "A typed, auditable incident measure.",
+     "risks": "More questions. The incident types are new substantive wording.",
+     "commits_to": "A new companion column (schema step). Fixtures."
+    }
+   ],
+   "depends_on": [
+    "C25",
+    "C22"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C24",
+   "name": "`scope_notes`",
+   "kind": "existing",
+   "linkage": "extractor",
+   "current_text": "v2.5 col 28: \"`scope_notes` | string | Max 300 chars / `none` / `_NA_` | Additional context that doesn't fit other fields.\" §4.3: \"Note in `scope_notes`: \"Described as pilot but operational >12 months with full user base.\"\" Edge F scope_notes: \"Based on vendor claim only; no official government confirmation found.\"",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:113, 176, 367",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "incompatible with verbatim linkage",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json case Clay Business (3217 scope_notes); C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:176, 367",
+     "text": "scope_notes is written by the coder, not quoted. Clay: \"Do not count each month as a new activity. Procurement documented; operational purpose and deployment status not established.\" It cannot meet R-040, and the contract uses it to carry coded information (the permanent-pilot rule having been applied, a vendor-only evidence basis) that should be structured."
+    },
+    {
+     "severity": "medium",
+     "type": "public authored text",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:113",
+     "text": "Model-written notes are published as data and can contain unsupported claims. Under R-041 they would be downgraded to `none` unless exempt."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "v2.5",
+     "mechanism": "Extractor free text.",
+     "benefits": "Flexible.",
+     "risks": "Unverifiable; carries coded information.",
+     "commits_to": "Needs an explicit R-040 exemption."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: structure the load-bearing uses, keep the note internal",
+     "mechanism": "Add flags (a deterministic or jev code): `stage_rule_applied` (none / permanent_pilot) and `evidence_basis` (institution_source / vendor_claim_only / third_party). scope_notes becomes an internal, non-published reviewer note, exempt from R-040.",
+     "benefits": "Coded information becomes queryable. No unverified public text.",
+     "risks": "New columns. Removes a public column.",
+     "commits_to": "Schema changes (two version steps)."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: verbatim-only context spans",
+     "mechanism": "scope_notes = up to N verbatim spans from the page that qualify the activity (limits, exclusions), no authored text.",
+     "benefits": "Fits R-040.",
+     "risks": "Loses the explanatory notes reviewers write.",
+     "commits_to": "Wording change; fixture update."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: retire",
+     "mechanism": "Drop the column in v2.7.",
+     "benefits": "Simplest.",
+     "risks": "Loses context; breaks the column.",
+     "commits_to": "Column removal (two steps)."
+    }
+   ],
+   "depends_on": [
+    "C25",
+    "C09"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "C25",
+   "name": "Free-text routing rule (jev / deterministic / extractor)",
+   "kind": "existing",
+   "linkage": "mixed",
+   "current_text": "SPEC R-006: \"Free-text activity fields (`activity_name`, `tool_name`, `vendor`, `year_announced`, `year_deployed`, `reported_outcomes`, `reported_incidents`, `scope_notes`): jev answers them as Choice questions where a closed set exists, values are taken by deterministic extraction where possible, and the extractor (C-001) extracts only what neither covers. Each value carries supporting text (R-040).\" DEC-009 a: \"proposed table (jev Choice: `year_announced`, `year_deployed`, CX-60/61; deterministic: contact emails, explicit years; nano: `activity_name`, `tool_name`, `vendor`, `reported_outcomes`, `reported_incidents`, `scope_notes`)\".",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:64; C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:30",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "contradictory routing",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:30",
+     "text": "Years appear in both the jev and the deterministic lists (C16)."
+    },
+    {
+     "severity": "high",
+     "type": "extractor makes classification decisions",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:60; C:/Users/spaci/repos/G3O/planning/SPEC.md:64",
+     "text": "For tool_name, vendor, outcomes, incidents and scope_notes, choosing between a value and `unknown` / `none_reported` / `none` is a presence classification. Activity segmentation (C07) is also classification. As routed, the extractor makes these calls, against C-001 / R-001."
+    },
+    {
+     "severity": "medium",
+     "type": "misrouted CX-60",
+     "evidence": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:105; C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:30",
+     "text": "DEC-009 a puts \"CX-60/61\" under jev Choice, but CX-60 is a deterministic mapping (\"no API\"). Only CX-61 is a jev Choice."
+    },
+    {
+     "severity": "medium",
+     "type": "authored fields vs R-040",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:R-040, R-041",
+     "text": "Descriptive activity names and scope_notes cannot have verbatim support. Without an exemption they are always downgraded."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "DEC-009 a as ruled",
+     "mechanism": "As quoted.",
+     "benefits": "Ruled.",
+     "risks": "Contradictions above.",
+     "commits_to": "An integrator clarification for years and CX-60."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: a three-step pattern for every free-text field",
+     "mechanism": "(1) jev presence gate (small Choice, e.g. named / generic / none). (2) If present, the extractor returns a verbatim span. (3) Deterministic normalisation (CX-60, year parsing, product lookup). Authored fields (activity_label, internal notes) are listed explicitly as non-evidence and exempt from R-040.",
+     "benefits": "C-001 holds without exception. Every published value is either a jev code or a verbatim span. Auditable.",
+     "risks": "More jev questions per activity. The gate wording for each field needs PI sign-off.",
+     "commits_to": "SPEC delta on R-006 / DEC-009 (integrator, PI approval). Re-pilot of the gates."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: deterministic candidates, jev selects",
+     "mechanism": "Years, e-mails and known product names are extracted deterministically as candidates, and jev chooses among them (or `none`). The extractor covers only names not in the lookup, outcomes and incidents.",
+     "benefits": "Fewest extractor judgments; well suited to jev's closed-set design.",
+     "risks": "Lookup tables need upkeep. Unusual names fall to the extractor anyway.",
+     "commits_to": "Pipeline design; lookup table as a versioned artifact."
+    }
+   ],
+   "depends_on": [
+    "C07",
+    "C12",
+    "C13",
+    "C16",
+    "C17",
+    "C22",
+    "C23",
+    "C24"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "A01",
+   "name": "`genai_mechanism_basis` (which signal established GenAI)",
+   "kind": "addition",
+   "linkage": "jev-choice",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "missing measurement",
+     "evidence": "052fcb2:g3o/common/evidence_review.py:16, 99-100; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:17-19; C:/Users/spaci/repos/G3O/planning/SPEC.md:72",
+     "text": "v2.6 required a supported `genai_mechanism` field for every qualifying source (evidence_review.py L99-100), but it is not in the v2.7 public items. After R-016, the basis for a positive (named product, explicit label, generative capability described, or \"AI chatbot/assistant\" label only) is the main source of measurement uncertainty, and nothing records it."
+    }
+   ],
+   "options": [
+    {
+     "id": "add",
+     "label": "Agent-drafted: add as a published activity field",
+     "mechanism": "jev Choice on every confirms_activity page/activity: named_genai_product_or_model / explicit_genai_label / generative_capability_described / ai_chatbot_or_assistant_label_only. The extractor returns the supporting quote.",
+     "benefits": "A robustness check can exclude label-only positives (C02). Directly auditable.",
+     "risks": "One more question. Analysts may over-read the categories as confidence levels.",
+     "commits_to": "A new column (schema, API, site; two version steps). Re-pilot."
+    },
+    {
+     "id": "internal",
+     "label": "Agent-drafted: add as an internal field only",
+     "mechanism": "Same question, stored with the jev answers, not published.",
+     "benefits": "Audit and quality-packet use without a public schema change.",
+     "risks": "Not available to public users or Kaser.",
+     "commits_to": "Internal storage only."
+    },
+    {
+     "id": "none",
+     "label": "Do not add",
+     "mechanism": "No field.",
+     "benefits": "No cost.",
+     "risks": "R-016 positives cannot be separated afterwards.",
+     "commits_to": "Nothing."
+    }
+   ],
+   "depends_on": [
+    "C02",
+    "C01"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "A02",
+   "name": "`action_type` (single-dimension action typology)",
+   "kind": "addition",
+   "linkage": "jev-choice",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "missing dimension",
+     "evidence": "052fcb2:g3o/common/evidence_review.py:65-68; C:/Users/spaci/repos/G3O/planning/SPEC.md:66-69",
+     "text": "WS10 D1-D4 are written in terms of actions (adoption, procurement, deployment, governance, proposal, staff training), and v2.6 coded them internally (review.action). No published v2.7 item carries them, and activity_type (C08) does not map onto them."
+    }
+   ],
+   "options": [
+    {
+     "id": "add",
+     "label": "Agent-drafted: add beside activity_type",
+     "mechanism": "jev Choice per activity: deployment / procurement / governance / staff_training / proposal / program / unknown. (Whether `proposal` is a type or only a stage is a PI choice.)",
+     "benefits": "Matches the WS10 construct; continuity of activity_type is kept.",
+     "risks": "Overlap with activity_type and adoption_stage.",
+     "commits_to": "A new column (two version steps)."
+    },
+    {
+     "id": "replace",
+     "label": "Use as the replacement for activity_type (C08 alt-1)",
+     "mechanism": "See C08 alt-1.",
+     "benefits": "One field.",
+     "risks": "Breaks the series.",
+     "commits_to": "As C08 alt-1."
+    },
+    {
+     "id": "none",
+     "label": "Do not add",
+     "mechanism": "",
+     "benefits": "No cost.",
+     "risks": "The WS10 construct stays implicit.",
+     "commits_to": "Nothing."
+    }
+   ],
+   "depends_on": [
+    "C08",
+    "C05",
+    "C09"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "A03",
+   "name": "`governance_form`",
+   "kind": "addition",
+   "linkage": "jev-choice",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "construct gap",
+     "evidence": "052fcb2:tests/fixtures/exval_cases.json cases Central Coast (C08), Merthyr (2751), Butler (3197), Van Buren (C11)",
+     "text": "D2 counts very different instruments the same way: a council-wide AI policy (Merthyr), a court order (Butler), an approved-tool newsletter (Van Buren) and a one-line submission clause (Central Coast). Without a form code, governance prevalence cannot be broken down."
+    }
+   ],
+   "options": [
+    {
+     "id": "add",
+     "label": "Agent-drafted: add for governance activities",
+     "mechanism": "jev Choice: dedicated_genai_or_ai_policy_or_guideline / approved_tool_list_or_endorsement / clause_in_instrument_on_other_subject / court_or_regulatory_order / procurement_standard / unknown. Applies only when the action is governance (`not_applicable` otherwise).",
+     "benefits": "Keeps D2 intact and lets analysts separate full policies from clauses.",
+     "risks": "New wording; boundary between guideline and endorsement.",
+     "commits_to": "A new column (two version steps). Fixtures from the WS10 cases."
+    },
+    {
+     "id": "none",
+     "label": "Do not add",
+     "mechanism": "",
+     "benefits": "No cost.",
+     "risks": "Governance counts are not interpretable by form.",
+     "commits_to": "Nothing."
+    }
+   ],
+   "depends_on": [
+    "C05",
+    "A02"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "A04",
+   "name": "`governed_population`",
+   "kind": "addition",
+   "linkage": "jev-choice",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "construct gap",
+     "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/DECISIONS-followup.md:7; 052fcb2:tests/fixtures/exval_cases.json cases Butler, Merthyr",
+     "text": "D2 explicitly separates governance of internal personnel from governance of external users. Today that distinction hides in target_users with a changed meaning (C15)."
+    }
+   ],
+   "options": [
+    {
+     "id": "add",
+     "label": "Agent-drafted: add for governance activities",
+     "mechanism": "jev Choice: internal_personnel / external_users / both / unknown; `not_applicable` for non-governance.",
+     "benefits": "Records D2's distinction directly.",
+     "risks": "A new column.",
+     "commits_to": "Two version steps; C15 alt-2."
+    },
+    {
+     "id": "none",
+     "label": "Do not add (use C15 alt-1 definition instead)",
+     "mechanism": "",
+     "benefits": "No new column.",
+     "risks": "One column with two meanings.",
+     "commits_to": "C15 wording change."
+    }
+   ],
+   "depends_on": [
+    "C15",
+    "C05"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "A05",
+   "name": "`observed_actor` (name, role, relationship to searched institution)",
+   "kind": "addition",
+   "linkage": "mixed",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "evidence retention",
+     "evidence": "052fcb2:g3o/common/evidence_review.py:40-55; C:/Users/spaci/repos/G3O/planning/SPEC.md:R-014, N-005; H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/OWNER-REPRESENTATION.md:7-11",
+     "text": "R-014 keeps \"observed actor distinguished from query target\", but no v2.7 item defines how the actor is recorded. v2.6 had ObservedActor (name, unit, role, relationship, participation_quote). Without it, other-body and joint cases cannot be corrected later."
+    }
+   ],
+   "options": [
+    {
+     "id": "add-internal",
+     "label": "Agent-drafted: internal record on every page with GenAI content",
+     "mechanism": "The extractor returns the verbatim actor name and organisational unit. jev Choice gives the relationship (this institution / unit of it / joint participant / other / unresolved) and the role (as v2.6).",
+     "benefits": "Keeps D5-style corrections possible. No public schema change.",
+     "risks": "Extra output per page.",
+     "commits_to": "Internal storage. Pass-1 question added."
+    },
+    {
+     "id": "add-public",
+     "label": "Agent-drafted: publish on activity rows",
+     "mechanism": "As above, with the actor name published.",
+     "benefits": "Users see who acted.",
+     "risks": "Name strings are not resolved to institution UIDs (N-005), which may confuse users.",
+     "commits_to": "A new column (two version steps)."
+    },
+    {
+     "id": "none",
+     "label": "Do not add",
+     "mechanism": "",
+     "benefits": "No cost.",
+     "risks": "R-014 is not implemented for v2.7.",
+     "commits_to": "SPEC conflict on R-014 to resolve."
+    }
+   ],
+   "depends_on": [
+    "C04",
+    "C06"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "A06",
+   "name": "Institution evidence tier (derived from activity codes)",
+   "kind": "addition",
+   "linkage": "deterministic",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "construct gap",
+     "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:67-69; 052fcb2:g3o/extract/prompts/output_contract.md:409-411",
+     "text": "has_genai_activity = yes merges documented use with proposals, training-only and governance-only institutions (C03). A derived tier separates them without new jev questions."
+    }
+   ],
+   "options": [
+    {
+     "id": "add",
+     "label": "Agent-drafted: deterministic tier at Stage 6",
+     "mechanism": "Highest of: documented_use (any pilot, production or discontinued deployment) > documented_commitment (announced, or procured if C09 alt-1) > governance_or_training_only > proposal_only > none_found / unclear. Published beside has_genai_activity.",
+     "benefits": "Ranks institutions on a measure closer to adoption. Costs nothing to compute.",
+     "risks": "Inherits errors from stage and type codes.",
+     "commits_to": "A new institution column (API, site, g3o-api migration)."
+    },
+    {
+     "id": "none",
+     "label": "Do not add",
+     "mechanism": "",
+     "benefits": "No change.",
+     "risks": "`documented` stays heterogeneous.",
+     "commits_to": "Nothing."
+    }
+   ],
+   "depends_on": [
+    "C03",
+    "C08",
+    "C09",
+    "A02"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "A07",
+   "name": "Review depth at institution level",
+   "kind": "addition",
+   "linkage": "deterministic",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "construct validity of `no`",
+     "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/HANDOFF.md:57; H:/My Drive/Research/G3O/agent-workspace/2026-09-05-combined-ws10-review/DECISIONS-followup.md:23",
+     "text": "A `no` (or unclear) based on 1 page and one based on 12 are published the same way, and the codebook records no depth."
+    }
+   ],
+   "options": [
+    {
+     "id": "add",
+     "label": "Agent-drafted: publish counts",
+     "mechanism": "n_pages_reviewed, n_pages_by_verdict (8 counts), n_pages_failed, n_followed_links, all computed at Stage 6.",
+     "benefits": "Users can weigh negatives. Supports the D3 wording.",
+     "risks": "More columns. Depth reflects the discovery stage, not institution behaviour.",
+     "commits_to": "New columns (institution level)."
+    },
+    {
+     "id": "none",
+     "label": "Do not add",
+     "mechanism": "",
+     "benefits": "",
+     "risks": "`no` reads as nonuse.",
+     "commits_to": "Nothing."
+    }
+   ],
+   "depends_on": [
+    "C03"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "A08",
+   "name": "`stage_as_of` (date the stage refers to)",
+   "kind": "addition",
+   "linkage": "deterministic",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "temporal validity",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:54",
+     "text": "\"Record the most current status\" is not possible per page. A stage observed on a 2023 page is a 2023 fact, and Stage 6 needs the as-of date to order observations instead of treating them as conflicts."
+    }
+   ],
+   "options": [
+    {
+     "id": "add",
+     "label": "Agent-drafted: deterministic from dates",
+     "mechanism": "stage_as_of = source_publication_date if supported, else the page's latest stated date for the activity, else the access date; plus `stage_as_of_basis`.",
+     "benefits": "Turns conflicts into timelines.",
+     "risks": "Depends on publication-date quality (other reviewer).",
+     "commits_to": "New columns; Stage 6 rule work."
+    },
+    {
+     "id": "none",
+     "label": "Do not add",
+     "mechanism": "",
+     "benefits": "",
+     "risks": "Tier and recency tie-breaks stay the only ordering.",
+     "commits_to": "Nothing."
+    }
+   ],
+   "depends_on": [
+    "C09",
+    "C16",
+    "C17"
+   ],
+   "notes": "source_publication_date is reviewed by the other reviewer."
+  },
+  {
+   "id": "A09",
+   "name": "Deployment scale (licences, users, interactions)",
+   "kind": "addition",
+   "linkage": "extractor",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "low",
+     "type": "missing measurement",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:319-325; 052fcb2:tests/fixtures/exval_cases.json case Cumberland (\"over 2300 resident inquiries\")",
+     "text": "Pages often state scale (\"100 Microsoft 365 Copilot licenses\" in Edge B; resident inquiries in Cumberland), and the codebook has no field for it. The pilot/production line (C09) also turns on coverage."
+    }
+   ],
+   "options": [
+    {
+     "id": "add",
+     "label": "Agent-drafted: verbatim scale span + jev unit Choice",
+     "mechanism": "The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.",
+     "benefits": "Supports intensity analysis and the permanent-pilot rule.",
+     "risks": "Sparse; numbers are not comparable across units.",
+     "commits_to": "A new column (two version steps)."
+    },
+    {
+     "id": "none",
+     "label": "Do not add",
+     "mechanism": "",
+     "benefits": "",
+     "risks": "No intensity measure.",
+     "commits_to": "Nothing."
+    }
+   ],
+   "depends_on": [
+    "C09"
+   ],
+   "notes": ""
+  }
+ ],
+ "cross_cutting": [
+  {
+   "severity": "high",
+   "text": "Three vocabularies for one column. The page verdict column holds v2.5 (4 values), and would have held v2.6 (4 values with changed meaning) and v2.7 (8 values) answers, with `confirms_absence` meaning something different in each. Comparability rests on the per-row contract version (R-050), which does not exist yet. A written crosswalk table (v2.5 <-> v2.7, both directions, with the non-mappable cells marked) is not in any document.",
+   "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:224; 052fcb2:g3o/extract/prompts/output_contract.md:224; C:/Users/spaci/repos/G3O/planning/SPEC.md:71, 99"
+  },
+  {
+   "severity": "high",
+   "text": "The 0.8 threshold and the re-pilot evidence. 76% of re-pilot 2 page answers (284/372) are below 0.8, including 74% of no_genai (110/149). Applied as R-081 says, most pages of hard cases become unclear, and R-005's \"all negative at ≥0.8 -> no\" rarely fires. The sample is unclear institutions only. The confidence a jev answer reports is not its top probability (median gap 0.06, max 0.12). The other reviewer owns the threshold, but every jev item here inherits it.",
+   "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/answers-repilot2.jsonl (computed); C:/Users/spaci/repos/G3O/planning/SPEC.md:R-081, R-005"
+  },
+  {
+   "severity": "high",
+   "text": "R-044's chunk rule \"ordered vocabularies take the first value in table order\" treats table order as a priority order. For adoption_stage it picks the least advanced stage; for activity_type, policy_guidance; for interaction_type, chatbot; for access_type, proprietary_vendor. Each ordered field needs its own stated combination rule, or the table order has to be rewritten as a priority order.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:R-044; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:152-202"
+  },
+  {
+   "severity": "medium",
+   "text": "DEC-018 b keeps the 30 v2.6 fixtures as tests, but several expectations predate later rulings: R-016 (Clark Wilma, Ask CCNC), staff training (DECYP), and the mapping to the 8 values (other_actor -> other_body, excluded_event -> event_only, no_qualifying_content -> no_genai or confirms_absence?). Relabelling them is a substantive PI act, needed before T-041.",
+   "evidence": "052fcb2:tests/fixtures/exval_cases.json; C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:39"
+  },
+  {
+   "severity": "medium",
+   "text": "Most Group D fields (activity_type, interaction_type, target_users, the four has_* flags, reported_incidents, scope_notes) were outside v2.6 REVIEW_FIELDS, so they have no field-support fixtures. R-041 extends the support requirement to them without any test evidence.",
+   "evidence": "052fcb2:g3o/common/evidence_review.py:15-19; C:/Users/spaci/repos/G3O/planning/SPEC.md:R-041"
+  },
+  {
+   "severity": "medium",
+   "text": "jev returns one code per question. Every multi-label construct (several tools, several functions, joint actors) must become several yes/no questions. Pass 2 runs per (page x activity), times chunks, so the question count per activity drives cost. Several alternatives above add questions. Their cost is not estimated here (paid-run estimates go to T-002).",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:R-004, C-004"
+  },
+  {
+   "severity": "medium",
+   "text": "Each enum change costs two contract-version steps (C-007), and procurement copies the verdict enum (R-085). Bundling every approved enum change into one v2.7 is cheaper than serial changes, but it ties all of them to the procurement agreement and its owed §4.3 text (R-087).",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:R-085, R-087, C-007"
+  },
+  {
+   "severity": "medium",
+   "text": "jev state holds name, country and level but no institution hierarchy (unclear2.py L96-98), so every attribution rule is applied from names. Downward/upward rules (C04) and governed-population rules depend on hierarchy the classifier does not see.",
+   "evidence": "H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-screen/unclear2.py:96-98"
+  },
+  {
+   "severity": "low",
+   "text": "Several SPEC line pointers into the contract are off by a few lines (R-016 \"contract L12\", \"system_prompt.md L15\"). A machine-readable codebook keyed on item IDs (RC-D-002 part A) would remove this class of error.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:72; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/system_prompt.md:13-21"
+  }
+ ]
+}

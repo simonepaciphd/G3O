@@ -1,0 +1,106 @@
+{
+ "I01": {
+  "owner": "core.source_type",
+  "slots": {
+   "1": "items/core.source_type/values/0/definition",
+   "2": "items/core.source_type/values/1/definition",
+   "3": "items/core.source_type/values/2/definition",
+   "4": "items/core.source_type/values/3/definition",
+   "5": "items/core.source_type/values/4/definition",
+   "6": "items/core.source_type/values/5/definition",
+   "7": "items/core.source_type/values/6/definition",
+   "8": "items/core.source_type/values/7/definition",
+   "9": "items/core.source_type/rules/0",
+   "10": "items/core.source_type/rules/1"
+  }
+ },
+ "I02": {
+  "owner": "core.source_url",
+  "slots": {
+   "1": "items/core.source_url/rules/0",
+   "2": "items/core.source_url/rules/1"
+  }
+ },
+ "I03": {
+  "owner": "core.source_title",
+  "slots": {
+   "1": "items/core.source_title/rules/0"
+  }
+ },
+ "I04": {
+  "owner": "core.source_access_date",
+  "slots": {
+   "1": "items/core.source_access_date/rules/0",
+   "2": "items/core.source_access_date/rules/1"
+  }
+ },
+ "I05": {
+  "owner": "core.source_language",
+  "slots": {
+   "1": "items/core.source_language/rules/0"
+  }
+ },
+ "I06": {
+  "owner": "core.source_on_official_domain",
+  "slots": {
+   "1": "items/core.source_on_official_domain/rules/0"
+  }
+ },
+ "I07": {
+  "owner": "core.syndication_group",
+  "slots": {
+   "1": "items/core.syndication_group/rules/0"
+  }
+ },
+ "I08": {
+  "owner": "core.page_review_state",
+  "slots": {
+   "1": "items/core.page_review_state/rules/0",
+   "2": "items/core.page_review_state/rules/1"
+  }
+ },
+ "I09": {
+  "owner": "core.discovery_path",
+  "slots": {
+   "1": "items/core.discovery_path/rules/0"
+  }
+ },
+ "I10": {
+  "owner": "core.text_source",
+  "slots": {
+   "1": "items/core.text_source/rules/0"
+  }
+ },
+ "I11": {
+  "owner": "core.source_publication_date",
+  "slots": {
+   "1": "items/core.source_publication_date/rules/0",
+   "2": "items/core.source_publication_date/rules/1"
+  }
+ },
+ "I12": {
+  "owner": "core.source_snippet",
+  "slots": {
+   "1": "items/core.source_snippet/rules/0",
+   "2": "items/core.source_snippet/rules/1"
+  }
+ },
+ "I13": {
+  "owner": "core.source_credibility",
+  "slots": {
+   "1": "items/core.source_credibility/rules/0"
+  }
+ },
+ "I14": {
+  "owner": "core.confidence",
+  "slots": {
+   "1": "items/core.confidence/rules/0"
+  }
+ },
+ "I15": {
+  "owner": "core.date_upper_bound",
+  "slots": {
+   "1": "items/core.date_upper_bound/rules/0"
+  }
+ }
+}

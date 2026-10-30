@@ -1,0 +1,80 @@
+{
+ "I01": {
+  "owner": "core.has_genai_activity",
+  "slots": {
+   "1": "items/core.has_genai_activity/rules/0",
+   "2": "items/core.has_genai_activity/rules/1",
+   "3": "items/core.has_genai_activity/rules/2"
+  }
+ },
+ "I02": {
+  "owner": "core.verdict_rule",
+  "slots": {
+   "1": "items/core.verdict_rule/rules/0"
+  }
+ },
+ "I03": {
+  "owner": "core.evidence_tier",
+  "slots": {
+   "1": "items/core.evidence_tier/rules/0",
+   "2": "items/core.evidence_tier/rules/1"
+  }
+ },
+ "I04": {
+  "owner": "core.review_depth",
+  "slots": {
+   "1": "items/core.review_depth/rules/0"
+  }
+ },
+ "I05": {
+  "owner": "core.activity_relation_cross_page",
+  "slots": {
+   "1": "items/core.activity_relation_cross_page/values/0/definition",
+   "2": "items/core.activity_relation_cross_page/values/1/definition",
+   "3": "items/core.activity_relation_cross_page/values/2/definition",
+   "4": "items/core.activity_relation_cross_page/values/3/definition",
+   "5": "items/core.activity_relation_cross_page/values/4/definition",
+   "6": "items/core.activity_relation_cross_page/values/5/definition",
+   "7": "items/core.activity_relation_cross_page/values/6/definition",
+   "8": "items/core.activity_relation_cross_page/values/7/definition",
+   "9": "items/core.activity_relation_cross_page/rules/0",
+   "10": "items/core.activity_relation_cross_page/rules/2",
+   "11": "items/core.activity_relation_cross_page/rules/3",
+   "12": "items/core.activity_relation_cross_page/rules/4",
+   "13": "items/core.activity_relation_cross_page/rules/5",
+   "14": "items/core.activity_relation_cross_page/long_page_rule/split_rule"
+  }
+ },
+ "I06": {
+  "owner": "core.pooled_activity_fields",
+  "slots": {
+   "1": "items/core.pooled_activity_fields/rules/0",
+   "2": "items/core.pooled_activity_fields/rules/1"
+  }
+ },
+ "I07": {
+  "owner": "core.n_sources",
+  "slots": {
+   "1": "items/core.n_sources/rules/0"
+  }
+ },
+ "I08": {
+  "owner": "core.institution_summary",
+  "slots": {
+   "1": "items/core.institution_summary/rules/0"
+  }
+ },
+ "I09": {
+  "owner": "core.cx_display_rollup",
+  "slots": {
+   "1": "items/core.cx_display_rollup/rules/0"
+  }
+ },
+ "O1": {
+  "owner": "core.has_genai_activity",
+  "pair": [
+   "items/core.has_genai_activity/rules/0",
+   "items/core.has_genai_activity/rules/2"
+  ]
+ }
+}

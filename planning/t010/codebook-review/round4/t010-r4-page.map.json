@@ -1,0 +1,180 @@
+{
+ "I01": {
+  "owner": "core.page_verdict",
+  "slots": {
+   "1": "items/core.page_verdict/instruction",
+   "2": "items/core.page_verdict/values/0/definition",
+   "3": "items/core.page_verdict/values/1/definition",
+   "4": "items/core.page_verdict/values/2/definition",
+   "5": "items/core.page_verdict/values/3/definition",
+   "6": "items/core.page_verdict/values/4/definition",
+   "7": "items/core.page_verdict/values/5/definition",
+   "8": "items/core.page_verdict/values/6/definition",
+   "9": "items/core.page_verdict/values/7/definition",
+   "10": "items/core.page_verdict/values/8/definition",
+   "11": "items/core.page_verdict/rules/0",
+   "12": "items/core.page_verdict/long_page_rule/text",
+   "13": "items/core.page_verdict/long_page_rule/tiers"
+  }
+ },
+ "I02": {
+  "owner": "core.disclosure_form",
+  "slots": {
+   "1": "items/core.disclosure_form/instruction",
+   "2": "items/core.disclosure_form/values/0/definition",
+   "3": "items/core.disclosure_form/values/1/definition",
+   "4": "items/core.disclosure_form/values/2/definition",
+   "5": "items/core.disclosure_form/values/3/definition",
+   "6": "items/core.disclosure_form/values/4/definition",
+   "7": "items/core.disclosure_form/values/5/definition",
+   "8": "items/core.disclosure_form/values/6/definition",
+   "9": "items/core.disclosure_form/rules/0",
+   "10": "items/core.disclosure_form/rules/1",
+   "11": "items/core.disclosure_form/rules/2",
+   "12": "items/core.disclosure_form/rules/4",
+   "13": "items/core.disclosure_form/rules/5"
+  }
+ },
+ "I03": {
+  "owner": "core.disclosure_scope",
+  "slots": {
+   "1": "items/core.disclosure_scope/values/0/definition",
+   "2": "items/core.disclosure_scope/values/1/definition",
+   "3": "items/core.disclosure_scope/values/2/definition",
+   "4": "items/core.disclosure_scope/values/3/definition",
+   "5": "items/core.disclosure_scope/rules/0",
+   "6": "items/core.disclosure_scope/rules/1"
+  }
+ },
+ "I04": {
+  "owner": "core.page_complete",
+  "slots": {
+   "1": "items/core.page_complete/instruction",
+   "2": "items/core.page_complete/values/0/definition",
+   "3": "items/core.page_complete/values/1/definition",
+   "4": "items/core.page_complete/rules/0",
+   "5": "items/core.page_complete/rules/1",
+   "6": "items/core.page_complete/rules/2"
+  }
+ },
+ "I05": {
+  "owner": "core.content_contact_named",
+  "slots": {
+   "1": "items/core.content_contact_named/gate/text",
+   "2": "items/core.content_contact_named/values/0/definition",
+   "3": "items/core.content_contact_named/values/1/definition",
+   "4": "items/core.content_contact_named/rules/0"
+  }
+ },
+ "I06": {
+  "owner": "core.content_contact_details",
+  "slots": {
+   "1": "items/core.content_contact_details/gate/text",
+   "2": "items/core.content_contact_details/values/0/definition",
+   "3": "items/core.content_contact_details/values/1/definition",
+   "4": "items/core.content_contact_details/rules/0"
+  }
+ },
+ "I07": {
+  "owner": "core.content_contact",
+  "slots": {
+   "1": "items/core.content_contact/rules/0"
+  }
+ },
+ "I08": {
+  "owner": "core.content_contact_emails",
+  "slots": {
+   "1": "items/core.content_contact_emails/rules/0",
+   "2": "items/core.content_contact_emails/rules/1"
+  }
+ },
+ "I09": {
+  "owner": "core.content_purpose",
+  "slots": {
+   "1": "items/core.content_purpose/rules/0",
+   "2": "items/core.content_purpose/rules/1",
+   "3": "items/core.content_purpose/rules/2",
+   "4": "items/core.content_purpose/rules/4/draft",
+   "5": "items/core.content_purpose/rules/5"
+  }
+ },
+ "I10": {
+  "owner": "core.content_tool_or_model",
+  "slots": {
+   "1": "items/core.content_tool_or_model/rules/0",
+   "2": "items/core.content_tool_or_model/rules/1",
+   "3": "items/core.content_tool_or_model/rules/2",
+   "4": "items/core.content_tool_or_model/rules/4/draft",
+   "5": "items/core.content_tool_or_model/rules/5"
+  }
+ },
+ "I11": {
+  "owner": "core.content_vendor",
+  "slots": {
+   "1": "items/core.content_vendor/rules/0",
+   "2": "items/core.content_vendor/rules/1",
+   "3": "items/core.content_vendor/rules/2",
+   "4": "items/core.content_vendor/rules/4/draft",
+   "5": "items/core.content_vendor/rules/4/amended_by",
+   "6": "items/core.content_vendor/rules/5"
+  }
+ },
+ "I12": {
+  "owner": "core.content_data",
+  "slots": {
+   "1": "items/core.content_data/instruction",
+   "2": "items/core.content_data/values/0/definition",
+   "3": "items/core.content_data/values/1/definition",
+   "4": "items/core.content_data/rules/0",
+   "5": "items/core.content_data/rules/1",
+   "6": "items/core.content_data/rules/3",
+   "7": "items/core.content_data/rules/4",
+   "8": "items/core.content_data/long_page_rule/text"
+  }
+ },
+ "I13": {
+  "owner": "core.content_users",
+  "slots": {
+   "1": "items/core.content_users/rules/0",
+   "2": "items/core.content_users/rules/1",
+   "3": "items/core.content_users/rules/2",
+   "4": "items/core.content_users/rules/4/draft",
+   "5": "items/core.content_users/rules/4/amended_by",
+   "6": "items/core.content_users/rules/5"
+  }
+ },
+ "I14": {
+  "owner": "core.content_status_date",
+  "slots": {
+   "1": "items/core.content_status_date/rules/0",
+   "2": "items/core.content_status_date/rules/1",
+   "3": "items/core.content_status_date/rules/2",
+   "4": "items/core.content_status_date/rules/4/draft",
+   "5": "items/core.content_status_date/rules/5"
+  }
+ },
+ "I15": {
+  "owner": "core.content_human_oversight",
+  "slots": {
+   "1": "items/core.content_human_oversight/rules/0",
+   "2": "items/core.content_human_oversight/rules/1",
+   "3": "items/core.content_human_oversight/rules/3/draft"
+  }
+ },
+ "I16": {
+  "owner": "core.content_risk_assessment",
+  "slots": {
+   "1": "items/core.content_risk_assessment/rules/0",
+   "2": "items/core.content_risk_assessment/rules/1",
+   "3": "items/core.content_risk_assessment/rules/3/draft"
+  }
+ },
+ "I17": {
+  "owner": "core.content_user_notification",
+  "slots": {
+   "1": "items/core.content_user_notification/rules/0",
+   "2": "items/core.content_user_notification/rules/1",
+   "3": "items/core.content_user_notification/rules/3/draft"
+  }
+ }
+}

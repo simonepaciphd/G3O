@@ -1,0 +1,2543 @@
+{
+ "area": "cx-support-sources-stage6",
+ "items": [
+  {
+   "id": "X01",
+   "name": "disclosure_form (CX-10..CX-18)",
+   "kind": "existing",
+   "frozen": true,
+   "linkage": "jev-choice",
+   "current_text": "Question to jev: *What kind of document is this page?* One value. If several fit, take the first in table order.\n\n- `register_cross_institution`: The page is, or is one entry in, a structured list of AI or algorithmic systems kept by a government body, with several entries in a common format (inventory, register, catalogue, algorithmic transparency record in a standard template), **and the list covers more than one institution** (a national or sectoral register, a standard-template record series across agencies).\n- `register_single_institution`: As CX-10, but the list covers **one institution only** (e.g. a city's own table of its AI tools).\n- `mandated_report`: The page is a document produced to meet a reporting obligation, such as a statutory annual-report section or a compliance or transparency report under a named rule.\n- CX-13: The obligation may be named on the page **or inferred from the document's genre** (e.g. an annual report, a statutory compliance report). This is the one stated exception to CX-03.\n- `formal_record`: An official one-off document of record from a government body: adopted policy or guidance, legislation, council or board minutes or resolutions, budget documents, procurement notice or award, audit or inspection report, **response to a freedom-of-information request**.\n- `informal_official`: A government body's own communication with no reporting obligation and no standard format: press release, news item, blog, social post, speech, event page, service or FAQ page.\n- `third_party`: Not published by a government body: news, vendor, academic, NGO or policy organization. A register entry quoted in a news article is `third_party` (code the page, not what it quotes).\n- `unknown`: The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:28-41",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "construct validity",
+     "evidence": "codebook-extension-proposal.md:35-36 (CX-12, CX-13); pilot/pilot.py:132 (question text: 'The obligation may be named on the page or inferred from the document's genre (e.g. an annual report)')",
+     "text": "`mandated_report` is the top of the 'systematic' pole, but CX-12/13 do not require the obligation to concern AI or algorithmic disclosure. Any statutory annual report (most ministries, councils and agencies publish one by law) that mentions a chatbot in passing would code `mandated_report`, placing an incidental mention above a city's own AI register. CX-13 lets jev infer the obligation from genre, which is world knowledge (an exception to CX-03) and varies by country. Pilot counts are too small to test this: 3 of 285 (PILOT-REPORT.md:21) and 2 in pilot 2 (report-v2.json distribution)."
+    },
+    {
+     "severity": "medium",
+     "type": "category order vs explicit rule",
+     "evidence": "codebook-extension-proposal.md:28, :39",
+     "text": "The 'first in table order' tie-break puts the register values first, while CX-16 says a register entry quoted in a news article is `third_party`. A trade-press page reproducing a register entry fits both CX-10 (it 'is one entry in' a list) and CX-16, and the order rule points to the register. The question text (pilot.py:197) adds 'not what it quotes', which mitigates this but sits outside the frozen CX rows."
+    },
+    {
+     "severity": "medium",
+     "type": "missing category / boundary",
+     "evidence": "codebook-extension-proposal.md:37-39",
+     "text": "No value fits several common page kinds cleanly: a government-hosted PDF of a vendor or consultant report; a page of a state-owned enterprise or public university (institutions the master includes); a joint statement by a government body and a vendor; an official Wayback copy (extract contract §4.6 `archive`, output_contract.md:216). Each forces a choice between `formal_record`, `informal_official`, `third_party` and `unknown` without a rule."
+    },
+    {
+     "severity": "medium",
+     "type": "supporting-text linkage",
+     "evidence": "SPEC.md:97-98 (R-040, R-041); INDEX-DECISIONS.md:33 (P-5 new fields = b: unknown form excluded from the denominator)",
+     "text": "Genre is a whole-document judgement with no natural verbatim anchor. Under R-040/R-041 every non-`unknown` value needs a quote. If the extractor cannot find a quote that 'supports' `informal_official`, the code is downgraded to `unknown`, and P-5 (b) then drops the page from the transparency denominator. Downgrades would fall unevenly by page kind (a press release header is quotable; a policy PDF's genre often is not), which biases the index composition."
+    },
+    {
+     "severity": "low",
+     "type": "reliability evidence",
+     "evidence": "PILOT-REPORT.md:33, :61; Agent-computed from `pilot/answers-v2.jsonl.gz` (pilot 2, n = 285 finding pages, jev-1.13.0), not a reported pilot statistic: share of answers with jev confidence < 0.8: disclosure_form 39/285",
+     "text": "Agent read 39/1/0 on 40 pages in both pilots, but the 40 pages are one model's read of 6,000-character excerpts and only 4 were rare-form pages (PILOT-REPORT.md:15); register values had 1 case. 39 of 285 pilot-2 answers were below the 0.8 threshold and would be downgraded under R-081 (SPEC.md:133)."
+    },
+    {
+     "severity": "low",
+     "type": "redundancy",
+     "evidence": "codebook-extension-proposal.md:45; report-v2.json third_party_vs_source_type (5 + 8 off-diagonal of 285)",
+     "text": "`third_party` duplicates the publisher dimension of `source_type` (§4.6). In v2.7 `source_type` has no coder (see X21), so the QC cross-check in CX §2 has nothing to check against unless X21 is resolved."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep CX-10..CX-18 as signed",
+     "mechanism": "One jev Choice in pass 1, first chunk's value (R-044), with the pilot-2 question text.",
+     "benefits": "No re-signature; the most reliable CX field on the pilot read; matches the signed index design.",
+     "risks": "`mandated_report` over-captures statutory annual reports; genre codes may be downgraded for lack of a quote; boundary pages unresolved.",
+     "commits_to": "R-025 byte-identical text; needs the X14 downgrade rule to say which supporting text counts for a genre code."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: require an AI-related obligation for mandated_report",
+     "mechanism": "Re-word CX-12/13: `mandated_report` only when the obligation concerns reporting on AI, algorithms or digital systems, named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code `formal_record`.",
+     "benefits": "Restores the 'systematic AI disclosure' construct; removes a CX-03 exception; gives the extractor a quotable anchor (the named rule).",
+     "risks": "Lower `mandated_report` counts (already ~1%); re-opens D-B (b), a signed PI ruling.",
+     "commits_to": "Re-signature of CX-12/13 (D-B); fixture pages for the new boundary (R-084); no enum change, so no version steps beyond the v2.7 already planned."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: split publisher from genre",
+     "mechanism": "Two jev Choices: `publisher_kind` (this institution / other government body / non-government / unknown) and `document_genre` (register entry / mandated report / formal record / informal communication / unknown). `disclosure_form` becomes a deterministic cross of the two; `third_party` = publisher non-government.",
+     "benefits": "Each question is simpler; removes the order tie-break; `publisher_kind` can replace the publisher half of `source_type` (X21) and supports the `other_body` boundary.",
+     "risks": "Two questions where one was piloted; the derived value may differ from the signed one on edge cases; new enums.",
+     "commits_to": "Re-signature and a re-pilot of both questions; enum additions (two version steps, C-007); index decision 7 re-read against the new values."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: quote rule for genre codes",
+     "mechanism": "Keep the wording; state in the X14 downgrade rule that genre codes are supported by the page's title or heading line (deterministic `source_title` plus the first heading), not by an extractor quote, and are exempt from R-041 downgrade if a title exists.",
+     "benefits": "Avoids systematic `unknown` from missing quotes; no change to frozen wording.",
+     "risks": "A title is weak evidence for genre; exempts one field class from G-002 'verbatim support'.",
+     "commits_to": "SPEC delta to R-041 (PI approval, not CX re-signature); fixture check in T-024."
+    }
+   ],
+   "depends_on": [
+    "X14",
+    "X15",
+    "X16",
+    "X21"
+   ],
+   "notes": "**Frozen (CX-01.2, signed 2026-10-25; SPEC R-025, SPEC.md:78).** Any alternative below other than `keep` requires PI re-signature of the CX row, a re-pilot or at least the R-084 fixture test for the changed wording, and (for any enum change) two contract-version steps (C-007, SPEC.md:221). T-011 must stay byte-identical to the signed text unless re-signed (PLAN.md T-011)."
+  },
+  {
+   "id": "X02",
+   "name": "disclosure_scope (CX-20..CX-25)",
+   "kind": "existing",
+   "frozen": true,
+   "linkage": "jev-choice",
+   "current_text": "- `whole_of_government`: The listing or document the page belongs to covers institutions across the government (all central agencies, or all units of a level).\n- `multi_institution`: It covers several institutions, but not government-wide (a sector, a region, a group of agencies).\n- `single_institution`: It covers one institution only.\n- `unknown`: Coverage cannot be determined from the page.\n- CX-25: which pages are coded: All pages.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:51-56",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "threshold interaction",
+     "evidence": "Agent-computed from `pilot/answers-v2.jsonl.gz` (pilot 2, n = 285 finding pages, jev-1.13.0), not a reported pilot statistic: share of answers with jev confidence < 0.8: disclosure_scope 136/285 (48%); report-v2.json confidence_quartiles disclosure_scope [p10 0.37, p25 0.59, p50 0.81, p75 0.95]",
+     "text": "Nearly half of pilot-2 scope answers fall below 0.8. Under R-081 (SPEC.md:133) each goes to `unknown`, which for a 4-value field is an existing value, so the field silently becomes about half `unknown`. Low confidence is spread across values (78 single, 53 multi, 5 whole-of-government)."
+    },
+    {
+     "severity": "high",
+     "type": "construct validity",
+     "evidence": "codebook-extension-proposal.md:52-54; pilot/pilot.py:198-199 ('How many institutions does the listing or document this page belongs to cover?')",
+     "text": "For non-register pages (about 98% of the pilot, PILOT-REPORT.md:21), 'the document covers' reads as 'how many institutions the activity involves', not 'how wide the disclosure system is'. A ministry press release announcing a government-wide Copilot rollout codes `whole_of_government`, which is the PI's 'whole-of-government' pole, although the disclosure itself is an ad-hoc press release. The field then overlaps `activity_type = program_initiative` rather than measuring the disclosure channel. Kaser's `branch_coverage` is coded per disclosure system, not per page (codebook-extension-proposal.md:58)."
+    },
+    {
+     "severity": "medium",
+     "type": "supporting text",
+     "evidence": "SPEC.md:97-98",
+     "text": "`single_institution` is substantive under R-041 but is usually an absence (the page mentions no other body). There is rarely a verbatim quote for 'covers one institution only', so it will be downgraded to `unknown` unless treated as a no-evidence value."
+    },
+    {
+     "severity": "low",
+     "type": "chunk rule",
+     "evidence": "codebook-extension-proposal.md:184; SPEC.md:100",
+     "text": "Scope is taken from the first chunk. For a long register or inventory PDF, the institution list often starts after the introduction, so the first chunk may not show coverage."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep CX-20..CX-25 as signed",
+     "mechanism": "One jev Choice in pass 1 on all pages; first chunk.",
+     "benefits": "No re-signature; matches D-C (a) and D-D (b).",
+     "risks": "About half `unknown` after R-081 on pilot evidence; construct drift on non-register pages.",
+     "commits_to": "R-025; the X15 threshold rule decides how many become `unknown`."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: code scope only on register and mandated pages",
+     "mechanism": "Ask `disclosure_scope` only when `disclosure_form` in {register_cross_institution, register_single_institution, mandated_report}; otherwise store `_NA_`.",
+     "benefits": "Scope then measures the disclosure system as intended; fewer low-confidence answers; cheaper.",
+     "risks": "Reverses D-D (b) (all pages); loses activity-scope information that some index variants might want.",
+     "commits_to": "Re-signature of CX-25 (D-D); `_NA_` added to the value set (enum change, two version steps); CX-11's QC check unchanged."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: re-word to the publishing system",
+     "mechanism": "Re-word the question: 'Is this page part of a disclosure channel that reports for one institution, several, or the whole government (e.g. a national register, a sector inventory)? If the page is a one-off document, code single_institution.'",
+     "benefits": "Keeps all-pages coding while anchoring on the channel; default value for one-off pages is explicit.",
+     "risks": "New wording, unpiloted; still asked on pages where the answer is a default.",
+     "commits_to": "Re-signature of CX-21..CX-24 and a re-pilot (the frozen pilot text changes)."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: treat single_institution as the no-evidence value",
+     "mechanism": "Keep the wording; classify `single_institution` (with `unknown`) as a no-evidence value for R-041, so only `multi_institution` and `whole_of_government` need a quote.",
+     "benefits": "Avoids mass downgrade for lack of a quote; no change to frozen text.",
+     "risks": "Asymmetric treatment of values; `single_institution` published without support.",
+     "commits_to": "SPEC delta to R-041 value list (Q-010 a), PI approval; T-024 test."
+    }
+   ],
+   "depends_on": [
+    "X01",
+    "X14",
+    "X15",
+    "X16"
+   ],
+   "notes": "**Frozen (CX-01.2, signed 2026-10-25; SPEC R-025, SPEC.md:78).** Any alternative below other than `keep` requires PI re-signature of the CX row, a re-pilot or at least the R-084 fixture test for the changed wording, and (for any enum change) two contract-version steps (C-007, SPEC.md:221). T-011 must stay byte-identical to the signed text unless re-signed (PLAN.md T-011)."
+  },
+  {
+   "id": "X03",
+   "name": "evaluation_documented (CX-30..CX-40, incl. CX-32b/c/d, CX-33)",
+   "kind": "existing",
+   "frozen": true,
+   "linkage": "jev-choice",
+   "current_text": "Question to jev: *Does this page document an evaluation of this GenAI activity?* One value. If several fit, take the first in table order.\n\n- `results_reported`: The page states that this activity was tested, evaluated, audited or monitored **and** reports a result (a metric, a finding or a conclusion).\n- `conducted_no_results`: The page states that an evaluation, test, audit, pilot review or monitoring took place or is in place, but reports no result.\n- `required_or_planned`: The page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy finding that requires evaluation of GenAI tools takes this value.\n- CX-32b: A requirement to carry out a risk or impact assessment is **not** `required_or_planned`; it belongs to `has_risk_assessment` alone (consistent with CX-37).\n- CX-32c: A clause requiring periodic review of the GenAI policy itself counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy).\n- CX-32d: A required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as `required_or_planned`. A pure risk or impact assessment requirement stays under CX-32b.\n- `unclear`: The page makes an evaluative statement, but its subject, or whether it concerns this GenAI activity, cannot be settled. An evaluation clearly of a different tool or activity is `not_documented`, not `unclear`.\n- `not_documented`: The page has no evaluation statement about this activity.\n- CX-35..CX-39: no negative value; outcome claims need a described evaluation; risk/impact assessment counts only with testing or measured performance; vendor claims need a named institutional or independent evaluator; a pilot stage alone is `not_documented`.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:62-79",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "threshold interaction",
+     "evidence": "Agent-computed from `pilot/answers-v2.jsonl.gz` (pilot 2, n = 285 finding pages, jev-1.13.0), not a reported pilot statistic: share of answers with jev confidence < 0.8: 26 of the 36 positive codes (results_reported 9/12, required_or_planned 10/17, conducted_no_results 7/7) and 47 of 249 not_documented",
+     "text": "Under R-081 (SPEC.md:133) 72% of the positive evaluation codes in pilot 2 would be downgraded, so the field would publish about 10 positives in 285 finding pages. The 47 low-confidence `not_documented` answers would go to 'unclear/unknown': `unknown` is not a value of this field and `unclear` has a specific signed meaning (CX-33, an evaluative statement whose subject is unsettled), so R-081 either needs a new value or overloads `unclear`."
+    },
+    {
+     "severity": "high",
+     "type": "construct validity",
+     "evidence": "codebook-extension-proposal.md:70 (CX-32c); PILOT-REPORT.md:64 (idx 23 'reviewed annually')",
+     "text": "CX-32c counts a clause requiring periodic review of the GenAI policy document (including a general IT policy with a GenAI section) as `required_or_planned` evaluation. Reviewing a policy text is not evaluating an AI system's performance; this makes most GenAI policies score on the governance 'evaluation' component, which then co-moves with `activity_type = policy_guidance` (itself an interim governance component, P-3 (c), INDEX-DECISIONS.md:13)."
+    },
+    {
+     "severity": "high",
+     "type": "state definition vs v2.7 pass 2",
+     "evidence": "codebook-extension-proposal.md:21 (CX-02: state = page text plus activity_name, activity_type, adoption_stage, tool_name); Stage5-Rulings.md:31 (DEC-010 a: jev sees page with span marked); SPEC.md:63 (R-004)",
+     "text": "The frozen instrument conditions on four finding fields. In v2.7, `activity_type` and `adoption_stage` are themselves pass-2 jev codes for the same activity and `activity_name`/`tool_name` are extractor free text. Either evaluation_documented runs in a second pass-2 round after those codes (cost, latency, error propagation), or the state differs from the signed one (span marker only), which means the question is byte-identical but the instrument is not."
+    },
+    {
+     "severity": "medium",
+     "type": "chunk interaction",
+     "evidence": "codebook-extension-proposal.md:184; pilot/pilot.py:236-238 (min over table order across chunks)",
+     "text": "Combination takes the first value in table order found in any chunk. The activity's span (DEC-010) lies in one chunk; in the other chunks 'this activity' is undefined, so an evaluative statement about anything else on a long page yields `unclear` or worse and beats `not_documented`. This inflates positives and `unclear` on long policy PDFs."
+    },
+    {
+     "severity": "medium",
+     "type": "reliability evidence",
+     "evidence": "PILOT-REPORT.md:61, :64-66; SPEC.md:137 (R-084)",
+     "text": "Agent read 25/5/10 on 40 pages (10 can't-tell), with remaining vendor-trial, missed-trial and CX-32b/32d boundary errors. C2-C4 wording (CX-32c scope, CX-32d, CX-33 different-tool rule) has never been run; R-084 replaces the gold set with a fixture test only."
+    },
+    {
+     "severity": "low",
+     "type": "boundary overlap",
+     "evidence": "codebook-extension-proposal.md:67 (CX-31 'monitoring ... is in place')",
+     "text": "Boilerplate such as 'usage will be monitored' or 'the service is monitored for quality' sits between CX-31 (in place) and CX-32 (planned) and is common in policies and terms-of-use pages."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep CX-30..CX-40 as signed",
+     "mechanism": "Pass-2 jev Choice per (page x activity), first-in-order across chunks.",
+     "benefits": "No re-signature; preserves the signed boundary choices (D-E..D-G, C2-C4).",
+     "risks": "On pilot-2 confidences most positives are downgraded; the R-081 downgrade target for low-confidence `not_documented` is undefined; state differs from CX-02.",
+     "commits_to": "R-025; a SPEC ruling on the R-081 target for this field (no CX change); explicit pass-2 ordering so CX-02's state exists."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: narrow CX-32c to evaluation of AI systems",
+     "mechanism": "Delete CX-32c's policy-review clause: a periodic review of the policy document is `not_documented` unless it requires testing, monitoring or evaluation of GenAI tools or their outputs.",
+     "benefits": "Keeps 'evaluation' about system performance; reduces co-movement with policy_guidance.",
+     "risks": "Reverses W3 = b and C3 = a (two signed rulings); policy-heavy institutions score lower.",
+     "commits_to": "Re-signature of CX-32c; fixture pages (R-084); no enum change."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: add an explicit low-confidence value",
+     "mechanism": "Add `unknown` to the value set as the R-081 target for any low-confidence answer, distinct from CX-33 `unclear`.",
+     "benefits": "Keeps `unclear` meaning what CX-33 signed; R-081 becomes mechanically applicable.",
+     "risks": "Enum change; index decision P-5 needs a rule for `unknown` in the governance score.",
+     "commits_to": "Re-signature; two contract-version steps (C-007); procurement notified if it consumes the field."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: two-step question",
+     "mechanism": "Step 1 jev Choice: does the page contain an evaluation statement about the marked activity (yes/no/cannot tell)? Step 2, only if yes: the four-value kind (results / conducted / required-planned / unclear subject).",
+     "benefits": "Each step is simpler and better suited to jev; the gate makes chunk combination cleaner (step 1 any-yes across chunks that contain the span).",
+     "risks": "Departs from the piloted single question; two requests per activity.",
+     "commits_to": "Re-signature and re-pilot; question-set version bump."
+    }
+   ],
+   "depends_on": [
+    "X11",
+    "X14",
+    "X15",
+    "X16"
+   ],
+   "notes": "**Frozen (CX-01.2, signed 2026-10-25; SPEC R-025, SPEC.md:78).** Any alternative below other than `keep` requires PI re-signature of the CX row, a re-pilot or at least the R-084 fixture test for the changed wording, and (for any enum change) two contract-version steps (C-007, SPEC.md:221). T-011 must stay byte-identical to the signed text unless re-signed (PLAN.md T-011)."
+  },
+  {
+   "id": "X04",
+   "name": "evaluation_type_* (CX-41, six yes/no, gated)",
+   "kind": "existing",
+   "frozen": true,
+   "linkage": "jev-choice",
+   "current_text": "Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:85",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "gate vs downgrade order",
+     "evidence": "SPEC.md:98, :133 (R-041, R-081); PLAN.md:1153 (T-024 downgrade after both passes)",
+     "text": "The gate reads `evaluation_documented`, which may later be downgraded (no quote, or confidence < 0.8: 26 of 36 positives in pilot 2, see X03). Nothing says whether type items asked under a since-downgraded gate are voided, kept, or re-asked. If kept, the pilot-1 defect (40 type yes without evaluation, PILOT-REPORT.md:25) returns by the back door."
+    },
+    {
+     "severity": "medium",
+     "type": "construct mixing",
+     "evidence": "codebook-extension-proposal.md:85; pilot/pilot.py:217 (question: 'documents an evaluation, or a requirement or plan for one')",
+     "text": "Because `required_or_planned` opens the gate, a yes on `pre_deployment_testing` can mean 'testing was done' or 'testing is required'. The type items carry no done/required distinction, so they cannot be read as types of conducted evaluation."
+    },
+    {
+     "severity": "medium",
+     "type": "threshold interaction",
+     "evidence": "Agent-computed from `pilot/answers-v2.jsonl.gz` (pilot 2, n = 285 finding pages, jev-1.13.0), not a reported pilot statistic: share of answers with jev confidence < 0.8 (of 36 gated pages): pre_deployment_testing 20, ongoing_monitoring 25, pilot_evaluation 14",
+     "text": "Most type answers for the two most common types fall below 0.8 (binary jev confidence is 2p-1, so 0.8 means p >= 0.9; verified on all 3,066 binary answers in the same file). After R-081, `ongoing_monitoring` and `pre_deployment_testing` would be mostly `unknown`, a value these yes/no items do not have."
+    },
+    {
+     "severity": "low",
+     "type": "sparsity / overlap",
+     "evidence": "PILOT-REPORT.md:25 (independent_audit 2, bias_or_safety 8 of 285 in pilot 1)",
+     "text": "Two items are near-constant. Categories overlap by design (a pilot evaluation that included bias testing is yes on both), which is fine for multi-select but should be stated; there is no `other` type."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep CX-41 as signed",
+     "mechanism": "Second jev request when the combined gate value is positive; six binary Choices; any-yes across chunks.",
+     "benefits": "No re-signature.",
+     "risks": "Gate/downgrade order undefined; required vs done mixed; no `unknown` for R-081.",
+     "commits_to": "R-025; a T-024 rule that type items follow the final (post-downgrade) gate."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: gate on the post-downgrade value",
+     "mechanism": "Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.",
+     "benefits": "Prevents types without a supported evaluation; no wording change.",
+     "risks": "Adds a dependency between T-024 and pass 2 (may need a third jev round, or post-hoc voiding).",
+     "commits_to": "No re-signature if wording unchanged (procedural, PI approval); `_NA_` handling in T-012 enums."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: restrict gate to conducted evaluations",
+     "mechanism": "Ask types only when `evaluation_documented` in {results_reported, conducted_no_results}.",
+     "benefits": "Types then describe evaluations that happened.",
+     "risks": "Loses type information for planned/required evaluations (17 of 36 gated pages in pilot 2).",
+     "commits_to": "Re-signature of CX-41 (D-H)."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: drop the two near-constant items",
+     "mechanism": "Remove `independent_audit` and `bias_or_safety_testing`, or merge them into one `external_or_safety_review` item.",
+     "benefits": "Fewer near-constant columns; cheaper.",
+     "risks": "Loses rare but substantively important signals; Kaser comparability.",
+     "commits_to": "Re-signature; schema change (version steps)."
+    }
+   ],
+   "depends_on": [
+    "X03",
+    "X14",
+    "X15"
+   ],
+   "notes": "**Frozen (CX-01.2, signed 2026-10-25; SPEC R-025, SPEC.md:78).** Any alternative below other than `keep` requires PI re-signature of the CX row, a re-pilot or at least the R-084 fixture test for the changed wording, and (for any enum change) two contract-version steps (C-007, SPEC.md:221). T-011 must stay byte-identical to the signed text unless re-signed (PLAN.md T-011)."
+  },
+  {
+   "id": "X05",
+   "name": "content_* descriptive items (purpose, tool_or_model, vendor, data, users, status_date)",
+   "kind": "existing",
+   "frozen": true,
+   "linkage": "jev-choice",
+   "current_text": "Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated) ... each `yes` / `no` (yes = stated on the page).",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:93-94",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "grain mismatch with pilot",
+     "evidence": "codebook-extension-proposal.md:20 (CX-01: page fields); pilot/pilot.py:203 ('Does the page state this about the GenAI activity'), :220-225 (state includes one `genai_activity`)",
+     "text": "CX-01 defines `content_*` as page fields coded in pass 1, but the frozen pilot asked them about one named GenAI activity, with that finding in the state. In v2.7 pass 1 runs before segmentation (R-002/R-003, SPEC.md:61-62), so no activity exists yet. Asking 'about the GenAI activity' with none in the state is a different instrument from the one piloted; on a two-activity page it is undefined which activity's vendor counts."
+    },
+    {
+     "severity": "high",
+     "type": "coverage of non-finding pages",
+     "evidence": "pilot sample drawn only from finding pages (PILOT-REPORT.md:10); PLAN.md:926 (T-022: quotes for positive CX page fields on every page, e.g. a `background_only` page)",
+     "text": "All pilot pages were confirmed-activity pages. v2.7 codes page fields on every page including `background_only`, `other_body` and `no_genai`. `content_vendor = yes` on a national-strategy page (background) or another body's page credits disclosure content to the institution unless the roll-up filters by verdict; there is no `_NA_` value for non-GenAI pages, and none of this was piloted."
+    },
+    {
+     "severity": "high",
+     "type": "threshold interaction",
+     "evidence": "Agent-computed from `pilot/answers-v2.jsonl.gz` (pilot 2, n = 285 finding pages, jev-1.13.0), not a reported pilot statistic: share of answers with jev confidence < 0.8: status_date 124/285, data 99, users 84, vendor 82, tool_or_model 64, purpose 47",
+     "text": "Between 16% and 44% of answers fall below 0.8, about half of them `no`. R-081 sends low-confidence negatives to 'unknown', which these yes/no items do not have. P-7a ruled that `content_*` replace T2 (INDEX-DECISIONS.md:25), so the transparency index inherits this unknown share."
+    },
+    {
+     "severity": "medium",
+     "type": "construct validity",
+     "evidence": "PILOT-REPORT.md:24 (purpose 269, users 258 of 285 yes in pilot 1)",
+     "text": "`content_purpose` and `content_users` are near-constant on finding pages: almost any page that documents an activity says what it is for. They add little variance to the index; `content_status_date` mixes status and any date, so a publication date alone may satisfy it."
+    },
+    {
+     "severity": "low",
+     "type": "chunk rule",
+     "evidence": "codebook-extension-proposal.md:184",
+     "text": "Any-yes across chunks raises yes rates mechanically with page length (8 of 285 pilot pages were chunked, 2-4 chunks each, agent count from answers-v2.jsonl.gz), so long documents score as more transparent partly because they are long."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep CX-50/51 descriptive items as signed",
+     "mechanism": "Pass-1 binary Choices on every page; any-yes across chunks.",
+     "benefits": "No re-signature; matches P-7a.",
+     "risks": "Unpiloted grain (no activity in pass 1) and page coverage; R-081 target missing.",
+     "commits_to": "R-025; a ruling on how the question refers to 'the GenAI activity' without an activity in state."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: move content_* to pass 2 (per page x activity)",
+     "mechanism": "Ask the six items per activity with the span marked, like the pilot did; page value = any-yes over activities if a page value is needed.",
+     "benefits": "Matches the piloted instrument; attributes content to an activity; naturally skips non-activity pages.",
+     "risks": "Contradicts CX-01's 'page field' grain (signed); more jev questions per page.",
+     "commits_to": "Re-signature of CX-01 for these items; T-011/T-021/T-023 scope change; no enum change."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: keep page grain, gate by verdict",
+     "mechanism": "Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.",
+     "benefits": "Avoids crediting background or no-GenAI pages; defines the referent.",
+     "risks": "New wording, unpiloted; `_NA_` is a new value.",
+     "commits_to": "Re-signature; enum change (two version steps); re-pilot."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: drop near-constant items from the index",
+     "mechanism": "Keep all items in the codebook but mark `content_purpose` and `content_users` as descriptive-only (not index components).",
+     "benefits": "Index variance comes from discriminating items; no coding change.",
+     "risks": "Index decision rather than codebook change; P-7a revisited.",
+     "commits_to": "Index-decision ruling only (no re-signature of wording)."
+    }
+   ],
+   "depends_on": [
+    "X11",
+    "X15",
+    "X16"
+   ],
+   "notes": "**Frozen (CX-01.2, signed 2026-10-25; SPEC R-025, SPEC.md:78).** Any alternative below other than `keep` requires PI re-signature of the CX row, a re-pilot or at least the R-084 fixture test for the changed wording, and (for any enum change) two contract-version steps (C-007, SPEC.md:221). T-011 must stay byte-identical to the signed text unless re-signed (PLAN.md T-011)."
+  },
+  {
+   "id": "X06",
+   "name": "content_contact (w4: named OR details)",
+   "kind": "existing",
+   "frozen": true,
+   "linkage": "jev-choice",
+   "current_text": "`content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers).",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:94",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "measurement artefact (scraper)",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/scrape/html.py:10-22 (extract_text decomposes header, footer, nav, aside), :47 (mailto/tel links skipped); PILOT-REPORT.md:86",
+     "text": "`content_contact_details` explicitly counts 'site footers', but the scraper deletes `<footer>`, `<header>`, `<nav>` and `<aside>` before storing text. Whether footer contacts reach jev therefore depends on whether a site uses semantic footer tags, not on what the institution discloses. Variation in this item partly measures HTML markup."
+    },
+    {
+     "severity": "high",
+     "type": "construct validity",
+     "evidence": "PILOT-REPORT.md:83 (w4 OR = 234/285 yes); codebook-extension-proposal.md:94",
+     "text": "w4 codes yes on 82% of finding pages. Counting vendor and press contacts and any footer, plus any named unit 'responsible for the activity', makes the item close to 'the page names someone', not 'the institution names an accountable contact for this AI use'. The PI's accountability construct (it replaced `accountable_owner_named`, codebook-extension-proposal.md:97) is diluted."
+    },
+    {
+     "severity": "medium",
+     "type": "reference circularity",
+     "evidence": "PILOT-REPORT.md:74, :86",
+     "text": "The 36/37 agreement for w4 is against a reference that is one model's read on 6,000-character excerpts, and where that reader agreed with pilot 2 the reference is pilot 2's own code. The same words also coded differently across question frames (w1: 142 yes in pilot 1 vs 196 in pilot 3)."
+    },
+    {
+     "severity": "medium",
+     "type": "OR combination undefined for confidence",
+     "evidence": "Agent-computed from pilot/answers-contact.jsonl.gz (pilot 3): w4a_named has 103 of 285 answers below 0.8; with OR-confidence taken as the max of the yes items (or min of both when no), 72 of 285 combined codes are below 0.8",
+     "text": "R-081 applies to 'every jev code', but `content_contact` is derived, not a jev answer. Whether the threshold applies to the sub-items, the combination, or both is not stated, and the counts differ materially."
+    },
+    {
+     "severity": "low",
+     "type": "supporting text / privacy",
+     "evidence": "SPEC.md:97, :101 (R-040, R-043)",
+     "text": "The supporting quote for `content_contact_named` is a person's name and role, published in full in the API (DEC-016 c). See X08 for e-mails."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep w4 as signed",
+     "mechanism": "Two binary jev Choices in pass 1, OR-combined deterministically; any-yes across chunks.",
+     "benefits": "Highest agreement in pilot 3; no re-signature.",
+     "risks": "Near-constant; partly a scraper artefact; OR confidence rule missing.",
+     "commits_to": "R-025; a procedural rule for applying R-081 to derived items."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: institution-scoped contact",
+     "mechanism": "Re-word `content_contact_details`: contact details of this institution (or its unit) given for the activity or for questions about it; exclude vendor, press-agency and generic site-footer contacts.",
+     "benefits": "Closer to accountability; less sensitive to footer stripping.",
+     "risks": "Lower yes rate; reverses W4 = b; unpiloted.",
+     "commits_to": "Re-signature of CX-51 (W4, C1) and a contact re-pilot."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: keep wording, publish sub-items separately",
+     "mechanism": "Keep w4 but publish `content_contact_named` and `content_contact_details` as separate items and let the index choose; mark `details` as scraper-sensitive in the data dictionary.",
+     "benefits": "Transparent about what drives the yes; no wording change.",
+     "risks": "Index decision deferred; still near-constant if OR is used.",
+     "commits_to": "No re-signature if wording unchanged (publication choice, PI approval); D-007 field list."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: retain footers in stored text",
+     "mechanism": "Pipeline change: store a separate `chrome_text` (header/footer/nav) next to main text, and give jev both for the contact item only.",
+     "benefits": "Makes the signed 'site footers' clause operational and markup-independent.",
+     "risks": "Scraper change for one item; back-fill pages without stored chrome cannot be fixed without re-scrape.",
+     "commits_to": "Scrape-layer change (new card, outside N-004's 'beyond follow-up links' boundary: needs PI ruling); no CX re-signature."
+    }
+   ],
+   "depends_on": [
+    "X08",
+    "X15",
+    "X16"
+   ],
+   "notes": "**Frozen (CX-01.2, signed 2026-10-25; SPEC R-025, SPEC.md:78).** Any alternative below other than `keep` requires PI re-signature of the CX row, a re-pilot or at least the R-084 fixture test for the changed wording, and (for any enum change) two contract-version steps (C-007, SPEC.md:221). T-011 must stay byte-identical to the signed text unless re-signed (PLAN.md T-011)."
+  },
+  {
+   "id": "X07",
+   "name": "content_* safeguard items (human_oversight, risk_assessment, user_notification)",
+   "kind": "existing",
+   "frozen": true,
+   "linkage": "jev-choice",
+   "current_text": "Safeguard items included, as Kaser does: `content_human_oversight`, `content_risk_assessment`, `content_user_notification`. **`content_user_notification` = yes only if the page describes a notice or label telling users they are interacting with GenAI or that content is AI-generated**; a page announcing that the institution uses GenAI is not by itself a notice (CX-01.1, W1 = a). The overlap with governance G1, G3, G4 is reported under R-070.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:95",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "redundancy with Group D",
+     "evidence": "PILOT-REPORT.md:29; extract output_contract.md:107-110 (has_human_oversight, has_transparency_notice, has_risk_assessment)",
+     "text": "Each safeguard item duplicates a Group D activity field at a different grain with a different coder. Pilot 1 found `content_human_oversight` yes on 46 pages where `has_human_oversight` = not_documented and no on 18 where it is yes; `content_user_notification` yes on 177 pages where `has_transparency_notice` = not_documented (old wording). In v2.7 both sets are jev codes on the same page text, so a published record can say the page describes human oversight and that oversight is not documented for its only activity."
+    },
+    {
+     "severity": "medium",
+     "type": "threshold interaction",
+     "evidence": "Agent-computed from `pilot/answers-v2.jsonl.gz` (pilot 2, n = 285 finding pages, jev-1.13.0), not a reported pilot statistic: share of answers with jev confidence < 0.8: risk_assessment 62/285 (47 of them `no`), human_oversight 39, user_notification 22",
+     "text": "As in X05, low-confidence `no` answers have no 'unknown' value to fall to under R-081."
+    },
+    {
+     "severity": "low",
+     "type": "evidence",
+     "evidence": "PILOT-REPORT.md:56, :61, :65",
+     "text": "W1 cut user_notification yes from 209 to 20 and agent agreement rose to 27/4/9, but some described AI-use labels and disclosure duties are now missed (idx 20, 25, 30, 37)."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep CX-52 as signed",
+     "mechanism": "Three pass-1 binary Choices; overlap reported (R-070).",
+     "benefits": "No re-signature; P-1 (b) and P-2 already accept overlap.",
+     "risks": "Public records can contradict Group D on the same page.",
+     "commits_to": "R-025; R-070 overlap reporting; a data-dictionary note on the difference in grain."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: derive Group D has_* from the same question",
+     "mechanism": "Ask each safeguard once per (page x activity) in pass 2 and derive both the page-level `content_*` (any activity yes) and the activity-level `has_*` (yes / not_documented) from it.",
+     "benefits": "One question, no internal contradiction; cheaper.",
+     "risks": "Changes the signed grain of CX-52 and the v2.5 vocabulary of `has_*` (which has `no` and `unclear`).",
+     "commits_to": "Re-signature; Group D enum review (two version steps if values change); other reviewer's Group D items."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: consistency check only",
+     "mechanism": "Keep both, add a deterministic QC flag `content_vs_activity_conflict` when a page-level yes coexists with all activities `not_documented` (and the reverse), shown in the quality packet, not published.",
+     "benefits": "No coding change; surfaces contradictions.",
+     "risks": "Contradictions remain in the public data.",
+     "commits_to": "Procedural (PI approval); T-024 or T-028 check."
+    }
+   ],
+   "depends_on": [
+    "X05",
+    "X15"
+   ],
+   "notes": "**Frozen (CX-01.2, signed 2026-10-25; SPEC R-025, SPEC.md:78).** Any alternative below other than `keep` requires PI re-signature of the CX row, a re-pilot or at least the R-084 fixture test for the changed wording, and (for any enum change) two contract-version steps (C-007, SPEC.md:221). T-011 must stay byte-identical to the signed text unless re-signed (PLAN.md T-011)."
+  },
+  {
+   "id": "X08",
+   "name": "content_contact_emails (CX-53 deterministic @ extraction)",
+   "kind": "existing",
+   "frozen": true,
+   "linkage": "deterministic",
+   "current_text": "When `content_contact` = yes, extract the contact with a deterministic `@` search over the stored page text (e-mail regex in `pilot/contact.py`, `EMAIL_RE`) and store the list beside the code (`content_contact_emails`). No API call.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:190",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "privacy / publication",
+     "evidence": "Agent inspection of pilot/answers-contact.jsonl.gz: 71 addresses on 42 pages; several local parts in the 15 most frequent follow first-initial.surname or first.last patterns",
+     "text": "Many extracted addresses identify individual officials. Publishing them in the public API and a bulk extract to a third party (D-004, G-004) is a personal-data decision (GDPR and similar regimes cover many master countries) that CX-53 does not address. The PI's to-do (codebook-extension-proposal.md:186) asked for extraction, not publication."
+    },
+    {
+     "severity": "high",
+     "type": "relevance",
+     "evidence": "pilot/contact.py:18 (EMAIL_RE), :71 (all addresses on the page); pilot/answers-contact.jsonl.gz first record (an open-data office address on a GenAI page)",
+     "text": "The regex returns every address on the page, including vendor, press, webmaster, open-data and whistleblowing addresses, and is triggered by `content_contact` = yes even when that yes came from `named` alone. The list therefore does not identify the contact the code refers to."
+    },
+    {
+     "severity": "medium",
+     "type": "recall",
+     "evidence": "PILOT-REPORT.md:84, :86; g3o/scrape/html.py:47 (mailto skipped), :21 (footer removed)",
+     "text": "The regex finds an address on 42 of 285 pages (agreement 17/37 broad) because stored text drops `mailto:` links and footers; obfuscated forms ('name [at] domain') are missed."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep CX-53 as signed",
+     "mechanism": "Regex over stored text when `content_contact` = yes; list stored beside the code.",
+     "benefits": "Free; deterministic; PI-directed.",
+     "risks": "Publishes personal addresses; addresses unrelated to the code; low recall.",
+     "commits_to": "R-025; a publication decision (D-007) on whether the list is public."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: store internally, publish domain only",
+     "mechanism": "Store the full list internally; publish only the domain part (and a count), or only role addresses (no personal-name pattern).",
+     "benefits": "Keeps the PI's extraction; limits personal data in public/bulk outputs.",
+     "risks": "Less useful to users wanting to contact the institution.",
+     "commits_to": "Publication rule (PI ruling); D-007 interface; methods note. No change to CX-53 extraction text."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: link e-mails to the contact quote",
+     "mechanism": "Extract only addresses within N characters of the `content_contact_details` supporting quote (X12), so the list matches the coded contact.",
+     "benefits": "Relevance; still deterministic.",
+     "risks": "Depends on quote quality; misses addresses far from the quote.",
+     "commits_to": "Re-signature of CX-53 (rule text); T-024 test."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: widen the source to raw HTML",
+     "mechanism": "Run the regex (plus mailto: hrefs and common obfuscations) over the raw fetched HTML rather than stored main text.",
+     "benefits": "Higher recall; markup-independent.",
+     "risks": "Raw HTML is not stored for past runs (back-fill re-fetch needed); more irrelevant addresses.",
+     "commits_to": "Re-signature; scrape-layer change."
+    }
+   ],
+   "depends_on": [
+    "X06",
+    "X12"
+   ],
+   "notes": "**Frozen (CX-01.2, signed 2026-10-25; SPEC R-025, SPEC.md:78).** Any alternative below other than `keep` requires PI re-signature of the CX row, a re-pilot or at least the R-084 fixture test for the changed wording, and (for any enum change) two contract-version steps (C-007, SPEC.md:221). T-011 must stay byte-identical to the signed text unless re-signed (PLAN.md T-011)."
+  },
+  {
+   "id": "X09",
+   "name": "CX-60 'nothing found' normalisation (reported_outcomes / reported_incidents)",
+   "kind": "existing",
+   "frozen": true,
+   "linkage": "deterministic",
+   "current_text": "Deterministic step (no API): map all \"nothing found\" spellings to `none_reported`. The mapping table is published with the code.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:105",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "scope in v2.7",
+     "evidence": "SPEC.md:64 (R-006, DEC-009 a: extractor for reported_outcomes/reported_incidents); pilot/pilot.py:183 (NONE_RE)",
+     "text": "CX-60 was written for 18 legacy spellings from the old nano. In v2.7 the extractor's schema can force `none_reported` directly, so CX-60 matters only for v2.5 rows and back-fill comparison. The regex includes `unknown` and the empty string, which conflates 'not extracted' with 'nothing reported'."
+    },
+    {
+     "severity": "medium",
+     "type": "linkage (classification by the extractor)",
+     "evidence": "SPEC.md:60 (R-001), :215 (C-001)",
+     "text": "Whether an outcome exists at all (text vs `none_reported`) is decided by the extractor when it writes or omits text. That is a classification, which R-001/C-001 reserve for jev. CX-61 classifies only the text the extractor chose."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep CX-60 as signed",
+     "mechanism": "Regex mapping applied to every extractor output and legacy row.",
+     "benefits": "Free, deterministic, published table.",
+     "risks": "Conflates unknown/empty with none; existence decision stays with the extractor.",
+     "commits_to": "R-025."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: jev decides existence first",
+     "mechanism": "Pass-2 jev Choice on page text: does the page report an outcome (incident) of this activity: quantified / qualitative / none? The extractor extracts verbatim text only when not none; CX-60 then applies to legacy rows only.",
+     "benefits": "Puts the classification with jev (R-001); CX-61 becomes the existence question itself.",
+     "risks": "Changes CX-61's input from stored text to page text (see X10).",
+     "commits_to": "Re-signature of CX-60/61; question-set change."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: separate unknown from none",
+     "mechanism": "Remove `unknown`, `n/a` and empty from the mapping; map them to `not_extracted` instead of `none_reported`.",
+     "benefits": "Keeps 'nothing reported' meaningful.",
+     "risks": "Adds a value; legacy rows gain a third state.",
+     "commits_to": "Re-signature; value addition (two version steps)."
+    }
+   ],
+   "depends_on": [
+    "X10"
+   ],
+   "notes": "**Frozen (CX-01.2, signed 2026-10-25; SPEC R-025, SPEC.md:78).** Any alternative below other than `keep` requires PI re-signature of the CX row, a re-pilot or at least the R-084 fixture test for the changed wording, and (for any enum change) two contract-version steps (C-007, SPEC.md:221). T-011 must stay byte-identical to the signed text unless re-signed (PLAN.md T-011)."
+  },
+  {
+   "id": "X10",
+   "name": "CX-61 outcome / incident kind (quantified / qualitative / none_reported)",
+   "kind": "existing",
+   "frozen": true,
+   "linkage": "jev-choice",
+   "current_text": "Remaining text: a jev `Choice` over the stored text: `quantified` / `qualitative` / `none_reported`.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:106",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "input ambiguity",
+     "evidence": "codebook-extension-proposal.md:106; SPEC.md:64",
+     "text": "'The stored text' is the 200-character extracted field, not the page. In v2.7 that text is extractor output, so jev classifies what the extractor selected (and truncated to 200 characters); a quantified result outside the selected span is coded `qualitative`."
+    },
+    {
+     "severity": "medium",
+     "type": "overlap",
+     "evidence": "codebook-extension-proposal.md:75 (CX-36); INDEX-DECISIONS.md:12 (P-2 overlap accepted)",
+     "text": "`reported_outcomes = quantified` and `evaluation_documented = results_reported` both score a measured result, under different rules (CX-36 requires a described evaluation; CX-61 does not). P-2 accepted mechanical overlap, but the two can disagree on the same page."
+    },
+    {
+     "severity": "low",
+     "type": "sparsity / categories",
+     "evidence": "PILOT-REPORT.md:26-27 (outcomes none 227, qualitative 22, quantified 11; incidents none 256, qualitative 4)",
+     "text": "Incidents are near-constant on finding pages. No rule for text with both a number and words; 'quantified' for incidents (e.g. '3 complaints') was never observed."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep CX-61 as signed",
+     "mechanism": "jev Choice over the extracted text after CX-60.",
+     "benefits": "No re-signature; cheap (small state).",
+     "risks": "Classifies the extractor's selection; overlap with evaluation_documented.",
+     "commits_to": "R-025; DEC-009 a routing unchanged."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: classify over page text with span",
+     "mechanism": "Ask CX-61 in pass 2 over the page text with the activity span marked; the extractor then quotes support for the chosen value.",
+     "benefits": "jev sees the evidence, not a selection; consistent with R-001.",
+     "risks": "Larger state; wording change.",
+     "commits_to": "Re-signature; question-set version bump; re-pilot."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: order rule",
+     "mechanism": "Add: if the text contains any number describing a result, code `quantified`.",
+     "benefits": "Resolves mixed cases.",
+     "risks": "Counts trivial numbers (e.g. '2 staff').",
+     "commits_to": "Re-signature of CX-61."
+    }
+   ],
+   "depends_on": [
+    "X09",
+    "X03"
+   ],
+   "notes": "**Frozen (CX-01.2, signed 2026-10-25; SPEC R-025, SPEC.md:78).** Any alternative below other than `keep` requires PI re-signature of the CX row, a re-pilot or at least the R-084 fixture test for the changed wording, and (for any enum change) two contract-version steps (C-007, SPEC.md:221). T-011 must stay byte-identical to the signed text unless re-signed (PLAN.md T-011)."
+  },
+  {
+   "id": "X11",
+   "name": "CX coding grain and jev state (CX-01, CX-02, CX-05)",
+   "kind": "existing",
+   "frozen": true,
+   "linkage": "pipeline",
+   "current_text": "- CX-01: **Page fields** (`disclosure_form`, `disclosure_scope`, the optional `content_*` items) are properties of the source page. They are coded once per (institution × page), on the stored page text, and copied to every evidence row from that page.\n- CX-02: **Finding fields** (`evaluation_documented`, optional `evaluation_type_*`) are coded per (finding × page). The state given to jev is the page text plus that finding's `activity_name`, `activity_type`, `adoption_stage` and `tool_name`.\n- CX-05: The raw jev answer is stored with its probability distribution, confidence, response model id and request id.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:20-24",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "frozen instrument includes state",
+     "evidence": "codebook-extension-proposal.md:204 ('Frozen instrument: this file at CX-01.2 plus the question text in pilot/pilot.py (v2) and pilot/contact.py'); pilot/pilot.py:220-225; Stage5-Rulings.md:31",
+     "text": "R-025 and T-011 protect question text byte-for-byte, but jev answers depend on the state too. The pilot state carried institution, country, one finding (4 fields), URL, page title, 'page_part i of n' and a character-chunked page. v2.7 pass 1 has no finding; pass 2 has a span marker; chunks are token-based (DEC-008 c, Stage5-Rulings.md:29). Byte-identical questions over a different state are not the signed instrument, and pilot agreement figures do not transfer automatically."
+    },
+    {
+     "severity": "medium",
+     "type": "institution x page vs page",
+     "evidence": "codebook-extension-proposal.md:20; SPEC.md:91 (R-036)",
+     "text": "A page shared by several institutions (a regional register, a ministry page listing agencies) is coded once per institution, so the same page can receive different `disclosure_form` codes for different institutions. Followed pages (R-031) add more shared pages."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep CX-01/02/05 as signed",
+     "mechanism": "Engineering reproduces the CX-02 state where possible; differences documented.",
+     "benefits": "No re-signature.",
+     "risks": "Pass-1 content items and pass-2 evaluation have a different state from the pilot.",
+     "commits_to": "R-025; T-011 records the state schema; the R-084 fixture test must use the v2.7 state."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: declare the state part of the frozen instrument",
+     "mechanism": "Pin a `state_schema` per question set (fields, order, chunk marker) in the codebook; any change to it counts as a wording change.",
+     "benefits": "Makes 'frozen' meaningful; programmatic linkage (RC-D-002 A) can hash it.",
+     "risks": "Exposes that v2.7 already changes the state, so a re-signature is needed now.",
+     "commits_to": "Re-signature of CX-01/02 with the v2.7 state; fixture re-run."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: code page fields once per URL",
+     "mechanism": "Code CX page fields once per URL per run (not per institution) and copy to every institution citing the URL.",
+     "benefits": "One value per page; cheaper.",
+     "risks": "The state can no longer name the institution; changes CX-01.",
+     "commits_to": "Re-signature of CX-01; storage keyed by URL hash."
+    }
+   ],
+   "depends_on": [
+    "X05",
+    "X03",
+    "X16"
+   ],
+   "notes": "**Frozen (CX-01.2, signed 2026-10-25; SPEC R-025, SPEC.md:78).** Any alternative below other than `keep` requires PI re-signature of the CX row, a re-pilot or at least the R-084 fixture test for the changed wording, and (for any enum change) two contract-version steps (C-007, SPEC.md:221). T-011 must stay byte-identical to the signed text unless re-signed (PLAN.md T-011)."
+  },
+  {
+   "id": "X12",
+   "name": "Supporting text per code (R-040)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "extractor",
+   "current_text": "For every jev code on a page or activity, the extractor (C-001) extracts the verbatim supporting text from the page, after jev has coded.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:97",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "confirmation design",
+     "evidence": "SPEC.md:97, :99 (R-042: 'Presence only, not entailment'); PLAN.md:926",
+     "text": "The extractor is told the code and asked for support. A capable model will almost always find some verbatim sentence near the topic, and R-042 checks only that the sentence exists in the page. A wrong code with an on-topic quote passes. G-002 ('every published classification code is backed by verbatim supporting text', SPEC.md:25) is then true of presence, not of support; the downgrade rule mainly catches fabricated quotes and genre/absence codes with no natural quote (X01, X02)."
+    },
+    {
+     "severity": "medium",
+     "type": "scope wording",
+     "evidence": "SPEC.md:97 vs :98 and Q-010 a (SPEC.md:243)",
+     "text": "R-040 says 'every jev code'; R-041 and Q-010 a say only positive or substantive codes need support. T-022 follows Q-010 a (PLAN.md:926). R-040's wording should match, or the extractor is asked for quotes for `no` codes it cannot support."
+    },
+    {
+     "severity": "medium",
+     "type": "non-English pages",
+     "evidence": "extract output_contract.md:127 (old `source_snippet`: English translation with original in parentheses)",
+     "text": "Verbatim quotes on ja/zh/other pages (two-thirds of pilot strata, PILOT-REPORT.md:10) are unreadable for most users and the PI audit; v2.7 has no translation field. See X41."
+    },
+    {
+     "severity": "low",
+     "type": "extractor null path",
+     "evidence": "PLAN.md:1166 (downgrade reasons `no_quote`, `low_confidence`)",
+     "text": "The extractor prompt must allow 'no support found' explicitly; otherwise its incentive is to return something."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep R-040 (presence-checked quote)",
+     "mechanism": "Extractor quotes per positive code after jev; T-024 fuzzy presence check.",
+     "benefits": "As approved; cheap; traceable.",
+     "risks": "Does not test that the quote supports the value.",
+     "commits_to": "SPEC as is; T-022/T-032 prompts."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: extractor quotes blind, before seeing the code",
+     "mechanism": "Extractor is asked for the passages relevant to each field without being told jev's value; jev's code is then checked against them (X35).",
+     "benefits": "Removes the confirmation incentive.",
+     "risks": "More text per call; quotes may not match the specific value.",
+     "commits_to": "SPEC delta to R-040 (PI approval); T-022/T-032 prompt approval."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: add a jev entailment check",
+     "mechanism": "Keep R-040 and add X35 (jev Noul per quote: does this text support value V?).",
+     "benefits": "Turns presence into support using the classifier; small extra cost.",
+     "risks": "Another threshold; jev may agree with itself.",
+     "commits_to": "SPEC delta (new requirement); T-011/T-024 change; cost estimate before paid runs."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: align wording to Q-010 a",
+     "mechanism": "Re-word R-040 to 'for every positive or substantive jev code'.",
+     "benefits": "Removes the R-040/R-041 inconsistency.",
+     "risks": "None beyond wording.",
+     "commits_to": "Mechanical SPEC fix (integrator, PI approval)."
+    }
+   ],
+   "depends_on": [
+    "X13",
+    "X14",
+    "X35",
+    "X41"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X13",
+   "name": "Quote presence check (R-042)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "deterministic",
+   "current_text": "Supporting text is checked against the stored page text by fuzzy match; a quote below the match threshold counts as no supporting text.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:99",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "short-quote false matches",
+     "evidence": "Stage5-Rulings.md:28 (DEC-007 a, rapidfuzz); evidence_review.py@052fcb2:145-154 (substring check)",
+     "text": "Partial-ratio fuzzy matching of a short quote ('AI', 'ChatGPT', a city name, one CJK term) matches almost any relevant page. No minimum quote length or minimum distinctiveness is set; CJK quotes are short in characters by nature."
+    },
+    {
+     "severity": "medium",
+     "type": "chunk-local matching",
+     "evidence": "SPEC.md:100 (R-044 'quote from the chunk that produced the code'); PLAN.md:1153",
+     "text": "Matching against the whole page lets a quote from chunk 3 support a chunk-1 code; matching against the producing chunk loses evidence that straddles a chunk boundary (no overlap rule in DEC-008)."
+    },
+    {
+     "severity": "low",
+     "type": "PDF / rendered text",
+     "evidence": "SPEC.md:124 (R-074 raw %PDF pages re-scraped)",
+     "text": "Hyphenation, ligatures and line breaks in PDF text make verbatim quotes differ from stored text; the threshold must be calibrated per content type, which T-003 may not cover."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep R-042 with T-003 calibration",
+     "mechanism": "rapidfuzz against stored text; threshold set by the PI after T-003.",
+     "benefits": "As approved (Q-020 b, DEC-007 a).",
+     "risks": "Short quotes pass trivially.",
+     "commits_to": "T-003 spike and PI threshold approval."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: minimum length and anchoring",
+     "mechanism": "Require a minimum quote length (in characters, script-adjusted) and match against the producing chunk plus a fixed overlap window.",
+     "benefits": "Prevents trivial matches; handles boundaries.",
+     "risks": "Some legitimate short evidence (a table cell) fails.",
+     "commits_to": "SPEC delta to R-042 (PI); T-020 overlap; T-024 tests."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: offsets instead of text",
+     "mechanism": "The extractor returns character offsets into the chunk (as DEC-010 does for spans); the quote is cut deterministically from stored text.",
+     "benefits": "Quotes are verbatim by construction; fuzzy matching only validates offsets.",
+     "risks": "Offsets from an LLM can be off; needs a repair rule.",
+     "commits_to": "SPEC delta; T-022/T-032/T-024 changes."
+    }
+   ],
+   "depends_on": [
+    "X12",
+    "X16"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X14",
+   "name": "Downgrade rule (R-041)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "pipeline",
+   "current_text": "A positive or substantive code with no supporting text is downgraded: field to `unknown` (or the field's no-evidence value); institution verdict to `unclear` when no supported positive remains. Only positive or substantive values need support; `no`, `unknown`, `not_documented`, `_NA_` and negative page verdicts need none.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:98",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "page-verdict target undefined",
+     "evidence": "SPEC.md:71 (R-015 8 values, no `unknown`), :98",
+     "text": "R-041 names targets for fields and the institution verdict, but not for a page verdict. An unsupported `confirms_activity` page has no `unknown` verdict to fall to; `ambiguous_genai` and `ambiguous_attribution` assert specific doubts the page may not have. The pass-2 activity codes on that page then have an undefined status."
+    },
+    {
+     "severity": "high",
+     "type": "no-evidence values per field not listed",
+     "evidence": "SPEC.md:98; PLAN.md T-024 spec-change trigger 'a field has no defined no-evidence value'",
+     "text": "For yes/no items (`content_*`, `evaluation_type_*`) the no-evidence value is `no`, so an unsupported yes becomes an asserted `no` published as a finding rather than a missing value. For `evaluation_documented` it becomes `not_documented`; for `disclosure_scope`, is `single_institution` substantive? Each field needs an explicit target in the codebook."
+    },
+    {
+     "severity": "medium",
+     "type": "cascade order",
+     "evidence": "SPEC.md:62-63, :98; codebook-extension-proposal.md:85 (CX-41 gate)",
+     "text": "Downgrades cascade: page verdict -> pass-2 activity codes -> gated type items -> Stage 6 verdict. The order of application and whether dependent codes are voided or re-asked is not specified (see X04)."
+    },
+    {
+     "severity": "medium",
+     "type": "differential missingness",
+     "evidence": "INDEX-DECISIONS.md:33 (unknown form excluded from denominator)",
+     "text": "Downgrades fall where quotes are hard (genre, scope, absence-like values, non-Latin scripts if matching is weaker). With P-5 (b), downgraded pages leave the index denominator, so missingness is not at random."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep R-041 as approved",
+     "mechanism": "T-024 downgrades unsupported positive codes to `unknown` or the field's no-evidence value.",
+     "benefits": "As ruled (S8 a, Q-010 a).",
+     "risks": "Undefined page-verdict target; yes/no items turn into asserted `no`.",
+     "commits_to": "Per-field targets still to be written in T-010."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: per-field target table",
+     "mechanism": "Add a codebook column `downgrade_to` for every item (e.g. page verdict `confirms_activity` -> `ambiguous_genai`; yes/no items -> `unknown`, adding the value; genre -> `unknown`).",
+     "benefits": "Makes R-041 executable and auditable; programmatic linkage can read the column.",
+     "risks": "Adds `unknown` to yes/no items (enum change; CX items need re-signature).",
+     "commits_to": "Codebook column; CX re-signature where values are added; two version steps."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: separate support status from value",
+     "mechanism": "Do not rewrite the value; publish the jev value plus `support_status` (supported / no_quote / low_confidence) and let consumers filter (X40).",
+     "benefits": "No information loss; no new enum values in the CX fields.",
+     "risks": "Reverses S8 a's 'not published as positive'; website must hide unsupported values.",
+     "commits_to": "SPEC delta to G-002/R-041 (PI ruling); D-007 interface."
+    }
+   ],
+   "depends_on": [
+    "X12",
+    "X15",
+    "X40"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X15",
+   "name": "Confidence threshold 0.8 for all jev codes (R-081)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "pipeline",
+   "current_text": "One confidence threshold for all jev codes: 0.8. A code below 0.8 is downgraded as under R-041. This includes negative and absence codes: a page or field coded negative below 0.8 goes to `unclear` / `unknown`.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:133",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "scale of downgrade on CX fields",
+     "evidence": "Agent-computed from `pilot/answers-v2.jsonl.gz` (pilot 2, n = 285 finding pages, jev-1.13.0), not a reported pilot statistic: share of answers with jev confidence < 0.8: disclosure_scope 48%, content_status_date 44%, content_contact (pilot-2 wording) 43%, content_data 35%, evaluation_documented 26% (72% of its positives); report-v2.json confidence_quartiles",
+     "text": "Applied to the CX fields as piloted, the threshold turns several items into mostly-unknown fields. This was not visible when the threshold was ruled; no pilot report applied it."
+    },
+    {
+     "severity": "high",
+     "type": "meaning of jev confidence",
+     "evidence": "Agent check on pilot/answers-v2.jsonl.gz: for all 3,066 binary answers confidence = 2p - 1 exactly; PILOT-REPORT.md:95 (precision 61% at confidence >= 0.8 for confirms_activity)",
+     "text": "For yes/no items 0.8 means p >= 0.9; for multi-value items the mapping differs (e.g. p = 0.89 gave confidence 0.85 on a 4-value item). One threshold therefore imposes different stringency by item cardinality, and pilot 4 shows 0.8 is not calibrated accuracy (61% agent-judged precision above it)."
+    },
+    {
+     "severity": "high",
+     "type": "targets missing",
+     "evidence": "codebook-extension-proposal.md:94-95 (yes/no items), :73 (`not_documented`), SPEC.md:133",
+     "text": "`content_*`, `evaluation_type_*` and `evaluation_documented` have no `unknown`; R-081's target for their low-confidence negatives does not exist without an enum change to frozen items."
+    },
+    {
+     "severity": "medium",
+     "type": "derived and chunked codes",
+     "evidence": "codebook-extension-proposal.md:184, :94",
+     "text": "Undefined: whether the threshold applies per chunk before combination or to the combined code (and which confidence a combined code carries), and how it applies to derived codes (`content_contact` OR)."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep one threshold 0.8 for all codes",
+     "mechanism": "T-024 downgrades every jev answer below 0.8.",
+     "benefits": "Simple, as ruled (Q-002, Q-019 a).",
+     "risks": "Mass `unknown` on several CX items; undefined targets.",
+     "commits_to": "Enum additions to CX items or a per-field target rule (X14)."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: probability threshold by cardinality",
+     "mechanism": "Threshold on the chosen value's probability (e.g. p >= 0.8 for every item), not jev's confidence.",
+     "benefits": "Same meaning across binary and multi-value items.",
+     "risks": "Different numbers from the ruled 0.8; needs re-sizing.",
+     "commits_to": "SPEC delta to R-081 (PI ruling); T-024; quality packet re-sized."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: per-item thresholds from fixtures",
+     "mechanism": "Set thresholds per item at Stage 3 from the R-084 fixtures and the agent read (as Q-020 b does for the matcher).",
+     "benefits": "Calibrated to observed error; avoids gutting low-confidence-but-accurate items.",
+     "risks": "More PI decisions; small fixture sets give noisy thresholds.",
+     "commits_to": "SPEC delta; fixture labelling (DEC-006 c); PI approves each threshold."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: flag, do not rewrite, below threshold",
+     "mechanism": "Keep the value; set `support_status = low_confidence` (X40); exclude from indices and the website by default.",
+     "benefits": "No information loss; no enum change to frozen CX items.",
+     "risks": "Reverses the 'downgrade' wording of Q-002.",
+     "commits_to": "SPEC delta (PI ruling); D-007 interface."
+    }
+   ],
+   "depends_on": [
+    "X14",
+    "X40"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X16",
+   "name": "Chunk combination rule (R-044, CX §11.1)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "pipeline",
+   "current_text": "Chunked pages (> 32k tokens, C-004): the CX-01.2 §11.1 combination rule applies to every field. Page fields take the first chunk's value; yes/no items are yes if any chunk says yes; ordered vocabularies take the first value in table order found in any chunk. The supporting quote comes from the chunk that produced the code.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:100",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "page verdict and completeness swept in",
+     "evidence": "SPEC.md:100 ('applies to every field'), :61 (R-002: verdict and completeness are page-level codes); codebook-extension-proposal.md:184 (§11.1 names only disclosure_form and disclosure_scope as first-chunk fields)",
+     "text": "Read literally, R-044 makes the page verdict and page completeness 'page fields' that take the first chunk's value. A long council-minutes PDF whose GenAI item is in chunk 3 would get `no_genai`; a page whose 'see full report' link is in chunk 2 would be 'complete'. §11.1 itself limited first-chunk to the two CX page fields. The verdict needs its own rule (e.g. an order over the 8 values), which belongs to the page-verdict reviewer but is triggered by this wording."
+    },
+    {
+     "severity": "medium",
+     "type": "ambiguous class membership",
+     "evidence": "SPEC.md:100; codebook-extension-proposal.md:20",
+     "text": "`content_*` are both 'page fields' (CX-01) and 'yes/no items'; R-044 lists the two rules without precedence. §11.1 resolves it (any-yes), R-044 does not."
+    },
+    {
+     "severity": "medium",
+     "type": "pass-2 span outside chunk",
+     "evidence": "Stage5-Rulings.md:31 (DEC-010 a)",
+     "text": "Pass-2 codes on chunked pages: the activity span lies in one chunk; the other chunks contain no marked activity. Running pass 2 on all chunks with an order rule inflates evaluation codes (X03); running it only on the span's chunk loses evidence elsewhere on the page."
+    },
+    {
+     "severity": "low",
+     "type": "confidence of combined code",
+     "evidence": "pilot/pilot.py:229-238 (combined answer = the first yes chunk's answer object)",
+     "text": "The pilot kept the first yes chunk's confidence. With R-081, taking the first, max or min confidence changes outcomes; not specified."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep R-044 as approved",
+     "mechanism": "As written.",
+     "benefits": "Already ruled (P6).",
+     "risks": "Literal reading breaks page verdict and completeness.",
+     "commits_to": "T-020/T-022 implementation; A-021 fixtures."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: name the fields per rule",
+     "mechanism": "Replace 'page fields' with an explicit list: first chunk = `disclosure_form`, `disclosure_scope`; any-yes = `content_*`, completeness 'incomplete', `evaluation_type_*`; ordered = `evaluation_documented`, page verdict (order to be ruled); state that combined confidence is the producing chunk's.",
+     "benefits": "Unambiguous; matches §11.1; programmatic (codebook column `chunk_rule`).",
+     "risks": "Needs a PI order over the 8 verdict values.",
+     "commits_to": "SPEC delta to R-044 (PI); codebook column; A-021 fixtures updated."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: pass 2 on the span's chunk plus neighbours",
+     "mechanism": "Pass-2 questions run on the chunk containing the span and its adjacent chunks only.",
+     "benefits": "Limits cross-activity contamination.",
+     "risks": "Misses evidence elsewhere in long documents.",
+     "commits_to": "SPEC delta; T-023."
+    }
+   ],
+   "depends_on": [
+    "X01",
+    "X02",
+    "X03",
+    "X17"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X17",
+   "name": "Page completeness (R-030)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "jev-choice",
+   "current_text": "The first pass also records whether the page holds all available information about every activity it mentions, or links to further pages with information about any of them.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:85",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "not answerable from page text",
+     "evidence": "SPEC.md:85; C-004 (SPEC.md:218)",
+     "text": "'All available information' requires knowledge of what exists elsewhere; jev sees only the page. The answerable question is narrower: does the page point to another document or page for more information about a GenAI activity it mentions (e.g. 'read the full report', 'see the policy', an attachment)? As worded, every short press release is plausibly 'incomplete'."
+    },
+    {
+     "severity": "high",
+     "type": "links are not in stored text",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/scrape/render.py:65-82 (RenderedPage: url, text, title, content_type, fetch_metadata; no links); html.py:36-67 (extract_links exists but is not persisted)",
+     "text": "jev can say 'incomplete' because the text says 'see attached report', but the stored text carries no hrefs, so the extractor cannot return a URL unless one is printed in the text. In the back-fill (R-035, stored pages) most follow-up links would be unrecoverable without re-fetching the page."
+    },
+    {
+     "severity": "medium",
+     "type": "scope over verdicts",
+     "evidence": "SPEC.md:85; PLAN.md:927 (links for every incomplete page whatever its verdict)",
+     "text": "On `no_genai` pages completeness is vacuous; on `background_only` and `other_body` pages following links pulls in other bodies' pages. No gating by verdict is defined."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep R-030 as approved",
+     "mechanism": "jev binary in pass 1; extractor returns links for incomplete pages.",
+     "benefits": "As ruled (Q3).",
+     "risks": "Unanswerable construct; links missing from stored text.",
+     "commits_to": "T-011 wording; T-022 links."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: 'refers onward' question",
+     "mechanism": "jev Choice: 'Does the page refer the reader to another page or document for more information about a GenAI activity it mentions?' yes / no; asked only on the five R-003 verdicts.",
+     "benefits": "Answerable from text; fewer wasted fetches.",
+     "risks": "Misses incompleteness the page does not signal.",
+     "commits_to": "SPEC delta to R-030 (PI); T-011."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: deterministic link candidates plus jev selection",
+     "mechanism": "Persist `extract_links` output (X42); jev picks, per candidate link (anchor text + context), whether it leads to more information about the activity.",
+     "benefits": "Uses real hrefs; selection is a jev classification (R-001), not extractor judgement.",
+     "risks": "Many questions per link-heavy page; scrape change.",
+     "commits_to": "Scrape-layer change (PI ruling vs N-004); T-011/T-025; cost estimate."
+    }
+   ],
+   "depends_on": [
+    "X18",
+    "X42"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X18",
+   "name": "Follow-up links (R-031..R-036)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "mixed",
+   "current_text": "R-031: When a page is not complete, the LLM extracts the follow-up links and they are sent back to the scrape phase; fetched pages then pass through the same classification. R-032: ... up to 3 hops ... A per-institution cap on followed URLs also applies ... R-033: Any link the page cites is eligible, including news and vendor pages. R-034: Each URL is fetched at most once per institution per run; every followed link records the page it came from (provenance chain). R-036: Pages fetched live during the back-fill are new source records tagged with their provenance ... They count as evidence but sit outside the original searched sample and never add to its denominator.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:86-91",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "comparability across versions",
+     "evidence": "SPEC.md:91 (R-036 covers back-fill only), :119-121",
+     "text": "In ordinary v2.7 runs, followed pages enlarge each institution's page set (up to 3 hops), which raises the chance of a `yes` relative to v2.5 runs. R-036's 'outside the searched sample' rule applies only to the back-fill. Prevalence across v2.5 and v2.7 rows (both visible on the site, R-051) is then not comparable without a per-source `discovery_path` (searched vs followed)."
+    },
+    {
+     "severity": "medium",
+     "type": "attribution risk",
+     "evidence": "PILOT-REPORT.md:98 (main pilot-4 error: parent or neighbouring body's activity credited to a smaller unit)",
+     "text": "Followed links from a village or ward page often lead to the district or county; R-033 allows any link. This feeds the error mode the unclear pilot found most often, unless followed pages are coded with `other_body` correctly."
+    },
+    {
+     "severity": "medium",
+     "type": "extractor makes a selection decision",
+     "evidence": "SPEC.md:86; Stage5-Rulings.md:24 (DEC-003 b)",
+     "text": "Choosing which of a page's links are 'follow-up' links is a relevance classification done by the extractor. That sits uneasily with R-001 (codes by jev only)."
+    },
+    {
+     "severity": "low",
+     "type": "stored links",
+     "evidence": "render.py:65-82",
+     "text": "See X17: hrefs are not persisted, so the extractor sees only URLs printed in text."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep R-031..R-036",
+     "mechanism": "Extractor returns links; follow leg up to 3 hops and a URL cap; provenance stored.",
+     "benefits": "As ruled.",
+     "risks": "Comparability and attribution risks; missing hrefs.",
+     "commits_to": "T-025; PI sets the cap after T-002."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: tag discovery path on every source",
+     "mechanism": "Add a deterministic `discovery_path` (searched / followed hop n / back-fill followed) on every source row in all runs, and report prevalence with and without followed pages.",
+     "benefits": "Keeps comparability; no coding change.",
+     "risks": "One more column.",
+     "commits_to": "SPEC delta extending R-036 to all runs; D-007 field."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: restrict eligible links",
+     "mechanism": "Follow only links on the same registrable domain as the page or the institution's official domain (X37), plus document attachments.",
+     "benefits": "Fewer other-body pages; cheaper.",
+     "risks": "Misses news/vendor detail (reverses Q6b ii).",
+     "commits_to": "SPEC delta to R-033 (PI ruling)."
+    }
+   ],
+   "depends_on": [
+    "X17",
+    "X37",
+    "X42"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X19",
+   "name": "Supporting-text publication and length (R-043, DEC-016)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "pipeline",
+   "current_text": "Supporting text is published with the code it supports. The API carries the full text; the website shows it up to a display cap, with a marker and access to the full text. (DEC-016 c: cap on website only, full text in API; cap value proposed by agent after T-003, PI sets.)",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:101",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "copyright and personal data",
+     "evidence": "SPEC.md:101; Stage5-Rulings.md:37; G-004 (SPEC.md:27, bulk handoff)",
+     "text": "There is no cap on quote length at extraction or in the API. Long verbatim passages from news and vendor pages (third_party was 43% of the pilot, PILOT-REPORT.md:21) published in a bulk API raise reuse issues; quotes for contact items contain officials' names (X06)."
+    },
+    {
+     "severity": "low",
+     "type": "quote count",
+     "evidence": "SPEC.md:97",
+     "text": "One quote per code per page, many codes per page: the API payload per activity grows with every new field; no de-duplication of identical quotes across codes."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep DEC-016 c",
+     "mechanism": "Full text in API; website cap set after T-003.",
+     "benefits": "As ruled.",
+     "risks": "Unbounded API text.",
+     "commits_to": "T-003 cap proposal; D-007."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: cap at extraction",
+     "mechanism": "The extractor returns at most N characters (script-adjusted) per quote; the same cap applies in API and site.",
+     "benefits": "Bounded payload and reuse exposure.",
+     "risks": "Some codes need longer context.",
+     "commits_to": "SPEC delta to R-043; T-022/T-032 prompts."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: offsets for third-party sources",
+     "mechanism": "For third-party sources publish offsets, length and a hash plus the URL; full text only internally.",
+     "benefits": "Traceable without republishing third-party text.",
+     "risks": "Users cannot read the support without visiting the page.",
+     "commits_to": "SPEC delta (PI); D-007."
+    }
+   ],
+   "depends_on": [
+    "X12",
+    "X06"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X20",
+   "name": "Contract version per row (R-050)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "deterministic",
+   "current_text": "Every published row carries the contract version that produced it.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:107",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "one label, several instruments",
+     "evidence": "SPEC.md:107; Stage5-Rulings.md:26 (DEC-005 a), :25 (DEC-004 a: model id per jev answer); C-001 (SPEC.md:215, extractor model changed by delta)",
+     "text": "A v2.7 row is produced by the jev question-set version, jev model version, the extractor model and prompt hash (already changed once by RC-D-001), the chunker estimator, the matcher threshold (T-003) and the confidence threshold. 'Contract version' alone does not identify these; a change of extractor model or matcher threshold within v2.7 would be invisible on the row."
+    },
+    {
+     "severity": "medium",
+     "type": "grain",
+     "evidence": "SPEC.md:107-108; validate contract label v1.5 (DEC-013 a)",
+     "text": "An institution row is produced by validate v1.5 from page rows under extract v2.7, possibly from different runs (followed pages, back-fill). 'The contract version' (singular) is ambiguous for consolidated rows and correction-layer rows."
+    },
+    {
+     "severity": "low",
+     "type": "label drift in SPEC",
+     "evidence": "SPEC.md:151 (SC-01 'v2.6 row published'), :157 (SC-07 'a v2.6 institution')",
+     "text": "Scenarios still say v2.6 for rows this plan labels v2.7 (DEC-013 a)."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep R-050 (one contract_version column)",
+     "mechanism": "DEC-005 a: explicit column on every CSV/DB row.",
+     "benefits": "Simple; as ruled.",
+     "risks": "Does not identify instrument components.",
+     "commits_to": "T-012/T-028/T-051."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: instrument manifest id",
+     "mechanism": "Add `instrument_id` per row pointing to a manifest (contract versions, question-set version, jev model, extractor model + prompt hash, chunker, matcher + threshold, confidence threshold). See X36.",
+     "benefits": "Full reproducibility; meets the PI's radical-transparency principle.",
+     "risks": "One more table to maintain.",
+     "commits_to": "SPEC addition; D-007; T-027/T-028."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: two columns",
+     "mechanism": "`extract_contract_version` and `validate_contract_version` on institution and activity rows.",
+     "benefits": "Resolves the grain ambiguity cheaply.",
+     "risks": "Still omits model/prompt/threshold.",
+     "commits_to": "SPEC delta to R-050; D-007."
+    }
+   ],
+   "depends_on": [
+    "X36"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X21",
+   "name": "source_type (Group E col 33, §4.6)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "mixed",
+   "current_text": "| `official_gov` | Government domain (.gov, .gouv, .go, etc.), gazette, parliamentary record |\n| `procurement_tender` | Tender notice, RFP, contract award, vendor selection document |\n| `news_major` | Major national/international news outlet (Reuters, BBC, NYT, Le Monde, NHK, etc.) |\n| `news_trade` | Technology or government trade press (GovTech, FedScoop, PublicTechnology, etc.) |\n| `vendor` | Vendor website, case study, blog post, or press release |\n| `academic` | Peer-reviewed paper, working paper, university report |\n| `policy_org` | Think tank, IGO, or policy organization (OECD, World Bank, ITU, Brookings, etc.) |\n| `social_media` | Official social media accounts (Twitter/X, LinkedIn from institutional accounts) |\n| `archive` | Wayback Machine, Google Cache, or other archived page |\n| `other` | None of the above; explain in `source_snippet` |",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:123, :204-217",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "no coder in v2.7",
+     "evidence": "PLAN.md:866 (T-021 pass-1 artifact: verdict, CX page fields, completeness, chunk ids), :925-929 (T-022 extractor scope), SPEC.md:60 (R-001), :64 (R-006)",
+     "text": "In v2.5 the extractor (nano) coded `source_type`. In v2.7 the extractor may not classify (R-001, C-001), and no T-0xx card asks jev for it or derives it. Yet it is a published column (validate contract §5.1 col 7, output_contract.md:127), feeds `source_credibility` (X22), the Stage 6 tie-break (X31), the CX QC cross-check (codebook-extension-proposal.md:45) and the pilot strata."
+    },
+    {
+     "severity": "medium",
+     "type": "non-exclusive categories",
+     "evidence": "extract output_contract.md:208-217",
+     "text": "Categories mix publisher (government, vendor, news), document kind (tender, academic paper), channel (social media) and access path (archive). A tender on a government portal, a vendor press release on a news wire, an institution's own LinkedIn post, a Wayback copy of a ministry page all fit two values; there is no order rule."
+    },
+    {
+     "severity": "medium",
+     "type": "domain heuristic",
+     "evidence": "extract output_contract.md:208",
+     "text": "'Government domain (.gov, .gouv, .go, etc.)' misses many official sites (.org, .lg.jp, .de municipal sites, .ac for public universities) and includes government-hosted third-party content. The project already holds an official-site overlay (master-sites, commit c6349d6) that could decide this deterministically."
+    },
+    {
+     "severity": "low",
+     "type": "`other` explanation",
+     "evidence": "extract output_contract.md:217",
+     "text": "`other` says 'explain in source_snippet'; v2.7 has no free-text home for that explanation."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep the 10-value enum, coder unassigned",
+     "mechanism": "As v2.5 contract text; leaves the coder to be decided in T-010/T-011.",
+     "benefits": "No vocabulary change.",
+     "risks": "Field cannot be produced without violating R-001 or adding a card.",
+     "commits_to": "A card or ruling naming the coder before T-011."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: jev Choice in pass 1",
+     "mechanism": "Add `source_type` to the pass-1 page question set with an order rule (first in table order) and the master official-site list in the state.",
+     "benefits": "Fits R-001; cheap (page state already sent); keeps the published column.",
+     "risks": "New jev question, unpiloted; overlaps `disclosure_form`.",
+     "commits_to": "T-011 question set; PI approval of non-contract wording (T-011 gate); fixture labels."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: deterministic publisher + jev genre",
+     "mechanism": "Deterministic `publisher_kind` from URL vs the master official-site overlay and known news/vendor lists; jev only for genre values (tender, academic, policy_org). Pair with X01 alt-2.",
+     "benefits": "Reproducible; removes a classification from the LLM for the easy half.",
+     "risks": "Lists need maintenance; misses unlisted outlets.",
+     "commits_to": "New deterministic module and lists; enum may change (two version steps)."
+    },
+    {
+     "id": "alt-3",
+     "label": "Agent-drafted: retire source_type, use disclosure_form",
+     "mechanism": "Drop `source_type` from v2.7 rows; publish `disclosure_form` (and its publisher dimension) instead; keep v2.5 values on v2.5 rows.",
+     "benefits": "One page-genre field instead of two overlapping ones.",
+     "risks": "Breaks consumers and Stage 6 tie-breaks; loses news/vendor/academic detail.",
+     "commits_to": "Schema change (two version steps); procurement and website consumers; R-087/D-008 coordination."
+    }
+   ],
+   "depends_on": [
+    "X01",
+    "X22",
+    "X31",
+    "X37"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X22",
+   "name": "source_credibility hierarchy (col 35, §4.8)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "mixed",
+   "current_text": "When sources conflict on coded values, the higher-credibility source wins:\n\n1. **`high`**: Government domains, procurement/tender portals, parliamentary/council records, annual reports, regulator publications, gazette notices.\n2. **`medium`**: Major news outlets, vendor case studies with named institutions, trade press, policy organization reports.\n3. **`low`**: Social media, blog posts, undated pages, anonymous sources, machine-translated content you could not fully verify.",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:228-234",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "no coder in v2.7",
+     "evidence": "PLAN.md:866, :925-929; SPEC.md:60",
+     "text": "Same gap as X21: no card produces `source_credibility`, but Stage 6 conflict resolution (validate output_contract.md:99-101; jev_validate.py:172-182) depends on it."
+    },
+    {
+     "severity": "medium",
+     "type": "coder-relative criterion",
+     "evidence": "extract output_contract.md:234",
+     "text": "'Machine-translated content you could not fully verify' describes the old LLM coder's ability, not the source. It has no meaning for jev or a deterministic rule."
+    },
+    {
+     "severity": "medium",
+     "type": "mostly a function of source_type",
+     "evidence": "extract output_contract.md:232-234 vs :208-217",
+     "text": "Tiers are a near-deterministic mapping of `source_type` plus 'undated'. Coding it separately adds a second, inconsistent judgement."
+    },
+    {
+     "severity": "medium",
+     "type": "construct: credibility vs recency for time-varying fields",
+     "evidence": "validate output_contract.md:101 (credibility first, then most recent date)",
+     "text": "For `adoption_stage` and `year_*`, an old official pilot announcement outranks a newer news report of production, so the consolidated stage can be stale. Credibility is a reasonable rule for identity facts, less so for status."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep three tiers, coder unassigned",
+     "mechanism": "As v2.5 text.",
+     "benefits": "No vocabulary change.",
+     "risks": "No coder; coder-relative clause.",
+     "commits_to": "A coder decision in T-010/T-011."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: deterministic mapping",
+     "mechanism": "`source_credibility` = fixed map from `source_type` (X21) plus `low` when `source_publication_date` = unknown; drop the translation clause.",
+     "benefits": "Reproducible, free, consistent.",
+     "risks": "Loses case-level judgement (e.g. an anonymous news blog on a major outlet's domain).",
+     "commits_to": "Codebook mapping table; T-024 or T-028; Stage 6 tests."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: retire as a column, keep as a Stage 6 rule",
+     "mechanism": "Do not publish credibility; Stage 6 computes tiers internally from `source_type` when it needs a tie-break.",
+     "benefits": "Removes a published judgement that users may over-read.",
+     "risks": "Website and Kaser consumers lose a column.",
+     "commits_to": "Schema change (version steps); D-007."
+    }
+   ],
+   "depends_on": [
+    "X21",
+    "X26",
+    "X31"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X23",
+   "name": "Row-level confidence (col 38, §4.9)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "mixed",
+   "current_text": "| `high` | Coded values are based on a primary government source or multiple corroborating secondary sources. |\n| `medium` | Based on a single reputable secondary source without primary confirmation, OR primary source is ambiguous. |\n| `low` | Based on indirect evidence, machine-translated sources with potential misinterpretation, or a single non-authoritative source. |",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:133, :236-242",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "no coder, and a downstream dependency",
+     "evidence": "PLAN.md:866, :925-929; INDEX-DECISIONS.md:26 (P-6 (c): institution score = confidence-weighted mean over findings); validate output_contract.md:96 (consolidated confidence = highest across rows)",
+     "text": "No v2.7 card produces the row `confidence` enum, but index decision P-6 weights findings by confidence and Stage 6 aggregates it. It is not stated whether 'confidence' now means jev's per-answer confidence (which answer?) or this enum."
+    },
+    {
+     "severity": "medium",
+     "type": "not answerable per page",
+     "evidence": "extract output_contract.md:240",
+     "text": "'Multiple corroborating secondary sources' is a cross-source property, but rows are per page (output_contract.md:41-43). The criterion can only be applied in Stage 6."
+    },
+    {
+     "severity": "medium",
+     "type": "optimistic aggregation",
+     "evidence": "validate output_contract.md:96; jev_validate.py:385",
+     "text": "Stage 6 takes the maximum confidence across supporting rows: one high-confidence row hides several low ones."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep the enum, coder unassigned",
+     "mechanism": "As v2.5 text.",
+     "benefits": "No vocabulary change.",
+     "risks": "No coder; P-6 input undefined.",
+     "commits_to": "Coder decision; P-6 definition."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: derive deterministically in Stage 6",
+     "mechanism": "high = at least one supported `confirms_activity` source with credibility high, or two independent (non-syndicated, X38) sources; medium = one medium source; low otherwise.",
+     "benefits": "Applies the criterion at the grain where it is answerable; reproducible.",
+     "risks": "Mapping choices are substantive and need PI sign-off.",
+     "commits_to": "Codebook rule; T-026; P-6 re-read."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: replace with jev confidence summaries",
+     "mechanism": "Retire the enum; publish per-activity `min_jev_confidence` over its supported codes (and the verdict's confidence for the page).",
+     "benefits": "Uses the classifier's own measure; no extra judgement.",
+     "risks": "jev confidence is not calibrated accuracy (PILOT-REPORT.md:95); a number invites over-reading.",
+     "commits_to": "Schema change (version steps); P-6 redefined; D-007."
+    }
+   ],
+   "depends_on": [
+    "X15",
+    "X22",
+    "X32",
+    "X38"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X24",
+   "name": "uncertainty_flags vocabulary (col 39, §4.10)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "mixed",
+   "current_text": "| `stage_ambiguous` | Cannot determine whether proposed, announced, pilot, or production |\n| `genai_vs_traditional_ai` | Source mentions \"AI\" but unclear whether generative AI specifically |\n| `institution_attribution` | Activity may belong to a parent ministry, sibling agency, or country-wide program rather than this specific institution |\n| `date_uncertain` | Year of announcement or deployment could not be reliably determined |\n| `source_language_barrier` | Key sources in a language you could not fully verify |\n| `vendor_undisclosed` | Tool/vendor identity not publicly stated |\n| `discontinued_uncertain` | Activity may have been discontinued but cannot confirm |\n| `scope_unclear` | Cannot determine whether internal-only or also public-facing |",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:244-271",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "no coder in v2.7",
+     "evidence": "PLAN.md:866, :925-929; evidence_review.py@052fcb2:182-189 (v2.6 added two flags deterministically)",
+     "text": "No card produces flags in v2.7, but Stage 6 unions them (validate output_contract.md:97) and the website may show them."
+    },
+    {
+     "severity": "medium",
+     "type": "redundant with v2.7 codes",
+     "evidence": "SPEC.md:71 (R-015 `ambiguous_genai`, `ambiguous_attribution`); extract output_contract.md:98-106",
+     "text": "Most flags restate a code: `genai_vs_traditional_ai` = verdict `ambiguous_genai`; `institution_attribution` = `ambiguous_attribution`; `stage_ambiguous` = adoption_stage `unknown`; `date_uncertain` = year `unknown`; `vendor_undisclosed` = vendor `unknown`; `scope_unclear` = target_users `unknown`. Only `discontinued_uncertain` is independent; `source_language_barrier` is coder-relative."
+    },
+    {
+     "severity": "medium",
+     "type": "overloaded meaning in Stage 6",
+     "evidence": "validate output_contract.md:261-268 (edge case I: `scope_unclear` for possible duplicate activities); evidence_review.py@052fcb2:264-266 (unresolved identity requires scope_unclear)",
+     "text": "Stage 6 uses `scope_unclear` to mean 'identity unresolved', while §4.10 defines it as internal-vs-public uncertainty. A user cannot tell which."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep the 8 flags, coder unassigned",
+     "mechanism": "As v2.5 text.",
+     "benefits": "Back-compatible.",
+     "risks": "No coder; redundancy; overload.",
+     "commits_to": "Coder decision."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: derive flags deterministically",
+     "mechanism": "Compute each flag from codes (table above); add `identity_unresolved` for Stage 6 relations; drop `source_language_barrier`; `discontinued_uncertain` becomes a pass-2 jev yes/no.",
+     "benefits": "No new judgement; consistent with the codes; removes the overload.",
+     "risks": "Flags become a view of other columns (some may see them as redundant).",
+     "commits_to": "Enum change (two version steps); T-024/T-026; data dictionary."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: retire flags for v2.7 rows",
+     "mechanism": "Stop producing flags on v2.7 rows; keep them on v2.5 rows; website shows the underlying `unknown`/ambiguous values instead.",
+     "benefits": "Simplest; nothing to keep consistent.",
+     "risks": "Consumers lose a familiar column; Stage 6 identity hold needs another field.",
+     "commits_to": "Schema change; D-007; procurement coordination."
+    }
+   ],
+   "depends_on": [
+    "X21",
+    "X30"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X25",
+   "name": "source_snippet (col 37)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "extractor",
+   "current_text": "Verbatim excerpt or close paraphrase supporting the coded values. For non-English sources: English translation with original in parentheses. (Max 300 chars.)",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:127",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "conflicts with R-040",
+     "evidence": "SPEC.md:97 (verbatim supporting text per code)",
+     "text": "'Close paraphrase' and 'English translation' are not verbatim and cannot pass R-042. In v2.7 per-code supporting text supersedes the snippet's purpose, but nothing says whether the snippet is still produced."
+    },
+    {
+     "severity": "medium",
+     "type": "used as a tie-break",
+     "evidence": "validate output_contract.md:101 ('Tie there: largest source_snippet'); jev_validate.py:178",
+     "text": "Stage 6 breaks ties by snippet length, which measures how much the old model wrote, not evidence quality."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep source_snippet as is",
+     "mechanism": "Extractor writes a 300-char excerpt/paraphrase.",
+     "benefits": "Back-compatible.",
+     "risks": "Non-verbatim text next to verbatim quotes; odd tie-break.",
+     "commits_to": "T-022 prompt."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: snippet = the verdict's supporting quote",
+     "mechanism": "Define `source_snippet` on v2.7 rows as the verbatim supporting text of the page verdict (truncated), with no paraphrase.",
+     "benefits": "One verbatim field; no extra call.",
+     "risks": "Non-English snippets unreadable without X41.",
+     "commits_to": "Contract text change; T-022."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: retire on v2.7 rows",
+     "mechanism": "Publish per-code supporting text instead; drop the snippet tie-break from Stage 6.",
+     "benefits": "No duplicate evidence fields.",
+     "risks": "Consumers expecting the column.",
+     "commits_to": "Schema change; Stage 6 rule change (X31)."
+    }
+   ],
+   "depends_on": [
+    "X12",
+    "X31",
+    "X41"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X26",
+   "name": "source_publication_date (col 31)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "mixed",
+   "current_text": "When the source was published or last updated. (`YYYY-MM-DD` / `YYYY-MM` / `YYYY` / `unknown`.)",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:121",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "no coder in v2.7",
+     "evidence": "PLAN.md:925-929 (DEC-009 a list omits it); evidence_review.py@052fcb2:15-19 (v2.6 required quoted support for it)",
+     "text": "Neither DEC-009 a's routing (Stage5-Rulings.md:30) nor any card names a coder. Stage 6 uses it as the second tie-break and `content_status_date` may be satisfied by it."
+    },
+    {
+     "severity": "medium",
+     "type": "two meanings",
+     "evidence": "extract output_contract.md:121",
+     "text": "'Published or last updated' merges two dates; a 2023 page updated in 2026 changes the Stage 6 recency tie-break."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep, coder unassigned",
+     "mechanism": "As v2.5.",
+     "benefits": "Back-compatible.",
+     "risks": "No coder.",
+     "commits_to": "Coder decision."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: deterministic first, extractor second",
+     "mechanism": "Take dates from HTML metadata / PDF properties / URL patterns deterministically; if absent, the extractor returns a date with its verbatim quote, validated by R-042.",
+     "benefits": "Mostly free and reproducible; quote-backed otherwise.",
+     "risks": "Metadata dates are often CMS dates, not publication dates.",
+     "commits_to": "New deterministic module; T-022 field; DEC-009 table amended (PI)."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: split published and updated",
+     "mechanism": "Two fields: `source_published_date`, `source_updated_date`.",
+     "benefits": "Removes the merge.",
+     "risks": "One more column.",
+     "commits_to": "Schema change (version steps)."
+    }
+   ],
+   "depends_on": [
+    "X31"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X27",
+   "name": "source_language (col 34)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "deterministic",
+   "current_text": "Primary language of the source (e.g., `en`, `fr`, `ja`). (ISO 639-1 code.)",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:124",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "no coder in v2.7",
+     "evidence": "PLAN.md:866, :925-929",
+     "text": "Previously the extractor's output; no v2.7 card produces it. It is used for strata, multilingual routing and quality reporting."
+    },
+    {
+     "severity": "low",
+     "type": "vocabulary inconsistency",
+     "evidence": "extract output_contract.md:84 (`institution_search_languages`: ISO 639-1 or 639-3, optional script subtag) vs :124 (ISO 639-1 only)",
+     "text": "Languages without a 639-1 code and script variants (e.g. `uz-latn`) can be search languages but not page languages; mixed-language pages have no rule."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep ISO 639-1, coder unassigned",
+     "mechanism": "As v2.5.",
+     "benefits": "Back-compatible.",
+     "risks": "No coder.",
+     "commits_to": "Coder decision."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: deterministic language ID",
+     "mechanism": "Pinned local language-ID library on stored text; same tag grammar as `institution_search_languages`; `mul` when no language exceeds a set share.",
+     "benefits": "Free, reproducible, consistent with search tags.",
+     "risks": "Short or boilerplate-heavy pages misidentified.",
+     "commits_to": "New dependency; T-024 or a scrape-side module; tag grammar change (version steps if validated)."
+    }
+   ],
+   "depends_on": [],
+   "notes": ""
+  },
+  {
+   "id": "X28",
+   "name": "source_title, source_url, source_access_date (cols 29, 30, 32)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "deterministic",
+   "current_text": "`source_url`: The URL of the supplied page, verbatim from the input. **Never fabricate or alter.** `source_title`: Page or document title as it appears (max 200 chars). `source_access_date`: Date the supplied page was retrieved (provided in the input metadata as the scrape date).",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:119-122",
+   "findings": [
+    {
+     "severity": "low",
+     "type": "title has a deterministic source",
+     "evidence": "render.py:80 (RenderedPage.title)",
+     "text": "The scraper already stores a title, so `source_title` need not be extractor output. URL and access date are already input copies. For R-036/R-074 re-fetches, access date must be the re-fetch date."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep as copied fields",
+     "mechanism": "URL and access date copied from input; title from the extractor.",
+     "benefits": "Back-compatible.",
+     "risks": "Title is unnecessary model output.",
+     "commits_to": "None."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: all three deterministic",
+     "mechanism": "Take `source_title` from RenderedPage.title (fallback: first heading); never from a model.",
+     "benefits": "Reproducible; removes an extractor field.",
+     "risks": "HTML titles can be generic ('Home').",
+     "commits_to": "T-028 writer; contract text."
+    }
+   ],
+   "depends_on": [],
+   "notes": ""
+  },
+  {
+   "id": "X29",
+   "name": "Stage 6 institution verdict (R-005; validate v1.3 §3.1; v1.4 complete-context rule)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "deterministic",
+   "current_text": "R-005: ... institution-level `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a low-confidence negative downgraded under R-081 counts as one).\n\nv1.3 §3.1: `yes` <=> `len(activities) >= 1` AND >=1 source has `genai_evidence = confirms_activity`. `no` <=> `len(activities) == 0` AND every source has `genai_evidence = confirms_absence`. `unclear` <=> `len(activities) == 0` AND no source has `genai_evidence = confirms_activity` (sources are some mix of `ambiguous` / `background_only`; at least one such source exists).",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:65; C:/Users/spaci/worktrees/G3O-integrator/g3o/validate/prompts/output_contract.md:54-58",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "failed pages vanish",
+     "evidence": "evidence_review.py@052fcb2:61-64, :111 (`inaccessible` disposition -> ambiguous); SPEC.md:71 (8 verdicts, no inaccessible); SPEC.md:65 ('reviewed pages')",
+     "text": "v2.6 kept inaccessible sources as unresolved signals. The v2.7 page vocabulary has no such value, and R-005 counts only 'reviewed pages'. An institution with one readable `no_genai` page and four failed fetches would get `no`. v1.4's pipeline coverage check (evidence_review.py@052fcb2:332-336: completion markers, attrition ledger, no non-benign failures) is not carried into R-005's wording."
+    },
+    {
+     "severity": "high",
+     "type": "'negative' not enumerated",
+     "evidence": "SPEC.md:65, :98 ('negative page verdicts'); validate output_contract.md diff v1.4 §9 last paragraph (benign background_only allowed alongside an excluded event)",
+     "text": "Which of `no_genai`, `confirms_absence`, `event_only`, `other_body`, `background_only` count as negative for `no` is not stated. Under v1.3 any `background_only` page forces `unclear` (validate output_contract.md:58), so an institution with four no-GenAI pages and one national-strategy page stays unclear; v1.4 relaxed this only for the event case. The choice moves many institutions between `no` and `unclear`."
+    },
+    {
+     "severity": "medium",
+     "type": "cap reached and incomplete pages",
+     "evidence": "SPEC.md:87 (R-032 'cap reached' recorded)",
+     "text": "Whether an incomplete page whose links were not followed (cap reached, fetch failed) is an unresolved signal is not stated."
+    },
+    {
+     "severity": "medium",
+     "type": "pass-2 activities on non-confirming pages",
+     "evidence": "SPEC.md:62 (R-003: pass 2 on five verdicts incl. event_only, other_body, ambiguous_*)",
+     "text": "Pass 2 produces activity codes on pages that cannot support `yes`. Stage 6 must say whether those activities are published (as held), discarded, or kept internal; v1.3 §3.1 counts activities when deciding `yes`."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep R-005 wording",
+     "mechanism": "Deterministic rule in T-026 as approved.",
+     "benefits": "As ruled (S9 a, SF-009 b).",
+     "risks": "Failed pages and background pages handled implicitly.",
+     "commits_to": "T-026 implementation choices become de facto rules."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: explicit truth table",
+     "mechanism": "Codebook table: `yes` if >= 1 supported `confirms_activity` page with a supported activity; `no` if every attempted page (incl. failed fetches and unfollowed links) ends in {no_genai, confirms_absence, event_only, other_body} at confidence >= 0.8 and no page is ambiguous, background_only or failed; otherwise `unclear`. Variant for PI: allow background_only in `no`.",
+     "benefits": "Reproducible, testable (A-010), no hidden choices.",
+     "risks": "The background_only choice changes `no` rates materially either way.",
+     "commits_to": "SPEC delta to R-005 (PI ruling on background_only and failures); T-026 tests."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: add a page fetch state",
+     "mechanism": "Add a deterministic page state `not_reviewed` (fetch failed / no usable text / cap reached) that always counts as an unresolved signal (X39).",
+     "benefits": "Makes failures visible to the rule and the public.",
+     "risks": "More `unclear` institutions.",
+     "commits_to": "SPEC addition; T-021/T-026; D-007."
+    }
+   ],
+   "depends_on": [
+    "X14",
+    "X15",
+    "X39"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X30",
+   "name": "Stage 6 activity identity and merging (R-005; v1.4 §9 relations)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "jev-choice",
+   "current_text": "R-005: explicit relations before merging observations; distinct/unresolved relations never merge. v1.4 §9: Allowed relations: same_activity, component_of_program, shared_participation, distinct_action, unresolved. ... Merged observations require a connected set of explicit same-identity relations. Distinct/unresolved relations cannot be silently collapsed; unresolved identities retain scope_unclear.",
+   "current_source": "C:/Users/spaci/repos/G3O/planning/SPEC.md:65; git show 052fcb2:g3o/validate/prompts/output_contract.md §9",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "name equality merges without a relation",
+     "evidence": "C:/Users/spaci/worktrees/G3O-integrator/g3o/validate/jev_validate.py:112-114 ('Skip if names are identical (already grouped)'); validate v1.4 edge case I ('names alone do not resolve identity')",
+     "text": "The current jev Stage 6, which T-026 rewrites, merges rows whose `activity_name` strings are identical without asking anything. In v2.7 `activity_name` is extractor free text (DEC-009 a), so generic names ('AI chatbot', 'Generative AI policy') would merge distinct activities, and the extractor would in effect decide identity, contrary to R-001 and R-005."
+    },
+    {
+     "severity": "medium",
+     "type": "actor evidence has no coder",
+     "evidence": "evidence_review.py@052fcb2:40-55 (ObservedActor), :217-225 (shared_participation requires two documented actors)",
+     "text": "`shared_participation` and the v2.6 actor checks rely on per-source actor records (role, unit, participation quote) coded by the old model. v2.7 has no item producing them; without them the relation cannot be validated as v2.6 required."
+    },
+    {
+     "severity": "medium",
+     "type": "jev suitability and cost",
+     "evidence": "jev_validate.py:115 (pairwise Noul)",
+     "text": "Five-way relations over all pairs grow quadratically (an institution with 20 activity rows has 190 pairs). A Choice per pair over the two spans and quotes is jev-suitable; the state size limit (C-004) caps how much evidence each pair sees."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep v1.4 relations as the rule, jev pairwise",
+     "mechanism": "T-026 asks jev a 5-value Choice per pair; graph check as in evidence_review.py@052fcb2.",
+     "benefits": "As ruled (DEC-018 b).",
+     "risks": "Name-equality shortcut may survive the rewrite; actor relations unvalidated.",
+     "commits_to": "T-026; A-010 fixtures."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: no merge without a jev relation",
+     "mechanism": "Every pair of activity observations is asked, including identical names; candidate pairs pre-filtered deterministically only to skip obviously distinct pairs (different activity_type and tool), never to merge.",
+     "benefits": "Identity is always a jev decision with evidence.",
+     "risks": "More questions per institution.",
+     "commits_to": "Codebook rule; T-026; cost estimate."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: drop shared_participation",
+     "mechanism": "Reduce relations to same_activity / component_of_program / distinct / unresolved until an actor item exists.",
+     "benefits": "Only relations the v2.7 evidence can support.",
+     "risks": "Loses joint-programme modelling (v2.6 Clay/Cumberland fixtures).",
+     "commits_to": "Rule change; v2.6 fixtures adapted."
+    }
+   ],
+   "depends_on": [
+    "X24"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X31",
+   "name": "Stage 6 conflict resolution on Group D fields (v1.3/v1.4 §4.2)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "mixed",
+   "current_text": "After an evidence-based same-activity relation is established, compare independently supported Group D values using the source-credibility hierarchy from Output Contract §4.8 (Tier 1 = government / procurement / parliamentary; Tier 2 = major news / vendor case studies / trade press; Tier 3 = social / blogs / undated). Tie within a tier: most recent `source_publication_date`. Tie there: largest `source_snippet`.",
+   "current_source": "git show 052fcb2:g3o/validate/prompts/output_contract.md §4.2 (v1.3 text: C:/Users/spaci/worktrees/G3O-integrator/g3o/validate/prompts/output_contract.md:99-101)",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "silence beats evidence",
+     "evidence": "validate output_contract.md:101; jev_validate.py:162-182 (any disagreement, incl. not_documented vs yes, becomes a 'which row wins' question)",
+     "text": "For `has_*` safeguards and other 'documented?' fields, `not_documented` on one page and `yes` on another are not in conflict: one page is silent. The credibility rule lets a silent government page override a news page that documents oversight, erasing the evidence. v1.4's 'independently supported values' helps only if `not_documented` is treated as unsupported, which is not stated."
+    },
+    {
+     "severity": "high",
+     "type": "inputs have no coder",
+     "evidence": "X21, X22, X25, X26",
+     "text": "Every tie-break input (credibility tier, publication date, snippet length) lacks a v2.7 coder."
+    },
+    {
+     "severity": "medium",
+     "type": "time-varying fields",
+     "evidence": "validate output_contract.md:101",
+     "text": "Credibility-before-recency gives stale `adoption_stage` (see X22)."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep tiers -> date -> snippet",
+     "mechanism": "As v1.4 text, inputs to be produced.",
+     "benefits": "Familiar; v2.6 fixtures exist.",
+     "risks": "Silence can beat evidence; inputs missing.",
+     "commits_to": "Coders for X21/X22/X26; T-026."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: field-class rules",
+     "mechanism": "Documented-type fields (`has_*`, `content_*`, evaluation): any supported positive wins over `not_documented`; genuine contradictions (yes vs no) -> `unclear`. Status fields (`adoption_stage`, `year_deployed`): most recent supported source first, then credibility. Identity fields (tool, vendor): credibility first. Snippet tie-break dropped.",
+     "benefits": "Matches what each field measures.",
+     "risks": "More rules to sign off; differs from v2.6 fixtures.",
+     "commits_to": "Codebook rule per field class; T-026 tests; PI sign-off."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: jev answers the field over pooled evidence",
+     "mechanism": "For a merged activity, jev answers each Group D question once over the union of the activity's supported quotes from all its sources (state = quotes with source type and date).",
+     "benefits": "One coding rule for single and multi-source activities; no tie-break table.",
+     "risks": "Pooled quotes can exceed state limits; new instrument.",
+     "commits_to": "Codebook change; T-011 Stage 6 set; T-026; fixtures."
+    }
+   ],
+   "depends_on": [
+    "X21",
+    "X22",
+    "X26",
+    "X25",
+    "X30"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X32",
+   "name": "Stage 6 aggregates: confidence, flags, n_sources (v1.3 §4.1 rows 20-22)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "deterministic",
+   "current_text": "| 20 | n_sources | integer >=1 | | Count of `SourceRecord` entries with this `activity_id` |\n| 21 | confidence | enum | `high` / `medium` / `low` | Highest confidence across supporting input rows |\n| 22 | uncertainty_flags | array | ... | The union of the input rows' flags, ordered alphabetically. |",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/validate/prompts/output_contract.md:95-97",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "syndication inflates n_sources",
+     "evidence": "PILOT-REPORT.md:35 (pattern 7: two syndications of one press release coded differently)",
+     "text": "Syndicated copies of one press release on several outlets count as several sources, raising `n_sources` and (with max) confidence without independent corroboration."
+    },
+    {
+     "severity": "medium",
+     "type": "max confidence",
+     "evidence": "validate output_contract.md:96",
+     "text": "See X23: one high row hides contrary low rows."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep count, max, union",
+     "mechanism": "As v1.3.",
+     "benefits": "Simple.",
+     "risks": "Syndication and optimism.",
+     "commits_to": "Inputs from X23/X24."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: independent-source count",
+     "mechanism": "Add `n_independent_sources` counting syndication groups (X38) once; confidence per X23 alt-1.",
+     "benefits": "Corroboration measured properly.",
+     "risks": "Depends on X38.",
+     "commits_to": "Schema addition; T-026."
+    }
+   ],
+   "depends_on": [
+    "X23",
+    "X24",
+    "X38"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X33",
+   "name": "institution_summary (Group C col 9; v1.3 §3.2)",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "mixed",
+   "current_text": "ONE sentence, max 300 chars. Take the most informative `institution_summary` from the input rows; tie-break by Tier-1 source. If `has_genai_activity = no`, briefly state what was reviewed.",
+   "current_source": "C:/Users/spaci/worktrees/G3O-integrator/g3o/validate/prompts/output_contract.md:60-62; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:83",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "no producer and non-verbatim",
+     "evidence": "PLAN.md:929 (DEC-009 a residual free text omits it); SPEC.md:25 (G-002)",
+     "text": "The per-page summaries that Stage 6 chooses among were written by the old extractor. v2.7 does not route `institution_summary` to anyone, and a model-written summary is published text without verbatim support, at odds with G-002."
+    },
+    {
+     "severity": "low",
+     "type": "verdict mismatch",
+     "evidence": "validate output_contract.md:62",
+     "text": "A summary selected from page rows can contradict the Stage 6 verdict after downgrades (e.g. a page summary saying GenAI is used, institution `unclear`)."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep model-written summary, jev picks",
+     "mechanism": "Extractor writes per-page summaries; jev Choice picks one.",
+     "benefits": "Readable.",
+     "risks": "Unsupported text; producer missing.",
+     "commits_to": "DEC-009 table amended."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: deterministic template",
+     "mechanism": "Generate the summary from codes: verdict, number of activities, their types/stages, page counts reviewed and failed.",
+     "benefits": "Always consistent with codes; free.",
+     "risks": "Less informative prose.",
+     "commits_to": "Codebook template; T-026/T-028."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: extractor summary after Stage 6",
+     "mechanism": "One extractor call per institution after Stage 6, given the final codes and quotes, constrained to restate them.",
+     "benefits": "Readable and consistent.",
+     "risks": "Extra paid call per institution; still model text.",
+     "commits_to": "New card; cost estimate; PI prompt approval."
+    }
+   ],
+   "depends_on": [
+    "X29"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X34",
+   "name": "Stage 6 treatment of CX-01.2 fields",
+   "kind": "existing",
+   "frozen": false,
+   "linkage": "pipeline",
+   "current_text": "CX-04: The codebook stores page-level and finding × page codes only. How page codes roll up to a finding, institution or country is an index decision (index decisions 6–8), not a codebook rule.",
+   "current_source": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:23",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "publication needs a roll-up",
+     "evidence": "SPEC.md:48 (D-004 new fields on API/website), :65 (R-005 scope lists no CX rule)",
+     "text": "CX-04 leaves roll-up to the index, but D-004 publishes the fields per institution and activity. When an activity merges observations from three pages with different `evaluation_documented` values, Stage 6 must store all three, pick one, or combine; nothing says which, and the website shows only one row per institution (R-051)."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Keep CX-04 (no roll-up in the codebook)",
+     "mechanism": "Store page and page x activity codes only; website shows per-source values.",
+     "benefits": "Leaves index choices open (P-6..P-8).",
+     "risks": "Website/API need per-source display; consumers will roll up ad hoc.",
+     "commits_to": "D-007 interface must expose per-source codes."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: descriptive roll-up for display only",
+     "mechanism": "Stage 6 computes a display value per activity (any supported positive; first in table order for ordered fields), labelled 'display roll-up, not an index input'.",
+     "benefits": "Users see one value; index remains free.",
+     "risks": "A second 'official-looking' number beside the index.",
+     "commits_to": "Codebook rule (not CX re-signature: CX-04 unchanged for indices); T-026."
+    }
+   ],
+   "depends_on": [
+    "X31"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X35",
+   "name": "Addition: jev entailment check of supporting quotes",
+   "kind": "addition",
+   "frozen": false,
+   "linkage": "jev-choice",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "gap",
+     "evidence": "SPEC.md:99 (R-042 'Presence only, not entailment'); evidence_review.py@052fcb2:146 ('Does NOT establish entailment')",
+     "text": "No item tests whether a quote supports the coded value."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "No entailment check (status quo)",
+     "mechanism": "Presence check only.",
+     "benefits": "No cost.",
+     "risks": "Wrong codes with on-topic quotes pass.",
+     "commits_to": "None."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: jev Noul per (code, quote)",
+     "mechanism": "State = quote (plus a short window); question: 'Does this text state that <field> is <value>?' true/false; false or confidence < threshold -> downgrade `no_support`.",
+     "benefits": "Uses the classifier for a closed question; makes G-002 a support claim.",
+     "risks": "Extra requests (small states); jev may share the coding error.",
+     "commits_to": "SPEC addition (PI); T-011/T-024; cost estimate before paid runs."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: audit-sample only",
+     "mechanism": "Run the entailment check on the R-086 audit sample only and report the rate in the quality packet.",
+     "benefits": "Measures the problem cheaply.",
+     "risks": "Does not fix published rows.",
+     "commits_to": "D-005 packet addition."
+    }
+   ],
+   "depends_on": [
+    "X12",
+    "X13"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X36",
+   "name": "Addition: instrument manifest per row",
+   "kind": "addition",
+   "frozen": false,
+   "linkage": "deterministic",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "gap",
+     "evidence": "SPEC.md:107; C-001 (extractor model changed mid-plan by RC-D-001)",
+     "text": "Rows do not identify question-set, model, prompt and threshold versions."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "contract_version only",
+     "mechanism": "R-050 as is.",
+     "benefits": "Simple.",
+     "risks": "Non-reproducible across component changes.",
+     "commits_to": "None."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: manifest table + id per row",
+     "mechanism": "A manifest (contract versions, `JEV_QUESTION_SET_VERSION`, jev model, extractor model id + prompt SHA-256, chunker + estimator version, matcher + threshold, confidence threshold, codebook item hashes) keyed by `instrument_id` on every row.",
+     "benefits": "Full provenance; supports RC-D-002's programmatic linkage (each question traces to an item hash).",
+     "risks": "Another table and column.",
+     "commits_to": "SPEC addition; T-027/T-028/T-051; D-007."
+    }
+   ],
+   "depends_on": [
+    "X20"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X37",
+   "name": "Addition: source_on_official_domain (deterministic)",
+   "kind": "addition",
+   "frozen": false,
+   "linkage": "deterministic",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "gap",
+     "evidence": "extract output_contract.md:208 (domain heuristic); G3O commit c6349d6 (official-site overlay joined onto the master)",
+     "text": "Whether a page sits on the searched institution's (or another body's) official site is decidable from the overlay without a model, and is the cleanest input to `source_type`, credibility, `third_party` QC and follow-link restriction."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Not added",
+     "mechanism": "—",
+     "benefits": "No new column.",
+     "risks": "Publisher judgements stay model-made or uncoded.",
+     "commits_to": "None."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: three-value deterministic field",
+     "mechanism": "`own_official` / `other_official` / `not_official` from URL host vs the master official-site overlay.",
+     "benefits": "Free; reproducible; feeds X21/X22/X18.",
+     "risks": "Overlay coverage gaps produce false `not_official`.",
+     "commits_to": "New column; overlay version recorded in X36."
+    }
+   ],
+   "depends_on": [
+    "X21",
+    "X22",
+    "X18"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X38",
+   "name": "Addition: syndication / near-duplicate group",
+   "kind": "addition",
+   "frozen": false,
+   "linkage": "deterministic",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "gap",
+     "evidence": "PILOT-REPORT.md:35 (pattern 7)",
+     "text": "Syndicated copies are coded independently and counted as independent sources."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Not added",
+     "mechanism": "—",
+     "benefits": "—",
+     "risks": "Inflated corroboration; inconsistent codes on identical text.",
+     "commits_to": "None."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: text-hash group id",
+     "mechanism": "Deterministic near-duplicate hash (e.g. shingled MinHash on normalised text) per page; `syndication_group` id; QC flag when codes differ within a group.",
+     "benefits": "Free; exposes inconsistency; supports X32.",
+     "risks": "Threshold choice; templated pages may group falsely.",
+     "commits_to": "New column; library pin; T-024/T-026."
+    }
+   ],
+   "depends_on": [
+    "X32",
+    "X23"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X39",
+   "name": "Addition: page review state (fetch / text / cap)",
+   "kind": "addition",
+   "frozen": false,
+   "linkage": "deterministic",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "gap",
+     "evidence": "SPEC.md:71 (no inaccessible verdict); evidence_review.py@052fcb2:61-64",
+     "text": "Pages that could not be reviewed have no state in the v2.7 vocabulary."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Not added",
+     "mechanism": "Failures recorded only in the attrition ledger.",
+     "benefits": "No new enum.",
+     "risks": "Stage 6 can issue `no` over failed pages (X29).",
+     "commits_to": "None."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: `page_review_state`",
+     "mechanism": "`reviewed` / `fetch_failed` / `no_usable_text` / `link_not_followed_cap` / `link_not_followed_hops`; non-`reviewed` states count as unresolved signals in Stage 6.",
+     "benefits": "Makes failures visible; R-075 reconciliation uses it.",
+     "risks": "More `unclear`.",
+     "commits_to": "SPEC addition (PI); T-021/T-025/T-026; D-007."
+    }
+   ],
+   "depends_on": [
+    "X29",
+    "X18"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X40",
+   "name": "Addition: public support_status per code",
+   "kind": "addition",
+   "frozen": false,
+   "linkage": "pipeline",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "gap",
+     "evidence": "PLAN.md:1166 (downgrade reasons recorded internally); SPEC quality attribute 'Version and downgrade visible to users' (SPEC.md:184)",
+     "text": "Downgrade reasons exist internally but no published field shows users why a value is `unknown`."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Internal reasons only",
+     "mechanism": "T-024 records `no_quote`, `low_confidence`.",
+     "benefits": "Smaller public schema.",
+     "risks": "Users cannot tell 'not on the page' from 'downgraded'.",
+     "commits_to": "None."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: publish `support_status` beside each code",
+     "mechanism": "`supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `not_required` per code.",
+     "benefits": "Meets the transparency attribute; enables X14 alt-2 and X15 alt-3.",
+     "risks": "Doubles column count for coded fields.",
+     "commits_to": "SPEC addition; D-007; data dictionary."
+    }
+   ],
+   "depends_on": [
+    "X14",
+    "X15"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X41",
+   "name": "Addition: supporting-text translation",
+   "kind": "addition",
+   "frozen": false,
+   "linkage": "extractor",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "medium",
+     "type": "gap",
+     "evidence": "extract output_contract.md:127 (v2.5 snippet translated); PILOT-REPORT.md:10 (8 of 12 strata non-English)",
+     "text": "Verbatim quotes in the page language replace the translated snippet; nothing gives auditors or users an English rendering."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "No translation",
+     "mechanism": "Verbatim only.",
+     "benefits": "No non-verbatim text published.",
+     "risks": "Audit and use harder for non-English pages.",
+     "commits_to": "None."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: extractor translation, labelled",
+     "mechanism": "The extractor returns `supporting_text_en` beside each non-English quote, marked as machine translation, never used for matching or coding.",
+     "benefits": "Readable; same call.",
+     "risks": "Translation errors published; extra tokens.",
+     "commits_to": "SPEC addition; T-022/T-032 prompts; D-007."
+    },
+    {
+     "id": "alt-2",
+     "label": "Agent-drafted: translate on display only",
+     "mechanism": "Website translates on demand; nothing stored.",
+     "benefits": "No stored non-verbatim text.",
+     "risks": "Not available in API/bulk.",
+     "commits_to": "Website-only change (Colin)."
+    }
+   ],
+   "depends_on": [
+    "X12"
+   ],
+   "notes": ""
+  },
+  {
+   "id": "X42",
+   "name": "Addition: persist page links at scrape time",
+   "kind": "addition",
+   "frozen": false,
+   "linkage": "deterministic",
+   "current_text": "",
+   "current_source": "",
+   "findings": [
+    {
+     "severity": "high",
+     "type": "gap",
+     "evidence": "render.py:65-82 (RenderedPage has no links); html.py:36-67, pdf.py:53 (extract_links exists)",
+     "text": "R-030/R-031 need URLs, but stored pages keep text only, so follow-up links are mostly unrecoverable from stored text, including for the whole back-fill."
+    }
+   ],
+   "options": [
+    {
+     "id": "keep",
+     "label": "Not added",
+     "mechanism": "Extractor reads URLs printed in text only.",
+     "benefits": "No scrape change.",
+     "risks": "Most links unavailable; R-035 largely unexecutable on stored pages.",
+     "commits_to": "None."
+    },
+    {
+     "id": "alt-1",
+     "label": "Agent-drafted: store `extract_links` output",
+     "mechanism": "Persist anchor URL, anchor text and context per page in new runs; for the back-fill, re-fetch pages marked incomplete to recover links.",
+     "benefits": "Makes R-031 executable; enables X17 alt-2.",
+     "risks": "Scrape-layer change; back-fill re-fetches cost time.",
+     "commits_to": "PI ruling against N-004's boundary; T-025 scope; R-035 cost sizing."
+    }
+   ],
+   "depends_on": [
+    "X17",
+    "X18"
+   ],
+   "notes": ""
+  }
+ ],
+ "cross_cutting": [
+  {
+   "severity": "high",
+   "text": "**Source-level fields have no coder in v2.7.** `source_type`, `source_credibility`, row `confidence`, `uncertainty_flags`, `source_publication_date`, `source_language`, `source_snippet`, `source_title` and `institution_summary` were all written by the old extractor. R-001/C-001 bar the new extractor from classifying, and no T-0xx card asks jev for them or derives them; the pass-1 artifact is verdict + CX page fields + completeness + chunk ids. Stage 6 tie-breaks, index decision P-6 and the CX QC cross-check all depend on them. Items X21-X28, X33.",
+   "evidence": "PLAN.md:866 (T-021 output); PLAN.md:925-929 (T-022 scope); Stage5-Rulings.md:30 (DEC-009 a routing table); SPEC.md:60, :215; validate output_contract.md:99-101, :119-131; INDEX-DECISIONS.md:26"
+  },
+  {
+   "severity": "high",
+   "text": "**R-081 (one 0.8 threshold, negatives downgraded too) collides with the frozen CX vocabularies.** On pilot-2 answers it downgrades 48% of `disclosure_scope`, 26-44% of several `content_*` items and 72% of positive `evaluation_documented` codes; and the yes/no items and `evaluation_documented` have no `unknown` to fall to. Resolving it needs either an enum change to frozen items (re-signature + two version steps) or a SPEC ruling on per-field targets. jev confidence is 2p-1 on binary items, so 0.8 means p >= 0.9 there.",
+   "evidence": "SPEC.md:133; agent computation on pilot/answers-v2.jsonl.gz (n = 285, jev-1.13.0); report-v2.json confidence_quartiles; PILOT-REPORT.md:95"
+  },
+  {
+   "severity": "high",
+   "text": "**The frozen CX instrument includes a state that v2.7 changes.** The pilot asked page fields 'about the GenAI activity' with one finding in the state, on finding pages only, with character chunks. v2.7 asks page fields in pass 1 before any activity exists, on every page verdict, with token chunks; pass 2 uses a span marker instead of CX-02's four finding fields. Byte-identical question text (R-025, T-011) does not preserve the signed instrument, so pilot agreement figures do not carry over without at least the R-084 fixture test on the v2.7 state.",
+   "evidence": "codebook-extension-proposal.md:20-21, :204; pilot/pilot.py:203, :220-225; PILOT-REPORT.md:10; Stage5-Rulings.md:29, :31; SPEC.md:61-63"
+  },
+  {
+   "severity": "high",
+   "text": "**Supporting text is presence-checked, not support-checked, and the extractor is told the code first.** G-002's guarantee is weaker than its wording; the downgrade rule mostly removes codes that have no natural quote (genre, scope, absence-like values), which is differential missingness that P-5 (b) then pushes out of the index denominator. Items X12-X14, X35.",
+   "evidence": "SPEC.md:25, :97-99; evidence_review.py@052fcb2:145-154; INDEX-DECISIONS.md:33"
+  },
+  {
+   "severity": "high",
+   "text": "**The scraper removes the evidence two items depend on.** Stored text strips `<footer>`, `<header>`, `<nav>`, `<aside>` and keeps no hrefs or mailto links. `content_contact_details` explicitly counts footers, CX-53 e-mail extraction needs mailto/footers, and R-030/R-031 follow-up links need hrefs; for the back-fill on stored pages these are largely unrecoverable.",
+   "evidence": "g3o/scrape/html.py:10-22, :47; g3o/scrape/render.py:65-82; PILOT-REPORT.md:84, :86"
+  },
+  {
+   "severity": "medium",
+   "text": "**R-044 'applies to every field' would put the page verdict and completeness under the first-chunk rule.** §11.1 named only the two CX page fields. The page verdict needs its own combination order (other reviewer's item; flagged here because the rule text is in this scope).",
+   "evidence": "SPEC.md:100; codebook-extension-proposal.md:184"
+  },
+  {
+   "severity": "medium",
+   "text": "**Pass-2 codes on non-confirming pages and downgrade cascades lack an order of operations** (page verdict -> activity codes -> CX-41 gate -> Stage 6). Without it, type items can survive a downgraded gate and Stage 6 can count activities from pages that cannot support `yes`.",
+   "evidence": "SPEC.md:62-63, :98, :133; codebook-extension-proposal.md:85; PILOT-REPORT.md:25"
+  },
+  {
+   "severity": "medium",
+   "text": "**Privacy and reuse of published text are not addressed anywhere in the codebook.** Full verbatim quotes in the API (DEC-016 c), officials' names as contact quotes, and personal e-mail addresses (CX-53) go to a public API and a bulk third-party handoff.",
+   "evidence": "SPEC.md:27, :101; Stage5-Rulings.md:37; pilot/answers-contact.jsonl.gz"
+  },
+  {
+   "severity": "low",
+   "text": "**Label and wording drift in SPEC.** SC-01 and SC-07 still say v2.6 rows; R-006's notes and DEC-009/DEC-010 say 'nano' (PLAN.md:9 states nano means the extractor); R-040 says 'every jev code' while Q-010 a limits support to positive codes.",
+   "evidence": "SPEC.md:151, :157, :64, :97, :243; PLAN.md:9"
+  },
+  {
+   "severity": "low",
+   "text": "**Evidence limits.** Every pilot agreement figure cited here is against one model's read of 6,000-character excerpts on 40 pages (not a gold set, C-015/Q-024); R-084 replaced the gold set with fixtures. Confidence shares above are agent computations on stored pilot answers, not figures the pilot report published.",
+   "evidence": "PILOT-REPORT.md:15, :43-45, :86; SPEC.md:137"
+  }
+ ]
+}

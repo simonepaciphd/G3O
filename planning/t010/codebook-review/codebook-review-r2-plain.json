@@ -1,0 +1,1774 @@
+{
+ "items": [
+  {
+   "id": "R2C01",
+   "title": "Pages that can't be judged",
+   "decision": "Where should the system record that a page could not be judged: as a ninth page verdict, as a reason in the separate page-review status, or in both with a written dividing line?",
+   "why": "You kept the approved eight-value page verdict list, but you also chose to add a ninth 'not assessable' verdict. You separately added a page-review status that already marks pages with no usable text or failed downloads. The published per-verdict page counts and the rule for the institution-level answer both assume eight verdicts, so neither knows where an unjudgeable page goes.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep eight verdicts; record it in review status",
+     "means": "Your 'not assessable' choice is re-ruled so it becomes a new value of the page-review status, and any page not fully reviewed gets a blank verdict. The institution-level rule already treats such pages as unresolved.",
+     "upside": "The approved eight-value list stays as is, one place records why a page has no verdict, and published counts stay at eight verdicts plus review-status counts.",
+     "downside": "The procurement and text-detection pipelines must report 'could not assess' as a review status rather than a verdict, and a classifier's 'unreadable' judgement shares a column with a pipeline failure."
+    },
+    {
+     "id": "b",
+     "label": "Nine verdicts; review status keeps only pipeline failures",
+     "means": "The approved plan's verdict list grows to nine, costing two version steps; the review status keeps only failed downloads and links not followed. The verdict question is re-tested on pages, published counts become nine, the institution-level rule says whether 'not assessable' blocks a 'no', and the procurement team updates their copy.",
+     "upside": "One verdict column says what was learned from every page across all pipelines, as you ruled.",
+     "downside": "It reopens a locked rule, the new value is untested and may become an escape hatch for hard pages, and it is the third change to this list."
+    },
+    {
+     "id": "c",
+     "label": "Keep both, with a written dividing line",
+     "means": "'Not assessable' means the classifier judges the stored text can't be assessed (for example only menus or a cookie wall); 'no usable text' means an automatic pre-check failed. Both count as unresolved, counts cover nine verdicts plus review statuses, and this needs an approved-plan change, two version steps and test pages for the boundary.",
+     "upside": "Keeps the intent of every round-1 choice involved.",
+     "downside": "The two columns can disagree about the same page, and the dividing line is a new substantive definition that needs test cases."
+    }
+   ]
+  },
+  {
+   "id": "R2C02",
+   "title": "Where unsure page verdicts go",
+   "decision": "When the classifier is unsure about a page verdict, should the verdict stay as coded with a 'downgraded' tag, move to a set fallback verdict, or go to a new 'unresolved' verdict?",
+   "why": "The approved plan says an unsure page verdict, including a negative one, 'goes to unclear / unknown', but neither is one of the eight verdicts. Your downgrade table names a fallback only for 'confirms activity' (to 'ambiguous GenAI'), which is wrong when GenAI is clear but who did it is unsupported. No other verdict has a fallback, so the institution-level rule can't tell a downgraded negative from a confident one without reading the separate support-status tag.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep the verdict; tag it as downgraded",
+     "means": "The verdict is never rewritten; the published support status beside it says 'downgraded: low confidence' or 'downgraded: no quote'. The institution-level rule treats any downgraded page as unresolved, and the approved plan's downgrade wording is amended for verdicts.",
+     "upside": "No change to the list of allowed values, no version steps, and the classifier's original answer stays available for analysis.",
+     "downside": "Users who read only the verdict column see codes that look un-downgraded, and the plan's 'set the field to unknown' wording no longer literally applies to verdicts."
+    },
+    {
+     "id": "b",
+     "label": "A set fallback for each verdict",
+     "means": "Each verdict gets a written fallback: 'confirms activity' goes to 'ambiguous attribution' if the who-did-it quote fails, otherwise to 'ambiguous GenAI'; 'other body' goes to 'ambiguous attribution'; event-only, background-only, no GenAI and confirms-absence go to 'ambiguous GenAI'. You word the table, and test pages are needed.",
+     "upside": "Stays within the eight approved verdicts, and downgraded pages automatically get the per-activity second pass and count as unresolved.",
+     "downside": "'The page is ambiguous' and 'the coder is unsure' share one value, which distorts any analysis of ambiguous pages, and downgraded negatives add second-pass cost."
+    },
+    {
+     "id": "c",
+     "label": "Add an 'unresolved' verdict",
+     "means": "Any unsure or unsupported verdict becomes 'unresolved'. This needs an approved-plan change, two version steps, regenerated classifier questions and reference tests, the procurement team's copy updated, and amended institution rule and counts.",
+     "upside": "Cleanly separates coder uncertainty from page ambiguity.",
+     "downside": "Breaks the eight-value lock, stacks with the 'not assessable' question (a ninth or tenth value), and is untested."
+    }
+   ]
+  },
+  {
+   "id": "R2C03",
+   "title": "Which questions apply to which activities",
+   "decision": "How should the system decide which activity questions don't apply to an activity: a full table keyed on the new action type, a table keyed on the existing activity type, or the classifier judging each field?",
+   "why": "Your round-1 table marks some fields 'not applicable' by kind of action, but it names fields that other choices replaced (access type, interaction type) and misses the new ones (model origin, build arrangement, interface and function items, model name, the split deployment years, procurement status, the GenAI-signal field, scale, supplier role, attribution role). It also doesn't say what applies when the action type is 'unknown', 'program' or 'procurement'.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Full table keyed on action type",
+     "means": "You sign a table of every activity field against every action-type value, including unknown, program and procurement, and every field the table can switch off gains 'not applicable'. Each such field costs two version steps, regenerated classifier questions and reference tests, a procurement copy change, and test cases per action type.",
+     "upside": "Complete, predictable and easy to generate, and the classifier isn't asked questions that don't apply.",
+     "downside": "One wrong action type now knocks out many fields, and 'unknown' rows need a default (ask everything, or nothing)."
+    },
+    {
+     "id": "b",
+     "label": "Table keyed on existing activity type",
+     "means": "Use the six activity types from the current production version, which you kept, as the key, with the same version-step costs as the first option; action type no longer drives applicability.",
+     "upside": "Comparable with how the current production version already switches fields off ('policy guidance' already has 'not applicable' for interaction type).",
+     "downside": "Activity type has no procurement or training value, so those activities get the wrong set of fields."
+    },
+    {
+     "id": "c",
+     "label": "Classifier decides per field",
+     "means": "Each field's question gets a defined 'not applicable' answer, with no fixed table. This costs two version steps, regenerated questions and reference tests, a procurement copy change, and re-testing the affected questions.",
+     "upside": "No knock-on from one wrong action-type code, and mixed activities are handled.",
+     "downside": "More questions are answered, the same activity can be treated inconsistently across fields, and it is harder to test."
+    }
+   ]
+  },
+  {
+   "id": "R2C04",
+   "title": "Labels for missing answers",
+   "decision": "Should the codebook use one shared set of labels for 'not asked', 'page silent' and 'can't tell', keep each field's own labels with a published map, or keep 'not asked' and 'not applicable' as two defined labels?",
+   "why": "The same meaning gets different labels across your choices. 'Not asked because an earlier answer ruled it out' is 'not asked' in some fields and 'not applicable' in others. 'Nothing stated' appears as 'not documented', 'none documented', 'none', 'none reported' and, after the downgrade rule, 'unknown', so the data dictionary can't say which labels are structural, which mean the page was silent, and which mean the coder couldn't decide.",
+   "options": [
+    {
+     "id": "a",
+     "label": "One shared set of labels",
+     "means": "Reserved labels: 'not asked' (ruled out by a rule, with 'not applicable' merged into it), 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them; the frozen institutional questionnaire items keep their signed spellings with a mapping row, and spellings are fixed before the planned version steps (no extra steps if bundled).",
+     "upside": "One reading rule for users and for the generators, and fewer allowed values.",
+     "downside": "Renames values in several chosen options, and the current production version's 'not applicable' in interaction type becomes 'not asked' through a crosswalk row."
+    },
+    {
+     "id": "b",
+     "label": "Keep each field's labels; publish a map",
+     "means": "Each label is assigned a class (structural, silent, undeterminable, downgraded) in a codebook column, and the data dictionary prints the class beside it. No change to allowed values.",
+     "upside": "No renaming, and the chosen wording stands.",
+     "downside": "Users must consult the map, and quality checks must handle many spellings."
+    },
+    {
+     "id": "c",
+     "label": "Keep 'not asked' and 'not applicable' distinct",
+     "means": "'not asked' means the row or page is not an activity; 'not applicable' means the activity exists but the field doesn't fit its type.",
+     "upside": "Keeps a real distinction analysts may want.",
+     "downside": "Three of your gates on the institutional questionnaire items work field by field, so they would need 'not applicable' instead of 'not asked', which needs re-signature of those additions or a written exception."
+    }
+   ]
+  },
+  {
+   "id": "R2C05",
+   "title": "Order in which questions are asked",
+   "decision": "Should the classifier ask gating questions first and dependent questions after, ask everything at once and discard answers afterwards, or use a mix?",
+   "why": "Many choices make one question depend on another answer, for example disclosure scope on disclosure form, evaluation types on the evaluation answer after downgrades, and several items on the verdict or the action type. Your applicability choice says inapplicable questions aren't asked, which only works if the gating question is asked in an earlier round. Blind quoting must come before the code is seen and the quote check after, downgrades can flip a gate, and no choice says how many rounds of questions run per pass or when downgrades apply.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Published step-by-step order",
+     "means": "Each codebook item records its round and its gate; the pipeline asks gate items first, applies the quote, support and confidence downgrades, then asks dependent items. This changes the pipeline design and needs a new cost estimate.",
+     "upside": "Gates mean what they say, fewer questions are wasted, and the order can be tested.",
+     "downside": "More requests and slower runs, and a wrong gate answer removes every answer that depends on it."
+    },
+    {
+     "id": "b",
+     "label": "Ask everything at once, discard afterwards",
+     "means": "All items are asked in one round per pass, and answers whose gate fails or was downgraded are voided. Your applicability and evaluation-gate wording is amended, and costs are re-estimated.",
+     "upside": "Simplest pipeline, and downgrades can be re-applied without asking again.",
+     "downside": "You pay for answers that get thrown away, and dependent questions are answered without knowing the gate, losing the aim of not asking inapplicable questions."
+    },
+    {
+     "id": "c",
+     "label": "Mix: pre-gate only on verdict and action type",
+     "means": "Only the page verdict (before the per-activity pass) and the action type (for applicability) gate questions in advance; all other gates apply afterwards, and the disclosure-scope and completeness gates are re-worded to match.",
+     "upside": "Captures most of the savings with two rounds per pass.",
+     "downside": "Two rules for gating, and the evaluation-type gate still depends on a post-downgrade value, so an extra request remains there."
+    }
+   ]
+  },
+  {
+   "id": "R2C06",
+   "title": "How outcomes and incidents are coded",
+   "decision": "Which design should code reported outcomes and incidents: your new gate questions plus the signed outcome-kind item read over the page, the signed item alone, or your new gate questions alone with the signed item applied to the extracted quotes?",
+   "why": "Three round-1 choices compete. One asks whether outcomes are realised, expected, usage-only or none and then runs the signed outcome-kind item (quantified / qualitative / none reported) on extracted quotes; another adds a separate quantified / qualitative / none existence question; a third runs the signed item over the full page text and has the quote step back up the chosen value. The incident question picks a single type although a page can report several, and its 'suspension or withdrawal' overlaps the 'discontinued' stage and the 'discontinuation uncertain' flag.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Gate questions plus signed item over the page",
+     "means": "Keep your realised-versus-expected and incident-type gates and run the signed item over page text; drop the separate existence question, since its 'none' and the gates' 'none' agree by rule; quotes are taken blind. Needs re-signature of the outcome and incident questionnaire items, an order rule or yes/no split for incident types, and test pages.",
+     "upside": "Keeps both your new distinctions and the signed values.",
+     "downside": "Two classifier questions can contradict each other (gate says none, signed item says qualitative), and a single-choice incident question still loses multi-type pages unless split into yes/no items."
+    },
+    {
+     "id": "b",
+     "label": "Signed item over the page as the only gate",
+     "means": "Your outcome and incident gates are re-ruled down to quotes only; the signed item answers both whether and what kind, and the separate existence question folds into it. The signed item's level needs re-signature.",
+     "upside": "Fewest questions and one signed vocabulary.",
+     "downside": "Loses realised versus expected and the incident type, which you chose to add."
+    },
+    {
+     "id": "c",
+     "label": "Your gates only; signed item on the quotes",
+     "means": "As your outcome choice says, the signed item runs on the extracted quotes; the existence question and the over-the-page choice are re-ruled, and test pages are needed.",
+     "upside": "The signed item's input stays close to its signed 'stored text' input.",
+     "downside": "The signed item then depends on quote quality and on blind quoting, and this reverses your choice to classify over page text."
+    }
+   ]
+  },
+  {
+   "id": "R2C07",
+   "title": "Maximum length of quotes",
+   "decision": "Should every quote be capped when extracted, should outcome and incident quotes be exempt, or should full quotes be stored and served by the API with a cap only on the website?",
+   "why": "Your outcome choice stores quotes with no length limit and caps only the display, as the approved plan says. Your quote-length choice caps every quote at extraction and applies the same cap to the API and the website, which contradicts both. Two more rules, a shortened snippet and the short window used in the quote check, also touch the same quotes, so four length rules apply.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Cap everywhere, including outcomes",
+     "means": "Outcome and incident quotes obey the same cap, and long outcomes are split into several quotes. The approved-plan change is already owed by your cap choice.",
+     "upside": "One rule, with cheaper storage and review.",
+     "downside": "Long numeric results may be cut mid-sentence, and if the outcome-kind item reads quotes it sees less text."
+    },
+    {
+     "id": "b",
+     "label": "Cap, exempting outcomes and incidents",
+     "means": "All quotes are capped except outcome and incident quotes, which are stored in full and capped only on display; your cap choice is amended and a codebook column records each field's cap.",
+     "upside": "Keeps your outcome choice's intent for the evidence most likely to be long.",
+     "downside": "Two regimes in one quote table, and API users see uneven lengths."
+    },
+    {
+     "id": "c",
+     "label": "Back to the approved plan as written",
+     "means": "Full text is stored and served by the API, with a cap only on the website as you ruled earlier; your cap choice is re-ruled.",
+     "upside": "No information loss, and it matches an earlier ruling of yours.",
+     "downside": "Reopens your cap choice, and long verbatim text in a public API raises the reuse concern reviewers flagged."
+    }
+   ]
+  },
+  {
+   "id": "R2C08",
+   "title": "What the quote step may see",
+   "decision": "How strictly should the quote-extracting model be kept from seeing the classifier's answers: blind to the field's answer but told a gate passed, blind only for codes picked from fixed lists, or fully blind with gates applied afterwards?",
+   "why": "You chose blind quoting: the quote-extracting model quotes relevant passages without knowing the classifier's answer. But other choices have it quote support 'for the chosen value' (outcome kind, the GenAI-signal field), extract outcome and incident quotes only when the gate isn't 'none', which needs the gate first, and act as the main coder of a number (deployment scale) or a date (publication date) rather than a blind quoter.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Blind to the answer, aware of the gate",
+     "means": "It never sees the answer for the field it quotes for, but may see that a gate is not 'none'. The outcome-kind and GenAI-signal choices are amended to field-relevant quotes, and scale and date are listed as fields it codes itself, subject to the quote-match check; the approved-plan change is already owed.",
+     "upside": "Keeps the protection against confirmation bias and works with the gates.",
+     "downside": "Knowing a gate passed still signals that something exists, and the definition is a new rule."
+    },
+    {
+     "id": "b",
+     "label": "Blind only for fixed-list codes",
+     "means": "Blind for the verdict and for codes picked from fixed lists; it may see the answer for quotes, dates and numbers. Your blind-quoting choice is amended.",
+     "upside": "Simple, since quotes and numbers are its own output anyway.",
+     "downside": "The outcome-kind and GenAI-signal quotes become confirmatory, and the support check then inherits the same bias."
+    },
+    {
+     "id": "c",
+     "label": "Fully blind, gates after",
+     "means": "It returns outcome, incident and scale quotes for every activity; the classifier gates afterwards and quotes under 'none' are discarded. The outcome, incident and scale choices are re-worded and costs re-estimated.",
+     "upside": "Strict independence between quote and code.",
+     "downside": "Extraction runs and costs money on every activity, with more false quotes to discard."
+    }
+   ]
+  },
+  {
+   "id": "R2C09",
+   "title": "Safeguard questions asked two ways",
+   "decision": "Should the safeguard items (human oversight, user notification, risk assessment, data classification) use one shared four-answer question, a yes / not-documented version, or two separate instruments with a consistency check?",
+   "why": "Your per-activity safeguard fields have four answers (yes / no / unclear / not documented) and an attachment rule. Your other choice asks each safeguard once per page and activity and derives yes / not documented, which drops 'no' and 'unclear'. That choice covers only three safeguards, the signed notification item is narrower than the activity-level transparency question, data classification has no questionnaire counterpart, pages with GenAI content but no identified activity get no page-level safeguard answer, and your procurement choice adds a third human-oversight item for contract clauses.",
+   "options": [
+    {
+     "id": "a",
+     "label": "One shared four-answer question",
+     "means": "One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer; this needs re-signature of the signed safeguard items, a wording step and test pages.",
+     "upside": "One question and one definition, and 'no' and 'unclear' are kept.",
+     "downside": "Changes the signed items' level from page to derived, and the current production version's transparency-notice series changes meaning."
+    },
+    {
+     "id": "b",
+     "label": "Yes / not documented only",
+     "means": "The four safeguard fields drop 'no' and 'unclear', keeping 'unknown' from downgrades. Each field costs two version steps, regenerated classifier questions and reference tests, a procurement copy change, and crosswalk rows for old 'no' and 'unclear' answers.",
+     "upside": "Matches the questionnaire's yes/no style and is simpler.",
+     "downside": "Loses stated absence ('no human review') and mixed cases, and old 'no' and 'unclear' rows can't be represented."
+    },
+    {
+     "id": "c",
+     "label": "Keep both instruments with a check",
+     "means": "Page-level safeguard items stay on the first pass as signed and the activity fields stay on the second pass; your derivation choice is re-ruled and a published check compares the two.",
+     "upside": "No re-signature, and each instrument keeps its test basis.",
+     "downside": "Twice the questions, and two public answers to the same question can disagree."
+    }
+   ]
+  },
+  {
+   "id": "R2C10",
+   "title": "Page and activity descriptions overlap",
+   "decision": "Should the page-level description items (purpose, tool or model, vendor, users, status and date) be derived from the activity codes, kept as questions with a consistency check, or left as they are?",
+   "why": "You kept page-level description items asked on the first pass. The same facts are coded again per activity on the second pass (functions, tool and model name, vendor, users, stage and years). You chose derivation for safeguards but nothing for descriptions, so a page can say 'no vendor' while one of its activities names one.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Derive page items from activity codes",
+     "means": "A page item is yes when any activity on the page has a stated value in the matching field, with no classifier question. This needs re-signature of the signed description items, a mapping table and test pages.",
+     "upside": "Removes six first-pass questions, gives one source of truth, and matches your safeguard choice.",
+     "downside": "Changes a signed instrument, the data-description item has no activity counterpart and still needs a question, and comparability with the pilot index breaks."
+    },
+    {
+     "id": "b",
+     "label": "Keep questions, add consistency check",
+     "means": "As chosen, plus a quality check that flags pages where the page item and the activity fields disagree.",
+     "upside": "Keeps the signed instrument, and disagreement becomes a diagnostic.",
+     "downside": "Pays for duplicate questions, and disagreements left unresolved are public."
+    },
+    {
+     "id": "c",
+     "label": "Keep as chosen",
+     "means": "No link between the page items and the activity fields.",
+     "upside": "No work.",
+     "downside": "Contradictions go unreported."
+    }
+   ]
+  },
+  {
+   "id": "R2C11",
+   "title": "'Integrated or standalone' asked twice",
+   "decision": "Should 'integrated versus standalone' be coded only through the new interface field, only through the existing deployment-mode field, or through both with a consistency check?",
+   "why": "Your deployment-mode definitions separate integrated (works inside software already in use) from standalone (a separate application). Your new interface field also has 'embedded in existing software' and 'standalone application'. Each activity is therefore asked the same question twice in different words, a risk the reviewer flagged.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Derive deployment mode from interface",
+     "means": "Deployment mode is set to integrated or standalone from the interface answer, otherwise unknown, with no separate question; the data dictionary notes it is derived.",
+     "upside": "One question, and the current production version's column continues as a derived series.",
+     "downside": "Conversational and back-end tools get 'unknown' deployment mode even when the page says which it is."
+    },
+    {
+     "id": "b",
+     "label": "Remove the overlap from interface",
+     "means": "Interface becomes conversational / back-end or API / other interface / not applicable / unknown, and deployment mode carries integrated versus standalone. This costs two version steps, regenerated questions and reference tests, a procurement copy change, and re-testing the interface question.",
+     "upside": "Two fields that don't overlap.",
+     "downside": "Re-drafts your chosen interface values, and the new version is untested."
+    },
+    {
+     "id": "c",
+     "label": "Keep both with a consistency check",
+     "means": "Flag contradictory pairs, for example interface 'standalone application' with deployment mode 'integrated'.",
+     "upside": "No re-ruling.",
+     "downside": "An extra question remains, and flags will be common where the wording differs."
+    }
+   ]
+  },
+  {
+   "id": "R2C12",
+   "title": "Three overlapping ways to type an activity",
+   "decision": "How should the existing activity type, the new action type and the stage and procurement-status fields fit together: keep all three with rules on allowed combinations, compute activity type from the others, or narrow action type so nothing overlaps?",
+   "why": "You kept the six existing activity types, which mix kind, stage and audience and lack procurement and training. You added an action type (deployment, procurement, governance, staff training, proposal, program, unknown) and kept adoption stage, which includes 'proposed', plus a new procurement status. Nothing rules out contradictions such as 'pilot experiment' with 'governance', 'procurement' with 'none documented', or 'proposal' with 'production'; whether 'proposal' is a type or a stage was left to you, and 'program' overlaps the segmentation rule on components of a named program and the cross-page 'component of program' link.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep all three; publish allowed combinations",
+     "means": "A table you word lists allowed combinations; violations trigger a quality flag or a downgrade of the lower-confidence code. Test cases needed.",
+     "upside": "No re-ruling, and the activity-type series continues.",
+     "downside": "Three questions per activity on overlapping ideas, and the mixed-dimension activity type stays unreliable."
+    },
+    {
+     "id": "b",
+     "label": "Compute activity type from the others",
+     "means": "Activity type is computed from action type, stage and users through a published crosswalk (for example governance becomes policy guidance; deployment plus pilot becomes pilot experiment; deployment plus public users becomes public-facing service), and the classifier isn't asked. Your keep-activity-type choice is re-ruled.",
+     "upside": "One fewer question, contradictions impossible by construction, and the existing column is still filled.",
+     "downside": "Computed values differ from the classifier-coded values in the current production version, a series break that looks like continuity, and some combinations don't map."
+    },
+    {
+     "id": "c",
+     "label": "Make action type non-overlapping",
+     "means": "Drop 'proposal' and 'procurement' from action type, since stage and procurement status carry those, and define 'program' as a container used only with named components. Your action-type choice is re-ruled and the values fixed before the version steps.",
+     "upside": "Each dimension is coded once.",
+     "downside": "Re-drafts your action-type choice, and a procurement-only activity needs an action type (for example intended deployment) that the page may not state."
+    }
+   ]
+  },
+  {
+   "id": "R2C13",
+   "title": "Evidence tier relies on an unchosen option",
+   "decision": "How should the institution's evidence tier treat procurement and governance: restated on action type, stage and procurement status; the same but counting payment as use; or with a separate procurement tier?",
+   "why": "Your evidence-tier rule counts 'procured' as commitment only under a procurement option you didn't choose; you chose a separate procurement status instead, with payment-only activities given an unknown stage. The tier also reads only the stage, so a governance activity at 'production' (a policy in force) would count as use, and 'proposal only' doesn't say whether it reads the stage or the action type.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Restate on action type, stage and procurement status",
+     "means": "Use = a deployment or program at pilot, production or discontinued; commitment = announced, or a tender, contract or payment; governance or training only = those action types only; proposal only = stage 'proposed' or action type 'proposal'. You word the rule, and tests are added.",
+     "upside": "Each tier follows one stated rule, and governance can't pass as use.",
+     "downside": "The tier inherits any action-type errors."
+    },
+    {
+     "id": "b",
+     "label": "Same, but payment counts as use",
+     "means": "As the first option, except a payment or subscription lifts an activity to use, on the reasoning that paying implies access; a note goes in the methods.",
+     "upside": "Matches the intuition behind some existing test cases.",
+     "downside": "Payment doesn't show use, and your procurement choice deliberately set the stage to unknown for those cases."
+    },
+    {
+     "id": "c",
+     "label": "Add a separate procurement tier",
+     "means": "Add 'documented procurement' between use and commitment, which adds a new value to the tier list and to the API and website columns.",
+     "upside": "Procurement evidence is visible on its own.",
+     "downside": "One more tier value, and ranking procurement against announcement is a substantive call."
+    }
+   ]
+  },
+  {
+   "id": "R2C14",
+   "title": "Combining answers across sections of long pages",
+   "decision": "For long pages split into sections, should each item declare its own rule for combining section answers, should the per-activity pass avoid splitting altogether, or should one generic rule apply?",
+   "why": "Your section-combining choice names the rule for only a handful of page items and leaves the verdict order still to rule. It says nothing for source type, the who-did-it relationship, the GenAI-signal field, or any per-activity field such as stage (where table order picks the least advanced stage), procurement status, model origin, interface, the governance fields, scale or the outcome and incident gates. Functions (any yes) and first year (earliest) have rules only inside other items, and segmentation doesn't say how a passage in one section can be 'the same as' one in another.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Each item declares its combining rule",
+     "means": "Every item picks one rule: first section, any yes, priority order (written per field, for example most advanced stage first), earliest year, combined list, or highest probability; segmentation links passages across sections. The approved-plan change is already owed, and test cases are needed.",
+     "upside": "Complete and testable, and the generator can refuse any item without a rule.",
+     "downside": "Many substantive orders to rule on (stage, verdict, procurement status)."
+    },
+    {
+     "id": "b",
+     "label": "No splitting in the per-activity pass",
+     "means": "The per-activity input is the activity passage plus a surrounding window that fits the size limit, so those fields never split; rules are needed only for page items. This changes what the classifier is shown per activity, which needs re-signature and re-testing.",
+     "upside": "Removes most of the problem, since activity passages are short.",
+     "downside": "Facts far from the passage, such as a safeguard in a separate section, are missed."
+    },
+    {
+     "id": "c",
+     "label": "One generic rule",
+     "means": "For fields that aren't yes/no, the section whose chosen answer has the highest probability wins; yes/no fields use any yes. This needs an approved-plan change and re-signature of the signed combining rule for the institutional questionnaire items.",
+     "upside": "No per-field orders to rule on.",
+     "downside": "Departs from the signed combining rule, and probabilities aren't comparable across sections with different content."
+    }
+   ]
+  },
+  {
+   "id": "R2C15",
+   "title": "How activities are linked to each other",
+   "decision": "Should links between activities, within a page and across pages, use one shared list with a new 'governs' link, two lists with a crosswalk, or should linking safeguards across activities be dropped?",
+   "why": "Within a page, the classifier labels each passage as new, same as another, component of another, or not an activity. Across pages, the consolidation step uses a different list (same activity, component of program, shared participation, distinct action, unresolved), and the within-page list lacks 'unresolved' and 'shared participation'. Your safeguard choices let a policy's safeguard attach to a deployment only through a recorded link, and your segmentation rule treats a policy and the tools it approves as separate activities, but neither list has a 'this policy governs that activity' link.",
+   "options": [
+    {
+     "id": "a",
+     "label": "One shared list, add 'governs'",
+     "means": "Both stages use: same activity, component of program, shared participation, governs, distinct action, unresolved (plus 'not an activity' within a page). You word it, and test cases are needed.",
+     "upside": "Same meaning at both stages, and safeguard linking becomes codable.",
+     "downside": "'Governs' is new wording, and each pair of activities has more answer options."
+    },
+    {
+     "id": "b",
+     "label": "Two lists with a crosswalk; 'governs' across pages",
+     "means": "Within-page labels map onto the across-page list, and the consolidation step asks about 'governs' across activities.",
+     "upside": "The within-page labelling stays simple.",
+     "downside": "A policy and its approved tool on the same page are only linked later."
+    },
+    {
+     "id": "c",
+     "label": "Drop safeguard linking",
+     "means": "Your safeguard choices are amended so no safeguard attaches across activities.",
+     "upside": "Simplest, with no new link type.",
+     "downside": "Deployment rows never show a safeguard imposed by the institution's own policy."
+    }
+   ]
+  },
+  {
+   "id": "R2C16",
+   "title": "Who an activity belongs to, coded three ways",
+   "decision": "Should 'whose activity is this' be coded per activity with the page verdict checked against it, kept per page with the attribution role used only for procurement records, or published per activity in place of the current attribution flag?",
+   "why": "Three things code who an activity belongs to: the page verdict (confirms activity / other body / ambiguous attribution), an internal relationship answer (this institution, a unit of it, joint participant, other, unresolved), and your new public attribution role (contracting authority, beneficiary, central purchasing body). Both your attribution choices work per page, though one page can carry activities by different actors. Your attribution rule says a parent's activity counts only if the page names the institution as taking part, while 'beneficiary' implies credit without taking part.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Relationship per activity; verdict checked",
+     "means": "The relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it. Test cases needed.",
+     "upside": "One attribution model, at the activity level.",
+     "downside": "More per-activity questions, and the relationship's internal-only status may need revisiting if it drives checks users can see."
+    },
+    {
+     "id": "b",
+     "label": "Per page; role only for procurement records",
+     "means": "The relationship stays per page on all GenAI pages as chosen, and the attribution role applies to procurement records, not web pages.",
+     "upside": "Least change.",
+     "downside": "Pages with several actors stay unresolved at the activity level, and the reason you chose the role (web pages also show ministries acting for agencies) is lost."
+    },
+    {
+     "id": "c",
+     "label": "Publish relationship per activity; drop the flag",
+     "means": "The relationship is published per activity, and the existing attribution uncertainty flag is retired. You rule on publication, and the schema takes a version step.",
+     "upside": "Transparent attribution in one public field.",
+     "downside": "Publishes classifier judgements about organisational relationships based on names only, since the classifier sees no institution hierarchy."
+    }
+   ]
+  },
+  {
+   "id": "R2C17",
+   "title": "Same activity credited to unit and parent",
+   "decision": "When a department or office acts and both it and its parent are in the institution list, should both get credit with a flag, should only the most specific one get credit, or should this just be documented?",
+   "why": "Your attribution rule credits a unit's activity to the named institution. The institution list has about 720,000 rows across levels, and some units are listed institutions themselves, so one activity can count for both unit and parent in prevalence figures. The classifier sees name, country and level but no hierarchy, so the pipeline can't tell.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Credit both, flag it",
+     "means": "Keep your rule and add a yes/no column marking credit received through a unit, so analyses can remove duplicates; the data dictionary explains it.",
+     "upside": "No hierarchy data needed, and it is transparent.",
+     "downside": "Prevalence across levels still double-counts unless users filter."
+    },
+    {
+     "id": "b",
+     "label": "Credit only the most specific institution",
+     "means": "The consolidation step looks up the institution hierarchy; a listed unit keeps the activity and the parent gets a link, not a credit. Your attribution rule is amended for those cases.",
+     "upside": "No double counting.",
+     "downside": "Needs hierarchy data the institution list may not hold for every country, and reverses your rule in those cases."
+    },
+    {
+     "id": "c",
+     "label": "Document only",
+     "means": "A note in the methods.",
+     "upside": "No cost.",
+     "downside": "The bias stays unmeasured."
+    }
+   ]
+  },
+  {
+   "id": "R2C18",
+   "title": "Vendor mixes maker and seller",
+   "decision": "Should the vendor field (`vendor`) be split into developer and contracting party, kept with an added supplier-role field, or left as chosen with contract details held only in the procurement data?",
+   "why": "Your vendor choice records the supplier the page names and fills gaps from a product-to-developer lookup with a stated basis. A page often names a reseller or integrator while the lookup returns the developer, so one column holds two roles. Your procurement choice amends the vendor definition by splitting it or adding a role, without picking which.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Split into developer and contracting party",
+     "means": "Developer (from lookup or page, with its basis recorded) and contracting party (page-stated only). The schema addition costs two version steps, with a crosswalk note.",
+     "upside": "Each column has one role, and the lookup can't overwrite a named reseller.",
+     "downside": "Two columns, the second sparse on web pages, and the old vendor column maps cleanly to neither."
+    },
+    {
+     "id": "b",
+     "label": "Keep vendor, add supplier role",
+     "means": "Vendor as the page states it, plus a role (developer, reseller or integrator, cloud host, unknown); the lookup is used only when the role is developer and the vendor is unknown. Adds a new list of allowed values.",
+     "upside": "Keeps the existing column and makes the role explicit.",
+     "downside": "The role is often unstated, so mostly 'unknown', and it is another classifier question."
+    },
+    {
+     "id": "c",
+     "label": "Contract detail stays in procurement data",
+     "means": "The core keeps your vendor choice, and contracting-party detail lives in the procurement pipeline's own schema; your procurement choice is re-ruled.",
+     "upside": "No change to the core codebook.",
+     "downside": "Reverses your procurement choice, and web pages naming resellers stay ambiguous."
+    }
+   ]
+  },
+  {
+   "id": "R2C19",
+   "title": "Page type coded four ways",
+   "decision": "Should the source type (`source_type`) be set automatically where possible, retired in favour of other fields, or kept alongside them with a crosswalk?",
+   "why": "Your source-type choice makes it a first-pass classifier question, but its 'official government' value is defined by web domain, which a new automatic field already computes, and 'archive' is a property of the web address. 'Procurement tender' overlaps the disclosure form's 'formal record', and your procurement choice adds a document genre with crosswalks. Source credibility is derived from source type, so a classifier answer about a domain drives credibility.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Automatic where possible",
+     "means": "'Official' comes from the domain field and 'archive' from the address; the classifier only sorts the rest (news, vendor, academic, policy organisation, social media, procurement, other). The question wording is amended.",
+     "upside": "Fewer classifier errors on a mechanical fact, and credibility is less noisy.",
+     "downside": "Official content on domains missing from the official-site list gets misclassified."
+    },
+    {
+     "id": "b",
+     "label": "Retire source type",
+     "means": "Credibility is derived from disclosure form and the domain field, and the genre crosswalk carries the rest. Removing the column costs two version steps, re-rules your credibility choice and changes the questionnaire pilot report.",
+     "upside": "One page-type instrument.",
+     "downside": "Breaks the existing column and the questionnaire pilot's agreement check between disclosure form and source type."
+    },
+    {
+     "id": "c",
+     "label": "Keep all, with a crosswalk",
+     "means": "As chosen; the genre crosswalk table also covers source type and the domain field.",
+     "upside": "No re-ruling.",
+     "downside": "Four coding costs for closely related facts."
+    }
+   ]
+  },
+  {
+   "id": "R2C20",
+   "title": "What the 0.8 confidence bar measures",
+   "decision": "Should the 0.8 bar apply to the probability of the chosen answer everywhere, should each item name its own measure, or should the bar revert to the classifier's confidence score?",
+   "why": "You moved the bar to the chosen answer's probability. But the approved rule for an institution-level 'no', the institution truth table and the quote check still use the classifier's confidence score. Reviewers found the two differ: on yes/no items, confidence equals twice the probability minus one, so 0.8 confidence means a probability of 0.9.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Chosen-answer probability everywhere",
+     "means": "The approved plan's institution rule, the truth table and the quote check are amended to 'probability of the chosen answer at or above the bar', and tests are updated.",
+     "upside": "Consistent, and your choice is fully applied.",
+     "downside": "Changes a locked rule, and the share of answers falling below the bar in re-testing changes."
+    },
+    {
+     "id": "b",
+     "label": "Each item names its measure",
+     "means": "Each item records its measure and value, allowing confidence for the eight-way verdict and probability for yes/no items; you calibrate them.",
+     "upside": "Fits items with different numbers of possible answers.",
+     "downside": "More settings to calibrate and explain."
+    },
+    {
+     "id": "c",
+     "label": "Revert to the confidence score",
+     "means": "Keep 0.8 confidence as the approved plan says; your probability choice is re-ruled.",
+     "upside": "Matches the locked plan text.",
+     "downside": "Yes/no items face an effective 0.9 probability bar."
+    }
+   ]
+  },
+  {
+   "id": "R2C21",
+   "title": "Confidence per source vs. per activity",
+   "decision": "How should confidence be computed for each source and for each consolidated activity?",
+   "why": "Your round-1 rule rates a source 'high' if it has one strong supported source or two independent sources, but 'two sources' can only be counted once sources are pooled. You also kept the rule that an activity's confidence is simply the highest of its sources, so the two-source test is either circular or lost. Separately, undated sources count as low credibility and dates are often missing, which can push official pages below 'high'.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Per-source rule from the source; corroboration when pooling",
+     "means": "Each source's confidence uses only that source's credibility and quote support. At consolidation, an activity is 'high' if one source is high or two medium sources that are not copies of each other agree; otherwise it takes the highest source value.",
+     "upside": "Each level has a rule it can actually compute.",
+     "downside": "Replaces your round-1 choice to keep 'highest wins' with a new rule, so both rule texts and the consolidation tests must be rewritten."
+    },
+    {
+     "id": "b",
+     "label": "Drop confidence per source",
+     "means": "Only activity-level confidence, under your round-1 rule as written, is published. Removing the per-source confidence column costs two version steps.",
+     "upside": "One confidence number, and less confusion with the classifier's own confidence scores.",
+     "downside": "Breaks an existing column of the current production data."
+    },
+    {
+     "id": "c",
+     "label": "Keep as ruled and document it",
+     "means": "A methods note explains the circularity; nothing else changes.",
+     "upside": "No change.",
+     "downside": "Taking the highest value across sources inflates how often activities are rated 'high'."
+    }
+   ]
+  },
+  {
+   "id": "R2C22",
+   "title": "How fields record where values came from",
+   "decision": "Should the fields that record how each value was obtained share one common vocabulary?",
+   "why": "Several round-1 choices each added their own 'how we know' field, with their own values: for the stage date, the vendor (stated or looked up), the publication date (metadata or quoted), the shared date-source and date-confidence items, how a page was found, and quote-support status. Version information is also spread across a per-row instrument record, a per-row codebook version and channel tag, per-coder model details, and raw classifier ids. The stage-date rule uses the publication date 'if supported', but that date is now taken mechanically, so 'supported' has no defined meaning.",
+   "options": [
+    {
+     "id": "a",
+     "label": "One shared vocabulary and one version record",
+     "means": "Every 'how we know' field uses the same five values: stated, from metadata, looked up, derived, quoted by the quote step. The per-run version record also holds the codebook version, the channel tag stays on each row, and per-code coder details are stored internally and linked to that record.",
+     "upside": "One grammar, and no duplicate version columns.",
+     "downside": "Renames several columns you already chose, the date-confidence item needs a new home, and names must be fixed before the version steps."
+    },
+    {
+     "id": "b",
+     "label": "Keep separate vocabularies and list them",
+     "means": "The data dictionary documents each field's values as they are.",
+     "upside": "No new rulings needed.",
+     "downside": "Users meet several near-identical columns."
+    },
+    {
+     "id": "c",
+     "label": "Fold into the quote-support status field",
+     "means": "The quote-support status gains values for looked-up, derived and metadata values and replaces the separate 'how we know' columns, which changes its list of allowed values.",
+     "upside": "Fewer columns.",
+     "downside": "One field would carry two different meanings."
+    }
+   ]
+  },
+  {
+   "id": "R2C23",
+   "title": "Mixing old-rule and new-rule results",
+   "decision": "How should results coded under the current production rules be made comparable with results coded under the new rules?",
+   "why": "The approved plan keeps the old verdict for institutions published as having no activity, so a published 'no' will mix the old rule ('pages contain no mention of generative AI') with the stricter new one, and the new institution columns stay empty and hidden for those rows. No translation table exists between old and new codes: the 4-value page verdict to 8 values, the old access and interaction fields to their new split fields, one deployment year to two, governance target users to governed population, the retired notes field, and the changed safeguard rules. Footer text and page links exist only on live re-fetches, so contact details, e-mails and follow-up links are measured differently for back-filled institutions that use stored text.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Translation table plus labels for which rule applied",
+     "means": "Publish a two-way old-to-new translation table with unmappable cells marked. Old 'no' institutions show 'no' with a label saying the old rule produced them, and a new per-row field says whether text came from storage, a live re-fetch or a new run; a methods note explains it.",
+     "upside": "Users can filter or adjust, and no extra runs are needed.",
+     "downside": "Mixed-rule 'no' results stay in public totals unless users filter them out."
+    },
+    {
+     "id": "b",
+     "label": "Re-code old 'no' institutions under the new rules",
+     "means": "Extend the back-fill to institutions published as having no activity. This reverses two approved rulings and needs a plan change, a cost estimate for you, and your authorisation of a paid run.",
+     "upside": "One rule for every published verdict.",
+     "downside": "A paid run over a large set that contradicts two of your earlier rulings."
+    },
+    {
+     "id": "c",
+     "label": "Report new-rule estimates separately",
+     "means": "Prevalence and index figures are computed only over institutions coded under the new rules; old rows are shown but excluded from those statistics, with a weighting note.",
+     "upside": "Clean new-rule estimates without new runs.",
+     "downside": "The base for these rates excludes the institutions most likely to be negative, which pushes prevalence upward unless weighted."
+    }
+   ]
+  },
+  {
+   "id": "R2C24",
+   "title": "Which page text each question reads",
+   "decision": "For each codebook item, which stored text should it read: the main page text, the header and footer text, or the page's links?",
+   "why": "In round 1 you chose to store header, footer and navigation text separately and give it to the classifier only for the contact item. Nothing says whether e-mail extraction, the quote-presence check, publication dates, language detection or near-duplicate detection also use it; templated footers make pages look alike and can skew language detection. It is also unclear whether follow-up links now come from the stored links rather than from the quote-extracting model.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Each item declares its input text",
+     "means": "A new codebook column states per item: main text, main plus header and footer, or links. Defaults: classifier items main only; contact and e-mail extraction main plus footer plus e-mail links; the quote check against the text the quote came from; language and duplicate detection main only; follow-up links from stored links, filtered by the quote step's selection.",
+     "upside": "Explicit and testable, and keeps footer text out of language and duplicate detection.",
+     "downside": "More configuration; the frozen input format of the institutional questionnaire items must include it, and two build tasks change."
+    },
+    {
+     "id": "b",
+     "label": "Main plus footer text for everything",
+     "means": "The classifier and the quote step get both texts for all items. This changes the frozen input format of every institutional questionnaire item, which requires re-signature and a re-pilot.",
+     "upside": "Simple, and nothing in a footer is missed.",
+     "downside": "Boilerplate noise in every answer, plus a re-signature and re-pilot."
+    },
+    {
+     "id": "c",
+     "label": "Footer text for contact only, as ruled",
+     "means": "Document that e-mail extraction, the quote check and the other steps use main text only.",
+     "upside": "No change.",
+     "downside": "E-mail extraction misses footer e-mails the contact item now counts, so a page can show contact 'yes' with no e-mail extracted."
+    }
+   ]
+  },
+  {
+   "id": "R2C25",
+   "title": "Open sub-choices inside your choices",
+   "decision": "How should the further choices left open inside your round-1 selections be settled before the codebook is built?",
+   "why": "Several chosen options name a further choice you did not make: which translation rule applies to the generative-AI boundary; whether 'proposal' is an action type or a stage; whether 'background only' pages may count toward an institution 'no'; the priority order of the 8 page verdicts when combining parts of long pages; publishing e-mail domains only or role addresses only; splitting vendor or adding a supplier role; the draft wording of what one activity is; and where a guideline ends and an endorsement begins. Calibration numbers (quote length cap, quote-match threshold, near-duplicate threshold) wait on the matcher calibration task. A codebook built now would contain items with undefined behaviour.",
+   "options": [
+    {
+     "id": "a",
+     "label": "One more ruling round before the build",
+     "means": "You rule on the eight open substantive sub-choices, the ruling is recorded, and then the codebook is generated; calibration numbers follow the calibration task.",
+     "upside": "Generated files are complete for every substantive item.",
+     "downside": "Delays the build by one round."
+    },
+    {
+     "id": "b",
+     "label": "Build now, mark open items as pending",
+     "means": "Open items carry a 'pending ruling' status, and the generators refuse to put them into classifier question sets or schemas.",
+     "upside": "Work proceeds on settled items.",
+     "downside": "Test pages and expected answers may get built around placeholders."
+    },
+    {
+     "id": "c",
+     "label": "Agent proposes defaults, you confirm in one pass",
+     "means": "The plan integrator drafts one default per sub-choice in a document, and you accept or edit them all in one sign-off.",
+     "upside": "Fast.",
+     "downside": "Defaults drafted by an agent on substantive questions conflict with your control over substance unless you read each one."
+    }
+   ]
+  },
+  {
+   "id": "R2C26",
+   "title": "Year fields and other calendars",
+   "decision": "How should the year fields be coded, including for governance, discontinuation and non-Western calendars?",
+   "why": "For the announcement year you chose a two-step method: pull every four-digit year from 2015 to 2030, then the classifier picks one. Your split of deployment year into pilot-start and production-start years says only 'stated years only' and names no method. Neither year fits governance (adoption or effective date) or proposals, the table of which fields apply to which action covers neither, there is no year for discontinuation, and the four-digit filter misses era, Buddhist, Persian, Hijri and fiscal-year forms, which the multilingual subproject owns.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Same two-step method for all years, plus calendar conversion",
+     "means": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable; new test pages are needed.",
+     "upside": "Uniform, and works across scripts.",
+     "downside": "Needs conversion tables per calendar, three classifier questions per activity, and a dependency on the multilingual subproject."
+    },
+    {
+     "id": "b",
+     "label": "A list of dated events per activity",
+     "means": "Replace the year columns with an event list (announced, pilot start, production start, discontinued, adopted), each with a year and its basis, and derive the year columns from it. The stage-date rule is rewritten over events, and the schema change costs two version steps.",
+     "upside": "Covers governance and discontinuation, and can be extended.",
+     "downside": "List parsing and more quote-step work, and it departs from the year columns you chose."
+    },
+    {
+     "id": "c",
+     "label": "Keep as ruled",
+     "means": "The method for pilot and production years is decided later, inside a build task.",
+     "upside": "No change now.",
+     "downside": "The method is left to a task card, and years in other calendars silently become 'unknown'."
+    }
+   ]
+  },
+  {
+   "id": "R2C27",
+   "title": "Which coder fills each field",
+   "decision": "How should the rule that assigns each free-text field to the classifier, a mechanical step or the quote step be updated after your round-1 changes?",
+   "why": "You kept the earlier routing rule: classifier for years and outcome or incident kind, mechanical extraction for e-mails and explicit years, quote step for activity name, tool, vendor, outcomes, incidents and notes. Since then other choices retired the notes field, added a vendor lookup, added model name, changed the year method, put a classifier gate before outcome and incident quotes, made the old 'nothing found' outcome item legacy-only, and sent publication date to metadata first. Two facts that lived in the notes field, 'permanent pilot' and 'vendor claim only', now have no home.",
+   "options": [
+    {
+     "id": "a",
+     "label": "A coder column in the codebook replaces the old rule",
+     "means": "Each item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.",
+     "upside": "One source of truth, as the new version intends.",
+     "downside": "Needs a change to the approved plan and your approval of the table."
+    },
+    {
+     "id": "b",
+     "label": "Amend the old routing table entry by entry",
+     "means": "The plan integrator rewrites the old routing table to match your rulings, for your approval.",
+     "upside": "Keeps the decision trail explicit.",
+     "downside": "Two tables to keep in sync with the codebook."
+    },
+    {
+     "id": "c",
+     "label": "Keep an internal leftover-notes field",
+     "means": "The quote step's leftover free text is stored internally, not published, recovering what was lost when the notes field was retired; no version step.",
+     "upside": "No context is lost for audit.",
+     "downside": "Unpublished free text piles up without a definition."
+    }
+   ]
+  },
+  {
+   "id": "R2C28",
+   "title": "Activities on pages that don't confirm use",
+   "decision": "What should be coded, stored and published for activities found on pages whose verdict is not 'confirms activity'?",
+   "why": "The second coding pass runs on five page verdicts: confirms activity, ambiguous about generative AI, ambiguous about which institution, another body, and event only. But activity fields are set to 'not applicable' unless the page confirms activity, and the table of which fields apply is keyed only on action type. No rule says what happens to activities on the other four kinds of page, or whether they enter activity merging, the institution evidence tier and the institution verdict.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Code fully, store internally, publish only confirmed activities",
+     "means": "All second-pass fields are coded; activities from the other four verdicts feed merging relations and quality checks but not the public activity table or the evidence tier.",
+     "upside": "Evidence stays available for relations and later re-attribution.",
+     "downside": "Full coding cost on pages that never publish."
+    },
+    {
+     "id": "b",
+     "label": "Code only what identifies the activity",
+     "means": "On the four verdicts the second pass asks only for segmentation, action type, observed actor and the tool and actor fields needed for merging; the applicability table is extended by verdict.",
+     "upside": "Lower cost while still supporting consolidation.",
+     "downside": "If a later relation re-attributes the activity, its other fields are missing."
+    },
+    {
+     "id": "c",
+     "label": "Code and publish everything, filterable by verdict",
+     "means": "All activities are public, each carrying its page verdict, and the site gets a filter.",
+     "upside": "Maximum transparency.",
+     "downside": "Users may count other bodies' activities and events as the institution's own adoption."
+    }
+   ]
+  },
+  {
+   "id": "R2C29",
+   "title": "Gaps in the quote-support status",
+   "decision": "How should the quote-support status (`support_status`) record a quote that fails the meaning check, and values that need no quote?",
+   "why": "In round 1 you added a check where the classifier tests whether a quote actually states the coded value and downgrades the code if not. The quote-support status has only four values: supported, downgraded for no quote, downgraded for low confidence, not required, so a failed meaning check has no value. Values filled by lookup or page metadata (vendor, publication date) are neither supported by a quote nor clearly 'not required'.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Add two values",
+     "means": "Add 'downgraded, quote does not state the value' and 'mechanically derived', bundled into the new version's version steps.",
+     "upside": "Every path is visible.",
+     "downside": "Two more allowed values."
+    },
+    {
+     "id": "b",
+     "label": "Fold into existing values",
+     "means": "A failed meaning check counts as 'downgraded for no quote' and mechanical values count as 'not required'; the meaning-check rule text changes.",
+     "upside": "No new values.",
+     "downside": "Users cannot tell a missing quote from a quote that contradicts the code."
+    },
+    {
+     "id": "c",
+     "label": "Separate quote-check column",
+     "means": "Presence and meaning-check results are stored beside the support status.",
+     "upside": "Full diagnostics.",
+     "downside": "Another column per code, when the support status already doubles the column count."
+    }
+   ]
+  },
+  {
+   "id": "R2C30",
+   "title": "Uncertainty flags that repeat other columns",
+   "decision": "Which uncertainty flags should be kept, given that several just restate other columns?",
+   "why": "Your round-1 choice derives the flags from codes. 'Generative vs traditional AI' restates the 'ambiguous about generative AI' verdict, 'institution attribution' restates the 'ambiguous about which institution' verdict and the observed-actor record, and 'vendor undisclosed' is unclear once vendor can be filled from a lookup when the page is silent. 'Discontinuation uncertain' becomes its own classifier question beside the 'discontinued' stage and the 'suspension or withdrawal' incident type, and 'date uncertain' will be set on most rows now that year fallbacks are forbidden.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep only flags that add information",
+     "means": "Retire flags that just mirror a column; keep 'identity unresolved' and 'stage ambiguous', and fold 'discontinuation uncertain' into the incident question as a value instead of a separate question. Changing the flag list costs two version steps, a regenerated classifier question set, updated reference outputs, an update to the procurement team's copy of the list, and a translation table.",
+     "upside": "Fewer redundant columns and questions.",
+     "downside": "Breaks the flag series of the current production version."
+    },
+    {
+     "id": "b",
+     "label": "Keep the derived flags, define edge cases",
+     "means": "'Vendor undisclosed' means the vendor was not stated on the page, and the flags are documented as views of other columns.",
+     "upside": "Keeps the series continuous.",
+     "downside": "The redundancy remains."
+    },
+    {
+     "id": "c",
+     "label": "Keep as ruled",
+     "means": "No change.",
+     "upside": "None.",
+     "downside": "'Vendor undisclosed' stays ambiguous, and discontinuation costs an extra question."
+    }
+   ]
+  },
+  {
+   "id": "R2C31",
+   "title": "Does a policy ban or permit use?",
+   "decision": "Should a new field record whether a governance instrument bans, restricts, permits or promotes generative AI use?",
+   "why": "The codebook records the form of a governance instrument and its safeguards, but not what it does to generative AI use. The approved action boundary counts prohibitions as governance, so a ban and an approved-tools list are both 'governance' with no way to tell them apart.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Add a governance-direction field (`governance_direction`)",
+     "means": "One classifier question on governance activities only: prohibits, restricts with conditions, permits, requires or promotes, unknown; not applicable otherwise; with a supporting quote. The new column costs two version steps, test pages built from past governance cases, and a re-pilot.",
+     "upside": "Captures the main substantive variation in governance at low cost, since it asks one question on governance activities only.",
+     "downside": "New wording to write, and instruments that ban some tools and permit others need a priority rule."
+    },
+    {
+     "id": "b",
+     "label": "Leave out",
+     "means": "Analysts read direction from the safeguard and form fields, or it is coded later.",
+     "upside": "No added cost or version steps.",
+     "downside": "Bans and permissions are pooled in every governance count."
+    }
+   ]
+  },
+  {
+   "id": "R2C32",
+   "title": "A fixed template for every codebook item",
+   "decision": "Should every codebook item be required to fill one fixed set of descriptive properties?",
+   "why": "Several round-1 choices each add one property to the codebook (downgrade target, rule for combining parts of long pages, frozen input format, coder routing), and other open issues need more (round, gate, input text, type of missing value, threshold metric). No ruling fixes the full set, so the tools that generate question sets, prompts, allowed-value lists and the data dictionary have nothing to check completeness against.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Fixed item template",
+     "means": "Every item lists: id, family, name, level (e.g. per page or per activity), pass, round, gate, coder, values with definitions, order and tie rule, long-page rule, downgrade target, whether support is required, threshold metric, missing-value tokens, input text, public or internal, frozen signature id, version introduced, and translation to the current production version. The plan integrator writes the template and the generator checks.",
+     "upside": "Generators can check completeness, so gaps like those found in this review become build failures.",
+     "downside": "Upfront work, and some cells need your rulings before the build."
+    },
+    {
+     "id": "b",
+     "label": "Leave out",
+     "means": "Properties are added as rulings require them.",
+     "upside": "No upfront cost.",
+     "downside": "Gaps are found late, one item at a time."
+    }
+   ]
+  },
+  {
+   "id": "R2C33",
+   "title": "Budget amounts stated on web pages",
+   "decision": "Should a field record spending amounts that web pages state?",
+   "why": "Under your round-1 choice, contract value stays in the procurement module only. Web pages that announce budgets (the 'announced' stage includes budget allocations) have no field for the amount, so spending evidence outside procurement notices is lost.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Add a quoted amount plus currency",
+     "means": "The quote step copies the amount as written and a mechanical step parses currency and number; no classifier question. The new column costs two version steps and needs a translation to the procurement contract-value field.",
+     "upside": "Captures budget commitments from web pages cheaply.",
+     "downside": "Sparse and not comparable (multi-year totals vs the generative-AI share), and overlaps procurement if both channels code the same contract."
+    },
+    {
+     "id": "b",
+     "label": "Leave out",
+     "means": "Amounts come only from the procurement module.",
+     "upside": "No cost, and no non-comparable numbers in the core data.",
+     "downside": "Budget evidence found only on web pages goes unrecorded."
+    }
+   ]
+  },
+  {
+   "id": "R2C34",
+   "title": "Policy area of each use",
+   "decision": "Should each activity record the policy or service area it serves, such as health, tax or justice?",
+   "why": "The codebook records what the tool does (drafting, summarising) and who uses it, but not the policy or service area. Institution type in the institution list is only a partial proxy, and only for single-purpose institutions.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Add a service-area field (`service_domain`)",
+     "means": "One classifier question per activity over a short list of areas plus 'general administration' and 'unknown'. The new column costs two version steps and a re-pilot.",
+     "upside": "Enables sector analysis within multi-purpose institutions such as ministries and cities.",
+     "downside": "A new list of values to design and pilot, and one more question per activity."
+    },
+    {
+     "id": "b",
+     "label": "Leave out",
+     "means": "Institution type from the institution list serves as the area proxy.",
+     "upside": "No added cost.",
+     "downside": "Multi-purpose institutions cannot be broken down by area."
+    }
+   ]
+  },
+  {
+   "id": "R2C35",
+   "title": "Total coding cost of all choices",
+   "decision": "Should the full set of round-1 additions be weighed against its total cost and reliability before the codebook is frozen?",
+   "why": "By an agent's count, the second pass can now ask up to about 40 classifier questions per page, activity and page part when gated items apply (the function split alone adds nine), before the per-quote meaning checks and the all-pairs merge comparisons. Each choice was made on its own; none weighs the set against cost or reliability, and several add little beyond other fields, such as deployment scale, classifier-coded source type, overlapping deployment-mode and function items, and duplicated descriptive page items.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Trim before freezing",
+     "means": "You review a short list of low-value items (e.g. deployment scale, deployment mode or interface, classifier-coded source type, descriptive page content items) to remove or derive from other fields.",
+     "upside": "Lower cost and fewer reliability problems.",
+     "downside": "Reopens options you already chose."
+    },
+    {
+     "id": "b",
+     "label": "Keep all, count the cost first",
+     "means": "The cost-measurement task counts the full question load and estimates cost (the count itself is free and local), and you decide with the numbers.",
+     "upside": "A decision based on evidence.",
+     "downside": "Delays the build, and the estimate may show the set is affordable but still unreliable."
+    },
+    {
+     "id": "c",
+     "label": "Core and optional tiers",
+     "means": "Items are marked core (always asked) or optional (switched on per run budget); a tier column and the run's version record note which were on.",
+     "upside": "Flexible.",
+     "downside": "Optional items become sparse and not comparable across runs."
+    }
+   ]
+  },
+  {
+   "id": "R2P01",
+   "title": "A 'not assessable' page verdict",
+   "decision": "Where should the fact that a page could not be assessed be recorded: as a ninth page verdict, in the page review state, or in a new shared item?",
+   "why": "You kept the page verdict at its locked 8 values, and separately chose to add a ninth 'not assessable' value to the same list. The page review state you added already records 'no usable text' and 'fetch failed' mechanically, so the fact would be stored twice, once as a verdict the classifier cannot produce from empty text. In the procurement and AI-text pipelines, 'not assessable' applies to a record or a document, not to a page verdict.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Ninth verdict value, as chosen",
+     "means": "The approved plan changes to 9 values; 'not assessable' is set mechanically whenever the page was not reviewed and is left out of the base for institution-level rates. This needs your plan change, version steps inside the new version, an update to procurement's copy of the list, and new test pages.",
+     "upside": "One column tells every user the page was not assessed, matching your round-1 choice.",
+     "downside": "Contradicts your choice to keep 8 values, duplicates the review state, and mixes a classifier code with a mechanical state in one column."
+    },
+    {
+     "id": "b",
+     "label": "Keep 8 values; record it in the review state",
+     "means": "The page verdict stays at 8 values and the review state carries the fact; procurement's 'not assessable' records and the text pipeline's 'not scored' status map to one shared codebook definition of 'not assessable' as a review-state value. Your ninth-value choice is re-ruled.",
+     "upside": "Keeps the 8-value verdict intact, with no third change to that list.",
+     "downside": "Your chosen form is not implemented, and users must read two columns to know whether a page was assessed."
+    },
+    {
+     "id": "c",
+     "label": "Shared assessability item at each level",
+     "means": "A new core item (assessable or not, plus reason) coded per page in the main pipeline, per record in procurement and per document in the text pipeline; the page review state becomes its main-pipeline instance. Costs version steps, rewording the review state, and mapping the other pipelines' reasons.",
+     "upside": "One cross-pipeline concept with the level explicit, and the verdict column untouched.",
+     "downside": "A new column, and three levels under one name invites comparisons across levels."
+    }
+   ]
+  },
+  {
+   "id": "R2P02",
+   "title": "Quote step making judgement calls",
+   "decision": "When a ruling needs a choice among candidates (which passage, which supplier, which date), should the classifier make it, or may the quote-extracting model?",
+   "why": "The approved plan says the quote-extracting model never classifies. But several round-1 choices have it judge: it picks, without seeing the classifier's code, which passages are relevant to each field, and if it returns nothing the code is downgraded, so its judgement sets the published value. It also picks which named organisation is the supplier, needs to assign a supplier role, and picks a publication date when metadata is missing.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Quote step lists candidates, classifier picks",
+     "means": "The quote step returns every candidate (all organisation names, dates, passages) and the classifier chooses among them, as already done for announcement year; blind quoting becomes 'extract all candidate passages, classifier picks'. Needs a design for answer choices that vary by page, prompt changes and cost sizing.",
+     "upside": "Keeps the never-classifies rule literally, with one method for every selection.",
+     "downside": "More classifier calls, and candidate lists may be long on big pages."
+    },
+    {
+     "id": "b",
+     "label": "Allow named selection tasks for the quote step",
+     "means": "Amend the approved plan's rule to list the selections the quote step may make (relevant passage, supplier, date), each with a supporting quote and a support check; the review of the quote step widens.",
+     "upside": "Your rulings stand as chosen, and the pipeline is simpler.",
+     "downside": "The rule weakens from a principle to a list, and the quote step's silence still decides some codes."
+    },
+    {
+     "id": "c",
+     "label": "Quotes after coding again; other selections by classifier",
+     "means": "Quotes are requested after the classifier codes, as in the approved plan, and the meaning check still runs; supplier, supplier role and date selections go through classifier choices. Your blind-quoting choice is re-ruled.",
+     "upside": "Removes the path where the quote step's silence decides a code, while keeping the meaning check.",
+     "downside": "Loses the independence check that blind quoting gave, and requires a partial re-ruling."
+    }
+   ]
+  },
+  {
+   "id": "R2P03",
+   "title": "Counting version steps for list changes",
+   "decision": "What does 'changing a list of allowed values costs two version steps' count: the whole codebook release, each pipeline's family of items, or each item?",
+   "why": "The two-step rule counts versions of one data contract. The planned codebook gives every item its own version, your round-1 choice adds a mandatory codebook version on every row, and the text pipeline and procurement each carry their own version numbers. Round 1 chose at least twelve changes to allowed-value lists, and it is not stated whether they share the new version's one double step or each costs two steps of something.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Rule applies to the whole codebook release",
+     "means": "One version for the whole codebook; every list change in a release rides that release's two steps, and the contract version equals the release version. The rule is reworded and the procurement and text pipelines pin a release.",
+     "upside": "Simple; the new version absorbs all round-1 list changes, matching your earlier version-label ruling.",
+     "downside": "Procurement and text releases are tied to core releases."
+    },
+    {
+     "id": "b",
+     "label": "Rule applies per pipeline family",
+     "means": "Core, procurement and text items each version on their own, each following the two-step rule, and rows carry each family's version.",
+     "upside": "Pipelines move at their own pace, as the codebook rollout plan foresees.",
+     "downside": "Several version numbers per row, and items shared across families need a rule."
+    },
+    {
+     "id": "c",
+     "label": "Version per item plus a release number",
+     "means": "Each item versions on its own (a list change is two item steps), and a release number identifies the set; the codebook schema, generator and automated checks must support it.",
+     "upside": "Finest record, so a back-fill can say exactly which items changed.",
+     "downside": "Most complex, and 'two steps' loses a shared meaning."
+    }
+   ]
+  },
+  {
+   "id": "R2P04",
+   "title": "Signing the reworded questionnaire items",
+   "decision": "What counts as your re-signature of the reworded institutional questionnaire items, and does the new version wait for it?",
+   "why": "You chose changes for all 11 institutional questionnaire items, and two other choices would fold some of them into wider governance and document-type modules. The approved plan requires re-signature of any revised wording, but your choices set directions, not final text, and several still hold open placeholders. A build task requires the frozen text to match the signed version exactly, and that signed file sits in an archive folder.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Draft final text, then sign it as a new version",
+     "means": "Your choices are treated as direction; final text is drafted in the codebook; you sign it item by item as a new signed version; the reference is repointed and all reworded items are re-piloted before the build task. Plan rows on re-signature and testing change.",
+     "upside": "A clear signing act on final words, and test pages match the signed text.",
+     "downside": "Adds a signing and re-pilot round on the critical path before the build."
+    },
+    {
+     "id": "b",
+     "label": "Chosen option text becomes the signed wording",
+     "means": "Each chosen option's text becomes the new signed wording verbatim, a re-pilot confirms it, and you rule the open placeholders separately; the re-signature rule is amended.",
+     "upside": "Fastest, with no extra signing round.",
+     "downside": "The option text was written as a proposal with open sub-choices, so the signed text would carry them."
+    },
+    {
+     "id": "c",
+     "label": "Ship current wording; changes in a later release",
+     "means": "The new version uses the current signed wording unchanged, as the approved plan says; your round-1 changes go into the first later codebook release after their re-pilot, and the index work waits for it.",
+     "upside": "Keeps the approved plan's path and test scope, with no re-signature on the critical path.",
+     "downside": "Back-filled fields are produced under wording you already chose to change, and a second back-code is needed later."
+    }
+   ]
+  },
+  {
+   "id": "R2P05",
+   "title": "Recording an institution's role in an activity",
+   "decision": "How should an institution's role (contracting authority, beneficiary, central purchasing body) be recorded without creating rows for institutions that were not searched?",
+   "why": "You chose to put this role on core rows, and that option itself warned it changes what a row means. If a central purchasing body's award is credited to beneficiary agencies, rows would appear for institutions never searched, which the approved plan bars: no automatic attribution transfers, and nothing added to the searched sample. Your choices on units and parent bodies, and on the observed actor (kept internal), already record these relations.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Role of the searched institution only",
+     "means": "The role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution. Costs version steps and aligning the observed-actor relation values.",
+     "upside": "Respects both plan limits, with one public field covering the role and the public part of the observed-actor record.",
+     "downside": "Beneficiary institutions stay invisible unless they are searched themselves."
+    },
+    {
+     "id": "b",
+     "label": "Keep the role in the procurement module only",
+     "means": "The role stays in the procurement link table; core keeps the unit and parent rule and the internal observed-actor record. Your round-1 choice is re-ruled.",
+     "upside": "No core change and no risk to what a row means.",
+     "downside": "Web pages showing ministries acting for agencies get no public field."
+    },
+    {
+     "id": "c",
+     "label": "Core field plus a gated transfer path",
+     "means": "The core role works as in the first option; any credit to another institution goes through a path you rule on, like the past correction of 114 misattributed activities. Needs a plan change and a new task card.",
+     "upside": "Allows crediting beneficiaries, behind an explicit gate.",
+     "downside": "Builds a standing transfer process that the approved plan lists as out of scope."
+    }
+   ]
+  },
+  {
+   "id": "R2P06",
+   "title": "Procurement facts in the shared core",
+   "decision": "Should supplier role, contract governance terms, attribution role and procurement status live in the shared core, when procurement's locked plan keeps such facts in its own extension table?",
+   "why": "Procurement's locked plan says its root instrument does not change and that supplier role and contract governance terms go in its extension table and nowhere else. Four of your round-1 choices put those facts, or a procurement status, into core items, while you kept notice stage in the procurement module. Procurement's plan integrator owns that plan, and the coordinated contract update is the channel for changes.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Change procurement's plan to accept core homes",
+     "means": "A change goes to procurement's integrator and you rule there: the four become core items, while money and procedure stay in the extension. The coordinated update widens and procurement migrates its module.",
+     "upside": "One home per concept, as the single codebook intends.",
+     "downside": "Reopens your locked procurement scope ruling and makes procurement re-plan."
+    },
+    {
+     "id": "b",
+     "label": "Core fields filled from procurement's table",
+     "means": "The core items exist, but procurement records them only in its extension table, and a mechanical mapping, versioned with the procurement items, fills the core columns.",
+     "upside": "Respects procurement's plan literally while core users see one field.",
+     "downside": "Two copies of one fact, and mapping rules to maintain."
+    },
+    {
+     "id": "c",
+     "label": "Core fields cover web pages only",
+     "means": "Those core items are coded from web pages, procurement keeps its own fields, and the codebook carries coverage tags and a translation table.",
+     "upside": "No change to procurement's scope.",
+     "downside": "The same concept sits in two columns by channel, and cross-channel analysis needs the translation table."
+    }
+   ]
+  },
+  {
+   "id": "R2P07",
+   "title": "What the vendor column means",
+   "decision": "Should the vendor column (`vendor`) mean the company that makes the AI product, the party the source names as supplier, or something different for web pages and purchase records?",
+   "why": "Four rules now define the same column differently. Your round-1 choice fills it from a product-to-developer lookup when a page names no vendor, so a Copilot licence bought through a reseller gets Microsoft. Your other choice splits the maker from the party that signed the contract, the procurement pipeline writes \"multiple\" when there are several, a separate choice allows semicolon-separated lists, and the published bulk-data guide says an in-house tool's vendor is the institution itself.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Vendor is the maker; contracting party separate",
+     "means": "In every pipeline, vendor is the developer or supplier of the AI product, and the lookup may fill it. A new column holds the party that signed the contract (procurement fills it, web pages when stated), and \"multiple\" becomes a list.",
+     "upside": "The column means the same thing across web pages and purchase records, and the lookup fits that meaning.",
+     "downside": "It adds a column, costs two version steps, moves procurement's awarded supplier into the new column, forces a procurement rule change, and requires restating the in-house rule and rewriting the published bulk-data guide."
+    },
+    {
+     "id": "b",
+     "label": "Vendor is whoever the source names as supplier",
+     "means": "Vendor holds what the source names, which in purchase records is the contracting party. The developer from the lookup goes into a new model-developer column, and the lookup stops filling vendor.",
+     "upside": "It stays closest to the source's own words and leaves the procurement pipeline unchanged.",
+     "downside": "Vendor on web pages and on purchase records then describes different roles, and your round-1 vendor rule must be re-decided."
+    },
+    {
+     "id": "c",
+     "label": "Different rule per pipeline, with a supplier-role tag",
+     "means": "Web pages follow your round-1 lookup rule. Purchase records keep the awarded supplier plus a tag saying whether it is a reseller or the provider, with no lookup.",
+     "upside": "It needs the least change to both pipelines.",
+     "downside": "The column's meaning depends on which pipeline produced the row, so analysts must filter by source, and your maker-versus-contracting-party choice is narrowed."
+    }
+   ]
+  },
+  {
+   "id": "R2P08",
+   "title": "Where tender and award information lives",
+   "decision": "Should tenders, awards and payments be recorded only in the new purchase-status field, in both that field and the adoption stage, or in the new field for web pages only?",
+   "why": "In round 1 you moved tender, award and payment into a new purchase-status field and gave payment-only activities an \"unknown\" adoption stage. The procurement pipeline's locked rules instead code awards as \"announced\" and tender-only records as \"proposed\", which flips the institution to \"yes\", and an owed amendment to the main contract was written around that tender rule. Your institution evidence-tier wording also still refers to the purchase option you did not choose.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Purchase-status field is the only home",
+     "means": "Purchase records fill the purchase-status field and get an \"unknown\" adoption stage unless use is shown. The owed contract amendment shrinks to removing purchase language, the procurement rules are amended, and the evidence-tier wording is fixed.",
+     "upside": "Adoption stage then means use only, and web pages and purchase records follow the same rule.",
+     "downside": "Tender-only records no longer turn an institution to \"yes\" unless the evidence tier or the consolidation step says so, and the procurement team must re-decide its rules."
+    },
+    {
+     "id": "b",
+     "label": "Both fields; procurement rules kept",
+     "means": "Procurement keeps its stage coding and also fills the purchase-status field, and the owed amendment goes ahead as written. A rule and test cases keep the two fields consistent.",
+     "upside": "No procurement re-ruling, and the owed amendment is unchanged.",
+     "downside": "Two fields record the same tender or award fact on purchase records, and a web payment-only row gets \"unknown\" while a procurement award gets \"announced\"."
+    },
+    {
+     "id": "c",
+     "label": "Purchase-status field for web pages only",
+     "means": "Only web pages fill the new field. Purchase records keep their notice-stage rules in the procurement module and their own stage coding.",
+     "upside": "Each pipeline keeps its own rules.",
+     "downside": "The field is empty or not-applicable on purchase records, which are the richest source for it."
+    }
+   ]
+  },
+  {
+   "id": "R2P09",
+   "title": "One safeguard family or several",
+   "decision": "Should safeguards such as human oversight be defined once, as one family tagged by level (per activity, per page, per contract), or stay split across separate families?",
+   "why": "In round 1 you asked for one family of governance items tagged by level. Your other choices keep the page-level safeguard questions in the frozen institutional questionnaire items, derive the activity-level safeguard fields from the same question, and define four values for those fields. Procurement's contract terms (audit rights, data residency, oversight requirements) sit at the contract level in its own table.",
+   "options": [
+    {
+     "id": "a",
+     "label": "One family tagged by level",
+     "means": "Activity safeguard fields, page safeguard questions, the governance-form field and procurement contract terms are rewritten as one family, each item tagged with its level. The frozen questionnaire items must be re-signed into it, procurement must change, and the generator must support level tags.",
+     "upside": "Each safeguard has one definition, as you chose in round 1.",
+     "downside": "It reopens the signed questionnaire wording and runs into the open dispute over procurement's scope."
+    },
+    {
+     "id": "b",
+     "label": "Two families plus a crosswalk",
+     "means": "Page-level and activity-level safeguards stay as your other round-1 choices set them, procurement terms stay in its module, and the codebook adds a translation table only.",
+     "upside": "No questionnaire merge beyond what you already chose, and procurement is untouched.",
+     "downside": "It reverses your one-family choice, and the translation table documents the link without enforcing it."
+    },
+    {
+     "id": "c",
+     "label": "Family covers activity fields and contract terms only",
+     "means": "The one family covers the activity-level safeguard fields and procurement contract terms. The page-level questionnaire items stay frozen outside it.",
+     "upside": "The questionnaire items need no re-signature for this.",
+     "downside": "The safeguard concept is still split across two families, and procurement still needs a change for its terms."
+    }
+   ]
+  },
+  {
+   "id": "R2P10",
+   "title": "Which pipelines feed the institution verdict",
+   "decision": "Should purchase records and the AI-text results count toward an institution's yes/no verdict, and if so, how are they combined with web pages?",
+   "why": "Your round-1 rule for the institution verdict and the review-depth counts are written in terms of web pages. The procurement pipeline reuses the main consolidation step and its tender-only rule turns institutions to \"yes\", and the AI-text pipeline makes its own institution estimate. Nothing says whether purchase records count as pages, whether \"nothing found in this repository in this window\" can count toward \"no\", or how the sources combine.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Any source can say yes; only web says no",
+     "means": "A supported positive from any pipeline counts toward \"yes\", but \"no\" can only come from web pages. The verdict rule is rewritten over evidence from any source, and review counts are shown per pipeline.",
+     "upside": "All positive evidence is used, and an empty search window in a repository cannot drive a \"no\".",
+     "downside": "Procurement positives enter before its validation report is in, and the rule treats yes and no unevenly."
+    },
+    {
+     "id": "b",
+     "label": "Separate verdict per pipeline plus a combining rule",
+     "means": "The web verdict, a procurement verdict and the published-text AI-use item are each published, and a codebook rule combines them for display. This needs new institution columns plus API and website work.",
+     "upside": "It is transparent, and each pipeline's errors stay separable.",
+     "downside": "It adds institution columns and leaves you a combining rule to decide."
+    },
+    {
+     "id": "c",
+     "label": "Web pages only for the new version",
+     "means": "Purchase records load as evidence but do not change the institution verdict until procurement's validation report is accepted. Procurement's plan gets a note and the verdict is tagged as web-only.",
+     "upside": "No unvalidated pipeline moves the headline verdict.",
+     "downside": "At first it does not honour procurement's locked rules that it consolidates through the main step and that tenders turn institutions to \"yes\"."
+    }
+   ]
+  },
+  {
+   "id": "R2P11",
+   "title": "The institution AI-drafting answer",
+   "decision": "Which values and rule should the new institution-level item on AI-written published text (`published_text_ai_use`) use, given that the AI-text pipeline already has its own versions?",
+   "why": "In round 1 you named a new item with \"evidence of use\", \"no evidence of use\" and \"insufficient\". The AI-text pipeline already checks a simpler yes/no/not-scored flag (yes if any one post-cutoff document is non-human), your pilot spec says that flag feeds the main pipeline in terms of content creation by internal staff, and its locked follow-up spec uses \"insufficient documents\". Your round-1 changes to the interaction-type and target-user fields remove the values that mapping pointed to.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Codebook item uses the follow-up spec's values",
+     "means": "The item takes the locked follow-up spec's values word for word, including \"insufficient documents\". The pilot spec's simple flag retires through a change request in the AI-text plan, with your approval.",
+     "upside": "One institution estimate based on inference, with honest uncertainty.",
+     "downside": "It changes one of your own specs, and the simple any-document flag is lost."
+    },
+    {
+     "id": "b",
+     "label": "Keep the simple flag under a new name",
+     "means": "The yes/no/not-scored flag and its rule stay as an AI-text item, renamed so it cannot be confused with the main GenAI verdict. It never feeds the main verdict.",
+     "upside": "The AI-text plan only changes a name.",
+     "downside": "A descriptive flag with no correction for false positives becomes a published codebook item."
+    },
+    {
+     "id": "c",
+     "label": "Two AI-text items",
+     "means": "Both the simple flag and the follow-up verdict are published as separate AI-text items, neither feeding the main verdict. The pilot spec's main-contract wording is removed and display rules are written.",
+     "upside": "Both instruments are kept, each clearly labelled.",
+     "downside": "Two institution-level answers on AI drafting can disagree."
+    }
+   ]
+  },
+  {
+   "id": "R2P12",
+   "title": "Who decides the source type",
+   "decision": "Should the source-type column (`source_type`) be produced the same way in every pipeline, by each pipeline's own rule with a note on how it was set, or kept pipeline-specific with a simpler shared field for comparisons?",
+   "why": "In round 1 you made source type a question the classifier answers on each web page, with credibility derived from it. The AI-text pipeline instead derives it from document genre through a proposed table that marks almost every genre as official government, and procurement sets it to a fixed \"procurement tender\" value. Your choice to define genre, disclosure form and source type together means one column would come from three different instruments.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Classifier codes it everywhere",
+     "means": "Source type is answered by the same classifier question in every pipeline where it applies. The AI-text pipeline drops its genre table and procurement's fixed value is replaced.",
+     "upside": "One instrument per column, so derived credibility is comparable.",
+     "downside": "It adds a classifier call per AI-text document and requires a change to the AI-text plan."
+    },
+    {
+     "id": "b",
+     "label": "Each pipeline's rule, plus a 'how set' column",
+     "means": "Each pipeline keeps its rule, and a new column records whether source type came from the classifier, a genre table or a fixed value.",
+     "upside": "No pipeline change, and the origin of each value is explicit.",
+     "downside": "The same column still comes from different instruments, and the credibility rating built on it inherits those differences."
+    },
+    {
+     "id": "c",
+     "label": "Compare across pipelines on the official-domain field",
+     "means": "Cross-pipeline comparisons use the automatic field that checks whether the source sits on an official government domain. Source type stays pipeline-specific and is not compared across pipelines, and the joint-definition crosswalk is narrowed.",
+     "upside": "The shared field is automatic and cheap.",
+     "downside": "The official-domain field answers a narrower question than source type does."
+    }
+   ]
+  },
+  {
+   "id": "R2P13",
+   "title": "Date that starts the GenAI era",
+   "decision": "Which cutoff date should mark the start of the GenAI era across the project: 1 November 2022, 30 November 2022, or separate dates for separate uses?",
+   "why": "In round 1 you asked for one shared cutoff date and a list of where each date came from, which needs your ruling on the date. The AI-text code uses 30 November 2022, while your pilot spec requires proof of publication before 1 November 2022, and the AI-text task list records this as an open conflict. Separately, your round-1 choice lets the quote-extracting model supply a publication date when metadata is missing, while the AI-text contract says a date is never guessed.",
+   "options": [
+    {
+     "id": "a",
+     "label": "1 November 2022, as in your pilot spec",
+     "means": "One shared date of 1 November 2022, with \"before\" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown; the AI-text code changes.",
+     "upside": "It matches your own pilot spec.",
+     "downside": "The AI-text pipeline's boundary tests and published era names must change."
+    },
+    {
+     "id": "b",
+     "label": "30 November 2022, as the code does now",
+     "means": "The shared date is 30 November 2022 as implemented, and your pilot spec is amended through the AI-text plan.",
+     "upside": "No code change in the AI-text pipeline.",
+     "downside": "It amends one of your own specs."
+    },
+    {
+     "id": "c",
+     "label": "Separate dates for separate uses",
+     "means": "The codebook stores both dates, each with a stated scope (AI-text era versus any main-pipeline use), and the main year fields use no cutoff.",
+     "upside": "No forced alignment between pipelines.",
+     "downside": "It does not meet your round-1 choice of one shared date, so that choice must be re-decided."
+    }
+   ]
+  },
+  {
+   "id": "R2P14",
+   "title": "Version and provenance labels per row",
+   "decision": "Which version and provenance labels should each data row carry, given that several round-1 choices each add their own?",
+   "why": "An earlier decision puts the contract version on every row. Your round-1 choices add a pointer to a record of the exact setup (contract versions, models, thresholds, codebook item fingerprints), a codebook version and source-pipeline tag, and coder type, model, version and request number. The setup record would already hold most of these.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Only the setup pointer on rows",
+     "means": "Rows carry the pointer, and the setup record holds versions, models and thresholds. The contract version stays as a column filled from that record, to honour the earlier decision.",
+     "upside": "One link per row and the fewest extra columns.",
+     "downside": "Readers need the setup record to see most versions."
+    },
+    {
+     "id": "b",
+     "label": "Versions on rows, detail in the setup record",
+     "means": "Rows carry contract version, codebook version, source-pipeline tag and the setup pointer. An automatic check keeps them consistent.",
+     "upside": "Rows are readable on their own.",
+     "downside": "Overlapping columns can drift apart."
+    },
+    {
+     "id": "c",
+     "label": "Codebook version replaces contract version",
+     "means": "Each row carries one version label (the codebook release) plus the setup pointer.",
+     "upside": "No two version labels with overlapping meaning.",
+     "downside": "It changes the earlier decision and the approved plan's wording, and rows from the current production version still need their contract version."
+    }
+   ]
+  },
+  {
+   "id": "R2P15",
+   "title": "What counts as one activity across pipelines",
+   "decision": "When one office buys the same product in several separate purchases, should that be one activity or several, and may activities from different pipelines be merged?",
+   "why": "In round 1 you defined repeated transactions for the same product by the same unit as one activity. The procurement pipeline's locked rule makes one activity per contracting process, and how it links to the main records is still open. If procurement uses the shared questions and consolidation step, the two definitions disagree whenever a unit buys the same product more than once.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Your activity definition applies everywhere",
+     "means": "Procurement merges purchases of the same product by the same unit into one activity, which requires a procurement rule change.",
+     "upside": "One unit of analysis across the project.",
+     "downside": "It reverses procurement's locked rule and makes its link to the main records harder."
+    },
+    {
+     "id": "b",
+     "label": "Each pipeline's unit; merge at consolidation",
+     "means": "Procurement keeps one activity per contracting process, and the consolidation step's same-or-different questions may merge across purchases and pipelines.",
+     "upside": "No procurement re-ruling, and every merge is explicit.",
+     "downside": "The number of activity pairs to check, and so the cost, grows with procurement records."
+    },
+    {
+     "id": "c",
+     "label": "No merging across pipelines in the new version",
+     "means": "Your definition applies to web pages, procurement's unit is unchanged, and activities from different pipelines are never merged in the new version.",
+     "upside": "It is the simplest.",
+     "downside": "The same purchase can appear as two activities, which must be noted in the counts."
+    }
+   ]
+  },
+  {
+   "id": "R2P16",
+   "title": "What counts as GenAI in purchase records",
+   "decision": "Should purchase records use the main rule for what counts as generative AI, their own stricter rule, or the main rule with an option to filter on stronger evidence?",
+   "why": "In round 1 you kept the main rule that a named AI chatbot or AI assistant counts as generative, and added a field recording which signal established it. Procurement's own codebook treats a bare product name such as Microsoft Copilot as not enough, yet its ruling makes it use the main questions where they apply. Which rule governs purchase records is not decided.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Main rule governs purchase records",
+     "means": "Purchase records use the shared GenAI questions, and procurement's own GenAI section becomes a search aid only.",
+     "upside": "One definition of GenAI.",
+     "downside": "Procurement's stricter rule retires."
+    },
+    {
+     "id": "b",
+     "label": "Procurement keeps its own GenAI question",
+     "means": "A procurement-specific GenAI question is recorded in the mapping between the two pipelines, for you to sign.",
+     "upside": "Procurement's rule is kept.",
+     "downside": "The codebook holds two definitions of GenAI."
+    },
+    {
+     "id": "c",
+     "label": "Main rule, plus a strength filter",
+     "means": "The main rule applies, and analyses of purchase records can be restricted to stronger kinds of evidence using the field that records which signal established GenAI.",
+     "upside": "One definition, with strictness available by filter.",
+     "downside": "Published procurement positives include ones based on weaker evidence."
+    }
+   ]
+  },
+  {
+   "id": "R2P17",
+   "title": "Codes set by rule, not by quote",
+   "decision": "How should the data mark codes that a fixed rule sets rather than a quote from the page supports?",
+   "why": "The approved rule lowers any positive code that has no verbatim supporting quote. But procurement sets adoption stage from notice type, the vendor can come from a lookup table, \"not applicable\" comes from a table by action type, and credibility comes from a fixed map; none of these has a page quote. Your new support-status value \"not required\" is not defined to cover them.",
+   "options": [
+    {
+     "id": "a",
+     "label": "New status: set by rule",
+     "means": "Rule-set codes get a new support status, \"set by rule\", with the rule's identifier, and are exempt from the no-quote downgrade. This adds a value to the support-status list.",
+     "upside": "Explicit, and each code can be traced to its rule.",
+     "downside": "Changing the support-status list costs version steps."
+    },
+    {
+     "id": "b",
+     "label": "Store the rule's input as the support",
+     "means": "The input that triggered the rule (such as the notice type or matched tool name) is stored as the supporting text, and the no-quote rule applies as usual. The approved wording on supporting text changes.",
+     "upside": "One rule for all codes.",
+     "downside": "\"Supporting text\" no longer means text from the page."
+    },
+    {
+     "id": "c",
+     "label": "Use 'not required' as it is",
+     "means": "The data dictionary states that \"not required\" covers rule-set codes.",
+     "upside": "No new value.",
+     "downside": "Users cannot tell \"not needed because the code is negative\" from \"set by rule\"."
+    }
+   ]
+  },
+  {
+   "id": "R2P18",
+   "title": "Link following for purchase records",
+   "decision": "Should the link-following, page-completeness and footer-text rules apply to the procurement pipeline, and if so, how far?",
+   "why": "Procurement runs the main pipeline's code and questions and is limited to its 191 repositories. Link following, the page-completeness question, the \"link not followed\" review states and the stored header/footer text are all web-page ideas. Followed links would add news or vendor pages to a procurement run.",
+   "options": [
+    {
+     "id": "a",
+     "label": "These rules do not apply to procurement",
+     "means": "The codebook tags link following, completeness, link review states and footer text as not applying to procurement.",
+     "upside": "It respects procurement's limit to its repositories.",
+     "downside": "Procurement notices that point to tender documents are not followed."
+    },
+    {
+     "id": "b",
+     "label": "Follow links inside the same repository only",
+     "means": "Procurement follows links only within its source repository, through a new procurement rule and work in its plan.",
+     "upside": "Tender documents get fetched.",
+     "downside": "A new rule to build and test."
+    },
+    {
+     "id": "c",
+     "label": "Follow all links, tag them as web",
+     "means": "Followed pages are fetched and tagged as web evidence rather than procurement.",
+     "upside": "All available evidence is used.",
+     "downside": "It brings into procurement runs sources that the procurement ruling bars, and stretches the meaning of the source-pipeline tag."
+    }
+   ]
+  },
+  {
+   "id": "R2P19",
+   "title": "Translating the short evidence quote",
+   "decision": "Should the short evidence quote (`source_snippet`) be verbatim only in every pipeline, verbatim plus a stored labelled translation, or defined differently per pipeline?",
+   "why": "In round 1 you made the snippet the verbatim quote behind the page verdict, with no paraphrase, and chose translation on the website only, so no translated text reaches the API or bulk files. Procurement's locked rule requires an English translation with the original in brackets, at most 300 characters, written by the language model.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Verbatim everywhere",
+     "means": "Snippets are verbatim in every pipeline, no translations are stored, and procurement's rule is amended.",
+     "upside": "One definition, and no machine-written text is published.",
+     "downside": "Non-English snippets are unreadable in bulk data."
+    },
+    {
+     "id": "b",
+     "label": "Verbatim plus a stored, labelled translation",
+     "means": "The snippet stays verbatim, and a separate English column holds a machine translation labelled with the model that made it, in all pipelines.",
+     "upside": "Bulk data becomes readable and the verbatim text is kept.",
+     "downside": "It reverses your display-only translation choice and stores model-written text in the database."
+    },
+    {
+     "id": "c",
+     "label": "Different definition per pipeline",
+     "means": "Procurement keeps its translated snippet, web follows the verbatim rule, and the definition is stated per pipeline.",
+     "upside": "No re-ruling.",
+     "downside": "The same column holds different content depending on the pipeline."
+    }
+   ]
+  },
+  {
+   "id": "R2P20",
+   "title": "Shared list of uncertainty flags",
+   "decision": "Should all pipelines share one list of uncertainty flags, or may procurement and AI-text keep their own lists, including the language-barrier flag?",
+   "why": "In round 1 you made the flags automatic, added an \"identity unresolved\" flag and dropped the \"source language barrier\" flag. Procurement's copy and its rules still use the old list with that flag, and the AI-text pipeline has its own proposed flags (including \"language uncertain\" and \"classifier uncertain\"). You also gave language coverage to the multilingual subproject.",
+   "options": [
+    {
+     "id": "a",
+     "label": "One shared list",
+     "means": "AI-text flags fold into the main list, the language-barrier flag is dropped everywhere, and language coverage is carried by the multilingual subproject's item.",
+     "upside": "One vocabulary.",
+     "downside": "The AI-text pipeline loses flags not added to the main list, and the list change touches every pipeline."
+    },
+    {
+     "id": "b",
+     "label": "Main list plus per-pipeline lists",
+     "means": "The main list follows your round-1 choice, and procurement and AI-text each keep their own flag lists.",
+     "upside": "No forced change.",
+     "downside": "One column name carries different vocabularies."
+    },
+    {
+     "id": "c",
+     "label": "Keep the language-barrier flag outside the main pipeline",
+     "means": "The language-barrier flag stays as a procurement and AI-text flag, while the main list drops it.",
+     "upside": "Procurement's rule holds.",
+     "downside": "Flag counts are not comparable across pipelines."
+    }
+   ]
+  },
+  {
+   "id": "R2P21",
+   "title": "Old 'none' results under the new rule",
+   "decision": "What should happen to institutions published as \"none\" under the current production version, now that the new version is stricter about when \"no\" is allowed?",
+   "why": "Your round-1 verdict rule blocks \"no\" when any page failed to load or a link was not followed, those states count as unresolved, and the confidence threshold changes basis. A 9 October change publishes a \"no\" over a failed page as \"none\", and the approved plan keeps every current \"none\" institution without re-running it. After release, two institutions with the same pages could read \"none\" (old) and \"unclear\" (new).",
+   "options": [
+    {
+     "id": "a",
+     "label": "Accept and document",
+     "means": "Old \"none\" results stay; the difference is shown by version labels and explained in the methods note.",
+     "upside": "No change to scope.",
+     "downside": "Published counts mix two rules for \"no\"."
+    },
+    {
+     "id": "b",
+     "label": "Re-run 'none' institutions with failed pages",
+     "means": "Old \"none\" institutions whose run had pages that failed to load join the re-run set. This changes the approved plan's re-run rules and needs cost sizing.",
+     "upside": "It removes the clearest mixed-rule cases.",
+     "downside": "It changes the approved plan and adds paid runs."
+    },
+    {
+     "id": "c",
+     "label": "Failed pages no longer block 'no'",
+     "means": "Pages that failed to load do not block \"no\", matching the 9 October rule; unfollowed links still do. Your verdict rule and its test cases change.",
+     "upside": "Closer to the rule already published.",
+     "downside": "It reverses part of your round-1 rule and allows \"no\" over pages nobody read."
+    }
+   ]
+  },
+  {
+   "id": "R2P22",
+   "title": "Old columns after retirements and splits",
+   "decision": "How should retired, split and redefined columns appear in the API, website, bulk file and corrections record once new-version rows arrive?",
+   "why": "Round 1 retires the scope-notes column, splits access type, interaction type and year deployed, narrows target users and redefines the safeguard values. The only ruling so far hides new fields for old rows; nothing says how old columns read on new rows, how corrections record before and after for a split field, or what Kaser's bulk file holds. The API schema also describes safeguards as yes/no/unknown, while the bulk-data guide lists four values.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Fill old columns on new rows where possible",
+     "means": "Where a fixed mapping exists (for example year deployed = the earlier of the pilot and production years), the old column is filled on new rows; where none exists (interaction type, scope notes) it is marked not applicable with a version label. A translation table and CSV, API and website work follow.",
+     "upside": "Existing users of the data keep working.",
+     "downside": "Derived old values can be mistaken for coded ones."
+    },
+    {
+     "id": "b",
+     "label": "Separate column sets per version",
+     "means": "The API serves both sets of columns, each row fills its own version's set, and the website shows each row by its version. The handoff spec to the API owner changes.",
+     "upside": "No derived values.",
+     "downside": "Every user of the data has to handle two layouts."
+    },
+    {
+     "id": "c",
+     "label": "Freeze the current API; new API for the new layout",
+     "means": "Current API fields keep their current-version meaning, and the new layout goes in a new endpoint. This needs an API design change accepted by Colin.",
+     "upside": "A clean break.",
+     "downside": "Two APIs to maintain, and the rule for serving older rows applies twice."
+    }
+   ]
+  },
+  {
+   "id": "R2P23",
+   "title": "Homepage count of reported use cases",
+   "decision": "How should the homepage \"Reported Use Cases\" total handle the change in what counts as one activity?",
+   "why": "The homepage total counts every finding of every institution, per your 24 October ruling that any finding is fine. Your round-1 activity definition and the rule against merging without an explicit relation change the unit, so old-version and new-version findings would be counted by different units in one total.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Count all, as already ruled",
+     "means": "The total keeps its definition, and the methods note says the unit changed.",
+     "upside": "No API change.",
+     "downside": "The total moves because the unit changed, not because adoption changed."
+    },
+    {
+     "id": "b",
+     "label": "Total plus a breakdown by version",
+     "means": "The homepage shows the total and the counts by contract version, which changes the API's summary figures.",
+     "upside": "The change is visible.",
+     "downside": "More figures on the homepage."
+    },
+    {
+     "id": "c",
+     "label": "Count by type of action",
+     "means": "Headline counts use the new action-type and evidence-tier fields (for example use versus governance). The website changes and you rule on the label.",
+     "upside": "A more meaningful headline.",
+     "downside": "It is a new headline definition."
+    }
+   ]
+  },
+  {
+   "id": "R2P24",
+   "title": "Transparency notice counted twice in index",
+   "decision": "Now that the activity-level transparency notice and the page-level user-notification item come from one question, how should the index treat them?",
+   "why": "An earlier index decision lets the transparency-notice field feed both indices, accepting and reporting the mechanical overlap. Your round-1 choice to derive the activity-level safeguard fields and the page-level safeguard items from one question makes the transparency notice and the user-notification item the same measurement, counted in the same index.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Accept that they are identical, report it",
+     "means": "The index report states that the pair is one measurement.",
+     "upside": "No re-ruling.",
+     "downside": "One question gets double weight in the index."
+    },
+    {
+     "id": "b",
+     "label": "Separate questions again",
+     "means": "The activity-level safeguard fields get their own question, reversing your one-question choice.",
+     "upside": "Index components stay distinct.",
+     "downside": "Two questions on the same fact can disagree."
+    },
+    {
+     "id": "c",
+     "label": "Index uses only one of the pair",
+     "means": "Index work drops one member of each identical pair, decided in a later batch.",
+     "upside": "No double counting.",
+     "downside": "It changes the earlier index decision."
+    }
+   ]
+  },
+  {
+   "id": "R2P25",
+   "title": "Index scoring after new 'not asked' values",
+   "decision": "How should the index treat the new \"not applicable\" and \"unknown\" values and the new confidence measure when it counts and weights items?",
+   "why": "Earlier index decisions say all six descriptive fields always count, an unknown disclosure form leaves the count of items scored, and findings are weighted by confidence. Your round-1 choices now store \"not applicable\" on many pages, add \"unknown\" to yes/no items, and replace the classifier's confidence with the probability of the chosen answer. The index rules were set on the old values.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Drop 'not applicable' and 'unknown'; weight by probability",
+     "means": "Every new \"not applicable\" or \"unknown\" is left out of the count of items scored, as already done for disclosure form, and the confidence weight becomes the chosen answer's probability. A note goes to the later index batch.",
+     "upside": "Consistent with the existing disclosure-form rule.",
+     "downside": "The number of items scored shrinks unevenly by page type."
+    },
+    {
+     "id": "b",
+     "label": "'Not applicable' scores zero",
+     "means": "Pages where the descriptive questions were not asked score zero on them, which requires re-ruling the index.",
+     "upside": "The number of items scored stays stable.",
+     "downside": "It penalises pages that have no GenAI content."
+    },
+    {
+     "id": "c",
+     "label": "Decide with the first index batch",
+     "means": "The dependency is recorded, and the index questions are re-asked when weights are set.",
+     "upside": "No premature ruling.",
+     "downside": "The codebook ships without saying how the index reads these values."
+    }
+   ]
+  },
+  {
+   "id": "R2P26",
+   "title": "Pooled evidence too long for classifier",
+   "decision": "What should happen when the pooled quotes for one merged activity are too long for the classifier to read at once?",
+   "why": "In round 1 you chose to have the classifier answer each activity-detail question once over all supported quotes from all sources of a merged activity. The classifier's input is limited to 32,000 tokens, and the rule for splitting long text covers pages only; nothing covers a pool of quotes over the limit.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Split the pool, combine with the page rule",
+     "means": "Pooled quotes are split into parts, and the existing combining rules apply (yes if any part says yes; ordered lists take the first value found). The page-splitting rule is extended.",
+     "upside": "It reuses an existing rule.",
+     "downside": "The combining rules were written for pages, not quote pools."
+    },
+    {
+     "id": "b",
+     "label": "Cap the pool",
+     "means": "Only the most credible sources are kept, up to a number you set.",
+     "upside": "Cost stays bounded.",
+     "downside": "Some evidence is dropped."
+    },
+    {
+     "id": "c",
+     "label": "Answer per source, then combine by fixed rules",
+     "means": "The classifier answers per source, and fixed rules from the earlier consolidation spec combine the answers.",
+     "upside": "Pool size is never an issue.",
+     "downside": "It reverses your round-1 pooled-evidence choice."
+    }
+   ]
+  },
+  {
+   "id": "R2P27",
+   "title": "Which new columns go public",
+   "decision": "Should every new column from round 1 be published at release, only once someone who will use it is named, or with main codes public and supporting columns kept back?",
+   "why": "Round 1 adds published columns in many items, some with a companion column per code (support status) or eight separate function items. Each needs schema, API, website, data-dictionary and test-case work, and two version steps when it is a list of allowed values. One round-1 item, the observed-actor record, already took the alternative: stored internally first.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Internal first",
+     "means": "New items are stored internally, like the observed-actor record. Each goes public once a user (the index, an API user, Kaser, a paper) is named and you approve, and the codebook lists the publication status per item.",
+     "upside": "Less API and website work before release, and fewer columns to explain.",
+     "downside": "Users wait for fields the pipeline already produces."
+    },
+    {
+     "id": "b",
+     "label": "Publish everything as ruled",
+     "means": "Every chosen item is published at release.",
+     "upside": "Full transparency, and it meets the approved plan's rule that new fields are published literally.",
+     "downside": "It is the largest handoff to the API and website owner and needs the most test cases before release."
+    },
+    {
+     "id": "c",
+     "label": "Publish codes, keep companions internal",
+     "means": "Main codes are public; companion columns (evidence bases, gates, support status, review counts) appear only in API history and bulk files.",
+     "upside": "A middle path.",
+     "downside": "The split rule needs explaining."
+    }
+   ]
+  }
+ ]
+}

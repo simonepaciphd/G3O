@@ -1,0 +1,791 @@
+{
+ "format": "decision-page-v1",
+ "id": "t010-r4-activity-3",
+ "title": "Codebook wording review: Each activity on a page (part 3 of 3)",
+ "eyebrow": "G3O codebook · wording review round 4",
+ "project": "G3O pipeline reclassification",
+ "prepared": "2026-10-30",
+ "prepared_by": {
+  "harness": "Claude Code",
+  "model": "claude-opus-5-5",
+  "session": "drafting subagent of integrator session 20261030-claude-v2-2b8200388885f8f9"
+ },
+ "background": "Review round 4 of the codebook wording. You chose on 30 October that agents draft the missing value definitions and you review every wording slot here. This page covers **each activity on a page**, part 3 of 3.\n\nEach card is one codebook item. Open \"Show the wording slots\" to read them. Each slot is labelled with where its text came from:\n\n- **Plan text**\n- **New agent draft (round 4)**\n- **Option text you chose in round 3**\n- **Agent edit of the signed questionnaire**\n- **Text you approved on 30 October**\n- **Old production text (version 2.5): rewrite or delete**\n\nAnswer per item: approve all, approve with line-edits or deletions in the comments (by slot number), or ask for a redraft. Deletion is open only for old version-2.5 slots and for one slot of each overlap pair. The batch card at the top approves everything you leave unmarked. No recommendation is given on any wording.\n\nNew agent drafts carry a certainty mark; those marked **Needs your decision** rest on no ruling or text for some point.",
+ "sources": [
+  {
+   "label": "Round-4 drafts (readable)",
+   "href": "../../drafts/definitions-r4.md"
+  },
+  {
+   "label": "Round-3 codebook reference",
+   "href": "../round3/codebook-reference.html"
+  }
+ ],
+ "items": [
+  {
+   "id": "ALL",
+   "kind": "review",
+   "title": "Batch approval for this whole page",
+   "situation": "This page shows 103 wording slots in 23 items. Choose the batch option to approve every slot you do not mark in an item card below; any item card you answer still overrides it for that item.",
+   "options": [
+    {
+     "id": "approve-unmarked",
+     "label": "Approve every slot on this page that I do not mark below"
+    },
+    {
+     "id": "no-batch",
+     "label": "No batch approval: only my item answers count"
+    }
+   ]
+  },
+  {
+   "id": "I01",
+   "kind": "review",
+   "title": "deployment scale unit",
+   "situation": "Recorded per activity.\n\n8 slots: 5 × new agent draft (round 4); 1 × plan text; 1 × option text you chose in round 3; 1 × agent edit of the signed questionnaire.",
+   "body": "**1. Value `licences_or_seats`** — New agent draft (round 4)\nThe number counts licences, seats or accounts bought or issued.\n_Draft certainty: medium._\n\n**2. Value `users`** — New agent draft (round 4)\nThe number counts people who use the tool.\n_Draft certainty: medium._\n\n**3. Value `interactions`** — New agent draft (round 4)\nThe number counts uses of the tool, such as questions answered, conversations held or documents handled.\n_Draft certainty: medium._\n\n**4. Value `units_or_departments`** — New agent draft (round 4)\nThe number counts offices, departments, schools or other units that use the tool.\n_Draft certainty: medium._\n\n**5. Value `none`** — New agent draft (round 4)\nA number is stated, but it counts none of these units.\n_Draft certainty: medium._\n\n**6. Rule** — Plan text, from review round 1\nThe extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n\n**7. Long-page rule** — Option text you chose in round 3\nStore all figures with their units.\n\n**8. Long-page rule** — Agent edit of the signed questionnaire\ncombined_list, paired with the number (as for the number).",
+   "body_label": "Show the 8 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I02",
+   "kind": "review",
+   "title": "has human oversight",
+   "situation": "Question: Is human review required before acting on GenAI outputs?\n\nRecorded per activity.\n\n6 slots: 1 × old production text (version 2.5): rewrite or delete; 5 × plan text.",
+   "body": "**1. Question** — Old production text (version 2.5): rewrite or delete · may be deleted\nIs human review required before acting on GenAI outputs?\n\n**2. Value `yes`** — Plan text, from review round 1\nyes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it).\n\n**3. Value `no`** — Plan text, from review round 1\nno: the page states it does not apply.\n\n**4. Value `not_documented`** — Plan text, from review round 1\nnot_documented: the page is silent.\n\n**5. Value `unclear`** — Plan text, from review round 1\nunclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\n\n**6. Rule** — Plan text, from review round 2\nOne per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer; this needs re-signature of the signed safeguard items, a wording step and test pages.",
+   "body_label": "Show the 6 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I03",
+   "kind": "review",
+   "title": "has transparency notice",
+   "situation": "Question: Are users/citizens notified that GenAI is involved?\n\nRecorded per activity.\n\n6 slots: 1 × old production text (version 2.5): rewrite or delete; 5 × plan text.",
+   "body": "**1. Question** — Old production text (version 2.5): rewrite or delete · may be deleted\nAre users/citizens notified that GenAI is involved?\n\n**2. Value `yes`** — Plan text, from review round 1\nyes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it).\n\n**3. Value `no`** — Plan text, from review round 1\nno: the page states it does not apply.\n\n**4. Value `not_documented`** — Plan text, from review round 1\nnot_documented: the page is silent.\n\n**5. Value `unclear`** — Plan text, from review round 1\nunclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\n\n**6. Rule** — Plan text, from review round 2\nOne per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer; this needs re-signature of the signed safeguard items, a wording step and test pages.",
+   "body_label": "Show the 6 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I04",
+   "kind": "review",
+   "title": "has data classification",
+   "situation": "Question: Are there documented data-handling restrictions for GenAI use?\n\nRecorded per activity.\n\n6 slots: 1 × old production text (version 2.5): rewrite or delete; 5 × plan text.",
+   "body": "**1. Question** — Old production text (version 2.5): rewrite or delete · may be deleted\nAre there documented data-handling restrictions for GenAI use?\n\n**2. Value `yes`** — Plan text, from review round 1\nyes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it).\n\n**3. Value `no`** — Plan text, from review round 1\nno: the page states it does not apply.\n\n**4. Value `not_documented`** — Plan text, from review round 1\nnot_documented: the page is silent.\n\n**5. Value `unclear`** — Plan text, from review round 1\nunclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\n\n**6. Rule** — Plan text, from review round 2\nOne per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer; this needs re-signature of the signed safeguard items, a wording step and test pages.",
+   "body_label": "Show the 6 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I05",
+   "kind": "review",
+   "title": "has risk assessment",
+   "situation": "Question: Has a formal risk/impact assessment been documented?\n\nRecorded per activity.\n\n6 slots: 1 × old production text (version 2.5): rewrite or delete; 5 × plan text.",
+   "body": "**1. Question** — Old production text (version 2.5): rewrite or delete · may be deleted\nHas a formal risk/impact assessment been documented?\n\n**2. Value `yes`** — Plan text, from review round 1\nyes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it).\n\n**3. Value `no`** — Plan text, from review round 1\nno: the page states it does not apply.\n\n**4. Value `not_documented`** — Plan text, from review round 1\nnot_documented: the page is silent.\n\n**5. Value `unclear`** — Plan text, from review round 1\nunclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\n\n**6. Rule** — Plan text, from review round 2\nOne per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer; this needs re-signature of the signed safeguard items, a wording step and test pages.",
+   "body_label": "Show the 6 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I06",
+   "kind": "review",
+   "title": "outcome kind",
+   "situation": "Recorded per activity.\n\n5 slots: 4 × agent edit of the signed questionnaire; 1 × plan text.",
+   "body": "**1. Value `quantified`** — Agent edit of the signed questionnaire\nstates a measured or numeric result\n\n**2. Value `qualitative`** — Agent edit of the signed questionnaire\nstates a result in words only, with no measure\n\n**3. Value `none_reported`** — Agent edit of the signed questionnaire\nstates no result\n\n**4. Rule** — Agent edit of the signed questionnaire\nA jev `Choice` per (finding × page), over the page text with this activity's span marked, asked for outcomes and for incidents separately: `quantified` / `qualitative` / `none_reported`. It answers both whether the page reports an outcome (an incident) of this activity and of what kind; no separate existence question is asked. The outcome or incident text is extracted only when the answer is not `none_reported`. The incident item also takes the value in CX-61b.\n\n**5. Rule** — Plan text, from review round 2\nYour outcome and incident gates are re-ruled down to quotes only; the signed item answers both whether and what kind, and the separate existence question folds into it. The signed item's level needs re-signature.",
+   "body_label": "Show the 5 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I07",
+   "kind": "review",
+   "title": "incident kind",
+   "situation": "Recorded per activity.\n\n9 slots: 6 × agent edit of the signed questionnaire; 2 × plan text; 1 × option text you chose in round 3.",
+   "body": "**1. Value `quantified`** — Agent edit of the signed questionnaire\nstates a measured or numeric result\n\n**2. Value `qualitative`** — Agent edit of the signed questionnaire\nstates a result in words only, with no measure\n\n**3. Value `none_reported`** — Agent edit of the signed questionnaire\nstates no result\n\n**4. Value `discontinuation_uncertain`** — Agent edit of the signed questionnaire\nThe page suggests that this activity may have been ended, cancelled or suspended, but does not confirm it.\n\n**5. Rule** — Agent edit of the signed questionnaire\nA jev `Choice` per (finding × page), over the page text with this activity's span marked, asked for outcomes and for incidents separately: `quantified` / `qualitative` / `none_reported`. It answers both whether the page reports an outcome (an incident) of this activity and of what kind; no separate existence question is asked. The outcome or incident text is extracted only when the answer is not `none_reported`. The incident item also takes the value in CX-61b.\n\n**6. Rule** — Plan text, from review round 2\nYour outcome and incident gates are re-ruled down to quotes only; the signed item answers both whether and what kind, and the separate existence question folds into it. The signed item's level needs re-signature.\n\n**7. Rule** — Plan text, from review round 2\nRetire flags that just mirror a column; keep 'identity unresolved' and 'stage ambiguous', and fold 'discontinuation uncertain' into the incident question as a value instead of a separate question. Changing the flag list costs two version steps, a regenerated classifier question set, updated reference outputs, an update to the procurement team's copy of the list, and a translation table.\n\n**8. Rule** — Agent edit of the signed questionnaire\n`discontinuation_uncertain` (incident item only)\n\n**9. Rule** — Option text you chose in round 3\nThe incident question ignores stops unless a problem is reported.",
+   "body_label": "Show the 9 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I08",
+   "kind": "review",
+   "title": "reported outcomes",
+   "situation": "Question: Documented performance claims. Only record if explicitly stated. Never infer.\n\nRecorded per activity.\n\n3 slots: 1 × old production text (version 2.5): rewrite or delete; 1 × agent edit of the signed questionnaire; 1 × plan text.",
+   "body": "**1. Question** — Old production text (version 2.5): rewrite or delete · may be deleted\nDocumented performance claims. Only record if explicitly stated. Never infer.\n\n**2. Rule** — Agent edit of the signed questionnaire\nDeterministic step (no API), for rows coded before CX-01.3 only: map all \"nothing found\" spellings to `none_reported`. The mapping table is published with the code.\n\n**3. Rule** — Plan text, from review round 1\njev Choice per activity: page reports realised outcomes / only expected or projected outcomes / usage figures only / none. Unless none, the extractor returns verbatim spans (no length limit in storage, display cap per R-043). CX-61 then runs on the spans.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I09",
+   "kind": "review",
+   "title": "reported incidents",
+   "situation": "Question: Documented errors, failures, or controversies. Only record if explicitly stated.\n\nRecorded per activity.\n\n3 slots: 1 × old production text (version 2.5): rewrite or delete; 1 × agent edit of the signed questionnaire; 1 × plan text.",
+   "body": "**1. Question** — Old production text (version 2.5): rewrite or delete · may be deleted\nDocumented errors, failures, or controversies. Only record if explicitly stated.\n\n**2. Rule** — Agent edit of the signed questionnaire\nDeterministic step (no API), for rows coded before CX-01.3 only: map all \"nothing found\" spellings to `none_reported`. The mapping table is published with the code.\n\n**3. Rule** — Plan text, from review round 1\njev Choice: page reports a malfunction or error / data or privacy breach / public criticism or complaint / suspension or withdrawal / none. Unless none, the extractor returns verbatim spans.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I10",
+   "kind": "review",
+   "title": "evaluation documented",
+   "situation": "Question: Does this page document an evaluation of this GenAI activity?\n\nRecorded per activity and per page.\n\n16 slots: 16 × agent edit of the signed questionnaire.",
+   "body": "**1. Question** — Agent edit of the signed questionnaire\nDoes this page document an evaluation of this GenAI activity?\n\n**2. Value `results_reported`** — Agent edit of the signed questionnaire\nThe page states that this activity was tested, evaluated, audited or monitored **and** reports a result (a metric, a finding or a conclusion).\n\n**3. Value `conducted_no_results`** — Agent edit of the signed questionnaire\nThe page states that an evaluation, test, audit, pilot review or monitoring took place or is in place, but reports no result.\n\n**4. Value `required_or_planned`** — Agent edit of the signed questionnaire\nThe page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy finding that requires evaluation of GenAI tools takes this value.\n\n**5. Value `unclear`** — Agent edit of the signed questionnaire\nThe page makes an evaluative statement, but its subject, or whether it concerns this GenAI activity, cannot be settled. An evaluation clearly of a different tool or activity is `not_documented`, not `unclear` (CX-01.2, C4 = a).\n\n**6. Value `not_documented`** — Agent edit of the signed questionnaire\nThe page has no evaluation statement about this activity.\n\n**7. Rule** — Agent edit of the signed questionnaire\nA requirement to carry out a risk or impact assessment is **not** `required_or_planned`; it belongs to `has_risk_assessment` alone (consistent with CX-37).\n\n**8. Rule** — Agent edit of the signed questionnaire\nA clause requiring periodic review of the GenAI policy itself is `not_documented`, unless it requires testing, monitoring or evaluation of GenAI tools or their outputs; then it counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy).\n\n**9. Rule** — Agent edit of the signed questionnaire\nA required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as `required_or_planned`. A pure risk or impact assessment requirement stays under CX-32b.\n\n**10. Rule** — Agent edit of the signed questionnaire\nNo negative value. A page saying no evaluation was done or planned is `not_documented`.\n\n**11. Rule** — Agent edit of the signed questionnaire\nA performance figure counts as `results_reported` only if the page also describes the activity behind it (a test, a pilot review, a survey, an audit, monitoring); otherwise `not_documented`.\n\n**12. Rule** — Agent edit of the signed questionnaire\nA risk or impact assessment counts here only if it reports testing or measured performance; otherwise it belongs to `has_risk_assessment` alone.\n\n**13. Rule** — Agent edit of the signed questionnaire\nA vendor's performance claim counts only if the page names the institution or an independent body as the evaluator.\n\n**14. Rule** — Agent edit of the signed questionnaire\nA pilot stage alone is `not_documented`. \"The pilot will be evaluated\" is `required_or_planned`; \"the pilot evaluation found …\" is `results_reported`.\n\n**15. Rule** — Agent edit of the signed questionnaire\n(1) An agency blog: \"after a three-month trial, 78% of staff said the assistant saved time\" → `results_reported`. (2) Minutes: \"the pilot is being reviewed by IT\" → `conducted_no_results`. (3) A guidance memo: \"all GenAI tools must be tested before deployment\" → `required_or_planned` on the policy finding. (4) A press release: \"the chatbot has answered 40,000 questions\" → `not_documented` (a usage count with no evaluation described; CX-36). (5) A vendor case study: \"accuracy improved 30%\" with no named evaluator → `not_documented` (CX-38).\n\n**16. Rule** — Agent edit of the signed questionnaire\nCX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value. A clause requiring periodic review of the GenAI policy itself is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).",
+   "body_label": "Show the 16 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I11",
+   "kind": "review",
+   "title": "evaluation type pre deployment testing",
+   "situation": "Recorded per activity and per page.\n\n3 slots: 2 × new agent draft (round 4); 1 × agent edit of the signed questionnaire.",
+   "body": "**1. Value `yes`** — New agent draft (round 4)\nThe page documents an evaluation of this type for the activity: testing before deployment.\n_Draft certainty: high._ _Note: On the published side, `no` maps to the reserved label \"not documented\" (questionnaire map row)._\n\n**2. Value `no`** — New agent draft (round 4)\nThe page does not document an evaluation of this type (testing before deployment) for the activity.\n_Draft certainty: high._ _Note: On the published side, `no` maps to the reserved label \"not documented\" (questionnaire map row)._\n\n**3. Rule** — Agent edit of the signed questionnaire\nIncluded. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I12",
+   "kind": "review",
+   "title": "evaluation type pilot evaluation",
+   "situation": "Recorded per activity and per page.\n\n3 slots: 2 × new agent draft (round 4); 1 × agent edit of the signed questionnaire.",
+   "body": "**1. Value `yes`** — New agent draft (round 4)\nThe page documents an evaluation of this type for the activity: evaluation of a pilot or trial.\n_Draft certainty: high._ _Note: On the published side, `no` maps to the reserved label \"not documented\" (questionnaire map row)._\n\n**2. Value `no`** — New agent draft (round 4)\nThe page does not document an evaluation of this type (evaluation of a pilot or trial) for the activity.\n_Draft certainty: high._ _Note: On the published side, `no` maps to the reserved label \"not documented\" (questionnaire map row)._\n\n**3. Rule** — Agent edit of the signed questionnaire\nIncluded. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I13",
+   "kind": "review",
+   "title": "evaluation type independent audit",
+   "situation": "Recorded per activity and per page.\n\n3 slots: 2 × new agent draft (round 4); 1 × agent edit of the signed questionnaire.",
+   "body": "**1. Value `yes`** — New agent draft (round 4)\nThe page documents an evaluation of this type for the activity: an audit or evaluation by an independent body.\n_Draft certainty: high._ _Note: On the published side, `no` maps to the reserved label \"not documented\" (questionnaire map row)._\n\n**2. Value `no`** — New agent draft (round 4)\nThe page does not document an evaluation of this type (an audit or evaluation by an independent body) for the activity.\n_Draft certainty: high._ _Note: On the published side, `no` maps to the reserved label \"not documented\" (questionnaire map row)._\n\n**3. Rule** — Agent edit of the signed questionnaire\nIncluded. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I14",
+   "kind": "review",
+   "title": "evaluation type ongoing monitoring",
+   "situation": "Recorded per activity and per page.\n\n3 slots: 2 × new agent draft (round 4); 1 × agent edit of the signed questionnaire.",
+   "body": "**1. Value `yes`** — New agent draft (round 4)\nThe page documents an evaluation of this type for the activity: ongoing monitoring of the tool in use.\n_Draft certainty: high._ _Note: On the published side, `no` maps to the reserved label \"not documented\" (questionnaire map row)._\n\n**2. Value `no`** — New agent draft (round 4)\nThe page does not document an evaluation of this type (ongoing monitoring of the tool in use) for the activity.\n_Draft certainty: high._ _Note: On the published side, `no` maps to the reserved label \"not documented\" (questionnaire map row)._\n\n**3. Rule** — Agent edit of the signed questionnaire\nIncluded. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I15",
+   "kind": "review",
+   "title": "evaluation type user feedback",
+   "situation": "Recorded per activity and per page.\n\n3 slots: 2 × new agent draft (round 4); 1 × agent edit of the signed questionnaire.",
+   "body": "**1. Value `yes`** — New agent draft (round 4)\nThe page documents an evaluation of this type for the activity: user feedback or satisfaction surveys.\n_Draft certainty: high._ _Note: On the published side, `no` maps to the reserved label \"not documented\" (questionnaire map row)._\n\n**2. Value `no`** — New agent draft (round 4)\nThe page does not document an evaluation of this type (user feedback or satisfaction surveys) for the activity.\n_Draft certainty: high._ _Note: On the published side, `no` maps to the reserved label \"not documented\" (questionnaire map row)._\n\n**3. Rule** — Agent edit of the signed questionnaire\nIncluded. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I16",
+   "kind": "review",
+   "title": "evaluation type bias or safety testing",
+   "situation": "Recorded per activity and per page.\n\n3 slots: 2 × new agent draft (round 4); 1 × agent edit of the signed questionnaire.",
+   "body": "**1. Value `yes`** — New agent draft (round 4)\nThe page documents an evaluation of this type for the activity: bias, fairness or safety testing.\n_Draft certainty: high._ _Note: On the published side, `no` maps to the reserved label \"not documented\" (questionnaire map row)._\n\n**2. Value `no`** — New agent draft (round 4)\nThe page does not document an evaluation of this type (bias, fairness or safety testing) for the activity.\n_Draft certainty: high._ _Note: On the published side, `no` maps to the reserved label \"not documented\" (questionnaire map row)._\n\n**3. Rule** — Agent edit of the signed questionnaire\nIncluded. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I17",
+   "kind": "review",
+   "title": "stage as of",
+   "situation": "Recorded per activity.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nstage_as_of = source_publication_date if supported, else the page's latest stated date for the activity, else the access date; plus `stage_as_of_basis`.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I18",
+   "kind": "review",
+   "title": "stage as of basis",
+   "situation": "Recorded per activity.\n\n2 slots: 2 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nstage_as_of = source_publication_date if supported, else the page's latest stated date for the activity, else the access date; plus `stage_as_of_basis`.\n\n**2. Rule** — Plan text, from review round 2\nEvery 'how we know' field uses the same five values: stated, from metadata, looked up, derived, quoted by the quote step. The per-run version record also holds the codebook version, the channel tag stays on each row, and per-code coder details are stored internally and linked to that record.",
+   "body_label": "Show the 2 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I19",
+   "kind": "review",
+   "title": "permanent pilot",
+   "situation": "Recorded per activity.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 2\nEach item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I20",
+   "kind": "review",
+   "title": "vendor claim only",
+   "situation": "Recorded per activity.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 2\nEach item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I21",
+   "kind": "review",
+   "title": "unit credit",
+   "situation": "Recorded per activity.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 2\nKeep your rule and add a yes/no column marking credit received through a unit, so analyses can remove duplicates; the data dictionary explains it.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I22",
+   "kind": "review",
+   "title": "uncertainty flags",
+   "situation": "Recorded per activity and on every row.\n\n3 slots: 3 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nCompute each flag from codes (table above); add `identity_unresolved` for Stage 6 relations; drop `source_language_barrier`; `discontinued_uncertain` becomes a pass-2 jev yes/no.\n\n**2. Rule** — Plan text, from review round 2\nRetire flags that just mirror a column; keep 'identity unresolved' and 'stage ambiguous', and fold 'discontinuation uncertain' into the incident question as a value instead of a separate question. Changing the flag list costs two version steps, a regenerated classifier question set, updated reference outputs, an update to the procurement team's copy of the list, and a translation table.\n\n**3. Rule** — Plan text, from review round 2\nAI-text flags fold into the main list, the language-barrier flag is dropped everywhere, and language coverage is carried by the multilingual subproject's item.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I23",
+   "kind": "review",
+   "title": "observed actor role",
+   "situation": "Recorded per activity.\n\n8 slots: 6 × new agent draft (round 4); 1 × option text you chose in round 3; 1 × text you approved on 30 October.",
+   "body": "**1. Value `institutional_actor`** — New agent draft (round 4)\nThe actor seen on the page carries out or adopts the activity as an institution.\n_Draft certainty: medium._ **Needs your decision:** The earlier data gave only the code names, with no definitions; these glosses read the names. Please word or approve each.\n\n**2. Value `issuer`** — New agent draft (round 4)\nThe actor issued the policy, rule, guidance or document.\n_Draft certainty: medium._ **Needs your decision:** The earlier data gave only the code names, with no definitions; these glosses read the names. Please word or approve each.\n\n**3. Value `participant`** — New agent draft (round 4)\nThe actor takes part in an activity that someone else runs.\n_Draft certainty: medium._ **Needs your decision:** The earlier data gave only the code names, with no definitions; these glosses read the names. Please word or approve each.\n\n**4. Value `external_speaker`** — New agent draft (round 4)\nThe actor speaks or presents about GenAI, for example at an event, without carrying out the activity.\n_Draft certainty: medium._ **Needs your decision:** The earlier data gave only the code names, with no definitions; these glosses read the names. Please word or approve each.\n\n**5. Value `service_provider`** — New agent draft (round 4)\nThe actor supplies the tool or service, as a vendor, contractor or developer.\n_Draft certainty: medium._ **Needs your decision:** The earlier data gave only the code names, with no definitions; these glosses read the names. Please word or approve each.\n\n**6. Value `event_host`** — New agent draft (round 4)\nThe actor hosts or organises an event about GenAI.\n_Draft certainty: medium._ **Needs your decision:** The earlier data gave only the code names, with no definitions; these glosses read the names. Please word or approve each.\n\n**7. Rule** — Option text you chose in round 3\nCode it as before; not published.\n\n**8. Long-page rule** — Text you approved on 30 October\nTake the role from the part that produced the combined relationship; if that part gives no real role, take the most-sure real role from the other parts.",
+   "body_label": "Show the 8 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  }
+ ],
+ "slot_map": {
+  "I01": {
+   "owner": "core.deployment_scale_unit",
+   "slots": {
+    "1": "items/core.deployment_scale_unit/values/0/definition",
+    "2": "items/core.deployment_scale_unit/values/1/definition",
+    "3": "items/core.deployment_scale_unit/values/2/definition",
+    "4": "items/core.deployment_scale_unit/values/3/definition",
+    "5": "items/core.deployment_scale_unit/values/4/definition",
+    "6": "items/core.deployment_scale_unit/rules/0",
+    "7": "items/core.deployment_scale_unit/long_page_rule/text/0",
+    "8": "items/core.deployment_scale_unit/long_page_rule/text/1"
+   }
+  },
+  "I02": {
+   "owner": "core.has_human_oversight",
+   "slots": {
+    "1": "items/core.has_human_oversight/instruction",
+    "2": "items/core.has_human_oversight/values/0/definition",
+    "3": "items/core.has_human_oversight/values/1/definition",
+    "4": "items/core.has_human_oversight/values/2/definition",
+    "5": "items/core.has_human_oversight/values/3/definition",
+    "6": "items/core.has_human_oversight/rules/1"
+   }
+  },
+  "I03": {
+   "owner": "core.has_transparency_notice",
+   "slots": {
+    "1": "items/core.has_transparency_notice/instruction",
+    "2": "items/core.has_transparency_notice/values/0/definition",
+    "3": "items/core.has_transparency_notice/values/1/definition",
+    "4": "items/core.has_transparency_notice/values/2/definition",
+    "5": "items/core.has_transparency_notice/values/3/definition",
+    "6": "items/core.has_transparency_notice/rules/1"
+   }
+  },
+  "I04": {
+   "owner": "core.has_data_classification",
+   "slots": {
+    "1": "items/core.has_data_classification/instruction",
+    "2": "items/core.has_data_classification/values/0/definition",
+    "3": "items/core.has_data_classification/values/1/definition",
+    "4": "items/core.has_data_classification/values/2/definition",
+    "5": "items/core.has_data_classification/values/3/definition",
+    "6": "items/core.has_data_classification/rules/1"
+   }
+  },
+  "I05": {
+   "owner": "core.has_risk_assessment",
+   "slots": {
+    "1": "items/core.has_risk_assessment/instruction",
+    "2": "items/core.has_risk_assessment/values/0/definition",
+    "3": "items/core.has_risk_assessment/values/1/definition",
+    "4": "items/core.has_risk_assessment/values/2/definition",
+    "5": "items/core.has_risk_assessment/values/3/definition",
+    "6": "items/core.has_risk_assessment/rules/1"
+   }
+  },
+  "I06": {
+   "owner": "core.outcome_kind",
+   "slots": {
+    "1": "items/core.outcome_kind/values/0/definition",
+    "2": "items/core.outcome_kind/values/1/definition",
+    "3": "items/core.outcome_kind/values/2/definition",
+    "4": "items/core.outcome_kind/rules/0",
+    "5": "items/core.outcome_kind/rules/3"
+   }
+  },
+  "I07": {
+   "owner": "core.incident_kind",
+   "slots": {
+    "1": "items/core.incident_kind/values/0/definition",
+    "2": "items/core.incident_kind/values/1/definition",
+    "3": "items/core.incident_kind/values/2/definition",
+    "4": "items/core.incident_kind/values/3/definition",
+    "5": "items/core.incident_kind/rules/0",
+    "6": "items/core.incident_kind/rules/3",
+    "7": "items/core.incident_kind/rules/4",
+    "8": "items/core.incident_kind/rules/5",
+    "9": "items/core.incident_kind/rules/6"
+   }
+  },
+  "I08": {
+   "owner": "core.reported_outcomes",
+   "slots": {
+    "1": "items/core.reported_outcomes/instruction",
+    "2": "items/core.reported_outcomes/rules/0",
+    "3": "items/core.reported_outcomes/rules/1"
+   }
+  },
+  "I09": {
+   "owner": "core.reported_incidents",
+   "slots": {
+    "1": "items/core.reported_incidents/instruction",
+    "2": "items/core.reported_incidents/rules/0",
+    "3": "items/core.reported_incidents/rules/1"
+   }
+  },
+  "I10": {
+   "owner": "core.evaluation_documented",
+   "slots": {
+    "1": "items/core.evaluation_documented/instruction",
+    "2": "items/core.evaluation_documented/values/0/definition",
+    "3": "items/core.evaluation_documented/values/1/definition",
+    "4": "items/core.evaluation_documented/values/2/definition",
+    "5": "items/core.evaluation_documented/values/3/definition",
+    "6": "items/core.evaluation_documented/values/4/definition",
+    "7": "items/core.evaluation_documented/rules/0",
+    "8": "items/core.evaluation_documented/rules/1",
+    "9": "items/core.evaluation_documented/rules/2",
+    "10": "items/core.evaluation_documented/rules/3",
+    "11": "items/core.evaluation_documented/rules/4",
+    "12": "items/core.evaluation_documented/rules/5",
+    "13": "items/core.evaluation_documented/rules/6",
+    "14": "items/core.evaluation_documented/rules/7",
+    "15": "items/core.evaluation_documented/rules/8",
+    "16": "items/core.evaluation_documented/rules/10"
+   }
+  },
+  "I11": {
+   "owner": "core.evaluation_type_pre_deployment_testing",
+   "slots": {
+    "1": "items/core.evaluation_type_pre_deployment_testing/values/0/definition",
+    "2": "items/core.evaluation_type_pre_deployment_testing/values/1/definition",
+    "3": "items/core.evaluation_type_pre_deployment_testing/rules/0"
+   }
+  },
+  "I12": {
+   "owner": "core.evaluation_type_pilot_evaluation",
+   "slots": {
+    "1": "items/core.evaluation_type_pilot_evaluation/values/0/definition",
+    "2": "items/core.evaluation_type_pilot_evaluation/values/1/definition",
+    "3": "items/core.evaluation_type_pilot_evaluation/rules/0"
+   }
+  },
+  "I13": {
+   "owner": "core.evaluation_type_independent_audit",
+   "slots": {
+    "1": "items/core.evaluation_type_independent_audit/values/0/definition",
+    "2": "items/core.evaluation_type_independent_audit/values/1/definition",
+    "3": "items/core.evaluation_type_independent_audit/rules/0"
+   }
+  },
+  "I14": {
+   "owner": "core.evaluation_type_ongoing_monitoring",
+   "slots": {
+    "1": "items/core.evaluation_type_ongoing_monitoring/values/0/definition",
+    "2": "items/core.evaluation_type_ongoing_monitoring/values/1/definition",
+    "3": "items/core.evaluation_type_ongoing_monitoring/rules/0"
+   }
+  },
+  "I15": {
+   "owner": "core.evaluation_type_user_feedback",
+   "slots": {
+    "1": "items/core.evaluation_type_user_feedback/values/0/definition",
+    "2": "items/core.evaluation_type_user_feedback/values/1/definition",
+    "3": "items/core.evaluation_type_user_feedback/rules/0"
+   }
+  },
+  "I16": {
+   "owner": "core.evaluation_type_bias_or_safety_testing",
+   "slots": {
+    "1": "items/core.evaluation_type_bias_or_safety_testing/values/0/definition",
+    "2": "items/core.evaluation_type_bias_or_safety_testing/values/1/definition",
+    "3": "items/core.evaluation_type_bias_or_safety_testing/rules/0"
+   }
+  },
+  "I17": {
+   "owner": "core.stage_as_of",
+   "slots": {
+    "1": "items/core.stage_as_of/rules/0"
+   }
+  },
+  "I18": {
+   "owner": "core.stage_as_of_basis",
+   "slots": {
+    "1": "items/core.stage_as_of_basis/rules/0",
+    "2": "items/core.stage_as_of_basis/rules/1"
+   }
+  },
+  "I19": {
+   "owner": "core.permanent_pilot",
+   "slots": {
+    "1": "items/core.permanent_pilot/rules/0"
+   }
+  },
+  "I20": {
+   "owner": "core.vendor_claim_only",
+   "slots": {
+    "1": "items/core.vendor_claim_only/rules/0"
+   }
+  },
+  "I21": {
+   "owner": "core.unit_credit",
+   "slots": {
+    "1": "items/core.unit_credit/rules/0"
+   }
+  },
+  "I22": {
+   "owner": "core.uncertainty_flags",
+   "slots": {
+    "1": "items/core.uncertainty_flags/rules/0",
+    "2": "items/core.uncertainty_flags/rules/1",
+    "3": "items/core.uncertainty_flags/rules/2"
+   }
+  },
+  "I23": {
+   "owner": "core.observed_actor_role",
+   "slots": {
+    "1": "items/core.observed_actor_role/values/0/definition",
+    "2": "items/core.observed_actor_role/values/1/definition",
+    "3": "items/core.observed_actor_role/values/2/definition",
+    "4": "items/core.observed_actor_role/values/3/definition",
+    "5": "items/core.observed_actor_role/values/4/definition",
+    "6": "items/core.observed_actor_role/values/5/definition",
+    "7": "items/core.observed_actor_role/rules/0",
+    "8": "items/core.observed_actor_role/long_page_rule/text"
+   }
+  }
+ }
+}

@@ -1,0 +1,1516 @@
+{
+ "area": "r2-impact-cross-pipeline",
+ "_meta": {
+  "reviewer": "claude-opus-5-5 subagent, read-only, 2026-10-29",
+  "scope": "SPEC/PLAN impact, cross-pipeline fit, downstream consumers, additions; internal consistency among chosen items left to the other round-2 reviewer",
+  "note_on_ids": "Ruling ids (C*, A*, X*, P*) are codebook-rulings-round1.json ids. Round-1 cross-pipeline conflicts are cited as 'review-cross-pipeline X..' to avoid confusion with ruling X-ids."
+ },
+ "items": [
+  {
+   "id": "R2P01",
+   "type": "constraint-conflict",
+   "name": "P08a 9th page-verdict value `not_assessable` vs locked 8-value R-015 (C01 spec-locked) and X39 page_review_state",
+   "involves": [
+    "P08",
+    "C01",
+    "X39",
+    "A07",
+    "X29",
+    "R-015",
+    "C-007"
+   ],
+   "situation": "C01 was ruled 'R-015 as locked: 8 values', and P08a adds a 9th value to the same column. X39 already records `no_usable_text` / `fetch_failed` as a deterministic page_review_state, so a page with no usable text would carry the 'not assessable' fact twice, once as a jev verdict that jev cannot produce from empty text. The procurement and text pipelines' 'not assessable' outcomes are record-level and document-level, not page verdicts.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:71 (R-015: 'Page-verdict vocabulary has 8 values'); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json C01 chosen spec-locked, P08 chosen P08a ('9th value; excluded from denominators'), X39 chosen alt-1; C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) R-023 L113 (records with no descriptive text are not_assessable); g3o-ai-text-detection HEAD 7025bec:g3o/text/pilot_contract.py:299-323 (scored_status/not_scored_reason at document grain); C:/Users/spaci/repos/G3O/planning/SPEC.md:200 A-011 (fixtures for every page-verdict value).",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "9th verdict value as P08a",
+     "mechanism": "SPEC delta to R-015 (9 values); `not_assessable` set deterministically when X39 state is not `reviewed`; excluded from Stage 6 denominators.",
+     "benefits": "One column tells every consumer the page was not assessed; matches P08a as chosen.",
+     "risks": "Contradicts C01 as ruled; duplicates X39; jev never emits it, so the verdict column mixes a jev code and a deterministic state; another A-011 fixture class.",
+     "commits_to": "R-015 delta (PI), C-007 steps inside the v2.7 bump, D-008 enum copy update, A-011/A-007 changes."
+    },
+    {
+     "id": "b",
+     "label": "Keep 8 values; assessability lives in review-state items",
+     "mechanism": "Page verdict stays 8 values (C01); main pipeline records it in X39; procurement R-023 and text scored_status map to a shared codebook definition of 'not assessable' as a review-state value, not a verdict.",
+     "benefits": "Keeps R-015 and C01 intact; no third enum change on the verdict column.",
+     "risks": "P08a's chosen form is not implemented; consumers must read two columns to know if a page was assessed.",
+     "commits_to": "Re-ruling P08; codebook definition of the review-state vocabulary across channels."
+    },
+    {
+     "id": "c",
+     "label": "Shared `assessability` item at each unit's grain",
+     "mechanism": "New core item assessable / not_assessable + reason, coded at page (main), record (procurement) and document (text) grain; X39 is its main-pipeline instance.",
+     "benefits": "One cross-channel concept, grain explicit; verdict column untouched.",
+     "risks": "New column; three grains under one name invites cross-grain comparison.",
+     "commits_to": "New core item, C-007 steps, X39 rewording, procurement R-023 and text NOT_SCORED_REASONS mapped."
+    }
+   ]
+  },
+  {
+   "id": "R2P02",
+   "type": "constraint-conflict",
+   "name": "Rulings that make the extractor select or classify (C-001)",
+   "involves": [
+    "X12",
+    "C13",
+    "P04",
+    "X26",
+    "A05",
+    "X35",
+    "C-001"
+   ],
+   "situation": "C-001 says the extractor is not a classifier. Under X12 alt-1 the extractor decides, blind to jev's code, which passages are relevant to each field; when it returns nothing, R-041 downgrades the code, so the extractor's judgement of relevance sets the published value. C13 alt-1 has the extractor pick which named organisation is 'the supplier', P04a needs a supplier role, and X26 has the extractor choose a publication date when metadata is absent: each is a selection among candidates rather than verbatim copying.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:215 (C-001 'the extractor is not a classifier'), C:/Users/spaci/repos/G3O/planning/SPEC.md:97 (R-040 'after jev has coded'); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X12 alt-1 ('Extractor is asked for the passages relevant to each field without being told jev's value'), C13 alt-1, P04a, X26 alt-1 ('the extractor returns a date with its verbatim quote'), A05 add-internal; C16 alt-1 shows the candidate-then-jev pattern.",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "jev selects, extractor lists candidates",
+     "mechanism": "Extractor returns every candidate span (all organisation names, all dates, all passages) and jev answers a Choice over them (the C16 pattern); X12 becomes 'extract all candidate passages, jev picks'.",
+     "benefits": "Keeps C-001 literal; one mechanism for every selection.",
+     "risks": "More jev calls and dynamic choice sets per request; candidate lists may be long on big pages.",
+     "commits_to": "T-011 dynamic-choice design, T-022/T-032 prompt changes, T-002 cost sizing."
+    },
+    {
+     "id": "b",
+     "label": "Permit named selection acts in C-001",
+     "mechanism": "Amend C-001 to list the selection acts the extractor may perform (relevant-passage selection, supplier naming, date pick), each with its supporting quote and a support check.",
+     "benefits": "Rulings stand as chosen; simpler pipeline.",
+     "risks": "C-001 weakens from a rule to a list; the extractor's silence still decides some codes.",
+     "commits_to": "SPEC delta to C-001 (PI); T-031 review scope widened."
+    },
+    {
+     "id": "c",
+     "label": "X12 reverts to R-040; other selections via (a)",
+     "mechanism": "Quotes are requested after jev codes (R-040 as locked); X35 entailment still runs; C13/P04/X26 selections go through jev Choice.",
+     "benefits": "Removes the silence-decides-code path while keeping X35.",
+     "risks": "Loses X12's blind-quote independence check; partial re-ruling.",
+     "commits_to": "Re-ruling X12; T-022/T-032 unchanged on R-040."
+    }
+   ]
+  },
+  {
+   "id": "R2P03",
+   "type": "constraint-conflict",
+   "name": "C-007 (two version steps per enum change) under per-item, per-namespace codebook versioning",
+   "involves": [
+    "C-007",
+    "P15",
+    "X20",
+    "X36",
+    "C01",
+    "C06",
+    "C10",
+    "C11",
+    "X02",
+    "X14",
+    "X24",
+    "P08"
+   ],
+   "situation": "C-007 counts version steps of one contract. RC-D-002 gives every codebook item its own version, P15a adds a mandatory codebook_version, and the text contract carries semver 1.0.0 while procurement pins 2.0. Round 1 chose at least twelve enum changes (listed in involves); it is not stated whether they share the one v2.5 -> v2.7 double step or each costs two steps of something.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:221 (C-007), C:/Users/spaci/repos/G3O/planning/SPEC.md:52 (D-008 'version bumps (extract v2.7, validate v1.5)'); C:/Users/spaci/repos/G3O/planning/deltas/RC-D-002.md:29 ('Every codebook item carries a stable ID, a version'); g3o-ai-text-detection HEAD 7025bec:g3o/text/pilot_contract.py:27 (CONTRACT_VERSION = \"1.0.0\"); H:/My Drive/Research/G3O/subprojects/procurement-pipeline/pipeline/core/contract.py:20 (CONTRACT_VERSION = \"2.0\"); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json commits_to of C01, C06, C10, C11, X02, X14, X24.",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "C-007 applies to the codebook release",
+     "mechanism": "One release version for the whole codebook; every enum change in a release rides that release's two steps; contract_version = release version.",
+     "benefits": "Simple; v2.7 absorbs all round-1 enum changes; matches DEC-013 a.",
+     "risks": "Procurement and text releases are coupled to core releases.",
+     "commits_to": "C-007 rewording; text/proc pins name a release."
+    },
+    {
+     "id": "b",
+     "label": "C-007 per namespace",
+     "mechanism": "core.*, proc.*, text.* each version independently, each obeying C-007; rows carry their namespace versions.",
+     "benefits": "Pipelines move at their own pace (RC-D-002 rollout).",
+     "risks": "Several version numbers per row; cross-namespace items (P12a crosswalks) need a rule.",
+     "commits_to": "Versioning rule in codebook schema; P15/X36 manifest fields."
+    },
+    {
+     "id": "c",
+     "label": "Per-item version plus release",
+     "mechanism": "Each item versions on its own (enum change = two item steps); release version identifies the set.",
+     "benefits": "Finest provenance; a back-fill can say which items changed.",
+     "risks": "Most complex; C-007's 'two steps' loses a shared meaning.",
+     "commits_to": "Codebook schema, generator and CI (T-013†)."
+    }
+   ]
+  },
+  {
+   "id": "R2P04",
+   "type": "constraint-conflict",
+   "name": "R-025 re-signature: what counts as signing the reworded CX items, and whether v2.7 waits for it",
+   "involves": [
+    "X01",
+    "X02",
+    "X03",
+    "X04",
+    "X05",
+    "X06",
+    "X07",
+    "X08",
+    "X09",
+    "X10",
+    "X11",
+    "P05",
+    "P12",
+    "R-025",
+    "R-084"
+   ],
+   "situation": "All 11 CX items got a non-keep choice, and P05a / P12a would fold CX families into wider governance and document-typology modules. R-025 and CX §10 require re-signature of revised wording; the round-1 choices name directions (several contain placeholders such as 'order to be ruled' or 'or only role addresses'), not final text. T-011 requires CX text byte-identical to RS-024, which is the CX-01.2 file in an archive folder.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:78 (R-025), C:/Users/spaci/repos/G3O/planning/SPEC.md:137 (R-084: only C2-C4 fixture-tested); C:/Users/spaci/repos/G3O/planning/PLAN.md:618-623 (T-011 'CX-01.2 wording byte-identical to RS-024'); C:/Users/spaci/repos/G3O/planning/deltas/RC-D-002.md:55 ('CX-01.2 needs re-signature and a re-pilot (R-025) before T-011 can rely on it'); H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:3-4, :146, :204; C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X08 mechanism ('domain part (and a count), or only role addresses'), X16 ('order to be ruled').",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Re-sign as CX-01.3 after drafting",
+     "mechanism": "Round-1 choices are direction; T-010 drafts final CX text in the codebook; PI signs it item by item as CX-01.3; RS-024 repointed; re-pilot of all reworded rows before T-011.",
+     "benefits": "Clear signature act on final words; fixtures match signed text.",
+     "risks": "Adds a signing and re-pilot round on the critical path before T-011.",
+     "commits_to": "R-025/R-084/A-020 deltas; T-011 input changed to CX-01.3."
+    },
+    {
+     "id": "b",
+     "label": "Chosen option text is the signed wording",
+     "mechanism": "Treat each chosen option's mechanism text as CX-01.3 verbatim; re-pilot confirms; open placeholders ruled separately.",
+     "benefits": "Fastest; no extra signing round.",
+     "risks": "Option text was written as a proposal, with open sub-choices; signed text would carry them.",
+     "commits_to": "PI ruling on the open sub-choices; R-025 delta."
+    },
+    {
+     "id": "c",
+     "label": "v2.7 ships CX-01.2 frozen; CX changes in a later release",
+     "mechanism": "T-011 uses CX-01.2 byte-identical (R-025 as locked); round-1 CX choices go to the first post-v2.7 codebook release after their re-pilot.",
+     "benefits": "Keeps the locked plan's CX path and A-020 scope; no re-signature on the critical path.",
+     "risks": "Back-filled CX fields are produced under wording the PI has already chosen to change; a second CX back-code later.",
+     "commits_to": "Codebook release plan; index work (G-005) waits for the later release."
+    }
+   ]
+  },
+  {
+   "id": "R2P05",
+   "type": "constraint-conflict",
+   "name": "P06a `attribution_role` on core rows vs N-005 / C-005 and the C04/A05 grain rules",
+   "involves": [
+    "P06",
+    "C04",
+    "A05",
+    "N-005",
+    "C-005",
+    "R-014"
+   ],
+   "situation": "P06a puts contracting authority / beneficiary / central purchasing body on core rows, and its own risk text says it 'changes core grain semantics'. If a central purchasing body's award is attributed to beneficiary agencies, rows would appear for institutions that were not searched, which N-005 (no automatic attribution transfers) and C-005 (never add to the searched denominator) bar. C04 alt-1 and A05 already encode unit / parent / joint relations, A05 internally only.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:230 (N-005), C:/Users/spaci/repos/G3O/planning/SPEC.md:219 (C-005), C:/Users/spaci/repos/G3O/planning/SPEC.md:70 (R-014 observed actor vs query target); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json P06 (risks: 'Changes core grain semantics (one row per institution) for all channels'), C04 alt-1, A05 add-internal.",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Role of the searched institution only",
+     "mechanism": "attribution_role describes the searched institution's role in the observed activity (contracting_authority / beneficiary / central_purchasing_body / unit / joint); it never creates rows for another institution.",
+     "benefits": "Keeps N-005/C-005; one public field covering P06 and the public part of A05.",
+     "risks": "Beneficiary institutions stay invisible unless searched themselves.",
+     "commits_to": "Core item, C-007 steps, A05 relation values aligned."
+    },
+    {
+     "id": "b",
+     "label": "Module-only",
+     "mechanism": "attribution role stays in the procurement link table (as P06b would have); core keeps C04 grain rule and internal A05.",
+     "benefits": "No core change; no grain risk.",
+     "risks": "Re-rules P06; web pages showing ministries acting for agencies get no public field.",
+     "commits_to": "Re-ruling P06."
+    },
+    {
+     "id": "c",
+     "label": "Core item plus gated transfer path",
+     "mechanism": "Core attribution_role as in (a); any re-attribution to another institution goes through a PI-ruled path like R-077.",
+     "benefits": "Allows beneficiary credit with an explicit gate.",
+     "risks": "Builds a standing transfer process the SPEC lists as a non-goal.",
+     "commits_to": "N-005 delta (PI); new card."
+    }
+   ]
+  },
+  {
+   "id": "R2P06",
+   "type": "inconsistency",
+   "name": "Procurement's locked scope (R-001, G-004) vs core placement of P04a, P05a, P06a and C09 `procurement_status`",
+   "involves": [
+    "P04",
+    "P05",
+    "P06",
+    "C09",
+    "P01",
+    "R-085",
+    "D-008"
+   ],
+   "situation": "Procurement's locked SPEC says the root instrument does not change and that supplier role and contractual governance terms are captured 'in an extension table and nowhere else'. P04a, P05a, P06a and C09 alt-2 put those facts, or a procurement status, into core items, while P01b keeps notice stage in the module. The procurement plan's integrator owns that SPEC; D-008 is the channel.",
+   "evidence": "C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) G-004 L50, R-001 L91, R-004 L94; H:/My Drive/Research/G3O/subprojects/procurement-pipeline/CLAUDE.md:26 ('supplier role, contractual governance terms ... go in the procurement extension table, never as a replacement typology'); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json P01b, P04a, P05a, P06a, C09 alt-2 ('procurement must agree'); C:/Users/spaci/repos/G3O/planning/SPEC.md:52 (D-008), C:/Users/spaci/repos/G3O/planning/SPEC.md:135 (R-085).",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Amend procurement's SPEC to accept core homes",
+     "mechanism": "A procurement delta (via its integrator, PI rules there) accepts supplier role, contract governance terms, attribution role and procurement_status as core items; money and procedure stay in the extension.",
+     "benefits": "One home per concept, as the single-codebook ruling asks.",
+     "risks": "Reopens a locked PI scope ruling (2026-07-28); procurement re-plans.",
+     "commits_to": "Procurement SPEC delta; D-008 widened; procurement module migration."
+    },
+    {
+     "id": "b",
+     "label": "Core items, filled by mapping from the extension",
+     "mechanism": "Core items exist; procurement records them only in its extension table and a deterministic mapping fills the core columns.",
+     "benefits": "Respects G-004 literally (extension is the record); core consumers see one field.",
+     "risks": "Two copies of one fact; mapping rules to maintain.",
+     "commits_to": "Mapping table per item, versioned with proc.*."
+    },
+    {
+     "id": "c",
+     "label": "Core items cover the web channel only",
+     "mechanism": "P04/P05/P06/C09 core items are coded from web pages; procurement keeps its own fields; codebook carries a crosswalk.",
+     "benefits": "No change to procurement scope.",
+     "risks": "Same concept, two columns by channel; cross-channel analysis needs the crosswalk.",
+     "commits_to": "Coverage tags; crosswalk table."
+    }
+   ]
+  },
+  {
+   "id": "R2P07",
+   "type": "inconsistency",
+   "name": "Vendor construct: C13 lookup-to-developer vs P04a provider/contracting-party split, procurement `vendor: multiple`, C12 lists, and the published definition",
+   "involves": [
+    "C13",
+    "P04",
+    "C12",
+    "C06"
+   ],
+   "situation": "C13 alt-1 fills vendor from a product -> developer lookup when the page names none, so a Copilot licence bought through a reseller would get the developer. P04a separates provider from contracting party, procurement's R-012 writes `vendor: multiple`, C12 adopts `; `-separated lists, and the published bulk README says an in-house tool's vendor is the institution or its parent agency. These are four different definitions of one column.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json C13 alt-1, P04a, C12 alt-1; C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) R-012 L102 (interim `vendor: multiple`); C:/Users/spaci/repos/g3o-api @ acdb030:docs/bulk-readme-template.md:216-217 ('For an in-house tool, `vendor` is the institution or its parent agency'); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/review-cross-pipeline.json proposed_additions P04 ('vendor holds the legal party (often a reseller)').",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "vendor = provider; contracting party separate",
+     "mechanism": "vendor = developer/supplier of the GenAI product in every channel (lookup allowed, vendor_basis); new contracting_party (procurement fills, web when stated); `multiple` replaced by a list.",
+     "benefits": "Comparable across channels; lookup meaning fits.",
+     "risks": "Procurement's awarded supplier moves to a new column; in-house rule must be restated.",
+     "commits_to": "Two columns, C-007 steps, procurement R-012 change, bulk README rewrite."
+    },
+    {
+     "id": "b",
+     "label": "vendor = party the source names as supplier",
+     "mechanism": "vendor is what the source names (the contracting party in procurement); developer goes to model_developer from the lookup; vendor_basis gains contract_party.",
+     "benefits": "Stays closest to verbatim sources; procurement unchanged.",
+     "risks": "Web and procurement vendor values mean different roles; lookup no longer fills vendor.",
+     "commits_to": "New model_developer column; C13 re-rule."
+    },
+    {
+     "id": "c",
+     "label": "Channel-specific vendor with supplier_role",
+     "mechanism": "Web follows C13 alt-1; procurement keeps awarded supplier with supplier_role (reseller / provider); no lookup on procurement rows.",
+     "benefits": "Minimal change to both pipelines.",
+     "risks": "Column semantics depend on channel; analysts must filter by evidence_channel.",
+     "commits_to": "P04a narrowed; coverage tags."
+    }
+   ]
+  },
+  {
+   "id": "R2P08",
+   "type": "inconsistency",
+   "name": "Procurement stage: C09 alt-2 `procurement_status` vs procurement R-005/R-006, the owed §4.3 amendment (R-087) and P01b",
+   "involves": [
+    "C09",
+    "P01",
+    "A06",
+    "R-087",
+    "D-008"
+   ],
+   "situation": "C09 alt-2 moves tender / award / payment into a new procurement_status and codes payment-only activities adoption_stage `unknown`. Procurement's locked rules code awards `announced` and tender-only records `proposed` (which flips the institution to yes), and R-087 carries a §4.3 amendment written for that tender rule. A06's tier text refers to 'procured if C09 alt-1', the option not chosen.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json C09 alt-2, P01b, A06 ('documented_commitment (announced, or procured if C09 alt-1)'); C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) R-005 L95, R-006 L96, Q-002 L231; C:/Users/spaci/repos/G3O/planning/SPEC.md:136 (R-087); H:/My Drive/Research/G3O/subprojects/procurement-pipeline/CLAUDE.md:36 (D2/D3 tender -> proposed).",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "procurement_status is the home of tender/award",
+     "mechanism": "Procurement rows code procurement_status; adoption_stage `unknown` unless use is evidenced; §4.3 amendment reduced to removing procurement language; procurement R-005/R-006 amended.",
+     "benefits": "Stage means use only; procurement and web aligned.",
+     "risks": "Tender-only records no longer flip institutions to yes unless A06/Stage 6 says so; procurement re-rules.",
+     "commits_to": "Procurement SPEC delta; R-087 text change; A06 tier text fixed."
+    },
+    {
+     "id": "b",
+     "label": "Both fields, procurement rules kept",
+     "mechanism": "Procurement keeps R-005/R-006 stage coding and also fills procurement_status; §4.3 amendment as owed.",
+     "benefits": "No procurement re-ruling; R-087 unchanged.",
+     "risks": "Two fields encode the same tender/award fact on procurement rows; web payment-only rows get `unknown` while procurement awards get `announced`.",
+     "commits_to": "Consistency rule between the two fields; fixtures."
+    },
+    {
+     "id": "c",
+     "label": "procurement_status web-only",
+     "mechanism": "Web pages fill procurement_status; procurement rows keep P01b module notice stage and R-005/R-006.",
+     "benefits": "Each channel keeps its rules.",
+     "risks": "Same column empty or `_NA_` on procurement rows, which are the richest source for it.",
+     "commits_to": "Coverage tag; documentation."
+    }
+   ]
+  },
+  {
+   "id": "R2P09",
+   "type": "inconsistency",
+   "name": "Governance grain: P05a one governance family vs X05 alt-2 (page content_*), X07 alt-1 (has_* derived from content_*), A03 and procurement contract terms",
+   "involves": [
+    "P05",
+    "X05",
+    "X07",
+    "C18",
+    "C19",
+    "C20",
+    "C21",
+    "A03"
+   ],
+   "situation": "P05a asks for one governance item family with grain tags (activity / page / contract document). X05 alt-2 keeps content_* at page grain, X07 alt-1 derives activity-level has_* from the same pass-2 safeguard question, and C18-C21 define four values with an attachment rule. Procurement's contractual terms (audit rights, data residency, oversight requirement) sit at contract-document grain in its extension table.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json P05a ('One governance item family with grain tags'; risks: 'CX-01.2 wording is frozen and signed'), X05 alt-2, X07 alt-1, C18-C21 alt-1, A03 add; H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:20-23 (CX-01, CX-04 grain), :94-95 (CX-51/52); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/review-cross-pipeline.json conflicts X23 ('Governance items at three grains').",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "One family with grain tags",
+     "mechanism": "Group D has_*, CX safeguard content_*, A03 and procurement contract terms re-expressed as one family; each item tagged with grain; CX items re-signed into it.",
+     "benefits": "One definition per safeguard; P05a as chosen.",
+     "risks": "Re-signature of CX items; procurement scope conflict (R2P06).",
+     "commits_to": "R-025 re-signature, procurement delta, generator support for grain tags."
+    },
+    {
+     "id": "b",
+     "label": "Two families plus crosswalk",
+     "mechanism": "CX content_* (page) and Group D has_* (activity) as X05/X07 chose; procurement terms stay module; codebook crosswalk only.",
+     "benefits": "No CX merge beyond X05/X07; procurement untouched.",
+     "risks": "Re-rules P05; the crosswalk is documentation, not enforcement.",
+     "commits_to": "Crosswalk table; P05 re-ruling."
+    },
+    {
+     "id": "c",
+     "label": "Family for has_* and procurement terms only",
+     "mechanism": "P05a family covers Group D has_* and procurement contract terms; CX content_* stay frozen outside it.",
+     "benefits": "No CX re-signature for P05.",
+     "risks": "Safeguard concept still split across two families.",
+     "commits_to": "Partial P05 implementation; procurement delta for terms."
+    }
+   ]
+  },
+  {
+   "id": "R2P10",
+   "type": "gap",
+   "name": "Cross-channel institution verdict: which units feed X29's truth table and A06/A07",
+   "involves": [
+    "X29",
+    "C03",
+    "A06",
+    "A07",
+    "P11",
+    "P15",
+    "C09"
+   ],
+   "situation": "X29's truth table and A07's counts are written over pages. Procurement reuses the main Stage 6 (its R-022) and its tender-only rule flips institutions to yes; the text pipeline produces its own institution estimate. No ruling says whether procurement records count as 'pages' in X29, whether procurement absence rows (repository x window) can contribute to `no`, or how channels combine.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X29 alt-1 ('`yes` if >= 1 supported `confirms_activity` page ...'), A07 ('n_pages_reviewed, n_pages_by_verdict'); C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) R-006 L96 ('the institution flips to `has_genai_activity: yes`'), R-021 L111, R-022 L112; C:/Users/spaci/repos/G3O/planning/t010/codebook-review/review-cross-pipeline.json conflicts X10 (no aggregation rule across channels).",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Pooled yes, web-only no",
+     "mechanism": "Supported confirms_activity units from any channel count for `yes`; `no` only from web pages; procurement and text negatives never produce `no`.",
+     "benefits": "Uses all positive evidence; avoids repository-window absence driving `no`.",
+     "risks": "Procurement positives enter before its D-008 validation report; asymmetric rule.",
+     "commits_to": "X29 rewritten over 'evidence units'; A07 per channel."
+    },
+    {
+     "id": "b",
+     "label": "Per-channel verdicts plus a published combination rule",
+     "mechanism": "Web has_genai_activity, a procurement verdict and the P11 text item each published; a codebook rule combines them for display.",
+     "benefits": "Transparent; each channel's error profile stays separable.",
+     "risks": "More institution columns; a combination rule to rule on.",
+     "commits_to": "New institution columns, API/site work."
+    },
+    {
+     "id": "c",
+     "label": "v2.7 verdict is web-only",
+     "mechanism": "Procurement rows load as evidence but do not move has_genai_activity until its validation report is accepted.",
+     "benefits": "No unvalidated channel moves the headline verdict.",
+     "risks": "Procurement R-022 (consolidation via main Stage 6) and R-006 consequence not honoured at first.",
+     "commits_to": "Procurement SPEC note; coverage tag on X29."
+    }
+   ]
+  },
+  {
+   "id": "R2P11",
+   "type": "inconsistency",
+   "name": "P11a `published_text_ai_use` vs the text contract's `detected_genai_activity`, PS §10.3 and the cue verdict",
+   "involves": [
+    "P11",
+    "C11",
+    "C15",
+    "P09"
+   ],
+   "situation": "P11a names a new item with values evidence_of_use / no_evidence_of_use / insufficient. The text contract already validates detected_genai_activity yes / no / not_scored (any one non-Human post-period document), PS §10.3 frames it as 'feeds the main pipeline' in the vocabulary of interaction_type `content_creation` by `internal_staff`, and the locked cue SPEC uses `insufficient_documents`. C11 alt-1 removes interaction_type values and C15 alt-2 changes target_users, so PS's mapping target disappears.",
+   "evidence": "g3o-ai-text-detection HEAD 7025bec:g3o/text/pilot_contract.py:335, :353 (detected_genai_activity rule); g3o-ai-text-detection origin/feat/text-cue:docs/text-pipeline/cue/PS-pilot-spec-v1.md:222-224 ('Activity flag (feeds the main pipeline)'; 'Do not write it into the main pipeline yet'); g3o-ai-text-detection origin/feat/text-cue:docs/text-pipeline/cue/SPEC.md (LOCKED v1.3):85-87 (evidence_of_use / no_evidence_of_use / insufficient_documents); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json P11a, C11 alt-1, C15 alt-2.",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Codebook item with the cue values",
+     "mechanism": "text.published_text_ai_use takes the cue SPEC values verbatim (including `insufficient_documents`); the PS §10.3 flag retires (change via the text plan, PI approval).",
+     "benefits": "One inferential institution estimand with honest uncertainty.",
+     "risks": "Changes PS, a PI spec; the descriptive any-document flag is lost.",
+     "commits_to": "Text-plan change request; codebook item."
+    },
+    {
+     "id": "b",
+     "label": "Keep the PS flag as a renamed text item",
+     "mechanism": "text.* item keeps yes/no/not_scored and PS's rule under a name that cannot be confused with has_genai_activity; never feeds core.",
+     "benefits": "No text-plan change beyond naming.",
+     "risks": "Descriptive flag with no false-positive correction becomes a published codebook item.",
+     "commits_to": "Rename in text contract; display rules."
+    },
+    {
+     "id": "c",
+     "label": "Two text items",
+     "mechanism": "Both the PS descriptive flag and the cue verdict as separate text.* items; neither in core; PS §10.3's main-contract vocabulary removed.",
+     "benefits": "Keeps both instruments, each labelled.",
+     "risks": "Two institution-level AI-drafting answers can disagree.",
+     "commits_to": "Two items, display rules, text-plan note."
+    }
+   ]
+  },
+  {
+   "id": "R2P12",
+   "type": "inconsistency",
+   "name": "Document typology crosswalks (P12a) vs source_type as a jev pass-1 Choice (X21), X37 and the text crosswalk",
+   "involves": [
+    "P12",
+    "X21",
+    "X22",
+    "X37",
+    "X01"
+   ],
+   "situation": "X21 makes source_type a jev pass-1 Choice in the main pipeline and X22 derives credibility from it. The text pipeline derives source_type from genre through a proposed crosswalk that maps every genre except two to `official_gov`, and procurement sets it to the constant `procurement_tender`. P12a asks for genre, disclosure_form and source_type 'defined together', so the same column would be produced by three different instruments.",
+   "evidence": "g3o-ai-text-detection HEAD 7025bec:g3o/text/pilot_contract.py:41-46 (GENRE_TO_SOURCE_TYPE 'Proposed; awaiting PI confirmation'); H:/My Drive/Research/G3O/subprojects/procurement-pipeline/pipeline/core/contract.py:68 (PROCUREMENT_SOURCE_TYPE); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json P12a, X21 alt-1, X22 alt-1, X37 alt-1; C:/Users/spaci/repos/G3O/planning/t010/codebook-review/review-cross-pipeline.json conflicts X14, X24 ('third_party' means author in one item, publisher in another).",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Same coder in every channel",
+     "mechanism": "source_type coded by the X21 jev question everywhere it applies; text drops its crosswalk.",
+     "benefits": "One instrument per column; X22 credibility comparable.",
+     "risks": "Extra jev call per text document; procurement constant replaced.",
+     "commits_to": "Text-plan change; coverage tags."
+    },
+    {
+     "id": "b",
+     "label": "Per-channel rule with a basis column",
+     "mechanism": "Each channel keeps its rule; a `source_type_basis` (jev / crosswalk / constant) is stored.",
+     "benefits": "No pipeline change; provenance explicit.",
+     "risks": "Same column, different instruments; credibility map (X22) inherits the differences.",
+     "commits_to": "New column; documentation."
+    },
+    {
+     "id": "c",
+     "label": "X37 as the shared comparator",
+     "mechanism": "Cross-channel comparisons use the deterministic X37 official-domain field; source_type stays channel-specific and is not compared across channels.",
+     "benefits": "Deterministic, cheap common field.",
+     "risks": "X37 answers a narrower question than source_type.",
+     "commits_to": "Data dictionary rule; P12a crosswalk limited."
+    }
+   ]
+  },
+  {
+   "id": "R2P13",
+   "type": "inconsistency",
+   "name": "Shared GenAI-era cutoff (P14a): two values in the text pipeline, and date provenance vs X26",
+   "involves": [
+    "P14",
+    "X26",
+    "C16",
+    "A08"
+   ],
+   "situation": "P14a asks for one cutoff constant and a date_source vocabulary, and its commits_to is a PI ruling on the cutoff. The text code uses 2022-11-30 (era `pre_2023`), PS §5 requires proof of publication before 1 November 2022, and the text tasks list this as an open conflict. X26 lets the extractor supply a publication date when metadata is absent, while the text contract says 'a date is never guessed'.",
+   "evidence": "g3o-ai-text-detection origin/feat/text-cue:docs/text-pipeline/cue/PS-pilot-spec-v1.md:120 ('pre-period only if there is proof it was published before 1 November 2022'); g3o-ai-text-detection HEAD:docs/text-pipeline/tasks.md:129 (dates.py 2022-11-30 vs spec 1 Nov 2022); g3o-ai-text-detection HEAD 7025bec:g3o/text/pilot_contract.py:158; C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json P14a, X26 alt-1, C16 alt-1 (years 2015-2030).",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Cutoff 2022-11-01 (PS §5)",
+     "mechanism": "One constant = 2022-11-01; pre needs proof before it; date_source values include metadata / url / page_text_quote / archive_upper_bound / unknown.",
+     "benefits": "Matches the PI's PS text.",
+     "risks": "Changes text boundary tests and published era names.",
+     "commits_to": "Text code change; codebook constant."
+    },
+    {
+     "id": "b",
+     "label": "Cutoff 2022-11-30 (current dates.py)",
+     "mechanism": "Constant = 2022-11-30 as implemented; PS §5 amended.",
+     "benefits": "No code change in text pipeline.",
+     "risks": "Amends a PI spec.",
+     "commits_to": "PS change via text plan."
+    },
+    {
+     "id": "c",
+     "label": "Scoped constants",
+     "mechanism": "Codebook stores both values with explicit scope (text era vs any main use); main year fields do not use a cutoff.",
+     "benefits": "No forced alignment.",
+     "risks": "P14a's 'one shared constant' not met.",
+     "commits_to": "Re-ruling P14."
+    }
+   ]
+  },
+  {
+   "id": "R2P14",
+   "type": "inconsistency",
+   "name": "Four per-row version/provenance identifiers: contract_version (R-050), instrument_id (X20/X36), codebook_version + evidence_channel (P15a), coder fields (P10a)",
+   "involves": [
+    "P15",
+    "P10",
+    "X20",
+    "X36",
+    "R-050"
+   ],
+   "situation": "DEC-005 a puts contract_version on every row; X20/X36 add instrument_id pointing to a manifest that includes contract versions and codebook item hashes; P15a adds codebook_version and evidence_channel; P10a adds coder_type / coder_model / coder_version / request_id across channels. The manifest would already hold most of these.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:107 (R-050), C:/Users/spaci/repos/G3O/planning/PLAN.md:23 (DEC-005 a); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X20 alt-1, X36 alt-1 (manifest fields), P15a, P10a.",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "instrument_id only on rows",
+     "mechanism": "Rows carry instrument_id; manifest holds contract/codebook versions, models, thresholds; contract_version kept as a manifest-derived column for DEC-005 a.",
+     "benefits": "One join key; least row bloat.",
+     "risks": "Readers need the manifest to read a version.",
+     "commits_to": "R-050 note; T-028/T-051 columns."
+    },
+    {
+     "id": "b",
+     "label": "Versions on rows, detail in manifest",
+     "mechanism": "Rows carry contract_version, codebook_version, evidence_channel and instrument_id.",
+     "benefits": "Human-readable rows.",
+     "risks": "Redundant columns can drift.",
+     "commits_to": "Four row columns; CI consistency check."
+    },
+    {
+     "id": "c",
+     "label": "codebook_version replaces contract_version",
+     "mechanism": "One version label per row (codebook release) plus instrument_id.",
+     "benefits": "No two versions with overlapping meaning.",
+     "risks": "Changes DEC-005 a and R-050 wording; v2.5 rows still need contract_version.",
+     "commits_to": "SPEC delta to R-050; D-007 change."
+    }
+   ]
+  },
+  {
+   "id": "R2P15",
+   "type": "inconsistency",
+   "name": "Activity unit across channels: C07 definition and X30 merging vs procurement's one activity per contracting process",
+   "involves": [
+    "C07",
+    "X30",
+    "A02"
+   ],
+   "situation": "C07 alt-1 says repeated transactions for the same product by the same unit are one activity. Procurement's locked R-012 makes one activity per contracting process (OCID), with the D-002 join still open (Q-031). If procurement uses the shared question sets and Stage 6 (its R-043), the two units disagree whenever a unit buys the same product in several processes.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json C07 alt-1, X30 alt-1; C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) R-012 L102, Q-031 L261, R-043 L133.",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "C07 governs all channels",
+     "mechanism": "Procurement merges processes for the same product and unit into one activity.",
+     "benefits": "One unit of analysis.",
+     "risks": "Re-rules procurement R-012; extension join (Q-031) harder.",
+     "commits_to": "Procurement delta."
+    },
+    {
+     "id": "b",
+     "label": "Channel unit, merge at Stage 6",
+     "mechanism": "Procurement keeps one per OCID; X30 relation questions may merge across processes and channels.",
+     "benefits": "No procurement re-ruling; merges explicit.",
+     "risks": "X30 pair counts grow with procurement records (cost).",
+     "commits_to": "T-026 scope; T-002 sizing."
+    },
+    {
+     "id": "c",
+     "label": "No cross-channel merge in v2.7",
+     "mechanism": "C07 applies to web; procurement unit unchanged; activities from different channels are never merged in v2.7.",
+     "benefits": "Simplest.",
+     "risks": "The same purchase can appear as two activities.",
+     "commits_to": "Documentation; findings counts note."
+    }
+   ]
+  },
+  {
+   "id": "R2P16",
+   "type": "inconsistency",
+   "name": "GenAI boundary in procurement under C02/A01 and shared question sets",
+   "involves": [
+    "C02",
+    "A01"
+   ],
+   "situation": "C02 alt-1 keeps R-016 (a named AI chatbot or AI assistant counts as generative) and adds A01's basis. Procurement's codebook treats bare product names such as Microsoft Copilot as insufficient, and its SD-002 ruling makes it use the main question sets where they apply (R-042 mapping). Which boundary governs procurement rows is not ruled.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:72 (R-016); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json C02 alt-1, A01 add; C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) R-009 L99, R-042 L132; C:/Users/spaci/repos/G3O/planning/t010/codebook-review/review-cross-pipeline.json conflicts X06 (procurement codebook §3.2 L85-99).",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Main boundary governs procurement",
+     "mechanism": "Shared R-016 questions; procurement codebook §3 becomes retrieval-only.",
+     "benefits": "One GenAI definition.",
+     "risks": "Procurement's stricter rule retires.",
+     "commits_to": "R-042 mapping entry; procurement codebook version."
+    },
+    {
+     "id": "b",
+     "label": "Procurement-specific boundary questions",
+     "mechanism": "proc.* boundary question recorded in the R-042 mapping.",
+     "benefits": "Keeps procurement's rule.",
+     "risks": "Two GenAI definitions in one codebook.",
+     "commits_to": "proc.* item; PI signs."
+    },
+    {
+     "id": "c",
+     "label": "Main boundary plus A01 filter",
+     "mechanism": "Main boundary applies; analyses of procurement can restrict to stronger A01 bases.",
+     "benefits": "One definition; strictness available by filter.",
+     "risks": "Published procurement positives include weaker bases.",
+     "commits_to": "A01 coverage tag includes procurement."
+    }
+   ]
+  },
+  {
+   "id": "R2P17",
+   "type": "gap",
+   "name": "Support rule for deterministic and channel-rule codes (R-041 vs procurement overrides, C13 lookup, C06 applicability)",
+   "involves": [
+    "X40",
+    "X14",
+    "X35",
+    "C13",
+    "C06",
+    "X22",
+    "R-041"
+   ],
+   "situation": "R-041 downgrades a positive code with no verbatim support. Procurement sets adoption_stage from notice type, C13 can fill vendor from a lookup, C06 sets not_applicable by table, and X22 maps credibility; none of these has a page quote. X40's `not_required` value is not defined to cover them.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:98 (R-041); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X40 alt-1 (supported / downgraded_no_quote / downgraded_low_confidence / not_required), C13 alt-1, C06 alt-1, X22 alt-1; C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) R-009 L99 (deterministic rules applied on top of jev); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/review-cross-pipeline.json conflicts X12.",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "New support_status `deterministic_rule`",
+     "mechanism": "Deterministic codes carry `deterministic_rule` with a rule id; exempt from R-041.",
+     "benefits": "Explicit; auditable by rule id.",
+     "risks": "Enum change on X40.",
+     "commits_to": "X40 value, R-041 note."
+    },
+    {
+     "id": "b",
+     "label": "Input value as support",
+     "mechanism": "The input field (e.g. notice_type, matched tool_name) is stored as the supporting text; R-041 applies.",
+     "benefits": "One rule for all codes.",
+     "risks": "'Supporting text' no longer means page text.",
+     "commits_to": "R-040/R-041 wording; T-024."
+    },
+    {
+     "id": "c",
+     "label": "Use `not_required` as is",
+     "mechanism": "Document that not_required covers deterministic codes.",
+     "benefits": "No new value.",
+     "risks": "Cannot tell 'not needed (negative)' from 'set by rule'.",
+     "commits_to": "Data dictionary entry."
+    }
+   ]
+  },
+  {
+   "id": "R2P18",
+   "type": "gap",
+   "name": "Codebook coverage of link following, completeness and chrome text for procurement",
+   "involves": [
+    "X17",
+    "X18",
+    "X06",
+    "X39"
+   ],
+   "situation": "Procurement calls the main pipeline's code and question sets as a shared dependency and is restricted to its 191 repositories. Link following (R-030..R-036, X17, X18), X39's link_not_followed states and X06's chrome text are page concepts; followed links would add news or vendor pages to a procurement run.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:85-91; C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) R-002 L92, R-043 L133; C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X06 alt-3, X17 alt-1, X18 alt-1, X39 alt-1; C:/Users/spaci/repos/G3O/planning/t010/codebook-review/review-cross-pipeline.json conflicts X13.",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Coverage tag proc = no",
+     "mechanism": "X17, link following, X39 link states and X06 do not apply to procurement.",
+     "benefits": "Respects procurement R-002.",
+     "risks": "Procurement notices that point to tender documents are not followed.",
+     "commits_to": "Coverage tags in codebook."
+    },
+    {
+     "id": "b",
+     "label": "Follow within repository only",
+     "mechanism": "Procurement follows links only inside its source repository.",
+     "benefits": "Fetches tender documents.",
+     "risks": "New rule to implement and test.",
+     "commits_to": "proc.* rule; procurement card."
+    },
+    {
+     "id": "c",
+     "label": "Follow all, tag as web",
+     "mechanism": "Followed pages are fetched and tagged evidence_channel web_extract.",
+     "benefits": "Uses all evidence.",
+     "risks": "Adds sources the procurement ruling bars to procurement runs.",
+     "commits_to": "P15 channel semantics."
+    }
+   ]
+  },
+  {
+   "id": "R2P19",
+   "type": "inconsistency",
+   "name": "source_snippet and translation: X25/X41 vs procurement R-025",
+   "involves": [
+    "X25",
+    "X41",
+    "X19"
+   ],
+   "situation": "X25 makes source_snippet the verbatim verdict quote with no paraphrase, and X41 translates on display only, so nothing translated reaches the API or bulk files. Procurement's locked R-025 requires an English translation with the original in parentheses, at most 300 characters, produced in the LLM evidence pass.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X25 alt-1, X41 alt-2 ('Not available in API/bulk'), X19 alt-1; C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) R-025 L115; H:/My Drive/Research/G3O/subprojects/procurement-pipeline/pipeline/core/contract.py:106 (SOURCE_SNIPPET_MAX_CHARS = 300).",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "X25 governs all channels",
+     "mechanism": "Verbatim snippets everywhere; procurement R-025 amended; no stored translations.",
+     "benefits": "One definition; no machine text published.",
+     "risks": "Non-English snippets unreadable in bulk.",
+     "commits_to": "Procurement delta."
+    },
+    {
+     "id": "b",
+     "label": "Verbatim plus labelled stored translation",
+     "mechanism": "source_snippet verbatim; a separate source_snippet_en (machine translation, labelled with model) in all channels.",
+     "benefits": "Readable bulk data; verbatim kept.",
+     "risks": "Re-rules X41; stored LLM text in the database.",
+     "commits_to": "New column; X41 re-ruling."
+    },
+    {
+     "id": "c",
+     "label": "Channel-specific definitions",
+     "mechanism": "Procurement keeps R-025; web follows X25; definition stated per channel.",
+     "benefits": "No re-ruling.",
+     "risks": "Same column, different content by channel.",
+     "commits_to": "Coverage notes."
+    }
+   ]
+  },
+  {
+   "id": "R2P20",
+   "type": "inconsistency",
+   "name": "uncertainty_flags: X24 drops `source_language_barrier` that procurement copies and the text pipeline keeps its own vocabulary",
+   "involves": [
+    "X24",
+    "P16"
+   ],
+   "situation": "X24 derives flags deterministically, adds identity_unresolved and drops source_language_barrier. Procurement's contract copy and its R-026 use the v2.0 closed list including source_language_barrier, and the text contract has a separate proposed flag list (including language_uncertain and jev_uncertain). P16a assigns language coverage to the multilingual subproject.",
+   "evidence": "H:/My Drive/Research/G3O/subprojects/procurement-pipeline/pipeline/core/contract.py:76-85; C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) R-026 L116, R-021 L111 (language-coverage status per source); g3o-ai-text-detection HEAD 7025bec:g3o/text/pilot_contract.py:63-65; C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X24 alt-1, P16a.",
+   "severity": "low",
+   "options": [
+    {
+     "id": "a",
+     "label": "One shared vocabulary",
+     "mechanism": "Text flags folded into the core list; source_language_barrier dropped everywhere; language coverage carried by the P16 item.",
+     "benefits": "One vocabulary.",
+     "risks": "Text pipeline loses flags not in core unless added.",
+     "commits_to": "Enum change across namespaces."
+    },
+    {
+     "id": "b",
+     "label": "Core list plus namespace lists",
+     "mechanism": "Core per X24; proc.* and text.* keep their own flag lists.",
+     "benefits": "No forced change.",
+     "risks": "Same column name, different vocabularies.",
+     "commits_to": "Namespace enums."
+    },
+    {
+     "id": "c",
+     "label": "Keep source_language_barrier for proc/text",
+     "mechanism": "Retained as a proc.*/text.* flag; core drops it.",
+     "benefits": "Procurement R-026 holds.",
+     "risks": "Cross-channel flag counts not comparable.",
+     "commits_to": "Coverage tags."
+    }
+   ]
+  },
+  {
+   "id": "R2P21",
+   "type": "gap",
+   "name": "Back-fill comparability of `none`: X29/X39 change the `no` rule but `none` institutions are not back-filled",
+   "involves": [
+    "X29",
+    "X39",
+    "C03",
+    "C02",
+    "X15",
+    "R-071"
+   ],
+   "situation": "X29 blocks `no` when any attempted page failed or a link was not followed, X39 counts those states as unresolved, and X15 changes the threshold basis. The API's 9 October amendment publishes a `no` over a failed page as `none`, and R-071 keeps all v2.5 `none` institutions unreclassified. After release, two institutions with the same pages can be `none` (v2.5) and `unclear` (v2.7).",
+   "evidence": "C:/Users/spaci/repos/g3o-api @ acdb030:docs/evidence-status-contract.md:20 ('a `no` verdict is `none` whatever the run outcome. Before this, a `no` over a run where a page could not be read (`PROCESSING_FAILED`) was `unclear`'); C:/Users/spaci/repos/G3O/planning/SPEC.md:120 (R-071), :226 (N-001); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X29 alt-1, X39 alt-1, X15 alt-1.",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Accept and document",
+     "mechanism": "v2.5 `none` stay; the difference is labelled by contract_version and in the methods note.",
+     "benefits": "No scope change.",
+     "risks": "Published counts mix two `no` rules.",
+     "commits_to": "R-090 methods note; A-007 labels."
+    },
+    {
+     "id": "b",
+     "label": "Back-fill `none` institutions with failed pages",
+     "mechanism": "Add v2.5 `none` institutions whose run had PROCESSING_FAILED pages to the back-fill set.",
+     "benefits": "Removes the clearest mixed-rule cases.",
+     "risks": "Changes R-070/R-071 and N-001; more paid runs.",
+     "commits_to": "SPEC delta; T-070 draw; cost sizing."
+    },
+    {
+     "id": "c",
+     "label": "X29 variant: failures do not block `no`",
+     "mechanism": "Failed fetches do not block `no` (align with the 9 October ruling); unfollowed links still do.",
+     "benefits": "Closer to the published rule.",
+     "risks": "Re-rules X29; `no` over unread pages.",
+     "commits_to": "X29 re-ruling; A-010 fixtures."
+    }
+   ]
+  },
+  {
+   "id": "R2P22",
+   "type": "gap",
+   "name": "Retired, split and redefined columns in API, website, bulk export and correction layer",
+   "involves": [
+    "C24",
+    "C10",
+    "C11",
+    "C17",
+    "C15",
+    "C06",
+    "C18",
+    "C19",
+    "C20",
+    "C21",
+    "X14"
+   ],
+   "situation": "Round 1 retires scope_notes, splits access_type, interaction_type and year_deployed, narrows target_users and redefines the safeguard values. Q-021 a only says new fields are hidden for v2.5 rows; nothing says how the old columns read on v2.7 rows, how the correction layer records before/after for a split field, or what Kaser's bulk file holds. The API schema comments safeguards as 'tri-state: yes | no | unknown' while the bulk README documents four values.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:108 (R-051), :112, :246 (Q-021 a), :183 (non-destructiveness); C:/Users/spaci/repos/g3o-api @ acdb030:schema/schema_core.sql:563-580 (access_type, interaction_type, year_deployed, scope_notes columns), :572 ('tri-state: yes | no | unknown'); C:/Users/spaci/repos/g3o-api @ acdb030:docs/bulk-readme-template.md:237-240 (four safeguard values); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json C24 alt-3, C10 alt-1, C11 alt-1, C17 alt-2, C15 alt-2.",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Derive legacy columns on v2.7 rows",
+     "mechanism": "Where a deterministic mapping exists (e.g. year_deployed = earlier of pilot/production years) the legacy column is filled on v2.7 rows; where none exists (interaction_type, scope_notes) it is `_NA_` with a version label.",
+     "benefits": "Existing consumers keep working.",
+     "risks": "Derived legacy values can be read as coded ones.",
+     "commits_to": "Crosswalk table; T-028/T-050/T-051."
+    },
+    {
+     "id": "b",
+     "label": "Version-specific column sets",
+     "mechanism": "API serves both sets; each row fills its version's set; website shows per row version.",
+     "benefits": "No derived values.",
+     "risks": "Every consumer handles two schemas.",
+     "commits_to": "D-007 spec; T-052/T-053."
+    },
+    {
+     "id": "c",
+     "label": "Frozen v1 endpoint plus v2 endpoint",
+     "mechanism": "Current API fields frozen to v2.5 semantics; new schema in a new endpoint.",
+     "benefits": "Clean break.",
+     "risks": "Two APIs to maintain; DEC-015 a history rule doubles.",
+     "commits_to": "API design change; Colin's acceptance."
+    }
+   ]
+  },
+  {
+   "id": "R2P23",
+   "type": "gap",
+   "name": "'Reported Use Cases' finding count under C07/X30 and mixed versions",
+   "involves": [
+    "C07",
+    "X30",
+    "A02",
+    "A06"
+   ],
+   "situation": "The homepage total counts every finding row of every institution (PI ruling 24 October 'any finding is fine'). C07 redefines the activity unit and X30 forbids merges without a relation, so v2.7 and v2.5 findings are counted by different units in one total.",
+   "evidence": "C:/Users/spaci/repos/g3o-api @ acdb030:docs/evidence-status-contract.md:44 ('Reported Use Cases' ... 'any finding is fine'); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json C07 alt-1, X30 alt-1, A02 add.",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Count all, as ruled",
+     "mechanism": "Total unchanged in definition; methods note states the unit changed.",
+     "benefits": "No API change.",
+     "risks": "Total moves with the unit change, not with adoption.",
+     "commits_to": "Methods note."
+    },
+    {
+     "id": "b",
+     "label": "Count with version breakdown",
+     "mechanism": "Total plus counts by contract version.",
+     "benefits": "Change visible.",
+     "risks": "More homepage figures.",
+     "commits_to": "API aggregate change."
+    },
+    {
+     "id": "c",
+     "label": "Count by action type",
+     "mechanism": "Headline counts use A02/A06 (e.g. use vs governance).",
+     "benefits": "More meaningful headline.",
+     "risks": "New headline definition.",
+     "commits_to": "Website change; PI ruling on the label."
+    }
+   ]
+  },
+  {
+   "id": "R2P24",
+   "type": "inconsistency",
+   "name": "Index decision P-2 overlap becomes identity under X07 alt-1",
+   "involves": [
+    "X07",
+    "C19",
+    "X05"
+   ],
+   "situation": "Index decision P-2 lets has_transparency_notice feed both indices with 'mechanical overlap accepted and reported' (R-070). X07 alt-1 derives the activity-level has_* and the page-level content_* safeguard items from one question, so has_transparency_notice and content_user_notification become the same measurement, counted in the same index.",
+   "evidence": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/INDEX-DECISIONS.md:12 (P-2), :11 (P-1 exclusivity reported only); H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:95 (CX-52 content_user_notification); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X07 alt-1 ('derive both the page-level content_* ... and the activity-level has_*').",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Accept identity, report it",
+     "mechanism": "R-070 report states the pair is one measurement.",
+     "benefits": "No re-ruling.",
+     "risks": "Double weight on one question in the index.",
+     "commits_to": "Index note."
+    },
+    {
+     "id": "b",
+     "label": "Separate questions",
+     "mechanism": "has_* keep their own pass-2 question (re-rule X07).",
+     "benefits": "Index components stay distinct.",
+     "risks": "Two questions on the same fact can disagree.",
+     "commits_to": "X07 re-ruling."
+    },
+    {
+     "id": "c",
+     "label": "Index uses one of the pair",
+     "mechanism": "Index work drops one member of each identical pair.",
+     "benefits": "No double count.",
+     "risks": "Changes index decision P-2.",
+     "commits_to": "Index re-ruling (later batch)."
+    }
+   ]
+  },
+  {
+   "id": "R2P25",
+   "type": "gap",
+   "name": "Index denominators and weights after X05 `_NA_` gating and X15 probability threshold",
+   "involves": [
+    "X05",
+    "X02",
+    "X15",
+    "X40",
+    "X14"
+   ],
+   "situation": "P-5 (a) says all six descriptive fields always count, P-5 new fields (b) excludes an `unknown` disclosure form from the denominator, and P-6 weights findings by confidence. X05 alt-2 and X02 alt-1 now store `_NA_` on many pages, X14 adds `unknown` to yes/no items, and X15 replaces jev confidence with the chosen value's probability. The index rules were ruled on the old value sets.",
+   "evidence": "H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/INDEX-DECISIONS.md:22 (P-5 transparency a), :26 (P-6 confidence-weighted), :33 (P-5 new fields b); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X05 alt-2, X02 alt-1, X14 alt-1, X15 alt-1.",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "`_NA_` and `unknown` leave the denominator; weight = chosen probability",
+     "mechanism": "Mirror P-5 (b) for every new `_NA_`/`unknown`; P-6 weight is the X15 probability.",
+     "benefits": "Consistent with P-5 (b).",
+     "risks": "Denominators shrink unevenly by page type.",
+     "commits_to": "Index rule note (later batch)."
+    },
+    {
+     "id": "b",
+     "label": "`_NA_` counts as 0",
+     "mechanism": "Gated pages score 0 on content_*.",
+     "benefits": "Stable denominators.",
+     "risks": "Penalises pages with no GenAI content.",
+     "commits_to": "Index re-ruling."
+    },
+    {
+     "id": "c",
+     "label": "Defer to index v1 batch",
+     "mechanism": "Record the dependency; index decisions re-asked when weights are set.",
+     "benefits": "No premature ruling.",
+     "risks": "Codebook ships without the index reading.",
+     "commits_to": "INDEX-DECISIONS follow-up."
+    }
+   ]
+  },
+  {
+   "id": "R2P26",
+   "type": "constraint-conflict",
+   "name": "X31 pooled Group D evidence at Stage 6 vs the 32k jev state limit (C-004)",
+   "involves": [
+    "X31",
+    "X30",
+    "C-004",
+    "R-044"
+   ],
+   "situation": "X31 alt-2 has jev answer each Group D question once over the union of a merged activity's supported quotes from all sources. C-004 limits state to 32k tokens and R-044 defines chunk combination for pages only; no rule covers an evidence pool that exceeds the limit.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:218 (C-004), :100 (R-044 'Chunked pages'); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X31 alt-2.",
+   "severity": "low",
+   "options": [
+    {
+     "id": "a",
+     "label": "Chunk the pool, combine by R-044",
+     "mechanism": "Split pooled quotes; apply any-yes / ordered rules.",
+     "benefits": "Reuses R-044.",
+     "risks": "Combination rules written for pages.",
+     "commits_to": "R-044 extension."
+    },
+    {
+     "id": "b",
+     "label": "Cap the pool",
+     "mechanism": "Keep the most credible N sources (X22/X23 order).",
+     "benefits": "Bounded cost.",
+     "risks": "Drops evidence.",
+     "commits_to": "Cap value (PI)."
+    },
+    {
+     "id": "c",
+     "label": "Per-source answers, deterministic combine",
+     "mechanism": "Answer per source, combine by v1.3 rules.",
+     "benefits": "No pool size issue.",
+     "risks": "Re-rules X31.",
+     "commits_to": "X31 re-ruling."
+    }
+   ]
+  },
+  {
+   "id": "R2P27",
+   "type": "addition",
+   "name": "Published-column budget: whether every new public column needs a named consumer",
+   "involves": [
+    "A01",
+    "A02",
+    "A03",
+    "A04",
+    "A06",
+    "A07",
+    "A08",
+    "A09",
+    "C09",
+    "C10",
+    "C11",
+    "C12",
+    "C13",
+    "C17",
+    "C22",
+    "C23",
+    "X17",
+    "X18",
+    "X20",
+    "X37",
+    "X38",
+    "X39",
+    "X40",
+    "P04",
+    "P06",
+    "P15"
+   ],
+   "situation": "Round 1 adds published columns in every item listed under involves, several with per-code companions (X40) or eight function items (C11). Each needs schema, API, site, data-dictionary and fixture work (T-028, T-050..T-053, T-090) and two version steps when it is an enum. A05 shows the alternative already used once: internal first.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json commits_to of the listed items (e.g. A01 'schema, API, site; two version steps', A07 'New columns (institution level)', C11 'New columns (or a JSON list column), API/site changes'); A05 add-internal ('Internal storage'); C:/Users/spaci/repos/G3O/planning/SPEC.md:111 (R-052).",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Internal first",
+     "mechanism": "New items are stored internally (like A05); each becomes public once a consumer (index, API user, Kaser, paper) is named and the PI approves.",
+     "benefits": "Less API/site work before release; fewer columns to explain.",
+     "risks": "Users wait for fields the pipeline already produces.",
+     "commits_to": "Publication list per item in codebook; D-007 shorter."
+    },
+    {
+     "id": "b",
+     "label": "Publish all as ruled",
+     "mechanism": "Every chosen item published at release.",
+     "benefits": "Full transparency; R-052 satisfied literally.",
+     "risks": "Largest D-007 scope; more fixtures before release.",
+     "commits_to": "D-007 and T-053 scope."
+    },
+    {
+     "id": "c",
+     "label": "Publish codes, keep companions internal",
+     "mechanism": "Main codes public; companion columns (bases, gates, support_status, review counts) in API history/bulk only.",
+     "benefits": "Middle path.",
+     "risks": "Split rule to explain.",
+     "commits_to": "D-007 tiering."
+    }
+   ]
+  }
+ ],
+ "governance_impacts": [
+  {
+   "ref": "D-001 / A-001",
+   "change": "D-001 becomes the machine-readable codebook with generated contract; A-001 hash = codebook file hash and the rule list extends from R-010..R-041 to every new item (A01-A09, X35-X40, P-items in core).",
+   "ruling": "RC-D-002 A; A01-A09; X35-X40",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:45, :190"
+  },
+  {
+   "ref": "R-002",
+   "change": "Pass-1 page codes add source_type (X21), refers-onward completeness (X17) and the A05 actor question; deterministic page fields X37, X38, X39, X27, X28 added beside.",
+   "ruling": "X21, X17, A05, X37, X38, X39",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:61"
+  },
+  {
+   "ref": "R-003",
+   "change": "Second-pass scope interacts with X05 (content_* gated to the five GenAI-bearing verdicts) and C04/A05 (actor extraction on confirms_activity, other_body, ambiguous_attribution).",
+   "ruling": "X05, C04, A05",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:62"
+  },
+  {
+   "ref": "R-004",
+   "change": "Activity-level code list grows: not_applicable (C06), model_origin/build_arrangement (C10), interface + 8 function items (C11), model_name (C12), vendor_basis (C13), governed_population (C15/A04), year_pilot_start/year_production_start (C17), procurement_status (C09), A01-A03, A09, supplier_role (P04), attribution_role (P06); X07 derives has_* from the safeguard question.",
+   "ruling": "C06, C09-C17, A01-A04, A09, P04, P06, X07",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:63"
+  },
+  {
+   "ref": "R-006 and DEC-009 a",
+   "change": "Routing table no longer matches: scope_notes retired (C24), year_deployed split (C17), year_announced becomes deterministic candidates + jev (C16), reported_outcomes/incidents get a jev gate before extraction (C22, C23, X09), vendor may be filled by lookup (C13), source_publication_date added (X26). C25 'keep DEC-009 a' needs an integrator clarification listing these.",
+   "ruling": "C13, C16, C17, C22, C23, C24, C25, X09, X26",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:64; C:/Users/spaci/repos/G3O/planning/PLAN.md:27"
+  },
+  {
+   "ref": "R-005",
+   "change": "Stage 6 rules restated as X29 truth table (failed fetches and unfollowed links block `no`; event_only and other_body count as negative), X30 (no merge without relation, identical names included), X31 (pooled evidence), X39 states as unresolved signals; new outputs A06, A07, X33, X34, X23.",
+   "ruling": "X29, X30, X31, X39, A06, A07, X23, X33, X34",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:65"
+  },
+  {
+   "ref": "R-014",
+   "change": "'Observed actor distinguished from query target' gains A05 internal record and C04 unit/parent/joint rule; P06 adds a public attribution role.",
+   "ruling": "C04, A05, P06",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:70"
+  },
+  {
+   "ref": "R-015 / A-011",
+   "change": "8 values contradicted by P08a 9th value (see R2P01); A-011 fixtures must include page-stated absence (C01 commits_to) and, if P08a stands, `not_assessable`.",
+   "ruling": "C01, P08",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:71, :200"
+  },
+  {
+   "ref": "R-016 / A-012",
+   "change": "Adds A01 mechanism basis; C02's chosen mechanism leaves a translation sub-choice (a/b) unruled, which A-012 fixtures need.",
+   "ruling": "C02, A01",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:72, :201; C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json C02 mechanism ('The PI picks a or b')"
+  },
+  {
+   "ref": "R-020..R-024",
+   "change": "Every CX row cited is reworded by X01-X11 (mandated_report boundary, scope gating, CX-32c, type gating, content_* gating, chrome text, safeguard derivation, email publication, CX-60/61 order, state schema).",
+   "ruling": "X01-X11",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:73-77"
+  },
+  {
+   "ref": "R-025",
+   "change": "Re-signature required for X01-X11 and for any P05a/P12a merge of CX families; SRC-6 points to a file in an archive folder.",
+   "ruling": "X01-X11, P05, P12",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:16, :78"
+  },
+  {
+   "ref": "R-026 / A-013",
+   "change": "Answer-record fields extend to every automated coder (extractor, detector, deterministic rules) under P10a, and to the manifest id (X36).",
+   "ruling": "P10, X36",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:79, :202"
+  },
+  {
+   "ref": "R-030 / R-031",
+   "change": "X17 asks completeness only on the five R-003 verdicts; R-030 records it for every page and T-022 extracts links 'whatever its verdict'.",
+   "ruling": "X17",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:85-86; C:/Users/spaci/repos/G3O/planning/PLAN.md:927"
+  },
+  {
+   "ref": "R-036",
+   "change": "discovery_path extends from back-fill to all runs; prevalence reported with and without followed pages.",
+   "ruling": "X18",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:91"
+  },
+  {
+   "ref": "R-040",
+   "change": "'After jev has coded' contradicted by X12 blind extraction; X35 adds a jev entailment check per (code, quote).",
+   "ruling": "X12, X35",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:97"
+  },
+  {
+   "ref": "R-041",
+   "change": "Downgrade targets become a per-item `downgrade_to` column (adds `unknown` to yes/no items); new reason `no_support` from X35; X40 publishes support_status.",
+   "ruling": "X14, X35, X40",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:98"
+  },
+  {
+   "ref": "R-042 (note)",
+   "change": "Note 'Presence only, not entailment' is superseded in effect by X35's entailment check layered on top.",
+   "ruling": "X13, X35",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:99"
+  },
+  {
+   "ref": "R-043 and DEC-016 c",
+   "change": "X19 caps quotes at extraction, so the API no longer carries 'the full text'; DEC-016 c (cap on website only) is reversed.",
+   "ruling": "X19",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:101; C:/Users/spaci/repos/G3O/planning/PLAN.md:34"
+  },
+  {
+   "ref": "R-044 / A-021",
+   "change": "'Page fields' replaced by an explicit per-field list; combined confidence = producing chunk's; new pass-1/pass-2 items (A01-A09, C11 functions, X17, X21) need combination rules; verdict order still to be ruled.",
+   "ruling": "X16",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:100, :210"
+  },
+  {
+   "ref": "R-050 and DEC-005 a",
+   "change": "Per-row identifiers extended by instrument_id (X20/X36) and codebook_version + evidence_channel (P15a); see R2P14.",
+   "ruling": "X20, X36, P15",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:107"
+  },
+  {
+   "ref": "R-051 / Q-021 a",
+   "change": "Only covers new fields on v2.5 rows; retired/split columns on v2.7 rows unaddressed (R2P22).",
+   "ruling": "C10, C11, C17, C24",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:108, :246"
+  },
+  {
+   "ref": "R-052 / D-007 / A-019",
+   "change": "Interface spec grows: A01-A04, A06-A09, C09-C13, C17, X17, X18, X37-X40 columns; X08 publication rule (email domain/count only); X41 display-only translation on the website.",
+   "ruling": "A01-A09, C09-C13, C17, X08, X17, X18, X37-X41",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:51, :111, :208"
+  },
+  {
+   "ref": "R-054 / A-009",
+   "change": "A-009 check should also confirm that X34 display roll-ups are labelled 'not an index input' and that no CX-derived aggregate is presented as an index.",
+   "ruling": "X34",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:113, :198"
+  },
+  {
+   "ref": "R-081 / A-016",
+   "change": "Threshold applies to the chosen value's probability, not jev's confidence.",
+   "ruling": "X15",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:133, :205"
+  },
+  {
+   "ref": "R-084 / A-020",
+   "change": "Fixture scope widens from C2-C4 to every reworded CX row (X01-X11) plus their re-pilot.",
+   "ruling": "X01-X11",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:137, :209"
+  },
+  {
+   "ref": "R-086 / T-081",
+   "change": "Agent-read records institution verdict and every page verdict; the read vocabulary must follow the final verdict set (P08a) and the X29 truth table.",
+   "ruling": "P08, X29",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:138"
+  },
+  {
+   "ref": "R-087 / D-008 / A-018",
+   "change": "§4.3 amendment text depends on C09 alt-2 vs procurement R-005/R-006; D-008 widens to P04a, P05a, P06a, P08a, C01, C09 and codebook adoption (RC-D-002 C).",
+   "ruling": "C09, P04, P05, P06, P08",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:52, :136, :207"
+  },
+  {
+   "ref": "R-090 / A-017",
+   "change": "Documentation must cover the C13 lookup table, C06 applicability table, X22 mapping table, X33 template, P12a crosswalks and P14a cutoff.",
+   "ruling": "C06, C13, X22, X33, P12, P14",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:145, :206"
+  },
+  {
+   "ref": "Quality attribute: non-destructiveness / A-006",
+   "change": "Dropping scope_notes (C24) and splitting columns must not remove pre-existing columns from the diff scope; only v2.7 rows lack them.",
+   "ruling": "C24, C10, C11, C17",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:183, :195"
+  },
+  {
+   "ref": "Output/interface contracts (SPEC table)",
+   "change": "Rejection condition 'Row without contract version' extends to instrument_id/codebook_version; correction-layer 'before/after values' undefined for split fields.",
+   "ruling": "X20, P15, C10, C11, C17",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:173-174"
+  },
+  {
+   "ref": "N-004",
+   "change": "Scraper keeps chrome text as a separate field and stores page links (X06 alt-3, RC-D-002 F), beyond 'accepting follow-up links into scraping'; N-004 needs amending.",
+   "ruling": "X06",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:229; C:/Users/spaci/repos/G3O/planning/deltas/RC-D-002.md:49-51"
+  },
+  {
+   "ref": "N-005",
+   "change": "P06a attribution_role risks automatic attribution (R2P05).",
+   "ruling": "P06",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:230"
+  },
+  {
+   "ref": "C-001",
+   "change": "Selection acts by the extractor in X12, C13, P04, X26 (R2P02).",
+   "ruling": "X12, C13, P04, X26",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:215"
+  },
+  {
+   "ref": "C-004",
+   "change": "Pooled Stage 6 state (X31) has no chunk rule (R2P26).",
+   "ruling": "X31",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:218"
+  },
+  {
+   "ref": "C-007",
+   "change": "Versioning granularity under the codebook (R2P03).",
+   "ruling": "P15, RC-D-002 A",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:221"
+  },
+  {
+   "ref": "D-009 (proposed)",
+   "change": "Sibling handoff to the AI-text-detection lane must carry P09-P14 and the P11 naming question; the text lane has a locked cue SPEC v1.3 on origin/feat/text-cue.",
+   "ruling": "P09-P14",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/deltas/RC-D-002.md:41-43; g3o-ai-text-detection origin/feat/text-cue:docs/text-pipeline/cue/SPEC.md (LOCKED v1.3):3"
+  },
+  {
+   "ref": "T-002",
+   "change": "Waits for the signed codebook (PI ruling); cost/latency sizing must include the new jev call drivers: C11 eight function items per activity, X35 one entailment call per (code, quote), X30 every activity pair, X31 pooled questions, X17/X21/A05 extra pass-1 questions, A01/A09 pass-2 items.",
+   "ruling": "C11, X30, X31, X35, X17, X21, A01, A05, A09",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:359-443; RC-D-002.md:47"
+  },
+  {
+   "ref": "T-010",
+   "change": "Output changes from three contract files to codebook.yaml + generated files; write claim and A-001 check change; §4.3 depends on C09 ruling.",
+   "ruling": "RC-D-002 A, C09",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:552-558"
+  },
+  {
+   "ref": "T-011",
+   "change": "'CX-01.2 wording byte-identical to RS-024' becomes 'byte-identical to the re-signed CX'; DP-006 year range (from published v2.5 data) obsolete under C16 (2015-2030 candidates); Stage 6 set gains X29-X31 questions; dynamic choice sets for C16 and R2P02 (a).",
+   "ruling": "X01-X11, C16, X29-X31",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:618-623, :674-677"
+  },
+  {
+   "ref": "T-012",
+   "change": "Enums/schema generated from the codebook (T-013†); tests/test_schema_consistency.py asserts pilot v1's header equals live DATA_COLUMNS and that pipeline extras are exactly five, so v2.7 column changes fail it (see non_codebook).",
+   "ruling": "RC-D-002 A, C24, X20, P15",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:696-716; G3O origin/main:tests/test_schema_consistency.py:93-97, :114-123"
+  },
+  {
+   "ref": "T-020",
+   "change": "Combination rule implements the X16 explicit field list.",
+   "ruling": "X16",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:764"
+  },
+  {
+   "ref": "T-021",
+   "change": "Pass-1 coder adds X21, X17 and A05 questions.",
+   "ruling": "X21, X17, A05",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:838"
+  },
+  {
+   "ref": "T-022 / T-032",
+   "change": "Extractor prompts change for X12 (blind), X19 (cap), X26 (date), A05 (actor), A09 (scale span), C12 (model name), C22/C23 (spans only after the jev gate); prompts become generated (RC-D-002 A).",
+   "ruling": "X12, X19, X26, A05, A09, C12, C22, C23",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:924-947, :1080"
+  },
+  {
+   "ref": "T-023",
+   "change": "Pass-2 coder adds C06 deterministic applicability, C10, C11, C15/A04, C17, A01-A03, A09, C09, X07 safeguard derivation, C07 relation question per span.",
+   "ruling": "C06, C07, C09-C11, C15, C17, A01-A04, A09, X07",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:1008"
+  },
+  {
+   "ref": "T-024",
+   "change": "Support module adds X35 entailment, X14 downgrade_to table, X40 support_status, and deterministic X22, X27, X28, X37, X38, C13 lookup.",
+   "ruling": "X14, X22, X27, X28, X35, X37, X38, X40, C13",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:1150"
+  },
+  {
+   "ref": "T-025",
+   "change": "Link leg records X18 discovery_path on all runs and X39 link_not_followed states.",
+   "ruling": "X18, X39",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:1222-1227"
+  },
+  {
+   "ref": "T-026",
+   "change": "Stage 6 implements X29-X31, A06, A07, X23, X33, X34; RC-D-002 H Q2 defect (identical-name skip) is the X30 case.",
+   "ruling": "X29-X31, A06, A07, X23, X33, X34",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:1292-1300; RC-D-002.md:60"
+  },
+  {
+   "ref": "T-027",
+   "change": "Record type generalises to the P10a provenance schema for all coders.",
+   "ruling": "P10",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:1369-1376"
+  },
+  {
+   "ref": "T-028 / T-050 / T-051 / T-052 / T-053",
+   "change": "Column list, migrations, ingest and site for every new published column; legacy column treatment (R2P22); X08 email publication; X41 website translation; A06/A07 institution columns.",
+   "ruling": "A01-A09, C09-C17, C24, X08, X17-X20, X37-X41",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:1439, :2029-2060, :2105-2130"
+  },
+  {
+   "ref": "T-040 / T-041",
+   "change": "Fixtures for C04 unit/parent/joint cases, A01 bases, X01/X03 boundaries, X29 failed-page and unfollowed-link cases, P08a value if kept, C06 applicability.",
+   "ruling": "C04, A01, X01, X03, X29, P08, C06",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:1876-1890"
+  },
+  {
+   "ref": "T-060",
+   "change": "D-008 delta content widens (see R-087 row).",
+   "ruling": "C09, P04, P05, P06, P08",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:2482"
+  },
+  {
+   "ref": "T-090",
+   "change": "Data dictionary generated from the codebook; tables listed under R-090.",
+   "ruling": "RC-D-002 A",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/PLAN.md:3272"
+  },
+  {
+   "ref": "RC-D-002 (new T-013†, T-014†)",
+   "change": "T-014 scope = X06 chrome_text + links; T-013 generator must support namespaces, coverage tags, grain tags (P05a) and per-channel definitions.",
+   "ruling": "X06, P05, RC-D-002 A/F",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/deltas/RC-D-002.md:28, :51"
+  }
+ ],
+ "non_codebook": [
+  {
+   "text": "G3O's tests/test_schema_consistency.py asserts the pilot v1 CSV header equals the live DATA_COLUMNS and that pipeline extras are exactly five; any v2.7 column change (C24, X20, P15, contract_version) fails it. The fix is to freeze a PILOT_V1_DATA_COLUMNS constant as was done for the summary (2026-05-09), not to use pilot v1 as a comparator (C-006). The PI's 2026-08-03 ruling keeps the test pinning the dataset, so the change is worth a line to the PI.",
+   "evidence": "G3O origin/main:tests/test_schema_consistency.py:6-10, :93-97, :114-123; H:/My Drive/Research/G3O/CLAUDE.md (Pilot v1 paragraph: 'tests/test_schema_consistency.py still pins it')"
+  },
+  {
+   "text": "Procurement's locked SPEC still names gpt-5-nano for the evidence pass and snippet translation, and its spending ceilings (R-044) are scoped to jev and gpt-5-nano; the main pipeline moved to Claude Haiku 5.5 (RC-D-001) and nano shuts down 2026-12-11. Already raised in round 1 (review-cross-pipeline X05); not ruled.",
+   "evidence": "C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) R-009 L99, R-025 L115, R-044 L134; C:/Users/spaci/repos/G3O/planning/SPEC.md:215"
+  },
+  {
+   "text": "Procurement's CLAUDE.md still states D5 (deterministic only, no LLM), superseded by its SPEC v003 SD-002 (jev is the engine), and points to the retired Dropbox skills library.",
+   "evidence": "H:/My Drive/Research/G3O/subprojects/procurement-pipeline/CLAUDE.md:38 (D5), :79; C:/Users/spaci/repos/g3o-wt-procurement/procurement/planning/SPEC.md (LOCKED v003) R-009 L99, N-005 L219"
+  },
+  {
+   "text": "RC-D-002 C leaves open whether the AI-text-detection pipeline has a locked plan: the cue workstream SPEC is LOCKED v1.3 (feat/text-cue branch), and PS pilot spec v1 is a PI technical spec; both are the change-control surfaces for P09-P14.",
+   "evidence": "g3o-ai-text-detection origin/feat/text-cue:docs/text-pipeline/cue/SPEC.md (LOCKED v1.3):3; g3o-ai-text-detection origin/feat/text-cue:docs/text-pipeline/cue/PS-pilot-spec-v1.md:1-5; C:/Users/spaci/repos/G3O/planning/deltas/RC-D-002.md:43"
+  },
+  {
+   "text": "The CX-01.2 instrument of record (SRC-6, RS-024) lives in a folder named 'planning-drive-copy-superseded'; once the codebook holds CX text verbatim, SRC-6 should point to the codebook release plus the signed record.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:16; H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:204"
+  },
+  {
+   "text": "g3o-api's bulk README carries prose definitions (vendor in-house rule, safeguard values, access_type values) and a schema comment ('tri-state: yes | no | unknown') that the generated data dictionary will supersede; ownership of the published definitions (Colin vs codebook generator) needs naming in D-007.",
+   "evidence": "C:/Users/spaci/repos/g3o-api @ acdb030:docs/bulk-readme-template.md:182, :216-217, :237-240; C:/Users/spaci/repos/g3o-api @ acdb030:schema/schema_core.sql:572"
+  },
+  {
+   "text": "The API's other_evidence description names v2.5 values (`ambiguous`, `background_only`); D-007 must restate it for the 8-value verdict.",
+   "evidence": "C:/Users/spaci/repos/g3o-api @ acdb030:docs/evidence-status-contract.md:38"
+  },
+  {
+   "text": "Text-pipeline open conflicts (cutoff 2022-11-30 vs 1 Nov 2022; Pangram-only vs GPTZero) are listed for the PI in its tasks file and feed P14/P10.",
+   "evidence": "g3o-ai-text-detection HEAD:docs/text-pipeline/tasks.md:128-131"
+  },
+  {
+   "text": "Round-1 option text contains open sub-choices that need a ruling before slots are filled: C02 translation (a/b), X08 (domain+count vs role addresses only), X16 verdict order, X29 background_only variant, A02 whether `proposal` is a type or a stage.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json C02, X08, X16, X29, A02 mechanisms"
+  }
+ ]
+}

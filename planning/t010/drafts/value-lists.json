@@ -1,0 +1,786 @@
+{
+  "draft_by": "subagent",
+  "date": "2026-10-29",
+  "status": "draft for PI review; nothing final",
+  "lists": [
+    {
+      "target": "core.interface",
+      "values": [
+        {
+          "code": "conversational",
+          "source_phrase": "conversational",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=20 (R2C11 b) means"
+        },
+        {
+          "code": "backend_or_api",
+          "source_phrase": "back-end or API",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=20 means; spelling from planning/t010/codebook-review/codebook-rulings-round1.json C11 mechanism `backend_or_api`"
+        },
+        {
+          "code": "other_interface",
+          "source_phrase": "other interface",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=20 means"
+        },
+        {
+          "code": "not_asked",
+          "source_phrase": "not applicable",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=20 means, renamed by planning/deltas/RC-D-002.md L tidy-up T2 (\"`not_applicable` is renamed \\\"not asked\\\" everywhere\") and planning/SPEC.md R-045"
+        },
+        {
+          "code": "unknown",
+          "source_phrase": "unknown",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=20 means; planning/SPEC.md R-045"
+        }
+      ],
+      "flags": [
+        "Spelling of 'other interface': the plain ruling says 'other interface'; the agent-drafted option behind it says `other_ui` (planning/t010/codebook-review/review-r2-consistency.json R2C11 option b). Reading 1: other_interface. Reading 2: other_ui.",
+        "'Not applicable' becomes 'not asked' (T2). Round-1 C11 defined it as 'For `policy_guidance` activities with no specific tool'. Reading 1: it is set only by the applicability gate (the item is not asked), so it is never a classifier answer. Reading 2: the classifier may still answer it for an activity with no tool that passed the gate; then a classifier answer is named 'not asked', which clashes with R-045's meaning ('ruled out by a rule').",
+        "'Not documented' (R-045, page silent) is not in the r2#20 list. Reading 1: a page silent on the interface is coded unknown. Reading 2: add not_documented as a sixth value, as R-045 says new fields adopt the full set.",
+        "Single answer only: a tool offered both as a chat window and through an API has to pick one value. Round-1 C11 had `multiple` removed in favour of the function items; r2#20 keeps one choice.",
+        "Coverage check: round-1 C11's `embedded_in_existing_software` and `standalone_application` are dropped by r2#20 and moved to deployment mode. A chat assistant inside existing software is then conversational here and integrated there; no overlap inside this list, but 'other interface' now holds every non-chat, non-API interface (buttons, forms, generated documents)."
+      ],
+      "alternatives": [
+        {
+          "label": "Add not_documented",
+          "values": [
+            "conversational",
+            "backend_or_api",
+            "other_interface",
+            "not_asked",
+            "not_documented",
+            "unknown"
+          ],
+          "source": "planning/SPEC.md R-045 (new fields adopt the reserved set)"
+        }
+      ]
+    },
+    {
+      "target": "core.governance_direction",
+      "values": [
+        {
+          "code": "prohibits",
+          "source_phrase": "prohibits",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=58 means"
+        },
+        {
+          "code": "restricts_with_conditions",
+          "source_phrase": "restricts with conditions",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=58 means"
+        },
+        {
+          "code": "permits",
+          "source_phrase": "permits",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=58 means"
+        },
+        {
+          "code": "requires_or_promotes",
+          "source_phrase": "requires or promotes",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=58 means; agent spelling `requires_or_promotes` in planning/t010/codebook-review/review-r2-consistency.json R2C31 option a"
+        },
+        {
+          "code": "unknown",
+          "source_phrase": "unknown",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=58 means"
+        },
+        {
+          "code": "not_asked",
+          "source_phrase": "not applicable otherwise",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=58 means, renamed by planning/deltas/RC-D-002.md L tidy-up T2; gate on action type governance per tidy-up T4"
+        }
+      ],
+      "flags": [
+        "'Requires or promotes': one value or two? Reading 1 (one value, as written in the ruling and in the agent draft `requires_or_promotes`): a mandate and an encouragement are pooled. Reading 2 (two values, `requires` and `promotes`): a binding mandate to use GenAI is kept apart from encouragement, at the cost of one more value and a finer line to code.",
+        "'Restricts with conditions' and 'permits' can overlap: an instrument that permits use subject to conditions fits both. Reading 1: any condition makes it restricts_with_conditions; permits only when unconditional. Reading 2: permits whenever use is allowed, conditions or not. The list itself does not say.",
+        "Mixed instruments: one policy can ban some tools and permit others. The question is single-answer; the agent draft lists this risk ('need an order rule'), and no order rule is ruled.",
+        "'Not applicable otherwise' becomes 'not asked' under T2. The agent draft behind the ruling used `_NA_` instead; same meaning, different spelling.",
+        "'Not documented' (page silent) is not in the list. Reading 1: a governance instrument silent on direction is unknown. Reading 2: add not_documented as R-045 says new fields adopt the full set."
+      ],
+      "alternatives": [
+        {
+          "label": "Split requires and promotes",
+          "values": [
+            "prohibits",
+            "restricts_with_conditions",
+            "permits",
+            "requires",
+            "promotes",
+            "unknown",
+            "not_asked"
+          ],
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=58 phrase 'requires or promotes' read as two values"
+        },
+        {
+          "label": "Add not_documented",
+          "values": [
+            "prohibits",
+            "restricts_with_conditions",
+            "permits",
+            "requires_or_promotes",
+            "not_documented",
+            "unknown",
+            "not_asked"
+          ],
+          "source": "planning/SPEC.md R-045"
+        }
+      ]
+    },
+    {
+      "target": "core.service_domain",
+      "values": [
+        {
+          "code": "general_administration",
+          "source_phrase": "general administration",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=62 means; agent spelling `general_administration` in planning/t010/codebook-review/review-r2-consistency.json R2C34 option a"
+        },
+        {
+          "code": "unknown",
+          "source_phrase": "unknown",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=62 means"
+        }
+      ],
+      "flags": [
+        "The area list itself is not given in any ruling. The only areas named anywhere in G3O sources are examples: 'such as health, tax or justice' (planning/t010/codebook-review/codebook-rulings-round2.json n=62 decision) and 'health, tax, justice, education, general administration' (planning/t010/codebook-review/review-r2-consistency.json R2C34 situation). No G3O taxonomy named service_domain, policy area, topic area or service area was found in agent-workspace or the G3O repo; the external sources G3O ingests (US Federal AI Use Case Inventory, OECD/EU PSTW, Policy Innovation Lab) carry their own area columns, listed as candidates below.",
+        "No 'other' value is ruled. A closed short list will leave activities that fit no area. Reading 1: such activities go to unknown. Reading 2: add `other` (both external candidates have one or equivalent).",
+        "Single answer per activity ('one classifier question per activity'; draft answer_type single). An activity serving several areas (a cross-ministry chatbot) has to pick one. Reading 1: single, as ruled. Reading 2: multi-select, as governance_form became under S6 c.",
+        "'General administration' boundary: an internal drafting tool in a health ministry could be health or general administration. Each candidate list resolves this differently (Federal: 'Mission-Enabling (internal agency support)'; COFOG: by the ministry's function).",
+        "'Not asked' and 'not documented' (R-045) are not named; the ruling lists only unknown. Same two readings as for the other new fields."
+      ],
+      "alternatives": [
+        {
+          "label": "Candidate A: US Federal AI Use Case Inventory 2024 topic areas",
+          "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/US Federal 2024_consolidated_ai_inventory.xls, column 'Use Case Topic Area' (11 clean category labels, verified in the raw file; plus messy variants and a free-text 'Other (Use Case Topic Area)' column)",
+          "values": [
+            {
+              "code": "government_services",
+              "source_phrase": "Government Services (includes Benefits and Service Delivery)",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/US Federal 2024_consolidated_ai_inventory.xls, column 'Use Case Topic Area'"
+            },
+            {
+              "code": "diplomacy_trade",
+              "source_phrase": "Diplomacy & Trade",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/US Federal 2024_consolidated_ai_inventory.xls, column 'Use Case Topic Area'"
+            },
+            {
+              "code": "education_workforce",
+              "source_phrase": "Education & Workforce",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/US Federal 2024_consolidated_ai_inventory.xls, column 'Use Case Topic Area'"
+            },
+            {
+              "code": "energy_environment",
+              "source_phrase": "Energy & the Environment",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/US Federal 2024_consolidated_ai_inventory.xls, column 'Use Case Topic Area'"
+            },
+            {
+              "code": "emergency_management",
+              "source_phrase": "Emergency Management",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/US Federal 2024_consolidated_ai_inventory.xls, column 'Use Case Topic Area'"
+            },
+            {
+              "code": "health_medical",
+              "source_phrase": "Health & Medical",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/US Federal 2024_consolidated_ai_inventory.xls, column 'Use Case Topic Area'"
+            },
+            {
+              "code": "law_justice",
+              "source_phrase": "Law & Justice",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/US Federal 2024_consolidated_ai_inventory.xls, column 'Use Case Topic Area'"
+            },
+            {
+              "code": "science_space",
+              "source_phrase": "Science & Space",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/US Federal 2024_consolidated_ai_inventory.xls, column 'Use Case Topic Area'"
+            },
+            {
+              "code": "transportation",
+              "source_phrase": "Transportation",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/US Federal 2024_consolidated_ai_inventory.xls, column 'Use Case Topic Area'"
+            },
+            {
+              "code": "general_administration",
+              "source_phrase": "Mission-Enabling (internal agency support)",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/US Federal 2024_consolidated_ai_inventory.xls, column 'Use Case Topic Area' mapped to r2#62 'general administration'"
+            },
+            {
+              "code": "other",
+              "source_phrase": "Other",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/US Federal 2024_consolidated_ai_inventory.xls, column 'Use Case Topic Area' (not in the r2#62 ruling)"
+            },
+            {
+              "code": "unknown",
+              "source_phrase": "unknown",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=62"
+            }
+          ],
+          "pros": [
+            "Built for government AI use cases, so categories fit the activities G3O codes.",
+            "Has an internal-support category that matches 'general administration'.",
+            "Already an external source G3O ingests and cites at its own vintage; allows direct comparison."
+          ],
+          "cons": [
+            "US-federal scope: no tax or finance area (financial regulation, economic and financial, securities appear only in the free-text Other column), no defence, no local services (housing, waste, policing fall under broad areas or nowhere).",
+            "'Science & Space' fits few non-US or subnational institutions.",
+            "Includes 'Other', which the ruling does not list.",
+            "Raw labels are messy (e.g. 'AI used in Transportation Operations', 'Mission-Enabling' with and without the bracket)."
+          ]
+        },
+        {
+          "label": "Candidate B: COFOG Level I (UN/Eurostat functions of government), as used by OECD/EU Public Sector Tech Watch",
+          "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/OECD_PSTW/pstw_dataset.xlsx, column 'Functions of Government (COFOG level I)'; taxonomy PSTW_Taxonomy_0.xlsx row 'COFOG Level I'. 9 labels appear in the PSTW file; 'Defence' is the 10th COFOG division from the standard itself and does not appear in the PSTW data (verify against the Eurostat/UN COFOG list before use).",
+          "values": [
+            {
+              "code": "general_public_services",
+              "source_phrase": "General public services",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/OECD_PSTW/pstw_dataset.xlsx, column 'Functions of Government (COFOG level I)'; taxonomy PSTW_Taxonomy_0.xlsx row 'COFOG Level I'"
+            },
+            {
+              "code": "defence",
+              "source_phrase": "Defence",
+              "source": "COFOG standard (not observed in inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/OECD_PSTW/pstw_dataset.xlsx, column 'Functions of Government (COFOG level I)'; taxonomy PSTW_Taxonomy_0.xlsx row 'COFOG Level I')"
+            },
+            {
+              "code": "public_order_safety",
+              "source_phrase": "Public order and safety",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/OECD_PSTW/pstw_dataset.xlsx, column 'Functions of Government (COFOG level I)'; taxonomy PSTW_Taxonomy_0.xlsx row 'COFOG Level I'"
+            },
+            {
+              "code": "economic_affairs",
+              "source_phrase": "Economic affairs",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/OECD_PSTW/pstw_dataset.xlsx, column 'Functions of Government (COFOG level I)'; taxonomy PSTW_Taxonomy_0.xlsx row 'COFOG Level I'"
+            },
+            {
+              "code": "environmental_protection",
+              "source_phrase": "Environmental protection",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/OECD_PSTW/pstw_dataset.xlsx, column 'Functions of Government (COFOG level I)'; taxonomy PSTW_Taxonomy_0.xlsx row 'COFOG Level I'"
+            },
+            {
+              "code": "housing_community_amenities",
+              "source_phrase": "Housing and community amenities",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/OECD_PSTW/pstw_dataset.xlsx, column 'Functions of Government (COFOG level I)'; taxonomy PSTW_Taxonomy_0.xlsx row 'COFOG Level I'"
+            },
+            {
+              "code": "health",
+              "source_phrase": "Health",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/OECD_PSTW/pstw_dataset.xlsx, column 'Functions of Government (COFOG level I)'; taxonomy PSTW_Taxonomy_0.xlsx row 'COFOG Level I'"
+            },
+            {
+              "code": "recreation_culture_religion",
+              "source_phrase": "Recreation, culture and religion",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/OECD_PSTW/pstw_dataset.xlsx, column 'Functions of Government (COFOG level I)'; taxonomy PSTW_Taxonomy_0.xlsx row 'COFOG Level I'"
+            },
+            {
+              "code": "education",
+              "source_phrase": "Education",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/OECD_PSTW/pstw_dataset.xlsx, column 'Functions of Government (COFOG level I)'; taxonomy PSTW_Taxonomy_0.xlsx row 'COFOG Level I'"
+            },
+            {
+              "code": "social_protection",
+              "source_phrase": "Social protection",
+              "source": "inputs/G3O_automatic_search/raw/Existing Databases/Data/Raw Data/OECD_PSTW/pstw_dataset.xlsx, column 'Functions of Government (COFOG level I)'; taxonomy PSTW_Taxonomy_0.xlsx row 'COFOG Level I'"
+            },
+            {
+              "code": "unknown",
+              "source_phrase": "unknown",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=62"
+            }
+          ],
+          "pros": [
+            "International statistical standard covering every government function; fits any country and level.",
+            "Same scheme as PSTW (2,008 cases in the G3O input file), so G3O figures compare directly with that source.",
+            "Has a second level (in the same PSTW file) if finer areas are needed later."
+          ],
+          "cons": [
+            "'General administration' has no exact match: COFOG 'General public services' also holds executive and legislative organs, financial and fiscal affairs (so tax) and external affairs. Using it as general_administration folds tax into general administration, against the PI's example 'tax' as its own area.",
+            "Justice is not an area: law courts sit under Public order and safety.",
+            "Classifies by government function, not by the use; an internal tool in a health ministry is Health, which may not match the 'general administration' intent of r2#62."
+          ]
+        },
+        {
+          "label": "Candidate C: the areas named in G3O's own ruling texts, plus the two ruled values",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=62 decision ('such as health, tax or justice'); planning/t010/codebook-review/review-r2-consistency.json R2C34 situation ('health, tax, justice, education, general administration')",
+          "values": [
+            {
+              "code": "health",
+              "source_phrase": "health",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=62 decision; planning/t010/codebook-review/review-r2-consistency.json R2C34"
+            },
+            {
+              "code": "tax",
+              "source_phrase": "tax",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=62 decision; planning/t010/codebook-review/review-r2-consistency.json R2C34"
+            },
+            {
+              "code": "justice",
+              "source_phrase": "justice",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=62 decision; planning/t010/codebook-review/review-r2-consistency.json R2C34"
+            },
+            {
+              "code": "education",
+              "source_phrase": "education",
+              "source": "planning/t010/codebook-review/review-r2-consistency.json R2C34 situation"
+            },
+            {
+              "code": "general_administration",
+              "source_phrase": "general administration",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=62 means"
+            },
+            {
+              "code": "unknown",
+              "source_phrase": "unknown",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=62 means"
+            }
+          ],
+          "pros": [
+            "Uses only words that appear in G3O's own rulings; nothing imported.",
+            "Shortest list, cheapest question."
+          ],
+          "cons": [
+            "The words are examples, not a list; most activities (transport, social protection, policing, environment, elections) fit none and fall to unknown.",
+            "Would need extending before use; one G3O-internal source for extensions is the master's institution_type values (e.g. tax_admin, customs_admin, central_bank, statistical_office, election_management, supreme_court, supreme_audit, data_protection), but those are institution types, not service areas."
+          ]
+        }
+      ]
+    },
+    {
+      "target": "core.activity_segment (within page; shared relation list)",
+      "values": [
+        {
+          "code": "same_activity",
+          "source_phrase": "same activity",
+          "source": "planning/SPEC.md R-017; planning/t010/codebook-review/codebook-rulings-round2.json n=22; planning/t010/codebook-review/codebook-rulings-round1.json C07 'same as span k'"
+        },
+        {
+          "code": "component_of_program",
+          "source_phrase": "component of program",
+          "source": "planning/SPEC.md R-017; planning/t010/codebook-review/codebook-rulings-round2.json n=22; planning/t010/codebook-review/codebook-rulings-round1.json C07 'component of span k'"
+        },
+        {
+          "code": "shared_participation",
+          "source_phrase": "shared participation",
+          "source": "planning/SPEC.md R-017; planning/t010/codebook-review/codebook-rulings-round2.json n=22"
+        },
+        {
+          "code": "governs",
+          "source_phrase": "governs",
+          "source": "planning/SPEC.md R-017; planning/t010/codebook-review/codebook-rulings-round2.json n=22"
+        },
+        {
+          "code": "distinct_action",
+          "source_phrase": "distinct action",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=22 ('distinct' in planning/SPEC.md R-017; 'new distinct activity' in planning/t010/codebook-review/codebook-rulings-round1.json C07)"
+        },
+        {
+          "code": "unresolved",
+          "source_phrase": "unresolved",
+          "source": "planning/SPEC.md R-017; planning/t010/codebook-review/codebook-rulings-round2.json n=22"
+        },
+        {
+          "code": "not_an_activity",
+          "source_phrase": "not-an-activity within a page",
+          "source": "planning/SPEC.md R-017; planning/t010/codebook-review/codebook-rulings-round2.json n=22 \"'not an activity' within a page\"; planning/t010/codebook-review/codebook-rulings-round1.json C07 'not an activity'"
+        }
+      ],
+      "flags": [
+        "Spelling of the 'distinct' value: SPEC R-017 says 'distinct'; r2#22 and the v2.6 code say 'distinct action' (`distinct_action`); round-1 C07 says 'new distinct activity'. Reading 1: distinct_action (matches v2.6 Stage 6 code). Reading 2: distinct.",
+        "Direction of 'component of program': the relation is asymmetric (A is a component of program B). v2.6 relations are unordered pairs (left_input, right_input) with no direction. Reading 1: one code plus a fixed order rule (left is the component, right is the program). Reading 2: two inverse codes (component_of_program and has_component). C07's wording ('component of span k') reads as the first: the span being coded is the component.",
+        "Direction of 'governs': also asymmetric (a policy governs the tools it approves, R-017). Same two readings: one code with a fixed order (left governs right), or two inverse codes (governs and governed_by).",
+        "Meaning change for 'component of program': in v2.6 a component relation merged both observations into one activity identity (same as same_activity and shared_participation). R-017 now says each named component is its own activity, linked to the program. The code can stay the same, but whether it merges or only links is not settled by the value list.",
+        "One pair, two relations: a program-level policy can be both a component of the program and govern a sibling tool; a single-answer relation cannot hold both. No precedence is ruled.",
+        "'Unresolved' versus 'unknown': the item's draft downgrade target is unknown (R-045), while the list has its own 'unresolved'. Reading 1: a downgraded relation becomes unresolved (no new token). Reading 2: it becomes unknown, giving two codes for 'could not tell'.",
+        "No overlap was found among same activity, shared participation, governs and distinct once direction is fixed; shared participation is the joint-activity case of same identity (v2.6 requires two documented participants).",
+        "Unit of the within-page answer: C07 asks per span ('new distinct activity / same as span k / ...'), which is one answer per span against an earlier span; R-017 and r2#22 give a pairwise list. Reading 1: per span, relative to one earlier span k (the first span is always 'new'). Reading 2: per pair of spans, as at Stage 6. Under reading 1, 'new distinct activity' is a span label rather than a pair relation, and the shared list then has no value for the first span.",
+        "'Not an activity' is a property of one span, not of a pair; it sits in the same list only within a page."
+      ],
+      "alternatives": [
+        {
+          "label": "Inverse codes for the two asymmetric relations",
+          "values": [
+            "same_activity",
+            "component_of_program",
+            "has_component",
+            "shared_participation",
+            "governs",
+            "governed_by",
+            "distinct_action",
+            "unresolved",
+            "not_an_activity"
+          ],
+          "source": "direction flags above"
+        }
+      ]
+    },
+    {
+      "target": "core.activity_relation_cross_page (Stage 6; shared relation list)",
+      "values": [
+        {
+          "code": "same_activity",
+          "source_phrase": "same activity",
+          "source": "planning/SPEC.md R-017; planning/t010/codebook-review/codebook-rulings-round2.json n=22; planning/t010/codebook-review/codebook-rulings-round1.json X30 (v1.4 §9 `same_activity`); git 052fcb2:g3o/validate/prompts/output_contract.md §9"
+        },
+        {
+          "code": "component_of_program",
+          "source_phrase": "component of program",
+          "source": "planning/SPEC.md R-017; planning/t010/codebook-review/codebook-rulings-round2.json n=22; planning/t010/codebook-review/codebook-rulings-round1.json X30 `component_of_program`"
+        },
+        {
+          "code": "shared_participation",
+          "source_phrase": "shared participation",
+          "source": "planning/SPEC.md R-017; planning/t010/codebook-review/codebook-rulings-round2.json n=22; planning/t010/codebook-review/codebook-rulings-round1.json X30 `shared_participation`"
+        },
+        {
+          "code": "governs",
+          "source_phrase": "governs",
+          "source": "planning/SPEC.md R-017; planning/t010/codebook-review/codebook-rulings-round2.json n=22 (new; not in v2.6)"
+        },
+        {
+          "code": "distinct_action",
+          "source_phrase": "distinct action",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=22; planning/t010/codebook-review/codebook-rulings-round1.json X30 `distinct_action`; git 052fcb2:g3o/common/evidence_review.py"
+        },
+        {
+          "code": "unresolved",
+          "source_phrase": "unresolved",
+          "source": "planning/SPEC.md R-017; planning/t010/codebook-review/codebook-rulings-round2.json n=22; planning/t010/codebook-review/codebook-rulings-round1.json X30 `unresolved`"
+        }
+      ],
+      "flags": [
+        "Spelling of the 'distinct' value: SPEC R-017 says 'distinct'; r2#22 and the v2.6 code say 'distinct action' (`distinct_action`); round-1 C07 says 'new distinct activity'. Reading 1: distinct_action (matches v2.6 Stage 6 code). Reading 2: distinct.",
+        "Direction of 'component of program': the relation is asymmetric (A is a component of program B). v2.6 relations are unordered pairs (left_input, right_input) with no direction. Reading 1: one code plus a fixed order rule (left is the component, right is the program). Reading 2: two inverse codes (component_of_program and has_component). C07's wording ('component of span k') reads as the first: the span being coded is the component.",
+        "Direction of 'governs': also asymmetric (a policy governs the tools it approves, R-017). Same two readings: one code with a fixed order (left governs right), or two inverse codes (governs and governed_by).",
+        "Meaning change for 'component of program': in v2.6 a component relation merged both observations into one activity identity (same as same_activity and shared_participation). R-017 now says each named component is its own activity, linked to the program. The code can stay the same, but whether it merges or only links is not settled by the value list.",
+        "One pair, two relations: a program-level policy can be both a component of the program and govern a sibling tool; a single-answer relation cannot hold both. No precedence is ruled.",
+        "'Unresolved' versus 'unknown': the item's draft downgrade target is unknown (R-045), while the list has its own 'unresolved'. Reading 1: a downgraded relation becomes unresolved (no new token). Reading 2: it becomes unknown, giving two codes for 'could not tell'.",
+        "No overlap was found among same activity, shared participation, governs and distinct once direction is fixed; shared participation is the joint-activity case of same identity (v2.6 requires two documented participants).",
+        "Pairs skipped by the pre-filter (X30: 'pre-filtered deterministically only to skip obviously distinct pairs') get no classifier answer. Reading 1: they carry distinct_action with support status 'set by rule'. Reading 2: they carry 'not asked'. The list does not say."
+      ],
+      "alternatives": [
+        {
+          "label": "Inverse codes for the two asymmetric relations",
+          "values": [
+            "same_activity",
+            "component_of_program",
+            "has_component",
+            "shared_participation",
+            "governs",
+            "governed_by",
+            "distinct_action",
+            "unresolved"
+          ],
+          "source": "direction flags above"
+        }
+      ]
+    },
+    {
+      "target": "core.observed_actor_relationship",
+      "values": [],
+      "flags": [
+        "Structure not ruled: one list or two linked fields. R-014 says 'the attribution role becomes part of that relationship' and 'there is no separate P06 column'; r2#4 says the role field is 'aligning the observed-actor relation values'. Reading 1: one combined list. Reading 2: one item with two linked parts (relationship, then the searched institution's role), published as one column or with the role kept internal. Both drafts are in alternatives; values is left empty on purpose.",
+        "Duplicates between the two source lists: r2#4 'unit' = A05 'unit of it'; r2#4 'joint' = A05 'joint participant'. In a combined list each appears once.",
+        "'This institution' versus 'contracting authority': a contracting authority is the searched institution acting itself. In a combined list, they overlap unless 'this institution' means 'acts itself, in a role other than buying'.",
+        "'Central purchasing body': the searched institution buys for others. Whether that is an own activity (counts for this institution) or a distinct role is not said; in a combined list it overlaps with 'this institution'.",
+        "'Beneficiary' versus 'other': an activity run by another body for this institution is 'other' under A05 and 'beneficiary' under r2#4. The ruling ('counts \"beneficiary\" only when the page names it') says when beneficiary applies, not whether it replaces 'other' for that case.",
+        "Combinations a single list cannot hold: a unit of the institution acting as contracting authority; a joint participant acting as central purchasing body.",
+        "The v2.6 observed-actor role (institutional_actor, issuer, participant, external_speaker, service_provider, event_host, unknown; git 052fcb2:g3o/common/evidence_review.py) describes the observed actor, not the searched institution. Round-1 A05 kept it ('the role (as v2.6)'); round 2 does not mention it. Reading 1: it survives as a separate internal field. Reading 2: it is replaced by the r2#4 role.",
+        "'Unresolved' versus 'unknown': A05 has 'unresolved'; the draft downgrade target is unknown. Same two readings as for activity relations.",
+        "'Not asked' and 'not documented' (R-045) are not named for either part. For the role part under Reading 2, the role is not asked when the relationship is other or unresolved."
+      ],
+      "alternatives": [
+        {
+          "label": "Draft 1: one combined list",
+          "values": [
+            {
+              "code": "this_institution",
+              "source_phrase": "this institution",
+              "source": "planning/t010/codebook-review/codebook-rulings-round1.json A05 mechanism"
+            },
+            {
+              "code": "contracting_authority",
+              "source_phrase": "contracting authority",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=4 means"
+            },
+            {
+              "code": "central_purchasing_body",
+              "source_phrase": "central purchasing body",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=4 means"
+            },
+            {
+              "code": "beneficiary",
+              "source_phrase": "beneficiary",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=4 means; planning/SPEC.md R-014 ('counts \"beneficiary\" only when the page names it')"
+            },
+            {
+              "code": "unit_of_institution",
+              "source_phrase": "unit of it",
+              "source": "planning/t010/codebook-review/codebook-rulings-round1.json A05 mechanism; planning/t010/codebook-review/codebook-rulings-round2.json n=4 'unit'"
+            },
+            {
+              "code": "joint_participant",
+              "source_phrase": "joint participant",
+              "source": "planning/t010/codebook-review/codebook-rulings-round1.json A05 mechanism; planning/t010/codebook-review/codebook-rulings-round2.json n=4 'joint'"
+            },
+            {
+              "code": "other",
+              "source_phrase": "other",
+              "source": "planning/t010/codebook-review/codebook-rulings-round1.json A05 mechanism"
+            },
+            {
+              "code": "unresolved",
+              "source_phrase": "unresolved",
+              "source": "planning/t010/codebook-review/codebook-rulings-round1.json A05 mechanism"
+            },
+            {
+              "code": "unknown",
+              "source_phrase": "unknown",
+              "source": "planning/SPEC.md R-045"
+            }
+          ],
+          "note": "Overlaps to resolve: this_institution vs contracting_authority vs central_purchasing_body; beneficiary vs other."
+        },
+        {
+          "label": "Draft 2: two linked fields in one item",
+          "part_1_relationship": [
+            {
+              "code": "this_institution",
+              "source_phrase": "this institution",
+              "source": "planning/t010/codebook-review/codebook-rulings-round1.json A05 mechanism"
+            },
+            {
+              "code": "unit_of_institution",
+              "source_phrase": "unit of it",
+              "source": "planning/t010/codebook-review/codebook-rulings-round1.json A05 mechanism"
+            },
+            {
+              "code": "joint_participant",
+              "source_phrase": "joint participant",
+              "source": "planning/t010/codebook-review/codebook-rulings-round1.json A05 mechanism"
+            },
+            {
+              "code": "other",
+              "source_phrase": "other",
+              "source": "planning/t010/codebook-review/codebook-rulings-round1.json A05 mechanism"
+            },
+            {
+              "code": "unresolved",
+              "source_phrase": "unresolved",
+              "source": "planning/t010/codebook-review/codebook-rulings-round1.json A05 mechanism"
+            },
+            {
+              "code": "unknown",
+              "source_phrase": "unknown",
+              "source": "planning/SPEC.md R-045"
+            }
+          ],
+          "part_2_role_of_searched_institution": [
+            {
+              "code": "contracting_authority",
+              "source_phrase": "contracting authority",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=4 means"
+            },
+            {
+              "code": "beneficiary",
+              "source_phrase": "beneficiary",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=4 means"
+            },
+            {
+              "code": "central_purchasing_body",
+              "source_phrase": "central purchasing body",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=4 means"
+            },
+            {
+              "code": "unit",
+              "source_phrase": "unit",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=4 means"
+            },
+            {
+              "code": "joint",
+              "source_phrase": "joint",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=4 means"
+            },
+            {
+              "code": "not_asked",
+              "source_phrase": "not asked",
+              "source": "planning/SPEC.md R-045 (when part 1 is other or unresolved)"
+            },
+            {
+              "code": "not_documented",
+              "source_phrase": "not documented",
+              "source": "planning/SPEC.md R-045"
+            },
+            {
+              "code": "unknown",
+              "source_phrase": "unknown",
+              "source": "planning/SPEC.md R-045"
+            }
+          ],
+          "note": "'unit' and 'joint' repeat part 1; the role part has no value for an institution acting itself outside procurement (e.g. deploying its own chatbot). Must not become a separate public P06 column (R-014)."
+        }
+      ]
+    },
+    {
+      "target": "vocabularies.provenance",
+      "values": [
+        {
+          "code": "stated",
+          "source_phrase": "stated",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=57 means; spelling `stated` in planning/t010/codebook-review/review-r2-consistency.json R2C22 option a"
+        },
+        {
+          "code": "from_metadata",
+          "source_phrase": "from metadata",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=57 means; agent spelling `deterministic_metadata` in planning/t010/codebook-review/review-r2-consistency.json R2C22 option a"
+        },
+        {
+          "code": "looked_up",
+          "source_phrase": "looked up",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=57 means; agent spelling `lookup` in planning/t010/codebook-review/review-r2-consistency.json R2C22 option a and planning/t010/codebook-review/codebook-rulings-round1.json C13 (`vendor_basis` = lookup)"
+        },
+        {
+          "code": "derived",
+          "source_phrase": "derived",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=57 means"
+        },
+        {
+          "code": "quoted_by_quote_step",
+          "source_phrase": "quoted by the quote step",
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=57 means; agent spelling `extractor_quoted` in planning/t010/codebook-review/review-r2-consistency.json R2C22 option a"
+        }
+      ],
+      "flags": [
+        "Date origin does not fit the five values (tidy-up T3 folds the r2#31 date-origin list into this vocabulary). Mapping of r2#31's values: 'metadata' -> from_metadata (clean). 'web address' -> Reading 1: from_metadata (round-1 X26 groups URL patterns with HTML and PDF metadata as deterministic); Reading 2: derived (parsed from the address). 'quote from page text' -> Reading 1: quoted_by_quote_step; Reading 2: stated. 'archive upper bound' -> no clean home: Reading 1: looked_up (an archive is consulted); Reading 2: derived; either way the fact that it is an upper bound, not the date itself, is lost. 'unknown' -> not in the five values; Reading 1: the R-045 missing tokens apply to provenance fields; Reading 2: add unknown to this vocabulary.",
+        "'Stated' versus 'quoted by the quote step' can overlap: a page-stated value is normally backed by a quote from the quote step. Reading 1: stated = the page says it (whoever copied it); quoted_by_quote_step = only the quote step's copy. Reading 2: one of the two is redundant for web pages and 'stated' is for other channels (e.g. procurement notice fields).",
+        "Round-1 A08 `stage_as_of_basis` has three origins: publication date, the page's latest stated date for the activity, and the access date. The access date (the scrape's own record) has no obvious home: from_metadata or derived.",
+        "Round-1 P14's `date_confidence` has no home in this vocabulary (noted as a risk in the agent draft, R2C22).",
+        "'Derived' overlaps the support status 'set by rule': a rule-derived value is recorded in two vocabularies. Not a clash inside this list, but the two must agree.",
+        "Spellings: the plain ruling's words (from_metadata, looked_up, quoted_by_quote_step) differ from the agent draft's (deterministic_metadata, lookup, extractor_quoted); round-1 C13 already used `lookup` for vendor_basis."
+      ],
+      "alternatives": [
+        {
+          "label": "Agent-draft spellings",
+          "values": [
+            "stated",
+            "deterministic_metadata",
+            "lookup",
+            "derived",
+            "extractor_quoted"
+          ],
+          "source": "planning/t010/codebook-review/review-r2-consistency.json R2C22 option a"
+        },
+        {
+          "label": "Date-origin list as ruled in r2#31 (before T3)",
+          "values": [
+            {
+              "code": "metadata",
+              "source_phrase": "metadata",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=31 means"
+            },
+            {
+              "code": "web_address",
+              "source_phrase": "web address",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=31 means; agent spelling `url` in planning/t010/codebook-review/review-r2-impact.json R2P13 option a"
+            },
+            {
+              "code": "page_text_quote",
+              "source_phrase": "quote from page text",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=31 means; agent spelling `page_text_quote` in planning/t010/codebook-review/review-r2-impact.json R2P13 option a"
+            },
+            {
+              "code": "archive_upper_bound",
+              "source_phrase": "archive upper bound",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=31 means"
+            },
+            {
+              "code": "unknown",
+              "source_phrase": "unknown",
+              "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=31 means"
+            }
+          ],
+          "source": "planning/t010/codebook-review/codebook-rulings-round2.json n=31; folded by planning/deltas/RC-D-002.md L tidy-up T3"
+        }
+      ]
+    },
+    {
+      "target": "vocabularies.support_status",
+      "values": [
+        {
+          "code": "supported",
+          "source_phrase": "supported",
+          "source": "planning/SPEC.md R-041 'Support-status values:'; planning/t010/codebook-review/codebook-rulings-round1.json X40"
+        },
+        {
+          "code": "downgraded_no_quote",
+          "source_phrase": "downgraded_no_quote",
+          "source": "planning/SPEC.md R-041; planning/t010/codebook-review/codebook-rulings-round1.json X40"
+        },
+        {
+          "code": "downgraded_low_confidence",
+          "source_phrase": "downgraded_low_confidence",
+          "source": "planning/SPEC.md R-041; planning/t010/codebook-review/codebook-rulings-round1.json X40"
+        },
+        {
+          "code": "downgraded_quote_not_stating_value",
+          "source_phrase": "downgraded, quote does not state the value",
+          "source": "planning/SPEC.md R-041; planning/t010/codebook-review/codebook-rulings-round2.json n=37; agent spelling `downgraded_not_entailed` in planning/t010/codebook-review/review-r2-consistency.json R2C29 option a"
+        },
+        {
+          "code": "set_by_rule",
+          "source_phrase": "one \"set by rule\" value with a rule id (exempt from the no-quote downgrade)",
+          "source": "planning/SPEC.md R-041; planning/t010/codebook-review/codebook-rulings-round2.json n=53 'set by rule'; n=37 'mechanically derived' (merged, note on n=37 and n=53); agent spellings `deterministic` (R2C29) and `deterministic_rule` (planning/t010/codebook-review/review-r2-impact.json R2P17)"
+        },
+        {
+          "code": "not_required",
+          "source_phrase": "not_required",
+          "source": "planning/SPEC.md R-041; planning/t010/codebook-review/codebook-rulings-round1.json X40"
+        }
+      ],
+      "flags": [
+        "Spelling of the two new values: the SPEC text gives them as phrases, not codes. Candidates: downgraded_quote_not_stating_value or downgraded_not_entailed; set_by_rule, deterministic or deterministic_rule.",
+        "'Set by rule' needs a companion rule id. Reading 1: a separate rule_id field beside support_status. Reading 2: the rule id inside the value (e.g. set_by_rule:<id>), which makes the list open-ended.",
+        "R-041 also says a page verdict's 'support status says `downgraded`'. Reading 1: this means one of the downgraded_* values (r2#40 names 'downgraded: low confidence' and 'downgraded: no quote'). Reading 2: a seventh, bare `downgraded` value for verdicts. Reading 1 is supported by r2#40's wording.",
+        "'Set by rule' versus 'not_required' can overlap: a value fixed by a gate (e.g. not asked) or a negative value set by a rule needs no quote under both. No precedence is given.",
+        "Two downgrade reasons can hold at once (no quote and low probability). The list has one value per code; no precedence is given.",
+        "Coverage: a code that was never asked (not asked) still needs a support status; Reading 1: not_required; Reading 2: set_by_rule (the gate is a rule)."
+      ],
+      "alternatives": [
+        {
+          "label": "Agent-draft spellings",
+          "values": [
+            "supported",
+            "downgraded_no_quote",
+            "downgraded_low_confidence",
+            "downgraded_not_entailed",
+            "deterministic_rule",
+            "not_required"
+          ],
+          "source": "planning/t010/codebook-review/review-r2-consistency.json R2C29 option a; planning/t010/codebook-review/review-r2-impact.json R2P17 option a"
+        }
+      ]
+    },
+    {
+      "target": "vocabularies.missing",
+      "values": [
+        {
+          "code": "not_asked",
+          "source_phrase": "\"not asked\" (`not_applicable` renamed \"not asked\" everywhere, T2)",
+          "source": "planning/SPEC.md R-045; planning/deltas/RC-D-002.md L tidy-up T2; planning/t010/codebook-review/codebook-rulings-round2.json n=16"
+        },
+        {
+          "code": "not_documented",
+          "source_phrase": "\"not documented\"",
+          "source": "planning/SPEC.md R-045; planning/t010/codebook-review/codebook-rulings-round2.json n=16 ('page silent')"
+        },
+        {
+          "code": "unknown",
+          "source_phrase": "\"unknown\"",
+          "source": "planning/SPEC.md R-045; planning/t010/codebook-review/codebook-rulings-round2.json n=16 ('stated but undeterminable, or downgraded')"
+        }
+      ],
+      "flags": [
+        "Spelling of 'not asked': the codebook draft uses not_asked; the agent draft behind r2#16 used `_NA_` for the same token (planning/t010/codebook-review/review-r2-consistency.json R2C04 option a). R-045 leaves the spelling to the PI.",
+        "`_NA_` survives elsewhere: R-041 still lists `_NA_` beside not_documented and unknown as needing no support, and v2.5 uses `_NA_` for fields on a row with no activity. Reading 1: `_NA_` is the old spelling of not asked and goes. Reading 2: `_NA_` stays as a fourth, structural token for 'no activity on this row'.",
+        "'Unknown' covers two cases (stated but undeterminable; downgraded). Not an overlap with the other tokens, but a downgraded code and a genuinely undeterminable one cannot be told apart from the token alone; the support status carries the difference.",
+        "'Unresolved' (activity relations, observed actor) and the mechanical page verdict 'not assessable' act like missing values but are not in this set. Reading 1: they are ordinary values of their items. Reading 2: they map onto unknown / not asked.",
+        "Frozen institutional-questionnaire items keep signed spellings (e.g. none_reported, none_documented, none) with a mapping row; the mapping rows are not drafted here."
+      ],
+      "alternatives": []
+    }
+  ]
+}

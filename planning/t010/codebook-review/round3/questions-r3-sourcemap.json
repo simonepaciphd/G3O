@@ -1,0 +1,801 @@
+{
+ "page_id": "codebook-questions-r3",
+ "prepared": "2026-10-29",
+ "drafts_folder": "../../drafts/",
+ "items": {
+  "all-01": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Shared vocabularies > Missing values: spelling of not asked; `_NA_` survives elsewhere",
+     "Needs the PI 8"
+    ]
+   },
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Governance direction flag: 'not applicable otherwise' spelled `_NA_` in earlier draft"
+    ]
+   },
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "What you need to check first 8 (spelling half)",
+     "CX-06 technical note (c)",
+     "CX-25 technical note (2)"
+    ]
+   }
+  ],
+  "all-02": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Interface flag: not documented",
+     "Governance direction flag: not documented",
+     "Service area flag: not asked / not documented",
+     "Observed actor flag: not asked / not documented",
+     "Needs the PI 1 and 2 (not_documented halves)"
+    ]
+   }
+  ],
+  "all-03": [
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Shared conventions: Check, then combine"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "conventions.downgrade_first"
+    ]
+   }
+  ],
+  "all-04": [
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Shared conventions: Missing values rank last",
+     "Already set: Evaluation documented (unknown placement)"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "conventions.missing_tokens",
+     "conventions.combine_gate_items_first",
+     "disagreements_with_preset core.evaluation_documented"
+    ]
+   }
+  ],
+  "all-05": [
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Shared conventions: Which part speaks for the answer"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "conventions.producing_part",
+     "disagreements_with_preset general (all rules)"
+    ]
+   }
+  ],
+  "all-06": [
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Shared conventions: First section; Pooled evidence",
+     "Already set: First section needs a fallback"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "disagreements_with_preset core.disclosure_form, core.disclosure_scope",
+     "conventions.stage6"
+    ]
+   }
+  ],
+  "all-07": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Activity links flag: unresolved vs unknown",
+     "Observed actor flag: unresolved vs unknown",
+     "Missing values flag: unresolved and not assessable"
+    ]
+   }
+  ],
+  "all-08": [
+   {
+    "file": "cx-01.3-draft.json",
+    "entries": [
+     "row CX-06 (new)"
+    ]
+   }
+  ],
+  "all-09": [
+   {
+    "file": "cx-01.3-draft.json",
+    "entries": [
+     "row CX-06 interpretation (a), (b)"
+    ]
+   },
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "CX-06 technical note"
+    ]
+   }
+  ],
+  "all-10": [
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "What you need to check first 8 (location half)",
+     "What you need to check first 11",
+     "CX-61 technical note (5)"
+    ]
+   }
+  ],
+  "all-11": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Interface flag: other_interface vs other_ui",
+     "Activity links flag: distinct spelling",
+     "Provenance flag: spellings",
+     "Support status flag: spelling of two new values",
+     "Needs the PI 1 (spelling), 4 (distinct), 6 (spellings), 7 (spellings)"
+    ]
+   },
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "CX-61b technical note (2) spelling",
+     "What you need to check first 4 (spelling half)"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "core.incident_kind order uses discontinuation_uncertain"
+    ]
+   }
+  ],
+  "page-01": [
+   {
+    "file": "integrator",
+    "entries": [
+     "extra question: page_complete name vs question"
+    ]
+   },
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Already set: Page completeness looks reversed (draft misread; rule is correct)"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "disagreements_with_preset core.page_complete"
+    ]
+   }
+  ],
+  "page-02": [
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Already set: Page verdict"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "disagreements_with_preset core.page_verdict"
+    ]
+   }
+  ],
+  "page-03": [
+   {
+    "file": "cx-01.3-draft.json",
+    "entries": [
+     "rows CX-12, CX-13, pilot.py L134 FORM[mandated_report], CX-25"
+    ]
+   }
+  ],
+  "page-04": [
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "What you need to check first 10",
+     "CX-13 technical note (1), (5)",
+     "Unchanged CX-14 note"
+    ]
+   }
+  ],
+  "page-05": [
+   {
+    "file": "cx-01.3-draft.json",
+    "entries": [
+     "rows CX-01, CX-50, CX-51, pilot.py L203 page_questions content_* instructions"
+    ]
+   }
+  ],
+  "page-06": [
+   {
+    "file": "cx-01.3-draft.json",
+    "entries": [
+     "retire rows L147, L148, L149, L151, L152"
+    ]
+   }
+  ],
+  "page-07": [
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "What you need to check first 1",
+     "CX-51 technical note (1)"
+    ]
+   }
+  ],
+  "page-08": [
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "What you need to check first 2",
+     "CX-51 technical note (2), (3)"
+    ]
+   }
+  ],
+  "page-09": [
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "What you need to check first 3",
+     "CX-51 technical note (4)",
+     "CX-52 technical note (2)"
+    ]
+   }
+  ],
+  "page-10": [
+   {
+    "file": "cx-01.3-draft.json",
+    "entries": [
+     "rows CX-52, CX-53"
+    ]
+   },
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "CX-53 technical note (3) stale status text"
+    ]
+   }
+  ],
+  "page-11": [
+   {
+    "file": "cx-01.3-draft.json",
+    "entries": [
+     "retire rows L154, L155, L156"
+    ]
+   }
+  ],
+  "page-12": [
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "What you need to check first 6",
+     "CX-53 technical note (2)",
+     "CX-53 conflict"
+    ]
+   }
+  ],
+  "activity-01": [
+   {
+    "file": "applicability.md",
+    "entries": [
+     "table"
+    ]
+   },
+   {
+    "file": "applicability.json",
+    "entries": [
+     "cells (all 180)"
+    ]
+   }
+  ],
+  "activity-02": [
+   {
+    "file": "applicability.md",
+    "entries": [
+     "Tension 8",
+     "Tension 16"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "core.action_type basis: values due to be re-ruled"
+    ]
+   }
+  ],
+  "activity-03": [
+   {
+    "file": "applicability.md",
+    "entries": [
+     "Tension 1",
+     "Tension 2",
+     "Tension 3",
+     "Tension 4",
+     "Tension 15"
+    ]
+   }
+  ],
+  "activity-04": [
+   {
+    "file": "applicability.md",
+    "entries": [
+     "Tension 5",
+     "Tension 6",
+     "Tension 9"
+    ]
+   }
+  ],
+  "activity-05": [
+   {
+    "file": "applicability.md",
+    "entries": [
+     "Tension 7"
+    ]
+   }
+  ],
+  "activity-06": [
+   {
+    "file": "applicability.md",
+    "entries": [
+     "Tension 10"
+    ]
+   }
+  ],
+  "activity-07": [
+   {
+    "file": "applicability.md",
+    "entries": [
+     "Tension 12"
+    ]
+   }
+  ],
+  "activity-08": [
+   {
+    "file": "applicability.md",
+    "entries": [
+     "Tension 13",
+     "Tension 14"
+    ]
+   }
+  ],
+  "activity-09": [
+   {
+    "file": "applicability.md",
+    "entries": [
+     "Tension 11"
+    ]
+   },
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Interface flag: not applicable becomes not asked",
+     "Needs the PI 1 (not asked half)"
+    ]
+   }
+  ],
+  "activity-10": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Governance direction flag: requires or promotes",
+     "Needs the PI 2 (first half)"
+    ]
+   }
+  ],
+  "activity-11": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Governance direction flags: permits subject to conditions; mixed instruments"
+    ]
+   },
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Rule governance_direction",
+     "Failure case 6"
+    ]
+   }
+  ],
+  "activity-12": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Service area: candidates A, B, C",
+     "Service area flag: general administration boundary",
+     "Needs the PI 3 (list)"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "core.service_domain basis"
+    ]
+   }
+  ],
+  "activity-13": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Service area flags: no other; one answer per activity",
+     "Needs the PI 3 (other, one or several)"
+    ]
+   }
+  ],
+  "activity-14": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Observed actor: Draft 1, Draft 2, flags on duplicates, overlaps, beneficiary vs other, combinations",
+     "Needs the PI 5 (first half)"
+    ]
+   }
+  ],
+  "activity-15": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Observed actor flag: earlier actor-role list",
+     "Needs the PI 5 (second half)"
+    ]
+   }
+  ],
+  "activity-16": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Activity links flags: direction of component of program; direction of governs",
+     "Needs the PI 4 (direction)"
+    ]
+   }
+  ],
+  "activity-17": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Activity links flags: meaning change for component of program; one pair two relations",
+     "Needs the PI 4 (merge)"
+    ]
+   }
+  ],
+  "activity-18": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Activity links flag: unit of the within-page answer",
+     "Needs the PI 4 (per passage or per pair)"
+    ]
+   }
+  ],
+  "activity-19": [
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Rules table",
+     "Failure case 8"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "items: activity_segment, observed_actor_relationship, procurement_status, build_arrangement, interface, contracting_party, developer, genai_mechanism_basis, outcome_kind"
+    ]
+   }
+  ],
+  "activity-20": [
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Rules: activity_type, action_type, model_origin, deployment_mode, service_domain",
+     "Failure case 7"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "alternative fields of those five items"
+    ]
+   }
+  ],
+  "activity-21": [
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Rule adoption_stage",
+     "Failure case 2"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "core.adoption_stage alternative and failure_case"
+    ]
+   }
+  ],
+  "activity-22": [
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Rules: target_users, governed_population",
+     "Failure case 1"
+    ]
+   }
+  ],
+  "activity-23": [
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Rules: has_human_oversight, has_transparency_notice, has_data_classification, has_risk_assessment",
+     "Failure case 3"
+    ]
+   }
+  ],
+  "activity-24": [
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Rules: deployment_scale_number, deployment_scale_unit",
+     "Failure case 5"
+    ]
+   }
+  ],
+  "activity-25": [
+   {
+    "file": "cx-01.3-draft.json",
+    "entries": [
+     "rows CX-02, CX-60, CX-61, CX-61b, pilot.py L173-177 OUTCOME_KIND"
+    ]
+   },
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "What you need to check first 7",
+     "CX-02 technical note (1)",
+     "Round 1 vs round 2: quoting for outcomes"
+    ]
+   }
+  ],
+  "activity-26": [
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "What you need to check first 5",
+     "CX-60 technical note"
+    ]
+   }
+  ],
+  "activity-27": [
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "What you need to check first 4 (what wins)",
+     "CX-61b technical note (3)"
+    ]
+   },
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Rule incident_kind"
+    ]
+   },
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "core.incident_kind alternative and failure_case"
+    ]
+   }
+  ],
+  "activity-28": [
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "CX-61b technical note (3), second half"
+    ]
+   }
+  ],
+  "activity-29": [
+   {
+    "file": "cx-01.3-draft.json",
+    "entries": [
+     "rows CX-32c, pilot.py L161 EVAL[required_or_planned]"
+    ]
+   }
+  ],
+  "activity-30": [
+   {
+    "file": "cx-01.3-draft.md",
+    "entries": [
+     "What you need to check first 9",
+     "CX-32c technical note (1), (2)"
+    ]
+   }
+  ],
+  "source-01": [
+   {
+    "file": "combining-rules.json",
+    "entries": [
+     "core.source_type",
+     "core.source_publication_date"
+    ]
+   }
+  ],
+  "institution-01": [
+   {
+    "file": "combining-rules.md",
+    "entries": [
+     "Rule activity_relation_cross_page",
+     "Failure case 4"
+    ]
+   }
+  ],
+  "institution-02": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Cross-page links flag: pairs skipped by the pre-filter"
+    ]
+   }
+  ],
+  "record-01": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Support status flag: set by rule needs a rule id",
+     "Needs the PI 7 (rule id)"
+    ]
+   }
+  ],
+  "record-02": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Support status flags: set by rule vs not required; coverage of not asked",
+     "Provenance flag: derived overlaps set by rule"
+    ]
+   }
+  ],
+  "record-03": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Support status flags: two downgrade reasons; page verdict downgraded"
+    ]
+   }
+  ],
+  "shared-01": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Provenance flags: date origin; access date; date confidence",
+     "Needs the PI 6 (where web address, archive upper bound and unknown go)"
+    ]
+   }
+  ],
+  "shared-02": [
+   {
+    "file": "value-lists.md",
+    "entries": [
+     "Provenance flag: stated vs quoted by the quote step"
+    ]
+   }
+  ]
+ },
+ "dropped": [
+  {
+   "file": "applicability.md",
+   "entry": "Tension 17",
+   "reason": "Observation: the table can only switch the activity-level evaluation question; no choice offered."
+  },
+  {
+   "file": "value-lists.md",
+   "entry": "Interface flag: single answer only",
+   "reason": "Already ruled (one answer); the combining order handles it."
+  },
+  {
+   "file": "value-lists.md",
+   "entry": "Interface flag: coverage check (embedded/standalone moved to deployment mode)",
+   "reason": "Observation; no overlap found."
+  },
+  {
+   "file": "value-lists.md",
+   "entry": "Activity links flag: no overlap found among same, shared participation, governs, distinct",
+   "reason": "Observation."
+  },
+  {
+   "file": "value-lists.md",
+   "entry": "Activity links flag: 'not an activity' is a property of one passage",
+   "reason": "Observation; covered by the per-passage or per-pair item."
+  },
+  {
+   "file": "value-lists.md",
+   "entry": "Missing values flag: 'unknown' covers two cases",
+   "reason": "Observation; the support status carries the difference."
+  },
+  {
+   "file": "value-lists.md",
+   "entry": "Missing values flag: frozen mapping rows not drafted here",
+   "reason": "Covered by the review of the new missing-answer map row."
+  },
+  {
+   "file": "combining-rules.json",
+   "entry": "conventions.activity_level (only parts holding a passage of the activity vote)",
+   "reason": "No alternative changes results: silent parts rank last in every order anyway."
+  },
+  {
+   "file": "combining-rules.json",
+   "entry": "core.activity_segment rule",
+   "reason": "Drafter names no alternative; listed in the combining review item."
+  },
+  {
+   "file": "combining-rules.json",
+   "entry": "core.genai_mechanism_basis rule",
+   "reason": "Drafter names no alternative needed; listed in the combining review item."
+  },
+  {
+   "file": "combining-rules.md",
+   "entry": "Failure case 8 (segmentation errors pass through)",
+   "reason": "Observation; stated in the combining review item."
+  },
+  {
+   "file": "cx-01.3-draft.md",
+   "entry": "Where round 1 and round 2 disagreed (round 2 followed)",
+   "reason": "Already ruled in round 2; restated in the review items' situations."
+  },
+  {
+   "file": "cx-01.3-draft.md",
+   "entry": "CX-12 technical note: annual-report example kept",
+   "reason": "Visible in the review body; no choice offered."
+  },
+  {
+   "file": "cx-01.3-draft.md",
+   "entry": "CX-02 technical note (2): existing field list kept verbatim",
+   "reason": "Observation; visible in the review body."
+  },
+  {
+   "file": "cx-01.3-draft.md",
+   "entry": "CX-32c / EVAL note: question text still missing earlier signed text (owed by the build card)",
+   "reason": "Build task, not a choice."
+  },
+  {
+   "file": "cx-01.3-draft.md",
+   "entry": "OUTCOME_KIND note: no instruction text exists; build card drafts it",
+   "reason": "Build task, not a choice."
+  },
+  {
+   "file": "cx-01.3-draft.md",
+   "entry": "CX-41 note: type items asked after the check (procedural, no re-signature)",
+   "reason": "Procedural per round 1; no change."
+  },
+  {
+   "file": "cx-01.3-draft.json",
+   "entry": "55 no_change rows",
+   "reason": "Unchanged; nothing to decide."
+  },
+  {
+   "file": "cx-01.3-draft.md",
+   "entry": "state_for (classifier input) unchanged row",
+   "reason": "Not drafted; its sign-off comes later (noted in the outcomes review item)."
+  }
+ ]
+}

@@ -1,0 +1,717 @@
+{
+ "format": "t010-fixes-r4-v1",
+ "status": "PROPOSED — default fixes, pending PI approval (not approved by the round-4 ruling)",
+ "drafted_by": "Claude Code, claude-opus-5-5, round-4 fold subagent (fork) of integrator session 20261030-claude-v2-2b8200388885f8f9",
+ "date": "2026-10-30",
+ "ruling": "PI, chat, 2026-10-30, verbatim: \"Reviewed the above; approve all the review items; give a subagent to disambiguate & propose default fixes where necessary. I want a single, clean final draft version of the codebook to look at & approve.\" (planning/t010/t010-rulings.md)",
+ "fold": "build_skeleton.py round-4 stage applies each default verbatim, origin 'proposed default r4 <id> (pending PI approval)'",
+ "fixes": [
+  {
+   "id": "FX01",
+   "title": "Shared participation: does the link merge the two activities?",
+   "covers": {
+    "no_source_drafts": [
+     12,
+     122
+    ],
+    "problems": []
+   },
+   "issue": "The drafted meaning of \"shared participation\" (within a page and across pages) had no source, and nothing said whether the two passages or records become one activity.",
+   "options": [
+    {
+     "id": "a",
+     "label": "They are one activity and merge; the link needs at least two bodies named as taking part, with a quote",
+     "for": "Keeps the version 2.6 rule; no behaviour change.",
+     "against": "A wrong link merges two activities, which is harder to undo than a link."
+    },
+    {
+     "id": "b",
+     "label": "They stay separate activities, linked only (as program components do)",
+     "for": "Reversible; matches the 'link, never merge' choice for components.",
+     "against": "Changes version 2.6 behaviour without a ruling; a joint action is then counted twice."
+    },
+    {
+     "id": "c",
+     "label": "Leave the definition as drafted",
+     "for": "No new text.",
+     "against": "The merge question stays open for the engineers."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "append_to_slot",
+    "targets": [
+     {
+      "slot": "items/core.activity_segment/values/3/definition",
+      "append": " They are one activity: the two passages are merged. The link needs at least two bodies, each named on the page as taking part, with a quote."
+     },
+     {
+      "slot": "items/core.activity_relation_cross_page/values/3/definition",
+      "append": " They are one activity: the two records are merged. The link needs at least two bodies, each named as taking part, with a quote."
+     }
+    ]
+   },
+   "sources": [
+    "git 052fcb2:g3o/common/evidence_review.py L218-229 (v2.6: shared_participation keeps one activity id and needs at least two explicitly documented participating actors with a participation quote)",
+    "SPEC v001.7 R-017 (components are linked, never merged; silent on shared participation)"
+   ],
+   "confidence": "medium",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "none (definition text only)"
+  },
+  {
+   "id": "FX02",
+   "title": "\"Not an activity\" when links are coded per pair",
+   "covers": {
+    "no_source_drafts": [
+     17
+    ],
+    "problems": [
+     6
+    ]
+   },
+   "issue": "The value describes one passage, but within-page links are now coded per pair of passages.",
+   "options": [
+    {
+     "id": "a",
+     "label": "In a pair, use it when either passage is not an activity; no other link is coded for that pair",
+     "for": "Smallest change; keeps the ruled list and the per-pair coding.",
+     "against": "The pair does not record which passage was not an activity."
+    },
+    {
+     "id": "b",
+     "label": "Use it only when both passages are not activities",
+     "for": "Symmetric.",
+     "against": "Leaves pairs with one non-activity without a fitting link."
+    },
+    {
+     "id": "c",
+     "label": "Move it out of the link list into a per-passage yes/no item",
+     "for": "Records the passage exactly.",
+     "against": "A list change and a new item, beyond the rulings."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "append_to_slot",
+    "targets": [
+     {
+      "slot": "items/core.activity_segment/values/8/definition",
+      "append": " In a pair of passages, it is used when either passage is not an activity; no other link is coded for that pair."
+     }
+    ]
+   },
+   "sources": [
+    "SPEC v001.7 R-017 (not-an-activity within a page; links coded per pair of passages)"
+   ],
+   "confidence": "medium",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "none (definition text only)"
+  },
+  {
+   "id": "FX03",
+   "title": "Role values \"unit\" and \"joint\" next to the relationship values",
+   "covers": {
+    "no_source_drafts": [
+     26,
+     27
+    ],
+    "problems": [
+     3
+    ]
+   },
+   "issue": "The role list of the searched institution has \"unit\" and \"joint\", which look like the relationship values \"unit of institution\" and \"joint participant\"; no text defined them.",
+   "options": [
+    {
+     "id": "a",
+     "label": "No change: keep both roles with the approved definitions",
+     "for": "The round-2 ruling and the approved round-3 option text both list them; the approved definitions describe the searched institution's own part, which the relationship does not.",
+     "against": "Some combinations read twice (for example joint participant : joint)."
+    },
+    {
+     "id": "b",
+     "label": "Drop both roles",
+     "for": "No overlap.",
+     "against": "A list change against two rulings that list them."
+    },
+    {
+     "id": "c",
+     "label": "Keep them, allowed only when the relationship is \"other\"",
+     "for": "Removes the double reading.",
+     "against": "A new coding rule no ruling supports."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "no_change"
+   },
+   "sources": [
+    "codebook-rulings-round2.json (observed_actor_relationship rules[1]: contracting authority, beneficiary, central purchasing body, unit, joint)",
+    "questions-r3.json activity-14 b option text (approved round-3 slot, same list)"
+   ],
+   "confidence": "low",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "none"
+  },
+  {
+   "id": "FX04",
+   "title": "Which observed-actor roles count as taking part",
+   "covers": {
+    "no_source_drafts": [
+     127,
+     128,
+     129,
+     130,
+     131,
+     132
+    ],
+    "problems": []
+   },
+   "issue": "The six roles of the observed actor came only as code names. The approved definitions read the names; the ruling says \"code it as before\", and version 2.6 also said which roles count as taking part.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep the approved definitions and add the version 2.6 rule on which roles count as taking part",
+     "for": "Carries over the 'as before' behaviour the ruling asks for.",
+     "against": "Adds a rule sentence you have not seen yet."
+    },
+    {
+     "id": "b",
+     "label": "Keep the approved definitions only",
+     "for": "No new text.",
+     "against": "The internal item loses the one rule version 2.6 attached to it."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "add_rule",
+    "item": "core.observed_actor_role",
+    "role": "which roles count as taking part",
+    "text": "Only `institutional_actor`, `issuer` and `participant` count as the actor taking part in the activity; `external_speaker`, `service_provider` and `event_host` do not."
+   },
+   "sources": [
+    "git 052fcb2:g3o/common/evidence_review.py L44-47 (role list), L93-97 and L218-222 (only institutional_actor, issuer and participant count as documented participation)",
+    "questions-r3.json activity-15 a (\"Code it as before; not published.\")"
+   ],
+   "confidence": "medium",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "none (rule text only)"
+  },
+  {
+   "id": "FX05",
+   "title": "The second reason can only be low certainty",
+   "covers": {
+    "no_source_drafts": [
+     133,
+     135
+    ],
+    "problems": [
+     2
+    ]
+   },
+   "issue": "Under the approved check order (quote first, then the 0.8 bar), a failed quote check is always the main reason, so only \"low certainty\" can be a second reason; two of the three approved codes never occur.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep the three approved codes and say that only low certainty can occur as a second reason",
+     "for": "Keeps the approved list, so it still matches the support-status list.",
+     "against": "Two codes on the list are never used."
+    },
+    {
+     "id": "b",
+     "label": "Keep only \"low certainty\" on the list",
+     "for": "Nothing unused.",
+     "against": "Changes a list you approved on 30 October."
+    },
+    {
+     "id": "c",
+     "label": "Change the check order",
+     "for": "All three codes become possible.",
+     "against": "Reopens an approved rule for no gain in information."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "add_rule",
+    "item": "core.support_status_second_reason",
+    "role": "which codes can occur",
+    "text": "With this check order, only `downgraded_low_confidence` can be a second reason, because a failed quote check is always the main reason. The other two codes stay on the list so that it matches the support-status list."
+   },
+   "sources": [
+    "final-open.json F10 (approved values and check order)",
+    "RC-D-003 §16 O10"
+   ],
+   "confidence": "medium",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "none (rule text only)"
+  },
+  {
+   "id": "FX06",
+   "title": "Reserved missing labels used as answer codes on 17 items",
+   "covers": {
+    "no_source_drafts": [],
+    "problems": [
+     1
+    ]
+   },
+   "issue": "Seventeen items list `unknown` (12) or `not_documented` (5) among their answer codes, but these are reserved missing labels; the approved item template forbids an answer code that equals one (check 8).",
+   "options": [
+    {
+     "id": "a",
+     "label": "Take the label out of the answer list and keep its item-specific meaning as a rule line on the item",
+     "for": "Meets check 8 with no loss of text; the label stays allowed through the item's missing labels.",
+     "against": "The item's own meaning of the label now sits among its rules, not beside the answers."
+    },
+    {
+     "id": "b",
+     "label": "Keep the label as an answer code and exempt these items",
+     "for": "No move.",
+     "against": "Breaks check 8 for 14 items that are not frozen; only frozen items may be exempt."
+    },
+    {
+     "id": "c",
+     "label": "Take it out and drop the item-specific meaning",
+     "for": "Shortest.",
+     "against": "Loses approved text."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "move_reserved_values",
+    "role": "missing label {code}: meaning for this item",
+    "items": {
+     "core.disclosure_form": "unknown",
+     "core.disclosure_scope": "unknown",
+     "core.activity_type": "unknown",
+     "core.action_type": "unknown",
+     "core.adoption_stage": "unknown",
+     "core.procurement_status": "unknown",
+     "core.model_origin": "unknown",
+     "core.build_arrangement": "unknown",
+     "core.deployment_mode": "unknown",
+     "core.target_users": "unknown",
+     "core.governed_population": "unknown",
+     "core.governance_form": "unknown",
+     "core.has_human_oversight": "not_documented",
+     "core.has_transparency_notice": "not_documented",
+     "core.has_data_classification": "not_documented",
+     "core.has_risk_assessment": "not_documented",
+     "core.evaluation_documented": "not_documented"
+    }
+   },
+   "sources": [
+    "planning/t010/item-template.md §4 check 8",
+    "fold-log-round3.md §4 choice 3 (missing-token codes kept out of value lists; accepted as O16)",
+    "SPEC v001.7 R-045 (new and non-frozen fields adopt the reserved set)"
+   ],
+   "confidence": "medium",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "list change on 17 items; rides v2.7's two steps (C-007, r2#5)",
+   "note": "The allowed (type, action) pairs table keeps its `unknown` rows: `unknown` stays a valid answer through the missing labels. The approved safeguard rule still says \"the four answers\" (yes, no, unclear, not documented); after this move the fourth is a missing label, so the sentence stays true but reads differently."
+  },
+  {
+   "id": "FX07",
+   "title": "Purchase status \"none documented\" next to the reserved \"not documented\"",
+   "covers": {
+    "no_source_drafts": [],
+    "problems": [
+     5
+    ]
+   },
+   "issue": "The purchase-status answer `none_documented` (the page shows the activity but no purchase step) is very close to the reserved label `not_documented`.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep the ruled code and say that, for this item, a page with no purchase step takes `none_documented`; `not_documented` is not used",
+     "for": "Keeps the ruled list; one answer per situation.",
+     "against": "The item still lists `not_documented` among its allowed labels, which the rule then overrides."
+    },
+    {
+     "id": "b",
+     "label": "Drop `none_documented` and use `not_documented`",
+     "for": "No near-duplicate.",
+     "against": "A list change against the round-1 ruling's list."
+    },
+    {
+     "id": "c",
+     "label": "Rename it (for example `no_purchase_documented`)",
+     "for": "Clearer.",
+     "against": "A respelling no ruling asked for."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "add_rule",
+    "item": "core.procurement_status",
+    "role": "none_documented against not_documented",
+    "text": "A page that describes the activity but shows no purchase step takes `none_documented`, which is a real answer; `not_documented` is not used for this item."
+   },
+   "sources": [
+    "codebook-rulings-round1.json (procurement_status: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown)",
+    "drafts/definitions-r4.json (approved definition of none_documented)"
+   ],
+   "confidence": "medium",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "none (rule text only)"
+  },
+  {
+   "id": "FX08",
+   "title": "Rules written twice: keep the plan text in each pair",
+   "covers": {
+    "no_source_drafts": [],
+    "problems": [
+     4
+    ],
+    "cards": [
+     "activity-1 O1",
+     "activity-1 O2",
+     "institution O1",
+     "record O1",
+     "shared O1"
+    ]
+   },
+   "issue": "The five 'same rule written twice' cards had no approve option, so 'approve all' does not settle them; you asked (P4) to keep one text of each pair. This also removes the role-gate text that appeared twice on the observed-actor relationship.",
+   "options": [
+    {
+     "id": "a",
+     "label": "In each pair keep the plan text (the longer text, which contains the other) and drop the restatement",
+     "for": "Nothing is lost: each dropped text is contained in the kept one; the role gate and the shared lists keep their own copy.",
+     "against": "Drops texts you approved on 30 October, which are shorter and plainer."
+    },
+    {
+     "id": "b",
+     "label": "In each pair keep the text you approved on 30 October and drop the plan text",
+     "for": "Shorter, plainer texts.",
+     "against": "The plan texts carry other rules (quality flag, beneficiary rule, truth table) that would be lost."
+    },
+    {
+     "id": "c",
+     "label": "Keep both",
+     "for": "No loss.",
+     "against": "Against your P4 choice; the rule is repeated in every prompt."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "drop",
+    "targets": [
+     {
+      "card": "activity-1 O1",
+      "slot": "items/core.observed_actor_relationship/rules/6",
+      "kind": "reference",
+      "kept": "items/core.observed_actor_relationship/rules/0",
+      "note": "the role gate keeps this text (values.role_gate.text)"
+     },
+     {
+      "card": "activity-1 O2",
+      "slot": "items/core.observed_actor_relationship/rules/8",
+      "kind": "reference",
+      "kept": "items/core.observed_actor_relationship/rules/0"
+     },
+     {
+      "card": "institution O1",
+      "slot": "items/core.has_genai_activity/rules/2",
+      "kind": "reference",
+      "kept": "items/core.has_genai_activity/rules/0",
+      "note": "the shared missing-label list keeps this text (published_summary_map.institution_rule)"
+     },
+     {
+      "card": "record O1",
+      "slot": "items/core.support_status/rules/3",
+      "kind": "reference",
+      "kept": "items/core.support_status/rules/0"
+     },
+     {
+      "card": "shared O1",
+      "slot": "vocabularies/support_status/status_by_answer/text",
+      "kind": "key",
+      "kept": "vocabularies/support_status/text",
+      "note": "the status-by-answer map keeps its codes"
+     }
+    ]
+   },
+   "sources": [
+    "PI 2026-10-30 P4 (accepted: show each pair side by side and drop one)",
+    "codebook-review/round4 cards O1, O2"
+   ],
+   "confidence": "medium",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "none"
+  },
+  {
+   "id": "FX09",
+   "title": "Your sentence for the support status \"Not required\"",
+   "covers": {
+    "no_source_drafts": [],
+    "problems": [],
+    "cards": [
+     "shared F1"
+    ]
+   },
+   "issue": "After the 2a cut the option text reads only \"Not required\". The approved status list says which answers take it.",
+   "options": [
+    {
+     "id": "a",
+     "label": "\"`not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no` and negative page verdicts.\"",
+     "for": "Built from the cut option text and the approved status list; no new rule.",
+     "against": "Agent wording."
+    },
+    {
+     "id": "b",
+     "label": "Restore the full round-3 option text",
+     "for": "Your earlier text.",
+     "against": "It names only not documented and unknown, which the 30 October sign-off widened."
+    },
+    {
+     "id": "c",
+     "label": "Leave \"Not required\"",
+     "for": "No change.",
+     "against": "Says nothing about which answers take it."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "replace_text",
+    "targets": [
+     "items/core.support_status/rules/1",
+     "vocabularies/support_status/rules/2"
+    ],
+    "text": "`not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no` and negative page verdicts."
+   },
+   "sources": [
+    "questions-r3.json record-02 a (option text and its cut tail)",
+    "deltas/RC-D-003.md:96 (O12)"
+   ],
+   "confidence": "high",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "none"
+  },
+  {
+   "id": "FX10",
+   "title": "Remove the 'wording owed' notes inside six texts",
+   "covers": {
+    "no_source_drafts": [],
+    "problems": [],
+    "further": "found while folding"
+   },
+   "issue": "Four plan texts still carry six bracketed notes saying wording is owed (for example \"[wording: PI — RC-D-002 row 8: value definitions for the 9 values]\"). Your approval of every slot supplies that wording, and the notes would otherwise go into every prompt.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Remove the six notes from the codebook texts",
+     "for": "Clean prompts; the owed wording now exists in the approved slots.",
+     "against": "The codebook text then differs from the plan text by these notes."
+    },
+    {
+     "id": "b",
+     "label": "Keep them until sign-off strips the markers",
+     "for": "No change now.",
+     "against": "The final draft would still show them; sign-off strips markers, not text."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "cut_spans",
+    "spans": [
+     " [wording: PI — RC-D-003 §1: the `_NA_` definition]",
+     " [wording: PI — RC-D-002 N4: token spellings]",
+     " [wording: PI — RC-D-002 row 8: value definitions for the 9 values]",
+     " [wording: PI — RC-D-002 row 27: §4.3 text]",
+     " [wording: PI — RC-D-003 §10: the restated institution rule]",
+     " [wording: PI — RC-D-002 row 6: the X29 truth-table text and the X30, X31, A06 and A07 definitions]"
+    ]
+   },
+   "sources": [
+    "SPEC v001.7 (the [wording: PI] markers point to the codebook slots)",
+    "PI 2026-10-30 round-4 approval"
+   ],
+   "confidence": "high",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "none",
+   "note": "SPEC v001.7 keeps its 20 markers; they are discharged when the codebook is signed."
+  },
+  {
+   "id": "FX11",
+   "title": "Remove the superseded version-1.5 text from the verdict rule",
+   "covers": {
+    "no_source_drafts": [],
+    "problems": [],
+    "further": "found while folding"
+   },
+   "issue": "The plan text on the page verdict ends with its superseded history (\"v001.5 text: Page-verdict vocabulary has 8 values ...\"), which contradicts the 9-value rule before it and would go into every prompt.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Cut the history tail from the codebook text",
+     "for": "The rule says one thing; the history stays in the plan.",
+     "against": "The codebook text then differs from the plan row."
+    },
+    {
+     "id": "b",
+     "label": "Keep it",
+     "for": "Verbatim plan row.",
+     "against": "Prompts carry an 8-value rule next to the 9-value rule."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "cut_from",
+    "slot": "items/core.page_verdict/rules/0",
+    "from": " v001.5 text: "
+   },
+   "sources": [
+    "SPEC v001.7 R-015 (the 9-value rule; the v001.5 text is kept there as history)"
+   ],
+   "confidence": "high",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "none"
+  },
+  {
+   "id": "FX12",
+   "title": "Remove planning remarks (costs, version steps, test pages) from rule texts",
+   "covers": {
+    "no_source_drafts": [],
+    "problems": [],
+    "further": "found while folding"
+   },
+   "issue": "Several approved ruling texts end with remarks about what the change costs the project (version steps, re-pilots, test pages, procurement copies). They are not coding rules, and they would go into every prompt.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Cut only the listed remarks; keep every coding rule",
+     "for": "Clean prompts; the remarks stay in the ruling records and the plan.",
+     "against": "The codebook text then differs from the ruling text by these remarks."
+    },
+    {
+     "id": "b",
+     "label": "Keep them",
+     "for": "Verbatim ruling texts.",
+     "against": "Prompts carry project bookkeeping."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "cut_spans",
+    "spans": [
+     "; spellings are fixed before the version steps",
+     "; A-011 fixtures cover all 9, incl. page-stated absence (C01 commits_to); enum steps count on the codebook release (C-007)",
+     " This needs re-signature of the signed description items, a mapping table and test pages.",
+     "; this needs re-signature of the signed safeguard items, a wording step and test pages",
+     ", costing two version steps",
+     " The verdict question is re-tested on pages, published counts become nine, the institution-level rule says whether 'not assessable' blocks a 'no', and the procurement team updates their copy.",
+     " Costs version steps and aligning the observed-actor relation values.",
+     " Test cases needed.",
+     " Your action-type choice is re-ruled and the values fixed before the version steps.",
+     "The procurement subproject's owed §4.3 contract amendment is carried in v2.7, in the same version bumps. ",
+     " This costs two version steps, regenerated questions and reference tests, a procurement copy change, and re-testing the interface question.",
+     " The schema addition costs two version steps, with a crosswalk note.",
+     " This costs version steps, regenerated classifier questions and a re-test.",
+     " The new column costs two version steps, test pages built from past governance cases, and a re-pilot.",
+     " The new column costs two version steps and a re-pilot.",
+     "; new test pages are needed",
+     " Changing the flag list costs two version steps, a regenerated classifier question set, updated reference outputs, an update to the procurement team's copy of the list, and a translation table.",
+     " The signed item's level needs re-signature.",
+     " (as in the Clay fixtures)"
+    ]
+   },
+   "sources": [
+    "codebook-rulings-round2.json (the 'means' texts)",
+    "SPEC v001.7 rows R-015, R-045, R-087"
+   ],
+   "confidence": "medium",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "none",
+   "note": "Mixed sentences that also carry a rule are kept whole (for example the outcome and incident gate sentence, and the transparency re-wording sentence)."
+  },
+  {
+   "id": "FX13",
+   "title": "Remove reference codes from rule texts",
+   "covers": {
+    "no_source_drafts": [],
+    "problems": [],
+    "further": "found while folding"
+   },
+   "issue": "Plan and ruling texts carry reference codes in brackets, for example \"(r2#22; activity-16 b; all-11)\", and lead-ins such as \"RC-D-002 row 8:\". They would go into every prompt.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Remove brackets that hold only reference codes, and the 'RC-D-00x row N:' lead-ins at a sentence start; keep every bracket with words in it",
+     "for": "Clean prompts; the references stay in each item's refs and in the slot's earlier text.",
+     "against": "Codes that name a thing (for example \"the C04 grain rule\", \"X29 truth table\") stay, as they are content."
+    },
+    {
+     "id": "b",
+     "label": "Keep them",
+     "for": "Verbatim texts.",
+     "against": "Prompts carry planning codes."
+    }
+   ],
+   "default": "a",
+   "action": {
+    "type": "strip_refs",
+    "paren": " ?\\((?:(?:\\s*(?:;|,|and|merged with|spellings|per|as amended by|incl\\.|see|also)\\s*))*(?:r2#\\d+|(?:all|page|activity|source|institution|record|shared)-\\d\\d(?: [a-e](?:, [a-e])*)?|RC-D-00\\d(?: (?:§\\d+|row \\d+|N\\d+|[A-Z]\\d?))?|R-\\d{3}(?: v\\d{3}\\.\\d)?|C-00\\d|A-0\\d\\d|O\\d{1,2}|[SC]\\d [a-c]|T\\d|DEC-\\d{3}(?: [a-c])?|F\\d\\d|W0\\d|N\\d{1,2}|C0\\d|X\\d\\d|A0\\d|P\\d{1,2}a?)(?:(?:(?:\\s*(?:;|,|and|merged with|spellings|per|as amended by|incl\\.|see|also)\\s*))+(?:r2#\\d+|(?:all|page|activity|source|institution|record|shared)-\\d\\d(?: [a-e](?:, [a-e])*)?|RC-D-00\\d(?: (?:§\\d+|row \\d+|N\\d+|[A-Z]\\d?))?|R-\\d{3}(?: v\\d{3}\\.\\d)?|C-00\\d|A-0\\d\\d|O\\d{1,2}|[SC]\\d [a-c]|T\\d|DEC-\\d{3}(?: [a-c])?|F\\d\\d|W0\\d|N\\d{1,2}|C0\\d|X\\d\\d|A0\\d|P\\d{1,2}a?))*\\)",
+    "lead": "(^|\\. )RC-D-00\\d row \\d+: ",
+    "lead_capitalize": true,
+    "exclude": "CX-01.3 cells and pilot classifier lines (slots with frozen_text, applied_to or edited_from)"
+   },
+   "sources": [
+    "item-template.md §3 (only the PI changes text; references belong in refs)"
+   ],
+   "confidence": "medium",
+   "spec_departure": {
+    "departs": false,
+    "row": null,
+    "note": "No SPEC v001.7 text is changed or contradicted."
+   },
+   "version_steps": "none"
+  }
+ ]
+}

@@ -1,0 +1,1638 @@
+{
+ "format": "decision-page-v1",
+ "id": "codebook-questions-r3",
+ "title": "Codebook questions, round 3",
+ "eyebrow": "G3O · Codebook review · Round 3",
+ "project": "G3O",
+ "prepared": "2026-10-29",
+ "prepared_by": {
+  "harness": "claude-code",
+  "model": "claude-opus-5-5",
+  "session": "20261029-claude-v2-b92f4144070ec139"
+ },
+ "background": "Four agent drafts turned your round-1 and round-2 choices into a working codebook: which questions are asked for which kind of activity, the value lists still open, how answers from the parts of a long page combine, and minimal edits to the signed questionnaire. Nothing in them is ruled. This page collects the choices that are yours, in plain words; read it beside the reference page, which shows every item and value.\n\nItems are grouped by the reference page's sections, in its order, after a group of choices that cut across all items. The group is the bracketed label at the start of each title. Review items show the signed text and the drafted text verbatim; those passages keep the questionnaire's own labels. The procurement and AI-text modules raise no questions in this round.\n\n61 items. Substantive items carry no recommendation; the two procedural items do.",
+ "sources": [
+  {
+   "label": "Reference page (codebook values, by section)",
+   "href": "codebook-reference.html"
+  },
+  {
+   "label": "Draft: which questions apply to which activity",
+   "href": "../../drafts/applicability.md"
+  },
+  {
+   "label": "Draft: value lists",
+   "href": "../../drafts/value-lists.md"
+  },
+  {
+   "label": "Draft: long-page combining rules",
+   "href": "../../drafts/combining-rules.md"
+  },
+  {
+   "label": "Draft: questionnaire edits",
+   "href": "../../drafts/cx-01.3-draft.md"
+  },
+  {
+   "label": "Where each item comes from",
+   "href": "questions-r3-sourcemap.json"
+  }
+ ],
+ "items": [
+  {
+   "id": "all-01",
+   "kind": "substantive",
+   "title": "[Across all items] How to spell \"not asked\", and what happens to the old `_NA_`",
+   "situation": "Several items now store a label meaning \"this question was not asked because a rule ruled it out\". The drafts spell it `not_asked`; an earlier draft used `_NA_`, and `_NA_` still appears in the plan's rule on which answers need no quote and in the earlier data, where it marks items on rows that have no activity at all. (see reference: Shared lists)",
+   "options": [
+    {
+     "id": "a",
+     "label": "`not_asked` everywhere; `_NA_` retired as its old spelling",
+     "mechanism": "Store `not_asked`. Earlier `_NA_` values are translated to `not_asked` in the comparison table with earlier data, and the plan's rule is reworded to match.",
+     "benefits": "One spelling across items and versions; readable without a key.",
+     "risks": "A question skipped by a rule and an item on a row with no activity carry the same label, so the label alone no longer tells them apart.",
+     "commits_to": "Treating `_NA_` as nothing more than the earlier spelling of not asked."
+    },
+    {
+     "id": "b",
+     "label": "`not_asked` for skipped questions; `_NA_` kept as a fourth label for rows with no activity",
+     "mechanism": "Store `not_asked` when a rule skips a question; store `_NA_` on items of a row that has no activity.",
+     "benefits": "Keeps \"no activity on this row\" separate from \"question skipped\"; earlier rows keep their meaning without translation.",
+     "risks": "Four missing-answer labels instead of the three set out so far; readers must learn the difference between two similar-looking labels.",
+     "commits_to": "A fourth reserved missing-answer label, to be defined in the codebook."
+    },
+    {
+     "id": "c",
+     "label": "`_NA_` as the spelling of \"not asked\"",
+     "mechanism": "Use `_NA_` wherever the drafts write `not_asked`.",
+     "benefits": "Matches the earlier data; no translation needed.",
+     "risks": "Reads as a software placeholder rather than a word; readers need a key to understand it.",
+     "commits_to": "Keeping the earlier spelling as the codebook's label for skipped questions."
+    }
+   ]
+  },
+  {
+   "id": "all-02",
+   "kind": "substantive",
+   "title": "[Across all items] Do new items get a \"not documented\" answer?",
+   "situation": "The plan says new items take all three missing-answer labels: not asked, not documented (the page is silent) and unknown (stated but cannot be settled). The ruled lists for the interface, the direction of a governance rule, the service area and whose activity it is name only \"unknown\" (and sometimes \"not asked\"). So it is open what a page that says nothing about, say, the interface should get.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Add \"not documented\" to all four",
+     "mechanism": "A silent page gets \"not documented\"; a page that mentions the matter but cannot be settled gets \"unknown\".",
+     "benefits": "Same three labels as every other new item; silence is kept apart from unclear statements.",
+     "risks": "The classifier has one more answer to choose, and the line between silent and unclear is a fine one to code; it adds a value the rulings did not list.",
+     "commits_to": "Extending four ruled lists by one value each."
+    },
+    {
+     "id": "b",
+     "label": "Leave the lists as ruled; a silent page is \"unknown\"",
+     "mechanism": "\"Unknown\" covers both a silent page and an unclear one for these four items.",
+     "benefits": "Matches the rulings word for word; shorter lists for the classifier.",
+     "risks": "These four items mix silence and unclear statements while other items keep them apart, so their \"unknown\" rates are not comparable with other items.",
+     "commits_to": "An exception to the plan's rule that new items take all three labels, for these four items."
+    },
+    {
+     "id": "c",
+     "label": "Decide item by item",
+     "mechanism": "Say in the comments which of the four get \"not documented\".",
+     "benefits": "Fits each item's own case.",
+     "risks": "Mixed treatment across items that readers must track.",
+     "commits_to": "A per-item list of exceptions, recorded in the codebook."
+    }
+   ]
+  },
+  {
+   "id": "all-03",
+   "kind": "substantive",
+   "title": "[Across all items] Long pages: check each part's answer before combining",
+   "situation": "A long page is read in parts, and each part answers the same questions. The draft checks each part's answer first (it needs a supporting quote and the classifier at least 80% sure) and turns a failed answer into \"unknown\" before the parts are combined. The page verdict is the exception: a failed verdict keeps its value, with a note that it failed the check.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Check each part, then combine (as drafted)",
+     "mechanism": "Each part's answers are checked; failed answers enter the combining as \"unknown\"; page verdicts keep their value plus the failure note.",
+     "benefits": "A weak answer in one part cannot outvote a supported answer in another part.",
+     "risks": "If every part is weak, the page ends up \"unknown\" even when all the parts agreed.",
+     "commits_to": "One check per part per item, recorded before combining."
+    },
+    {
+     "id": "b",
+     "label": "Combine first, then check the combined answer",
+     "mechanism": "The parts' answers are combined by the item's rule; only the winning answer's quote and certainty are then checked.",
+     "benefits": "One check per item per page; a simpler record.",
+     "risks": "A weak answer can win the combining and then fail the check, leaving \"unknown\" although another part held a supported answer.",
+     "commits_to": "Checking only the combined answer, for every item on long pages."
+    }
+   ]
+  },
+  {
+   "id": "all-04",
+   "kind": "substantive",
+   "title": "[Across all items] Long pages: where missing answers rank when parts disagree",
+   "situation": "Where parts are combined by an order (the first listed answer wins), the draft puts every real answer first, then \"unknown\", then \"not documented\". \"Not asked\" never competes, because it is set only after the item that decides it (for example the activity type) has been combined. The signed order for whether an evaluation is documented has no place for \"unknown\"; the draft puts it just above \"not documented\" there too. (see reference: Each activity on a page, `evaluation_documented`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Real answers, then unknown, then not documented (as drafted)",
+     "mechanism": "A part that saw something it could not settle beats a part that saw nothing.",
+     "benefits": "An unclear mention is not lost behind silence elsewhere on the page.",
+     "risks": "One unclear mention anywhere hides that most of the page is silent; \"unknown\" also holds failed answers, so a failed part beats a clean \"silent\" reading.",
+     "commits_to": "This order in every ordered rule, including the signed evaluation order."
+    },
+    {
+     "id": "b",
+     "label": "Real answers, then not documented, then unknown",
+     "mechanism": "A clean reading that the page is silent beats an unclear or failed answer.",
+     "benefits": "A failed answer never decides the page when another part read cleanly.",
+     "risks": "A genuine but unclear mention is lost behind silence in other parts.",
+     "commits_to": "This order in every ordered rule, including the signed evaluation order."
+    }
+   ]
+  },
+  {
+   "id": "all-05",
+   "kind": "substantive",
+   "title": "[Across all items] Long pages: which part's quote and certainty are shown",
+   "situation": "When several parts give the winning answer, the combined answer carries the quote and certainty of one of them. The draft takes the part where the classifier was most sure (ties: the earliest part); the signed questionnaire's wording (\"first value found\") would take the earliest such part. The answer itself is the same either way.",
+   "options": [
+    {
+     "id": "a",
+     "label": "The part the classifier was most sure of (as drafted)",
+     "mechanism": "Among parts giving the winning answer, take the highest certainty; ties go to the earliest part.",
+     "benefits": "The shown certainty is the strongest available, and its quote may be the clearest.",
+     "risks": "The shown certainty can overstate how sure the page as a whole is; departs from the signed wording.",
+     "commits_to": "A change to the signed wording \"first value found\" for which quote is shown."
+    },
+    {
+     "id": "b",
+     "label": "The earliest part giving the winning answer",
+     "mechanism": "Take the first part, in page order, that gave the winning answer.",
+     "benefits": "Matches the signed wording; predictable.",
+     "risks": "The shown quote may be the weakest one, and its certainty may sit just above the bar.",
+     "commits_to": "Keeping the signed wording as it is."
+    }
+   ]
+  },
+  {
+   "id": "all-06",
+   "kind": "substantive",
+   "title": "[Across all items] Long pages: what \"the first part\" means",
+   "situation": "Some items take their answer from the first part of a long page: document type, coverage, source type, publication date and deployment scale. Nothing says what happens when the first part is silent or its answer fails the check. The same rule is used when the institution's results are combined and pooled evidence has to be split, and there \"first\" needs a fixed order.",
+   "options": [
+    {
+     "id": "a",
+     "label": "First part with a supported answer; pooled evidence ordered by source date, then page order (as drafted)",
+     "mechanism": "Skip silent or failed parts; take the first part with a supported real answer. For pooled evidence, sort by source date, then by position on the page.",
+     "benefits": "A cover page or a failed answer does not decide the item.",
+     "risks": "A later part can decide a page-wide fact such as the document type; for pooled evidence the result depends on the chosen sort.",
+     "commits_to": "The skip rule and this sort order for every first-part item."
+    },
+    {
+     "id": "b",
+     "label": "Strictly the first part",
+     "mechanism": "Use only part one; if it is silent or fails, the item is not documented or unknown.",
+     "benefits": "Simplest; matches the plain words of the rule.",
+     "risks": "Long reports with a cover page or contents list lose their document type, date and scale.",
+     "commits_to": "Accepting more missing answers on long documents."
+    },
+    {
+     "id": "c",
+     "label": "First part with a supported answer; pooled evidence ordered newest source first",
+     "mechanism": "As option a for pages; for pooled evidence, sort newest source first.",
+     "benefits": "The latest evidence decides scale and dates when the institution's results are combined.",
+     "risks": "Newer pages may be short summaries of older, fuller ones.",
+     "commits_to": "The skip rule plus a newest-first sort for pooled evidence."
+    }
+   ]
+  },
+  {
+   "id": "all-07",
+   "kind": "substantive",
+   "title": "[Across all items] Two ways of saying \"could not tell\": \"unresolved\" and \"unknown\"",
+   "situation": "The lists for links between activities and for whose activity it is have their own \"unresolved\" value. The shared missing-answer list has \"unknown\", which is also where a failed answer goes, so a failed answer in these items could become either: two codes for \"could not tell\". The page verdict \"not assessable\" behaves like a missing answer in the same way. (see reference: Shared lists)",
+   "options": [
+    {
+     "id": "a",
+     "label": "In these items, failed answers become \"unresolved\"",
+     "mechanism": "\"Unknown\" is not used in the link and whose-activity items; the reason for the failure stays in the support status.",
+     "benefits": "One code per item for \"could not tell\".",
+     "risks": "The value no longer shows whether the classifier could not settle it or the answer failed the check; readers must look at the support status.",
+     "commits_to": "\"Unresolved\" as the only could-not-tell value in these items."
+    },
+    {
+     "id": "b",
+     "label": "Keep both, with distinct meanings",
+     "mechanism": "\"Unresolved\" = the classifier considered it and could not settle it; \"unknown\" = the answer failed the check.",
+     "benefits": "The value itself carries the reason.",
+     "risks": "Two similar codes that analysts may need to combine.",
+     "commits_to": "Defining both values in the codebook for these items."
+    },
+    {
+     "id": "c",
+     "label": "Treat \"unresolved\" and \"not assessable\" as missing answers, reported as \"unknown\"",
+     "mechanism": "Keep them as values when coding; map them onto \"unknown\" in published summaries.",
+     "benefits": "One missing-answer system in published figures.",
+     "risks": "The institution-level rule treats unresolved pages specially, so that rule would need restating; the distinct signal is hidden from readers of summaries.",
+     "commits_to": "A mapping for published summaries and a restated institution rule."
+    }
+   ]
+  },
+  {
+   "id": "all-08",
+   "kind": "review",
+   "title": "[Across all items] Review the new row that maps old missing-answer spellings to the shared labels",
+   "situation": "The signed questionnaire keeps its own spellings for \"nothing stated\" and \"cannot tell\"; this new row maps each one to the shared labels and says that skipped questions store \"not asked\". A verdict here covers the wording; the judgement calls inside the map are asked in the next item. (see reference: Shared lists)",
+   "body": "**CX-06**\n\nBefore:\n\n(new row; no signed text)\n\nAfter:\n\n| CX-06 (new) | Missing-answer labels. The signed spellings of these items are kept, and each maps to one of the codebook's reserved labels: \"not asked\" (ruled out by a rule), \"not documented\" (page silent), \"unknown\" (stated but undeterminable, or downgraded). Map: `unknown` of `disclosure_form` (CX-17) and of `disclosure_scope` (CX-24) → \"unknown\"; `unclear` of `evaluation_documented` (CX-33) → \"unknown\"; `not_documented` (CX-34) → \"not documented\"; `no` of the `evaluation_type_*` and `content_*` items → \"not documented\"; `none_reported` (CX-60, CX-61) → \"not documented\". Where these rows say an item is not asked (CX-25, CX-41, CX-51), it stores the reserved \"not asked\" label. |",
+   "body_label": "Before / after"
+  },
+  {
+   "id": "all-09",
+   "kind": "substantive",
+   "title": "[Across all items] Judgement calls inside the missing-answer map",
+   "situation": "The map makes three calls. An evaluation statement whose subject cannot be settled (\"unclear\") maps to \"unknown\"; \"no\" on yes/no page items maps to \"not documented\", which loses information for the computed safeguard items, where a page \"no\" can hide an activity's stated \"no\"; and \"none reported\" for outcomes and incidents maps to \"not documented\". Tick \"accept\" alone, or tick the exceptions you want.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Accept the three calls as drafted",
+     "mechanism": "Apply the map as written.",
+     "benefits": "Every signed spelling lands on one shared label.",
+     "risks": "The safeguard page items lose the difference between a stated \"no\" and silence.",
+     "commits_to": "The map as drafted."
+    },
+    {
+     "id": "b",
+     "label": "Exception: on computed safeguard page items, \"no\" stays a real \"no\"",
+     "mechanism": "For the three safeguard page items, \"no\" means \"no activity on this page says yes\" and is not mapped to \"not documented\".",
+     "benefits": "Does not claim the page is silent when an activity stated that a safeguard is absent.",
+     "risks": "These items then differ from the other yes/no page items, and their \"no\" mixes stated absence with silence.",
+     "commits_to": "A separate meaning of \"no\" for the safeguard page items."
+    },
+    {
+     "id": "c",
+     "label": "Exception: the evaluation \"unclear\" stays its own value",
+     "mechanism": "\"Unclear\" is not mapped; it remains a real answer of the evaluation item.",
+     "benefits": "Keeps the signal that something evaluative was said.",
+     "risks": "One more could-not-tell value outside the shared set.",
+     "commits_to": "Keeping \"unclear\" outside the missing-answer map."
+    }
+   ],
+   "allow_multiple": true
+  },
+  {
+   "id": "all-10",
+   "kind": "procedural",
+   "title": "[Across all items] Where two bookkeeping notes live",
+   "situation": "Two placement questions with no effect on meaning. The missing-answer map can sit in the questionnaire update or in the codebook's missing-value table; and signed decisions that the update narrows carry the mark \"narrowed in\" the new version (the outcome decision is moved to the per-activity level but keeps its old mark), which you can relabel.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Map in the questionnaire update; marks as drafted",
+     "mechanism": "Keep the new map row in the questionnaire; keep the \"narrowed in\" marks.",
+     "benefits": "The map sits next to the items it translates; changed decisions show at a glance.",
+     "risks": "The missing-value table must point to the questionnaire for these items."
+    },
+    {
+     "id": "b",
+     "label": "Map in the codebook's missing-value table; marks as drafted",
+     "mechanism": "Move the map row to the codebook table; keep the marks.",
+     "benefits": "All missing-answer rules in one place.",
+     "risks": "The signed questionnaire no longer shows how its own spellings are read."
+    },
+    {
+     "id": "c",
+     "label": "Map in the questionnaire; relabel the marks",
+     "mechanism": "Keep the map row; say in the comments how the marks should read.",
+     "benefits": "Labels in your preferred form.",
+     "risks": "One more wording pass."
+    }
+   ],
+   "recommendation": {
+    "option": "a",
+    "reason": "The round-2 ruling asked that frozen items keep their spellings \"with a mapping row\", which reads as a row in the questionnaire, and the marks cost nothing to keep."
+   }
+  },
+  {
+   "id": "all-11",
+   "kind": "review",
+   "title": "[Across all items] Review the proposed spellings for values not yet fixed",
+   "situation": "Several new values have two candidate spellings across the drafts. The first spelling in each line is proposed; it follows the ruling's own words where there is one. Approving adopts every first spelling; to change any, choose \"approve with changes\" and name it.",
+   "body": "- Interface, \"other interface\": `other_interface` (the ruling's words) or `other_ui` (earlier draft). (see reference: Each activity on a page)\n- Links between activities, \"distinct\": `distinct_action` (round-2 wording and the earlier data's code) or `distinct` (the plan's wording).\n- How we know: `from_metadata`, `looked_up`, `quoted_by_quote_step` (the ruling's words) or `deterministic_metadata`, `lookup`, `extractor_quoted` (earlier draft; round 1 already used `lookup` for the vendor's basis).\n- Support status, new values: `downgraded_quote_not_stating_value` or `downgraded_not_entailed`; `set_by_rule` or `deterministic` / `deterministic_rule`.\n- New incident answer: `discontinuation_uncertain` (the rulings say \"discontinuation uncertain\"; used by the combining draft) or `discontinued_uncertain` (the earlier flag's spelling; used by the questionnaire draft, whose new incident row would then be respelled).",
+   "body_label": "Spellings"
+  },
+  {
+   "id": "page-01",
+   "kind": "substantive",
+   "title": "[What the page says] The \"page complete\" item: its name says the opposite of its question",
+   "situation": "The item is named `page_complete` (see reference: What the page says), but its question asks whether the page refers the reader to another page or document for more about an activity, so \"yes\" means the page is incomplete. The combining draft read the name and called the long-page rule reversed; the rule as set (\"if any part says yes, the page refers onward\") is right for the question as worded. The choice is whether to fix the name or the question.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Rename the item to match its question (for example `refers_onward`)",
+     "mechanism": "Question and long-page rule stay as they are: yes = the page refers onward; any part yes gives yes.",
+     "benefits": "Name, question and rule agree; no question needs rewording or re-signing.",
+     "risks": "The new name must replace the old one wherever it appears (codebook, plans, earlier rulings that speak of \"completeness\"), and anyone reading \"complete\" in earlier notes must flip it.",
+     "commits_to": "A new item name, propagated to every document that uses the old one."
+    },
+    {
+     "id": "b",
+     "label": "Keep the name and flip the question",
+     "mechanism": "Reword the question to ask whether the page holds all the information without referring elsewhere; yes = complete; the long-page rule becomes \"complete only if every part says yes\".",
+     "benefits": "Keeps the name used in earlier rulings.",
+     "risks": "A new question to word and sign; \"holds all the information\" is harder to judge than \"refers elsewhere\"; every part but the last ends at a cut, so the per-part question must be told to ignore that.",
+     "commits_to": "New question wording and a new long-page rule for this item."
+    },
+    {
+     "id": "c",
+     "label": "Keep both as they are and document the reversal",
+     "mechanism": "Add a note in the codebook that yes means incomplete.",
+     "benefits": "No change to names or wording.",
+     "risks": "The mismatch has already misled one draft and can mislead readers of the data.",
+     "commits_to": "Living with a name that reads opposite to its values."
+    }
+   ]
+  },
+  {
+   "id": "page-02",
+   "kind": "substantive",
+   "title": "[What the page says] Page verdict on long pages: can a failed \"confirms activity\" outrank clean negative verdicts?",
+   "situation": "The page verdict is combined across parts by its signed order, with \"confirms activity\" first. Because a verdict that fails the check keeps its value, one part's failed \"confirms activity\" beats supported negative verdicts in all other parts, and the page is marked as failing the check, which leaves it unresolved for the institution. The drafter reads this as intended and asks you to confirm. (see reference: What the page says, `page_verdict`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep as drafted",
+     "mechanism": "The signed order applies to all parts' verdicts, failed or not.",
+     "benefits": "Cautious: a possible activity is never silently dropped; the page goes to unresolved rather than to a negative.",
+     "risks": "One weak mention in a long document makes the page unresolved even if the rest clearly shows no activity; more unresolved institutions.",
+     "commits_to": "Failed positive verdicts taking precedence on long pages."
+    },
+    {
+     "id": "b",
+     "label": "Rank supported verdicts above failed ones",
+     "mechanism": "All supported verdicts in the signed order first, then failed verdicts in the same order.",
+     "benefits": "Clean readings decide the page; fewer unresolved pages.",
+     "risks": "A real but poorly quoted activity can be lost behind a supported \"no activity\" reading elsewhere on the page.",
+     "commits_to": "A two-tier order for the page verdict on long pages."
+    }
+   ]
+  },
+  {
+   "id": "page-03",
+   "kind": "review",
+   "title": "[What the page says] Review the document-type and coverage rows",
+   "situation": "A mandated report now needs an obligation about reporting on AI, algorithms or digital systems, named on the page; guessing it from the kind of document is allowed only when the title names AI or algorithmic reporting, and ordinary statutory annual reports become formal records. Coverage (whole of government, several institutions, one institution) is now asked only on register pages and mandated reports; other pages store \"not asked\". Both changes narrow, so together fewer pages are asked about coverage. (see reference: What the page says, `disclosure_form`, `disclosure_scope`)",
+   "body": "**CX-12**\n\nBefore:\n\n| CX-12 | `mandated_report` | The page is a document produced to meet a reporting obligation, such as a statutory annual-report section or a compliance or transparency report under a named rule. |\n\nAfter:\n\n| CX-12 | `mandated_report` | The page is a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems, such as a statutory annual-report section or a compliance or transparency report under a named rule. |\n\n**CX-13**\n\nBefore:\n\n| CX-13 **[decision D-B = (b)]** | (evidence for \"mandated\") | The obligation may be named on the page **or inferred from the document's genre** (e.g. an annual report, a statutory compliance report). This is the one stated exception to CX-03. |\n\nAfter:\n\n| CX-13 **[decision D-B = (b), narrowed in CX-01.3]** | (evidence for \"mandated\") | The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report is `formal_record`. This is the one stated exception to CX-03. |\n\n**pilot.py L134 FORM[mandated_report]**\n\nBefore:\n\n\"mandated_report\": \"CX-12/13: a document produced to meet a reporting obligation (statutory annual-report section, compliance or transparency report under a rule). The obligation may be named on the page or inferred from the document's genre (e.g. an annual report).\",\n\nAfter:\n\n\"mandated_report\": \"CX-12/13: a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report is formal_record.\",\n\n**CX-25**\n\nBefore:\n\n| CX-25 **[decision D-D = (b)]** | which pages are coded | All pages. |\n\nAfter:\n\n| CX-25 **[decision D-D = (b), narrowed in CX-01.3]** | which pages are coded | Pages whose `disclosure_form` is `register_cross_institution`, `register_single_institution` or `mandated_report`. On other pages the field is not asked and stores the reserved \"not asked\" label (CX-06). |",
+   "body_label": "Before / after"
+  },
+  {
+   "id": "page-04",
+   "kind": "substantive",
+   "title": "[What the page says] Mandated reports: where the \"otherwise formal record\" rule goes, and reports under rules not about AI",
+   "situation": "Your earlier choice says ordinary statutory annual reports are coded as formal records. The draft puts that sentence in the row on evidence for \"mandated\", not in the list of what counts as a formal record. Your choice names only annual reports, so compliance reports under a rule that is not about AI now fail the mandated-report definition and land wherever the order puts them, likely formal record or informal official. (see reference: What the page says, `disclosure_form`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "As drafted: rule in the evidence row; compliance reports left to the order",
+     "mechanism": "No further text.",
+     "benefits": "Smallest edit to signed text; nothing added beyond your earlier choice.",
+     "risks": "Where compliance reports under other rules land is not stated, so coders and the classifier may differ.",
+     "commits_to": "Leaving that case to the general order."
+    },
+    {
+     "id": "b",
+     "label": "Rule in the evidence row, and name compliance reports under rules not about AI as formal records too",
+     "mechanism": "Add those reports to the same sentence.",
+     "benefits": "Both cases are stated outright.",
+     "risks": "Extends your earlier choice to a case it did not name.",
+     "commits_to": "Formal record as the home of all non-AI reporting documents."
+    },
+    {
+     "id": "c",
+     "label": "Move the rule to the formal-record list, naming both annual reports and compliance reports there",
+     "mechanism": "The formal-record row lists everything it holds.",
+     "benefits": "The formal-record definition is complete in one place.",
+     "risks": "Edits a further signed row that no ruling asked to change.",
+     "commits_to": "A change to the formal-record row."
+    }
+   ]
+  },
+  {
+   "id": "page-05",
+   "kind": "review",
+   "title": "[What the page says] Review the rows that turn page description items into computed items",
+   "situation": "Page items now read the text each item declares (the main text unless stated otherwise), because header and footer text will be stored separately. Five description items (purpose, tool or model, vendor, users, status or date) are no longer asked; each is \"yes\" when any activity on the page has that fact stated. The data item is still asked, now \"about any GenAI activity on the page\", and all six are skipped on pages without GenAI content. (see reference: What the page says)",
+   "body": "**CX-01**\n\nBefore:\n\n| CX-01 | **Page fields** (`disclosure_form`, `disclosure_scope`, the optional `content_*` items) are properties of the source page. They are coded once per (institution × page), on the stored page text, and copied to every evidence row from that page. |\n\nAfter:\n\n| CX-01 | **Page fields** (`disclosure_form`, `disclosure_scope`, the optional `content_*` items) are properties of the source page. They are coded once per (institution × page), on the stored page text the item declares as its input (the main text unless the item states otherwise), and copied to every evidence row from that page. The `content_*` items that CX-51 and CX-52 mark as derived are not asked; they are computed once per page from the codes of the activities on that page. |\n\n**CX-50**\n\nBefore:\n\n| CX-50 **[decision D-I = (a)]** | Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the page). Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)). |\n\nAfter:\n\n| CX-50 **[decision D-I = (a)]** | Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the page), or not asked where CX-51 says so. For the items CX-51 and CX-52 mark as derived, `yes` and `no` are derived from the activity codes as they state, with no question. Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)). |\n\n**CX-51**\n\nBefore:\n\n| CX-51 | Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). |\n\nAfter:\n\n| CX-51 | Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer or contracting party; users: `target_users`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are not asked. |\n\n**pilot.py L203 page_questions content_* instructions**\n\nBefore:\n\nq[k] = ts.Choice(instructions=f\"Code the source PAGE. Does the page state this about the GenAI activity: {v}? yes = stated on the page.\",\n\nAfter:\n\ncontent_data: ts.Choice(instructions=\"Code the source PAGE. Does the page state this about any GenAI activity on the page: the data inputs or data handled are described? yes = stated on the page.\", criteria={\"yes\": \"stated on the page\", \"no\": \"not stated on the page\"})",
+   "body_label": "Before / after"
+  },
+  {
+   "id": "page-06",
+   "kind": "substantive",
+   "title": "[What the page says] Retire the five page description questions",
+   "situation": "Your round-2 choice computes five page description items (purpose, tool or model, vendor, users, status or date) from the activity answers, so their classifier questions are no longer used. The draft proposes retiring the five question lines and keeping them in the archive record. (see reference: What the page says, `content_purpose`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Retire them, kept in the archive record",
+     "mechanism": "The five lines leave the instrument; the signed text is archived.",
+     "benefits": "No question is asked whose answer is not used.",
+     "risks": "No direct page-level check on the computed values; earlier data used the asked version, so the series compares computed with asked answers.",
+     "commits_to": "Computed values as the only source for these five items."
+    },
+    {
+     "id": "b",
+     "label": "Keep asking them as an unpublished check beside the computed values",
+     "mechanism": "The questions run as before; answers are stored internally and compared with the computed values.",
+     "benefits": "Measures how far computed and asked answers agree, and bridges to the earlier data.",
+     "risks": "Costs classifier calls; two values to reconcile; goes beyond the round-2 choice of \"no question\".",
+     "commits_to": "Paying for a check question and reporting the agreement."
+    }
+   ],
+   "body": "**pilot.py L147 CONTENT[content_purpose]** (signed text, proposed for retirement):\n\n\"content_purpose\": \"what the GenAI tool or activity is used for\",\n\n**pilot.py L148 CONTENT[content_tool_or_model]** (signed text, proposed for retirement):\n\n\"content_tool_or_model\": \"the GenAI product or model is named\",\n\n**pilot.py L149 CONTENT[content_vendor]** (signed text, proposed for retirement):\n\n\"content_vendor\": \"the supplier or vendor is named\",\n\n**pilot.py L151 CONTENT[content_users]** (signed text, proposed for retirement):\n\n\"content_users\": \"who uses it or who is affected is described\",\n\n**pilot.py L152 CONTENT[content_status_date]** (signed text, proposed for retirement):\n\n\"content_status_date\": \"the deployment status or a date is stated\",",
+   "body_label": "Lines proposed for retirement"
+  },
+  {
+   "id": "page-07",
+   "kind": "substantive",
+   "title": "[What the page says] The data item stays a question",
+   "situation": "Your round-2 choice names five page items to compute; whether data inputs or data handled are described is not among them and has no matching activity answer. The draft keeps it as a question, reworded to \"about any GenAI activity on the page\" and asked only on pages whose verdict shows GenAI. (see reference: What the page says, `content_data`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep it as a question, as drafted",
+     "mechanism": "One page question, asked on GenAI pages.",
+     "benefits": "Keeps the only measure of whether data handling is described.",
+     "risks": "The only item of its group still asked, and asked per page rather than per activity.",
+     "commits_to": "A page-level data question in the instrument."
+    },
+    {
+     "id": "b",
+     "label": "Retire it too",
+     "mechanism": "Drop the question; the item is not coded.",
+     "benefits": "The whole group is treated alike; fewer questions.",
+     "risks": "Loses the data-handling measure entirely.",
+     "commits_to": "No data-handling item in this version."
+    },
+    {
+     "id": "c",
+     "label": "Add a per-activity data question and compute the page item from it",
+     "mechanism": "Write a new activity question; the page item is \"yes\" if any activity is \"yes\".",
+     "benefits": "Same design as the other description items.",
+     "risks": "A new question to word, sign and pay for; no ruling covers it.",
+     "commits_to": "A new activity item."
+    }
+   ]
+  },
+  {
+   "id": "page-08",
+   "kind": "substantive",
+   "title": "[What the page says] Which activity answer feeds each computed page item",
+   "situation": "Each computed page item is \"yes\" when any activity on the page has the matching fact stated on the page. The draft pairs purpose with the eight uses items, tool or model with tool or model name, vendor with model developer or contracting party, users with who the tool serves (`target_users`), and status or date with stage or a year item; vendors filled in from the lookup do not count. The drafter flags purpose and users as the least certain pairings. Tick \"accept\" alone, or the changes you want. (see reference: What the page says)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Accept the pairing as drafted",
+     "mechanism": "Use the five pairings above.",
+     "benefits": "Every computed item rests on an existing activity answer.",
+     "risks": "\"Who uses it or who is affected\" is wider than who the tool serves; a policy page naming who must follow it scores \"no\".",
+     "commits_to": "The drafted pairing table."
+    },
+    {
+     "id": "b",
+     "label": "Users also counts who a rule governs",
+     "mechanism": "Users is \"yes\" if any activity states who the tool serves or who a governance rule applies to (`governed_population`).",
+     "benefits": "Policy pages that say whom they bind count as describing users.",
+     "risks": "Mixes \"who uses it\" with \"who must comply\".",
+     "commits_to": "A wider users item."
+    },
+    {
+     "id": "c",
+     "label": "Vendors filled in from the lookup also count",
+     "mechanism": "Vendor is \"yes\" if a developer is recorded, whether stated on the page or looked up.",
+     "benefits": "Fewer \"no\" answers for well-known tools.",
+     "risks": "A page that names no vendor can score \"yes\", against \"stated on the page\".",
+     "commits_to": "Dropping the stated-on-the-page condition for vendor."
+    }
+   ],
+   "allow_multiple": true
+  },
+  {
+   "id": "page-09",
+   "kind": "substantive",
+   "title": "[What the page says] Pages with no GenAI content: \"not asked\" or \"no\"",
+   "situation": "On pages whose verdict shows no GenAI activity there are no activities to compute from. In the draft the description items and the data item are \"not asked\" there (your round-1 choice), but the computed safeguard items are \"no\" (your round-2 wording: \"yes if any activity is yes, otherwise no\").",
+   "options": [
+    {
+     "id": "a",
+     "label": "As drafted: descriptions not asked, safeguards no",
+     "mechanism": "Each family follows its own ruling's words.",
+     "benefits": "No ruling is reinterpreted.",
+     "risks": "Two families treat the same pages differently: safeguard rates are computed over all pages, description rates over GenAI pages only.",
+     "commits_to": "Different denominators for the two families."
+    },
+    {
+     "id": "b",
+     "label": "Both \"not asked\" on such pages",
+     "mechanism": "Safeguard page items are also skipped where the verdict shows no GenAI.",
+     "benefits": "Same base for both families; a safeguard \"no\" then means an activity lacked it.",
+     "risks": "Departs from the round-2 wording; earlier safeguard figures included all pages.",
+     "commits_to": "Restating the round-2 safeguard rule."
+    },
+    {
+     "id": "c",
+     "label": "Both \"no\" on such pages",
+     "mechanism": "Description items and the data item are also \"no\" where the verdict shows no GenAI.",
+     "benefits": "Every page gets a value for every item.",
+     "risks": "\"No purpose stated\" on a page with no AI is misleading; departs from the round-1 choice and adds non-GenAI pages to the description rates.",
+     "commits_to": "Restating the round-1 description rule."
+    }
+   ]
+  },
+  {
+   "id": "page-10",
+   "kind": "review",
+   "title": "[What the page says] Review the page safeguard and e-mail contact rows",
+   "situation": "The three page safeguard items are no longer asked; each comes from the per-activity safeguard question (\"yes\" if any activity is \"yes\", otherwise \"no\"), and the user-notification definition becomes the definition for the activity question too. The e-mail search now also reads the header, footer and e-mail links; full addresses are kept internally and only the domain and a count are published. The row's note that this is not yet in the installed instrument is now out of date but is kept, since no ruling asked to change it. (see reference: What the page says, `content_human_oversight`, `content_contact_emails`)",
+   "body": "**CX-52**\n\nBefore:\n\n| CX-52 **[decision D-J = (b)]** | Safeguard items included, as Kaser does: `content_human_oversight`, `content_risk_assessment`, `content_user_notification`. **`content_user_notification` = yes only if the page describes a notice or label telling users they are interacting with GenAI or that content is AI-generated**; a page announcing that the institution uses GenAI is not by itself a notice (CX-01.1, W1 = a). The overlap with governance G1, G3, G4 is reported under R-070. |\n\nAfter:\n\n| CX-52 **[decision D-J = (b)]** | Safeguard items included, as Kaser does: `content_human_oversight`, `content_risk_assessment`, `content_user_notification`. They are not asked on the page. Each is the page-level member of one safeguard family tagged by level, derived from that safeguard's shared four-answer question asked once per activity (`has_human_oversight`, `has_risk_assessment`, `has_transparency_notice`): `yes` if any activity on the page is `yes`, otherwise `no`. **`content_user_notification` = yes only if the page describes a notice or label telling users they are interacting with GenAI or that content is AI-generated**; a page announcing that the institution uses GenAI is not by itself a notice (CX-01.1, W1 = a). The shared activity question uses this definition. The overlap with governance G1, G3, G4 is reported under R-070. |\n\n**CX-53**\n\nBefore:\n\n| CX-53 (to-do, PI-directed) | When `content_contact` = yes, extract the contact with a deterministic `@` search over the stored page text (e-mail regex in `pilot/contact.py`, `EMAIL_RE`) and store the list beside the code (`content_contact_emails`). No API call. Not yet in the installed instrument; owed to the back-code engineering card |\n\nAfter:\n\n| CX-53 (to-do, PI-directed) | When `content_contact` = yes, extract the contact with a deterministic `@` search over the stored main page text, the stored header and footer text and the page's e-mail links (e-mail regex in `pilot/contact.py`, `EMAIL_RE`) and store the list beside the code (`content_contact_emails`), in full and internally only; only the domain part of each address and a count are published. No API call. Not yet in the installed instrument; owed to the back-code engineering card |",
+   "body_label": "Before / after"
+  },
+  {
+   "id": "page-11",
+   "kind": "substantive",
+   "title": "[What the page says] Retire the three page safeguard questions",
+   "situation": "Your round-2 choice computes the page safeguard items (human oversight, risk assessment, user notification) from the per-activity safeguard question, so the three page questions are no longer used. The draft retires them; the notification definition (a notice telling users they are dealing with GenAI; announcing that the institution uses GenAI is not a notice) moves to the activity question and stays in the questionnaire row. (see reference: What the page says, `content_user_notification`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Retire them, kept in the archive record",
+     "mechanism": "The three lines leave the instrument; the notification definition is reused in the activity question.",
+     "benefits": "No question is asked whose answer is not used.",
+     "risks": "No direct page-level check on the computed values; earlier data used the asked version.",
+     "commits_to": "Computed values as the only source for the page safeguard items."
+    },
+    {
+     "id": "b",
+     "label": "Keep asking them as an unpublished check beside the computed values",
+     "mechanism": "The questions run as before; answers are stored internally and compared.",
+     "benefits": "Measures agreement and bridges to the earlier data.",
+     "risks": "Costs classifier calls; goes beyond the round-2 choice.",
+     "commits_to": "Paying for a check question and reporting the agreement."
+    }
+   ],
+   "body": "**pilot.py L154 CONTENT[content_human_oversight]** (signed text, proposed for retirement):\n\n\"content_human_oversight\": \"human review or oversight of GenAI outputs is described\",\n\n**pilot.py L155 CONTENT[content_risk_assessment]** (signed text, proposed for retirement):\n\n\"content_risk_assessment\": \"a risk or impact assessment is described\",\n\n**pilot.py L156 CONTENT[content_user_notification]** (signed text, proposed for retirement):\n\n\"content_user_notification\": \"a notice or label telling users that they are interacting with GenAI or that content is AI-generated is described (a page merely announcing that the institution uses GenAI is NOT such a notice)\",",
+   "body_label": "Lines proposed for retirement"
+  },
+  {
+   "id": "page-12",
+   "kind": "substantive",
+   "title": "[What the page says] E-mail contacts: put the publication rule in the questionnaire row?",
+   "situation": "Your contact ruling keeps full e-mail addresses internal and publishes only the domain part and a count. The draft adds that sentence to the e-mail extraction row, although your round-1 choice said the extraction text itself stays unchanged. The same rule also lives in the plan's publication requirements. (see reference: What the page says, `content_contact_emails`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Add the sentence, as drafted",
+     "mechanism": "The row states the storage and publication rule.",
+     "benefits": "The rule travels with the item; a reader of the questionnaire alone sees it.",
+     "risks": "Departs from the round-1 \"unchanged\" choice and duplicates the plan; two places to keep in step.",
+     "commits_to": "The publication rule as part of the signed questionnaire."
+    },
+    {
+     "id": "b",
+     "label": "Drop the sentence; the rule lives only in the publication requirements",
+     "mechanism": "The row changes only in the text it searches.",
+     "benefits": "Matches the round-1 wording; one home for the rule.",
+     "risks": "Someone using only the questionnaire could publish full addresses.",
+     "commits_to": "The plan as the only home of the rule."
+    }
+   ]
+  },
+  {
+   "id": "activity-01",
+   "kind": "review",
+   "title": "[Each activity on a page] Review the table of which questions are asked for which kind of activity",
+   "situation": "The draft table says, for each activity type, which activity questions are asked. It has 160 cells asked and 20 not asked; 38 cells rest on the drafter's inference rather than a ruling. The questions about how the table is built follow as separate items; this review covers the cells. (see reference: Each activity on a page)",
+   "body": "Columns: policy or guidance · pilot · program or initiative · internal tool · public-facing service · type unknown. \"*\" = the cell rests on the drafter's inference, not a ruling (reasons per cell in the draft on which questions apply).\n\n- `adoption_stage`: policy ask · pilot ask · program ask · internal ask · public ask · unknown ask\n- `procurement_status`: policy ask* · pilot ask · program ask · internal ask · public ask · unknown ask\n- `model_origin`: policy not asked · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `build_arrangement`: policy not asked · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `interface`: policy not asked · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `function_drafting_writing`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `function_summarization`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `function_translation`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `function_search_retrieval`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `function_code`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `function_image_audio_video`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `function_extraction_classification`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `function_analysis_recommendation`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `tool_name`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `model_name`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `contracting_party`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `developer`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `deployment_mode`: policy not asked · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `target_users`: policy not asked · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `year_announced`: policy ask · pilot ask · program ask · internal ask · public ask · unknown ask\n- `year_pilot_start`: policy not asked · pilot ask · program ask* · internal ask · public ask · unknown ask*\n- `year_production_start`: policy not asked · pilot ask · program ask* · internal ask · public ask · unknown ask*\n- `deployment_scale_number`: policy not asked* · pilot ask · program ask* · internal ask · public ask · unknown ask\n- `has_human_oversight`: policy ask · pilot ask · program ask · internal ask · public ask · unknown ask\n- `has_transparency_notice`: policy ask · pilot ask · program ask · internal ask · public ask · unknown ask\n- `has_data_classification`: policy ask · pilot ask · program ask · internal ask · public ask · unknown ask\n- `has_risk_assessment`: policy ask · pilot ask · program ask · internal ask · public ask · unknown ask\n- `outcome_kind`: policy ask* · pilot ask · program ask · internal ask · public ask · unknown ask\n- `incident_kind`: policy ask* · pilot ask · program ask · internal ask · public ask · unknown ask\n- `evaluation_documented`: policy ask · pilot ask · program ask · internal ask · public ask · unknown ask\n\nNot in the table: who a rule governs, the form of the rule and its direction are asked only when the action type is governance.",
+   "body_label": "Full table"
+  },
+  {
+   "id": "activity-02",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Which label decides whether tool questions are asked",
+   "situation": "Each activity has two labels: its type (policy, pilot, program, internal tool, public service, unknown) and its action (deployment, governance, staff training, program). The draft switches tool questions on the type, but the three governance questions (who is governed, the form of the rule, its direction) on the action being governance; so a policy-type activity whose action is deployment gets neither set, and an internal tool whose action is governance gets both. The rulings say \"governance\", which the draft reads as the policy type; that reading is an interpretation. (see reference: Each activity on a page, `activity_type`, `action_type`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Type for tool questions, action for governance questions (as drafted)",
+     "mechanism": "Keep the two switches as they are.",
+     "benefits": "Follows your ruling that the action no longer decides which questions apply.",
+     "risks": "Mismatched pairs get both sets or neither; who the tool serves and who a rule governs, meant to be complements, can both be asked or both skipped.",
+     "commits_to": "Accepting the mismatched cases."
+    },
+    {
+     "id": "b",
+     "label": "Action for both",
+     "mechanism": "Tool questions are skipped when the action is governance (and, if you choose, staff training); governance questions are asked when it is governance.",
+     "benefits": "Tool and governance questions become exact complements.",
+     "risks": "Departs from your ruling that the action no longer decides which questions apply; the action values are due to be re-ruled.",
+     "commits_to": "Restating that ruling around the action."
+    },
+    {
+     "id": "c",
+     "label": "Keep as drafted and add a check on allowed pairs",
+     "mechanism": "List the allowed (type, action) pairs; activities with other pairs are flagged for review or have one label corrected.",
+     "benefits": "Catches the odd cases without changing the switches.",
+     "risks": "A new rule to write; flagged activities need someone to handle them.",
+     "commits_to": "A table of allowed pairs and a handling rule."
+    }
+   ]
+  },
+  {
+   "id": "activity-03",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Which tool questions to ask about policy and guidance activities",
+   "situation": "In the draft, policy activities skip most tool questions, on the reading that a policy has no tool of its own; approved tools are split off as their own activities. But policies often carry tool-like content: a named tool they ban or approve, permitted and prohibited uses, coverage figures (\"applies to all 40,000 staff\"), or a requirement to use, say, government-built or open models. Purchase stage is still asked of policies, although a procurement standard's tender language could be read as a tender. Tick each set to ask of policy activities (leaving purchase stage unticked stops asking it).",
+   "options": [
+    {
+     "id": "a",
+     "label": "Tool and model name (and the developer derived from them)",
+     "mechanism": "Ask tool and model name on policy activities.",
+     "benefits": "Keeps a named tool that a policy bans, or an approved-tool list that is not split off.",
+     "risks": "Names of tools a policy governs sit on the policy's row as if they were its own tools.",
+     "commits_to": "Tool names on policy rows."
+    },
+    {
+     "id": "b",
+     "label": "The eight uses items (drafting, summarising, translation and so on)",
+     "mechanism": "Ask the uses items on policy activities.",
+     "benefits": "Captures permitted and prohibited uses, which no item holds now (the direction item records direction, not use).",
+     "risks": "On a policy, a \"use\" means allowed or forbidden, not used; the same item would carry two meanings.",
+     "commits_to": "A second meaning of the uses items on policy rows."
+    },
+    {
+     "id": "c",
+     "label": "Scale number and unit",
+     "mechanism": "Ask the scale items on policy activities.",
+     "benefits": "Keeps coverage figures such as staff or departments covered.",
+     "risks": "Coverage would be coded as deployment scale.",
+     "commits_to": "Coverage figures in the scale items."
+    },
+    {
+     "id": "d",
+     "label": "Model origin and build arrangement",
+     "mechanism": "Ask these on policy activities.",
+     "benefits": "Captures requirements for government-built, open or national models.",
+     "risks": "Records a rule about other tools as the policy's own origin.",
+     "commits_to": "Origin items carrying requirements on policy rows."
+    },
+    {
+     "id": "e",
+     "label": "Purchase stage (asked in the draft)",
+     "mechanism": "Keep asking purchase stage on policy activities.",
+     "benefits": "Keeps procurement facts that a policy page reports.",
+     "risks": "Tender language in a procurement standard may be read as an actual tender.",
+     "commits_to": "Purchase stage on policy rows."
+    },
+    {
+     "id": "f",
+     "label": "New items written for policy content instead",
+     "mechanism": "Draft separate items for permitted uses, required model types and coverage.",
+     "benefits": "Clean meanings; tool items keep one meaning.",
+     "risks": "New items to word, sign and pay for; no ruling covers them yet.",
+     "commits_to": "Drafting new policy items."
+    }
+   ],
+   "allow_multiple": true
+  },
+  {
+   "id": "activity-04",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Program activities that are not tool rollouts (training, governance bodies, proposals)",
+   "situation": "The program type mixes platform rollouts, which have a tool, with training programs and governance bodies, which do not. A table keyed on type cannot tell them apart, so every tool question is asked of every program, and the earlier example that tool questions do not apply to staff training is lost (answers become \"unknown\" rather than \"not asked\"); likewise proposals, now a stage rather than a type, are asked tool questions and will mostly answer \"unknown\". It is also not ruled whether a governance body counts as a governance action and so gets the governance questions. Tick \"accept\" alone, or the changes you want.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Accept, as drafted",
+     "mechanism": "All tool questions asked of programs and proposals; governance bodies not treated as governance actions.",
+     "benefits": "Simple; nothing lost when a program does have a tool.",
+     "risks": "Many \"unknown\" answers that really mean \"does not apply\", raising unknown rates.",
+     "commits_to": "Unknown answers on tool-less programs."
+    },
+    {
+     "id": "b",
+     "label": "Skip tool questions when the action is staff training or governance",
+     "mechanism": "Use the action label for these cases (see the previous switching item).",
+     "benefits": "Restores the round-1 example.",
+     "risks": "Depends on the action label, which is due to be re-ruled.",
+     "commits_to": "The action label deciding tool questions for these cases."
+    },
+    {
+     "id": "c",
+     "label": "Skip tool questions when the stage is proposed",
+     "mechanism": "Proposals are not asked tool questions.",
+     "benefits": "Proposals with no tool do not fill the table with unknowns.",
+     "risks": "Proposals that do name a tool lose it.",
+     "commits_to": "Stage deciding tool questions."
+    },
+    {
+     "id": "d",
+     "label": "Treat governance bodies as governance actions",
+     "mechanism": "A body that sets or oversees rules gets the governance questions.",
+     "benefits": "Captures whom the body governs and the direction it takes.",
+     "risks": "The form answers are instruments, not bodies, so a body's form would be \"other\" or unknown.",
+     "commits_to": "Governance questions for bodies."
+    }
+   ],
+   "allow_multiple": true
+  },
+  {
+   "id": "activity-05",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Activities whose type is unknown",
+   "situation": "The draft asks every question of activities whose type is unknown, because in the earlier data these were typically purchase records naming a GenAI product, so tool facts are expected. An activity whose type fails the check also becomes \"unknown\" and so moves to this ask-everything row; the table must then read the type after that check, and the type must be settled before the questions it switches.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Ask everything, reading the type after the check (as drafted)",
+     "mechanism": "Unknown-type activities get the full question set.",
+     "benefits": "Tool facts from purchase records are kept.",
+     "risks": "The full question cost on the weakest evidence; many unknown answers.",
+     "commits_to": "Full questioning of unknown-type activities."
+    },
+    {
+     "id": "b",
+     "label": "Ask only the questions asked of every type",
+     "mechanism": "Stage, purchase stage, year announced, the safeguards, outcomes, incidents and evaluation.",
+     "benefits": "Fewer questions on uncertain activities.",
+     "risks": "Loses tool facts from purchase records.",
+     "commits_to": "A short question set for unknown types."
+    },
+    {
+     "id": "c",
+     "label": "Ask everything, but read the type before the check",
+     "mechanism": "A type that fails the check still decides which questions are asked.",
+     "benefits": "Questions follow what the classifier thought the activity was.",
+     "risks": "Questions are decided by an answer that failed the check.",
+     "commits_to": "Using unchecked types to switch questions."
+    }
+   ]
+  },
+  {
+   "id": "activity-06",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Safeguards set by policies and by contract clauses",
+   "situation": "For a governance activity, the round-1 ruling defines a safeguard \"yes\" as \"the rule requires it\", and a policy's safeguard is not copied to the tools it governs, so the same safeguard can be \"yes\" on the policy and \"not documented\" on the tool. A round-2 ruling also counts contract clauses as governance, but purchase records are usually typed as an internal tool or unknown, so it is unclear which activity carries a safeguard set by a contract clause.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Contract-clause safeguards sit on the purchased tool's activity",
+     "mechanism": "A safeguard required by the contract is \"yes\" on the tool.",
+     "benefits": "The tool gets credit for a contractual safeguard.",
+     "risks": "Mixes \"required by contract\" with \"in place\" on tool rows, unlike policy safeguards.",
+     "commits_to": "A different reading of \"yes\" for contract-bound tools."
+    },
+    {
+     "id": "b",
+     "label": "Contract clauses become their own governance activity",
+     "mechanism": "A contract with safeguard clauses is split off as a governance activity linked to the tool.",
+     "benefits": "Consistent with \"the rule requires it\" for governance.",
+     "risks": "More activities per purchase record; the splitting step must recognise clauses.",
+     "commits_to": "Splitting contracts into governance activities."
+    },
+    {
+     "id": "c",
+     "label": "Leave it open; flag contract clauses for review",
+     "mechanism": "Code as drafted and mark activities with contract clauses.",
+     "benefits": "No guessing until more cases are seen.",
+     "risks": "Coding of these cases is inconsistent in the meantime.",
+     "commits_to": "A later ruling on contract clauses."
+    }
+   ]
+  },
+  {
+   "id": "activity-07",
+   "kind": "substantive",
+   "title": "[Each activity on a page] What \"not asked\" means for items the quote step fills",
+   "situation": "Tool name, model name, contracting party and the scale number are copied from the page by the quote step, and the developer is derived from them; none is a classifier question. For them \"not asked\" can only mean \"not copied\" or \"copied, then set aside\". The quote step may be told that the question switching it on was passed (not the answer itself), which fits the first meaning.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Not copied: the quote step does not run for skipped items",
+     "mechanism": "The quote step runs only where the table asks the item.",
+     "benefits": "Cheaper; nothing is stored that is not used.",
+     "risks": "If the table changes later, a rerun is needed; no record of what the page said.",
+     "commits_to": "Reruns for any later change to the table."
+    },
+    {
+     "id": "b",
+     "label": "Copied, then set aside",
+     "mechanism": "The quote step runs for every activity; skipped items are kept internally and published as \"not asked\".",
+     "benefits": "The table can be revised without a rerun, and checked against what pages say.",
+     "risks": "Costs more; internal data differ from published data.",
+     "commits_to": "Paying for copies that are not published."
+    }
+   ]
+  },
+  {
+   "id": "activity-08",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Comparability with the earlier data",
+   "situation": "Earlier rows for policy activities hold \"unknown\" for tool name and vendor and a deployment year; under the new table those become \"not asked\", and earlier \"unknown\" values on policy rows cannot be recoded without a rerun. A round-2 ruling also drops \"not asked\" answers from item counts, so institutions with many policies will score differently than before.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Translate earlier policy-row \"unknown\" to \"not asked\" in the comparison table",
+     "mechanism": "A rule in the comparison table, no rerun.",
+     "benefits": "The two versions line up.",
+     "risks": "Assumes every earlier \"unknown\" meant \"no tool\"; some were real unknowns, such as a policy that named a tool.",
+     "commits_to": "That assumption for all earlier policy rows."
+    },
+    {
+     "id": "b",
+     "label": "Leave earlier values as they are and document the break",
+     "mechanism": "Note the change in the comparison notes.",
+     "benefits": "No assumption is made about earlier data.",
+     "risks": "Scores of policy-heavy institutions are not comparable across versions.",
+     "commits_to": "A documented series break."
+    },
+    {
+     "id": "c",
+     "label": "Rerun the earlier policy rows under the new rules",
+     "mechanism": "Recode those rows with the new instrument.",
+     "benefits": "True comparability.",
+     "risks": "A paid rerun (you would run it); time.",
+     "commits_to": "A rerun budget."
+    }
+   ]
+  },
+  {
+   "id": "activity-09",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Interface: can the classifier still answer \"not applicable\"?",
+   "situation": "The interface list kept a value for activities with no tool, first meant for policies, and that value is now renamed \"not asked\". Once the table skips policies, the value only covers tool-less activities in types that are still asked, such as a training program; if the classifier can still pick it, a classifier answer would carry a label that is supposed to mean \"skipped by a rule\". (see reference: Each activity on a page, `interface`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Only the table sets it; remove it from the classifier's answers",
+     "mechanism": "The classifier chooses among the real interfaces and the missing-answer labels.",
+     "benefits": "\"Not asked\" always means a rule skipped the question.",
+     "risks": "Tool-less activities in asked types get \"unknown\" or \"not documented\".",
+     "commits_to": "A shorter interface list for the classifier."
+    },
+    {
+     "id": "b",
+     "label": "The classifier may still answer it, under its own name (for example \"no tool\")",
+     "mechanism": "Add a separate value for activities with no tool.",
+     "benefits": "Keeps the information without clashing with \"not asked\".",
+     "risks": "A new value not in the ruling; it overlaps \"unknown\" when the page is unclear.",
+     "commits_to": "A new interface value."
+    },
+    {
+     "id": "c",
+     "label": "The classifier may answer it as \"not asked\"",
+     "mechanism": "Keep the list as drafted.",
+     "benefits": "No change to the list.",
+     "risks": "A classifier answer carries the label meant for rule-skipped questions.",
+     "commits_to": "Two meanings of \"not asked\" in this item."
+    }
+   ]
+  },
+  {
+   "id": "activity-10",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Direction of a governance rule: is \"requires or promotes\" one answer or two?",
+   "situation": "The ruled list has one value for \"requires or promotes\". As one value, a binding duty to use GenAI is pooled with encouragement; as two, they are kept apart. (see reference: Each activity on a page, `governance_direction`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "One value",
+     "mechanism": "Keep `requires_or_promotes`.",
+     "benefits": "As ruled; one fewer line for the classifier to draw.",
+     "risks": "Mandates and encouragement cannot be told apart in the data.",
+     "commits_to": "Pooling the two in this version."
+    },
+    {
+     "id": "b",
+     "label": "Two values, \"requires\" and \"promotes\"",
+     "mechanism": "Split the value.",
+     "benefits": "Binding duties are kept apart from encouragement.",
+     "risks": "One more value and a finer line to code; the combining order needs a place for each.",
+     "commits_to": "A longer ruled list."
+    }
+   ]
+  },
+  {
+   "id": "activity-11",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Direction of a governance rule: conditions and mixed provisions",
+   "situation": "\"Permits subject to conditions\" fits both \"restricts with conditions\" and \"permits\". One policy can also ban some tools and permit others, yet the question takes one answer, and on long pages one part may code a ban and another a permission. The draft combines parts in the order conditions, prohibits, permits, requires; a ban plus an approval with no part saying \"conditions\" comes out as \"prohibits\". (see reference: Each activity on a page, `governance_direction`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Any condition or any mix is \"restricts with conditions\"",
+     "mechanism": "\"Permits\" only when use is allowed without conditions; across parts, a ban in one part and a permission in another also becomes \"restricts with conditions\" (a mapping step).",
+     "benefits": "Matches how a single reader would code the whole policy.",
+     "risks": "A mapping step to approve; \"restricts with conditions\" grows into a catch-all.",
+     "commits_to": "A mapping step for mixed answers."
+    },
+    {
+     "id": "b",
+     "label": "\"Permits\" whenever use is allowed; combine as drafted",
+     "mechanism": "Conditions do not move an allowance out of \"permits\"; parts combined as conditions, prohibits, permits, requires.",
+     "benefits": "Simple; no mapping step.",
+     "risks": "A ban plus an approval reads as a ban.",
+     "commits_to": "The drafted order."
+    },
+    {
+     "id": "c",
+     "label": "Most restrictive wins",
+     "mechanism": "Combine as prohibits, conditions, permits, requires.",
+     "benefits": "Conservative: any ban is kept.",
+     "risks": "A policy with one narrow ban reads as a ban overall.",
+     "commits_to": "A restrictive-first order."
+    }
+   ]
+  },
+  {
+   "id": "activity-12",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Service area: which list",
+   "situation": "Two values are ruled (\"general administration\" and \"unknown\"), but the list of areas is not given anywhere; G3O's own texts name only examples (health, tax, justice, education, general administration), and G3O has no service-area list of its own. The draft offers three candidates and no recommendation. On long pages the combining rule waits on this choice. (see reference: Each activity on a page, `service_domain`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "US Federal AI Use Case Inventory, 2024 topic areas",
+     "mechanism": "Government services; diplomacy and trade; education and workforce; energy and environment; emergency management; health and medical; law and justice; science and space; transportation; mission-enabling (internal support) as general administration; other.",
+     "benefits": "Built for government AI uses; has an internal-support area matching general administration; a source G3O already cites.",
+     "risks": "US-federal in scope: no tax, finance or defence area, local services have no clear place; adds \"other\", which the ruling does not list.",
+     "commits_to": "Importing a US-federal list."
+    },
+    {
+     "id": "b",
+     "label": "The UN and Eurostat classification of the functions of government, top level (as used by Public Sector Tech Watch)",
+     "mechanism": "General public services; defence; public order and safety; economic affairs; environmental protection; housing and community amenities; health; recreation, culture and religion; education; social protection.",
+     "benefits": "An international standard that fits any country and level; compares directly with Public Sector Tech Watch; has a finer second level.",
+     "risks": "General public services also holds tax, legislatures and foreign affairs, so tax disappears into general administration; courts sit under public order; it classifies the ministry's function, not the tool's use. Defence comes from the standard, not the G3O input file, and needs checking against the standard.",
+     "commits_to": "Importing an international list."
+    },
+    {
+     "id": "c",
+     "label": "Only the words in G3O's rulings",
+     "mechanism": "Health, tax, justice, education, general administration, unknown.",
+     "benefits": "Imports nothing; shortest list.",
+     "risks": "These are examples, not a list: transport, welfare, policing and elections would fall to unknown, so it needs extending before use.",
+     "commits_to": "Writing a G3O list later."
+    }
+   ]
+  },
+  {
+   "id": "activity-13",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Service area: an \"other\" answer, and more than one area",
+   "situation": "No \"other\" value is ruled, so activities that fit no listed area would fall to \"unknown\". The ruled question takes one area per activity, so a cross-ministry chatbot has to pick one, whereas the form of a governance rule can now take several. Tick each change you want, or \"neither\".",
+   "options": [
+    {
+     "id": "a",
+     "label": "Add \"other\"",
+     "mechanism": "Activities that fit no area get \"other\".",
+     "benefits": "Keeps \"unknown\" for unclear pages only.",
+     "risks": "\"Other\" can grow large and hide areas worth adding.",
+     "commits_to": "One more value."
+    },
+    {
+     "id": "b",
+     "label": "Allow several areas per activity",
+     "mechanism": "The question becomes a tick-all-that-apply list.",
+     "benefits": "Cross-ministry tools are recorded fully.",
+     "risks": "Counts by area no longer add up to the number of activities; more to code.",
+     "commits_to": "A multi-answer item."
+    },
+    {
+     "id": "c",
+     "label": "Neither, as ruled",
+     "mechanism": "One area, no \"other\".",
+     "benefits": "As ruled.",
+     "risks": "Unknown holds both unclear and unlisted activities; cross-ministry tools are forced into one area.",
+     "commits_to": "The ruled design."
+    }
+   ],
+   "allow_multiple": true
+  },
+  {
+   "id": "activity-14",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Whose activity it is: one list or two linked parts",
+   "situation": "The rulings say the searched institution's role \"becomes part of the relationship\" and that there is no separate role column, but not whether that means one list or two linked parts. In one list, \"this institution\", \"contracting authority\" and \"central purchasing body\" overlap (all are the institution acting itself), and an activity another body runs for this institution is \"other\" in one ruling and \"beneficiary\" in the other. The draft gives both designs without a preference. (see reference: Each activity on a page, `observed_actor_relationship`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "One list",
+     "mechanism": "This institution, contracting authority, central purchasing body, beneficiary, unit of the institution, joint participant, other, unresolved, unknown.",
+     "benefits": "One answer, one column; simple to publish.",
+     "risks": "Overlapping values; cannot record a unit that acted as contracting authority; \"beneficiary\" and \"other\" compete for the same case.",
+     "commits_to": "Rules for the overlaps and for beneficiary versus other."
+    },
+    {
+     "id": "b",
+     "label": "Two linked parts in one item",
+     "mechanism": "Relationship: this institution, unit, joint participant, other, unresolved, unknown. Role of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint, not asked (when the relationship is other or unresolved), not documented, unknown.",
+     "benefits": "Combinations can be recorded; \"another body ran it for us\" is relationship \"other\" with role \"beneficiary\".",
+     "risks": "Unit and joint appear in both parts; no role value for an institution simply running its own tool; the role must not turn into a separate public column.",
+     "commits_to": "A two-part item and rules for publishing it as one column."
+    }
+   ]
+  },
+  {
+   "id": "activity-15",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Whose activity it is: does the earlier list of the actor's roles stay?",
+   "situation": "The earlier data recorded the role of the actor seen on the page (for example issuer, participant, external speaker, service provider, event host). Round 1 kept it; round 2 is silent. It describes the actor on the page, not the searched institution.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep it as a separate internal item",
+     "mechanism": "Code it as before; not published.",
+     "benefits": "Keeps a detail useful for checking attributions; continuity with earlier data.",
+     "risks": "One more question; two role lists that readers may confuse.",
+     "commits_to": "Keeping and maintaining the old list."
+    },
+    {
+     "id": "b",
+     "label": "Replace it with the new role of the searched institution",
+     "mechanism": "Drop the old list.",
+     "benefits": "One role concept only.",
+     "risks": "Loses the actor detail; earlier data cannot be matched on it.",
+     "commits_to": "Retiring the old list."
+    }
+   ]
+  },
+  {
+   "id": "activity-16",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Links between activities: which way they point",
+   "situation": "Two links run one way: a component belongs to a program, and a policy governs a tool. The earlier data stored links as unordered pairs. This applies to links within a page and to links found when the institution's results are combined. (see reference: Each activity on a page, `activity_segment`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "One value each, with a fixed order",
+     "mechanism": "The first activity of the pair is always the component, or the governing policy.",
+     "benefits": "Shorter list; matches round 1's wording (\"component of passage k\").",
+     "risks": "Every pair must be stored in the right order; a swapped pair silently reverses the meaning.",
+     "commits_to": "An ordering rule for stored pairs."
+    },
+    {
+     "id": "b",
+     "label": "Reverse values as well",
+     "mechanism": "Add \"has component\" and \"governed by\".",
+     "benefits": "The value itself carries the direction; order does not matter.",
+     "risks": "Two more values; the same link can be stored two ways.",
+     "commits_to": "Two added values in the shared list."
+    }
+   ]
+  },
+  {
+   "id": "activity-17",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Links between activities: does \"component of program\" still merge, and which link wins when a pair fits two?",
+   "situation": "In the earlier data a component link merged the two activities into one. The new definition of an activity keeps each named component as its own activity, linked to its program, so the value can stay but its effect changes. Separately, one pair cannot carry two links (for example a program policy that is a component and also governs a sibling tool), and no precedence is ruled.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Link only; when two links fit, \"governs\" wins",
+     "mechanism": "Components stay separate activities; a governing policy is recorded as governing.",
+     "benefits": "Follows the new activity definition; governance links are kept for the governance questions.",
+     "risks": "The program membership of such a policy is lost.",
+     "commits_to": "Link-only components and governs-first precedence."
+    },
+    {
+     "id": "b",
+     "label": "Link only; when two links fit, \"component of program\" wins",
+     "mechanism": "Components stay separate; membership is recorded first.",
+     "benefits": "Program structure is kept whole.",
+     "risks": "The policy's governing role over the sibling tool is lost.",
+     "commits_to": "Link-only components and component-first precedence."
+    },
+    {
+     "id": "c",
+     "label": "Merge as before",
+     "mechanism": "A component link merges the two activities.",
+     "benefits": "Continuity with the earlier data.",
+     "risks": "Contradicts the new activity definition; components lose their own answers.",
+     "commits_to": "Restating the activity definition."
+    }
+   ]
+  },
+  {
+   "id": "activity-18",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Links within a page: one answer per passage or per pair",
+   "situation": "In round 1 each passage on a page was coded once against one earlier passage (\"new, same as passage k, component of k, or not an activity\"). The shared list is a list of links between pairs, as used when the institution's results are combined. It is unclear which unit the within-page answer uses, and what the first passage gets.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Per passage, against one earlier passage",
+     "mechanism": "Each passage gets one answer; the first is always \"new\".",
+     "benefits": "Fewer answers; as in round 1.",
+     "risks": "\"New\" is a passage label, not a link, so the shared list needs that extra value; links to more than one earlier passage cannot be recorded.",
+     "commits_to": "A passage-level answer with a \"new\" value."
+    },
+    {
+     "id": "b",
+     "label": "Per pair of passages",
+     "mechanism": "Each pair of passages gets a link.",
+     "benefits": "Same design as across pages; all links recorded.",
+     "risks": "The number of pairs grows quickly on pages with many passages (cost).",
+     "commits_to": "Pairwise coding within pages."
+    }
+   ]
+  },
+  {
+   "id": "activity-19",
+   "kind": "review",
+   "title": "[Each activity on a page] Review the long-page combining rules drafted for activity items",
+   "situation": "Each activity question is answered separately in each part of a long page, and a rule says how the answers combine. The full list follows; items with a known trade-off are asked separately (marked †), and this verdict covers the rest. (see reference: Each activity on a page)",
+   "body": "Each line: item, rule drafted, alternative named by the drafter. \"Order\" means the first listed answer wins. Items marked † are asked separately on this page.\n\n- `source_type`: first part (see Facts about each source page). Alternative: most sure.\n- `source_publication_date`: first part. †\n- `activity_segment`: all passages from all parts, linked by the step that splits the page into activities. No alternative.\n- `observed_actor_relationship`: order this institution, contracting authority, central purchasing body, unit, joint participant, beneficiary, unresolved, other, unknown, not documented (written for the one-list design; the two-part design uses this institution, unit, joint participant, unresolved, other, unknown, not documented, with the role from the same part). Alternative: most sure. Known failure: a loose \"the ministry rolled out the assistant\" in one part credits the ministry with another body's program.\n- `activity_type`, `action_type`, `model_origin`, `deployment_mode`, `service_domain`: most sure. †\n- `adoption_stage`: order. †\n- `procurement_status`: order payment or subscription, award or contract, tender, unknown, none documented, not documented. Alternative: most sure. Known failures: a wrongly linked payment for an earlier contract lifts a tender; an award later cancelled stays an award.\n- `build_arrangement`: order trained or fine-tuned by the institution, custom application on an external model, off the shelf, unknown, not documented. Alternative: most sure. Known failure: a vendor's \"customers can fine-tune\" line lifts a bought product.\n- `interface`: order conversational, back-end or API, other, unknown, not documented. Alternative: most sure. Known failure: a small chat demo outranks a mainly back-end service.\n- `contracting_party`, `developer`: list of all names from all parts (the lookup runs on the combined tool list). Alternative: first part. Known failure: one supplier under two names shows as two parties.\n- `target_users`, `governed_population`: order both, public (or external), staff (or internal), unknown, not documented. †\n- `governance_direction`: order conditions, prohibits, permits, requires. †\n- `genai_mechanism_basis`: order named product or model, explicit GenAI label, generative ability described, chatbot or assistant label only, unknown, not documented. No alternative needed.\n- `deployment_scale_number`, `deployment_scale_unit`: first part; the unit always from the same part as the number. †\n- The four safeguards: order yes, unclear, no, unknown, not documented. †\n- `outcome_kind`: order quantified, qualitative, none reported, unknown, not documented. Alternative: most sure. Known failure: a vendor's \"up to 40% time saved\" outranks the institution's own staff feedback.\n- `incident_kind`: order quantified, qualitative, may have stopped, none reported, unknown, not documented. †\n- `activity_relation_cross_page`: order. †\n\nKnown risk for every activity item: a passage cut at a part boundary can become two activities, and a wrongly linked passage can lift the evidence basis or the purchase stage, or add a developer through the lookup.",
+   "body_label": "Rules as drafted"
+  },
+  {
+   "id": "activity-20",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Long pages: items whose answers have no natural ranking",
+   "situation": "For activity type, action type, model origin, deployment mode and service area, the draft takes the answer the classifier was most sure of. A confident one-line summary then beats a detailed later description (a 0.97 \"pilot\" over a 0.91 \"public service\"); for the action, a program whose components are listed only later can be lost; for origin, \"our in-house assistant\" can beat \"built on\" a named commercial model. The drafter names fixed orders as the alternative.",
+   "options": [
+    {
+     "id": "a",
+     "label": "Most sure wins (as drafted)",
+     "mechanism": "Take the answer with the highest certainty.",
+     "benefits": "No order to defend; a conflict is treated as one part being wrong.",
+     "risks": "Short, confident mentions beat detailed descriptions; small changes in certainty flip results.",
+     "commits_to": "Certainty as the tie-breaker for these five items."
+    },
+    {
+     "id": "b",
+     "label": "Fixed orders",
+     "mechanism": "Type: public service, internal tool, pilot, program, policy. Action: program, governance, deployment, staff training. Origin: open-weight, commercial, government-developed. Mode: integrated, then standalone. Service area: any specific area before general administration.",
+     "benefits": "The more specific statement wins; results do not flip on small certainty changes.",
+     "risks": "Each order is a judgement; a wrong mention anywhere on the page wins.",
+     "commits_to": "Five orders to sign."
+    }
+   ]
+  },
+  {
+   "id": "activity-21",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Long pages: stage when parts disagree",
+   "situation": "The ruled example is \"most advanced stage first\". The draft puts \"discontinued\" first, as the end stage, then production, pilot, announced, proposed; a part about a brief suspension that was later lifted then makes the stage \"discontinued\". Separately, the permanent-pilot rule (a pilot over 12 months with its full user base counts as production) needs facts that can sit in different parts, so no single part may reach production; that gap is open under every option. (see reference: Each activity on a page, `adoption_stage`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Discontinued first (as drafted)",
+     "mechanism": "Order discontinued, production, pilot, announced, proposed.",
+     "benefits": "An ended activity is never shown as live.",
+     "risks": "A brief, lifted suspension reads as discontinued.",
+     "commits_to": "Discontinued outranking every live stage."
+    },
+    {
+     "id": "b",
+     "label": "Discontinued last among real stages",
+     "mechanism": "Order production, pilot, announced, proposed, discontinued.",
+     "benefits": "\"Most advanced\" read as most in use; suspensions do not end an activity.",
+     "risks": "An activity that truly ended can show as in production.",
+     "commits_to": "Live stages outranking discontinued."
+    },
+    {
+     "id": "c",
+     "label": "The stage tied to the page's latest date",
+     "mechanism": "Take the stage the page attaches to its most recent date.",
+     "benefits": "Follows the story's end.",
+     "risks": "Not one of the six kinds of combining rule you ruled, so a seventh kind would be needed; many pages give no dates per stage.",
+     "commits_to": "A new kind of combining rule."
+    }
+   ]
+  },
+  {
+   "id": "activity-22",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Long pages: audience when parts name different users",
+   "situation": "Who the tool serves and who a rule governs are combined in the order \"both\", then public (or external), then staff (or internal). If one part describes staff using the tool and another describes residents using it, no part says \"both\", so the result is \"public\". (see reference: Each activity on a page, `target_users`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Order as drafted",
+     "mechanism": "Both, public, staff, unknown, not documented.",
+     "benefits": "One of the six kinds of combining rule you ruled; no extra step.",
+     "risks": "Two parts that together say \"both\" give \"public\".",
+     "commits_to": "The drafted order."
+    },
+    {
+     "id": "b",
+     "label": "Collect the parts' answers; staff plus public reads as \"both\"",
+     "mechanism": "List all answers, then map the list to one value.",
+     "benefits": "Gives \"both\" whenever the page as a whole says both.",
+     "risks": "A mapping step you would approve, beyond the six kinds of combining rule you ruled.",
+     "commits_to": "A mapping step for the two audience items."
+    }
+   ]
+  },
+  {
+   "id": "activity-23",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Long pages: safeguards when one part says \"no\" and another is unclear",
+   "situation": "The four safeguards are combined in the order yes, unclear, no. A general section (\"all AI is reviewed by humans\") then outranks a specific \"this tool's outputs are not reviewed\", giving \"unclear\". This is the combining across parts for one activity; the page item stays \"yes if any activity is yes\". (see reference: Each activity on a page, `has_human_oversight`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Yes, unclear, no (as drafted)",
+     "mechanism": "An unsettled mention beats a stated absence.",
+     "benefits": "Keeps an open signal visible, as the page verdict order does.",
+     "risks": "A generic statement hides a specific \"no\".",
+     "commits_to": "The drafted order for the four safeguards."
+    },
+    {
+     "id": "b",
+     "label": "Yes, no, unclear",
+     "mechanism": "A stated absence beats an unsettled mention.",
+     "benefits": "A specific \"no\" is kept.",
+     "risks": "An open signal is hidden behind \"no\".",
+     "commits_to": "A no-before-unclear order."
+    }
+   ]
+  },
+  {
+   "id": "activity-24",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Long pages: deployment scale when parts give different figures",
+   "situation": "The scale number is copied from the page and has no certainty to compare, so the draft takes the first part's figure, with its unit from the same part. \"A pilot with 50 users\" followed later by \"now 12,000 licences\" gives 50. (see reference: Each activity on a page, `deployment_scale_number`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "First part (as drafted)",
+     "mechanism": "First supported figure, unit from the same part.",
+     "benefits": "In the drafter's view, summaries at the top tend to state the headline figure.",
+     "risks": "Keeps early or pilot figures when the page reports later growth.",
+     "commits_to": "First-figure scale."
+    },
+    {
+     "id": "b",
+     "label": "Keep every (number, unit) pair as a list",
+     "mechanism": "Store all figures with their units.",
+     "benefits": "Nothing lost.",
+     "risks": "The item holds several values; analyses must pick one.",
+     "commits_to": "A multi-value scale item."
+    },
+    {
+     "id": "c",
+     "label": "The latest-dated figure",
+     "mechanism": "Take the figure tied to the most recent date.",
+     "benefits": "Current scale.",
+     "risks": "Not one of the six kinds of combining rule you ruled; many figures carry no date.",
+     "commits_to": "A new kind of combining rule."
+    }
+   ]
+  },
+  {
+   "id": "activity-25",
+   "kind": "review",
+   "title": "[Each activity on a page] Review the outcome and incident rows and the classifier-input rule",
+   "situation": "Outcomes and incidents are now asked for each activity over the whole page, and one answer says both whether anything was reported and what kind; text is copied only when something was reported. The incident question gains a \"may have stopped\" answer. A new sentence fixes the exact input given to the classifier as part of the signed instrument; the input itself is not drafted, because the build work that defines it has not happened, and will need its own sign-off. The quote step stays blind to the chosen answer (round 2), which is a build matter, not wording. (see reference: Each activity on a page, `outcome_kind`, `incident_kind`)",
+   "body": "**CX-02**\n\nBefore:\n\n| CX-02 | **Finding fields** (`evaluation_documented`, optional `evaluation_type_*`) are coded per (finding × page). The state given to jev is the page text plus that finding's `activity_name`, `activity_type`, `adoption_stage` and `tool_name`. |\n\nAfter:\n\n| CX-02 | **Finding fields** (`evaluation_documented`, optional `evaluation_type_*`, and the outcome and incident items of CX-61) are coded per (finding × page). The state given to jev is the page text plus that finding's `activity_name`, `activity_type`, `adoption_stage` and `tool_name`. The state of each question set (its fields, their order and the chunk marker) is pinned in the codebook and is part of the frozen instrument; any change to it counts as a wording change. |\n\n**CX-60**\n\nBefore:\n\n| CX-60 | Deterministic step (no API): map all \"nothing found\" spellings to `none_reported`. The mapping table is published with the code. |\n\nAfter:\n\n| CX-60 | Deterministic step (no API), for rows coded before CX-01.3 only: map all \"nothing found\" spellings to `none_reported`. The mapping table is published with the code. |\n\n**CX-61**\n\nBefore:\n\n| CX-61 **[decision D-K = (b)]** | Remaining text: a jev `Choice` over the stored text: `quantified` / `qualitative` / `none_reported`. |\n\nAfter:\n\n| CX-61 **[decision D-K = (b)]** | A jev `Choice` per (finding × page), over the page text with this activity's span marked, asked for outcomes and for incidents separately: `quantified` / `qualitative` / `none_reported`. It answers both whether the page reports an outcome (an incident) of this activity and of what kind; no separate existence question is asked. The outcome or incident text is extracted only when the answer is not `none_reported`. The incident item also takes the value in CX-61b. |\n\n**CX-61b**\n\nBefore:\n\n(new row; no signed text)\n\nAfter:\n\n| CX-61b (new) | `discontinued_uncertain` (incident item only) | The page suggests that this activity may have been ended, cancelled or suspended, but does not confirm it. |\n\n**pilot.py L173-177 OUTCOME_KIND**\n\nBefore:\n\nOUTCOME_KIND = {\n    \"quantified\": \"states a measured or numeric result\",\n    \"qualitative\": \"states a result in words only, with no measure\",\n    \"none_reported\": \"states no result\",\n}\n\nAfter:\n\nOUTCOME_KIND = {\n    \"quantified\": \"states a measured or numeric result\",\n    \"qualitative\": \"states a result in words only, with no measure\",\n    \"none_reported\": \"states no result\",\n}\n# incident item only (CX-61b):\n#   \"discontinued_uncertain\": \"suggests the activity may have been ended, cancelled or suspended, but does not confirm it\",",
+   "body_label": "Before / after"
+  },
+  {
+   "id": "activity-26",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Cleaning old \"nothing found\" spellings: old rows only?",
+   "situation": "The signed questionnaire maps every \"nothing found\" spelling to \"none reported\". Your round-1 choice limited that cleaning to old rows, because new rows only get outcome text when the classifier says something was reported; round 2 folded the separate \"was anything reported?\" question into the outcome question but kept that effect. The draft reads the old-rows-only limit as surviving. (see reference: Each activity on a page, `outcome_kind`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Old rows only (as drafted)",
+     "mechanism": "The cleaning step runs on rows coded before this version.",
+     "benefits": "No needless step on new rows.",
+     "risks": "If a new row does carry a stray \"nothing found\" text, it is not cleaned.",
+     "commits_to": "Reading the round-1 limit as still in force."
+    },
+    {
+     "id": "b",
+     "label": "All rows (signed row unchanged)",
+     "mechanism": "The cleaning step runs on every row.",
+     "benefits": "A safety net for new rows.",
+     "risks": "Keeps a step that should never fire on new rows.",
+     "commits_to": "Reading round 2 as replacing the round-1 choice whole."
+    }
+   ]
+  },
+  {
+   "id": "activity-27",
+   "kind": "substantive",
+   "title": "[Each activity on a page] The new \"may have stopped\" incident answer: what wins when a page also reports an incident",
+   "situation": "The new incident answer records that a page hints the activity may have ended, been cancelled or suspended, without confirming it; it replaces an earlier separate flag. The incident question takes one answer, so a page that reports an incident and also hints at a stop must pick one, and on long pages parts can disagree; the combining draft puts reported incidents first. (see reference: Each activity on a page, `incident_kind`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "A reported incident wins",
+     "mechanism": "Order quantified, qualitative, may have stopped, none reported.",
+     "benefits": "The incident is kept.",
+     "risks": "The stop signal is lost on pages that also report an incident.",
+     "commits_to": "Incidents outranking the stop signal."
+    },
+    {
+     "id": "b",
+     "label": "\"May have stopped\" wins",
+     "mechanism": "Order may have stopped, quantified, qualitative, none reported.",
+     "benefits": "The stop signal is never lost.",
+     "risks": "The incident's detail is lost on those pages.",
+     "commits_to": "The stop signal outranking incidents."
+    },
+    {
+     "id": "c",
+     "label": "A separate yes/no item, not an incident answer",
+     "mechanism": "Ask \"does the page suggest the activity may have stopped?\" on its own.",
+     "benefits": "Both facts kept.",
+     "risks": "Goes against the ruling that folded it into the incident question; one more question.",
+     "commits_to": "Restating that ruling."
+    }
+   ]
+  },
+  {
+   "id": "activity-28",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Is a confirmed stop an incident?",
+   "situation": "The drafter also asks whether a page that confirms an activity was ended, cancelled or suspended reports an incident at all, since the \"discontinued\" stage already records it. (see reference: Each activity on a page, `incident_kind`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "No: a confirmed stop is recorded only by the stage",
+     "mechanism": "The incident question ignores stops unless a problem is reported.",
+     "benefits": "No double counting with the stage.",
+     "risks": "A stop caused by a problem is counted as an incident only if the problem is stated.",
+     "commits_to": "Stage as the only record of stops."
+    },
+    {
+     "id": "b",
+     "label": "Yes: a confirmed stop is also an incident",
+     "mechanism": "A confirmed stop is coded as a (qualitative) incident.",
+     "benefits": "Stops show up in incident counts.",
+     "risks": "Planned, routine ends count as incidents.",
+     "commits_to": "Stops in incident counts."
+    }
+   ]
+  },
+  {
+   "id": "activity-29",
+   "kind": "review",
+   "title": "[Each activity on a page] Review the policy-review clause rows",
+   "situation": "A clause requiring periodic review of the GenAI policy itself no longer counts as a planned evaluation, unless it requires testing, monitoring or evaluating GenAI tools or their outputs. The classifier's definition is changed to match. (see reference: Each activity on a page, `evaluation_documented`)",
+   "body": "**CX-32c**\n\nBefore:\n\n| CX-32c | (CX-01.1, W3 = b; CX-01.2, C3 = a) | A clause requiring periodic review of the GenAI policy itself counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy). |\n\nAfter:\n\n| CX-32c | (CX-01.1, W3 = b; CX-01.2, C3 = a; narrowed in CX-01.3) | A clause requiring periodic review of the GenAI policy itself is `not_documented`, unless it requires testing, monitoring or evaluation of GenAI tools or their outputs; then it counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy). |\n\n**pilot.py L161 EVAL[required_or_planned]**\n\nBefore:\n\n\"required_or_planned\": \"CX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value, and so does a clause requiring periodic review of the GenAI policy itself (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).\",\n\nAfter:\n\n\"required_or_planned\": \"CX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value. A clause requiring periodic review of the GenAI policy itself is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).\",",
+   "body_label": "Before / after"
+  },
+  {
+   "id": "activity-30",
+   "kind": "substantive",
+   "title": "[Each activity on a page] Policy-review clauses: which policies, and where the rule sits",
+   "situation": "The draft keeps the sentence that extends the rule to any policy with a GenAI section (for example a general IT policy), and keeps the row number with its new rule. The drafter names an alternative home: retire this row and add the exception to the \"not documented\" row. (see reference: Each activity on a page, `evaluation_documented`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "As drafted: same policies, same row",
+     "mechanism": "Keep the scope sentence and the row.",
+     "benefits": "Smallest change; the narrowed rule covers the same policies as before.",
+     "risks": "A rule saying what is \"not documented\" sits in a row about \"required or planned\".",
+     "commits_to": "The drafted row."
+    },
+    {
+     "id": "b",
+     "label": "Same policies; move the rule to the not-documented row",
+     "mechanism": "Retire this row and add the exception there.",
+     "benefits": "Each rule sits under the value it assigns.",
+     "risks": "Changes a further signed row; the row number disappears.",
+     "commits_to": "Restructuring two signed rows."
+    },
+    {
+     "id": "c",
+     "label": "Limit the rule to GenAI-specific policies",
+     "mechanism": "Drop the general-IT sentence.",
+     "benefits": "General policies with a passing GenAI section are judged on their own words.",
+     "risks": "Review clauses in general IT policies are left without a rule.",
+     "commits_to": "A narrower scope."
+    }
+   ]
+  },
+  {
+   "id": "source-01",
+   "kind": "substantive",
+   "title": "[Facts about each source page] Long pages: source type and publication date",
+   "situation": "Both take the answer from the first part of a long page, which carries the masthead and byline. A report whose first part is only a cover and contents keeps \"other\" as its source type, and a report whose only publication date sits in a closing footer can take an event date from the first part. For the date no other ruled rule fits well (the earliest year would pick dates of past events). (see reference: Facts about each source page, `source_type`, `source_publication_date`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "First part for both (as drafted)",
+     "mechanism": "Both from the first part with a supported answer.",
+     "benefits": "Matches the rule already set for document type.",
+     "risks": "The two failure cases above.",
+     "commits_to": "First-part rules for both items."
+    },
+    {
+     "id": "b",
+     "label": "Source type from the part the classifier was most sure of; date from the first part",
+     "mechanism": "Mixed rules.",
+     "benefits": "A cover page does not decide the source type.",
+     "risks": "Source type and document type, sibling items, follow different rules.",
+     "commits_to": "A certainty rule for source type."
+    }
+   ]
+  },
+  {
+   "id": "institution-01",
+   "kind": "substantive",
+   "title": "[Results for the institution as a whole] Links across pages when the pooled evidence must be split",
+   "situation": "When the institution's results are combined, two activities from different pages are compared on their pooled quotes, and a long pool is split into parts. The draft combines the parts in the order unresolved, distinct, governs, component, shared participation, same; a part holding quotes from only one activity answers \"distinct\" by default and blocks a merge the other parts support, and a same-versus-distinct conflict gives \"distinct\", not \"unresolved\". (see reference: Results for the institution as a whole, `activity_relation_cross_page`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "As drafted",
+     "mechanism": "The drafted order.",
+     "benefits": "Never merges on conflicting evidence.",
+     "risks": "Splitting the pool blocks true merges; conflicts read as distinct rather than unresolved.",
+     "commits_to": "Conservative merging."
+    },
+    {
+     "id": "b",
+     "label": "As drafted, and each part must hold quotes from both activities",
+     "mechanism": "Split the pool so every part sees both activities.",
+     "benefits": "Removes the default \"distinct\" from one-sided parts.",
+     "risks": "Parts get longer or more numerous (cost).",
+     "commits_to": "A splitting rule for pooled evidence."
+    },
+    {
+     "id": "c",
+     "label": "The part the classifier was most sure of wins",
+     "mechanism": "No order.",
+     "benefits": "No default \"distinct\" from one-sided parts.",
+     "risks": "A confident wrong part can merge two different activities.",
+     "commits_to": "Certainty-based linking."
+    }
+   ]
+  },
+  {
+   "id": "institution-02",
+   "kind": "substantive",
+   "title": "[Results for the institution as a whole] Pairs skipped as obviously different",
+   "situation": "When the institution's results are combined, pairs of activities that are obviously different are skipped by a fixed rule before the classifier sees them, so they get no classifier answer. The list does not say what they store.",
+   "options": [
+    {
+     "id": "a",
+     "label": "\"Distinct\", marked as set by rule",
+     "mechanism": "Store the distinct value with a rule note.",
+     "benefits": "Every pair has a link value.",
+     "risks": "A rule's guess looks like a finding unless the note is read.",
+     "commits_to": "Rule-set link values."
+    },
+    {
+     "id": "b",
+     "label": "\"Not asked\"",
+     "mechanism": "Store the missing-answer label.",
+     "benefits": "Shows that no one judged the pair.",
+     "risks": "Counts of distinct pairs leave out the obvious ones.",
+     "commits_to": "Missing values for skipped pairs."
+    }
+   ]
+  },
+  {
+   "id": "record-01",
+   "kind": "procedural",
+   "title": "[Record-keeping on every row] Where the rule name goes for values \"set by rule\"",
+   "situation": "A value fixed by a rule carries the support status \"set by rule\" and needs the name of the rule. The name can sit in its own item beside the status or inside the status value itself. (see reference: Record-keeping on every row, `support_status`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Its own item beside the status",
+     "mechanism": "Add a rule-name item, empty unless the status is \"set by rule\".",
+     "benefits": "The status list stays short and closed.",
+     "risks": "One more item on every row."
+    },
+    {
+     "id": "b",
+     "label": "Inside the status value",
+     "mechanism": "Write the status as \"set by rule:\" plus the rule name.",
+     "benefits": "No new item.",
+     "risks": "The status list becomes open-ended, which complicates counting and checks."
+    }
+   ],
+   "recommendation": {
+    "option": "a",
+    "reason": "Keeps the status a short closed list that checks and counts can rely on; the information is the same either way."
+   }
+  },
+  {
+   "id": "record-02",
+   "kind": "substantive",
+   "title": "[Record-keeping on every row] Which support status a value gets when no quote was needed",
+   "situation": "\"Set by rule\" and \"not required\" both mean no quote was needed, and nothing says which applies to a value fixed by a rule (such as \"not asked\") or a negative value a rule sets. Values a rule derives are also marked \"derived\" in the how-we-know list, so the two lists must agree. (see reference: Record-keeping on every row, `support_status`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "\"Set by rule\" for anything a rule fixed, including \"not asked\"",
+     "mechanism": "\"Not required\" only for answers that need no quote by their nature (not documented, unknown).",
+     "benefits": "Every rule-made value names its rule; matches \"derived\" in the how-we-know list.",
+     "risks": "Many rows carry a rule name for routine skips.",
+     "commits_to": "Rule names on all rule-made values."
+    },
+    {
+     "id": "b",
+     "label": "\"Not required\" for all missing answers, including \"not asked\"",
+     "mechanism": "\"Set by rule\" only for real values a rule sets.",
+     "benefits": "The rule name marks only substantive values.",
+     "risks": "Which rule skipped a question is not recorded on the row.",
+     "commits_to": "Skips recorded without a rule name."
+    }
+   ]
+  },
+  {
+   "id": "record-03",
+   "kind": "substantive",
+   "title": "[Record-keeping on every row] Answers that fail the check for two reasons at once",
+   "situation": "An answer can lack a quote and also have the classifier under 80% sure, but the status holds one reason. The plan also says a failed page verdict's status reads \"downgraded\"; the round-2 wording names the two existing failure values, which suggests no new value is meant, and all options below read it that way. (see reference: Record-keeping on every row, `support_status`)",
+   "options": [
+    {
+     "id": "a",
+     "label": "\"No quote\" is recorded",
+     "mechanism": "Missing quote takes precedence.",
+     "benefits": "Shows that no supporting text was found.",
+     "risks": "Low certainty is hidden on those rows.",
+     "commits_to": "No-quote precedence."
+    },
+    {
+     "id": "b",
+     "label": "\"Low certainty\" is recorded",
+     "mechanism": "Low certainty takes precedence.",
+     "benefits": "Shows the classifier's own doubt.",
+     "risks": "The missing quote is hidden.",
+     "commits_to": "Low-certainty precedence."
+    },
+    {
+     "id": "c",
+     "label": "Both reasons recorded",
+     "mechanism": "A second reason item, or a combined value.",
+     "benefits": "Nothing hidden.",
+     "risks": "One more item or value to maintain.",
+     "commits_to": "A two-reason record."
+    }
+   ]
+  },
+  {
+   "id": "shared-01",
+   "kind": "substantive",
+   "title": "[Shared lists] Where date origins fit in the \"how we know\" list",
+   "situation": "The ruled list of where a date came from (metadata, web address, quote from page text, archive upper bound, unknown) was folded into the shared five-value list (stated, from metadata, looked up, derived, quoted by the quote step). Metadata fits; web address could be metadata or derived; a page quote could be quoted or stated; an archive upper bound has no clean home, and the fact that it is a bound would be lost; \"unknown\" is not in the list. The stage date's fallback to the access date and the planned date-confidence item also lack a home. (see reference: Shared lists)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Fit them into the five values, plus a bound note",
+     "mechanism": "Web address to from metadata; page quote to quoted by the quote step; archive bound to looked up; unknown through the missing-answer labels; access date to from metadata; add a yes/no note \"this date is an upper bound\".",
+     "benefits": "One shared list; nothing new in it.",
+     "risks": "Several mappings are judgement calls; a note item is added.",
+     "commits_to": "These mappings and a bound note."
+    },
+    {
+     "id": "b",
+     "label": "Keep a separate date-origin list for dates",
+     "mechanism": "Undo the fold for dates only.",
+     "benefits": "Dates keep their own precise origins, including the bound.",
+     "risks": "Two how-we-know lists to maintain.",
+     "commits_to": "A separate date list."
+    },
+    {
+     "id": "c",
+     "label": "Add \"archive upper bound\" and \"unknown\" to the shared list",
+     "mechanism": "Extend the five values.",
+     "benefits": "Every date origin has a home.",
+     "risks": "Values that apply only to dates sit in a list shared by all items.",
+     "commits_to": "A longer shared list."
+    }
+   ]
+  },
+  {
+   "id": "shared-02",
+   "kind": "substantive",
+   "title": "[Shared lists] \"Stated\" versus \"quoted by the quote step\"",
+   "situation": "For web pages, a value the page states is normally backed by a quote from the quote step, so the two values overlap. (see reference: Shared lists)",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep both with separate meanings",
+     "mechanism": "\"Stated\" = the page says it, whoever copied it; \"quoted by the quote step\" = only the quote step's copy.",
+     "benefits": "Records who copied the value.",
+     "risks": "A fine line coders and checks must hold.",
+     "commits_to": "Two definitions."
+    },
+    {
+     "id": "b",
+     "label": "Use \"stated\" only for other sources (such as procurement notice fields)",
+     "mechanism": "On web pages, use \"quoted by the quote step\".",
+     "benefits": "No overlap on web pages.",
+     "risks": "\"Stated\" means different things by source.",
+     "commits_to": "Source-dependent use of the list."
+    }
+   ]
+  }
+ ]
+}

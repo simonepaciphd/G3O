@@ -1,0 +1,708 @@
+{
+ "ALL": {
+  "owner": "all"
+ },
+ "M1": {
+  "owner": "missing-labels",
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §3.2 Group D rule",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §6 check 2",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3-4.5 ('unknown: cannot determine'); §6 check 2",
+   "SPEC R-051; codebook-review/codebook-rulings-round2.json n=46"
+  ]
+ },
+ "T01": {
+  "owner": "core.page_verdict",
+  "column": "genai_evidence",
+  "leaves": [
+   "map",
+   "unmappable"
+  ],
+  "default_value": {
+   "map": {
+    "confirms_activity": "confirms_activity",
+    "ambiguous_genai": "ambiguous",
+    "ambiguous_attribution": "ambiguous",
+    "background_only": "background_only",
+    "confirms_absence": "confirms_absence",
+    "no_genai": "confirms_absence"
+   },
+   "unmappable": [
+    "other_body",
+    "event_only",
+    "not_assessable"
+   ]
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7; SPEC R-015",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7 'Source mentions AI but unclear whether generative AI'",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7 '...or mentions GenAI but unclear whether this institution is involved'; §4.2 country-wide rule",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7",
+   "SPEC R-015 ('v2.5 confirms_absence')",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7 defines confirms_absence as 'The supplied page text contains no GenAI evidence relevant to this institution', the v2.7 no_genai meaning",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md has no other-body value; codebook-review/codebook-rulings-round1.json C04 (attribution rule)",
+   "codebook rule core.rule.ws10_event (event rule new in v2.7)",
+   "SPEC R-015 (set mechanically when a page was not reviewed); G3O 375f1ff g3o/common/contract.py L169 (four values)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7; SPEC R-015"
+  ]
+ },
+ "T02": {
+  "owner": "core.source_type",
+  "column": "source_type",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "news_major": "news_major",
+    "news_trade": "news_trade",
+    "vendor": "vendor",
+    "academic": "academic",
+    "policy_org": "policy_org",
+    "social_media": "social_media",
+    "procurement_tender": "procurement_tender",
+    "other": "other"
+   }
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+   "codebook.yaml (approved final draft, sha256 9ddf5a09) source_type rule 1 (r2#25)",
+   "codebook.yaml (approved final draft, sha256 9ddf5a09) source_type rule 1 (r2#25)"
+  ]
+ },
+ "T03": {
+  "owner": "core.source_title",
+  "column": "source_title",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": "identity"
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 30; codebook.yaml (approved final draft, sha256 9ddf5a09) source_title rule",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 30"
+  ]
+ },
+ "T04": {
+  "owner": "core.source_language",
+  "column": "source_language",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "<two-letter tag>": "<same tag>"
+   },
+   "unmappable": [
+    "<tag with a script subtag>",
+    "<three-letter tag>",
+    "mul"
+   ]
+  },
+  "sources": [
+   "G3O 375f1ff g3o/common/contract.py L104 LANG_PATTERN '^[a-z]{2}$'; codebook.yaml (approved final draft, sha256 9ddf5a09) source_language rule",
+   "G3O 375f1ff g3o/common/contract.py L104 vs L113 LANGS_PATTERN",
+   "G3O 375f1ff g3o/common/contract.py L104",
+   "codebook.yaml (approved final draft, sha256 9ddf5a09) source_language rule ('mul' when no language exceeds a set share)",
+   "G3O 375f1ff g3o/common/contract.py L104"
+  ]
+ },
+ "T05": {
+  "owner": "core.source_snippet",
+  "column": "source_snippet",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": "identity"
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 37; codebook.yaml (approved final draft, sha256 9ddf5a09) source_snippet rules (verbatim only, r2#35)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 37"
+  ]
+ },
+ "T06": {
+  "owner": "core.source_credibility",
+  "column": "source_credibility",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "high": "high",
+    "medium": "medium",
+    "low": "low"
+   }
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.8; codebook.yaml (approved final draft, sha256 9ddf5a09) source_credibility rule",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.8; codebook.yaml (approved final draft, sha256 9ddf5a09) source_credibility rule",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.8; codebook.yaml (approved final draft, sha256 9ddf5a09) source_credibility rule",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.8",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.8",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.8"
+  ]
+ },
+ "T07": {
+  "owner": "core.adoption_stage",
+  "column": "adoption_stage",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "proposed": "proposed",
+    "announced": "announced",
+    "pilot": "pilot",
+    "production": "production",
+    "discontinued": "discontinued"
+   }
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3; codebook value texts copy it",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3"
+  ]
+ },
+ "T08": {
+  "owner": "core.model_origin",
+  "column": "access_type",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "commercial": "proprietary_vendor",
+    "open_weight": "open_source"
+   },
+   "unmappable": [
+    "government_developed"
+   ],
+   "condition": "When build arrangement is model_trained_or_fine_tuned_by_institution, the old column is not filled (old rules would give mixed or in_house)."
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 (same examples: OpenAI, Microsoft, Google, Anthropic)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 (same examples: Llama, Mistral, Falcon)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 sovereign_model and in_house; codebook.yaml (approved final draft, sha256 9ddf5a09) government_developed definition",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 mixed example 'proprietary API fine-tuned in-house'",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4; codebook.yaml (approved final draft, sha256 9ddf5a09) (same examples: Albert, OpenGPT-X)",
+   "codebook.yaml (approved final draft, sha256 9ddf5a09) government_developed ('including by the institution's own team')",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4"
+  ]
+ },
+ "T09": {
+  "owner": "core.build_arrangement",
+  "column": "access_type",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {},
+   "unmappable": [
+    "off_the_shelf_product",
+    "custom_application_on_external_model",
+    "model_trained_or_fine_tuned_by_institution"
+   ]
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 (no build dimension); codebook-review/codebook-rulings-round1.json C10",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 (no build dimension); codebook-review/codebook-rulings-round1.json C10",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 (no build dimension); codebook-review/codebook-rulings-round1.json C10",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 'Built by the institution's own team, not based on a major external foundation model'",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4"
+  ]
+ },
+ "T10": {
+  "owner": "core.interface",
+  "column": "interaction_type",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {},
+   "unmappable": [
+    "conversational",
+    "backend_or_api",
+    "other_interface"
+   ]
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); SPEC R-051",
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); SPEC R-051",
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); SPEC R-051",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Conversational interface for Q&A, navigation, or retrieval')",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 (policy activities with no tool); codebook applicability table (policy_guidance: not asked)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5"
+  ]
+ },
+ "T11": {
+  "owner": "core.function_drafting_writing",
+  "column": "interaction_type",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {},
+   "unmappable": [
+    "yes",
+    "no"
+   ]
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')"
+  ]
+ },
+ "T12": {
+  "owner": "core.function_summarization",
+  "column": "interaction_type",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {},
+   "unmappable": [
+    "yes",
+    "no"
+   ]
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')"
+  ]
+ },
+ "T13": {
+  "owner": "core.function_translation",
+  "column": "interaction_type",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {},
+   "unmappable": [
+    "yes",
+    "no"
+   ]
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 (same definition)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')"
+  ]
+ },
+ "T14": {
+  "owner": "core.function_search_retrieval",
+  "column": "interaction_type",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {},
+   "unmappable": [
+    "yes",
+    "no"
+   ]
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 (same definition)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')"
+  ]
+ },
+ "T15": {
+  "owner": "core.function_code",
+  "column": "interaction_type",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {},
+   "unmappable": [
+    "yes",
+    "no"
+   ]
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 (same definition)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')"
+  ]
+ },
+ "T16": {
+  "owner": "core.function_image_audio_video",
+  "column": "interaction_type",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {},
+   "unmappable": [
+    "yes",
+    "no"
+   ]
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')"
+  ]
+ },
+ "T17": {
+  "owner": "core.function_extraction_classification",
+  "column": "interaction_type",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {},
+   "unmappable": [
+    "yes",
+    "no"
+   ]
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')"
+  ]
+ },
+ "T18": {
+  "owner": "core.function_analysis_recommendation",
+  "column": "interaction_type",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {},
+   "unmappable": [
+    "yes",
+    "no"
+   ]
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 (same definition)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')"
+  ]
+ },
+ "T19": {
+  "owner": "core.contracting_party",
+  "column": "vendor",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {},
+   "unmappable": [
+    "(contracting party text)"
+   ]
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round1.json C13 (old vendor = the supplier of the product); codebook.yaml (approved final draft, sha256 9ddf5a09) contracting_party rule 2 ('in purchase records is the contracting party')",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 17"
+  ]
+ },
+ "T20": {
+  "owner": "core.developer",
+  "column": "vendor",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "(developer text, basis stated)": "(same text)"
+   },
+   "unmappable": [
+    "(developer text, basis lookup)"
+   ]
+  },
+  "sources": [
+   "codebook.yaml (approved final draft, sha256 9ddf5a09) developer rule 2 (= the round-1 vendor definition)",
+   "codebook.yaml (approved final draft, sha256 9ddf5a09) contracting_party rule 2 ('the lookup stops filling vendor')",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 17 ('Vendor or provider. For in-house tools: the institution or its parent agency')",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 17"
+  ]
+ },
+ "T21": {
+  "owner": "core.deployment_mode",
+  "column": "deployment_mode",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "integrated": "integrated",
+    "standalone": "standalone"
+   }
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 18; codebook.yaml (approved final draft, sha256 9ddf5a09) deployment_mode instruction",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 18; codebook.yaml (approved final draft, sha256 9ddf5a09) deployment_mode instruction",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 18",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 18",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 18"
+  ]
+ },
+ "T22": {
+  "owner": "core.year_pilot_start",
+  "column": "year_deployed",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "rule": "year_deployed = the earlier of year_pilot_start and year_production_start; if only one is a year, that year; if neither, unknown"
+   }
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); SPEC R-051",
+   "codebook-review/codebook-rulings-round2.json n=46 (reading of 'the earlier of')",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 21",
+   "codebook-review/codebook-rulings-round1.json C17 (split)"
+  ]
+ },
+ "T23": {
+  "owner": "core.year_production_start",
+  "column": "year_deployed",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "rule": "year_deployed = the earlier of year_pilot_start and year_production_start; if only one is a year, that year; if neither, unknown"
+   }
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round2.json n=46 (R2P22); SPEC R-051",
+   "codebook-review/codebook-rulings-round1.json C17 (split)"
+  ]
+ },
+ "T24": {
+  "owner": "core.outcome_kind",
+  "column": "reported_outcomes",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "none_reported": "none_reported"
+   },
+   "via": {
+    "quantified": "core.reported_outcomes",
+    "qualitative": "core.reported_outcomes"
+   }
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 26",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 26 (a text column); codebook.yaml (approved final draft, sha256 9ddf5a09) reported_outcomes",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 26; codebook.yaml (approved final draft, sha256 9ddf5a09) reported_outcomes",
+   "codebook.yaml (approved final draft, sha256 9ddf5a09) reported_outcomes rule 1 (legacy normalisation)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 26"
+  ]
+ },
+ "T25": {
+  "owner": "core.incident_kind",
+  "column": "reported_incidents",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "none_reported": "none_reported"
+   },
+   "unmappable": [
+    "discontinuation_uncertain"
+   ],
+   "via": {
+    "quantified": "core.reported_incidents",
+    "qualitative": "core.reported_incidents"
+   }
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 27",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 27; codebook.yaml (approved final draft, sha256 9ddf5a09) reported_incidents",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 27; codebook.yaml (approved final draft, sha256 9ddf5a09) reported_incidents",
+   "codebook-review/codebook-rulings-round2.json n=38 (folded from the old flag); codebook.yaml (approved final draft, sha256 9ddf5a09) incident_kind rule 'ignores stops unless a problem is reported'",
+   "codebook.yaml (approved final draft, sha256 9ddf5a09) reported_incidents rule 1",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 27"
+  ]
+ },
+ "T26": {
+  "owner": "core.reported_outcomes",
+  "column": "reported_outcomes",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "rule": "the verbatim spans joined with ' | ', in full; 'none_reported' when the outcome kind is none_reported"
+   }
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 26; SPEC R-043 (full text in the API)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 26"
+  ]
+ },
+ "T27": {
+  "owner": "core.reported_incidents",
+  "column": "reported_incidents",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "rule": "the verbatim spans joined with ' | ', in full; 'none_reported' when the incident kind is none_reported"
+   }
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 27; SPEC R-043",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 27"
+  ]
+ },
+ "T28": {
+  "owner": "core.uncertainty_flags",
+  "column": "uncertainty_flags",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "stage_ambiguous": "stage_ambiguous",
+    "incident_kind = discontinuation_uncertain": "discontinued_uncertain"
+   },
+   "unmappable": [
+    "identity_unresolved"
+   ]
+  },
+  "sources": [
+   "codebook-review/codebook-rulings-round2.json n=38 (kept)",
+   "codebook-review/codebook-rulings-round2.json n=38 (folded into the incident question); respelling all-11",
+   "codebook-review/codebook-rulings-round2.json n=38; codebook-review/codebook-rulings-round1.json X24 (new, for consolidation links)",
+   "codebook-review/codebook-rulings-round2.json n=38 (retire flags that mirror a column); codebook-review/codebook-rulings-round1.json X24 ('compute each flag from codes')",
+   "codebook-review/codebook-rulings-round2.json n=38",
+   "codebook-review/codebook-rulings-round2.json n=38",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.10; codebook-review/codebook-rulings-round2.json n=38",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.10; codebook-review/codebook-rulings-round2.json n=38",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.10; codebook-review/codebook-rulings-round2.json n=38",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.10; codebook-review/codebook-rulings-round2.json n=38",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.10; codebook-review/codebook-rulings-round2.json n=38",
+   "codebook-review/codebook-rulings-round2.json n=39 (dropped everywhere)"
+  ]
+ },
+ "T29": {
+  "owner": "core.has_genai_activity",
+  "column": "has_genai_activity",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "yes": "yes",
+    "no": "no",
+    "unclear": "unclear"
+   }
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.1; codebook.yaml (approved final draft, sha256 9ddf5a09) has_genai_activity rules",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.1; codebook.yaml (approved final draft, sha256 9ddf5a09) has_genai_activity rules",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.1; codebook.yaml (approved final draft, sha256 9ddf5a09) has_genai_activity rules",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.1",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.1",
+   "codebook-review/codebook-rulings-round2.json n=45 (R2P21); SPEC R-059 (verdict_rule)"
+  ]
+ },
+ "T30": {
+  "owner": "core.confidence",
+  "column": "confidence",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {},
+   "unmappable": [
+    "high",
+    "medium",
+    "low"
+   ]
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.9 (model's confidence in the row's coded values); codebook.yaml (approved final draft, sha256 9ddf5a09) confidence rule (per source from credibility and quote support; per activity by consolidation)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.9 (model's confidence in the row's coded values); codebook.yaml (approved final draft, sha256 9ddf5a09) confidence rule (per source from credibility and quote support; per activity by consolidation)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.9 (model's confidence in the row's coded values); codebook.yaml (approved final draft, sha256 9ddf5a09) confidence rule (per source from credibility and quote support; per activity by consolidation)",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.9",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.9",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.9"
+  ]
+ },
+ "T31": {
+  "owner": "core.institution_summary",
+  "column": "institution_summary",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": "identity"
+  },
+  "sources": [
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 9; codebook.yaml (approved final draft, sha256 9ddf5a09) institution_summary rule",
+   "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 9"
+  ]
+ },
+ "T32": {
+  "owner": "core.codebook_release",
+  "column": "contract_version",
+  "leaves": [
+   "map"
+  ],
+  "default_value": {
+   "map": {
+    "(codebook release label)": "(same label in contract_version)"
+   }
+  },
+  "sources": [
+   "SPEC R-050 (the codebook release replaces contract_version)",
+   "SPEC R-050 ('v2.5 rows keep their contract version')"
+  ]
+ }
+}

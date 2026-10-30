@@ -1,0 +1,2257 @@
+{
+ "format": "t010-translation-draft-v1",
+ "status": "DRAFT, for PI review (not folded)",
+ "date": "2026-10-30",
+ "draft_by": {
+  "harness": "Claude Code",
+  "model": "claude-opus-5-5",
+  "session": "translation-drafting subagent of integrator session 20261030-claude-v2-2b8200388885f8f9"
+ },
+ "ruling": "PI 2026-10-30 's1 b s2b; accept all' (S1 b: agent drafts the translation table, PI reviews, then signs)",
+ "codebook": {
+  "path": "C:\\Users\\spaci\\worktrees\\G3O-integrator\\codebook\\codebook.yaml",
+  "sha256_read": "9ddf5a093ab836ee79d95ab04f70602ce1361b2db07512e14d9014f4b9d2cd8e"
+ },
+ "template_shape": "item-template.md field 25: {column, map: {v2.7 code: v2.5 code}, unmappable: [...]}",
+ "fold_note": "On approval, each entry's default_value fills that item's open translation_v25 leaves (map, and unmappable where listed), origin 'agent draft r4 translation' plus the PI approval. The missing-labels convention applies to every coded item and is recorded once, as a shared convention.",
+ "counts": {
+  "open_leaves": 33,
+  "items": 32,
+  "cells_mapped": 49,
+  "cells_unmappable": 38,
+  "no_source_cells": 16,
+  "items_with_no_source_cells": 8
+ },
+ "missing_labels_convention": {
+  "id": "missing-labels",
+  "name": "Missing labels (every coded item above)",
+  "plain": "How v2.7's reserved missing labels appear in the old columns.",
+  "cells": [
+   {
+    "v27": "_NA_",
+    "v25": "_NA_",
+    "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §3.2 Group D rule",
+    "confidence": "high",
+    "no_source": false,
+    "note": ""
+   },
+   {
+    "v27": "unknown",
+    "v25": "unknown",
+    "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §6 check 2",
+    "confidence": "high",
+    "no_source": false,
+    "note": ""
+   },
+   {
+    "v27": "not_documented",
+    "v25": "unknown",
+    "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3-4.5 ('unknown: cannot determine'); §6 check 2",
+    "confidence": "medium",
+    "no_source": true,
+    "note": "The old columns had no 'not documented' (except the safeguard items), so 'unknown' covered silent pages too. Alternative: leave it unmapped."
+   },
+   {
+    "v27": "not_asked",
+    "v25": "not asked (shown with a version label)",
+    "source": "SPEC R-051; codebook-review/codebook-rulings-round2.json n=46",
+    "confidence": "high",
+    "no_source": false,
+    "note": ""
+   }
+  ]
+ },
+ "entries": [
+  {
+   "item": "core.page_verdict",
+   "name": "Page verdict",
+   "column": "genai_evidence",
+   "leaves": [
+    "map",
+    "unmappable"
+   ],
+   "plain": "The old four-value evidence column becomes the nine-value page verdict.",
+   "cells": [
+    {
+     "v27": "confirms_activity",
+     "v25": "confirms_activity",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7; SPEC R-015",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "ambiguous_genai",
+     "v25": "ambiguous",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7 'Source mentions AI but unclear whether generative AI'",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "ambiguous_attribution",
+     "v25": "ambiguous",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7 '...or mentions GenAI but unclear whether this institution is involved'; §4.2 country-wide rule",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "background_only",
+     "v25": "background_only",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "confirms_absence",
+     "v25": "confirms_absence",
+     "source": "SPEC R-015 ('v2.5 confirms_absence')",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "no_genai",
+     "v25": "confirms_absence",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7 defines confirms_absence as 'The supplied page text contains no GenAI evidence relevant to this institution', the v2.7 no_genai meaning",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Both v2.7 values collapse into the old absence code."
+    },
+    {
+     "v27": "other_body",
+     "v25": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md has no other-body value; codebook-review/codebook-rulings-round1.json C04 (attribution rule)",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "Old rules sent such pages to 'ambiguous' or 'background only' depending on the reading; no fixed choice."
+    },
+    {
+     "v27": "event_only",
+     "v25": null,
+     "source": "codebook rule core.rule.ws10_event (event rule new in v2.7)",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "Old rules could code an event page as an activity or as background; no fixed choice."
+    },
+    {
+     "v27": "not_assessable",
+     "v25": null,
+     "source": "SPEC R-015 (set mechanically when a page was not reviewed); G3O 375f1ff g3o/common/contract.py L169 (four values)",
+     "confidence": "high",
+     "no_source": false,
+     "note": "The old version wrote no row for an unreviewed page."
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "confirms_activity",
+     "v27": "confirms_activity",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Old positives may include pages v2.7 codes as event only or other body."
+    },
+    {
+     "v25": "ambiguous",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Splits into the two v2.7 ambiguous values; the old row does not say which."
+    },
+    {
+     "v25": "background_only",
+     "v27": "background_only",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "May include pages v2.7 codes as other body."
+    },
+    {
+     "v25": "confirms_absence",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.7; SPEC R-015",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "The old meaning is v2.7 'no GenAI', but a page stating absence also took it."
+    }
+   ],
+   "v27_new": [
+    "other_body",
+    "event_only",
+    "not_assessable"
+   ],
+   "notes": [
+    "Old rows stay unconverted (SPEC R-015); the reverse column is for reading old rows only."
+   ],
+   "default_value": {
+    "map": {
+     "confirms_activity": "confirms_activity",
+     "ambiguous_genai": "ambiguous",
+     "ambiguous_attribution": "ambiguous",
+     "background_only": "background_only",
+     "confirms_absence": "confirms_absence",
+     "no_genai": "confirms_absence"
+    },
+    "unmappable": [
+     "other_body",
+     "event_only",
+     "not_assessable"
+    ]
+   }
+  },
+  {
+   "item": "core.source_type",
+   "name": "Source type",
+   "column": "source_type",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Same codes and definitions; two old codes are now set automatically.",
+   "cells": [
+    {
+     "v27": "news_major",
+     "v25": "news_major",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "news_trade",
+     "v25": "news_trade",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "vendor",
+     "v25": "vendor",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "academic",
+     "v25": "academic",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "policy_org",
+     "v25": "policy_org",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "social_media",
+     "v25": "social_media",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "procurement_tender",
+     "v25": "procurement_tender",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "other",
+     "v25": "other",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "news_major",
+     "v27": "news_major",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "news_trade",
+     "v27": "news_trade",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "vendor",
+     "v27": "vendor",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "academic",
+     "v27": "academic",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "policy_org",
+     "v27": "policy_org",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "social_media",
+     "v27": "social_media",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "procurement_tender",
+     "v27": "procurement_tender",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "other",
+     "v27": "other",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.6",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "official_gov",
+     "v27": "official_gov (set from the domain field)",
+     "source": "codebook.yaml (approved final draft, sha256 9ddf5a09) source_type rule 1 (r2#25)",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Not a classifier value in v2.7; pages typed from the domain keep the code in the same column."
+    },
+    {
+     "v25": "archive",
+     "v27": "archive (set from the address)",
+     "source": "codebook.yaml (approved final draft, sha256 9ddf5a09) source_type rule 1 (r2#25)",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Not a classifier value in v2.7; pages typed from the address keep the code in the same column."
+    }
+   ],
+   "v27_new": [],
+   "notes": [
+    "'Other' no longer carries an explanation in the snippet, since snippets are now verbatim only."
+   ],
+   "default_value": {
+    "map": {
+     "news_major": "news_major",
+     "news_trade": "news_trade",
+     "vendor": "vendor",
+     "academic": "academic",
+     "policy_org": "policy_org",
+     "social_media": "social_media",
+     "procurement_tender": "procurement_tender",
+     "other": "other"
+    }
+   }
+  },
+  {
+   "item": "core.source_title",
+   "name": "Source title",
+   "column": "source_title",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Same text column; v2.7 takes the title from the page instead of the model.",
+   "cells": [
+    {
+     "v27": "(title text)",
+     "v25": "(same text)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 30; codebook.yaml (approved final draft, sha256 9ddf5a09) source_title rule",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Method change: model-written 'as it appears' in v2.5, page title or first heading in v2.7."
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(title text)",
+     "v27": "(same text)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 30",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": "identity"
+   }
+  },
+  {
+   "item": "core.source_language",
+   "name": "Source language",
+   "column": "source_language",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Two-letter language tags carry over; tags the old column could not hold do not.",
+   "cells": [
+    {
+     "v27": "<two-letter tag>",
+     "v25": "<same tag>",
+     "source": "G3O 375f1ff g3o/common/contract.py L104 LANG_PATTERN '^[a-z]{2}$'; codebook.yaml (approved final draft, sha256 9ddf5a09) source_language rule",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "<tag with a script subtag> (e.g. uz-latn)",
+     "v25": null,
+     "source": "G3O 375f1ff g3o/common/contract.py L104 vs L113 LANGS_PATTERN",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Not stripped to the base tag: the script was ruled a different search instrument (contract.py L110)."
+    },
+    {
+     "v27": "<three-letter tag>",
+     "v25": null,
+     "source": "G3O 375f1ff g3o/common/contract.py L104",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "mul",
+     "v25": null,
+     "source": "codebook.yaml (approved final draft, sha256 9ddf5a09) source_language rule ('mul' when no language exceeds a set share)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "<two-letter tag>",
+     "v27": "<same tag>",
+     "source": "G3O 375f1ff g3o/common/contract.py L104",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Old tags were judged by the model; v2.7 uses a pinned language-ID library."
+    }
+   ],
+   "v27_new": [
+    "script-subtag tags",
+    "three-letter tags",
+    "mul"
+   ],
+   "notes": [],
+   "default_value": {
+    "map": {
+     "<two-letter tag>": "<same tag>"
+    },
+    "unmappable": [
+     "<tag with a script subtag>",
+     "<three-letter tag>",
+     "mul"
+    ]
+   }
+  },
+  {
+   "item": "core.source_snippet",
+   "name": "Supporting snippet",
+   "column": "source_snippet",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Same text column; old snippets may be paraphrased or translated.",
+   "cells": [
+    {
+     "v27": "(verbatim supporting text)",
+     "v25": "(same text)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 37; codebook.yaml (approved final draft, sha256 9ddf5a09) source_snippet rules (verbatim only, r2#35)",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(snippet text)",
+     "v27": "(same text, labelled)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 37",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Old snippets could be a close paraphrase or an English translation with the original in brackets; they are not all verbatim."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": "identity"
+   }
+  },
+  {
+   "item": "core.source_credibility",
+   "name": "Source credibility",
+   "column": "source_credibility",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Same three codes on the same ladder; v2.7 sets them by a fixed rule.",
+   "cells": [
+    {
+     "v27": "high",
+     "v25": "high",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.8; codebook.yaml (approved final draft, sha256 9ddf5a09) source_credibility rule",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "medium",
+     "v25": "medium",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.8; codebook.yaml (approved final draft, sha256 9ddf5a09) source_credibility rule",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "low",
+     "v25": "low",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.8; codebook.yaml (approved final draft, sha256 9ddf5a09) source_credibility rule",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "high",
+     "v27": "high",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.8",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "medium",
+     "v27": "medium",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.8",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "low",
+     "v27": "low",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.8",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "v27_new": [],
+   "notes": [
+    "v2.5: the model applied a hierarchy; v2.7: a fixed map from source type, plus 'low' when the publication date is unknown."
+   ],
+   "default_value": {
+    "map": {
+     "high": "high",
+     "medium": "medium",
+     "low": "low"
+    }
+   }
+  },
+  {
+   "item": "core.adoption_stage",
+   "name": "Adoption stage",
+   "column": "adoption_stage",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Same five stages, same definitions.",
+   "cells": [
+    {
+     "v27": "proposed",
+     "v25": "proposed",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "announced",
+     "v25": "announced",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "pilot",
+     "v25": "pilot",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "production",
+     "v25": "production",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "discontinued",
+     "v25": "discontinued",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3; codebook value texts copy it",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "proposed",
+     "v27": "proposed",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "announced",
+     "v27": "announced",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "pilot",
+     "v27": "pilot",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "production",
+     "v27": "production",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "discontinued",
+     "v27": "discontinued",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.3",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "v27_new": [],
+   "notes": [
+    "Series break: a purchase record without shown use is 'unknown' in v2.7 (its purchase status says what was bought); v2.5 may have given it a stage."
+   ],
+   "default_value": {
+    "map": {
+     "proposed": "proposed",
+     "announced": "announced",
+     "pilot": "pilot",
+     "production": "production",
+     "discontinued": "discontinued"
+    }
+   }
+  },
+  {
+   "item": "core.model_origin",
+   "name": "Model origin",
+   "column": "access_type",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The old access-type column is split into model origin and build arrangement; the crosswalk is partial.",
+   "cells": [
+    {
+     "v27": "commercial",
+     "v25": "proprietary_vendor",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 (same examples: OpenAI, Microsoft, Google, Anthropic)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "open_weight",
+     "v25": "open_source",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 (same examples: Llama, Mistral, Falcon)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "government_developed",
+     "v25": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 sovereign_model and in_house; codebook.yaml (approved final draft, sha256 9ddf5a09) government_developed definition",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "The v2.7 value covers both old 'sovereign model' and old 'in house'."
+    },
+    {
+     "v27": "(any origin) with build arrangement = trained or fine-tuned by the institution",
+     "v25": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 mixed example 'proprietary API fine-tuned in-house'",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "The old column would say 'mixed' or 'in house', not the origin."
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "proprietary_vendor",
+     "v27": "commercial",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "open_source",
+     "v27": "open_weight",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "sovereign_model",
+     "v27": "government_developed",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4; codebook.yaml (approved final draft, sha256 9ddf5a09) (same examples: Albert, OpenGPT-X)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "in_house",
+     "v27": "government_developed",
+     "source": "codebook.yaml (approved final draft, sha256 9ddf5a09) government_developed ('including by the institution's own team')",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "mixed",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "unknown",
+     "v27": "unknown",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "v27_new": [],
+   "notes": [
+    "Round 1 recorded that this split breaks the series and the crosswalk is only partial."
+   ],
+   "default_value": {
+    "map": {
+     "commercial": "proprietary_vendor",
+     "open_weight": "open_source"
+    },
+    "unmappable": [
+     "government_developed"
+    ],
+    "condition": "When build arrangement is model_trained_or_fine_tuned_by_institution, the old column is not filled (old rules would give mixed or in_house)."
+   },
+   "condition": "When build arrangement is model_trained_or_fine_tuned_by_institution, the old column is not filled (old rules would give mixed or in_house)."
+  },
+  {
+   "item": "core.build_arrangement",
+   "name": "Build arrangement",
+   "column": "access_type",
+   "leaves": [
+    "map"
+   ],
+   "plain": "New dimension; nothing in v2.7 fills the old column from it.",
+   "cells": [
+    {
+     "v27": "off_the_shelf_product",
+     "v25": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 (no build dimension); codebook-review/codebook-rulings-round1.json C10",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "custom_application_on_external_model",
+     "v25": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 (no build dimension); codebook-review/codebook-rulings-round1.json C10",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "model_trained_or_fine_tuned_by_institution",
+     "v25": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 (no build dimension); codebook-review/codebook-rulings-round1.json C10",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "in_house",
+     "v27": "model_trained_or_fine_tuned_by_institution",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4 'Built by the institution's own team, not based on a major external foundation model'",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "mixed",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "(other old codes)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.4",
+     "confidence": "high",
+     "no_source": false,
+     "note": "The old code says nothing about how the tool was built."
+    }
+   ],
+   "v27_new": [
+    "off_the_shelf_product",
+    "custom_application_on_external_model",
+    "model_trained_or_fine_tuned_by_institution"
+   ],
+   "notes": [],
+   "default_value": {
+    "map": {},
+    "unmappable": [
+     "off_the_shelf_product",
+     "custom_application_on_external_model",
+     "model_trained_or_fine_tuned_by_institution"
+    ]
+   }
+  },
+  {
+   "item": "core.interface",
+   "name": "Interface",
+   "column": "interaction_type",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Ruled in round 2: the old interaction-type column has no fixed mapping and shows 'not asked' on v2.7 rows.",
+   "cells": [
+    {
+     "v27": "conversational",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); SPEC R-051",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "backend_or_api",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); SPEC R-051",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "other_interface",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); SPEC R-051",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "chatbot",
+     "v27": "conversational",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Conversational interface for Q&A, navigation, or retrieval')",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "not_applicable",
+     "v27": "not_asked",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 (policy activities with no tool); codebook applicability table (policy_guidance: not asked)",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "unknown",
+     "v27": "unknown",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "(other old codes)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5",
+     "confidence": "high",
+     "no_source": false,
+     "note": "They name a function, not how users reach the tool."
+    }
+   ],
+   "v27_new": [
+    "conversational",
+    "backend_or_api",
+    "other_interface"
+   ],
+   "notes": [],
+   "default_value": {
+    "map": {},
+    "unmappable": [
+     "conversational",
+     "backend_or_api",
+     "other_interface"
+    ]
+   }
+  },
+  {
+   "item": "core.function_drafting_writing",
+   "name": "Function: drafting and writing",
+   "column": "interaction_type",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The old single 'primary mode' column cannot be filled from a set of yes/no functions (round 2).",
+   "cells": [
+    {
+     "v27": "yes",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "no",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(no single old code)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Old 'content creation' and 'document processing' each mix drafting with other functions."
+    },
+    {
+     "v25": "(any other old code)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Never 'no': the old column recorded only the primary mode."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {},
+    "unmappable": [
+     "yes",
+     "no"
+    ]
+   }
+  },
+  {
+   "item": "core.function_summarization",
+   "name": "Function: summarising",
+   "column": "interaction_type",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The old single 'primary mode' column cannot be filled from a set of yes/no functions (round 2).",
+   "cells": [
+    {
+     "v27": "yes",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "no",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(no single old code)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Old 'document processing' mixes summarising, extraction, classification and generation."
+    },
+    {
+     "v25": "(any other old code)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Never 'no': the old column recorded only the primary mode."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {},
+    "unmappable": [
+     "yes",
+     "no"
+    ]
+   }
+  },
+  {
+   "item": "core.function_translation",
+   "name": "Function: translation",
+   "column": "interaction_type",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The old single 'primary mode' column cannot be filled from a set of yes/no functions (round 2).",
+   "cells": [
+    {
+     "v27": "yes",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "no",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "translation",
+     "v27": "yes",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 (same definition)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "(any other old code)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Never 'no': the old column recorded only the primary mode."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {},
+    "unmappable": [
+     "yes",
+     "no"
+    ]
+   }
+  },
+  {
+   "item": "core.function_search_retrieval",
+   "name": "Function: search and retrieval",
+   "column": "interaction_type",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The old single 'primary mode' column cannot be filled from a set of yes/no functions (round 2).",
+   "cells": [
+    {
+     "v27": "yes",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "no",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "search_retrieval",
+     "v27": "yes",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 (same definition)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "(any other old code)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Never 'no': the old column recorded only the primary mode."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {},
+    "unmappable": [
+     "yes",
+     "no"
+    ]
+   }
+  },
+  {
+   "item": "core.function_code",
+   "name": "Function: code",
+   "column": "interaction_type",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The old single 'primary mode' column cannot be filled from a set of yes/no functions (round 2).",
+   "cells": [
+    {
+     "v27": "yes",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "no",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "code_generation",
+     "v27": "yes",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 (same definition)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "(any other old code)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Never 'no': the old column recorded only the primary mode."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {},
+    "unmappable": [
+     "yes",
+     "no"
+    ]
+   }
+  },
+  {
+   "item": "core.function_image_audio_video",
+   "name": "Function: images, audio and video",
+   "column": "interaction_type",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The old single 'primary mode' column cannot be filled from a set of yes/no functions (round 2).",
+   "cells": [
+    {
+     "v27": "yes",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "no",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(no single old code)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Old 'content creation' mixes text and multimedia."
+    },
+    {
+     "v25": "(any other old code)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Never 'no': the old column recorded only the primary mode."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {},
+    "unmappable": [
+     "yes",
+     "no"
+    ]
+   }
+  },
+  {
+   "item": "core.function_extraction_classification",
+   "name": "Function: extraction and classification",
+   "column": "interaction_type",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The old single 'primary mode' column cannot be filled from a set of yes/no functions (round 2).",
+   "cells": [
+    {
+     "v27": "yes",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "no",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(no single old code)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Old 'document processing' mixes several functions."
+    },
+    {
+     "v25": "(any other old code)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Never 'no': the old column recorded only the primary mode."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {},
+    "unmappable": [
+     "yes",
+     "no"
+    ]
+   }
+  },
+  {
+   "item": "core.function_analysis_recommendation",
+   "name": "Function: analysis and recommendation",
+   "column": "interaction_type",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The old single 'primary mode' column cannot be filled from a set of yes/no functions (round 2).",
+   "cells": [
+    {
+     "v27": "yes",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "no",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); codebook-review/codebook-rulings-round1.json C11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "decision_support",
+     "v27": "yes",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 (same definition)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "(any other old code)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.5 ('Primary mode of human-AI interaction')",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Never 'no': the old column recorded only the primary mode."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {},
+    "unmappable": [
+     "yes",
+     "no"
+    ]
+   }
+  },
+  {
+   "item": "core.contracting_party",
+   "name": "Contracting party",
+   "column": "vendor",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Not used to fill the old vendor column.",
+   "cells": [
+    {
+     "v27": "(contracting party text)",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round1.json C13 (old vendor = the supplier of the product); codebook.yaml (approved final draft, sha256 9ddf5a09) contracting_party rule 2 ('in purchase records is the contracting party')",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "The two rulings read the old vendor column differently; filling it from the contracting party could mix two meanings."
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(vendor text)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 17",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Old rows do not say whether the vendor was the contracting party."
+    }
+   ],
+   "v27_new": [
+    "contracting party"
+   ],
+   "notes": [],
+   "default_value": {
+    "map": {},
+    "unmappable": [
+     "(contracting party text)"
+    ]
+   }
+  },
+  {
+   "item": "core.developer",
+   "name": "Developer",
+   "column": "vendor",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The old vendor column takes the developer the page names; a developer found by lookup does not fill it.",
+   "cells": [
+    {
+     "v27": "(developer text, basis stated)",
+     "v25": "(same text)",
+     "source": "codebook.yaml (approved final draft, sha256 9ddf5a09) developer rule 2 (= the round-1 vendor definition)",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "(developer text, basis lookup)",
+     "v25": null,
+     "source": "codebook.yaml (approved final draft, sha256 9ddf5a09) contracting_party rule 2 ('the lookup stops filling vendor')",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(vendor text)",
+     "v27": "(developer text, basis stated)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 17 ('Vendor or provider. For in-house tools: the institution or its parent agency')",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "unknown",
+     "v27": "unknown",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 17",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "v27_new": [
+    "developer found by lookup"
+   ],
+   "notes": [],
+   "default_value": {
+    "map": {
+     "(developer text, basis stated)": "(same text)"
+    },
+    "unmappable": [
+     "(developer text, basis lookup)"
+    ]
+   }
+  },
+  {
+   "item": "core.deployment_mode",
+   "name": "Deployment mode",
+   "column": "deployment_mode",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Same two codes, same definitions.",
+   "cells": [
+    {
+     "v27": "integrated",
+     "v25": "integrated",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 18; codebook.yaml (approved final draft, sha256 9ddf5a09) deployment_mode instruction",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "standalone",
+     "v25": "standalone",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 18; codebook.yaml (approved final draft, sha256 9ddf5a09) deployment_mode instruction",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "integrated",
+     "v27": "integrated",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 18",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "standalone",
+     "v27": "standalone",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 18",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "unknown",
+     "v27": "unknown",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 18",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {
+     "integrated": "integrated",
+     "standalone": "standalone"
+    }
+   }
+  },
+  {
+   "item": "core.year_pilot_start",
+   "name": "Year the pilot started",
+   "column": "year_deployed",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Ruled in round 2: the old deployment year is the earlier of the pilot and production years.",
+   "cells": [
+    {
+     "v27": "(year)",
+     "v25": "earlier of the two years",
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); SPEC R-051",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "(only one of the two is a year)",
+     "v25": "that year",
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (reading of 'the earlier of')",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "(neither is a year)",
+     "v25": "unknown",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 21",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(year)",
+     "v27": null,
+     "source": "codebook-review/codebook-rulings-round1.json C17 (split)",
+     "confidence": "high",
+     "no_source": false,
+     "note": "The old year does not say whether it was a pilot or a production start."
+    }
+   ],
+   "v27_new": [],
+   "notes": [
+    "For governance activities both years are 'not asked'; the old column then shows 'not asked' with a version label."
+   ],
+   "default_value": {
+    "map": {
+     "rule": "year_deployed = the earlier of year_pilot_start and year_production_start; if only one is a year, that year; if neither, unknown"
+    }
+   }
+  },
+  {
+   "item": "core.year_production_start",
+   "name": "Year production started",
+   "column": "year_deployed",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Same rule as the pilot year: the old deployment year is the earlier of the two.",
+   "cells": [
+    {
+     "v27": "(year)",
+     "v25": "earlier of the two years",
+     "source": "codebook-review/codebook-rulings-round2.json n=46 (R2P22); SPEC R-051",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(year)",
+     "v27": null,
+     "source": "codebook-review/codebook-rulings-round1.json C17 (split)",
+     "confidence": "high",
+     "no_source": false,
+     "note": "The old year does not say whether it was a pilot or a production start."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {
+     "rule": "year_deployed = the earlier of year_pilot_start and year_production_start; if only one is a year, that year; if neither, unknown"
+    }
+   }
+  },
+  {
+   "item": "core.outcome_kind",
+   "name": "Kind of outcome reported",
+   "column": "reported_outcomes",
+   "leaves": [
+    "map"
+   ],
+   "plain": "'None reported' carries over; otherwise the old text column takes the quoted outcome text.",
+   "cells": [
+    {
+     "v27": "none_reported",
+     "v25": "none_reported",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 26",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "quantified",
+     "v25": "(the quoted outcome text)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 26 (a text column); codebook.yaml (approved final draft, sha256 9ddf5a09) reported_outcomes",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "The kind itself has no old code."
+    },
+    {
+     "v27": "qualitative",
+     "v25": "(the quoted outcome text)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 26; codebook.yaml (approved final draft, sha256 9ddf5a09) reported_outcomes",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "The kind itself has no old code."
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "none_reported (and other 'nothing found' spellings)",
+     "v27": "none_reported",
+     "source": "codebook.yaml (approved final draft, sha256 9ddf5a09) reported_outcomes rule 1 (legacy normalisation)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "(outcome text)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 26",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Whether it was measured or described needs a reading of the text."
+    }
+   ],
+   "v27_new": [
+    "quantified",
+    "qualitative"
+   ],
+   "notes": [],
+   "default_value": {
+    "map": {
+     "none_reported": "none_reported"
+    },
+    "via": {
+     "quantified": "core.reported_outcomes",
+     "qualitative": "core.reported_outcomes"
+    }
+   }
+  },
+  {
+   "item": "core.incident_kind",
+   "name": "Kind of incident reported",
+   "column": "reported_incidents",
+   "leaves": [
+    "map"
+   ],
+   "plain": "As for outcomes; the new 'possibly discontinued' value goes to the old uncertainty flag, not to this column.",
+   "cells": [
+    {
+     "v27": "none_reported",
+     "v25": "none_reported",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 27",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "quantified",
+     "v25": "(the quoted incident text)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 27; codebook.yaml (approved final draft, sha256 9ddf5a09) reported_incidents",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "qualitative",
+     "v25": "(the quoted incident text)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 27; codebook.yaml (approved final draft, sha256 9ddf5a09) reported_incidents",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "discontinuation_uncertain",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=38 (folded from the old flag); codebook.yaml (approved final draft, sha256 9ddf5a09) incident_kind rule 'ignores stops unless a problem is reported'",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "Not written to the old incident column (neither 'none reported' nor text); it sets the old flag 'discontinued uncertain' instead."
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "none_reported (and other 'nothing found' spellings)",
+     "v27": "none_reported",
+     "source": "codebook.yaml (approved final draft, sha256 9ddf5a09) reported_incidents rule 1",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "(incident text)",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 27",
+     "confidence": "high",
+     "no_source": false,
+     "note": "Whether it was measured or described needs a reading."
+    }
+   ],
+   "v27_new": [
+    "quantified",
+    "qualitative",
+    "discontinuation_uncertain"
+   ],
+   "notes": [],
+   "default_value": {
+    "map": {
+     "none_reported": "none_reported"
+    },
+    "unmappable": [
+     "discontinuation_uncertain"
+    ],
+    "via": {
+     "quantified": "core.reported_incidents",
+     "qualitative": "core.reported_incidents"
+    }
+   }
+  },
+  {
+   "item": "core.reported_outcomes",
+   "name": "Reported outcomes (quoted text)",
+   "column": "reported_outcomes",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The quoted outcome passages fill the old text column, joined, in full.",
+   "cells": [
+    {
+     "v27": "(verbatim spans)",
+     "v25": "(spans joined with ' | ', in full)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 26; SPEC R-043 (full text in the API)",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "The separator and dropping the old 200-character limit are choices; the alternative is to cut at 200 characters as before."
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(outcome text)",
+     "v27": "(one span)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 26",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Old text was not required to be verbatim."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {
+     "rule": "the verbatim spans joined with ' | ', in full; 'none_reported' when the outcome kind is none_reported"
+    }
+   }
+  },
+  {
+   "item": "core.reported_incidents",
+   "name": "Reported incidents (quoted text)",
+   "column": "reported_incidents",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The quoted incident passages fill the old text column, joined, in full.",
+   "cells": [
+    {
+     "v27": "(verbatim spans)",
+     "v25": "(spans joined with ' | ', in full)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 27; SPEC R-043",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "As for outcomes: separator and length are choices."
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(incident text)",
+     "v27": "(one span)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 27",
+     "confidence": "medium",
+     "no_source": false,
+     "note": "Old text was not required to be verbatim."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {
+     "rule": "the verbatim spans joined with ' | ', in full; 'none_reported' when the incident kind is none_reported"
+    }
+   }
+  },
+  {
+   "item": "core.uncertainty_flags",
+   "name": "Uncertainty flags",
+   "column": "uncertainty_flags",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Two kept flags carry over; retired flags are not recomputed for the old column.",
+   "cells": [
+    {
+     "v27": "stage_ambiguous",
+     "v25": "stage_ambiguous",
+     "source": "codebook-review/codebook-rulings-round2.json n=38 (kept)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "(incident kind = possibly discontinued)",
+     "v25": "discontinued_uncertain",
+     "source": "codebook-review/codebook-rulings-round2.json n=38 (folded into the incident question); respelling all-11",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "identity_unresolved",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=38; codebook-review/codebook-rulings-round1.json X24 (new, for consolidation links)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "(retired old flags)",
+     "v25": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=38 (retire flags that mirror a column); codebook-review/codebook-rulings-round1.json X24 ('compute each flag from codes')",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "Round 1 said flags are computed from codes, round 2 retired the ones that mirror a column. Default: not recomputed; the mirrored columns carry the information."
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "stage_ambiguous",
+     "v27": "stage_ambiguous",
+     "source": "codebook-review/codebook-rulings-round2.json n=38",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "discontinued_uncertain",
+     "v27": "incident kind: discontinuation_uncertain",
+     "source": "codebook-review/codebook-rulings-round2.json n=38",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "genai_vs_traditional_ai",
+     "v27": "(reads as page verdict: ambiguous_genai)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.10; codebook-review/codebook-rulings-round2.json n=38",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "institution_attribution",
+     "v27": "(reads as page verdict: ambiguous_attribution)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.10; codebook-review/codebook-rulings-round2.json n=38",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "date_uncertain",
+     "v27": "(reads as year: unknown)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.10; codebook-review/codebook-rulings-round2.json n=38",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "vendor_undisclosed",
+     "v27": "(reads as developer: not documented)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.10; codebook-review/codebook-rulings-round2.json n=38",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "scope_unclear",
+     "v27": "(reads as target users: unknown)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.10; codebook-review/codebook-rulings-round2.json n=38",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "source_language_barrier",
+     "v27": null,
+     "source": "codebook-review/codebook-rulings-round2.json n=39 (dropped everywhere)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "v27_new": [
+    "identity_unresolved"
+   ],
+   "notes": [],
+   "default_value": {
+    "map": {
+     "stage_ambiguous": "stage_ambiguous",
+     "incident_kind = discontinuation_uncertain": "discontinued_uncertain"
+    },
+    "unmappable": [
+     "identity_unresolved"
+    ]
+   }
+  },
+  {
+   "item": "core.has_genai_activity",
+   "name": "Institution has GenAI activity",
+   "column": "has_genai_activity",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Same three codes; v2.7's 'no' is stricter, and old 'no' results are labelled as produced by the old rule.",
+   "cells": [
+    {
+     "v27": "yes",
+     "v25": "yes",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.1; codebook.yaml (approved final draft, sha256 9ddf5a09) has_genai_activity rules",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "no",
+     "v25": "no",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.1; codebook.yaml (approved final draft, sha256 9ddf5a09) has_genai_activity rules",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v27": "unclear",
+     "v25": "unclear",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.1; codebook.yaml (approved final draft, sha256 9ddf5a09) has_genai_activity rules",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "yes",
+     "v27": "yes",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.1",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "unclear",
+     "v27": "unclear",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.1",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    },
+    {
+     "v25": "no",
+     "v27": "no (labelled: produced by the v2.5 rule)",
+     "source": "codebook-review/codebook-rulings-round2.json n=45 (R2P21); SPEC R-059 (verdict_rule)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {
+     "yes": "yes",
+     "no": "no",
+     "unclear": "unclear"
+    }
+   }
+  },
+  {
+   "item": "core.confidence",
+   "name": "Confidence",
+   "column": "confidence",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Same three codes, but a different rule and level; not carried over by default.",
+   "cells": [
+    {
+     "v27": "high",
+     "v25": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.9 (model's confidence in the row's coded values); codebook.yaml (approved final draft, sha256 9ddf5a09) confidence rule (per source from credibility and quote support; per activity by consolidation)",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "The codes match but the measure changed; the alternative is to carry the codes with a version label."
+    },
+    {
+     "v27": "medium",
+     "v25": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.9 (model's confidence in the row's coded values); codebook.yaml (approved final draft, sha256 9ddf5a09) confidence rule (per source from credibility and quote support; per activity by consolidation)",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "The codes match but the measure changed; the alternative is to carry the codes with a version label."
+    },
+    {
+     "v27": "low",
+     "v25": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.9 (model's confidence in the row's coded values); codebook.yaml (approved final draft, sha256 9ddf5a09) confidence rule (per source from credibility and quote support; per activity by consolidation)",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "The codes match but the measure changed; the alternative is to carry the codes with a version label."
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "high",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.9",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "Different measure."
+    },
+    {
+     "v25": "medium",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.9",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "Different measure."
+    },
+    {
+     "v25": "low",
+     "v27": null,
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md §4.9",
+     "confidence": "medium",
+     "no_source": true,
+     "note": "Different measure."
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {},
+    "unmappable": [
+     "high",
+     "medium",
+     "low"
+    ]
+   }
+  },
+  {
+   "item": "core.institution_summary",
+   "name": "Institution summary",
+   "column": "institution_summary",
+   "leaves": [
+    "map"
+   ],
+   "plain": "Same text column; v2.7 writes it from the codes instead of the model.",
+   "cells": [
+    {
+     "v27": "(summary text)",
+     "v25": "(same text)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 9; codebook.yaml (approved final draft, sha256 9ddf5a09) institution_summary rule",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(summary text)",
+     "v27": "(same text, labelled)",
+     "source": "v2.5 contract, G3O 375f1ff g3o/extract/prompts/output_contract.md col 9",
+     "confidence": "medium",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": "identity"
+   }
+  },
+  {
+   "item": "core.codebook_release",
+   "name": "Codebook release",
+   "column": "contract_version",
+   "leaves": [
+    "map"
+   ],
+   "plain": "The old version column holds the codebook release label on v2.7 rows; old rows keep theirs.",
+   "cells": [
+    {
+     "v27": "(codebook release label, e.g. 2.7)",
+     "v25": "(same label)",
+     "source": "SPEC R-050 (the codebook release replaces contract_version)",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "reverse": [
+    {
+     "v25": "(old contract version, e.g. v2.5)",
+     "v27": "(kept as is)",
+     "source": "SPEC R-050 ('v2.5 rows keep their contract version')",
+     "confidence": "high",
+     "no_source": false,
+     "note": ""
+    }
+   ],
+   "v27_new": [],
+   "notes": [],
+   "default_value": {
+    "map": {
+     "(codebook release label)": "(same label in contract_version)"
+    }
+   }
+  }
+ ],
+ "no_source": [
+  [
+   "core.page_verdict",
+   "other_body"
+  ],
+  [
+   "core.page_verdict",
+   "event_only"
+  ],
+  [
+   "core.model_origin",
+   "government_developed"
+  ],
+  [
+   "core.model_origin",
+   "(any origin) with build arrangement = trained or fine-tuned by the institution"
+  ],
+  [
+   "core.contracting_party",
+   "(contracting party text)"
+  ],
+  [
+   "core.incident_kind",
+   "discontinuation_uncertain"
+  ],
+  [
+   "core.reported_outcomes",
+   "(verbatim spans)"
+  ],
+  [
+   "core.reported_incidents",
+   "(verbatim spans)"
+  ],
+  [
+   "core.uncertainty_flags",
+   "(retired old flags)"
+  ],
+  [
+   "core.confidence",
+   "high"
+  ],
+  [
+   "core.confidence",
+   "medium"
+  ],
+  [
+   "core.confidence",
+   "low"
+  ],
+  [
+   "core.confidence",
+   "reverse high"
+  ],
+  [
+   "core.confidence",
+   "reverse medium"
+  ],
+  [
+   "core.confidence",
+   "reverse low"
+  ],
+  [
+   "missing-labels",
+   "not_documented"
+  ]
+ ]
+}

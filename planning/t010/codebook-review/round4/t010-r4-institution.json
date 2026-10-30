@@ -1,0 +1,351 @@
+{
+ "format": "decision-page-v1",
+ "id": "t010-r4-institution",
+ "title": "Codebook wording review: Results for the institution as a whole",
+ "eyebrow": "G3O codebook · wording review round 4",
+ "project": "G3O pipeline reclassification",
+ "prepared": "2026-10-30",
+ "prepared_by": {
+  "harness": "Claude Code",
+  "model": "claude-opus-5-5",
+  "session": "drafting subagent of integrator session 20261030-claude-v2-2b8200388885f8f9"
+ },
+ "background": "Review round 4 of the codebook wording. You chose on 30 October that agents draft the missing value definitions and you review every wording slot here. This page covers **results for the institution as a whole**.\n\nEach card is one codebook item. Open \"Show the wording slots\" to read them. Each slot is labelled with where its text came from:\n\n- **Plan text**\n- **New agent draft (round 4)**\n- **Option text you chose in round 3**\n- **Agent edit of the signed questionnaire**\n- **Text you approved on 30 October**\n- **Old production text (version 2.5): rewrite or delete**\n\nAnswer per item: approve all, approve with line-edits or deletions in the comments (by slot number), or ask for a redraft. Deletion is open only for old version-2.5 slots and for one slot of each overlap pair. The batch card at the top approves everything you leave unmarked. No recommendation is given on any wording.\n\nNew agent drafts carry a certainty mark; those marked **Needs your decision** rest on no ruling or text for some point.",
+ "sources": [
+  {
+   "label": "Round-4 drafts (readable)",
+   "href": "../../drafts/definitions-r4.md"
+  },
+  {
+   "label": "Round-3 codebook reference",
+   "href": "../round3/codebook-reference.html"
+  }
+ ],
+ "items": [
+  {
+   "id": "ALL",
+   "kind": "review",
+   "title": "Batch approval for this whole page",
+   "situation": "This page shows 26 wording slots in 9 items. Choose the batch option to approve every slot you do not mark in an item card below; any item card you answer still overrides it for that item.",
+   "options": [
+    {
+     "id": "approve-unmarked",
+     "label": "Approve every slot on this page that I do not mark below"
+    },
+    {
+     "id": "no-batch",
+     "label": "No batch approval: only my item answers count"
+    }
+   ]
+  },
+  {
+   "id": "I01",
+   "kind": "review",
+   "title": "has genai activity",
+   "situation": "Recorded per institution.\n\n3 slots: 2 × plan text; 1 × text you approved on 30 October.",
+   "body": "**1. Rule** — Plan text, from the specification\nInstitution-level consolidation (Stage 6) applies the v2.6 consolidation rules as jev questions or deterministic rules: explicit relations before merging observations; distinct/unresolved relations never merge; institution-level `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a low-confidence negative downgraded under R-081 counts as one). RC-D-002 row 6: Stage 6 becomes the X29 truth table, with these ruled components: `background_only` pages may sit in the institution `no` set (S2 b); any downgraded page counts as unresolved (r2#40); the bar is the chosen answer's probability ≥ 0.8 (r2#26); `yes` can come from any pipeline, `no` from web pages only, and AI-text results never count (r2#44, r2#15); any supported GenAI purchase record can give `yes`, while the evidence tier still shows it as commitment (C5 a); `not_assessable` is set mechanically only and does not block `no` (C1 a). Also: X30 with the shared relation list incl. `governs` (R-017, r2#22); X31 pooled evidence, split when too long (r2#6, C-004); A06 per r2#21; A07 with 9 counts per pipeline; X23 replaced by r2#27; unit-credit flag (r2#47). `unresolved` stays a coding value and is reported as `unknown` in published summaries (all-07 c); unresolved relations still never merge. Inside the institution-level rule both `unresolved` and `not_assessable` keep their current roles, and `not_assessable` stays out of the institution-rate base (O15). [wording: PI — RC-D-003 §10: the restated institution rule] [wording: PI — RC-D-002 row 6: the X29 truth-table text and the X30, X31, A06 and A07 definitions]\n\n**2. Rule** — Plan text, from review round 1\nCodebook table: `yes` if >= 1 supported `confirms_activity` page with a supported activity; `no` if every attempted page (incl. failed fetches and unfollowed links) ends in {no_genai, confirms_absence, event_only, other_body} at confidence >= 0.8 and no page is ambiguous, background_only or failed; otherwise `unclear`. Variant for PI: allow background_only in `no`.\n\n**3. Rule** — Text you approved on 30 October\nInside the institution-level rule both keep their current roles, and `not_assessable` stays out of the institution-rate base (O15).",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I02",
+   "kind": "review",
+   "title": "verdict rule",
+   "situation": "Recorded per institution.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from the specification\nv2.5 `none` institutions show `no` labelled as produced by the v2.5 rule (`verdict_rule`, r2#45).",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I03",
+   "kind": "review",
+   "title": "evidence tier",
+   "situation": "Recorded per institution.\n\n2 slots: 2 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nHighest of: documented_use (any pilot, production or discontinued deployment) > documented_commitment (announced, or procured if C09 alt-1) > governance_or_training_only > proposal_only > none_found / unclear. Published beside has_genai_activity.\n\n**2. Rule** — Plan text, from review round 2\nUse = a deployment or program at pilot, production or discontinued; commitment = announced, or a tender, contract or payment; governance or training only = those action types only; proposal only = stage 'proposed' or action type 'proposal'. You word the rule, and tests are added.",
+   "body_label": "Show the 2 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I04",
+   "kind": "review",
+   "title": "review depth",
+   "situation": "Recorded per institution.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nn_pages_reviewed, n_pages_by_verdict (8 counts), n_pages_failed, n_followed_links, all computed at Stage 6.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I05",
+   "kind": "review",
+   "title": "activity relation",
+   "situation": "Recorded per activity.\n\n14 slots: 8 × new agent draft (round 4); 2 × plan text; 4 × option text you chose in round 3.",
+   "body": "**1. Value `same_activity`** — New agent draft (round 4)\nThe two activity records describe the same activity: the same action by the same actor on the same tool or instrument. Only records joined by this link are merged.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first record, second record); the reverse values make that order necessary (R3 activity-16 b), but no text says which record is 'first'._\n\n**2. Value `component_of_program`** — New agent draft (round 4)\nThe first record's activity is a named component of the program in the second. Both stay separate activities, linked.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first record, second record); the reverse values make that order necessary (R3 activity-16 b), but no text says which record is 'first'._\n\n**3. Value `has_component`** — New agent draft (round 4)\nThe first record describes a program, and the second record's activity is one of its named components. Both stay separate activities, linked.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first record, second record); the reverse values make that order necessary (R3 activity-16 b), but no text says which record is 'first'._\n\n**4. Value `shared_participation`** — New agent draft (round 4)\nThe two records describe one joint action in which several bodies take part.\n_Draft certainty: low._ **Needs your decision:** As within a page: no text defines this link or says whether it merges the two records. _Note: Direction: the pair is read in order (first record, second record); the reverse values make that order necessary (R3 activity-16 b), but no text says which record is 'first'._\n\n**5. Value `governs`** — New agent draft (round 4)\nThe first record's activity is a policy or other governance instrument that sets rules for the activity in the second. When a pair fits both this link and a component link, this link is used.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first record, second record); the reverse values make that order necessary (R3 activity-16 b), but no text says which record is 'first'._\n\n**6. Value `governed_by`** — New agent draft (round 4)\nThe second record's activity is a policy or other governance instrument that sets rules for the activity in the first. When a pair fits both this link and a component link, this link is used.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first record, second record); the reverse values make that order necessary (R3 activity-16 b), but no text says which record is 'first'._\n\n**7. Value `distinct_action`** — New agent draft (round 4)\nThe two records describe different activities, and none of the other links applies. The value is stored with a rule note.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first record, second record); the reverse values make that order necessary (R3 activity-16 b), but no text says which record is 'first'._\n\n**8. Value `unresolved`** — New agent draft (round 4)\nThe sources do not settle whether the two records describe the same activity. They are never merged.\n_Draft certainty: high._ _Note: Direction: the pair is read in order (first record, second record); the reverse values make that order necessary (R3 activity-16 b), but no text says which record is 'first'._\n\n**9. Rule** — Plan text, from review round 1\nEvery pair of activity observations is asked, including identical names; candidate pairs pre-filtered deterministically only to skip obviously distinct pairs (different activity_type and tool), never to merge.\n\n**10. Rule** — Plan text, from the specification\nOne shared relation list serves within-page and cross-page links: same activity, component of program, has component, shared participation, governs, governed by, distinct (`distinct_action`), unresolved, plus not-an-activity within a page (r2#22; activity-16 b; all-11).\n\n**11. Rule** — Option text you chose in round 3\nAdd \"has component\" and \"governed by\".\n\n**12. Rule** — Option text you chose in round 3\nComponents stay separate activities; a governing policy is recorded as governing.\n\n**13. Rule** — Option text you chose in round 3\nStore the distinct value with a rule note.\n\n**14. Long-page rule (split rule)** — Option text you chose in round 3\nSplit the pool so every part sees both activities.",
+   "body_label": "Show the 14 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I06",
+   "kind": "review",
+   "title": "pooled activity fields",
+   "situation": "Recorded per activity.\n\n2 slots: 2 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nFor a merged activity, jev answers each Group D question once over the union of the activity's supported quotes from all its sources (state = quotes with source type and date).\n\n**2. Rule** — Plan text, from review round 2\nPooled quotes are split into parts, and the existing combining rules apply (yes if any part says yes; ordered lists take the first value found). The page-splitting rule is extended.",
+   "body_label": "Show the 2 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I07",
+   "kind": "review",
+   "title": "n sources",
+   "situation": "Recorded per activity.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nAs v1.3.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I08",
+   "kind": "review",
+   "title": "institution summary",
+   "situation": "Recorded per institution.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nGenerate the summary from codes: verdict, number of activities, their types/stages, page counts reviewed and failed.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I09",
+   "kind": "review",
+   "title": "cx display rollup",
+   "situation": "Recorded per activity.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nStage 6 computes a display value per activity (any supported positive; first in table order for ordered fields), labelled 'display roll-up, not an index input'.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "O1",
+   "kind": "review",
+   "title": "Same rule written twice: has genai activity",
+   "situation": "Two slots in the item card I01 say the same thing about how the institution-level rule treats unresolved and not-assessable pages: slot 1 (plan text) and slot 3 (text you approved on 30 October). You asked to keep one of each such pair.",
+   "body": "**Slot 1, plan text:**\nInstitution-level consolidation (Stage 6) applies the v2.6 consolidation rules as jev questions or deterministic rules: explicit relations before merging observations; distinct/unresolved relations never merge; institution-level `no` only with complete supplied context and no unresolved signal. An institution whose reviewed pages are all negative at confidence ≥ 0.8 gets `no` directly; the complete-context rule blocks `no` only when an unresolved signal remains (a low-confidence negative downgraded under R-081 counts as one). RC-D-002 row 6: Stage 6 becomes the X29 truth table, with these ruled components: `background_only` pages may sit in the institution `no` set (S2 b); any downgraded page counts as unresolved (r2#40); the bar is the chosen answer's probability ≥ 0.8 (r2#26); `yes` can come from any pipeline, `no` from web pages only, and AI-text results never count (r2#44, r2#15); any supported GenAI purchase record can give `yes`, while the evidence tier still shows it as commitment (C5 a); `not_assessable` is set mechanically only and does not block `no` (C1 a). Also: X30 with the shared relation list incl. `governs` (R-017, r2#22); X31 pooled evidence, split when too long (r2#6, C-004); A06 per r2#21; A07 with 9 counts per pipeline; X23 replaced by r2#27; unit-credit flag (r2#47). `unresolved` stays a coding value and is reported as `unknown` in published summaries (all-07 c); unresolved relations still never merge. Inside the institution-level rule both `unresolved` and `not_assessable` keep their current roles, and `not_assessable` stays out of the institution-rate base (O15). [wording: PI — RC-D-003 §10: the restated institution rule] [wording: PI — RC-D-002 row 6: the X29 truth-table text and the X30, X31, A06 and A07 definitions]\n\n**Slot 3, text you approved on 30 October:**\nInside the institution-level rule both keep their current roles, and `not_assessable` stays out of the institution-rate base (O15).",
+   "body_label": "Compare the two texts",
+   "options": [
+    {
+     "id": "keep-plan",
+     "label": "Keep slot 1 (plan text); delete slot 3"
+    },
+    {
+     "id": "keep-approved",
+     "label": "Keep slot 3 (approved text); delete slot 1"
+    },
+    {
+     "id": "keep-both",
+     "label": "Keep both"
+    }
+   ]
+  }
+ ],
+ "slot_map": {
+  "I01": {
+   "owner": "core.has_genai_activity",
+   "slots": {
+    "1": "items/core.has_genai_activity/rules/0",
+    "2": "items/core.has_genai_activity/rules/1",
+    "3": "items/core.has_genai_activity/rules/2"
+   }
+  },
+  "I02": {
+   "owner": "core.verdict_rule",
+   "slots": {
+    "1": "items/core.verdict_rule/rules/0"
+   }
+  },
+  "I03": {
+   "owner": "core.evidence_tier",
+   "slots": {
+    "1": "items/core.evidence_tier/rules/0",
+    "2": "items/core.evidence_tier/rules/1"
+   }
+  },
+  "I04": {
+   "owner": "core.review_depth",
+   "slots": {
+    "1": "items/core.review_depth/rules/0"
+   }
+  },
+  "I05": {
+   "owner": "core.activity_relation_cross_page",
+   "slots": {
+    "1": "items/core.activity_relation_cross_page/values/0/definition",
+    "2": "items/core.activity_relation_cross_page/values/1/definition",
+    "3": "items/core.activity_relation_cross_page/values/2/definition",
+    "4": "items/core.activity_relation_cross_page/values/3/definition",
+    "5": "items/core.activity_relation_cross_page/values/4/definition",
+    "6": "items/core.activity_relation_cross_page/values/5/definition",
+    "7": "items/core.activity_relation_cross_page/values/6/definition",
+    "8": "items/core.activity_relation_cross_page/values/7/definition",
+    "9": "items/core.activity_relation_cross_page/rules/0",
+    "10": "items/core.activity_relation_cross_page/rules/2",
+    "11": "items/core.activity_relation_cross_page/rules/3",
+    "12": "items/core.activity_relation_cross_page/rules/4",
+    "13": "items/core.activity_relation_cross_page/rules/5",
+    "14": "items/core.activity_relation_cross_page/long_page_rule/split_rule"
+   }
+  },
+  "I06": {
+   "owner": "core.pooled_activity_fields",
+   "slots": {
+    "1": "items/core.pooled_activity_fields/rules/0",
+    "2": "items/core.pooled_activity_fields/rules/1"
+   }
+  },
+  "I07": {
+   "owner": "core.n_sources",
+   "slots": {
+    "1": "items/core.n_sources/rules/0"
+   }
+  },
+  "I08": {
+   "owner": "core.institution_summary",
+   "slots": {
+    "1": "items/core.institution_summary/rules/0"
+   }
+  },
+  "I09": {
+   "owner": "core.cx_display_rollup",
+   "slots": {
+    "1": "items/core.cx_display_rollup/rules/0"
+   }
+  },
+  "O1": {
+   "owner": "core.has_genai_activity",
+   "pair": [
+    "items/core.has_genai_activity/rules/0",
+    "items/core.has_genai_activity/rules/2"
+   ]
+  }
+ }
+}

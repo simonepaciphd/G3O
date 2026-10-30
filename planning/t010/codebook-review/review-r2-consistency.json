@@ -1,0 +1,1517 @@
+{
+ "area": "r2-consistency-gaps",
+ "items": [
+  {
+   "id": "R2C01",
+   "type": "inconsistency",
+   "name": "Page-verdict cardinality: 8 values (C01) vs a 9th `not_assessable` (P08) vs `page_review_state` (X39)",
+   "involves": [
+    "C01",
+    "P08",
+    "X39",
+    "A07",
+    "X29"
+   ],
+   "situation": "C01 keeps R-015 as locked (8 values). P08a adds a 9th verdict value `not_assessable`, excluded from denominators. X39 separately adds `page_review_state` with `no_usable_text` and `fetch_failed`, which already describe a page that cannot be assessed. A07 publishes `n_pages_by_verdict` as 8 counts and X29's truth table enumerates 8 values, so neither knows where a not-assessable page goes (negative set, unresolved, or excluded).",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C01 (chosen spec-locked), P08 (P08a), X39 (alt-1), A07 (add: '8 counts'), X29 (alt-1); C:/Users/spaci/repos/G3O/planning/SPEC.md:71 (R-015)",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep 8 values; route non-assessability to X39",
+     "mechanism": "Amend P08: `not_assessable` becomes a `page_review_state` value (e.g. `not_assessable_by_classifier` beside `no_usable_text`); the verdict column holds `_NA_` for any page not in state `reviewed`. X29 already treats non-reviewed states as unresolved.",
+     "benefits": "C01 and R-015 stay as locked; one place records why a page has no verdict; A07 counts stay 8 plus X39 state counts.",
+     "risks": "Procurement and text-detection channels must express their assessability outcome as a review state, not a verdict; a jev-judged 'unreadable' page and a pipeline failure share one column.",
+     "commits_to": "P08 re-ruling; X39 enum gains a value; no verdict enum change beyond the planned v2.7 steps."
+    },
+    {
+     "id": "b",
+     "label": "Adopt 9 values; trim X39",
+     "mechanism": "Amend C01 / R-015 to 9 values with `not_assessable`; X39 keeps only pipeline states (`fetch_failed`, `link_not_followed_*`); A07 publishes 9 counts; X29 states whether `not_assessable` blocks `no`.",
+     "benefits": "One verdict column answers 'what did we learn from this page' for every channel; matches P08 as ruled.",
+     "risks": "Reopens a locked SPEC rule; the 9th value is unpiloted and may become an escape hatch for hard pages (P08's own risk); third enum change on the column.",
+     "commits_to": "SPEC delta to R-015 (PI); two version steps; re-pilot of the verdict question; X29, A07 rewritten; procurement copy updated."
+    },
+    {
+     "id": "c",
+     "label": "Keep both with a written boundary",
+     "mechanism": "`not_assessable` = jev judges that the stored text cannot be assessed (e.g. only navigation, cookie wall); `no_usable_text` = deterministic pre-check failure. Both count as unresolved in X29; A07 counts 9 verdicts and the X39 states.",
+     "benefits": "Keeps every ruling's intent.",
+     "risks": "Two columns can disagree on the same page; the boundary is a new substantive definition that needs fixtures.",
+     "commits_to": "SPEC delta to R-015; two version steps; fixtures for the boundary; X29/A07 text amended."
+    }
+   ]
+  },
+  {
+   "id": "R2C02",
+   "type": "gap",
+   "name": "No downgrade target for low-confidence page verdicts other than `confirms_activity`",
+   "involves": [
+    "X14",
+    "X15",
+    "C01",
+    "X29",
+    "X40",
+    "C03"
+   ],
+   "situation": "R-081 says a page coded negative below threshold 'goes to unclear / unknown', but neither `unclear` nor `unknown` is one of the 8 verdict values. X14 alt-1 names only `confirms_activity` -> `ambiguous_genai`, which is also wrong when GenAI is clear but attribution lacks support (the natural target would be `ambiguous_attribution`). There is no target for low-confidence `no_genai`, `confirms_absence`, `background_only`, `event_only` or `other_body`, so X29 cannot tell a downgraded negative from a confident one unless it reads X40.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:133 (R-081), :98 (R-041); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items X14, X15, X29, X40; C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json C01 risks ('`ambiguous_attribution` is collapsing')",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep the code; carry the downgrade in `support_status`",
+     "mechanism": "The verdict value is never rewritten; X40 `support_status` = `downgraded_low_confidence` / `downgraded_no_quote`. X29 treats any downgraded page as unresolved; publication shows the code with its status.",
+     "benefits": "No enum change; the original jev answer stays analysable; X29 already lists unresolved signals.",
+     "risks": "Users reading only the verdict column see un-downgraded codes; R-041's 'field to unknown' wording no longer literally applies to the verdict.",
+     "commits_to": "SPEC delta to R-041/R-081 wording for the verdict; X29 and X40 text; no version steps for the verdict."
+    },
+    {
+     "id": "b",
+     "label": "Per-value targets inside the 8 values",
+     "mechanism": "Write a `downgrade_to` row for each value: `confirms_activity` -> `ambiguous_attribution` when the attribution quote fails, else `ambiguous_genai`; `other_body` -> `ambiguous_attribution`; `event_only`, `background_only`, `no_genai`, `confirms_absence` -> `ambiguous_genai`.",
+     "benefits": "Stays within R-015; downgraded pages automatically enter pass 2 and the unresolved side of X29.",
+     "risks": "Mixes 'page is ambiguous' with 'coder is unsure' in the same value, which distorts any analysis of ambiguous pages; downgraded negatives trigger pass-2 cost.",
+     "commits_to": "X14 table rows (PI wording); fixtures; no enum change."
+    },
+    {
+     "id": "c",
+     "label": "Add an `unresolved` verdict value",
+     "mechanism": "Low-confidence or unsupported verdicts of any value go to `unresolved`.",
+     "benefits": "Clean separation of coder uncertainty from page ambiguity.",
+     "risks": "Breaks the 8-value lock; interacts with R2C01 (a 9th or 10th value); unpiloted.",
+     "commits_to": "SPEC delta to R-015; Enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, procurement enum copy (R-085 / D-008); X29 and A07 amended."
+    }
+   ]
+  },
+  {
+   "id": "R2C03",
+   "type": "inconsistency",
+   "name": "Group D applicability table (C06) names fields that other rulings replaced and misses the new ones",
+   "involves": [
+    "C06",
+    "C10",
+    "C11",
+    "C12",
+    "C17",
+    "C09",
+    "A01",
+    "A02",
+    "A03",
+    "A04",
+    "A09",
+    "P04",
+    "P06"
+   ],
+   "situation": "C06 adds `not_applicable` to `tool_name`, `vendor`, `deployment_mode`, `target_users`, `access_type` and `interaction_type`, keyed on an action-type code. But C10 replaced `access_type` with `model_origin` and `build_arrangement` (neither has `not_applicable`), C11 replaced `interaction_type` with `interface` plus eight yes/no function items, C12 adds `model_name`, C17 splits `year_deployed`, C09 adds `procurement_status`, and A01, A09, P04 `supplier_role`, P06 `attribution_role` are new. C06 also does not say what applies when A02 is `unknown`, `program` or `procurement`.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C06 (alt-1, commits 'Needs an action-type code (C08 alt-1 or A02)'), C10, C11, C12, C17, C09, A01, A02, A09, P04, P06",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Full matrix keyed on A02",
+     "mechanism": "Re-issue the C06 table as field x A02 value for every activity field, including the A02 values `unknown`, `program`, `procurement`; `not_applicable` added to every field the matrix can switch off.",
+     "benefits": "Deterministic, complete, generator-friendly; jev is not asked inapplicable questions.",
+     "risks": "Every A02 error now cascades to many fields; `unknown` rows need a default (ask all, or ask none).",
+     "commits_to": "PI-signed matrix; Enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, procurement enum copy (R-085 / D-008) for each field gaining `not_applicable`; fixtures per A02 value."
+    },
+    {
+     "id": "b",
+     "label": "Matrix keyed on `activity_type` (C08, kept)",
+     "mechanism": "Use the six v2.5 activity types as the key, since C08 was kept and is already in the series.",
+     "benefits": "Comparable with v2.5 gating (`not_applicable` for `policy_guidance` already exists in interaction_type).",
+     "risks": "activity_type has no procurement or training value (C08 risk), so those activities get the wrong applicability.",
+     "commits_to": "PI-signed matrix; same enum steps as (a); A02's role in C06 removed."
+    },
+    {
+     "id": "c",
+     "label": "Let jev decide applicability per field",
+     "mechanism": "Add `not_applicable` as an answer option to each field's Choice question with a definition; no deterministic table.",
+     "benefits": "No cascade from one action-type code; handles mixed activities.",
+     "risks": "More questions answered; applicability becomes inconsistent across fields for the same activity; harder to test.",
+     "commits_to": "Enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, procurement enum copy (R-085 / D-008); re-pilot of the affected questions."
+    }
+   ]
+  },
+  {
+   "id": "R2C04",
+   "type": "inconsistency",
+   "name": "Missingness tokens differ across rulings for the same meaning",
+   "involves": [
+    "C06",
+    "X02",
+    "X04",
+    "X05",
+    "X14",
+    "C09",
+    "A03",
+    "A04",
+    "A09",
+    "C22",
+    "C23",
+    "X09"
+   ],
+   "situation": "'Not asked because a gate excluded it' is `_NA_` in X02, X04 and X05 but `not_applicable` in C06, A03, A04 and C11 `interface`. 'Nothing stated' is `not_documented` (has_*), `none_documented` (C09 procurement_status), `none` (A09, C22, C23, X09 gates), `none_reported` (CX-60/61) and, after X14, `unknown` on yes/no items. No ruling defines a common grammar, so a generated data dictionary cannot say which tokens are structural, which are 'page silent' and which are 'coder could not decide'.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C06, C09, C11, X02, X04, X05, X14, A03, A04, A09, C22, C23, X09; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:88-92",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "One grammar for new and non-frozen fields",
+     "mechanism": "Four reserved tokens: `_NA_` (gated out by rule), `not_documented` (page silent), `unknown` (stated but undeterminable, or downgraded), `not_applicable` merged into `_NA_`. New fields adopt them; frozen CX tokens keep their signed spelling and get a mapping row.",
+     "benefits": "One reading rule for users and generators; fewer enum members.",
+     "risks": "Renames values in several chosen options; v2.5 `not_applicable` in interaction_type becomes `_NA_` (crosswalk row).",
+     "commits_to": "Enum spellings fixed before the v2.7 version steps (no extra steps if bundled); dictionary rule."
+    },
+    {
+     "id": "b",
+     "label": "Keep per-field tokens; publish a class map",
+     "mechanism": "Each token is mapped to a class (structural / silent / undeterminable / downgraded) in the codebook; the dictionary prints the class beside the token.",
+     "benefits": "No renaming; chosen wording stands.",
+     "risks": "Users must consult the map; QC rules must handle many spellings.",
+     "commits_to": "Codebook column `missing_class`; no enum change."
+    },
+    {
+     "id": "c",
+     "label": "Keep `_NA_` and `not_applicable` as distinct, define both",
+     "mechanism": "`_NA_` = the row or page is not an activity (verdict/gate); `not_applicable` = the activity exists but the field does not apply to its type.",
+     "benefits": "Keeps a real distinction analysts may want.",
+     "risks": "The X02/X04/X05 gates are field-level, so they would need `not_applicable` instead of `_NA_`, reopening those CX rulings.",
+     "commits_to": "Re-signature of the CX `_NA_` additions or a written exception."
+    }
+   ]
+  },
+  {
+   "id": "R2C05",
+   "type": "gap",
+   "name": "No order of operations for gated items, downgrades and blind quoting",
+   "involves": [
+    "C06",
+    "A02",
+    "A03",
+    "A04",
+    "X02",
+    "X04",
+    "X05",
+    "X17",
+    "C22",
+    "C23",
+    "X09",
+    "X12",
+    "X14",
+    "X15",
+    "X35"
+   ],
+   "situation": "Many chosen options gate one item on another code: X02 on `disclosure_form`, X04 on post-downgrade `evaluation_documented`, X05 and X17 on the verdict, C06/A03/A04 on A02, C22/C23/X09 spans on a jev gate. C06 says gating is applied 'after jev, so jev is not asked inapplicable questions', which is only possible if the gating code is asked in an earlier round. X12 requires quotes before the code is seen and X35 checks them after, and X14/X15 downgrades can flip a gate. No ruling states the number of jev rounds per pass or when downgrades are applied.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C06 mechanism, X04 mechanism, X12, X35, X14, X15; review-cx-support.json cross_cutting ('Pass-2 codes on non-confirming pages and downgrade cascades lack an order of operations')",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Published round DAG",
+     "mechanism": "Each codebook item carries `round` and `gate`; the pipeline runs gate items first, applies quote check, entailment and threshold downgrades, then asks dependent items. Indicatively pass 1: verdict -> (disclosure_form, source_type, completeness, content_*) -> disclosure_scope; pass 2: A02 + segmentation -> applicable fields -> gated spans and type items.",
+     "benefits": "Gates mean what they say; fewer wasted questions; testable order.",
+     "risks": "More requests and latency; a wrong gate code removes downstream answers entirely.",
+     "commits_to": "Codebook columns; T-021/T-024 design change; cost re-estimate (T-002)."
+    },
+    {
+     "id": "b",
+     "label": "One round per pass, gates applied post hoc",
+     "mechanism": "Ask every item in one round; void answers whose gate fails or was downgraded to `_NA_`.",
+     "benefits": "Simplest pipeline; downgrades can be reapplied without re-asking.",
+     "risks": "Pays for answers that are discarded; dependent items were answered without the gate's context (C06's stated aim is lost).",
+     "commits_to": "Amend C06 and X04 mechanism text; cost re-estimate."
+    },
+    {
+     "id": "c",
+     "label": "Hybrid",
+     "mechanism": "Pre-gate only on the verdict (pass 1 -> pass 2) and on A02 (applicability); all other gates applied post hoc.",
+     "benefits": "Captures most savings with two rounds per pass.",
+     "risks": "Two rules for gating; X04 keeps its 'post-downgrade' dependency, so a second request remains there.",
+     "commits_to": "Codebook columns; amend X02/X17 to post-hoc wording."
+    }
+   ]
+  },
+  {
+   "id": "R2C06",
+   "type": "inconsistency",
+   "name": "Outcomes and incidents have three competing gate/classification designs",
+   "involves": [
+    "C22",
+    "C23",
+    "X09",
+    "X10",
+    "X12",
+    "C25",
+    "C09",
+    "X24"
+   ],
+   "situation": "C22 gates outcomes with realised / expected / usage-only / none, then has CX-61 run on the extracted spans. X09 asks a separate gate quantified / qualitative / none on page text and makes CX-60 legacy-only. X10 runs CX-61 itself over page text with the span marked, and has the extractor quote support for the chosen value. C23 gates incidents by type (malfunction / breach / criticism / suspension / none) in one Choice although a page can report several, and `suspension or withdrawal` overlaps adoption_stage `discontinued` and the X24 `discontinued_uncertain` yes/no.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C22, C23, X09, X10 (mechanisms), X24; H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:105-106",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Two questions per field: substantive gate + CX-61 on page text",
+     "mechanism": "Keep C22/C23 gates (realisation; incident type) and X10's CX-61 over page text; drop X09's separate existence question (CX-61 `none_reported` and the C22/C23 `none` agree by rule); spans extracted blind (X12).",
+     "benefits": "Keeps both the new substantive distinctions and the signed CX-61 values.",
+     "risks": "Two jev questions that can contradict (gate `none` but CX-61 `qualitative`); C23 single choice still loses multi-type pages unless it becomes yes/no items.",
+     "commits_to": "Re-signature of CX-60/61 (X09/X10); C23 order rule or yes/no split; fixtures."
+    },
+    {
+     "id": "b",
+     "label": "CX-61 over page text is the only gate",
+     "mechanism": "Amend C22/C23 to spans only; X10 answers existence and kind; X09 folded into X10.",
+     "benefits": "Fewest questions; one signed vocabulary.",
+     "risks": "Loses realised vs expected and incident type, which C22/C23 were chosen to add.",
+     "commits_to": "Re-ruling of C22/C23; re-signature of CX-61 grain (X10)."
+    },
+    {
+     "id": "c",
+     "label": "C22/C23 gates only, CX-61 derived on spans",
+     "mechanism": "As C22 says: CX-61 runs on the extracted spans; amend X09/X10.",
+     "benefits": "CX-61's input stays close to its signed 'stored text' input.",
+     "risks": "CX-61 then depends on extraction quality and on blind quoting; reverses X10.",
+     "commits_to": "Re-ruling of X09/X10; CX-61 stays signed as is for input but fixtures needed."
+    }
+   ]
+  },
+  {
+   "id": "R2C07",
+   "type": "inconsistency",
+   "name": "Quote length: no limit (C22) vs a cap at extraction applied to the API (X19)",
+   "involves": [
+    "C22",
+    "C23",
+    "X19",
+    "X25",
+    "X35",
+    "R-043"
+   ],
+   "situation": "C22 stores outcome spans 'with no length limit in storage, display cap per R-043'. X19 alt-1 caps every quote at extraction and applies the same cap to the API and the site, which contradicts both C22 and R-043 as written. X25 truncates the snippet and X35 uses 'quote plus a short window', so four different length rules touch the same quotes.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C22, X19, X25, X35; C:/Users/spaci/repos/G3O/planning/SPEC.md:101 (R-043)",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Cap everywhere (X19), including outcome spans",
+     "mechanism": "Amend C22: outcome and incident spans obey the X19 cap; long outcomes are split into several quotes.",
+     "benefits": "One rule; cheaper storage and review.",
+     "risks": "Long quantified results may be cut mid-sentence; CX-61 on spans (if retained) sees less text.",
+     "commits_to": "C22 text; SPEC delta R-043 already owed by X19."
+    },
+    {
+     "id": "b",
+     "label": "Cap with field-level exemptions",
+     "mechanism": "X19 cap for all quotes except outcome/incident spans, which are stored in full and display-capped.",
+     "benefits": "Keeps C22's intent for the evidence most likely to be long.",
+     "risks": "Two regimes in one quote table; API consumers see uneven lengths.",
+     "commits_to": "X19 amendment; codebook column `quote_cap`."
+    },
+    {
+     "id": "c",
+     "label": "Revert to R-043 as written",
+     "mechanism": "Full text stored and in the API; cap on the website only (DEC-016 c); X19 reconsidered.",
+     "benefits": "No information loss; matches a prior PI ruling.",
+     "risks": "Reopens X19; long verbatim text in a public API raises the reuse concern flagged in review-cx-support cross_cutting.",
+     "commits_to": "Re-ruling of X19."
+    }
+   ]
+  },
+  {
+   "id": "R2C08",
+   "type": "inconsistency",
+   "name": "Blind quoting (X12) vs rulings that give the extractor the code",
+   "involves": [
+    "X12",
+    "X10",
+    "A01",
+    "C22",
+    "C23",
+    "A09",
+    "X26",
+    "X35"
+   ],
+   "situation": "X12 has the extractor quote the passages relevant to each field without being told jev's value. X10 has the extractor 'quote support for the chosen value', A01 has it 'return the supporting quote' for a mechanism value, and C22/C23 extract spans only 'unless none', which needs the gate result first. A09 and X26 make the extractor a primary coder of a value (number span, date) rather than a blind quoter.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items X12, X10, A01, C22, C23, A09, X26",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Value-blind, gate-aware",
+     "mechanism": "Define blind as: the extractor never sees the value of the field it quotes for, but may see that a gate is not `none`. Amend X10 and A01 to field-relevant quotes; A09/X26 listed as extractor-primary fields with R-042 checks.",
+     "benefits": "Keeps X12's protection against confirmation; workable with the gates.",
+     "risks": "Gate-awareness still signals that something exists; the definition is a new rule.",
+     "commits_to": "SPEC delta to R-040 (already owed by X12); X10/A01 text."
+    },
+    {
+     "id": "b",
+     "label": "Blind only for enum codes",
+     "mechanism": "Blind for verdict and Group D/CX enums; value-aware for spans, dates and numbers.",
+     "benefits": "Simple; spans and numbers are the extractor's own output anyway.",
+     "risks": "A01 and X10 quotes become confirmatory, which X35 then checks with the same bias.",
+     "commits_to": "X12 amendment."
+    },
+    {
+     "id": "c",
+     "label": "Fully blind, gates after",
+     "mechanism": "Extractor returns outcome/incident/scale spans unconditionally; jev gates afterwards; spans with gate `none` are discarded.",
+     "benefits": "Strict independence between quote and code.",
+     "risks": "Extraction runs and spends on every activity; more false spans to discard.",
+     "commits_to": "C22/C23/A09 mechanism text; cost re-estimate."
+    }
+   ]
+  },
+  {
+   "id": "R2C09",
+   "type": "inconsistency",
+   "name": "Safeguard items: four-value `has_*` (C18-C21) vs derived yes/not_documented (X07)",
+   "involves": [
+    "C18",
+    "C19",
+    "C20",
+    "C21",
+    "X07",
+    "P05",
+    "X14"
+   ],
+   "situation": "C18-C21 define `has_*` with four values (yes / no / unclear / not_documented) and an attachment rule. X07 asks each safeguard once per (page x activity) and derives activity `has_*` as yes / not_documented and page `content_*` as 'any activity yes', which drops `no` and `unclear`. X07 covers three safeguards; `content_user_notification` (CX W1 = a: a described notice or label) is narrower than `has_transparency_notice` ('are users notified that GenAI is involved'), and `has_data_classification` has no CX counterpart. Pages with GenAI content but no segmented activity get no `content_*` safeguard value. P05a adds a third human-oversight item (contract clause).",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C18-C21 (alt-1), X07 (alt-1), P05 (P05a); H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:95, :177 (W1); C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:107-110",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Shared four-value question",
+     "mechanism": "One pass-2 question per safeguard with the C18-C21 values; activity `has_*` = the answer; page `content_*` = yes if any activity yes, else no. Notification uses the CX W1 definition and `has_transparency_notice` is re-worded to it; `has_data_classification` stays Group D only; P05 contract clauses tagged as a governance-activity answer.",
+     "benefits": "One question, one definition; `no`/`unclear` kept.",
+     "risks": "Re-signs CX-52's grain (page -> derived); v2.5 has_transparency_notice series changes meaning.",
+     "commits_to": "Re-signature of CX-52; wording step for C19; fixtures; P05 grain note."
+    },
+    {
+     "id": "b",
+     "label": "Binary as in X07",
+     "mechanism": "Amend C18-C21 to yes / not_documented (plus X14 `unknown`); drop `no` and `unclear`.",
+     "benefits": "Aligns with CX yes/no; simpler.",
+     "risks": "Loses stated absence ('no human review') and mixed cases; v2.5 `no`/`unclear` rows cannot be represented.",
+     "commits_to": "Enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, procurement enum copy (R-085 / D-008) on four fields; crosswalk rows for v2.5 `no`/`unclear`."
+    },
+    {
+     "id": "c",
+     "label": "Keep two instruments",
+     "mechanism": "content_* stay pass-1 page items per CX-52; has_* stay pass-2 per C18-C21; publish a concordance QC.",
+     "benefits": "No re-signature of CX; each instrument keeps its pilot basis.",
+     "risks": "Twice the questions; two public answers to one question can disagree.",
+     "commits_to": "Re-ruling of X07; QC rule."
+    }
+   ]
+  },
+  {
+   "id": "R2C10",
+   "type": "inconsistency",
+   "name": "Descriptive `content_*` items duplicate activity fields at a different grain",
+   "involves": [
+    "X05",
+    "X07",
+    "C11",
+    "C12",
+    "C13",
+    "C15",
+    "A04",
+    "C09",
+    "C16",
+    "C17"
+   ],
+   "situation": "X05 keeps `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users`, `content_status_date` as page-level pass-1 jev questions. The same facts are coded per activity in pass 2 by C11 functions, C12 `tool_name`/`model_name`, C13 `vendor`, C15/A04 users, C09 and C16/C17 stage and years. X07 chose derivation for safeguards but nothing is ruled for descriptives, so a page can be `content_vendor = no` while one of its activities has a stated vendor.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items X05 (alt-2), X07 (alt-1), C11, C12, C13, C15, A04, C09, C16, C17; H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:94 (CX-51)",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Derive descriptive content_* from activity codes",
+     "mechanism": "content_x = yes when any activity on the page has a stated (non-unknown, non-_NA_) value of the matching field(s); no jev question.",
+     "benefits": "Removes six pass-1 questions; one source of truth; consistent with X07.",
+     "risks": "Changes the signed CX-51 instrument; `content_data` has no activity counterpart and still needs a question; index comparability with the pilot breaks.",
+     "commits_to": "Re-signature of CX-51; mapping table; fixtures."
+    },
+    {
+     "id": "b",
+     "label": "Keep jev questions, add concordance QC",
+     "mechanism": "As X05; a QC check flags pages where content_x and the activity fields disagree.",
+     "benefits": "Signed instrument preserved; disagreement becomes a diagnostic.",
+     "risks": "Cost of duplicate questions; public inconsistency where QC is not resolved.",
+     "commits_to": "QC rule only."
+    },
+    {
+     "id": "c",
+     "label": "Keep as ruled",
+     "mechanism": "No link between the two.",
+     "benefits": "No work.",
+     "risks": "Contradictions unreported.",
+     "commits_to": "None."
+    }
+   ]
+  },
+  {
+   "id": "R2C11",
+   "type": "inconsistency",
+   "name": "`deployment_mode` (C14) and `interface` (C11) code the same distinction",
+   "involves": [
+    "C14",
+    "C11",
+    "C06"
+   ],
+   "situation": "C14 defines `integrated` (works inside software or a channel already used) and `standalone` (separate application). C11's `interface` includes `embedded_in_existing_software` and `standalone_application`. Both were chosen, so the same activity is asked the integrated/standalone question twice with different wording; the core reviewer listed this overlap as a C11 risk.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C14 (alt-1), C11 (alt-1, risks 'Overlaps deployment_mode (C14)')",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Derive deployment_mode from interface",
+     "mechanism": "deployment_mode = integrated if interface = embedded_in_existing_software, standalone if standalone_application, unknown otherwise; no jev question.",
+     "benefits": "One question; v2.5 column kept as a derived series.",
+     "risks": "Conversational and backend tools get `unknown` deployment_mode though the page may say.",
+     "commits_to": "Mapping rule; deployment_mode becomes derived (data dictionary note)."
+    },
+    {
+     "id": "b",
+     "label": "Remove the overlap from interface",
+     "mechanism": "interface = conversational / backend_or_api / other_ui / not_applicable / unknown; deployment_mode carries integrated vs standalone.",
+     "benefits": "Two orthogonal fields.",
+     "risks": "Re-drafts C11's chosen values; unpiloted.",
+     "commits_to": "Enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, procurement enum copy (R-085 / D-008); re-pilot of interface."
+    },
+    {
+     "id": "c",
+     "label": "Keep both with a QC constraint",
+     "mechanism": "Flag combinations such as interface=standalone_application with deployment_mode=integrated.",
+     "benefits": "No re-ruling.",
+     "risks": "Extra question; flags will be common where wording differs.",
+     "commits_to": "QC rule."
+    }
+   ]
+  },
+  {
+   "id": "R2C12",
+   "type": "inconsistency",
+   "name": "Three overlapping typologies: activity_type (kept), action_type (A02), stage + procurement_status (C09)",
+   "involves": [
+    "C08",
+    "A02",
+    "C09",
+    "C05",
+    "C07",
+    "X30"
+   ],
+   "situation": "C08 kept the six v2.5 activity types, which mix kind, stage and audience and have no procurement or training value. A02 adds action_type (deployment / procurement / governance / staff_training / proposal / program / unknown). C09 keeps adoption_stage (with `proposed`) and adds procurement_status. Nothing rules out contradictory combinations (activity_type `pilot_experiment` with action_type `governance`; action_type `procurement` with procurement_status `none_documented`; action_type `proposal` with stage `production`), and A02's own note leaves 'proposal as type or stage' to the PI. A02 `program` also overlaps C07 'components of a named program' and the X30 relation `component_of_program`.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C08 (keep), A02 (add; mechanism note on `proposal`), C09 (alt-2), C07, X30",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep all three; publish cross-field constraints",
+     "mechanism": "A constraint table lists allowed combinations; violations trigger a QC flag or a downgrade of the lower-confidence code.",
+     "benefits": "No re-ruling; series continuity for activity_type.",
+     "risks": "Three questions per activity on overlapping constructs; reliability of the multi-dimensional activity_type stays low.",
+     "commits_to": "Constraint table (PI wording); QC; fixtures."
+    },
+    {
+     "id": "b",
+     "label": "Derive activity_type from A02 + stage + users",
+     "mechanism": "activity_type computed by a published crosswalk (e.g. governance -> policy_guidance; deployment + pilot -> pilot_experiment; deployment + public users -> public_facing_service); jev not asked.",
+     "benefits": "One fewer question; no contradictions by construction; v2.5 column still filled.",
+     "risks": "Derived activity_type differs from v2.5 jev-coded values (series break disguised as continuity); some cells do not map.",
+     "commits_to": "Crosswalk table; C08 re-ruling; data dictionary note."
+    },
+    {
+     "id": "c",
+     "label": "Make A02 orthogonal",
+     "mechanism": "Drop `proposal` and `procurement` from A02 (stage lives in adoption_stage, procurement in procurement_status) and define `program` as a container used only with C07 components.",
+     "benefits": "Each dimension coded once.",
+     "risks": "Re-drafts A02; a procurement-only activity needs an action_type (e.g. deployment intended) the page may not state.",
+     "commits_to": "A02 re-ruling; enum fixed before version steps."
+    }
+   ]
+  },
+  {
+   "id": "R2C13",
+   "type": "inconsistency",
+   "name": "Evidence tier (A06) refers to a C09 option that was not chosen",
+   "involves": [
+    "A06",
+    "C09",
+    "A02",
+    "C06"
+   ],
+   "situation": "A06 defines documented_commitment as 'announced, or procured if C09 alt-1'. C09 chose alt-2: procurement goes to `procurement_status`, and payment-only activities get adoption_stage `unknown`. A06 is also stated on adoption_stage alone, so a governance activity coded `production` (policy in force) would count as documented_use, and `proposal_only` does not say whether it reads stage `proposed` or A02 `proposal`.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items A06 (mechanism), C09 (alt-2 mechanism), A02",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Restate A06 on A02 + stage + procurement_status",
+     "mechanism": "documented_use = A02 in {deployment, program} and stage in {pilot, production, discontinued}; documented_commitment = stage announced or procurement_status in {tender_or_rfp, award_or_contract, payment_or_subscription}; governance_or_training_only = A02 in {governance, staff_training} only; proposal_only = stage proposed or A02 proposal.",
+     "benefits": "Each tier reads one stated rule; governance cannot masquerade as use.",
+     "risks": "Tier inherits A02 errors.",
+     "commits_to": "A06 rule text (PI); T-026 tests."
+    },
+    {
+     "id": "b",
+     "label": "Payment counts as use",
+     "mechanism": "As (a) but `payment_or_subscription` lifts to documented_use (paying for a subscription implies access).",
+     "benefits": "Matches the intuition behind the Clay fixtures.",
+     "risks": "Payment does not show use; C09 deliberately set stage `unknown` for those cases.",
+     "commits_to": "A06 rule; note in methods."
+    },
+    {
+     "id": "c",
+     "label": "Separate procurement tier",
+     "mechanism": "Add `documented_procurement` between use and commitment.",
+     "benefits": "Procurement evidence visible on its own.",
+     "risks": "One more tier value; ordering of procurement vs announcement is a substantive call.",
+     "commits_to": "A06 enum; API/site column values."
+    }
+   ]
+  },
+  {
+   "id": "R2C14",
+   "type": "gap",
+   "name": "Chunk combination rule covers only a few fields after the rulings",
+   "involves": [
+    "X16",
+    "C01",
+    "C07",
+    "C09",
+    "C16",
+    "A01",
+    "A05",
+    "X21",
+    "C11",
+    "C22",
+    "C23"
+   ],
+   "situation": "X16 names the chunk rule for `disclosure_form`, `disclosure_scope`, `content_*`, completeness, `evaluation_type_*`, `evaluation_documented` and the page verdict (order still to be ruled). It says nothing for pass-1 X21 `source_type`, A05 relationship, A01, or any pass-2 field: activity_type, A02, adoption_stage (where table order picks the least advanced stage), procurement_status, model_origin, build_arrangement, interface, A03, A04, A09, the C22/C23 gates. C11 states any-yes for functions and C16 states earliest year, but those are inside other items. C07 segmentation does not say how a span in chunk 2 can be 'same as span k' in chunk 1.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items X16, C11, C16, C07; review-core.json cross_cutting (R-044 table order); C:/Users/spaci/repos/G3O/planning/SPEC.md:100 (R-044); H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:184",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Per-item `chunk_rule` column",
+     "mechanism": "Every item declares one of: first_chunk / any_yes / priority_order (with the order written per field, e.g. adoption_stage most advanced first) / earliest_year / union_list / max_probability; C07 segmentation runs over chunks with cross-chunk span ids.",
+     "benefits": "Complete and testable; generator can refuse items without a rule.",
+     "risks": "Many substantive orders to rule (stage, verdict, procurement_status).",
+     "commits_to": "Codebook column; SPEC delta to R-044 (already owed by X16); fixtures."
+    },
+    {
+     "id": "b",
+     "label": "Avoid chunking in pass 2",
+     "mechanism": "Pass-2 state = the activity span with a window that fits 32k tokens, so pass-2 fields never chunk; rules needed only for pass-1 fields.",
+     "benefits": "Removes most of the problem; spans are short.",
+     "risks": "Facts far from the span (e.g. a safeguard in a separate section) are missed; changes the X10/X11 state definition.",
+     "commits_to": "State schema (X11 pin) and re-signature; re-pilot."
+    },
+    {
+     "id": "c",
+     "label": "One generic rule",
+     "mechanism": "For every non-binary field the value from the chunk with the highest chosen-value probability wins; binary any-yes.",
+     "benefits": "No per-field orders to rule.",
+     "risks": "Departs from signed CX §11.1 for the CX fields; probability is not comparable across chunks of different content.",
+     "commits_to": "SPEC delta to R-044; CX re-signature for §11.1 fields."
+    }
+   ]
+  },
+  {
+   "id": "R2C15",
+   "type": "inconsistency",
+   "name": "Two activity-relation vocabularies, and no relation for 'governs'",
+   "involves": [
+    "C07",
+    "X30",
+    "C18",
+    "C19",
+    "C20",
+    "C21",
+    "X31"
+   ],
+   "situation": "C07 has jev label each span within a page as new / same as span k / component of span k / not an activity. X30 keeps v1.4 relations across pages (same_activity, component_of_program, shared_participation, distinct_action, unresolved). C07 lacks `unresolved` and `shared_participation`. C18-C21 allow Stage 6 to link a governance safeguard to a deployment 'only through a recorded relation', and C07 says 'a policy and the tools it approves are separate activities', but neither vocabulary has a relation for 'this instrument governs that activity'.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C07, X30, C18-C21 (mechanism); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json X30 current_text (v1.4 §9)",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "One vocabulary for within- and across-page relations, add `governs`",
+     "mechanism": "C07 and X30 both use {same_activity, component_of_program, shared_participation, governs, distinct_action, unresolved} (+ `not_an_activity` within page).",
+     "benefits": "Same semantics at both stages; C18-C21 linkage becomes codable.",
+     "risks": "`governs` is new wording; more answer options per pair.",
+     "commits_to": "C07/X30 wording (PI); Stage 6 relation enum; fixtures."
+    },
+    {
+     "id": "b",
+     "label": "Keep two vocabularies with a crosswalk; add `governs` to X30 only",
+     "mechanism": "Within-page labels map to v1.4 relations; Stage 6 asks `governs` across activities.",
+     "benefits": "C07 stays simple.",
+     "risks": "Within-page governs links (policy and its approved tool on one page) are only recovered later.",
+     "commits_to": "Crosswalk; X30 enum value."
+    },
+    {
+     "id": "c",
+     "label": "Drop the linkage clause",
+     "mechanism": "Amend C18-C21: no cross-activity safeguard link at all.",
+     "benefits": "Simplest; no new relation.",
+     "risks": "Deployment rows never show a safeguard that the institution's own policy imposes.",
+     "commits_to": "C18-C21 wording."
+    }
+   ]
+  },
+  {
+   "id": "R2C16",
+   "type": "inconsistency",
+   "name": "Attribution is coded in three places that can disagree",
+   "involves": [
+    "C04",
+    "A05",
+    "P06",
+    "C01",
+    "X24"
+   ],
+   "situation": "The page verdict (confirms_activity / other_body / ambiguous_attribution), A05's jev relationship (this institution / unit of it / joint participant / other / unresolved, internal), and P06's public `attribution_role` (contracting authority / beneficiary / central purchasing body) all code who the activity belongs to. C04 asks for A05 on confirms_activity, other_body and ambiguous_attribution pages, A05 says every page with GenAI content; both are page grain although one page can carry activities of different actors. C04 says a parent's activity does not count unless the page names the institution as taking part, while P06 `beneficiary` implies credit without participation.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C04 (alt-1), A05 (add-internal), P06 (P06a), X24 (`institution_attribution` flag)",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "A05 per activity; verdict checked against it",
+     "mechanism": "Move A05 to pass 2 per (page x activity); a QC rule flags confirms_activity pages with no activity whose relationship is this institution / unit / joint; P06 role becomes a sub-field of A05 with a rule that `beneficiary` counts only when the page names it.",
+     "benefits": "One attribution model; per-activity grain.",
+     "risks": "More pass-2 questions; A05 internal-only status may need revisiting if it drives QC visible to users.",
+     "commits_to": "A05 grain change; P06 rule text; fixtures."
+    },
+    {
+     "id": "b",
+     "label": "Keep page-grain A05, P06 for procurement rows only",
+     "mechanism": "A05 as ruled on all GenAI pages; P06 applies to procurement-channel rows, not web rows.",
+     "benefits": "Least change.",
+     "risks": "Multi-actor pages stay unresolved at activity level; P06's stated reason (web pages also show ministries acting for agencies) is lost.",
+     "commits_to": "P06 scope note."
+    },
+    {
+     "id": "c",
+     "label": "Publish A05 and drop the X24 flag",
+     "mechanism": "A05 relationship published per activity; `institution_attribution` flag retired.",
+     "benefits": "Transparent attribution; one public field.",
+     "risks": "Publishes jev judgments on organisational relationships that rest on names only (no hierarchy in state, review-core cross_cutting).",
+     "commits_to": "A05 publication ruling; schema step."
+    }
+   ]
+  },
+  {
+   "id": "R2C17",
+   "type": "gap",
+   "name": "Unit-level activities may be credited to more than one master institution",
+   "involves": [
+    "C04",
+    "A06",
+    "C03"
+   ],
+   "situation": "C04 credits an activity by an organisational unit (department, office, service) to the named institution. The master has 719,588 rows across levels and some units are themselves master institutions, so the same activity can count for both the unit and its parent in prevalence. jev's state holds name, country and level but no hierarchy, so the pipeline cannot tell.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json item C04 (alt-1 mechanism); review-core.json cross_cutting ('jev state holds name, country and level but no institution hierarchy'); CLAUDE.md master row count",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Credit both, flag it",
+     "mechanism": "Keep C04; add `credited_via_unit` (yes/no) so analyses can de-duplicate.",
+     "benefits": "No hierarchy needed; transparent.",
+     "risks": "Prevalence across levels still double counts unless users filter.",
+     "commits_to": "One column; data dictionary."
+    },
+    {
+     "id": "b",
+     "label": "Credit only the most specific master institution",
+     "mechanism": "Stage 6 consults the master hierarchy; a unit that is a master row keeps the activity, the parent gets a relation, not a credit.",
+     "benefits": "No double counting.",
+     "risks": "Needs hierarchy data the master may not hold for all countries; reverses C04 for those cases.",
+     "commits_to": "Master dependency; C04 amendment; Stage 6 rule."
+    },
+    {
+     "id": "c",
+     "label": "Document only",
+     "mechanism": "Methods note.",
+     "benefits": "No cost.",
+     "risks": "Unquantified bias.",
+     "commits_to": "None."
+    }
+   ]
+  },
+  {
+   "id": "R2C18",
+   "type": "inconsistency",
+   "name": "`vendor` mixes developer and contracting party (C13 vs P04)",
+   "involves": [
+    "C13",
+    "P04",
+    "C12",
+    "C10"
+   ],
+   "situation": "C13 defines vendor as the organisation the page names as supplying the product, filled by a product -> developer lookup when the page is silent, with `vendor_basis`. A page-stated supplier is often a reseller or integrator, while the lookup returns the developer, so one column holds two roles. P04a amends the core vendor definition by 'splitting provider vs contracting party, or adding a role' without choosing between them.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C13 (alt-1), P04 (P04a mechanism 'Split `vendor` ... or add role')",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Split into `developer` and `contracting_party`",
+     "mechanism": "`developer` (lookup or stated) and `contracting_party` (stated only); `vendor_basis` applies to developer.",
+     "benefits": "Each column one role; lookup cannot overwrite a stated reseller.",
+     "risks": "Two columns, the second sparse on web pages; v2.5 `vendor` maps to neither cleanly.",
+     "commits_to": "Schema addition (two steps); crosswalk note; P04 ruling text."
+    },
+    {
+     "id": "b",
+     "label": "Keep `vendor` as stated + `supplier_role`",
+     "mechanism": "vendor as page states; `supplier_role` = developer / reseller_or_integrator / cloud_host / unknown; lookup used only when role is developer and vendor unknown.",
+     "benefits": "Keeps the v2.5 column; role explicit.",
+     "risks": "Role often not stated (mostly `unknown`); another jev question.",
+     "commits_to": "Enum addition; P04 text."
+    },
+    {
+     "id": "c",
+     "label": "P04 back to the procurement module",
+     "mechanism": "Core keeps C13 as ruled; contracting-party detail lives in the procurement schema.",
+     "benefits": "No core change.",
+     "risks": "Reverses P04a; web pages naming resellers stay ambiguous.",
+     "commits_to": "P04 re-ruling."
+    }
+   ]
+  },
+  {
+   "id": "R2C19",
+   "type": "inconsistency",
+   "name": "Page genre is coded four times (source_type, official domain, disclosure_form, P12 genre)",
+   "involves": [
+    "X21",
+    "X37",
+    "X22",
+    "X01",
+    "P12"
+   ],
+   "situation": "X21 makes `source_type` a pass-1 jev Choice, but its `official_gov` value is defined by domain (which X37 now computes deterministically) and `archive` is a URL property. `procurement_tender` overlaps `disclosure_form` `formal_record` (procurement notice). P12a adds a document genre with crosswalks. X22 derives credibility from `source_type`, so the jev answer to a domain question drives credibility.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items X21, X37, X22, X01, P12; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:204-217",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Deterministic where possible",
+     "mechanism": "official_gov from X37, archive from URL; jev asked only to split the remaining values (news / vendor / academic / policy_org / social / procurement / other).",
+     "benefits": "Fewer jev errors on a mechanical fact; credibility less noisy.",
+     "risks": "Official content on non-overlay domains is misclassified (X37's own risk).",
+     "commits_to": "X21 mechanism amendment; T-011 question text."
+    },
+    {
+     "id": "b",
+     "label": "Retire `source_type`",
+     "mechanism": "Credibility derived from disclosure_form x X37; P12 crosswalk carries the rest.",
+     "benefits": "One genre instrument.",
+     "risks": "Breaks the v2.5 column and the CX pilot `disclosure_form x source_type` agreement check.",
+     "commits_to": "Column removal (two steps); X22 re-ruling; CX report change."
+    },
+    {
+     "id": "c",
+     "label": "Keep all, publish a crosswalk and QC",
+     "mechanism": "As ruled; P12 crosswalk table includes X21 and X37.",
+     "benefits": "No re-ruling.",
+     "risks": "Four coding costs for related facts.",
+     "commits_to": "Crosswalk table."
+    }
+   ]
+  },
+  {
+   "id": "R2C20",
+   "type": "inconsistency",
+   "name": "Threshold metric differs across rulings",
+   "involves": [
+    "X15",
+    "C03",
+    "X29",
+    "X35",
+    "R-005"
+   ],
+   "situation": "X15 alt-1 moves the threshold to the chosen value's probability (p >= 0.8). C03 (spec-locked R-005), X29 ('at confidence >= 0.8') and X35 ('confidence < threshold') still state jev confidence. The round-1 core review computed that jev confidence is not its top probability, and that on binary items confidence is 2p - 1, so 0.8 confidence means p >= 0.9.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items X15, C03, X29, X35; C:/Users/spaci/repos/G3O/planning/SPEC.md:65, :133; review-core.json and review-cx-support.json cross_cutting (threshold findings)",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "One metric everywhere: chosen-value probability",
+     "mechanism": "Amend C03/R-005, X29 and X35 text to 'p of the chosen value >= threshold'.",
+     "benefits": "Consistent; X15 ruling fully applied.",
+     "risks": "Changes the locked R-005 wording; the re-pilot shares below threshold change.",
+     "commits_to": "SPEC delta to R-005; T-024/T-026 tests."
+    },
+    {
+     "id": "b",
+     "label": "Per-item `threshold_metric` column",
+     "mechanism": "Each item names its metric and value (allowing confidence for the 8-way verdict and p for binaries).",
+     "benefits": "Fits items with different cardinality.",
+     "risks": "More parameters to calibrate and explain.",
+     "commits_to": "Codebook column; PI calibration."
+    },
+    {
+     "id": "c",
+     "label": "Revert X15",
+     "mechanism": "Keep confidence 0.8 as R-081 says.",
+     "benefits": "Matches locked SPEC text.",
+     "risks": "Binary items face an effective p >= 0.9 bar.",
+     "commits_to": "X15 re-ruling."
+    }
+   ]
+  },
+  {
+   "id": "R2C21",
+   "type": "inconsistency",
+   "name": "Row-level confidence (X23) is defined with a multi-source rule, then aggregated by max (X32)",
+   "involves": [
+    "X23",
+    "X32",
+    "X38",
+    "X22",
+    "X26"
+   ],
+   "situation": "X23 sets row confidence `high` when there is one supported high-credibility confirms_activity source 'or two independent sources', a criterion that only exists above the row. X32 keeps Stage 6 activity confidence as the highest row confidence, so the corroboration rule is either circular or lost. X22 makes undated sources `low` credibility, and X26 dates come from metadata that is often absent, which can push official pages below `high`.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items X23 (alt-1), X32 (keep), X22, X26 risks; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:133, :236-242",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Row rule from the row; corroboration at Stage 6",
+     "mechanism": "Row confidence from that source's credibility and support only; Stage 6 activity confidence = high if one high row or two non-syndicated (X38) medium rows, else max.",
+     "benefits": "Each grain has a rule it can compute.",
+     "risks": "Replaces X32 `keep` with a new aggregate.",
+     "commits_to": "X23/X32 text; T-026 tests."
+    },
+    {
+     "id": "b",
+     "label": "Drop row-level confidence",
+     "mechanism": "Only activity-level confidence (X23 as written) is published.",
+     "benefits": "One number, less confusion with jev confidence.",
+     "risks": "Breaks v2.5 column 38.",
+     "commits_to": "Column removal (two steps)."
+    },
+    {
+     "id": "c",
+     "label": "Keep as ruled, document",
+     "mechanism": "Methods note on circularity.",
+     "benefits": "No change.",
+     "risks": "Inflated `high` via max over rows.",
+     "commits_to": "None."
+    }
+   ]
+  },
+  {
+   "id": "R2C22",
+   "type": "gap",
+   "name": "Provenance fields use different vocabularies and overlap",
+   "involves": [
+    "A08",
+    "C13",
+    "X26",
+    "P14",
+    "X40",
+    "X18",
+    "X20",
+    "X36",
+    "P10",
+    "P15"
+   ],
+   "situation": "Basis fields are defined separately: A08 `stage_as_of_basis`, C13 `vendor_basis` (stated / lookup), X26 date method (metadata / extractor), P14 `date_source`/`date_confidence`, X18 `discovery_path`, X40 `support_status`. Version provenance is in X20/X36 `instrument_id` + manifest, P15 `codebook_version` + `evidence_channel` per row, P10 per-coder `coder_type/model/version/request_id`, and CX-05 raw jev ids. A08 also says 'source_publication_date if supported', but X26 makes that date deterministic, so 'supported' is undefined.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items A08, C13, X26, P14, X40, X18, X20, X36, P10, P15; H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/codebook-extension-proposal.md:24 (CX-05)",
+   "severity": "low",
+   "options": [
+    {
+     "id": "a",
+     "label": "One basis vocabulary + one manifest",
+     "mechanism": "All *_basis fields use {stated, deterministic_metadata, lookup, derived, extractor_quoted}; X36 manifest includes codebook_version; P15 channel on the row; P10 per-code provenance stored internally and keyed to the manifest.",
+     "benefits": "One grammar; no duplicate version columns.",
+     "risks": "Renames several chosen columns; P14's date_confidence needs a home.",
+     "commits_to": "Schema naming fixed before version steps; manifest spec."
+    },
+    {
+     "id": "b",
+     "label": "Keep field-specific vocabularies, list them",
+     "mechanism": "Data dictionary documents each.",
+     "benefits": "No re-ruling.",
+     "risks": "Users meet several near-identical columns.",
+     "commits_to": "Dictionary only."
+    },
+    {
+     "id": "c",
+     "label": "Fold basis into support_status",
+     "mechanism": "X40 gains values for lookup/derived/metadata and replaces the *_basis columns.",
+     "benefits": "Fewer columns.",
+     "risks": "Overloads support_status with two meanings.",
+     "commits_to": "X40 enum change."
+    }
+   ]
+  },
+  {
+   "id": "R2C23",
+   "type": "gap",
+   "name": "No rule for comparability with v2.5-coded and stored-text rows",
+   "involves": [
+    "C01",
+    "C10",
+    "C11",
+    "C15",
+    "C17",
+    "C24",
+    "C18",
+    "X06",
+    "X17",
+    "X29",
+    "A06",
+    "A07"
+   ],
+   "situation": "R-071 keeps v2.5 verdicts for `none` institutions, so published `no` will mix the v2.5 rule ('pages contain no mention of GenAI') with the stricter v2.7 rule (X29, X39, threshold). New institution columns (A06, A07) have no value for those rows and Q-021 hides new fields there. No crosswalk is written for verdict 4 -> 8, access_type -> model_origin/build_arrangement, interaction_type -> interface/functions, year_deployed -> two years, governance target_users -> A04, retired scope_notes, or the changed has_* attachment. The PI's scraper ruling gives chrome text and links only to live re-fetches, so `content_contact`, CX-53 e-mails and follow-up links are measured differently for back-filled institutions using stored text.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:119-126 (R-070..R-075), :112 / :245 (Q-021), :226 (N-001); C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C01, C10, C11, C15, C17, C24, X06; review-core.json cross_cutting ('crosswalk table ... is not in any document')",
+   "severity": "high",
+   "options": [
+    {
+     "id": "a",
+     "label": "Crosswalk + cohort flags",
+     "mechanism": "Publish a two-way v2.5 <-> v2.7 crosswalk with non-mappable cells marked; label v2.5 `none` as `no` with `verdict_rule = v2.5`; add `text_source` (stored / live_refetch / new_run) for chrome- and link-dependent items.",
+     "benefits": "Users can restrict or adjust; no extra runs.",
+     "risks": "Mixed-rule `no` stays in the public totals unless users filter.",
+     "commits_to": "Crosswalk document; two row-level columns; methods note."
+    },
+    {
+     "id": "b",
+     "label": "Re-code v2.5 `none` institutions under v2.7",
+     "mechanism": "Extend the back-fill to `none` institutions (reverses R-071 / N-001).",
+     "benefits": "One rule for every published verdict.",
+     "risks": "Paid run of a large set (cost to be estimated for the PI); contradicts two rulings.",
+     "commits_to": "SPEC delta to R-071/N-001; cost estimate; run authorisation."
+    },
+    {
+     "id": "c",
+     "label": "Separate estimates",
+     "mechanism": "Prevalence and index figures computed only over v2.7-coded institutions; v2.5 rows shown but excluded from v2.7 statistics.",
+     "benefits": "Clean v2.7 estimates without new runs.",
+     "risks": "Denominator excludes the institutions most likely to be negative (biases prevalence upward unless weighted).",
+     "commits_to": "Reporting rule; weighting note."
+    }
+   ]
+  },
+  {
+   "id": "R2C24",
+   "type": "gap",
+   "name": "No rule for which stored text each item reads (main text, chrome text, links)",
+   "involves": [
+    "X06",
+    "X08",
+    "X13",
+    "X26",
+    "X27",
+    "X38",
+    "X17",
+    "X18",
+    "C16",
+    "X11"
+   ],
+   "situation": "X06 and the PI scraper ruling add `chrome_text` and stored page links, given to jev for `content_contact` only. Nothing says whether CX-53 e-mail extraction (X08) scans chrome text and mailto links, whether R-042 presence checks (X13) match against chrome text when a contact quote comes from a footer, whether X26 dates, X27 language ID and X38 near-duplicate hashing include chrome (templated footers make pages look alike and skew language ID), or whether R-031 follow-up links now come from stored hrefs instead of the extractor.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items X06 (alt-3), X08, X13, X26, X27, X38, X17, X18, X11; review-cx-support.json cross_cutting ('The scraper removes the evidence two items depend on')",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Per-item `input_text` column",
+     "mechanism": "Each item declares main / main+chrome / links; defaults: jev items main only, contact and X08 main+chrome+mailto links, X13 against the same text the quote came from, X27/X38 main only, follow-up candidates from stored hrefs filtered by the extractor's selection.",
+     "benefits": "Explicit and testable; avoids chrome contaminating language and duplicate detection.",
+     "risks": "More configuration; the state schema pinned by X11 must include it.",
+     "commits_to": "Codebook column; X11 state pin; T-021/T-022 changes."
+    },
+    {
+     "id": "b",
+     "label": "Main+chrome for everything",
+     "mechanism": "Give jev and extractor both texts for all items.",
+     "benefits": "Simple; nothing in the footer is missed.",
+     "risks": "Changes the frozen CX state (X11) for every CX item; boilerplate noise in all answers.",
+     "commits_to": "Re-signature of CX state; re-pilot."
+    },
+    {
+     "id": "c",
+     "label": "Chrome for contact only, as ruled",
+     "mechanism": "Document that X08, X13 and the others use main text only.",
+     "benefits": "No change.",
+     "risks": "X08 misses footer e-mails that X06 now counts, so content_contact = yes with no extracted e-mail.",
+     "commits_to": "Documentation."
+    }
+   ]
+  },
+  {
+   "id": "R2C25",
+   "type": "gap",
+   "name": "Sub-choices left open inside chosen options",
+   "involves": [
+    "C02",
+    "A02",
+    "X29",
+    "X16",
+    "X08",
+    "P04",
+    "C07",
+    "A03",
+    "X19",
+    "X13",
+    "X38"
+   ],
+   "situation": "Several chosen options name a further PI choice that the ruling did not make: C02 translation rule (a) or (b); A02 whether `proposal` is a type or a stage; X29 whether `background_only` may sit in the `no` set; X16 the order over the 8 verdicts; X08 domain-only vs role addresses; P04 split vs role; C07 the activity-unit wording ('draft'); A03's guideline vs endorsement boundary. Calibration values (X19 cap N, X13 threshold, X38 similarity threshold) wait on T-003. A codebook generated now would emit items with undefined behaviour.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C02 (risks 'The PI still has to choose a or b'), A02, X29 ('Variant for PI'), X16 ('order to be ruled'), X08, P04, C07, A03, X19, X13, X38; codebook-review-compact-2026-10-29.reply.json (all notes empty)",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Rule all substantive sub-choices before the codebook build",
+     "mechanism": "One further ruling round on C02, A02, X29, X16, X08, P04, C07, A03; calibration values after T-003.",
+     "benefits": "Generated artefacts are complete for substantive items.",
+     "risks": "Delays the build by one round.",
+     "commits_to": "Ruling record; then codebook generation."
+    },
+    {
+     "id": "b",
+     "label": "Build with `pending` markers",
+     "mechanism": "Items carry `status: pending_ruling`; generators refuse to emit them into jev sets or schemas.",
+     "benefits": "Work proceeds on settled items.",
+     "risks": "Risk of building downstream (fixtures, goldens) around placeholders.",
+     "commits_to": "Generator check; status column."
+    },
+    {
+     "id": "c",
+     "label": "Agent-proposed defaults, PI confirms in batch",
+     "mechanism": "The integrator drafts one default per sub-choice and the PI accepts or edits in one pass.",
+     "benefits": "Fast.",
+     "risks": "Defaults chosen by an agent on substantive questions conflict with researcher control unless each is read.",
+     "commits_to": "Draft defaults document; sign-off."
+    }
+   ]
+  },
+  {
+   "id": "R2C26",
+   "type": "gap",
+   "name": "Year fields: no mechanism for C17, no governance or discontinuation dates, Gregorian-only candidates",
+   "involves": [
+    "C16",
+    "C17",
+    "A08",
+    "C25",
+    "P14",
+    "C06"
+   ],
+   "situation": "C16 defines a hybrid candidate extraction (four-digit years 2015-2030) plus jev Choice for `year_announced`, but C17's split into `year_pilot_start` and `year_production_start` says only 'stated-only', with no coder. Neither year applies naturally to governance (adoption or effective date) or proposals, and C06's applicability table does not cover them. There is no year for discontinuation. The 2015-2030 four-digit filter misses era, Buddhist, Persian or Hijri years and fiscal-year forms, which the multilingual subproject owns.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C16 (alt-1), C17 (alt-2), C06, A08, P14; H:/My Drive/Research/G3O/CLAUDE.md (multilingual-pipeline owns script handling)",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Apply C16's mechanism to all year fields, add calendar normalisation",
+     "mechanism": "C17 fields use the same candidate + jev Choice; candidate generator normalises non-Gregorian and fiscal years (multilingual subproject rule); applicability: governance uses year_announced as adoption year, pilot/production years `_NA_`.",
+     "benefits": "Uniform; works across scripts.",
+     "risks": "Normalisation tables per calendar; three jev questions per activity.",
+     "commits_to": "Codebook text; multilingual dependency; fixtures."
+    },
+    {
+     "id": "b",
+     "label": "Dated-event list",
+     "mechanism": "Replace year columns with an activity event list (event_type: announced / pilot_start / production_start / discontinued / adopted; year; basis), year columns derived.",
+     "benefits": "Covers governance and discontinuation; extensible.",
+     "risks": "List parsing; more extractor work; departs from chosen C16/C17 columns.",
+     "commits_to": "Schema change (two steps); A08 rewritten over events."
+    },
+    {
+     "id": "c",
+     "label": "Keep as ruled",
+     "mechanism": "C17 coder decided in T-02x.",
+     "benefits": "No change now.",
+     "risks": "Coder left to a task card; non-Gregorian years silently `unknown`.",
+     "commits_to": "T-02x decision."
+    }
+   ]
+  },
+  {
+   "id": "R2C27",
+   "type": "inconsistency",
+   "name": "Routing rule kept as DEC-009 a (C25) but other rulings changed the coders",
+   "involves": [
+    "C25",
+    "C24",
+    "C12",
+    "C13",
+    "C16",
+    "C17",
+    "C22",
+    "C23",
+    "X26",
+    "X09"
+   ],
+   "situation": "C25 keeps DEC-009 a: jev for years and CX-60/61, deterministic for e-mails and explicit years, extractor for activity_name, tool_name, vendor, reported_outcomes, reported_incidents and scope_notes. Since then C24 retired scope_notes, C13 added a deterministic lookup for vendor, C12 added model_name, C16/C17 changed the year mechanism, C22/C23 put a jev gate before outcome and incident spans, X09 made CX-60 legacy-only, and X26 routes publication date to deterministic then extractor. The v2.5 'permanent pilot' note and the 'vendor claim only' note (edge F) lived in scope_notes and now have no home.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C25 (keep), C24 (alt-3), C12, C13, C16, C17, C22, C23, X09, X26; C:/Users/spaci/repos/G3O/planning/SPEC.md:64 (R-006); C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md:30; C:/Users/spaci/repos/G3O/planning/PLAN.md:929 (T-022 still lists scope_notes); C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:113, :176",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Codebook `coder` column supersedes DEC-009",
+     "mechanism": "Each item states its coder (jev / deterministic / extractor / derived); R-006's field list replaced by a pointer to the codebook; permanent-pilot fact becomes a derived flag; vendor-claim-only is readable from source_type = vendor.",
+     "benefits": "Single source of truth as v2.7 intends.",
+     "risks": "Needs a SPEC delta and PI approval of the table.",
+     "commits_to": "SPEC delta to R-006 and DEC-009; T-022 scope edit."
+    },
+    {
+     "id": "b",
+     "label": "Amend DEC-009 entry by entry",
+     "mechanism": "Integrator rewrites the DEC-009 table to match the rulings.",
+     "benefits": "Keeps the DEC trail explicit.",
+     "risks": "Two tables to keep in sync with the codebook.",
+     "commits_to": "DEC-009 amendment (PI)."
+    },
+    {
+     "id": "c",
+     "label": "Keep an internal residual-notes field",
+     "mechanism": "Extractor residual free text stored internally (not published), resolving C24's loss.",
+     "benefits": "No context lost for audit.",
+     "risks": "Unpublished free text accumulates without definition.",
+     "commits_to": "Internal column; no version step."
+    }
+   ]
+  },
+  {
+   "id": "R2C28",
+   "type": "gap",
+   "name": "Pass-2 coding on the four non-confirming GenAI verdicts is undefined",
+   "involves": [
+    "C06",
+    "C01",
+    "X29",
+    "X30",
+    "A06",
+    "R-003"
+   ],
+   "situation": "R-003 runs pass 2 on confirms_activity, ambiguous_genai, ambiguous_attribution, other_body and event_only. R-015 and v2.5 §3.2 set activity fields to `_NA_` unless the page is confirms_activity, and C06's applicability table is keyed only on action type. No ruling says what is coded, stored and published for activities segmented on the other four verdicts, or whether they enter Stage 6 merging (X30), the evidence tier (A06) and the institution verdict.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/SPEC.md:62 (R-003), :71 (R-015); C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md:88-92; C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C06, X29, X30, A06; review-cx-support.json cross_cutting (pass-2 codes on non-confirming pages)",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Code fully, store internally, publish only confirms_activity activities",
+     "mechanism": "All pass-2 fields coded; non-confirming activities feed X30 relations and QC but not the public activity table or A06.",
+     "benefits": "Evidence available for relations and later re-attribution.",
+     "risks": "Full cost on pages that never publish.",
+     "commits_to": "Codebook rule; T-024/T-026."
+    },
+    {
+     "id": "b",
+     "label": "Identity-only coding",
+     "mechanism": "On the four verdicts pass 2 asks only segmentation, A02, A05 and the tool/actor fields needed for relations.",
+     "benefits": "Lower cost; still supports Stage 6.",
+     "risks": "If a later relation reattributes the activity, its other fields are missing.",
+     "commits_to": "Applicability matrix extended by verdict."
+    },
+    {
+     "id": "c",
+     "label": "Code and publish with the verdict as a filter",
+     "mechanism": "All activities public, each with its page verdict.",
+     "benefits": "Maximum transparency.",
+     "risks": "Users may count other bodies' and event activities as institutional adoption.",
+     "commits_to": "Publication rule; site filter."
+    }
+   ]
+  },
+  {
+   "id": "R2C29",
+   "type": "inconsistency",
+   "name": "`support_status` has no value for a failed entailment check",
+   "involves": [
+    "X40",
+    "X35",
+    "X13",
+    "C13",
+    "X26"
+   ],
+   "situation": "X35 downgrades a code to `no_support` when jev says the quote does not state the value. X40's values are supported / downgraded_no_quote / downgraded_low_confidence / not_required, so an entailment failure has no value, and lookup or metadata-derived values (C13, X26) are neither 'supported' by a quote nor 'not_required'.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items X35 (mechanism), X40 (mechanism), C13, X26",
+   "severity": "low",
+   "options": [
+    {
+     "id": "a",
+     "label": "Add values",
+     "mechanism": "Add `downgraded_not_entailed` and `deterministic`.",
+     "benefits": "Every path visible.",
+     "risks": "Two more enum members.",
+     "commits_to": "X40 enum (bundled in v2.7 steps)."
+    },
+    {
+     "id": "b",
+     "label": "Fold",
+     "mechanism": "Entailment failure counts as `downgraded_no_quote`; deterministic values `not_required`.",
+     "benefits": "No new values.",
+     "risks": "Users cannot tell a missing quote from a quote that contradicts the code.",
+     "commits_to": "X35 text."
+    },
+    {
+     "id": "c",
+     "label": "Separate `quote_check` column",
+     "mechanism": "presence / entailment results stored beside support_status.",
+     "benefits": "Full diagnostics.",
+     "risks": "Another column per code (X40 already doubles columns).",
+     "commits_to": "Schema addition."
+    }
+   ]
+  },
+  {
+   "id": "R2C30",
+   "type": "inconsistency",
+   "name": "Derived uncertainty flags duplicate columns or depend on retired meanings",
+   "involves": [
+    "X24",
+    "C01",
+    "A05",
+    "C13",
+    "C09",
+    "C23",
+    "C16",
+    "C17"
+   ],
+   "situation": "X24 derives flags from codes: `genai_vs_traditional_ai` restates `ambiguous_genai`, `institution_attribution` restates `ambiguous_attribution`/A05, and `vendor_undisclosed` is unclear once C13 can fill vendor from a lookup when the page is silent. `discontinued_uncertain` becomes its own jev question beside adoption_stage `discontinued` and C23 `suspension or withdrawal`. `date_uncertain` will be set on most rows once C16/C17 forbid fallbacks.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items X24 (alt-1), C13, C23, C16, C17",
+   "severity": "low",
+   "options": [
+    {
+     "id": "a",
+     "label": "Keep only flags with independent information",
+     "mechanism": "Retire flags that are pure views of a column; keep `identity_unresolved`, `stage_ambiguous`, `discontinued_uncertain` (folded into C23 as a value instead of a separate question).",
+     "benefits": "Fewer redundant columns and questions.",
+     "risks": "Breaks the v2.5 flag series.",
+     "commits_to": "Enum change: two contract-version steps (C-007), regenerated jev question set, contract-pin goldens, procurement enum copy (R-085 / D-008) on the flag vocabulary; crosswalk."
+    },
+    {
+     "id": "b",
+     "label": "Keep the derived view, define edge cases",
+     "mechanism": "vendor_undisclosed = vendor_basis is not `stated`; flags documented as views.",
+     "benefits": "Series continuity.",
+     "risks": "Redundancy remains.",
+     "commits_to": "Rule text only."
+    },
+    {
+     "id": "c",
+     "label": "Keep as ruled",
+     "mechanism": "No change.",
+     "benefits": "None.",
+     "risks": "Ambiguous `vendor_undisclosed`; extra question for discontinued.",
+     "commits_to": "None."
+    }
+   ]
+  },
+  {
+   "id": "R2C31",
+   "type": "addition",
+   "name": "Governance direction (prohibits / restricts / permits / promotes)",
+   "involves": [
+    "A03",
+    "C05",
+    "C18",
+    "C19",
+    "C20",
+    "C21",
+    "P05"
+   ],
+   "situation": "A03 codes the form of a governance instrument and has_* code safeguards, but nothing codes what the instrument does to GenAI use: ban, conditional permission, permission, or mandate/encouragement. C05's WS10 boundary explicitly counts 'prohibitions' as governance, so a ban and an approved-tools list are both `governance` with no way to tell them apart.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items A03, C05 current_text (v2.6 L27-37 'including prohibitions'), C18-C21",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Add `governance_direction`",
+     "mechanism": "jev Choice for governance activities: prohibits / restricts_with_conditions / permits / requires_or_promotes / unknown; `_NA_` otherwise; supporting quote.",
+     "benefits": "Captures the main substantive variation in governance; cheap (one question on governance activities only).",
+     "risks": "New wording; instruments that ban some tools and permit others need an order rule.",
+     "commits_to": "New column (two steps); fixtures from WS10 cases; re-pilot."
+    },
+    {
+     "id": "b",
+     "label": "Leave out",
+     "mechanism": "Direction is read from has_* and A03 by analysts or coded later.",
+     "benefits": "No added cost or version steps.",
+     "risks": "Bans and permissions are pooled in every governance count.",
+     "commits_to": "None."
+    }
+   ]
+  },
+  {
+   "id": "R2C32",
+   "type": "addition",
+   "name": "Required metadata columns for every codebook item",
+   "involves": [
+    "X14",
+    "X16",
+    "X11",
+    "C25",
+    "R2C04",
+    "R2C05",
+    "R2C14",
+    "R2C24"
+   ],
+   "situation": "Several rulings add one column each to the codebook (X14 `downgrade_to`, X16 chunk rule, X11 state schema, C25 routing), and the items above need more (round, gate, input text, missingness class, threshold metric). No ruling fixes the full item schema, so generators for jev sets, prompts, enums and the dictionary have no contract to check.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items X11, X14, X16, C25; review-core.json cross_cutting (machine-readable codebook keyed on item IDs, RC-D-002 part A)",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Add a fixed item schema",
+     "mechanism": "Every item: id, namespace, name, grain, pass, round, gate, coder, values with definitions, order/tie rule, chunk_rule, downgrade_to, support_required, threshold_metric, missingness tokens, input_text, publication (public/internal), frozen/signature id, introduced_in, v2.5 crosswalk.",
+     "benefits": "Generators can validate completeness; gaps like R2C03/R2C14 become build failures.",
+     "risks": "Upfront work; some cells need PI rulings before the build.",
+     "commits_to": "Codebook schema (integrator); generator checks."
+    },
+    {
+     "id": "b",
+     "label": "Leave out",
+     "mechanism": "Columns added as rulings require.",
+     "benefits": "No upfront cost.",
+     "risks": "Gaps found late, item by item.",
+     "commits_to": "None."
+    }
+   ]
+  },
+  {
+   "id": "R2C33",
+   "type": "addition",
+   "name": "Stated spending amount on web pages",
+   "involves": [
+    "P02",
+    "C09",
+    "A06"
+   ],
+   "situation": "P02b keeps contract value in the procurement module. Web pages that announce budgets (v2.5 `announced` includes 'budget allocations') have no field for the amount, so spending evidence outside procurement notices is lost.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items P02 (P02b), C09; C:/Users/spaci/worktrees/G3O-integrator/g3o/extract/prompts/output_contract.md §4.3 (`announced` definition)",
+   "severity": "low",
+   "options": [
+    {
+     "id": "a",
+     "label": "Add a verbatim amount span + currency",
+     "mechanism": "Extractor returns the amount span; deterministic parse of currency and number; no jev question.",
+     "benefits": "Captures budget commitments from web pages; cheap.",
+     "risks": "Sparse; amounts not comparable (multi-year, total vs GenAI share); overlaps P02 if both channels code the same contract.",
+     "commits_to": "New column (two steps); P02 crosswalk."
+    },
+    {
+     "id": "b",
+     "label": "Leave out",
+     "mechanism": "Amounts only from the procurement module.",
+     "benefits": "No cost; no non-comparable numbers in core.",
+     "risks": "Web-only budget evidence unrecorded.",
+     "commits_to": "None."
+    }
+   ]
+  },
+  {
+   "id": "R2C34",
+   "type": "addition",
+   "name": "Policy or service domain of the use",
+   "involves": [
+    "C11",
+    "C15"
+   ],
+   "situation": "C11 codes function (drafting, summarisation, ...) and C15/A04 code users, but nothing codes the policy or service area (health, tax, justice, education, general administration). Institution type in the master is a partial proxy only for single-purpose institutions.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items C11, C15, A04",
+   "severity": "low",
+   "options": [
+    {
+     "id": "a",
+     "label": "Add `service_domain`",
+     "mechanism": "jev Choice over a short domain list plus `general_administration` and `unknown`, per activity.",
+     "benefits": "Enables sectoral analysis within multi-purpose institutions (ministries, cities).",
+     "risks": "New vocabulary to design and pilot; one more question per activity.",
+     "commits_to": "New column (two steps); re-pilot."
+    },
+    {
+     "id": "b",
+     "label": "Leave out",
+     "mechanism": "Use institution type from the master as the domain proxy.",
+     "benefits": "No added cost.",
+     "risks": "Multi-purpose institutions cannot be broken down.",
+     "commits_to": "None."
+    }
+   ]
+  },
+  {
+   "id": "R2C35",
+   "type": "gap",
+   "name": "No coding-cost budget across the chosen set",
+   "involves": [
+    "C11",
+    "A01",
+    "A02",
+    "A03",
+    "A04",
+    "A09",
+    "C09",
+    "C10",
+    "C17",
+    "C22",
+    "C23",
+    "X07",
+    "X17",
+    "X21",
+    "X30",
+    "X35"
+   ],
+   "situation": "By agent count from the rulings, pass 2 can now ask up to about 40 jev questions per (page x activity) per chunk when gated items apply (C11 alone adds nine; C10, C09, C17, A01-A04, A09, C22/C23, X09/X10, X24 add more), before X35 entailment checks per (code, quote) and X30's all-pairs relations. Each ruling was taken on its own; no ruling weighs the set against its cost or reliability, and several (A09, X21, C14/C11 overlap, X05 duplicates) add little beyond other fields.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/codebook-rulings-round1.json items listed; review-core.json cross_cutting ('Their cost is not estimated here (paid-run estimates go to T-002)')",
+   "severity": "medium",
+   "options": [
+    {
+     "id": "a",
+     "label": "Trim before freeze",
+     "mechanism": "PI reviews a short list of low-marginal-value items (e.g. A09, deployment_mode or interface, X21 jev values, descriptive content_*) for removal or derivation.",
+     "benefits": "Lower cost and fewer reliability problems.",
+     "risks": "Reopens chosen options.",
+     "commits_to": "Re-ruling of named items."
+    },
+    {
+     "id": "b",
+     "label": "Keep all, estimate cost first",
+     "mechanism": "T-002 estimates the full question count and cost; the PI decides with numbers.",
+     "benefits": "Decision on evidence.",
+     "risks": "Delays the build; estimate may show the set is affordable but still unreliable.",
+     "commits_to": "T-002 estimate (free local count); PI review."
+    },
+    {
+     "id": "c",
+     "label": "Core and optional tiers",
+     "mechanism": "Mark items core (always asked) or optional (switched on per run budget).",
+     "benefits": "Flexible.",
+     "risks": "Optional items become sparse and non-comparable across runs.",
+     "commits_to": "Codebook `tier` column; run config in X36 manifest."
+    }
+   ]
+  }
+ ],
+ "non_codebook": [
+  {
+   "text": "X42 (persist page links at scrape time) exists in review-cx-support.json but has no entry in the rulings record; the PI's scraper ruling (keep chrome text, store links) covers it in substance but is not recorded as an item ruling.",
+   "evidence": "C:/Users/spaci/repos/G3O/planning/t010/codebook-review/review-cx-support.json item X42; codebook-rulings-round1.json (items run X01-X41)"
+  },
+  {
+   "text": "The rulings record carries stale cross-references in chosen-option text: C06 commits 'Needs an action-type code (C08 alt-1 or A02)' and A06 says 'procured if C09 alt-1', though C08 = keep and C09 = alt-2.",
+   "evidence": "codebook-rulings-round1.json items C06, A06"
+  },
+  {
+   "text": "All 91 answers in the reply carry empty notes, so every sub-choice named inside a chosen option (C02 a/b, A02 proposal, X29 variant, X16 order, X08 or-clause, P04 or-clause) is unrecorded rather than ruled.",
+   "evidence": "codebook-review-compact-2026-10-29.reply.json"
+  },
+  {
+   "text": "Several rulings are SPEC deltas (R-005, R-006, R-030, R-036, R-040, R-041, R-043, R-044, R-081, R-015 if R2C01 b) that go through the plan integrator; the SPEC impact itself is left to the other reviewer.",
+   "evidence": "codebook-rulings-round1.json commits_to of C03, X12, X14-X20, X29, P08; C:/Users/spaci/repos/G3O/planning/SPEC.md"
+  },
+  {
+   "text": "Privacy and reuse of published quotes (officials' names in contact quotes, full verbatim text) is raised in round 1 but only X08 addresses part of it.",
+   "evidence": "review-cx-support.json cross_cutting (privacy item); codebook-rulings-round1.json X08, X19"
+  }
+ ]
+}

@@ -1,0 +1,486 @@
+{
+ "draft_by": "subagent",
+ "date": "2026-10-29",
+ "conventions": {
+  "producing_part": "When several parts give the winning value, the producing part is the one with the highest chosen-answer probability (ties: earliest). Its probability and quote become the combined answer's.",
+  "downgrade_first": "Each part's answer is checked (quote, 0.8 bar) before combining; downgraded parts enter as their downgrade target (`unknown`), except page verdicts, which keep their value and the downgraded tag (r2#40).",
+  "missing_tokens": "In every order: substantive values > `unknown` > `not_documented`; `not_asked` never competes, because applicability is applied after the gating item is combined.",
+  "combine_gate_items_first": "activity_type and action_type (and the scale number) are combined before the items they gate.",
+  "activity_level": "Activity items combine the answers about the same activity from every part holding one of its linked passages; parts without a passage do not vote.",
+  "stage6": "The same rules apply to pooled Stage 6 evidence split into parts (r2#6); first_section there needs a fixed pool order."
+ },
+ "items": [
+  {
+   "item": "core.source_type",
+   "rule": "first_section",
+   "order": null,
+   "confidence": "proposed",
+   "basis": "Page-level genre: the first part carries the masthead, title and byline that identify who published the page; matches the preset rule for disclosure_form, the sibling page-genre item.",
+   "probability": "The producing (first qualifying) part's chosen-answer probability and quote.",
+   "downgraded_parts": "A downgraded part does not qualify; the next part with a supported substantive answer is used. If none qualifies, `unknown` with the support status of the earliest downgraded part (or `not_documented` if no part stated anything).",
+   "alternative": "highest_probability (the part most confident about the genre).",
+   "failure_case": "A policy-organisation PDF report whose first part is only a cover and table of contents: if part 1 is coded `other` with support, first_section keeps `other` while the body plainly reads as `policy_org`.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.source_publication_date",
+   "rule": "first_section",
+   "order": null,
+   "confidence": "proposed",
+   "basis": "Metadata, address and archive dates are set once per page, so they need no combining; only the quote-step fallback runs per part. A byline date normally sits at the top, and later parts mostly quote other dates (events, earlier reports). earliest_year would pick referenced past dates.",
+   "probability": "Extractor item, no classifier probability: support is the producing part's quote-presence check (R-042) and, where it applies, the entailment check (R-040, X35).",
+   "downgraded_parts": "A downgraded part does not qualify; the next part with a supported substantive answer is used. If none qualifies, `unknown` with the support status of the earliest downgraded part (or `not_documented` if no part stated anything).",
+   "alternative": "No second type is clearly defensible: highest_probability is unavailable (extractor item) and earliest_year picks referenced past dates.",
+   "failure_case": "A long report with no byline whose only publication statement is a footer 'Published March 2024' in the last part: if part 1's quote step returns an event date as a publication date ('launched on 3 May 2023'), first_section keeps the wrong date.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.activity_segment",
+   "rule": "combined_list",
+   "order": null,
+   "confidence": "proposed",
+   "basis": "The page's activities are the union of the passages found in every part; links across parts come from segmentation (r2#42: 'segmentation links passages across sections'), using the shared relation list (R-017, r2#22). The ruling names the linking, not the rule type; combined_list is the only one of the six that keeps every passage. Within-part links stay as coded; cross-part links are the segmentation step's own answers.",
+   "probability": "Each passage and each link keeps its own probability; there is no combined value.",
+   "downgraded_parts": "A link coded `unresolved` or downgraded stays `unresolved`; the two passages are kept as separate activities (never merged on a downgraded link).",
+   "alternative": "None of the other five types fits a set of passages.",
+   "failure_case": "A single passage cut by a part boundary mid-sentence ('...the ministry piloted' | 'Copilot for 300 staff') appears as two passages; if segmentation does not link them as the same activity, the page counts two activities, one with a tool and no stage, one with a stage and no tool.",
+   "depends_on_draft_values": true
+  },
+  {
+   "item": "core.observed_actor_relationship",
+   "rule": "priority_order",
+   "order": [
+    "this_institution",
+    "contracting_authority",
+    "central_purchasing_body",
+    "unit_of_institution",
+    "joint_participant",
+    "beneficiary",
+    "unresolved",
+    "other",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "Mirrors the ruled page-verdict order (S3 a: confirms_activity > ambiguous_attribution > other_body): own action first, then shared or indirect roles, then unsettled, then another body. Order written for draft 1 (one list). For draft 2 (two linked parts), the relationship part uses this_institution > unit_of_institution > joint_participant > unresolved > other > unknown > not_documented, and the role part is taken from the same part that produced the relationship. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "highest_probability (no ranking of ownership; the part most sure of whose activity it is wins).",
+   "failure_case": "A national program run by an agency for many ministries: part 3 says loosely 'the ministry rolled out the assistant' (`this_institution`); parts 1-2 correctly say `other`. Priority gives `this_institution`, crediting the ministry with another body's activity.",
+   "depends_on_draft_values": true
+  },
+  {
+   "item": "core.activity_type",
+   "rule": "highest_probability",
+   "order": null,
+   "confidence": "proposed",
+   "basis": "Nominal values with no ranking; the activity unit (R-017) makes policy and pilot separate activities, so a conflict between parts about the same activity means one part is wrong, not that both hold. Combined before the items it gates (applicability, r2#8). Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "The winning part's chosen-answer probability and quote (by construction the highest among the supported answers).",
+   "downgraded_parts": "Downgraded parts (now `unknown`) are left out of the contest. If all parts are downgraded, `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "priority_order public_facing_service > internal_operational > pilot_experiment > program_initiative > policy_guidance > unknown > not_documented (tool uses before containers, since a part that sees only a program overview tends to give the container value).",
+   "failure_case": "Part 1 is a short summary, 'the city's pilot of a resident chatbot', coded `pilot_experiment` at 0.97; part 2 describes the live public service in detail, coded `public_facing_service` at 0.91. The summary wins.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.action_type",
+   "rule": "highest_probability",
+   "order": null,
+   "confidence": "proposed",
+   "basis": "Same reasoning as activity_type: values with no ranking, and a deployment and the governance instrument for it are separate activities (R-017), so cross-part conflict means one part is wrong. Combined before the items gated on it (governed_population, governance_direction). The values are due to be re-ruled (r2#33) before the version steps. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "The winning part's chosen-answer probability and quote (by construction the highest among the supported answers).",
+   "downgraded_parts": "Downgraded parts (now `unknown`) are left out of the contest. If all parts are downgraded, `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "priority_order program > governance > deployment > staff_training > unknown > not_documented ('program' is a container used only with named components, and the components may appear only in a later part).",
+   "failure_case": "A named program whose overview is in part 1 ('the AI Assistant Programme gives staff Copilot', coded `deployment` at 0.95) and whose named components are listed in part 2 (`program` at 0.88): highest probability gives `deployment` and the container is lost.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.adoption_stage",
+   "rule": "priority_order",
+   "order": [
+    "discontinued",
+    "production",
+    "pilot",
+    "announced",
+    "proposed",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "sourced",
+   "basis": "Rule type and direction sourced: r2#42 gives 'most advanced stage first' as its example of a per-field order. Proposed within it: `discontinued` first as the terminal stage (it implies earlier use), and the missing-value tokens last. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "(a) same order with `discontinued` last among substantive values (production > pilot > announced > proposed > discontinued), reading 'most advanced' as most operational; (b) latest-dated stage (the stage the page attaches to its most recent date). (b) is not one of the six ruled types; it would need a seventh type.",
+   "failure_case": "'The chatbot, in production since 2023, was briefly suspended in March and has since resumed': the part covering the suspension codes `discontinued`, which wins over `production`. Also: the 'permanent pilot' rule (pilot over 12 months with full user base = production) needs facts that can sit in different parts, so no part codes `production` and the combined stage stays `pilot`.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.procurement_status",
+   "rule": "priority_order",
+   "order": [
+    "payment_or_subscription",
+    "award_or_contract",
+    "tender_or_rfp",
+    "unknown",
+    "none_documented",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "Most advanced purchase stage first, by analogy with the ruled stage example (r2#42); `unknown` (procurement mentioned, stage unclear) above `none_documented`. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "highest_probability.",
+   "failure_case": "A tender page whose part 2 mentions the payment for the previous, different contract (wrongly linked as the same activity) gives `payment_or_subscription` for a purchase that is only at tender. Also: an award later cancelled stays `award_or_contract` (no value for cancellation).",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.model_origin",
+   "rule": "highest_probability",
+   "order": null,
+   "confidence": "proposed",
+   "basis": "The three origins do not nest or rank; a conflict for one activity means one part is wrong (or the activity uses two models, which one answer cannot hold). Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "The winning part's chosen-answer probability and quote (by construction the highest among the supported answers).",
+   "downgraded_parts": "Downgraded parts (now `unknown`) are left out of the contest. If all parts are downgraded, `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "priority_order open_weight > commercial > government_developed > unknown > not_documented (a part naming the model outranks a part calling the tool 'our own AI'); or government_developed first, by analogy with build_arrangement.",
+   "failure_case": "Part 1 says 'our in-house assistant' (`government_developed`, 0.93); part 2 says 'built on GPT-4o' (`commercial`, 0.89). The vaguer self-description wins.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.build_arrangement",
+   "rule": "priority_order",
+   "order": [
+    "model_trained_or_fine_tuned_by_institution",
+    "custom_application_on_external_model",
+    "off_the_shelf_product",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "The values nest by depth of the institution's own work (fine-tuning implies a custom application, which is built on an external product or model), and the deeper arrangement is the more specific statement; 'off the shelf' is often the default reading of a short mention. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "highest_probability.",
+   "failure_case": "A vendor case study whose later part advertises 'customers can fine-tune the model on their own documents' is coded `model_trained_or_fine_tuned_by_institution` and wins, though the institution bought the product as is.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.interface",
+   "rule": "priority_order",
+   "order": [
+    "conversational",
+    "backend_or_api",
+    "other_interface",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "Named interfaces before the residual `other_interface`; conversational before back-end because a page describing both usually describes one product whose user-facing side is the chat. `not_documented` only if added to the draft list; `not_asked` is set by the applicability table after combining and never competes. Order depends on the draft value list (not ruled). Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "highest_probability.",
+   "failure_case": "A data-platform page: part 1 describes an internal document-classification API (`backend_or_api`); part 3 mentions a small chat demo (`conversational`). Priority gives `conversational` for what is mainly a back-end service.",
+   "depends_on_draft_values": true
+  },
+  {
+   "item": "core.contracting_party",
+   "rule": "combined_list",
+   "order": null,
+   "confidence": "proposed",
+   "basis": "Page-stated names, same type as the preset rule for tool and model names; a purchase can have more than one contracting party (consortium; framework plus call-off), so a list loses nothing. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "No single combined probability: each list entry keeps the probability or quote-check result of the part it came from. Extractor item, no classifier probability: support is the producing part's quote-presence check (R-042) and, where it applies, the entailment check (R-040, X35).",
+   "downgraded_parts": "An entry whose quote fails the check is dropped (not listed as `unknown`). If every entry drops, the field is `unknown` with downgraded support status.",
+   "alternative": "first_section (first stated party only), if the column must hold one name.",
+   "failure_case": "Two parts name the same supplier differently ('Microsoft' and 'Microsoft Ireland Operations Ltd'), or one part names the reseller and another the prime contractor: the list shows two parties for one contract.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.developer",
+   "rule": "combined_list",
+   "order": null,
+   "confidence": "proposed",
+   "basis": "Mirrors tool_name and model_name (preset combined_list): page-stated developers are collected from all parts, and the lookup (with its basis recorded) runs on the combined tool-name list, not part by part. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "No single combined probability: each list entry keeps the probability or quote-check result of the part it came from. Lookup entries have no probability; their basis is `lookup`.",
+   "downgraded_parts": "An entry whose quote fails the check is dropped (not listed as `unknown`). If every entry drops, the field is `unknown` with downgraded support status.",
+   "alternative": "first_section.",
+   "failure_case": "A tool mentioned only in passing in a later part ('unlike ChatGPT, our tool...') enters the combined tool list if wrongly linked, and the lookup then adds OpenAI as a developer of the activity.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.deployment_mode",
+   "rule": "highest_probability",
+   "order": null,
+   "confidence": "proposed",
+   "basis": "Two values with no ranking; a conflict means one part is wrong or the tool has two modes, which one answer cannot hold. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "The winning part's chosen-answer probability and quote (by construction the highest among the supported answers).",
+   "downgraded_parts": "Downgraded parts (now `unknown`) are left out of the contest. If all parts are downgraded, `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "priority_order integrated > standalone > unknown > not_documented (integration is a positive statement; standalone is often inferred from a separate web address).",
+   "failure_case": "A tool built into the case system and also offered on a separate test site: the part about the test site (`standalone`, 0.96) beats the part about the main deployment (`integrated`, 0.90).",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.target_users",
+   "rule": "priority_order",
+   "order": [
+    "both",
+    "public",
+    "internal_staff",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "Widest audience first; `both` first because it is the only value that already covers two parts' findings. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "combined_list over the parts' answers, with {internal_staff, public} read as `both`. The column is single-answer, so this needs a PI-approved mapping step; it fixes the failure case below.",
+   "failure_case": "Part 1 describes staff using the tool to draft replies (`internal_staff`); part 2 describes residents chatting with it (`public`). No part says `both`, so priority gives `public`, though the page as a whole says both.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.governed_population",
+   "rule": "priority_order",
+   "order": [
+    "both",
+    "external_users",
+    "internal_personnel",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "Same structure and reasoning as target_users: widest population first. Combined after action_type, which gates it. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "combined_list with {internal_personnel, external_users} read as `both` (needs a PI-approved mapping step).",
+   "failure_case": "A policy whose staff rules are in part 1 (`internal_personnel`) and whose rules for contractors and the public are in part 2 (`external_users`) is coded `external_users`, not `both`.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.governance_direction",
+   "rule": "priority_order",
+   "order": [
+    "restricts_with_conditions",
+    "prohibits",
+    "permits",
+    "requires_or_promotes",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "Conditions first, because a policy with mixed provisions (some uses allowed, some barred) is most often a conditional regime; then prohibits before permits (binding limits before allowances). Depends on the draft value list, including whether 'requires or promotes' is one value or two. Combined after action_type. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "(a) most restrictive first: prohibits > restricts_with_conditions > permits > requires_or_promotes; (b) highest_probability.",
+   "failure_case": "A policy that bans public chatbots in part 1 (`prohibits`) and approves the in-house assistant in part 2 (`permits`), with no part coding conditions: priority gives `prohibits`, while a single reader would code `restricts_with_conditions`.",
+   "depends_on_draft_values": true
+  },
+  {
+   "item": "core.service_domain",
+   "rule": "highest_probability",
+   "order": null,
+   "confidence": "proposed",
+   "basis": "No service-area list is ruled (the draft offers three candidates), so no order can be written; areas have no ranking in any candidate. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "The winning part's chosen-answer probability and quote (by construction the highest among the supported answers).",
+   "downgraded_parts": "Downgraded parts (now `unknown`) are left out of the contest. If all parts are downgraded, `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "Once a list is ruled: priority_order with every specific area (in list order) > general_administration > unknown > not_documented, so a specific area named in any part beats general administration.",
+   "failure_case": "An internal drafting tool in a health ministry: part 1 (ministry context) codes `health` at 0.88, part 2 (tool description) codes `general_administration` at 0.93; small probability changes flip the result.",
+   "depends_on_draft_values": true
+  },
+  {
+   "item": "core.genai_mechanism_basis",
+   "rule": "priority_order",
+   "order": [
+    "named_genai_product_or_model",
+    "explicit_genai_label",
+    "generative_capability_described",
+    "ai_chatbot_or_assistant_label_only",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "The values are a strength ladder for the generative-AI evidence (codebook value order; the strength filter used with the GenAI rule); the strongest basis found in any part about the activity is the page's basis. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "None needed (the ladder is the natural order); highest_probability is the only other option.",
+   "failure_case": "A part names 'Copilot' in a sentence about a different tool ('alongside Copilot, the city built a chatbot'); if segmentation links it to the chatbot activity, the chatbot's basis rises to `named_genai_product_or_model`.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.deployment_scale_number",
+   "rule": "first_section",
+   "order": null,
+   "confidence": "proposed",
+   "basis": "Extractor item (verbatim number, no probability), so highest_probability is unavailable, and the number must stay paired with its unit; summaries at the top usually state the headline scale. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "Extractor item, no classifier probability: support is the producing part's quote-presence check (R-042) and, where it applies, the entailment check (R-040, X35).",
+   "downgraded_parts": "A downgraded part does not qualify; the next part with a supported substantive answer is used. If none qualifies, `unknown` with the support status of the earliest downgraded part (or `not_documented` if no part stated anything).",
+   "alternative": "combined_list of (number, unit) pairs, if the column may hold several scales.",
+   "failure_case": "Part 1: 'a pilot with 50 users'; part 3: 'now expanded to 12,000 licences'. first_section keeps 50. Also: over pooled Stage 6 evidence, 'first' depends on the order of the pool, which is not fixed.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.deployment_scale_unit",
+   "rule": "first_section",
+   "order": null,
+   "confidence": "proposed",
+   "basis": "Taken from the same part as the scale number it describes (the unit is asked only when a number is stated). Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "The producing (first qualifying) part's chosen-answer probability and quote.",
+   "downgraded_parts": "If the unit answer is downgraded, the unit is `unknown` and the number stands; the unit is never taken from a different part than the number.",
+   "alternative": "combined_list, paired with the number (as for the number).",
+   "failure_case": "Same as the number: the unit follows the first part's number even when a later part gives the current scale in another unit.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.has_human_oversight",
+   "rule": "priority_order",
+   "order": [
+    "yes",
+    "unclear",
+    "no",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "Four-valued item, so any_yes alone does not say what happens when no part says yes; a priority order covers that. The order mirrors the ruled page-verdict order (S3 a ranks unsettled verdicts above stated absence) and keeps an open signal visible, as the institution rule does for unresolved pages (R-005). Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote. This is the combination across parts for one activity; the separate page-level answer (yes if any activity is yes) is unchanged.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "(a) any_yes, completed with the same fallback order (yes if any part says yes; otherwise unclear > no > not_documented): same effect, different rule type; (b) priority yes > no > unclear > not_documented, so an explicit statement that the safeguard does not apply beats an unsettled mention.",
+   "failure_case": "Part 1 states 'outputs are not reviewed by staff before sending' (`no`); part 3 is a general privacy section saying 'all AI systems are subject to human review' with no tie to this tool (`unclear`). The combined answer is `unclear`, though a single reader would code `no`.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.has_transparency_notice",
+   "rule": "priority_order",
+   "order": [
+    "yes",
+    "unclear",
+    "no",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "Four-valued item, so any_yes alone does not say what happens when no part says yes; a priority order covers that. The order mirrors the ruled page-verdict order (S3 a ranks unsettled verdicts above stated absence) and keeps an open signal visible, as the institution rule does for unresolved pages (R-005). Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote. This is the combination across parts for one activity; the separate page-level answer (yes if any activity is yes) is unchanged.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "(a) any_yes, completed with the same fallback order (yes if any part says yes; otherwise unclear > no > not_documented): same effect, different rule type; (b) priority yes > no > unclear > not_documented, so an explicit statement that the safeguard does not apply beats an unsettled mention.",
+   "failure_case": "Part 1 states 'no notice is shown to users' (`no`); a later part's generic accessibility statement mentions 'automated systems' (`unclear`). Combined: `unclear`.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.has_data_classification",
+   "rule": "priority_order",
+   "order": [
+    "yes",
+    "unclear",
+    "no",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "Four-valued item, so any_yes alone does not say what happens when no part says yes; a priority order covers that. The order mirrors the ruled page-verdict order (S3 a ranks unsettled verdicts above stated absence) and keeps an open signal visible, as the institution rule does for unresolved pages (R-005). Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote. This is the combination across parts for one activity; the separate page-level answer (yes if any activity is yes) is unchanged.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "(a) any_yes, completed with the same fallback order (yes if any part says yes; otherwise unclear > no > not_documented): same effect, different rule type; (b) priority yes > no > unclear > not_documented, so an explicit statement that the safeguard does not apply beats an unsettled mention.",
+   "failure_case": "Part 1 states 'no data classification was done for the pilot' (`no`); part 2 quotes the ministry-wide data policy (`unclear`). Combined: `unclear`.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.has_risk_assessment",
+   "rule": "priority_order",
+   "order": [
+    "yes",
+    "unclear",
+    "no",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "Four-valued item, so any_yes alone does not say what happens when no part says yes; a priority order covers that. The order mirrors the ruled page-verdict order (S3 a ranks unsettled verdicts above stated absence) and keeps an open signal visible, as the institution rule does for unresolved pages (R-005). Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote. This is the combination across parts for one activity; the separate page-level answer (yes if any activity is yes) is unchanged.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "(a) any_yes, completed with the same fallback order (yes if any part says yes; otherwise unclear > no > not_documented): same effect, different rule type; (b) priority yes > no > unclear > not_documented, so an explicit statement that the safeguard does not apply beats an unsettled mention.",
+   "failure_case": "A part quoting a general requirement that 'all AI systems must undergo a DPIA' (`unclear` for this tool) outweighs a part stating 'no risk assessment was carried out for the pilot' (`no`).",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.outcome_kind",
+   "rule": "priority_order",
+   "order": [
+    "quantified",
+    "qualitative",
+    "none_reported",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "Richest report first, parallel to the evaluation_documented table order (results before no results). Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "highest_probability.",
+   "failure_case": "A press release repeats a vendor's 'up to 40% time saved' line in part 2 (`quantified`), while the institution's own outcome is the staff feedback in part 1 (`qualitative`); the vendor figure wins.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.incident_kind",
+   "rule": "priority_order",
+   "order": [
+    "quantified",
+    "qualitative",
+    "discontinuation_uncertain",
+    "none_reported",
+    "unknown",
+    "not_documented"
+   ],
+   "confidence": "proposed",
+   "basis": "A reported incident first (richest first, as outcome_kind), then the folded-in 'discontinuation uncertain' signal, weaker than a reported incident but stronger than none. Activity-level: combines the answers of every part that holds a passage of this same activity, as linked by segmentation; parts without a passage of the activity are not asked and do not vote.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part.",
+   "alternative": "discontinuation_uncertain first, so the signal is never lost when an incident is also reported.",
+   "failure_case": "Part 1 reports a data leak (`qualitative`); part 3 hints the tool was quietly withdrawn (`discontinuation_uncertain`). The combined value keeps the incident and drops the discontinuation signal.",
+   "depends_on_draft_values": false
+  },
+  {
+   "item": "core.activity_relation_cross_page",
+   "rule": "priority_order",
+   "order": [
+    "unresolved",
+    "distinct_action",
+    "governs",
+    "component_of_program",
+    "shared_participation",
+    "same_activity",
+    "unknown"
+   ],
+   "confidence": "sourced",
+   "basis": "Rule type sourced: r2#6 extends the page rule to split pooled Stage 6 evidence ('ordered lists take the first value found'). Order proposed: values that do not merge first, because distinct and unresolved relations never merge and merging needs an explicit relation (R-005); among links, the more specific structural link before plain same-activity. Depends on the draft relation list (including how direction is handled). Pair-level answer: each part holds a slice of the two activities' pooled quotes.",
+   "probability": "Producing part's chosen-answer probability and quote: the part whose value won; if several parts gave the winning value, the one with the highest chosen-answer probability (ties: earliest part).",
+   "downgraded_parts": "Downgraded parts enter as `unknown` (the downgrade target, R-041), which ranks below every substantive value and above `not_documented`, so any supported answer from another part wins. If every part is downgraded or silent, the combined answer is `unknown` with the support status of the highest-probability downgraded part. A downgraded `same_activity` therefore never merges.",
+   "alternative": "highest_probability.",
+   "failure_case": "When a pool is split, a part may hold quotes from only one of the two activities and so answers `distinct_action` or `unresolved` by default; that part then blocks a merge the other parts support. A same-versus-distinct conflict also gives `distinct_action`, not `unresolved`.",
+   "depends_on_draft_values": true
+  }
+ ],
+ "disagreements_with_preset": [
+  {
+   "item": "core.page_complete",
+   "preset": "any_yes",
+   "issue": "The item reads yes = the page holds all information. any_yes then makes the page complete if any one part says complete, the reverse of the round-1 X16 wording ('completeness incomplete' under any-yes). Proposed: complete only if every part says complete (any part `no` gives `no`). Also: every part but the last ends at a cut, so the per-part question must ignore the cut."
+  },
+  {
+   "item": "core.disclosure_form, core.disclosure_scope (and the first_section items in this draft)",
+   "preset": "first_section",
+   "issue": "A gap rather than a disagreement: 'first section' does not say what happens when the first part is silent or downgraded. Proposed convention: the first part with a supported substantive answer. Over pooled Stage 6 evidence, 'first' needs a fixed pool order (for example by source date, then page order)."
+  },
+  {
+   "item": "core.evaluation_documented",
+   "preset": "priority_order, table order (CX 11.1)",
+   "issue": "The table order has no place for `unknown`, the downgrade target. Proposed: `unknown` just above `not_documented`, as in the other orders here."
+  },
+  {
+   "item": "core.page_verdict",
+   "preset": "priority_order S3 a",
+   "issue": "Agreed. Note: a downgraded verdict keeps its value (r2#40), so a downgraded `confirms_activity` in one part outranks supported negative verdicts in all other parts, and the combined page is downgraded (unresolved for the institution rule). Conservative and seemingly intended; confirm. Alternative: rank supported verdicts before downgraded ones."
+  },
+  {
+   "item": "general (all rules)",
+   "preset": "R-044 earlier text: probability and quote from the producing part",
+   "issue": "Kept. Added a tie rule: when several parts give the winning value, the producing part is the one with the highest chosen-answer probability (ties: earliest part). The CX 11.1 wording 'first value found' implies the earliest such part instead; the choice changes only which quote and probability are shown."
+  }
+ ]
+}

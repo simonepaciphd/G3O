@@ -1,0 +1,210 @@
+{
+ "F1": {
+  "owner": "vocabularies.support_status",
+  "slot": "vocabularies/support_status/rules/2"
+ },
+ "I01": {
+  "owner": "vocabularies.missing",
+  "slots": {
+   "1": "vocabularies/missing/text",
+   "2": "vocabularies/missing/na_label",
+   "3": "vocabularies/missing/published_summary_map/text",
+   "4": "vocabularies/missing/published_summary_map/label_text",
+   "5": "vocabularies/missing/published_summary_map/institution_rule",
+   "6": "vocabularies/missing/cx_mapping_row",
+   "7": "vocabularies/missing/cx_mapping_row_location"
+  }
+ },
+ "I02": {
+  "owner": "vocabularies.provenance",
+  "slots": {
+   "1": "vocabularies/provenance/values/0/definition",
+   "2": "vocabularies/provenance/values/1/definition",
+   "3": "vocabularies/provenance/values/2/definition",
+   "4": "vocabularies/provenance/values/3/definition",
+   "5": "vocabularies/provenance/values/4/definition",
+   "6": "vocabularies/provenance/text",
+   "7": "vocabularies/provenance/date_origin_map/text"
+  }
+ },
+ "I03": {
+  "owner": "vocabularies.support_status",
+  "slots": {
+   "1": "vocabularies/support_status/text",
+   "2": "vocabularies/support_status/rules/0",
+   "3": "vocabularies/support_status/rules/1",
+   "4": "vocabularies/support_status/rules/2",
+   "5": "vocabularies/support_status/rules/3",
+   "6": "vocabularies/support_status/status_by_answer/text"
+  }
+ },
+ "I04": {
+  "owner": "vocabularies.relation",
+  "slots": {
+   "1": "vocabularies/relation/text"
+  }
+ },
+ "I05": {
+  "owner": "vocabularies.genai_era_cutoff",
+  "slots": {
+   "1": "vocabularies/genai_era_cutoff/text"
+  }
+ },
+ "I06": {
+  "owner": "shared_rules.core.rule.genai_boundary",
+  "slots": {
+   "1": "shared_rules/core.rule.genai_boundary/0",
+   "2": "shared_rules/core.rule.genai_boundary/1"
+  }
+ },
+ "I07": {
+  "owner": "shared_rules.core.rule.activity_unit",
+  "slots": {
+   "1": "shared_rules/core.rule.activity_unit/0"
+  }
+ },
+ "I08": {
+  "owner": "shared_rules.core.rule.ws10_event",
+  "slots": {
+   "1": "shared_rules/core.rule.ws10_event/0"
+  }
+ },
+ "I09": {
+  "owner": "shared_rules.core.rule.ws10_governance",
+  "slots": {
+   "1": "shared_rules/core.rule.ws10_governance/0"
+  }
+ },
+ "I10": {
+  "owner": "shared_rules.core.rule.ws10_excluded_only",
+  "slots": {
+   "1": "shared_rules/core.rule.ws10_excluded_only/0"
+  }
+ },
+ "I11": {
+  "owner": "shared_rules.core.rule.ws10_proposals",
+  "slots": {
+   "1": "shared_rules/core.rule.ws10_proposals/0"
+  }
+ },
+ "I12": {
+  "owner": "shared_rules.core.rule.attribution_grain",
+  "slots": {
+   "1": "shared_rules/core.rule.attribution_grain/0",
+   "2": "shared_rules/core.rule.attribution_grain/1"
+  }
+ },
+ "I13": {
+  "owner": "shared_rules.core.rule.v26_detail_fields",
+  "slots": {
+   "1": "shared_rules/core.rule.v26_detail_fields/0"
+  }
+ },
+ "I14": {
+  "owner": "shared_rules.core.rule.safeguard_attachment",
+  "slots": {
+   "1": "shared_rules/core.rule.safeguard_attachment/0",
+   "2": "shared_rules/core.rule.safeguard_attachment/1"
+  }
+ },
+ "I15": {
+  "owner": "shared_rules.core.rule.stated_only",
+  "slots": {
+   "1": "shared_rules/core.rule.stated_only/0"
+  }
+ },
+ "I16": {
+  "owner": "shared_rules.core.rule.cx_grain",
+  "slots": {
+   "1": "shared_rules/core.rule.cx_grain/0",
+   "2": "shared_rules/core.rule.cx_grain/1",
+   "3": "shared_rules/core.rule.cx_grain/2",
+   "4": "shared_rules/core.rule.cx_grain/3",
+   "5": "shared_rules/core.rule.cx_grain/4"
+  }
+ },
+ "I17": {
+  "owner": "shared_rules.core.rule.applicability_table",
+  "slots": {
+   "1": "shared_rules/core.rule.applicability_table/0",
+   "2": "shared_rules/core.rule.applicability_table/1",
+   "3": "shared_rules/core.rule.applicability_table/2",
+   "4": "shared_rules/core.rule.applicability_table/3",
+   "5": "shared_rules/core.rule.applicability_table/4"
+  }
+ },
+ "I18": {
+  "owner": "shared_rules.core.rule.governance_gate",
+  "slots": {
+   "1": "shared_rules/core.rule.governance_gate/0"
+  }
+ },
+ "I19": {
+  "owner": "shared_rules.core.rule.allowed_type_action_pairs",
+  "slots": {
+   "1": "shared_rules/core.rule.allowed_type_action_pairs/0",
+   "2": "shared_rules/core.rule.allowed_type_action_pairs/1"
+  }
+ },
+ "I20": {
+  "owner": "combining_conventions.check_then_combine",
+  "slots": {
+   "1": "combining_conventions/check_then_combine/text/0",
+   "2": "combining_conventions/check_then_combine/text/1",
+   "3": "combining_conventions/check_then_combine/text/2"
+  }
+ },
+ "I21": {
+  "owner": "combining_conventions.not_covered_by_this_part",
+  "slots": {
+   "1": "combining_conventions/not_covered_by_this_part/text/0"
+  }
+ },
+ "I22": {
+  "owner": "combining_conventions.missing_rank",
+  "slots": {
+   "1": "combining_conventions/missing_rank/text/0",
+   "2": "combining_conventions/missing_rank/text/1",
+   "3": "combining_conventions/missing_rank/text/2"
+  }
+ },
+ "I23": {
+  "owner": "combining_conventions.producing_part",
+  "slots": {
+   "1": "combining_conventions/producing_part/text/0",
+   "2": "combining_conventions/producing_part/text/1"
+  }
+ },
+ "I24": {
+  "owner": "combining_conventions.first_part",
+  "slots": {
+   "1": "combining_conventions/first_part/text/0",
+   "2": "combining_conventions/first_part/text/1"
+  }
+ },
+ "I25": {
+  "owner": "combining_conventions.gate_items_first",
+  "slots": {
+   "1": "combining_conventions/gate_items_first/text/0"
+  }
+ },
+ "I26": {
+  "owner": "combining_conventions.activity_level",
+  "slots": {
+   "1": "combining_conventions/activity_level/text/0"
+  }
+ },
+ "I27": {
+  "owner": "retired.4",
+  "slots": {
+   "1": "retired/4/legacy_fill"
+  }
+ },
+ "O1": {
+  "owner": "vocabularies.support_status",
+  "pair": [
+   "vocabularies/support_status/text",
+   "vocabularies/support_status/status_by_answer/text"
+  ]
+ }
+}

@@ -1,0 +1,132 @@
+{
+ "pages": [
+  {
+   "page": "t010-r4-page",
+   "items": 17,
+   "slots": 93,
+   "by_kind": {
+    "SPEC text": 23,
+    "round-3 ruling option text": 12,
+    "Agent draft": 26,
+    "PI-approved text": 26,
+    "no approved wording": 6
+   },
+   "link": "file:///C:/Users/spaci/repos/G3O/planning/t010/codebook-review/round4/t010-r4-page.html",
+   "page_sha256": "e056c316422c3c8a8b3aa908f0154410999091a3e0f1d2968ff327e9d17b9c0c"
+  },
+  {
+   "page": "t010-r4-activity-1",
+   "items": 17,
+   "slots": 106,
+   "by_kind": {
+    "SPEC text": 25,
+    "no approved wording": 52,
+    "round-3 ruling option text": 8,
+    "v2.5 text": 15,
+    "PI-approved text": 5,
+    "Agent draft": 1
+   },
+   "link": "file:///C:/Users/spaci/repos/G3O/planning/t010/codebook-review/round4/t010-r4-activity-1.html",
+   "page_sha256": "d28e08a1956ae51a491eda1cb46073e6bd73075fd13b9304eb4d81dafe57af5b"
+  },
+  {
+   "page": "t010-r4-activity-2",
+   "items": 18,
+   "slots": 101,
+   "by_kind": {
+    "no approved wording": 39,
+    "SPEC text": 30,
+    "v2.5 text": 3,
+    "round-3 ruling option text": 21,
+    "PI-approved text": 5,
+    "Agent draft": 3
+   },
+   "link": "file:///C:/Users/spaci/repos/G3O/planning/t010/codebook-review/round4/t010-r4-activity-2.html",
+   "page_sha256": "baa30c8be13ccf034d5ba550ce8ded4b0802303aa5d1429109c4911a8896133a"
+  },
+  {
+   "page": "t010-r4-activity-3",
+   "items": 23,
+   "slots": 103,
+   "by_kind": {
+    "no approved wording": 23,
+    "SPEC text": 35,
+    "round-3 ruling option text": 3,
+    "Agent draft": 35,
+    "v2.5 text": 6,
+    "PI-approved text": 1
+   },
+   "link": "file:///C:/Users/spaci/repos/G3O/planning/t010/codebook-review/round4/t010-r4-activity-3.html",
+   "page_sha256": "99b4ea87d400942bc9f54ae4a2855065317cc86b66591cafc0b1d0407564707d"
+  },
+  {
+   "page": "t010-r4-source",
+   "items": 15,
+   "slots": 29,
+   "by_kind": {
+    "v2.5 text": 10,
+    "SPEC text": 18,
+    "round-3 ruling option text": 1
+   },
+   "link": "file:///C:/Users/spaci/repos/G3O/planning/t010/codebook-review/round4/t010-r4-source.html",
+   "page_sha256": "c6e3a205288ce34b5d78390ac74313a6bf1eff2eac1576f73daef21ac1034daf"
+  },
+  {
+   "page": "t010-r4-institution",
+   "items": 9,
+   "slots": 26,
+   "by_kind": {
+    "SPEC text": 13,
+    "PI-approved text": 1,
+    "no approved wording": 8,
+    "round-3 ruling option text": 4
+   },
+   "link": "file:///C:/Users/spaci/repos/G3O/planning/t010/codebook-review/round4/t010-r4-institution.html",
+   "page_sha256": "556de290c354b3b1322392c59efa55f6f7e229b537ed2e07e6c817a74c475c94"
+  },
+  {
+   "page": "t010-r4-record",
+   "items": 10,
+   "slots": 26,
+   "by_kind": {
+    "SPEC text": 15,
+    "no approved wording": 5,
+    "round-3 ruling option text": 4,
+    "PI-approved text": 2
+   },
+   "link": "file:///C:/Users/spaci/repos/G3O/planning/t010/codebook-review/round4/t010-r4-record.html",
+   "page_sha256": "12da4052c7fa20d751bb8f6d1d2c64fe4e0d2c3e7659f97764432e0a6c8a3bed"
+  },
+  {
+   "page": "t010-r4-shared",
+   "items": 27,
+   "slots": 62,
+   "by_kind": {
+    "SPEC text": 17,
+    "round-3 ruling option text": 26,
+    "PI-approved text": 3,
+    "Agent draft": 12,
+    "no approved wording": 3,
+    "v2.5 text": 1
+   },
+   "link": "file:///C:/Users/spaci/repos/G3O/planning/t010/codebook-review/round4/t010-r4-shared.html",
+   "page_sha256": "81c6babfa176c776f037c909ffd3872923475eaafdffa5f5fb72141b647df7e6"
+  }
+ ],
+ "slots_on_pages": {
+  "SPEC text": 176,
+  "round-3 ruling option text": 79,
+  "PI-approved text": 43,
+  "Agent draft": 77,
+  "no approved wording": 136,
+  "v2.5 text": 35
+ },
+ "slots_on_pages_total": 546,
+ "left_out_modules": {
+  "SPEC text": 13
+ },
+ "left_out_kinds": {
+  "direction for CX-01.3, n": 25,
+  "archived signed text — k": 8
+ }
+}
