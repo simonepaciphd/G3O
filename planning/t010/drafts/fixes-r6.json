@@ -1,0 +1,2616 @@
+{
+ "format": "fixes-r6 v1: entries applied in order after fixes-r5 by build_skeleton.py apply_r6(); op set | add | delete; `before` is the exact value met",
+ "status": "candidate for RC-D-005: W01-W45 approved as drafted; resolutions pending PI approval of the clean copy",
+ "drafted_by": "resolver subagent of the plan integrator, Claude Code, claude-opus-5-5, 2026-10-30",
+ "ruling": "PI, chat, 2026-10-30 (t010-rulings.md): \"drafts ok, give a subagent the task to resolve ambiguities in a way that's coherent with the rest, i will approve final clean copy\"",
+ "base": "planning/t010/candidate-r5/codebook-r5-draft.yaml",
+ "base_sha256": "c0f9b928092be5a44461a4de2a8f0719e88032bd0f19d46752b088be08d71cf3",
+ "eval_emphasis": " Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).",
+ "resolver_texts": {
+  "N-01": {
+   "path": "shared/system_prompt_stage6",
+   "new_sentence": "You read two activity records, or a set of quotes about one activity gathered from several sources, about a named institution and answer coding questions about them.",
+   "replaces": "You read one web page, or one part of one, about a named institution and answer coding questions about it.",
+   "why": "W04 note: the page framing does not fit Stage 6 inputs (two records or pooled quotes)"
+  }
+ },
+ "reused_texts": {
+  "not_documented rule": {
+   "text": "not_documented: the page is silent.",
+   "from": "items/core.has_human_oversight/rules/2",
+   "items": [
+    "core.model_origin",
+    "core.build_arrangement",
+    "core.deployment_mode",
+    "core.target_users",
+    "core.governed_population",
+    "core.governance_form",
+    "core.observed_actor_role"
+   ]
+  }
+ },
+ "fixes": [
+  {
+   "id": "R6-01",
+   "ruling": "5 a, 6 a; W01-W04; W04 note",
+   "op": "add",
+   "what": "top-level `shared`: part-prompt sentence, temporary answer (label, meaning), system prompt (W04) and its Stage 6 variant",
+   "path": "shared",
+   "after": {
+    "part_prompt": {
+     "sentence": {
+      "text": "The text below is only one part of a longer page; the rest of the page is read separately. Answer from this part only.",
+      "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W01",
+      "source": "drafts/rc-d-005-wording.json W01 (new; part label idea from agent-workspace/2026-10-27-unclear-screen/unclear2.py L98, L128 (`page_part` = \"1 of 3\"))"
+     },
+     "temporary_answer": {
+      "label": {
+       "text": "not covered by this part",
+       "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W02",
+       "source": "drafts/rc-d-005-wording.json W02 (SPEC R-044 (label as written there))"
+      },
+      "meaning": {
+       "text": "This part of the page does not deal with the question; another part of the page may.",
+       "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W03",
+       "source": "drafts/rc-d-005-wording.json W03 (new)"
+      }
+     },
+     "applies_to": "every part prompt of a long page (R-044, all-03 a) and of split pooled Stage 6 evidence (r2#6)"
+    },
+    "system_prompt": {
+     "text": "You are a research coder for the Global Government GenAI Observatory (G3O), a public, auditable dataset that measures how government institutions worldwide adopt generative AI. You read one web page, or one part of one, about a named institution and answer coding questions about it. Use only what the text says: record what it states explicitly and never infer, guess or use outside knowledge. Give each answer in the form the question asks for and nothing else: for a question with listed answers, choose from those answers only; for an extraction, copy the exact words from the text.",
+     "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W04",
+     "source": "drafts/rc-d-005-wording.json W04 (g3o/extract/prompts/system_prompt.md L3 (mission sentence, shortened), L39 (\"Only record what is explicitly documented. Never infer\"), L69 (\"Return ONLY ...\"); agent-workspace/2026-10-27-unclear-screen/unclear2.py L84 (\"using only what the page says\"))",
+     "applies_to": [
+      "pass 1",
+      "pass 2",
+      "extractor"
+     ]
+    },
+    "system_prompt_stage6": {
+     "text": "You are a research coder for the Global Government GenAI Observatory (G3O), a public, auditable dataset that measures how government institutions worldwide adopt generative AI. You read two activity records, or a set of quotes about one activity gathered from several sources, about a named institution and answer coding questions about them. Use only what the text says: record what it states explicitly and never infer, guess or use outside knowledge. Give each answer in the form the question asks for and nothing else: for a question with listed answers, choose from those answers only; for an extraction, copy the exact words from the text.",
+     "origin": "agent-draft (resolver); W04 with its second sentence replaced (W04 note)",
+     "source": "drafts/rc-d-005-wording.json W04; drafts/resolutions-r6.json W04-note (new sentence 2)",
+     "applies_to": [
+      "stage6"
+     ]
+    }
+   }
+  },
+  {
+   "id": "R6-02",
+   "ruling": "3 a; W05",
+   "op": "set",
+   "what": "instruction from W05",
+   "path": "items/core.disclosure_scope/instruction",
+   "before": "none",
+   "after": {
+    "text": "How many institutions does the listing or document this page belongs to cover?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W05",
+    "source": "drafts/rc-d-005-wording.json W05 (planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L196 page_questions disclosure_scope instructions\" (frozen CX-01.2 question), with the \"Code the source PAGE.\" lead-in dropped)"
+   }
+  },
+  {
+   "id": "R6-03",
+   "ruling": "3 a; W06",
+   "op": "set",
+   "what": "instruction from W06",
+   "path": "items/core.content_contact_named/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does the page name a person, office or unit as responsible for a GenAI activity it mentions, or for questions about it?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W06",
+    "source": "drafts/rc-d-005-wording.json W06 (planning/t010/drafts/cx-01.3-draft.json row \"contact.py L42 contact question instructions\" (\"Does the page give this: {v}?\") with {v} = contact.py L30 w4a wording)"
+   }
+  },
+  {
+   "id": "R6-04",
+   "ruling": "3 a; W07",
+   "op": "set",
+   "what": "instruction from W07",
+   "path": "items/core.content_contact_details/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does the page give any contact details anywhere on it, such as an email address, phone number, postal address or contact form?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W07",
+    "source": "drafts/rc-d-005-wording.json W07 (planning/t010/drafts/cx-01.3-draft.json row \"contact.py L42 contact question instructions\" with {v} = contact.py L31 w4b wording)"
+   }
+  },
+  {
+   "id": "R6-05",
+   "ruling": "3 a; W08",
+   "op": "set",
+   "what": "instruction from W08",
+   "path": "items/core.source_type/instruction",
+   "before": "none",
+   "after": {
+    "text": "What kind of source is this page?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W08",
+    "source": "drafts/rc-d-005-wording.json W08 (g3o/extract/prompts/output_contract.md L123 column description (\"Category of the source.\") turned into a question)"
+   }
+  },
+  {
+   "id": "R6-06",
+   "ruling": "3 a; W09",
+   "op": "set",
+   "what": "instruction from W09",
+   "path": "items/core.observed_actor_relationship/instruction",
+   "before": "none",
+   "after": {
+    "text": "Whose activity is this, according to the page: the named institution's own, one of its units', a joint one it takes part in, or another body's?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W09",
+    "source": "drafts/rc-d-005-wording.json W09 (new)"
+   }
+  },
+  {
+   "id": "R6-07",
+   "ruling": "3 a; W11",
+   "op": "set",
+   "what": "instruction from W11",
+   "path": "items/core.observed_actor_role/instruction",
+   "before": "none",
+   "after": {
+    "text": "What role does the body that the page shows acting in this activity play in it?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W11",
+    "source": "drafts/rc-d-005-wording.json W11 (new)"
+   }
+  },
+  {
+   "id": "R6-08",
+   "ruling": "3 a; W12",
+   "op": "set",
+   "what": "instruction from W12",
+   "path": "items/core.action_type/instruction",
+   "before": "none",
+   "after": {
+    "text": "What kind of action is this activity?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W12",
+    "source": "drafts/rc-d-005-wording.json W12 (new)"
+   }
+  },
+  {
+   "id": "R6-09",
+   "ruling": "3 a; W13",
+   "op": "set",
+   "what": "instruction from W13",
+   "path": "items/core.adoption_stage/instruction",
+   "before": "none",
+   "after": {
+    "text": "What stage has this activity reached, according to the page?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W13",
+    "source": "drafts/rc-d-005-wording.json W13 (new; \"Record the most current status\" idea from g3o/extract/prompts/system_prompt.md L54)"
+   }
+  },
+  {
+   "id": "R6-10",
+   "ruling": "3 a; W14",
+   "op": "set",
+   "what": "instruction from W14",
+   "path": "items/core.procurement_status/instruction",
+   "before": "none",
+   "after": {
+    "text": "What purchase step, if any, does the page record for this activity's tool or service?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W14",
+    "source": "drafts/rc-d-005-wording.json W14 (new)"
+   }
+  },
+  {
+   "id": "R6-11",
+   "ruling": "3 a; W15",
+   "op": "set",
+   "what": "instruction from W15",
+   "path": "items/core.service_domain/instruction",
+   "before": "none",
+   "after": {
+    "text": "Which areas of government work does this activity concern? Choose all that apply.",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W15",
+    "source": "drafts/rc-d-005-wording.json W15 (new)"
+   }
+  },
+  {
+   "id": "R6-12",
+   "ruling": "3 a; W16",
+   "op": "set",
+   "what": "instruction from W16",
+   "path": "items/core.model_origin/instruction",
+   "before": "none",
+   "after": {
+    "text": "Where does the model behind this activity's tool come from?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W16",
+    "source": "drafts/rc-d-005-wording.json W16 (new; value wording follows g3o/extract/prompts/output_contract.md §4.4 (access_type))"
+   }
+  },
+  {
+   "id": "R6-13",
+   "ruling": "3 a; W17",
+   "op": "set",
+   "what": "instruction from W17",
+   "path": "items/core.build_arrangement/instruction",
+   "before": "none",
+   "after": {
+    "text": "How was this activity's tool built?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W17",
+    "source": "drafts/rc-d-005-wording.json W17 (new)"
+   }
+  },
+  {
+   "id": "R6-14",
+   "ruling": "3 a; W18",
+   "op": "set",
+   "what": "instruction from W18",
+   "path": "items/core.interface/instruction",
+   "before": "none",
+   "after": {
+    "text": "How do users reach this activity's tool?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W18",
+    "source": "drafts/rc-d-005-wording.json W18 (new)"
+   }
+  },
+  {
+   "id": "R6-15",
+   "ruling": "3 a; W19",
+   "op": "set",
+   "what": "instruction from W19",
+   "path": "items/core.function_drafting_writing/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does the page state that this activity's tool is used for drafting or writing text?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W19",
+    "source": "drafts/rc-d-005-wording.json W19 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))"
+   }
+  },
+  {
+   "id": "R6-16",
+   "ruling": "3 a; W20",
+   "op": "set",
+   "what": "instruction from W20",
+   "path": "items/core.function_summarization/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does the page state that this activity's tool is used for summarising documents, reports or meetings?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W20",
+    "source": "drafts/rc-d-005-wording.json W20 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))"
+   }
+  },
+  {
+   "id": "R6-17",
+   "ruling": "3 a; W21",
+   "op": "set",
+   "what": "instruction from W21",
+   "path": "items/core.function_translation/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does the page state that this activity's tool is used for translating text or speech between languages?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W21",
+    "source": "drafts/rc-d-005-wording.json W21 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))"
+   }
+  },
+  {
+   "id": "R6-18",
+   "ruling": "3 a; W22",
+   "op": "set",
+   "what": "instruction from W22",
+   "path": "items/core.function_search_retrieval/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does the page state that this activity's tool is used for finding information?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W22",
+    "source": "drafts/rc-d-005-wording.json W22 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))"
+   }
+  },
+  {
+   "id": "R6-19",
+   "ruling": "3 a; W23",
+   "op": "set",
+   "what": "instruction from W23",
+   "path": "items/core.function_code/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does the page state that this activity's tool is used for writing, reviewing or fixing software code?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W23",
+    "source": "drafts/rc-d-005-wording.json W23 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))"
+   }
+  },
+  {
+   "id": "R6-20",
+   "ruling": "3 a; W24",
+   "op": "set",
+   "what": "instruction from W24",
+   "path": "items/core.function_image_audio_video/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does the page state that this activity's tool is used for creating or editing images, audio or video?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W24",
+    "source": "drafts/rc-d-005-wording.json W24 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))"
+   }
+  },
+  {
+   "id": "R6-21",
+   "ruling": "3 a; W25",
+   "op": "set",
+   "what": "instruction from W25",
+   "path": "items/core.function_extraction_classification/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does the page state that this activity's tool is used for pulling information out of documents or forms, or sorting and classifying them?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W25",
+    "source": "drafts/rc-d-005-wording.json W25 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))"
+   }
+  },
+  {
+   "id": "R6-22",
+   "ruling": "3 a; W26",
+   "op": "set",
+   "what": "instruction from W26",
+   "path": "items/core.function_analysis_recommendation/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does the page state that this activity's tool is used for analysing information or giving recommendations or scores to support human decisions?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W26",
+    "source": "drafts/rc-d-005-wording.json W26 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))"
+   }
+  },
+  {
+   "id": "R6-23",
+   "ruling": "3 a; W27",
+   "op": "set",
+   "what": "instruction from W27",
+   "path": "items/core.governed_population/instruction",
+   "before": "none",
+   "after": {
+    "text": "Whom does this rule on GenAI use apply to?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W27",
+    "source": "drafts/rc-d-005-wording.json W27 (new)"
+   }
+  },
+  {
+   "id": "R6-24",
+   "ruling": "3 a; W28",
+   "op": "set",
+   "what": "instruction from W28",
+   "path": "items/core.governance_form/instruction",
+   "before": "none",
+   "after": {
+    "text": "What form does this rule on GenAI use take? Choose all that apply.",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W28",
+    "source": "drafts/rc-d-005-wording.json W28 (new)"
+   }
+  },
+  {
+   "id": "R6-25",
+   "ruling": "3 a; W29",
+   "op": "set",
+   "what": "instruction from W29",
+   "path": "items/core.governance_direction/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does this rule ban, limit, allow, require or encourage the GenAI use it covers?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W29",
+    "source": "drafts/rc-d-005-wording.json W29 (new)"
+   }
+  },
+  {
+   "id": "R6-26",
+   "ruling": "3 a; W30",
+   "op": "set",
+   "what": "instruction from W30",
+   "path": "items/core.genai_mechanism_basis/instruction",
+   "before": "none",
+   "after": {
+    "text": "What on the page shows that this activity's tool is generative AI?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W30",
+    "source": "drafts/rc-d-005-wording.json W30 (new)"
+   }
+  },
+  {
+   "id": "R6-27",
+   "ruling": "3 a; W31",
+   "op": "set",
+   "what": "instruction from W31",
+   "path": "items/core.year_pilot_start/instruction",
+   "before": "none",
+   "after": {
+    "text": "In which year does the page say a pilot or trial of this activity began?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W31",
+    "source": "drafts/rc-d-005-wording.json W31 (new; replaces the copied announced-year question (ruling 4))"
+   }
+  },
+  {
+   "id": "R6-28",
+   "ruling": "3 a; W32",
+   "op": "set",
+   "what": "instruction from W32",
+   "path": "items/core.year_production_start/instruction",
+   "before": "none",
+   "after": {
+    "text": "In which year does the page say this activity went into full, routine operation?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W32",
+    "source": "drafts/rc-d-005-wording.json W32 (new; replaces the copied announced-year question (ruling 4))"
+   }
+  },
+  {
+   "id": "R6-29",
+   "ruling": "3 a; W33",
+   "op": "set",
+   "what": "instruction from W33",
+   "path": "items/core.deployment_scale_unit/instruction",
+   "before": "none",
+   "after": {
+    "text": "What does the stated number for this activity count?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W33",
+    "source": "drafts/rc-d-005-wording.json W33 (new; follows the item rule (\"jev Choice gives the unit\" for the extracted number))"
+   }
+  },
+  {
+   "id": "R6-30",
+   "ruling": "3 a; W34",
+   "op": "set",
+   "what": "instruction from W34",
+   "path": "items/core.outcome_kind/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does the page report a result of this activity, and if so, what kind?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W34",
+    "source": "drafts/rc-d-005-wording.json W34 (new; \"does the page report an outcome ... of this activity\" from item rule 3 (direction), shortened)"
+   }
+  },
+  {
+   "id": "R6-31",
+   "ruling": "3 a; W35",
+   "op": "set",
+   "what": "instruction from W35",
+   "path": "items/core.incident_kind/instruction",
+   "before": "none",
+   "after": {
+    "text": "Does the page report an incident with this activity, such as an error, failure or controversy, and if so, what kind?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W35",
+    "source": "drafts/rc-d-005-wording.json W35 (new; \"errors, failures, or controversies\" from g3o/extract/prompts/output_contract.md L112 (reported_incidents column description))"
+   }
+  },
+  {
+   "id": "R6-32",
+   "ruling": "3 a; W36; E1",
+   "op": "set",
+   "what": "instruction from W36 followed by EVAL_EMPHASIS byte for byte (E1)",
+   "path": "items/core.evaluation_type_pre_deployment_testing/instruction",
+   "before": "none",
+   "after": {
+    "text": "The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: testing before deployment? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W36; EVAL_EMPHASIS (E1)",
+    "source": "drafts/rc-d-005-wording.json W36 (planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L210 type_questions instructions\" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; \"the named GenAI activity\" changed to \"this GenAI activity\" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)"
+   }
+  },
+  {
+   "id": "R6-33",
+   "ruling": "3 a; W37; E1",
+   "op": "set",
+   "what": "instruction from W37 followed by EVAL_EMPHASIS byte for byte (E1)",
+   "path": "items/core.evaluation_type_pilot_evaluation/instruction",
+   "before": "none",
+   "after": {
+    "text": "The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: evaluation of a pilot or trial? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W37; EVAL_EMPHASIS (E1)",
+    "source": "drafts/rc-d-005-wording.json W37 (planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L210 type_questions instructions\" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; \"the named GenAI activity\" changed to \"this GenAI activity\" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)"
+   }
+  },
+  {
+   "id": "R6-34",
+   "ruling": "3 a; W38; E1",
+   "op": "set",
+   "what": "instruction from W38 followed by EVAL_EMPHASIS byte for byte (E1)",
+   "path": "items/core.evaluation_type_independent_audit/instruction",
+   "before": "none",
+   "after": {
+    "text": "The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: an audit or evaluation by an independent body? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W38; EVAL_EMPHASIS (E1)",
+    "source": "drafts/rc-d-005-wording.json W38 (planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L210 type_questions instructions\" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; \"the named GenAI activity\" changed to \"this GenAI activity\" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)"
+   }
+  },
+  {
+   "id": "R6-35",
+   "ruling": "3 a; W39; E1",
+   "op": "set",
+   "what": "instruction from W39 followed by EVAL_EMPHASIS byte for byte (E1)",
+   "path": "items/core.evaluation_type_ongoing_monitoring/instruction",
+   "before": "none",
+   "after": {
+    "text": "The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: ongoing monitoring of the tool in use? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W39; EVAL_EMPHASIS (E1)",
+    "source": "drafts/rc-d-005-wording.json W39 (planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L210 type_questions instructions\" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; \"the named GenAI activity\" changed to \"this GenAI activity\" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)"
+   }
+  },
+  {
+   "id": "R6-36",
+   "ruling": "3 a; W40; E1",
+   "op": "set",
+   "what": "instruction from W40 followed by EVAL_EMPHASIS byte for byte (E1)",
+   "path": "items/core.evaluation_type_user_feedback/instruction",
+   "before": "none",
+   "after": {
+    "text": "The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: user feedback or satisfaction surveys? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W40; EVAL_EMPHASIS (E1)",
+    "source": "drafts/rc-d-005-wording.json W40 (planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L210 type_questions instructions\" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; \"the named GenAI activity\" changed to \"this GenAI activity\" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)"
+   }
+  },
+  {
+   "id": "R6-37",
+   "ruling": "3 a; W41; E1",
+   "op": "set",
+   "what": "instruction from W41 followed by EVAL_EMPHASIS byte for byte (E1)",
+   "path": "items/core.evaluation_type_bias_or_safety_testing/instruction",
+   "before": "none",
+   "after": {
+    "text": "The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: bias, fairness or safety testing? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W41; EVAL_EMPHASIS (E1)",
+    "source": "drafts/rc-d-005-wording.json W41 (planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L210 type_questions instructions\" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; \"the named GenAI activity\" changed to \"this GenAI activity\" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)"
+   }
+  },
+  {
+   "id": "R6-38",
+   "ruling": "3 a; W42",
+   "op": "set",
+   "what": "instruction from W42",
+   "path": "items/core.activity_relation_cross_page/instruction",
+   "before": "none",
+   "after": {
+    "text": "How is the activity in the first record related to the activity in the second record?",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W42",
+    "source": "drafts/rc-d-005-wording.json W42 (new)"
+   }
+  },
+  {
+   "id": "R6-39",
+   "ruling": "3 a; W43",
+   "op": "set",
+   "what": "instruction from W43",
+   "path": "items/core.pooled_activity_fields/instruction",
+   "before": "none",
+   "after": {
+    "text": "The text below is a set of quotes about one activity, gathered from several sources, each with its source type and date. Answer each question about the activity from these quotes only.",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W43",
+    "source": "drafts/rc-d-005-wording.json W43 (new; framing from item rule 1 (\"the union of the activity's supported quotes from all its sources (state = quotes with source type and date)\"))"
+   }
+  },
+  {
+   "id": "R6-40",
+   "ruling": "4; W44",
+   "op": "set",
+   "what": "core.year_pilot_start rule 1: the quoted announced-year question replaced by the item's own question (W44)",
+   "path": "items/core.year_pilot_start/rules/0",
+   "before": {
+    "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "origin": "r1",
+    "source": "codebook-rulings-round1.json C16.mechanism",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I16 slot 1"
+   },
+   "after": {
+    "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say a pilot or trial of this activity began?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W44",
+    "source": "drafts/rc-d-005-wording.json W44 (items/core.year_pilot_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I16 slot 1",
+    "text_before_r6": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year."
+   }
+  },
+  {
+   "id": "R6-41",
+   "ruling": "4; W45",
+   "op": "set",
+   "what": "core.year_production_start rule 1: the quoted announced-year question replaced by the item's own question (W45)",
+   "path": "items/core.year_production_start/rules/0",
+   "before": {
+    "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "origin": "r1",
+    "source": "codebook-rulings-round1.json C16.mechanism",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I17 slot 1"
+   },
+   "after": {
+    "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity went into full, routine operation?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W45",
+    "source": "drafts/rc-d-005-wording.json W45 (items/core.year_production_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I17 slot 1",
+    "text_before_r6": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year."
+   }
+  },
+  {
+   "id": "R6-42",
+   "ruling": "R2 b",
+   "op": "add",
+   "what": "relationship item: machine-readable order of its two linked parts (template parts form)",
+   "path": "items/core.observed_actor_relationship/values/parts",
+   "after": [
+    "relationship",
+    "searched_institution_role"
+   ]
+  },
+  {
+   "id": "R6-43",
+   "ruling": "R2 b; W10",
+   "op": "add",
+   "what": "relationship item: the role part's question (W10); path chosen under R2 b (W10 proposed values/searched_institution_role/instruction, but that key holds the value list)",
+   "path": "items/core.observed_actor_relationship/values/part_instructions",
+   "after": {
+    "searched_institution_role": {
+     "text": "What part does the named institution play in this activity?",
+     "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W10",
+     "source": "drafts/rc-d-005-wording.json W10 (new)"
+    }
+   }
+  },
+  {
+   "id": "R6-REF-observed_actor_relationship",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.observed_actor_relationship/refs",
+   "before": [
+    "A05",
+    "R-014",
+    "P06",
+    "r2#4",
+    "r2#23",
+    "C04",
+    "all-07",
+    "all-02",
+    "activity-14",
+    "activity-15",
+    "activity-19",
+    "all-04"
+   ],
+   "after": [
+    "A05",
+    "R-014",
+    "P06",
+    "r2#4",
+    "r2#23",
+    "C04",
+    "all-07",
+    "all-02",
+    "activity-14",
+    "activity-15",
+    "activity-19",
+    "all-04",
+    "RC-D-005 W09-W10",
+    "RC-D-005 R2 b"
+   ]
+  },
+  {
+   "id": "R6-44",
+   "ruling": "R1 a",
+   "op": "set",
+   "what": "pooled_activity_fields: linkage pipeline (no jev question of its own)",
+   "path": "items/core.pooled_activity_fields/linkage",
+   "before": "jev_choice",
+   "after": "pipeline"
+  },
+  {
+   "id": "R6-45",
+   "ruling": "R1 a",
+   "op": "set",
+   "what": "pooled_activity_fields: coder derived",
+   "path": "items/core.pooled_activity_fields/coder",
+   "before": "classifier",
+   "after": "derived"
+  },
+  {
+   "id": "R6-46",
+   "ruling": "R1 a",
+   "op": "set",
+   "what": "pooled_activity_fields: no threshold of its own (each pooled field keeps its item's bar)",
+   "path": "items/core.pooled_activity_fields/threshold",
+   "before": {
+    "metric": "chosen_answer_probability",
+    "bar": 0.8
+   },
+   "after": "none"
+  },
+  {
+   "id": "R6-47",
+   "ruling": "R1 a",
+   "op": "delete",
+   "what": "pooled_activity_fields: no jev missing choice (not a jev item)",
+   "path": "items/core.pooled_activity_fields/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R6-REF-pooled_activity_fields",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.pooled_activity_fields/refs",
+   "before": [
+    "X31",
+    "r2#6",
+    "RC-D-005 10 a"
+   ],
+   "after": [
+    "X31",
+    "r2#6",
+    "RC-D-005 10 a",
+    "RC-D-005 W43",
+    "RC-D-005 R1 a"
+   ]
+  },
+  {
+   "id": "R6-48",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.observed_actor_relationship: `not_documented` offered, meaning from its own signed rule (unchanged; resolution recorded)",
+   "path": "items/core.observed_actor_relationship/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.observed_actor_relationship/rules/6"
+    ]
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.observed_actor_relationship/rules/6"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; the item's own rule gives the meaning"
+   }
+  },
+  {
+   "id": "R6-49",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.interface: `not_documented` offered, meaning from its own signed rule (unchanged; resolution recorded)",
+   "path": "items/core.interface/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.interface/rules/3"
+    ]
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.interface/rules/3"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; the item's own rule gives the meaning"
+   }
+  },
+  {
+   "id": "R6-50",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.governance_direction: `not_documented` offered, meaning from its own signed rule (unchanged; resolution recorded)",
+   "path": "items/core.governance_direction/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.governance_direction/rules/3"
+    ]
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.governance_direction/rules/3"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; the item's own rule gives the meaning"
+   }
+  },
+  {
+   "id": "R6-51",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.service_domain: `not_documented` offered, meaning from its own signed rule (unchanged; resolution recorded)",
+   "path": "items/core.service_domain/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.service_domain/rules/4"
+    ]
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.service_domain/rules/4"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; the item's own rule gives the meaning"
+   }
+  },
+  {
+   "id": "R6-52",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.has_human_oversight: `not_documented` offered, meaning from its own signed rule (unchanged; resolution recorded)",
+   "path": "items/core.has_human_oversight/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.has_human_oversight/rules/2"
+    ]
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.has_human_oversight/rules/2"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; the item's own rule gives the meaning"
+   }
+  },
+  {
+   "id": "R6-53",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.has_transparency_notice: `not_documented` offered, meaning from its own signed rule (unchanged; resolution recorded)",
+   "path": "items/core.has_transparency_notice/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.has_transparency_notice/rules/2"
+    ]
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.has_transparency_notice/rules/2"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; the item's own rule gives the meaning"
+   }
+  },
+  {
+   "id": "R6-54",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.has_data_classification: `not_documented` offered, meaning from its own signed rule (unchanged; resolution recorded)",
+   "path": "items/core.has_data_classification/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.has_data_classification/rules/2"
+    ]
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.has_data_classification/rules/2"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; the item's own rule gives the meaning"
+   }
+  },
+  {
+   "id": "R6-55",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.has_risk_assessment: `not_documented` offered, meaning from its own signed rule (unchanged; resolution recorded)",
+   "path": "items/core.has_risk_assessment/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.has_risk_assessment/rules/2"
+    ]
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.has_risk_assessment/rules/2"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; the item's own rule gives the meaning"
+   }
+  },
+  {
+   "id": "R6-56",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.evaluation_documented: `not_documented` offered, meaning from its own signed rule (unchanged; resolution recorded)",
+   "path": "items/core.evaluation_documented/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.evaluation_documented/rules/10"
+    ]
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.evaluation_documented/rules/10"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; the item's own rule gives the meaning"
+   }
+  },
+  {
+   "id": "R6-57",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.model_origin: missing-label rule for `not_documented` added (re-used signed text)",
+   "path": "items/core.model_origin/rules",
+   "before": [
+    {
+     "text": "`model_origin`: commercial / open_weight / government_developed / unknown. `build_arrangement`: off_the_shelf_product / custom_application_on_external_model / model_trained_or_fine_tuned_by_institution / unknown.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json C10.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I09 slot 5"
+    },
+    {
+     "text": "The page mentions the model behind the tool but does not let it be settled.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX06",
+     "source": "drafts/fixes-r4.json FX06",
+     "role": "missing label unknown: meaning for this item",
+     "r4_fixes": "FX06",
+     "moved_from_values": {
+      "code": "unknown",
+      "definition": {
+       "text": "The page mentions the model behind the tool but does not let it be settled.",
+       "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+       "source": "drafts/definitions-r4.json entries[41] (items/core.model_origin/values/3/definition); confidence high",
+       "source_before_r4": "value unknown",
+       "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I09 slot 4"
+      }
+     }
+    }
+   ],
+   "after": [
+    {
+     "text": "`model_origin`: commercial / open_weight / government_developed / unknown. `build_arrangement`: off_the_shelf_product / custom_application_on_external_model / model_trained_or_fine_tuned_by_institution / unknown.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json C10.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I09 slot 5"
+    },
+    {
+     "text": "The page mentions the model behind the tool but does not let it be settled.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX06",
+     "source": "drafts/fixes-r4.json FX06",
+     "role": "missing label unknown: meaning for this item",
+     "r4_fixes": "FX06",
+     "moved_from_values": {
+      "code": "unknown",
+      "definition": {
+       "text": "The page mentions the model behind the tool but does not let it be settled.",
+       "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+       "source": "drafts/definitions-r4.json entries[41] (items/core.model_origin/values/3/definition); confidence high",
+       "source_before_r4": "value unknown",
+       "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I09 slot 4"
+      }
+     }
+    },
+    {
+     "text": "not_documented: the page is silent.",
+     "origin": "agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)",
+     "source": "items/core.has_human_oversight/rules/2 (PI 2026-10-30 \"approved!\"; fixes-r4 FX06)",
+     "role": "missing label not_documented: meaning for this item"
+    }
+   ]
+  },
+  {
+   "id": "R6-58",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.model_origin: `not_documented` offered with the re-used rule as its meaning",
+   "path": "items/core.model_origin/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.model_origin/rules/2"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions the model but does not settle it; a silent page is the other case"
+   }
+  },
+  {
+   "id": "R6-REF-model_origin",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.model_origin/refs",
+   "before": [
+    "C10",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-20"
+   ],
+   "after": [
+    "C10",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-20",
+    "RC-D-005 12a' iv"
+   ]
+  },
+  {
+   "id": "R6-59",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.build_arrangement: missing-label rule for `not_documented` added (re-used signed text)",
+   "path": "items/core.build_arrangement/rules",
+   "before": [
+    {
+     "text": "`model_origin`: commercial / open_weight / government_developed / unknown. `build_arrangement`: off_the_shelf_product / custom_application_on_external_model / model_trained_or_fine_tuned_by_institution / unknown.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json C10.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I10 slot 5"
+    },
+    {
+     "text": "The page mentions how the tool was built but does not let it be settled.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX06",
+     "source": "drafts/fixes-r4.json FX06",
+     "role": "missing label unknown: meaning for this item",
+     "r4_fixes": "FX06",
+     "moved_from_values": {
+      "code": "unknown",
+      "definition": {
+       "text": "The page mentions how the tool was built but does not let it be settled.",
+       "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+       "source": "drafts/definitions-r4.json entries[45] (items/core.build_arrangement/values/3/definition); confidence high",
+       "source_before_r4": "value unknown",
+       "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I10 slot 4"
+      }
+     }
+    }
+   ],
+   "after": [
+    {
+     "text": "`model_origin`: commercial / open_weight / government_developed / unknown. `build_arrangement`: off_the_shelf_product / custom_application_on_external_model / model_trained_or_fine_tuned_by_institution / unknown.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json C10.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I10 slot 5"
+    },
+    {
+     "text": "The page mentions how the tool was built but does not let it be settled.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX06",
+     "source": "drafts/fixes-r4.json FX06",
+     "role": "missing label unknown: meaning for this item",
+     "r4_fixes": "FX06",
+     "moved_from_values": {
+      "code": "unknown",
+      "definition": {
+       "text": "The page mentions how the tool was built but does not let it be settled.",
+       "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+       "source": "drafts/definitions-r4.json entries[45] (items/core.build_arrangement/values/3/definition); confidence high",
+       "source_before_r4": "value unknown",
+       "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I10 slot 4"
+      }
+     }
+    },
+    {
+     "text": "not_documented: the page is silent.",
+     "origin": "agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)",
+     "source": "items/core.has_human_oversight/rules/2 (PI 2026-10-30 \"approved!\"; fixes-r4 FX06)",
+     "role": "missing label not_documented: meaning for this item"
+    }
+   ]
+  },
+  {
+   "id": "R6-60",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.build_arrangement: `not_documented` offered with the re-used rule as its meaning",
+   "path": "items/core.build_arrangement/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.build_arrangement/rules/2"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions how the tool was built but does not settle it; a silent page is the other case"
+   }
+  },
+  {
+   "id": "R6-REF-build_arrangement",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.build_arrangement/refs",
+   "before": [
+    "C10",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-19",
+    "all-04"
+   ],
+   "after": [
+    "C10",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-19",
+    "all-04",
+    "RC-D-005 12a' iv"
+   ]
+  },
+  {
+   "id": "R6-61",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.deployment_mode: missing-label rule for `not_documented` added (re-used signed text)",
+   "path": "items/core.deployment_mode/rules",
+   "before": [
+    {
+     "text": "The page mentions whether the tool is separate or built into existing software but does not let it be settled.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX06",
+     "source": "drafts/fixes-r4.json FX06",
+     "role": "missing label unknown: meaning for this item",
+     "r4_fixes": "FX06",
+     "moved_from_values": {
+      "code": "unknown",
+      "definition": {
+       "text": "The page mentions whether the tool is separate or built into existing software but does not let it be settled.",
+       "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+       "source": "drafts/definitions-r4.json entries[65] (items/core.deployment_mode/values/2/definition); confidence high",
+       "source_before_r4": "value unknown",
+       "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I08 slot 4"
+      }
+     }
+    }
+   ],
+   "after": [
+    {
+     "text": "The page mentions whether the tool is separate or built into existing software but does not let it be settled.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX06",
+     "source": "drafts/fixes-r4.json FX06",
+     "role": "missing label unknown: meaning for this item",
+     "r4_fixes": "FX06",
+     "moved_from_values": {
+      "code": "unknown",
+      "definition": {
+       "text": "The page mentions whether the tool is separate or built into existing software but does not let it be settled.",
+       "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+       "source": "drafts/definitions-r4.json entries[65] (items/core.deployment_mode/values/2/definition); confidence high",
+       "source_before_r4": "value unknown",
+       "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I08 slot 4"
+      }
+     }
+    },
+    {
+     "text": "not_documented: the page is silent.",
+     "origin": "agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)",
+     "source": "items/core.has_human_oversight/rules/2 (PI 2026-10-30 \"approved!\"; fixes-r4 FX06)",
+     "role": "missing label not_documented: meaning for this item"
+    }
+   ]
+  },
+  {
+   "id": "R6-62",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.deployment_mode: `not_documented` offered with the re-used rule as its meaning",
+   "path": "items/core.deployment_mode/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.deployment_mode/rules/1"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions integration but does not settle it; a silent page is the other case"
+   }
+  },
+  {
+   "id": "R6-REF-deployment_mode",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.deployment_mode/refs",
+   "before": [
+    "C14",
+    "r2#20",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-20"
+   ],
+   "after": [
+    "C14",
+    "r2#20",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-20",
+    "RC-D-005 12a' iv"
+   ]
+  },
+  {
+   "id": "R6-63",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.target_users: missing-label rule for `not_documented` added (re-used signed text)",
+   "path": "items/core.target_users/rules",
+   "before": [
+    {
+     "text": "target_users only for tool activities (`not_applicable` otherwise). A04 for governance.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json C15.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I09 slot 6"
+    },
+    {
+     "text": "The page mentions who uses the tool but does not let it be settled.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX06",
+     "source": "drafts/fixes-r4.json FX06",
+     "role": "missing label unknown: meaning for this item",
+     "r4_fixes": "FX06",
+     "moved_from_values": {
+      "code": "unknown",
+      "definition": {
+       "text": "The page mentions who uses the tool but does not let it be settled.",
+       "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+       "source": "drafts/definitions-r4.json entries[69] (items/core.target_users/values/3/definition); confidence high",
+       "source_before_r4": "value unknown",
+       "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I09 slot 5"
+      }
+     }
+    }
+   ],
+   "after": [
+    {
+     "text": "target_users only for tool activities (`not_applicable` otherwise). A04 for governance.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json C15.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I09 slot 6"
+    },
+    {
+     "text": "The page mentions who uses the tool but does not let it be settled.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX06",
+     "source": "drafts/fixes-r4.json FX06",
+     "role": "missing label unknown: meaning for this item",
+     "r4_fixes": "FX06",
+     "moved_from_values": {
+      "code": "unknown",
+      "definition": {
+       "text": "The page mentions who uses the tool but does not let it be settled.",
+       "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+       "source": "drafts/definitions-r4.json entries[69] (items/core.target_users/values/3/definition); confidence high",
+       "source_before_r4": "value unknown",
+       "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I09 slot 5"
+      }
+     }
+    },
+    {
+     "text": "not_documented: the page is silent.",
+     "origin": "agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)",
+     "source": "items/core.has_human_oversight/rules/2 (PI 2026-10-30 \"approved!\"; fixes-r4 FX06)",
+     "role": "missing label not_documented: meaning for this item"
+    }
+   ]
+  },
+  {
+   "id": "R6-64",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.target_users: `not_documented` offered with the re-used rule as its meaning",
+   "path": "items/core.target_users/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.target_users/rules/2"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions users but does not settle it; a silent page is the other case"
+   }
+  },
+  {
+   "id": "R6-REF-target_users",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.target_users/refs",
+   "before": [
+    "C15",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-22"
+   ],
+   "after": [
+    "C15",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-22",
+    "RC-D-005 12a' iv"
+   ]
+  },
+  {
+   "id": "R6-65",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.governed_population: missing-label rule for `not_documented` added (re-used signed text)",
+   "path": "items/core.governed_population/rules",
+   "before": [
+    {
+     "text": "jev Choice: internal_personnel / external_users / both / unknown; `not_applicable` for non-governance.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json A04.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I10 slot 5"
+    },
+    {
+     "text": "The page mentions whom the rule applies to but does not let it be settled.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX06",
+     "source": "drafts/fixes-r4.json FX06",
+     "role": "missing label unknown: meaning for this item",
+     "r4_fixes": "FX06",
+     "moved_from_values": {
+      "code": "unknown",
+      "definition": {
+       "text": "The page mentions whom the rule applies to but does not let it be settled.",
+       "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+       "source": "drafts/definitions-r4.json entries[73] (items/core.governed_population/values/3/definition); confidence high",
+       "source_before_r4": "value unknown",
+       "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I10 slot 4"
+      }
+     }
+    }
+   ],
+   "after": [
+    {
+     "text": "jev Choice: internal_personnel / external_users / both / unknown; `not_applicable` for non-governance.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json A04.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I10 slot 5"
+    },
+    {
+     "text": "The page mentions whom the rule applies to but does not let it be settled.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX06",
+     "source": "drafts/fixes-r4.json FX06",
+     "role": "missing label unknown: meaning for this item",
+     "r4_fixes": "FX06",
+     "moved_from_values": {
+      "code": "unknown",
+      "definition": {
+       "text": "The page mentions whom the rule applies to but does not let it be settled.",
+       "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+       "source": "drafts/definitions-r4.json entries[73] (items/core.governed_population/values/3/definition); confidence high",
+       "source_before_r4": "value unknown",
+       "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I10 slot 4"
+      }
+     }
+    },
+    {
+     "text": "not_documented: the page is silent.",
+     "origin": "agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)",
+     "source": "items/core.has_human_oversight/rules/2 (PI 2026-10-30 \"approved!\"; fixes-r4 FX06)",
+     "role": "missing label not_documented: meaning for this item"
+    }
+   ]
+  },
+  {
+   "id": "R6-66",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.governed_population: `not_documented` offered with the re-used rule as its meaning",
+   "path": "items/core.governed_population/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.governed_population/rules/2"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions whom the rule applies to but does not settle it; a silent page is the other case"
+   }
+  },
+  {
+   "id": "R6-REF-governed_population",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.governed_population/refs",
+   "before": [
+    "A04",
+    "T4",
+    "activity-22"
+   ],
+   "after": [
+    "A04",
+    "T4",
+    "activity-22",
+    "RC-D-005 12a' iv"
+   ]
+  },
+  {
+   "id": "R6-67",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.governance_form: missing-label rule for `not_documented` added (re-used signed text)",
+   "path": "items/core.governance_form/rules",
+   "before": [
+    {
+     "text": "jev Choice: dedicated_genai_or_ai_policy_or_guideline / approved_tool_list_or_endorsement / clause_in_instrument_on_other_subject / court_or_regulatory_order / procurement_standard / unknown. Applies only when the action is governance (`not_applicable` otherwise).",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json A03.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I11 slot 7"
+    },
+    {
+     "text": "S6 c: `governance_form` becomes multi-select, so a document can be both guideline and endorsement.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX12",
+     "source": "RC-D-002.md:76",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I11 slot 8",
+     "text_before_r4": "S6 c: `governance_form` becomes multi-select, so a document can be both guideline and endorsement. This costs version steps, regenerated classifier questions and a re-test.",
+     "origin_before_r4": "delta",
+     "r4_fixes": "FX12"
+    },
+    {
+     "text": "The page mentions the form of the rule but does not let it be settled.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX06",
+     "source": "drafts/fixes-r4.json FX06",
+     "role": "missing label unknown: meaning for this item",
+     "r4_fixes": "FX06",
+     "moved_from_values": {
+      "code": "unknown",
+      "definition": {
+       "text": "The page mentions the form of the rule but does not let it be settled.",
+       "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+       "source": "drafts/definitions-r4.json entries[79] (items/core.governance_form/values/5/definition); confidence high",
+       "source_before_r4": "value unknown",
+       "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I11 slot 6"
+      }
+     }
+    }
+   ],
+   "after": [
+    {
+     "text": "jev Choice: dedicated_genai_or_ai_policy_or_guideline / approved_tool_list_or_endorsement / clause_in_instrument_on_other_subject / court_or_regulatory_order / procurement_standard / unknown. Applies only when the action is governance (`not_applicable` otherwise).",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json A03.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I11 slot 7"
+    },
+    {
+     "text": "S6 c: `governance_form` becomes multi-select, so a document can be both guideline and endorsement.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX12",
+     "source": "RC-D-002.md:76",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I11 slot 8",
+     "text_before_r4": "S6 c: `governance_form` becomes multi-select, so a document can be both guideline and endorsement. This costs version steps, regenerated classifier questions and a re-test.",
+     "origin_before_r4": "delta",
+     "r4_fixes": "FX12"
+    },
+    {
+     "text": "The page mentions the form of the rule but does not let it be settled.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX06",
+     "source": "drafts/fixes-r4.json FX06",
+     "role": "missing label unknown: meaning for this item",
+     "r4_fixes": "FX06",
+     "moved_from_values": {
+      "code": "unknown",
+      "definition": {
+       "text": "The page mentions the form of the rule but does not let it be settled.",
+       "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+       "source": "drafts/definitions-r4.json entries[79] (items/core.governance_form/values/5/definition); confidence high",
+       "source_before_r4": "value unknown",
+       "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I11 slot 6"
+      }
+     }
+    },
+    {
+     "text": "not_documented: the page is silent.",
+     "origin": "agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)",
+     "source": "items/core.has_human_oversight/rules/2 (PI 2026-10-30 \"approved!\"; fixes-r4 FX06)",
+     "role": "missing label not_documented: meaning for this item"
+    }
+   ]
+  },
+  {
+   "id": "R6-68",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.governance_form: `not_documented` offered with the re-used rule as its meaning",
+   "path": "items/core.governance_form/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.governance_form/rules/3"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions the rule's form but does not settle it; a silent page is the other case"
+   }
+  },
+  {
+   "id": "R6-REF-governance_form",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.governance_form/refs",
+   "before": [
+    "A03",
+    "S6 c",
+    "r2#29",
+    "T4"
+   ],
+   "after": [
+    "A03",
+    "S6 c",
+    "r2#29",
+    "T4",
+    "RC-D-005 12a' iv"
+   ]
+  },
+  {
+   "id": "R6-69",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.observed_actor_role: missing-label rule for `not_documented` added (re-used signed text)",
+   "path": "items/core.observed_actor_role/rules",
+   "before": [
+    {
+     "text": "Code it as before; not published.",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json activity-15 (choice a); option text questions-r3.json activity-15.a.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-3 card I23 slot 7"
+    },
+    {
+     "text": "Only `institutional_actor`, `issuer` and `participant` count as the actor taking part in the activity; `external_speaker`, `service_provider` and `event_host` do not.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX04",
+     "source": "drafts/fixes-r4.json FX04",
+     "role": "which roles count as taking part",
+     "r4_fixes": "FX04"
+    }
+   ],
+   "after": [
+    {
+     "text": "Code it as before; not published.",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json activity-15 (choice a); option text questions-r3.json activity-15.a.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-3 card I23 slot 7"
+    },
+    {
+     "text": "Only `institutional_actor`, `issuer` and `participant` count as the actor taking part in the activity; `external_speaker`, `service_provider` and `event_host` do not.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX04",
+     "source": "drafts/fixes-r4.json FX04",
+     "role": "which roles count as taking part",
+     "r4_fixes": "FX04"
+    },
+    {
+     "text": "not_documented: the page is silent.",
+     "origin": "agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)",
+     "source": "items/core.has_human_oversight/rules/2 (PI 2026-10-30 \"approved!\"; fixes-r4 FX06)",
+     "role": "missing label not_documented: meaning for this item"
+    }
+   ]
+  },
+  {
+   "id": "R6-70",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.observed_actor_role: `not_documented` offered with the re-used rule as its meaning",
+   "path": "items/core.observed_actor_role/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.observed_actor_role/rules/2"
+    ],
+    "resolution": "RC-D-005 12a' (iv): offered; no missing-label rule; the linked relationship item already offers `not_documented` for a silent page (its rules/6)"
+   }
+  },
+  {
+   "id": "R6-REF-observed_actor_role",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.observed_actor_role/refs",
+   "before": [
+    "A05",
+    "R-014",
+    "activity-15",
+    "final-open F06"
+   ],
+   "after": [
+    "A05",
+    "R-014",
+    "activity-15",
+    "final-open F06",
+    "RC-D-005 12a' iv"
+   ]
+  },
+  {
+   "id": "R6-71",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.disclosure_form: `not_documented` not offered as a jev choice",
+   "path": "items/core.disclosure_form/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "frozen CX item whose signed answer set has no `not_documented` (CX map: `unknown`, CX-17); its `unknown` rule covers a page whose kind cannot be told, and every page has a kind",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-72",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.disclosure_scope: `not_documented` not offered as a jev choice",
+   "path": "items/core.disclosure_scope/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "frozen CX item whose signed answer set has no `not_documented` (CX map: `unknown`, CX-24); its `unknown` rule (\"Coverage cannot be determined from the page\") covers the silent case",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-73",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.page_complete: `not_documented` not offered as a jev choice",
+   "path": "items/core.page_complete/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` (the page does not refer elsewhere) already covers a silent page",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-74",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.source_type: `not_documented` not offered as a jev choice",
+   "path": "items/core.source_type/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "every page has a source; `other` covers a source none of the values fits",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-75",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.content_contact_named: `not_documented` not offered as a jev choice",
+   "path": "items/core.content_contact_named/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not stated\" (CX-06 map sends `no` of the content items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-76",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.content_contact_details: `not_documented` not offered as a jev choice",
+   "path": "items/core.content_contact_details/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not stated\" (CX-06 map sends `no` of the content items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-77",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.content_data: `not_documented` not offered as a jev choice",
+   "path": "items/core.content_data/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not stated on the page\" (CX-06 map sends `no` of the content items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-78",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.activity_type: `not_documented` not offered as a jev choice",
+   "path": "items/core.activity_type/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "its `unknown` rule covers an activity whose kind cannot be told; the applicability table (r2#8) has an `unknown` column and no `not_documented` column, so a `not_documented` type would close every applicability gate",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-79",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.action_type: `not_documented` not offered as a jev choice",
+   "path": "items/core.action_type/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "its `unknown` rule (\"The page mentions the activity but does not let it be settled\") covers every case: an activity row is always mentioned on its page",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-80",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.adoption_stage: `not_documented` not offered as a jev choice",
+   "path": "items/core.adoption_stage/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "its `unknown` rule (\"Evidence confirms GenAI activity exists but stage is indeterminate\") covers the silent case",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-81",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.genai_mechanism_basis: `not_documented` not offered as a jev choice",
+   "path": "items/core.genai_mechanism_basis/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "asked only for activities the page shows as GenAI (core.rule.genai_boundary), so the page always shows some basis",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-82",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.year_announced: `not_documented` not offered as a jev choice",
+   "path": "items/core.year_announced/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "the computed candidate `unknown` (C16, F8 b) already covers a page that states no year",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-83",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.year_pilot_start: `not_documented` not offered as a jev choice",
+   "path": "items/core.year_pilot_start/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "the computed candidate `unknown` (C16, F8 b) already covers a page that states no year",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-84",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.year_production_start: `not_documented` not offered as a jev choice",
+   "path": "items/core.year_production_start/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "the computed candidate `unknown` (C16, F8 b) already covers a page that states no year",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-85",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.deployment_scale_unit: `not_documented` not offered as a jev choice",
+   "path": "items/core.deployment_scale_unit/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "asked only when a number is stated; `none` covers a number that counts none of the units",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-86",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.outcome_kind: `not_documented` not offered as a jev choice",
+   "path": "items/core.outcome_kind/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "`none_reported` (\"states no result\") covers a silent page (CX-06 map: `none_reported` to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-87",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.incident_kind: `not_documented` not offered as a jev choice",
+   "path": "items/core.incident_kind/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "`none_reported` (\"states no result\") covers a silent page (CX-06 map: `none_reported` to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-88",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.support_entailment: `not_documented` not offered as a jev choice",
+   "path": "items/core.support_entailment/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "the answer is about one quote: `false` covers a quote that does not state the value",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-89",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.activity_relation_cross_page: `not_documented` not offered as a jev choice",
+   "path": "items/core.activity_relation_cross_page/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "compares two records, not a page; `unresolved` covers a pair that cannot be settled",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-90",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.function_drafting_writing: `not_documented` not offered as a jev choice",
+   "path": "items/core.function_drafting_writing/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-91",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.function_summarization: `not_documented` not offered as a jev choice",
+   "path": "items/core.function_summarization/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-92",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.function_translation: `not_documented` not offered as a jev choice",
+   "path": "items/core.function_translation/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-93",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.function_search_retrieval: `not_documented` not offered as a jev choice",
+   "path": "items/core.function_search_retrieval/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-94",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.function_code: `not_documented` not offered as a jev choice",
+   "path": "items/core.function_code/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-95",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.function_image_audio_video: `not_documented` not offered as a jev choice",
+   "path": "items/core.function_image_audio_video/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-96",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.function_extraction_classification: `not_documented` not offered as a jev choice",
+   "path": "items/core.function_extraction_classification/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-97",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.function_analysis_recommendation: `not_documented` not offered as a jev choice",
+   "path": "items/core.function_analysis_recommendation/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-98",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.evaluation_type_pre_deployment_testing: `not_documented` not offered as a jev choice",
+   "path": "items/core.evaluation_type_pre_deployment_testing/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-99",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.evaluation_type_pilot_evaluation: `not_documented` not offered as a jev choice",
+   "path": "items/core.evaluation_type_pilot_evaluation/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-100",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.evaluation_type_independent_audit: `not_documented` not offered as a jev choice",
+   "path": "items/core.evaluation_type_independent_audit/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-101",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.evaluation_type_ongoing_monitoring: `not_documented` not offered as a jev choice",
+   "path": "items/core.evaluation_type_ongoing_monitoring/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-102",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.evaluation_type_user_feedback: `not_documented` not offered as a jev choice",
+   "path": "items/core.evaluation_type_user_feedback/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-103",
+   "ruling": "12a' (iv)",
+   "op": "set",
+   "what": "core.evaluation_type_bias_or_safety_testing: `not_documented` not offered as a jev choice",
+   "path": "items/core.evaluation_type_bias_or_safety_testing/jev_missing_choice",
+   "before": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   }
+  },
+  {
+   "id": "R6-104",
+   "ruling": "12a' (iv); F8 b",
+   "op": "add",
+   "what": "vocabularies.missing.jev_choice: the resolution and the year exception recorded",
+   "path": "vocabularies/missing/jev_choice/resolution",
+   "after": {
+    "offered_on": "items whose `not_documented` has a meaning that no real value or `unknown` rule already covers (RC-D-005 12a' iv); each names its rule in jev_missing_choice",
+    "computed_unknown_candidate": "the three year items keep the computed candidate `unknown` among their choices (C16; signed values and rule 1; RC-D-005 F8 b); everywhere else `unknown` is mechanical"
+   }
+  },
+  {
+   "id": "R6-105",
+   "ruling": "I7 a",
+   "op": "set",
+   "what": "source_type `other`: cut before the clause jev cannot carry out (C-004: jev returns codes only)",
+   "path": "items/core.source_type/values/7/definition",
+   "before": {
+    "text": "None of the above; explain in `source_snippet`",
+    "origin": "v25",
+    "source": "output_contract.md:217 §4 source_type",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page source card I01 slot 8"
+   },
+   "after": {
+    "text": "None of the above",
+    "origin": "v25",
+    "source": "output_contract.md:217 §4 source_type",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page source card I01 slot 8",
+    "omitted_tail": "; explain in `source_snippet`",
+    "omitted_by": "RC-D-005 I7 a (resolver): jev returns codes only (C-004); cut before the part it cannot do, as PI 2026-10-30 \"2a\""
+   }
+  },
+  {
+   "id": "R6-106",
+   "ruling": "F5 source_type b",
+   "op": "set",
+   "what": "source_type gate none; the condition stays in rules/0 and is applied by the pipeline (R-002)",
+   "path": "items/core.source_type/gate",
+   "before": {
+    "rule": "only pages not typed automatically from domain or address (r2#25)"
+   },
+   "after": "none"
+  },
+  {
+   "id": "R6-107",
+   "ruling": "F5 source_type b",
+   "op": "add",
+   "what": "source_type: the former gate text kept as data, pointing at the rule that carries it",
+   "path": "items/core.source_type/ask_condition",
+   "after": {
+    "rule": "only pages not typed automatically from domain or address (r2#25)",
+    "carried_by": "items/core.source_type/rules/0",
+    "resolution": "RC-D-005 F5 source_type b"
+   }
+  },
+  {
+   "id": "R6-REF-source_type",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.source_type/refs",
+   "before": [
+    "X21",
+    "r2#25",
+    "r2#30",
+    "R-002",
+    "source-01",
+    "all-06"
+   ],
+   "after": [
+    "X21",
+    "r2#25",
+    "r2#30",
+    "R-002",
+    "source-01",
+    "all-06",
+    "RC-D-005 W08",
+    "RC-D-005 F5 b",
+    "RC-D-005 I7 a"
+   ]
+  },
+  {
+   "id": "R6-108",
+   "ruling": "F5 second_reason a",
+   "op": "set",
+   "what": "support_status_second_reason gate none; F10 rule (rules/1) carries \"empty unless two reasons hold\"",
+   "path": "items/core.support_status_second_reason/gate",
+   "before": {
+    "rule": "empty unless two reasons hold (final-open F10)"
+   },
+   "after": "none"
+  },
+  {
+   "id": "R6-109",
+   "ruling": "F5 second_reason a",
+   "op": "add",
+   "what": "support_status_second_reason: the former gate text kept as data, pointing at its rule",
+   "path": "items/core.support_status_second_reason/fill_condition",
+   "after": {
+    "rule": "empty unless two reasons hold (final-open F10)",
+    "carried_by": "items/core.support_status_second_reason/rules/1",
+    "resolution": "RC-D-005 F5 second_reason a"
+   }
+  },
+  {
+   "id": "R6-REF-support_status_second_reason",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.support_status_second_reason/refs",
+   "before": [
+    "R-041",
+    "record-03",
+    "final-open F10",
+    "RC-D-003 O13"
+   ],
+   "after": [
+    "R-041",
+    "record-03",
+    "final-open F10",
+    "RC-D-003 O13",
+    "RC-D-005 F5 a"
+   ]
+  },
+  {
+   "id": "R6-110",
+   "ruling": "F10 a",
+   "op": "delete",
+   "what": "core.reported_outcomes rules/1: describes the separate existence question that folded into the kind item (outcome_kind / incident_kind rules/0 and /1); dropped as overridden",
+   "path": "items/core.reported_outcomes/rules/1",
+   "before": {
+    "text": "jev Choice per activity: page reports realised outcomes / only expected or projected outcomes / usage figures only / none. Unless none, the extractor returns verbatim spans (no length limit in storage, display cap per R-043). CX-61 then runs on the spans.",
+    "origin": "r1",
+    "source": "codebook-rulings-round1.json C22.mechanism",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-3 card I08 slot 3"
+   }
+  },
+  {
+   "id": "R6-REF-reported_outcomes",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.reported_outcomes/refs",
+   "before": [
+    "C22",
+    "R-024",
+    "CX-60"
+   ],
+   "after": [
+    "C22",
+    "R-024",
+    "CX-60",
+    "RC-D-005 F10 a"
+   ]
+  },
+  {
+   "id": "R6-111",
+   "ruling": "F10 a",
+   "op": "delete",
+   "what": "core.reported_incidents rules/1: describes the separate existence question that folded into the kind item (outcome_kind / incident_kind rules/0 and /1); dropped as overridden",
+   "path": "items/core.reported_incidents/rules/1",
+   "before": {
+    "text": "jev Choice: page reports a malfunction or error / data or privacy breach / public criticism or complaint / suspension or withdrawal / none. Unless none, the extractor returns verbatim spans.",
+    "origin": "r1",
+    "source": "codebook-rulings-round1.json C23.mechanism",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-3 card I09 slot 3"
+   }
+  },
+  {
+   "id": "R6-REF-reported_incidents",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.reported_incidents/refs",
+   "before": [
+    "C23",
+    "R-024",
+    "CX-60"
+   ],
+   "after": [
+    "C23",
+    "R-024",
+    "CX-60",
+    "RC-D-005 F10 a"
+   ]
+  },
+  {
+   "id": "R6-112",
+   "ruling": "F6 a",
+   "op": "set",
+   "what": "scale unit gate in the \"any value\" form: any stated number opens it",
+   "path": "items/core.deployment_scale_unit/gate",
+   "before": {
+    "item": "core.deployment_scale_number",
+    "values": [
+     "any stated"
+    ]
+   },
+   "after": {
+    "item": "core.deployment_scale_number",
+    "values": "any",
+    "as_ruled": "any stated"
+   }
+  },
+  {
+   "id": "R6-113",
+   "ruling": "W33 note",
+   "op": "add",
+   "what": "scale unit: the extracted number is shown with its question (rules/0: the extractor returns the number span, jev gives the unit)",
+   "path": "items/core.deployment_scale_unit/question_context",
+   "after": {
+    "shows_value_of": [
+     "core.deployment_scale_number"
+    ],
+    "resolution": "RC-D-005 W33 note"
+   }
+  },
+  {
+   "id": "R6-REF-deployment_scale_unit",
+   "ruling": "refs",
+   "op": "set",
+   "what": "refs: the RC-D-005 resolution(s) added",
+   "path": "items/core.deployment_scale_unit/refs",
+   "before": [
+    "A09",
+    "C4 a",
+    "activity-24",
+    "RC-D-005 11 a"
+   ],
+   "after": [
+    "A09",
+    "C4 a",
+    "activity-24",
+    "RC-D-005 11 a",
+    "RC-D-005 W33",
+    "RC-D-005 F6 a"
+   ]
+  },
+  {
+   "id": "R6-114",
+   "ruling": "F1 a",
+   "op": "add",
+   "what": "support_status: its codes are the named vocabulary (values none; template F1 a)",
+   "path": "items/core.support_status/value_vocabulary",
+   "after": "support_status"
+  },
+  {
+   "id": "R6-115",
+   "ruling": "fold",
+   "op": "add",
+   "what": "release.folds.r6",
+   "path": "release/folds/r6",
+   "after": "planning/t010/drafts/fixes-r6.json (RC-D-005: wording W01-W45 approved as drafted, PI 2026-10-30 \"drafts ok\"; E1; resolutions in drafts/resolutions-r6.json, put to the PI in planning/t010/RC-D-005-clean-copy.md)"
+  }
+ ]
+}

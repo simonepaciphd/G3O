@@ -1,0 +1,3678 @@
+{
+ "format": "fixes-r5 v1: entries applied in order by build_skeleton.py apply_r5(); op set | add | delete; `before` is the exact value met",
+ "status": "candidate for RC-D-005; applied rulings are the PI's (2026-10-30); the encodings are the integrator's P1 defaults, for PI review of the diff",
+ "drafted_by": "subagent of the plan integrator, Claude Code, claude-opus-5-5, 2026-10-30",
+ "ruling": "PI, chat, 2026-10-30 (t010-rulings.md, RC-D-005 content): \"1a, 2a, 3 subagent drafts all & I read and edit/confirm, 4 part of 3, 5 a, 6a, 7a, 8b, 9 a, 10a 11 a 12 a 13a 14a; accept all\"",
+ "base_sha256": "d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764",
+ "lists": {
+  "12a_items_with_rule": [
+   "core.observed_actor_relationship",
+   "core.interface",
+   "core.governance_direction",
+   "core.service_domain",
+   "core.has_human_oversight",
+   "core.has_transparency_notice",
+   "core.has_data_classification",
+   "core.has_risk_assessment",
+   "core.evaluation_documented"
+  ],
+  "12a_items_without_rule": [
+   "core.disclosure_form",
+   "core.disclosure_scope",
+   "core.page_complete",
+   "core.source_type",
+   "core.content_contact_named",
+   "core.content_contact_details",
+   "core.content_data",
+   "core.activity_type",
+   "core.action_type",
+   "core.adoption_stage",
+   "core.model_origin",
+   "core.build_arrangement",
+   "core.function_drafting_writing",
+   "core.function_summarization",
+   "core.function_translation",
+   "core.function_search_retrieval",
+   "core.function_code",
+   "core.function_image_audio_video",
+   "core.function_extraction_classification",
+   "core.function_analysis_recommendation",
+   "core.deployment_mode",
+   "core.target_users",
+   "core.governed_population",
+   "core.governance_form",
+   "core.genai_mechanism_basis",
+   "core.year_announced",
+   "core.year_pilot_start",
+   "core.year_production_start",
+   "core.deployment_scale_unit",
+   "core.outcome_kind",
+   "core.incident_kind",
+   "core.evaluation_type_pre_deployment_testing",
+   "core.evaluation_type_pilot_evaluation",
+   "core.evaluation_type_independent_audit",
+   "core.evaluation_type_ongoing_monitoring",
+   "core.evaluation_type_user_feedback",
+   "core.evaluation_type_bias_or_safety_testing",
+   "core.support_entailment",
+   "core.activity_relation_cross_page",
+   "core.pooled_activity_fields",
+   "core.observed_actor_role"
+  ],
+  "12a_items_not_offered": [
+   "core.page_verdict",
+   "core.procurement_status"
+  ]
+ },
+ "fixes": [
+  {
+   "id": "R5-01",
+   "ruling": "2 a",
+   "op": "set",
+   "what": "release.status machine-readable: draft (draft build) / signed (sign-off build)",
+   "path": "release/status",
+   "before": "release candidate; signed only if the signature record holds this file's sha256",
+   "after_by_build": {
+    "r5-draft": "draft",
+    "r5-signoff": "signed"
+   }
+  },
+  {
+   "id": "R5-02",
+   "ruling": "2 a",
+   "op": "add",
+   "what": "the human sentence of release.status kept in its own key",
+   "path": "release/status_note",
+   "after": "release candidate; signed only if the signature record holds this file's sha256"
+  },
+  {
+   "id": "R5-03",
+   "ruling": "2 a",
+   "op": "set",
+   "what": "status of the 108 build-scope items with status `slot`: `signed` in the sign-off build, unchanged in the draft build",
+   "paths": [
+    "items/core.page_verdict/status",
+    "items/core.disclosure_form/status",
+    "items/core.disclosure_scope/status",
+    "items/core.page_complete/status",
+    "items/core.source_type/status",
+    "items/core.content_contact_named/status",
+    "items/core.content_contact_details/status",
+    "items/core.content_contact/status",
+    "items/core.content_contact_emails/status",
+    "items/core.content_purpose/status",
+    "items/core.content_tool_or_model/status",
+    "items/core.content_vendor/status",
+    "items/core.content_data/status",
+    "items/core.content_users/status",
+    "items/core.content_status_date/status",
+    "items/core.content_human_oversight/status",
+    "items/core.content_risk_assessment/status",
+    "items/core.content_user_notification/status",
+    "items/core.source_url/status",
+    "items/core.source_title/status",
+    "items/core.source_access_date/status",
+    "items/core.source_language/status",
+    "items/core.source_on_official_domain/status",
+    "items/core.syndication_group/status",
+    "items/core.page_review_state/status",
+    "items/core.discovery_path/status",
+    "items/core.text_source/status",
+    "items/core.source_publication_date/status",
+    "items/core.source_snippet/status",
+    "items/core.source_credibility/status",
+    "items/core.activity_segment/status",
+    "items/core.activity_name/status",
+    "items/core.observed_actor_name/status",
+    "items/core.observed_actor_relationship/status",
+    "items/core.activity_type/status",
+    "items/core.action_type/status",
+    "items/core.adoption_stage/status",
+    "items/core.procurement_status/status",
+    "items/core.model_origin/status",
+    "items/core.build_arrangement/status",
+    "items/core.interface/status",
+    "items/core.function_drafting_writing/status",
+    "items/core.function_summarization/status",
+    "items/core.function_translation/status",
+    "items/core.function_search_retrieval/status",
+    "items/core.function_code/status",
+    "items/core.function_image_audio_video/status",
+    "items/core.function_extraction_classification/status",
+    "items/core.function_analysis_recommendation/status",
+    "items/core.tool_name/status",
+    "items/core.model_name/status",
+    "items/core.contracting_party/status",
+    "items/core.developer/status",
+    "items/core.developer_basis/status",
+    "items/core.deployment_mode/status",
+    "items/core.target_users/status",
+    "items/core.governed_population/status",
+    "items/core.governance_form/status",
+    "items/core.governance_direction/status",
+    "items/core.service_domain/status",
+    "items/core.genai_mechanism_basis/status",
+    "items/core.year_announced/status",
+    "items/core.year_pilot_start/status",
+    "items/core.year_production_start/status",
+    "items/core.deployment_scale_number/status",
+    "items/core.deployment_scale_unit/status",
+    "items/core.has_human_oversight/status",
+    "items/core.has_transparency_notice/status",
+    "items/core.has_data_classification/status",
+    "items/core.has_risk_assessment/status",
+    "items/core.outcome_kind/status",
+    "items/core.incident_kind/status",
+    "items/core.reported_outcomes/status",
+    "items/core.reported_incidents/status",
+    "items/core.evaluation_documented/status",
+    "items/core.evaluation_type_pre_deployment_testing/status",
+    "items/core.evaluation_type_pilot_evaluation/status",
+    "items/core.evaluation_type_independent_audit/status",
+    "items/core.evaluation_type_ongoing_monitoring/status",
+    "items/core.evaluation_type_user_feedback/status",
+    "items/core.evaluation_type_bias_or_safety_testing/status",
+    "items/core.stage_as_of/status",
+    "items/core.stage_as_of_basis/status",
+    "items/core.permanent_pilot/status",
+    "items/core.vendor_claim_only/status",
+    "items/core.unit_credit/status",
+    "items/core.uncertainty_flags/status",
+    "items/core.support_entailment/status",
+    "items/core.support_status/status",
+    "items/core.supporting_text/status",
+    "items/core.has_genai_activity/status",
+    "items/core.verdict_rule/status",
+    "items/core.evidence_tier/status",
+    "items/core.review_depth/status",
+    "items/core.activity_relation_cross_page/status",
+    "items/core.pooled_activity_fields/status",
+    "items/core.confidence/status",
+    "items/core.n_sources/status",
+    "items/core.institution_summary/status",
+    "items/core.cx_display_rollup/status",
+    "items/core.codebook_release/status",
+    "items/core.setup_pointer/status",
+    "items/core.evidence_channel/status",
+    "items/core.coder_record/status",
+    "items/core.observed_actor_role/status",
+    "items/core.date_upper_bound/status",
+    "items/core.support_rule_name/status",
+    "items/core.support_status_second_reason/status"
+   ],
+   "before": "slot",
+   "after_by_build": {
+    "r5-draft": "slot",
+    "r5-signoff": "signed"
+   }
+  },
+  {
+   "id": "R5-04",
+   "ruling": "P1; 2 a",
+   "op": "set",
+   "what": "language_coverage status: a template value (`slot`; `signed` in the sign-off build); the owner moves to its own key (R5-05)",
+   "path": "items/core.language_coverage/status",
+   "before": "slot (owned by the multilingual subproject)",
+   "after_by_build": {
+    "r5-draft": "slot",
+    "r5-signoff": "signed"
+   }
+  },
+  {
+   "id": "R5-05",
+   "ruling": "P1",
+   "op": "add",
+   "what": "language_coverage owner, from the former status text",
+   "path": "items/core.language_coverage/owner",
+   "after": "the multilingual subproject"
+  },
+  {
+   "id": "R5-06",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (1 item(s))",
+   "paths": [
+    "items/core.disclosure_form/rules/3"
+   ],
+   "before": [
+    {
+     "text": "Re-word CX-12/13: `mandated_report` only when the obligation concerns reporting on AI, algorithms or digital systems, named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code `formal_record`.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X01.mechanism",
+     "role": "direction"
+    }
+   ],
+   "direction_text": "Re-word CX-12/13: `mandated_report` only when the obligation concerns reporting on AI, algorithms or digital systems, named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code `formal_record`.",
+   "direction_source": "codebook-rulings-round1.json X01.mechanism",
+   "carried_out": "done",
+   "evidence_note": "CX-12 (value definition) and CX-13 (rule) were re-worded as directed; CX-01.2 read \"a reporting obligation, such as ...\" and \"named on the page **or inferred from the document's genre**\". The classifier line carries the same words.",
+   "evidence": [
+    {
+     "path": "items/core.disclosure_form/values/2/definition",
+     "quote": "a reporting obligation that concerns reporting on AI, algorithms or digital systems"
+    },
+    {
+     "path": "items/core.disclosure_form/rules/1",
+     "quote": "The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`."
+    },
+    {
+     "path": "items/core.disclosure_form/rules/3",
+     "quote": "Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record."
+    }
+   ]
+  },
+  {
+   "id": "R5-07",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (1 item(s))",
+   "paths": [
+    "items/core.disclosure_form/rules/4"
+   ],
+   "before": [
+    {
+     "text": "Add those reports to the same sentence.",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json page-04 (choice b); option text questions-r3.json page-04.b.mechanism",
+     "role": "direction for CX-13 (wording: final-open W01, in the CX-13 cell)",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I02 slot 13"
+    }
+   ],
+   "direction_text": "Add those reports to the same sentence.",
+   "direction_source": "codebook-rulings-round3.json page-04 (choice b); option text questions-r3.json page-04.b.mechanism",
+   "carried_out": "done",
+   "evidence_note": "final-open W01 added compliance reports under rules not about AI to the same sentence of the CX-13 cell.",
+   "evidence": [
+    {
+     "path": "items/core.disclosure_form/rules/1",
+     "quote": "Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`."
+    }
+   ]
+  },
+  {
+   "id": "R5-08",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (1 item(s))",
+   "paths": [
+    "items/core.disclosure_scope/rules/2"
+   ],
+   "before": [
+    {
+     "text": "Ask `disclosure_scope` only when `disclosure_form` in {register_cross_institution, register_single_institution, mandated_report}; otherwise store `_NA_`.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X02.mechanism",
+     "role": "direction"
+    }
+   ],
+   "direction_text": "Ask `disclosure_scope` only when `disclosure_form` in {register_cross_institution, register_single_institution, mandated_report}; otherwise store `_NA_`.",
+   "direction_source": "codebook-rulings-round1.json X02.mechanism",
+   "carried_out": "done, except `_NA_`, superseded",
+   "evidence_note": "The gate is encoded (gate: core.disclosure_form in the three values). The direction's \"otherwise store `_NA_`\" was not carried out as written: all-01 b reserves `_NA_` for rows with no activity, and the signed CX cell stores \"not asked\".",
+   "evidence": [
+    {
+     "path": "items/core.disclosure_scope/rules/1",
+     "quote": "Pages whose `disclosure_form` is `register_cross_institution`, `register_single_institution` or `mandated_report`. On other pages the field is not asked and stores the reserved \"not asked\" label (CX-06)."
+    },
+    {
+     "path": "vocabularies/missing/na_label",
+     "quote": "Store `not_asked` when a rule skips a question; store `_NA_` on items of a row that has no activity."
+    }
+   ]
+  },
+  {
+   "id": "R5-09",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (1 item(s))",
+   "paths": [
+    "items/core.page_complete/rules/1"
+   ],
+   "before": [
+    {
+     "text": "Add a note in the codebook that yes means incomplete.",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json page-01 (choice c); option text questions-r3.json page-01.c.mechanism",
+     "role": "direction: note (wording: final-open W04)",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I04 slot 5"
+    }
+   ],
+   "direction_text": "Add a note in the codebook that yes means incomplete.",
+   "direction_source": "codebook-rulings-round3.json page-01 (choice c); option text questions-r3.json page-01.c.mechanism",
+   "carried_out": "done",
+   "evidence_note": "final-open W04 wrote the note.",
+   "evidence": [
+    {
+     "path": "items/core.page_complete/rules/1",
+     "quote": "Note: `yes` means incomplete (the page refers the reader onward); the name `page_complete` reads the other way."
+    }
+   ]
+  },
+  {
+   "id": "R5-10",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (2 item(s))",
+   "paths": [
+    "items/core.content_contact_named/rules/1",
+    "items/core.content_contact_details/rules/1"
+   ],
+   "before": [
+    {
+     "text": "Pipeline change: store a separate `chrome_text` (header/footer/nav) next to main text, and give jev both for the contact item only.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X06.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Pipeline change: store a separate `chrome_text` (header/footer/nav) next to main text, and give jev both for the contact item only.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X06.mechanism",
+     "role": "direction"
+    }
+   ],
+   "direction_text": "Pipeline change: store a separate `chrome_text` (header/footer/nav) next to main text, and give jev both for the contact item only.",
+   "direction_source": "codebook-rulings-round1.json X06.mechanism",
+   "carried_out": "done in the codebook; the pipeline part is code, not codebook",
+   "evidence_note": "Both contact items read `input_text: main_plus_chrome` (the main text plus header, footer and navigation). Storing the separate `chrome_text` is a pipeline change outside the codebook and cannot be checked here.",
+   "evidence": [
+    {
+     "path": "items/core.text_source/rules/0",
+     "quote": "records which rows lack chrome text and links"
+    }
+   ]
+  },
+  {
+   "id": "R5-11",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (1 item(s))",
+   "paths": [
+    "items/core.content_contact_emails/rules/2"
+   ],
+   "before": [
+    {
+     "text": "Store the full list internally; publish only the domain part (and a count), or only role addresses (no personal-name pattern).",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X08.mechanism",
+     "role": "direction"
+    }
+   ],
+   "direction_text": "Store the full list internally; publish only the domain part (and a count), or only role addresses (no personal-name pattern).",
+   "direction_source": "codebook-rulings-round1.json X08.mechanism",
+   "carried_out": "done (domain and count; the role-address alternative was not taken)",
+   "evidence_note": "`content_contact_emails` has `visibility: public_derived`.",
+   "evidence": [
+    {
+     "path": "items/core.content_contact_emails/rules/0",
+     "quote": "in full and internally only; only the domain part of each address and a count are published"
+    },
+    {
+     "path": "items/core.content_contact_emails/rules/1",
+     "quote": "Contact e-mails are stored in full internally, and only the domain and a count are published."
+    }
+   ]
+  },
+  {
+   "id": "R5-12",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (6 item(s))",
+   "paths": [
+    "items/core.content_purpose/rules/3",
+    "items/core.content_tool_or_model/rules/3",
+    "items/core.content_vendor/rules/3",
+    "items/core.content_data/rules/2",
+    "items/core.content_users/rules/3",
+    "items/core.content_status_date/rules/3"
+   ],
+   "before": [
+    {
+     "text": "Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X05.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X05.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X05.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X05.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X05.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X05.mechanism",
+     "role": "direction"
+    }
+   ],
+   "direction_text": "Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.",
+   "direction_source": "codebook-rulings-round1.json X05.mechanism",
+   "carried_out": "done, except `_NA_`, superseded",
+   "evidence_note": "The gate on the five GenAI-bearing verdicts is encoded on `content_data` (and on the contact items by F07); the five derived items are computed, not asked. The re-wording is in the `content_data` question and the CX-51 cell. \"Store `_NA_` otherwise\" was superseded by page-09 c (W03): those pages take `no`.",
+   "evidence": [
+    {
+     "path": "items/core.content_data/instruction",
+     "quote": "Does the page state this about any GenAI activity on the page"
+    },
+    {
+     "path": "items/core.content_data/rules/1",
+     "quote": "`content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`."
+    }
+   ]
+  },
+  {
+   "id": "R5-13",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (5 item(s))",
+   "paths": [
+    "items/core.content_purpose/rules/4",
+    "items/core.content_tool_or_model/rules/4",
+    "items/core.content_vendor/rules/4",
+    "items/core.content_users/rules/4",
+    "items/core.content_status_date/rules/4"
+   ],
+   "before": [
+    {
+     "text": "Description items and the data item are also \"no\" where the verdict shows no GenAI.",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json page-09 (choice c); option text questions-r3.json page-09.c.mechanism",
+     "role": "direction (wording: final-open W03, in the CX-51 cell)",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I09 slot 5"
+    },
+    {
+     "text": "Description items and the data item are also \"no\" where the verdict shows no GenAI.",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json page-09 (choice c); option text questions-r3.json page-09.c.mechanism",
+     "role": "direction (wording: final-open W03, in the CX-51 cell)",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I10 slot 5"
+    },
+    {
+     "text": "Description items and the data item are also \"no\" where the verdict shows no GenAI.",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json page-09 (choice c); option text questions-r3.json page-09.c.mechanism",
+     "role": "direction (wording: final-open W03, in the CX-51 cell)",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I11 slot 6"
+    },
+    {
+     "text": "Description items and the data item are also \"no\" where the verdict shows no GenAI.",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json page-09 (choice c); option text questions-r3.json page-09.c.mechanism",
+     "role": "direction (wording: final-open W03, in the CX-51 cell)",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I13 slot 6"
+    },
+    {
+     "text": "Description items and the data item are also \"no\" where the verdict shows no GenAI.",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json page-09 (choice c); option text questions-r3.json page-09.c.mechanism",
+     "role": "direction (wording: final-open W03, in the CX-51 cell)",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I14 slot 5"
+    }
+   ],
+   "direction_text": "Description items and the data item are also \"no\" where the verdict shows no GenAI.",
+   "direction_source": "codebook-rulings-round3.json page-09 (choice c); option text questions-r3.json page-09.c.mechanism",
+   "carried_out": "done",
+   "evidence_note": "final-open W03 wrote it into the CX-51 cell; `content_data` has `gated_out_value: no`.",
+   "evidence": [
+    {
+     "path": "items/core.content_purpose/rules/1",
+     "quote": "The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`."
+    }
+   ]
+  },
+  {
+   "id": "R5-14",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (3 item(s))",
+   "paths": [
+    "items/core.content_human_oversight/rules/2",
+    "items/core.content_risk_assessment/rules/2",
+    "items/core.content_user_notification/rules/2"
+   ],
+   "before": [
+    {
+     "text": "Ask each safeguard once per (page x activity) in pass 2 and derive both the page-level `content_*` (any activity yes) and the activity-level `has_*` (yes / not_documented) from it.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X07.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Ask each safeguard once per (page x activity) in pass 2 and derive both the page-level `content_*` (any activity yes) and the activity-level `has_*` (yes / not_documented) from it.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X07.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Ask each safeguard once per (page x activity) in pass 2 and derive both the page-level `content_*` (any activity yes) and the activity-level `has_*` (yes / not_documented) from it.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X07.mechanism",
+     "role": "direction"
+    }
+   ],
+   "direction_text": "Ask each safeguard once per (page x activity) in pass 2 and derive both the page-level `content_*` (any activity yes) and the activity-level `has_*` (yes / not_documented) from it.",
+   "direction_source": "codebook-rulings-round1.json X07.mechanism",
+   "carried_out": "done",
+   "evidence_note": "The `has_*` items are pass-2 classifier items, asked once per activity; the three page items are derived from them.",
+   "evidence": [
+    {
+     "path": "items/core.content_human_oversight/rules/0",
+     "quote": "derived from that safeguard's shared four-answer question asked once per activity (`has_human_oversight`, `has_risk_assessment`, `has_transparency_notice`): `yes` if any activity on the page is `yes`, otherwise `no`."
+    }
+   ]
+  },
+  {
+   "id": "R5-15",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (2 item(s))",
+   "paths": [
+    "items/core.outcome_kind/rules/1",
+    "items/core.incident_kind/rules/1"
+   ],
+   "before": [
+    {
+     "text": "Ask CX-61 in pass 2 over the page text with the activity span marked; the extractor then quotes support for the chosen value.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X10.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Ask CX-61 in pass 2 over the page text with the activity span marked; the extractor then quotes support for the chosen value.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X10.mechanism",
+     "role": "direction"
+    }
+   ],
+   "direction_text": "Ask CX-61 in pass 2 over the page text with the activity span marked; the extractor then quotes support for the chosen value.",
+   "direction_source": "codebook-rulings-round1.json X10.mechanism",
+   "carried_out": "done",
+   "evidence_note": "`outcome_kind` / `incident_kind` are pass 2; `reported_outcomes` / `reported_incidents` are quote-step extractor items gated on them.",
+   "evidence": [
+    {
+     "path": "items/core.outcome_kind/rules/0",
+     "quote": "over the page text with this activity's span marked"
+    }
+   ]
+  },
+  {
+   "id": "R5-16",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (2 item(s))",
+   "paths": [
+    "items/core.outcome_kind/rules/1",
+    "items/core.incident_kind/rules/1"
+   ],
+   "before": [
+    {
+     "text": "Pass-2 jev Choice on page text: does the page report an outcome (incident) of this activity: quantified / qualitative / none? The extractor extracts verbatim text only when not none; CX-60 then applies to legacy rows only.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X09.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Pass-2 jev Choice on page text: does the page report an outcome (incident) of this activity: quantified / qualitative / none? The extractor extracts verbatim text only when not none; CX-60 then applies to legacy rows only.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X09.mechanism",
+     "role": "direction"
+    }
+   ],
+   "direction_text": "Pass-2 jev Choice on page text: does the page report an outcome (incident) of this activity: quantified / qualitative / none? The extractor extracts verbatim text only when not none; CX-60 then applies to legacy rows only.",
+   "direction_source": "codebook-rulings-round1.json X09.mechanism",
+   "carried_out": "done, with the value `none_reported` for \"none\"",
+   "evidence_note": "CX-60 now applies to rows coded before CX-01.3 only.",
+   "evidence": [
+    {
+     "path": "items/core.outcome_kind/rules/0",
+     "quote": "It answers both whether the page reports an outcome (an incident) of this activity and of what kind; no separate existence question is asked. The outcome or incident text is extracted only when the answer is not `none_reported`."
+    },
+    {
+     "path": "items/core.reported_outcomes/rules/0",
+     "quote": "for rows coded before CX-01.3 only"
+    }
+   ]
+  },
+  {
+   "id": "R5-17",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (1 item(s))",
+   "paths": [
+    "items/core.evaluation_documented/rules/9"
+   ],
+   "before": [
+    {
+     "text": "Delete CX-32c's policy-review clause: a periodic review of the policy document is `not_documented` unless it requires testing, monitoring or evaluation of GenAI tools or their outputs.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X03.mechanism",
+     "role": "direction"
+    }
+   ],
+   "direction_text": "Delete CX-32c's policy-review clause: a periodic review of the policy document is `not_documented` unless it requires testing, monitoring or evaluation of GenAI tools or their outputs.",
+   "direction_source": "codebook-rulings-round1.json X03.mechanism",
+   "carried_out": "done (CX-32c narrowed as the direction states)",
+   "evidence_note": "CX-01.2 read \"... counts as `required_or_planned`\"; the CX-32c cell was narrowed to the direction's wording, and the classifier line carries it.",
+   "evidence": [
+    {
+     "path": "items/core.evaluation_documented/rules/1",
+     "quote": "A clause requiring periodic review of the GenAI policy itself is `not_documented`, unless it requires testing, monitoring or evaluation of GenAI tools or their outputs; then it counts as `required_or_planned`."
+    }
+   ]
+  },
+  {
+   "id": "R5-18",
+   "ruling": "13 a",
+   "op": "delete",
+   "what": "drop the drafter-direction slot (6 item(s))",
+   "paths": [
+    "items/core.evaluation_type_pre_deployment_testing/rules/1",
+    "items/core.evaluation_type_pilot_evaluation/rules/1",
+    "items/core.evaluation_type_independent_audit/rules/1",
+    "items/core.evaluation_type_ongoing_monitoring/rules/1",
+    "items/core.evaluation_type_user_feedback/rules/1",
+    "items/core.evaluation_type_bias_or_safety_testing/rules/1"
+   ],
+   "before": [
+    {
+     "text": "Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X04.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X04.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X04.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X04.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X04.mechanism",
+     "role": "direction"
+    },
+    {
+     "text": "Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json X04.mechanism",
+     "role": "direction"
+    }
+   ],
+   "direction_text": "Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.",
+   "direction_source": "codebook-rulings-round1.json X04.mechanism",
+   "carried_out": "done, except `_NA_`, superseded",
+   "evidence_note": "The six type items are gated on `evaluation_documented` in {results_reported, conducted_no_results, required_or_planned} with `after: downgrades (X04)`; R-081 downgrades are \"as under R-041\", so both are covered. \"Otherwise store `_NA_`\" is superseded by all-01 b (\"not asked\").",
+   "evidence": []
+  },
+  {
+   "id": "R5-19",
+   "ruling": "7 a",
+   "op": "set",
+   "what": "`has_component` right after `component_of_program`, `governed_by` right after `governs`",
+   "path": "items/core.activity_relation_cross_page/long_page_rule/order",
+   "before": [
+    "unresolved",
+    "distinct_action",
+    "governs",
+    "component_of_program",
+    "shared_participation",
+    "same_activity",
+    "unknown"
+   ],
+   "after": [
+    "unresolved",
+    "distinct_action",
+    "governs",
+    "governed_by",
+    "component_of_program",
+    "has_component",
+    "shared_participation",
+    "same_activity",
+    "unknown"
+   ]
+  },
+  {
+   "id": "R5-20",
+   "ruling": "8 b",
+   "op": "add",
+   "what": "the negative page verdicts of R-041 as a list, referenced by the support-status rule (status_by_answer key \"negative page verdicts (R-041)\")",
+   "path": "vocabularies/support_status/negative_page_verdicts",
+   "after": {
+    "item": "core.page_verdict",
+    "values": [
+     "confirms_absence",
+     "no_genai",
+     "background_only",
+     "event_only",
+     "other_body"
+    ],
+    "status_by_answer_key": "negative page verdicts (R-041)",
+    "ruling": "RC-D-005 8 b"
+   }
+  },
+  {
+   "id": "R5-21",
+   "ruling": "9 a",
+   "op": "add",
+   "what": "page_verdict: when every part answers \"not covered by this part\", the page answer is `not_assessable` (exception to R-044's \"not documented\")",
+   "path": "items/core.page_verdict/long_page_rule/all_parts_not_covered",
+   "after": {
+    "value": "not_assessable",
+    "exception_to": "R-044 (all-03 a, PI comment: \"not documented\")",
+    "ruling": "RC-D-005 9 a"
+   }
+  },
+  {
+   "id": "R5-22",
+   "ruling": "10 a",
+   "op": "set",
+   "what": "pooled_activity_fields: a recognised rule type; each pooled field combines by its own item's long_page_rule",
+   "path": "items/core.pooled_activity_fields/long_page_rule",
+   "before": {
+    "rule": "per item (r2#6)"
+   },
+   "after": {
+    "rule": "none",
+    "pooled_fields": "each field uses its own item's long_page_rule",
+    "source": "r2#6",
+    "ruling": "RC-D-005 10 a"
+   }
+  },
+  {
+   "id": "R5-23",
+   "ruling": "11 a",
+   "op": "add",
+   "what": "the number / unit pair counts as supported only if both halves pass the quote check",
+   "path": "items/core.deployment_scale_number/support_pair",
+   "after": {
+    "with": "core.deployment_scale_unit",
+    "supported_only_if": "both_halves_pass_quote_check",
+    "ruling": "RC-D-005 11 a"
+   }
+  },
+  {
+   "id": "R5-24",
+   "ruling": "11 a",
+   "op": "add",
+   "what": "the number / unit pair counts as supported only if both halves pass the quote check",
+   "path": "items/core.deployment_scale_unit/support_pair",
+   "after": {
+    "with": "core.deployment_scale_number",
+    "supported_only_if": "both_halves_pass_quote_check",
+    "ruling": "RC-D-005 11 a"
+   }
+  },
+  {
+   "id": "R5-25",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "which missing label a jev question offers (`not_documented`) and which stay mechanical",
+   "path": "vocabularies/missing/jev_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "mechanical": [
+     "not_asked",
+     "unknown",
+     "_NA_"
+    ],
+    "meaning": "each item's missing-label rule, named in items.<id>.jev_missing_choice",
+    "ruling": "RC-D-005 12 a"
+   }
+  },
+  {
+   "id": "R5-26",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.page_verdict/jev_missing_choice",
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "the item takes no `not_documented`"
+   }
+  },
+  {
+   "id": "R5-27",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.disclosure_form/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-28",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.disclosure_scope/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-29",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.page_complete/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-30",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.source_type/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-31",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.content_contact_named/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-32",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.content_contact_details/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-33",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.content_data/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-34",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.observed_actor_relationship/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.observed_actor_relationship/rules/6"
+    ]
+   }
+  },
+  {
+   "id": "R5-35",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.activity_type/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-36",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.action_type/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-37",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.adoption_stage/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-38",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.procurement_status/jev_missing_choice",
+   "after": {
+    "offered": [],
+    "rule": [
+     "items/core.procurement_status/rules/2"
+    ],
+    "why": "the item's rule says `not_documented` is not used for this item"
+   }
+  },
+  {
+   "id": "R5-39",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.model_origin/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-40",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.build_arrangement/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-41",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.interface/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.interface/rules/3"
+    ]
+   }
+  },
+  {
+   "id": "R5-42",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.function_drafting_writing/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-43",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.function_summarization/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-44",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.function_translation/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-45",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.function_search_retrieval/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-46",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.function_code/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-47",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.function_image_audio_video/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-48",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.function_extraction_classification/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-49",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.function_analysis_recommendation/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-50",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.deployment_mode/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-51",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.target_users/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-52",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.governed_population/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-53",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.governance_form/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-54",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.governance_direction/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.governance_direction/rules/3"
+    ]
+   }
+  },
+  {
+   "id": "R5-55",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.service_domain/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.service_domain/rules/4"
+    ]
+   }
+  },
+  {
+   "id": "R5-56",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.genai_mechanism_basis/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-57",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.year_announced/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-58",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.year_pilot_start/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-59",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.year_production_start/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-60",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.deployment_scale_unit/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-61",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.has_human_oversight/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.has_human_oversight/rules/2"
+    ]
+   }
+  },
+  {
+   "id": "R5-62",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.has_transparency_notice/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.has_transparency_notice/rules/2"
+    ]
+   }
+  },
+  {
+   "id": "R5-63",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.has_data_classification/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.has_data_classification/rules/2"
+    ]
+   }
+  },
+  {
+   "id": "R5-64",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.has_risk_assessment/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.has_risk_assessment/rules/2"
+    ]
+   }
+  },
+  {
+   "id": "R5-65",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.outcome_kind/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-66",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.incident_kind/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-67",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.evaluation_documented/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.evaluation_documented/rules/10"
+    ]
+   }
+  },
+  {
+   "id": "R5-68",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.evaluation_type_pre_deployment_testing/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-69",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.evaluation_type_pilot_evaluation/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-70",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.evaluation_type_independent_audit/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-71",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.evaluation_type_ongoing_monitoring/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-72",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.evaluation_type_user_feedback/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-73",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.evaluation_type_bias_or_safety_testing/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-74",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.support_entailment/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-75",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.activity_relation_cross_page/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-76",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.pooled_activity_fields/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-77",
+   "ruling": "12 a",
+   "op": "add",
+   "what": "missing label offered as a jev choice, with the rule that gives its meaning",
+   "path": "items/core.observed_actor_role/jev_missing_choice",
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": "none",
+    "why": "no item-level missing-label rule for `not_documented` (listed for a ruling)"
+   }
+  },
+  {
+   "id": "R5-78",
+   "ruling": "14 a",
+   "op": "set",
+   "what": "page_review_state: procurement removed from its pipelines",
+   "path": "items/core.page_review_state/pipelines",
+   "before": [
+    "web_extract",
+    "procurement",
+    "ai_text"
+   ],
+   "after": [
+    "web_extract",
+    "ai_text"
+   ]
+  },
+  {
+   "id": "R5-79",
+   "ruling": "P1",
+   "op": "add",
+   "what": "vocabularies.family: the fixed family list (template field 2), in order of first use",
+   "path": "vocabularies/family",
+   "after": {
+    "values": [
+     "verdict",
+     "disclosure",
+     "completeness",
+     "source",
+     "safeguard",
+     "activity_identity",
+     "attribution",
+     "activity_typing",
+     "tool",
+     "provenance",
+     "governance",
+     "dates",
+     "scale",
+     "outcomes",
+     "evaluation",
+     "quality",
+     "support",
+     "procurement",
+     "ai_text"
+    ],
+    "source": "the `family` of every item in the signed build"
+   }
+  },
+  {
+   "id": "R5-80",
+   "ruling": "P1",
+   "op": "set",
+   "what": "page_verdict priority order: the explicit S3 a list of SPEC R-044",
+   "path": "items/core.page_verdict/long_page_rule/order",
+   "before": "S3 a",
+   "after": [
+    "confirms_activity",
+    "ambiguous_attribution",
+    "ambiguous_genai",
+    "other_body",
+    "event_only",
+    "background_only",
+    "confirms_absence",
+    "no_genai",
+    "not_assessable"
+   ]
+  },
+  {
+   "id": "R5-81",
+   "ruling": "P1",
+   "op": "add",
+   "what": "page_verdict two-tier rule, machine-readable: supported verdicts first, then failed ones, each tier in `order`",
+   "path": "items/core.page_verdict/long_page_rule/tier_order",
+   "after": [
+    "supported",
+    "failed"
+   ]
+  },
+  {
+   "id": "R5-82",
+   "ruling": "P1",
+   "op": "set",
+   "what": "page_verdict missing_tokens: `not_assessable` is a value of the item, not a missing label; the item takes none of the reserved labels (template: an explicit `none` where a field does not apply); its mechanical status is flagged by P3",
+   "path": "items/core.page_verdict/missing_tokens",
+   "before": [
+    "not_assessable (mechanical)"
+   ],
+   "after": "none"
+  },
+  {
+   "id": "R5-83",
+   "ruling": "P3",
+   "op": "add",
+   "what": "not_assessable is never a jev choice (R-015: set mechanically, never a classifier answer)",
+   "path": "items/core.page_verdict/values/8/jev_choice",
+   "after": false
+  },
+  {
+   "id": "R5-84",
+   "ruling": "P1",
+   "op": "set",
+   "what": "derivation rule as a text slot: the `draft` slot's keys lifted into the rule entry (text unchanged)",
+   "path": "items/core.content_purpose/rules/3",
+   "before": {
+    "role": "derivation",
+    "derived_from": [
+     "core.function_*"
+    ],
+    "draft": {
+     "text": "purpose: the activity's function items",
+     "origin": "PI 2026-10-30 \"all accepted\"; final-open W02",
+     "source": "final-open.json sentences[W02].after",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I09 slot 4"
+    }
+   },
+   "after": {
+    "text": "purpose: the activity's function items",
+    "origin": "PI 2026-10-30 \"all accepted\"; final-open W02",
+    "source": "final-open.json sentences[W02].after",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I09 slot 4",
+    "role": "derivation",
+    "derived_from": [
+     "core.function_*"
+    ]
+   }
+  },
+  {
+   "id": "R5-85",
+   "ruling": "P1",
+   "op": "set",
+   "what": "derivation rule as a text slot: the `draft` slot's keys lifted into the rule entry (text unchanged)",
+   "path": "items/core.content_tool_or_model/rules/3",
+   "before": {
+    "role": "derivation",
+    "derived_from": [
+     "core.tool_name",
+     "core.model_name"
+    ],
+    "draft": {
+     "text": "tool or model: tool or model name",
+     "origin": "PI 2026-10-30 \"all accepted\"; final-open W02",
+     "source": "final-open.json sentences[W02].after",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I10 slot 4"
+    }
+   },
+   "after": {
+    "text": "tool or model: tool or model name",
+    "origin": "PI 2026-10-30 \"all accepted\"; final-open W02",
+    "source": "final-open.json sentences[W02].after",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I10 slot 4",
+    "role": "derivation",
+    "derived_from": [
+     "core.tool_name",
+     "core.model_name"
+    ]
+   }
+  },
+  {
+   "id": "R5-86",
+   "ruling": "P1",
+   "op": "set",
+   "what": "derivation rule as a text slot: the `draft` slot's keys lifted into the rule entry (text unchanged)",
+   "path": "items/core.content_vendor/rules/3",
+   "before": {
+    "role": "derivation",
+    "derived_from": [
+     "core.developer",
+     "core.contracting_party"
+    ],
+    "draft": {
+     "text": "vendor: model developer, stated or looked up, or contracting party",
+     "origin": "PI 2026-10-30 \"all accepted\"; final-open W02",
+     "source": "final-open.json sentences[W02].after",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I11 slot 4"
+    },
+    "amended_by": {
+     "text": "Vendor is \"yes\" if a developer is recorded, whether stated on the page or looked up.",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json page-08 (choice c); option text questions-r3.json page-08.c.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I11 slot 5"
+    }
+   },
+   "after": {
+    "text": "vendor: model developer, stated or looked up, or contracting party",
+    "origin": "PI 2026-10-30 \"all accepted\"; final-open W02",
+    "source": "final-open.json sentences[W02].after",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I11 slot 4",
+    "role": "derivation",
+    "derived_from": [
+     "core.developer",
+     "core.contracting_party"
+    ],
+    "amended_by": {
+     "text": "Vendor is \"yes\" if a developer is recorded, whether stated on the page or looked up.",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json page-08 (choice c); option text questions-r3.json page-08.c.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I11 slot 5"
+    }
+   }
+  },
+  {
+   "id": "R5-87",
+   "ruling": "P1",
+   "op": "set",
+   "what": "derivation rule as a text slot: the `draft` slot's keys lifted into the rule entry (text unchanged)",
+   "path": "items/core.content_users/rules/3",
+   "before": {
+    "role": "derivation",
+    "derived_from": [
+     "core.target_users",
+     "core.governed_population"
+    ],
+    "draft": {
+     "text": "users: `target_users` or `governed_population`",
+     "origin": "PI 2026-10-30 \"all accepted\"; final-open W02",
+     "source": "final-open.json sentences[W02].after",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I13 slot 4"
+    },
+    "amended_by": {
+     "text": "Users is \"yes\" if any activity states who the tool serves or who a governance rule applies to (`governed_population`).",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json page-08 (choice b); option text questions-r3.json page-08.b.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I13 slot 5"
+    }
+   },
+   "after": {
+    "text": "users: `target_users` or `governed_population`",
+    "origin": "PI 2026-10-30 \"all accepted\"; final-open W02",
+    "source": "final-open.json sentences[W02].after",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I13 slot 4",
+    "role": "derivation",
+    "derived_from": [
+     "core.target_users",
+     "core.governed_population"
+    ],
+    "amended_by": {
+     "text": "Users is \"yes\" if any activity states who the tool serves or who a governance rule applies to (`governed_population`).",
+     "origin": "ruling-r3",
+     "source": "codebook-rulings-round3.json page-08 (choice b); option text questions-r3.json page-08.b.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I13 slot 5"
+    }
+   }
+  },
+  {
+   "id": "R5-88",
+   "ruling": "P1",
+   "op": "set",
+   "what": "derivation rule as a text slot: the `draft` slot's keys lifted into the rule entry (text unchanged)",
+   "path": "items/core.content_status_date/rules/3",
+   "before": {
+    "role": "derivation",
+    "derived_from": [
+     "core.adoption_stage",
+     "core.year_announced",
+     "core.year_pilot_start",
+     "core.year_production_start"
+    ],
+    "draft": {
+     "text": "status or date: `adoption_stage` or a year field",
+     "origin": "PI 2026-10-30 \"all accepted\"; final-open W02",
+     "source": "final-open.json sentences[W02].after",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I14 slot 4"
+    }
+   },
+   "after": {
+    "text": "status or date: `adoption_stage` or a year field",
+    "origin": "PI 2026-10-30 \"all accepted\"; final-open W02",
+    "source": "final-open.json sentences[W02].after",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I14 slot 4",
+    "role": "derivation",
+    "derived_from": [
+     "core.adoption_stage",
+     "core.year_announced",
+     "core.year_pilot_start",
+     "core.year_production_start"
+    ]
+   }
+  },
+  {
+   "id": "R5-89",
+   "ruling": "P1",
+   "op": "set",
+   "what": "derivation rule as a text slot: the `draft` slot's keys lifted into the rule entry (text unchanged)",
+   "path": "items/core.content_human_oversight/rules/2",
+   "before": {
+    "role": "derivation",
+    "derived_from": [
+     "core.has_human_oversight"
+    ],
+    "draft": {
+     "text": "`yes` if any activity on the page is `yes`, otherwise `no`.",
+     "origin": "agent-draft",
+     "source": "cx-01.3-draft.json CX-52 draft_text; ruling page-10",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I15 slot 3"
+    }
+   },
+   "after": {
+    "text": "`yes` if any activity on the page is `yes`, otherwise `no`.",
+    "origin": "agent-draft",
+    "source": "cx-01.3-draft.json CX-52 draft_text; ruling page-10",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I15 slot 3",
+    "role": "derivation",
+    "derived_from": [
+     "core.has_human_oversight"
+    ]
+   }
+  },
+  {
+   "id": "R5-90",
+   "ruling": "P1",
+   "op": "set",
+   "what": "derivation rule as a text slot: the `draft` slot's keys lifted into the rule entry (text unchanged)",
+   "path": "items/core.content_risk_assessment/rules/2",
+   "before": {
+    "role": "derivation",
+    "derived_from": [
+     "core.has_risk_assessment"
+    ],
+    "draft": {
+     "text": "`yes` if any activity on the page is `yes`, otherwise `no`.",
+     "origin": "agent-draft",
+     "source": "cx-01.3-draft.json CX-52 draft_text; ruling page-10",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I16 slot 3"
+    }
+   },
+   "after": {
+    "text": "`yes` if any activity on the page is `yes`, otherwise `no`.",
+    "origin": "agent-draft",
+    "source": "cx-01.3-draft.json CX-52 draft_text; ruling page-10",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I16 slot 3",
+    "role": "derivation",
+    "derived_from": [
+     "core.has_risk_assessment"
+    ]
+   }
+  },
+  {
+   "id": "R5-91",
+   "ruling": "P1",
+   "op": "set",
+   "what": "derivation rule as a text slot: the `draft` slot's keys lifted into the rule entry (text unchanged)",
+   "path": "items/core.content_user_notification/rules/2",
+   "before": {
+    "role": "derivation",
+    "derived_from": [
+     "core.has_transparency_notice"
+    ],
+    "draft": {
+     "text": "`yes` if any activity on the page is `yes`, otherwise `no`.",
+     "origin": "agent-draft",
+     "source": "cx-01.3-draft.json CX-52 draft_text; ruling page-10",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I17 slot 3"
+    }
+   },
+   "after": {
+    "text": "`yes` if any activity on the page is `yes`, otherwise `no`.",
+    "origin": "agent-draft",
+    "source": "cx-01.3-draft.json CX-52 draft_text; ruling page-10",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I17 slot 3",
+    "role": "derivation",
+    "derived_from": [
+     "core.has_transparency_notice"
+    ]
+   }
+  },
+  {
+   "id": "R5-92",
+   "ruling": "P1",
+   "op": "set",
+   "what": "observed_actor_role: a recognised rule type (`highest_probability`, the signed fallback) with a first step `same_part_as` (the part that produced the relationship), as the scale unit's pairing step; text unchanged",
+   "path": "items/core.observed_actor_role/long_page_rule",
+   "before": {
+    "rule": "same_part_as",
+    "item": "core.observed_actor_relationship",
+    "fallback": "highest_probability",
+    "text": {
+     "text": "Take the role from the part that produced the combined relationship; if that part gives no real role, take the most-sure real role from the other parts.",
+     "origin": "PI 2026-10-30 \"all accepted\"; final-open F06",
+     "source": "final-open.json choices[F06] (pick a, confidence medium).options[a].mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-3 card I23 slot 8"
+    }
+   },
+   "after": {
+    "rule": "highest_probability",
+    "first_step": {
+     "same_part_as": "core.observed_actor_relationship"
+    },
+    "text": {
+     "text": "Take the role from the part that produced the combined relationship; if that part gives no real role, take the most-sure real role from the other parts.",
+     "origin": "PI 2026-10-30 \"all accepted\"; final-open F06",
+     "source": "final-open.json choices[F06] (pick a, confidence medium).options[a].mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-3 card I23 slot 8"
+    }
+   }
+  },
+  {
+   "id": "R5-93",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.adoption_stage/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.adoption_stage]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.adoption_stage]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-94",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.procurement_status/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance"
+    ],
+    "source": "applicability.json cells[item=core.procurement_status]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance"
+    ],
+    "source": "applicability.json cells[item=core.procurement_status]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-95",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.model_origin/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.model_origin]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.model_origin]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-96",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.build_arrangement/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.build_arrangement]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.build_arrangement]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-97",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.interface/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.interface]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.interface]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-98",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.function_drafting_writing/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_drafting_writing]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_drafting_writing]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-99",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.function_summarization/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_summarization]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_summarization]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-100",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.function_translation/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_translation]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_translation]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-101",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.function_search_retrieval/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_search_retrieval]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_search_retrieval]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-102",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.function_code/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_code]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_code]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-103",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.function_image_audio_video/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_image_audio_video]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_image_audio_video]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-104",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.function_extraction_classification/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_extraction_classification]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_extraction_classification]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-105",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.function_analysis_recommendation/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_analysis_recommendation]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.function_analysis_recommendation]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-106",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.tool_name/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "amended": [
+     {
+      "activity_type": "policy_guidance",
+      "draft": "not_asked",
+      "now": "ask",
+      "ruling": "activity-03 a"
+     }
+    ],
+    "source": "applicability.json cells[item=core.tool_name]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "amended": [
+     {
+      "activity_type": "policy_guidance",
+      "draft": "not_asked",
+      "now": "ask",
+      "ruling": "activity-03 a"
+     }
+    ],
+    "source": "applicability.json cells[item=core.tool_name]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-107",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.model_name/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "amended": [
+     {
+      "activity_type": "policy_guidance",
+      "draft": "not_asked",
+      "now": "ask",
+      "ruling": "activity-03 a"
+     }
+    ],
+    "source": "applicability.json cells[item=core.model_name]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "amended": [
+     {
+      "activity_type": "policy_guidance",
+      "draft": "not_asked",
+      "now": "ask",
+      "ruling": "activity-03 a"
+     }
+    ],
+    "source": "applicability.json cells[item=core.model_name]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-108",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.contracting_party/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.contracting_party]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.contracting_party]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-109",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.developer/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "amended": [
+     {
+      "activity_type": "policy_guidance",
+      "draft": "not_asked",
+      "now": "ask",
+      "ruling": "activity-03 a (the developer derived from them)"
+     }
+    ],
+    "source": "applicability.json cells[item=core.developer]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "amended": [
+     {
+      "activity_type": "policy_guidance",
+      "draft": "not_asked",
+      "now": "ask",
+      "ruling": "activity-03 a (the developer derived from them)"
+     }
+    ],
+    "source": "applicability.json cells[item=core.developer]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-110",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.deployment_mode/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.deployment_mode]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.deployment_mode]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-111",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.target_users/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.target_users]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.target_users]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-112",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.year_announced/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.year_announced]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.year_announced]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-113",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.year_pilot_start/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative",
+     "unknown"
+    ],
+    "source": "applicability.json cells[item=core.year_pilot_start]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative",
+     "unknown"
+    ],
+    "source": "applicability.json cells[item=core.year_pilot_start]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-114",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.year_production_start/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative",
+     "unknown"
+    ],
+    "source": "applicability.json cells[item=core.year_production_start]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "program_initiative",
+     "unknown"
+    ],
+    "source": "applicability.json cells[item=core.year_production_start]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-115",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.deployment_scale_number/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.deployment_scale_number]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "not_asked",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance",
+     "program_initiative"
+    ],
+    "source": "applicability.json cells[item=core.deployment_scale_number]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-116",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.has_human_oversight/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.has_human_oversight]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.has_human_oversight]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-117",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.has_transparency_notice/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.has_transparency_notice]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.has_transparency_notice]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-118",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.has_data_classification/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.has_data_classification]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.has_data_classification]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-119",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.has_risk_assessment/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.has_risk_assessment]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.has_risk_assessment]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-120",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.outcome_kind/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance"
+    ],
+    "source": "applicability.json cells[item=core.outcome_kind]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance"
+    ],
+    "source": "applicability.json cells[item=core.outcome_kind]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-121",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.incident_kind/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance"
+    ],
+    "source": "applicability.json cells[item=core.incident_kind]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [
+     "policy_guidance"
+    ],
+    "source": "applicability.json cells[item=core.incident_kind]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-122",
+   "ruling": "P1",
+   "op": "set",
+   "what": "applicability table as the template's gate form: item core.activity_type + the types whose cell is `ask` (cells kept as the table; gated-out cells take `not_asked`)",
+   "path": "items/core.evaluation_documented/gate",
+   "before": {
+    "table": "applicability keyed on activity_type (r2#8)",
+    "key": "core.activity_type",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.evaluation_documented]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   },
+   "after": {
+    "item": "core.activity_type",
+    "values": [
+     "policy_guidance",
+     "pilot_experiment",
+     "program_initiative",
+     "internal_operational",
+     "public_facing_service",
+     "unknown"
+    ],
+    "table": "applicability keyed on activity_type (r2#8)",
+    "rule": "core.rule.applicability_table",
+    "cells": {
+     "policy_guidance": "ask",
+     "pilot_experiment": "ask",
+     "program_initiative": "ask",
+     "internal_operational": "ask",
+     "public_facing_service": "ask",
+     "unknown": "ask"
+    },
+    "inferred_cells": [],
+    "source": "applicability.json cells[item=core.evaluation_documented]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+   }
+  },
+  {
+   "id": "R5-123",
+   "ruling": "P1",
+   "op": "set",
+   "what": "gate \"not none_reported\" as an explicit value list: the gate item's other values (missing labels do not open the gate)",
+   "path": "items/core.reported_outcomes/gate",
+   "before": {
+    "item": "core.outcome_kind",
+    "values": [
+     "not none_reported"
+    ]
+   },
+   "after": {
+    "item": "core.outcome_kind",
+    "values": [
+     "quantified",
+     "qualitative"
+    ],
+    "as_ruled": "not none_reported"
+   }
+  },
+  {
+   "id": "R5-124",
+   "ruling": "P1",
+   "op": "set",
+   "what": "gate \"not none_reported\" as an explicit value list: the gate item's other values (missing labels do not open the gate)",
+   "path": "items/core.reported_incidents/gate",
+   "before": {
+    "item": "core.incident_kind",
+    "values": [
+     "not none_reported"
+    ]
+   },
+   "after": {
+    "item": "core.incident_kind",
+    "values": [
+     "quantified",
+     "qualitative",
+     "discontinuation_uncertain"
+    ],
+    "as_ruled": "not none_reported"
+   }
+  },
+  {
+   "id": "R5-125",
+   "ruling": "7 a",
+   "op": "set",
+   "what": "refs: the RC-D-005 ruling added",
+   "path": "items/core.activity_relation_cross_page/refs",
+   "before": [
+    "X30",
+    "R-005",
+    "R-017",
+    "r2#22",
+    "all-07",
+    "activity-16",
+    "activity-17",
+    "institution-01",
+    "institution-02",
+    "all-11",
+    "all-04"
+   ],
+   "after": [
+    "X30",
+    "R-005",
+    "R-017",
+    "r2#22",
+    "all-07",
+    "activity-16",
+    "activity-17",
+    "institution-01",
+    "institution-02",
+    "all-11",
+    "all-04",
+    "RC-D-005 7 a"
+   ]
+  },
+  {
+   "id": "R5-126",
+   "ruling": "8 b, 9 a, P3",
+   "op": "set",
+   "what": "refs: the RC-D-005 ruling added",
+   "path": "items/core.page_verdict/refs",
+   "before": [
+    "R-015",
+    "R-016",
+    "C01",
+    "r2#1",
+    "r2#7",
+    "r2#40",
+    "C1 a",
+    "S3 a",
+    "all-07",
+    "page-02"
+   ],
+   "after": [
+    "R-015",
+    "R-016",
+    "C01",
+    "r2#1",
+    "r2#7",
+    "r2#40",
+    "C1 a",
+    "S3 a",
+    "all-07",
+    "page-02",
+    "RC-D-005 8 b, 9 a, P3"
+   ]
+  },
+  {
+   "id": "R5-127",
+   "ruling": "10 a",
+   "op": "set",
+   "what": "refs: the RC-D-005 ruling added",
+   "path": "items/core.pooled_activity_fields/refs",
+   "before": [
+    "X31",
+    "r2#6"
+   ],
+   "after": [
+    "X31",
+    "r2#6",
+    "RC-D-005 10 a"
+   ]
+  },
+  {
+   "id": "R5-128",
+   "ruling": "11 a",
+   "op": "set",
+   "what": "refs: the RC-D-005 ruling added",
+   "path": "items/core.deployment_scale_number/refs",
+   "before": [
+    "A09",
+    "C4 a",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-07",
+    "activity-24"
+   ],
+   "after": [
+    "A09",
+    "C4 a",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-07",
+    "activity-24",
+    "RC-D-005 11 a"
+   ]
+  },
+  {
+   "id": "R5-129",
+   "ruling": "11 a",
+   "op": "set",
+   "what": "refs: the RC-D-005 ruling added",
+   "path": "items/core.deployment_scale_unit/refs",
+   "before": [
+    "A09",
+    "C4 a",
+    "activity-24"
+   ],
+   "after": [
+    "A09",
+    "C4 a",
+    "activity-24",
+    "RC-D-005 11 a"
+   ]
+  },
+  {
+   "id": "R5-130",
+   "ruling": "14 a",
+   "op": "set",
+   "what": "refs: the RC-D-005 ruling added",
+   "path": "items/core.page_review_state/refs",
+   "before": [
+    "X39",
+    "r2#7",
+    "R-015"
+   ],
+   "after": [
+    "X39",
+    "r2#7",
+    "R-015",
+    "RC-D-005 14 a"
+   ]
+  }
+ ]
+}

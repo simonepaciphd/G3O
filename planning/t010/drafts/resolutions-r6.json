@@ -1,0 +1,741 @@
+{
+ "format": "resolutions-r6 v1",
+ "drafted_by": "resolver subagent of the plan integrator, Claude Code, claude-opus-5-5, 2026-10-30",
+ "ruling": "PI, chat, 2026-10-30 (t010-rulings.md): \"drafts ok, give a subagent the task to resolve ambiguities in a way that's coherent with the rest, i will approve final clean copy\"",
+ "status": "proposed; nothing final until the PI approves planning/t010/RC-D-005-clean-copy.md",
+ "coherence_rules": [
+  "prefer the option that changes the least signed meaning and follows prior PI rulings",
+  "where equally coherent, prefer no new wording",
+  "new wording minimal, origin agent-draft (resolver), listed in the clean copy"
+ ],
+ "fixes_file": "planning/t010/drafts/fixes-r6.json",
+ "resolutions": [
+  {
+   "id": "12a'",
+   "question": "Which items offer `not_documented` as a jev choice",
+   "options": {
+    "i": "only where an item rule gives it a meaning",
+    "ii": "all, using the general vocabularies.missing definition",
+    "iii": "all, with per-item rules drafted",
+    "iv": "as iii, excluding items where a real value already covers it"
+   },
+   "chosen": "iv",
+   "reasons": [
+    "12 a offers `not_documented` with a per-item missing-label rule; (i) would leave silent single-part pages on items like model_origin at `unknown` while R-044 gives long silent pages `not documented`, so the same silence would get two labels.",
+    "(ii) and (iii) contradict signed rules: procurement_status rules/2 says `not_documented` is not used, and on yes/no items `no` already means \"not stated\" (CX-06 map).",
+    "Under (iv) 16 items offer it: 9 with their own signed rule, 7 with the signed has_* rule re-used verbatim (\"not_documented: the page is silent.\"), so no new wording; 35 items do not, each with a recorded reason (a real value, an `unknown` rule that already covers silence, a frozen CX answer set, or the applicability table)."
+   ],
+   "rests_on": [
+    "RC-D-005 12 a",
+    "procurement_status rules/2",
+    "CX-06 map (vocabularies.missing.cx_mapping_row)",
+    "R-044 (all parts not covered -> not documented)",
+    "fixes-r4 FX06 per-item `unknown` rules",
+    "r2#8 applicability table"
+   ],
+   "encoded_by": [
+    "R6-48",
+    "R6-49",
+    "R6-50",
+    "R6-51",
+    "R6-52",
+    "R6-53",
+    "R6-54",
+    "R6-55",
+    "R6-56",
+    "R6-57",
+    "R6-58",
+    "R6-59",
+    "R6-60",
+    "R6-61",
+    "R6-62",
+    "R6-63",
+    "R6-64",
+    "R6-65",
+    "R6-66",
+    "R6-67",
+    "R6-68",
+    "R6-69",
+    "R6-70",
+    "R6-71",
+    "R6-72",
+    "R6-73",
+    "R6-74",
+    "R6-75",
+    "R6-76",
+    "R6-77",
+    "R6-78",
+    "R6-79",
+    "R6-80",
+    "R6-81",
+    "R6-82",
+    "R6-83",
+    "R6-84",
+    "R6-85",
+    "R6-86",
+    "R6-87",
+    "R6-88",
+    "R6-89",
+    "R6-90",
+    "R6-91",
+    "R6-92",
+    "R6-93",
+    "R6-94",
+    "R6-95",
+    "R6-96",
+    "R6-97",
+    "R6-98",
+    "R6-99",
+    "R6-100",
+    "R6-101",
+    "R6-102",
+    "R6-103",
+    "R6-104"
+   ],
+   "new_text": null,
+   "notes": "Re-used text, not new wording: items/core.has_human_oversight/rules/2, added to model_origin, build_arrangement, deployment_mode, target_users, governed_population, governance_form, observed_actor_role."
+  },
+  {
+   "id": "F8",
+   "question": "16 signed rules say when the answer is `unknown`, but under 12 a `unknown` is mechanical",
+   "options": {
+    "a": "drop / retag",
+    "b": "keep"
+   },
+   "chosen": "b",
+   "reasons": [
+    "The rules stay true as statements of the outcome: a page that mentions a matter without settling it leaves the classifier below the 0.8 bar, so the row gets `unknown` mechanically.",
+    "Retagging them out of the prompt would break the ruling 2 a condition (every value carries the item's full rules); dropping them would remove signed text.",
+    "The year items keep the computed candidate `unknown` among their choices, as their signed values and rule 1 say (C16); this is the one place `unknown` is offered, recorded in vocabularies.missing.jev_choice.resolution and as a SPEC addition."
+   ],
+   "rests_on": [
+    "ruling 2 a (check 16)",
+    "R-081",
+    "C16",
+    "items/core.year_*/values, rules/0"
+   ],
+   "encoded_by": [
+    "R6-104"
+   ],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "R1 = F4",
+   "question": "`pooled_activity_fields`",
+   "options": {
+    "a": "derived/pipeline item, rules only",
+    "b": "values + question"
+   },
+   "chosen": "a",
+   "reasons": [
+    "Ruling 10 a: each pooled field combines by its own item's rule, so the item has no answers of its own; giving it values would need a new coding choice.",
+    "W43 (approved) is kept as the item's instruction slot, read as the framing sentence of the pooled prompts."
+   ],
+   "rests_on": [
+    "RC-D-005 10 a",
+    "r2#6",
+    "X31",
+    "W43 note"
+   ],
+   "encoded_by": [
+    "R6-44",
+    "R6-45",
+    "R6-46",
+    "R6-47"
+   ],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "R2 = F3",
+   "question": "Observed-actor relationship with two linked parts",
+   "options": {
+    "a": "role as its own internal item gated on relationship != unresolved; W10 its question",
+    "b": "template parts form"
+   },
+   "chosen": "b",
+   "reasons": [
+    "The signed item is \"two linked parts in one item\" (activity-14 b; values.structure, role_gate, role_missing_tokens, long_page_rule.role_part); the parts form keeps all of it and adds only the order of the parts and the role question (W10).",
+    "(a) would create a third attribution item beside `observed_actor_role` (the observed actor's own role, activity-15 a) and move signed values out of the item.",
+    "W10's proposed path (values/searched_institution_role/instruction) cannot hold a key because that key is the value list; it sits at values/part_instructions/searched_institution_role."
+   ],
+   "rests_on": [
+    "activity-14 b",
+    "activity-15 a",
+    "fixes-r4 FX08",
+    "O8"
+   ],
+   "encoded_by": [
+    "R6-42",
+    "R6-43"
+   ],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "N1",
+   "question": "Tie sentence \"If several values fit, take the first in this order\"",
+   "options": {
+    "a": "every single-answer question",
+    "b": "only where value order = combine order",
+    "c": "none"
+   },
+   "chosen": "c",
+   "reasons": [
+    "The approved drafts W05-W43 leave it out; adding it is new wording.",
+    "For seven items the value order is not the combining order, so (a) would make the within-part and across-part choices disagree; (b) would add a sentence to very few items for no gain in consistency.",
+    "`order_tie_rule` stays as data; the value and priority orders act when parts are combined (R-044)."
+   ],
+   "rests_on": [
+    "W05-W43 as approved",
+    "R-044",
+    "item-template field 15"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "I5",
+   "question": "`incident_kind` definitions reuse outcome wording and pull against `discontinuation_uncertain`",
+   "options": {
+    "a": "redraft definitions",
+    "b": "keep"
+   },
+   "chosen": "b",
+   "reasons": [
+    "The definitions are the frozen CX-61 texts; redrafting them changes signed questionnaire wording.",
+    "The approved question W35 names what an incident is (\"an error, failure or controversy\"), so the frozen result wording reads as the incident's result.",
+    "The two texts can both hold: a confirmed stop with no problem reported is `none_reported` (\"ignores stops unless a problem is reported\"); a possible stop the page does not confirm is `discontinuation_uncertain` (C2 a)."
+   ],
+   "rests_on": [
+    "CX-61 (frozen)",
+    "C2 a",
+    "W35"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "I7",
+   "question": "source_type `other`: \"explain in `source_snippet`\" while jev returns codes only",
+   "options": {
+    "a": "drop the clause",
+    "b": "move the explanation to the extractor"
+   },
+   "chosen": "a",
+   "reasons": [
+    "C-004: jev returns codes only, so the classifier cannot do the second half.",
+    "The cut follows the PI's \"2a\" method (cut before the part that cannot stand) and needs no new wording; (b) would need a new extractor instruction."
+   ],
+   "rests_on": [
+    "C-004",
+    "PI 2026-10-30 \"2a\" (cut before the overridden part)"
+   ],
+   "encoded_by": [
+    "R6-105"
+   ],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "F5 source_type",
+   "question": "Rule-only gate on `source_type`",
+   "options": {
+    "a": "new item recording automatic typing as the gate",
+    "b": "gate none, rules/0 carries the condition"
+   },
+   "chosen": "b",
+   "reasons": [
+    "rules/0 already says the classifier only sorts pages not typed from the domain or address; R-002 assigns the condition to the pipeline. No new item or wording is needed.",
+    "The former gate text is kept as data (`ask_condition`) pointing at rules/0."
+   ],
+   "rests_on": [
+    "R-002",
+    "r2#25",
+    "r2#30"
+   ],
+   "encoded_by": [
+    "R6-106",
+    "R6-107"
+   ],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "F5 second_reason",
+   "question": "Rule-only gate on `support_status_second_reason`",
+   "options": {
+    "a": "gate none, F10 rule carries it",
+    "b": "gate on `downgraded_*`"
+   },
+   "chosen": "a",
+   "reasons": [
+    "A gate on the main status being downgraded is necessary but not sufficient (two reasons must hold), and gated-out rows would store \"not asked\", while the signed rule says the item is empty when only one reason holds.",
+    "The former gate text is kept as data (`fill_condition`) pointing at rules/1."
+   ],
+   "rests_on": [
+    "R-041",
+    "record-03 c",
+    "final-open F10",
+    "RC-D-003 O13"
+   ],
+   "encoded_by": [
+    "R6-108",
+    "R6-109"
+   ],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "F9",
+   "question": "Ruling-style text in rule slots without a `direction` role",
+   "options": {
+    "a": "drop as 13 a",
+    "b": "keep"
+   },
+   "chosen": "b",
+   "reasons": [
+    "13 a dropped drafter directions (tagged `direction`); these texts are the PI's chosen ruling options, signed as rules.",
+    "Several are the only statement of their item's rule (unit_credit rules/0, date_upper_bound rules/0, observed_actor_role rules/0); dropping them would leave items undefined or fail check 9.",
+    "None is contradicted by a later ruling, unlike F10."
+   ],
+   "rests_on": [
+    "RC-D-005 13 a (scope: drafter notes)",
+    "PI 2026-10-30 \"2a\""
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "F10",
+   "question": "`reported_outcomes` / `reported_incidents` rules/1 describe a folded-away question",
+   "options": {
+    "a": "drop",
+    "b": "keep"
+   },
+   "chosen": "a",
+   "reasons": [
+    "The signed kind items say the separate existence question folds into them (outcome_kind / incident_kind rules/0 and /1, CX-61); rules/1 still describes that question with other values and would reach the extractor prompt.",
+    "Dropping the whole text is the limit case of the PI's \"2a\" method (cut the overridden part); its one live point (extract only when the kind is not `none_reported`) is carried by the gate and by the kind items' rules/0."
+   ],
+   "rests_on": [
+    "CX-61",
+    "outcome_kind rules/0-1",
+    "PI 2026-10-30 \"2a\""
+   ],
+   "encoded_by": [
+    "R6-110",
+    "R6-111"
+   ],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "W32 note",
+   "question": "Permanent pilot: pilot year as production year?",
+   "options": {
+    "a": "add a rule",
+    "b": "leave to the page"
+   },
+   "chosen": "b",
+   "reasons": [
+    "The approved question asks for the year the page says the activity went into full, routine operation; adding a rule would be new wording and a coding choice.",
+    "`permanent_pilot` is a derived flag (R-006), so analyses can still find these rows."
+   ],
+   "rests_on": [
+    "W32 as approved",
+    "R-006"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "W33 note",
+   "question": "Scale number shown with the unit question?",
+   "options": {
+    "a": "yes, as row data",
+    "b": "generator fills the number into the text"
+   },
+   "chosen": "a",
+   "reasons": [
+    "rules/0: the extractor returns the number span and jev gives the unit; the question (approved) refers to \"the stated number\".",
+    "Showing it as data needs no wording; filling it into the text would be undeclared scaffolding (check 3)."
+   ],
+   "rests_on": [
+    "R-040 (C4 a)",
+    "deployment_scale_unit rules/0"
+   ],
+   "encoded_by": [
+    "R6-113"
+   ],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "W04 note",
+   "question": "System prompt's page framing vs Stage 6 inputs",
+   "options": {
+    "a": "Stage 6 variant with sentence 2 replaced",
+    "b": "one prompt for all",
+    "c": "leave Stage 6 open"
+   },
+   "chosen": "a",
+   "reasons": [
+    "Stage 6 reads two activity records or pooled quotes, not a page, so W04's sentence 2 would misstate the input.",
+    "The variant keeps W04's sentences 1, 3 and 4 byte for byte and replaces only sentence 2 (new text N-01, shown in the clean copy)."
+   ],
+   "rests_on": [
+    "RC-D-005 6 a",
+    "W04 note",
+    "W42, W43"
+   ],
+   "encoded_by": [
+    "R6-01"
+   ],
+   "new_text": {
+    "path": "shared/system_prompt_stage6",
+    "new_sentence": "You read two activity records, or a set of quotes about one activity gathered from several sources, about a named institution and answer coding questions about them.",
+    "replaces": "You read one web page, or one part of one, about a named institution and answer coding questions about it.",
+    "why": "W04 note: the page framing does not fit Stage 6 inputs (two records or pooled quotes)"
+   },
+   "notes": null
+  },
+  {
+   "id": "E1",
+   "question": "EVAL_EMPHASIS with the six evaluation-type questions",
+   "options": {
+    "default": "byte for byte"
+   },
+   "chosen": "default",
+   "reasons": [
+    "Appended to each of W36-W41 in the instruction slot, as the frozen CX-01.2 template appends it (pilot.py L210); the W text stays byte-identical as the prefix."
+   ],
+   "rests_on": [
+    "CX-01.2 (frozen)",
+    "pilot.py L181-187, L210"
+   ],
+   "encoded_by": [
+    "R6-32",
+    "R6-33",
+    "R6-34",
+    "R6-35",
+    "R6-36",
+    "R6-37"
+   ],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "F1 a",
+   "question": "values none on mechanical / derived items (template A1); support_status names its vocabulary",
+   "options": {
+    "a": "procedural default"
+   },
+   "chosen": "a",
+   "reasons": [
+    "Applied as the procedural default; coherent with the resolutions above."
+   ],
+   "rests_on": [
+    "RC-D-005 follow-ups (procedural)"
+   ],
+   "encoded_by": [
+    "R6-110",
+    "R6-111",
+    "R6-114"
+   ],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "F2 a",
+   "question": "computed value list for the year classifiers (template A2); no data change",
+   "options": {
+    "a": "procedural default"
+   },
+   "chosen": "a",
+   "reasons": [
+    "Applied as the procedural default; coherent with the resolutions above."
+   ],
+   "rests_on": [
+    "RC-D-005 follow-ups (procedural)"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "F6 a",
+   "question": "\"any value\" gate form (template A3); scale unit gate",
+   "options": {
+    "a": "procedural default"
+   },
+   "chosen": "a",
+   "reasons": [
+    "Applied as the procedural default; coherent with the resolutions above."
+   ],
+   "rests_on": [
+    "RC-D-005 follow-ups (procedural)"
+   ],
+   "encoded_by": [
+    "R6-112"
+   ],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "F7 a",
+   "question": "check 1 accepts missing_tokens none (template A4); no data change",
+   "options": {
+    "a": "procedural default"
+   },
+   "chosen": "a",
+   "reasons": [
+    "Applied as the procedural default; coherent with the resolutions above."
+   ],
+   "rests_on": [
+    "RC-D-005 follow-ups (procedural)"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "G1",
+   "question": "generator honours jev_choice false and jev_missing_choice, writes part prompts and system prompts (template A7)",
+   "options": {
+    "a": "procedural default"
+   },
+   "chosen": "a",
+   "reasons": [
+    "Applied as the procedural default; coherent with the resolutions above."
+   ],
+   "rests_on": [
+    "RC-D-005 follow-ups (procedural)"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "A5",
+   "question": "Check 7 when a gate item has no classifier round (scale unit gated on the extracted number)",
+   "options": {
+    "a": "gate item takes its own gate's position"
+   },
+   "chosen": "a",
+   "reasons": [
+    "Needed for coherence with F6 a: the extracted number exists once its own gate (activity_type, pass 2 round 2) is answered, so the unit (round 4) is correctly later. Not among the listed defaults; logged as required by coherence."
+   ],
+   "rests_on": [
+    "item-template §4 check 7",
+    "combining_conventions.gate_items_first (\"and the scale number\")"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "T-020 T1",
+   "question": "32k = 32,000 tokens (configurable)",
+   "options": {
+    "confirm": "confirm",
+    "adjust": "adjust"
+   },
+   "chosen": "confirm",
+   "reasons": [
+    "C-004 states the 32k state limit; a pipeline setting, recorded in SPEC C-004 (E5)."
+   ],
+   "rests_on": [
+    "SPEC v001.8 R-042, R-044, R-081, C-004"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "T-020 T2",
+   "question": "mixed-script pages use per-character constants and margins",
+   "options": {
+    "confirm": "confirm",
+    "adjust": "adjust"
+   },
+   "chosen": "confirm",
+   "reasons": [
+    "An implementation estimate of the token limit; script handling belongs to the multilingual subproject. No codebook text."
+   ],
+   "rests_on": [
+    "SPEC v001.8 R-042, R-044, R-081, C-004"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "T-020 T3",
+   "question": "yes/no any-yes fallback rank: yes, no, not documented, unknown",
+   "options": {
+    "confirm": "confirm",
+    "adjust": "adjust"
+   },
+   "chosen": "confirm",
+   "reasons": [
+    "R-044 / all-04 b: real answers first, then not documented, then unknown. SPEC addition (E3)."
+   ],
+   "rests_on": [
+    "SPEC v001.8 R-042, R-044, R-081, C-004"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "T-020 T4",
+   "question": "0.8 bar applies to every classifier answer incl. `no` / `not_documented`",
+   "options": {
+    "confirm": "confirm",
+    "adjust": "adjust"
+   },
+   "chosen": "confirm",
+   "reasons": [
+    "R-081 (\"includes negative and absence codes\"); an offered `not_documented` below 0.8 becomes `unknown`. SPEC addition (E1)."
+   ],
+   "rests_on": [
+    "SPEC v001.8 R-042, R-044, R-081, C-004"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "T-020 T5",
+   "question": "a quote not found exactly in its own part counts as no quote",
+   "options": {
+    "confirm": "confirm",
+    "adjust": "adjust"
+   },
+   "chosen": "adjust",
+   "reasons": [
+    "R-042 is a fuzzy presence match, not an exact one: a quote counts if it passes the R-042 match against the part that produced the answer (R-044); otherwise no quote. SPEC addition (E3)."
+   ],
+   "rests_on": [
+    "SPEC v001.8 R-042, R-044, R-081, C-004"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "T-020 T6",
+   "question": "most-sure-part rule also under first-section",
+   "options": {
+    "confirm": "confirm",
+    "adjust": "adjust"
+   },
+   "chosen": "confirm",
+   "reasons": [
+    "R-044 / all-05 a apply to every rule type: among parts giving the winning answer, quote and certainty come from the most sure part. No new text."
+   ],
+   "rests_on": [
+    "SPEC v001.8 R-042, R-044, R-081, C-004"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "T-020 T7",
+   "question": "mapped values carry no single quote but list input parts",
+   "options": {
+    "confirm": "confirm",
+    "adjust": "adjust"
+   },
+   "chosen": "confirm",
+   "reasons": [
+    "Each input was checked before combining (all-03 a); the mapped value lists the input parts and their quotes. SPEC addition (E3)."
+   ],
+   "rests_on": [
+    "SPEC v001.8 R-042, R-044, R-081, C-004"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "T-020 T8",
+   "question": "governance mapping implements only the explicit pair (vs SPEC's \"any condition or mix\")",
+   "options": {
+    "confirm": "confirm",
+    "adjust": "adjust"
+   },
+   "chosen": "confirm",
+   "reasons": [
+    "The signed codebook (the source of record for orders) has the priority order with restricts_with_conditions first (any condition wins) and the mapping prohibits + permits -> restricts_with_conditions (the mix). SPEC R-044 wording aligned to the codebook (E3)."
+   ],
+   "rests_on": [
+    "SPEC v001.8 R-042, R-044, R-081, C-004"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "T-020 T9",
+   "question": "undated pooled evidence position (first / last)",
+   "options": {
+    "confirm": "confirm",
+    "adjust": "adjust"
+   },
+   "chosen": "decide: last",
+   "reasons": [
+    "A first-section rule should not let an undated source pre-empt dated ones; undated sources already score low credibility (source_credibility rule). Order: dated sources by date, then undated, each by page order. SPEC addition (E3)."
+   ],
+   "rests_on": [
+    "SPEC v001.8 R-042, R-044, R-081, C-004"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "T-020 T10",
+   "question": "text-list dedup exact-string only",
+   "options": {
+    "confirm": "confirm",
+    "adjust": "adjust"
+   },
+   "chosen": "confirm",
+   "reasons": [
+    "Quotes are verbatim; any normalisation would rewrite them. SPEC addition (E3)."
+   ],
+   "rests_on": [
+    "SPEC v001.8 R-042, R-044, R-081, C-004"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  },
+  {
+   "id": "T-020 T11",
+   "question": "\"not asked\" / `_NA_` never reach part answers",
+   "options": {
+    "confirm": "confirm",
+    "adjust": "adjust"
+   },
+   "chosen": "confirm",
+   "reasons": [
+    "combining_conventions.missing_rank: applicability is applied after the gating item is combined; `_NA_` rows have no activity to ask about. No new text."
+   ],
+   "rests_on": [
+    "SPEC v001.8 R-042, R-044, R-081, C-004"
+   ],
+   "encoded_by": [],
+   "new_text": null,
+   "notes": null
+  }
+ ]
+}

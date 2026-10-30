@@ -94,3 +94,62 @@ Put to the PI in chat: codebook release 2.7, sha256 `d24bbc7c8ad7f5b9165977d86ca
 PI, chat, verbatim: "all approved, I sign"
 
 Record: `planning/t010/signoff-record.md`. Committed on `reclass/t010-contract` as `cb13571`, with `codebook/.gitattributes` (`-text`) so the signed CRLF bytes are kept on every OS; the builder pins CRLF to reproduce the hash.
+
+## 2026-10-30 — post-signature: T-001 back-fill sizing (orchestrator session 20261030-claude-v2-74b5a83dce21f038)
+
+Asked in chat after T-001 returned. 1, which pages R-076 "all pages of the latest run" means: a, published source URLs (229k); b, every stored page of the run (263k). 2, the T-001 5% trigger read at page level (8.71% / 10.33%), so the re-scrape figure feeds T-029 / T-072. 3, whether pages under 200 characters of stored text are re-scraped: a, R-074 as written (raw PDF and no stored file only, ~12.6k); b, also pages under 200 characters (~40.2k; amends R-074).
+
+PI, chat, verbatim: "1b, 2ok" and "3b"
+
+## 2026-10-30 — T-013 generator checks fail on the signed file: RC-D-005 content (orchestrator session 20261030-claude-v2-74b5a83dce21f038)
+
+Context: T-013 checks 1, 6, 7, 9, 10, 11, 13 fail on `d24bbc7c…`; T-020 stopped five fields; a drafting subagent found the pilot/production year questions repeat the announced-year question. Asked in chat (14 substantive, no recommendation; P1-P8 with defaults):
+1 release label: a, re-sign as 2.7 (new hash); b, 2.7.1. 2 sign-off encoding: a, `signed` on every item and the release at re-signature; b, amend check 13 to read the signature record. 3 question wording for the 38 classifier items with `instruction: none`: a, PI writes or line-edits one question per item, subagent drafts; b, one stem per family as scaffolding. 4 pilot/production year questions: part of 3 or separate. 5 part-prompt sentence and "not covered by this part" text (R-044 marker): a, write in this delta; b, defer. 6 system prompt: a, shared codebook slot written by the PI; b, hand-written outside the codebook (R-007 exception). 7 cross-page relation order: a, `has_component` after `component_of_program`, `governed_by` after `governs`; b, PI sets. 8 negative page verdicts (R-041): a, confirms_absence, no_genai, background_only; b, (a) plus event_only and other_body; c, other. 9 every part "not covered" on `page_verdict`: a, `not_assessable`; b, named failure state. 10 `pooled_activity_fields`: a, each field its own item's rule; b, one named rule type. 11 scale number/unit pairs: a, supported only if both halves pass; b, number decides. 12 missing answers as jev choices: a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical; b, both; c, neither. 13 drafter notes inside signed rules: a, drop (and check whether "Re-word CX-12/13" was done); b, keep tagged. 14 `page_review_state`: a, drop procurement; b, split. P1 mechanical structural fixes encoded by the integrator, PI reviews the diff; P2 R-076 / R-074 SPEC wording (1b / 3b) in RC-D-005; P3 codebook flag keeps `not_assessable` out of jev choices; P4 T-013 not merged into `reclass/v2.7` until all 16 checks pass on the re-signed file; P5 push the T-001 / T-013 / T-020 branches as backup, no PRs; P6 one-line PR excluding `planning/` from ruff, merge only on the PI's word; P7 `jsonschema` in `[dev]` on T-013's branch; P8 generated contract docs reach the live prompt paths only with T-012 / T-022 / T-032.
+
+PI, chat, verbatim: "1a, 2a, 3 subagent drafts all & I read and edit/confirm, 4 part of 3, 5 a, 6a, 7a, 8b, 9 a, 10a 11 a 12 a 13a 14a; accept all"
+
+Integrator reading: 3 a, with a subagent drafting every question (and, by 4, the two year questions, and by 5 a / 6 a the part-prompt sentence, the temporary answer text and the system-prompt slot), which the PI reads, edits and confirms; all P1-P8 at their defaults.
+
+## 2026-10-30 — RC-D-005 wording drafts and follow-up ambiguities (orchestrator session 20261030-claude-v2-74b5a83dce21f038)
+
+Shown in chat: wording drafts W01-W45 (`drafts/rc-d-005-wording.md`, `feb0dcf`); candidate codebook `reclass/rc-d-005-codebook` `bcd7a88` (fixes-r5, sign-off build sha256 `3a8a3e5f…`); follow-up questions 12a′ (i-iv), F8 tension (a/b), R1 = F4 (a/b), R2 = F3 (a/b), N1 (a/b/c), I5 (a/b), I7 (a/b), F5 (source_type a/b; second_reason a/b), F9 (a/b), F10 (a/b); procedural F1 a, F2 a, F6 a, F7 a, E1 (EVAL_EMPHASIS byte for byte), G1 (T-013 generator follow-up).
+
+PI, chat, verbatim: "drafts ok, give a subagent the task to resolve ambiguities in a way that's coherent with the rest, i will approve final clean copy"
+
+Integrator reading: W01-W45 approved as drafted. The PI delegates the choice on every listed follow-up item to a subagent, which resolves each coherently with the signed rules and logs its choice and reasons; the procedural defaults stand unless coherence requires otherwise (then logged). Nothing is final until the PI approves the clean copy; the codebook is then re-signed.
+
+## 2026-10-30 — RC-D-005 clean copy, remaining points (orchestrator session 20261030-claude-v2-74b5a83dce21f038)
+
+Shown in chat: clean copy `planning/t010/RC-D-005-clean-copy.md` (`reclass/rc-d-005-codebook` `1eec5b3`, sign-off build sha256 `6c4bfc6c…a7ae3c`) and five points for judgment: 1 B2 (F8 b keeps `unknown` offered on the year items, against the 12 a reading), 2 B1 (12a′ iv: 16 items offer not documented, 35 do not, incl. `genai_mechanism_basis`, `activity_type`), 3 D5 (added check-7 reading), 4 T-020 readings T5 adjusted and T9 decided, 5 open items (`codebook/schema.json` old shapes; T-016 re-pilot scope).
+
+PI, chat, verbatim: "fix the remainder points -- make coherent with previous rulings (subagent)"
+
+Integrator reading: the PI delegates points 1-5 to a subagent, which settles each coherently with the PI's earlier rulings (verbatim in this file) and the signed rules, logs each choice and reason, and updates the clean copy. Nothing is final until the PI approves the revised clean copy.
+
+PI, chat, verbatim (follow-up, same batch): "even if just indirectly -- if the same logic applies, not necessarily a ruling on the specific item, but a different one of similar nature; if none is possible, then provide three options with a rec"
+
+Integrator reading: a point may be settled by analogy to a PI ruling of similar nature on a different item, citing that ruling and the shared logic. Only where no ruling applies even indirectly does the subagent leave the point open, with three options and one recommendation.
+
+## 2026-10-30 — RC-D-005 clean copy approved (orchestrator session 20261030-claude-v2-74b5a83dce21f038)
+
+Shown in chat: revised clean copy `planning/t010/RC-D-005-clean-copy.md` (`reclass/rc-d-005-codebook` `d5ce6de`, r7 sign-off build sha256 `1b667db0810f69d948e2ab105d11e9a22a255494a3bfba21883d66d432303ad9`), round-2 section G, and one open point: rule 1 of the three year items (`year_announced`, `year_pilot_start`, `year_production_start`) still reads "jev Choice over those years plus `unknown`" though `unknown` is no longer offered; recommendation: cut "plus `unknown`" (cut-only, as in "2a").
+
+PI, chat, verbatim: "approved and cut"
+
+Integrator reading: the clean copy is approved in full, and the words " plus `unknown`" are cut from rule 1 of the three year items (no other change). The cut build becomes the re-signature candidate; the delta text and the signature are still to be put to the PI.
+
+## 2026-10-30 — RC-D-005 approved; codebook release 2.7 re-signed (orchestrator session 20261030-claude-v2-74b5a83dce21f038)
+
+Put to the PI in chat: the delta `planning/deltas/RC-D-005.md` (`planning/w1-orchestration` `87f7db9`) for approval, and the candidate `planning/t010/candidate-r8/codebook-r8-signoff.yaml` (`reclass/rc-d-005-codebook` `7060726`), sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f`, for signature; asked reply: "delta approved, I sign", or changes.
+
+PI, chat, verbatim: "approved! go forth"
+
+Integrator reading: RC-D-005 is approved as written, and codebook release 2.7 is re-signed at sha256 `f0b1348c…c72f` (the reply answers both requests, with no change named); "go forth" authorizes the application steps listed in the request (SPEC v001.9, PLAN, CHANGELOG, file replacement, signature record, T-013 regeneration). It does not authorize a push, PR or merge to `main`.
+
+## 2026-10-30 — T-010 complete; push and PRs; successor card; clean-up (orchestrator session 20261030-claude-v2-74b5a83dce21f038)
+
+Put to the PI: 1 mark T-010 `complete`; 2 push the branches and open PRs (merges on her word); 3 the T-016/T-002 cost packet (needs current Haiku 5.5 prices); 4 still open: the R-041 marker for the companion-item definitions, the T-061/T-063 recipients, PR #138.
+
+PI, chat, verbatim: "1 yes, 2 push, open prs & give me ! merge command, 3 card a successor to do it; also let's clean up items on #4 & then clsoe up"
+
+Integrator reading: T-010 is `complete`. Push the branches and open the PRs; the PI merges with the `!` commands given. The cost packet goes to a successor session by launch card. Clean-up of #4: the R-041 marker is replaced by a pointer to the companion items' definitions in the signed codebook (mechanical; SPEC v001.10); PR #138 gets a `!` merge command; the T-061/T-063 recipient choice (DP-063) is carried into the successor card as a question with options, since it is the PI's choice. Then close the session.

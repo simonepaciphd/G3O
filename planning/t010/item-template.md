@@ -1,6 +1,7 @@
 # Codebook item template and generator checks (r2#59)
 
 Status: APPROVED 2026-10-30 with delta RC-D-003 (PI, chat, "all accepted"; RC-D-003 §14), as amended there. Drafted 2026-10-29 by the plan integrator (session `20261029-claude-v2-b92f4144070ec139`, claude-opus-5-5, researcher persona).
+Amended 2026-10-30 by RC-D-005 (PI, chat, verbatim: "approved and cut"; clean copy `planning/t010/RC-D-005-clean-copy.md` section D): amendments D1-D8, each placed in the section it amends and marked (RC-D-005, PI 2026-10-30); text from `item-template-r5-amendments.md`, D5 as approved in round 2.
 PI rulings, 2026-10-29, chat, verbatim: "1 a 2 a as long as when the codebook is procedurally loaded into a prompt the rules are filled out so that each value's definition has the full set of rules (even if repeated)". 1 a: fields 11, 12, 14, 26 and 27 (marked †) are their own fields. 2 a: one rule slot per item (field 14), with the condition applied as generator check 16. T-013 builds against this approved template (T-013 inputs; RC-D-002 O3).
 Sources: SPEC v001.7 R-007, A-001, C-007; RC-D-002 A, J, L; RC-D-003 §14; round-2 rulings r2#5, 16, 26, 28, 29, 40, 41, 42, 48, 54, 57, 59, 60.
 
@@ -18,6 +19,13 @@ One file, `codebook/codebook.yaml`, with three top-level keys:
   - `level` — `institution`, `page`, `activity`, `source`, `contract`, `document`, `row`, `run`.
 - `shared_rules` — rule texts that several items use (for example the generative-AI boundary), each a signed text slot defined once with an id; items list them in `rules` by id.
 - `items` — one entry per codebook item, keyed by `id`, in the fields of section 2.
+
+**Amendment D7 (RC-D-005, PI 2026-10-30): Shared prompt slots, jev flags and missing choices (G1) — §1, §3, §4 checks 3, 16.**
+
+- §1: a top-level key `shared` holds signed text slots used by every prompt: `part_prompt.sentence`, `part_prompt.temporary_answer.label` and `.meaning` (all-03 a, RC-D-005 5 a), `system_prompt` and `system_prompt_stage6` (RC-D-005 6 a), each with `applies_to`.
+- A value may carry `jev_choice: false`: it is a value of the item but never offered as a choice (`not_assessable`, P3).
+- An item may carry `jev_missing_choice: {offered, rule}`: the missing labels offered as choices and the rule slot(s) giving their meaning (RC-D-005 12 a). An offered label needs its rule (check 1); the generated question offers exactly the values not flagged `jev_choice: false` plus the offered labels (check 16).
+- Generators write the system prompts (`system_prompt.md`) and put the part sentence and the temporary answer in the question file (one copy of the sentence; the temporary answer on every question), so the check-16 part-prompt clause is checked instead of noted.
 
 ## 2. Item fields
 
@@ -53,6 +61,30 @@ Every item fills every field. A field that does not apply holds an explicit `non
 | 26 | `refs` † | — | SPEC rows and rulings behind the item | list of R-ids, ruling ids (C01, r2#7, …) |
 | 27 | `status` † | — | Wording state | `slot` / `pi_edited` / `signed` |
 
+**Amendment D1 (RC-D-005, PI 2026-10-30): Values `none` on mechanical and derived items (F1 a) — §2 field 13.**
+
+`values: none` is also allowed (a) for `list` items (a list of extracted strings has no codes), and (b) for every `mechanical` or `derived` item, whatever its answer type. Such an item's codes, where it has a closed set, come from one of: `value_codes` (a plain list of snake_case codes), `value_vocabulary` (the name of a list in `vocabularies`, e.g. `support_status`), or, for a `yes_no` item, `yes` / `no`. Checks 1 and 7 read codes this way.
+
+**Amendment D2 (RC-D-005, PI 2026-10-30): Computed value list for the year classifiers (F2 a) — §2 field 13.**
+
+A single-answer `classifier` item may hold `values: {candidates: <text>}`: its choices are computed per row (the year items: deterministic year extraction plus the candidate `unknown`, C16). Such an item has no value definitions; its question carries the item's full rules once after the instruction (the check-16 condition read for choices without definitions).
+
+**Amendment D3 (RC-D-005, PI 2026-10-30): "Any value" gate (F6 a) — §2 field 10.**
+
+A gate may read `{item: <id>, values: any}`: any real (non-missing) value of the gate item opens it. Used for the scale unit (`as_ruled: any stated`).
+
+**Amendment D4 (RC-D-005, PI 2026-10-30): `missing_tokens: none` (F7 a) — §2 field 20.**
+
+`missing_tokens` may be `none` for an item that takes none of the reserved labels (`core.page_verdict`; its `not_assessable` is a value).
+
+**Amendment D6 (RC-D-005, PI 2026-10-30): Parts form (R2 b) — §2 fields 12, 13; §4 checks 1, 6, 8, 9, 16.**
+
+An item made of linked parts (`core.observed_actor_relationship`: relationship; role of the searched institution) holds `values` as a mapping: `parts` lists the part keys in order; each part key holds an ordered `{code, definition}` list; `part_instructions.<part>` holds the question of every part after the first (the first part uses field 12); a mapping with `part: <part>` holds that part's gate. Each part yields one jev question (check 6 counts one per part); codes are checked per part (check 8); every part needs its question and definitions (check 9) and its definitions are followed by the item's full rules (check 16). The parts are published as one column under the item's own rule.
+
+**Amendment D8 (RC-D-005, PI 2026-10-30): Question context (W33) — §2 field 21.**
+
+An item may carry `question_context: {shows_value_of: [<item id>]}`: the value of the named item for the same row is shown with the question (the scale unit question shows the extracted number). The shown value is data, not wording; the generator passes the key through to the question.
+
 ## 3. Signed text slots
 
 Fields 12, 13 (`definition`) and 14, and each entry in `shared_rules`, are text slots. Each slot holds:
@@ -86,3 +118,7 @@ marker: "SPEC text — PI to write or line-edit"   # removed at sign-off (P4)
 14. **Translation.** Every item with a v2.5 counterpart has a `translation_v25` map; unmappable cells are listed.
 15. **Hash.** The release hash is sha256 of the file bytes; every generated file records it in its header.
 16. **Full rules beside every value (ruling 2 a condition).** In every generated question and prompt section, each value's definition is followed by the item's full set of rules: its own rule slots and every shared rule it references, expanded verbatim, repeated for each value. The check fails if any value in a generated output lacks any of its item's rules. The data dictionary and `output_contract.md` may state the rules once per item. Every part prompt for a long page also carries the sentence that the text is only part of the document, and every question in it the temporary answer "not covered by this part", which never votes and is never published (all-03 a; RC-D-003 §2).
+
+**Amendment D5 (RC-D-005, PI 2026-10-30): Gate order through a non-classifier gate item — §4 check 7.**
+
+Check 7: a gate item that is not a classifier (a quote step or mechanical item) has no round to compare; its order is the signed `combining_conventions.gate_items_first` rule, so the check notes it; a classifier gate without a round still fails.
