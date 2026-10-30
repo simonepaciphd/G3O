@@ -217,17 +217,17 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 
 | Task | Lane | Waves | Status | Requires | Soft | Enables | Resources | Delivers | Write claim | Researcher gates | Acceptance IDs |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| T-001 | eng-b | W1 | blocked | none | none | T-029, T-072 | RS-004, RS-006, RS-007, RS-025, RS-036 | none | spikes folder (`count-backfill.json`, `SPIKE-T001*`); droplet `~/reclass-spike-*/` | PI authorises read-only droplet SSH | A-015 |
+| T-001 | eng-b | W1 | in-progress | none | none | T-029, T-072 | RS-004, RS-006, RS-007, RS-025, RS-036 | none | spikes folder (`count-backfill.json`, `SPIKE-T001*`); droplet `~/reclass-spike-*/` | PI authorises read-only droplet SSH | A-015 |
 | T-002 | eng-c | W2 | blocked | T-010, T-013 | none | T-003, T-021, T-025 | RS-004, RS-008, RS-009, RS-012, RS-015, RS-024, RS-031 | none | spikes folder, files prefixed `SPIKE-T002*` | PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28) | A-004, A-021 |
 | T-003 | eng-c | W3 | pending | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c) | A-002 |
 | T-010 | integrator | W1 | in-progress | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items in one batch signature (CX-01.3†, RC-D-004); PI signs the codebook hash (A-001); push gate | A-001 |
 | T-011 | eng-a | W3 | pending | T-010, T-013, T-016 | none | T-015, T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
 | T-012 | eng-b | W2 | pending | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; the inventory file | none beyond push | A-011, A-013 |
-| T-013 | eng-b | W1 | pending | none | T-010 | T-002, T-011, T-012, T-016, T-022, T-032 | RS-010, RS-013, RS-039 | none | `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml` | PI approves the item template and generator checks (r2#59); push of the branch | A-001 |
+| T-013 | eng-b | W1 | in-progress | none | T-010 | T-002, T-011, T-012, T-016, T-022, T-032 | RS-010, RS-013, RS-039 | none | `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml` | PI approves the item template and generator checks (r2#59); push of the branch | A-001 |
 | T-014 | eng-a | W2 | pending | none | none | T-022, T-025 | RS-016 | none | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests | push of the branch | none |
 | T-015 | eng-a | W4 | pending | T-011, T-012, T-022, T-027 | none | T-026, T-028 | RS-012 | none | `g3o/common/source_fields.py`† and its tests | push of the branch | none |
 | T-016 | integrator | W2 | pending | T-010, T-013 | none | T-011 | RS-004, RS-005, RS-008, RS-009, RS-024, RS-031 | none | re-pilot folder `agent-workspace/2026-10-27-reclass-plan/repilot-v27/`† | PI approves the cost estimate; Simone runs the paid command via `! <command>` (red line 4); PI rules on the results | none |
-| T-020 | eng-a | W1 | pending | none | T-002 | T-021, T-022, T-023 | RS-004, RS-014, RS-024 | none | the two new files | none beyond push | A-021 |
+| T-020 | eng-a | W1 | in-progress | none | T-002 | T-021, T-022, T-023 | RS-004, RS-014, RS-024 | none | the two new files | none beyond push | A-021 |
 | T-021 | eng-a | W4 | pending | T-002, T-011, T-012, T-020, T-027 | none | T-023, T-025, T-030 | RS-012, RS-019 | none | the new modules and tests | none beyond push | A-011, A-013 |
 | T-022 | eng-c | W3 | pending | T-010, T-012, T-013, T-014, T-020 | none | T-015, T-023, T-024, T-025, T-032 | RS-015 | none | the listed extract files | PI approves the nano prompt text; push gate | A-003, A-021 |
 | T-023 | eng-a | W5 | pending | T-011, T-020, T-021, T-022, T-027 | none | T-026, T-032 | RS-012 | none | the new modules and tests | none beyond push | A-003 |
@@ -251,9 +251,9 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-054 | eng-b | W15 | blocked | T-041, T-051, T-052 | none | T-055, T-074 | none | none | the disposable Neon branch; rehearsal folder† | PI authorises creation of and writes to the disposable branch; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed | none |
 | T-055 | colin | W16 | blocked | T-052, T-054 | none | T-071, T-074 | none | none | live DB schema (migration 021); production worker; golive folder† | PI authorises the live DB write (snapshot + apply) and the production deploy; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed | none |
 | T-060 | integrator | W15 | pending | T-010, T-012, T-041 | none | T-071 | RS-029 | D-008 | `planning/handoffs/D-008-procurement-delta.md`† | PI approves delta text; posting and email are external | none |
-| T-061 | integrator | W2 | pending | T-010 | none | T-071 | RS-033 | none | `planning/handoffs/validation-notice.md`†; one mailbox file | PI approves the notice text | none |
+| T-061 | integrator | W2 | in-progress | T-010 | none | T-071 | RS-033 | none | `planning/handoffs/validation-notice.md`†; one mailbox file | PI approves the notice text | none |
 | T-062 | integrator | W18 | pending | T-071 | none | none | RS-038 | D-009 | `planning/handoffs/D-009-ai-text-delta.md`† | PI approves delta text; sending is external | none |
-| T-063 | integrator | W2 | pending | T-010 | none | none | RS-040 | D-010 | `planning/handoffs/D-010-multilingual-heads-up.md`† | PI approves the text; sending is external | none |
+| T-063 | integrator | W2 | in-progress | T-010 | none | none | RS-040 | D-010 | `planning/handoffs/D-010-multilingual-heads-up.md`† | PI approves the text; sending is external | none |
 | T-071 | eng-a | W17 | blocked | T-031, T-041, T-055, T-060, T-061 | none | T-062, T-070 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
 | T-070 | eng-a | W18 | blocked | T-071 | none | T-072 | RS-026, RS-030 | none | freeze folder† | PI confirms the freeze date | none |
 | T-072 | eng-a | W19 | blocked | T-001, T-070 | none | T-073 | none | none | smoke run dir; smoke folder† | paid run — the agent prepares the exact command and cost estimate and Simone runs it via `! <command>` (red line 4, 2026-10-28); SSH authorisation; PI reviews the smoke report | none |
@@ -304,7 +304,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 
 ### T-001 — Count stored-text availability for documented and unclear institutions
 
-Status: blocked
+Status: in-progress
 Type: spike
 Priority: required
 Spec refs: R-074, R-076, A-015
@@ -800,7 +800,7 @@ Sequential chunks: chunk 1 inventory → integrator assignment → chunk 2 code.
 
 ### T-013 — Build the codebook schema, loader, generators and CI check (RC-D-002 A)
 
-Status: pending
+Status: in-progress
 Type: build
 Priority: critical-path
 Spec refs: D-001, R-007, R-008, R-045, R-050, C-007, A-001
@@ -1105,7 +1105,7 @@ More pages or items than in the approved estimate → new paid gate.
 
 ### T-020 — Build the token-based page chunker and combination rule
 
-Status: pending
+Status: in-progress
 Type: build
 Priority: critical-path
 Spec refs: R-044, R-045 (RC-D-003), C-004, A-021
@@ -2910,7 +2910,7 @@ none
 
 ### T-061 — Notify the G3O validation plan of the contract change
 
-Status: pending
+Status: in-progress
 Type: integrate
 Priority: required
 Spec refs: N-002, C-007, D-001
@@ -3053,7 +3053,7 @@ none
 
 ### T-063 — Send the calendar-conversion heads-up to the multilingual subproject (RC-D-002 L, N23)
 
-Status: pending
+Status: in-progress
 Type: integrate
 Priority: required
 Spec refs: D-010
@@ -4067,7 +4067,7 @@ Wave 1 only. RC-D-001 (E): the W1 lanes run one at a time, in the order T-010 �
 | integrator | T-097 | researcher | `H:/My Drive/Research/G3O` | delta reports | `planning/CHANGELOG.md`†, delta log | CHANGELOG entries | PI approves every delta | PI | standing |
 | eng-a | T-020 | engineer | `C:/Users/spaci/worktrees/G3O-eng-a/`† | RS-004 `byte_chunks`, RS-014 split | `g3o/common/page_chunks.py`† + tests | token-based chunker | push | T-031 | tests pass |
 | eng-b | T-001 | engineer | `C:/Users/spaci/worktrees/G3O-eng-b/`† | RS-004 scripts, RS-025 lists, RS-007 runs | `agent-workspace/2026-10-27-reclass-plan/spikes/` (`SPIKE-T001*`) + droplet `~/reclass-spike-*/` | stored-text counts, disk check | PI authorises read-only SSH | integrator | counts file + note |
-| eng-b | T-013 | engineer | `C:/Users/spaci/worktrees/G3O-eng-b/`† | RS-010, RS-013, RS-039; T-010 item template | `g3o/codebook/`†, `codebook/schema.json`†, tests, CI step | codebook schema, loader, generators, CI drift check | not authorized yet (RC-D-002); PI approves the item template (approved 2026-10-30, RC-D-003); push | T-031 | tests + CI pass |
+| eng-b | T-013 | engineer | `C:/Users/spaci/worktrees/G3O-eng-b/`† | RS-010, RS-013, RS-039; T-010 item template | `g3o/codebook/`†, `codebook/schema.json`†, tests, CI step | codebook schema, loader, generators, CI drift check | authorized 2026-10-30 (A a); PI approves the item template (approved 2026-10-30, RC-D-003); push | T-031 | tests + CI pass |
 | eng-c | T-002 | engineer | `C:/Users/spaci/worktrees/G3O-eng-c/`† | RS-004, RS-024, RS-008, RS-009, RS-031; signed codebook (T-010) and generated prompts (T-013) (RC-D-002 D) | spikes folder (`SPIKE-T002*`) | cost / latency / fan-out / token-estimator report | PI approves paid-spike budget; Simone runs the paid command (`! <command>`) | integrator | report + raw logs |
 
 ## Task-engineering queue
@@ -4159,4 +4159,4 @@ Overall: READY-WITH-BLOCKS (W1 blocks: SSH and paid-spike gates; external waits 
 
 ## User authorization to execute
 
-2026-10-29 (Simone, chat "5 all but we go sequentially, first contract"; recorded in RC-D-001 E): W1 lanes T-010, T-002, T-020, T-001 are authorized, one at a time in that order, each under its own card gates. Nothing else is authorized. RC-D-002 (D) keeps that order and adds that T-002 waits for T-013; T-013 and the other new cards (T-014, T-015, T-016, T-062, T-063) are not authorized. Original text: None. Mode PLAN_ONLY. Execution needs (1) the Stage 6 baseline lock of SPEC v001.4 + RESOURCES v001 + this PLAN, and (2) Simone's separate authorization per lane; the lock alone grants no implementation, push, spend, SSH, DB write, deployment or external message.
+2026-10-29 (Simone, chat "5 all but we go sequentially, first contract"; recorded in RC-D-001 E): W1 lanes T-010, T-002, T-020, T-001 are authorized, one at a time in that order, each under its own card gates. Nothing else is authorized. RC-D-002 (D) keeps that order and adds that T-002 waits for T-013; T-013 and the other new cards (T-014, T-015, T-016, T-062, T-063) are not authorized. 2026-10-30 (Simone, chat "Aa, B a, Ca, Da -- accept all", on orchestrator card `coord/launch/2026-10-31/4-g3o-reclass-orchestrator.txt` questions A-D and P1-P3): A a, T-013 is authorized; B a, T-020 runs in parallel with T-013, departing from the RC-D-001 E sequential rule, recorded by this quoted chat ruling (sub-option a1, no delta); C a, T-001 is authorized with read-only droplet SSH (`id_ed25519_g3o` only) for this session; D a, T-061 and T-063 are authorized as drafts only (PI approves the text; sending stays gated); P1 the T-010 checklist is regenerated against the signed hash; P2 `reclass/v2.7` created from `origin/main` `2b43661`; P3 one PR per card into `reclass/v2.7`, merged only on Simone's word. T-014, T-015, T-016, T-040 and T-062 remain not authorized; T-002 still waits for T-013. Original text: None. Mode PLAN_ONLY. Execution needs (1) the Stage 6 baseline lock of SPEC v001.4 + RESOURCES v001 + this PLAN, and (2) Simone's separate authorization per lane; the lock alone grants no implementation, push, spend, SSH, DB write, deployment or external message.
