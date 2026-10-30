@@ -1,4 +1,4 @@
-# G3O codebook release 2.7 — RC-D-005 candidate, sign-off build (T-010). Built by planning/t010/build_skeleton.py --build r7-signoff.
+# G3O codebook release 2.7 — RC-D-005 candidate, sign-off build (T-010). Built by planning/t010/build_skeleton.py --build r8-signoff.
 # Every slot text is copied verbatim from its `source`; `origin` records who approved it.
 # Signed only if planning/t010/signoff-record.md holds this file's sha256 (A-001).
 release:
@@ -26,6 +26,8 @@ release:
       planning/t010/drafts/fixes-r5.json (RC-D-005: rulings 2 a, 7 a, 8 b, 9 a, 10 a, 11 a, 12 a, 13 a, 14 a and P1 / P3 structural fixes; PI 2026-10-30, t010-rulings.md); sign-off build
     r6: |-
       planning/t010/drafts/fixes-r6.json (RC-D-005: wording W01-W45 approved as drafted, PI 2026-10-30 "drafts ok"; E1; resolutions in drafts/resolutions-r6.json, put to the PI in planning/t010/RC-D-005-clean-copy.md); round 2: planning/t010/drafts/fixes-r7.json and drafts/resolutions-r7.json (PI 2026-10-30 "fix the remainder points -- make coherent with previous rulings (subagent)")
+    r8: |-
+      planning/t010/drafts/fixes-r8.json: " plus `unknown`" cut from rule 1 of the three year items (PI 2026-10-30 "approved and cut"); clean copy planning/t010/RC-D-005-clean-copy.md approved
   r4_dropped:
   - card: activity-1 O1
     slot: items/core.observed_actor_relationship/rules/6
@@ -6623,10 +6625,14 @@ items:
           RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"
     rules:
     - text: |-
-        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
-      origin: r1
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
+      origin: 'PI 2026-10-30 "approved and cut"; cut from: r1'
       source: codebook-rulings-round1.json C16.mechanism
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I15 slot 2'
+      text_before_r8: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
+      cut_r8: ' plus `unknown`'
+      cut_by: 'PI 2026-10-30 "approved and cut" (RC-D-005: `unknown` no longer offered, 12 a; cut-only, as in "2a")'
     - text: |-
         Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX12
@@ -6722,13 +6728,17 @@ items:
           RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"
     rules:
     - text: |-
-        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say a pilot or trial of this activity began?" No fallback to publication year. Across chunks: earliest chosen year.
-      origin: PI 2026-10-30 "drafts ok"; agent draft W44
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: "In which year does the page say a pilot or trial of this activity began?" No fallback to publication year. Across chunks: earliest chosen year.
+      origin: 'PI 2026-10-30 "approved and cut"; cut from: PI 2026-10-30 "drafts ok"; agent draft W44'
       source: |-
         drafts/rc-d-005-wording.json W44 (items/core.year_pilot_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I16 slot 1'
       text_before_r6: |-
         Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
+      text_before_r8: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say a pilot or trial of this activity began?" No fallback to publication year. Across chunks: earliest chosen year.
+      cut_r8: ' plus `unknown`'
+      cut_by: 'PI 2026-10-30 "approved and cut" (RC-D-005: `unknown` no longer offered, 12 a; cut-only, as in "2a")'
     - text: |-
         Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX12
@@ -6839,13 +6849,17 @@ items:
           RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"
     rules:
     - text: |-
-        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity went into full, routine operation?" No fallback to publication year. Across chunks: earliest chosen year.
-      origin: PI 2026-10-30 "drafts ok"; agent draft W45
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: "In which year does the page say this activity went into full, routine operation?" No fallback to publication year. Across chunks: earliest chosen year.
+      origin: 'PI 2026-10-30 "approved and cut"; cut from: PI 2026-10-30 "drafts ok"; agent draft W45'
       source: |-
         drafts/rc-d-005-wording.json W45 (items/core.year_production_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I17 slot 1'
       text_before_r6: |-
         Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
+      text_before_r8: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity went into full, routine operation?" No fallback to publication year. Across chunks: earliest chosen year.
+      cut_r8: ' plus `unknown`'
+      cut_by: 'PI 2026-10-30 "approved and cut" (RC-D-005: `unknown` no longer offered, 12 a; cut-only, as in "2a")'
     - text: |-
         Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX12

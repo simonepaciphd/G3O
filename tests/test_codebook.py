@@ -576,18 +576,19 @@ def test_shared_prompt_slots_unblock_system_and_part_prompts(tmp_path: Path) -> 
     assert any("no temporary answer" in f for f in C.check_16_full_rules(cb, C.Context(generated=files)).findings)
 
 
-#: The RC-D-005 round-2 candidate (sign-off build), copied byte for byte from
-#: planning/t010/candidate-r7/ on reclass/rc-d-005-codebook, so the schema is
-#: tested on both the signed file and the candidate shapes (amendments A1-A8).
-R7_CANDIDATE = REPO_ROOT / "tests" / "fixtures" / "codebook" / "codebook-r7-signoff.yaml"
-R7_SHA256 = "1b667db0810f69d948e2ab105d11e9a22a255494a3bfba21883d66d432303ad9"
+#: The RC-D-005 approved candidate (r8 sign-off build, PI 2026-10-30 "approved
+#: and cut"), copied byte for byte from planning/t010/candidate-r8/ on
+#: reclass/rc-d-005-codebook, so the schema is tested on both the signed file
+#: and the candidate shapes (item-template amendments D1-D8).
+R8_CANDIDATE = REPO_ROOT / "tests" / "fixtures" / "codebook" / "codebook-r8-signoff.yaml"
+R8_SHA256 = "f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f"
 
 
 def test_schema_validates_signed_file_and_rc_d_005_candidate() -> None:
     jsonschema = pytest.importorskip("jsonschema")
     schema = json.loads((REPO_ROOT / "codebook" / "schema.json").read_text(encoding="utf-8"))
-    cand = load_codebook(R7_CANDIDATE)
-    assert cand.sha256 == R7_SHA256
+    cand = load_codebook(R8_CANDIDATE)
+    assert cand.sha256 == R8_SHA256
     for cb in (load_codebook(), cand):
         errors = list(jsonschema.Draft202012Validator(schema).iter_errors(cb.data))
         assert not errors, [(list(e.absolute_path)[:3], e.message[:120]) for e in errors[:5]]
