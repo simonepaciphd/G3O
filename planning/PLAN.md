@@ -219,7 +219,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-001 | eng-b | W1 | blocked | none | none | T-029, T-072 | RS-004, RS-006, RS-007, RS-025, RS-036 | none | spikes folder (`count-backfill.json`, `SPIKE-T001*`); droplet `~/reclass-spike-*/` | PI authorises read-only droplet SSH | A-015 |
 | T-002 | eng-c | W2 | blocked | T-010, T-013 | none | T-003, T-021, T-025 | RS-004, RS-008, RS-009, RS-012, RS-015, RS-024, RS-031 | none | spikes folder, files prefixed `SPIKE-T002*` | PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28) | A-004, A-021 |
 | T-003 | eng-c | W3 | pending | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c) | A-002 |
-| T-010 | integrator | W1 | pending | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items one by one (CX-01.3†); PI signs the codebook hash (A-001); push gate | A-001 |
+| T-010 | integrator | W1 | in-progress | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items one by one (CX-01.3†); PI signs the codebook hash (A-001); push gate | A-001 |
 | T-011 | eng-a | W3 | pending | T-010, T-013, T-016 | none | T-015, T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
 | T-012 | eng-b | W2 | pending | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; the inventory file | none beyond push | A-011, A-013 |
 | T-013 | eng-b | W1 | pending | none | T-010 | T-002, T-011, T-012, T-016, T-022, T-032 | RS-010, RS-013, RS-039 | none | `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml` | PI approves the item template and generator checks (r2#59); push of the branch | A-001 |
@@ -543,7 +543,8 @@ More than 1 day of labelling → split labelling from calibration.
 
 ### T-010 — Draft Output Contract v2.7 and the validate-contract v1.5 bump
 
-Status: pending
+Status: in-progress
+Progress (2026-10-30, integrator): item template approved with RC-D-003 (27 fields, generator checks 1-16); codebook skeleton built by `planning/t010/build_skeleton.py` from SPEC v001.7 (120 items, sha256 `23cb4857…`, reproducible, untracked until sign-off, P4); codebook review round 3 done and RC-D-003 applied (SPEC v001.7). Next: the wording review of the `[wording: PI]` slots, then CX-01.3 and codebook sign-off (A-001).
 Type: build
 Priority: critical-path
 Spec refs: D-001, R-006, R-007, R-010, R-011, R-012, R-013, R-014, R-015, R-016, R-017, R-020, R-021, R-022, R-023, R-024, R-025, R-030, R-040, R-041, R-043, R-044, R-045, R-050, R-087, C-007, A-001
@@ -816,7 +817,7 @@ Generators only assemble the signed wording and never rewrite it, so CX text sta
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
 |---|---|---|---|
-| Item template and generator checks (r2#59) | integrator, under T-010 | PI-approved | build the schema against the draft template; stop before merge until approved |
+| Item template and generator checks (r2#59) | integrator, under T-010 | PI-approved (met: approved 2026-10-30 with RC-D-003) | build the schema against the draft template; stop before merge until approved |
 | Codebook items | `codebook/codebook.yaml`† on `reclass/t010-contract`† (T-010) | draft, then signed | generate from the draft; regenerate from the signed file |
 | RS-010 contract, enum and pin code | G3O `origin/main` `375f1ff` | — | stop |
 | RS-013 question-set pattern | G3O `origin/main` `375f1ff` | — | follow the pattern |

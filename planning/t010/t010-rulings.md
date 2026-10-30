@@ -46,3 +46,9 @@ Two points found by the fold, put to the PI in chat:
 2. Three ruling-option texts kept whole and tagged `amended_by` (record-02 a, activity-02 c, record-03 c). a: cut each before the overridden part, as for activity-14 b; b: keep whole, generator skips tagged text.
 
 PI, chat, verbatim: "1a, 2a"
+
+## 2026-10-30 — wording review method; repo cleanup procedurals
+
+Integrator session `20261030-claude-v2-2b8200388885f8f9` (Claude Code, claude-opus-5-5, researcher persona). Asked in chat: "How do you want to do the wording review?" (a: agents draft the 136 missing definitions from the rulings, then one plain-language review page per page type, line-edit or approve in batches; b: PI writes them, agents lay out pages; c: chat, one item at a time), plus procedural P1-P5 (P1 builder and checklist stay uncommitted; P2 commit the status-only PLAN edits; P3 no push; P4 overlapping slot pairs shown side by side for the PI to drop one; P5 all-07 c summary work stays with T-028 / T-052 / T-053).
+
+PI, chat, verbatim: "a (subagent), accept all"
