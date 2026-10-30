@@ -117,3 +117,11 @@ Shown in chat: wording drafts W01-W45 (`drafts/rc-d-005-wording.md`, `feb0dcf`);
 PI, chat, verbatim: "drafts ok, give a subagent the task to resolve ambiguities in a way that's coherent with the rest, i will approve final clean copy"
 
 Integrator reading: W01-W45 approved as drafted. The PI delegates the choice on every listed follow-up item to a subagent, which resolves each coherently with the signed rules and logs its choice and reasons; the procedural defaults stand unless coherence requires otherwise (then logged). Nothing is final until the PI approves the clean copy; the codebook is then re-signed.
+
+## 2026-10-30 — RC-D-005 clean copy, remaining points (orchestrator session 20261030-claude-v2-74b5a83dce21f038)
+
+Shown in chat: clean copy `planning/t010/RC-D-005-clean-copy.md` (`reclass/rc-d-005-codebook` `1eec5b3`, sign-off build sha256 `6c4bfc6c…a7ae3c`) and five points for judgment: 1 B2 (F8 b keeps `unknown` offered on the year items, against the 12 a reading), 2 B1 (12a′ iv: 16 items offer not documented, 35 do not, incl. `genai_mechanism_basis`, `activity_type`), 3 D5 (added check-7 reading), 4 T-020 readings T5 adjusted and T9 decided, 5 open items (`codebook/schema.json` old shapes; T-016 re-pilot scope).
+
+PI, chat, verbatim: "fix the remainder points -- make coherent with previous rulings (subagent)"
+
+Integrator reading: the PI delegates points 1-5 to a subagent, which settles each coherently with the PI's earlier rulings (verbatim in this file) and the signed rules, logs each choice and reason, and updates the clean copy. Nothing is final until the PI approves the revised clean copy.
