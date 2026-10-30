@@ -125,3 +125,7 @@ Shown in chat: clean copy `planning/t010/RC-D-005-clean-copy.md` (`reclass/rc-d-
 PI, chat, verbatim: "fix the remainder points -- make coherent with previous rulings (subagent)"
 
 Integrator reading: the PI delegates points 1-5 to a subagent, which settles each coherently with the PI's earlier rulings (verbatim in this file) and the signed rules, logs each choice and reason, and updates the clean copy. Nothing is final until the PI approves the revised clean copy.
+
+PI, chat, verbatim (follow-up, same batch): "even if just indirectly -- if the same logic applies, not necessarily a ruling on the specific item, but a different one of similar nature; if none is possible, then provide three options with a rec"
+
+Integrator reading: a point may be settled by analogy to a PI ruling of similar nature on a different item, citing that ruling and the shared logic. Only where no ruling applies even indirectly does the subagent leave the point open, with three options and one recommendation.
