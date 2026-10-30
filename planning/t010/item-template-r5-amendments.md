@@ -1,6 +1,6 @@
-# Item template: RC-D-005 amendments (draft, not approved)
+# Item template: RC-D-005 amendments (approved; folded into item-template.md)
 
-Status: DRAFT for the PI's approval with `planning/t010/RC-D-005-clean-copy.md` (section D). It amends `planning/t010/item-template.md` (approved 2026-10-30 with RC-D-003 §14), which is not edited until approval; on approval the integrator folds these sections into it.
+Status: APPROVED 2026-10-30 with the clean copy (PI, chat, verbatim: "approved and cut") and folded into `planning/t010/item-template.md` as D1-D8. A5 carries the round-2 text approved as clean-copy D5 (the round-1 reading it replaced: "a gate item without a pass/round takes the position of its own gate").
 Drafted 2026-10-30 by the resolver subagent of the plan integrator (Claude Code, claude-opus-5-5). PI ruling, chat, 2026-10-30: "drafts ok, give a subagent the task to resolve ambiguities in a way that's coherent with the rest, i will approve final clean copy". Procedural defaults F1 a, F2 a, F6 a, F7 a and G1 (put to the PI with the RC-D-005 follow-ups) and resolutions R2 b, W33 and E1 (`drafts/resolutions-r6.json`).
 Implemented in T-013's checks and generators, `reclass/t013-codebook` (G3O-eng-b), commit named in the clean copy. `codebook/schema.json` in that branch still has the pre-amendment shapes (outside the resolver's edit scope; T-013 follow-up).
 
@@ -22,7 +22,7 @@ A gate may read `{item: <id>, values: any}`: any real (non-missing) value of the
 
 ## A5. Gate order through a non-classifier gate item — §4 check 7
 
-When a gate item has no classifier pass and round (an extractor or mechanical step), its position is that of its own gate item (it exists once that item does); a gate item with neither takes no position, and a gated classifier round on it fails check 7.
+Check 7: a gate item that is not a classifier (a quote step or mechanical item) has no round to compare; its order is the signed `combining_conventions.gate_items_first` rule, so the check notes it; a classifier gate without a round still fails.
 
 ## A6. Parts form (R2 b) — §2 fields 12, 13; §4 checks 1, 6, 8, 9, 16
 

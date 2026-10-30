@@ -1,0 +1,32 @@
+{
+ "format": "resolutions-r8 v1",
+ "drafted_by": "resolver subagent of the plan integrator, Claude Code, claude-opus-5-5, 2026-10-30",
+ "ruling": "PI, chat, 2026-10-30 (t010-rulings.md): \"approved and cut\"",
+ "question": "Rule 1 of year_announced, year_pilot_start and year_production_start reads \"jev Choice over those years plus `unknown`\" although `unknown` is no longer offered (round 2, point 1)",
+ "recommendation": "cut \" plus `unknown`\", cut-only (as in \"2a\")",
+ "pi_choice": "approved and cut",
+ "resolutions": [
+  {
+   "item": "core.year_announced",
+   "path": "items/core.year_announced/rules/0",
+   "origin": "PI 2026-10-30 \"approved and cut\"",
+   "text_before": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.",
+   "text_after": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year."
+  },
+  {
+   "item": "core.year_pilot_start",
+   "path": "items/core.year_pilot_start/rules/0",
+   "origin": "PI 2026-10-30 \"approved and cut\"",
+   "text_before": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say a pilot or trial of this activity began?\" No fallback to publication year. Across chunks: earliest chosen year.",
+   "text_after": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: \"In which year does the page say a pilot or trial of this activity began?\" No fallback to publication year. Across chunks: earliest chosen year."
+  },
+  {
+   "item": "core.year_production_start",
+   "path": "items/core.year_production_start/rules/0",
+   "origin": "PI 2026-10-30 \"approved and cut\"",
+   "text_before": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity went into full, routine operation?\" No fallback to publication year. Across chunks: earliest chosen year.",
+   "text_after": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: \"In which year does the page say this activity went into full, routine operation?\" No fallback to publication year. Across chunks: earliest chosen year."
+  }
+ ],
+ "clean_copy": "approved in full (PI 2026-10-30 \"approved and cut\"), incl. template amendments D1-D8"
+}

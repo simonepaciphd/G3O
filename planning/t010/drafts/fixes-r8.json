@@ -1,0 +1,97 @@
+{
+ "format": "fixes-r8 v1: entries applied in order after fixes-r5, -r6 and -r7 by build_skeleton.py apply_r8()",
+ "status": "PI-approved cut (2026-10-30, \"approved and cut\")",
+ "drafted_by": "resolver subagent of the plan integrator, Claude Code, claude-opus-5-5, 2026-10-30",
+ "ruling": "PI, chat, 2026-10-30 (t010-rulings.md): \"approved and cut\"",
+ "base": "planning/t010/candidate-r7/codebook-r7-draft.yaml",
+ "base_sha256": "e96f89756d99a82946171e3585907eb110dc0c6f6533fe4b624f7fde190b9678",
+ "cut": " plus `unknown`",
+ "slots": [
+  "items/core.year_announced/rules/0",
+  "items/core.year_pilot_start/rules/0",
+  "items/core.year_production_start/rules/0"
+ ],
+ "provenance_paths": [
+  "release/folds/r8"
+ ],
+ "fixes": [
+  {
+   "id": "R8-01",
+   "ruling": "PI 2026-10-30 \"approved and cut\"",
+   "op": "set",
+   "what": "core.year_announced rule 1: \" plus `unknown`\" cut (15 characters)",
+   "path": "items/core.year_announced/rules/0",
+   "before": {
+    "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "origin": "r1",
+    "source": "codebook-rulings-round1.json C16.mechanism",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I15 slot 2"
+   },
+   "after": {
+    "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "origin": "PI 2026-10-30 \"approved and cut\"; cut from: r1",
+    "source": "codebook-rulings-round1.json C16.mechanism",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I15 slot 2",
+    "text_before_r8": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "cut_r8": " plus `unknown`",
+    "cut_by": "PI 2026-10-30 \"approved and cut\" (RC-D-005: `unknown` no longer offered, 12 a; cut-only, as in \"2a\")"
+   }
+  },
+  {
+   "id": "R8-02",
+   "ruling": "PI 2026-10-30 \"approved and cut\"",
+   "op": "set",
+   "what": "core.year_pilot_start rule 1: \" plus `unknown`\" cut (15 characters)",
+   "path": "items/core.year_pilot_start/rules/0",
+   "before": {
+    "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say a pilot or trial of this activity began?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W44",
+    "source": "drafts/rc-d-005-wording.json W44 (items/core.year_pilot_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I16 slot 1",
+    "text_before_r6": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year."
+   },
+   "after": {
+    "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: \"In which year does the page say a pilot or trial of this activity began?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "origin": "PI 2026-10-30 \"approved and cut\"; cut from: PI 2026-10-30 \"drafts ok\"; agent draft W44",
+    "source": "drafts/rc-d-005-wording.json W44 (items/core.year_pilot_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I16 slot 1",
+    "text_before_r6": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "text_before_r8": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say a pilot or trial of this activity began?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "cut_r8": " plus `unknown`",
+    "cut_by": "PI 2026-10-30 \"approved and cut\" (RC-D-005: `unknown` no longer offered, 12 a; cut-only, as in \"2a\")"
+   }
+  },
+  {
+   "id": "R8-03",
+   "ruling": "PI 2026-10-30 \"approved and cut\"",
+   "op": "set",
+   "what": "core.year_production_start rule 1: \" plus `unknown`\" cut (15 characters)",
+   "path": "items/core.year_production_start/rules/0",
+   "before": {
+    "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity went into full, routine operation?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W45",
+    "source": "drafts/rc-d-005-wording.json W45 (items/core.year_production_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I17 slot 1",
+    "text_before_r6": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year."
+   },
+   "after": {
+    "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: \"In which year does the page say this activity went into full, routine operation?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "origin": "PI 2026-10-30 \"approved and cut\"; cut from: PI 2026-10-30 \"drafts ok\"; agent draft W45",
+    "source": "drafts/rc-d-005-wording.json W45 (items/core.year_production_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)",
+    "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I17 slot 1",
+    "text_before_r6": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "text_before_r8": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity went into full, routine operation?\" No fallback to publication year. Across chunks: earliest chosen year.",
+    "cut_r8": " plus `unknown`",
+    "cut_by": "PI 2026-10-30 \"approved and cut\" (RC-D-005: `unknown` no longer offered, 12 a; cut-only, as in \"2a\")"
+   }
+  },
+  {
+   "id": "R8-04",
+   "ruling": "PI 2026-10-30 \"approved and cut\"",
+   "op": "add",
+   "what": "release.folds.r8 (provenance)",
+   "path": "release/folds/r8",
+   "after": "planning/t010/drafts/fixes-r8.json: \" plus `unknown`\" cut from rule 1 of the three year items (PI 2026-10-30 \"approved and cut\"); clean copy planning/t010/RC-D-005-clean-copy.md approved"
+  }
+ ]
+}

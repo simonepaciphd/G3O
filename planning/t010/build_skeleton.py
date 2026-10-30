@@ -13,6 +13,8 @@ Builds (added for RC-D-005, 2026-10-30):
                        plus drafts/fixes-r6.json. Default out planning/t010/candidate-r6/.
   --build r7-draft | r7-signoff   RC-D-005 round 2: the r6 build plus drafts/fixes-r7.json. Default out
                        planning/t010/candidate-r7/.
+  --build r8-draft | r8-signoff   RC-D-005 approved candidate: the r7 build plus drafts/fixes-r8.json (the year-rule
+                       cut, PI 2026-10-30 "approved and cut"). Default out planning/t010/candidate-r8/.
   --build r5-signoff   the same candidate as the sign-off build: `release.status: signed` and `status: signed` on
                        every build-scope (core) item (RC-D-005 ruling 2 a). It is signed only once the signature
                        record holds its sha256.
@@ -1867,7 +1869,7 @@ def verify_signoff(cb: dict) -> None:
 # slot of the signed build and that the only texts gone are the 13 a drops.
 R5_FILE = DRAFTS / "fixes-r5.json"
 R5_BASE = "d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764"
-BUILDS = ("signed-2.7", "r5-draft", "r5-signoff", "r6-draft", "r6-signoff", "r7-draft", "r7-signoff")
+BUILDS = ("signed-2.7", "r5-draft", "r5-signoff", "r6-draft", "r6-signoff", "r7-draft", "r7-signoff", "r8-draft", "r8-signoff")
 R5_OUT = {"r5-draft": PLAN / "t010/candidate-r5/codebook-r5-draft.yaml",
           "r5-signoff": PLAN / "t010/candidate-r5/codebook-r5-signoff.yaml"}
 R5_BUILD_NAME = {"r5-draft": "draft build", "r5-signoff": "sign-off build"}
@@ -2087,6 +2089,59 @@ def verify_r7(cb: dict, r6cb: dict, build: str) -> None:
           f"{len(fx['fixes'])} fixes in place")
 
 
+# ---- RC-D-005 year-rule cut (fixes-r8, 2026-10-30) ----
+# PI, chat, 2026-10-30 (t010-rulings.md, last section): "approved and cut". The r8 builds are the r7 builds plus
+# drafts/fixes-r8.json: the 15 characters " plus `unknown`" cut from rule 1 of the three year items. verify_r8() asserts
+# that r8 differs from r7 only in those three slots (text cut as stated, provenance fields added) and release.folds.r8.
+R8_FILE = DRAFTS / "fixes-r8.json"
+R8_BASE = "e96f89756d99a82946171e3585907eb110dc0c6f6533fe4b624f7fde190b9678"   # candidate-r7/codebook-r7-draft.yaml
+R8_OUT = {"r8-draft": PLAN / "t010/candidate-r8/codebook-r8-draft.yaml",
+          "r8-signoff": PLAN / "t010/candidate-r8/codebook-r8-signoff.yaml"}
+R8_R7 = {"r8-draft": "r7-draft", "r8-signoff": "r7-signoff"}
+R5_BUILD_NAME.update({"r8-draft": "draft build", "r8-signoff": "sign-off build"})
+R6_R5.update({"r8-draft": "r5-draft", "r8-signoff": "r5-signoff"})
+R7_R6.update({"r8-draft": "r6-draft", "r8-signoff": "r6-signoff"})
+R8_PROVENANCE = {"origin", "text_before_r8", "cut_r8", "cut_by"}
+
+
+def apply_r8(cb: dict) -> int:
+    fx = json.loads(R8_FILE.read_text(encoding="utf-8"))
+    assert fx["base_sha256"] == R8_BASE, fx["base_sha256"]
+    for f in fx["fixes"]:
+        r5_apply_fix(cb, f, "r5-draft")
+    return len(fx["fixes"])
+
+
+def verify_r8(cb: dict, r7cb: dict) -> None:
+    fx = json.loads(R8_FILE.read_text(encoding="utf-8"))
+    cut, slots, prov = fx["cut"], set(fx["slots"]), set(fx["provenance_paths"])
+    assert cut == " plus `unknown`" and len(cut) == 15 and len(slots) == 3
+    diffs = []
+
+    def walk(a, b, path):
+        if path in slots or path in prov:
+            diffs.append(path)
+            return
+        if isinstance(a, dict) and isinstance(b, dict):
+            for k in set(a) | set(b):
+                walk(a.get(k, "<absent>"), b.get(k, "<absent>"), f"{path}/{k}" if path else str(k))
+        elif isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
+            for i, (x, y) in enumerate(zip(a, b)):
+                walk(x, y, f"{path}/{i}")
+        else:
+            assert a == b, f"r8 differs from r7 outside the cut: {path}"
+    walk(r7cb, cb, "")
+    assert set(diffs) == slots | prov, set(diffs) ^ (slots | prov)
+    for path in slots:
+        parent, k = r5_resolve(cb, path)
+        new = parent[k]
+        parent, k = r5_resolve(r7cb, path)
+        old = parent[k]
+        assert new["text"] == old["text"].replace(cut, "") and old["text"].count(cut) == 1, path
+        assert set(new) - set(old) <= R8_PROVENANCE and all(new[k2] == old[k2] for k2 in old if k2 not in ("text", "origin")), path
+    print(f"r8 checks: r8 differs from r7 only in {len(slots)} slots (' plus `unknown`' cut, provenance added) and release.folds.r8")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--build", choices=BUILDS, default="signed-2.7",
@@ -2099,7 +2154,7 @@ def main() -> None:
     base = copy.deepcopy(cb)      # the pre-round-4 codebook; verify_round3() and verify_final() check it unchanged
     apply_r4(cb)
     yaml.add_representer(str, _str_rep, Dumper=yaml.SafeDumper)
-    out = Path(a.out) if a.out else (WT / "codebook/codebook.yaml" if a.build == "signed-2.7" else {**R5_OUT, **R6_OUT, **R7_OUT}[a.build])
+    out = Path(a.out) if a.out else (WT / "codebook/codebook.yaml" if a.build == "signed-2.7" else {**R5_OUT, **R6_OUT, **R7_OUT, **R8_OUT}[a.build])
     out.parent.mkdir(parents=True, exist_ok=True)
     # The approved draft is verified first (round-3, final and round-4 checks), in a side file, then signed-off stages run.
     draft = out.with_name(out.stem + ".draft-r4" + out.suffix)
@@ -2118,17 +2173,21 @@ def main() -> None:
         signed_cb = copy.deepcopy(cb)        # the signed 2.7 content; verify_r5() compares the candidate with it
         n5 = apply_r5(cb, R6_R5.get(a.build, a.build))
         print(f"RC-D-005 fixes applied: {n5} ({R6_R5.get(a.build, a.build)})")
-        if a.build in R6_OUT or a.build in R7_OUT:
+        if a.build in R6_OUT or a.build in R7_OUT or a.build in R8_OUT:
             r5_cb = copy.deepcopy(cb)        # the r5 state; verify_r6() compares the candidate with it
             verify_r5(r5_cb, signed_cb, R6_R5[a.build])
             n6 = apply_r6(cb)
             print(f"RC-D-005 wording fold and resolutions applied: {n6} (fixes-r6)")
-        if a.build in R7_OUT:
+        if a.build in R7_OUT or a.build in R8_OUT:
             r6_cb = copy.deepcopy(cb)        # the r6 state
-            r6_cb["release"]["status"] = cb["release"]["status"]
             verify_r6(r6_cb, r5_cb, R7_R6[a.build])
             n7 = apply_r7(cb)
             print(f"RC-D-005 round 2 applied: {n7} (fixes-r7)")
+        if a.build in R8_OUT:
+            r7_cb = copy.deepcopy(cb)        # the r7 state
+            verify_r7(r7_cb, r6_cb, R8_R7[a.build])
+            n8 = apply_r8(cb)
+            print(f"RC-D-005 year-rule cut applied: {n8} (fixes-r8)")
         header = (f"# G3O codebook release 2.7 \u2014 RC-D-005 candidate, {R5_BUILD_NAME[a.build]} (T-010). "
                   f"Built by planning/t010/build_skeleton.py --build {a.build}.\n"
                   "# Every slot text is copied verbatim from its `source`; `origin` records who approved it.\n"
@@ -2143,7 +2202,9 @@ def main() -> None:
             print("OPEN", ".".join(p))
     assert yaml.safe_load(out.read_text(encoding="utf-8")) == cb, "round-trip mismatch"
     verify_signoff(cb)
-    if signed_cb is not None and a.build in R7_OUT:
+    if signed_cb is not None and a.build in R8_OUT:
+        verify_r8(cb, r7_cb)
+    elif signed_cb is not None and a.build in R7_OUT:
         verify_r7(cb, r6_cb, a.build)
     elif signed_cb is not None and a.build in R6_OUT:
         verify_r6(cb, r5_cb, a.build)

@@ -4,7 +4,7 @@
 
 Prepared 2026-10-30 by the resolver subagent of the plan integrator (Claude Code, claude-opus-5-5), on your ruling: "drafts ok, give a subagent the task to resolve ambiguities in a way that's coherent with the rest, i will approve final clean copy". Revised in round 2 on your rulings "fix the remainder points -- make coherent with previous rulings (subagent)" and "even if just indirectly -- if the same logic applies, not necessarily a ruling on the specific item, but a different one of similar nature; if none is possible, then provide three options with a rec"; lines changed in round 2 are marked "(round 2)", and section G gives each of the five points. Nothing here is final until you approve it.
 
-Candidate (sign-off build): `planning/t010/candidate-r7/codebook-r7-signoff.yaml`, sha256 `1b667db0810f69d948e2ab105d11e9a22a255494a3bfba21883d66d432303ad9`. Built by `planning/t010/build_skeleton.py --build r7-signoff` = the signed file + `drafts/fixes-r5.json` (130 entries, the earlier RC-D-005 rulings) + `drafts/fixes-r6.json` (129 entries, round 1) + `drafts/fixes-r7.json` (50 entries, round 2). Full log of every choice with reasons: `drafts/resolutions-r6.json` and `drafts/resolutions-r7.json`. (round 2)
+Candidate (sign-off build): `planning/t010/candidate-r8/codebook-r8-signoff.yaml`, sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f`. Built by `planning/t010/build_skeleton.py --build r8-signoff` = the signed file + `drafts/fixes-r5.json` (130 entries, the earlier RC-D-005 rulings) + `drafts/fixes-r6.json` (129 entries, round 1) + `drafts/fixes-r7.json` (50 entries, round 2) + `drafts/fixes-r8.json` (the cut approved with this copy: PI 2026-10-30, "approved and cut"). Full log of every choice with reasons: `drafts/resolutions-r6.json`, `drafts/resolutions-r7.json` and `drafts/resolutions-r8.json`. (round 3)
 
 ## A. What changes against the signed release (`d24bbc7c…0764`)
 
@@ -56,6 +56,8 @@ EVAL_EMPHASIS (E1), appended byte for byte to W36-W41, from the frozen CX-01.2 p
 ### A3. Year items, rule 1 (W44, W45)
 
 The quoted announced-year question inside rule 1 of `year_pilot_start` and `year_production_start` is replaced by W31 / W32; the rest of the rule is unchanged.
+
+Cut (round 3; PI 2026-10-30, "approved and cut"): the 15 characters " plus `unknown`" are removed from rule 1 of `year_announced`, `year_pilot_start` and `year_production_start`, which now reads "… jev Choice over those years: "…"". Nothing else in the rule changes; the text before is kept in `text_before_r8`.
 
 ### A4. Other item changes in final form
 
@@ -139,11 +141,12 @@ Not new wording, listed so you can see them: the cut "None of the above" (I7), a
 ## F. Checks and hashes
 
 - Signed file reproduces: `--build signed-2.7` gives `d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764`; `codebook/codebook.yaml` untouched. r5 builds (`c0f9b928…`, `3a8a3e5f…`) and r6 builds (`93026bbf…`, `6c4bfc6c…`) also reproduce. (round 2)
-- Candidate draft build: `candidate-r7/codebook-r7-draft.yaml` sha256 `e96f89756d99a82946171e3585907eb110dc0c6f6533fe4b624f7fde190b9678`. (round 2)
-- Candidate sign-off build: `candidate-r7/codebook-r7-signoff.yaml` sha256 `1b667db0810f69d948e2ab105d11e9a22a255494a3bfba21883d66d432303ad9` (committed `-text`, CRLF). (round 2)
+- Candidate draft build: `candidate-r8/codebook-r8-draft.yaml` sha256 `a66c7c4f1e13f3e76e89df6931addd67ff6d188ff293a6750e184a10c26ec27d`. Round 2 builds kept: r7 draft `e96f89756d99a82946171e3585907eb110dc0c6f6533fe4b624f7fde190b9678`, r7 sign-off `1b667db0810f69d948e2ab105d11e9a22a255494a3bfba21883d66d432303ad9` (both reproduce). (round 3)
+- Candidate sign-off build: `candidate-r8/codebook-r8-signoff.yaml` sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f` (committed `-text`, CRLF). (round 3)
 - Builder checks: r5 and r6 checks on the intermediate states, then r7: 5 slot texts added, all the copied signed rule; none removed; 50 entries in place. (round 2)
-- T-013 checks 1-16 on the r7 sign-off build (`reclass/t013-codebook` `0a542ba`): all PASS except 4 (record holds the old hash; clears on re-signature) and 5 (committed generated files are for the signed file). Regenerated into a temporary root: check 5 PASS, all others unchanged. 52 jev questions, none left ungenerated. (round 2)
-- T-013 full test suite (`-m "not network"`, eng-b venv): 2259 tests, 0 failures, 0 errors, 2 skipped (exit 0). ruff on `g3o` and `tests`: all checks passed. (round 2)
+- Builder checks, r8: r8 differs from r7 only in the three year-rule slots (" plus `unknown`" cut; provenance fields `origin`, `text_before_r8`, `cut_r8`, `cut_by` added) and `release.folds.r8`; signed-2.7, r5, r6 and r7 builds all reproduce. (round 3)
+- T-013 checks 1-16 on the r8 sign-off build (`reclass/t013-codebook` `307517f`): all PASS except 4 (record holds the old hash; clears on re-signature) and 5 (committed generated files are for the signed file). Regenerated into a temporary root: check 5 PASS, all others unchanged. (round 3)
+- T-013 full test suite (`-m "not network"`, eng-b venv): 2259 tests, 0 failures, 0 errors, 2 skipped (exit 0); the schema test validates the signed file and a byte copy of the r8 sign-off build. ruff on `g3o` and `tests`: all checks passed. (round 3)
 
 ## G. Round 2: the five points (round 2)
 
@@ -154,3 +157,5 @@ Not new wording, listed so you can see them: the cut "None of the above" (I7), a
 5. **Open items — both settled.** (a) `codebook/schema.json` now accepts both files (values, gate, rules, long-page rule, missing tokens, status and version fields loosened to their shapes, `shared` added; checks 1-16 keep the value rules), with `tests/test_codebook.py::test_schema_validates_signed_file_and_rc_d_005_candidate` validating the signed file and a byte copy of the r7 sign-off build. (b) T-016 scope drafted as E9. Its ground is the card's own objective, a re-pilot of "every reworded item", with the 3 a ruling: "3 subagent drafts all & I read and edit/confirm".
 
 No point needed the three-options fallback.
+
+**Round 3 (PI 2026-10-30, "approved and cut").** The clean copy is approved, and the open point it carried is settled: rule 1 of the three year items still said "jev Choice over those years plus `unknown`" though point 1 stopped offering `unknown`; the words " plus `unknown`" are cut, cut-only (as in "2a"), in `drafts/fixes-r8.json`. Template amendments D1-D8 are folded into `item-template.md`, D5 in its round-2 wording.
