@@ -1,8 +1,8 @@
-# T-010 checklist: SPEC rule -> codebook item (against the signed codebook, uncommitted)
+# T-010 checklist: SPEC rule -> codebook item (against the re-signed codebook, RC-D-005)
 
-Regenerated 2026-10-30 by the plan integrator's subagent under P1, from the signed codebook release 2.7, `codebook/codebook.yaml` (worktree `C:/Users/spaci/worktrees/G3O-integrator`; signed sha256 `d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764`, verified on the file bytes; record `planning/t010/signoff-record.md`). Supersedes the draft against the earlier build `23cb4857…`. Mapping script: `planning/t010/checklist_map.py`, sha256 `12b697ae3cd599e36ce4eee880c16c52cea88376a075f0db284416a7d485550b`.
+Regenerated 2026-10-30 by the plan integrator (session `20261030-claude-v2-74b5a83dce21f038`) with `planning/t010/checklist_map.py`, from codebook release 2.7 as re-signed under RC-D-005, `codebook/codebook.yaml` (branch `reclass/rc-d-005-codebook`; signed sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f`, verified on the file bytes; record `planning/t010/signoff-record.md`). The mapping is unchanged from the version against the superseded `d24bbc7c…` (same items and shared rules per row; all 55 ids in the previous table exist; 26 frozen items; 14 page-level classifier items, all with a long-page rule; no template field missing or blank). T-013 checks 1-16 pass on this file (12 N/A).
 
-Self-check for T-010: every R-010..R-045 that exists in SPEC v001.8, and R-087, maps to at least one item or shared rule. Mapped rows list every item whose `refs` name the row and every shared rule with a slot whose `source` names the row; cross-cutting rows are kept as written and their item ids rechecked against the signed file. Rows in SPEC order.
+Self-check for T-010: every R-010..R-045 that exists in SPEC v001.9 (rows R-010..R-045 unchanged in number by RC-D-005), and R-087, maps to at least one item or shared rule. Mapped rows list every item whose `refs` name the row and every shared rule with a slot whose `source` names the row; cross-cutting rows are kept as written and their item ids rechecked against the signed file. Rows in SPEC order.
 
 | SPEC row | Codebook items / shared rules | Status |
 |---|---|---|
