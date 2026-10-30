@@ -9,6 +9,8 @@ Builds (added for RC-D-005, 2026-10-30):
                        (planning/t010/signoff-record.md); default out codebook/codebook.yaml.
   --build r5-draft     the RC-D-005 candidate: the signed build with the fixes in drafts/fixes-r5.json applied,
                        `release.status: draft`, item statuses unchanged. Default out planning/t010/candidate-r5/.
+  --build r6-draft | r6-signoff   the RC-D-005 candidate after the wording fold and the resolutions: the r5 build
+                       plus drafts/fixes-r6.json. Default out planning/t010/candidate-r6/.
   --build r5-signoff   the same candidate as the sign-off build: `release.status: signed` and `status: signed` on
                        every build-scope (core) item (RC-D-005 ruling 2 a). It is signed only once the signature
                        record holds its sha256.
@@ -1863,7 +1865,7 @@ def verify_signoff(cb: dict) -> None:
 # slot of the signed build and that the only texts gone are the 13 a drops.
 R5_FILE = DRAFTS / "fixes-r5.json"
 R5_BASE = "d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764"
-BUILDS = ("signed-2.7", "r5-draft", "r5-signoff")
+BUILDS = ("signed-2.7", "r5-draft", "r5-signoff", "r6-draft", "r6-signoff")
 R5_OUT = {"r5-draft": PLAN / "t010/candidate-r5/codebook-r5-draft.yaml",
           "r5-signoff": PLAN / "t010/candidate-r5/codebook-r5-signoff.yaml"}
 R5_BUILD_NAME = {"r5-draft": "draft build", "r5-signoff": "sign-off build"}
@@ -1964,6 +1966,84 @@ def verify_r5(cb: dict, signed: dict, build: str) -> None:
           f"release.status {rel['status']}; {len(core)} core items status {core[0]['status']}")
 
 
+# ---- RC-D-005 wording fold and resolutions (fixes-r6, 2026-10-30) ----
+# PI, chat, 2026-10-30 (t010-rulings.md, last section): "drafts ok, give a subagent the task to resolve ambiguities in a
+# way that's coherent with the rest, i will approve final clean copy". The r6 builds apply fixes-r5 (as r5-draft /
+# r5-signoff) and then drafts/fixes-r6.json (drafted by drafts/fixes-r6-draft.py from the r5 draft candidate): the
+# approved wording W01-W45, EVAL_EMPHASIS (E1) and the resolver's resolutions (drafts/resolutions-r6.json). verify_r6()
+# checks that every slot text new against the r5 state is a W entry (byte-identical), W + EVAL_EMPHASIS, a listed
+# resolver text or a listed cut, and that the only texts gone are the listed drops.
+R6_FILE = DRAFTS / "fixes-r6.json"
+R6_BASE = "c0f9b928092be5a44461a4de2a8f0719e88032bd0f19d46752b088be08d71cf3"   # candidate-r5/codebook-r5-draft.yaml
+R6_WORDING = DRAFTS / "rc-d-005-wording.json"
+R6_OUT = {"r6-draft": PLAN / "t010/candidate-r6/codebook-r6-draft.yaml",
+          "r6-signoff": PLAN / "t010/candidate-r6/codebook-r6-signoff.yaml"}
+R6_R5 = {"r6-draft": "r5-draft", "r6-signoff": "r5-signoff"}
+R5_BUILD_NAME.update({"r6-draft": "draft build", "r6-signoff": "sign-off build"})
+R6_EVAL = ("W36", "W37", "W38", "W39", "W40", "W41")
+
+
+def apply_r6(cb: dict) -> int:
+    fx = json.loads(R6_FILE.read_text(encoding="utf-8"))
+    assert fx["base_sha256"] == R6_BASE, fx["base_sha256"]
+    for f in fx["fixes"]:
+        r5_apply_fix(cb, f, "r5-draft")     # r6 entries carry no per-build values
+    return len(fx["fixes"])
+
+
+def verify_r6(cb: dict, r5cb: dict, build: str) -> None:
+    """RC-D-005 r6 checks: W texts verbatim at their slots; new texts only from the allowed list; drops as listed."""
+    from collections import Counter
+    fx = json.loads(R6_FILE.read_text(encoding="utf-8"))
+    W = json.loads(R6_WORDING.read_text(encoding="utf-8"))["entries"]
+    ee = fx["eval_emphasis"]
+
+    def at(path):
+        parent, k = r5_resolve(cb, path)
+        return parent[k]
+    for wid, e in W.items():                                # 1. every W entry folded byte for byte
+        if wid == "W10":
+            path = "items/core.observed_actor_relationship/values/part_instructions/searched_institution_role/text"
+        elif e["path"].endswith("/text"):
+            path = e["path"]
+        else:
+            path = e["path"] + "/text"
+        want = e["text"] + (ee if wid in R6_EVAL else "")
+        assert at(path) == want, (wid, path)
+        assert at(path.rsplit("/", 1)[0])["origin"].startswith('PI 2026-10-30 "drafts ok"; agent draft ' + wid), wid
+    new = Counter(s["text"] for _, s in r5_slots(cb) if isinstance(s["text"], str))
+    old = Counter(s["text"] for _, s in r5_slots(r5cb) if isinstance(s["text"], str))
+    allowed = {e["text"] for e in W.values()} | {W[w]["text"] + ee for w in R6_EVAL}
+    allowed |= {at("shared/system_prompt_stage6/text"), "None of the above"}
+    allowed |= {v["text"] for v in fx["reused_texts"].values()} & set(old)     # re-used signed texts
+    extra = set((new - old).keys()) - allowed
+    assert not extra, f"slot texts not allowed: {sorted(extra)[:3]}"
+    assert set(fx["resolver_texts"]) == {"N-01"} and fx["resolver_texts"]["N-01"]["new_sentence"] in at("shared/system_prompt_stage6/text")
+    gone = set((old - new).keys())
+    dropped = set()
+    for f in fx["fixes"]:
+        if f["op"] == "delete":
+            dropped |= {s["text"] for _, s in r5_slots(f["before"]) if isinstance(s["text"], str)}
+        if f["op"] == "set" and isinstance(f["before"], dict) and isinstance(f["before"].get("text"), str) \
+                and isinstance(f.get("after"), dict) and f["after"].get("text") != f["before"]["text"]:
+            dropped.add(f["before"]["text"])
+    assert gone <= dropped, f"texts gone that no r6 entry removes: {sorted(gone - dropped)[:3]}"
+    for f in fx["fixes"]:                                    # 2. every set / add in place
+        if f["op"] in ("set", "add"):
+            for p in f.get("paths") or [f["path"]]:
+                assert at(p) == f["after"], (f["id"], p)
+    rel = cb["release"]
+    assert rel["status"] == {"r6-draft": "draft", "r6-signoff": "signed"}[build]
+    core = [it for k, it in cb["items"].items() if k.startswith("core.")]
+    assert all(it["status"] == ("signed" if build == "r6-signoff" else "slot") for it in core)
+    left = [k for k, it in cb["items"].items() if k.startswith("core.") and it["coder"] == "classifier"
+            and it["instruction"] == "none"]
+    assert not left, left
+    print(f"r6 checks: W01-W45 byte-identical at their slots; {len(set((new - old).keys()))} new slot texts, all allowed; "
+          f"{len(gone)} texts gone, all listed drops or replacements; {len(fx['fixes'])} fixes in place; "
+          f"every core classifier item has an instruction")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--build", choices=BUILDS, default="signed-2.7",
@@ -1976,7 +2056,7 @@ def main() -> None:
     base = copy.deepcopy(cb)      # the pre-round-4 codebook; verify_round3() and verify_final() check it unchanged
     apply_r4(cb)
     yaml.add_representer(str, _str_rep, Dumper=yaml.SafeDumper)
-    out = Path(a.out) if a.out else (WT / "codebook/codebook.yaml" if a.build == "signed-2.7" else R5_OUT[a.build])
+    out = Path(a.out) if a.out else (WT / "codebook/codebook.yaml" if a.build == "signed-2.7" else {**R5_OUT, **R6_OUT}[a.build])
     out.parent.mkdir(parents=True, exist_ok=True)
     # The approved draft is verified first (round-3, final and round-4 checks), in a side file, then signed-off stages run.
     draft = out.with_name(out.stem + ".draft-r4" + out.suffix)
@@ -1993,8 +2073,13 @@ def main() -> None:
     signed_cb = None
     if a.build != "signed-2.7":
         signed_cb = copy.deepcopy(cb)        # the signed 2.7 content; verify_r5() compares the candidate with it
-        n5 = apply_r5(cb, a.build)
-        print(f"RC-D-005 fixes applied: {n5} ({a.build})")
+        n5 = apply_r5(cb, R6_R5.get(a.build, a.build))
+        print(f"RC-D-005 fixes applied: {n5} ({R6_R5.get(a.build, a.build)})")
+        if a.build in R6_OUT:
+            r5_cb = copy.deepcopy(cb)        # the r5 state; verify_r6() compares the candidate with it
+            verify_r5(r5_cb, signed_cb, R6_R5[a.build])
+            n6 = apply_r6(cb)
+            print(f"RC-D-005 wording fold and resolutions applied: {n6} (fixes-r6)")
         header = (f"# G3O codebook release 2.7 \u2014 RC-D-005 candidate, {R5_BUILD_NAME[a.build]} (T-010). "
                   f"Built by planning/t010/build_skeleton.py --build {a.build}.\n"
                   "# Every slot text is copied verbatim from its `source`; `origin` records who approved it.\n"
@@ -2009,7 +2094,9 @@ def main() -> None:
             print("OPEN", ".".join(p))
     assert yaml.safe_load(out.read_text(encoding="utf-8")) == cb, "round-trip mismatch"
     verify_signoff(cb)
-    if signed_cb is not None:
+    if signed_cb is not None and a.build in R6_OUT:
+        verify_r6(cb, r5_cb, a.build)
+    elif signed_cb is not None:
         verify_r5(cb, signed_cb, a.build)
     n_open = len(ops)
     print(f"items={len(ITEMS)} shared_rules={len(SHARED)} retired={len(RETIRED)} open_fields={n_open} "
