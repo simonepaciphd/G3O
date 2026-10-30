@@ -11,6 +11,8 @@ Builds (added for RC-D-005, 2026-10-30):
                        `release.status: draft`, item statuses unchanged. Default out planning/t010/candidate-r5/.
   --build r6-draft | r6-signoff   the RC-D-005 candidate after the wording fold and the resolutions: the r5 build
                        plus drafts/fixes-r6.json. Default out planning/t010/candidate-r6/.
+  --build r7-draft | r7-signoff   RC-D-005 round 2: the r6 build plus drafts/fixes-r7.json. Default out
+                       planning/t010/candidate-r7/.
   --build r5-signoff   the same candidate as the sign-off build: `release.status: signed` and `status: signed` on
                        every build-scope (core) item (RC-D-005 ruling 2 a). It is signed only once the signature
                        record holds its sha256.
@@ -1865,7 +1867,7 @@ def verify_signoff(cb: dict) -> None:
 # slot of the signed build and that the only texts gone are the 13 a drops.
 R5_FILE = DRAFTS / "fixes-r5.json"
 R5_BASE = "d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764"
-BUILDS = ("signed-2.7", "r5-draft", "r5-signoff", "r6-draft", "r6-signoff")
+BUILDS = ("signed-2.7", "r5-draft", "r5-signoff", "r6-draft", "r6-signoff", "r7-draft", "r7-signoff")
 R5_OUT = {"r5-draft": PLAN / "t010/candidate-r5/codebook-r5-draft.yaml",
           "r5-signoff": PLAN / "t010/candidate-r5/codebook-r5-signoff.yaml"}
 R5_BUILD_NAME = {"r5-draft": "draft build", "r5-signoff": "sign-off build"}
@@ -2044,6 +2046,47 @@ def verify_r6(cb: dict, r5cb: dict, build: str) -> None:
           f"every core classifier item has an instruction")
 
 
+# ---- RC-D-005 clean copy, round 2 (fixes-r7, 2026-10-30) ----
+# PI, chat, 2026-10-30 (t010-rulings.md, last section): "fix the remainder points -- make coherent with previous rulings
+# (subagent)". The r7 builds are the r6 builds plus drafts/fixes-r7.json (drafted by drafts/fixes-r7-draft.py from the
+# r6 draft candidate). verify_r7() checks that the only slot text added is the re-used signed not_documented rule,
+# that no slot text is gone, and that every entry is in place.
+R7_FILE = DRAFTS / "fixes-r7.json"
+R7_BASE = "93026bbf18f9c4d9a4bfa2af88018896eeeae1ba741d675ecc3bc28e9a4dae63"   # candidate-r6/codebook-r6-draft.yaml
+R7_OUT = {"r7-draft": PLAN / "t010/candidate-r7/codebook-r7-draft.yaml",
+          "r7-signoff": PLAN / "t010/candidate-r7/codebook-r7-signoff.yaml"}
+R7_R6 = {"r7-draft": "r6-draft", "r7-signoff": "r6-signoff"}
+R5_BUILD_NAME.update({"r7-draft": "draft build", "r7-signoff": "sign-off build"})
+R6_R5.update({"r7-draft": "r5-draft", "r7-signoff": "r5-signoff"})
+
+
+def apply_r7(cb: dict) -> int:
+    fx = json.loads(R7_FILE.read_text(encoding="utf-8"))
+    assert fx["base_sha256"] == R7_BASE, fx["base_sha256"]
+    for f in fx["fixes"]:
+        r5_apply_fix(cb, f, "r5-draft")
+    return len(fx["fixes"])
+
+
+def verify_r7(cb: dict, r6cb: dict, build: str) -> None:
+    from collections import Counter
+    fx = json.loads(R7_FILE.read_text(encoding="utf-8"))
+    new = Counter(s["text"] for _, s in r5_slots(cb) if isinstance(s["text"], str))
+    old = Counter(s["text"] for _, s in r5_slots(r6cb) if isinstance(s["text"], str))
+    reused = {v["text"] for v in fx["reused_texts"].values()}
+    assert set((new - old).keys()) <= reused and reused <= set(old), "r7 adds slot text other than the re-used rule"
+    assert not (old - new), "r7 removes slot text"
+    for f in fx["fixes"]:
+        if f["op"] in ("set", "add"):
+            parent, k = r5_resolve(cb, f["path"])
+            assert parent[k] == f["after"], f["id"]
+    core = [it for k, it in cb["items"].items() if k.startswith("core.")]
+    assert cb["release"]["status"] == {"r7-draft": "draft", "r7-signoff": "signed"}[build]
+    assert all(it["status"] == ("signed" if build == "r7-signoff" else "slot") for it in core)
+    print(f"r7 checks: {sum((new - old).values())} slot texts added, all the re-used signed rule; none removed; "
+          f"{len(fx['fixes'])} fixes in place")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--build", choices=BUILDS, default="signed-2.7",
@@ -2056,7 +2099,7 @@ def main() -> None:
     base = copy.deepcopy(cb)      # the pre-round-4 codebook; verify_round3() and verify_final() check it unchanged
     apply_r4(cb)
     yaml.add_representer(str, _str_rep, Dumper=yaml.SafeDumper)
-    out = Path(a.out) if a.out else (WT / "codebook/codebook.yaml" if a.build == "signed-2.7" else {**R5_OUT, **R6_OUT}[a.build])
+    out = Path(a.out) if a.out else (WT / "codebook/codebook.yaml" if a.build == "signed-2.7" else {**R5_OUT, **R6_OUT, **R7_OUT}[a.build])
     out.parent.mkdir(parents=True, exist_ok=True)
     # The approved draft is verified first (round-3, final and round-4 checks), in a side file, then signed-off stages run.
     draft = out.with_name(out.stem + ".draft-r4" + out.suffix)
@@ -2075,11 +2118,17 @@ def main() -> None:
         signed_cb = copy.deepcopy(cb)        # the signed 2.7 content; verify_r5() compares the candidate with it
         n5 = apply_r5(cb, R6_R5.get(a.build, a.build))
         print(f"RC-D-005 fixes applied: {n5} ({R6_R5.get(a.build, a.build)})")
-        if a.build in R6_OUT:
+        if a.build in R6_OUT or a.build in R7_OUT:
             r5_cb = copy.deepcopy(cb)        # the r5 state; verify_r6() compares the candidate with it
             verify_r5(r5_cb, signed_cb, R6_R5[a.build])
             n6 = apply_r6(cb)
             print(f"RC-D-005 wording fold and resolutions applied: {n6} (fixes-r6)")
+        if a.build in R7_OUT:
+            r6_cb = copy.deepcopy(cb)        # the r6 state
+            r6_cb["release"]["status"] = cb["release"]["status"]
+            verify_r6(r6_cb, r5_cb, R7_R6[a.build])
+            n7 = apply_r7(cb)
+            print(f"RC-D-005 round 2 applied: {n7} (fixes-r7)")
         header = (f"# G3O codebook release 2.7 \u2014 RC-D-005 candidate, {R5_BUILD_NAME[a.build]} (T-010). "
                   f"Built by planning/t010/build_skeleton.py --build {a.build}.\n"
                   "# Every slot text is copied verbatim from its `source`; `origin` records who approved it.\n"
@@ -2094,7 +2143,9 @@ def main() -> None:
             print("OPEN", ".".join(p))
     assert yaml.safe_load(out.read_text(encoding="utf-8")) == cb, "round-trip mismatch"
     verify_signoff(cb)
-    if signed_cb is not None and a.build in R6_OUT:
+    if signed_cb is not None and a.build in R7_OUT:
+        verify_r7(cb, r6_cb, a.build)
+    elif signed_cb is not None and a.build in R6_OUT:
         verify_r6(cb, r5_cb, a.build)
     elif signed_cb is not None:
         verify_r5(cb, signed_cb, a.build)

@@ -1,0 +1,1173 @@
+{
+ "format": "fixes-r7 v1: entries applied in order after fixes-r5 and fixes-r6 by build_skeleton.py apply_r7()",
+ "status": "candidate for RC-D-005, round 2; put to the PI in planning/t010/RC-D-005-clean-copy.md",
+ "drafted_by": "resolver subagent of the plan integrator, Claude Code, claude-opus-5-5, 2026-10-30",
+ "ruling": "PI, chat, 2026-10-30 (t010-rulings.md): \"fix the remainder points -- make coherent with previous rulings (subagent)\"",
+ "base": "planning/t010/candidate-r6/codebook-r6-draft.yaml",
+ "base_sha256": "93026bbf18f9c4d9a4bfa2af88018896eeeae1ba741d675ecc3bc28e9a4dae63",
+ "reused_texts": {
+  "not_documented rule": {
+   "text": "not_documented: the page is silent.",
+   "from": "items/core.has_human_oversight/rules/2",
+   "items": [
+    "core.year_announced",
+    "core.year_pilot_start",
+    "core.year_production_start",
+    "core.source_type",
+    "core.deployment_scale_unit"
+   ]
+  }
+ },
+ "fixes": [
+  {
+   "id": "R7-01",
+   "ruling": "round 2 point 1",
+   "op": "add",
+   "what": "core.year_announced: the computed candidate `unknown` is kept as a value but not offered (as P3 for `not_assessable`); it is set mechanically",
+   "path": "items/core.year_announced/values/candidates_not_offered",
+   "after": {
+    "codes": [
+     "unknown"
+    ],
+    "why": "RC-D-005 12 a (PI 2026-10-30 \"12 a\"; option as asked: \"a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical\") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): \"Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them\""
+   }
+  },
+  {
+   "id": "R7-02",
+   "ruling": "round 2 point 1",
+   "op": "set",
+   "what": "core.year_announced: missing-label rule for `not_documented` added (re-used signed text)",
+   "path": "items/core.year_announced/rules",
+   "before": [
+    {
+     "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json C16.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I15 slot 2"
+    },
+    {
+     "text": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX12",
+     "source": "codebook-rulings-round2.json n=50",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I15 slot 3",
+     "text_before_r4": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable; new test pages are needed.",
+     "origin_before_r4": "r2",
+     "r4_fixes": "FX12"
+    }
+   ],
+   "after": [
+    {
+     "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json C16.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I15 slot 2"
+    },
+    {
+     "text": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX12",
+     "source": "codebook-rulings-round2.json n=50",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I15 slot 3",
+     "text_before_r4": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable; new test pages are needed.",
+     "origin_before_r4": "r2",
+     "r4_fixes": "FX12"
+    },
+    {
+     "text": "not_documented: the page is silent.",
+     "origin": "agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (round 2)",
+     "source": "items/core.has_human_oversight/rules/2 (PI 2026-10-30 \"approved!\"; fixes-r4 FX06)",
+     "role": "missing label not_documented: meaning for this item"
+    }
+   ]
+  },
+  {
+   "id": "R7-03",
+   "ruling": "round 2 point 1",
+   "op": "set",
+   "what": "core.year_announced: `not_documented` offered with the re-used rule as its meaning",
+   "path": "items/core.year_announced/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "the computed candidate `unknown` (C16, F8 b) already covers a page that states no year",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.year_announced/rules/2"
+    ],
+    "resolution": "RC-D-005 round 2: offered; R2C04 (r2#16, PI 2026-10-29): \"Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them\"; RC-D-005 12 a (PI 2026-10-30 \"12 a\"; option as asked: \"a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical\")"
+   }
+  },
+  {
+   "id": "R7-04",
+   "ruling": "refs",
+   "op": "set",
+   "what": "core.year_announced: refs, round-2 resolution added",
+   "path": "items/core.year_announced/refs",
+   "before": [
+    "C16",
+    "r2#50",
+    "O6",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05"
+   ],
+   "after": [
+    "C16",
+    "r2#50",
+    "O6",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "RC-D-005 round 2"
+   ]
+  },
+  {
+   "id": "R7-05",
+   "ruling": "round 2 point 1",
+   "op": "add",
+   "what": "core.year_pilot_start: the computed candidate `unknown` is kept as a value but not offered (as P3 for `not_assessable`); it is set mechanically",
+   "path": "items/core.year_pilot_start/values/candidates_not_offered",
+   "after": {
+    "codes": [
+     "unknown"
+    ],
+    "why": "RC-D-005 12 a (PI 2026-10-30 \"12 a\"; option as asked: \"a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical\") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): \"Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them\""
+   }
+  },
+  {
+   "id": "R7-06",
+   "ruling": "round 2 point 1",
+   "op": "set",
+   "what": "core.year_pilot_start: missing-label rule for `not_documented` added (re-used signed text)",
+   "path": "items/core.year_pilot_start/rules",
+   "before": [
+    {
+     "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say a pilot or trial of this activity began?\" No fallback to publication year. Across chunks: earliest chosen year.",
+     "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W44",
+     "source": "drafts/rc-d-005-wording.json W44 (items/core.year_pilot_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I16 slot 1",
+     "text_before_r6": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year."
+    },
+    {
+     "text": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX12",
+     "source": "codebook-rulings-round2.json n=50",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I16 slot 2",
+     "text_before_r4": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable; new test pages are needed.",
+     "origin_before_r4": "r2",
+     "r4_fixes": "FX12"
+    },
+    {
+     "text": "Two columns, each stated-only.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json C17.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I16 slot 3"
+    }
+   ],
+   "after": [
+    {
+     "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say a pilot or trial of this activity began?\" No fallback to publication year. Across chunks: earliest chosen year.",
+     "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W44",
+     "source": "drafts/rc-d-005-wording.json W44 (items/core.year_pilot_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I16 slot 1",
+     "text_before_r6": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year."
+    },
+    {
+     "text": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX12",
+     "source": "codebook-rulings-round2.json n=50",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I16 slot 2",
+     "text_before_r4": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable; new test pages are needed.",
+     "origin_before_r4": "r2",
+     "r4_fixes": "FX12"
+    },
+    {
+     "text": "Two columns, each stated-only.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json C17.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I16 slot 3"
+    },
+    {
+     "text": "not_documented: the page is silent.",
+     "origin": "agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (round 2)",
+     "source": "items/core.has_human_oversight/rules/2 (PI 2026-10-30 \"approved!\"; fixes-r4 FX06)",
+     "role": "missing label not_documented: meaning for this item"
+    }
+   ]
+  },
+  {
+   "id": "R7-07",
+   "ruling": "round 2 point 1",
+   "op": "set",
+   "what": "core.year_pilot_start: `not_documented` offered with the re-used rule as its meaning",
+   "path": "items/core.year_pilot_start/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "the computed candidate `unknown` (C16, F8 b) already covers a page that states no year",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.year_pilot_start/rules/3"
+    ],
+    "resolution": "RC-D-005 round 2: offered; R2C04 (r2#16, PI 2026-10-29): \"Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them\"; RC-D-005 12 a (PI 2026-10-30 \"12 a\"; option as asked: \"a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical\")"
+   }
+  },
+  {
+   "id": "R7-08",
+   "ruling": "refs",
+   "op": "set",
+   "what": "core.year_pilot_start: refs, round-2 resolution added",
+   "path": "items/core.year_pilot_start/refs",
+   "before": [
+    "C17",
+    "r2#50",
+    "O6",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-08"
+   ],
+   "after": [
+    "C17",
+    "r2#50",
+    "O6",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-08",
+    "RC-D-005 round 2"
+   ]
+  },
+  {
+   "id": "R7-09",
+   "ruling": "round 2 point 1",
+   "op": "add",
+   "what": "core.year_production_start: the computed candidate `unknown` is kept as a value but not offered (as P3 for `not_assessable`); it is set mechanically",
+   "path": "items/core.year_production_start/values/candidates_not_offered",
+   "after": {
+    "codes": [
+     "unknown"
+    ],
+    "why": "RC-D-005 12 a (PI 2026-10-30 \"12 a\"; option as asked: \"a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical\") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): \"Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them\""
+   }
+  },
+  {
+   "id": "R7-10",
+   "ruling": "round 2 point 1",
+   "op": "set",
+   "what": "core.year_production_start: missing-label rule for `not_documented` added (re-used signed text)",
+   "path": "items/core.year_production_start/rules",
+   "before": [
+    {
+     "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity went into full, routine operation?\" No fallback to publication year. Across chunks: earliest chosen year.",
+     "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W45",
+     "source": "drafts/rc-d-005-wording.json W45 (items/core.year_production_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I17 slot 1",
+     "text_before_r6": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year."
+    },
+    {
+     "text": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX12",
+     "source": "codebook-rulings-round2.json n=50",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I17 slot 2",
+     "text_before_r4": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable; new test pages are needed.",
+     "origin_before_r4": "r2",
+     "r4_fixes": "FX12"
+    },
+    {
+     "text": "Two columns, each stated-only.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json C17.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I17 slot 3"
+    }
+   ],
+   "after": [
+    {
+     "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity went into full, routine operation?\" No fallback to publication year. Across chunks: earliest chosen year.",
+     "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W45",
+     "source": "drafts/rc-d-005-wording.json W45 (items/core.year_production_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I17 slot 1",
+     "text_before_r6": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year."
+    },
+    {
+     "text": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.",
+     "origin": "PI 2026-10-30 \"approved!\"; fixes-r4 FX12",
+     "source": "codebook-rulings-round2.json n=50",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I17 slot 2",
+     "text_before_r4": "Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable; new test pages are needed.",
+     "origin_before_r4": "r2",
+     "r4_fixes": "FX12"
+    },
+    {
+     "text": "Two columns, each stated-only.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json C17.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I17 slot 3"
+    },
+    {
+     "text": "not_documented: the page is silent.",
+     "origin": "agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (round 2)",
+     "source": "items/core.has_human_oversight/rules/2 (PI 2026-10-30 \"approved!\"; fixes-r4 FX06)",
+     "role": "missing label not_documented: meaning for this item"
+    }
+   ]
+  },
+  {
+   "id": "R7-11",
+   "ruling": "round 2 point 1",
+   "op": "set",
+   "what": "core.year_production_start: `not_documented` offered with the re-used rule as its meaning",
+   "path": "items/core.year_production_start/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "the computed candidate `unknown` (C16, F8 b) already covers a page that states no year",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.year_production_start/rules/3"
+    ],
+    "resolution": "RC-D-005 round 2: offered; R2C04 (r2#16, PI 2026-10-29): \"Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them\"; RC-D-005 12 a (PI 2026-10-30 \"12 a\"; option as asked: \"a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical\")"
+   }
+  },
+  {
+   "id": "R7-12",
+   "ruling": "refs",
+   "op": "set",
+   "what": "core.year_production_start: refs, round-2 resolution added",
+   "path": "items/core.year_production_start/refs",
+   "before": [
+    "C17",
+    "r2#50",
+    "O6",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-08"
+   ],
+   "after": [
+    "C17",
+    "r2#50",
+    "O6",
+    "activity-01",
+    "activity-03",
+    "activity-04",
+    "activity-05",
+    "activity-08",
+    "RC-D-005 round 2"
+   ]
+  },
+  {
+   "id": "R7-13",
+   "ruling": "round 2 point 1",
+   "op": "set",
+   "what": "vocabularies.missing.jev_choice.resolution: no exception for the year items",
+   "path": "vocabularies/missing/jev_choice/resolution",
+   "before": {
+    "offered_on": "items whose `not_documented` has a meaning that no real value or `unknown` rule already covers (RC-D-005 12a' iv); each names its rule in jev_missing_choice",
+    "computed_unknown_candidate": "the three year items keep the computed candidate `unknown` among their choices (C16; signed values and rule 1; RC-D-005 F8 b); everywhere else `unknown` is mechanical"
+   },
+   "after": {
+    "offered_on": "items whose `not_documented` is not already covered by a signed value definition, a signed missing-label rule, the frozen CX answer set or a signed order (RC-D-005 12a' iv, round 2); each names its meaning rule in jev_missing_choice",
+    "unknown": "never offered (12 a); the year items keep the C16 candidate `unknown` as a value, flagged values.candidates_not_offered, and it is set mechanically"
+   }
+  },
+  {
+   "id": "R7-14",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.source_type: missing-label rule for `not_documented` added (re-used signed text)",
+   "path": "items/core.source_type/rules",
+   "before": [
+    {
+     "text": "'Official' comes from the domain field and 'archive' from the address; the classifier only sorts the rest (news, vendor, academic, policy organisation, social media, procurement, other). The question wording is amended.",
+     "origin": "r2",
+     "source": "codebook-rulings-round2.json n=25",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page source card I01 slot 9"
+    },
+    {
+     "text": "Source type is answered by the same classifier question in every pipeline where it applies. The AI-text pipeline drops its genre table and procurement's fixed value is replaced.",
+     "origin": "r2",
+     "source": "codebook-rulings-round2.json n=30",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page source card I01 slot 10"
+    }
+   ],
+   "after": [
+    {
+     "text": "'Official' comes from the domain field and 'archive' from the address; the classifier only sorts the rest (news, vendor, academic, policy organisation, social media, procurement, other). The question wording is amended.",
+     "origin": "r2",
+     "source": "codebook-rulings-round2.json n=25",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page source card I01 slot 9"
+    },
+    {
+     "text": "Source type is answered by the same classifier question in every pipeline where it applies. The AI-text pipeline drops its genre table and procurement's fixed value is replaced.",
+     "origin": "r2",
+     "source": "codebook-rulings-round2.json n=30",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page source card I01 slot 10"
+    },
+    {
+     "text": "not_documented: the page is silent.",
+     "origin": "agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (round 2)",
+     "source": "items/core.has_human_oversight/rules/2 (PI 2026-10-30 \"approved!\"; fixes-r4 FX06)",
+     "role": "missing label not_documented: meaning for this item"
+    }
+   ]
+  },
+  {
+   "id": "R7-15",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.source_type: `not_documented` offered with the re-used rule as its meaning",
+   "path": "items/core.source_type/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "every page has a source; `other` covers a source none of the values fits",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.source_type/rules/2"
+    ],
+    "resolution": "RC-D-005 round 2: offered; no signed text covers a page that does not show its kind: `other` is \"None of the above\", not silence (round-1 exclusion rested on inference)"
+   }
+  },
+  {
+   "id": "R7-16",
+   "ruling": "refs",
+   "op": "set",
+   "what": "core.source_type: refs, round-2 resolution added",
+   "path": "items/core.source_type/refs",
+   "before": [
+    "X21",
+    "r2#25",
+    "r2#30",
+    "R-002",
+    "source-01",
+    "all-06",
+    "RC-D-005 W08",
+    "RC-D-005 F5 b",
+    "RC-D-005 I7 a"
+   ],
+   "after": [
+    "X21",
+    "r2#25",
+    "r2#30",
+    "R-002",
+    "source-01",
+    "all-06",
+    "RC-D-005 W08",
+    "RC-D-005 F5 b",
+    "RC-D-005 I7 a",
+    "RC-D-005 round 2"
+   ]
+  },
+  {
+   "id": "R7-17",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.deployment_scale_unit: missing-label rule for `not_documented` added (re-used signed text)",
+   "path": "items/core.deployment_scale_unit/rules",
+   "before": [
+    {
+     "text": "The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json A09.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-3 card I01 slot 6"
+    }
+   ],
+   "after": [
+    {
+     "text": "The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.",
+     "origin": "r1",
+     "source": "codebook-rulings-round1.json A09.mechanism",
+     "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-3 card I01 slot 6"
+    },
+    {
+     "text": "not_documented: the page is silent.",
+     "origin": "agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (round 2)",
+     "source": "items/core.has_human_oversight/rules/2 (PI 2026-10-30 \"approved!\"; fixes-r4 FX06)",
+     "role": "missing label not_documented: meaning for this item"
+    }
+   ]
+  },
+  {
+   "id": "R7-18",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.deployment_scale_unit: `not_documented` offered with the re-used rule as its meaning",
+   "path": "items/core.deployment_scale_unit/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "asked only when a number is stated; `none` covers a number that counts none of the units",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [
+     "not_documented"
+    ],
+    "rule": [
+     "items/core.deployment_scale_unit/rules/1"
+    ],
+    "resolution": "RC-D-005 round 2: offered; `none` is \"A number is stated, but it counts none of these units\", not a page silent about what the number counts (round-1 exclusion rested on inference)"
+   }
+  },
+  {
+   "id": "R7-19",
+   "ruling": "refs",
+   "op": "set",
+   "what": "core.deployment_scale_unit: refs, round-2 resolution added",
+   "path": "items/core.deployment_scale_unit/refs",
+   "before": [
+    "A09",
+    "C4 a",
+    "activity-24",
+    "RC-D-005 11 a",
+    "RC-D-005 W33",
+    "RC-D-005 F6 a"
+   ],
+   "after": [
+    "A09",
+    "C4 a",
+    "activity-24",
+    "RC-D-005 11 a",
+    "RC-D-005 W33",
+    "RC-D-005 F6 a",
+    "RC-D-005 round 2"
+   ]
+  },
+  {
+   "id": "R7-20",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.page_verdict: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.page_verdict/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "the item takes no `not_documented`"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "the item takes no `not_documented`",
+    "grounds": "signed: missing_tokens none (fixes-r5 R5-82); the item takes no reserved label",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered"
+   }
+  },
+  {
+   "id": "R7-21",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.disclosure_form: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.disclosure_form/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "frozen CX item whose signed answer set has no `not_documented` (CX map: `unknown`, CX-17); its `unknown` rule covers a page whose kind cannot be told, and every page has a kind",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "frozen CX item whose signed answer set has no `not_documented` (CX map: `unknown`, CX-17); its `unknown` rule covers a page whose kind cannot be told, and every page has a kind",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "frozen CX answer set (CX-10..18; pilot.py FORM) has no `not_documented`; R2C04 / R-045: \"frozen CX items keep their signed spellings with a mapping row\"; CX map: `unknown` (CX-17)"
+   }
+  },
+  {
+   "id": "R7-22",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.disclosure_scope: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.disclosure_scope/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "frozen CX item whose signed answer set has no `not_documented` (CX map: `unknown`, CX-24); its `unknown` rule (\"Coverage cannot be determined from the page\") covers the silent case",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "frozen CX item whose signed answer set has no `not_documented` (CX map: `unknown`, CX-24); its `unknown` rule (\"Coverage cannot be determined from the page\") covers the silent case",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "frozen CX answer set (CX-20..25; pilot.py SCOPE) has no `not_documented`; R2C04 / R-045 frozen spellings; CX map: `unknown` (CX-24)"
+   }
+  },
+  {
+   "id": "R7-23",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.page_complete: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.page_complete/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` (the page does not refer elsewhere) already covers a silent page",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` (the page does not refer elsewhere) already covers a silent page",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `no` definition: \"The page does not refer the reader elsewhere for more information about any GenAI activity it mentions.\""
+   }
+  },
+  {
+   "id": "R7-24",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.content_contact_named: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.content_contact_named/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not stated\" (CX-06 map sends `no` of the content items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not stated\" (CX-06 map sends `no` of the content items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed CX map: \"`no` of the `evaluation_type_*` and `content_*` items → \"not documented\"\""
+   }
+  },
+  {
+   "id": "R7-25",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.content_contact_details: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.content_contact_details/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not stated\" (CX-06 map sends `no` of the content items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not stated\" (CX-06 map sends `no` of the content items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed CX map: \"`no` of the `evaluation_type_*` and `content_*` items → \"not documented\"\""
+   }
+  },
+  {
+   "id": "R7-26",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.content_data: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.content_data/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not stated on the page\" (CX-06 map sends `no` of the content items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not stated on the page\" (CX-06 map sends `no` of the content items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed CX map: \"`no` of the `evaluation_type_*` and `content_*` items → \"not documented\"\"; `no` = \"not stated on the page\""
+   }
+  },
+  {
+   "id": "R7-27",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.activity_type: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.activity_type/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "its `unknown` rule covers an activity whose kind cannot be told; the applicability table (r2#8) has an `unknown` column and no `not_documented` column, so a `not_documented` type would close every applicability gate",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "its `unknown` rule covers an activity whose kind cannot be told; the applicability table (r2#8) has an `unknown` column and no `not_documented` column, so a `not_documented` type would close every applicability gate",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `unknown` rule (fixes-r4 FX06): \"the kind of undertaking is indeterminate from the available sources\"; signed applicability table (r2#8) keys `unknown`, no `not_documented`"
+   }
+  },
+  {
+   "id": "R7-28",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.action_type: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.action_type/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "its `unknown` rule (\"The page mentions the activity but does not let it be settled\") covers every case: an activity row is always mentioned on its page",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "its `unknown` rule (\"The page mentions the activity but does not let it be settled\") covers every case: an activity row is always mentioned on its page",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `unknown` rule (FX06): \"The page mentions the activity but does not let it be settled\"; an activity row is a passage of its page (core.rule.activity_unit)"
+   }
+  },
+  {
+   "id": "R7-29",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.adoption_stage: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.adoption_stage/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "its `unknown` rule (\"Evidence confirms GenAI activity exists but stage is indeterminate\") covers the silent case",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "its `unknown` rule (\"Evidence confirms GenAI activity exists but stage is indeterminate\") covers the silent case",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `unknown` rule (FX06): \"Evidence confirms GenAI activity exists but stage is indeterminate.\""
+   }
+  },
+  {
+   "id": "R7-30",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.procurement_status: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.procurement_status/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": [
+     "items/core.procurement_status/rules/2"
+    ],
+    "why": "the item's rule says `not_documented` is not used for this item"
+   },
+   "after": {
+    "offered": [],
+    "rule": [
+     "items/core.procurement_status/rules/2"
+    ],
+    "why": "the item's rule says `not_documented` is not used for this item",
+    "grounds": "signed rules/2: \"`not_documented` is not used for this item\"",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered"
+   }
+  },
+  {
+   "id": "R7-31",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.function_drafting_writing: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.function_drafting_writing/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `no` definition: \"The page does not state that the tool is used for ...\""
+   }
+  },
+  {
+   "id": "R7-32",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.function_summarization: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.function_summarization/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `no` definition: \"The page does not state that the tool is used for ...\""
+   }
+  },
+  {
+   "id": "R7-33",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.function_translation: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.function_translation/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `no` definition: \"The page does not state that the tool is used for ...\""
+   }
+  },
+  {
+   "id": "R7-34",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.function_search_retrieval: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.function_search_retrieval/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `no` definition: \"The page does not state that the tool is used for ...\""
+   }
+  },
+  {
+   "id": "R7-35",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.function_code: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.function_code/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `no` definition: \"The page does not state that the tool is used for ...\""
+   }
+  },
+  {
+   "id": "R7-36",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.function_image_audio_video: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.function_image_audio_video/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `no` definition: \"The page does not state that the tool is used for ...\""
+   }
+  },
+  {
+   "id": "R7-37",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.function_extraction_classification: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.function_extraction_classification/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `no` definition: \"The page does not state that the tool is used for ...\""
+   }
+  },
+  {
+   "id": "R7-38",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.function_analysis_recommendation: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.function_analysis_recommendation/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"the page does not state\" this function",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `no` definition: \"The page does not state that the tool is used for ...\""
+   }
+  },
+  {
+   "id": "R7-39",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.genai_mechanism_basis: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.genai_mechanism_basis/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "asked only for activities the page shows as GenAI (core.rule.genai_boundary), so the page always shows some basis",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "asked only for activities the page shows as GenAI (core.rule.genai_boundary), so the page always shows some basis",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed rules/0: \"jev Choice on every confirms_activity page/activity\" over the four bases; signed `confirms_activity` definition: \"The text must be explicitly generative AI\""
+   }
+  },
+  {
+   "id": "R7-40",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.outcome_kind: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.outcome_kind/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "`none_reported` (\"states no result\") covers a silent page (CX-06 map: `none_reported` to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "`none_reported` (\"states no result\") covers a silent page (CX-06 map: `none_reported` to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed CX map: \"`none_reported` (CX-60, CX-61) → \"not documented\"\""
+   }
+  },
+  {
+   "id": "R7-41",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.incident_kind: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.incident_kind/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "`none_reported` (\"states no result\") covers a silent page (CX-06 map: `none_reported` to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "`none_reported` (\"states no result\") covers a silent page (CX-06 map: `none_reported` to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed CX map: \"`none_reported` (CX-60, CX-61) → \"not documented\"\""
+   }
+  },
+  {
+   "id": "R7-42",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.evaluation_type_pre_deployment_testing: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.evaluation_type_pre_deployment_testing/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed CX map: \"`no` of the `evaluation_type_*` and `content_*` items → \"not documented\"\""
+   }
+  },
+  {
+   "id": "R7-43",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.evaluation_type_pilot_evaluation: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.evaluation_type_pilot_evaluation/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed CX map: \"`no` of the `evaluation_type_*` and `content_*` items → \"not documented\"\""
+   }
+  },
+  {
+   "id": "R7-44",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.evaluation_type_independent_audit: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.evaluation_type_independent_audit/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed CX map: \"`no` of the `evaluation_type_*` and `content_*` items → \"not documented\"\""
+   }
+  },
+  {
+   "id": "R7-45",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.evaluation_type_ongoing_monitoring: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.evaluation_type_ongoing_monitoring/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed CX map: \"`no` of the `evaluation_type_*` and `content_*` items → \"not documented\"\""
+   }
+  },
+  {
+   "id": "R7-46",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.evaluation_type_user_feedback: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.evaluation_type_user_feedback/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed CX map: \"`no` of the `evaluation_type_*` and `content_*` items → \"not documented\"\""
+   }
+  },
+  {
+   "id": "R7-47",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.evaluation_type_bias_or_safety_testing: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.evaluation_type_bias_or_safety_testing/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "yes/no item: `no` is \"not documented\" (CX-06 map sends `no` of the evaluation-type items to \"not documented\")",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed CX map: \"`no` of the `evaluation_type_*` and `content_*` items → \"not documented\"\""
+   }
+  },
+  {
+   "id": "R7-48",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.support_entailment: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.support_entailment/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "the answer is about one quote: `false` covers a quote that does not state the value",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "the answer is about one quote: `false` covers a quote that does not state the value",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed `false` definition: \"The quoted text does not state that the field has the given value.\""
+   }
+  },
+  {
+   "id": "R7-49",
+   "ruling": "round 2 point 2",
+   "op": "set",
+   "what": "core.activity_relation_cross_page: exclusion re-checked; the signed text it rests on recorded",
+   "path": "items/core.activity_relation_cross_page/jev_missing_choice",
+   "before": {
+    "offered": [],
+    "rule": "none",
+    "why": "compares two records, not a page; `unresolved` covers a pair that cannot be settled",
+    "resolution": "RC-D-005 12a' (iv): not offered"
+   },
+   "after": {
+    "offered": [],
+    "rule": "none",
+    "why": "compares two records, not a page; `unresolved` covers a pair that cannot be settled",
+    "resolution": "RC-D-005 12a' (iv), re-checked in round 2: not offered",
+    "grounds": "signed priority order (unresolved ... unknown) has no `not_documented`, though R-044 ranks it in every order that has it; signed `unresolved`: \"The sources do not settle whether the two records describe the same activity.\""
+   }
+  },
+  {
+   "id": "R7-50",
+   "ruling": "fold",
+   "op": "set",
+   "what": "release.folds.r6 names round 2",
+   "path": "release/folds/r6",
+   "before": "planning/t010/drafts/fixes-r6.json (RC-D-005: wording W01-W45 approved as drafted, PI 2026-10-30 \"drafts ok\"; E1; resolutions in drafts/resolutions-r6.json, put to the PI in planning/t010/RC-D-005-clean-copy.md)",
+   "after": "planning/t010/drafts/fixes-r6.json (RC-D-005: wording W01-W45 approved as drafted, PI 2026-10-30 \"drafts ok\"; E1; resolutions in drafts/resolutions-r6.json, put to the PI in planning/t010/RC-D-005-clean-copy.md); round 2: planning/t010/drafts/fixes-r7.json and drafts/resolutions-r7.json (PI 2026-10-30 \"fix the remainder points -- make coherent with previous rulings (subagent)\")"
+  }
+ ]
+}
