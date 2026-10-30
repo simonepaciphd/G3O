@@ -2,7 +2,16 @@
 
 Integrator tool (T-010, RC-D-002). Every slot text is copied programmatically from a named source and
 asserted to occur verbatim there; nothing is retyped. Output: codebook/codebook.yaml in the T-010 worktree.
-Run: python build_skeleton.py [--out PATH]
+Run: python build_skeleton.py [--build signed-2.7|r5-draft|r5-signoff] [--out PATH]
+
+Builds (added for RC-D-005, 2026-10-30):
+  --build signed-2.7   (default) the signed release 2.7 as signed on 2026-10-30, sha256 d24bbc7c...0764
+                       (planning/t010/signoff-record.md); default out codebook/codebook.yaml.
+  --build r5-draft     the RC-D-005 candidate: the signed build with the fixes in drafts/fixes-r5.json applied,
+                       `release.status: draft`, item statuses unchanged. Default out planning/t010/candidate-r5/.
+  --build r5-signoff   the same candidate as the sign-off build: `release.status: signed` and `status: signed` on
+                       every build-scope (core) item (RC-D-005 ruling 2 a). It is signed only once the signature
+                       record holds its sha256.
 """
 from __future__ import annotations
 
@@ -17,8 +26,12 @@ from pathlib import Path
 
 import yaml
 
-PLAN = Path("C:/Users/spaci/repos/G3O/planning")
-WT = Path("C:/Users/spaci/worktrees/G3O-integrator")
+# RC-D-005 (2026-10-30): PLAN, WT and REPO are this checkout (the tree holding this file), not fixed paths into other
+# worktrees, so a build never reads or writes another tree. Before RC-D-005 they were C:/Users/spaci/repos/G3O/planning,
+# C:/Users/spaci/worktrees/G3O-integrator and C:/Users/spaci/repos/G3O.
+ROOT = Path(__file__).resolve().parents[2]
+PLAN = ROOT / "planning"
+WT = ROOT
 DRIVE = Path("H:/My Drive/Research/G3O")
 SRC = {
     "spec": PLAN / "SPEC.md",
@@ -50,7 +63,7 @@ R2 = {x["n"]: x for x in json.loads(SRC["r2"].read_text(encoding="utf-8"))["item
 R3DIR = PLAN / "t010/codebook-review/round3"
 DRAFTS = PLAN / "t010/drafts"
 FOLD_LOG = PLAN / "t010/fold-log-round3.md"
-REPO = Path("C:/Users/spaci/repos/G3O")
+REPO = ROOT
 R3FILE = json.loads((R3DIR / "codebook-rulings-round3.json").read_text(encoding="utf-8"))
 R3 = {x["id"]: x for x in R3FILE["items"]}
 Q3 = {x["id"]: x for x in json.loads((R3DIR / "questions-r3.json").read_text(encoding="utf-8"))["items"]}
@@ -1840,9 +1853,122 @@ def verify_signoff(cb: dict) -> None:
     print(f"sign-off checks: no markers; no pending fixes; open leaves only placeholder version_introduced ({len(left)})")
 
 
+
+# ---- RC-D-005 candidate (2026-10-30) ----
+# PI, chat, 2026-10-30 (t010-rulings.md, "RC-D-005 content"): "1a, 2a, 3 subagent drafts all & I read and edit/confirm,
+# 4 part of 3, 5 a, 6a, 7a, 8b, 9 a, 10a 11 a 12 a 13a 14a; accept all". This stage applies the rulings that need no new
+# wording (2 a, 7 a, 8 b, 9 a, 10 a, 11 a, 12 a, 13 a, 14 a) and the P1 / P3 structural fixes, as data: every change is
+# one entry of drafts/fixes-r5.json (path, before, after), applied in file order on the signed build. No slot text is
+# written or edited; 13 a only removes slots. verify_r5() checks that every remaining slot text is byte-identical to a
+# slot of the signed build and that the only texts gone are the 13 a drops.
+R5_FILE = DRAFTS / "fixes-r5.json"
+R5_BASE = "d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764"
+BUILDS = ("signed-2.7", "r5-draft", "r5-signoff")
+R5_OUT = {"r5-draft": PLAN / "t010/candidate-r5/codebook-r5-draft.yaml",
+          "r5-signoff": PLAN / "t010/candidate-r5/codebook-r5-signoff.yaml"}
+R5_BUILD_NAME = {"r5-draft": "draft build", "r5-signoff": "sign-off build"}
+
+
+def r5_resolve(cb: dict, path: str):
+    """(parent, key) of a '/'-separated path; list indexes are integers."""
+    parts = path.split("/")
+    x = cb
+    for p in parts[:-1]:
+        x = x[int(p)] if isinstance(x, list) else x[p]
+    return x, (int(parts[-1]) if isinstance(x, list) else parts[-1])
+
+
+def r5_apply_fix(cb: dict, f: dict, build: str) -> None:
+    """Apply one fixes-r5.json entry. set: the value at each path equals `before` and becomes `after`; add: the key
+    is absent and becomes `after`; delete: each path holds its `before` object, which is removed (list items by
+    identity, after every path of the entry is resolved, so indexes refer to the state before the entry)."""
+    paths = f.get("paths") or [f["path"]]
+    after = f["after_by_build"][build] if "after_by_build" in f else f.get("after")
+    if f["op"] == "delete":
+        befores = f["before"] if "paths" in f else [f["before"]]
+        assert len(befores) == len(paths), f["id"]
+        targets = []
+        for p, before in zip(paths, befores):
+            parent, k = r5_resolve(cb, p)
+            assert parent[k] == before, (f["id"], p)
+            targets.append((parent, k, parent[k]))
+        for parent, k, obj in targets:
+            if isinstance(parent, list):
+                idx = [i for i, x in enumerate(parent) if x is obj]
+                assert len(idx) == 1, (f["id"], k)
+                del parent[idx[0]]
+            else:
+                del parent[k]
+        return
+    for p in paths:
+        parent, k = r5_resolve(cb, p)
+        if f["op"] == "set":
+            assert parent[k] == f["before"], (f["id"], p)
+        elif f["op"] == "add":
+            assert isinstance(parent, dict) and k not in parent, (f["id"], p)
+        else:
+            raise ValueError(f["op"])
+        parent[k] = copy.deepcopy(after)
+
+
+def apply_r5(cb: dict, build: str) -> int:
+    fx = json.loads(R5_FILE.read_text(encoding="utf-8"))
+    assert fx["base_sha256"] == R5_BASE, fx["base_sha256"]
+    for f in fx["fixes"]:
+        r5_apply_fix(cb, f, build)
+    cb["release"]["folds"]["r5"] = ("planning/t010/drafts/fixes-r5.json (RC-D-005: rulings 2 a, 7 a, 8 b, 9 a, 10 a, 11 a, "
+                                    "12 a, 13 a, 14 a and P1 / P3 structural fixes; PI 2026-10-30, t010-rulings.md); "
+                                    f"{R5_BUILD_NAME[build]}")
+    return len(fx["fixes"])
+
+
+def r5_slots(x, path=""):
+    """(path, slot) for every text slot (a mapping with `text` and `origin`)."""
+    if isinstance(x, dict):
+        if "text" in x and "origin" in x:
+            yield path.lstrip("/"), x
+        for k, v in x.items():
+            yield from r5_slots(v, f"{path}/{k}")
+    elif isinstance(x, list):
+        for i, v in enumerate(x):
+            yield from r5_slots(v, f"{path}/{i}")
+
+
+def verify_r5(cb: dict, signed: dict, build: str) -> None:
+    """RC-D-005 checks: retained slot texts byte-identical; only the 13 a texts gone; every fix in place; build mode."""
+    from collections import Counter
+    fx = json.loads(R5_FILE.read_text(encoding="utf-8"))
+    new = Counter(s["text"] for _, s in r5_slots(cb) if isinstance(s["text"], str))
+    old = Counter(s["text"] for _, s in r5_slots(signed) if isinstance(s["text"], str))
+    assert not (new - old), f"slot texts not in the signed build: {list(new - old)[:3]}"
+    dropped = Counter()
+    for f in fx["fixes"]:
+        if f["op"] == "delete":
+            for b in (f["before"] if "paths" in f else [f["before"]]):
+                dropped.update(s["text"] for _, s in r5_slots(b) if isinstance(s["text"], str))
+    assert old - new == dropped, "texts gone differ from the 13 a drops"
+    assert not any(str(s.get("role", "")).startswith("direction") for _, s in r5_slots(cb)), "a direction slot remains"
+    for f in fx["fixes"]:                       # every set / add is in place (no later entry overwrote it)
+        if f["op"] in ("set", "add"):
+            want = f["after_by_build"][build] if "after_by_build" in f else f["after"]
+            for p in f.get("paths") or [f["path"]]:
+                parent, k = r5_resolve(cb, p)
+                assert parent[k] == want, (f["id"], p)
+    rel = cb["release"]
+    assert rel["status"] == {"r5-draft": "draft", "r5-signoff": "signed"}[build]
+    core = [it for k, it in cb["items"].items() if k.startswith("core.")]
+    assert all(it["status"] == ("signed" if build == "r5-signoff" else "slot") for it in core)
+    assert set(cb["vocabularies"]["family"]["values"]) == {it["family"] for it in cb["items"].values()}
+    print(f"r5 checks: {sum(new.values())} slot texts, all byte-identical to slots of the signed build; "
+          f"{sum(dropped.values())} direction slot texts dropped (13 a); {len(fx['fixes'])} fixes in place; "
+          f"release.status {rel['status']}; {len(core)} core items status {core[0]['status']}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(WT / "codebook/codebook.yaml"))
+    ap.add_argument("--build", choices=BUILDS, default="signed-2.7",
+                    help="signed-2.7 reproduces the signed file; r5-draft / r5-signoff build the RC-D-005 candidate")
+    ap.add_argument("--out", default=None, help="default: codebook/codebook.yaml (signed-2.7) or planning/t010/candidate-r5/")
     ap.add_argument("--list-open", action="store_true", help="print every open leaf before verifying")
     ap.add_argument("--spec-rev", default=None, help="read SPEC.md from this git revision (read at import time)")
     a = ap.parse_args()
@@ -1850,7 +1976,7 @@ def main() -> None:
     base = copy.deepcopy(cb)      # the pre-round-4 codebook; verify_round3() and verify_final() check it unchanged
     apply_r4(cb)
     yaml.add_representer(str, _str_rep, Dumper=yaml.SafeDumper)
-    out = Path(a.out)
+    out = Path(a.out) if a.out else (WT / "codebook/codebook.yaml" if a.build == "signed-2.7" else R5_OUT[a.build])
     out.parent.mkdir(parents=True, exist_ok=True)
     # The approved draft is verified first (round-3, final and round-4 checks), in a side file, then signed-off stages run.
     draft = out.with_name(out.stem + ".draft-r4" + out.suffix)
@@ -1864,6 +1990,15 @@ def main() -> None:
     header = ("# G3O codebook release 2.7 \u2014 release candidate (T-010). Built by planning/t010/build_skeleton.py.\n"
               "# Every slot text is copied verbatim from its `source`; `origin` records who approved it.\n"
               "# Signed only if planning/t010/signoff-record.md holds this file's sha256 (A-001).\n")
+    signed_cb = None
+    if a.build != "signed-2.7":
+        signed_cb = copy.deepcopy(cb)        # the signed 2.7 content; verify_r5() compares the candidate with it
+        n5 = apply_r5(cb, a.build)
+        print(f"RC-D-005 fixes applied: {n5} ({a.build})")
+        header = (f"# G3O codebook release 2.7 \u2014 RC-D-005 candidate, {R5_BUILD_NAME[a.build]} (T-010). "
+                  f"Built by planning/t010/build_skeleton.py --build {a.build}.\n"
+                  "# Every slot text is copied verbatim from its `source`; `origin` records who approved it.\n"
+                  "# Signed only if planning/t010/signoff-record.md holds this file's sha256 (A-001).\n")
     # CRLF pinned (2026-10-30): the PI signed the bytes written on Windows; this keeps the hash the same on every OS.
     out.write_text(header + yaml.safe_dump(cb, sort_keys=False, allow_unicode=True, width=10_000), encoding="utf-8",
                    newline=chr(13) + chr(10))
@@ -1874,6 +2009,8 @@ def main() -> None:
             print("OPEN", ".".join(p))
     assert yaml.safe_load(out.read_text(encoding="utf-8")) == cb, "round-trip mismatch"
     verify_signoff(cb)
+    if signed_cb is not None:
+        verify_r5(cb, signed_cb, a.build)
     n_open = len(ops)
     print(f"items={len(ITEMS)} shared_rules={len(SHARED)} retired={len(RETIRED)} open_fields={n_open} "
           f"sha256={hashlib.sha256(out.read_bytes()).hexdigest()[:16]} -> {out}")
