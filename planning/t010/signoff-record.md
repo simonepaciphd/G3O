@@ -48,7 +48,7 @@ The codebook file is signed only while this record holds its sha256 (A-001; `rel
 | Contents | 120 items: 109 `core.*` items at `version_introduced` 2.7, plus 11 procurement and AI-text placeholders outside the 2.7 build, whose `version_introduced` stays open. 14 shared rules, 15 retired entries |
 | Checks passed at build | `verify()` (round trip, shared rules); round-3 and final checks; round-4 checks (546 page slots approved, definitions and fixes verbatim, check 8); sign-off checks (no markers, no pending fixes, no unsigned CX tags, open leaves only the 11 placeholder `version_introduced`) |
 
-## Approvals folded into the file
+### Approvals folded into the superseded file
 
 All quoted verbatim in `planning/t010/t010-rulings.md`.
 
