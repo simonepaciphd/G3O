@@ -1,16 +1,16 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.validate_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764 -->
+<!-- codebook release: 2.7 | codebook sha256: f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f -->
 
 # G3O output contract (validate, Stage 6), generated from the codebook
 
-Codebook release `2.7`, sha256 `d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764`. 14 items.
+Codebook release `2.7`, sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f`. 14 items.
 
 ## `core.has_genai_activity`
-<!-- item: core.has_genai_activity sha256: fbe40748c3b25d8c63105941aa19b1b14d01d237a59407d16f6531dcbd4ef2ef -->
+<!-- item: core.has_genai_activity sha256: 8594c479a9e5bfc1e0a97fddf8c820cf9561fc185ccc14cea22ac7e23054237a -->
 
 | Field | Value |
 |---|---|
-| item hash | `fbe40748c3b25d8c63105941aa19b1b14d01d237a59407d16f6531dcbd4ef2ef` |
+| item hash | `8594c479a9e5bfc1e0a97fddf8c820cf9561fc185ccc14cea22ac7e23054237a` |
 | family | `verdict` |
 | name | `has_genai_activity` |
 | level | `institution` |
@@ -29,7 +29,7 @@ Codebook release `2.7`, sha256 `d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "has_genai_activity", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[28]"}` |
@@ -45,11 +45,11 @@ Institution-level consolidation (Stage 6) applies the v2.6 consolidation rules a
 Codebook table: `yes` if >= 1 supported `confirms_activity` page with a supported activity; `no` if every attempted page (incl. failed fetches and unfollowed links) ends in {no_genai, confirms_absence, event_only, other_body} at confidence >= 0.8 and no page is ambiguous, background_only or failed; otherwise `unclear`. Variant for PI: allow background_only in `no`.
 
 ## `core.verdict_rule`
-<!-- item: core.verdict_rule sha256: d832783e8f4358741df26aaf46c36d846b632138091caae069a927441c905372 -->
+<!-- item: core.verdict_rule sha256: beba0bea88ea30453204e005e89d0dfb23d80d5624e8a0656b0e1aa6c45a7607 -->
 
 | Field | Value |
 |---|---|
-| item hash | `d832783e8f4358741df26aaf46c36d846b632138091caae069a927441c905372` |
+| item hash | `beba0bea88ea30453204e005e89d0dfb23d80d5624e8a0656b0e1aa6c45a7607` |
 | family | `provenance` |
 | name | `verdict_rule` |
 | level | `institution` |
@@ -68,7 +68,7 @@ Codebook table: `yes` if >= 1 supported `confirms_activity` page with a supporte
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -80,11 +80,11 @@ Codebook table: `yes` if >= 1 supported `confirms_activity` page with a supporte
 v2.5 `none` institutions show `no` labelled as produced by the v2.5 rule (`verdict_rule`, r2#45).
 
 ## `core.evidence_tier`
-<!-- item: core.evidence_tier sha256: 1fd343111145182bd53634e0a495427eb3da20b401a15627b9b13b175d247a31 -->
+<!-- item: core.evidence_tier sha256: d0d7454be200964d5ec47c0589c4c533e5cf8a44eb5991f607251cc3491c72f3 -->
 
 | Field | Value |
 |---|---|
-| item hash | `1fd343111145182bd53634e0a495427eb3da20b401a15627b9b13b175d247a31` |
+| item hash | `d0d7454be200964d5ec47c0589c4c533e5cf8a44eb5991f607251cc3491c72f3` |
 | family | `verdict` |
 | name | `evidence_tier` |
 | level | `institution` |
@@ -103,7 +103,7 @@ v2.5 `none` institutions show `no` labelled as produced by the v2.5 rule (`verdi
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -119,11 +119,11 @@ Highest of: documented_use (any pilot, production or discontinued deployment) > 
 Use = a deployment or program at pilot, production or discontinued; commitment = announced, or a tender, contract or payment; governance or training only = those action types only; proposal only = stage 'proposed' or action type 'proposal'. You word the rule, and tests are added.
 
 ## `core.review_depth`
-<!-- item: core.review_depth sha256: 5d9c35a427bd3fd7b3b5020fae958d760df6304722b5369217139d6e2c86c3f8 -->
+<!-- item: core.review_depth sha256: 1e0e3603138283d76aee43d38e7da00ff2027461b73af0f8fd2b54c5ec3e7795 -->
 
 | Field | Value |
 |---|---|
-| item hash | `5d9c35a427bd3fd7b3b5020fae958d760df6304722b5369217139d6e2c86c3f8` |
+| item hash | `1e0e3603138283d76aee43d38e7da00ff2027461b73af0f8fd2b54c5ec3e7795` |
 | family | `quality` |
 | name | `review_depth` |
 | level | `institution` |
@@ -142,7 +142,7 @@ Use = a deployment or program at pilot, production or discontinued; commitment =
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -154,11 +154,11 @@ Use = a deployment or program at pilot, production or discontinued; commitment =
 n_pages_reviewed, n_pages_by_verdict (8 counts), n_pages_failed, n_followed_links, all computed at Stage 6.
 
 ## `core.activity_relation_cross_page`
-<!-- item: core.activity_relation_cross_page sha256: ed35aa6219ba9851bd5efe12e220a94855a87f1e601e726119547a30b02857c3 -->
+<!-- item: core.activity_relation_cross_page sha256: fea0b4ce0e16c47f1177145937bc9d96f11f84f156899c9dd171f21782dd919c -->
 
 | Field | Value |
 |---|---|
-| item hash | `ed35aa6219ba9851bd5efe12e220a94855a87f1e601e726119547a30b02857c3` |
+| item hash | `fea0b4ce0e16c47f1177145937bc9d96f11f84f156899c9dd171f21782dd919c` |
 | family | `activity_identity` |
 | name | `activity_relation` |
 | level | `activity` |
@@ -177,10 +177,14 @@ n_pages_reviewed, n_pages_by_verdict (8 counts), n_pages_failed, n_followed_link
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
-| long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.activity_relation_cross_page]; ruling institution-01, all-04", "order": ["unresolved", "distinct_action", "governs", "component_of_program", "shared_participation", "same_activity", "unknown"]}` |
+| long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.activity_relation_cross_page]; ruling institution-01, all-04", "order": ["unresolved", "distinct_action", "governs", "governed_by", "component_of_program", "has_component", "shared_participation", "same_activity", "unknown"]}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+How is the activity in the first record related to the activity in the second record?
 
 ### Values
 
@@ -249,33 +253,37 @@ Store the distinct value with a rule note.
 Split the pool so every part sees both activities.
 
 ## `core.pooled_activity_fields`
-<!-- item: core.pooled_activity_fields sha256: fceed8f3fb6b4998f41b517fd824eed49e1bccc104916060f3e473d20b39c95f -->
+<!-- item: core.pooled_activity_fields sha256: fc67ae7a795e99099949c382d5d944ec9f2c5cb6bd6ca215cf3d73e8c37dc16b -->
 
 | Field | Value |
 |---|---|
-| item hash | `fceed8f3fb6b4998f41b517fd824eed49e1bccc104916060f3e473d20b39c95f` |
+| item hash | `fc67ae7a795e99099949c382d5d944ec9f2c5cb6bd6ca215cf3d73e8c37dc16b` |
 | family | `activity_identity` |
 | name | `pooled_activity_fields` |
 | level | `activity` |
 | pipelines | `stage6` |
-| linkage | `jev_choice` |
-| coder | `classifier` |
+| linkage | `pipeline` |
+| coder | `derived` |
 | pass | `stage6` |
 | round | `2` |
 | answer_type | `single` |
 | order_tie_rule | `first_in_order` |
 | support_required | `True` |
 | downgrade_target | `unknown` |
-| threshold | `{"metric": "chosen_answer_probability", "bar": 0.8}` |
+| threshold | `none` |
 | missing_tokens | `not_asked`, `not_documented`, `unknown`, `_NA_` |
 | input_text | `main` |
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
-| long_page_rule | `{"rule": "per item (r2#6)"}` |
+| long_page_rule | `{"rule": "none", "pooled_fields": "each field uses its own item's long_page_rule", "source": "r2#6", "ruling": "RC-D-005 10 a"}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+The text below is a set of quotes about one activity, gathered from several sources, each with its source type and date. Answer each question about the activity from these quotes only.
 
 ### Rules
 
@@ -288,11 +296,11 @@ For a merged activity, jev answers each Group D question once over the union of 
 Pooled quotes are split into parts, and the existing combining rules apply (yes if any part says yes; ordered lists take the first value found). The page-splitting rule is extended.
 
 ## `core.confidence`
-<!-- item: core.confidence sha256: 537c6f63b1d27f9707737584b2f124f63ae479557815040a65e67c52d8393c16 -->
+<!-- item: core.confidence sha256: be718eed17df646c03fff6a7f335f7ea2b267c926236030d9bf91cb932dbd698 -->
 
 | Field | Value |
 |---|---|
-| item hash | `537c6f63b1d27f9707737584b2f124f63ae479557815040a65e67c52d8393c16` |
+| item hash | `be718eed17df646c03fff6a7f335f7ea2b267c926236030d9bf91cb932dbd698` |
 | family | `quality` |
 | name | `confidence` |
 | level | `source`, `activity` |
@@ -311,7 +319,7 @@ Pooled quotes are split into parts, and the existing combining rules apply (yes 
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "confidence", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[29]"}` |
@@ -323,11 +331,11 @@ Pooled quotes are split into parts, and the existing combining rules apply (yes 
 Each source's confidence uses only that source's credibility and quote support. At consolidation, an activity is 'high' if one source is high or two medium sources that are not copies of each other agree; otherwise it takes the highest source value.
 
 ## `core.n_sources`
-<!-- item: core.n_sources sha256: 0ea0da2e67b4b4a6f03d97db931c67a34b8fa494246131f001b24a7ed2d6a8ae -->
+<!-- item: core.n_sources sha256: ea16c31f1a1bb6ce87487f5e44204a5ab1a2afc0d3e12334d3a176c8556e7672 -->
 
 | Field | Value |
 |---|---|
-| item hash | `0ea0da2e67b4b4a6f03d97db931c67a34b8fa494246131f001b24a7ed2d6a8ae` |
+| item hash | `ea16c31f1a1bb6ce87487f5e44204a5ab1a2afc0d3e12334d3a176c8556e7672` |
 | family | `quality` |
 | name | `n_sources` |
 | level | `activity` |
@@ -346,7 +354,7 @@ Each source's confidence uses only that source's credibility and quote support. 
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -358,11 +366,11 @@ Each source's confidence uses only that source's credibility and quote support. 
 As v1.3.
 
 ## `core.institution_summary`
-<!-- item: core.institution_summary sha256: f0b7677210e55f2705535f1194b8d6cbe1aba7fb27c7a84aaa09523052888d9f -->
+<!-- item: core.institution_summary sha256: d9fb888186e8e3adb55f161442c71d9b12a220881989b2d03b20c65d52ea17a6 -->
 
 | Field | Value |
 |---|---|
-| item hash | `f0b7677210e55f2705535f1194b8d6cbe1aba7fb27c7a84aaa09523052888d9f` |
+| item hash | `d9fb888186e8e3adb55f161442c71d9b12a220881989b2d03b20c65d52ea17a6` |
 | family | `verdict` |
 | name | `institution_summary` |
 | level | `institution` |
@@ -381,7 +389,7 @@ As v1.3.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "institution_summary", "map": "identity", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[30]"}` |
@@ -393,11 +401,11 @@ As v1.3.
 Generate the summary from codes: verdict, number of activities, their types/stages, page counts reviewed and failed.
 
 ## `core.cx_display_rollup`
-<!-- item: core.cx_display_rollup sha256: e2c1976fd143d2bd307f22c2bda3d25b9fd1a0c2be996db52cacbaf158402ab6 -->
+<!-- item: core.cx_display_rollup sha256: f52d103820b333f6c591a4240b67d803a641e61caaaab1074c100baa2cae3953 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e2c1976fd143d2bd307f22c2bda3d25b9fd1a0c2be996db52cacbaf158402ab6` |
+| item hash | `f52d103820b333f6c591a4240b67d803a641e61caaaab1074c100baa2cae3953` |
 | family | `disclosure` |
 | name | `cx_display_rollup` |
 | level | `activity` |
@@ -416,7 +424,7 @@ Generate the summary from codes: verdict, number of activities, their types/stag
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -428,11 +436,11 @@ Generate the summary from codes: verdict, number of activities, their types/stag
 Stage 6 computes a display value per activity (any supported positive; first in table order for ordered fields), labelled 'display roll-up, not an index input'.
 
 ## `core.codebook_release`
-<!-- item: core.codebook_release sha256: 70c06b42eb6445d646e96fb7738b9ae2b8caf74883db08d70e044d5c561ebe5f -->
+<!-- item: core.codebook_release sha256: d19547278ff8587cfdd0f00fb38382c63b2b746d5a1671b44af5f14b0cf9edbc -->
 
 | Field | Value |
 |---|---|
-| item hash | `70c06b42eb6445d646e96fb7738b9ae2b8caf74883db08d70e044d5c561ebe5f` |
+| item hash | `d19547278ff8587cfdd0f00fb38382c63b2b746d5a1671b44af5f14b0cf9edbc` |
 | family | `provenance` |
 | name | `codebook_release` |
 | level | `row` |
@@ -451,7 +459,7 @@ Stage 6 computes a display value per activity (any supported positive; first in 
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "contract_version", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[31]"}` |
@@ -463,11 +471,11 @@ Stage 6 computes a display value per activity (any supported positive; first in 
 Every published row carries the contract version that produced it. That is one version label, the codebook release, replacing `contract_version`, plus the setup pointer and `evidence_channel`; the extract and validate contract labels are recorded only in the setup record. C-007 applies to the release. v2.5 rows keep their contract version.
 
 ## `core.setup_pointer`
-<!-- item: core.setup_pointer sha256: a67b942925a1dcc27697fd82b8cdd4b1db61c67122694d15f8f8aa26e8fdeca8 -->
+<!-- item: core.setup_pointer sha256: 65b098d4b8efc9532ece93367858c8019cfb0434582423ce3ae52c7cbfcf4d3b -->
 
 | Field | Value |
 |---|---|
-| item hash | `a67b942925a1dcc27697fd82b8cdd4b1db61c67122694d15f8f8aa26e8fdeca8` |
+| item hash | `65b098d4b8efc9532ece93367858c8019cfb0434582423ce3ae52c7cbfcf4d3b` |
 | family | `provenance` |
 | name | `setup_pointer` |
 | level | `row` |
@@ -486,7 +494,7 @@ Every published row carries the contract version that produced it. That is one v
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -502,11 +510,11 @@ A manifest (contract versions, `JEV_QUESTION_SET_VERSION`, jev model, extractor 
 Every jev answer is stored with its probability distribution, confidence, response model id and request id. Every automated coder (classifier, quote step, detector, mechanical rules) stores coder type, model, version and request id; the per-run version record holds the codebook version, and per-code coder details are internal and linked to it; the row carries the codebook version + setup pointer; the classifier record keeps the chosen-answer probability.
 
 ## `core.evidence_channel`
-<!-- item: core.evidence_channel sha256: 1874109a354313ca536f067b515d7a8e258dbac12447765149f3a65d2048555a -->
+<!-- item: core.evidence_channel sha256: 0919944a3cfacd18171a1334e8da4698f46ae9ac2423cc548bf1938ef37a57de -->
 
 | Field | Value |
 |---|---|
-| item hash | `1874109a354313ca536f067b515d7a8e258dbac12447765149f3a65d2048555a` |
+| item hash | `0919944a3cfacd18171a1334e8da4698f46ae9ac2423cc548bf1938ef37a57de` |
 | family | `provenance` |
 | name | `evidence_channel` |
 | level | `row` |
@@ -525,7 +533,7 @@ Every jev answer is stored with its probability distribution, confidence, respon
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -537,11 +545,11 @@ Every jev answer is stored with its probability distribution, confidence, respon
 Channel enum (web_extract, procurement, text_detection)
 
 ## `core.coder_record`
-<!-- item: core.coder_record sha256: 3ce7044e0f14e915db89ee5a6e5a1395fb47f6c884a634b32532e6e3004471ab -->
+<!-- item: core.coder_record sha256: 213c3c3f241b5081f4f6cbde23e3db0d711564f03a04bede0010b1e9a35fb167 -->
 
 | Field | Value |
 |---|---|
-| item hash | `3ce7044e0f14e915db89ee5a6e5a1395fb47f6c884a634b32532e6e3004471ab` |
+| item hash | `213c3c3f241b5081f4f6cbde23e3db0d711564f03a04bede0010b1e9a35fb167` |
 | family | `provenance` |
 | name | `coder_record` |
 | level | `row` |
@@ -560,7 +568,7 @@ Channel enum (web_extract, procurement, text_detection)
 | visibility | `internal` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |

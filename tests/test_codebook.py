@@ -28,7 +28,7 @@ from g3o.codebook.cli import main as cli_main
 from g3o.codebook.generators import GENERATED_DIR, generate_all
 from g3o.codebook.loader import REPO_ROOT, Codebook, load_codebook
 
-SIGNED_SHA256 = "d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764"
+SIGNED_SHA256 = "f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f"  # re-signed under RC-D-005
 
 
 @pytest.fixture(scope="module")
@@ -103,9 +103,10 @@ def test_cx_question_byte_identical_to_signed_text(cb: Codebook) -> None:
         assert q["instructions"].encode("utf-8") in cb.raw  # the signed bytes themselves
         if item["instruction"].get("draft_action") == "no_change":
             assert q["instructions"] == item["instruction"]["frozen_text"]
-        for n, crit in enumerate(q["criteria"]):
-            definition = item["values"][n]["definition"]["text"]
-            assert crit["text"].startswith(definition)
+        # Criteria past the item's values are the offered "not documented" choice (RC-D-005, 12 a).
+        assert len(q["criteria"]) >= len(item["values"])
+        for crit, value in zip(q["criteria"][: len(item["values"])], item["values"], strict=True):
+            assert crit["text"].startswith(value["definition"]["text"])
     form = next(q for q in cx if q["item_id"] == "core.disclosure_form")
     assert form["instructions"] == "What kind of document is this page?"
 
@@ -134,19 +135,21 @@ def test_generated_enums_import(cb: Codebook) -> None:
 
 def test_blocked_targets_recorded(cb: Codebook) -> None:
     manifest = json.loads((REPO_ROOT / GENERATED_DIR / "manifest.json").read_text(encoding="utf-8"))
-    targets = {b["target"] for b in manifest["blocked_targets"]}
-    assert "g3o/extract/prompts/system_prompt.md" in targets
+    # RC-D-005 puts the system prompt in the codebook, so nothing is blocked; generated
+    # files stay under GENERATED_DIR and reach live prompt paths only with T-012 / T-022 / T-032 (P8).
+    assert manifest["blocked_targets"] == []
+    paths = [f["path"] for f in manifest["generated_files"]]
+    assert f"{GENERATED_DIR}/system_prompt.md" in paths
+    assert all(p.startswith(GENERATED_DIR + "/") for p in paths)
     assert len(manifest["items"]) == len(cb.items)
 
 
-#: Results of checks 1-16 on the signed release 2.7 file. The failures are
-#: codebook findings reported to the integrator (T-013 return report); they are
-#: fixed by a codebook delta and a re-signature, never here. When the codebook
-#: changes, update this pin from `python -m g3o.codebook checks`.
-SIGNED_RESULTS = {
-    1: "fail", 2: "pass", 3: "pass", 4: "pass", 5: "pass", 6: "fail", 7: "fail", 8: "pass",
-    9: "fail", 10: "fail", 11: "fail", 12: "n/a", 13: "fail", 14: "pass", 15: "pass", 16: "pass",
-}
+#: Results of checks 1-16 on the signed release 2.7 file, as re-signed under
+#: RC-D-005 (A-001: all pass; 12 has no previous release to compare). Failures
+#: are codebook findings for the integrator, fixed by a delta and a re-signature,
+#: never here. When the codebook changes, update this pin from
+#: `python -m g3o.codebook checks`.
+SIGNED_RESULTS = {n: "pass" for n in range(1, 17)} | {12: "n/a"}
 
 
 def test_signed_codebook_known_check_results(cb: Codebook, ctx: C.Context) -> None:
@@ -157,9 +160,9 @@ def test_signed_codebook_known_check_results(cb: Codebook, ctx: C.Context) -> No
 def test_cli_checks_and_hash(capsys) -> None:
     assert cli_main(["hash"]) == 0
     assert capsys.readouterr().out.strip() == SIGNED_SHA256
-    assert cli_main(["checks", "-v"]) == 1  # failing checks on the signed file (see SIGNED_RESULTS)
+    assert cli_main(["checks", "-v"]) == 0  # all checks pass on the re-signed file (see SIGNED_RESULTS)
     out = capsys.readouterr().out
-    assert "check 13 sign-off gate: FAIL" in out
+    assert "check 13 sign-off gate: PASS" in out
 
 
 def test_schema_file_is_valid_json_and_names_every_template_field() -> None:

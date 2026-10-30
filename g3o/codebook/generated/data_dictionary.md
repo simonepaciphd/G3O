@@ -1,16 +1,16 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.data_dictionary. -->
-<!-- codebook release: 2.7 | codebook sha256: d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764 -->
+<!-- codebook release: 2.7 | codebook sha256: f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f -->
 
 # G3O codebook data dictionary
 
-Codebook release `2.7`, sha256 `d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764`. 109 items.
+Codebook release `2.7`, sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f`. 109 items.
 
 ## `core.page_verdict`
-<!-- item: core.page_verdict sha256: fd63c805b56f323f6b330288afd8d12429e0b7e2e53b5397a2feae37a2e22f75 -->
+<!-- item: core.page_verdict sha256: d448710c4b15adc59edf76e6097a881a9bc0ab36221e9b895a8171c4f49abb0b -->
 
 | Field | Value |
 |---|---|
-| item hash | `fd63c805b56f323f6b330288afd8d12429e0b7e2e53b5397a2feae37a2e22f75` |
+| item hash | `d448710c4b15adc59edf76e6097a881a9bc0ab36221e9b895a8171c4f49abb0b` |
 | family | `verdict` |
 | name | `page_verdict` |
 | level | `page` |
@@ -24,14 +24,14 @@ Codebook release `2.7`, sha256 `d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf
 | support_required | `True` |
 | downgrade_target | `tag_only` |
 | threshold | `{"metric": "chosen_answer_probability", "bar": 0.8}` |
-| missing_tokens | `not_assessable (mechanical)` |
+| missing_tokens | `none` |
 | input_text | `main` |
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
-| long_page_rule | `{"rule": "priority_order", "order": "S3 a"}` |
+| long_page_rule | `{"rule": "priority_order", "order": ["confirms_activity", "ambiguous_attribution", "ambiguous_genai", "other_body", "event_only", "background_only", "confirms_absence", "no_genai", "not_assessable"]}` |
 | translation_v25 | `{"column": "genai_evidence", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[0]"}` |
 
 ### Instruction
@@ -109,11 +109,11 @@ A joint activity counts when the page names this institution as a participant.
 All supported verdicts in the signed order first, then failed verdicts in the same order.
 
 ## `core.disclosure_form`
-<!-- item: core.disclosure_form sha256: 09cf9815915325c5bd2f8360c7df2821d73c779f829111a5683ebd2b56dcaac9 -->
+<!-- item: core.disclosure_form sha256: af8cdf4d03cce301d4733c5d1f4c29c8abfe0354366592f2237e91eba6b7b694 -->
 
 | Field | Value |
 |---|---|
-| item hash | `09cf9815915325c5bd2f8360c7df2821d73c779f829111a5683ebd2b56dcaac9` |
+| item hash | `af8cdf4d03cce301d4733c5d1f4c29c8abfe0354366592f2237e91eba6b7b694` |
 | family | `disclosure` |
 | name | `disclosure_form` |
 | level | `page` |
@@ -132,7 +132,7 @@ All supported verdicts in the signed order first, then failed verdicts in the sa
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-10..CX-18` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `first_section` |
 | translation_v25 | `new` |
@@ -183,26 +183,18 @@ The obligation must be named on the page, except that it may be inferred from th
 
 4. `items/core.disclosure_form/rules/3`
 
-Re-word CX-12/13: `mandated_report` only when the obligation concerns reporting on AI, algorithms or digital systems, named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code `formal_record`.
-
-5. `items/core.disclosure_form/rules/4`
-
 CX-12/13: a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.
 
-6. `items/core.disclosure_form/rules/5`
-
-Add those reports to the same sentence.
-
-7. `items/core.disclosure_form/rules/6`
+5. `items/core.disclosure_form/rules/4`
 
 The page's kind cannot be determined from its text (e.g. an archived fragment with no header).
 
 ## `core.disclosure_scope`
-<!-- item: core.disclosure_scope sha256: 628eef37275d69d7e443f582adda3242f857898a17311c7d0240482730f58868 -->
+<!-- item: core.disclosure_scope sha256: 32e224fd58a2738763c9e708b84e4e8d0d24fc6c07c042d1aadc0d616be64617 -->
 
 | Field | Value |
 |---|---|
-| item hash | `628eef37275d69d7e443f582adda3242f857898a17311c7d0240482730f58868` |
+| item hash | `32e224fd58a2738763c9e708b84e4e8d0d24fc6c07c042d1aadc0d616be64617` |
 | family | `disclosure` |
 | name | `disclosure_scope` |
 | level | `page` |
@@ -221,10 +213,14 @@ The page's kind cannot be determined from its text (e.g. an archived fragment wi
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-20..CX-25` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.disclosure_form", "values": ["register_cross_institution", "register_single_institution", "mandated_report"], "source": "X02"}` |
 | long_page_rule | `first_section` |
 | translation_v25 | `new` |
+
+### Instruction
+
+How many institutions does the listing or document this page belongs to cover?
 
 ### Values
 
@@ -252,18 +248,14 @@ Pages whose `disclosure_form` is `register_cross_institution`, `register_single_
 
 3. `items/core.disclosure_scope/rules/2`
 
-Ask `disclosure_scope` only when `disclosure_form` in {register_cross_institution, register_single_institution, mandated_report}; otherwise store `_NA_`.
-
-4. `items/core.disclosure_scope/rules/3`
-
 Coverage cannot be determined from the page.
 
 ## `core.page_complete`
-<!-- item: core.page_complete sha256: aa535149e9d7875984e77693fae7af0fd1f205ad48852a9fe3bd856f1f184d14 -->
+<!-- item: core.page_complete sha256: a9f0477de324e7012112096cb6f65a79d6c95f891595b196f87fc11abb65e7fb -->
 
 | Field | Value |
 |---|---|
-| item hash | `aa535149e9d7875984e77693fae7af0fd1f205ad48852a9fe3bd856f1f184d14` |
+| item hash | `a9f0477de324e7012112096cb6f65a79d6c95f891595b196f87fc11abb65e7fb` |
 | family | `completeness` |
 | name | `page_complete` |
 | level | `page` |
@@ -282,7 +274,7 @@ Coverage cannot be determined from the page.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.page_verdict", "values": ["confirms_activity", "ambiguous_genai", "ambiguous_attribution", "other_body", "event_only"]}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `new` |
@@ -309,18 +301,14 @@ The first pass also records whether the page holds all available information abo
 
 2. `items/core.page_complete/rules/1`
 
-Add a note in the codebook that yes means incomplete.
-
-3. `items/core.page_complete/rules/2`
-
 Note: `yes` means incomplete (the page refers the reader onward); the name `page_complete` reads the other way.
 
 ## `core.source_type`
-<!-- item: core.source_type sha256: 0008679290c739d3727328af7302d232ef1024cbf908136157fefe819194a76e -->
+<!-- item: core.source_type sha256: 18fd64c5194e4ed8d3ac57036a9a29e58293264137772357e41d636a4747170f -->
 
 | Field | Value |
 |---|---|
-| item hash | `0008679290c739d3727328af7302d232ef1024cbf908136157fefe819194a76e` |
+| item hash | `18fd64c5194e4ed8d3ac57036a9a29e58293264137772357e41d636a4747170f` |
 | family | `source` |
 | name | `source_type` |
 | level | `source` |
@@ -339,10 +327,14 @@ Note: `yes` means incomplete (the page refers the reader onward); the name `page
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"rule": "only pages not typed automatically from domain or address (r2#25)"}` |
+| status | `signed` |
+| gate | `none` |
 | long_page_rule | `{"rule": "first_section", "source": "combining-rules.json items[core.source_type]; ruling source-01, all-06"}` |
 | translation_v25 | `{"column": "source_type", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[1]"}` |
+
+### Instruction
+
+What kind of source is this page?
 
 ### Values
 
@@ -376,7 +368,7 @@ Tender notice, RFP, contract award, vendor selection document
 
 #### `other`
 
-None of the above; explain in `source_snippet`
+None of the above
 
 ### Rules
 
@@ -388,12 +380,16 @@ None of the above; explain in `source_snippet`
 
 Source type is answered by the same classifier question in every pipeline where it applies. The AI-text pipeline drops its genre table and procurement's fixed value is replaced.
 
+3. `items/core.source_type/rules/2`
+
+not_documented: the page is silent.
+
 ## `core.content_contact_named`
-<!-- item: core.content_contact_named sha256: 715fb22182701f236290cb74b351e21b7f78deadf88ad177f90b65b05b413995 -->
+<!-- item: core.content_contact_named sha256: c14b41bf44f0d1a22b5392ae792c7ffe24c51fb4c6e332bae0cf67064590febe -->
 
 | Field | Value |
 |---|---|
-| item hash | `715fb22182701f236290cb74b351e21b7f78deadf88ad177f90b65b05b413995` |
+| item hash | `c14b41bf44f0d1a22b5392ae792c7ffe24c51fb4c6e332bae0cf67064590febe` |
 | family | `disclosure` |
 | name | `content_contact_named` |
 | level | `page` |
@@ -412,10 +408,14 @@ Source type is answered by the same classifier question in every pipeline where 
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-51` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.page_verdict", "values": ["confirms_activity", "ambiguous_genai", "ambiguous_attribution", "other_body", "event_only"], "gated_out_value": "no", "source": "final-open F07 (PI 2026-10-30 \"all accepted\")"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `new` |
+
+### Instruction
+
+Does the page name a person, office or unit as responsible for a GenAI activity it mentions, or for questions about it?
 
 ### Values
 
@@ -433,16 +433,12 @@ The page names no person, office or unit as responsible for the activity or for 
 
 Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
-2. `items/core.content_contact_named/rules/1`
-
-Pipeline change: store a separate `chrome_text` (header/footer/nav) next to main text, and give jev both for the contact item only.
-
 ## `core.content_contact_details`
-<!-- item: core.content_contact_details sha256: c6e78dae75bb317ad353f8d38c074a99309570906f0fbccb1e4e29913d1e88ac -->
+<!-- item: core.content_contact_details sha256: 6ef720c9b22a50994be0bde73ee626c26f1ac59fcf3808a3d72a2249c82b8bf7 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c6e78dae75bb317ad353f8d38c074a99309570906f0fbccb1e4e29913d1e88ac` |
+| item hash | `6ef720c9b22a50994be0bde73ee626c26f1ac59fcf3808a3d72a2249c82b8bf7` |
 | family | `disclosure` |
 | name | `content_contact_details` |
 | level | `page` |
@@ -461,10 +457,14 @@ Pipeline change: store a separate `chrome_text` (header/footer/nav) next to main
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-51` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.page_verdict", "values": ["confirms_activity", "ambiguous_genai", "ambiguous_attribution", "other_body", "event_only"], "gated_out_value": "no", "source": "final-open F07 (PI 2026-10-30 \"all accepted\")"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `new` |
+
+### Instruction
+
+Does the page give any contact details anywhere on it, such as an email address, phone number, postal address or contact form?
 
 ### Values
 
@@ -482,16 +482,12 @@ No contact details appear anywhere on the page, including its header and footer.
 
 Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
-2. `items/core.content_contact_details/rules/1`
-
-Pipeline change: store a separate `chrome_text` (header/footer/nav) next to main text, and give jev both for the contact item only.
-
 ## `core.content_contact`
-<!-- item: core.content_contact sha256: ac74198148c2a229f62fe7751cdf74417302701ff91429f6ad20dcc6ec6760a6 -->
+<!-- item: core.content_contact sha256: 20ce152ca168cd9eaa77ccf61f439277c2fdc9affb3f0faeb048e98cea94d65a -->
 
 | Field | Value |
 |---|---|
-| item hash | `ac74198148c2a229f62fe7751cdf74417302701ff91429f6ad20dcc6ec6760a6` |
+| item hash | `20ce152ca168cd9eaa77ccf61f439277c2fdc9affb3f0faeb048e98cea94d65a` |
 | family | `disclosure` |
 | name | `content_contact` |
 | level | `page` |
@@ -510,7 +506,7 @@ Pipeline change: store a separate `chrome_text` (header/footer/nav) next to main
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-51` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -522,11 +518,11 @@ Pipeline change: store a separate `chrome_text` (header/footer/nav) next to main
 Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
 ## `core.content_contact_emails`
-<!-- item: core.content_contact_emails sha256: c9df1d05e48c6664217b5e7321ffd7779c265c30e6d20aafeb48e0e6f84cdb53 -->
+<!-- item: core.content_contact_emails sha256: 2effc2799f78ed142a3ba7ff624be69a3ece86e461907a3a18f880ed4798233a -->
 
 | Field | Value |
 |---|---|
-| item hash | `c9df1d05e48c6664217b5e7321ffd7779c265c30e6d20aafeb48e0e6f84cdb53` |
+| item hash | `2effc2799f78ed142a3ba7ff624be69a3ece86e461907a3a18f880ed4798233a` |
 | family | `disclosure` |
 | name | `content_contact_emails` |
 | level | `page` |
@@ -545,7 +541,7 @@ Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (p
 | visibility | `public_derived` |
 | frozen_signature | `CX-01.3:CX-53` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.content_contact", "values": ["yes"]}` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -560,16 +556,12 @@ When `content_contact` = yes, extract the contact with a deterministic `@` searc
 
 Published supporting quotes stay verbatim, with no masking. Contact e-mails are stored in full internally, and only the domain and a count are published.
 
-3. `items/core.content_contact_emails/rules/2`
-
-Store the full list internally; publish only the domain part (and a count), or only role addresses (no personal-name pattern).
-
 ## `core.content_purpose`
-<!-- item: core.content_purpose sha256: e2da06a8dc9358f1880a3bf55e71b2f1a850d627aa8abc44fe7836019f45d48e -->
+<!-- item: core.content_purpose sha256: 770abc7dba5990f1615e2f5a3854fb202a2a77b69decb344b5fb721431a448a0 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e2da06a8dc9358f1880a3bf55e71b2f1a850d627aa8abc44fe7836019f45d48e` |
+| item hash | `770abc7dba5990f1615e2f5a3854fb202a2a77b69decb344b5fb721431a448a0` |
 | family | `disclosure` |
 | name | `content_purpose` |
 | level | `page` |
@@ -588,7 +580,7 @@ Store the full list internally; publish only the domain part (and a count), or o
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-51` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -609,24 +601,14 @@ A page item is yes when any activity on the page has a stated value in the match
 
 4. `items/core.content_purpose/rules/3`
 
-Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.
-
-5. `items/core.content_purpose/rules/5`
-
-Description items and the data item are also "no" where the verdict shows no GenAI.
-
-Rule entry without a `text` slot, rendered by slot path: `items/core.content_purpose/rules/4`
-
-`items/core.content_purpose/rules/4/draft`
-
 purpose: the activity's function items
 
 ## `core.content_tool_or_model`
-<!-- item: core.content_tool_or_model sha256: 51b49ac3978e182459b7d7295db44171c97be9b97927cfecb556b21662943a23 -->
+<!-- item: core.content_tool_or_model sha256: b8f38f4a14576d7c232b0da604e4e60033488864a67c182fd887771ad245c997 -->
 
 | Field | Value |
 |---|---|
-| item hash | `51b49ac3978e182459b7d7295db44171c97be9b97927cfecb556b21662943a23` |
+| item hash | `b8f38f4a14576d7c232b0da604e4e60033488864a67c182fd887771ad245c997` |
 | family | `disclosure` |
 | name | `content_tool_or_model` |
 | level | `page` |
@@ -645,7 +627,7 @@ purpose: the activity's function items
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-51` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -666,24 +648,14 @@ A page item is yes when any activity on the page has a stated value in the match
 
 4. `items/core.content_tool_or_model/rules/3`
 
-Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.
-
-5. `items/core.content_tool_or_model/rules/5`
-
-Description items and the data item are also "no" where the verdict shows no GenAI.
-
-Rule entry without a `text` slot, rendered by slot path: `items/core.content_tool_or_model/rules/4`
-
-`items/core.content_tool_or_model/rules/4/draft`
-
 tool or model: tool or model name
 
 ## `core.content_vendor`
-<!-- item: core.content_vendor sha256: e694522f50d73169edcb4731d0e483c9fa9d4ac600cc78dc90d52b0e591637ac -->
+<!-- item: core.content_vendor sha256: a6520167c4b003ac67ebc0d74595d946e7e8792d7502dee43cf30ff7d24d2fb9 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e694522f50d73169edcb4731d0e483c9fa9d4ac600cc78dc90d52b0e591637ac` |
+| item hash | `a6520167c4b003ac67ebc0d74595d946e7e8792d7502dee43cf30ff7d24d2fb9` |
 | family | `disclosure` |
 | name | `content_vendor` |
 | level | `page` |
@@ -702,7 +674,7 @@ tool or model: tool or model name
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-51` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -723,28 +695,14 @@ A page item is yes when any activity on the page has a stated value in the match
 
 4. `items/core.content_vendor/rules/3`
 
-Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.
-
-5. `items/core.content_vendor/rules/5`
-
-Description items and the data item are also "no" where the verdict shows no GenAI.
-
-Rule entry without a `text` slot, rendered by slot path: `items/core.content_vendor/rules/4`
-
-`items/core.content_vendor/rules/4/draft`
-
 vendor: model developer, stated or looked up, or contracting party
 
-`items/core.content_vendor/rules/4/amended_by`
-
-Vendor is "yes" if a developer is recorded, whether stated on the page or looked up.
-
 ## `core.content_data`
-<!-- item: core.content_data sha256: d4c082c3cd02bb721a676870aa414ecb99862a25ba4a616d913a1dff2c9a6014 -->
+<!-- item: core.content_data sha256: 32b7a48c23a51ba63beb865cae0f6b9c864a519c4d6a1af1ad825fdbd55e4592 -->
 
 | Field | Value |
 |---|---|
-| item hash | `d4c082c3cd02bb721a676870aa414ecb99862a25ba4a616d913a1dff2c9a6014` |
+| item hash | `32b7a48c23a51ba63beb865cae0f6b9c864a519c4d6a1af1ad825fdbd55e4592` |
 | family | `disclosure` |
 | name | `content_data` |
 | level | `page` |
@@ -763,7 +721,7 @@ Vendor is "yes" if a developer is recorded, whether stated on the page or looked
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-51` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.page_verdict", "values": ["confirms_activity", "ambiguous_genai", "ambiguous_attribution", "other_body", "event_only"], "gated_out_value": "no", "source": "page-09 c"}` |
 | long_page_rule | `{"rule": "any_yes", "order": ["yes", "no", "not_documented", "unknown"]}` |
 | translation_v25 | `new` |
@@ -794,22 +752,18 @@ Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (p
 
 3. `items/core.content_data/rules/2`
 
-Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.
-
-4. `items/core.content_data/rules/3`
-
 One page question, asked on GenAI pages.
 
-5. `items/core.content_data/rules/4`
+4. `items/core.content_data/rules/3`
 
 Description items and the data item are also "no" where the verdict shows no GenAI.
 
 ## `core.content_users`
-<!-- item: core.content_users sha256: e6b026ff14d744e53ccdc05477f044ae2fc859763efdac15f182159b02134f29 -->
+<!-- item: core.content_users sha256: 8beadad995b8aec7a4e72c3439d81abe22a362e0b7d16caff378782eac755f2f -->
 
 | Field | Value |
 |---|---|
-| item hash | `e6b026ff14d744e53ccdc05477f044ae2fc859763efdac15f182159b02134f29` |
+| item hash | `8beadad995b8aec7a4e72c3439d81abe22a362e0b7d16caff378782eac755f2f` |
 | family | `disclosure` |
 | name | `content_users` |
 | level | `page` |
@@ -828,7 +782,7 @@ Description items and the data item are also "no" where the verdict shows no Gen
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-51` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -849,28 +803,14 @@ A page item is yes when any activity on the page has a stated value in the match
 
 4. `items/core.content_users/rules/3`
 
-Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.
-
-5. `items/core.content_users/rules/5`
-
-Description items and the data item are also "no" where the verdict shows no GenAI.
-
-Rule entry without a `text` slot, rendered by slot path: `items/core.content_users/rules/4`
-
-`items/core.content_users/rules/4/draft`
-
 users: `target_users` or `governed_population`
 
-`items/core.content_users/rules/4/amended_by`
-
-Users is "yes" if any activity states who the tool serves or who a governance rule applies to (`governed_population`).
-
 ## `core.content_status_date`
-<!-- item: core.content_status_date sha256: f3207a42027ad36d9bbc48d35d5fc1646baa66804a35809a47c0c9476019ffe9 -->
+<!-- item: core.content_status_date sha256: cbbb379a84f4ba33eb7337d988fd9b3e60cda5a07e87b883000301276407323d -->
 
 | Field | Value |
 |---|---|
-| item hash | `f3207a42027ad36d9bbc48d35d5fc1646baa66804a35809a47c0c9476019ffe9` |
+| item hash | `cbbb379a84f4ba33eb7337d988fd9b3e60cda5a07e87b883000301276407323d` |
 | family | `disclosure` |
 | name | `content_status_date` |
 | level | `page` |
@@ -889,7 +829,7 @@ Users is "yes" if any activity states who the tool serves or who a governance ru
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-51` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -910,24 +850,14 @@ A page item is yes when any activity on the page has a stated value in the match
 
 4. `items/core.content_status_date/rules/3`
 
-Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.
-
-5. `items/core.content_status_date/rules/5`
-
-Description items and the data item are also "no" where the verdict shows no GenAI.
-
-Rule entry without a `text` slot, rendered by slot path: `items/core.content_status_date/rules/4`
-
-`items/core.content_status_date/rules/4/draft`
-
 status or date: `adoption_stage` or a year field
 
 ## `core.content_human_oversight`
-<!-- item: core.content_human_oversight sha256: 0cdfa78ca8fd04c11fd42536140fd698be65ade63c7b7a22f192b6f583450dbc -->
+<!-- item: core.content_human_oversight sha256: 675a231b8ec3f9c7f5b62fe8e9c650c4a65ad5a84cbc53797e45b3f7f188223b -->
 
 | Field | Value |
 |---|---|
-| item hash | `0cdfa78ca8fd04c11fd42536140fd698be65ade63c7b7a22f192b6f583450dbc` |
+| item hash | `675a231b8ec3f9c7f5b62fe8e9c650c4a65ad5a84cbc53797e45b3f7f188223b` |
 | family | `safeguard` |
 | name | `content_human_oversight` |
 | level | `page` |
@@ -946,7 +876,7 @@ status or date: `adoption_stage` or a year field
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-52` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -963,20 +893,14 @@ One per-activity question per safeguard with the four answers; the page-level an
 
 3. `items/core.content_human_oversight/rules/2`
 
-Ask each safeguard once per (page x activity) in pass 2 and derive both the page-level `content_*` (any activity yes) and the activity-level `has_*` (yes / not_documented) from it.
-
-Rule entry without a `text` slot, rendered by slot path: `items/core.content_human_oversight/rules/3`
-
-`items/core.content_human_oversight/rules/3/draft`
-
 `yes` if any activity on the page is `yes`, otherwise `no`.
 
 ## `core.content_risk_assessment`
-<!-- item: core.content_risk_assessment sha256: a3b70b60178ef7dcd5bd48adaa28e72935c25cb8cbe3bbf896d19a66e1080a7e -->
+<!-- item: core.content_risk_assessment sha256: 616e2436f8583fbcf50e2fae297dfe88b014b49b250362c99d0866b6f6be341c -->
 
 | Field | Value |
 |---|---|
-| item hash | `a3b70b60178ef7dcd5bd48adaa28e72935c25cb8cbe3bbf896d19a66e1080a7e` |
+| item hash | `616e2436f8583fbcf50e2fae297dfe88b014b49b250362c99d0866b6f6be341c` |
 | family | `safeguard` |
 | name | `content_risk_assessment` |
 | level | `page` |
@@ -995,7 +919,7 @@ Rule entry without a `text` slot, rendered by slot path: `items/core.content_hum
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-52` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -1012,20 +936,14 @@ One per-activity question per safeguard with the four answers; the page-level an
 
 3. `items/core.content_risk_assessment/rules/2`
 
-Ask each safeguard once per (page x activity) in pass 2 and derive both the page-level `content_*` (any activity yes) and the activity-level `has_*` (yes / not_documented) from it.
-
-Rule entry without a `text` slot, rendered by slot path: `items/core.content_risk_assessment/rules/3`
-
-`items/core.content_risk_assessment/rules/3/draft`
-
 `yes` if any activity on the page is `yes`, otherwise `no`.
 
 ## `core.content_user_notification`
-<!-- item: core.content_user_notification sha256: 0e4007b0a890b53b2f7e1e2ad543c793600e7d8292c714bad1214188610ccc19 -->
+<!-- item: core.content_user_notification sha256: 46c75d27486b11590e6c9e20c681d28f9018e8dd4bd65a883d0f5ef4f2dff959 -->
 
 | Field | Value |
 |---|---|
-| item hash | `0e4007b0a890b53b2f7e1e2ad543c793600e7d8292c714bad1214188610ccc19` |
+| item hash | `46c75d27486b11590e6c9e20c681d28f9018e8dd4bd65a883d0f5ef4f2dff959` |
 | family | `safeguard` |
 | name | `content_user_notification` |
 | level | `page` |
@@ -1044,7 +962,7 @@ Rule entry without a `text` slot, rendered by slot path: `items/core.content_ris
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-52` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -1061,20 +979,14 @@ One per-activity question per safeguard with the four answers; the page-level an
 
 3. `items/core.content_user_notification/rules/2`
 
-Ask each safeguard once per (page x activity) in pass 2 and derive both the page-level `content_*` (any activity yes) and the activity-level `has_*` (yes / not_documented) from it.
-
-Rule entry without a `text` slot, rendered by slot path: `items/core.content_user_notification/rules/3`
-
-`items/core.content_user_notification/rules/3/draft`
-
 `yes` if any activity on the page is `yes`, otherwise `no`.
 
 ## `core.source_url`
-<!-- item: core.source_url sha256: 7cb7f3e19ded83dc31917c48b1e7d1a1e05c40bb7288bd65c4a91d005abed815 -->
+<!-- item: core.source_url sha256: f69b8e39218bf4431807d0179fe0196361c1ed93585d744bf90ca1f9918a6ba7 -->
 
 | Field | Value |
 |---|---|
-| item hash | `7cb7f3e19ded83dc31917c48b1e7d1a1e05c40bb7288bd65c4a91d005abed815` |
+| item hash | `f69b8e39218bf4431807d0179fe0196361c1ed93585d744bf90ca1f9918a6ba7` |
 | family | `source` |
 | name | `source_url` |
 | level | `source` |
@@ -1093,7 +1005,7 @@ Rule entry without a `text` slot, rendered by slot path: `items/core.content_use
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "source_url", "map": "identity"}` |
@@ -1109,11 +1021,11 @@ The URL of the supplied page, verbatim from the input. **Never fabricate or alte
 Take `source_title` from RenderedPage.title (fallback: first heading); never from a model.
 
 ## `core.source_title`
-<!-- item: core.source_title sha256: e1d1c299600b950a43908abb37fd003f8d2befe4a8a309b819ec2200cd594bad -->
+<!-- item: core.source_title sha256: 567de2366b970d3285c1695c20d0d0b3f586ecc906330196223603c8d4f42ae4 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e1d1c299600b950a43908abb37fd003f8d2befe4a8a309b819ec2200cd594bad` |
+| item hash | `567de2366b970d3285c1695c20d0d0b3f586ecc906330196223603c8d4f42ae4` |
 | family | `source` |
 | name | `source_title` |
 | level | `source` |
@@ -1132,7 +1044,7 @@ Take `source_title` from RenderedPage.title (fallback: first heading); never fro
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "source_title", "map": "identity", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[2]"}` |
@@ -1144,11 +1056,11 @@ Take `source_title` from RenderedPage.title (fallback: first heading); never fro
 Take `source_title` from RenderedPage.title (fallback: first heading); never from a model.
 
 ## `core.source_access_date`
-<!-- item: core.source_access_date sha256: c0f6e5370bc39a3b99b587ddfed7c5903c3736cbe59af7c4dfa069256c682383 -->
+<!-- item: core.source_access_date sha256: c0ab53f9afdb4adfb57643bc0b682c5290a8196689feb91f972428dfe2fd92ef -->
 
 | Field | Value |
 |---|---|
-| item hash | `c0f6e5370bc39a3b99b587ddfed7c5903c3736cbe59af7c4dfa069256c682383` |
+| item hash | `c0ab53f9afdb4adfb57643bc0b682c5290a8196689feb91f972428dfe2fd92ef` |
 | family | `source` |
 | name | `source_access_date` |
 | level | `source` |
@@ -1167,7 +1079,7 @@ Take `source_title` from RenderedPage.title (fallback: first heading); never fro
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "source_access_date", "map": "identity"}` |
@@ -1183,11 +1095,11 @@ Date the supplied page was retrieved (provided in the input metadata as the scra
 Take `source_title` from RenderedPage.title (fallback: first heading); never from a model.
 
 ## `core.source_language`
-<!-- item: core.source_language sha256: 6cc54c04dceb30c62e55b7cd3d367333c7ad7562d60980cd3dfb379c008533aa -->
+<!-- item: core.source_language sha256: 6eef15a077d0980bc3b2d9c2ea3e9cb8a04d715167869edf4aa2e0fa659283a8 -->
 
 | Field | Value |
 |---|---|
-| item hash | `6cc54c04dceb30c62e55b7cd3d367333c7ad7562d60980cd3dfb379c008533aa` |
+| item hash | `6eef15a077d0980bc3b2d9c2ea3e9cb8a04d715167869edf4aa2e0fa659283a8` |
 | family | `source` |
 | name | `source_language` |
 | level | `source` |
@@ -1206,7 +1118,7 @@ Take `source_title` from RenderedPage.title (fallback: first heading); never fro
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "source_language", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[3]"}` |
@@ -1218,11 +1130,11 @@ Take `source_title` from RenderedPage.title (fallback: first heading); never fro
 Pinned local language-ID library on stored text; same tag grammar as `institution_search_languages`; `mul` when no language exceeds a set share.
 
 ## `core.source_on_official_domain`
-<!-- item: core.source_on_official_domain sha256: 6945030e27b6e87bbd1b81bea18df0717b95df2423a65ecb5378e833f85aa2c5 -->
+<!-- item: core.source_on_official_domain sha256: 808a40f0391818a73e8620b2812462e3bd34050aaf83ac8a597695765aaf042b -->
 
 | Field | Value |
 |---|---|
-| item hash | `6945030e27b6e87bbd1b81bea18df0717b95df2423a65ecb5378e833f85aa2c5` |
+| item hash | `808a40f0391818a73e8620b2812462e3bd34050aaf83ac8a597695765aaf042b` |
 | family | `source` |
 | name | `source_on_official_domain` |
 | level | `source` |
@@ -1241,7 +1153,7 @@ Pinned local language-ID library on stored text; same tag grammar as `institutio
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -1253,11 +1165,11 @@ Pinned local language-ID library on stored text; same tag grammar as `institutio
 `own_official` / `other_official` / `not_official` from URL host vs the master official-site overlay.
 
 ## `core.syndication_group`
-<!-- item: core.syndication_group sha256: fb11c681bcea5419cf7c559de3175aa348bb265e6fa0271621c7e6e791780a2e -->
+<!-- item: core.syndication_group sha256: f3db8eda3ba82dd6282414e91888311b4df2d66902d70551e223cd1e3f23ac97 -->
 
 | Field | Value |
 |---|---|
-| item hash | `fb11c681bcea5419cf7c559de3175aa348bb265e6fa0271621c7e6e791780a2e` |
+| item hash | `f3db8eda3ba82dd6282414e91888311b4df2d66902d70551e223cd1e3f23ac97` |
 | family | `source` |
 | name | `syndication_group` |
 | level | `source` |
@@ -1276,7 +1188,7 @@ Pinned local language-ID library on stored text; same tag grammar as `institutio
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -1288,15 +1200,15 @@ Pinned local language-ID library on stored text; same tag grammar as `institutio
 Deterministic near-duplicate hash (e.g. shingled MinHash on normalised text) per page; `syndication_group` id; QC flag when codes differ within a group.
 
 ## `core.page_review_state`
-<!-- item: core.page_review_state sha256: 6e45e6450437a113b42a588c2275f1f76d85bce3bc97f714e508639dc90b5d04 -->
+<!-- item: core.page_review_state sha256: 10518a8e804f53b1fe9782c51f9964fb7255d0793872752365c497f3c2c30316 -->
 
 | Field | Value |
 |---|---|
-| item hash | `6e45e6450437a113b42a588c2275f1f76d85bce3bc97f714e508639dc90b5d04` |
+| item hash | `10518a8e804f53b1fe9782c51f9964fb7255d0793872752365c497f3c2c30316` |
 | family | `source` |
 | name | `page_review_state` |
 | level | `source` |
-| pipelines | `web_extract`, `procurement`, `ai_text` |
+| pipelines | `web_extract`, `ai_text` |
 | linkage | `deterministic` |
 | coder | `mechanical` |
 | pass | `none` |
@@ -1311,7 +1223,7 @@ Deterministic near-duplicate hash (e.g. shingled MinHash on normalised text) per
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -1327,11 +1239,11 @@ Deterministic near-duplicate hash (e.g. shingled MinHash on normalised text) per
 The approved plan's verdict list grows to nine; the review status keeps only failed downloads and links not followed.
 
 ## `core.discovery_path`
-<!-- item: core.discovery_path sha256: 9463aa96ddbc9e77d36c9a9b1bb2d31abe252a6661a8319355a068bd5c2b01dc -->
+<!-- item: core.discovery_path sha256: 271c46190676c2361db79e832f2f8625def1d54e988ca4bf3747da320ed12259 -->
 
 | Field | Value |
 |---|---|
-| item hash | `9463aa96ddbc9e77d36c9a9b1bb2d31abe252a6661a8319355a068bd5c2b01dc` |
+| item hash | `271c46190676c2361db79e832f2f8625def1d54e988ca4bf3747da320ed12259` |
 | family | `source` |
 | name | `discovery_path` |
 | level | `source` |
@@ -1350,7 +1262,7 @@ The approved plan's verdict list grows to nine; the review status keeps only fai
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -1362,11 +1274,11 @@ The approved plan's verdict list grows to nine; the review status keeps only fai
 Add a deterministic `discovery_path` (searched / followed hop n / back-fill followed) on every source row in all runs, and report prevalence with and without followed pages.
 
 ## `core.text_source`
-<!-- item: core.text_source sha256: ae8c5d2ea7c875db19004206965364543a9c2c3434647602f2e3e89d5f06ed0d -->
+<!-- item: core.text_source sha256: 29a736c9fdd33449fe74745c291f9113f4526fb1ffda06effef07c842e65a6a2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `ae8c5d2ea7c875db19004206965364543a9c2c3434647602f2e3e89d5f06ed0d` |
+| item hash | `29a736c9fdd33449fe74745c291f9113f4526fb1ffda06effef07c842e65a6a2` |
 | family | `source` |
 | name | `text_source` |
 | level | `source` |
@@ -1385,7 +1297,7 @@ Add a deterministic `discovery_path` (searched / followed hop n / back-fill foll
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -1397,11 +1309,11 @@ Add a deterministic `discovery_path` (searched / followed hop n / back-fill foll
 A per-row `text_source` (stored / live re-fetch / new run) records which rows lack chrome text and links.
 
 ## `core.source_publication_date`
-<!-- item: core.source_publication_date sha256: 9b0656c0c6510e1f0f97749c8bbdc50a5450b360a3fb9ebc5858dc67e56d65e3 -->
+<!-- item: core.source_publication_date sha256: 8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320 -->
 
 | Field | Value |
 |---|---|
-| item hash | `9b0656c0c6510e1f0f97749c8bbdc50a5450b360a3fb9ebc5858dc67e56d65e3` |
+| item hash | `8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320` |
 | family | `source` |
 | name | `source_publication_date` |
 | level | `source` |
@@ -1420,7 +1332,7 @@ A per-row `text_source` (stored / live re-fetch / new run) records which rows la
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `{"rule": "first_section", "source": "combining-rules.json items[core.source_publication_date]; ruling source-01, all-06"}` |
 | translation_v25 | `{"column": "source_publication_date", "map": "identity"}` |
@@ -1436,11 +1348,11 @@ Take dates from HTML metadata / PDF properties / URL patterns deterministically;
 One shared date of 1 November 2022, with "before" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown; the AI-text code changes.
 
 ## `core.source_snippet`
-<!-- item: core.source_snippet sha256: d0ab6f896f41ba81d558777d6eb9cbba9746d19176c200862a8ff508ac20b284 -->
+<!-- item: core.source_snippet sha256: a26fef1a984c518461bea85a9771caad96db7347f057ec8e66cf035ba014314e -->
 
 | Field | Value |
 |---|---|
-| item hash | `d0ab6f896f41ba81d558777d6eb9cbba9746d19176c200862a8ff508ac20b284` |
+| item hash | `a26fef1a984c518461bea85a9771caad96db7347f057ec8e66cf035ba014314e` |
 | family | `source` |
 | name | `source_snippet` |
 | level | `source` |
@@ -1459,7 +1371,7 @@ One shared date of 1 November 2022, with "before" needing proof. Date origin is 
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "source_snippet", "map": "identity", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[4]"}` |
@@ -1475,11 +1387,11 @@ Define `source_snippet` on v2.7 rows as the verbatim supporting text of the page
 Snippets are verbatim in every pipeline, no translations are stored, and procurement's rule is amended.
 
 ## `core.source_credibility`
-<!-- item: core.source_credibility sha256: c0b0cb123df70dc40b5f011df6be100ea1c1b0f331f267454c5a0006d9e39616 -->
+<!-- item: core.source_credibility sha256: 787c52481878e073a52393208c9c9b56aa66be14783486d1bc95367b043e8978 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c0b0cb123df70dc40b5f011df6be100ea1c1b0f331f267454c5a0006d9e39616` |
+| item hash | `787c52481878e073a52393208c9c9b56aa66be14783486d1bc95367b043e8978` |
 | family | `source` |
 | name | `source_credibility` |
 | level | `source` |
@@ -1498,7 +1410,7 @@ Snippets are verbatim in every pipeline, no translations are stored, and procure
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "source_credibility", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[5]"}` |
@@ -1510,11 +1422,11 @@ Snippets are verbatim in every pipeline, no translations are stored, and procure
 `source_credibility` = fixed map from `source_type` plus `low` when `source_publication_date` = unknown; drop the translation clause.
 
 ## `core.activity_segment`
-<!-- item: core.activity_segment sha256: 682fa27ba8f84d627704cf7f1cfdae2dec8dcf1361701f04355bd3c12d3e24a6 -->
+<!-- item: core.activity_segment sha256: 44cc63f10ebef97a1402d517332330fb5ff41ffcf9de22de80b87a4f8e57b97e -->
 
 | Field | Value |
 |---|---|
-| item hash | `682fa27ba8f84d627704cf7f1cfdae2dec8dcf1361701f04355bd3c12d3e24a6` |
+| item hash | `44cc63f10ebef97a1402d517332330fb5ff41ffcf9de22de80b87a4f8e57b97e` |
 | family | `activity_identity` |
 | name | `activity_relation_within_page` |
 | level | `activity` |
@@ -1533,7 +1445,7 @@ Snippets are verbatim in every pipeline, no translations are stored, and procure
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `{"rule": "combined_list", "source": "combining-rules.json items[core.activity_segment]; ruling activity-19"}` |
 | translation_v25 | `new` |
@@ -1603,11 +1515,11 @@ Components stay separate activities; a governing policy is recorded as governing
 Each pair of passages gets a link.
 
 ## `core.activity_name`
-<!-- item: core.activity_name sha256: 728ade2be54620595dfe7ad68dba12705d4bead42e9315aef9886d816caef531 -->
+<!-- item: core.activity_name sha256: 9a9a55c3d066738f911fdc5269670d927e3bee2da8236094fb9e2c68e1069401 -->
 
 | Field | Value |
 |---|---|
-| item hash | `728ade2be54620595dfe7ad68dba12705d4bead42e9315aef9886d816caef531` |
+| item hash | `9a9a55c3d066738f911fdc5269670d927e3bee2da8236094fb9e2c68e1069401` |
 | family | `activity_identity` |
 | name | `activity_name` |
 | level | `activity` |
@@ -1626,7 +1538,7 @@ Each pair of passages gets a link.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "activity_name", "map": "identity"}` |
@@ -1636,11 +1548,11 @@ Each pair of passages gets a link.
 Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platform"). Otherwise descriptive (e.g., "Internal Copilot pilot for document drafting").
 
 ## `core.observed_actor_name`
-<!-- item: core.observed_actor_name sha256: b32deb08bbf848ebd7916fd76b2317cdfffe2ee0dc14123aaafadce8984eff37 -->
+<!-- item: core.observed_actor_name sha256: d76dc7f2c930b753dd8511068222d56eb0e16384dcefe9064fc860a06e4ef25f -->
 
 | Field | Value |
 |---|---|
-| item hash | `b32deb08bbf848ebd7916fd76b2317cdfffe2ee0dc14123aaafadce8984eff37` |
+| item hash | `d76dc7f2c930b753dd8511068222d56eb0e16384dcefe9064fc860a06e4ef25f` |
 | family | `attribution` |
 | name | `observed_actor_name` |
 | level | `activity` |
@@ -1659,7 +1571,7 @@ Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platf
 | visibility | `internal` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -1671,11 +1583,11 @@ Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platf
 The extractor returns the verbatim actor name and organisational unit. jev Choice gives the relationship (this institution / unit of it / joint participant / other / unresolved) and the role (as v2.6).
 
 ## `core.observed_actor_relationship`
-<!-- item: core.observed_actor_relationship sha256: b37c48292069ae16d694b68dbfbd4d7439533287508bb7b79271e591f30998df -->
+<!-- item: core.observed_actor_relationship sha256: 16ddef0cb7e4102dbb09949a7f1ecdb7e9a5b19d4f99bf54148b4a1bc1b00b74 -->
 
 | Field | Value |
 |---|---|
-| item hash | `b37c48292069ae16d694b68dbfbd4d7439533287508bb7b79271e591f30998df` |
+| item hash | `16ddef0cb7e4102dbb09949a7f1ecdb7e9a5b19d4f99bf54148b4a1bc1b00b74` |
 | family | `attribution` |
 | name | `observed_actor_relationship` |
 | level | `activity` |
@@ -1694,10 +1606,14 @@ The extractor returns the verbatim actor name and organisational unit. jev Choic
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.observed_actor_relationship]; ruling activity-19, activity-14, all-04", "order": ["this_institution", "unit_of_institution", "joint_participant", "unresolved", "other", "not_documented", "unknown"]}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+Whose activity is this, according to the page: the named institution's own, one of its units', a joint one it takes part in, or another body's?
 
 ### Values (structured; rendered by slot path)
 
@@ -1741,6 +1657,10 @@ The searched institution takes part as a unit of the body that carries out the a
 
 The searched institution takes part as one of several joint participants.
 
+`items/core.observed_actor_relationship/values/part_instructions/searched_institution_role`
+
+What part does the named institution play in this activity?
+
 ### Rules
 
 1. `items/core.observed_actor_relationship/rules/0`
@@ -1782,11 +1702,11 @@ A silent page gets "not documented"; a page that mentions the matter but cannot 
 the role part is taken from the same part that produced the relationship
 
 ## `core.activity_type`
-<!-- item: core.activity_type sha256: 747a666fe663dd4371968d1bb061c0bd5a9d5879b131474fb53b002900c121f9 -->
+<!-- item: core.activity_type sha256: 171e96a029766889465f3d0596bef25be502406a23e64cf85c060932d9e07b50 -->
 
 | Field | Value |
 |---|---|
-| item hash | `747a666fe663dd4371968d1bb061c0bd5a9d5879b131474fb53b002900c121f9` |
+| item hash | `171e96a029766889465f3d0596bef25be502406a23e64cf85c060932d9e07b50` |
 | family | `activity_typing` |
 | name | `activity_type` |
 | level | `activity` |
@@ -1805,7 +1725,7 @@ the role part is taken from the same part that produced the relationship
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `{"rule": "highest_probability", "source": "combining-rules.json items[core.activity_type]; ruling activity-20"}` |
 | translation_v25 | `{"column": "activity_type", "map": "identity"}` |
@@ -1859,11 +1779,11 @@ a disallowed pair is flagged for review and no label is changed
 Evidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate from the available sources. Use only after the five kinds above have been considered and none is supportable -- never as a default.
 
 ## `core.action_type`
-<!-- item: core.action_type sha256: 85ed03a3421b4a8e7d3dcfaf411bf365a543d05cff8b00bfcabf5cca27ff0131 -->
+<!-- item: core.action_type sha256: 5aaa9dc3449dfa95f1700b2d4aeccc1d7cbcf04b46af301121dd6192407e614b -->
 
 | Field | Value |
 |---|---|
-| item hash | `85ed03a3421b4a8e7d3dcfaf411bf365a543d05cff8b00bfcabf5cca27ff0131` |
+| item hash | `5aaa9dc3449dfa95f1700b2d4aeccc1d7cbcf04b46af301121dd6192407e614b` |
 | family | `activity_typing` |
 | name | `action_type` |
 | level | `activity` |
@@ -1882,10 +1802,14 @@ Evidence confirms a GenAI activity at this institution, but the kind of undertak
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `{"rule": "highest_probability", "source": "combining-rules.json items[core.action_type]; ruling activity-20"}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+What kind of action is this activity?
 
 ### Values
 
@@ -1932,11 +1856,11 @@ A body that sets or oversees rules gets the governance questions.
 The page mentions the activity but does not let it be settled.
 
 ## `core.adoption_stage`
-<!-- item: core.adoption_stage sha256: c2792d68cd20786326873e3bd3c3d30ae47e431fb8f7e79cd85a3998fae815bc -->
+<!-- item: core.adoption_stage sha256: 199ba1e14fe71ca352701ab823081796103006e3d4ac2057bb093681ad1a59ff -->
 
 | Field | Value |
 |---|---|
-| item hash | `c2792d68cd20786326873e3bd3c3d30ae47e431fb8f7e79cd85a3998fae815bc` |
+| item hash | `199ba1e14fe71ca352701ab823081796103006e3d4ac2057bb093681ad1a59ff` |
 | family | `activity_typing` |
 | name | `adoption_stage` |
 | level | `activity` |
@@ -1955,10 +1879,14 @@ The page mentions the activity but does not let it be settled.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.adoption_stage]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.adoption_stage]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.adoption_stage]; ruling activity-21, all-04", "order": ["discontinued", "production", "pilot", "announced", "proposed", "not_documented", "unknown"]}` |
 | translation_v25 | `{"column": "adoption_stage", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[6]"}` |
+
+### Instruction
+
+What stage has this activity reached, according to the page?
 
 ### Values
 
@@ -2009,11 +1937,11 @@ WS10 D4: institution-specific, explicitly GenAI proposals remain a qualifying ac
 Evidence confirms GenAI activity exists but stage is indeterminate.
 
 ## `core.procurement_status`
-<!-- item: core.procurement_status sha256: 58c5ee8463a406a72a6126a76b2328fe9b7f760b2d06d510ea5399070137c067 -->
+<!-- item: core.procurement_status sha256: bba50c17230cfc52b5c8b90a5a1ed8782e446f8f0a333491722dd92ffd5eea25 -->
 
 | Field | Value |
 |---|---|
-| item hash | `58c5ee8463a406a72a6126a76b2328fe9b7f760b2d06d510ea5399070137c067` |
+| item hash | `bba50c17230cfc52b5c8b90a5a1ed8782e446f8f0a333491722dd92ffd5eea25` |
 | family | `activity_typing` |
 | name | `procurement_status` |
 | level | `activity` |
@@ -2032,10 +1960,14 @@ Evidence confirms GenAI activity exists but stage is indeterminate.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.procurement_status]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.procurement_status]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.procurement_status]; ruling activity-19, all-04", "order": ["payment_or_subscription", "award_or_contract", "tender_or_rfp", "none_documented", "not_documented", "unknown"]}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+What purchase step, if any, does the page record for this activity's tool or service?
 
 ### Values
 
@@ -2074,11 +2006,11 @@ A page that describes the activity but shows no purchase step takes `none_docume
 The page mentions a purchase of the tool or service but does not let it be settled.
 
 ## `core.model_origin`
-<!-- item: core.model_origin sha256: e707525beafe92682470f295f6a3698a11b4ea62a4a037b51a811d7d0229717c -->
+<!-- item: core.model_origin sha256: ea3d7b2cadbf2f64522113b0d5e2dfa58915e56f0d473d998329056e016b210e -->
 
 | Field | Value |
 |---|---|
-| item hash | `e707525beafe92682470f295f6a3698a11b4ea62a4a037b51a811d7d0229717c` |
+| item hash | `ea3d7b2cadbf2f64522113b0d5e2dfa58915e56f0d473d998329056e016b210e` |
 | family | `tool` |
 | name | `model_origin` |
 | level | `activity` |
@@ -2097,10 +2029,14 @@ The page mentions a purchase of the tool or service but does not let it be settl
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.model_origin]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.model_origin]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "highest_probability", "source": "combining-rules.json items[core.model_origin]; ruling activity-20"}` |
 | translation_v25 | `{"column": "access_type", "condition": "When build arrangement is model_trained_or_fine_tuned_by_institution, the old column is not filled (old rules would give mixed or in_house).", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[7]"}` |
+
+### Instruction
+
+Where does the model behind this activity's tool come from?
 
 ### Values
 
@@ -2126,12 +2062,16 @@ The model was developed by or for a government (for example France's Albert or G
 
 The page mentions the model behind the tool but does not let it be settled.
 
+3. `items/core.model_origin/rules/2`
+
+not_documented: the page is silent.
+
 ## `core.build_arrangement`
-<!-- item: core.build_arrangement sha256: cb8c1de57bfc0cbbc2a04462a910f62ecf0e7244539f449eb02e52767e847367 -->
+<!-- item: core.build_arrangement sha256: 03c8be5d39bfee5cb16a6945bf343fa6b1764a15227183c8db87264ec7f3ab1c -->
 
 | Field | Value |
 |---|---|
-| item hash | `cb8c1de57bfc0cbbc2a04462a910f62ecf0e7244539f449eb02e52767e847367` |
+| item hash | `03c8be5d39bfee5cb16a6945bf343fa6b1764a15227183c8db87264ec7f3ab1c` |
 | family | `tool` |
 | name | `build_arrangement` |
 | level | `activity` |
@@ -2150,10 +2090,14 @@ The page mentions the model behind the tool but does not let it be settled.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.build_arrangement]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.build_arrangement]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.build_arrangement]; ruling activity-19, all-04", "order": ["model_trained_or_fine_tuned_by_institution", "custom_application_on_external_model", "off_the_shelf_product", "not_documented", "unknown"]}` |
 | translation_v25 | `{"column": "access_type", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[8]"}` |
+
+### Instruction
+
+How was this activity's tool built?
 
 ### Values
 
@@ -2179,12 +2123,16 @@ The institution, or a contractor for it, trained or fine-tuned the model itself.
 
 The page mentions how the tool was built but does not let it be settled.
 
+3. `items/core.build_arrangement/rules/2`
+
+not_documented: the page is silent.
+
 ## `core.interface`
-<!-- item: core.interface sha256: c3ee2916f682225c020da3c984b0b43de29fba82c89192e0121d0777cc12a609 -->
+<!-- item: core.interface sha256: 75312626806d0d38c61dd1ce2f7301545b48ba622fe3f40d32e918e85774dc8b -->
 
 | Field | Value |
 |---|---|
-| item hash | `c3ee2916f682225c020da3c984b0b43de29fba82c89192e0121d0777cc12a609` |
+| item hash | `75312626806d0d38c61dd1ce2f7301545b48ba622fe3f40d32e918e85774dc8b` |
 | family | `tool` |
 | name | `interface` |
 | level | `activity` |
@@ -2203,10 +2151,14 @@ The page mentions how the tool was built but does not let it be settled.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.interface]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.interface]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.interface]; ruling activity-19, all-04", "order": ["conversational", "backend_or_api", "other_interface", "not_documented", "unknown"]}` |
 | translation_v25 | `{"column": "interaction_type", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[9]"}` |
+
+### Instruction
+
+How do users reach this activity's tool?
 
 ### Values
 
@@ -2241,11 +2193,11 @@ The classifier chooses among the real interfaces and the missing-answer labels.
 A silent page gets "not documented"; a page that mentions the matter but cannot be settled gets "unknown".
 
 ## `core.function_drafting_writing`
-<!-- item: core.function_drafting_writing sha256: c21dd32f1b659edf30de9eb1f67d4f9f28b284186936fadb8cbad6beedfaa36a -->
+<!-- item: core.function_drafting_writing sha256: 563531506d7276798c955dcb142561d91d8fb0f760d16474334df91e75d52cf4 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c21dd32f1b659edf30de9eb1f67d4f9f28b284186936fadb8cbad6beedfaa36a` |
+| item hash | `563531506d7276798c955dcb142561d91d8fb0f760d16474334df91e75d52cf4` |
 | family | `tool` |
 | name | `function_drafting_writing` |
 | level | `activity` |
@@ -2264,10 +2216,14 @@ A silent page gets "not documented"; a page that mentions the matter but cannot 
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_drafting_writing]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_drafting_writing]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `{"column": "interaction_type", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[10]"}` |
+
+### Instruction
+
+Does the page state that this activity's tool is used for drafting or writing text?
 
 ### Values
 
@@ -2286,11 +2242,11 @@ The page does not state that the tool is used for drafting or writing text, such
 `interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
 
 ## `core.function_summarization`
-<!-- item: core.function_summarization sha256: a9556d12c63b142b658400e09842645429bcd7ae1212b3ad57e1e9b5efe4722a -->
+<!-- item: core.function_summarization sha256: d698879c119d6831964e88cafef1d8b813ea3e3c9734410f25c21c09e0615a93 -->
 
 | Field | Value |
 |---|---|
-| item hash | `a9556d12c63b142b658400e09842645429bcd7ae1212b3ad57e1e9b5efe4722a` |
+| item hash | `d698879c119d6831964e88cafef1d8b813ea3e3c9734410f25c21c09e0615a93` |
 | family | `tool` |
 | name | `function_summarization` |
 | level | `activity` |
@@ -2309,10 +2265,14 @@ The page does not state that the tool is used for drafting or writing text, such
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_summarization]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_summarization]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `{"column": "interaction_type", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[11]"}` |
+
+### Instruction
+
+Does the page state that this activity's tool is used for summarising documents, reports or meetings?
 
 ### Values
 
@@ -2331,11 +2291,11 @@ The page does not state that the tool is used for summarising documents, reports
 `interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
 
 ## `core.function_translation`
-<!-- item: core.function_translation sha256: 149059df8c5d72b42c0ca1dcee4e85eed3336600b5a7eba9e44e95055d2a4e33 -->
+<!-- item: core.function_translation sha256: 2466a158bf8871215a3dcc9540f4ddda1676d4ff15e4bfec70820c5fd3cd2836 -->
 
 | Field | Value |
 |---|---|
-| item hash | `149059df8c5d72b42c0ca1dcee4e85eed3336600b5a7eba9e44e95055d2a4e33` |
+| item hash | `2466a158bf8871215a3dcc9540f4ddda1676d4ff15e4bfec70820c5fd3cd2836` |
 | family | `tool` |
 | name | `function_translation` |
 | level | `activity` |
@@ -2354,10 +2314,14 @@ The page does not state that the tool is used for summarising documents, reports
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_translation]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_translation]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `{"column": "interaction_type", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[12]"}` |
+
+### Instruction
+
+Does the page state that this activity's tool is used for translating text or speech between languages?
 
 ### Values
 
@@ -2376,11 +2340,11 @@ The page does not state that the tool is used for translating text or speech bet
 `interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
 
 ## `core.function_search_retrieval`
-<!-- item: core.function_search_retrieval sha256: e5099ebac371dbafd5bc1ced2a18a0c2f1fd1c394c85dc9646bbb35c832b9101 -->
+<!-- item: core.function_search_retrieval sha256: 7f779b3d306cd266e9a2d3732767f3b2b9a101f3e5e4218683a1de77690e3364 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e5099ebac371dbafd5bc1ced2a18a0c2f1fd1c394c85dc9646bbb35c832b9101` |
+| item hash | `7f779b3d306cd266e9a2d3732767f3b2b9a101f3e5e4218683a1de77690e3364` |
 | family | `tool` |
 | name | `function_search_retrieval` |
 | level | `activity` |
@@ -2399,10 +2363,14 @@ The page does not state that the tool is used for translating text or speech bet
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_search_retrieval]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_search_retrieval]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `{"column": "interaction_type", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[13]"}` |
+
+### Instruction
+
+Does the page state that this activity's tool is used for finding information?
 
 ### Values
 
@@ -2421,11 +2389,11 @@ The page does not state that the tool is used for finding information, such as a
 `interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
 
 ## `core.function_code`
-<!-- item: core.function_code sha256: 9a8ffa6538b549724c8cfb2c5688c4ee7e72dd3840a2e0c682d6ee28467f61ab -->
+<!-- item: core.function_code sha256: f5d7bbaf1b034e3b147d3e1d8db7071f50f6ab0d2e8e35ed7dfe44f2abb7823f -->
 
 | Field | Value |
 |---|---|
-| item hash | `9a8ffa6538b549724c8cfb2c5688c4ee7e72dd3840a2e0c682d6ee28467f61ab` |
+| item hash | `f5d7bbaf1b034e3b147d3e1d8db7071f50f6ab0d2e8e35ed7dfe44f2abb7823f` |
 | family | `tool` |
 | name | `function_code` |
 | level | `activity` |
@@ -2444,10 +2412,14 @@ The page does not state that the tool is used for finding information, such as a
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_code]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_code]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `{"column": "interaction_type", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[14]"}` |
+
+### Instruction
+
+Does the page state that this activity's tool is used for writing, reviewing or fixing software code?
 
 ### Values
 
@@ -2466,11 +2438,11 @@ The page does not state that the tool is used for writing, reviewing or fixing s
 `interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
 
 ## `core.function_image_audio_video`
-<!-- item: core.function_image_audio_video sha256: bf683421e2544ede91205041d9dfec1419c5cd55180bebeed64e0ed7bd5bb3a7 -->
+<!-- item: core.function_image_audio_video sha256: 1e5956075de2cc48026418d5d81f52981f893c0ecfdb928a7b55876115f96f03 -->
 
 | Field | Value |
 |---|---|
-| item hash | `bf683421e2544ede91205041d9dfec1419c5cd55180bebeed64e0ed7bd5bb3a7` |
+| item hash | `1e5956075de2cc48026418d5d81f52981f893c0ecfdb928a7b55876115f96f03` |
 | family | `tool` |
 | name | `function_image_audio_video` |
 | level | `activity` |
@@ -2489,10 +2461,14 @@ The page does not state that the tool is used for writing, reviewing or fixing s
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_image_audio_video]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_image_audio_video]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `{"column": "interaction_type", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[15]"}` |
+
+### Instruction
+
+Does the page state that this activity's tool is used for creating or editing images, audio or video?
 
 ### Values
 
@@ -2511,11 +2487,11 @@ The page does not state that the tool is used for creating or editing images, au
 `interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
 
 ## `core.function_extraction_classification`
-<!-- item: core.function_extraction_classification sha256: f2127d70ceed5bb5bed14a924d08591cee5d29841cdf072a02583dd8e45e550b -->
+<!-- item: core.function_extraction_classification sha256: 155f87129441c51e70c713d3d85bb10369421c66ec949443e57fdbefc1043291 -->
 
 | Field | Value |
 |---|---|
-| item hash | `f2127d70ceed5bb5bed14a924d08591cee5d29841cdf072a02583dd8e45e550b` |
+| item hash | `155f87129441c51e70c713d3d85bb10369421c66ec949443e57fdbefc1043291` |
 | family | `tool` |
 | name | `function_extraction_classification` |
 | level | `activity` |
@@ -2534,10 +2510,14 @@ The page does not state that the tool is used for creating or editing images, au
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_extraction_classification]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_extraction_classification]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `{"column": "interaction_type", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[16]"}` |
+
+### Instruction
+
+Does the page state that this activity's tool is used for pulling information out of documents or forms, or sorting and classifying them?
 
 ### Values
 
@@ -2556,11 +2536,11 @@ The page does not state that the tool is used for pulling information out of doc
 `interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
 
 ## `core.function_analysis_recommendation`
-<!-- item: core.function_analysis_recommendation sha256: 6f6c4ee0ad101664c8ffb39f0a182a76baf21b1e7a9af80044f9d48a5d831560 -->
+<!-- item: core.function_analysis_recommendation sha256: a8026858596464541592c242ad14e9f56a02538a93fb29b1587cef9980f60509 -->
 
 | Field | Value |
 |---|---|
-| item hash | `6f6c4ee0ad101664c8ffb39f0a182a76baf21b1e7a9af80044f9d48a5d831560` |
+| item hash | `a8026858596464541592c242ad14e9f56a02538a93fb29b1587cef9980f60509` |
 | family | `tool` |
 | name | `function_analysis_recommendation` |
 | level | `activity` |
@@ -2579,10 +2559,14 @@ The page does not state that the tool is used for pulling information out of doc
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_analysis_recommendation]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.function_analysis_recommendation]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `{"column": "interaction_type", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[17]"}` |
+
+### Instruction
+
+Does the page state that this activity's tool is used for analysing information or giving recommendations or scores to support human decisions?
 
 ### Values
 
@@ -2601,11 +2585,11 @@ The page does not state that the tool is used for analysing information or givin
 `interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
 
 ## `core.tool_name`
-<!-- item: core.tool_name sha256: 4c960a1917007ed502ea252e91c5370eeddfa71ee468390b7f7ffe488a9e6beb -->
+<!-- item: core.tool_name sha256: e606956923481de92a2b4c59bbffa78de57b1fcc574c7b2f5e666a7c000969b1 -->
 
 | Field | Value |
 |---|---|
-| item hash | `4c960a1917007ed502ea252e91c5370eeddfa71ee468390b7f7ffe488a9e6beb` |
+| item hash | `e606956923481de92a2b4c59bbffa78de57b1fcc574c7b2f5e666a7c000969b1` |
 | family | `tool` |
 | name | `tool_name` |
 | level | `activity` |
@@ -2624,8 +2608,8 @@ The page does not state that the tool is used for analysing information or givin
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.tool_name]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.tool_name]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `combined_list` |
 | translation_v25 | `{"column": "tool_name", "map": "identity"}` |
 
@@ -2644,11 +2628,11 @@ Specific tool, model, or platform name (e.g., "Microsoft 365 Copilot", "ChatGPT"
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.model_name`
-<!-- item: core.model_name sha256: 34a1685ff0f6304c3ae75cd690ac994f6a3f7e0cf0bc08ddcfec3e2a6ae8de8b -->
+<!-- item: core.model_name sha256: 7dd785b572b3e2c6fb2bec9e18322fd3947632922cf627ddc43a1b3cd53ed834 -->
 
 | Field | Value |
 |---|---|
-| item hash | `34a1685ff0f6304c3ae75cd690ac994f6a3f7e0cf0bc08ddcfec3e2a6ae8de8b` |
+| item hash | `7dd785b572b3e2c6fb2bec9e18322fd3947632922cf627ddc43a1b3cd53ed834` |
 | family | `tool` |
 | name | `model_name` |
 | level | `activity` |
@@ -2667,8 +2651,8 @@ The quote step runs for every activity; skipped items are kept internally and pu
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.model_name]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.model_name]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `combined_list` |
 | translation_v25 | `new` |
 
@@ -2683,11 +2667,11 @@ The quote step runs for every activity; skipped items are kept internally and pu
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.contracting_party`
-<!-- item: core.contracting_party sha256: f27653658f96d43998f2df1cc678c307b15c520c5decb3777d2d20f12f851c96 -->
+<!-- item: core.contracting_party sha256: 73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24 -->
 
 | Field | Value |
 |---|---|
-| item hash | `f27653658f96d43998f2df1cc678c307b15c520c5decb3777d2d20f12f851c96` |
+| item hash | `73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24` |
 | family | `tool` |
 | name | `contracting_party` |
 | level | `activity` |
@@ -2706,8 +2690,8 @@ The quote step runs for every activity; skipped items are kept internally and pu
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.contracting_party]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.contracting_party]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "combined_list", "source": "combining-rules.json items[core.contracting_party]; ruling activity-19"}` |
 | translation_v25 | `{"column": "vendor", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[18]"}` |
 
@@ -2726,11 +2710,11 @@ Vendor holds what the source names, which in purchase records is the contracting
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.developer`
-<!-- item: core.developer sha256: 6d8f20d47f88ffa283e605b5b8c241c8f0450f3ab2e38bf0cc6d5a81cb56b8f0 -->
+<!-- item: core.developer sha256: f9bf2b0188ea76b1cb9f68dd866d8a8022fd75dc530d7caed4b2a3227a393ccc -->
 
 | Field | Value |
 |---|---|
-| item hash | `6d8f20d47f88ffa283e605b5b8c241c8f0450f3ab2e38bf0cc6d5a81cb56b8f0` |
+| item hash | `f9bf2b0188ea76b1cb9f68dd866d8a8022fd75dc530d7caed4b2a3227a393ccc` |
 | family | `tool` |
 | name | `developer` |
 | level | `activity` |
@@ -2749,8 +2733,8 @@ The quote step runs for every activity; skipped items are kept internally and pu
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.developer]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.developer]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "combined_list", "source": "combining-rules.json items[core.developer]; ruling activity-19"}` |
 | translation_v25 | `{"column": "vendor", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[19]"}` |
 
@@ -2769,11 +2753,11 @@ vendor = the organisation the page names as supplying the GenAI product or servi
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.developer_basis`
-<!-- item: core.developer_basis sha256: 69d48cfec18b21e93b776f59f7debbbe66734ecebfb0e70855672b311fcd3a8e -->
+<!-- item: core.developer_basis sha256: b4da76c1b35bd2d108e8093c659e5917175046ffd66917ba2decf4d770a1a291 -->
 
 | Field | Value |
 |---|---|
-| item hash | `69d48cfec18b21e93b776f59f7debbbe66734ecebfb0e70855672b311fcd3a8e` |
+| item hash | `b4da76c1b35bd2d108e8093c659e5917175046ffd66917ba2decf4d770a1a291` |
 | family | `provenance` |
 | name | `developer_basis` |
 | level | `activity` |
@@ -2792,7 +2776,7 @@ The quote step runs for every activity; skipped items are kept internally and pu
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -2808,11 +2792,11 @@ Developer (from lookup or page, with its basis recorded) and contracting party (
 Every 'how we know' field uses the same five values: stated, from metadata, looked up, derived, quoted by the quote step. The per-run version record also holds the codebook version, the channel tag stays on each row, and per-code coder details are stored internally and linked to that record.
 
 ## `core.deployment_mode`
-<!-- item: core.deployment_mode sha256: e9160a52e14cdec94954a5ebc06659530de0027b705d6a7cf86b351cb7e0c90b -->
+<!-- item: core.deployment_mode sha256: d8e2608aeb147a2f4a0158523be100174bce0af2cb2d2ae909eaf7f8ceda3104 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e9160a52e14cdec94954a5ebc06659530de0027b705d6a7cf86b351cb7e0c90b` |
+| item hash | `d8e2608aeb147a2f4a0158523be100174bce0af2cb2d2ae909eaf7f8ceda3104` |
 | family | `tool` |
 | name | `deployment_mode` |
 | level | `activity` |
@@ -2831,8 +2815,8 @@ Every 'how we know' field uses the same five values: stated, from metadata, look
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.deployment_mode]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.deployment_mode]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "highest_probability", "source": "combining-rules.json items[core.deployment_mode]; ruling activity-20"}` |
 | translation_v25 | `{"column": "deployment_mode", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[20]"}` |
 
@@ -2856,12 +2840,16 @@ standalone: a separate application or site created for the GenAI tool.
 
 The page mentions whether the tool is separate or built into existing software but does not let it be settled.
 
+2. `items/core.deployment_mode/rules/1`
+
+not_documented: the page is silent.
+
 ## `core.target_users`
-<!-- item: core.target_users sha256: 81b0492719d9b307f44ef4ee5b2bec3edfae804d90980ab9b076aba2178a928d -->
+<!-- item: core.target_users sha256: 7a11470600f2085adb6fa27b888a52d431b5f187bf2ebb9e6b9edcdb248902b7 -->
 
 | Field | Value |
 |---|---|
-| item hash | `81b0492719d9b307f44ef4ee5b2bec3edfae804d90980ab9b076aba2178a928d` |
+| item hash | `7a11470600f2085adb6fa27b888a52d431b5f187bf2ebb9e6b9edcdb248902b7` |
 | family | `tool` |
 | name | `target_users` |
 | level | `activity` |
@@ -2880,8 +2868,8 @@ The page mentions whether the tool is separate or built into existing software b
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.target_users]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.target_users]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "combined_list", "then": "mapping step to one value", "source": "combining-rules.json items[core.target_users].alternative; ruling activity-22 b"}` |
 | translation_v25 | `{"column": "target_users", "map": "identity"}` |
 
@@ -2913,6 +2901,10 @@ target_users only for tool activities (`not_applicable` otherwise). A04 for gove
 
 The page mentions who uses the tool but does not let it be settled.
 
+3. `items/core.target_users/rules/2`
+
+not_documented: the page is silent.
+
 ### long_page_rule text
 
 `items/core.target_users/long_page_rule/mapping/other_lists`
@@ -2920,11 +2912,11 @@ The page mentions who uses the tool but does not let it be settled.
 Drop 'not covered by this part' and missing labels from the list. 'both' present, or staff and public both present, gives 'both'. One real value gives that value. No real value: not_documented if any part says the page is silent, else unknown. Every part 'not covered' gives not_documented.
 
 ## `core.governed_population`
-<!-- item: core.governed_population sha256: 8548e8dbd51ea4a8c03dc0aa0b53b7a2e70cf495c3ed7eeeb2da82faee7c582b -->
+<!-- item: core.governed_population sha256: b7e4f250f93adbdc0a3d7c9c1ff4a93aed888e5d8555ecb800bdcc946c9136c5 -->
 
 | Field | Value |
 |---|---|
-| item hash | `8548e8dbd51ea4a8c03dc0aa0b53b7a2e70cf495c3ed7eeeb2da82faee7c582b` |
+| item hash | `b7e4f250f93adbdc0a3d7c9c1ff4a93aed888e5d8555ecb800bdcc946c9136c5` |
 | family | `governance` |
 | name | `governed_population` |
 | level | `activity` |
@@ -2943,10 +2935,14 @@ Drop 'not covered by this part' and missing labels from the list. 'both' present
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.action_type", "values": ["governance"], "rule": "core.rule.governance_gate"}` |
 | long_page_rule | `{"rule": "combined_list", "then": "mapping step to one value", "source": "combining-rules.json items[core.governed_population].alternative; ruling activity-22 b"}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+Whom does this rule on GenAI use apply to?
 
 ### Values
 
@@ -2972,6 +2968,10 @@ jev Choice: internal_personnel / external_users / both / unknown; `not_applicabl
 
 The page mentions whom the rule applies to but does not let it be settled.
 
+3. `items/core.governed_population/rules/2`
+
+not_documented: the page is silent.
+
 ### long_page_rule text
 
 `items/core.governed_population/long_page_rule/mapping/other_lists`
@@ -2979,11 +2979,11 @@ The page mentions whom the rule applies to but does not let it be settled.
 Drop 'not covered by this part' and missing labels from the list. 'both' present, or staff and public both present, gives 'both'. One real value gives that value. No real value: not_documented if any part says the page is silent, else unknown. Every part 'not covered' gives not_documented.
 
 ## `core.governance_form`
-<!-- item: core.governance_form sha256: 1022dfd04964d1ddc24f2604645f6c15f13b769e42a00f3686e5ba8cfea26fea -->
+<!-- item: core.governance_form sha256: 5a68086467795ad4b1d057e7330020e2397a4f42ed2eaf6f611bbc1b34308fa5 -->
 
 | Field | Value |
 |---|---|
-| item hash | `1022dfd04964d1ddc24f2604645f6c15f13b769e42a00f3686e5ba8cfea26fea` |
+| item hash | `5a68086467795ad4b1d057e7330020e2397a4f42ed2eaf6f611bbc1b34308fa5` |
 | family | `governance` |
 | name | `governance_form` |
 | level | `activity` |
@@ -3002,10 +3002,14 @@ Drop 'not covered by this part' and missing labels from the list. 'both' present
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.action_type", "values": ["governance"], "rule": "core.rule.governance_gate"}` |
 | long_page_rule | `combined_list` |
 | translation_v25 | `new` |
+
+### Instruction
+
+What form does this rule on GenAI use take? Choose all that apply.
 
 ### Values
 
@@ -3043,12 +3047,16 @@ S6 c: `governance_form` becomes multi-select, so a document can be both guidelin
 
 The page mentions the form of the rule but does not let it be settled.
 
+4. `items/core.governance_form/rules/3`
+
+not_documented: the page is silent.
+
 ## `core.governance_direction`
-<!-- item: core.governance_direction sha256: 3c1d1277c4675ae3f17ef40058f9a08e9daffb352d75934037723bc1e5cbf5c3 -->
+<!-- item: core.governance_direction sha256: c0c9559b087615ee1a68b39decf9623b138e4b12ff2cf0eaeeaf8cdc04cccced -->
 
 | Field | Value |
 |---|---|
-| item hash | `3c1d1277c4675ae3f17ef40058f9a08e9daffb352d75934037723bc1e5cbf5c3` |
+| item hash | `c0c9559b087615ee1a68b39decf9623b138e4b12ff2cf0eaeeaf8cdc04cccced` |
 | family | `governance` |
 | name | `governance_direction` |
 | level | `activity` |
@@ -3067,10 +3075,14 @@ The page mentions the form of the rule but does not let it be settled.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.action_type", "values": ["governance"], "rule": "core.rule.governance_gate"}` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.governance_direction]; ruling activity-19, activity-10, activity-11, all-04", "order": ["restricts_with_conditions", "prohibits", "permits", "requires", "promotes", "not_documented", "unknown"]}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+Does this rule ban, limit, allow, require or encourage the GenAI use it covers?
 
 ### Values
 
@@ -3119,11 +3131,11 @@ A silent page gets "not documented"; a page that mentions the matter but cannot 
 Order: restricts_with_conditions, prohibits, permits, requires, promotes, not_documented, unknown.
 
 ## `core.service_domain`
-<!-- item: core.service_domain sha256: cd57c8b15002f6d8218e8d4f6e3012a147415c0799f8a664f3488bd38bbcadf5 -->
+<!-- item: core.service_domain sha256: b3b632c1f7f3cab32d8847cc59a65316ebc0992d6e076bb1ec6d02478870bb54 -->
 
 | Field | Value |
 |---|---|
-| item hash | `cd57c8b15002f6d8218e8d4f6e3012a147415c0799f8a664f3488bd38bbcadf5` |
+| item hash | `b3b632c1f7f3cab32d8847cc59a65316ebc0992d6e076bb1ec6d02478870bb54` |
 | family | `activity_typing` |
 | name | `service_domain` |
 | level | `activity` |
@@ -3142,10 +3154,14 @@ Order: restricts_with_conditions, prohibits, permits, requires, promotes, not_do
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `{"rule": "combined_list", "source": "combining-rules.json items[core.service_domain]; ruling activity-20", "per_value_producing_part": "highest_probability", "replaces_rule": "highest_probability (activity-20 a, before activity-13 b made the item multi-select)"}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+Which areas of government work does this activity concern? Choose all that apply.
 
 ### Values
 
@@ -3226,11 +3242,11 @@ No separate value. A rule says the earlier 'general administration' is coded 'ge
 Take every area any part ticks with a supported answer. Each area's quote and certainty come from the part most sure of it. Missing labels only if no part ticks a real area.
 
 ## `core.genai_mechanism_basis`
-<!-- item: core.genai_mechanism_basis sha256: 8386c42537ca24971610796d9c7fca06aacd3e0988b13ce4109e79131b3ebb1e -->
+<!-- item: core.genai_mechanism_basis sha256: aef25db05adf60be6f2aa9ecd0c28636e6cac17dfcbb221bbdfbe5443b643cc0 -->
 
 | Field | Value |
 |---|---|
-| item hash | `8386c42537ca24971610796d9c7fca06aacd3e0988b13ce4109e79131b3ebb1e` |
+| item hash | `aef25db05adf60be6f2aa9ecd0c28636e6cac17dfcbb221bbdfbe5443b643cc0` |
 | family | `verdict` |
 | name | `genai_mechanism_basis` |
 | level | `activity` |
@@ -3249,10 +3265,14 @@ Take every area any part ticks with a supported answer. Each area's quote and ce
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.genai_mechanism_basis]; ruling activity-19, all-04", "order": ["named_genai_product_or_model", "explicit_genai_label", "generative_capability_described", "ai_chatbot_or_assistant_label_only", "not_documented", "unknown"]}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+What on the page shows that this activity's tool is generative AI?
 
 ### Values
 
@@ -3287,11 +3307,11 @@ Generative-AI wording: the re-pilot 2 wording governs (SRC-7 L34-45), including 
 S1 a: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.
 
 ## `core.year_announced`
-<!-- item: core.year_announced sha256: 490389fef42e79b3d4599328ae2115a1592f32ee2b46df77d03d0cb952467213 -->
+<!-- item: core.year_announced sha256: 99f1076a1e8c1c23705fb423e90b9aaf4ecc4af9f0a3a7822880bba3e2442cd4 -->
 
 | Field | Value |
 |---|---|
-| item hash | `490389fef42e79b3d4599328ae2115a1592f32ee2b46df77d03d0cb952467213` |
+| item hash | `99f1076a1e8c1c23705fb423e90b9aaf4ecc4af9f0a3a7822880bba3e2442cd4` |
 | family | `dates` |
 | name | `year_announced` |
 | level | `activity` |
@@ -3310,8 +3330,8 @@ S1 a: translation counts as generative AI only when the page ties it to a named 
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.year_announced]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.year_announced]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `earliest_year` |
 | translation_v25 | `{"column": "year_announced", "map": "identity"}` |
 
@@ -3325,18 +3345,22 @@ S1 a: translation counts as generative AI only when the page ties it to a named 
 
 1. `items/core.year_announced/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_announced/rules/1`
 
 Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
 
+3. `items/core.year_announced/rules/2`
+
+not_documented: the page is silent.
+
 ## `core.year_pilot_start`
-<!-- item: core.year_pilot_start sha256: 7e8eec1bffcb92388ee8e4c2f61bffbeafb1d8f8fd9f703f62c5154a04b0cc3a -->
+<!-- item: core.year_pilot_start sha256: 02b7b7bff0b2a9d7c1f5a528955427a81c0608eea8277a4cd1195ce83d44cc2b -->
 
 | Field | Value |
 |---|---|
-| item hash | `7e8eec1bffcb92388ee8e4c2f61bffbeafb1d8f8fd9f703f62c5154a04b0cc3a` |
+| item hash | `02b7b7bff0b2a9d7c1f5a528955427a81c0608eea8277a4cd1195ce83d44cc2b` |
 | family | `dates` |
 | name | `year_pilot_start` |
 | level | `activity` |
@@ -3355,10 +3379,14 @@ Pilot and production years use the same candidate-then-classifier method, with c
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.year_pilot_start]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.year_pilot_start]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `earliest_year` |
 | translation_v25 | `{"column": "year_deployed", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[21]"}` |
+
+### Instruction
+
+In which year does the page say a pilot or trial of this activity began?
 
 ### Values (structured; rendered by slot path)
 
@@ -3366,7 +3394,7 @@ Pilot and production years use the same candidate-then-classifier method, with c
 
 1. `items/core.year_pilot_start/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: "In which year does the page say a pilot or trial of this activity began?" No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_pilot_start/rules/1`
 
@@ -3376,12 +3404,16 @@ Pilot and production years use the same candidate-then-classifier method, with c
 
 Two columns, each stated-only.
 
+4. `items/core.year_pilot_start/rules/3`
+
+not_documented: the page is silent.
+
 ## `core.year_production_start`
-<!-- item: core.year_production_start sha256: 530fec649c78cff7ace582cc47588176ef4708e456738475d267c001fb9f0ac2 -->
+<!-- item: core.year_production_start sha256: 5e51370bd8540c1161cb1a2e6257ebc333c85b3665b65237a88058a7b82d30e3 -->
 
 | Field | Value |
 |---|---|
-| item hash | `530fec649c78cff7ace582cc47588176ef4708e456738475d267c001fb9f0ac2` |
+| item hash | `5e51370bd8540c1161cb1a2e6257ebc333c85b3665b65237a88058a7b82d30e3` |
 | family | `dates` |
 | name | `year_production_start` |
 | level | `activity` |
@@ -3400,10 +3432,14 @@ Two columns, each stated-only.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.year_production_start]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.year_production_start]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `earliest_year` |
 | translation_v25 | `{"column": "year_deployed", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[22]"}` |
+
+### Instruction
+
+In which year does the page say this activity went into full, routine operation?
 
 ### Values (structured; rendered by slot path)
 
@@ -3411,7 +3447,7 @@ Two columns, each stated-only.
 
 1. `items/core.year_production_start/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: "In which year does the page say this activity went into full, routine operation?" No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_production_start/rules/1`
 
@@ -3421,12 +3457,16 @@ Pilot and production years use the same candidate-then-classifier method, with c
 
 Two columns, each stated-only.
 
+4. `items/core.year_production_start/rules/3`
+
+not_documented: the page is silent.
+
 ## `core.deployment_scale_number`
-<!-- item: core.deployment_scale_number sha256: f475424d5b5a9a547768e9d58e2d9ac0cb9927308630ccc156fe4d361be0ac19 -->
+<!-- item: core.deployment_scale_number sha256: 732f308184bb60eedf1e67468eb657857b20ce4dcfc76fb97cf16c19454b3686 -->
 
 | Field | Value |
 |---|---|
-| item hash | `f475424d5b5a9a547768e9d58e2d9ac0cb9927308630ccc156fe4d361be0ac19` |
+| item hash | `732f308184bb60eedf1e67468eb657857b20ce4dcfc76fb97cf16c19454b3686` |
 | family | `scale` |
 | name | `deployment_scale_number` |
 | level | `activity` |
@@ -3445,8 +3485,8 @@ Two columns, each stated-only.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.deployment_scale_number]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.deployment_scale_number]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "combined_list", "pairs": "(number, unit), the unit from the same part as its number", "source": "combining-rules.json items[core.deployment_scale_number].alternative; ruling activity-24 b"}` |
 | translation_v25 | `new` |
 
@@ -3465,11 +3505,11 @@ the quote step copies the scale number verbatim and the classifier picks the uni
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.deployment_scale_unit`
-<!-- item: core.deployment_scale_unit sha256: da0f1f763a76751f02792b920c7cbbb52a0bf11950f4f96c6780d736b4eed8d6 -->
+<!-- item: core.deployment_scale_unit sha256: 4a7cc03581fd7c61950d556903bdccfcf4bcdd5485ab782d5412cb0992d63a71 -->
 
 | Field | Value |
 |---|---|
-| item hash | `da0f1f763a76751f02792b920c7cbbb52a0bf11950f4f96c6780d736b4eed8d6` |
+| item hash | `4a7cc03581fd7c61950d556903bdccfcf4bcdd5485ab782d5412cb0992d63a71` |
 | family | `scale` |
 | name | `deployment_scale_unit` |
 | level | `activity` |
@@ -3488,10 +3528,14 @@ The quote step runs for every activity; skipped items are kept internally and pu
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"item": "core.deployment_scale_number", "values": ["any stated"]}` |
+| status | `signed` |
+| gate | `{"item": "core.deployment_scale_number", "values": "any", "as_ruled": "any stated"}` |
 | long_page_rule | `{"rule": "combined_list", "pairs": "(number, unit), the unit from the same part as its number", "source": "combining-rules.json items[core.deployment_scale_unit].alternative; ruling activity-24 b"}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+What does the stated number for this activity count?
 
 ### Values
 
@@ -3521,12 +3565,16 @@ A number is stated, but it counts none of these units.
 
 The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.
 
+2. `items/core.deployment_scale_unit/rules/1`
+
+not_documented: the page is silent.
+
 ## `core.has_human_oversight`
-<!-- item: core.has_human_oversight sha256: 3c2001c829bacae4f2f7e3961d8e95c0b7345000c1903cd508cc411d63ce4769 -->
+<!-- item: core.has_human_oversight sha256: d4a11f0e37de294a9d09c27581a803ad795e03d71e863ab31418040e55660046 -->
 
 | Field | Value |
 |---|---|
-| item hash | `3c2001c829bacae4f2f7e3961d8e95c0b7345000c1903cd508cc411d63ce4769` |
+| item hash | `d4a11f0e37de294a9d09c27581a803ad795e03d71e863ab31418040e55660046` |
 | family | `safeguard` |
 | name | `has_human_oversight` |
 | level | `activity` |
@@ -3545,8 +3593,8 @@ The extractor returns the verbatim number span. jev Choice gives the unit: licen
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.has_human_oversight]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.has_human_oversight]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.has_human_oversight]; ruling activity-23, all-04 (order: the draft's alternative (b))", "order": ["yes", "no", "unclear", "not_documented", "unknown"]}` |
 | translation_v25 | `{"column": "has_human_oversight", "map": "identity"}` |
 
@@ -3587,11 +3635,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.has_transparency_notice`
-<!-- item: core.has_transparency_notice sha256: 992b6e22dcd511270d2adf2d2fe96ff95bd8cb5b2d1e2bd6e89fc47fac8447c7 -->
+<!-- item: core.has_transparency_notice sha256: 63177f84cc942627dda8273ba841c33e3fa75b963691c4fffb3bcec40566ef0d -->
 
 | Field | Value |
 |---|---|
-| item hash | `992b6e22dcd511270d2adf2d2fe96ff95bd8cb5b2d1e2bd6e89fc47fac8447c7` |
+| item hash | `63177f84cc942627dda8273ba841c33e3fa75b963691c4fffb3bcec40566ef0d` |
 | family | `safeguard` |
 | name | `has_transparency_notice` |
 | level | `activity` |
@@ -3610,8 +3658,8 @@ not_documented: the page is silent.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.has_transparency_notice]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.has_transparency_notice]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.has_transparency_notice]; ruling activity-23, all-04 (order: the draft's alternative (b))", "order": ["yes", "no", "unclear", "not_documented", "unknown"]}` |
 | translation_v25 | `{"column": "has_transparency_notice", "map": "identity"}` |
 
@@ -3652,11 +3700,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.has_data_classification`
-<!-- item: core.has_data_classification sha256: 68084992dbde87ad50504404f47dc4e6ec31d81952f10f34b3dd443ebcc8495c -->
+<!-- item: core.has_data_classification sha256: c0a9a902c3e1dac3fda8ef2ec62bed86ed0e67276965684e8328b8ba0e100ed2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `68084992dbde87ad50504404f47dc4e6ec31d81952f10f34b3dd443ebcc8495c` |
+| item hash | `c0a9a902c3e1dac3fda8ef2ec62bed86ed0e67276965684e8328b8ba0e100ed2` |
 | family | `safeguard` |
 | name | `has_data_classification` |
 | level | `activity` |
@@ -3675,8 +3723,8 @@ not_documented: the page is silent.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.has_data_classification]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.has_data_classification]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.has_data_classification]; ruling activity-23, all-04 (order: the draft's alternative (b))", "order": ["yes", "no", "unclear", "not_documented", "unknown"]}` |
 | translation_v25 | `{"column": "has_data_classification", "map": "identity"}` |
 
@@ -3717,11 +3765,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.has_risk_assessment`
-<!-- item: core.has_risk_assessment sha256: 2698cd63443ceb8088c716d3b611c26273c2a560366fc7cef8dfba1f05dbdfbf -->
+<!-- item: core.has_risk_assessment sha256: 56e835cc7f5744706d0502ca37f5d296458c7ab7d5d12aa5372066d1107563cb -->
 
 | Field | Value |
 |---|---|
-| item hash | `2698cd63443ceb8088c716d3b611c26273c2a560366fc7cef8dfba1f05dbdfbf` |
+| item hash | `56e835cc7f5744706d0502ca37f5d296458c7ab7d5d12aa5372066d1107563cb` |
 | family | `safeguard` |
 | name | `has_risk_assessment` |
 | level | `activity` |
@@ -3740,8 +3788,8 @@ not_documented: the page is silent.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.has_risk_assessment]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.has_risk_assessment]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.has_risk_assessment]; ruling activity-23, all-04 (order: the draft's alternative (b))", "order": ["yes", "no", "unclear", "not_documented", "unknown"]}` |
 | translation_v25 | `{"column": "has_risk_assessment", "map": "identity"}` |
 
@@ -3782,11 +3830,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.outcome_kind`
-<!-- item: core.outcome_kind sha256: 75a57dacf1821fb733a64d2bbd44f2aa043845b38c9054065820009069dc1577 -->
+<!-- item: core.outcome_kind sha256: 80a037b895fd0d167505a50b6760a28199c8e5a3d2734f5183f356742d9b50c8 -->
 
 | Field | Value |
 |---|---|
-| item hash | `75a57dacf1821fb733a64d2bbd44f2aa043845b38c9054065820009069dc1577` |
+| item hash | `80a037b895fd0d167505a50b6760a28199c8e5a3d2734f5183f356742d9b50c8` |
 | family | `outcomes` |
 | name | `outcome_kind` |
 | level | `activity` |
@@ -3805,10 +3853,14 @@ not_documented: the page is silent.
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-61` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.outcome_kind]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.outcome_kind]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.outcome_kind]; ruling activity-19, all-04", "order": ["quantified", "qualitative", "none_reported", "not_documented", "unknown"]}` |
 | translation_v25 | `{"column": "reported_outcomes", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[23]"}` |
+
+### Instruction
+
+Does the page report a result of this activity, and if so, what kind?
 
 ### Values
 
@@ -3832,22 +3884,14 @@ A jev `Choice` per (finding × page), over the page text with this activity's sp
 
 2. `items/core.outcome_kind/rules/1`
 
-Ask CX-61 in pass 2 over the page text with the activity span marked; the extractor then quotes support for the chosen value.
-
-3. `items/core.outcome_kind/rules/2`
-
-Pass-2 jev Choice on page text: does the page report an outcome (incident) of this activity: quantified / qualitative / none? The extractor extracts verbatim text only when not none; CX-60 then applies to legacy rows only.
-
-4. `items/core.outcome_kind/rules/3`
-
 Your outcome and incident gates are re-ruled down to quotes only; the signed item answers both whether and what kind, and the separate existence question folds into it.
 
 ## `core.incident_kind`
-<!-- item: core.incident_kind sha256: 1783196e41d3163a3b7348d956bcc4ef0af9b79c400a0484d44bd11d71ced9cc -->
+<!-- item: core.incident_kind sha256: 8d59c74ce433b2e99bab93f90d38b6949d27c74bec470c39f2c41fac49301ee5 -->
 
 | Field | Value |
 |---|---|
-| item hash | `1783196e41d3163a3b7348d956bcc4ef0af9b79c400a0484d44bd11d71ced9cc` |
+| item hash | `8d59c74ce433b2e99bab93f90d38b6949d27c74bec470c39f2c41fac49301ee5` |
 | family | `outcomes` |
 | name | `incident_kind` |
 | level | `activity` |
@@ -3866,10 +3910,14 @@ Your outcome and incident gates are re-ruled down to quotes only; the signed ite
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-61` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.incident_kind]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.incident_kind]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.incident_kind]; ruling activity-27, all-04", "order": ["quantified", "qualitative", "discontinuation_uncertain", "none_reported", "not_documented", "unknown"]}` |
 | translation_v25 | `{"column": "reported_incidents", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[24]"}` |
+
+### Instruction
+
+Does the page report an incident with this activity, such as an error, failure or controversy, and if so, what kind?
 
 ### Values
 
@@ -3897,34 +3945,26 @@ A jev `Choice` per (finding × page), over the page text with this activity's sp
 
 2. `items/core.incident_kind/rules/1`
 
-Ask CX-61 in pass 2 over the page text with the activity span marked; the extractor then quotes support for the chosen value.
+Your outcome and incident gates are re-ruled down to quotes only; the signed item answers both whether and what kind, and the separate existence question folds into it.
 
 3. `items/core.incident_kind/rules/2`
 
-Pass-2 jev Choice on page text: does the page report an outcome (incident) of this activity: quantified / qualitative / none? The extractor extracts verbatim text only when not none; CX-60 then applies to legacy rows only.
+Retire flags that just mirror a column; keep 'identity unresolved' and 'stage ambiguous', and fold 'discontinuation uncertain' into the incident question as a value instead of a separate question.
 
 4. `items/core.incident_kind/rules/3`
 
-Your outcome and incident gates are re-ruled down to quotes only; the signed item answers both whether and what kind, and the separate existence question folds into it.
-
-5. `items/core.incident_kind/rules/4`
-
-Retire flags that just mirror a column; keep 'identity unresolved' and 'stage ambiguous', and fold 'discontinuation uncertain' into the incident question as a value instead of a separate question.
-
-6. `items/core.incident_kind/rules/5`
-
 `discontinuation_uncertain` (incident item only)
 
-7. `items/core.incident_kind/rules/6`
+5. `items/core.incident_kind/rules/4`
 
 The incident question ignores stops unless a problem is reported.
 
 ## `core.reported_outcomes`
-<!-- item: core.reported_outcomes sha256: 461640be1d75ba79ac2297ad85a4a36bc119cfd9d8a1bb73bb9a14248192181d -->
+<!-- item: core.reported_outcomes sha256: 841fe4e05bdbe08ab94621fc8d47e330ac1a68b3fb8af5875eddf8de74af9554 -->
 
 | Field | Value |
 |---|---|
-| item hash | `461640be1d75ba79ac2297ad85a4a36bc119cfd9d8a1bb73bb9a14248192181d` |
+| item hash | `841fe4e05bdbe08ab94621fc8d47e330ac1a68b3fb8af5875eddf8de74af9554` |
 | family | `outcomes` |
 | name | `reported_outcomes` |
 | level | `activity` |
@@ -3943,8 +3983,8 @@ The incident question ignores stops unless a problem is reported.
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-60` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"item": "core.outcome_kind", "values": ["not none_reported"]}` |
+| status | `signed` |
+| gate | `{"item": "core.outcome_kind", "values": ["quantified", "qualitative"], "as_ruled": "not none_reported"}` |
 | long_page_rule | `combined_list` |
 | translation_v25 | `{"column": "reported_outcomes", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[25]"}` |
 
@@ -3958,16 +3998,12 @@ Documented performance claims. Only record if explicitly stated. Never infer.
 
 Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
 
-2. `items/core.reported_outcomes/rules/1`
-
-jev Choice per activity: page reports realised outcomes / only expected or projected outcomes / usage figures only / none. Unless none, the extractor returns verbatim spans (no length limit in storage, display cap per R-043). CX-61 then runs on the spans.
-
 ## `core.reported_incidents`
-<!-- item: core.reported_incidents sha256: 66b35b76fde638868351219a3e179a72358ccc6a176b581650fed4b473b10ca5 -->
+<!-- item: core.reported_incidents sha256: 5965e825e8086c714fe752e1004c91a1c7f839644191a4e2077a3693f744e429 -->
 
 | Field | Value |
 |---|---|
-| item hash | `66b35b76fde638868351219a3e179a72358ccc6a176b581650fed4b473b10ca5` |
+| item hash | `5965e825e8086c714fe752e1004c91a1c7f839644191a4e2077a3693f744e429` |
 | family | `outcomes` |
 | name | `reported_incidents` |
 | level | `activity` |
@@ -3986,8 +4022,8 @@ jev Choice per activity: page reports realised outcomes / only expected or proje
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-60` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"item": "core.incident_kind", "values": ["not none_reported"]}` |
+| status | `signed` |
+| gate | `{"item": "core.incident_kind", "values": ["quantified", "qualitative", "discontinuation_uncertain"], "as_ruled": "not none_reported"}` |
 | long_page_rule | `combined_list` |
 | translation_v25 | `{"column": "reported_incidents", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[26]"}` |
 
@@ -4001,16 +4037,12 @@ Documented errors, failures, or controversies. Only record if explicitly stated.
 
 Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
 
-2. `items/core.reported_incidents/rules/1`
-
-jev Choice: page reports a malfunction or error / data or privacy breach / public criticism or complaint / suspension or withdrawal / none. Unless none, the extractor returns verbatim spans.
-
 ## `core.evaluation_documented`
-<!-- item: core.evaluation_documented sha256: eb98377467f2a74928e96fe901cb43eae39c10be2d8bf1297696cb1f020f222a -->
+<!-- item: core.evaluation_documented sha256: c769fcddf1fa71e4e91e4947ce96716448de13f9881a9eab6fbb931169482e24 -->
 
 | Field | Value |
 |---|---|
-| item hash | `eb98377467f2a74928e96fe901cb43eae39c10be2d8bf1297696cb1f020f222a` |
+| item hash | `c769fcddf1fa71e4e91e4947ce96716448de13f9881a9eab6fbb931169482e24` |
 | family | `evaluation` |
 | name | `evaluation_documented` |
 | level | `activity`, `page` |
@@ -4029,8 +4061,8 @@ jev Choice: page reports a malfunction or error / data or privacy breach / publi
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-30..CX-40` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"table": "applicability keyed on activity_type (r2#8)", "key": "core.activity_type", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.evaluation_documented]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
+| status | `signed` |
+| gate | `{"item": "core.activity_type", "values": ["policy_guidance", "pilot_experiment", "program_initiative", "internal_operational", "public_facing_service", "unknown"], "table": "applicability keyed on activity_type (r2#8)", "rule": "core.rule.applicability_table", "source": "applicability.json cells[item=core.evaluation_documented]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"}` |
 | long_page_rule | `{"rule": "priority_order", "order": ["results_reported", "conducted_no_results", "required_or_planned", "unclear", "not_documented", "unknown"], "source": "table order (CX §11.1); `unknown` placed after `not_documented` per all-04 b"}` |
 | translation_v25 | `new` |
 
@@ -4096,22 +4128,18 @@ A pilot stage alone is `not_documented`. "The pilot will be evaluated" is `requi
 
 10. `items/core.evaluation_documented/rules/9`
 
-Delete CX-32c's policy-review clause: a periodic review of the policy document is `not_documented` unless it requires testing, monitoring or evaluation of GenAI tools or their outputs.
-
-11. `items/core.evaluation_documented/rules/10`
-
 CX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value. A clause requiring periodic review of the GenAI policy itself is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).
 
-12. `items/core.evaluation_documented/rules/11`
+11. `items/core.evaluation_documented/rules/10`
 
 The page has no evaluation statement about this activity.
 
 ## `core.evaluation_type_pre_deployment_testing`
-<!-- item: core.evaluation_type_pre_deployment_testing sha256: ea5987af915a041e5c2629de6903c29c2470f6b023517c483bda41d5ebaa612c -->
+<!-- item: core.evaluation_type_pre_deployment_testing sha256: 805b0cbbb2fe62c8a62f35192934ed7a20dfc12e0c2c4479b85366251bda34f4 -->
 
 | Field | Value |
 |---|---|
-| item hash | `ea5987af915a041e5c2629de6903c29c2470f6b023517c483bda41d5ebaa612c` |
+| item hash | `805b0cbbb2fe62c8a62f35192934ed7a20dfc12e0c2c4479b85366251bda34f4` |
 | family | `evaluation` |
 | name | `evaluation_type_pre_deployment_testing` |
 | level | `activity`, `page` |
@@ -4130,10 +4158,14 @@ The page has no evaluation statement about this activity.
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-41` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.evaluation_documented", "values": ["results_reported", "conducted_no_results", "required_or_planned"], "after": "downgrades (X04)"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `new` |
+
+### Instruction
+
+The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: testing before deployment? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
 
 ### Values
 
@@ -4151,16 +4183,12 @@ The page does not document an evaluation of this type (testing before deployment
 
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
-2. `items/core.evaluation_type_pre_deployment_testing/rules/1`
-
-Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.
-
 ## `core.evaluation_type_pilot_evaluation`
-<!-- item: core.evaluation_type_pilot_evaluation sha256: 27e0db2eb31011d4c8d4361ddd4861dc01926b00059885c572a6ff6ea8170753 -->
+<!-- item: core.evaluation_type_pilot_evaluation sha256: bc48c7ebb08729c2671fa4e16cf87be1ed0c35226893c896dbf1ee2eee7991f3 -->
 
 | Field | Value |
 |---|---|
-| item hash | `27e0db2eb31011d4c8d4361ddd4861dc01926b00059885c572a6ff6ea8170753` |
+| item hash | `bc48c7ebb08729c2671fa4e16cf87be1ed0c35226893c896dbf1ee2eee7991f3` |
 | family | `evaluation` |
 | name | `evaluation_type_pilot_evaluation` |
 | level | `activity`, `page` |
@@ -4179,10 +4207,14 @@ Procedural: ask (or keep) type items only if `evaluation_documented` is still po
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-41` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.evaluation_documented", "values": ["results_reported", "conducted_no_results", "required_or_planned"], "after": "downgrades (X04)"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `new` |
+
+### Instruction
+
+The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: evaluation of a pilot or trial? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
 
 ### Values
 
@@ -4200,16 +4232,12 @@ The page does not document an evaluation of this type (evaluation of a pilot or 
 
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
-2. `items/core.evaluation_type_pilot_evaluation/rules/1`
-
-Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.
-
 ## `core.evaluation_type_independent_audit`
-<!-- item: core.evaluation_type_independent_audit sha256: 4ebf5ba2d6a3e533b6730c91c06a04879929634af735a8971a73f40f5d2cd45a -->
+<!-- item: core.evaluation_type_independent_audit sha256: efea36e1378b9a138191c882aaa10a431902b39926cea2714d9dfbd1465f2d84 -->
 
 | Field | Value |
 |---|---|
-| item hash | `4ebf5ba2d6a3e533b6730c91c06a04879929634af735a8971a73f40f5d2cd45a` |
+| item hash | `efea36e1378b9a138191c882aaa10a431902b39926cea2714d9dfbd1465f2d84` |
 | family | `evaluation` |
 | name | `evaluation_type_independent_audit` |
 | level | `activity`, `page` |
@@ -4228,10 +4256,14 @@ Procedural: ask (or keep) type items only if `evaluation_documented` is still po
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-41` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.evaluation_documented", "values": ["results_reported", "conducted_no_results", "required_or_planned"], "after": "downgrades (X04)"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `new` |
+
+### Instruction
+
+The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: an audit or evaluation by an independent body? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
 
 ### Values
 
@@ -4249,16 +4281,12 @@ The page does not document an evaluation of this type (an audit or evaluation by
 
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
-2. `items/core.evaluation_type_independent_audit/rules/1`
-
-Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.
-
 ## `core.evaluation_type_ongoing_monitoring`
-<!-- item: core.evaluation_type_ongoing_monitoring sha256: 3a1627cf8f0e2e710baed963c501b85f52f0224699f755eec778eac398376c7e -->
+<!-- item: core.evaluation_type_ongoing_monitoring sha256: 92d011d484c3821e59f55f6c7c6b6153250b7c453d84c1d0055125c409255817 -->
 
 | Field | Value |
 |---|---|
-| item hash | `3a1627cf8f0e2e710baed963c501b85f52f0224699f755eec778eac398376c7e` |
+| item hash | `92d011d484c3821e59f55f6c7c6b6153250b7c453d84c1d0055125c409255817` |
 | family | `evaluation` |
 | name | `evaluation_type_ongoing_monitoring` |
 | level | `activity`, `page` |
@@ -4277,10 +4305,14 @@ Procedural: ask (or keep) type items only if `evaluation_documented` is still po
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-41` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.evaluation_documented", "values": ["results_reported", "conducted_no_results", "required_or_planned"], "after": "downgrades (X04)"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `new` |
+
+### Instruction
+
+The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: ongoing monitoring of the tool in use? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
 
 ### Values
 
@@ -4298,16 +4330,12 @@ The page does not document an evaluation of this type (ongoing monitoring of the
 
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
-2. `items/core.evaluation_type_ongoing_monitoring/rules/1`
-
-Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.
-
 ## `core.evaluation_type_user_feedback`
-<!-- item: core.evaluation_type_user_feedback sha256: 1e0155dd412152c3f036b7d27569ebc10b6375a64eda51b1b6942c77dec246b9 -->
+<!-- item: core.evaluation_type_user_feedback sha256: 8c01f238f78f94fddf6fd0a5289181cd9653a6c0ffd33f278c4a339929b7d0cd -->
 
 | Field | Value |
 |---|---|
-| item hash | `1e0155dd412152c3f036b7d27569ebc10b6375a64eda51b1b6942c77dec246b9` |
+| item hash | `8c01f238f78f94fddf6fd0a5289181cd9653a6c0ffd33f278c4a339929b7d0cd` |
 | family | `evaluation` |
 | name | `evaluation_type_user_feedback` |
 | level | `activity`, `page` |
@@ -4326,10 +4354,14 @@ Procedural: ask (or keep) type items only if `evaluation_documented` is still po
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-41` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.evaluation_documented", "values": ["results_reported", "conducted_no_results", "required_or_planned"], "after": "downgrades (X04)"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `new` |
+
+### Instruction
+
+The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: user feedback or satisfaction surveys? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
 
 ### Values
 
@@ -4347,16 +4379,12 @@ The page does not document an evaluation of this type (user feedback or satisfac
 
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
-2. `items/core.evaluation_type_user_feedback/rules/1`
-
-Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.
-
 ## `core.evaluation_type_bias_or_safety_testing`
-<!-- item: core.evaluation_type_bias_or_safety_testing sha256: 8486f5e9bc9211779b9ae13597c14dbe9b2d5680ec830fafee2a7c485e538843 -->
+<!-- item: core.evaluation_type_bias_or_safety_testing sha256: 8c9b4323a9cfa5d921a11c442f87566af8df9f7ace0279ad675ece3469401d56 -->
 
 | Field | Value |
 |---|---|
-| item hash | `8486f5e9bc9211779b9ae13597c14dbe9b2d5680ec830fafee2a7c485e538843` |
+| item hash | `8c9b4323a9cfa5d921a11c442f87566af8df9f7ace0279ad675ece3469401d56` |
 | family | `evaluation` |
 | name | `evaluation_type_bias_or_safety_testing` |
 | level | `activity`, `page` |
@@ -4375,10 +4403,14 @@ Procedural: ask (or keep) type items only if `evaluation_documented` is still po
 | visibility | `public` |
 | frozen_signature | `CX-01.3:CX-41` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.evaluation_documented", "values": ["results_reported", "conducted_no_results", "required_or_planned"], "after": "downgrades (X04)"}` |
 | long_page_rule | `any_yes` |
 | translation_v25 | `new` |
+
+### Instruction
+
+The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: bias, fairness or safety testing? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
 
 ### Values
 
@@ -4396,16 +4428,12 @@ The page does not document an evaluation of this type (bias, fairness or safety 
 
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
-2. `items/core.evaluation_type_bias_or_safety_testing/rules/1`
-
-Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.
-
 ## `core.stage_as_of`
-<!-- item: core.stage_as_of sha256: a31c92bf8e3ea867c88c781195963cfca2d0b31534f1edc8bbb96160a783265c -->
+<!-- item: core.stage_as_of sha256: a4cfb8749247a32920ceb3fd6cef7053a6dfc66866687cccf5c030875bc73ca4 -->
 
 | Field | Value |
 |---|---|
-| item hash | `a31c92bf8e3ea867c88c781195963cfca2d0b31534f1edc8bbb96160a783265c` |
+| item hash | `a4cfb8749247a32920ceb3fd6cef7053a6dfc66866687cccf5c030875bc73ca4` |
 | family | `dates` |
 | name | `stage_as_of` |
 | level | `activity` |
@@ -4424,7 +4452,7 @@ Procedural: ask (or keep) type items only if `evaluation_documented` is still po
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -4436,11 +4464,11 @@ Procedural: ask (or keep) type items only if `evaluation_documented` is still po
 stage_as_of = source_publication_date if supported, else the page's latest stated date for the activity, else the access date; plus `stage_as_of_basis`.
 
 ## `core.stage_as_of_basis`
-<!-- item: core.stage_as_of_basis sha256: 7532ef33a9684efc68cee471ee06979e1309c64060d85e8c457c109b4302c541 -->
+<!-- item: core.stage_as_of_basis sha256: d7088292a75ed257e9cc7e2ece470d33cdc3aaa19003815ed77979b23788b0a2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `7532ef33a9684efc68cee471ee06979e1309c64060d85e8c457c109b4302c541` |
+| item hash | `d7088292a75ed257e9cc7e2ece470d33cdc3aaa19003815ed77979b23788b0a2` |
 | family | `provenance` |
 | name | `stage_as_of_basis` |
 | level | `activity` |
@@ -4459,7 +4487,7 @@ stage_as_of = source_publication_date if supported, else the page's latest state
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -4475,11 +4503,11 @@ stage_as_of = source_publication_date if supported, else the page's latest state
 Every 'how we know' field uses the same five values: stated, from metadata, looked up, derived, quoted by the quote step. The per-run version record also holds the codebook version, the channel tag stays on each row, and per-code coder details are stored internally and linked to that record.
 
 ## `core.permanent_pilot`
-<!-- item: core.permanent_pilot sha256: c8cab1feaf94e127f78dc8fd0d4eae3b6d354dc06d01a262205662ceae3e81ce -->
+<!-- item: core.permanent_pilot sha256: 300a332733fec4ee2d42e5288bc95dc722d2cc159d9ffcae19e7c98b26ec5452 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c8cab1feaf94e127f78dc8fd0d4eae3b6d354dc06d01a262205662ceae3e81ce` |
+| item hash | `300a332733fec4ee2d42e5288bc95dc722d2cc159d9ffcae19e7c98b26ec5452` |
 | family | `activity_typing` |
 | name | `permanent_pilot` |
 | level | `activity` |
@@ -4498,7 +4526,7 @@ Every 'how we know' field uses the same five values: stated, from metadata, look
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -4510,11 +4538,11 @@ Every 'how we know' field uses the same five values: stated, from metadata, look
 Each item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.
 
 ## `core.vendor_claim_only`
-<!-- item: core.vendor_claim_only sha256: c428206aa8650a6567087b70a01cf493a6cca65aff96ee2622269365dce66cb4 -->
+<!-- item: core.vendor_claim_only sha256: 9dda40ba9ac691c619a8447340735430e6a657f4b40f3a80650f1801830249f7 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c428206aa8650a6567087b70a01cf493a6cca65aff96ee2622269365dce66cb4` |
+| item hash | `9dda40ba9ac691c619a8447340735430e6a657f4b40f3a80650f1801830249f7` |
 | family | `quality` |
 | name | `vendor_claim_only` |
 | level | `activity` |
@@ -4533,7 +4561,7 @@ Each item states its coder (classifier, mechanical, quote step or derived), and 
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -4545,11 +4573,11 @@ Each item states its coder (classifier, mechanical, quote step or derived), and 
 Each item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.
 
 ## `core.unit_credit`
-<!-- item: core.unit_credit sha256: 451c38d1d198e285e1100756e2ed241e89204d0549dd05763f137468182bd76a -->
+<!-- item: core.unit_credit sha256: 9ba4f21e759c415862d143345631e1e375687d471ac850a58cd020c2605c474a -->
 
 | Field | Value |
 |---|---|
-| item hash | `451c38d1d198e285e1100756e2ed241e89204d0549dd05763f137468182bd76a` |
+| item hash | `9ba4f21e759c415862d143345631e1e375687d471ac850a58cd020c2605c474a` |
 | family | `attribution` |
 | name | `unit_credit` |
 | level | `activity` |
@@ -4568,7 +4596,7 @@ Each item states its coder (classifier, mechanical, quote step or derived), and 
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -4580,11 +4608,11 @@ Each item states its coder (classifier, mechanical, quote step or derived), and 
 Keep your rule and add a yes/no column marking credit received through a unit, so analyses can remove duplicates; the data dictionary explains it.
 
 ## `core.uncertainty_flags`
-<!-- item: core.uncertainty_flags sha256: cf94b432c589e804010029d741897ed6df4249b20d8c56f214ce7ec4604f4fda -->
+<!-- item: core.uncertainty_flags sha256: c4129942fd2c85becde37da31998d5a7599d74917b78b845d2d64259a9f0228e -->
 
 | Field | Value |
 |---|---|
-| item hash | `cf94b432c589e804010029d741897ed6df4249b20d8c56f214ce7ec4604f4fda` |
+| item hash | `c4129942fd2c85becde37da31998d5a7599d74917b78b845d2d64259a9f0228e` |
 | family | `quality` |
 | name | `uncertainty_flags` |
 | level | `activity`, `row` |
@@ -4603,7 +4631,7 @@ Keep your rule and add a yes/no column marking credit received through a unit, s
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "uncertainty_flags", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[27]"}` |
@@ -4623,11 +4651,11 @@ Retire flags that just mirror a column; keep 'identity unresolved' and 'stage am
 AI-text flags fold into the main list, the language-barrier flag is dropped everywhere, and language coverage is carried by the multilingual subproject's item.
 
 ## `core.support_entailment`
-<!-- item: core.support_entailment sha256: 57ebd9eca0dfe0732fb9deb3aa4bc740a21deaf1282aca3ce92a17c2d066b839 -->
+<!-- item: core.support_entailment sha256: f9f841754b15eac328de8a33ff5c089c96dec33b4e4ac774665c5fa399e4e3cc -->
 
 | Field | Value |
 |---|---|
-| item hash | `57ebd9eca0dfe0732fb9deb3aa4bc740a21deaf1282aca3ce92a17c2d066b839` |
+| item hash | `f9f841754b15eac328de8a33ff5c089c96dec33b4e4ac774665c5fa399e4e3cc` |
 | family | `support` |
 | name | `support_entailment` |
 | level | `row` |
@@ -4646,7 +4674,7 @@ AI-text flags fold into the main list, the language-barrier flag is dropped ever
 | visibility | `internal` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -4672,11 +4700,11 @@ The quoted text does not state that the field has the given value. The answer's 
 State = quote (plus a short window); question: 'Does this text state that <field> is <value>?' true/false; false or confidence < threshold -> downgrade `no_support`.
 
 ## `core.support_status`
-<!-- item: core.support_status sha256: e14c257ac1af8625118a2011ad275638b73d412381d6d4ea5808631876d50e71 -->
+<!-- item: core.support_status sha256: 0e544e6520cdfc980b214e82ff69ed6e43ef344b9bbb50096122c39d77df6e28 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e14c257ac1af8625118a2011ad275638b73d412381d6d4ea5808631876d50e71` |
+| item hash | `0e544e6520cdfc980b214e82ff69ed6e43ef344b9bbb50096122c39d77df6e28` |
 | family | `support` |
 | name | `support_status` |
 | level | `row` |
@@ -4695,7 +4723,7 @@ State = quote (plus a short window); question: 'Does this text state that <field
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -4715,11 +4743,11 @@ Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_con
 A second reason item
 
 ## `core.supporting_text`
-<!-- item: core.supporting_text sha256: ab1a6071437a92a0293225daff189f3b12f0e7849e1a69a4b5f1ef6891f4569e -->
+<!-- item: core.supporting_text sha256: 07b6262cefe97510c6c521d3c7a46503b8fa75d67c9fb7e490fecbb39d24017c -->
 
 | Field | Value |
 |---|---|
-| item hash | `ab1a6071437a92a0293225daff189f3b12f0e7849e1a69a4b5f1ef6891f4569e` |
+| item hash | `07b6262cefe97510c6c521d3c7a46503b8fa75d67c9fb7e490fecbb39d24017c` |
 | family | `support` |
 | name | `supporting_text` |
 | level | `row` |
@@ -4738,7 +4766,7 @@ A second reason item
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -4762,11 +4790,11 @@ Supporting text is published with the code it supports. The API carries the full
 Published supporting quotes stay verbatim, with no masking.
 
 ## `core.has_genai_activity`
-<!-- item: core.has_genai_activity sha256: fbe40748c3b25d8c63105941aa19b1b14d01d237a59407d16f6531dcbd4ef2ef -->
+<!-- item: core.has_genai_activity sha256: 8594c479a9e5bfc1e0a97fddf8c820cf9561fc185ccc14cea22ac7e23054237a -->
 
 | Field | Value |
 |---|---|
-| item hash | `fbe40748c3b25d8c63105941aa19b1b14d01d237a59407d16f6531dcbd4ef2ef` |
+| item hash | `8594c479a9e5bfc1e0a97fddf8c820cf9561fc185ccc14cea22ac7e23054237a` |
 | family | `verdict` |
 | name | `has_genai_activity` |
 | level | `institution` |
@@ -4785,7 +4813,7 @@ Published supporting quotes stay verbatim, with no masking.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "has_genai_activity", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[28]"}` |
@@ -4801,11 +4829,11 @@ Institution-level consolidation (Stage 6) applies the v2.6 consolidation rules a
 Codebook table: `yes` if >= 1 supported `confirms_activity` page with a supported activity; `no` if every attempted page (incl. failed fetches and unfollowed links) ends in {no_genai, confirms_absence, event_only, other_body} at confidence >= 0.8 and no page is ambiguous, background_only or failed; otherwise `unclear`. Variant for PI: allow background_only in `no`.
 
 ## `core.verdict_rule`
-<!-- item: core.verdict_rule sha256: d832783e8f4358741df26aaf46c36d846b632138091caae069a927441c905372 -->
+<!-- item: core.verdict_rule sha256: beba0bea88ea30453204e005e89d0dfb23d80d5624e8a0656b0e1aa6c45a7607 -->
 
 | Field | Value |
 |---|---|
-| item hash | `d832783e8f4358741df26aaf46c36d846b632138091caae069a927441c905372` |
+| item hash | `beba0bea88ea30453204e005e89d0dfb23d80d5624e8a0656b0e1aa6c45a7607` |
 | family | `provenance` |
 | name | `verdict_rule` |
 | level | `institution` |
@@ -4824,7 +4852,7 @@ Codebook table: `yes` if >= 1 supported `confirms_activity` page with a supporte
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -4836,11 +4864,11 @@ Codebook table: `yes` if >= 1 supported `confirms_activity` page with a supporte
 v2.5 `none` institutions show `no` labelled as produced by the v2.5 rule (`verdict_rule`, r2#45).
 
 ## `core.evidence_tier`
-<!-- item: core.evidence_tier sha256: 1fd343111145182bd53634e0a495427eb3da20b401a15627b9b13b175d247a31 -->
+<!-- item: core.evidence_tier sha256: d0d7454be200964d5ec47c0589c4c533e5cf8a44eb5991f607251cc3491c72f3 -->
 
 | Field | Value |
 |---|---|
-| item hash | `1fd343111145182bd53634e0a495427eb3da20b401a15627b9b13b175d247a31` |
+| item hash | `d0d7454be200964d5ec47c0589c4c533e5cf8a44eb5991f607251cc3491c72f3` |
 | family | `verdict` |
 | name | `evidence_tier` |
 | level | `institution` |
@@ -4859,7 +4887,7 @@ v2.5 `none` institutions show `no` labelled as produced by the v2.5 rule (`verdi
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -4875,11 +4903,11 @@ Highest of: documented_use (any pilot, production or discontinued deployment) > 
 Use = a deployment or program at pilot, production or discontinued; commitment = announced, or a tender, contract or payment; governance or training only = those action types only; proposal only = stage 'proposed' or action type 'proposal'. You word the rule, and tests are added.
 
 ## `core.review_depth`
-<!-- item: core.review_depth sha256: 5d9c35a427bd3fd7b3b5020fae958d760df6304722b5369217139d6e2c86c3f8 -->
+<!-- item: core.review_depth sha256: 1e0e3603138283d76aee43d38e7da00ff2027461b73af0f8fd2b54c5ec3e7795 -->
 
 | Field | Value |
 |---|---|
-| item hash | `5d9c35a427bd3fd7b3b5020fae958d760df6304722b5369217139d6e2c86c3f8` |
+| item hash | `1e0e3603138283d76aee43d38e7da00ff2027461b73af0f8fd2b54c5ec3e7795` |
 | family | `quality` |
 | name | `review_depth` |
 | level | `institution` |
@@ -4898,7 +4926,7 @@ Use = a deployment or program at pilot, production or discontinued; commitment =
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -4910,11 +4938,11 @@ Use = a deployment or program at pilot, production or discontinued; commitment =
 n_pages_reviewed, n_pages_by_verdict (8 counts), n_pages_failed, n_followed_links, all computed at Stage 6.
 
 ## `core.activity_relation_cross_page`
-<!-- item: core.activity_relation_cross_page sha256: ed35aa6219ba9851bd5efe12e220a94855a87f1e601e726119547a30b02857c3 -->
+<!-- item: core.activity_relation_cross_page sha256: fea0b4ce0e16c47f1177145937bc9d96f11f84f156899c9dd171f21782dd919c -->
 
 | Field | Value |
 |---|---|
-| item hash | `ed35aa6219ba9851bd5efe12e220a94855a87f1e601e726119547a30b02857c3` |
+| item hash | `fea0b4ce0e16c47f1177145937bc9d96f11f84f156899c9dd171f21782dd919c` |
 | family | `activity_identity` |
 | name | `activity_relation` |
 | level | `activity` |
@@ -4933,10 +4961,14 @@ n_pages_reviewed, n_pages_by_verdict (8 counts), n_pages_failed, n_followed_link
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
-| long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.activity_relation_cross_page]; ruling institution-01, all-04", "order": ["unresolved", "distinct_action", "governs", "component_of_program", "shared_participation", "same_activity", "unknown"]}` |
+| long_page_rule | `{"rule": "priority_order", "source": "combining-rules.json items[core.activity_relation_cross_page]; ruling institution-01, all-04", "order": ["unresolved", "distinct_action", "governs", "governed_by", "component_of_program", "has_component", "shared_participation", "same_activity", "unknown"]}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+How is the activity in the first record related to the activity in the second record?
 
 ### Values
 
@@ -5005,33 +5037,37 @@ Store the distinct value with a rule note.
 Split the pool so every part sees both activities.
 
 ## `core.pooled_activity_fields`
-<!-- item: core.pooled_activity_fields sha256: fceed8f3fb6b4998f41b517fd824eed49e1bccc104916060f3e473d20b39c95f -->
+<!-- item: core.pooled_activity_fields sha256: fc67ae7a795e99099949c382d5d944ec9f2c5cb6bd6ca215cf3d73e8c37dc16b -->
 
 | Field | Value |
 |---|---|
-| item hash | `fceed8f3fb6b4998f41b517fd824eed49e1bccc104916060f3e473d20b39c95f` |
+| item hash | `fc67ae7a795e99099949c382d5d944ec9f2c5cb6bd6ca215cf3d73e8c37dc16b` |
 | family | `activity_identity` |
 | name | `pooled_activity_fields` |
 | level | `activity` |
 | pipelines | `stage6` |
-| linkage | `jev_choice` |
-| coder | `classifier` |
+| linkage | `pipeline` |
+| coder | `derived` |
 | pass | `stage6` |
 | round | `2` |
 | answer_type | `single` |
 | order_tie_rule | `first_in_order` |
 | support_required | `True` |
 | downgrade_target | `unknown` |
-| threshold | `{"metric": "chosen_answer_probability", "bar": 0.8}` |
+| threshold | `none` |
 | missing_tokens | `not_asked`, `not_documented`, `unknown`, `_NA_` |
 | input_text | `main` |
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
-| long_page_rule | `{"rule": "per item (r2#6)"}` |
+| long_page_rule | `{"rule": "none", "pooled_fields": "each field uses its own item's long_page_rule", "source": "r2#6", "ruling": "RC-D-005 10 a"}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+The text below is a set of quotes about one activity, gathered from several sources, each with its source type and date. Answer each question about the activity from these quotes only.
 
 ### Rules
 
@@ -5044,11 +5080,11 @@ For a merged activity, jev answers each Group D question once over the union of 
 Pooled quotes are split into parts, and the existing combining rules apply (yes if any part says yes; ordered lists take the first value found). The page-splitting rule is extended.
 
 ## `core.confidence`
-<!-- item: core.confidence sha256: 537c6f63b1d27f9707737584b2f124f63ae479557815040a65e67c52d8393c16 -->
+<!-- item: core.confidence sha256: be718eed17df646c03fff6a7f335f7ea2b267c926236030d9bf91cb932dbd698 -->
 
 | Field | Value |
 |---|---|
-| item hash | `537c6f63b1d27f9707737584b2f124f63ae479557815040a65e67c52d8393c16` |
+| item hash | `be718eed17df646c03fff6a7f335f7ea2b267c926236030d9bf91cb932dbd698` |
 | family | `quality` |
 | name | `confidence` |
 | level | `source`, `activity` |
@@ -5067,7 +5103,7 @@ Pooled quotes are split into parts, and the existing combining rules apply (yes 
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "confidence", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[29]"}` |
@@ -5079,11 +5115,11 @@ Pooled quotes are split into parts, and the existing combining rules apply (yes 
 Each source's confidence uses only that source's credibility and quote support. At consolidation, an activity is 'high' if one source is high or two medium sources that are not copies of each other agree; otherwise it takes the highest source value.
 
 ## `core.n_sources`
-<!-- item: core.n_sources sha256: 0ea0da2e67b4b4a6f03d97db931c67a34b8fa494246131f001b24a7ed2d6a8ae -->
+<!-- item: core.n_sources sha256: ea16c31f1a1bb6ce87487f5e44204a5ab1a2afc0d3e12334d3a176c8556e7672 -->
 
 | Field | Value |
 |---|---|
-| item hash | `0ea0da2e67b4b4a6f03d97db931c67a34b8fa494246131f001b24a7ed2d6a8ae` |
+| item hash | `ea16c31f1a1bb6ce87487f5e44204a5ab1a2afc0d3e12334d3a176c8556e7672` |
 | family | `quality` |
 | name | `n_sources` |
 | level | `activity` |
@@ -5102,7 +5138,7 @@ Each source's confidence uses only that source's credibility and quote support. 
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -5114,11 +5150,11 @@ Each source's confidence uses only that source's credibility and quote support. 
 As v1.3.
 
 ## `core.institution_summary`
-<!-- item: core.institution_summary sha256: f0b7677210e55f2705535f1194b8d6cbe1aba7fb27c7a84aaa09523052888d9f -->
+<!-- item: core.institution_summary sha256: d9fb888186e8e3adb55f161442c71d9b12a220881989b2d03b20c65d52ea17a6 -->
 
 | Field | Value |
 |---|---|
-| item hash | `f0b7677210e55f2705535f1194b8d6cbe1aba7fb27c7a84aaa09523052888d9f` |
+| item hash | `d9fb888186e8e3adb55f161442c71d9b12a220881989b2d03b20c65d52ea17a6` |
 | family | `verdict` |
 | name | `institution_summary` |
 | level | `institution` |
@@ -5137,7 +5173,7 @@ As v1.3.
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "institution_summary", "map": "identity", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[30]"}` |
@@ -5149,11 +5185,11 @@ As v1.3.
 Generate the summary from codes: verdict, number of activities, their types/stages, page counts reviewed and failed.
 
 ## `core.cx_display_rollup`
-<!-- item: core.cx_display_rollup sha256: e2c1976fd143d2bd307f22c2bda3d25b9fd1a0c2be996db52cacbaf158402ab6 -->
+<!-- item: core.cx_display_rollup sha256: f52d103820b333f6c591a4240b67d803a641e61caaaab1074c100baa2cae3953 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e2c1976fd143d2bd307f22c2bda3d25b9fd1a0c2be996db52cacbaf158402ab6` |
+| item hash | `f52d103820b333f6c591a4240b67d803a641e61caaaab1074c100baa2cae3953` |
 | family | `disclosure` |
 | name | `cx_display_rollup` |
 | level | `activity` |
@@ -5172,7 +5208,7 @@ Generate the summary from codes: verdict, number of activities, their types/stag
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -5184,11 +5220,11 @@ Generate the summary from codes: verdict, number of activities, their types/stag
 Stage 6 computes a display value per activity (any supported positive; first in table order for ordered fields), labelled 'display roll-up, not an index input'.
 
 ## `core.codebook_release`
-<!-- item: core.codebook_release sha256: 70c06b42eb6445d646e96fb7738b9ae2b8caf74883db08d70e044d5c561ebe5f -->
+<!-- item: core.codebook_release sha256: d19547278ff8587cfdd0f00fb38382c63b2b746d5a1671b44af5f14b0cf9edbc -->
 
 | Field | Value |
 |---|---|
-| item hash | `70c06b42eb6445d646e96fb7738b9ae2b8caf74883db08d70e044d5c561ebe5f` |
+| item hash | `d19547278ff8587cfdd0f00fb38382c63b2b746d5a1671b44af5f14b0cf9edbc` |
 | family | `provenance` |
 | name | `codebook_release` |
 | level | `row` |
@@ -5207,7 +5243,7 @@ Stage 6 computes a display value per activity (any supported positive; first in 
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `{"column": "contract_version", "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation", "source": "drafts/translation-r4.json entries[31]"}` |
@@ -5219,11 +5255,11 @@ Stage 6 computes a display value per activity (any supported positive; first in 
 Every published row carries the contract version that produced it. That is one version label, the codebook release, replacing `contract_version`, plus the setup pointer and `evidence_channel`; the extract and validate contract labels are recorded only in the setup record. C-007 applies to the release. v2.5 rows keep their contract version.
 
 ## `core.setup_pointer`
-<!-- item: core.setup_pointer sha256: a67b942925a1dcc27697fd82b8cdd4b1db61c67122694d15f8f8aa26e8fdeca8 -->
+<!-- item: core.setup_pointer sha256: 65b098d4b8efc9532ece93367858c8019cfb0434582423ce3ae52c7cbfcf4d3b -->
 
 | Field | Value |
 |---|---|
-| item hash | `a67b942925a1dcc27697fd82b8cdd4b1db61c67122694d15f8f8aa26e8fdeca8` |
+| item hash | `65b098d4b8efc9532ece93367858c8019cfb0434582423ce3ae52c7cbfcf4d3b` |
 | family | `provenance` |
 | name | `setup_pointer` |
 | level | `row` |
@@ -5242,7 +5278,7 @@ Every published row carries the contract version that produced it. That is one v
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -5258,11 +5294,11 @@ A manifest (contract versions, `JEV_QUESTION_SET_VERSION`, jev model, extractor 
 Every jev answer is stored with its probability distribution, confidence, response model id and request id. Every automated coder (classifier, quote step, detector, mechanical rules) stores coder type, model, version and request id; the per-run version record holds the codebook version, and per-code coder details are internal and linked to it; the row carries the codebook version + setup pointer; the classifier record keeps the chosen-answer probability.
 
 ## `core.evidence_channel`
-<!-- item: core.evidence_channel sha256: 1874109a354313ca536f067b515d7a8e258dbac12447765149f3a65d2048555a -->
+<!-- item: core.evidence_channel sha256: 0919944a3cfacd18171a1334e8da4698f46ae9ac2423cc548bf1938ef37a57de -->
 
 | Field | Value |
 |---|---|
-| item hash | `1874109a354313ca536f067b515d7a8e258dbac12447765149f3a65d2048555a` |
+| item hash | `0919944a3cfacd18171a1334e8da4698f46ae9ac2423cc548bf1938ef37a57de` |
 | family | `provenance` |
 | name | `evidence_channel` |
 | level | `row` |
@@ -5281,7 +5317,7 @@ Every jev answer is stored with its probability distribution, confidence, respon
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -5293,11 +5329,11 @@ Every jev answer is stored with its probability distribution, confidence, respon
 Channel enum (web_extract, procurement, text_detection)
 
 ## `core.coder_record`
-<!-- item: core.coder_record sha256: 3ce7044e0f14e915db89ee5a6e5a1395fb47f6c884a634b32532e6e3004471ab -->
+<!-- item: core.coder_record sha256: 213c3c3f241b5081f4f6cbde23e3db0d711564f03a04bede0010b1e9a35fb167 -->
 
 | Field | Value |
 |---|---|
-| item hash | `3ce7044e0f14e915db89ee5a6e5a1395fb47f6c884a634b32532e6e3004471ab` |
+| item hash | `213c3c3f241b5081f4f6cbde23e3db0d711564f03a04bede0010b1e9a35fb167` |
 | family | `provenance` |
 | name | `coder_record` |
 | level | `row` |
@@ -5316,7 +5352,7 @@ Channel enum (web_extract, procurement, text_detection)
 | visibility | `internal` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -5332,11 +5368,11 @@ Every jev answer is stored with its probability distribution, confidence, respon
 `coder_type`, `coder_model`, `coder_version`, `request_id` common across channels
 
 ## `core.language_coverage`
-<!-- item: core.language_coverage sha256: 6cba4d218e14948faff75c874678683153e11d7c92f6d0f4fc5f97e01e71f002 -->
+<!-- item: core.language_coverage sha256: 4d0e597ea9ef890f2a4cb621a3840ebff9d335198b8a51b83b37cdc5e19c2208 -->
 
 | Field | Value |
 |---|---|
-| item hash | `6cba4d218e14948faff75c874678683153e11d7c92f6d0f4fc5f97e01e71f002` |
+| item hash | `4d0e597ea9ef890f2a4cb621a3840ebff9d335198b8a51b83b37cdc5e19c2208` |
 | family | `provenance` |
 | name | `language_coverage` |
 | level | `row` |
@@ -5355,7 +5391,7 @@ Every jev answer is stored with its probability distribution, confidence, respon
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot (owned by the multilingual subproject)` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -5371,11 +5407,11 @@ Defined with the language-readiness bar
 AI-text flags fold into the main list, the language-barrier flag is dropped everywhere, and language coverage is carried by the multilingual subproject's item.
 
 ## `core.observed_actor_role`
-<!-- item: core.observed_actor_role sha256: e045ce6235185b64555efa5530f3de196f55ba70e6149f5d529720029abf5367 -->
+<!-- item: core.observed_actor_role sha256: 3b56edcce15ceda21e23aeebfcfc26112da874809ac7002e3562d8808e8f5aa4 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e045ce6235185b64555efa5530f3de196f55ba70e6149f5d529720029abf5367` |
+| item hash | `3b56edcce15ceda21e23aeebfcfc26112da874809ac7002e3562d8808e8f5aa4` |
 | family | `attribution` |
 | name | `observed_actor_role` |
 | level | `activity` |
@@ -5394,10 +5430,14 @@ AI-text flags fold into the main list, the language-barrier flag is dropped ever
 | visibility | `internal` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
-| long_page_rule | `{"rule": "same_part_as", "item": "core.observed_actor_relationship", "fallback": "highest_probability"}` |
+| long_page_rule | `{"rule": "highest_probability"}` |
 | translation_v25 | `new` |
+
+### Instruction
+
+What role does the body that the page shows acting in this activity play in it?
 
 ### Values
 
@@ -5435,12 +5475,16 @@ Code it as before; not published.
 
 Only `institutional_actor`, `issuer` and `participant` count as the actor taking part in the activity; `external_speaker`, `service_provider` and `event_host` do not.
 
+3. `items/core.observed_actor_role/rules/2`
+
+not_documented: the page is silent.
+
 ## `core.date_upper_bound`
-<!-- item: core.date_upper_bound sha256: b813dbae96dda535658b0db6b8cd26729e56117716d41bf571961e7dfef019b4 -->
+<!-- item: core.date_upper_bound sha256: 82943a083cbd38b0f4fbc0d8f54b3d5eb273a4ebe3d136a77c32c2613be5f73e -->
 
 | Field | Value |
 |---|---|
-| item hash | `b813dbae96dda535658b0db6b8cd26729e56117716d41bf571961e7dfef019b4` |
+| item hash | `82943a083cbd38b0f4fbc0d8f54b3d5eb273a4ebe3d136a77c32c2613be5f73e` |
 | family | `provenance` |
 | name | `date_upper_bound` |
 | level | `source`, `activity` |
@@ -5459,7 +5503,7 @@ Only `institutional_actor`, `issuer` and `participant` count as the actor taking
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -5471,11 +5515,11 @@ Only `institutional_actor`, `issuer` and `participant` count as the actor taking
 add a yes/no note "this date is an upper bound".
 
 ## `core.support_rule_name`
-<!-- item: core.support_rule_name sha256: 65a9ae6a920590ee4e488ab6a40bb49111187bea0d8e8401bcdef0d3de70d899 -->
+<!-- item: core.support_rule_name sha256: 4906ff346c853e893883241928a250b7eb41abffea48ff7ecf44f34ac2b34d25 -->
 
 | Field | Value |
 |---|---|
-| item hash | `65a9ae6a920590ee4e488ab6a40bb49111187bea0d8e8401bcdef0d3de70d899` |
+| item hash | `4906ff346c853e893883241928a250b7eb41abffea48ff7ecf44f34ac2b34d25` |
 | family | `support` |
 | name | `support_rule_name` |
 | level | `row` |
@@ -5494,7 +5538,7 @@ add a yes/no note "this date is an upper bound".
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
+| status | `signed` |
 | gate | `{"item": "core.support_status", "values": ["set_by_rule"], "gated_out_value": "empty (record-01 a wording)"}` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
@@ -5506,11 +5550,11 @@ add a yes/no note "this date is an upper bound".
 Add a rule-name item, empty unless the status is "set by rule".
 
 ## `core.support_status_second_reason`
-<!-- item: core.support_status_second_reason sha256: e782c3663184e51a96ff21bcf305c9fa647a453faa15ca95529c1f66072fa65a -->
+<!-- item: core.support_status_second_reason sha256: 15278c373296fcd2164444cc29b816e0d773a02d940a21b28f78a49c701fc90d -->
 
 | Field | Value |
 |---|---|
-| item hash | `e782c3663184e51a96ff21bcf305c9fa647a453faa15ca95529c1f66072fa65a` |
+| item hash | `15278c373296fcd2164444cc29b816e0d773a02d940a21b28f78a49c701fc90d` |
 | family | `support` |
 | name | `support_status_second_reason` |
 | level | `row` |
@@ -5529,8 +5573,8 @@ Add a rule-name item, empty unless the status is "set by rule".
 | visibility | `public` |
 | frozen_signature | `none` |
 | version_introduced | `2.7` |
-| status | `slot` |
-| gate | `{"rule": "empty unless two reasons hold (final-open F10)"}` |
+| status | `signed` |
+| gate | `none` |
 | long_page_rule | `none` |
 | translation_v25 | `new` |
 

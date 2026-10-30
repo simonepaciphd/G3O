@@ -1,14 +1,14 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extractor_prompt_sections. -->
-<!-- codebook release: 2.7 | codebook sha256: d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764 -->
+<!-- codebook release: 2.7 | codebook sha256: f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f -->
 
 # Extractor prompt sections
 
-Codebook release `2.7`, sha256 `d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
+Codebook release `2.7`, sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
 
 ## `core.source_publication_date`
-<!-- item: core.source_publication_date sha256: 9b0656c0c6510e1f0f97749c8bbdc50a5450b360a3fb9ebc5858dc67e56d65e3 -->
+<!-- item: core.source_publication_date sha256: 8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320 -->
 
-Column `source_publication_date`; item hash `9b0656c0c6510e1f0f97749c8bbdc50a5450b360a3fb9ebc5858dc67e56d65e3`.
+Column `source_publication_date`; item hash `8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320`.
 
 ### Rules
 
@@ -16,9 +16,9 @@ Column `source_publication_date`; item hash `9b0656c0c6510e1f0f97749c8bbdc50a545
 2. One shared date of 1 November 2022, with "before" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown; the AI-text code changes.
 
 ## `core.source_snippet`
-<!-- item: core.source_snippet sha256: d0ab6f896f41ba81d558777d6eb9cbba9746d19176c200862a8ff508ac20b284 -->
+<!-- item: core.source_snippet sha256: a26fef1a984c518461bea85a9771caad96db7347f057ec8e66cf035ba014314e -->
 
-Column `source_snippet`; item hash `d0ab6f896f41ba81d558777d6eb9cbba9746d19176c200862a8ff508ac20b284`.
+Column `source_snippet`; item hash `a26fef1a984c518461bea85a9771caad96db7347f057ec8e66cf035ba014314e`.
 
 ### Rules
 
@@ -26,9 +26,9 @@ Column `source_snippet`; item hash `d0ab6f896f41ba81d558777d6eb9cbba9746d19176c2
 2. Snippets are verbatim in every pipeline, no translations are stored, and procurement's rule is amended.
 
 ## `core.activity_segment`
-<!-- item: core.activity_segment sha256: 682fa27ba8f84d627704cf7f1cfdae2dec8dcf1361701f04355bd3c12d3e24a6 -->
+<!-- item: core.activity_segment sha256: 44cc63f10ebef97a1402d517332330fb5ff41ffcf9de22de80b87a4f8e57b97e -->
 
-Column `activity_relation_within_page`; item hash `682fa27ba8f84d627704cf7f1cfdae2dec8dcf1361701f04355bd3c12d3e24a6`.
+Column `activity_relation_within_page`; item hash `44cc63f10ebef97a1402d517332330fb5ff41ffcf9de22de80b87a4f8e57b97e`.
 
 ### Instruction
 
@@ -145,27 +145,27 @@ Rules:
 5. Each pair of passages gets a link.
 
 ## `core.activity_name`
-<!-- item: core.activity_name sha256: 728ade2be54620595dfe7ad68dba12705d4bead42e9315aef9886d816caef531 -->
+<!-- item: core.activity_name sha256: 9a9a55c3d066738f911fdc5269670d927e3bee2da8236094fb9e2c68e1069401 -->
 
-Column `activity_name`; item hash `728ade2be54620595dfe7ad68dba12705d4bead42e9315aef9886d816caef531`.
+Column `activity_name`; item hash `9a9a55c3d066738f911fdc5269670d927e3bee2da8236094fb9e2c68e1069401`.
 
 ### Instruction
 
 Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platform"). Otherwise descriptive (e.g., "Internal Copilot pilot for document drafting").
 
 ## `core.observed_actor_name`
-<!-- item: core.observed_actor_name sha256: b32deb08bbf848ebd7916fd76b2317cdfffe2ee0dc14123aaafadce8984eff37 -->
+<!-- item: core.observed_actor_name sha256: d76dc7f2c930b753dd8511068222d56eb0e16384dcefe9064fc860a06e4ef25f -->
 
-Column `observed_actor_name`; item hash `b32deb08bbf848ebd7916fd76b2317cdfffe2ee0dc14123aaafadce8984eff37`.
+Column `observed_actor_name`; item hash `d76dc7f2c930b753dd8511068222d56eb0e16384dcefe9064fc860a06e4ef25f`.
 
 ### Rules
 
 1. The extractor returns the verbatim actor name and organisational unit. jev Choice gives the relationship (this institution / unit of it / joint participant / other / unresolved) and the role (as v2.6).
 
 ## `core.tool_name`
-<!-- item: core.tool_name sha256: 4c960a1917007ed502ea252e91c5370eeddfa71ee468390b7f7ffe488a9e6beb -->
+<!-- item: core.tool_name sha256: e606956923481de92a2b4c59bbffa78de57b1fcc574c7b2f5e666a7c000969b1 -->
 
-Column `tool_name`; item hash `4c960a1917007ed502ea252e91c5370eeddfa71ee468390b7f7ffe488a9e6beb`.
+Column `tool_name`; item hash `e606956923481de92a2b4c59bbffa78de57b1fcc574c7b2f5e666a7c000969b1`.
 
 ### Instruction
 
@@ -177,9 +177,9 @@ Specific tool, model, or platform name (e.g., "Microsoft 365 Copilot", "ChatGPT"
 2. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.model_name`
-<!-- item: core.model_name sha256: 34a1685ff0f6304c3ae75cd690ac994f6a3f7e0cf0bc08ddcfec3e2a6ae8de8b -->
+<!-- item: core.model_name sha256: 7dd785b572b3e2c6fb2bec9e18322fd3947632922cf627ddc43a1b3cd53ed834 -->
 
-Column `model_name`; item hash `34a1685ff0f6304c3ae75cd690ac994f6a3f7e0cf0bc08ddcfec3e2a6ae8de8b`.
+Column `model_name`; item hash `7dd785b572b3e2c6fb2bec9e18322fd3947632922cf627ddc43a1b3cd53ed834`.
 
 ### Rules
 
@@ -187,9 +187,9 @@ Column `model_name`; item hash `34a1685ff0f6304c3ae75cd690ac994f6a3f7e0cf0bc08dd
 2. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.contracting_party`
-<!-- item: core.contracting_party sha256: f27653658f96d43998f2df1cc678c307b15c520c5decb3777d2d20f12f851c96 -->
+<!-- item: core.contracting_party sha256: 73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24 -->
 
-Column `contracting_party`; item hash `f27653658f96d43998f2df1cc678c307b15c520c5decb3777d2d20f12f851c96`.
+Column `contracting_party`; item hash `73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24`.
 
 ### Rules
 
@@ -198,9 +198,9 @@ Column `contracting_party`; item hash `f27653658f96d43998f2df1cc678c307b15c520c5
 3. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.deployment_scale_number`
-<!-- item: core.deployment_scale_number sha256: f475424d5b5a9a547768e9d58e2d9ac0cb9927308630ccc156fe4d361be0ac19 -->
+<!-- item: core.deployment_scale_number sha256: 732f308184bb60eedf1e67468eb657857b20ce4dcfc76fb97cf16c19454b3686 -->
 
-Column `deployment_scale_number`; item hash `f475424d5b5a9a547768e9d58e2d9ac0cb9927308630ccc156fe4d361be0ac19`.
+Column `deployment_scale_number`; item hash `732f308184bb60eedf1e67468eb657857b20ce4dcfc76fb97cf16c19454b3686`.
 
 ### Rules
 
@@ -209,9 +209,9 @@ Column `deployment_scale_number`; item hash `f475424d5b5a9a547768e9d58e2d9ac0cb9
 3. The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.reported_outcomes`
-<!-- item: core.reported_outcomes sha256: 461640be1d75ba79ac2297ad85a4a36bc119cfd9d8a1bb73bb9a14248192181d -->
+<!-- item: core.reported_outcomes sha256: 841fe4e05bdbe08ab94621fc8d47e330ac1a68b3fb8af5875eddf8de74af9554 -->
 
-Column `reported_outcomes`; item hash `461640be1d75ba79ac2297ad85a4a36bc119cfd9d8a1bb73bb9a14248192181d`.
+Column `reported_outcomes`; item hash `841fe4e05bdbe08ab94621fc8d47e330ac1a68b3fb8af5875eddf8de74af9554`.
 
 ### Instruction
 
@@ -220,12 +220,11 @@ Documented performance claims. Only record if explicitly stated. Never infer.
 ### Rules
 
 1. Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
-2. jev Choice per activity: page reports realised outcomes / only expected or projected outcomes / usage figures only / none. Unless none, the extractor returns verbatim spans (no length limit in storage, display cap per R-043). CX-61 then runs on the spans.
 
 ## `core.reported_incidents`
-<!-- item: core.reported_incidents sha256: 66b35b76fde638868351219a3e179a72358ccc6a176b581650fed4b473b10ca5 -->
+<!-- item: core.reported_incidents sha256: 5965e825e8086c714fe752e1004c91a1c7f839644191a4e2077a3693f744e429 -->
 
-Column `reported_incidents`; item hash `66b35b76fde638868351219a3e179a72358ccc6a176b581650fed4b473b10ca5`.
+Column `reported_incidents`; item hash `5965e825e8086c714fe752e1004c91a1c7f839644191a4e2077a3693f744e429`.
 
 ### Instruction
 
@@ -234,12 +233,11 @@ Documented errors, failures, or controversies. Only record if explicitly stated.
 ### Rules
 
 1. Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
-2. jev Choice: page reports a malfunction or error / data or privacy breach / public criticism or complaint / suspension or withdrawal / none. Unless none, the extractor returns verbatim spans.
 
 ## `core.supporting_text`
-<!-- item: core.supporting_text sha256: ab1a6071437a92a0293225daff189f3b12f0e7849e1a69a4b5f1ef6891f4569e -->
+<!-- item: core.supporting_text sha256: 07b6262cefe97510c6c521d3c7a46503b8fa75d67c9fb7e490fecbb39d24017c -->
 
-Column `supporting_text`; item hash `ab1a6071437a92a0293225daff189f3b12f0e7849e1a69a4b5f1ef6891f4569e`.
+Column `supporting_text`; item hash `07b6262cefe97510c6c521d3c7a46503b8fa75d67c9fb7e490fecbb39d24017c`.
 
 ### Rules
 
