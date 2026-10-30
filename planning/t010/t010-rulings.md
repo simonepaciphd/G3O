@@ -137,3 +137,11 @@ Shown in chat: revised clean copy `planning/t010/RC-D-005-clean-copy.md` (`recla
 PI, chat, verbatim: "approved and cut"
 
 Integrator reading: the clean copy is approved in full, and the words " plus `unknown`" are cut from rule 1 of the three year items (no other change). The cut build becomes the re-signature candidate; the delta text and the signature are still to be put to the PI.
+
+## 2026-10-30 — RC-D-005 approved; codebook release 2.7 re-signed (orchestrator session 20261030-claude-v2-74b5a83dce21f038)
+
+Put to the PI in chat: the delta `planning/deltas/RC-D-005.md` (`planning/w1-orchestration` `87f7db9`) for approval, and the candidate `planning/t010/candidate-r8/codebook-r8-signoff.yaml` (`reclass/rc-d-005-codebook` `7060726`), sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f`, for signature; asked reply: "delta approved, I sign", or changes.
+
+PI, chat, verbatim: "approved! go forth"
+
+Integrator reading: RC-D-005 is approved as written, and codebook release 2.7 is re-signed at sha256 `f0b1348c…c72f` (the reply answers both requests, with no change named); "go forth" authorizes the application steps listed in the request (SPEC v001.9, PLAN, CHANGELOG, file replacement, signature record, T-013 regeneration). It does not authorize a push, PR or merge to `main`.
