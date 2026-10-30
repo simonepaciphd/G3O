@@ -109,3 +109,11 @@ Context: T-013 checks 1, 6, 7, 9, 10, 11, 13 fail on `d24bbc7c…`; T-020 stoppe
 PI, chat, verbatim: "1a, 2a, 3 subagent drafts all & I read and edit/confirm, 4 part of 3, 5 a, 6a, 7a, 8b, 9 a, 10a 11 a 12 a 13a 14a; accept all"
 
 Integrator reading: 3 a, with a subagent drafting every question (and, by 4, the two year questions, and by 5 a / 6 a the part-prompt sentence, the temporary answer text and the system-prompt slot), which the PI reads, edits and confirms; all P1-P8 at their defaults.
+
+## 2026-10-30 — RC-D-005 wording drafts and follow-up ambiguities (orchestrator session 20261030-claude-v2-74b5a83dce21f038)
+
+Shown in chat: wording drafts W01-W45 (`drafts/rc-d-005-wording.md`, `feb0dcf`); candidate codebook `reclass/rc-d-005-codebook` `bcd7a88` (fixes-r5, sign-off build sha256 `3a8a3e5f…`); follow-up questions 12a′ (i-iv), F8 tension (a/b), R1 = F4 (a/b), R2 = F3 (a/b), N1 (a/b/c), I5 (a/b), I7 (a/b), F5 (source_type a/b; second_reason a/b), F9 (a/b), F10 (a/b); procedural F1 a, F2 a, F6 a, F7 a, E1 (EVAL_EMPHASIS byte for byte), G1 (T-013 generator follow-up).
+
+PI, chat, verbatim: "drafts ok, give a subagent the task to resolve ambiguities in a way that's coherent with the rest, i will approve final clean copy"
+
+Integrator reading: W01-W45 approved as drafted. The PI delegates the choice on every listed follow-up item to a subagent, which resolves each coherently with the signed rules and logs its choice and reasons; the procedural defaults stand unless coherence requires otherwise (then logged). Nothing is final until the PI approves the clean copy; the codebook is then re-signed.

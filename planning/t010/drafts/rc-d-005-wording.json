@@ -1,0 +1,281 @@
+{
+ "_meta": {
+  "delta": "RC-D-005 (rulings 3 a, 4, 5 a, 6 a, 12 a; PI 2026-10-30)",
+  "status": "agent draft for PI edit; nothing here is final",
+  "codebook": "codebook/codebook.yaml release 2.7 sha256 d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764",
+  "drafted_by": "drafting subagent of the plan integrator, Claude Code, claude-opus-5-5, 2026-10-30",
+  "fold_rule": "fold an entry only after the PI edits or confirms it; set origin to 'pi' (or the agreed tag) at fold"
+ },
+ "entries": {
+  "W01": {
+   "path": "shared/part_prompt/sentence",
+   "text": "The text below is only one part of a longer page; the rest of the page is read separately. Answer from this part only.",
+   "origin": "agent-draft",
+   "source": "new; part label idea from agent-workspace/2026-10-27-unclear-screen/unclear2.py L98, L128 (`page_part` = \"1 of 3\")"
+  },
+  "W02": {
+   "path": "shared/part_prompt/temporary_answer/label",
+   "text": "not covered by this part",
+   "origin": "agent-draft",
+   "source": "SPEC R-044 (label as written there)"
+  },
+  "W03": {
+   "path": "shared/part_prompt/temporary_answer/meaning",
+   "text": "This part of the page does not deal with the question; another part of the page may.",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W04": {
+   "path": "shared/system_prompt",
+   "text": "You are a research coder for the Global Government GenAI Observatory (G3O), a public, auditable dataset that measures how government institutions worldwide adopt generative AI. You read one web page, or one part of one, about a named institution and answer coding questions about it. Use only what the text says: record what it states explicitly and never infer, guess or use outside knowledge. Give each answer in the form the question asks for and nothing else: for a question with listed answers, choose from those answers only; for an extraction, copy the exact words from the text.",
+   "origin": "agent-draft",
+   "source": "g3o/extract/prompts/system_prompt.md L3 (mission sentence, shortened), L39 (\"Only record what is explicitly documented. Never infer\"), L69 (\"Return ONLY ...\"); agent-workspace/2026-10-27-unclear-screen/unclear2.py L84 (\"using only what the page says\")"
+  },
+  "W05": {
+   "path": "items/core.disclosure_scope/instruction",
+   "text": "How many institutions does the listing or document this page belongs to cover?",
+   "origin": "agent-draft",
+   "source": "planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L196 page_questions disclosure_scope instructions\" (frozen CX-01.2 question), with the \"Code the source PAGE.\" lead-in dropped"
+  },
+  "W06": {
+   "path": "items/core.content_contact_named/instruction",
+   "text": "Does the page name a person, office or unit as responsible for a GenAI activity it mentions, or for questions about it?",
+   "origin": "agent-draft",
+   "source": "planning/t010/drafts/cx-01.3-draft.json row \"contact.py L42 contact question instructions\" (\"Does the page give this: {v}?\") with {v} = contact.py L30 w4a wording"
+  },
+  "W07": {
+   "path": "items/core.content_contact_details/instruction",
+   "text": "Does the page give any contact details anywhere on it, such as an email address, phone number, postal address or contact form?",
+   "origin": "agent-draft",
+   "source": "planning/t010/drafts/cx-01.3-draft.json row \"contact.py L42 contact question instructions\" with {v} = contact.py L31 w4b wording"
+  },
+  "W08": {
+   "path": "items/core.source_type/instruction",
+   "text": "What kind of source is this page?",
+   "origin": "agent-draft",
+   "source": "g3o/extract/prompts/output_contract.md L123 column description (\"Category of the source.\") turned into a question"
+  },
+  "W09": {
+   "path": "items/core.observed_actor_relationship/instruction",
+   "text": "Whose activity is this, according to the page: the named institution's own, one of its units', a joint one it takes part in, or another body's?",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W10": {
+   "path": "items/core.observed_actor_relationship/values/searched_institution_role/instruction",
+   "text": "What part does the named institution play in this activity?",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W11": {
+   "path": "items/core.observed_actor_role/instruction",
+   "text": "What role does the body that the page shows acting in this activity play in it?",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W12": {
+   "path": "items/core.action_type/instruction",
+   "text": "What kind of action is this activity?",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W13": {
+   "path": "items/core.adoption_stage/instruction",
+   "text": "What stage has this activity reached, according to the page?",
+   "origin": "agent-draft",
+   "source": "new; \"Record the most current status\" idea from g3o/extract/prompts/system_prompt.md L54"
+  },
+  "W14": {
+   "path": "items/core.procurement_status/instruction",
+   "text": "What purchase step, if any, does the page record for this activity's tool or service?",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W15": {
+   "path": "items/core.service_domain/instruction",
+   "text": "Which areas of government work does this activity concern? Choose all that apply.",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W16": {
+   "path": "items/core.model_origin/instruction",
+   "text": "Where does the model behind this activity's tool come from?",
+   "origin": "agent-draft",
+   "source": "new; value wording follows g3o/extract/prompts/output_contract.md §4.4 (access_type)"
+  },
+  "W17": {
+   "path": "items/core.build_arrangement/instruction",
+   "text": "How was this activity's tool built?",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W18": {
+   "path": "items/core.interface/instruction",
+   "text": "How do users reach this activity's tool?",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W19": {
+   "path": "items/core.function_drafting_writing/instruction",
+   "text": "Does the page state that this activity's tool is used for drafting or writing text?",
+   "origin": "agent-draft",
+   "source": "new; the task phrase is copied from the item's own `yes` definition (examples left in the definition)"
+  },
+  "W20": {
+   "path": "items/core.function_summarization/instruction",
+   "text": "Does the page state that this activity's tool is used for summarising documents, reports or meetings?",
+   "origin": "agent-draft",
+   "source": "new; the task phrase is copied from the item's own `yes` definition (examples left in the definition)"
+  },
+  "W21": {
+   "path": "items/core.function_translation/instruction",
+   "text": "Does the page state that this activity's tool is used for translating text or speech between languages?",
+   "origin": "agent-draft",
+   "source": "new; the task phrase is copied from the item's own `yes` definition (examples left in the definition)"
+  },
+  "W22": {
+   "path": "items/core.function_search_retrieval/instruction",
+   "text": "Does the page state that this activity's tool is used for finding information?",
+   "origin": "agent-draft",
+   "source": "new; the task phrase is copied from the item's own `yes` definition (examples left in the definition)"
+  },
+  "W23": {
+   "path": "items/core.function_code/instruction",
+   "text": "Does the page state that this activity's tool is used for writing, reviewing or fixing software code?",
+   "origin": "agent-draft",
+   "source": "new; the task phrase is copied from the item's own `yes` definition (examples left in the definition)"
+  },
+  "W24": {
+   "path": "items/core.function_image_audio_video/instruction",
+   "text": "Does the page state that this activity's tool is used for creating or editing images, audio or video?",
+   "origin": "agent-draft",
+   "source": "new; the task phrase is copied from the item's own `yes` definition (examples left in the definition)"
+  },
+  "W25": {
+   "path": "items/core.function_extraction_classification/instruction",
+   "text": "Does the page state that this activity's tool is used for pulling information out of documents or forms, or sorting and classifying them?",
+   "origin": "agent-draft",
+   "source": "new; the task phrase is copied from the item's own `yes` definition (examples left in the definition)"
+  },
+  "W26": {
+   "path": "items/core.function_analysis_recommendation/instruction",
+   "text": "Does the page state that this activity's tool is used for analysing information or giving recommendations or scores to support human decisions?",
+   "origin": "agent-draft",
+   "source": "new; the task phrase is copied from the item's own `yes` definition (examples left in the definition)"
+  },
+  "W27": {
+   "path": "items/core.governed_population/instruction",
+   "text": "Whom does this rule on GenAI use apply to?",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W28": {
+   "path": "items/core.governance_form/instruction",
+   "text": "What form does this rule on GenAI use take? Choose all that apply.",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W29": {
+   "path": "items/core.governance_direction/instruction",
+   "text": "Does this rule ban, limit, allow, require or encourage the GenAI use it covers?",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W30": {
+   "path": "items/core.genai_mechanism_basis/instruction",
+   "text": "What on the page shows that this activity's tool is generative AI?",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W31": {
+   "path": "items/core.year_pilot_start/instruction",
+   "text": "In which year does the page say a pilot or trial of this activity began?",
+   "origin": "agent-draft",
+   "source": "new; replaces the copied announced-year question (ruling 4)"
+  },
+  "W32": {
+   "path": "items/core.year_production_start/instruction",
+   "text": "In which year does the page say this activity went into full, routine operation?",
+   "origin": "agent-draft",
+   "source": "new; replaces the copied announced-year question (ruling 4)"
+  },
+  "W33": {
+   "path": "items/core.deployment_scale_unit/instruction",
+   "text": "What does the stated number for this activity count?",
+   "origin": "agent-draft",
+   "source": "new; follows the item rule (\"jev Choice gives the unit\" for the extracted number)"
+  },
+  "W34": {
+   "path": "items/core.outcome_kind/instruction",
+   "text": "Does the page report a result of this activity, and if so, what kind?",
+   "origin": "agent-draft",
+   "source": "new; \"does the page report an outcome ... of this activity\" from item rule 3 (direction), shortened"
+  },
+  "W35": {
+   "path": "items/core.incident_kind/instruction",
+   "text": "Does the page report an incident with this activity, such as an error, failure or controversy, and if so, what kind?",
+   "origin": "agent-draft",
+   "source": "new; \"errors, failures, or controversies\" from g3o/extract/prompts/output_contract.md L112 (reported_incidents column description)"
+  },
+  "W36": {
+   "path": "items/core.evaluation_type_pre_deployment_testing/instruction",
+   "text": "The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: testing before deployment?",
+   "origin": "agent-draft",
+   "source": "planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L210 type_questions instructions\" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; \"the named GenAI activity\" changed to \"this GenAI activity\" to match the signed evaluation question"
+  },
+  "W37": {
+   "path": "items/core.evaluation_type_pilot_evaluation/instruction",
+   "text": "The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: evaluation of a pilot or trial?",
+   "origin": "agent-draft",
+   "source": "planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L210 type_questions instructions\" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; \"the named GenAI activity\" changed to \"this GenAI activity\" to match the signed evaluation question"
+  },
+  "W38": {
+   "path": "items/core.evaluation_type_independent_audit/instruction",
+   "text": "The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: an audit or evaluation by an independent body?",
+   "origin": "agent-draft",
+   "source": "planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L210 type_questions instructions\" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; \"the named GenAI activity\" changed to \"this GenAI activity\" to match the signed evaluation question"
+  },
+  "W39": {
+   "path": "items/core.evaluation_type_ongoing_monitoring/instruction",
+   "text": "The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: ongoing monitoring of the tool in use?",
+   "origin": "agent-draft",
+   "source": "planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L210 type_questions instructions\" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; \"the named GenAI activity\" changed to \"this GenAI activity\" to match the signed evaluation question"
+  },
+  "W40": {
+   "path": "items/core.evaluation_type_user_feedback/instruction",
+   "text": "The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: user feedback or satisfaction surveys?",
+   "origin": "agent-draft",
+   "source": "planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L210 type_questions instructions\" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; \"the named GenAI activity\" changed to \"this GenAI activity\" to match the signed evaluation question"
+  },
+  "W41": {
+   "path": "items/core.evaluation_type_bias_or_safety_testing/instruction",
+   "text": "The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: bias, fairness or safety testing?",
+   "origin": "agent-draft",
+   "source": "planning/t010/drafts/cx-01.3-draft.json row \"pilot.py L210 type_questions instructions\" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; \"the named GenAI activity\" changed to \"this GenAI activity\" to match the signed evaluation question"
+  },
+  "W42": {
+   "path": "items/core.activity_relation_cross_page/instruction",
+   "text": "How is the activity in the first record related to the activity in the second record?",
+   "origin": "agent-draft",
+   "source": "new"
+  },
+  "W43": {
+   "path": "items/core.pooled_activity_fields/instruction",
+   "text": "The text below is a set of quotes about one activity, gathered from several sources, each with its source type and date. Answer each question about the activity from these quotes only.",
+   "origin": "agent-draft",
+   "source": "new; framing from item rule 1 (\"the union of the activity's supported quotes from all its sources (state = quotes with source type and date)\")"
+  },
+  "W44": {
+   "path": "items/core.year_pilot_start/rules/0/text",
+   "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say a pilot or trial of this activity began?\" No fallback to publication year. Across chunks: earliest chosen year.",
+   "origin": "agent-draft",
+   "source": "items/core.year_pilot_start/rules/0/text (signed text), question swapped for the draft in the item's own entry"
+  },
+  "W45": {
+   "path": "items/core.year_production_start/rules/0/text",
+   "text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity went into full, routine operation?\" No fallback to publication year. Across chunks: earliest chosen year.",
+   "origin": "agent-draft",
+   "source": "items/core.year_production_start/rules/0/text (signed text), question swapped for the draft in the item's own entry"
+  }
+ }
+}
