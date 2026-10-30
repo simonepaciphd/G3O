@@ -1,0 +1,1108 @@
+{
+  "generated_by": "g3o.codebook.generators.jev_questions",
+  "do_not_edit": true,
+  "codebook_release": "2.7",
+  "codebook_sha256": "d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764",
+  "intended_target": "T-011 jev question and choice sets (path chosen by T-011)",
+  "questions": [
+    {
+      "question_id": "core.page_verdict",
+      "item_id": "core.page_verdict",
+      "item_hash": "fd63c805b56f323f6b330288afd8d12429e0b7e2e53b5397a2feae37a2e22f75",
+      "column": "page_verdict",
+      "pass": 1,
+      "round": 1,
+      "gate": "none",
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "Code this PAGE for the named institution only, using only what the page says. Does it document a generative-AI activity at this institution? If several values fit, take the first in this order.",
+      "instruction_slot": "items/core.page_verdict/instruction",
+      "criteria": [
+        {
+          "code": "confirms_activity",
+          "text": "The page documents a specific generative-AI activity AT THIS institution: its own GenAI tool, pilot, policy or guidance on GenAI, procurement, deployment, or institution-directed staff GenAI training. The text must be explicitly generative AI (LLMs, ChatGPT, Copilot, Gemini, AI chatbots, AI-generated content or equivalents) and tied to this institution, not only to a national programme or another body. The activity must be carried out or adopted by the named institution itself. Exclude activity by a parent, higher-level or neighbouring body (e.g. a district, county, regency, region, consortium or city department when the named institution is a village, ward or sub-unit), by a similarly named organisation or company, and pages by vendors that only use the place name. Generic 'AI', 'artificial intelligence', 'smart' systems, automation, analytics, prediction, transcription, translation, image or video recognition, or traditional machine-learning tools do not count unless the page says the tool generates text, images, audio, code or other content, or names a generative product or model (e.g. ChatGPT, Copilot, Gemini, Claude, an LLM, an AI chatbot or AI assistant).\n\nRules:\n1. The vocabulary has 9 values: the 8 below plus `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates; in published summaries it is reported as `unknown` and stays a coding value; `page_review_state` keeps only pipeline failures; v2.5 rows stay unconverted and are mapped by the translation table.\n2. Generative-AI wording: the re-pilot 2 wording governs (SRC-7 L34-45), including that a named \"AI chatbot or AI assistant\" counts as a generative product; `system_prompt.md` L15 rule (\"chatbot\" alone is not evidence) is amended to match. A named \"AI chatbot\" or \"AI assistant\" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming.\n3. S1 a: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. WS10 D1 action boundary: a public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/0/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "ambiguous_genai",
+          "text": "The page mentions AI at this institution, but it cannot be settled whether it is generative AI (e.g. a generic 'AI strategy', 'AI tools', analytics, traditional machine learning).\n\nRules:\n1. The vocabulary has 9 values: the 8 below plus `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates; in published summaries it is reported as `unknown` and stays a coding value; `page_review_state` keeps only pipeline failures; v2.5 rows stay unconverted and are mapped by the translation table.\n2. Generative-AI wording: the re-pilot 2 wording governs (SRC-7 L34-45), including that a named \"AI chatbot or AI assistant\" counts as a generative product; `system_prompt.md` L15 rule (\"chatbot\" alone is not evidence) is amended to match. A named \"AI chatbot\" or \"AI assistant\" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming.\n3. S1 a: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. WS10 D1 action boundary: a public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/1/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "ambiguous_attribution",
+          "text": "The page mentions generative AI, but it cannot be settled whether THIS institution is involved (e.g. a country-wide or regional GenAI initiative without confirmation that this institution takes part, or a page about a similarly named body).\n\nRules:\n1. The vocabulary has 9 values: the 8 below plus `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates; in published summaries it is reported as `unknown` and stays a coding value; `page_review_state` keeps only pipeline failures; v2.5 rows stay unconverted and are mapped by the translation table.\n2. Generative-AI wording: the re-pilot 2 wording governs (SRC-7 L34-45), including that a named \"AI chatbot or AI assistant\" counts as a generative product; `system_prompt.md` L15 rule (\"chatbot\" alone is not evidence) is amended to match. A named \"AI chatbot\" or \"AI assistant\" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming.\n3. S1 a: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. WS10 D1 action boundary: a public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/2/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "other_body",
+          "text": "The page documents a generative-AI activity, but it clearly belongs to a different body, not the named institution: a parent, higher-level or neighbouring body (e.g. a district, county, regency, region, consortium or city department when the named institution is a village, ward or sub-unit), a similarly named organisation or company, or a vendor or marketing page that only uses the place name.\n\nRules:\n1. The vocabulary has 9 values: the 8 below plus `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates; in published summaries it is reported as `unknown` and stays a coding value; `page_review_state` keeps only pipeline failures; v2.5 rows stay unconverted and are mapped by the translation table.\n2. Generative-AI wording: the re-pilot 2 wording governs (SRC-7 L34-45), including that a named \"AI chatbot or AI assistant\" counts as a generative product; `system_prompt.md` L15 rule (\"chatbot\" alone is not evidence) is amended to match. A named \"AI chatbot\" or \"AI assistant\" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming.\n3. S1 a: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. WS10 D1 action boundary: a public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/3/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "event_only",
+          "text": "The only GenAI content is a public-facing event, workshop, seminar, showcase or educational programme, with no documented adoption, procurement, deployment or governance by the institution itself (WS10 D1: not a qualifying activity).\n\nRules:\n1. The vocabulary has 9 values: the 8 below plus `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates; in published summaries it is reported as `unknown` and stays a coding value; `page_review_state` keeps only pipeline failures; v2.5 rows stay unconverted and are mapped by the translation table.\n2. Generative-AI wording: the re-pilot 2 wording governs (SRC-7 L34-45), including that a named \"AI chatbot or AI assistant\" counts as a generative product; `system_prompt.md` L15 rule (\"chatbot\" alone is not evidence) is amended to match. A named \"AI chatbot\" or \"AI assistant\" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming.\n3. S1 a: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. WS10 D1 action boundary: a public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/4/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "background_only",
+          "text": "The page gives only general context (national AI strategy, vendor overview, news about GenAI in general) and documents no activity at this institution.\n\nRules:\n1. The vocabulary has 9 values: the 8 below plus `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates; in published summaries it is reported as `unknown` and stays a coding value; `page_review_state` keeps only pipeline failures; v2.5 rows stay unconverted and are mapped by the translation table.\n2. Generative-AI wording: the re-pilot 2 wording governs (SRC-7 L34-45), including that a named \"AI chatbot or AI assistant\" counts as a generative product; `system_prompt.md` L15 rule (\"chatbot\" alone is not evidence) is amended to match. A named \"AI chatbot\" or \"AI assistant\" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming.\n3. S1 a: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. WS10 D1 action boundary: a public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/5/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "confirms_absence",
+          "text": "v2.5 `confirms_absence` (page states absence; distinct from `no_genai`, no relevant content)\n\nRules:\n1. The vocabulary has 9 values: the 8 below plus `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates; in published summaries it is reported as `unknown` and stays a coding value; `page_review_state` keeps only pipeline failures; v2.5 rows stay unconverted and are mapped by the translation table.\n2. Generative-AI wording: the re-pilot 2 wording governs (SRC-7 L34-45), including that a named \"AI chatbot or AI assistant\" counts as a generative product; `system_prompt.md` L15 rule (\"chatbot\" alone is not evidence) is amended to match. A named \"AI chatbot\" or \"AI assistant\" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming.\n3. S1 a: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. WS10 D1 action boundary: a public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/6/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "no_genai",
+          "text": "The page contains no generative-AI content relevant to this institution.\n\nRules:\n1. The vocabulary has 9 values: the 8 below plus `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates; in published summaries it is reported as `unknown` and stays a coding value; `page_review_state` keeps only pipeline failures; v2.5 rows stay unconverted and are mapped by the translation table.\n2. Generative-AI wording: the re-pilot 2 wording governs (SRC-7 L34-45), including that a named \"AI chatbot or AI assistant\" counts as a generative product; `system_prompt.md` L15 rule (\"chatbot\" alone is not evidence) is amended to match. A named \"AI chatbot\" or \"AI assistant\" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming.\n3. S1 a: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. WS10 D1 action boundary: a public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/7/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "not_assessable",
+          "text": "`not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates\n\nRules:\n1. The vocabulary has 9 values: the 8 below plus `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates; in published summaries it is reported as `unknown` and stays a coding value; `page_review_state` keeps only pipeline failures; v2.5 rows stay unconverted and are mapped by the translation table.\n2. Generative-AI wording: the re-pilot 2 wording governs (SRC-7 L34-45), including that a named \"AI chatbot or AI assistant\" counts as a generative product; `system_prompt.md` L15 rule (\"chatbot\" alone is not evidence) is amended to match. A named \"AI chatbot\" or \"AI assistant\" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming.\n3. S1 a: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. WS10 D1 action boundary: a public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/8/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "core.disclosure_form",
+      "item_id": "core.disclosure_form",
+      "item_hash": "09cf9815915325c5bd2f8360c7df2821d73c779f829111a5683ebd2b56dcaac9",
+      "column": "disclosure_form",
+      "pass": 1,
+      "round": 2,
+      "gate": "none",
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "CX-01.3:CX-10..CX-18",
+      "instructions": "What kind of document is this page?",
+      "instruction_slot": "items/core.disclosure_form/instruction",
+      "criteria": [
+        {
+          "code": "register_cross_institution",
+          "text": "The page is, or is one entry in, a structured list of AI or algorithmic systems kept by a government body, with several entries in a common format (inventory, register, catalogue, algorithmic transparency record in a standard template), **and the list covers more than one institution** (a national or sectoral register, a standard-template record series across agencies).\n\nRules:\n1. Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values (CX-10, CX-10b). `disclosure_scope` (§3) still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).\n2. The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`. This is the one stated exception to CX-03.\n3. (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`.\n4. Re-word CX-12/13: `mandated_report` only when the obligation concerns reporting on AI, algorithms or digital systems, named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code `formal_record`.\n5. CX-12/13: a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.\n6. Add those reports to the same sentence.\n7. The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+          "definition_slot": "items/core.disclosure_form/values/0/definition",
+          "rule_slots": [
+            "items/core.disclosure_form/rules/0",
+            "items/core.disclosure_form/rules/1",
+            "items/core.disclosure_form/rules/2",
+            "items/core.disclosure_form/rules/3",
+            "items/core.disclosure_form/rules/4",
+            "items/core.disclosure_form/rules/5",
+            "items/core.disclosure_form/rules/6"
+          ]
+        },
+        {
+          "code": "register_single_institution",
+          "text": "As CX-10, but the list covers **one institution only** (e.g. a city's own table of its AI tools).\n\nRules:\n1. Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values (CX-10, CX-10b). `disclosure_scope` (§3) still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).\n2. The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`. This is the one stated exception to CX-03.\n3. (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`.\n4. Re-word CX-12/13: `mandated_report` only when the obligation concerns reporting on AI, algorithms or digital systems, named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code `formal_record`.\n5. CX-12/13: a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.\n6. Add those reports to the same sentence.\n7. The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+          "definition_slot": "items/core.disclosure_form/values/1/definition",
+          "rule_slots": [
+            "items/core.disclosure_form/rules/0",
+            "items/core.disclosure_form/rules/1",
+            "items/core.disclosure_form/rules/2",
+            "items/core.disclosure_form/rules/3",
+            "items/core.disclosure_form/rules/4",
+            "items/core.disclosure_form/rules/5",
+            "items/core.disclosure_form/rules/6"
+          ]
+        },
+        {
+          "code": "mandated_report",
+          "text": "The page is a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems, such as a statutory annual-report section or a compliance or transparency report under a named rule.\n\nRules:\n1. Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values (CX-10, CX-10b). `disclosure_scope` (§3) still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).\n2. The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`. This is the one stated exception to CX-03.\n3. (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`.\n4. Re-word CX-12/13: `mandated_report` only when the obligation concerns reporting on AI, algorithms or digital systems, named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code `formal_record`.\n5. CX-12/13: a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.\n6. Add those reports to the same sentence.\n7. The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+          "definition_slot": "items/core.disclosure_form/values/2/definition",
+          "rule_slots": [
+            "items/core.disclosure_form/rules/0",
+            "items/core.disclosure_form/rules/1",
+            "items/core.disclosure_form/rules/2",
+            "items/core.disclosure_form/rules/3",
+            "items/core.disclosure_form/rules/4",
+            "items/core.disclosure_form/rules/5",
+            "items/core.disclosure_form/rules/6"
+          ]
+        },
+        {
+          "code": "formal_record",
+          "text": "An official one-off document of record from a government body: adopted policy or guidance, legislation, council or board minutes or resolutions, budget documents, procurement notice or award, audit or inspection report, **response to a freedom-of-information request** (CX-01.1, W5 = b).\n\nRules:\n1. Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values (CX-10, CX-10b). `disclosure_scope` (§3) still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).\n2. The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`. This is the one stated exception to CX-03.\n3. (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`.\n4. Re-word CX-12/13: `mandated_report` only when the obligation concerns reporting on AI, algorithms or digital systems, named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code `formal_record`.\n5. CX-12/13: a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.\n6. Add those reports to the same sentence.\n7. The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+          "definition_slot": "items/core.disclosure_form/values/3/definition",
+          "rule_slots": [
+            "items/core.disclosure_form/rules/0",
+            "items/core.disclosure_form/rules/1",
+            "items/core.disclosure_form/rules/2",
+            "items/core.disclosure_form/rules/3",
+            "items/core.disclosure_form/rules/4",
+            "items/core.disclosure_form/rules/5",
+            "items/core.disclosure_form/rules/6"
+          ]
+        },
+        {
+          "code": "informal_official",
+          "text": "A government body's own communication with no reporting obligation and no standard format: press release, news item, blog, social post, speech, event page, service or FAQ page.\n\nRules:\n1. Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values (CX-10, CX-10b). `disclosure_scope` (§3) still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).\n2. The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`. This is the one stated exception to CX-03.\n3. (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`.\n4. Re-word CX-12/13: `mandated_report` only when the obligation concerns reporting on AI, algorithms or digital systems, named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code `formal_record`.\n5. CX-12/13: a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.\n6. Add those reports to the same sentence.\n7. The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+          "definition_slot": "items/core.disclosure_form/values/4/definition",
+          "rule_slots": [
+            "items/core.disclosure_form/rules/0",
+            "items/core.disclosure_form/rules/1",
+            "items/core.disclosure_form/rules/2",
+            "items/core.disclosure_form/rules/3",
+            "items/core.disclosure_form/rules/4",
+            "items/core.disclosure_form/rules/5",
+            "items/core.disclosure_form/rules/6"
+          ]
+        },
+        {
+          "code": "third_party",
+          "text": "Not published by a government body: news, vendor, academic, NGO or policy organization. A register entry quoted in a news article is `third_party` (code the page, not what it quotes).\n\nRules:\n1. Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values (CX-10, CX-10b). `disclosure_scope` (§3) still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).\n2. The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`. This is the one stated exception to CX-03.\n3. (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`.\n4. Re-word CX-12/13: `mandated_report` only when the obligation concerns reporting on AI, algorithms or digital systems, named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code `formal_record`.\n5. CX-12/13: a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.\n6. Add those reports to the same sentence.\n7. The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+          "definition_slot": "items/core.disclosure_form/values/5/definition",
+          "rule_slots": [
+            "items/core.disclosure_form/rules/0",
+            "items/core.disclosure_form/rules/1",
+            "items/core.disclosure_form/rules/2",
+            "items/core.disclosure_form/rules/3",
+            "items/core.disclosure_form/rules/4",
+            "items/core.disclosure_form/rules/5",
+            "items/core.disclosure_form/rules/6"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "core.page_complete",
+      "item_id": "core.page_complete",
+      "item_hash": "aa535149e9d7875984e77693fae7af0fd1f205ad48852a9fe3bd856f1f184d14",
+      "column": "page_complete",
+      "pass": 1,
+      "round": 2,
+      "gate": {
+        "item": "core.page_verdict",
+        "values": [
+          "confirms_activity",
+          "ambiguous_genai",
+          "ambiguous_attribution",
+          "other_body",
+          "event_only"
+        ]
+      },
+      "answer_type": "yes_no",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "'Does the page refer the reader to another page or document for more information about a GenAI activity it mentions?'",
+      "instruction_slot": "items/core.page_complete/instruction",
+      "criteria": [
+        {
+          "code": "yes",
+          "text": "The page refers the reader to another page or document for more information about a GenAI activity it mentions, so the page is incomplete (see the note on the name).\n\nRules:\n1. The first pass also records whether the page holds all available information about every activity it mentions, or links to further pages with information about any of them.\n2. Add a note in the codebook that yes means incomplete.\n3. Note: `yes` means incomplete (the page refers the reader onward); the name `page_complete` reads the other way.",
+          "definition_slot": "items/core.page_complete/values/0/definition",
+          "rule_slots": [
+            "items/core.page_complete/rules/0",
+            "items/core.page_complete/rules/1",
+            "items/core.page_complete/rules/2"
+          ]
+        },
+        {
+          "code": "no",
+          "text": "The page does not refer the reader elsewhere for more information about any GenAI activity it mentions.\n\nRules:\n1. The first pass also records whether the page holds all available information about every activity it mentions, or links to further pages with information about any of them.\n2. Add a note in the codebook that yes means incomplete.\n3. Note: `yes` means incomplete (the page refers the reader onward); the name `page_complete` reads the other way.",
+          "definition_slot": "items/core.page_complete/values/1/definition",
+          "rule_slots": [
+            "items/core.page_complete/rules/0",
+            "items/core.page_complete/rules/1",
+            "items/core.page_complete/rules/2"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "core.content_data",
+      "item_id": "core.content_data",
+      "item_hash": "d4c082c3cd02bb721a676870aa414ecb99862a25ba4a616d913a1dff2c9a6014",
+      "column": "content_data",
+      "pass": 1,
+      "round": 2,
+      "gate": {
+        "item": "core.page_verdict",
+        "values": [
+          "confirms_activity",
+          "ambiguous_genai",
+          "ambiguous_attribution",
+          "other_body",
+          "event_only"
+        ],
+        "gated_out_value": "no",
+        "source": "page-09 c"
+      },
+      "answer_type": "yes_no",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "CX-01.3:CX-51",
+      "instructions": "Code the source PAGE. Does the page state this about any GenAI activity on the page: the data inputs or data handled are described? yes = stated on the page.",
+      "instruction_slot": "items/core.content_data/instruction",
+      "criteria": [
+        {
+          "code": "yes",
+          "text": "stated on the page\n\nRules:\n1. Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the page). For the items CX-51 and CX-52 mark as derived, `yes` and `no` are derived from the activity codes as they state, with no question. Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)).\n2. Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.\n3. Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.\n4. One page question, asked on GenAI pages.\n5. Description items and the data item are also \"no\" where the verdict shows no GenAI.",
+          "definition_slot": "items/core.content_data/values/0/definition",
+          "rule_slots": [
+            "items/core.content_data/rules/0",
+            "items/core.content_data/rules/1",
+            "items/core.content_data/rules/2",
+            "items/core.content_data/rules/3",
+            "items/core.content_data/rules/4"
+          ]
+        },
+        {
+          "code": "no",
+          "text": "not stated on the page\n\nRules:\n1. Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the page). For the items CX-51 and CX-52 mark as derived, `yes` and `no` are derived from the activity codes as they state, with no question. Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)).\n2. Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.\n3. Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.\n4. One page question, asked on GenAI pages.\n5. Description items and the data item are also \"no\" where the verdict shows no GenAI.",
+          "definition_slot": "items/core.content_data/values/1/definition",
+          "rule_slots": [
+            "items/core.content_data/rules/0",
+            "items/core.content_data/rules/1",
+            "items/core.content_data/rules/2",
+            "items/core.content_data/rules/3",
+            "items/core.content_data/rules/4"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "core.activity_type",
+      "item_id": "core.activity_type",
+      "item_hash": "747a666fe663dd4371968d1bb061c0bd5a9d5879b131474fb53b002900c121f9",
+      "column": "activity_type",
+      "pass": 2,
+      "round": 2,
+      "gate": "none",
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "G3O activity typology. See definitions below.",
+      "instruction_slot": "items/core.activity_type/instruction",
+      "criteria": [
+        {
+          "code": "policy_guidance",
+          "text": "Executive orders, agency memos, acceptable-use rules, procurement standards, internal guidance on permissible GenAI tools and data handling.\n\nRules:\n1. **Rule: policy vs. pilot.** If an institution has issued a GenAI policy AND is running a pilot, these are **two distinct activities**. Produce separate rows for each (with their respective sources).\n2. **Rule: country-wide program.** If a national program exists but this specific institution's participation is confirmed by a source, record it as an activity. If participation is NOT confirmed, do NOT record an activity row -- instead produce a row with `has_genai_activity` = `unclear`, `genai_evidence` = `ambiguous`, and flag `institution_attribution`.\n3. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n4. a disallowed pair is flagged for review and no label is changed\n5. Evidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate from the available sources. Use only after the five kinds above have been considered and none is supportable -- never as a default.",
+          "definition_slot": "items/core.activity_type/values/0/definition",
+          "rule_slots": [
+            "items/core.activity_type/rules/0",
+            "items/core.activity_type/rules/1",
+            "shared_rules/core.rule.allowed_type_action_pairs/0",
+            "shared_rules/core.rule.allowed_type_action_pairs/1",
+            "items/core.activity_type/rules/3"
+          ]
+        },
+        {
+          "code": "pilot_experiment",
+          "text": "Limited trials, sandboxes, proof-of-concept deployments, or time-bounded experiments.\n\nRules:\n1. **Rule: policy vs. pilot.** If an institution has issued a GenAI policy AND is running a pilot, these are **two distinct activities**. Produce separate rows for each (with their respective sources).\n2. **Rule: country-wide program.** If a national program exists but this specific institution's participation is confirmed by a source, record it as an activity. If participation is NOT confirmed, do NOT record an activity row -- instead produce a row with `has_genai_activity` = `unclear`, `genai_evidence` = `ambiguous`, and flag `institution_attribution`.\n3. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n4. a disallowed pair is flagged for review and no label is changed\n5. Evidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate from the available sources. Use only after the five kinds above have been considered and none is supportable -- never as a default.",
+          "definition_slot": "items/core.activity_type/values/1/definition",
+          "rule_slots": [
+            "items/core.activity_type/rules/0",
+            "items/core.activity_type/rules/1",
+            "shared_rules/core.rule.allowed_type_action_pairs/0",
+            "shared_rules/core.rule.allowed_type_action_pairs/1",
+            "items/core.activity_type/rules/3"
+          ]
+        },
+        {
+          "code": "program_initiative",
+          "text": "Cross-agency programs, governance bodies, training programs, or platform rollouts spanning multiple units.\n\nRules:\n1. **Rule: policy vs. pilot.** If an institution has issued a GenAI policy AND is running a pilot, these are **two distinct activities**. Produce separate rows for each (with their respective sources).\n2. **Rule: country-wide program.** If a national program exists but this specific institution's participation is confirmed by a source, record it as an activity. If participation is NOT confirmed, do NOT record an activity row -- instead produce a row with `has_genai_activity` = `unclear`, `genai_evidence` = `ambiguous`, and flag `institution_attribution`.\n3. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n4. a disallowed pair is flagged for review and no label is changed\n5. Evidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate from the available sources. Use only after the five kinds above have been considered and none is supportable -- never as a default.",
+          "definition_slot": "items/core.activity_type/values/2/definition",
+          "rule_slots": [
+            "items/core.activity_type/rules/0",
+            "items/core.activity_type/rules/1",
+            "shared_rules/core.rule.allowed_type_action_pairs/0",
+            "shared_rules/core.rule.allowed_type_action_pairs/1",
+            "items/core.activity_type/rules/3"
+          ]
+        },
+        {
+          "code": "internal_operational",
+          "text": "Routine internal use for drafting, summarization, knowledge search, translation, internal helpdesks, or developer tooling.\n\nRules:\n1. **Rule: policy vs. pilot.** If an institution has issued a GenAI policy AND is running a pilot, these are **two distinct activities**. Produce separate rows for each (with their respective sources).\n2. **Rule: country-wide program.** If a national program exists but this specific institution's participation is confirmed by a source, record it as an activity. If participation is NOT confirmed, do NOT record an activity row -- instead produce a row with `has_genai_activity` = `unclear`, `genai_evidence` = `ambiguous`, and flag `institution_attribution`.\n3. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n4. a disallowed pair is flagged for review and no label is changed\n5. Evidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate from the available sources. Use only after the five kinds above have been considered and none is supportable -- never as a default.",
+          "definition_slot": "items/core.activity_type/values/3/definition",
+          "rule_slots": [
+            "items/core.activity_type/rules/0",
+            "items/core.activity_type/rules/1",
+            "shared_rules/core.rule.allowed_type_action_pairs/0",
+            "shared_rules/core.rule.allowed_type_action_pairs/1",
+            "items/core.activity_type/rules/3"
+          ]
+        },
+        {
+          "code": "public_facing_service",
+          "text": "Citizen- or business-facing chatbots, service navigation, translation, complaint handling, case triage.\n\nRules:\n1. **Rule: policy vs. pilot.** If an institution has issued a GenAI policy AND is running a pilot, these are **two distinct activities**. Produce separate rows for each (with their respective sources).\n2. **Rule: country-wide program.** If a national program exists but this specific institution's participation is confirmed by a source, record it as an activity. If participation is NOT confirmed, do NOT record an activity row -- instead produce a row with `has_genai_activity` = `unclear`, `genai_evidence` = `ambiguous`, and flag `institution_attribution`.\n3. List the allowed (type, action) pairs; activities with other pairs are flagged for review\n4. a disallowed pair is flagged for review and no label is changed\n5. Evidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate from the available sources. Use only after the five kinds above have been considered and none is supportable -- never as a default.",
+          "definition_slot": "items/core.activity_type/values/4/definition",
+          "rule_slots": [
+            "items/core.activity_type/rules/0",
+            "items/core.activity_type/rules/1",
+            "shared_rules/core.rule.allowed_type_action_pairs/0",
+            "shared_rules/core.rule.allowed_type_action_pairs/1",
+            "items/core.activity_type/rules/3"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "core.deployment_mode",
+      "item_id": "core.deployment_mode",
+      "item_hash": "e9160a52e14cdec94954a5ebc06659530de0027b705d6a7cf86b351cb7e0c90b",
+      "column": "deployment_mode",
+      "pass": 2,
+      "round": 3,
+      "gate": {
+        "table": "applicability keyed on activity_type (r2#8)",
+        "key": "core.activity_type",
+        "rule": "core.rule.applicability_table",
+        "cells": {
+          "policy_guidance": "not_asked",
+          "pilot_experiment": "ask",
+          "program_initiative": "ask",
+          "internal_operational": "ask",
+          "public_facing_service": "ask",
+          "unknown": "ask"
+        },
+        "inferred_cells": [
+          "program_initiative"
+        ],
+        "source": "applicability.json cells[item=core.deployment_mode]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+      },
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "`standalone`: separate tool/interface. `integrated`: embedded in existing system (e.g., Copilot inside Outlook).",
+      "instruction_slot": "items/core.deployment_mode/instruction",
+      "criteria": [
+        {
+          "code": "integrated",
+          "text": "integrated: the GenAI feature works inside software or a service channel the institution already used (office suite, case system, existing website service).\n\nRules:\n1. The page mentions whether the tool is separate or built into existing software but does not let it be settled.",
+          "definition_slot": "items/core.deployment_mode/values/0/definition",
+          "rule_slots": [
+            "items/core.deployment_mode/rules/0"
+          ]
+        },
+        {
+          "code": "standalone",
+          "text": "standalone: a separate application or site created for the GenAI tool.\n\nRules:\n1. The page mentions whether the tool is separate or built into existing software but does not let it be settled.",
+          "definition_slot": "items/core.deployment_mode/values/1/definition",
+          "rule_slots": [
+            "items/core.deployment_mode/rules/0"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "core.target_users",
+      "item_id": "core.target_users",
+      "item_hash": "81b0492719d9b307f44ef4ee5b2bec3edfae804d90980ab9b076aba2178a928d",
+      "column": "target_users",
+      "pass": 2,
+      "round": 3,
+      "gate": {
+        "table": "applicability keyed on activity_type (r2#8)",
+        "key": "core.activity_type",
+        "rule": "core.rule.applicability_table",
+        "cells": {
+          "policy_guidance": "not_asked",
+          "pilot_experiment": "ask",
+          "program_initiative": "ask",
+          "internal_operational": "ask",
+          "public_facing_service": "ask",
+          "unknown": "ask"
+        },
+        "inferred_cells": [
+          "program_initiative"
+        ],
+        "source": "applicability.json cells[item=core.target_users]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+      },
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "Who interacts with the GenAI system.",
+      "instruction_slot": "items/core.target_users/instruction",
+      "criteria": [
+        {
+          "code": "internal_staff",
+          "text": "Only the institution's own staff use the tool.\n\nRules:\n1. target_users only for tool activities (`not_applicable` otherwise). A04 for governance.\n2. The page mentions who uses the tool but does not let it be settled.",
+          "definition_slot": "items/core.target_users/values/0/definition",
+          "rule_slots": [
+            "items/core.target_users/rules/0",
+            "items/core.target_users/rules/1"
+          ]
+        },
+        {
+          "code": "public",
+          "text": "People outside the institution use the tool: members of the public, residents or businesses.\n\nRules:\n1. target_users only for tool activities (`not_applicable` otherwise). A04 for governance.\n2. The page mentions who uses the tool but does not let it be settled.",
+          "definition_slot": "items/core.target_users/values/1/definition",
+          "rule_slots": [
+            "items/core.target_users/rules/0",
+            "items/core.target_users/rules/1"
+          ]
+        },
+        {
+          "code": "both",
+          "text": "Both the institution's staff and people outside it use the tool. On long pages, one part naming staff and another the public also gives this value.\n\nRules:\n1. target_users only for tool activities (`not_applicable` otherwise). A04 for governance.\n2. The page mentions who uses the tool but does not let it be settled.",
+          "definition_slot": "items/core.target_users/values/2/definition",
+          "rule_slots": [
+            "items/core.target_users/rules/0",
+            "items/core.target_users/rules/1"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "core.has_human_oversight",
+      "item_id": "core.has_human_oversight",
+      "item_hash": "3c2001c829bacae4f2f7e3961d8e95c0b7345000c1903cd508cc411d63ce4769",
+      "column": "has_human_oversight",
+      "pass": 2,
+      "round": 3,
+      "gate": {
+        "table": "applicability keyed on activity_type (r2#8)",
+        "key": "core.activity_type",
+        "rule": "core.rule.applicability_table",
+        "cells": {
+          "policy_guidance": "ask",
+          "pilot_experiment": "ask",
+          "program_initiative": "ask",
+          "internal_operational": "ask",
+          "public_facing_service": "ask",
+          "unknown": "ask"
+        },
+        "inferred_cells": [],
+        "source": "applicability.json cells[item=core.has_human_oversight]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+      },
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "Is human review required before acting on GenAI outputs?",
+      "instruction_slot": "items/core.has_human_oversight/instruction",
+      "criteria": [
+        {
+          "code": "yes",
+          "text": "yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it).\n\nRules:\n1. A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.\n2. A contract with safeguard clauses is split off as a governance activity linked to the tool.\n3. One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer.\n4. not_documented: the page is silent.",
+          "definition_slot": "items/core.has_human_oversight/values/0/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.safeguard_attachment/0",
+            "shared_rules/core.rule.safeguard_attachment/1",
+            "items/core.has_human_oversight/rules/1",
+            "items/core.has_human_oversight/rules/2"
+          ]
+        },
+        {
+          "code": "no",
+          "text": "no: the page states it does not apply.\n\nRules:\n1. A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.\n2. A contract with safeguard clauses is split off as a governance activity linked to the tool.\n3. One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer.\n4. not_documented: the page is silent.",
+          "definition_slot": "items/core.has_human_oversight/values/1/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.safeguard_attachment/0",
+            "shared_rules/core.rule.safeguard_attachment/1",
+            "items/core.has_human_oversight/rules/1",
+            "items/core.has_human_oversight/rules/2"
+          ]
+        },
+        {
+          "code": "unclear",
+          "text": "unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\n\nRules:\n1. A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.\n2. A contract with safeguard clauses is split off as a governance activity linked to the tool.\n3. One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer.\n4. not_documented: the page is silent.",
+          "definition_slot": "items/core.has_human_oversight/values/2/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.safeguard_attachment/0",
+            "shared_rules/core.rule.safeguard_attachment/1",
+            "items/core.has_human_oversight/rules/1",
+            "items/core.has_human_oversight/rules/2"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "core.has_transparency_notice",
+      "item_id": "core.has_transparency_notice",
+      "item_hash": "992b6e22dcd511270d2adf2d2fe96ff95bd8cb5b2d1e2bd6e89fc47fac8447c7",
+      "column": "has_transparency_notice",
+      "pass": 2,
+      "round": 3,
+      "gate": {
+        "table": "applicability keyed on activity_type (r2#8)",
+        "key": "core.activity_type",
+        "rule": "core.rule.applicability_table",
+        "cells": {
+          "policy_guidance": "ask",
+          "pilot_experiment": "ask",
+          "program_initiative": "ask",
+          "internal_operational": "ask",
+          "public_facing_service": "ask",
+          "unknown": "ask"
+        },
+        "inferred_cells": [],
+        "source": "applicability.json cells[item=core.has_transparency_notice]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+      },
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "Are users/citizens notified that GenAI is involved?",
+      "instruction_slot": "items/core.has_transparency_notice/instruction",
+      "criteria": [
+        {
+          "code": "yes",
+          "text": "yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it).\n\nRules:\n1. A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.\n2. A contract with safeguard clauses is split off as a governance activity linked to the tool.\n3. One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer.\n4. not_documented: the page is silent.",
+          "definition_slot": "items/core.has_transparency_notice/values/0/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.safeguard_attachment/0",
+            "shared_rules/core.rule.safeguard_attachment/1",
+            "items/core.has_transparency_notice/rules/1",
+            "items/core.has_transparency_notice/rules/2"
+          ]
+        },
+        {
+          "code": "no",
+          "text": "no: the page states it does not apply.\n\nRules:\n1. A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.\n2. A contract with safeguard clauses is split off as a governance activity linked to the tool.\n3. One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer.\n4. not_documented: the page is silent.",
+          "definition_slot": "items/core.has_transparency_notice/values/1/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.safeguard_attachment/0",
+            "shared_rules/core.rule.safeguard_attachment/1",
+            "items/core.has_transparency_notice/rules/1",
+            "items/core.has_transparency_notice/rules/2"
+          ]
+        },
+        {
+          "code": "unclear",
+          "text": "unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\n\nRules:\n1. A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.\n2. A contract with safeguard clauses is split off as a governance activity linked to the tool.\n3. One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer.\n4. not_documented: the page is silent.",
+          "definition_slot": "items/core.has_transparency_notice/values/2/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.safeguard_attachment/0",
+            "shared_rules/core.rule.safeguard_attachment/1",
+            "items/core.has_transparency_notice/rules/1",
+            "items/core.has_transparency_notice/rules/2"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "core.has_data_classification",
+      "item_id": "core.has_data_classification",
+      "item_hash": "68084992dbde87ad50504404f47dc4e6ec31d81952f10f34b3dd443ebcc8495c",
+      "column": "has_data_classification",
+      "pass": 2,
+      "round": 3,
+      "gate": {
+        "table": "applicability keyed on activity_type (r2#8)",
+        "key": "core.activity_type",
+        "rule": "core.rule.applicability_table",
+        "cells": {
+          "policy_guidance": "ask",
+          "pilot_experiment": "ask",
+          "program_initiative": "ask",
+          "internal_operational": "ask",
+          "public_facing_service": "ask",
+          "unknown": "ask"
+        },
+        "inferred_cells": [],
+        "source": "applicability.json cells[item=core.has_data_classification]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+      },
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "Are there documented data-handling restrictions for GenAI use?",
+      "instruction_slot": "items/core.has_data_classification/instruction",
+      "criteria": [
+        {
+          "code": "yes",
+          "text": "yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it).\n\nRules:\n1. A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.\n2. A contract with safeguard clauses is split off as a governance activity linked to the tool.\n3. One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer.\n4. not_documented: the page is silent.",
+          "definition_slot": "items/core.has_data_classification/values/0/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.safeguard_attachment/0",
+            "shared_rules/core.rule.safeguard_attachment/1",
+            "items/core.has_data_classification/rules/1",
+            "items/core.has_data_classification/rules/2"
+          ]
+        },
+        {
+          "code": "no",
+          "text": "no: the page states it does not apply.\n\nRules:\n1. A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.\n2. A contract with safeguard clauses is split off as a governance activity linked to the tool.\n3. One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer.\n4. not_documented: the page is silent.",
+          "definition_slot": "items/core.has_data_classification/values/1/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.safeguard_attachment/0",
+            "shared_rules/core.rule.safeguard_attachment/1",
+            "items/core.has_data_classification/rules/1",
+            "items/core.has_data_classification/rules/2"
+          ]
+        },
+        {
+          "code": "unclear",
+          "text": "unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\n\nRules:\n1. A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.\n2. A contract with safeguard clauses is split off as a governance activity linked to the tool.\n3. One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer.\n4. not_documented: the page is silent.",
+          "definition_slot": "items/core.has_data_classification/values/2/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.safeguard_attachment/0",
+            "shared_rules/core.rule.safeguard_attachment/1",
+            "items/core.has_data_classification/rules/1",
+            "items/core.has_data_classification/rules/2"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "core.has_risk_assessment",
+      "item_id": "core.has_risk_assessment",
+      "item_hash": "2698cd63443ceb8088c716d3b611c26273c2a560366fc7cef8dfba1f05dbdfbf",
+      "column": "has_risk_assessment",
+      "pass": 2,
+      "round": 3,
+      "gate": {
+        "table": "applicability keyed on activity_type (r2#8)",
+        "key": "core.activity_type",
+        "rule": "core.rule.applicability_table",
+        "cells": {
+          "policy_guidance": "ask",
+          "pilot_experiment": "ask",
+          "program_initiative": "ask",
+          "internal_operational": "ask",
+          "public_facing_service": "ask",
+          "unknown": "ask"
+        },
+        "inferred_cells": [],
+        "source": "applicability.json cells[item=core.has_risk_assessment]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+      },
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "Has a formal risk/impact assessment been documented?",
+      "instruction_slot": "items/core.has_risk_assessment/instruction",
+      "criteria": [
+        {
+          "code": "yes",
+          "text": "yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it).\n\nRules:\n1. A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.\n2. A contract with safeguard clauses is split off as a governance activity linked to the tool.\n3. One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer.\n4. not_documented: the page is silent.",
+          "definition_slot": "items/core.has_risk_assessment/values/0/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.safeguard_attachment/0",
+            "shared_rules/core.rule.safeguard_attachment/1",
+            "items/core.has_risk_assessment/rules/1",
+            "items/core.has_risk_assessment/rules/2"
+          ]
+        },
+        {
+          "code": "no",
+          "text": "no: the page states it does not apply.\n\nRules:\n1. A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.\n2. A contract with safeguard clauses is split off as a governance activity linked to the tool.\n3. One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer.\n4. not_documented: the page is silent.",
+          "definition_slot": "items/core.has_risk_assessment/values/1/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.safeguard_attachment/0",
+            "shared_rules/core.rule.safeguard_attachment/1",
+            "items/core.has_risk_assessment/rules/1",
+            "items/core.has_risk_assessment/rules/2"
+          ]
+        },
+        {
+          "code": "unclear",
+          "text": "unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.\n\nRules:\n1. A safeguard in a governance activity is not copied to deployment activities in pass 2. Stage 6 may link them only through a recorded relation.\n2. A contract with safeguard clauses is split off as a governance activity linked to the tool.\n3. One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer.\n4. not_documented: the page is silent.",
+          "definition_slot": "items/core.has_risk_assessment/values/2/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.safeguard_attachment/0",
+            "shared_rules/core.rule.safeguard_attachment/1",
+            "items/core.has_risk_assessment/rules/1",
+            "items/core.has_risk_assessment/rules/2"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "core.evaluation_documented",
+      "item_id": "core.evaluation_documented",
+      "item_hash": "eb98377467f2a74928e96fe901cb43eae39c10be2d8bf1297696cb1f020f222a",
+      "column": "evaluation_documented",
+      "pass": 2,
+      "round": 3,
+      "gate": {
+        "table": "applicability keyed on activity_type (r2#8)",
+        "key": "core.activity_type",
+        "rule": "core.rule.applicability_table",
+        "cells": {
+          "policy_guidance": "ask",
+          "pilot_experiment": "ask",
+          "program_initiative": "ask",
+          "internal_operational": "ask",
+          "public_facing_service": "ask",
+          "unknown": "ask"
+        },
+        "inferred_cells": [],
+        "source": "applicability.json cells[item=core.evaluation_documented]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+      },
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "CX-01.3:CX-30..CX-40",
+      "instructions": "Does this page document an evaluation of this GenAI activity?",
+      "instruction_slot": "items/core.evaluation_documented/instruction",
+      "criteria": [
+        {
+          "code": "results_reported",
+          "text": "The page states that this activity was tested, evaluated, audited or monitored **and** reports a result (a metric, a finding or a conclusion).\n\nRules:\n1. A requirement to carry out a risk or impact assessment is **not** `required_or_planned`; it belongs to `has_risk_assessment` alone (consistent with CX-37).\n2. A clause requiring periodic review of the GenAI policy itself is `not_documented`, unless it requires testing, monitoring or evaluation of GenAI tools or their outputs; then it counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy).\n3. A required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as `required_or_planned`. A pure risk or impact assessment requirement stays under CX-32b.\n4. No negative value. A page saying no evaluation was done or planned is `not_documented`.\n5. A performance figure counts as `results_reported` only if the page also describes the activity behind it (a test, a pilot review, a survey, an audit, monitoring); otherwise `not_documented`.\n6. A risk or impact assessment counts here only if it reports testing or measured performance; otherwise it belongs to `has_risk_assessment` alone.\n7. A vendor's performance claim counts only if the page names the institution or an independent body as the evaluator.\n8. A pilot stage alone is `not_documented`. \"The pilot will be evaluated\" is `required_or_planned`; \"the pilot evaluation found …\" is `results_reported`.\n9. (1) An agency blog: \"after a three-month trial, 78% of staff said the assistant saved time\" → `results_reported`. (2) Minutes: \"the pilot is being reviewed by IT\" → `conducted_no_results`. (3) A guidance memo: \"all GenAI tools must be tested before deployment\" → `required_or_planned` on the policy finding. (4) A press release: \"the chatbot has answered 40,000 questions\" → `not_documented` (a usage count with no evaluation described; CX-36). (5) A vendor case study: \"accuracy improved 30%\" with no named evaluator → `not_documented` (CX-38).\n10. Delete CX-32c's policy-review clause: a periodic review of the policy document is `not_documented` unless it requires testing, monitoring or evaluation of GenAI tools or their outputs.\n11. CX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value. A clause requiring periodic review of the GenAI policy itself is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).\n12. The page has no evaluation statement about this activity.",
+          "definition_slot": "items/core.evaluation_documented/values/0/definition",
+          "rule_slots": [
+            "items/core.evaluation_documented/rules/0",
+            "items/core.evaluation_documented/rules/1",
+            "items/core.evaluation_documented/rules/2",
+            "items/core.evaluation_documented/rules/3",
+            "items/core.evaluation_documented/rules/4",
+            "items/core.evaluation_documented/rules/5",
+            "items/core.evaluation_documented/rules/6",
+            "items/core.evaluation_documented/rules/7",
+            "items/core.evaluation_documented/rules/8",
+            "items/core.evaluation_documented/rules/9",
+            "items/core.evaluation_documented/rules/10",
+            "items/core.evaluation_documented/rules/11"
+          ]
+        },
+        {
+          "code": "conducted_no_results",
+          "text": "The page states that an evaluation, test, audit, pilot review or monitoring took place or is in place, but reports no result.\n\nRules:\n1. A requirement to carry out a risk or impact assessment is **not** `required_or_planned`; it belongs to `has_risk_assessment` alone (consistent with CX-37).\n2. A clause requiring periodic review of the GenAI policy itself is `not_documented`, unless it requires testing, monitoring or evaluation of GenAI tools or their outputs; then it counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy).\n3. A required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as `required_or_planned`. A pure risk or impact assessment requirement stays under CX-32b.\n4. No negative value. A page saying no evaluation was done or planned is `not_documented`.\n5. A performance figure counts as `results_reported` only if the page also describes the activity behind it (a test, a pilot review, a survey, an audit, monitoring); otherwise `not_documented`.\n6. A risk or impact assessment counts here only if it reports testing or measured performance; otherwise it belongs to `has_risk_assessment` alone.\n7. A vendor's performance claim counts only if the page names the institution or an independent body as the evaluator.\n8. A pilot stage alone is `not_documented`. \"The pilot will be evaluated\" is `required_or_planned`; \"the pilot evaluation found …\" is `results_reported`.\n9. (1) An agency blog: \"after a three-month trial, 78% of staff said the assistant saved time\" → `results_reported`. (2) Minutes: \"the pilot is being reviewed by IT\" → `conducted_no_results`. (3) A guidance memo: \"all GenAI tools must be tested before deployment\" → `required_or_planned` on the policy finding. (4) A press release: \"the chatbot has answered 40,000 questions\" → `not_documented` (a usage count with no evaluation described; CX-36). (5) A vendor case study: \"accuracy improved 30%\" with no named evaluator → `not_documented` (CX-38).\n10. Delete CX-32c's policy-review clause: a periodic review of the policy document is `not_documented` unless it requires testing, monitoring or evaluation of GenAI tools or their outputs.\n11. CX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value. A clause requiring periodic review of the GenAI policy itself is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).\n12. The page has no evaluation statement about this activity.",
+          "definition_slot": "items/core.evaluation_documented/values/1/definition",
+          "rule_slots": [
+            "items/core.evaluation_documented/rules/0",
+            "items/core.evaluation_documented/rules/1",
+            "items/core.evaluation_documented/rules/2",
+            "items/core.evaluation_documented/rules/3",
+            "items/core.evaluation_documented/rules/4",
+            "items/core.evaluation_documented/rules/5",
+            "items/core.evaluation_documented/rules/6",
+            "items/core.evaluation_documented/rules/7",
+            "items/core.evaluation_documented/rules/8",
+            "items/core.evaluation_documented/rules/9",
+            "items/core.evaluation_documented/rules/10",
+            "items/core.evaluation_documented/rules/11"
+          ]
+        },
+        {
+          "code": "required_or_planned",
+          "text": "The page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy finding that requires evaluation of GenAI tools takes this value.\n\nRules:\n1. A requirement to carry out a risk or impact assessment is **not** `required_or_planned`; it belongs to `has_risk_assessment` alone (consistent with CX-37).\n2. A clause requiring periodic review of the GenAI policy itself is `not_documented`, unless it requires testing, monitoring or evaluation of GenAI tools or their outputs; then it counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy).\n3. A required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as `required_or_planned`. A pure risk or impact assessment requirement stays under CX-32b.\n4. No negative value. A page saying no evaluation was done or planned is `not_documented`.\n5. A performance figure counts as `results_reported` only if the page also describes the activity behind it (a test, a pilot review, a survey, an audit, monitoring); otherwise `not_documented`.\n6. A risk or impact assessment counts here only if it reports testing or measured performance; otherwise it belongs to `has_risk_assessment` alone.\n7. A vendor's performance claim counts only if the page names the institution or an independent body as the evaluator.\n8. A pilot stage alone is `not_documented`. \"The pilot will be evaluated\" is `required_or_planned`; \"the pilot evaluation found …\" is `results_reported`.\n9. (1) An agency blog: \"after a three-month trial, 78% of staff said the assistant saved time\" → `results_reported`. (2) Minutes: \"the pilot is being reviewed by IT\" → `conducted_no_results`. (3) A guidance memo: \"all GenAI tools must be tested before deployment\" → `required_or_planned` on the policy finding. (4) A press release: \"the chatbot has answered 40,000 questions\" → `not_documented` (a usage count with no evaluation described; CX-36). (5) A vendor case study: \"accuracy improved 30%\" with no named evaluator → `not_documented` (CX-38).\n10. Delete CX-32c's policy-review clause: a periodic review of the policy document is `not_documented` unless it requires testing, monitoring or evaluation of GenAI tools or their outputs.\n11. CX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value. A clause requiring periodic review of the GenAI policy itself is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).\n12. The page has no evaluation statement about this activity.",
+          "definition_slot": "items/core.evaluation_documented/values/2/definition",
+          "rule_slots": [
+            "items/core.evaluation_documented/rules/0",
+            "items/core.evaluation_documented/rules/1",
+            "items/core.evaluation_documented/rules/2",
+            "items/core.evaluation_documented/rules/3",
+            "items/core.evaluation_documented/rules/4",
+            "items/core.evaluation_documented/rules/5",
+            "items/core.evaluation_documented/rules/6",
+            "items/core.evaluation_documented/rules/7",
+            "items/core.evaluation_documented/rules/8",
+            "items/core.evaluation_documented/rules/9",
+            "items/core.evaluation_documented/rules/10",
+            "items/core.evaluation_documented/rules/11"
+          ]
+        },
+        {
+          "code": "unclear",
+          "text": "The page makes an evaluative statement, but its subject, or whether it concerns this GenAI activity, cannot be settled. An evaluation clearly of a different tool or activity is `not_documented`, not `unclear` (CX-01.2, C4 = a).\n\nRules:\n1. A requirement to carry out a risk or impact assessment is **not** `required_or_planned`; it belongs to `has_risk_assessment` alone (consistent with CX-37).\n2. A clause requiring periodic review of the GenAI policy itself is `not_documented`, unless it requires testing, monitoring or evaluation of GenAI tools or their outputs; then it counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy).\n3. A required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as `required_or_planned`. A pure risk or impact assessment requirement stays under CX-32b.\n4. No negative value. A page saying no evaluation was done or planned is `not_documented`.\n5. A performance figure counts as `results_reported` only if the page also describes the activity behind it (a test, a pilot review, a survey, an audit, monitoring); otherwise `not_documented`.\n6. A risk or impact assessment counts here only if it reports testing or measured performance; otherwise it belongs to `has_risk_assessment` alone.\n7. A vendor's performance claim counts only if the page names the institution or an independent body as the evaluator.\n8. A pilot stage alone is `not_documented`. \"The pilot will be evaluated\" is `required_or_planned`; \"the pilot evaluation found …\" is `results_reported`.\n9. (1) An agency blog: \"after a three-month trial, 78% of staff said the assistant saved time\" → `results_reported`. (2) Minutes: \"the pilot is being reviewed by IT\" → `conducted_no_results`. (3) A guidance memo: \"all GenAI tools must be tested before deployment\" → `required_or_planned` on the policy finding. (4) A press release: \"the chatbot has answered 40,000 questions\" → `not_documented` (a usage count with no evaluation described; CX-36). (5) A vendor case study: \"accuracy improved 30%\" with no named evaluator → `not_documented` (CX-38).\n10. Delete CX-32c's policy-review clause: a periodic review of the policy document is `not_documented` unless it requires testing, monitoring or evaluation of GenAI tools or their outputs.\n11. CX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value. A clause requiring periodic review of the GenAI policy itself is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).\n12. The page has no evaluation statement about this activity.",
+          "definition_slot": "items/core.evaluation_documented/values/3/definition",
+          "rule_slots": [
+            "items/core.evaluation_documented/rules/0",
+            "items/core.evaluation_documented/rules/1",
+            "items/core.evaluation_documented/rules/2",
+            "items/core.evaluation_documented/rules/3",
+            "items/core.evaluation_documented/rules/4",
+            "items/core.evaluation_documented/rules/5",
+            "items/core.evaluation_documented/rules/6",
+            "items/core.evaluation_documented/rules/7",
+            "items/core.evaluation_documented/rules/8",
+            "items/core.evaluation_documented/rules/9",
+            "items/core.evaluation_documented/rules/10",
+            "items/core.evaluation_documented/rules/11"
+          ]
+        }
+      ]
+    },
+    {
+      "question_id": "core.support_entailment",
+      "item_id": "core.support_entailment",
+      "item_hash": "57ebd9eca0dfe0732fb9deb3aa4bc740a21deaf1282aca3ce92a17c2d066b839",
+      "column": "support_entailment",
+      "pass": "none",
+      "round": "none",
+      "gate": "none",
+      "answer_type": "yes_no",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "'Does this text state that <field> is <value>?'",
+      "instruction_slot": "items/core.support_entailment/instruction",
+      "criteria": [
+        {
+          "code": "true",
+          "text": "The quoted text states that the field has the given value.\n\nRules:\n1. State = quote (plus a short window); question: 'Does this text state that <field> is <value>?' true/false; false or confidence < threshold -> downgrade `no_support`.",
+          "definition_slot": "items/core.support_entailment/values/0/definition",
+          "rule_slots": [
+            "items/core.support_entailment/rules/0"
+          ]
+        },
+        {
+          "code": "false",
+          "text": "The quoted text does not state that the field has the given value. The answer's support status becomes 'downgraded: quote does not state the value'.\n\nRules:\n1. State = quote (plus a short window); question: 'Does this text state that <field> is <value>?' true/false; false or confidence < threshold -> downgrade `no_support`.",
+          "definition_slot": "items/core.support_entailment/values/1/definition",
+          "rule_slots": [
+            "items/core.support_entailment/rules/0"
+          ]
+        }
+      ]
+    }
+  ],
+  "not_generated": [
+    {
+      "item_id": "core.disclosure_scope",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.source_type",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.content_contact_named",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.content_contact_details",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.observed_actor_relationship",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.action_type",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.adoption_stage",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.procurement_status",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.model_origin",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.build_arrangement",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.interface",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.function_drafting_writing",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.function_summarization",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.function_translation",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.function_search_retrieval",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.function_code",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.function_image_audio_video",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.function_extraction_classification",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.function_analysis_recommendation",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.governed_population",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.governance_form",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.governance_direction",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.service_domain",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.genai_mechanism_basis",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.year_announced",
+      "reason": "values are not an ordered list of {code, definition} (got dict: \"{'candidates': 'deterministic year extraction, plus unknown (C16)'}\")"
+    },
+    {
+      "item_id": "core.year_pilot_start",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.year_production_start",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.deployment_scale_unit",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.outcome_kind",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.incident_kind",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.evaluation_type_pre_deployment_testing",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.evaluation_type_pilot_evaluation",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.evaluation_type_independent_audit",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.evaluation_type_ongoing_monitoring",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.evaluation_type_user_feedback",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.evaluation_type_bias_or_safety_testing",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.activity_relation_cross_page",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.pooled_activity_fields",
+      "reason": "instruction is not a text slot"
+    },
+    {
+      "item_id": "core.observed_actor_role",
+      "reason": "instruction is not a text slot"
+    }
+  ]
+}

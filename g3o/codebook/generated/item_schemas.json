@@ -1,0 +1,1238 @@
+{
+  "generated_by": "g3o.codebook.generators.item_schemas",
+  "do_not_edit": true,
+  "codebook_release": "2.7",
+  "codebook_sha256": "d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764",
+  "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)",
+  "$defs": {
+    "page_verdict": {
+      "x-item-id": "core.page_verdict",
+      "x-item-hash": "fd63c805b56f323f6b330288afd8d12429e0b7e2e53b5397a2feae37a2e22f75",
+      "x-answer-type": "single",
+      "enum": [
+        "confirms_activity",
+        "ambiguous_genai",
+        "ambiguous_attribution",
+        "other_body",
+        "event_only",
+        "background_only",
+        "confirms_absence",
+        "no_genai",
+        "not_assessable",
+        "not_assessable (mechanical)"
+      ]
+    },
+    "disclosure_form": {
+      "x-item-id": "core.disclosure_form",
+      "x-item-hash": "09cf9815915325c5bd2f8360c7df2821d73c779f829111a5683ebd2b56dcaac9",
+      "x-answer-type": "single",
+      "enum": [
+        "register_cross_institution",
+        "register_single_institution",
+        "mandated_report",
+        "formal_record",
+        "informal_official",
+        "third_party",
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ]
+    },
+    "disclosure_scope": {
+      "x-item-id": "core.disclosure_scope",
+      "x-item-hash": "628eef37275d69d7e443f582adda3242f857898a17311c7d0240482730f58868",
+      "x-answer-type": "single",
+      "enum": [
+        "whole_of_government",
+        "multi_institution",
+        "single_institution",
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ]
+    },
+    "page_complete": {
+      "x-item-id": "core.page_complete",
+      "x-item-hash": "aa535149e9d7875984e77693fae7af0fd1f205ad48852a9fe3bd856f1f184d14",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ]
+    },
+    "source_type": {
+      "x-item-id": "core.source_type",
+      "x-item-hash": "0008679290c739d3727328af7302d232ef1024cbf908136157fefe819194a76e",
+      "x-answer-type": "single",
+      "enum": [
+        "news_major",
+        "news_trade",
+        "vendor",
+        "academic",
+        "policy_org",
+        "social_media",
+        "procurement_tender",
+        "other",
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ]
+    },
+    "content_contact_named": {
+      "x-item-id": "core.content_contact_named",
+      "x-item-hash": "715fb22182701f236290cb74b351e21b7f78deadf88ad177f90b65b05b413995",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ]
+    },
+    "content_contact_details": {
+      "x-item-id": "core.content_contact_details",
+      "x-item-hash": "c6e78dae75bb317ad353f8d38c074a99309570906f0fbccb1e4e29913d1e88ac",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ]
+    },
+    "content_contact": {
+      "x-item-id": "core.content_contact",
+      "x-item-hash": "ac74198148c2a229f62fe7751cdf74417302701ff91429f6ad20dcc6ec6760a6",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "content_contact_emails": {
+      "x-item-id": "core.content_contact_emails",
+      "x-item-hash": "c9df1d05e48c6664217b5e7321ffd7779c265c30e6d20aafeb48e0e6f84cdb53",
+      "x-answer-type": "list",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "enum": [
+            "not_asked",
+            "not_documented",
+            "unknown"
+          ]
+        }
+      ]
+    },
+    "content_purpose": {
+      "x-item-id": "core.content_purpose",
+      "x-item-hash": "e2da06a8dc9358f1880a3bf55e71b2f1a850d627aa8abc44fe7836019f45d48e",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "content_tool_or_model": {
+      "x-item-id": "core.content_tool_or_model",
+      "x-item-hash": "51b49ac3978e182459b7d7295db44171c97be9b97927cfecb556b21662943a23",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "content_vendor": {
+      "x-item-id": "core.content_vendor",
+      "x-item-hash": "e694522f50d73169edcb4731d0e483c9fa9d4ac600cc78dc90d52b0e591637ac",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "content_data": {
+      "x-item-id": "core.content_data",
+      "x-item-hash": "d4c082c3cd02bb721a676870aa414ecb99862a25ba4a616d913a1dff2c9a6014",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ]
+    },
+    "content_users": {
+      "x-item-id": "core.content_users",
+      "x-item-hash": "e6b026ff14d744e53ccdc05477f044ae2fc859763efdac15f182159b02134f29",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "content_status_date": {
+      "x-item-id": "core.content_status_date",
+      "x-item-hash": "f3207a42027ad36d9bbc48d35d5fc1646baa66804a35809a47c0c9476019ffe9",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "content_human_oversight": {
+      "x-item-id": "core.content_human_oversight",
+      "x-item-hash": "0cdfa78ca8fd04c11fd42536140fd698be65ade63c7b7a22f192b6f583450dbc",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "content_risk_assessment": {
+      "x-item-id": "core.content_risk_assessment",
+      "x-item-hash": "a3b70b60178ef7dcd5bd48adaa28e72935c25cb8cbe3bbf896d19a66e1080a7e",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "content_user_notification": {
+      "x-item-id": "core.content_user_notification",
+      "x-item-hash": "0e4007b0a890b53b2f7e1e2ad543c793600e7d8292c714bad1214188610ccc19",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "source_url": {
+      "x-item-id": "core.source_url",
+      "x-item-hash": "7cb7f3e19ded83dc31917c48b1e7d1a1e05c40bb7288bd65c4a91d005abed815",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "source_title": {
+      "x-item-id": "core.source_title",
+      "x-item-hash": "e1d1c299600b950a43908abb37fd003f8d2befe4a8a309b819ec2200cd594bad",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "source_access_date": {
+      "x-item-id": "core.source_access_date",
+      "x-item-hash": "c0f6e5370bc39a3b99b587ddfed7c5903c3736cbe59af7c4dfa069256c682383",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "source_language": {
+      "x-item-id": "core.source_language",
+      "x-item-hash": "6cc54c04dceb30c62e55b7cd3d367333c7ad7562d60980cd3dfb379c008533aa",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "source_on_official_domain": {
+      "x-item-id": "core.source_on_official_domain",
+      "x-item-hash": "6945030e27b6e87bbd1b81bea18df0717b95df2423a65ecb5378e833f85aa2c5",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "syndication_group": {
+      "x-item-id": "core.syndication_group",
+      "x-item-hash": "fb11c681bcea5419cf7c559de3175aa348bb265e6fa0271621c7e6e791780a2e",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "page_review_state": {
+      "x-item-id": "core.page_review_state",
+      "x-item-hash": "6e45e6450437a113b42a588c2275f1f76d85bce3bc97f714e508639dc90b5d04",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "discovery_path": {
+      "x-item-id": "core.discovery_path",
+      "x-item-hash": "9463aa96ddbc9e77d36c9a9b1bb2d31abe252a6661a8319355a068bd5c2b01dc",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "text_source": {
+      "x-item-id": "core.text_source",
+      "x-item-hash": "ae8c5d2ea7c875db19004206965364543a9c2c3434647602f2e3e89d5f06ed0d",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "source_publication_date": {
+      "x-item-id": "core.source_publication_date",
+      "x-item-hash": "9b0656c0c6510e1f0f97749c8bbdc50a5450b360a3fb9ebc5858dc67e56d65e3",
+      "x-answer-type": "date",
+      "type": "string"
+    },
+    "source_snippet": {
+      "x-item-id": "core.source_snippet",
+      "x-item-hash": "d0ab6f896f41ba81d558777d6eb9cbba9746d19176c200862a8ff508ac20b284",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "source_credibility": {
+      "x-item-id": "core.source_credibility",
+      "x-item-hash": "c0b0cb123df70dc40b5f011df6be100ea1c1b0f331f267454c5a0006d9e39616",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "activity_relation_within_page": {
+      "x-item-id": "core.activity_segment",
+      "x-item-hash": "682fa27ba8f84d627704cf7f1cfdae2dec8dcf1361701f04355bd3c12d3e24a6",
+      "x-answer-type": "single",
+      "enum": [
+        "same_activity",
+        "component_of_program",
+        "has_component",
+        "shared_participation",
+        "governs",
+        "governed_by",
+        "distinct_action",
+        "unresolved",
+        "not_an_activity",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "activity_name": {
+      "x-item-id": "core.activity_name",
+      "x-item-hash": "728ade2be54620595dfe7ad68dba12705d4bead42e9315aef9886d816caef531",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "observed_actor_name": {
+      "x-item-id": "core.observed_actor_name",
+      "x-item-hash": "b32deb08bbf848ebd7916fd76b2317cdfffe2ee0dc14123aaafadce8984eff37",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "observed_actor_relationship": {
+      "x-item-id": "core.observed_actor_relationship",
+      "x-item-hash": "b37c48292069ae16d694b68dbfbd4d7439533287508bb7b79271e591f30998df",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "activity_type": {
+      "x-item-id": "core.activity_type",
+      "x-item-hash": "747a666fe663dd4371968d1bb061c0bd5a9d5879b131474fb53b002900c121f9",
+      "x-answer-type": "single",
+      "enum": [
+        "policy_guidance",
+        "pilot_experiment",
+        "program_initiative",
+        "internal_operational",
+        "public_facing_service",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "action_type": {
+      "x-item-id": "core.action_type",
+      "x-item-hash": "85ed03a3421b4a8e7d3dcfaf411bf365a543d05cff8b00bfcabf5cca27ff0131",
+      "x-answer-type": "single",
+      "enum": [
+        "deployment",
+        "governance",
+        "staff_training",
+        "program",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "adoption_stage": {
+      "x-item-id": "core.adoption_stage",
+      "x-item-hash": "c2792d68cd20786326873e3bd3c3d30ae47e431fb8f7e79cd85a3998fae815bc",
+      "x-answer-type": "single",
+      "enum": [
+        "proposed",
+        "announced",
+        "pilot",
+        "production",
+        "discontinued",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "procurement_status": {
+      "x-item-id": "core.procurement_status",
+      "x-item-hash": "58c5ee8463a406a72a6126a76b2328fe9b7f760b2d06d510ea5399070137c067",
+      "x-answer-type": "single",
+      "enum": [
+        "none_documented",
+        "tender_or_rfp",
+        "award_or_contract",
+        "payment_or_subscription",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "model_origin": {
+      "x-item-id": "core.model_origin",
+      "x-item-hash": "e707525beafe92682470f295f6a3698a11b4ea62a4a037b51a811d7d0229717c",
+      "x-answer-type": "single",
+      "enum": [
+        "commercial",
+        "open_weight",
+        "government_developed",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "build_arrangement": {
+      "x-item-id": "core.build_arrangement",
+      "x-item-hash": "cb8c1de57bfc0cbbc2a04462a910f62ecf0e7244539f449eb02e52767e847367",
+      "x-answer-type": "single",
+      "enum": [
+        "off_the_shelf_product",
+        "custom_application_on_external_model",
+        "model_trained_or_fine_tuned_by_institution",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "interface": {
+      "x-item-id": "core.interface",
+      "x-item-hash": "c3ee2916f682225c020da3c984b0b43de29fba82c89192e0121d0777cc12a609",
+      "x-answer-type": "single",
+      "enum": [
+        "conversational",
+        "backend_or_api",
+        "other_interface",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "function_drafting_writing": {
+      "x-item-id": "core.function_drafting_writing",
+      "x-item-hash": "c21dd32f1b659edf30de9eb1f67d4f9f28b284186936fadb8cbad6beedfaa36a",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "function_summarization": {
+      "x-item-id": "core.function_summarization",
+      "x-item-hash": "a9556d12c63b142b658400e09842645429bcd7ae1212b3ad57e1e9b5efe4722a",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "function_translation": {
+      "x-item-id": "core.function_translation",
+      "x-item-hash": "149059df8c5d72b42c0ca1dcee4e85eed3336600b5a7eba9e44e95055d2a4e33",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "function_search_retrieval": {
+      "x-item-id": "core.function_search_retrieval",
+      "x-item-hash": "e5099ebac371dbafd5bc1ced2a18a0c2f1fd1c394c85dc9646bbb35c832b9101",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "function_code": {
+      "x-item-id": "core.function_code",
+      "x-item-hash": "9a8ffa6538b549724c8cfb2c5688c4ee7e72dd3840a2e0c682d6ee28467f61ab",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "function_image_audio_video": {
+      "x-item-id": "core.function_image_audio_video",
+      "x-item-hash": "bf683421e2544ede91205041d9dfec1419c5cd55180bebeed64e0ed7bd5bb3a7",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "function_extraction_classification": {
+      "x-item-id": "core.function_extraction_classification",
+      "x-item-hash": "f2127d70ceed5bb5bed14a924d08591cee5d29841cdf072a02583dd8e45e550b",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "function_analysis_recommendation": {
+      "x-item-id": "core.function_analysis_recommendation",
+      "x-item-hash": "6f6c4ee0ad101664c8ffb39f0a182a76baf21b1e7a9af80044f9d48a5d831560",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "tool_name": {
+      "x-item-id": "core.tool_name",
+      "x-item-hash": "4c960a1917007ed502ea252e91c5370eeddfa71ee468390b7f7ffe488a9e6beb",
+      "x-answer-type": "list",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "enum": [
+            "not_asked",
+            "not_documented",
+            "unknown",
+            "_NA_"
+          ]
+        }
+      ]
+    },
+    "model_name": {
+      "x-item-id": "core.model_name",
+      "x-item-hash": "34a1685ff0f6304c3ae75cd690ac994f6a3f7e0cf0bc08ddcfec3e2a6ae8de8b",
+      "x-answer-type": "list",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "enum": [
+            "not_asked",
+            "not_documented",
+            "unknown",
+            "_NA_"
+          ]
+        }
+      ]
+    },
+    "contracting_party": {
+      "x-item-id": "core.contracting_party",
+      "x-item-hash": "f27653658f96d43998f2df1cc678c307b15c520c5decb3777d2d20f12f851c96",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "developer": {
+      "x-item-id": "core.developer",
+      "x-item-hash": "6d8f20d47f88ffa283e605b5b8c241c8f0450f3ab2e38bf0cc6d5a81cb56b8f0",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "developer_basis": {
+      "x-item-id": "core.developer_basis",
+      "x-item-hash": "69d48cfec18b21e93b776f59f7debbbe66734ecebfb0e70855672b311fcd3a8e",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "deployment_mode": {
+      "x-item-id": "core.deployment_mode",
+      "x-item-hash": "e9160a52e14cdec94954a5ebc06659530de0027b705d6a7cf86b351cb7e0c90b",
+      "x-answer-type": "single",
+      "enum": [
+        "integrated",
+        "standalone",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "target_users": {
+      "x-item-id": "core.target_users",
+      "x-item-hash": "81b0492719d9b307f44ef4ee5b2bec3edfae804d90980ab9b076aba2178a928d",
+      "x-answer-type": "single",
+      "enum": [
+        "internal_staff",
+        "public",
+        "both",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "governed_population": {
+      "x-item-id": "core.governed_population",
+      "x-item-hash": "8548e8dbd51ea4a8c03dc0aa0b53b7a2e70cf495c3ed7eeeb2da82faee7c582b",
+      "x-answer-type": "single",
+      "enum": [
+        "internal_personnel",
+        "external_users",
+        "both",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "governance_form": {
+      "x-item-id": "core.governance_form",
+      "x-item-hash": "1022dfd04964d1ddc24f2604645f6c15f13b769e42a00f3686e5ba8cfea26fea",
+      "x-answer-type": "multi",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "enum": [
+              "dedicated_genai_or_ai_policy_or_guideline",
+              "approved_tool_list_or_endorsement",
+              "clause_in_instrument_on_other_subject",
+              "court_or_regulatory_order",
+              "procurement_standard"
+            ]
+          }
+        },
+        {
+          "enum": [
+            "not_asked",
+            "not_documented",
+            "unknown",
+            "_NA_"
+          ]
+        }
+      ]
+    },
+    "governance_direction": {
+      "x-item-id": "core.governance_direction",
+      "x-item-hash": "3c1d1277c4675ae3f17ef40058f9a08e9daffb352d75934037723bc1e5cbf5c3",
+      "x-answer-type": "single",
+      "enum": [
+        "prohibits",
+        "restricts_with_conditions",
+        "permits",
+        "requires",
+        "promotes",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "service_domain": {
+      "x-item-id": "core.service_domain",
+      "x-item-hash": "cd57c8b15002f6d8218e8d4f6e3012a147415c0799f8a664f3488bd38bbcadf5",
+      "x-answer-type": "multi",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "enum": [
+              "general_public_services",
+              "defence",
+              "public_order_safety",
+              "economic_affairs",
+              "environmental_protection",
+              "housing_community_amenities",
+              "health",
+              "recreation_culture_religion",
+              "education",
+              "social_protection",
+              "other"
+            ]
+          }
+        },
+        {
+          "enum": [
+            "not_asked",
+            "not_documented",
+            "unknown",
+            "_NA_"
+          ]
+        }
+      ]
+    },
+    "genai_mechanism_basis": {
+      "x-item-id": "core.genai_mechanism_basis",
+      "x-item-hash": "8386c42537ca24971610796d9c7fca06aacd3e0988b13ce4109e79131b3ebb1e",
+      "x-answer-type": "single",
+      "enum": [
+        "named_genai_product_or_model",
+        "explicit_genai_label",
+        "generative_capability_described",
+        "ai_chatbot_or_assistant_label_only",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "year_announced": {
+      "x-item-id": "core.year_announced",
+      "x-item-hash": "490389fef42e79b3d4599328ae2115a1592f32ee2b46df77d03d0cb952467213",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "year_pilot_start": {
+      "x-item-id": "core.year_pilot_start",
+      "x-item-hash": "7e8eec1bffcb92388ee8e4c2f61bffbeafb1d8f8fd9f703f62c5154a04b0cc3a",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "year_production_start": {
+      "x-item-id": "core.year_production_start",
+      "x-item-hash": "530fec649c78cff7ace582cc47588176ef4708e456738475d267c001fb9f0ac2",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "deployment_scale_number": {
+      "x-item-id": "core.deployment_scale_number",
+      "x-item-hash": "f475424d5b5a9a547768e9d58e2d9ac0cb9927308630ccc156fe4d361be0ac19",
+      "x-answer-type": "number",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "enum": [
+            "not_asked",
+            "not_documented",
+            "unknown",
+            "_NA_"
+          ]
+        }
+      ]
+    },
+    "deployment_scale_unit": {
+      "x-item-id": "core.deployment_scale_unit",
+      "x-item-hash": "da0f1f763a76751f02792b920c7cbbb52a0bf11950f4f96c6780d736b4eed8d6",
+      "x-answer-type": "single",
+      "enum": [
+        "licences_or_seats",
+        "users",
+        "interactions",
+        "units_or_departments",
+        "none",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "has_human_oversight": {
+      "x-item-id": "core.has_human_oversight",
+      "x-item-hash": "3c2001c829bacae4f2f7e3961d8e95c0b7345000c1903cd508cc411d63ce4769",
+      "x-answer-type": "single",
+      "enum": [
+        "yes",
+        "no",
+        "unclear",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "has_transparency_notice": {
+      "x-item-id": "core.has_transparency_notice",
+      "x-item-hash": "992b6e22dcd511270d2adf2d2fe96ff95bd8cb5b2d1e2bd6e89fc47fac8447c7",
+      "x-answer-type": "single",
+      "enum": [
+        "yes",
+        "no",
+        "unclear",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "has_data_classification": {
+      "x-item-id": "core.has_data_classification",
+      "x-item-hash": "68084992dbde87ad50504404f47dc4e6ec31d81952f10f34b3dd443ebcc8495c",
+      "x-answer-type": "single",
+      "enum": [
+        "yes",
+        "no",
+        "unclear",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "has_risk_assessment": {
+      "x-item-id": "core.has_risk_assessment",
+      "x-item-hash": "2698cd63443ceb8088c716d3b611c26273c2a560366fc7cef8dfba1f05dbdfbf",
+      "x-answer-type": "single",
+      "enum": [
+        "yes",
+        "no",
+        "unclear",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "outcome_kind": {
+      "x-item-id": "core.outcome_kind",
+      "x-item-hash": "75a57dacf1821fb733a64d2bbd44f2aa043845b38c9054065820009069dc1577",
+      "x-answer-type": "single",
+      "enum": [
+        "quantified",
+        "qualitative",
+        "none_reported",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "incident_kind": {
+      "x-item-id": "core.incident_kind",
+      "x-item-hash": "1783196e41d3163a3b7348d956bcc4ef0af9b79c400a0484d44bd11d71ced9cc",
+      "x-answer-type": "single",
+      "enum": [
+        "quantified",
+        "qualitative",
+        "none_reported",
+        "discontinuation_uncertain",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "reported_outcomes": {
+      "x-item-id": "core.reported_outcomes",
+      "x-item-hash": "461640be1d75ba79ac2297ad85a4a36bc119cfd9d8a1bb73bb9a14248192181d",
+      "x-answer-type": "list",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "enum": [
+            "not_asked",
+            "not_documented",
+            "unknown",
+            "_NA_"
+          ]
+        }
+      ]
+    },
+    "reported_incidents": {
+      "x-item-id": "core.reported_incidents",
+      "x-item-hash": "66b35b76fde638868351219a3e179a72358ccc6a176b581650fed4b473b10ca5",
+      "x-answer-type": "list",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "enum": [
+            "not_asked",
+            "not_documented",
+            "unknown",
+            "_NA_"
+          ]
+        }
+      ]
+    },
+    "evaluation_documented": {
+      "x-item-id": "core.evaluation_documented",
+      "x-item-hash": "eb98377467f2a74928e96fe901cb43eae39c10be2d8bf1297696cb1f020f222a",
+      "x-answer-type": "single",
+      "enum": [
+        "results_reported",
+        "conducted_no_results",
+        "required_or_planned",
+        "unclear",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "evaluation_type_pre_deployment_testing": {
+      "x-item-id": "core.evaluation_type_pre_deployment_testing",
+      "x-item-hash": "ea5987af915a041e5c2629de6903c29c2470f6b023517c483bda41d5ebaa612c",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "evaluation_type_pilot_evaluation": {
+      "x-item-id": "core.evaluation_type_pilot_evaluation",
+      "x-item-hash": "27e0db2eb31011d4c8d4361ddd4861dc01926b00059885c572a6ff6ea8170753",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "evaluation_type_independent_audit": {
+      "x-item-id": "core.evaluation_type_independent_audit",
+      "x-item-hash": "4ebf5ba2d6a3e533b6730c91c06a04879929634af735a8971a73f40f5d2cd45a",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "evaluation_type_ongoing_monitoring": {
+      "x-item-id": "core.evaluation_type_ongoing_monitoring",
+      "x-item-hash": "3a1627cf8f0e2e710baed963c501b85f52f0224699f755eec778eac398376c7e",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "evaluation_type_user_feedback": {
+      "x-item-id": "core.evaluation_type_user_feedback",
+      "x-item-hash": "1e0155dd412152c3f036b7d27569ebc10b6375a64eda51b1b6942c77dec246b9",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "evaluation_type_bias_or_safety_testing": {
+      "x-item-id": "core.evaluation_type_bias_or_safety_testing",
+      "x-item-hash": "8486f5e9bc9211779b9ae13597c14dbe9b2d5680ec830fafee2a7c485e538843",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "yes",
+        "no",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "stage_as_of": {
+      "x-item-id": "core.stage_as_of",
+      "x-item-hash": "a31c92bf8e3ea867c88c781195963cfca2d0b31534f1edc8bbb96160a783265c",
+      "x-answer-type": "date",
+      "type": "string"
+    },
+    "stage_as_of_basis": {
+      "x-item-id": "core.stage_as_of_basis",
+      "x-item-hash": "7532ef33a9684efc68cee471ee06979e1309c64060d85e8c457c109b4302c541",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "permanent_pilot": {
+      "x-item-id": "core.permanent_pilot",
+      "x-item-hash": "c8cab1feaf94e127f78dc8fd0d4eae3b6d354dc06d01a262205662ceae3e81ce",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "vendor_claim_only": {
+      "x-item-id": "core.vendor_claim_only",
+      "x-item-hash": "c428206aa8650a6567087b70a01cf493a6cca65aff96ee2622269365dce66cb4",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "unit_credit": {
+      "x-item-id": "core.unit_credit",
+      "x-item-hash": "451c38d1d198e285e1100756e2ed241e89204d0549dd05763f137468182bd76a",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "uncertainty_flags": {
+      "x-item-id": "core.uncertainty_flags",
+      "x-item-hash": "cf94b432c589e804010029d741897ed6df4249b20d8c56f214ce7ec4604f4fda",
+      "x-answer-type": "list",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "enum": [
+            "not_asked",
+            "not_documented",
+            "unknown",
+            "_NA_"
+          ]
+        }
+      ]
+    },
+    "support_entailment": {
+      "x-item-id": "core.support_entailment",
+      "x-item-hash": "57ebd9eca0dfe0732fb9deb3aa4bc740a21deaf1282aca3ce92a17c2d066b839",
+      "x-answer-type": "yes_no",
+      "enum": [
+        "true",
+        "false",
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ]
+    },
+    "support_status": {
+      "x-item-id": "core.support_status",
+      "x-item-hash": "e14c257ac1af8625118a2011ad275638b73d412381d6d4ea5808631876d50e71",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "supporting_text": {
+      "x-item-id": "core.supporting_text",
+      "x-item-hash": "ab1a6071437a92a0293225daff189f3b12f0e7849e1a69a4b5f1ef6891f4569e",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "has_genai_activity": {
+      "x-item-id": "core.has_genai_activity",
+      "x-item-hash": "fbe40748c3b25d8c63105941aa19b1b14d01d237a59407d16f6531dcbd4ef2ef",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "verdict_rule": {
+      "x-item-id": "core.verdict_rule",
+      "x-item-hash": "d832783e8f4358741df26aaf46c36d846b632138091caae069a927441c905372",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "evidence_tier": {
+      "x-item-id": "core.evidence_tier",
+      "x-item-hash": "1fd343111145182bd53634e0a495427eb3da20b401a15627b9b13b175d247a31",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "review_depth": {
+      "x-item-id": "core.review_depth",
+      "x-item-hash": "5d9c35a427bd3fd7b3b5020fae958d760df6304722b5369217139d6e2c86c3f8",
+      "x-answer-type": "list",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "enum": [
+            "not_asked",
+            "not_documented",
+            "unknown"
+          ]
+        }
+      ]
+    },
+    "activity_relation": {
+      "x-item-id": "core.activity_relation_cross_page",
+      "x-item-hash": "ed35aa6219ba9851bd5efe12e220a94855a87f1e601e726119547a30b02857c3",
+      "x-answer-type": "single",
+      "enum": [
+        "same_activity",
+        "component_of_program",
+        "has_component",
+        "shared_participation",
+        "governs",
+        "governed_by",
+        "distinct_action",
+        "unresolved",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "pooled_activity_fields": {
+      "x-item-id": "core.pooled_activity_fields",
+      "x-item-hash": "fceed8f3fb6b4998f41b517fd824eed49e1bccc104916060f3e473d20b39c95f",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "confidence": {
+      "x-item-id": "core.confidence",
+      "x-item-hash": "537c6f63b1d27f9707737584b2f124f63ae479557815040a65e67c52d8393c16",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "n_sources": {
+      "x-item-id": "core.n_sources",
+      "x-item-hash": "0ea0da2e67b4b4a6f03d97db931c67a34b8fa494246131f001b24a7ed2d6a8ae",
+      "x-answer-type": "number",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "enum": [
+            "not_asked",
+            "not_documented",
+            "unknown",
+            "_NA_"
+          ]
+        }
+      ]
+    },
+    "institution_summary": {
+      "x-item-id": "core.institution_summary",
+      "x-item-hash": "f0b7677210e55f2705535f1194b8d6cbe1aba7fb27c7a84aaa09523052888d9f",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "cx_display_rollup": {
+      "x-item-id": "core.cx_display_rollup",
+      "x-item-hash": "e2c1976fd143d2bd307f22c2bda3d25b9fd1a0c2be996db52cacbaf158402ab6",
+      "x-answer-type": "list",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "enum": [
+            "not_asked",
+            "not_documented",
+            "unknown",
+            "_NA_"
+          ]
+        }
+      ]
+    },
+    "codebook_release": {
+      "x-item-id": "core.codebook_release",
+      "x-item-hash": "70c06b42eb6445d646e96fb7738b9ae2b8caf74883db08d70e044d5c561ebe5f",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "setup_pointer": {
+      "x-item-id": "core.setup_pointer",
+      "x-item-hash": "a67b942925a1dcc27697fd82b8cdd4b1db61c67122694d15f8f8aa26e8fdeca8",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "evidence_channel": {
+      "x-item-id": "core.evidence_channel",
+      "x-item-hash": "1874109a354313ca536f067b515d7a8e258dbac12447765149f3a65d2048555a",
+      "x-answer-type": "single",
+      "type": "string"
+    },
+    "coder_record": {
+      "x-item-id": "core.coder_record",
+      "x-item-hash": "3ce7044e0f14e915db89ee5a6e5a1395fb47f6c884a634b32532e6e3004471ab",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "language_coverage": {
+      "x-item-id": "core.language_coverage",
+      "x-item-hash": "6cba4d218e14948faff75c874678683153e11d7c92f6d0f4fc5f97e01e71f002",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "observed_actor_role": {
+      "x-item-id": "core.observed_actor_role",
+      "x-item-hash": "e045ce6235185b64555efa5530f3de196f55ba70e6149f5d529720029abf5367",
+      "x-answer-type": "single",
+      "enum": [
+        "institutional_actor",
+        "issuer",
+        "participant",
+        "external_speaker",
+        "service_provider",
+        "event_host",
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ]
+    },
+    "date_upper_bound": {
+      "x-item-id": "core.date_upper_bound",
+      "x-item-hash": "b813dbae96dda535658b0db6b8cd26729e56117716d41bf571961e7dfef019b4",
+      "x-answer-type": "yes_no",
+      "type": "string"
+    },
+    "support_rule_name": {
+      "x-item-id": "core.support_rule_name",
+      "x-item-hash": "65a9ae6a920590ee4e488ab6a40bb49111187bea0d8e8401bcdef0d3de70d899",
+      "x-answer-type": "text",
+      "type": "string"
+    },
+    "support_status_second_reason": {
+      "x-item-id": "core.support_status_second_reason",
+      "x-item-hash": "e782c3663184e51a96ff21bcf305c9fa647a453faa15ca95529c1f66072fa65a",
+      "x-answer-type": "single",
+      "enum": [
+        "downgraded_no_quote",
+        "downgraded_low_confidence",
+        "downgraded_quote_not_stating_value",
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ]
+    }
+  }
+}

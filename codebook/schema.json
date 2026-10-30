@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/simonepaciphd/G3O/codebook/schema.json",
+  "title": "G3O codebook file (codebook/codebook.yaml)",
+  "description": "Structural schema of the codebook of record (D-001, R-007), following planning/t010/item-template.md sections 1-3. It fixes the file's shape: top-level keys, the 27 item fields and the slot form. The allowed values of each field, and every cross-field rule, are generator checks 1-16 in g3o/codebook/checks.py, which CI runs (python -m g3o.codebook checks). Written for T-013.",
+  "type": "object",
+  "required": ["release", "vocabularies", "items"],
+  "properties": {
+    "release": {
+      "type": "object",
+      "required": ["label", "status", "signature_record", "hash_rule"],
+      "properties": {
+        "label": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+        "status": {"type": "string"},
+        "signature_record": {"type": "string"},
+        "hash_rule": {"type": "string"},
+        "namespaces": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "vocabularies": {
+      "type": "object",
+      "required": ["missing", "pipeline", "level"],
+      "additionalProperties": {"type": "object"}
+    },
+    "shared_rules": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {"$ref": "#/$defs/slot"},
+          {"type": "array", "items": {"$ref": "#/$defs/slot"}, "minItems": 1}
+        ]
+      }
+    },
+    "combining_conventions": {"type": "object"},
+    "items": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {"$ref": "#/$defs/item"}
+    },
+    "retired": {"type": "array", "items": {"type": "object"}}
+  },
+  "$defs": {
+    "none": {"const": "none"},
+    "slot": {
+      "type": "object",
+      "required": ["text"],
+      "properties": {
+        "text": {"type": "string", "minLength": 1},
+        "origin": {"type": "string"},
+        "marker": {"type": "string"}
+      }
+    },
+    "nonEmptyStrings": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "value": {
+      "type": "object",
+      "required": ["code", "definition"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "definition": {"$ref": "#/$defs/slot"}
+      }
+    },
+    "item": {
+      "type": "object",
+      "required": [
+        "id", "family", "name", "level", "pipelines", "linkage", "coder", "pass", "round",
+        "gate", "answer_type", "instruction", "values", "rules", "order_tie_rule",
+        "long_page_rule", "support_required", "downgrade_target", "threshold",
+        "missing_tokens", "input_text", "visibility", "frozen_signature",
+        "version_introduced", "translation_v25", "refs", "status"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z]+\\.[a-z0-9_]+$"},
+        "family": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+        "level": {"$ref": "#/$defs/nonEmptyStrings"},
+        "pipelines": {"$ref": "#/$defs/nonEmptyStrings"},
+        "linkage": {"enum": ["jev_choice", "deterministic", "extractor", "pipeline"]},
+        "coder": {"enum": ["classifier", "mechanical", "quote_step", "derived"]},
+        "pass": {"enum": [1, 2, "stage6", "none"]},
+        "round": {"oneOf": [{"type": "integer", "minimum": 1}, {"$ref": "#/$defs/none"}]},
+        "gate": {
+          "oneOf": [
+            {"$ref": "#/$defs/none"},
+            {"type": "object", "required": ["item", "values"],
+             "properties": {"item": {"type": "string"}, "values": {"type": "array"}}}
+          ]
+        },
+        "answer_type": {"enum": ["single", "multi", "yes_no", "text", "number", "date", "list"]},
+        "instruction": {"oneOf": [{"$ref": "#/$defs/slot"}, {"$ref": "#/$defs/none"}]},
+        "values": {
+          "oneOf": [
+            {"$ref": "#/$defs/none"},
+            {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/value"}}
+          ]
+        },
+        "rules": {
+          "oneOf": [
+            {"$ref": "#/$defs/none"},
+            {"type": "array", "minItems": 1,
+             "items": {"oneOf": [{"$ref": "#/$defs/slot"}, {"type": "string", "minLength": 1}]}}
+          ]
+        },
+        "order_tie_rule": {"enum": ["first_in_order", "single_best", "all_that_apply", "none"]},
+        "long_page_rule": {
+          "oneOf": [
+            {"enum": ["first_section", "any_yes", "priority_order", "earliest_year", "combined_list", "highest_probability", "none"]},
+            {"type": "object", "required": ["rule"],
+             "properties": {"rule": {"enum": ["first_section", "any_yes", "priority_order", "earliest_year", "combined_list", "highest_probability"]}}}
+          ]
+        },
+        "support_required": {"type": "boolean"},
+        "downgrade_target": {"type": "string", "minLength": 1},
+        "threshold": {
+          "oneOf": [
+            {"$ref": "#/$defs/none"},
+            {"type": "object", "required": ["metric", "bar"],
+             "properties": {"metric": {"const": "chosen_answer_probability"}, "bar": {"const": 0.8}}}
+          ]
+        },
+        "missing_tokens": {"type": "array", "items": {"enum": ["not_asked", "not_documented", "unknown", "_NA_"]}},
+        "input_text": {"enum": ["main", "main_plus_chrome", "links", "quote_source", "metadata"]},
+        "visibility": {"enum": ["public", "internal", "public_derived"]},
+        "frozen_signature": {"type": "string", "minLength": 1},
+        "version_introduced": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+        "translation_v25": {
+          "oneOf": [
+            {"const": "new"},
+            {"type": "object", "required": ["column", "map"],
+             "properties": {"column": {"type": "string"},
+                            "map": {"oneOf": [{"type": "object"}, {"const": "identity"}]},
+                            "unmappable": {"type": "array"}}}
+          ]
+        },
+        "refs": {"$ref": "#/$defs/nonEmptyStrings"},
+        "status": {"enum": ["slot", "pi_edited", "signed"]}
+      }
+    }
+  }
+}
