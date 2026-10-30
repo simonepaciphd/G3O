@@ -1,7 +1,7 @@
 # PLAN: G3O pipeline reclassification
 
 Status: READY-WITH-BLOCKS
-Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.9 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, 2026-10-30); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.2 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
+Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.10 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, v001.10 mechanical, 2026-10-30); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.2 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
 Baseline lock: 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock")
 Deadline: none
 Source draft plan/review: `C:/Users/spaci/repos/G3O/planning/Plan-Draft.md` (v001-draft1), `C:/Users/spaci/repos/G3O/planning/Plan-Review.md` (27 findings); rulings `C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md`
@@ -221,7 +221,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-001 | eng-b | W1 | verified | none | none | T-029, T-072 | RS-004, RS-006, RS-007, RS-025, RS-036 | none | spikes folder (`count-backfill.json`, `SPIKE-T001*`); droplet `~/reclass-spike-*/` | PI authorises read-only droplet SSH | A-015 |
 | T-002 | eng-c | W2 | blocked | T-010, T-013 | none | T-003, T-021, T-025 | RS-004, RS-008, RS-009, RS-012, RS-015, RS-024, RS-031 | none | spikes folder, files prefixed `SPIKE-T002*` | PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28) | A-004, A-021 |
 | T-003 | eng-c | W3 | pending | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c) | A-002 |
-| T-010 | integrator | W1 | verified | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items in one batch signature (CX-01.3†, RC-D-004); PI signs the codebook hash (A-001); push gate | A-001 |
+| T-010 | integrator | W1 | complete | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items in one batch signature (CX-01.3†, RC-D-004); PI signs the codebook hash (A-001); push gate | A-001 |
 | T-011 | eng-a | W3 | pending | T-010, T-013, T-016 | none | T-015, T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
 | T-012 | eng-b | W2 | pending | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; the inventory file | none beyond push | A-011, A-013 |
 | T-013 | eng-b | W1 | verified | none | T-010 | T-002, T-011, T-012, T-016, T-022, T-032 | RS-010, RS-013, RS-039 | none | `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml` | PI approves the item template and generator checks (r2#59); push of the branch | A-001 |
@@ -546,8 +546,8 @@ More than 1 day of labelling → split labelling from calibration.
 
 ### T-010 — Draft Output Contract v2.7 and the validate-contract v1.5 bump
 
-Status: verified
-Progress (2026-10-30, integrator): item template approved with RC-D-003 (27 fields, generator checks 1-16); codebook skeleton built by `planning/t010/build_skeleton.py` from SPEC v001.7 (120 items, sha256 `23cb4857…`, reproducible, untracked until sign-off, P4); codebook review round 3 done and RC-D-003 applied (SPEC v001.7). Wording review done (round 4: 546 slots, fixes FX01-FX13, translation table). **Codebook release 2.7 and CX-01.3 signed** 2026-10-30 by the PI (one batch signature, RC-D-004): sha256 `d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764`, `reclass/t010-contract` `cb13571`; record `planning/t010/signoff-record.md`. T-013 checks (2026-10-30): 7 of 16 fail on the signed file, so A-001 is not met; a codebook delta and re-signature are needed before T-010 can be verified. Left for done: generated contract docs and generator checks 1-16 (T-013), checklist regenerated against the signed hash. RC-D-005 (approved 2026-10-30): the codebook is re-signed at sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f` (record `planning/t010/signoff-record.md`; `d24bbc7c…` superseded). Done when T-013's generated contract docs are committed and checks 1-16 pass on the re-signed file; then `verified`, and the PI is asked for `complete`. Verified 2026-10-30 (integrator): checks 1-16 pass on `f0b1348c…` (12 N/A) and the generated contract docs are committed on `reclass/t013-codebook` `45f6d88`; checklist regenerated against the new hash (`reclass/rc-d-005-codebook` `7c76315`, mapping unchanged). Awaiting PI `complete`.
+Status: complete
+Progress (2026-10-30, integrator): item template approved with RC-D-003 (27 fields, generator checks 1-16); codebook skeleton built by `planning/t010/build_skeleton.py` from SPEC v001.7 (120 items, sha256 `23cb4857…`, reproducible, untracked until sign-off, P4); codebook review round 3 done and RC-D-003 applied (SPEC v001.7). Wording review done (round 4: 546 slots, fixes FX01-FX13, translation table). **Codebook release 2.7 and CX-01.3 signed** 2026-10-30 by the PI (one batch signature, RC-D-004): sha256 `d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764`, `reclass/t010-contract` `cb13571`; record `planning/t010/signoff-record.md`. T-013 checks (2026-10-30): 7 of 16 fail on the signed file, so A-001 is not met; a codebook delta and re-signature are needed before T-010 can be verified. Left for done: generated contract docs and generator checks 1-16 (T-013), checklist regenerated against the signed hash. RC-D-005 (approved 2026-10-30): the codebook is re-signed at sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f` (record `planning/t010/signoff-record.md`; `d24bbc7c…` superseded). Done when T-013's generated contract docs are committed and checks 1-16 pass on the re-signed file; then `verified`, and the PI is asked for `complete`. Verified 2026-10-30 (integrator): checks 1-16 pass on `f0b1348c…` (12 N/A) and the generated contract docs are committed on `reclass/t013-codebook` `45f6d88`; checklist regenerated against the new hash (`reclass/rc-d-005-codebook` `7c76315`, mapping unchanged). Awaiting PI `complete`. Complete 2026-10-30 (PI, chat "1 yes").
 Type: build
 Priority: critical-path
 Spec refs: D-001, R-006, R-007, R-010, R-011, R-012, R-013, R-014, R-015, R-016, R-017, R-020, R-021, R-022, R-023, R-024, R-025, R-030, R-040, R-041, R-043, R-044, R-045, R-050, R-087, C-007, A-001
@@ -2917,6 +2917,7 @@ none
 ### T-061 — Notify the G3O validation plan of the contract change
 
 Status: in-progress
+Note (2026-10-30, integrator): draft ready in `planning/handoffs/` (not sent); the recipient and channel choice (DP-063) is carried to the successor launch card `coord/launch/2026-10-31/5-g3o-reclass-cost-packet.txt`. Sending is gated on the PI.
 Progress (2026-10-30, integrator): draft at `planning/handoffs/validation-notice.md` (not sent); waiting for PI approval of the text and the recipient/channel choice.
 Type: integrate
 Priority: required
@@ -3061,6 +3062,7 @@ none
 ### T-063 — Send the calendar-conversion heads-up to the multilingual subproject (RC-D-002 L, N23)
 
 Status: in-progress
+Note (2026-10-30, integrator): draft ready in `planning/handoffs/` (not sent); the recipient and channel choice (DP-063) is carried to the successor launch card `coord/launch/2026-10-31/5-g3o-reclass-cost-packet.txt`. Sending is gated on the PI.
 Progress (2026-10-30, integrator): draft at `planning/handoffs/D-010-multilingual-heads-up.md` (not sent); waiting for PI approval of the text and the recipient/channel choice.
 Type: integrate
 Priority: required

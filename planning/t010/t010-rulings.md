@@ -145,3 +145,11 @@ Put to the PI in chat: the delta `planning/deltas/RC-D-005.md` (`planning/w1-orc
 PI, chat, verbatim: "approved! go forth"
 
 Integrator reading: RC-D-005 is approved as written, and codebook release 2.7 is re-signed at sha256 `f0b1348c…c72f` (the reply answers both requests, with no change named); "go forth" authorizes the application steps listed in the request (SPEC v001.9, PLAN, CHANGELOG, file replacement, signature record, T-013 regeneration). It does not authorize a push, PR or merge to `main`.
+
+## 2026-10-30 — T-010 complete; push and PRs; successor card; clean-up (orchestrator session 20261030-claude-v2-74b5a83dce21f038)
+
+Put to the PI: 1 mark T-010 `complete`; 2 push the branches and open PRs (merges on her word); 3 the T-016/T-002 cost packet (needs current Haiku 5.5 prices); 4 still open: the R-041 marker for the companion-item definitions, the T-061/T-063 recipients, PR #138.
+
+PI, chat, verbatim: "1 yes, 2 push, open prs & give me ! merge command, 3 card a successor to do it; also let's clean up items on #4 & then clsoe up"
+
+Integrator reading: T-010 is `complete`. Push the branches and open the PRs; the PI merges with the `!` commands given. The cost packet goes to a successor session by launch card. Clean-up of #4: the R-041 marker is replaced by a pointer to the companion items' definitions in the signed codebook (mechanical; SPEC v001.10); PR #138 gets a `!` merge command; the T-061/T-063 recipient choice (DP-063) is carried into the successor card as a question with options, since it is the PI's choice. Then close the session.
