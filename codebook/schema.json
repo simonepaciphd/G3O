@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/simonepaciphd/G3O/codebook/schema.json",
   "title": "G3O codebook file (codebook/codebook.yaml)",
-  "description": "Structural schema of the codebook of record (D-001, R-007), following planning/t010/item-template.md sections 1-3. It fixes the file's shape: top-level keys, the 27 item fields and the slot form. The allowed values of each field, and every cross-field rule, are generator checks 1-16 in g3o/codebook/checks.py, which CI runs (python -m g3o.codebook checks). Written for T-013.",
+  "description": "Structural schema of the codebook of record (D-001, R-007), following planning/t010/item-template.md sections 1-3. It fixes the file's shape: top-level keys, the 27 item fields and the slot form, in the forms of item-template sections 1-3 and the RC-D-005 amendments A1-A8 (planning/t010/item-template-r5-amendments.md), so that it accepts both the signed release 2.7 file and the RC-D-005 candidate. The allowed values of each field, and every cross-field rule, are generator checks 1-16 in g3o/codebook/checks.py, which CI runs (python -m g3o.codebook checks). Written for T-013.",
   "type": "object",
   "required": ["release", "vocabularies", "items"],
   "properties": {
@@ -32,6 +32,7 @@
       }
     },
     "combining_conventions": {"type": "object"},
+    "shared": {"type": "object", "description": "Shared prompt slots (amendment A7): part_prompt, system_prompt*"},
     "items": {
       "type": "object",
       "minProperties": 1,
@@ -81,8 +82,9 @@
         "gate": {
           "oneOf": [
             {"$ref": "#/$defs/none"},
-            {"type": "object", "required": ["item", "values"],
-             "properties": {"item": {"type": "string"}, "values": {"type": "array"}}}
+            {"type": "object", "minProperties": 1,
+             "properties": {"item": {"type": "string"},
+                            "values": {"oneOf": [{"type": "array"}, {"const": "any"}]}}}
           ]
         },
         "answer_type": {"enum": ["single", "multi", "yes_no", "text", "number", "date", "list"]},
@@ -90,22 +92,24 @@
         "values": {
           "oneOf": [
             {"$ref": "#/$defs/none"},
-            {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/value"}}
+            {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/value"}},
+            {"type": "object", "minProperties": 1,
+             "description": "parts form (A6), computed candidates (A2) or another structured form; checks 1, 8, 9 decide"}
           ]
         },
         "rules": {
           "oneOf": [
             {"$ref": "#/$defs/none"},
             {"type": "array", "minItems": 1,
-             "items": {"oneOf": [{"$ref": "#/$defs/slot"}, {"type": "string", "minLength": 1}]}}
+             "items": {"oneOf": [{"$ref": "#/$defs/slot"}, {"type": "string", "minLength": 1},
+                                 {"type": "object", "not": {"required": ["text"]}}]}}
           ]
         },
         "order_tie_rule": {"enum": ["first_in_order", "single_best", "all_that_apply", "none"]},
         "long_page_rule": {
           "oneOf": [
             {"enum": ["first_section", "any_yes", "priority_order", "earliest_year", "combined_list", "highest_probability", "none"]},
-            {"type": "object", "required": ["rule"],
-             "properties": {"rule": {"enum": ["first_section", "any_yes", "priority_order", "earliest_year", "combined_list", "highest_probability"]}}}
+            {"type": "object", "required": ["rule"], "properties": {"rule": {"type": "string", "minLength": 1}}}
           ]
         },
         "support_required": {"type": "boolean"},
@@ -117,11 +121,11 @@
              "properties": {"metric": {"const": "chosen_answer_probability"}, "bar": {"const": 0.8}}}
           ]
         },
-        "missing_tokens": {"type": "array", "items": {"enum": ["not_asked", "not_documented", "unknown", "_NA_"]}},
+        "missing_tokens": {"oneOf": [{"$ref": "#/$defs/none"}, {"type": "array", "items": {"type": "string", "minLength": 1}}]},
         "input_text": {"enum": ["main", "main_plus_chrome", "links", "quote_source", "metadata"]},
         "visibility": {"enum": ["public", "internal", "public_derived"]},
         "frozen_signature": {"type": "string", "minLength": 1},
-        "version_introduced": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+$"},
+        "version_introduced": {"type": "string", "minLength": 1},
         "translation_v25": {
           "oneOf": [
             {"const": "new"},
@@ -132,7 +136,7 @@
           ]
         },
         "refs": {"$ref": "#/$defs/nonEmptyStrings"},
-        "status": {"enum": ["slot", "pi_edited", "signed"]}
+        "status": {"type": "string", "minLength": 1}
       }
     }
   }

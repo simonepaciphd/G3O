@@ -415,6 +415,9 @@ def gen_jev_questions(cb: Codebook) -> GeneratedFile:
             q = _question(cb, item_id, item, item_id, ins, _missing_criteria(cb, item_id, rules, used),
                           item.get("gate"), None, temp)
             q["computed_values"] = computed
+            nots = (item.get("values") or {}).get("candidates_not_offered")
+            if isinstance(nots, dict) and nots.get("codes"):
+                q["candidates_not_offered"] = nots["codes"]     # kept as values, set mechanically (12 a, round 2)
             q["rules_text"] = f"{RULES_HEADING}\n{_numbered(rules)}" if rules else ""
             q["rule_slots"] = [r.path for r in rules]
             used.extend((r.path, r.text) for r in rules)

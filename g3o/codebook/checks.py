@@ -504,28 +504,20 @@ def _pass_rank(p: Any) -> int | None:
     return {1: 1, 2: 2, "stage6": 3}.get(p)
 
 
-def _position(cb: Codebook, item_id: str, seen: frozenset[str] = frozenset()) -> tuple[Any, Any]:
-    """(pass, round) at which an item's value exists. A classifier item has its
-    own; an item without one (an extractor or mechanical step) exists once its
-    own gate item does (amendment A5), and an ungated one before any round."""
-    item = cb.items[item_id]
-    if _pass_rank(item.get("pass")) is not None and isinstance(item.get("round"), int):
-        return item.get("pass"), item.get("round")
-    gate = item.get("gate")
-    target = gate.get("item") if isinstance(gate, dict) else None
-    if isinstance(target, str) and target in cb.items and target not in seen:
-        return _position(cb, target, seen | {item_id})
-    return item.get("pass"), item.get("round")
-
-
 def check_07_gates(cb: Codebook, ctx: Context) -> CheckResult:
     """A gate names an existing item and existing values (the gate item's codes
     in any template form, or its missing tokens; ``values: any`` names no
     value, amendment A3); gates have no cycles; when the gated item has a
     classifier round, its round is later than its gate's round in the same pass,
-    or its pass is later. A gate item without a pass/round takes the position of
-    its own gate (amendment A5). Applicability-table gates (``key`` +
-    ``cells``) are checked the same way on their key item and cell keys."""
+    or its pass is later. The round comparison needs a classifier round on both
+    sides: a gate item that is not a classifier (a quote step or mechanical
+    item, e.g. the scale number gating the unit under F6 a) has no round, and
+    its order before the items it gates is the signed combining rule
+    (``combining_conventions.gate_items_first``: "activity_type and action_type
+    (and the scale number) are combined before the items they gate"), so it is
+    noted, not failed (amendment A5, round 2). A classifier gate item with no
+    round still fails. Applicability-table gates (``key`` + ``cells``) are
+    checked the same way on their key item and cell keys."""
     res = CheckResult(7, "gates")
     edges: dict[str, str] = {}
     for item_id, item in cb.items.items():
@@ -553,12 +545,16 @@ def check_07_gates(cb: Codebook, ctx: Context) -> CheckResult:
                 why = " (it has no value list: values none)" if target_values == NONE else ""
                 _scoped(cb, res, item_id, f"gate value {v!r} is not a value or missing token of {target}{why}; "
                                           f"allowed: {sorted(allowed)}")
-        r_gated, (p_gate_raw, r_gate) = item.get("round"), _position(cb, target)
+        p_gate_raw, r_gate = cb.items[target].get("pass"), cb.items[target].get("round")
+        r_gated = item.get("round")
         p_gated, p_gate = _pass_rank(item.get("pass")), _pass_rank(p_gate_raw)
         if isinstance(r_gated, int):
-            if p_gate is None or not isinstance(r_gate, int):
-                _scoped(cb, res, item_id, f"round {r_gated} (pass {item.get('pass')}) gated on {target}, which has no pass/round "
-                                          f"(pass {cb.items[target].get('pass')}, round {r_gate}) and no gate that gives one")
+            if (p_gate is None or not isinstance(r_gate, int)) and cb.items[target].get("coder") != "classifier":
+                res.notes.append(f"{item_id}: gated on {target} ({cb.items[target].get('coder')}, no round); order by "
+                                 "combining_conventions.gate_items_first, no round comparison (amendment A5)")
+            elif p_gate is None or not isinstance(r_gate, int):
+                _scoped(cb, res, item_id, f"round {r_gated} (pass {item.get('pass')}) gated on {target}, a classifier "
+                                          f"with no pass/round (pass {p_gate_raw}, round {r_gate})")
             elif p_gated is not None and (p_gated < p_gate or (p_gated == p_gate and r_gated <= r_gate)):
                 _scoped(cb, res, item_id, f"pass {item.get('pass')} round {r_gated} is not after gate {target} "
                                           f"pass {p_gate_raw} round {r_gate}")
