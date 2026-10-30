@@ -227,7 +227,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-014 | eng-a | W2 | pending | none | none | T-022, T-025 | RS-016 | none | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests | push of the branch | none |
 | T-015 | eng-a | W4 | pending | T-011, T-012, T-022, T-027 | none | T-026, T-028 | RS-012 | none | `g3o/common/source_fields.py`† and its tests | push of the branch | none |
 | T-016 | integrator | W2 | pending | T-010, T-013 | none | T-011 | RS-004, RS-005, RS-008, RS-009, RS-024, RS-031 | none | re-pilot folder `agent-workspace/2026-10-27-reclass-plan/repilot-v27/`† | PI approves the cost estimate; Simone runs the paid command via `! <command>` (red line 4); PI rules on the results | none |
-| T-020 | eng-a | W1 | in-progress | none | T-002 | T-021, T-022, T-023 | RS-004, RS-014, RS-024 | none | the two new files | none beyond push | A-021 |
+| T-020 | eng-a | W1 | blocked | none | T-002 | T-021, T-022, T-023 | RS-004, RS-014, RS-024 | none | the two new files | none beyond push | A-021 |
 | T-021 | eng-a | W4 | pending | T-002, T-011, T-012, T-020, T-027 | none | T-023, T-025, T-030 | RS-012, RS-019 | none | the new modules and tests | none beyond push | A-011, A-013 |
 | T-022 | eng-c | W3 | pending | T-010, T-012, T-013, T-014, T-020 | none | T-015, T-023, T-024, T-025, T-032 | RS-015 | none | the listed extract files | PI approves the nano prompt text; push gate | A-003, A-021 |
 | T-023 | eng-a | W5 | pending | T-011, T-020, T-021, T-022, T-027 | none | T-026, T-032 | RS-012 | none | the new modules and tests | none beyond push | A-003 |
@@ -1105,7 +1105,8 @@ More pages or items than in the approved estimate → new paid gate.
 
 ### T-020 — Build the token-based page chunker and combination rule
 
-Status: in-progress
+Status: blocked
+Progress (2026-10-30, integrator): code and 52 tests on `reclass/t020-chunks` `45309d2` (local, not pushed; integrator re-ran the 52 tests, pass). Blocked on: T-002 estimator constants and the DP-007 margin (done condition); five stopped fields needing PI rulings, one of them a signed-codebook gap (`core.activity_relation_cross_page` priority order lacks `has_component` and `governed_by`, so a codebook delta and re-signature are needed); return report items listed for the PI 2026-10-30.
 Type: build
 Priority: critical-path
 Spec refs: R-044, R-045 (RC-D-003), C-004, A-021
@@ -2911,6 +2912,7 @@ none
 ### T-061 — Notify the G3O validation plan of the contract change
 
 Status: in-progress
+Progress (2026-10-30, integrator): draft at `planning/handoffs/validation-notice.md` (not sent); waiting for PI approval of the text and the recipient/channel choice.
 Type: integrate
 Priority: required
 Spec refs: N-002, C-007, D-001
@@ -3054,6 +3056,7 @@ none
 ### T-063 — Send the calendar-conversion heads-up to the multilingual subproject (RC-D-002 L, N23)
 
 Status: in-progress
+Progress (2026-10-30, integrator): draft at `planning/handoffs/D-010-multilingual-heads-up.md` (not sent); waiting for PI approval of the text and the recipient/channel choice.
 Type: integrate
 Priority: required
 Spec refs: D-010
