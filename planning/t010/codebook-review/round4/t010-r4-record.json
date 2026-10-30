@@ -1,0 +1,379 @@
+{
+ "format": "decision-page-v1",
+ "id": "t010-r4-record",
+ "title": "Codebook wording review: Record-keeping on every row",
+ "eyebrow": "G3O codebook · wording review round 4",
+ "project": "G3O pipeline reclassification",
+ "prepared": "2026-10-30",
+ "prepared_by": {
+  "harness": "Claude Code",
+  "model": "claude-opus-5-5",
+  "session": "drafting subagent of integrator session 20261030-claude-v2-2b8200388885f8f9"
+ },
+ "background": "Review round 4 of the codebook wording. You chose on 30 October that agents draft the missing value definitions and you review every wording slot here. This page covers **record-keeping on every row**.\n\nEach card is one codebook item. Open \"Show the wording slots\" to read them. Each slot is labelled with where its text came from:\n\n- **Plan text**\n- **New agent draft (round 4)**\n- **Option text you chose in round 3**\n- **Agent edit of the signed questionnaire**\n- **Text you approved on 30 October**\n- **Old production text (version 2.5): rewrite or delete**\n\nAnswer per item: approve all, approve with line-edits or deletions in the comments (by slot number), or ask for a redraft. Deletion is open only for old version-2.5 slots and for one slot of each overlap pair. The batch card at the top approves everything you leave unmarked. No recommendation is given on any wording.\n\nNew agent drafts carry a certainty mark; those marked **Needs your decision** rest on no ruling or text for some point.",
+ "sources": [
+  {
+   "label": "Round-4 drafts (readable)",
+   "href": "../../drafts/definitions-r4.md"
+  },
+  {
+   "label": "Round-3 codebook reference",
+   "href": "../round3/codebook-reference.html"
+  }
+ ],
+ "items": [
+  {
+   "id": "ALL",
+   "kind": "review",
+   "title": "Batch approval for this whole page",
+   "situation": "This page shows 26 wording slots in 10 items. Choose the batch option to approve every slot you do not mark in an item card below; any item card you answer still overrides it for that item.",
+   "options": [
+    {
+     "id": "approve-unmarked",
+     "label": "Approve every slot on this page that I do not mark below"
+    },
+    {
+     "id": "no-batch",
+     "label": "No batch approval: only my item answers count"
+    }
+   ]
+  },
+  {
+   "id": "I01",
+   "kind": "review",
+   "title": "support entailment",
+   "situation": "Question: 'Does this text state that <field> is <value>?'\n\nRecorded on every row.\n\n4 slots: 2 × plan text; 2 × new agent draft (round 4).",
+   "body": "**1. Question** — Plan text, from review round 1\n'Does this text state that <field> is <value>?'\n\n**2. Value `true`** — New agent draft (round 4)\nThe quoted text states that the field has the given value.\n_Draft certainty: high._\n\n**3. Value `false`** — New agent draft (round 4)\nThe quoted text does not state that the field has the given value. The answer's support status becomes 'downgraded: quote does not state the value'.\n_Draft certainty: high._\n\n**4. Rule** — Plan text, from review round 1\nState = quote (plus a short window); question: 'Does this text state that <field> is <value>?' true/false; false or confidence < threshold -> downgrade `no_support`.",
+   "body_label": "Show the 4 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I02",
+   "kind": "review",
+   "title": "support status",
+   "situation": "Recorded on every row.\n\n4 slots: 1 × plan text; 2 × option text you chose in round 3; 1 × text you approved on 30 October.",
+   "body": "**1. Rule** — Plan text, from the specification\nSupport-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including \"not asked\" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no` and negative page verdicts (record-02 a; O12) (r2#37 merged with r2#53; spellings all-11).\n\n**2. Rule** — Option text you chose in round 3\n\"Not required\"\n\n**3. Rule** — Option text you chose in round 3\nA second reason item\n\n**4. Rule** — Text you approved on 30 October\n`not_required`, for `not_documented`, `unknown`, `no` and negative page verdicts (record-02 a; O12); `_NA_` takes `set_by_rule` (O12)",
+   "body_label": "Show the 4 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I03",
+   "kind": "review",
+   "title": "supporting text",
+   "situation": "Recorded on every row.\n\n4 slots: 4 × plan text.",
+   "body": "**1. Rule** — Plan text, from the specification\nFor every jev code on a page or activity, the extractor (C-001; the quote step) extracts the verbatim supporting text from the page. RC-D-002 row 15 replaces \"after jev has coded\": the quote step never sees the answer for the field it quotes, but may see that a gate is not `none` (r2#18). The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as \"not asked\" (activity-07 b). A01 and CX-61 get quotes relevant to the field. The scale number (A09) is copied verbatim by the quote step and the classifier picks the unit (C4 a); the publication date (X26) is coded by the quote step under the R-042 check. X35 adds an entailment check per (code, quote) with a chosen-answer probability bar (r2#26).\n\n**2. Rule** — Plan text, from the specification\nSupporting text is checked against the stored page text by fuzzy match; a quote below the match threshold counts as no supporting text.\n\n**3. Rule** — Plan text, from the specification\nSupporting text is published with the code it supports. The API carries the full text; the website shows it up to a display cap, with a marker and access to the full text.\n\n**4. Rule** — Plan text, from the specification\nPublished supporting quotes stay verbatim, with no masking.",
+   "body_label": "Show the 4 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I04",
+   "kind": "review",
+   "title": "codebook release",
+   "situation": "Recorded on every row.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from the specification\nEvery published row carries the contract version that produced it. RC-D-002 row 20: that is one version label, the codebook release, replacing `contract_version` (r2#32), plus the setup pointer (X20, X36) and `evidence_channel` (P15a, r2#57); the extract and validate contract labels are recorded only in the setup record (C3 a). C-007 applies to the release (r2#5). v2.5 rows keep their contract version.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I05",
+   "kind": "review",
+   "title": "setup pointer",
+   "situation": "Recorded on every row.\n\n2 slots: 2 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nA manifest (contract versions, `JEV_QUESTION_SET_VERSION`, jev model, extractor model id + prompt SHA-256, chunker + estimator version, matcher + threshold, confidence threshold, codebook item hashes) keyed by `instrument_id` on every row.\n\n**2. Rule** — Plan text, from the specification\nEvery jev answer is stored with its probability distribution, confidence, response model id and request id. RC-D-002 row 12: every automated coder (classifier, quote step, detector, mechanical rules) stores coder type, model, version and request id (P10a); the per-run version record holds the codebook version, and per-code coder details are internal and linked to it (r2#57); the row carries the codebook version + setup pointer (r2#32); the classifier record keeps the chosen-answer probability (r2#26).",
+   "body_label": "Show the 2 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I06",
+   "kind": "review",
+   "title": "evidence channel",
+   "situation": "Recorded on every row.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nChannel enum (web_extract, procurement, text_detection)",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I07",
+   "kind": "review",
+   "title": "coder record",
+   "situation": "Recorded on every row.\n\n2 slots: 2 × plan text.",
+   "body": "**1. Rule** — Plan text, from the specification\nEvery jev answer is stored with its probability distribution, confidence, response model id and request id. RC-D-002 row 12: every automated coder (classifier, quote step, detector, mechanical rules) stores coder type, model, version and request id (P10a); the per-run version record holds the codebook version, and per-code coder details are internal and linked to it (r2#57); the row carries the codebook version + setup pointer (r2#32); the classifier record keeps the chosen-answer probability (r2#26).\n\n**2. Rule** — Plan text, from review round 1\n`coder_type`, `coder_model`, `coder_version`, `request_id` common across channels",
+   "body_label": "Show the 2 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I08",
+   "kind": "review",
+   "title": "language coverage",
+   "situation": "Recorded on every row.\n\n2 slots: 2 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nDefined with the language-readiness bar\n\n**2. Rule** — Plan text, from review round 2\nAI-text flags fold into the main list, the language-barrier flag is dropped everywhere, and language coverage is carried by the multilingual subproject's item.",
+   "body_label": "Show the 2 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I09",
+   "kind": "review",
+   "title": "support rule name",
+   "situation": "Recorded on every row.\n\n1 slots: 1 × option text you chose in round 3.",
+   "body": "**1. Rule** — Option text you chose in round 3\nAdd a rule-name item, empty unless the status is \"set by rule\".",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I10",
+   "kind": "review",
+   "title": "support status second reason",
+   "situation": "Recorded on every row.\n\n5 slots: 3 × new agent draft (round 4); 1 × option text you chose in round 3; 1 × text you approved on 30 October.",
+   "body": "**1. Value `downgraded_no_quote`** — New agent draft (round 4)\nThe answer also failed because it has no supporting quote.\n_Draft certainty: medium._ **Needs your decision:** Under the approved order (quote check first, then the 0.8 bar), a missing quote is always the main reason, so this value seems never to occur as the second reason. Please confirm the value list or the order.\n\n**2. Value `downgraded_low_confidence`** — New agent draft (round 4)\nThe answer also failed because the classifier's certainty was below the 0.8 bar.\n_Draft certainty: high._\n\n**3. Value `downgraded_quote_not_stating_value`** — New agent draft (round 4)\nThe answer also failed because its quote does not state the value.\n_Draft certainty: medium._ **Needs your decision:** Same as 'no quote': the quote-meaning check is part of the quote check, which comes first, so this seems never to be the second reason. Please confirm.\n\n**4. Rule** — Option text you chose in round 3\nA second reason item\n\n**5. Rule** — Text you approved on 30 October\nValues: downgraded_no_quote, downgraded_low_confidence, downgraded_quote_not_stating_value. The main status takes the first failed check in check order (quote, then the 0.8 bar); the second item takes the other; empty when only one reason holds.",
+   "body_label": "Show the 5 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "O1",
+   "kind": "review",
+   "title": "Same rule written twice: support status",
+   "situation": "Two slots in the item card I02 say the same thing about the list of support statuses and which answers take which status: slot 1 (plan text) and slot 4 (text you approved on 30 October). You asked to keep one of each such pair.",
+   "body": "**Slot 1, plan text:**\nSupport-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including \"not asked\" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no` and negative page verdicts (record-02 a; O12) (r2#37 merged with r2#53; spellings all-11).\n\n**Slot 4, text you approved on 30 October:**\n`not_required`, for `not_documented`, `unknown`, `no` and negative page verdicts (record-02 a; O12); `_NA_` takes `set_by_rule` (O12)",
+   "body_label": "Compare the two texts",
+   "options": [
+    {
+     "id": "keep-plan",
+     "label": "Keep slot 1 (plan text); delete slot 4"
+    },
+    {
+     "id": "keep-approved",
+     "label": "Keep slot 4 (approved text); delete slot 1"
+    },
+    {
+     "id": "keep-both",
+     "label": "Keep both"
+    }
+   ]
+  }
+ ],
+ "slot_map": {
+  "I01": {
+   "owner": "core.support_entailment",
+   "slots": {
+    "1": "items/core.support_entailment/instruction",
+    "2": "items/core.support_entailment/values/0/definition",
+    "3": "items/core.support_entailment/values/1/definition",
+    "4": "items/core.support_entailment/rules/0"
+   }
+  },
+  "I02": {
+   "owner": "core.support_status",
+   "slots": {
+    "1": "items/core.support_status/rules/0",
+    "2": "items/core.support_status/rules/1",
+    "3": "items/core.support_status/rules/2",
+    "4": "items/core.support_status/rules/3"
+   }
+  },
+  "I03": {
+   "owner": "core.supporting_text",
+   "slots": {
+    "1": "items/core.supporting_text/rules/0",
+    "2": "items/core.supporting_text/rules/1",
+    "3": "items/core.supporting_text/rules/2",
+    "4": "items/core.supporting_text/rules/3"
+   }
+  },
+  "I04": {
+   "owner": "core.codebook_release",
+   "slots": {
+    "1": "items/core.codebook_release/rules/0"
+   }
+  },
+  "I05": {
+   "owner": "core.setup_pointer",
+   "slots": {
+    "1": "items/core.setup_pointer/rules/0",
+    "2": "items/core.setup_pointer/rules/1"
+   }
+  },
+  "I06": {
+   "owner": "core.evidence_channel",
+   "slots": {
+    "1": "items/core.evidence_channel/rules/0"
+   }
+  },
+  "I07": {
+   "owner": "core.coder_record",
+   "slots": {
+    "1": "items/core.coder_record/rules/0",
+    "2": "items/core.coder_record/rules/1"
+   }
+  },
+  "I08": {
+   "owner": "core.language_coverage",
+   "slots": {
+    "1": "items/core.language_coverage/rules/0",
+    "2": "items/core.language_coverage/rules/1"
+   }
+  },
+  "I09": {
+   "owner": "core.support_rule_name",
+   "slots": {
+    "1": "items/core.support_rule_name/rules/0"
+   }
+  },
+  "I10": {
+   "owner": "core.support_status_second_reason",
+   "slots": {
+    "1": "items/core.support_status_second_reason/values/0/definition",
+    "2": "items/core.support_status_second_reason/values/1/definition",
+    "3": "items/core.support_status_second_reason/values/2/definition",
+    "4": "items/core.support_status_second_reason/rules/0",
+    "5": "items/core.support_status_second_reason/rules/1"
+   }
+  },
+  "O1": {
+   "owner": "core.support_status",
+   "pair": [
+    "items/core.support_status/rules/0",
+    "items/core.support_status/rules/3"
+   ]
+  }
+ }
+}

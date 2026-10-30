@@ -1,0 +1,684 @@
+{
+ "format": "decision-page-v1",
+ "id": "t010-r4-activity-1",
+ "title": "Codebook wording review: Each activity on a page (part 1 of 3)",
+ "eyebrow": "G3O codebook · wording review round 4",
+ "project": "G3O pipeline reclassification",
+ "prepared": "2026-10-30",
+ "prepared_by": {
+  "harness": "Claude Code",
+  "model": "claude-opus-5-5",
+  "session": "drafting subagent of integrator session 20261030-claude-v2-2b8200388885f8f9"
+ },
+ "background": "Review round 4 of the codebook wording. You chose on 30 October that agents draft the missing value definitions and you review every wording slot here. This page covers **each activity on a page**, part 1 of 3.\n\nEach card is one codebook item. Open \"Show the wording slots\" to read them. Each slot is labelled with where its text came from:\n\n- **Plan text**\n- **New agent draft (round 4)**\n- **Option text you chose in round 3**\n- **Agent edit of the signed questionnaire**\n- **Text you approved on 30 October**\n- **Old production text (version 2.5): rewrite or delete**\n\nAnswer per item: approve all, approve with line-edits or deletions in the comments (by slot number), or ask for a redraft. Deletion is open only for old version-2.5 slots and for one slot of each overlap pair. The batch card at the top approves everything you leave unmarked. No recommendation is given on any wording.\n\nNew agent drafts carry a certainty mark; those marked **Needs your decision** rest on no ruling or text for some point.",
+ "sources": [
+  {
+   "label": "Round-4 drafts (readable)",
+   "href": "../../drafts/definitions-r4.md"
+  },
+  {
+   "label": "Round-3 codebook reference",
+   "href": "../round3/codebook-reference.html"
+  }
+ ],
+ "items": [
+  {
+   "id": "ALL",
+   "kind": "review",
+   "title": "Batch approval for this whole page",
+   "situation": "This page shows 106 wording slots in 17 items. Choose the batch option to approve every slot you do not mark in an item card below; any item card you answer still overrides it for that item.",
+   "options": [
+    {
+     "id": "approve-unmarked",
+     "label": "Approve every slot on this page that I do not mark below"
+    },
+    {
+     "id": "no-batch",
+     "label": "No batch approval: only my item answers count"
+    }
+   ]
+  },
+  {
+   "id": "I01",
+   "kind": "review",
+   "title": "activity relation within page",
+   "situation": "Question: The extractor proposes spans; jev answers per span: new distinct activity / same as span k / component of span k / not an activity.\n\nRecorded per activity.\n\n14 slots: 2 × plan text; 9 × new agent draft (round 4); 3 × option text you chose in round 3.",
+   "body": "**1. Question** — Plan text, from review round 1\nThe extractor proposes spans; jev answers per span: new distinct activity / same as span k / component of span k / not an activity.\n\n**2. Value `same_activity`** — New agent draft (round 4)\nThe two passages describe the same activity: the same action by the same actor on the same tool or instrument.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first passage, second passage); the reverse values make that order necessary (R3 activity-16 b), but no text says which passage is 'first'._\n\n**3. Value `component_of_program`** — New agent draft (round 4)\nThe first passage's activity is a named component of the program described in the second. Both stay separate activities, linked.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first passage, second passage); the reverse values make that order necessary (R3 activity-16 b), but no text says which passage is 'first'._\n\n**4. Value `has_component`** — New agent draft (round 4)\nThe first passage describes a program, and the second passage's activity is one of its named components. Both stay separate activities, linked.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first passage, second passage); the reverse values make that order necessary (R3 activity-16 b), but no text says which passage is 'first'._\n\n**5. Value `shared_participation`** — New agent draft (round 4)\nThe two passages describe one joint action in which several bodies take part.\n_Draft certainty: low._ **Needs your decision:** No text defines this link or says whether it merges the two passages. Please word it and say whether it merges. _Note: Direction: the pair is read in order (first passage, second passage); the reverse values make that order necessary (R3 activity-16 b), but no text says which passage is 'first'._\n\n**6. Value `governs`** — New agent draft (round 4)\nThe first passage's activity is a policy or other governance instrument that sets rules for the activity in the second (for example a policy and a tool it approves). When a pair fits both this link and a component link, this link is used.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first passage, second passage); the reverse values make that order necessary (R3 activity-16 b), but no text says which passage is 'first'._\n\n**7. Value `governed_by`** — New agent draft (round 4)\nThe second passage's activity is a policy or other governance instrument that sets rules for the activity in the first. When a pair fits both this link and a component link, this link is used.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first passage, second passage); the reverse values make that order necessary (R3 activity-16 b), but no text says which passage is 'first'._\n\n**8. Value `distinct_action`** — New agent draft (round 4)\nThe two passages describe different activities, and none of the other links applies.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first passage, second passage); the reverse values make that order necessary (R3 activity-16 b), but no text says which passage is 'first'._\n\n**9. Value `unresolved`** — New agent draft (round 4)\nThe page does not settle whether the two passages describe the same activity or different ones. They are kept separate.\n_Draft certainty: medium._ _Note: Direction: the pair is read in order (first passage, second passage); the reverse values make that order necessary (R3 activity-16 b), but no text says which passage is 'first'._\n\n**10. Value `not_an_activity`** — New agent draft (round 4)\nThe passage does not describe an activity as the activity rule defines one.\n_Draft certainty: low._ **Needs your decision:** Links are now coded per pair of passages (activity-18 b), but this value describes one passage. Please say how it is used in a pair (for example: either passage is not an activity). _Note: Direction: the pair is read in order (first passage, second passage); the reverse values make that order necessary (R3 activity-16 b), but no text says which passage is 'first'._\n\n**11. Rule** — Plan text, from the specification\nOne shared relation list serves within-page and cross-page links: same activity, component of program, has component, shared participation, governs, governed by, distinct (`distinct_action`), unresolved, plus not-an-activity within a page (r2#22; activity-16 b; all-11).\n\n**12. Rule** — Option text you chose in round 3\nAdd \"has component\" and \"governed by\".\n\n**13. Rule** — Option text you chose in round 3\nComponents stay separate activities; a governing policy is recorded as governing.\n\n**14. Rule** — Option text you chose in round 3\nEach pair of passages gets a link.",
+   "body_label": "Show the 14 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I02",
+   "kind": "review",
+   "title": "activity name",
+   "situation": "Question: Short name. Use official name if one exists (e.g., \"MyCity Chatbot\", \"Pair Platform\"). Otherwise descriptive (e.g., \"Internal Copilot pilot for document drafting\").\n\nRecorded per activity.\n\n1 slots: 1 × old production text (version 2.5): rewrite or delete.",
+   "body": "**1. Question** — Old production text (version 2.5): rewrite or delete · may be deleted\nShort name. Use official name if one exists (e.g., \"MyCity Chatbot\", \"Pair Platform\"). Otherwise descriptive (e.g., \"Internal Copilot pilot for document drafting\").",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I03",
+   "kind": "review",
+   "title": "observed actor name",
+   "situation": "Recorded per activity.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nThe extractor returns the verbatim actor name and organisational unit. jev Choice gives the relationship (this institution / unit of it / joint participant / other / unresolved) and the role (as v2.6).",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I04",
+   "kind": "review",
+   "title": "observed actor relationship",
+   "situation": "Recorded per activity.\n\n21 slots: 10 × new agent draft (round 4); 4 × text you approved on 30 October; 3 × plan text; 3 × option text you chose in round 3; 1 × agent edit of the signed questionnaire.",
+   "body": "**1. Relationship value `this_institution`** — New agent draft (round 4)\nThe searched institution itself carries out or adopts the activity.\n_Draft certainty: medium._\n\n**2. Relationship value `unit_of_institution`** — New agent draft (round 4)\nAn organisational unit of the searched institution (a department, office or service) carries out the activity; it counts for the institution.\n_Draft certainty: high._\n\n**3. Relationship value `joint_participant`** — New agent draft (round 4)\nThe activity is a joint one, and the page names the searched institution as a participant.\n_Draft certainty: high._\n\n**4. Relationship value `other`** — New agent draft (round 4)\nThe activity belongs to another body: a parent, sibling or neighbouring body, a separate court, board or authority, a similarly named organisation, or a vendor. The searched institution's role is still asked.\n_Draft certainty: medium._\n\n**5. Relationship value `unresolved`** — New agent draft (round 4)\nThe page does not settle whose activity this is. The role of the searched institution is not asked.\n_Draft certainty: medium._\n\n**6. Role value `contracting_authority`** — New agent draft (round 4)\nThe searched institution buys or contracts for the tool or service in its own name.\n_Draft certainty: medium._ _Note: The procurement schema gives the codes but no definition; this gloss is the ordinary procurement meaning._\n\n**7. Role value `beneficiary`** — New agent draft (round 4)\nAnother body runs or buys the activity for the searched institution, and the page names the searched institution as benefiting.\n_Draft certainty: high._\n\n**8. Role value `central_purchasing_body`** — New agent draft (round 4)\nThe searched institution buys or sets up a contract or framework on behalf of other bodies.\n_Draft certainty: medium._\n\n**9. Role value `unit`** — New agent draft (round 4)\nThe searched institution takes part as a unit of the body that carries out the activity.\n_Draft certainty: low._ **Needs your decision:** No text defines the roles 'unit' and 'joint'. They also repeat the relationship values 'unit of institution' and 'joint participant' (the overlap round 3 noted). Please say what each adds, or drop them.\n\n**10. Role value `joint`** — New agent draft (round 4)\nThe searched institution takes part as one of several joint participants.\n_Draft certainty: low._ **Needs your decision:** See 'unit': undefined and overlaps the relationship value 'joint participant'.\n\n**11. When the role is asked** — Text you approved on 30 October\nthe role is asked when the relationship is `other`; skipped only when `unresolved`\n\n**12. Rule** — Plan text, from the specification\nRC-D-002 row 7: the observed-actor relationship is coded per activity, not per page, with a QC flag on `confirms_activity` pages that have no own / unit / joint activity; the attribution role becomes the second of two linked parts of that relationship (relationship; role of the searched institution, \"not asked\" when the relationship is unresolved), describes only the searched institution, and counts \"beneficiary\" only when the page names it (activity-14 b); the two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone (O8); there is no separate published P06 column. The observed actor's own role is kept as a separate internal item, `observed_actor_role`, and not published (activity-15 a); the C04 grain rule is kept.\n\n**13. Rule** — Plan text, from review round 2\nThe role field describes only the searched institution's part in the activity (contracting authority, beneficiary, central purchasing body, unit, joint) and never creates rows for another institution. Costs version steps and aligning the observed-actor relation values.\n\n**14. Rule** — Plan text, from review round 2\nThe relationship moves to the per-activity pass; a quality check flags 'confirms activity' pages with no activity by this institution, a unit of it or a joint participant; the attribution role becomes part of the relationship, with 'beneficiary' counting only when the page names it. Test cases needed.\n\n**15. Rule** — Option text you chose in round 3\nRelationship: this institution, unit, joint participant, other, unresolved, unknown.\n\n**16. Rule** — Option text you chose in round 3\nRole of the searched institution: contracting authority, beneficiary, central purchasing body, unit, joint\n\n**17. Rule** — Text you approved on 30 October\nthe role is asked when the relationship is `other`; skipped only when `unresolved`\n\n**18. Rule** — Option text you chose in round 3\nA silent page gets \"not documented\"; a page that mentions the matter but cannot be settled gets \"unknown\".\n\n**19. Rule** — Text you approved on 30 October\nPublished as one column: the relationship code, then `:` and the role code when the role is a real answer (e.g. `unit_of_institution:contracting_authority`); otherwise the relationship code alone. The role is never published as a separate column.\n\n**20. Rule (pick)** — Text you approved on 30 October\nPublish relationship, then ':' and the role when the role is a real answer (e.g. `unit_of_institution:contracting_authority`); otherwise the relationship alone. Missing role labels stay internal.\n\n**21. Long-page rule (role part)** — Agent edit of the signed questionnaire\nthe role part is taken from the same part that produced the relationship",
+   "body_label": "Show the 21 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I05",
+   "kind": "review",
+   "title": "activity type",
+   "situation": "Question: G3O activity typology. See definitions below.\n\nRecorded per activity.\n\n9 slots: 7 × old production text (version 2.5): rewrite or delete; 2 × plan text.",
+   "body": "**1. Question** — Old production text (version 2.5): rewrite or delete · may be deleted\nG3O activity typology. See definitions below.\n\n**2. Value `policy_guidance`** — Old production text (version 2.5): rewrite or delete · may be deleted\nExecutive orders, agency memos, acceptable-use rules, procurement standards, internal guidance on permissible GenAI tools and data handling.\n\n**3. Value `pilot_experiment`** — Old production text (version 2.5): rewrite or delete · may be deleted\nLimited trials, sandboxes, proof-of-concept deployments, or time-bounded experiments.\n\n**4. Value `program_initiative`** — Old production text (version 2.5): rewrite or delete · may be deleted\nCross-agency programs, governance bodies, training programs, or platform rollouts spanning multiple units.\n\n**5. Value `internal_operational`** — Old production text (version 2.5): rewrite or delete · may be deleted\nRoutine internal use for drafting, summarization, knowledge search, translation, internal helpdesks, or developer tooling.\n\n**6. Value `public_facing_service`** — Old production text (version 2.5): rewrite or delete · may be deleted\nCitizen- or business-facing chatbots, service navigation, translation, complaint handling, case triage.\n\n**7. Value `unknown`** — Old production text (version 2.5): rewrite or delete · may be deleted\nEvidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate from the available sources. Use only after the five kinds above have been considered and none is supportable -- never as a default.\n\n**8. Rule** — Plan text, version 2.5 contract\n**Rule: policy vs. pilot.** If an institution has issued a GenAI policy AND is running a pilot, these are **two distinct activities**. Produce separate rows for each (with their respective sources).\n\n**9. Rule** — Plan text, version 2.5 contract\n**Rule: country-wide program.** If a national program exists but this specific institution's participation is confirmed by a source, record it as an activity. If participation is NOT confirmed, do NOT record an activity row -- instead produce a row with `has_genai_activity` = `unclear`, `genai_evidence` = `ambiguous`, and flag `institution_attribution`.",
+   "body_label": "Show the 9 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I06",
+   "kind": "review",
+   "title": "action type",
+   "situation": "Recorded per activity.\n\n7 slots: 5 × new agent draft (round 4); 2 × plan text.",
+   "body": "**1. Value `deployment`** — New agent draft (round 4)\nThe institution puts a GenAI tool to use, or tries one out, for its own work or for the public. The stage and the purchase status are coded separately.\n_Draft certainty: medium._\n\n**2. Value `governance`** — New agent draft (round 4)\nThe institution issues or applies a rule on GenAI use: a policy, guidance, approved-tool list, order or standard. A body that sets or oversees such rules also counts.\n_Draft certainty: medium._\n\n**3. Value `staff_training`** — New agent draft (round 4)\nThe institution trains its own staff to use GenAI.\n_Draft certainty: high._\n\n**4. Value `program`** — New agent draft (round 4)\nA container activity whose named components are each their own activity, linked to it. Used only when the page names the components.\n_Draft certainty: high._\n\n**5. Value `unknown`** — New agent draft (round 4)\nThe page mentions the activity but does not let it be settled.\n_Draft certainty: high._ _Note: The code `unknown` is also a reserved missing-answer label; template check 8 says a value code never equals one. You may want this value dropped in favour of the reserved label._\n\n**6. Rule** — Plan text, from review round 1\njev Choice per activity: deployment / procurement / governance / staff_training / proposal / program / unknown. (Whether `proposal` is a type or only a stage is a PI choice.)\n\n**7. Rule** — Plan text, from review round 2\nDrop 'proposal' and 'procurement' from action type, since stage and procurement status carry those, and define 'program' as a container used only with named components. Your action-type choice is re-ruled and the values fixed before the version steps.",
+   "body_label": "Show the 7 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I07",
+   "kind": "review",
+   "title": "adoption stage",
+   "situation": "Recorded per activity.\n\n11 slots: 7 × old production text (version 2.5): rewrite or delete; 3 × plan text; 1 × text you approved on 30 October.",
+   "body": "**1. Value `proposed`** — Old production text (version 2.5): rewrite or delete · may be deleted\nExploratory or hedged intent with no concrete commitment: \"considering,\" \"exploring,\" \"studying feasibility,\" early discussions, unfunded or undated ideas. The text must still be explicitly generative-AI and tied to this institution. No named tool tied to a timeline, no signed MoU or contract, no budget line, no adopted policy.\n\n**2. Value `announced`** — Old production text (version 2.5): rewrite or delete · may be deleted\nPublicly stated intent to deploy with a concrete, documented commitment but no evidence of actual use. Includes: MoUs, budget allocations without deployment, strategy timelines.\n\n**3. Value `pilot`** — Old production text (version 2.5): rewrite or delete · may be deleted\nLimited deployment: subset of users/departments/use cases; described as trial/pilot/PoC/experiment; time-bounded.\n\n**4. Value `production`** — Old production text (version 2.5): rewrite or delete · may be deleted\nFully operational: available to intended user base, no longer experimental, in routine operations.\n\n**5. Value `discontinued`** — Old production text (version 2.5): rewrite or delete · may be deleted\nPreviously deployed but explicitly ended, cancelled, or suspended.\n\n**6. Value `unknown`** — Old production text (version 2.5): rewrite or delete · may be deleted\nEvidence confirms GenAI activity exists but stage is indeterminate.\n\n**7. Rule** — Plan text, from review round 1\nKeep adoption_stage for use; add `procurement_status`: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown. Payment-only activities get adoption_stage `unknown` (as in the Clay fixtures) plus procurement_status `payment_or_subscription`.\n\n**8. Rule** — Plan text, from review round 2\nPurchase records fill the purchase-status field and get an \"unknown\" adoption stage unless use is shown. The owed contract amendment shrinks to removing purchase language, the procurement rules are amended, and the evidence-tier wording is fixed.\n\n**9. Rule** — Plan text, from the specification\nThe procurement subproject's owed §4.3 contract amendment is carried in v2.7, in the same version bumps. RC-D-002 row 27: the §4.3 amendment shrinks to removing purchase language (r2#14), and no longer waits on procurement's owed text. [wording: PI — RC-D-002 row 27: §4.3 text]\n\n**10. Rule** — Old production text (version 2.5): rewrite or delete · may be deleted\n**\"Permanent pilot\" rule:** If described as \"pilot\" but running >12 months AND serving the full intended user base, code `production`. Note in `scope_notes`: \"Described as pilot but operational >12 months with full user base.\"\n\n**11. Long-page rule (permanent pilot across parts)** — Text you approved on 30 October\nThe stage question applies the permanent-pilot rule inside each part. If the facts (over 12 months; full user base) sit in different parts, no part reaches production and the combined stage stays pilot. The codebook states this case.",
+   "body_label": "Show the 11 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I08",
+   "kind": "review",
+   "title": "procurement status",
+   "situation": "Recorded per activity.\n\n7 slots: 5 × new agent draft (round 4); 2 × plan text.",
+   "body": "**1. Value `none_documented`** — New agent draft (round 4)\nThe page documents the activity but no purchase step for it.\n_Draft certainty: medium._ _Note: This value is close to the reserved label \"not documented\"; you may want to say how the two differ._\n\n**2. Value `tender_or_rfp`** — New agent draft (round 4)\nThe institution has issued a call for tenders, a request for proposals or a similar invitation to bid for the tool or service.\n_Draft certainty: medium._\n\n**3. Value `award_or_contract`** — New agent draft (round 4)\nA contract, award or licence agreement for the tool or service is reported as made.\n_Draft certainty: medium._\n\n**4. Value `payment_or_subscription`** — New agent draft (round 4)\nThe page records a payment, invoice or subscription for the tool or service. On its own this does not show use; the stage is then unknown unless use is shown.\n_Draft certainty: high._\n\n**5. Value `unknown`** — New agent draft (round 4)\nThe page mentions a purchase of the tool or service but does not let it be settled.\n_Draft certainty: high._ _Note: The code `unknown` is also a reserved missing-answer label; template check 8 says a value code never equals one. You may want this value dropped in favour of the reserved label._\n\n**6. Rule** — Plan text, from review round 1\nKeep adoption_stage for use; add `procurement_status`: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown. Payment-only activities get adoption_stage `unknown` (as in the Clay fixtures) plus procurement_status `payment_or_subscription`.\n\n**7. Rule** — Plan text, from review round 2\nPurchase records fill the purchase-status field and get an \"unknown\" adoption stage unless use is shown. The owed contract amendment shrinks to removing purchase language, the procurement rules are amended, and the evidence-tier wording is fixed.",
+   "body_label": "Show the 7 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I09",
+   "kind": "review",
+   "title": "model origin",
+   "situation": "Recorded per activity.\n\n5 slots: 4 × new agent draft (round 4); 1 × plan text.",
+   "body": "**1. Value `commercial`** — New agent draft (round 4)\nThe model comes from a commercial provider (for example OpenAI, Microsoft, Google or Anthropic) and is used through its product, licence or programming interface.\n_Draft certainty: medium._\n\n**2. Value `open_weight`** — New agent draft (round 4)\nThe model's weights are openly released (for example Llama, Mistral or Falcon), whether the institution or a provider runs it.\n_Draft certainty: medium._\n\n**3. Value `government_developed`** — New agent draft (round 4)\nThe model was developed by or for a government (for example France's Albert or Germany's OpenGPT-X), including by the institution's own team.\n_Draft certainty: medium._ _Note: v2.5 kept 'in house' apart from 'sovereign'; this draft folds both into one value. You may want them kept apart._\n\n**4. Value `unknown`** — New agent draft (round 4)\nThe page mentions the model behind the tool but does not let it be settled.\n_Draft certainty: high._ _Note: The code `unknown` is also a reserved missing-answer label; template check 8 says a value code never equals one. You may want this value dropped in favour of the reserved label._\n\n**5. Rule** — Plan text, from review round 1\n`model_origin`: commercial / open_weight / government_developed / unknown. `build_arrangement`: off_the_shelf_product / custom_application_on_external_model / model_trained_or_fine_tuned_by_institution / unknown.",
+   "body_label": "Show the 5 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I10",
+   "kind": "review",
+   "title": "build arrangement",
+   "situation": "Recorded per activity.\n\n5 slots: 4 × new agent draft (round 4); 1 × plan text.",
+   "body": "**1. Value `off_the_shelf_product`** — New agent draft (round 4)\nThe institution uses a ready-made product as supplied (for example a commercial chat assistant or an office-suite assistant), set up but not built on.\n_Draft certainty: medium._\n\n**2. Value `custom_application_on_external_model`** — New agent draft (round 4)\nThe institution, or a contractor for it, built its own application (a chatbot, assistant or workflow) on a model it did not train.\n_Draft certainty: medium._\n\n**3. Value `model_trained_or_fine_tuned_by_institution`** — New agent draft (round 4)\nThe institution, or a contractor for it, trained or fine-tuned the model itself. Internal use alone does not show this.\n_Draft certainty: medium._\n\n**4. Value `unknown`** — New agent draft (round 4)\nThe page mentions how the tool was built but does not let it be settled.\n_Draft certainty: high._ _Note: The code `unknown` is also a reserved missing-answer label; template check 8 says a value code never equals one. You may want this value dropped in favour of the reserved label._\n\n**5. Rule** — Plan text, from review round 1\n`model_origin`: commercial / open_weight / government_developed / unknown. `build_arrangement`: off_the_shelf_product / custom_application_on_external_model / model_trained_or_fine_tuned_by_institution / unknown.",
+   "body_label": "Show the 5 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I11",
+   "kind": "review",
+   "title": "interface",
+   "situation": "Recorded per activity.\n\n7 slots: 3 × new agent draft (round 4); 2 × plan text; 2 × option text you chose in round 3.",
+   "body": "**1. Value `conversational`** — New agent draft (round 4)\nUsers type or speak to the tool in a chat or question-and-answer exchange, as with a chatbot or assistant window.\n_Draft certainty: medium._\n\n**2. Value `backend_or_api`** — New agent draft (round 4)\nThe tool runs behind the scenes, or other software calls it through a programming interface; users do not talk to it directly.\n_Draft certainty: medium._\n\n**3. Value `other_interface`** — New agent draft (round 4)\nUsers reach the tool in another way than a chat exchange or a back-end connection.\n_Draft certainty: low._ _Note: Kept minimal: the ruling names the value only. Integrated versus standalone is carried by deployment mode (R2 n=20 b), not here._\n\n**4. Rule** — Plan text, from review round 1\n`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.\n\n**5. Rule** — Plan text, from review round 2\nInterface becomes conversational / back-end or API / other interface / not applicable / unknown, and deployment mode carries integrated versus standalone. This costs two version steps, regenerated questions and reference tests, a procurement copy change, and re-testing the interface question.\n\n**6. Rule** — Option text you chose in round 3\nThe classifier chooses among the real interfaces and the missing-answer labels.\n\n**7. Rule** — Option text you chose in round 3\nA silent page gets \"not documented\"; a page that mentions the matter but cannot be settled gets \"unknown\".",
+   "body_label": "Show the 7 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I12",
+   "kind": "review",
+   "title": "function drafting writing",
+   "situation": "Recorded per activity.\n\n3 slots: 2 × new agent draft (round 4); 1 × plan text.",
+   "body": "**1. Value `yes`** — New agent draft (round 4)\nThe page states that the tool is used for drafting or writing text, such as memos, letters, press releases or social media posts.\n_Draft certainty: medium._\n\n**2. Value `no`** — New agent draft (round 4)\nThe page does not state that the tool is used for drafting or writing text, such as memos, letters, press releases or social media posts.\n_Draft certainty: medium._\n\n**3. Rule** — Plan text, from review round 1\n`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I13",
+   "kind": "review",
+   "title": "function summarization",
+   "situation": "Recorded per activity.\n\n3 slots: 2 × new agent draft (round 4); 1 × plan text.",
+   "body": "**1. Value `yes`** — New agent draft (round 4)\nThe page states that the tool is used for summarising documents, reports or meetings.\n_Draft certainty: medium._\n\n**2. Value `no`** — New agent draft (round 4)\nThe page does not state that the tool is used for summarising documents, reports or meetings.\n_Draft certainty: medium._\n\n**3. Rule** — Plan text, from review round 1\n`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I14",
+   "kind": "review",
+   "title": "function translation",
+   "situation": "Recorded per activity.\n\n3 slots: 2 × new agent draft (round 4); 1 × plan text.",
+   "body": "**1. Value `yes`** — New agent draft (round 4)\nThe page states that the tool is used for translating text or speech between languages.\n_Draft certainty: medium._\n\n**2. Value `no`** — New agent draft (round 4)\nThe page does not state that the tool is used for translating text or speech between languages.\n_Draft certainty: medium._\n\n**3. Rule** — Plan text, from review round 1\n`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I15",
+   "kind": "review",
+   "title": "function search retrieval",
+   "situation": "Recorded per activity.\n\n3 slots: 2 × new agent draft (round 4); 1 × plan text.",
+   "body": "**1. Value `yes`** — New agent draft (round 4)\nThe page states that the tool is used for finding information, such as answering questions from documents or searching the institution's own records.\n_Draft certainty: medium._\n\n**2. Value `no`** — New agent draft (round 4)\nThe page does not state that the tool is used for finding information, such as answering questions from documents or searching the institution's own records.\n_Draft certainty: medium._\n\n**3. Rule** — Plan text, from review round 1\n`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I16",
+   "kind": "review",
+   "title": "function code",
+   "situation": "Recorded per activity.\n\n3 slots: 2 × new agent draft (round 4); 1 × plan text.",
+   "body": "**1. Value `yes`** — New agent draft (round 4)\nThe page states that the tool is used for writing, reviewing or fixing software code.\n_Draft certainty: medium._\n\n**2. Value `no`** — New agent draft (round 4)\nThe page does not state that the tool is used for writing, reviewing or fixing software code.\n_Draft certainty: medium._\n\n**3. Rule** — Plan text, from review round 1\n`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I17",
+   "kind": "review",
+   "title": "function image audio video",
+   "situation": "Recorded per activity.\n\n3 slots: 2 × new agent draft (round 4); 1 × plan text.",
+   "body": "**1. Value `yes`** — New agent draft (round 4)\nThe page states that the tool is used for creating or editing images, audio or video.\n_Draft certainty: medium._\n\n**2. Value `no`** — New agent draft (round 4)\nThe page does not state that the tool is used for creating or editing images, audio or video.\n_Draft certainty: medium._\n\n**3. Rule** — Plan text, from review round 1\n`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.",
+   "body_label": "Show the 3 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "O1",
+   "kind": "review",
+   "title": "Same rule written twice: observed actor relationship",
+   "situation": "Two slots in the item card I04 say the same thing about when the searched institution's role is asked: slot 12 (plan text) and slot 17 (text you approved on 30 October). You asked to keep one of each such pair.",
+   "body": "**Slot 12, plan text:**\nRC-D-002 row 7: the observed-actor relationship is coded per activity, not per page, with a QC flag on `confirms_activity` pages that have no own / unit / joint activity; the attribution role becomes the second of two linked parts of that relationship (relationship; role of the searched institution, \"not asked\" when the relationship is unresolved), describes only the searched institution, and counts \"beneficiary\" only when the page names it (activity-14 b); the two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone (O8); there is no separate published P06 column. The observed actor's own role is kept as a separate internal item, `observed_actor_role`, and not published (activity-15 a); the C04 grain rule is kept.\n\n**Slot 17, text you approved on 30 October:**\nthe role is asked when the relationship is `other`; skipped only when `unresolved`",
+   "body_label": "Compare the two texts",
+   "options": [
+    {
+     "id": "keep-plan",
+     "label": "Keep slot 12 (plan text); delete slot 17"
+    },
+    {
+     "id": "keep-approved",
+     "label": "Keep slot 17 (approved text); delete slot 12"
+    },
+    {
+     "id": "keep-both",
+     "label": "Keep both"
+    }
+   ]
+  },
+  {
+   "id": "O2",
+   "kind": "review",
+   "title": "Same rule written twice: observed actor relationship",
+   "situation": "Two slots in the item card I04 say the same thing about how the relationship and role are published as one column: slot 12 (plan text) and slot 19 (text you approved on 30 October). You asked to keep one of each such pair.",
+   "body": "**Slot 12, plan text:**\nRC-D-002 row 7: the observed-actor relationship is coded per activity, not per page, with a QC flag on `confirms_activity` pages that have no own / unit / joint activity; the attribution role becomes the second of two linked parts of that relationship (relationship; role of the searched institution, \"not asked\" when the relationship is unresolved), describes only the searched institution, and counts \"beneficiary\" only when the page names it (activity-14 b); the two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone (O8); there is no separate published P06 column. The observed actor's own role is kept as a separate internal item, `observed_actor_role`, and not published (activity-15 a); the C04 grain rule is kept.\n\n**Slot 19, text you approved on 30 October:**\nPublished as one column: the relationship code, then `:` and the role code when the role is a real answer (e.g. `unit_of_institution:contracting_authority`); otherwise the relationship code alone. The role is never published as a separate column.",
+   "body_label": "Compare the two texts",
+   "options": [
+    {
+     "id": "keep-plan",
+     "label": "Keep slot 12 (plan text); delete slot 19"
+    },
+    {
+     "id": "keep-approved",
+     "label": "Keep slot 19 (approved text); delete slot 12"
+    },
+    {
+     "id": "keep-both",
+     "label": "Keep both"
+    }
+   ]
+  }
+ ],
+ "slot_map": {
+  "I01": {
+   "owner": "core.activity_segment",
+   "slots": {
+    "1": "items/core.activity_segment/instruction",
+    "2": "items/core.activity_segment/values/0/definition",
+    "3": "items/core.activity_segment/values/1/definition",
+    "4": "items/core.activity_segment/values/2/definition",
+    "5": "items/core.activity_segment/values/3/definition",
+    "6": "items/core.activity_segment/values/4/definition",
+    "7": "items/core.activity_segment/values/5/definition",
+    "8": "items/core.activity_segment/values/6/definition",
+    "9": "items/core.activity_segment/values/7/definition",
+    "10": "items/core.activity_segment/values/8/definition",
+    "11": "items/core.activity_segment/rules/1",
+    "12": "items/core.activity_segment/rules/2",
+    "13": "items/core.activity_segment/rules/3",
+    "14": "items/core.activity_segment/rules/4"
+   }
+  },
+  "I02": {
+   "owner": "core.activity_name",
+   "slots": {
+    "1": "items/core.activity_name/instruction"
+   }
+  },
+  "I03": {
+   "owner": "core.observed_actor_name",
+   "slots": {
+    "1": "items/core.observed_actor_name/rules/0"
+   }
+  },
+  "I04": {
+   "owner": "core.observed_actor_relationship",
+   "slots": {
+    "1": "items/core.observed_actor_relationship/values/relationship/0/definition",
+    "2": "items/core.observed_actor_relationship/values/relationship/1/definition",
+    "3": "items/core.observed_actor_relationship/values/relationship/2/definition",
+    "4": "items/core.observed_actor_relationship/values/relationship/3/definition",
+    "5": "items/core.observed_actor_relationship/values/relationship/4/definition",
+    "6": "items/core.observed_actor_relationship/values/searched_institution_role/0/definition",
+    "7": "items/core.observed_actor_relationship/values/searched_institution_role/1/definition",
+    "8": "items/core.observed_actor_relationship/values/searched_institution_role/2/definition",
+    "9": "items/core.observed_actor_relationship/values/searched_institution_role/3/definition",
+    "10": "items/core.observed_actor_relationship/values/searched_institution_role/4/definition",
+    "11": "items/core.observed_actor_relationship/values/role_gate/text",
+    "12": "items/core.observed_actor_relationship/rules/0",
+    "13": "items/core.observed_actor_relationship/rules/1",
+    "14": "items/core.observed_actor_relationship/rules/2",
+    "15": "items/core.observed_actor_relationship/rules/4",
+    "16": "items/core.observed_actor_relationship/rules/5",
+    "17": "items/core.observed_actor_relationship/rules/6",
+    "18": "items/core.observed_actor_relationship/rules/7",
+    "19": "items/core.observed_actor_relationship/rules/8",
+    "20": "items/core.observed_actor_relationship/rules/8/pick",
+    "21": "items/core.observed_actor_relationship/long_page_rule/role_part"
+   }
+  },
+  "I05": {
+   "owner": "core.activity_type",
+   "slots": {
+    "1": "items/core.activity_type/instruction",
+    "2": "items/core.activity_type/values/0/definition",
+    "3": "items/core.activity_type/values/1/definition",
+    "4": "items/core.activity_type/values/2/definition",
+    "5": "items/core.activity_type/values/3/definition",
+    "6": "items/core.activity_type/values/4/definition",
+    "7": "items/core.activity_type/values/5/definition",
+    "8": "items/core.activity_type/rules/0",
+    "9": "items/core.activity_type/rules/1"
+   }
+  },
+  "I06": {
+   "owner": "core.action_type",
+   "slots": {
+    "1": "items/core.action_type/values/0/definition",
+    "2": "items/core.action_type/values/1/definition",
+    "3": "items/core.action_type/values/2/definition",
+    "4": "items/core.action_type/values/3/definition",
+    "5": "items/core.action_type/values/4/definition",
+    "6": "items/core.action_type/rules/0",
+    "7": "items/core.action_type/rules/1"
+   }
+  },
+  "I07": {
+   "owner": "core.adoption_stage",
+   "slots": {
+    "1": "items/core.adoption_stage/values/0/definition",
+    "2": "items/core.adoption_stage/values/1/definition",
+    "3": "items/core.adoption_stage/values/2/definition",
+    "4": "items/core.adoption_stage/values/3/definition",
+    "5": "items/core.adoption_stage/values/4/definition",
+    "6": "items/core.adoption_stage/values/5/definition",
+    "7": "items/core.adoption_stage/rules/0",
+    "8": "items/core.adoption_stage/rules/1",
+    "9": "items/core.adoption_stage/rules/2",
+    "10": "items/core.adoption_stage/rules/4",
+    "11": "items/core.adoption_stage/long_page_rule/permanent_pilot_across_parts/text"
+   }
+  },
+  "I08": {
+   "owner": "core.procurement_status",
+   "slots": {
+    "1": "items/core.procurement_status/values/0/definition",
+    "2": "items/core.procurement_status/values/1/definition",
+    "3": "items/core.procurement_status/values/2/definition",
+    "4": "items/core.procurement_status/values/3/definition",
+    "5": "items/core.procurement_status/values/4/definition",
+    "6": "items/core.procurement_status/rules/0",
+    "7": "items/core.procurement_status/rules/1"
+   }
+  },
+  "I09": {
+   "owner": "core.model_origin",
+   "slots": {
+    "1": "items/core.model_origin/values/0/definition",
+    "2": "items/core.model_origin/values/1/definition",
+    "3": "items/core.model_origin/values/2/definition",
+    "4": "items/core.model_origin/values/3/definition",
+    "5": "items/core.model_origin/rules/0"
+   }
+  },
+  "I10": {
+   "owner": "core.build_arrangement",
+   "slots": {
+    "1": "items/core.build_arrangement/values/0/definition",
+    "2": "items/core.build_arrangement/values/1/definition",
+    "3": "items/core.build_arrangement/values/2/definition",
+    "4": "items/core.build_arrangement/values/3/definition",
+    "5": "items/core.build_arrangement/rules/0"
+   }
+  },
+  "I11": {
+   "owner": "core.interface",
+   "slots": {
+    "1": "items/core.interface/values/0/definition",
+    "2": "items/core.interface/values/1/definition",
+    "3": "items/core.interface/values/2/definition",
+    "4": "items/core.interface/rules/0",
+    "5": "items/core.interface/rules/1",
+    "6": "items/core.interface/rules/2",
+    "7": "items/core.interface/rules/3"
+   }
+  },
+  "I12": {
+   "owner": "core.function_drafting_writing",
+   "slots": {
+    "1": "items/core.function_drafting_writing/values/0/definition",
+    "2": "items/core.function_drafting_writing/values/1/definition",
+    "3": "items/core.function_drafting_writing/rules/0"
+   }
+  },
+  "I13": {
+   "owner": "core.function_summarization",
+   "slots": {
+    "1": "items/core.function_summarization/values/0/definition",
+    "2": "items/core.function_summarization/values/1/definition",
+    "3": "items/core.function_summarization/rules/0"
+   }
+  },
+  "I14": {
+   "owner": "core.function_translation",
+   "slots": {
+    "1": "items/core.function_translation/values/0/definition",
+    "2": "items/core.function_translation/values/1/definition",
+    "3": "items/core.function_translation/rules/0"
+   }
+  },
+  "I15": {
+   "owner": "core.function_search_retrieval",
+   "slots": {
+    "1": "items/core.function_search_retrieval/values/0/definition",
+    "2": "items/core.function_search_retrieval/values/1/definition",
+    "3": "items/core.function_search_retrieval/rules/0"
+   }
+  },
+  "I16": {
+   "owner": "core.function_code",
+   "slots": {
+    "1": "items/core.function_code/values/0/definition",
+    "2": "items/core.function_code/values/1/definition",
+    "3": "items/core.function_code/rules/0"
+   }
+  },
+  "I17": {
+   "owner": "core.function_image_audio_video",
+   "slots": {
+    "1": "items/core.function_image_audio_video/values/0/definition",
+    "2": "items/core.function_image_audio_video/values/1/definition",
+    "3": "items/core.function_image_audio_video/rules/0"
+   }
+  },
+  "O1": {
+   "owner": "core.observed_actor_relationship",
+   "pair": [
+    "items/core.observed_actor_relationship/rules/0",
+    "items/core.observed_actor_relationship/rules/6"
+   ]
+  },
+  "O2": {
+   "owner": "core.observed_actor_relationship",
+   "pair": [
+    "items/core.observed_actor_relationship/rules/0",
+    "items/core.observed_actor_relationship/rules/8"
+   ]
+  }
+ }
+}

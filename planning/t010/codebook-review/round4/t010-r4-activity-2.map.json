@@ -1,0 +1,193 @@
+{
+ "I01": {
+  "owner": "core.function_extraction_classification",
+  "slots": {
+   "1": "items/core.function_extraction_classification/values/0/definition",
+   "2": "items/core.function_extraction_classification/values/1/definition",
+   "3": "items/core.function_extraction_classification/rules/0"
+  }
+ },
+ "I02": {
+  "owner": "core.function_analysis_recommendation",
+  "slots": {
+   "1": "items/core.function_analysis_recommendation/values/0/definition",
+   "2": "items/core.function_analysis_recommendation/values/1/definition",
+   "3": "items/core.function_analysis_recommendation/rules/0"
+  }
+ },
+ "I03": {
+  "owner": "core.tool_name",
+  "slots": {
+   "1": "items/core.tool_name/instruction",
+   "2": "items/core.tool_name/rules/0",
+   "3": "items/core.tool_name/rules/1",
+   "4": "items/core.tool_name/translation_v25/series_break"
+  }
+ },
+ "I04": {
+  "owner": "core.model_name",
+  "slots": {
+   "1": "items/core.model_name/rules/0",
+   "2": "items/core.model_name/rules/1"
+  }
+ },
+ "I05": {
+  "owner": "core.contracting_party",
+  "slots": {
+   "1": "items/core.contracting_party/rules/0",
+   "2": "items/core.contracting_party/rules/1",
+   "3": "items/core.contracting_party/rules/2",
+   "4": "items/core.contracting_party/translation_v25/series_break"
+  }
+ },
+ "I06": {
+  "owner": "core.developer",
+  "slots": {
+   "1": "items/core.developer/rules/0",
+   "2": "items/core.developer/rules/1",
+   "3": "items/core.developer/rules/2",
+   "4": "items/core.developer/translation_v25/series_break"
+  }
+ },
+ "I07": {
+  "owner": "core.developer_basis",
+  "slots": {
+   "1": "items/core.developer_basis/rules/0",
+   "2": "items/core.developer_basis/rules/1"
+  }
+ },
+ "I08": {
+  "owner": "core.deployment_mode",
+  "slots": {
+   "1": "items/core.deployment_mode/instruction",
+   "2": "items/core.deployment_mode/values/0/definition",
+   "3": "items/core.deployment_mode/values/1/definition",
+   "4": "items/core.deployment_mode/values/2/definition"
+  }
+ },
+ "I09": {
+  "owner": "core.target_users",
+  "slots": {
+   "1": "items/core.target_users/instruction",
+   "2": "items/core.target_users/values/0/definition",
+   "3": "items/core.target_users/values/1/definition",
+   "4": "items/core.target_users/values/2/definition",
+   "5": "items/core.target_users/values/3/definition",
+   "6": "items/core.target_users/rules/0",
+   "7": "items/core.target_users/long_page_rule/mapping/other_lists",
+   "8": "items/core.target_users/long_page_rule/text/0",
+   "9": "items/core.target_users/long_page_rule/text/1"
+  }
+ },
+ "I10": {
+  "owner": "core.governed_population",
+  "slots": {
+   "1": "items/core.governed_population/values/0/definition",
+   "2": "items/core.governed_population/values/1/definition",
+   "3": "items/core.governed_population/values/2/definition",
+   "4": "items/core.governed_population/values/3/definition",
+   "5": "items/core.governed_population/rules/0",
+   "6": "items/core.governed_population/long_page_rule/mapping/other_lists",
+   "7": "items/core.governed_population/long_page_rule/text/0",
+   "8": "items/core.governed_population/long_page_rule/text/1"
+  }
+ },
+ "I11": {
+  "owner": "core.governance_form",
+  "slots": {
+   "1": "items/core.governance_form/values/0/definition",
+   "2": "items/core.governance_form/values/1/definition",
+   "3": "items/core.governance_form/values/2/definition",
+   "4": "items/core.governance_form/values/3/definition",
+   "5": "items/core.governance_form/values/4/definition",
+   "6": "items/core.governance_form/values/5/definition",
+   "7": "items/core.governance_form/rules/0",
+   "8": "items/core.governance_form/rules/1"
+  }
+ },
+ "I12": {
+  "owner": "core.governance_direction",
+  "slots": {
+   "1": "items/core.governance_direction/values/0/definition",
+   "2": "items/core.governance_direction/values/1/definition",
+   "3": "items/core.governance_direction/values/2/definition",
+   "4": "items/core.governance_direction/values/3/definition",
+   "5": "items/core.governance_direction/values/4/definition",
+   "6": "items/core.governance_direction/rules/0",
+   "7": "items/core.governance_direction/rules/1",
+   "8": "items/core.governance_direction/rules/2",
+   "9": "items/core.governance_direction/rules/3",
+   "10": "items/core.governance_direction/long_page_rule/rank_of_requires_vs_promotes",
+   "11": "items/core.governance_direction/long_page_rule/mapping/text"
+  }
+ },
+ "I13": {
+  "owner": "core.service_domain",
+  "slots": {
+   "1": "items/core.service_domain/values/0/definition",
+   "2": "items/core.service_domain/values/1/definition",
+   "3": "items/core.service_domain/values/2/definition",
+   "4": "items/core.service_domain/values/3/definition",
+   "5": "items/core.service_domain/values/4/definition",
+   "6": "items/core.service_domain/values/5/definition",
+   "7": "items/core.service_domain/values/6/definition",
+   "8": "items/core.service_domain/values/7/definition",
+   "9": "items/core.service_domain/values/8/definition",
+   "10": "items/core.service_domain/values/9/definition",
+   "11": "items/core.service_domain/values/10/definition",
+   "12": "items/core.service_domain/rules/0",
+   "13": "items/core.service_domain/rules/1",
+   "14": "items/core.service_domain/rules/2",
+   "15": "items/core.service_domain/rules/3",
+   "16": "items/core.service_domain/rules/4",
+   "17": "items/core.service_domain/rules/5",
+   "18": "items/core.service_domain/long_page_rule/multi_select_vs_single_winner"
+  }
+ },
+ "I14": {
+  "owner": "core.genai_mechanism_basis",
+  "slots": {
+   "1": "items/core.genai_mechanism_basis/values/0/definition",
+   "2": "items/core.genai_mechanism_basis/values/1/definition",
+   "3": "items/core.genai_mechanism_basis/values/2/definition",
+   "4": "items/core.genai_mechanism_basis/values/3/definition",
+   "5": "items/core.genai_mechanism_basis/rules/0"
+  }
+ },
+ "I15": {
+  "owner": "core.year_announced",
+  "slots": {
+   "1": "items/core.year_announced/instruction",
+   "2": "items/core.year_announced/rules/0",
+   "3": "items/core.year_announced/rules/1"
+  }
+ },
+ "I16": {
+  "owner": "core.year_pilot_start",
+  "slots": {
+   "1": "items/core.year_pilot_start/rules/0",
+   "2": "items/core.year_pilot_start/rules/1",
+   "3": "items/core.year_pilot_start/rules/2",
+   "4": "items/core.year_pilot_start/translation_v25/series_break"
+  }
+ },
+ "I17": {
+  "owner": "core.year_production_start",
+  "slots": {
+   "1": "items/core.year_production_start/rules/0",
+   "2": "items/core.year_production_start/rules/1",
+   "3": "items/core.year_production_start/rules/2",
+   "4": "items/core.year_production_start/translation_v25/series_break"
+  }
+ },
+ "I18": {
+  "owner": "core.deployment_scale_number",
+  "slots": {
+   "1": "items/core.deployment_scale_number/rules/0",
+   "2": "items/core.deployment_scale_number/rules/1",
+   "3": "items/core.deployment_scale_number/rules/2",
+   "4": "items/core.deployment_scale_number/long_page_rule/text/0",
+   "5": "items/core.deployment_scale_number/long_page_rule/text/1"
+  }
+ }
+}

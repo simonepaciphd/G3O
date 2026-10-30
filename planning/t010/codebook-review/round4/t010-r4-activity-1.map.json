@@ -1,0 +1,207 @@
+{
+ "I01": {
+  "owner": "core.activity_segment",
+  "slots": {
+   "1": "items/core.activity_segment/instruction",
+   "2": "items/core.activity_segment/values/0/definition",
+   "3": "items/core.activity_segment/values/1/definition",
+   "4": "items/core.activity_segment/values/2/definition",
+   "5": "items/core.activity_segment/values/3/definition",
+   "6": "items/core.activity_segment/values/4/definition",
+   "7": "items/core.activity_segment/values/5/definition",
+   "8": "items/core.activity_segment/values/6/definition",
+   "9": "items/core.activity_segment/values/7/definition",
+   "10": "items/core.activity_segment/values/8/definition",
+   "11": "items/core.activity_segment/rules/1",
+   "12": "items/core.activity_segment/rules/2",
+   "13": "items/core.activity_segment/rules/3",
+   "14": "items/core.activity_segment/rules/4"
+  }
+ },
+ "I02": {
+  "owner": "core.activity_name",
+  "slots": {
+   "1": "items/core.activity_name/instruction"
+  }
+ },
+ "I03": {
+  "owner": "core.observed_actor_name",
+  "slots": {
+   "1": "items/core.observed_actor_name/rules/0"
+  }
+ },
+ "I04": {
+  "owner": "core.observed_actor_relationship",
+  "slots": {
+   "1": "items/core.observed_actor_relationship/values/relationship/0/definition",
+   "2": "items/core.observed_actor_relationship/values/relationship/1/definition",
+   "3": "items/core.observed_actor_relationship/values/relationship/2/definition",
+   "4": "items/core.observed_actor_relationship/values/relationship/3/definition",
+   "5": "items/core.observed_actor_relationship/values/relationship/4/definition",
+   "6": "items/core.observed_actor_relationship/values/searched_institution_role/0/definition",
+   "7": "items/core.observed_actor_relationship/values/searched_institution_role/1/definition",
+   "8": "items/core.observed_actor_relationship/values/searched_institution_role/2/definition",
+   "9": "items/core.observed_actor_relationship/values/searched_institution_role/3/definition",
+   "10": "items/core.observed_actor_relationship/values/searched_institution_role/4/definition",
+   "11": "items/core.observed_actor_relationship/values/role_gate/text",
+   "12": "items/core.observed_actor_relationship/rules/0",
+   "13": "items/core.observed_actor_relationship/rules/1",
+   "14": "items/core.observed_actor_relationship/rules/2",
+   "15": "items/core.observed_actor_relationship/rules/4",
+   "16": "items/core.observed_actor_relationship/rules/5",
+   "17": "items/core.observed_actor_relationship/rules/6",
+   "18": "items/core.observed_actor_relationship/rules/7",
+   "19": "items/core.observed_actor_relationship/rules/8",
+   "20": "items/core.observed_actor_relationship/rules/8/pick",
+   "21": "items/core.observed_actor_relationship/long_page_rule/role_part"
+  }
+ },
+ "I05": {
+  "owner": "core.activity_type",
+  "slots": {
+   "1": "items/core.activity_type/instruction",
+   "2": "items/core.activity_type/values/0/definition",
+   "3": "items/core.activity_type/values/1/definition",
+   "4": "items/core.activity_type/values/2/definition",
+   "5": "items/core.activity_type/values/3/definition",
+   "6": "items/core.activity_type/values/4/definition",
+   "7": "items/core.activity_type/values/5/definition",
+   "8": "items/core.activity_type/rules/0",
+   "9": "items/core.activity_type/rules/1"
+  }
+ },
+ "I06": {
+  "owner": "core.action_type",
+  "slots": {
+   "1": "items/core.action_type/values/0/definition",
+   "2": "items/core.action_type/values/1/definition",
+   "3": "items/core.action_type/values/2/definition",
+   "4": "items/core.action_type/values/3/definition",
+   "5": "items/core.action_type/values/4/definition",
+   "6": "items/core.action_type/rules/0",
+   "7": "items/core.action_type/rules/1"
+  }
+ },
+ "I07": {
+  "owner": "core.adoption_stage",
+  "slots": {
+   "1": "items/core.adoption_stage/values/0/definition",
+   "2": "items/core.adoption_stage/values/1/definition",
+   "3": "items/core.adoption_stage/values/2/definition",
+   "4": "items/core.adoption_stage/values/3/definition",
+   "5": "items/core.adoption_stage/values/4/definition",
+   "6": "items/core.adoption_stage/values/5/definition",
+   "7": "items/core.adoption_stage/rules/0",
+   "8": "items/core.adoption_stage/rules/1",
+   "9": "items/core.adoption_stage/rules/2",
+   "10": "items/core.adoption_stage/rules/4",
+   "11": "items/core.adoption_stage/long_page_rule/permanent_pilot_across_parts/text"
+  }
+ },
+ "I08": {
+  "owner": "core.procurement_status",
+  "slots": {
+   "1": "items/core.procurement_status/values/0/definition",
+   "2": "items/core.procurement_status/values/1/definition",
+   "3": "items/core.procurement_status/values/2/definition",
+   "4": "items/core.procurement_status/values/3/definition",
+   "5": "items/core.procurement_status/values/4/definition",
+   "6": "items/core.procurement_status/rules/0",
+   "7": "items/core.procurement_status/rules/1"
+  }
+ },
+ "I09": {
+  "owner": "core.model_origin",
+  "slots": {
+   "1": "items/core.model_origin/values/0/definition",
+   "2": "items/core.model_origin/values/1/definition",
+   "3": "items/core.model_origin/values/2/definition",
+   "4": "items/core.model_origin/values/3/definition",
+   "5": "items/core.model_origin/rules/0"
+  }
+ },
+ "I10": {
+  "owner": "core.build_arrangement",
+  "slots": {
+   "1": "items/core.build_arrangement/values/0/definition",
+   "2": "items/core.build_arrangement/values/1/definition",
+   "3": "items/core.build_arrangement/values/2/definition",
+   "4": "items/core.build_arrangement/values/3/definition",
+   "5": "items/core.build_arrangement/rules/0"
+  }
+ },
+ "I11": {
+  "owner": "core.interface",
+  "slots": {
+   "1": "items/core.interface/values/0/definition",
+   "2": "items/core.interface/values/1/definition",
+   "3": "items/core.interface/values/2/definition",
+   "4": "items/core.interface/rules/0",
+   "5": "items/core.interface/rules/1",
+   "6": "items/core.interface/rules/2",
+   "7": "items/core.interface/rules/3"
+  }
+ },
+ "I12": {
+  "owner": "core.function_drafting_writing",
+  "slots": {
+   "1": "items/core.function_drafting_writing/values/0/definition",
+   "2": "items/core.function_drafting_writing/values/1/definition",
+   "3": "items/core.function_drafting_writing/rules/0"
+  }
+ },
+ "I13": {
+  "owner": "core.function_summarization",
+  "slots": {
+   "1": "items/core.function_summarization/values/0/definition",
+   "2": "items/core.function_summarization/values/1/definition",
+   "3": "items/core.function_summarization/rules/0"
+  }
+ },
+ "I14": {
+  "owner": "core.function_translation",
+  "slots": {
+   "1": "items/core.function_translation/values/0/definition",
+   "2": "items/core.function_translation/values/1/definition",
+   "3": "items/core.function_translation/rules/0"
+  }
+ },
+ "I15": {
+  "owner": "core.function_search_retrieval",
+  "slots": {
+   "1": "items/core.function_search_retrieval/values/0/definition",
+   "2": "items/core.function_search_retrieval/values/1/definition",
+   "3": "items/core.function_search_retrieval/rules/0"
+  }
+ },
+ "I16": {
+  "owner": "core.function_code",
+  "slots": {
+   "1": "items/core.function_code/values/0/definition",
+   "2": "items/core.function_code/values/1/definition",
+   "3": "items/core.function_code/rules/0"
+  }
+ },
+ "I17": {
+  "owner": "core.function_image_audio_video",
+  "slots": {
+   "1": "items/core.function_image_audio_video/values/0/definition",
+   "2": "items/core.function_image_audio_video/values/1/definition",
+   "3": "items/core.function_image_audio_video/rules/0"
+  }
+ },
+ "O1": {
+  "owner": "core.observed_actor_relationship",
+  "pair": [
+   "items/core.observed_actor_relationship/rules/0",
+   "items/core.observed_actor_relationship/rules/6"
+  ]
+ },
+ "O2": {
+  "owner": "core.observed_actor_relationship",
+  "pair": [
+   "items/core.observed_actor_relationship/rules/0",
+   "items/core.observed_actor_relationship/rules/8"
+  ]
+ }
+}

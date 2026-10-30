@@ -1,0 +1,220 @@
+{
+ "I01": {
+  "owner": "core.deployment_scale_unit",
+  "slots": {
+   "1": "items/core.deployment_scale_unit/values/0/definition",
+   "2": "items/core.deployment_scale_unit/values/1/definition",
+   "3": "items/core.deployment_scale_unit/values/2/definition",
+   "4": "items/core.deployment_scale_unit/values/3/definition",
+   "5": "items/core.deployment_scale_unit/values/4/definition",
+   "6": "items/core.deployment_scale_unit/rules/0",
+   "7": "items/core.deployment_scale_unit/long_page_rule/text/0",
+   "8": "items/core.deployment_scale_unit/long_page_rule/text/1"
+  }
+ },
+ "I02": {
+  "owner": "core.has_human_oversight",
+  "slots": {
+   "1": "items/core.has_human_oversight/instruction",
+   "2": "items/core.has_human_oversight/values/0/definition",
+   "3": "items/core.has_human_oversight/values/1/definition",
+   "4": "items/core.has_human_oversight/values/2/definition",
+   "5": "items/core.has_human_oversight/values/3/definition",
+   "6": "items/core.has_human_oversight/rules/1"
+  }
+ },
+ "I03": {
+  "owner": "core.has_transparency_notice",
+  "slots": {
+   "1": "items/core.has_transparency_notice/instruction",
+   "2": "items/core.has_transparency_notice/values/0/definition",
+   "3": "items/core.has_transparency_notice/values/1/definition",
+   "4": "items/core.has_transparency_notice/values/2/definition",
+   "5": "items/core.has_transparency_notice/values/3/definition",
+   "6": "items/core.has_transparency_notice/rules/1"
+  }
+ },
+ "I04": {
+  "owner": "core.has_data_classification",
+  "slots": {
+   "1": "items/core.has_data_classification/instruction",
+   "2": "items/core.has_data_classification/values/0/definition",
+   "3": "items/core.has_data_classification/values/1/definition",
+   "4": "items/core.has_data_classification/values/2/definition",
+   "5": "items/core.has_data_classification/values/3/definition",
+   "6": "items/core.has_data_classification/rules/1"
+  }
+ },
+ "I05": {
+  "owner": "core.has_risk_assessment",
+  "slots": {
+   "1": "items/core.has_risk_assessment/instruction",
+   "2": "items/core.has_risk_assessment/values/0/definition",
+   "3": "items/core.has_risk_assessment/values/1/definition",
+   "4": "items/core.has_risk_assessment/values/2/definition",
+   "5": "items/core.has_risk_assessment/values/3/definition",
+   "6": "items/core.has_risk_assessment/rules/1"
+  }
+ },
+ "I06": {
+  "owner": "core.outcome_kind",
+  "slots": {
+   "1": "items/core.outcome_kind/values/0/definition",
+   "2": "items/core.outcome_kind/values/1/definition",
+   "3": "items/core.outcome_kind/values/2/definition",
+   "4": "items/core.outcome_kind/rules/0",
+   "5": "items/core.outcome_kind/rules/3"
+  }
+ },
+ "I07": {
+  "owner": "core.incident_kind",
+  "slots": {
+   "1": "items/core.incident_kind/values/0/definition",
+   "2": "items/core.incident_kind/values/1/definition",
+   "3": "items/core.incident_kind/values/2/definition",
+   "4": "items/core.incident_kind/values/3/definition",
+   "5": "items/core.incident_kind/rules/0",
+   "6": "items/core.incident_kind/rules/3",
+   "7": "items/core.incident_kind/rules/4",
+   "8": "items/core.incident_kind/rules/5",
+   "9": "items/core.incident_kind/rules/6"
+  }
+ },
+ "I08": {
+  "owner": "core.reported_outcomes",
+  "slots": {
+   "1": "items/core.reported_outcomes/instruction",
+   "2": "items/core.reported_outcomes/rules/0",
+   "3": "items/core.reported_outcomes/rules/1"
+  }
+ },
+ "I09": {
+  "owner": "core.reported_incidents",
+  "slots": {
+   "1": "items/core.reported_incidents/instruction",
+   "2": "items/core.reported_incidents/rules/0",
+   "3": "items/core.reported_incidents/rules/1"
+  }
+ },
+ "I10": {
+  "owner": "core.evaluation_documented",
+  "slots": {
+   "1": "items/core.evaluation_documented/instruction",
+   "2": "items/core.evaluation_documented/values/0/definition",
+   "3": "items/core.evaluation_documented/values/1/definition",
+   "4": "items/core.evaluation_documented/values/2/definition",
+   "5": "items/core.evaluation_documented/values/3/definition",
+   "6": "items/core.evaluation_documented/values/4/definition",
+   "7": "items/core.evaluation_documented/rules/0",
+   "8": "items/core.evaluation_documented/rules/1",
+   "9": "items/core.evaluation_documented/rules/2",
+   "10": "items/core.evaluation_documented/rules/3",
+   "11": "items/core.evaluation_documented/rules/4",
+   "12": "items/core.evaluation_documented/rules/5",
+   "13": "items/core.evaluation_documented/rules/6",
+   "14": "items/core.evaluation_documented/rules/7",
+   "15": "items/core.evaluation_documented/rules/8",
+   "16": "items/core.evaluation_documented/rules/10"
+  }
+ },
+ "I11": {
+  "owner": "core.evaluation_type_pre_deployment_testing",
+  "slots": {
+   "1": "items/core.evaluation_type_pre_deployment_testing/values/0/definition",
+   "2": "items/core.evaluation_type_pre_deployment_testing/values/1/definition",
+   "3": "items/core.evaluation_type_pre_deployment_testing/rules/0"
+  }
+ },
+ "I12": {
+  "owner": "core.evaluation_type_pilot_evaluation",
+  "slots": {
+   "1": "items/core.evaluation_type_pilot_evaluation/values/0/definition",
+   "2": "items/core.evaluation_type_pilot_evaluation/values/1/definition",
+   "3": "items/core.evaluation_type_pilot_evaluation/rules/0"
+  }
+ },
+ "I13": {
+  "owner": "core.evaluation_type_independent_audit",
+  "slots": {
+   "1": "items/core.evaluation_type_independent_audit/values/0/definition",
+   "2": "items/core.evaluation_type_independent_audit/values/1/definition",
+   "3": "items/core.evaluation_type_independent_audit/rules/0"
+  }
+ },
+ "I14": {
+  "owner": "core.evaluation_type_ongoing_monitoring",
+  "slots": {
+   "1": "items/core.evaluation_type_ongoing_monitoring/values/0/definition",
+   "2": "items/core.evaluation_type_ongoing_monitoring/values/1/definition",
+   "3": "items/core.evaluation_type_ongoing_monitoring/rules/0"
+  }
+ },
+ "I15": {
+  "owner": "core.evaluation_type_user_feedback",
+  "slots": {
+   "1": "items/core.evaluation_type_user_feedback/values/0/definition",
+   "2": "items/core.evaluation_type_user_feedback/values/1/definition",
+   "3": "items/core.evaluation_type_user_feedback/rules/0"
+  }
+ },
+ "I16": {
+  "owner": "core.evaluation_type_bias_or_safety_testing",
+  "slots": {
+   "1": "items/core.evaluation_type_bias_or_safety_testing/values/0/definition",
+   "2": "items/core.evaluation_type_bias_or_safety_testing/values/1/definition",
+   "3": "items/core.evaluation_type_bias_or_safety_testing/rules/0"
+  }
+ },
+ "I17": {
+  "owner": "core.stage_as_of",
+  "slots": {
+   "1": "items/core.stage_as_of/rules/0"
+  }
+ },
+ "I18": {
+  "owner": "core.stage_as_of_basis",
+  "slots": {
+   "1": "items/core.stage_as_of_basis/rules/0",
+   "2": "items/core.stage_as_of_basis/rules/1"
+  }
+ },
+ "I19": {
+  "owner": "core.permanent_pilot",
+  "slots": {
+   "1": "items/core.permanent_pilot/rules/0"
+  }
+ },
+ "I20": {
+  "owner": "core.vendor_claim_only",
+  "slots": {
+   "1": "items/core.vendor_claim_only/rules/0"
+  }
+ },
+ "I21": {
+  "owner": "core.unit_credit",
+  "slots": {
+   "1": "items/core.unit_credit/rules/0"
+  }
+ },
+ "I22": {
+  "owner": "core.uncertainty_flags",
+  "slots": {
+   "1": "items/core.uncertainty_flags/rules/0",
+   "2": "items/core.uncertainty_flags/rules/1",
+   "3": "items/core.uncertainty_flags/rules/2"
+  }
+ },
+ "I23": {
+  "owner": "core.observed_actor_role",
+  "slots": {
+   "1": "items/core.observed_actor_role/values/0/definition",
+   "2": "items/core.observed_actor_role/values/1/definition",
+   "3": "items/core.observed_actor_role/values/2/definition",
+   "4": "items/core.observed_actor_role/values/3/definition",
+   "5": "items/core.observed_actor_role/values/4/definition",
+   "6": "items/core.observed_actor_role/values/5/definition",
+   "7": "items/core.observed_actor_role/rules/0",
+   "8": "items/core.observed_actor_role/long_page_rule/text"
+  }
+ }
+}

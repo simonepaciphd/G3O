@@ -1,0 +1,493 @@
+{
+ "format": "decision-page-v1",
+ "id": "t010-r4-source",
+ "title": "Codebook wording review: Facts about each source page",
+ "eyebrow": "G3O codebook · wording review round 4",
+ "project": "G3O pipeline reclassification",
+ "prepared": "2026-10-30",
+ "prepared_by": {
+  "harness": "Claude Code",
+  "model": "claude-opus-5-5",
+  "session": "drafting subagent of integrator session 20261030-claude-v2-2b8200388885f8f9"
+ },
+ "background": "Review round 4 of the codebook wording. You chose on 30 October that agents draft the missing value definitions and you review every wording slot here. This page covers **facts about each source page**.\n\nEach card is one codebook item. Open \"Show the wording slots\" to read them. Each slot is labelled with where its text came from:\n\n- **Plan text**\n- **New agent draft (round 4)**\n- **Option text you chose in round 3**\n- **Agent edit of the signed questionnaire**\n- **Text you approved on 30 October**\n- **Old production text (version 2.5): rewrite or delete**\n\nAnswer per item: approve all, approve with line-edits or deletions in the comments (by slot number), or ask for a redraft. Deletion is open only for old version-2.5 slots and for one slot of each overlap pair. The batch card at the top approves everything you leave unmarked. No recommendation is given on any wording.\n\nNew agent drafts carry a certainty mark; those marked **Needs your decision** rest on no ruling or text for some point.",
+ "sources": [
+  {
+   "label": "Round-4 drafts (readable)",
+   "href": "../../drafts/definitions-r4.md"
+  },
+  {
+   "label": "Round-3 codebook reference",
+   "href": "../round3/codebook-reference.html"
+  }
+ ],
+ "items": [
+  {
+   "id": "ALL",
+   "kind": "review",
+   "title": "Batch approval for this whole page",
+   "situation": "This page shows 29 wording slots in 15 items. Choose the batch option to approve every slot you do not mark in an item card below; any item card you answer still overrides it for that item.",
+   "options": [
+    {
+     "id": "approve-unmarked",
+     "label": "Approve every slot on this page that I do not mark below"
+    },
+    {
+     "id": "no-batch",
+     "label": "No batch approval: only my item answers count"
+    }
+   ]
+  },
+  {
+   "id": "I01",
+   "kind": "review",
+   "title": "source type",
+   "situation": "Recorded per source page.\n\n10 slots: 8 × old production text (version 2.5): rewrite or delete; 2 × plan text.",
+   "body": "**1. Value `news_major`** — Old production text (version 2.5): rewrite or delete · may be deleted\nMajor national/international news outlet (Reuters, BBC, NYT, Le Monde, NHK, etc.)\n\n**2. Value `news_trade`** — Old production text (version 2.5): rewrite or delete · may be deleted\nTechnology or government trade press (GovTech, FedScoop, PublicTechnology, etc.)\n\n**3. Value `vendor`** — Old production text (version 2.5): rewrite or delete · may be deleted\nVendor website, case study, blog post, or press release\n\n**4. Value `academic`** — Old production text (version 2.5): rewrite or delete · may be deleted\nPeer-reviewed paper, working paper, university report\n\n**5. Value `policy_org`** — Old production text (version 2.5): rewrite or delete · may be deleted\nThink tank, IGO, or policy organization (OECD, World Bank, ITU, Brookings, etc.)\n\n**6. Value `social_media`** — Old production text (version 2.5): rewrite or delete · may be deleted\nOfficial social media accounts (Twitter/X, LinkedIn from institutional accounts)\n\n**7. Value `procurement_tender`** — Old production text (version 2.5): rewrite or delete · may be deleted\nTender notice, RFP, contract award, vendor selection document\n\n**8. Value `other`** — Old production text (version 2.5): rewrite or delete · may be deleted\nNone of the above; explain in `source_snippet`\n\n**9. Rule** — Plan text, from review round 2\n'Official' comes from the domain field and 'archive' from the address; the classifier only sorts the rest (news, vendor, academic, policy organisation, social media, procurement, other). The question wording is amended.\n\n**10. Rule** — Plan text, from review round 2\nSource type is answered by the same classifier question in every pipeline where it applies. The AI-text pipeline drops its genre table and procurement's fixed value is replaced.",
+   "body_label": "Show the 10 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I02",
+   "kind": "review",
+   "title": "source url",
+   "situation": "Recorded per source page.\n\n2 slots: 1 × old production text (version 2.5): rewrite or delete; 1 × plan text.",
+   "body": "**1. Rule** — Old production text (version 2.5): rewrite or delete · may be deleted\nThe URL of the supplied page, verbatim from the input. **Never fabricate or alter.**\n\n**2. Rule** — Plan text, from review round 1\nTake `source_title` from RenderedPage.title (fallback: first heading); never from a model.",
+   "body_label": "Show the 2 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I03",
+   "kind": "review",
+   "title": "source title",
+   "situation": "Recorded per source page.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nTake `source_title` from RenderedPage.title (fallback: first heading); never from a model.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I04",
+   "kind": "review",
+   "title": "source access date",
+   "situation": "Recorded per source page.\n\n2 slots: 1 × old production text (version 2.5): rewrite or delete; 1 × plan text.",
+   "body": "**1. Rule** — Old production text (version 2.5): rewrite or delete · may be deleted\nDate the supplied page was retrieved (provided in the input metadata as the scrape date).\n\n**2. Rule** — Plan text, from review round 1\nTake `source_title` from RenderedPage.title (fallback: first heading); never from a model.",
+   "body_label": "Show the 2 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I05",
+   "kind": "review",
+   "title": "source language",
+   "situation": "Recorded per source page.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nPinned local language-ID library on stored text; same tag grammar as `institution_search_languages`; `mul` when no language exceeds a set share.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I06",
+   "kind": "review",
+   "title": "source on official domain",
+   "situation": "Recorded per source page.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\n`own_official` / `other_official` / `not_official` from URL host vs the master official-site overlay.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I07",
+   "kind": "review",
+   "title": "syndication group",
+   "situation": "Recorded per source page.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nDeterministic near-duplicate hash (e.g. shingled MinHash on normalised text) per page; `syndication_group` id; QC flag when codes differ within a group.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I08",
+   "kind": "review",
+   "title": "page review state",
+   "situation": "Recorded per source page.\n\n2 slots: 2 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\n`reviewed` / `fetch_failed` / `no_usable_text` / `link_not_followed_cap` / `link_not_followed_hops`; non-`reviewed` states count as unresolved signals in Stage 6.\n\n**2. Rule** — Plan text, from review round 2\nThe approved plan's verdict list grows to nine, costing two version steps; the review status keeps only failed downloads and links not followed. The verdict question is re-tested on pages, published counts become nine, the institution-level rule says whether 'not assessable' blocks a 'no', and the procurement team updates their copy.",
+   "body_label": "Show the 2 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I09",
+   "kind": "review",
+   "title": "discovery path",
+   "situation": "Recorded per source page.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nAdd a deterministic `discovery_path` (searched / followed hop n / back-fill followed) on every source row in all runs, and report prevalence with and without followed pages.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I10",
+   "kind": "review",
+   "title": "text source",
+   "situation": "Recorded per source page.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from the specification\nA per-row `text_source` (stored / live re-fetch / new run) records which rows lack chrome text and links (RC-D-002 F).",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I11",
+   "kind": "review",
+   "title": "source publication date",
+   "situation": "Recorded per source page.\n\n2 slots: 2 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nTake dates from HTML metadata / PDF properties / URL patterns deterministically; if absent, the extractor returns a date with its verbatim quote, validated by R-042.\n\n**2. Rule** — Plan text, from review round 2\nOne shared date of 1 November 2022, with \"before\" needing proof. Date origin is recorded as metadata, web address, quote from page text, archive upper bound, or unknown; the AI-text code changes.",
+   "body_label": "Show the 2 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I12",
+   "kind": "review",
+   "title": "source snippet",
+   "situation": "Recorded per source page.\n\n2 slots: 2 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\nDefine `source_snippet` on v2.7 rows as the verbatim supporting text of the page verdict (truncated), with no paraphrase.\n\n**2. Rule** — Plan text, from review round 2\nSnippets are verbatim in every pipeline, no translations are stored, and procurement's rule is amended.",
+   "body_label": "Show the 2 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I13",
+   "kind": "review",
+   "title": "source credibility",
+   "situation": "Recorded per source page.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 1\n`source_credibility` = fixed map from `source_type` (X21) plus `low` when `source_publication_date` = unknown; drop the translation clause.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I14",
+   "kind": "review",
+   "title": "confidence",
+   "situation": "Recorded per source page and per activity.\n\n1 slots: 1 × plan text.",
+   "body": "**1. Rule** — Plan text, from review round 2\nEach source's confidence uses only that source's credibility and quote support. At consolidation, an activity is 'high' if one source is high or two medium sources that are not copies of each other agree; otherwise it takes the highest source value.",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  },
+  {
+   "id": "I15",
+   "kind": "review",
+   "title": "date upper bound",
+   "situation": "Recorded per source page and per activity.\n\n1 slots: 1 × option text you chose in round 3.",
+   "body": "**1. Rule** — Option text you chose in round 3\nadd a yes/no note \"this date is an upper bound\".",
+   "body_label": "Show the 1 wording slots",
+   "options": [
+    {
+     "id": "approve-all",
+     "label": "Approve every slot in this item as shown"
+    },
+    {
+     "id": "approve-edits",
+     "label": "Approve, except the line-edits and deletions in my comments"
+    },
+    {
+     "id": "redraft",
+     "label": "Redraft from my comments and show me again"
+    }
+   ],
+   "prompt": "By slot number, e.g. \"3: <your wording>\" · \"5 delete\" (old version-2.5 slots only) · \"2 ok\""
+  }
+ ],
+ "slot_map": {
+  "I01": {
+   "owner": "core.source_type",
+   "slots": {
+    "1": "items/core.source_type/values/0/definition",
+    "2": "items/core.source_type/values/1/definition",
+    "3": "items/core.source_type/values/2/definition",
+    "4": "items/core.source_type/values/3/definition",
+    "5": "items/core.source_type/values/4/definition",
+    "6": "items/core.source_type/values/5/definition",
+    "7": "items/core.source_type/values/6/definition",
+    "8": "items/core.source_type/values/7/definition",
+    "9": "items/core.source_type/rules/0",
+    "10": "items/core.source_type/rules/1"
+   }
+  },
+  "I02": {
+   "owner": "core.source_url",
+   "slots": {
+    "1": "items/core.source_url/rules/0",
+    "2": "items/core.source_url/rules/1"
+   }
+  },
+  "I03": {
+   "owner": "core.source_title",
+   "slots": {
+    "1": "items/core.source_title/rules/0"
+   }
+  },
+  "I04": {
+   "owner": "core.source_access_date",
+   "slots": {
+    "1": "items/core.source_access_date/rules/0",
+    "2": "items/core.source_access_date/rules/1"
+   }
+  },
+  "I05": {
+   "owner": "core.source_language",
+   "slots": {
+    "1": "items/core.source_language/rules/0"
+   }
+  },
+  "I06": {
+   "owner": "core.source_on_official_domain",
+   "slots": {
+    "1": "items/core.source_on_official_domain/rules/0"
+   }
+  },
+  "I07": {
+   "owner": "core.syndication_group",
+   "slots": {
+    "1": "items/core.syndication_group/rules/0"
+   }
+  },
+  "I08": {
+   "owner": "core.page_review_state",
+   "slots": {
+    "1": "items/core.page_review_state/rules/0",
+    "2": "items/core.page_review_state/rules/1"
+   }
+  },
+  "I09": {
+   "owner": "core.discovery_path",
+   "slots": {
+    "1": "items/core.discovery_path/rules/0"
+   }
+  },
+  "I10": {
+   "owner": "core.text_source",
+   "slots": {
+    "1": "items/core.text_source/rules/0"
+   }
+  },
+  "I11": {
+   "owner": "core.source_publication_date",
+   "slots": {
+    "1": "items/core.source_publication_date/rules/0",
+    "2": "items/core.source_publication_date/rules/1"
+   }
+  },
+  "I12": {
+   "owner": "core.source_snippet",
+   "slots": {
+    "1": "items/core.source_snippet/rules/0",
+    "2": "items/core.source_snippet/rules/1"
+   }
+  },
+  "I13": {
+   "owner": "core.source_credibility",
+   "slots": {
+    "1": "items/core.source_credibility/rules/0"
+   }
+  },
+  "I14": {
+   "owner": "core.confidence",
+   "slots": {
+    "1": "items/core.confidence/rules/0"
+   }
+  },
+  "I15": {
+   "owner": "core.date_upper_bound",
+   "slots": {
+    "1": "items/core.date_upper_bound/rules/0"
+   }
+  }
+ }
+}
