@@ -81,6 +81,9 @@ include = ["g3o*"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+# planning/ holds integrator tooling for the reclassification plan (e.g. planning/t010/*.py),
+# not package code; it is outside the lint gate.
+extend-exclude = ["planning"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
