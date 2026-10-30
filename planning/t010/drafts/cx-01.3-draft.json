@@ -1,0 +1,1017 @@
+{
+ "draft_by": "subagent",
+ "date": "2026-10-29",
+ "status": "AGENT DRAFT, not signed. CX-01.3 does not exist until the PI line-edits and signs item by item (round-2 #3).",
+ "frozen_source": "H:\\My Drive\\Research\\G3O\\archive\\planning-drive-copy-superseded-2026-10-26\\launch-analysis-pr\\index-design\\codebook-extension-proposal.md (CX-01.2) + pilot/pilot.py (v2) + pilot/contact.py (w4)",
+ "diff_notation": "[-removed-]{+added+}, word level",
+ "rows": [
+  {
+   "cx_row": "CX-01",
+   "action": "edit",
+   "frozen_text": "| CX-01 | **Page fields** (`disclosure_form`, `disclosure_scope`, the optional `content_*` items) are properties of the source page. They are coded once per (institution × page), on the stored page text, and copied to every evidence row from that page. |",
+   "draft_text": "| CX-01 | **Page fields** (`disclosure_form`, `disclosure_scope`, the optional `content_*` items) are properties of the source page. They are coded once per (institution × page), on the stored page text the item declares as its input (the main text unless the item states otherwise), and copied to every evidence row from that page. The `content_*` items that CX-51 and CX-52 mark as derived are not asked; they are computed once per page from the codes of the activities on that page. |",
+   "diff": "| CX-01 | **Page fields** (`disclosure_form`, `disclosure_scope`, the optional `content_*` items) are properties of the source page. They are coded once per (institution × page), on the stored page [-text,-]{+text the item declares as its input (the main text unless the item states otherwise),+} and copied to every evidence row from that page. {+The `content_*` items that CX-51 and CX-52 mark as derived are not asked; they are computed once per page from the codes of the activities on that page. +}|",
+   "directions": [
+    "codebook-rulings-round2.json #48 (R2C24)",
+    "codebook-rulings-round2.json #19 (R2C10)",
+    "codebook-rulings-round2.json #10 (R2C09)",
+    "codebook-rulings-round1.json X11",
+    "SPEC.md R-020..R-023"
+   ],
+   "interpretation": "(1) 'Stored page text' is now ambiguous because the scraper will store header/footer text and links separately (RC-D-002 F); round-2 #48 makes each item declare its input text in a codebook column, so CX-01 points at that declaration and defaults to main text (the #48 default for classifier items). (2) The second sentence records that derived page items are computed, not asked; this follows #19 and #10. X11's state pin is placed in CX-02 (it covers page and finding question sets alike) rather than repeated here.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-02",
+   "action": "edit",
+   "frozen_text": "| CX-02 | **Finding fields** (`evaluation_documented`, optional `evaluation_type_*`) are coded per (finding × page). The state given to jev is the page text plus that finding's `activity_name`, `activity_type`, `adoption_stage` and `tool_name`. |",
+   "draft_text": "| CX-02 | **Finding fields** (`evaluation_documented`, optional `evaluation_type_*`, and the outcome and incident items of CX-61) are coded per (finding × page). The state given to jev is the page text plus that finding's `activity_name`, `activity_type`, `adoption_stage` and `tool_name`. The state of each question set (its fields, their order and the chunk marker) is pinned in the codebook and is part of the frozen instrument; any change to it counts as a wording change. |",
+   "diff": "| CX-02 | **Finding fields** (`evaluation_documented`, optional [-`evaluation_type_*`)-]{+`evaluation_type_*`, and the outcome and incident items of CX-61)+} are coded per (finding × page). The state given to jev is the page text plus that finding's `activity_name`, `activity_type`, `adoption_stage` and `tool_name`. {+The state of each question set (its fields, their order and the chunk marker) is pinned in the codebook and is part of the frozen instrument; any change to it counts as a wording change. +}|",
+   "directions": [
+    "codebook-rulings-round1.json X11",
+    "codebook-rulings-round1.json X10",
+    "codebook-rulings-round2.json #9 (R2C06)",
+    "SPEC.md R-024, R-025"
+   ],
+   "interpretation": "(1) X11 asks for the state schema to be pinned and to count as wording; I added that rule but did NOT write the schema itself: X11 says re-signature 'with the v2.7 state', and the v2.7 state is not yet defined (it changes with X10's activity-span marker for CX-61 and #48's header/footer text for contact items). The pinned schema has to be drafted by the codebook build card and signed separately. (2) The existing field list (activity_name, activity_type, adoption_stage, tool_name) is kept verbatim; if v2.7 renames or adds activity fields this sentence changes too. (3) CX-61 moves to the (finding x page) grain because round-2 #9 says 'the signed item's level needs re-signature' and X10 asks it in the per-activity pass.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-03",
+   "action": "no_change",
+   "frozen_text": "| CX-03 | Code what the page says. Never use outside knowledge of the institution, the country's laws or the register system. |",
+   "draft_text": "| CX-03 | Code what the page says. Never use outside knowledge of the institution, the country's laws or the register system. |",
+   "diff": "",
+   "directions": [],
+   "interpretation": "No direction touches it. X01 narrows the one exception (CX-13) but the exception is stated in CX-13, not here.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-04",
+   "action": "no_change",
+   "frozen_text": "| CX-04 | The codebook stores page-level and finding × page codes only. How page codes roll up to a finding, institution or country is an index decision (index decisions 6–8), not a codebook rule. |",
+   "draft_text": "| CX-04 | The codebook stores page-level and finding × page codes only. How page codes roll up to a finding, institution or country is an index decision (index decisions 6–8), not a codebook rule. |",
+   "diff": "",
+   "directions": [],
+   "interpretation": "No direction touches it.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-05",
+   "action": "no_change",
+   "frozen_text": "| CX-05 | The raw jev answer is stored with its probability distribution, confidence, response model id and request id. |",
+   "draft_text": "| CX-05 | The raw jev answer is stored with its probability distribution, confidence, response model id and request id. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X11"
+   ],
+   "interpretation": "X11 names CX-05 in its scope, but its mechanism (pin the state schema) is placed in CX-02. Round-2 #26 (confidence = chosen-answer probability) is not in this draft's direction list and needs no CX text: the stored fields are unchanged.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-06",
+   "action": "new",
+   "frozen_text": "",
+   "draft_text": "| CX-06 (new) | Missing-answer labels. The signed spellings of these items are kept, and each maps to one of the codebook's reserved labels: \"not asked\" (ruled out by a rule), \"not documented\" (page silent), \"unknown\" (stated but undeterminable, or downgraded). Map: `unknown` of `disclosure_form` (CX-17) and of `disclosure_scope` (CX-24) → \"unknown\"; `unclear` of `evaluation_documented` (CX-33) → \"unknown\"; `not_documented` (CX-34) → \"not documented\"; `no` of the `evaluation_type_*` and `content_*` items → \"not documented\"; `none_reported` (CX-60, CX-61) → \"not documented\". Where these rows say an item is not asked (CX-25, CX-41, CX-51), it stores the reserved \"not asked\" label. |",
+   "diff": "{+| CX-06 (new) | Missing-answer labels. The signed spellings of these items are kept, and each maps to one of the codebook's reserved labels: \"not asked\" (ruled out by a rule), \"not documented\" (page silent), \"unknown\" (stated but undeterminable, or downgraded). Map: `unknown` of `disclosure_form` (CX-17) and of `disclosure_scope` (CX-24) → \"unknown\"; `unclear` of `evaluation_documented` (CX-33) → \"unknown\"; `not_documented` (CX-34) → \"not documented\"; `no` of the `evaluation_type_*` and `content_*` items → \"not documented\"; `none_reported` (CX-60, CX-61) → \"not documented\". Where these rows say an item is not asked (CX-25, CX-41, CX-51), it stores the reserved \"not asked\" label. |+}",
+   "directions": [
+    "codebook-rulings-round2.json #16 (R2C04)",
+    "deltas/RC-D-002.md L T2",
+    "SPEC.md R-045"
+   ],
+   "interpretation": "Round-2 #16: frozen items keep their signed spellings 'with a mapping row'. I drafted that row inside CX-01.3 (section 1); the PI may prefer it in the codebook's missing-value table (R-045) instead. Judgement calls the PI must check: (a) `unclear` (CX-33: evaluative statement whose subject cannot be settled) mapped to 'unknown'; (b) `no` on yes/no items mapped to 'not documented' - for the derived safeguard items 'no' can also hide an activity-level stated 'no', so the map is lossy there; (c) the literal spelling of 'not asked' is left to R-045 (PI wording); T2 renamed `not_applicable` / `_NA_` to 'not asked', so I wrote the label, not a token.",
+   "conflicts": "Round-1 X02, X04 and X05 say 'store `_NA_`'; delta L T2 renames it 'not asked' everywhere and round-2 #16 reserves that label. Followed round 2 / T2."
+  },
+  {
+   "cx_row": "§2 question",
+   "action": "no_change",
+   "frozen_text": "Question to jev: *What kind of document is this page?* One value. If several fit, take the first in table order.",
+   "draft_text": "Question to jev: *What kind of document is this page?* One value. If several fit, take the first in table order.",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "X01 changes a value definition, not the question.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-10",
+   "action": "no_change",
+   "frozen_text": "| CX-10 | `register_cross_institution` | The page is, or is one entry in, a structured list of AI or algorithmic systems kept by a government body, with several entries in a common format (inventory, register, catalogue, algorithmic transparency record in a standard template), **and the list covers more than one institution** (a national or sectoral register, a standard-template record series across agencies). |",
+   "draft_text": "| CX-10 | `register_cross_institution` | The page is, or is one entry in, a structured list of AI or algorithmic systems kept by a government body, with several entries in a common format (inventory, register, catalogue, algorithmic transparency record in a standard template), **and the list covers more than one institution** (a national or sectoral register, a standard-template record series across agencies). |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "X01 concerns only `mandated_report`.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-10b",
+   "action": "no_change",
+   "frozen_text": "| CX-10b | `register_single_institution` | As CX-10, but the list covers **one institution only** (e.g. a city's own table of its AI tools). |",
+   "draft_text": "| CX-10b | `register_single_institution` | As CX-10, but the list covers **one institution only** (e.g. a city's own table of its AI tools). |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "X01 concerns only `mandated_report`.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-11",
+   "action": "no_change",
+   "frozen_text": "| CX-11 **[decision D-A = (a), with split]** | (scope of the register values) | Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values (CX-10, CX-10b). `disclosure_scope` (§3) still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check). |",
+   "draft_text": "| CX-11 **[decision D-A = (a), with split]** | (scope of the register values) | Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values (CX-10, CX-10b). `disclosure_scope` (§3) still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check). |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01, X02"
+   ],
+   "interpretation": "X01 concerns only `mandated_report`. CX-11's QC check is unchanged (X02 'commits_to' says so explicitly).",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-12",
+   "action": "edit",
+   "frozen_text": "| CX-12 | `mandated_report` | The page is a document produced to meet a reporting obligation, such as a statutory annual-report section or a compliance or transparency report under a named rule. |",
+   "draft_text": "| CX-12 | `mandated_report` | The page is a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems, such as a statutory annual-report section or a compliance or transparency report under a named rule. |",
+   "diff": "| CX-12 | `mandated_report` | The page is a document produced to meet a reporting [-obligation,-]{+obligation that concerns reporting on AI, algorithms or digital systems,+} such as a statutory annual-report section or a compliance or transparency report under a named rule. |",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "X01 text: 'mandated_report only when the obligation concerns reporting on AI, algorithms or digital systems'. The example 'statutory annual-report section' is kept because an AI-reporting section of a statutory annual report still fits.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-13",
+   "action": "edit",
+   "frozen_text": "| CX-13 **[decision D-B = (b)]** | (evidence for \"mandated\") | The obligation may be named on the page **or inferred from the document's genre** (e.g. an annual report, a statutory compliance report). This is the one stated exception to CX-03. |",
+   "draft_text": "| CX-13 **[decision D-B = (b), narrowed in CX-01.3]** | (evidence for \"mandated\") | The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report is `formal_record`. This is the one stated exception to CX-03. |",
+   "diff": "| CX-13 **[decision D-B = [-(b)]**-]{+(b), narrowed in CX-01.3]**+} | (evidence for \"mandated\") | The obligation [-may-]{+must+} be named on the [-page-]{+page,+} [-**or-]{+except that it may be+} inferred from the document's [-genre**-]{+genre+} [-(e.g.-]{+**when+} [-an-]{+the+} [-annual-]{+document's+} [-report,-]{+title names AI or algorithmic reporting**. Otherwise+} a statutory [-compliance-]{+annual+} [-report).-]{+report is `formal_record`.+} This is the one stated exception to CX-03. |",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "(1) X01: 'named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code formal_record.' I placed the formal_record fallback here rather than in CX-14's list; the PI may prefer it in CX-14. (2) The genre examples ('an annual report, a statutory compliance report') are dropped because they are exactly the cases X01 sends to formal_record. (3) The decision label is a bookkeeping mark that D-B's signed (b) is narrowed; the PI may prefer different labelling. (4) 'This is the one stated exception to CX-03' is kept: inference from an AI-naming title is still inference beyond the page's words. (5) X01 names only statutory annual reports as falling back to formal_record; it is silent on compliance reports under a rule that is not about AI. I did not extend the fallback to them: they now fail CX-12 and land wherever table order puts them (likely formal_record or informal_official). The PI may want them named.",
+   "conflicts": "X01 re-opens a signed CX-01.0 ruling (D-B = b, 2026-10-25). Not a round-1 vs round-2 conflict; noted because the frozen label says (b)."
+  },
+  {
+   "cx_row": "CX-14",
+   "action": "no_change",
+   "frozen_text": "| CX-14 | `formal_record` | An official one-off document of record from a government body: adopted policy or guidance, legislation, council or board minutes or resolutions, budget documents, procurement notice or award, audit or inspection report, **response to a freedom-of-information request** (CX-01.1, W5 = b). |",
+   "draft_text": "| CX-14 | `formal_record` | An official one-off document of record from a government body: adopted policy or guidance, legislation, council or board minutes or resolutions, budget documents, procurement notice or award, audit or inspection report, **response to a freedom-of-information request** (CX-01.1, W5 = b). |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "X01's 'otherwise formal_record' is stated in CX-13; adding 'statutory annual or compliance report' to CX-14's list is an alternative the PI may prefer.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-15",
+   "action": "no_change",
+   "frozen_text": "| CX-15 | `informal_official` | A government body's own communication with no reporting obligation and no standard format: press release, news item, blog, social post, speech, event page, service or FAQ page. |",
+   "draft_text": "| CX-15 | `informal_official` | A government body's own communication with no reporting obligation and no standard format: press release, news item, blog, social post, speech, event page, service or FAQ page. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "Not touched by any direction.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-16",
+   "action": "no_change",
+   "frozen_text": "| CX-16 | `third_party` | Not published by a government body: news, vendor, academic, NGO or policy organization. A register entry quoted in a news article is `third_party` (code the page, not what it quotes). |",
+   "draft_text": "| CX-16 | `third_party` | Not published by a government body: news, vendor, academic, NGO or policy organization. A register entry quoted in a news article is `third_party` (code the page, not what it quotes). |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "Not touched by any direction.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-17",
+   "action": "no_change",
+   "frozen_text": "| CX-17 | `unknown` | The page's kind cannot be determined from its text (e.g. an archived fragment with no header). |",
+   "draft_text": "| CX-17 | `unknown` | The page's kind cannot be determined from its text (e.g. an archived fragment with no header). |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "Not touched by any direction.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-18",
+   "action": "no_change",
+   "frozen_text": "| CX-18 | Worked examples (illustrative, not real cases) | (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`. |",
+   "draft_text": "| CX-18 | Worked examples (illustrative, not real cases) | (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "Example (2) (annual-report section headed by the regulation requiring AI-use reporting) still gives mandated_report under X01: the obligation concerns AI and is named on the page.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L134 FORM[mandated_report]",
+   "action": "edit",
+   "frozen_text": "    \"mandated_report\": \"CX-12/13: a document produced to meet a reporting obligation (statutory annual-report section, compliance or transparency report under a rule). The obligation may be named on the page or inferred from the document's genre (e.g. an annual report).\",",
+   "draft_text": "    \"mandated_report\": \"CX-12/13: a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report is formal_record.\",",
+   "diff": "    \"mandated_report\": \"CX-12/13: a document produced to meet a reporting obligation{+ that concerns reporting on AI, algorithms or digital systems+} (statutory annual-report section, compliance or transparency report under a rule). The obligation [-may-]{+must+} be named on the [-page-]{+page,+} [-or-]{+except that it may be+} inferred from the document's genre [-(e.g.-]{+when+} [-an-]{+the document's title names AI or algorithmic reporting. Otherwise a statutory+} annual [-report).\",-]{+report is formal_record.\",+}",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "Question text carried from the CX-12/13 draft, same words.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L132 FORM[register_cross_institution]",
+   "action": "no_change",
+   "frozen_text": "    \"register_cross_institution\": \"CX-10: the page is, or is one entry in, a structured list of AI or algorithmic systems kept by a government body, with several entries in a common format (inventory, register, catalogue, algorithmic transparency record in a standard template), and the list covers more than one institution.\",",
+   "draft_text": "    \"register_cross_institution\": \"CX-10: the page is, or is one entry in, a structured list of AI or algorithmic systems kept by a government body, with several entries in a common format (inventory, register, catalogue, algorithmic transparency record in a standard template), and the list covers more than one institution.\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "Not touched by X01.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L133 FORM[register_single_institution]",
+   "action": "no_change",
+   "frozen_text": "    \"register_single_institution\": \"CX-10b: as above, but the list covers one institution only (e.g. a city's own table of its AI tools).\",",
+   "draft_text": "    \"register_single_institution\": \"CX-10b: as above, but the list covers one institution only (e.g. a city's own table of its AI tools).\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "Not touched by X01.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L135 FORM[formal_record]",
+   "action": "no_change",
+   "frozen_text": "    \"formal_record\": \"CX-14: an official one-off document of record from a government body: adopted policy or guidance, legislation, council or board minutes or resolutions, budget documents, procurement notice or award, audit or inspection report, response to a freedom-of-information request.\",",
+   "draft_text": "    \"formal_record\": \"CX-14: an official one-off document of record from a government body: adopted policy or guidance, legislation, council or board minutes or resolutions, budget documents, procurement notice or award, audit or inspection report, response to a freedom-of-information request.\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "Not touched by X01.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L136 FORM[informal_official]",
+   "action": "no_change",
+   "frozen_text": "    \"informal_official\": \"CX-15: a government body's own communication with no reporting obligation and no standard format: press release, news item, blog, social post, speech, event page, service or FAQ page.\",",
+   "draft_text": "    \"informal_official\": \"CX-15: a government body's own communication with no reporting obligation and no standard format: press release, news item, blog, social post, speech, event page, service or FAQ page.\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "Not touched by X01.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L137 FORM[third_party]",
+   "action": "no_change",
+   "frozen_text": "    \"third_party\": \"CX-16: not published by a government body: news, vendor, academic, NGO or policy organization. A register entry quoted in a news article is third_party.\",",
+   "draft_text": "    \"third_party\": \"CX-16: not published by a government body: news, vendor, academic, NGO or policy organization. A register entry quoted in a news article is third_party.\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "Not touched by X01.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L138 FORM[unknown]",
+   "action": "no_change",
+   "frozen_text": "    \"unknown\": \"CX-17: the page's kind cannot be determined from its text.\",",
+   "draft_text": "    \"unknown\": \"CX-17: the page's kind cannot be determined from its text.\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "Not touched by X01.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L193 page_questions disclosure_form instructions",
+   "action": "no_change",
+   "frozen_text": "            instructions=\"Code the source PAGE (not the activity, not what it quotes), using only what the page says. What kind of document is this page? If several values fit, take the first in this order.\",",
+   "draft_text": "            instructions=\"Code the source PAGE (not the activity, not what it quotes), using only what the page says. What kind of document is this page? If several values fit, take the first in this order.\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X01"
+   ],
+   "interpretation": "Not touched by X01.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-20",
+   "action": "no_change",
+   "frozen_text": "| CX-20 **[decision D-C = (a)]** | include the field? | Yes, as below. |",
+   "draft_text": "| CX-20 **[decision D-C = (a)]** | include the field? | Yes, as below. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X02"
+   ],
+   "interpretation": "Not touched by X02.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-21",
+   "action": "no_change",
+   "frozen_text": "| CX-21 | `whole_of_government` | The listing or document the page belongs to covers institutions across the government (all central agencies, or all units of a level). |",
+   "draft_text": "| CX-21 | `whole_of_government` | The listing or document the page belongs to covers institutions across the government (all central agencies, or all units of a level). |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X02"
+   ],
+   "interpretation": "Not touched by X02.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-22",
+   "action": "no_change",
+   "frozen_text": "| CX-22 | `multi_institution` | It covers several institutions, but not government-wide (a sector, a region, a group of agencies). |",
+   "draft_text": "| CX-22 | `multi_institution` | It covers several institutions, but not government-wide (a sector, a region, a group of agencies). |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X02"
+   ],
+   "interpretation": "Not touched by X02.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-23",
+   "action": "no_change",
+   "frozen_text": "| CX-23 | `single_institution` | It covers one institution only. |",
+   "draft_text": "| CX-23 | `single_institution` | It covers one institution only. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X02"
+   ],
+   "interpretation": "Not touched by X02.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-24",
+   "action": "no_change",
+   "frozen_text": "| CX-24 | `unknown` | Coverage cannot be determined from the page. |",
+   "draft_text": "| CX-24 | `unknown` | Coverage cannot be determined from the page. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X02"
+   ],
+   "interpretation": "X02 changes which pages are asked (CX-25), not the values. The added 'not asked' value is covered by CX-25 and the CX-06 map, not by a new value row.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-25",
+   "action": "edit",
+   "frozen_text": "| CX-25 **[decision D-D = (b)]** | which pages are coded | All pages. |",
+   "draft_text": "| CX-25 **[decision D-D = (b), narrowed in CX-01.3]** | which pages are coded | Pages whose `disclosure_form` is `register_cross_institution`, `register_single_institution` or `mandated_report`. On other pages the field is not asked and stores the reserved \"not asked\" label (CX-06). |",
+   "diff": "| CX-25 **[decision D-D = [-(b)]**-]{+(b), narrowed in CX-01.3]**+} | which pages are coded | [-All-]{+Pages+} [-pages.-]{+whose `disclosure_form` is `register_cross_institution`, `register_single_institution` or `mandated_report`. On other pages the field is not asked and stores the reserved \"not asked\" label (CX-06).+} |",
+   "directions": [
+    "codebook-rulings-round1.json X02",
+    "deltas/RC-D-002.md L T2",
+    "codebook-rulings-round2.json #16 (R2C04)"
+   ],
+   "interpretation": "(1) X02 commits to 're-signature of CX-25 (D-D)'. (2) `_NA_` is written as the reserved 'not asked' label per T2 / #16; spelling per R-045. (3) Because X01 narrows `mandated_report`, fewer pages will now be asked scope than X02's authors may have assumed; the two choices compound. (4) Label: D-D's signed (b) was 'all pages'; marked as narrowed.",
+   "conflicts": "X02 says `_NA_`; T2 renames it 'not asked'. Followed T2."
+  },
+  {
+   "cx_row": "pilot.py L196 page_questions disclosure_scope instructions",
+   "action": "no_change",
+   "frozen_text": "            instructions=\"Code the source PAGE. How many institutions does the listing or document this page belongs to cover?\",",
+   "draft_text": "            instructions=\"Code the source PAGE. How many institutions does the listing or document this page belongs to cover?\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X02"
+   ],
+   "interpretation": "Gating is procedural: the question is simply not sent on other pages. Rule lives in CX-25 and the question-order rule (SPEC R-008, round-2 #41).",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "§4 question",
+   "action": "no_change",
+   "frozen_text": "Question to jev: *Does this page document an evaluation of this GenAI activity?* One value. If several fit, take the first in table order.",
+   "draft_text": "Question to jev: *Does this page document an evaluation of this GenAI activity?* One value. If several fit, take the first in table order.",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "X03 changes one rule row (CX-32c).",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-30",
+   "action": "no_change",
+   "frozen_text": "| CX-30 | `results_reported` | The page states that this activity was tested, evaluated, audited or monitored **and** reports a result (a metric, a finding or a conclusion). |",
+   "draft_text": "| CX-30 | `results_reported` | The page states that this activity was tested, evaluated, audited or monitored **and** reports a result (a metric, a finding or a conclusion). |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Not touched by X03.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-31",
+   "action": "no_change",
+   "frozen_text": "| CX-31 | `conducted_no_results` | The page states that an evaluation, test, audit, pilot review or monitoring took place or is in place, but reports no result. |",
+   "draft_text": "| CX-31 | `conducted_no_results` | The page states that an evaluation, test, audit, pilot review or monitoring took place or is in place, but reports no result. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Not touched by X03.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-32",
+   "action": "no_change",
+   "frozen_text": "| CX-32 | `required_or_planned` | The page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy finding that requires evaluation of GenAI tools takes this value. |",
+   "draft_text": "| CX-32 | `required_or_planned` | The page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy finding that requires evaluation of GenAI tools takes this value. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Not touched by X03.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-32b",
+   "action": "no_change",
+   "frozen_text": "| CX-32b | (CX-01.1, W2 = a) | A requirement to carry out a risk or impact assessment is **not** `required_or_planned`; it belongs to `has_risk_assessment` alone (consistent with CX-37). |",
+   "draft_text": "| CX-32b | (CX-01.1, W2 = a) | A requirement to carry out a risk or impact assessment is **not** `required_or_planned`; it belongs to `has_risk_assessment` alone (consistent with CX-37). |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Not touched by X03.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-32c",
+   "action": "edit",
+   "frozen_text": "| CX-32c | (CX-01.1, W3 = b; CX-01.2, C3 = a) | A clause requiring periodic review of the GenAI policy itself counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy). |",
+   "draft_text": "| CX-32c | (CX-01.1, W3 = b; CX-01.2, C3 = a; narrowed in CX-01.3) | A clause requiring periodic review of the GenAI policy itself is `not_documented`, unless it requires testing, monitoring or evaluation of GenAI tools or their outputs; then it counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy). |",
+   "diff": "| CX-32c | (CX-01.1, W3 = b; CX-01.2, C3 = [-a)-]{+a; narrowed in CX-01.3)+} | A clause requiring periodic review of the GenAI policy itself{+ is `not_documented`, unless it requires testing, monitoring or evaluation of GenAI tools or their outputs; then it+} counts as `required_or_planned`. This includes any policy with a GenAI section (e.g. a general IT policy). |",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "(1) X03 says 'delete CX-32c's policy-review clause' and gives the replacement rule; I kept the row ID and replaced its rule. Alternative: retire CX-32c and add the 'unless' case to CX-34. (2) The second sentence ('This includes any policy with a GenAI section') is kept, so the narrowed rule applies to the same policies C3 = a covered; the PI should confirm that scope still applies.",
+   "conflicts": "X03 reverses CX-01.1 W3 = b (signed 2026-10-25) and C3 = a (CX-01.2). Not a round-1 vs round-2 conflict."
+  },
+  {
+   "cx_row": "CX-32d",
+   "action": "no_change",
+   "frozen_text": "| CX-32d | (CX-01.2, C2 = a) | A required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as `required_or_planned`. A pure risk or impact assessment requirement stays under CX-32b. |",
+   "draft_text": "| CX-32d | (CX-01.2, C2 = a) | A required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as `required_or_planned`. A pure risk or impact assessment requirement stays under CX-32b. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Not touched by any direction.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-33",
+   "action": "no_change",
+   "frozen_text": "| CX-33 | `unclear` | The page makes an evaluative statement, but its subject, or whether it concerns this GenAI activity, cannot be settled. An evaluation clearly of a different tool or activity is `not_documented`, not `unclear` (CX-01.2, C4 = a). |",
+   "draft_text": "| CX-33 | `unclear` | The page makes an evaluative statement, but its subject, or whether it concerns this GenAI activity, cannot be settled. An evaluation clearly of a different tool or activity is `not_documented`, not `unclear` (CX-01.2, C4 = a). |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Not touched by any direction.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-34",
+   "action": "no_change",
+   "frozen_text": "| CX-34 | `not_documented` | The page has no evaluation statement about this activity. |",
+   "draft_text": "| CX-34 | `not_documented` | The page has no evaluation statement about this activity. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Not touched by any direction.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-35",
+   "action": "no_change",
+   "frozen_text": "| CX-35 **[decision D-E = (b)]** | explicit negative | No negative value. A page saying no evaluation was done or planned is `not_documented`. |",
+   "draft_text": "| CX-35 **[decision D-E = (b)]** | explicit negative | No negative value. A page saying no evaluation was done or planned is `not_documented`. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Not touched by any direction.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-36",
+   "action": "no_change",
+   "frozen_text": "| CX-36 **[decision D-F = (b)]** | outcome claims without a stated evaluation | A performance figure counts as `results_reported` only if the page also describes the activity behind it (a test, a pilot review, a survey, an audit, monitoring); otherwise `not_documented`. |",
+   "draft_text": "| CX-36 **[decision D-F = (b)]** | outcome claims without a stated evaluation | A performance figure counts as `results_reported` only if the page also describes the activity behind it (a test, a pilot review, a survey, an audit, monitoring); otherwise `not_documented`. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Not touched by any direction.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-37",
+   "action": "no_change",
+   "frozen_text": "| CX-37 **[decision D-G = (a)]** | risk or impact assessments | A risk or impact assessment counts here only if it reports testing or measured performance; otherwise it belongs to `has_risk_assessment` alone. |",
+   "draft_text": "| CX-37 **[decision D-G = (a)]** | risk or impact assessments | A risk or impact assessment counts here only if it reports testing or measured performance; otherwise it belongs to `has_risk_assessment` alone. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "`has_risk_assessment` now names the activity-level member of the safeguard family (round-2 #29); the name and this rule are unchanged.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-38",
+   "action": "no_change",
+   "frozen_text": "| CX-38 | vendor claims | A vendor's performance claim counts only if the page names the institution or an independent body as the evaluator. |",
+   "draft_text": "| CX-38 | vendor claims | A vendor's performance claim counts only if the page names the institution or an independent body as the evaluator. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Not touched by any direction.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-39",
+   "action": "no_change",
+   "frozen_text": "| CX-39 | pilot stage | A pilot stage alone is `not_documented`. \"The pilot will be evaluated\" is `required_or_planned`; \"the pilot evaluation found …\" is `results_reported`. |",
+   "draft_text": "| CX-39 | pilot stage | A pilot stage alone is `not_documented`. \"The pilot will be evaluated\" is `required_or_planned`; \"the pilot evaluation found …\" is `results_reported`. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Not touched by any direction.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-40",
+   "action": "no_change",
+   "frozen_text": "| CX-40 | Worked examples (illustrative) | (1) An agency blog: \"after a three-month trial, 78% of staff said the assistant saved time\" → `results_reported`. (2) Minutes: \"the pilot is being reviewed by IT\" → `conducted_no_results`. (3) A guidance memo: \"all GenAI tools must be tested before deployment\" → `required_or_planned` on the policy finding. (4) A press release: \"the chatbot has answered 40,000 questions\" → `not_documented` (a usage count with no evaluation described; CX-36). (5) A vendor case study: \"accuracy improved 30%\" with no named evaluator → `not_documented` (CX-38). |",
+   "draft_text": "| CX-40 | Worked examples (illustrative) | (1) An agency blog: \"after a three-month trial, 78% of staff said the assistant saved time\" → `results_reported`. (2) Minutes: \"the pilot is being reviewed by IT\" → `conducted_no_results`. (3) A guidance memo: \"all GenAI tools must be tested before deployment\" → `required_or_planned` on the policy finding. (4) A press release: \"the chatbot has answered 40,000 questions\" → `not_documented` (a usage count with no evaluation described; CX-36). (5) A vendor case study: \"accuracy improved 30%\" with no named evaluator → `not_documented` (CX-38). |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Example (3) ('all GenAI tools must be tested before deployment') is a testing requirement, not a policy-review clause; still required_or_planned.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-41",
+   "action": "no_change",
+   "frozen_text": "| CX-41 **[decision D-H = (a)]** | Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`. |",
+   "draft_text": "| CX-41 **[decision D-H = (a)]** | Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`. |",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X04",
+    "deltas/RC-D-002.md L T2"
+   ],
+   "interpretation": "X04 is procedural ('no re-signature if wording unchanged'): the type items are asked only if `evaluation_documented` is still in the three positive values after the no-quote and low-confidence downgrades. The existing words 'Asked only when evaluation_documented in {...}' already read correctly if the post-downgrade value is meant. Where the rule lives: SPEC R-041 (downgrade) and R-081 (0.8 bar), the question-order rule R-008 / round-2 #41, and the 'not asked' label via CX-06 / R-045 (X04's `_NA_`, renamed by T2).",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L161 EVAL[required_or_planned]",
+   "action": "edit",
+   "frozen_text": "    \"required_or_planned\": \"CX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value, and so does a clause requiring periodic review of the GenAI policy itself (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).\",",
+   "draft_text": "    \"required_or_planned\": \"CX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value. A clause requiring periodic review of the GenAI policy itself is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).\",",
+   "diff": "    \"required_or_planned\": \"CX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this [-value,-]{+value.+} [-and so does a-]{+A+} clause requiring periodic review of the GenAI policy itself{+ is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs+} (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).\",",
+   "directions": [
+    "codebook-rulings-round1.json X03"
+   ],
+   "interpretation": "Question text carried from CX-32c. Note (not a direction of this draft): CX-01.2's own C2-C4 text (CX-32d, CX-33 last sentence) is still missing from the question text, as the frozen file itself records (§11.3); the build card owes it.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L159 EVAL[results_reported]",
+   "action": "no_change",
+   "frozen_text": "    \"results_reported\": \"CX-30: the page states that this activity was tested, evaluated, audited or monitored AND reports a result (a metric, a finding or a conclusion). A performance figure counts only if the page also describes the evaluation activity behind it (CX-36).\",",
+   "draft_text": "    \"results_reported\": \"CX-30: the page states that this activity was tested, evaluated, audited or monitored AND reports a result (a metric, a finding or a conclusion). A performance figure counts only if the page also describes the evaluation activity behind it (CX-36).\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03, X04"
+   ],
+   "interpretation": "Not touched by X03; X04 is procedural.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L160 EVAL[conducted_no_results]",
+   "action": "no_change",
+   "frozen_text": "    \"conducted_no_results\": \"CX-31: the page states that an evaluation, test, audit, pilot review or monitoring took place or is in place, but reports no result.\",",
+   "draft_text": "    \"conducted_no_results\": \"CX-31: the page states that an evaluation, test, audit, pilot review or monitoring took place or is in place, but reports no result.\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03, X04"
+   ],
+   "interpretation": "Not touched by X03; X04 is procedural.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L162 EVAL[unclear]",
+   "action": "no_change",
+   "frozen_text": "    \"unclear\": \"CX-33: the page makes an evaluative statement, but its subject, or whether it concerns this GenAI activity, cannot be settled.\",",
+   "draft_text": "    \"unclear\": \"CX-33: the page makes an evaluative statement, but its subject, or whether it concerns this GenAI activity, cannot be settled.\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03, X04"
+   ],
+   "interpretation": "Not touched by X03; X04 is procedural.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L163 EVAL[not_documented]",
+   "action": "no_change",
+   "frozen_text": "    \"not_documented\": \"CX-34/35: no evaluation statement about this activity, including a page saying no evaluation was done. A pilot stage alone, a usage count, or a vendor performance claim with no institution or independent evaluator named is not_documented. A risk or impact assessment alone is not_documented unless it reports testing or measured performance (CX-37-39).\",",
+   "draft_text": "    \"not_documented\": \"CX-34/35: no evaluation statement about this activity, including a page saying no evaluation was done. A pilot stage alone, a usage count, or a vendor performance claim with no institution or independent evaluator named is not_documented. A risk or impact assessment alone is not_documented unless it reports testing or measured performance (CX-37-39).\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03, X04"
+   ],
+   "interpretation": "Not touched by X03; X04 is procedural.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L181 EVAL_EMPHASIS (L181-187)",
+   "action": "no_change",
+   "frozen_text": "EVAL_EMPHASIS = (",
+   "draft_text": "EVAL_EMPHASIS = (",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03, X04"
+   ],
+   "interpretation": "Not touched by X03; X04 is procedural.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L199 page_questions evaluation_documented instructions",
+   "action": "no_change",
+   "frozen_text": "            instructions=\"Code this page for the named GenAI activity only. Does the page document an evaluation of this activity? If several values fit, take the first in this order.\" + EVAL_EMPHASIS,",
+   "draft_text": "            instructions=\"Code this page for the named GenAI activity only. Does the page document an evaluation of this activity? If several values fit, take the first in this order.\" + EVAL_EMPHASIS,",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03, X04"
+   ],
+   "interpretation": "Not touched by X03; X04 is procedural.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L210 type_questions instructions + EVAL_TYPES L165-172",
+   "action": "no_change",
+   "frozen_text": "    return {k: ts.Choice(instructions=f\"The page documents an evaluation, or a requirement or plan for one, of the named GenAI activity. Does it document an evaluation of this type: {v}?\" + EVAL_EMPHASIS,",
+   "draft_text": "    return {k: ts.Choice(instructions=f\"The page documents an evaluation, or a requirement or plan for one, of the named GenAI activity. Does it document an evaluation of this type: {v}?\" + EVAL_EMPHASIS,",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X03, X04"
+   ],
+   "interpretation": "Not touched by X03; X04 is procedural.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-50",
+   "action": "edit",
+   "frozen_text": "| CX-50 **[decision D-I = (a)]** | Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the page). Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)). |",
+   "draft_text": "| CX-50 **[decision D-I = (a)]** | Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the page), or not asked where CX-51 says so. For the items CX-51 and CX-52 mark as derived, `yes` and `no` are derived from the activity codes as they state, with no question. Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)). |",
+   "diff": "| CX-50 **[decision D-I = (a)]** | Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the [-page).-]{+page), or not asked where CX-51 says so. For the items CX-51 and CX-52 mark as derived, `yes` and `no` are derived from the activity codes as they state, with no question.+} Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)). |",
+   "directions": [
+    "codebook-rulings-round2.json #19 (R2C10)",
+    "codebook-rulings-round2.json #10 (R2C09)",
+    "codebook-rulings-round1.json X05"
+   ],
+   "interpretation": "Only the definition of yes/no changes; inclusion (D-I = a) and the T2 sentence stay.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-51",
+   "action": "edit",
+   "frozen_text": "| CX-51 | Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). |",
+   "draft_text": "| CX-51 | Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer or contracting party; users: `target_users`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are not asked. |",
+   "diff": "| CX-51 | Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). {+`content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer or contracting party; users: `target_users`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are not asked. +}|",
+   "directions": [
+    "codebook-rulings-round2.json #19 (R2C10)",
+    "codebook-rulings-round1.json X05",
+    "codebook-rulings-round1.json X06",
+    "codebook-rulings-round2.json #48 (R2C24)",
+    "deltas/RC-D-002.md L T2"
+   ],
+   "interpretation": "(1) Round-2 #19 names five items (purpose, tool or model, vendor, users, status and date); `content_data` is not among them, and the #19 option itself says the data item has no activity counterpart and still needs a question. So `content_data` stays a question and keeps round-1 X05 (reworded to 'any GenAI activity on the page', gated by verdict). (2) The matching-field list is my candidate for the mapping table #19 requires; field names follow round-1 choices (function items C11, tool/model name C12, vendor split round-2 #24, year fields C17). The PI must check each pairing, especially purpose <- function items and users <- target_users. (3) 'Stated on the page' excludes values filled from the vendor lookup (round-2 #24 lets the developer come from a lookup); otherwise a page that names no vendor could score yes. (4) Pages without a GenAI-bearing verdict have no activities; I kept X05's 'not asked' there (SPEC R-003 says the X05 gate 'acts through derivation'), not 'no'. (5) Contact sub-items: no wording change. X06 (header/footer text kept) is a scraper change, and round-2 #48 sets their input to main + footer + e-mail links via the per-item input-text column (CX-01); the existing words 'anywhere on the page ... site footers' already fit.",
+   "conflicts": "X05 (round 1: keep the descriptive items as gated page questions, reworded) vs round-2 #19 (derive them, no question). Followed #19 for the five items it names; X05 survives only for `content_data`. Also X05 `_NA_` -> 'not asked' (T2)."
+  },
+  {
+   "cx_row": "CX-52",
+   "action": "edit",
+   "frozen_text": "| CX-52 **[decision D-J = (b)]** | Safeguard items included, as Kaser does: `content_human_oversight`, `content_risk_assessment`, `content_user_notification`. **`content_user_notification` = yes only if the page describes a notice or label telling users they are interacting with GenAI or that content is AI-generated**; a page announcing that the institution uses GenAI is not by itself a notice (CX-01.1, W1 = a). The overlap with governance G1, G3, G4 is reported under R-070. |",
+   "draft_text": "| CX-52 **[decision D-J = (b)]** | Safeguard items included, as Kaser does: `content_human_oversight`, `content_risk_assessment`, `content_user_notification`. They are not asked on the page. Each is the page-level member of one safeguard family tagged by level, derived from that safeguard's shared four-answer question asked once per activity (`has_human_oversight`, `has_risk_assessment`, `has_transparency_notice`): `yes` if any activity on the page is `yes`, otherwise `no`. **`content_user_notification` = yes only if the page describes a notice or label telling users they are interacting with GenAI or that content is AI-generated**; a page announcing that the institution uses GenAI is not by itself a notice (CX-01.1, W1 = a). The shared activity question uses this definition. The overlap with governance G1, G3, G4 is reported under R-070. |",
+   "diff": "| CX-52 **[decision D-J = (b)]** | Safeguard items included, as Kaser does: `content_human_oversight`, `content_risk_assessment`, `content_user_notification`.{+ They are not asked on the page. Each is the page-level member of one safeguard family tagged by level, derived from that safeguard's shared four-answer question asked once per activity (`has_human_oversight`, `has_risk_assessment`, `has_transparency_notice`): `yes` if any activity on the page is `yes`, otherwise `no`.+} **`content_user_notification` = yes only if the page describes a notice or label telling users they are interacting with GenAI or that content is AI-generated**; a page announcing that the institution uses GenAI is not by itself a notice (CX-01.1, W1 = a). The {+shared activity question uses this definition. The +}overlap with governance G1, G3, G4 is reported under R-070. |",
+   "directions": [
+    "codebook-rulings-round2.json #10 (R2C09)",
+    "codebook-rulings-round2.json #29 (R2P09)",
+    "codebook-rulings-round1.json X07"
+   ],
+   "interpretation": "(1) Pairing: user_notification <- `has_transparency_notice`, per round-2 #10 ('the activity-level transparency question is re-worded to the signed notification definition'). (2) 'Otherwise no' is #10's literal text, so a page with no activities gets `no` here, unlike the descriptive items in CX-51 (not asked). The PI may want the two aligned. (3) The level tag is stated in words; the tag itself is a codebook property (round-2 #29). (4) The re-wording of the activity transparency question is a Group D item, outside CX; only the sentence saying the shared question uses this definition is added here. (5) Data classification stays activity-only (#10) and gets no CX item.",
+   "conflicts": "Round-1 X07 (one question per page x activity with yes / not_documented, derive both levels) vs round-2 #10 (one four-answer question: yes / no / unclear / not documented; page = yes if any activity yes, else no). Followed #10."
+  },
+  {
+   "cx_row": "CX-53",
+   "action": "edit",
+   "frozen_text": "| CX-53 (to-do, PI-directed) | When `content_contact` = yes, extract the contact with a deterministic `@` search over the stored page text (e-mail regex in `pilot/contact.py`, `EMAIL_RE`) and store the list beside the code (`content_contact_emails`). No API call. Not yet in the installed instrument; owed to the back-code engineering card |",
+   "draft_text": "| CX-53 (to-do, PI-directed) | When `content_contact` = yes, extract the contact with a deterministic `@` search over the stored main page text, the stored header and footer text and the page's e-mail links (e-mail regex in `pilot/contact.py`, `EMAIL_RE`) and store the list beside the code (`content_contact_emails`), in full and internally only; only the domain part of each address and a count are published. No API call. Not yet in the installed instrument; owed to the back-code engineering card |",
+   "diff": "| CX-53 (to-do, PI-directed) | When `content_contact` = yes, extract the contact with a deterministic `@` search over the stored {+main +}page {+text, the stored header and footer +}text{+ and the page's e-mail links+} (e-mail regex in `pilot/contact.py`, `EMAIL_RE`) and store the list beside the code [-(`content_contact_emails`).-]{+(`content_contact_emails`), in full and internally only; only the domain part of each address and a count are published.+} No API call. Not yet in the installed instrument; owed to the back-code engineering card |",
+   "directions": [
+    "codebook-rulings-round2.json #48 (R2C24)",
+    "deltas/RC-D-002.md J S4 a",
+    "codebook-rulings-round1.json X08",
+    "SPEC.md R-023, R-058"
+   ],
+   "interpretation": "(1) Input text per #48: 'contact and e-mail extraction main plus footer plus e-mail links'. Pages stored before the scraper change lack the footer text and links (delta F); that is a data-coverage fact, not wording, so it is not added. (2) The storage/publication clause: SPEC R-023 lists S4 a among the CX-53 rewording, but round-1 X08 says 'no change to CX-53 extraction text' and the publication rule already lives in R-058. The clause is not extraction text, so I added it; the PI may drop it and leave the rule to R-058 alone. (3) 'Not yet in the installed instrument; owed to the back-code engineering card' is now stale (CX-53 is a must-have codebook item, R-023), but no direction asks for that status text to change, so it is kept.",
+   "conflicts": "X08 ('no change to CX-53 extraction text') vs SPEC R-023 (CX-53 reworded for S4 a). Reconciled: extraction words unchanged except the input text (#48); a storage clause added."
+  },
+  {
+   "cx_row": "pilot.py L147 CONTENT[content_purpose]",
+   "action": "retire",
+   "frozen_text": "    \"content_purpose\": \"what the GenAI tool or activity is used for\",",
+   "draft_text": "    \"content_purpose\": \"what the GenAI tool or activity is used for\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round2.json #19 (R2C10)"
+   ],
+   "interpretation": "Retire: derived from activity codes (round-2 #19); no question. Keep the line in the archive record; the PI decides.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L148 CONTENT[content_tool_or_model]",
+   "action": "retire",
+   "frozen_text": "    \"content_tool_or_model\": \"the GenAI product or model is named\",",
+   "draft_text": "    \"content_tool_or_model\": \"the GenAI product or model is named\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round2.json #19 (R2C10)"
+   ],
+   "interpretation": "Retire: derived (round-2 #19). Keep the line in the archive record; the PI decides.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L149 CONTENT[content_vendor]",
+   "action": "retire",
+   "frozen_text": "    \"content_vendor\": \"the supplier or vendor is named\",",
+   "draft_text": "    \"content_vendor\": \"the supplier or vendor is named\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round2.json #19 (R2C10)"
+   ],
+   "interpretation": "Retire: derived (round-2 #19). Keep the line in the archive record; the PI decides.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L151 CONTENT[content_users]",
+   "action": "retire",
+   "frozen_text": "    \"content_users\": \"who uses it or who is affected is described\",",
+   "draft_text": "    \"content_users\": \"who uses it or who is affected is described\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round2.json #19 (R2C10)"
+   ],
+   "interpretation": "Retire: derived (round-2 #19). Keep the line in the archive record; the PI decides.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L152 CONTENT[content_status_date]",
+   "action": "retire",
+   "frozen_text": "    \"content_status_date\": \"the deployment status or a date is stated\",",
+   "draft_text": "    \"content_status_date\": \"the deployment status or a date is stated\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round2.json #19 (R2C10)"
+   ],
+   "interpretation": "Retire: derived (round-2 #19). Keep the line in the archive record; the PI decides.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L154 CONTENT[content_human_oversight]",
+   "action": "retire",
+   "frozen_text": "    \"content_human_oversight\": \"human review or oversight of GenAI outputs is described\",",
+   "draft_text": "    \"content_human_oversight\": \"human review or oversight of GenAI outputs is described\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round2.json #10 (R2C09)"
+   ],
+   "interpretation": "Retire: derived from the shared four-answer activity question (round-2 #10). Keep the line in the archive record; the PI decides.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L155 CONTENT[content_risk_assessment]",
+   "action": "retire",
+   "frozen_text": "    \"content_risk_assessment\": \"a risk or impact assessment is described\",",
+   "draft_text": "    \"content_risk_assessment\": \"a risk or impact assessment is described\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round2.json #10 (R2C09)"
+   ],
+   "interpretation": "Retire: derived from the shared activity question (round-2 #10). Keep the line in the archive record; the PI decides.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L156 CONTENT[content_user_notification]",
+   "action": "retire",
+   "frozen_text": "    \"content_user_notification\": \"a notice or label telling users that they are interacting with GenAI or that content is AI-generated is described (a page merely announcing that the institution uses GenAI is NOT such a notice)\",",
+   "draft_text": "    \"content_user_notification\": \"a notice or label telling users that they are interacting with GenAI or that content is AI-generated is described (a page merely announcing that the institution uses GenAI is NOT such a notice)\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round2.json #10 (R2C09)"
+   ],
+   "interpretation": "Retire: derived from the shared activity question (round-2 #10); its definition moves to that question, so the words are kept in CX-52 and should be reused there, not lost. Keep the line in the archive record; the PI decides.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L150 CONTENT[content_data]",
+   "action": "no_change",
+   "frozen_text": "    \"content_data\": \"the data inputs or data handled are described\",",
+   "draft_text": "    \"content_data\": \"the data inputs or data handled are described\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X05"
+   ],
+   "interpretation": "The item text is unchanged; the X05 re-wording is in the instruction template (next row).",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L203 page_questions content_* instructions",
+   "action": "edit",
+   "frozen_text": "        q[k] = ts.Choice(instructions=f\"Code the source PAGE. Does the page state this about the GenAI activity: {v}? yes = stated on the page.\",",
+   "draft_text": "content_data: ts.Choice(instructions=\"Code the source PAGE. Does the page state this about any GenAI activity on the page: the data inputs or data handled are described? yes = stated on the page.\", criteria={\"yes\": \"stated on the page\", \"no\": \"not stated on the page\"})",
+   "diff": "[-        q[k]-]{+content_data:+} [-= ts.Choice(instructions=f\"Code-]{+ts.Choice(instructions=\"Code+} the source PAGE. Does the page state this about [-the-]{+any+} GenAI [-activity:-]{+activity+} [-{v}?-]{+on the page: the data inputs or data handled are described?+} yes = stated on the page.\",{+ criteria={\"yes\": \"stated on the page\", \"no\": \"not stated on the page\"})+}",
+   "directions": [
+    "codebook-rulings-round1.json X05",
+    "codebook-rulings-round2.json #19 (R2C10)",
+    "codebook-rulings-round2.json #10 (R2C09)"
+   ],
+   "interpretation": "The shared template now serves only `content_data` (the others are retired), so I rendered it for that one item with X05's wording 'about any GenAI activity on the page'. The Python f-string form is replaced by the rendered text for readability; the build card generates the actual code. Diff is against the template line.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L153 CONTENT[content_contact]",
+   "action": "no_change",
+   "frozen_text": "    \"content_contact\": \"any contact point (person, unit, email, phone), including press or vendor contacts and site footers\",",
+   "draft_text": "    \"content_contact\": \"any contact point (person, unit, email, phone), including press or vendor contacts and site footers\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X06"
+   ],
+   "interpretation": "Already superseded inside CX-01.2 by the two contact.py w4 questions (§11.3: frozen instrument = contact.py w4 questions). No direction touches it.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "contact.py L30 WORDINGS[contact_w4a_named]",
+   "action": "no_change",
+   "frozen_text": "    \"contact_w4a_named\": \"a named person, office or unit given as responsible for the activity or for questions about it\",",
+   "draft_text": "    \"contact_w4a_named\": \"a named person, office or unit given as responsible for the activity or for questions about it\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X06",
+    "codebook-rulings-round2.json #48 (R2C24)"
+   ],
+   "interpretation": "X06 is a scraper change with no CX re-signature; #48 supplies the input text through the per-item input-text column (CX-01). Wording unchanged.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "contact.py L31 WORDINGS[contact_w4b_details] (L387-388)",
+   "action": "no_change",
+   "frozen_text": "    \"contact_w4b_details\": (\"contact details anywhere on the page: an email address, phone number, postal address or \"",
+   "draft_text": "    \"contact_w4b_details\": (\"contact details anywhere on the page: an email address, phone number, postal address or \"",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X06",
+    "codebook-rulings-round2.json #48 (R2C24)"
+   ],
+   "interpretation": "X06 is a scraper change with no CX re-signature; #48 supplies the input text through the per-item input-text column (CX-01). Wording unchanged.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "contact.py L42 contact question instructions",
+   "action": "no_change",
+   "frozen_text": "    qs = {k: ts.Choice(instructions=f\"Code the source PAGE. Does the page give this: {v}? yes = present on the page.\",",
+   "draft_text": "    qs = {k: ts.Choice(instructions=f\"Code the source PAGE. Does the page give this: {v}? yes = present on the page.\",",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X06",
+    "codebook-rulings-round2.json #48 (R2C24)"
+   ],
+   "interpretation": "X06 is a scraper change with no CX re-signature; #48 supplies the input text through the per-item input-text column (CX-01). Wording unchanged.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "contact.py L18 EMAIL_RE",
+   "action": "no_change",
+   "frozen_text": "EMAIL_RE = re.compile(r\"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*\\.[A-Za-z]{2,}\")",
+   "draft_text": "EMAIL_RE = re.compile(r\"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)*\\.[A-Za-z]{2,}\")",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X06",
+    "codebook-rulings-round2.json #48 (R2C24)"
+   ],
+   "interpretation": "X06 is a scraper change with no CX re-signature; #48 supplies the input text through the per-item input-text column (CX-01). Wording unchanged.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-60",
+   "action": "edit",
+   "frozen_text": "| CX-60 | Deterministic step (no API): map all \"nothing found\" spellings to `none_reported`. The mapping table is published with the code. |",
+   "draft_text": "| CX-60 | Deterministic step (no API), for rows coded before CX-01.3 only: map all \"nothing found\" spellings to `none_reported`. The mapping table is published with the code. |",
+   "diff": "| CX-60 | Deterministic step (no [-API):-]{+API), for rows coded before CX-01.3 only:+} map all \"nothing found\" spellings to `none_reported`. The mapping table is published with the code. |",
+   "directions": [
+    "codebook-rulings-round1.json X09",
+    "codebook-rulings-round2.json #9 (R2C06)"
+   ],
+   "interpretation": "X09 'commits' CX-60 to legacy rows only, because new rows get text only when the classifier says something was reported. Round-2 #9 folds X09's separate question into CX-61 but keeps that consequence (CX-61 is now the gate; text is extracted only when it is not `none_reported`). I read X09's legacy-only clause as surviving #9. If the PI reads #9 as replacing X09 wholesale, CX-60 stays unchanged.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "CX-61",
+   "action": "edit",
+   "frozen_text": "| CX-61 **[decision D-K = (b)]** | Remaining text: a jev `Choice` over the stored text: `quantified` / `qualitative` / `none_reported`. |",
+   "draft_text": "| CX-61 **[decision D-K = (b)]** | A jev `Choice` per (finding × page), over the page text with this activity's span marked, asked for outcomes and for incidents separately: `quantified` / `qualitative` / `none_reported`. It answers both whether the page reports an outcome (an incident) of this activity and of what kind; no separate existence question is asked. The outcome or incident text is extracted only when the answer is not `none_reported`. The incident item also takes the value in CX-61b. |",
+   "diff": "| CX-61 **[decision D-K = (b)]** | [-Remaining text: a-]{+A+} jev `Choice` {+per (finding × page), +}over the [-stored-]{+page+} [-text:-]{+text with this activity's span marked, asked for outcomes and for incidents separately:+} `quantified` / `qualitative` / `none_reported`. {+It answers both whether the page reports an outcome (an incident) of this activity and of what kind; no separate existence question is asked. The outcome or incident text is extracted only when the answer is not `none_reported`. The incident item also takes the value in CX-61b. +}|",
+   "directions": [
+    "codebook-rulings-round2.json #9 (R2C06)",
+    "codebook-rulings-round1.json X10",
+    "codebook-rulings-round1.json X09",
+    "deltas/RC-D-002.md L C2 a",
+    "codebook-rulings-round2.json #38 (R2C30)",
+    "SPEC.md R-024"
+   ],
+   "interpretation": "(1) Level and input from X10 ('pass 2 over the page text with the activity span marked') and #9 ('the signed item answers both whether and what kind ... level needs re-signature'). (2) 'Remaining text' is dropped: the item no longer runs on the leftover free text after CX-60. (3) 'The outcome or incident text is extracted only when not none_reported' is X09's extractor rule, kept by #9 (gate) and RC-D-002 row 43. How the quote step backs the value is not CX wording; it lives in SPEC R-040. (4) The activity span is not yet defined; it belongs to the pinned state schema (CX-02). (5) Label 'D-K = (b)' kept; the PI may mark it re-levelled.",
+   "conflicts": "(a) Round-1 X09 (a separate existence question first) vs round-2 #9 (folded into CX-61): followed #9. (b) Round-1 X10 says 'the extractor then quotes support for the chosen value'; round-2 #18 / SPEC R-040 say the quote step never sees the answer for the field it quotes, only that a gate is not none. Not CX wording, so not drafted; flagged so the build follows R-040. (c) Round-1 C22/C23 gate questions re-ruled down to quotes only by #9 (outside CX)."
+  },
+  {
+   "cx_row": "CX-61b",
+   "action": "new",
+   "frozen_text": "",
+   "draft_text": "| CX-61b (new) | `discontinued_uncertain` (incident item only) | The page suggests that this activity may have been ended, cancelled or suspended, but does not confirm it. |",
+   "diff": "{+| CX-61b (new) | `discontinued_uncertain` (incident item only) | The page suggests that this activity may have been ended, cancelled or suspended, but does not confirm it. |+}",
+   "directions": [
+    "deltas/RC-D-002.md L C2 a",
+    "codebook-rulings-round2.json #38 (R2C30)",
+    "SPEC.md R-024"
+   ],
+   "interpretation": "(1) Definition adapted from the v2.5 uncertainty flag it replaces ('Activity may have been discontinued but cannot confirm', contract §4.10), with 'discontinued' spelled out from the `discontinued` stage definition ('ended, cancelled, or suspended'). (2) Spelling: I reused the v2.5 flag token `discontinued_uncertain` for the translation table; the rulings say 'discontinuation uncertain'. Spelling is the PI's. (3) OPEN, not drafted: CX-61 is a single Choice with no tie-break. A page can report a quantified incident and also leave discontinuation uncertain; the PI must place this value in an order (or rule it separate), and decide whether a confirmed discontinuation is an incident at all (the `discontinued` stage already records it).",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L173-177 OUTCOME_KIND",
+   "action": "edit",
+   "frozen_text": "OUTCOME_KIND = {\n    \"quantified\": \"states a measured or numeric result\",\n    \"qualitative\": \"states a result in words only, with no measure\",\n    \"none_reported\": \"states no result\",\n}",
+   "draft_text": "OUTCOME_KIND = {\n    \"quantified\": \"states a measured or numeric result\",\n    \"qualitative\": \"states a result in words only, with no measure\",\n    \"none_reported\": \"states no result\",\n}\n# incident item only (CX-61b):\n#   \"discontinued_uncertain\": \"suggests the activity may have been ended, cancelled or suspended, but does not confirm it\",",
+   "diff": "OUTCOME_KIND = {\n    \"quantified\": \"states a measured or numeric result\",\n    \"qualitative\": \"states a result in words only, with no measure\",\n    \"none_reported\": \"states no result\",\n}{+\n# incident item only (CX-61b):\n#   \"discontinued_uncertain\": \"suggests the activity may have been ended, cancelled or suspended, but does not confirm it\",+}",
+   "directions": [
+    "deltas/RC-D-002.md L C2 a",
+    "codebook-rulings-round2.json #38 (R2C30)"
+   ],
+   "interpretation": "The three existing criteria are unchanged; they now apply to the page rather than the stored text and still read correctly ('states ...'). The frozen pilot has no instruction text for CX-61 (OUTCOME_KIND is defined but no question is built from it in pilot.py), so the instruction must be written from CX-61 by the build card and signed; I did not draft one because no direction supplies its words.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L178 NONE_RE",
+   "action": "no_change",
+   "frozen_text": "NONE_RE = re.compile(r\"^\\s*(none|none_reported|n/?a|_na_|not (reported|stated|documented|specified|mentioned|available)|no (outcomes?|incidents?|results?)( reported| documented| stated| mentioned)?|nothing( reported| found)?|unknown|-|)\\s*\\.?\\s*$\", re.I)",
+   "draft_text": "NONE_RE = re.compile(r\"^\\s*(none|none_reported|n/?a|_na_|not (reported|stated|documented|specified|mentioned|available)|no (outcomes?|incidents?|results?)( reported| documented| stated| mentioned)?|nothing( reported| found)?|unknown|-|)\\s*\\.?\\s*$\", re.I)",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X09"
+   ],
+   "interpretation": "CX-60's mapping table; now legacy rows only (CX-60). Pattern unchanged.",
+   "conflicts": ""
+  },
+  {
+   "cx_row": "pilot.py L220-226 state_for",
+   "action": "no_change",
+   "frozen_text": "def state_for(rec, chunk, title, i, n):\n    return {\n        \"institution\": rec[\"institution_name\"], \"country\": rec[\"country\"],\n        \"genai_activity\": {k: rec[k] for k in (\"activity_name\", \"activity_type\", \"adoption_stage\", \"tool_name\")},\n        \"page_url\": rec[\"source_url\"], \"page_title\": title,\n        \"page_part\": f\"{i + 1} of {n}\", \"page_text\": chunk,\n    }",
+   "draft_text": "def state_for(rec, chunk, title, i, n):\n    return {\n        \"institution\": rec[\"institution_name\"], \"country\": rec[\"country\"],\n        \"genai_activity\": {k: rec[k] for k in (\"activity_name\", \"activity_type\", \"adoption_stage\", \"tool_name\")},\n        \"page_url\": rec[\"source_url\"], \"page_title\": title,\n        \"page_part\": f\"{i + 1} of {n}\", \"page_text\": chunk,\n    }",
+   "diff": "",
+   "directions": [
+    "codebook-rulings-round1.json X11",
+    "codebook-rulings-round1.json X10",
+    "codebook-rulings-round2.json #48 (R2C24)"
+   ],
+   "interpretation": "This is the state given to the classifier. X11 pins it per question set as part of the frozen instrument (CX-02). It will change (CX-61 activity span, X10; header/footer text and e-mail links for contact items, #48), but the v2.7 schema is not defined yet, so no draft is offered: the build card drafts it and the PI signs it.",
+   "conflicts": ""
+  }
+ ]
+}

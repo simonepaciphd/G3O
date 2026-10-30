@@ -1,0 +1,1344 @@
+{
+ "draft_by": "subagent",
+ "date": "2026-10-29",
+ "rows": [
+  "policy_guidance",
+  "pilot_experiment",
+  "program_initiative",
+  "internal_operational",
+  "public_facing_service",
+  "unknown"
+ ],
+ "cells": [
+  {
+   "item": "core.adoption_stage",
+   "activity_type": "policy_guidance",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "output_contract.md (v2.5) line 359 (edge case E) codes a policy_guidance activity at stage `production`; codebook-rulings-round1.json C09 keeps adoption_stage for every activity"
+  },
+  {
+   "item": "core.adoption_stage",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C09 keeps adoption_stage for use on every activity; Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.adoption_stage",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C09 keeps adoption_stage for use on every activity; Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.adoption_stage",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C09 keeps adoption_stage for use on every activity; Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.adoption_stage",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C09 keeps adoption_stage for use on every activity; Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.adoption_stage",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C09 keeps adoption_stage for use on every activity; Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.procurement_status",
+   "activity_type": "policy_guidance",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: no source gates it out; a procurement standard is itself policy_guidance, so the usual answer is none_documented"
+  },
+  {
+   "item": "core.procurement_status",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=14 (purchase records fill procurement_status); codebook-rulings-round1.json C09; Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.procurement_status",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=14 (purchase records fill procurement_status); codebook-rulings-round1.json C09; Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.procurement_status",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=14 (purchase records fill procurement_status); codebook-rulings-round1.json C09; Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.procurement_status",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=14 (purchase records fill procurement_status); codebook-rulings-round1.json C09; Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.procurement_status",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=14 (purchase records fill procurement_status); codebook-rulings-round1.json C09; Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.model_origin",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06 (chosen): 'access_type ... do[es] not apply to governance'; codebook-rulings-round1.json C10 splits access_type into model_origin and build_arrangement; governance -> policy_guidance mapping via the v2.5 definition (output_contract.md (v2.5) line 154 §4.2: executive orders, memos, acceptable-use rules, procurement standards)"
+  },
+  {
+   "item": "core.model_origin",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.model_origin",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.model_origin",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.model_origin",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.model_origin",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.build_arrangement",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06 (chosen): 'access_type ... do[es] not apply to governance'; codebook-rulings-round1.json C10 splits access_type into model_origin and build_arrangement; governance -> policy_guidance mapping via the v2.5 definition (output_contract.md (v2.5) line 154 §4.2: executive orders, memos, acceptable-use rules, procurement standards)"
+  },
+  {
+   "item": "core.build_arrangement",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.build_arrangement",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.build_arrangement",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.build_arrangement",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.build_arrangement",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.interface",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "sourced",
+   "basis": "output_contract.md (v2.5) line 201 §4.5: interaction_type `not_applicable` 'For policy_guidance activities with no specific tool'; codebook-rulings-round1.json C11 and codebook-rulings-round2.json n=20 carry that value into interface; RC-D-002.md line 75 (J, S5: 'A policy and the tools it approves are separate activities')"
+  },
+  {
+   "item": "core.interface",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.interface",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.interface",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.interface",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.interface",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.function_drafting_writing",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json C11 splits interaction_type into interface plus 8 function items; interaction_type was `not_applicable` for policy_guidance with no tool (output_contract.md (v2.5) line 201). Inferred inheritance: function items have no not_applicable value of their own, and a policy can list permitted uses"
+  },
+  {
+   "item": "core.function_drafting_writing",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_drafting_writing",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.function_drafting_writing",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_drafting_writing",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_drafting_writing",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.function_summarization",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json C11 splits interaction_type into interface plus 8 function items; interaction_type was `not_applicable` for policy_guidance with no tool (output_contract.md (v2.5) line 201). Inferred inheritance: function items have no not_applicable value of their own, and a policy can list permitted uses"
+  },
+  {
+   "item": "core.function_summarization",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_summarization",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.function_summarization",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_summarization",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_summarization",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.function_translation",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json C11 splits interaction_type into interface plus 8 function items; interaction_type was `not_applicable` for policy_guidance with no tool (output_contract.md (v2.5) line 201). Inferred inheritance: function items have no not_applicable value of their own, and a policy can list permitted uses"
+  },
+  {
+   "item": "core.function_translation",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_translation",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.function_translation",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_translation",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_translation",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.function_search_retrieval",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json C11 splits interaction_type into interface plus 8 function items; interaction_type was `not_applicable` for policy_guidance with no tool (output_contract.md (v2.5) line 201). Inferred inheritance: function items have no not_applicable value of their own, and a policy can list permitted uses"
+  },
+  {
+   "item": "core.function_search_retrieval",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_search_retrieval",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.function_search_retrieval",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_search_retrieval",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_search_retrieval",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.function_code",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json C11 splits interaction_type into interface plus 8 function items; interaction_type was `not_applicable` for policy_guidance with no tool (output_contract.md (v2.5) line 201). Inferred inheritance: function items have no not_applicable value of their own, and a policy can list permitted uses"
+  },
+  {
+   "item": "core.function_code",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_code",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.function_code",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_code",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_code",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.function_image_audio_video",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json C11 splits interaction_type into interface plus 8 function items; interaction_type was `not_applicable` for policy_guidance with no tool (output_contract.md (v2.5) line 201). Inferred inheritance: function items have no not_applicable value of their own, and a policy can list permitted uses"
+  },
+  {
+   "item": "core.function_image_audio_video",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_image_audio_video",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.function_image_audio_video",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_image_audio_video",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_image_audio_video",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.function_extraction_classification",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json C11 splits interaction_type into interface plus 8 function items; interaction_type was `not_applicable` for policy_guidance with no tool (output_contract.md (v2.5) line 201). Inferred inheritance: function items have no not_applicable value of their own, and a policy can list permitted uses"
+  },
+  {
+   "item": "core.function_extraction_classification",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_extraction_classification",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.function_extraction_classification",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_extraction_classification",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_extraction_classification",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.function_analysis_recommendation",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json C11 splits interaction_type into interface plus 8 function items; interaction_type was `not_applicable` for policy_guidance with no tool (output_contract.md (v2.5) line 201). Inferred inheritance: function items have no not_applicable value of their own, and a policy can list permitted uses"
+  },
+  {
+   "item": "core.function_analysis_recommendation",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_analysis_recommendation",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.function_analysis_recommendation",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_analysis_recommendation",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06/C10/C11: tool fields apply to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.function_analysis_recommendation",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.tool_name",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json C12: '`not_applicable` for activities without a tool (C06)'; RC-D-002.md line 75 (J, S5: 'A policy and the tools it approves are separate activities'). Inferred because a policy can name a tool it bans or restricts (no separate activity then)"
+  },
+  {
+   "item": "core.tool_name",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C12: tool_name applies to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.tool_name",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.tool_name",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C12: tool_name applies to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.tool_name",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C12: tool_name applies to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.tool_name",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.model_name",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json C12: model_name defined with tool_name, '`not_applicable` for activities without a tool'; RC-D-002.md line 75 (J, S5: 'A policy and the tools it approves are separate activities'). Inferred: same exposure as tool_name"
+  },
+  {
+   "item": "core.model_name",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C12: model_name applies to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.model_name",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.model_name",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C12: model_name applies to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.model_name",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C12: model_name applies to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.model_name",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.contracting_party",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json C06 adds not_applicable to `vendor`; codebook-rulings-round2.json n=24 splits vendor into developer and contracting party. Inferred: the split items inheriting vendor's gate is not stated"
+  },
+  {
+   "item": "core.contracting_party",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=24 (contracting party, page-stated); tool activity type"
+  },
+  {
+   "item": "core.contracting_party",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.contracting_party",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=24 (contracting party, page-stated); tool activity type"
+  },
+  {
+   "item": "core.contracting_party",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=24 (contracting party, page-stated); tool activity type"
+  },
+  {
+   "item": "core.contracting_party",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.developer",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json C06 adds not_applicable to `vendor`; codebook-rulings-round2.json n=24 split; developer comes from page or a tool_name lookup, which has no input when tool_name is not asked. Inferred inheritance"
+  },
+  {
+   "item": "core.developer",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=24 (developer from lookup or page); tool activity type"
+  },
+  {
+   "item": "core.developer",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.developer",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=24 (developer from lookup or page); tool activity type"
+  },
+  {
+   "item": "core.developer",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=24 (developer from lookup or page); tool activity type"
+  },
+  {
+   "item": "core.developer",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.deployment_mode",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C06 (chosen) names deployment_mode as not applying to governance; codebook-rulings-round1.json C14 '`not_applicable` for activities without a tool'; governance -> policy_guidance mapping via the v2.5 definition (output_contract.md (v2.5) line 154 §4.2: executive orders, memos, acceptable-use rules, procurement standards)"
+  },
+  {
+   "item": "core.deployment_mode",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C14/C06: applies to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.deployment_mode",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.deployment_mode",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C14/C06: applies to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.deployment_mode",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C14/C06: applies to activities with a tool; tool activity type"
+  },
+  {
+   "item": "core.deployment_mode",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.target_users",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C15 (alt-2 chosen): 'target_users only for tool activities ... A04 for governance'; governance -> policy_guidance mapping via the v2.5 definition (output_contract.md (v2.5) line 154 §4.2: executive orders, memos, acceptable-use rules, procurement standards)"
+  },
+  {
+   "item": "core.target_users",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C15: target_users is for tool activities; tool activity type"
+  },
+  {
+   "item": "core.target_users",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.target_users",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C15: target_users is for tool activities; tool activity type"
+  },
+  {
+   "item": "core.target_users",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C15: target_users is for tool activities; tool activity type"
+  },
+  {
+   "item": "core.target_users",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.year_announced",
+   "activity_type": "policy_guidance",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=50: 'Governance uses the announcement year as its adoption year'"
+  },
+  {
+   "item": "core.year_announced",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C16 (asked when a candidate year exists); Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.year_announced",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C16 (asked when a candidate year exists); Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.year_announced",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C16 (asked when a candidate year exists); Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.year_announced",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C16 (asked when a candidate year exists); Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.year_announced",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C16 (asked when a candidate year exists); Default ask: no source gates this item out for this type"
+  },
+  {
+   "item": "core.year_pilot_start",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=50: 'Governance ... marks pilot and production years not applicable'; governance -> policy_guidance mapping via the v2.5 definition (output_contract.md (v2.5) line 154 §4.2: executive orders, memos, acceptable-use rules, procurement standards)"
+  },
+  {
+   "item": "core.year_pilot_start",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C17 and codebook-rulings-round2.json n=50 (pilot/production years for non-governance activities); tool activity type"
+  },
+  {
+   "item": "core.year_pilot_start",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.year_pilot_start",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C17 and codebook-rulings-round2.json n=50 (pilot/production years for non-governance activities); tool activity type"
+  },
+  {
+   "item": "core.year_pilot_start",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C17 and codebook-rulings-round2.json n=50 (pilot/production years for non-governance activities); tool activity type"
+  },
+  {
+   "item": "core.year_pilot_start",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: type indeterminate, so the r2 n=50 governance exclusion cannot be applied"
+  },
+  {
+   "item": "core.year_production_start",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=50: 'Governance ... marks pilot and production years not applicable'; governance -> policy_guidance mapping via the v2.5 definition (output_contract.md (v2.5) line 154 §4.2: executive orders, memos, acceptable-use rules, procurement standards)"
+  },
+  {
+   "item": "core.year_production_start",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C17 and codebook-rulings-round2.json n=50 (pilot/production years for non-governance activities); tool activity type"
+  },
+  {
+   "item": "core.year_production_start",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.year_production_start",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C17 and codebook-rulings-round2.json n=50 (pilot/production years for non-governance activities); tool activity type"
+  },
+  {
+   "item": "core.year_production_start",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C17 and codebook-rulings-round2.json n=50 (pilot/production years for non-governance activities); tool activity type"
+  },
+  {
+   "item": "core.year_production_start",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: type indeterminate, so the r2 n=50 governance exclusion cannot be applied"
+  },
+  {
+   "item": "core.deployment_scale_number",
+   "activity_type": "policy_guidance",
+   "cell": "not_asked",
+   "confidence": "inferred",
+   "basis": "codebook-rulings-round1.json A09 is 'Deployment scale (licences, users, interactions)': a property of a deployed tool. No source gates it by type. Inferred; a policy can state its coverage (e.g. number of staff or departments), which is not deployment scale"
+  },
+  {
+   "item": "core.deployment_scale_number",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json A09 (deployment scale of a tool activity); tool activity type"
+  },
+  {
+   "item": "core.deployment_scale_number",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: program_initiative mixes platform rollouts (tool) with governance bodies and training programs (no tool) (output_contract.md (v2.5) line 156 §4.2); a type-keyed table cannot gate it out"
+  },
+  {
+   "item": "core.deployment_scale_number",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json A09 (deployment scale of a tool activity); tool activity type"
+  },
+  {
+   "item": "core.deployment_scale_number",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json A09 (deployment scale of a tool activity); tool activity type"
+  },
+  {
+   "item": "core.deployment_scale_number",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "v2.5 typical evidence for `unknown` is 'a procurement award or vendor register naming a GenAI product' (output_contract.md (v2.5) line 159 §4.2): tool facts can be stated"
+  },
+  {
+   "item": "core.has_human_oversight",
+   "activity_type": "policy_guidance",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C18: 'for a governance activity: the rule requires it' (values defined for governance); codebook-rulings-round2.json n=10 one per-activity question per safeguard."
+  },
+  {
+   "item": "core.has_human_oversight",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C18."
+  },
+  {
+   "item": "core.has_human_oversight",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C18."
+  },
+  {
+   "item": "core.has_human_oversight",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C18."
+  },
+  {
+   "item": "core.has_human_oversight",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C18."
+  },
+  {
+   "item": "core.has_human_oversight",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C18."
+  },
+  {
+   "item": "core.has_transparency_notice",
+   "activity_type": "policy_guidance",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C19: 'for a governance activity: the rule requires it' (values defined for governance); codebook-rulings-round2.json n=10 one per-activity question per safeguard."
+  },
+  {
+   "item": "core.has_transparency_notice",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C19."
+  },
+  {
+   "item": "core.has_transparency_notice",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C19."
+  },
+  {
+   "item": "core.has_transparency_notice",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C19."
+  },
+  {
+   "item": "core.has_transparency_notice",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C19."
+  },
+  {
+   "item": "core.has_transparency_notice",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C19."
+  },
+  {
+   "item": "core.has_data_classification",
+   "activity_type": "policy_guidance",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C20: 'for a governance activity: the rule requires it' (values defined for governance); codebook-rulings-round2.json n=10 one per-activity question per safeguard. r2 n=10: data classification 'stays activity-only'."
+  },
+  {
+   "item": "core.has_data_classification",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C20. r2 n=10: data classification 'stays activity-only'."
+  },
+  {
+   "item": "core.has_data_classification",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C20. r2 n=10: data classification 'stays activity-only'."
+  },
+  {
+   "item": "core.has_data_classification",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C20. r2 n=10: data classification 'stays activity-only'."
+  },
+  {
+   "item": "core.has_data_classification",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C20. r2 n=10: data classification 'stays activity-only'."
+  },
+  {
+   "item": "core.has_data_classification",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C20. r2 n=10: data classification 'stays activity-only'."
+  },
+  {
+   "item": "core.has_risk_assessment",
+   "activity_type": "policy_guidance",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round1.json C21: 'for a governance activity: the rule requires it' (values defined for governance); codebook-rulings-round2.json n=10 one per-activity question per safeguard."
+  },
+  {
+   "item": "core.has_risk_assessment",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C21."
+  },
+  {
+   "item": "core.has_risk_assessment",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C21."
+  },
+  {
+   "item": "core.has_risk_assessment",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C21."
+  },
+  {
+   "item": "core.has_risk_assessment",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C21."
+  },
+  {
+   "item": "core.has_risk_assessment",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=10: one per-activity question per safeguard; codebook-rulings-round1.json C21."
+  },
+  {
+   "item": "core.outcome_kind",
+   "activity_type": "policy_guidance",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: no source gates it out; a policy page can report effects of the policy (CX-61 has no type restriction)"
+  },
+  {
+   "item": "core.outcome_kind",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=9: the signed CX-61 item over the page is the only gate; no type restriction stated"
+  },
+  {
+   "item": "core.outcome_kind",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=9: the signed CX-61 item over the page is the only gate; no type restriction stated"
+  },
+  {
+   "item": "core.outcome_kind",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=9: the signed CX-61 item over the page is the only gate; no type restriction stated"
+  },
+  {
+   "item": "core.outcome_kind",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=9: the signed CX-61 item over the page is the only gate; no type restriction stated"
+  },
+  {
+   "item": "core.outcome_kind",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=9: the signed CX-61 item over the page is the only gate; no type restriction stated"
+  },
+  {
+   "item": "core.incident_kind",
+   "activity_type": "policy_guidance",
+   "cell": "ask",
+   "confidence": "inferred",
+   "basis": "Ask kept: no source gates it out; a policy can be withdrawn, suspended or criticised"
+  },
+  {
+   "item": "core.incident_kind",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=9 and n=38 (discontinuation uncertain becomes an incident value); no type restriction stated"
+  },
+  {
+   "item": "core.incident_kind",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=9 and n=38 (discontinuation uncertain becomes an incident value); no type restriction stated"
+  },
+  {
+   "item": "core.incident_kind",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=9 and n=38 (discontinuation uncertain becomes an incident value); no type restriction stated"
+  },
+  {
+   "item": "core.incident_kind",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=9 and n=38 (discontinuation uncertain becomes an incident value); no type restriction stated"
+  },
+  {
+   "item": "core.incident_kind",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook-rulings-round2.json n=9 and n=38 (discontinuation uncertain becomes an incident value); no type restriction stated"
+  },
+  {
+   "item": "core.evaluation_documented",
+   "activity_type": "policy_guidance",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook.yaml line 4388 CX-40 example (3): guidance memo -> `required_or_planned` on the policy finding; codebook-rulings-round1.json X03 narrows CX-32c but keeps the item for policies"
+  },
+  {
+   "item": "core.evaluation_documented",
+   "activity_type": "pilot_experiment",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook.yaml line 4388 CX-40 examples (1),(2),(4) are pilot/chatbot findings; R-022"
+  },
+  {
+   "item": "core.evaluation_documented",
+   "activity_type": "program_initiative",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook.yaml line 4388 CX-40 examples (1),(2),(4) are pilot/chatbot findings; R-022"
+  },
+  {
+   "item": "core.evaluation_documented",
+   "activity_type": "internal_operational",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook.yaml line 4388 CX-40 examples (1),(2),(4) are pilot/chatbot findings; R-022"
+  },
+  {
+   "item": "core.evaluation_documented",
+   "activity_type": "public_facing_service",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook.yaml line 4388 CX-40 examples (1),(2),(4) are pilot/chatbot findings; R-022"
+  },
+  {
+   "item": "core.evaluation_documented",
+   "activity_type": "unknown",
+   "cell": "ask",
+   "confidence": "sourced",
+   "basis": "codebook.yaml line 4388 CX-40 examples (1),(2),(4) are pilot/chatbot findings; R-022"
+  }
+ ],
+ "tensions": [
+  {
+   "id": "T1",
+   "text": "Policy that names a tool. Round-1 C12/C14 and v2.5 §4.5 gate tool fields on 'activities without a tool', not on policy_guidance. The S5 unit rule moves approved tools into their own activity, but a policy that bans or restricts a named tool, or an approved-tool list the classifier does not split, would lose tool_name/model_name/developer. Options: keep not_asked on policy_guidance and rely on the activity-unit rule (S5) to split the tool off; or ask tool_name/model_name on policy_guidance too."
+  },
+  {
+   "id": "T2",
+   "text": "Policy pages often list permitted and prohibited uses (drafting yes, decisions no). The eight function items would be not_asked on policy_guidance, so this content is not captured anywhere in the 30 items (governance_direction records direction, not function)."
+  },
+  {
+   "id": "T3",
+   "text": "Policy coverage numbers ('applies to all 40,000 staff', '12 departments') resemble deployment_scale_number units (users, units_or_departments). Gating scale out of policy_guidance drops them; asking risks coding coverage as deployment scale."
+  },
+  {
+   "id": "T4",
+   "text": "model_origin/build_arrangement on policy_guidance: a policy can require sovereign, open-weight or government-built models. That is a rule about other tools, not the policy's own origin, so the cell stays not_asked, but the requirement has no home among these items."
+  },
+  {
+   "id": "T5",
+   "text": "program_initiative is mixed: platform rollouts have a tool; governance bodies and training programs do not. Round-1 C06 said deployment_mode and access_type do not apply to staff_training, but a table keyed on activity_type cannot separate training from rollouts, so every tool item stays ask on program_initiative and that part of the C06 example is lost (answers fall to unknown instead of not asked)."
+  },
+  {
+   "id": "T6",
+   "text": "The C06 example 'proposal-without-tool' cannot be expressed: proposal is now a stage (r2 item 11, tidy-up T1), not an activity type. Proposals of every type are asked the tool items and will mostly return unknown."
+  },
+  {
+   "id": "T7",
+   "text": "The unknown row is all ask. v2.5's typical unknown evidence is a purchase record naming a GenAI product, so tool facts are expected. Gating unknown out would lose them; asking everything costs the full question set. Also, activity_type's downgrade target is unknown: an activity whose type is downgraded (no quote / low confidence) moves to the all-ask row, so the table must read the post-downgrade type, and gate order (r2 item 41) puts activity_type in round 2 ahead of these round-3 items."
+  },
+  {
+   "id": "T8",
+   "text": "Two keys on one activity. Tool items gate on activity_type; governed_population, governance_form and governance_direction gate on action_type = governance (tidy-up T4). Mismatched pairs give odd results: activity_type policy_guidance + action_type deployment gets neither tool items nor governance items; activity_type internal_operational/public_facing_service + action_type governance gets both. Target_users (tool) and governed_population (governance) were meant to be complements (round-1 C15/A04), but under two keys both or neither can be asked. A consistency check on the (activity_type, action_type) pair, or a ruling on allowed pairs, would close this."
+  },
+  {
+   "id": "T9",
+   "text": "program_initiative includes 'governance bodies'. Whether such an activity is action_type governance (and so gets governance_form, whose values are instruments, not bodies) is not ruled."
+  },
+  {
+   "id": "T10",
+   "text": "Safeguards on governance activities: round-1 C18 defines 'yes' for a governance activity as 'the rule requires it', and the attachment rule forbids copying a policy's safeguard to the tools it governs. So the same safeguard can be yes on the policy and not_documented on the tool. Round-2 item 10 also tags contract clauses as a governance answer; a purchase record is usually typed internal_operational or unknown, not policy_guidance, so which activity carries a contract-clause safeguard is unclear."
+  },
+  {
+   "id": "T11",
+   "text": "Missing-value tokens: interface keeps a not_applicable value (r2 item 20), and C12/C14 name not_applicable, while tidy-up T2 renames not_applicable to 'not asked'. Once the table gates interface out of policy_guidance, the in-enum value only covers tool-less activities inside asked types (e.g. a training program). Whether the classifier may still answer it, or it is dropped as redundant, is open."
+  },
+  {
+   "id": "T12",
+   "text": "Extractor and derived items. tool_name, model_name, contracting_party and deployment_scale_number are coded by the quote step, and developer is derived; none is a classifier question. For them 'not asked' must mean 'not extracted' (or extracted then discarded). The quote step may see that a gate passed (r2 item 18), which fits the first reading. deployment_scale_unit is gated on the number, so it inherits this table indirectly."
+  },
+  {
+   "id": "T13",
+   "text": "Series continuity. v2.5 policy rows hold tool_name 'unknown', vendor 'unknown' (edge case E) and year_deployed values; under this table they become not asked. Round-1 C06 already notes v2.5 unknown values on policy rows cannot be recoded without a rerun, and r2 item 46 fills year_deployed from pilot/production years, which are both not asked on policy rows."
+  },
+  {
+   "id": "T14",
+   "text": "Index denominators: r2 item 56 drops new not-asked values from item counts, so every policy_guidance not_asked cell changes how policy-heavy institutions score relative to v2.5."
+  },
+  {
+   "id": "T15",
+   "text": "procurement_status on policy_guidance: a procurement standard is typed policy_guidance; asking procurement_status on it risks the classifier reading the standard's tender language as a tender. Kept ask (no source gates it out)."
+  },
+  {
+   "id": "T16",
+   "text": "The seven 'sourced' not-asked cells on policy_guidance rest on reading the rulings' word 'governance' (round-1 C06, C15; r2 item 50) as activity_type policy_guidance. Tidy-up T4 routes the governance-only items to action_type = governance instead, so the same rulings could equally be read as gating these items on action_type. Round-2 item 8 says action type no longer drives applicability, which supports the activity_type reading, but the mapping is an interpretation."
+  },
+  {
+   "id": "T17",
+   "text": "evaluation_documented is coded at activity and page level; this table can only gate the activity-level question."
+  }
+ ]
+}

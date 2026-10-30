@@ -1,0 +1,408 @@
+{
+ "format": "codebook-rulings-round3-v1",
+ "page": "questions-r3.html",
+ "page_sha256": "9842ea66d34e6c4e695dab9235b8043b2ee55f6159c9d01b01705a60d25a2f0b",
+ "reply_saved_at": "2026-10-29T23:32:52.931Z",
+ "ruled_by": "Simone Paci, 2026-10-29, page reply (22 items) + chat 'pick the rest in keeping with my logic'; inferred items approved by PI in chat 2026-10-29 (\"all good\")",
+ "all-03_comment": "check each part but add a new to the prompt that this is only part of the doc & add a temporary value to each question \"not covered by this part\", to be taken into account when combining parts",
+ "items": [
+  {
+   "id": "all-01",
+   "choice": "b",
+   "source": "page reply"
+  },
+  {
+   "id": "all-02",
+   "choice": "a",
+   "source": "page reply"
+  },
+  {
+   "id": "all-03",
+   "choice": "a, amended by PI comment",
+   "source": "page reply",
+   "reading": "Each part is checked as drafted; the prompt states the text is only part of the document; every question gets a temporary value \"not covered by this part\"; such parts do not vote when parts are combined; if every part gives it, the page is \"not documented\"; the temporary value is never published. Reading confirmed by PI in chat 2026-10-29 (\"all good\")."
+  },
+  {
+   "id": "all-04",
+   "choice": "b",
+   "source": "page reply"
+  },
+  {
+   "id": "all-05",
+   "choice": "a",
+   "source": "page reply"
+  },
+  {
+   "id": "all-06",
+   "choice": "a",
+   "source": "page reply"
+  },
+  {
+   "id": "all-07",
+   "choice": "c",
+   "source": "page reply"
+  },
+  {
+   "id": "all-08",
+   "choice": "approve",
+   "source": "page reply"
+  },
+  {
+   "id": "all-09",
+   "choice": [
+    "a"
+   ],
+   "source": "page reply"
+  },
+  {
+   "id": "all-10",
+   "choice": "a",
+   "source": "page reply"
+  },
+  {
+   "id": "all-11",
+   "choice": "approve",
+   "source": "page reply"
+  },
+  {
+   "id": "page-01",
+   "choice": "c",
+   "source": "page reply"
+  },
+  {
+   "id": "page-02",
+   "choice": "b",
+   "source": "page reply"
+  },
+  {
+   "id": "page-03",
+   "choice": "approve",
+   "source": "page reply"
+  },
+  {
+   "id": "page-04",
+   "choice": "b",
+   "source": "page reply"
+  },
+  {
+   "id": "page-05",
+   "choice": "approve",
+   "source": "page reply"
+  },
+  {
+   "id": "page-06",
+   "choice": "a",
+   "source": "page reply"
+  },
+  {
+   "id": "page-07",
+   "choice": "a",
+   "source": "page reply"
+  },
+  {
+   "id": "page-08",
+   "choice": [
+    "b",
+    "c"
+   ],
+   "source": "page reply"
+  },
+  {
+   "id": "page-09",
+   "choice": "c",
+   "source": "page reply"
+  },
+  {
+   "id": "page-10",
+   "choice": "approve",
+   "source": "page reply"
+  },
+  {
+   "id": "page-11",
+   "choice": "a",
+   "source": "page reply"
+  },
+  {
+   "id": "page-12",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "high",
+   "reason": "you approved the e-mail row with that sentence in it (page-10)"
+  },
+  {
+   "id": "activity-01",
+   "choice": "approve",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "reviews approved throughout; cells then adjust to activity-03/04"
+  },
+  {
+   "id": "activity-02",
+   "choice": "c",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "keeps your ruling and adds an explicit check, as with page-04 b"
+  },
+  {
+   "id": "activity-03",
+   "choice": [
+    "a",
+    "e"
+   ],
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "low",
+   "reason": "inclusive like page-08 b/c, without giving tool items a second meaning"
+  },
+  {
+   "id": "activity-04",
+   "choice": [
+    "a",
+    "d"
+   ],
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "low",
+   "reason": "nothing lost (all-02 a keeps silence apart); bodies get governance questions"
+  },
+  {
+   "id": "activity-05",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "keeps tool facts; as drafted"
+  },
+  {
+   "id": "activity-06",
+   "choice": "b",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "fits your activity definition: a rule and its tools are separate, linked by \"governs\""
+  },
+  {
+   "id": "activity-07",
+   "choice": "b",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "keeps information; table revisable without a rerun; full question set kept"
+  },
+  {
+   "id": "activity-08",
+   "choice": "b",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium-high",
+   "reason": "same as your earlier \"accept and document\" for old results"
+  },
+  {
+   "id": "activity-09",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "keeps \"not asked\" meaning a rule skipped it (all-01 b)"
+  },
+  {
+   "id": "activity-10",
+   "choice": "b",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "finer distinctions, as with multi-select for the form of a rule"
+  },
+  {
+   "id": "activity-11",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "low",
+   "reason": "matches how a single reader would code the whole policy"
+  },
+  {
+   "id": "activity-12",
+   "choice": "b",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "low",
+   "reason": "international, fits every country and level; tax sits under general public services"
+  },
+  {
+   "id": "activity-13",
+   "choice": [
+    "a",
+    "b"
+   ],
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "low",
+   "reason": "like the multi-select form; \"unknown\" kept for unclear pages"
+  },
+  {
+   "id": "activity-14",
+   "choice": "b",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "records combinations; nothing forced into overlapping values"
+  },
+  {
+   "id": "activity-15",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "keeps detail useful for checking attribution; internal only"
+  },
+  {
+   "id": "activity-16",
+   "choice": "b",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "low",
+   "reason": "the value carries its own direction, so a swapped pair cannot reverse it"
+  },
+  {
+   "id": "activity-17",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "follows your activity definition (components separate; governs kept)"
+  },
+  {
+   "id": "activity-18",
+   "choice": "b",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "low",
+   "reason": "same design within and across pages; all links recorded"
+  },
+  {
+   "id": "activity-19",
+   "choice": "approve",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "the marked items are ruled separately"
+  },
+  {
+   "id": "activity-20",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "as drafted; consistent with all-05 a (most sure)"
+  },
+  {
+   "id": "activity-21",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "low",
+   "reason": "as drafted; an ended activity is never shown as live"
+  },
+  {
+   "id": "activity-22",
+   "choice": "b",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "gives \"both\" when the page as a whole says both"
+  },
+  {
+   "id": "activity-23",
+   "choice": "b",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "a specific statement beats a vague one, as in all-04 b and page-02 b"
+  },
+  {
+   "id": "activity-24",
+   "choice": "b",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "low",
+   "reason": "nothing lost"
+  },
+  {
+   "id": "activity-25",
+   "choice": "approve",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "reviews approved throughout"
+  },
+  {
+   "id": "activity-26",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "low",
+   "reason": "as drafted"
+  },
+  {
+   "id": "activity-27",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "low",
+   "reason": "as drafted; the stop signal also lives in the stage"
+  },
+  {
+   "id": "activity-28",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "no double counting with the stage"
+  },
+  {
+   "id": "activity-29",
+   "choice": "approve",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "reviews approved throughout"
+  },
+  {
+   "id": "activity-30",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "smallest change, as with page-01 c"
+  },
+  {
+   "id": "source-01",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "same rule as document type, as you chose in all-06 a"
+  },
+  {
+   "id": "institution-01",
+   "choice": "b",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "removes the default \"distinct\" from one-sided parts"
+  },
+  {
+   "id": "institution-02",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "consistent with \"set by rule\" naming its rule"
+  },
+  {
+   "id": "record-01",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "high",
+   "reason": "procedural; recommended"
+  },
+  {
+   "id": "record-02",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "every rule-made value names its rule; matches \"derived\""
+  },
+  {
+   "id": "record-03",
+   "choice": "c",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "nothing hidden"
+  },
+  {
+   "id": "shared-01",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "medium",
+   "reason": "keeps one shared list, as your fold ruled"
+  },
+  {
+   "id": "shared-02",
+   "choice": "a",
+   "source": "integrator-inferred from the PI logic, approved by PI in chat 2026-10-29 (\"all good\")",
+   "confidence": "low",
+   "reason": "records who copied the value"
+  }
+ ]
+}
