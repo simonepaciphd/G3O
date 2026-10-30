@@ -2144,7 +2144,7 @@ def verify_r8(cb: dict, r7cb: dict) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--build", choices=BUILDS, default="signed-2.7",
+    ap.add_argument("--build", choices=BUILDS, default="r8-signoff",   # RC-D-005: the re-signed release (f0b1348c), reproduced with --spec-rev 2b43661
                     help="signed-2.7 reproduces the signed file; r5-draft / r5-signoff build the RC-D-005 candidate")
     ap.add_argument("--out", default=None, help="default: codebook/codebook.yaml (signed-2.7) or planning/t010/candidate-r5/")
     ap.add_argument("--list-open", action="store_true", help="print every open leaf before verifying")
@@ -2154,7 +2154,7 @@ def main() -> None:
     base = copy.deepcopy(cb)      # the pre-round-4 codebook; verify_round3() and verify_final() check it unchanged
     apply_r4(cb)
     yaml.add_representer(str, _str_rep, Dumper=yaml.SafeDumper)
-    out = Path(a.out) if a.out else (WT / "codebook/codebook.yaml" if a.build == "signed-2.7" else {**R5_OUT, **R6_OUT, **R7_OUT, **R8_OUT}[a.build])
+    out = Path(a.out) if a.out else (WT / "planning/t010/superseded-d24bbc7c/codebook.yaml" if a.build == "signed-2.7" else {**R5_OUT, **R6_OUT, **R7_OUT, **R8_OUT}[a.build])
     out.parent.mkdir(parents=True, exist_ok=True)
     # The approved draft is verified first (round-3, final and round-4 checks), in a side file, then signed-off stages run.
     draft = out.with_name(out.stem + ".draft-r4" + out.suffix)
