@@ -48,7 +48,14 @@ LINKAGE = {"jev_choice", "deterministic", "extractor", "pipeline"}
 CODER = {"classifier", "mechanical", "quote_step", "derived"}
 PASS = {1, 2, "stage6", NONE}
 ANSWER = {"single", "multi", "yes_no", "text", "number", "date", "list"}
-NO_VALUES_OK = {"text", "number", "date"}
+#: ``values: none`` is allowed for these answer types (field 13; ``list`` added
+#: by item-template amendment A1: a list of extracted strings has no codes) ...
+NO_VALUES_OK = {"text", "number", "date", "list"}
+#: ... and for every mechanical or derived item (amendment A1, F1 a), whose
+#: codes, if any, come from ``value_codes``, ``value_vocabulary`` or yes_no.
+NO_VALUES_CODERS = {"mechanical", "derived"}
+#: The "any value" gate form (amendment A3, F6 a): any real value opens it.
+ANY_VALUE = "any"
 ORDER_TIE = {"first_in_order", "single_best", "all_that_apply", NONE}
 LONG_PAGE = {"first_section", "any_yes", "priority_order", "earliest_year", "combined_list",
              "highest_probability", NONE}
@@ -113,6 +120,12 @@ def _value_codes(cb: Codebook, item_id: str) -> list[str] | None:
     return None if values is None else [str(v["code"]) for v in values]
 
 
+def _tokens(item: dict[str, Any]) -> list[str]:
+    """``missing_tokens`` as a list (``none`` is the empty set, amendment A4)."""
+    mt = item.get("missing_tokens")
+    return [str(t) for t in mt] if isinstance(mt, list) else []
+
+
 # ---------------------------------------------------------------------------
 # check 1
 # ---------------------------------------------------------------------------
@@ -173,17 +186,31 @@ def check_01_template_complete(cb: Codebook, ctx: Context) -> CheckResult:
             bad("round", f"{_short(rnd)} is not an integer >= 1 or none")
         gate = item.get("gate")
         if gate != NONE and not (isinstance(gate, dict) and isinstance(gate.get("item"), str)
-                                 and isinstance(gate.get("values"), list)):
-            bad("gate", f"{_short(gate)} is not none or an item id + list of values")
+                                 and (isinstance(gate.get("values"), list) or gate.get("values") == ANY_VALUE)):
+            bad("gate", f"{_short(gate)} is not none or an item id + list of values (or `any`, amendment A3)")
         ins = item.get("instruction")
         if ins != NONE and cb.slot_text(ins) is None:
             bad("instruction", f"{_short(ins)} is not a text slot or none")
         values = item.get("values")
         if values == NONE:
-            if item.get("answer_type") not in NO_VALUES_OK:
-                bad("values", f"none, but answer_type {item.get('answer_type')!r} is not text / number / date")
+            if item.get("answer_type") not in NO_VALUES_OK and item.get("coder") not in NO_VALUES_CODERS:
+                bad("values", f"none, but answer_type {item.get('answer_type')!r} is not text / number / date / list "
+                              f"and coder {item.get('coder')!r} is not mechanical / derived (amendment A1)")
+            if "value_vocabulary" in item and not cb.vocab_values(str(item["value_vocabulary"])):
+                bad("value_vocabulary", f"{_short(item['value_vocabulary'])} names no vocabulary with values")
+            vc = item.get("value_codes")
+            if vc is not None and not (isinstance(vc, list) and vc and all(SNAKE.match(str(c)) for c in vc)):
+                bad("value_codes", f"{_short(vc)} is not a non-empty list of snake_case codes")
+        elif cb.parts(item_id) is not None:
+            for name, part in cb.parts(item_id) or []:
+                for n, v in enumerate(part):
+                    if cb.slot_text(v.get("definition")) is None:
+                        bad("values", f"part {name!r} value {n} ({v.get('code')!r}) definition is not a text slot")
+        elif cb.computed_values(item_id) is not None:
+            if item.get("coder") != "classifier" or item.get("answer_type") != "single":
+                bad("values", "computed value list (amendment A2) on an item that is not a single-answer classifier")
         elif cb.value_list(item_id) is None:
-            bad("values", f"not an ordered list of {{code, definition}}: {_short(values)}")
+            bad("values", f"not an ordered list of {{code, definition}}, a parts form or a computed list: {_short(values)}")
         else:
             for n, v in enumerate(values):
                 if cb.slot_text(v.get("definition")) is None:
@@ -213,8 +240,16 @@ def check_01_template_complete(cb: Codebook, ctx: Context) -> CheckResult:
         if thr != NONE and thr != THRESHOLD:
             bad("threshold", f"{_short(thr)} is not {THRESHOLD} or none")
         mt = item.get("missing_tokens")
-        if not isinstance(mt, list) or not set(map(str, mt)) <= missing_vocab:
-            bad("missing_tokens", f"{_short(mt)} is not a subset of vocabularies.missing")
+        if mt != NONE and (not isinstance(mt, list) or not set(map(str, mt)) <= missing_vocab):
+            bad("missing_tokens", f"{_short(mt)} is not none or a subset of vocabularies.missing (amendment A4)")
+        jm = item.get("jev_missing_choice")
+        if jm is not None:
+            offered = jm.get("offered") if isinstance(jm, dict) else None
+            if not isinstance(offered, list) or not set(map(str, offered)) <= set(_tokens(item)):
+                bad("jev_missing_choice", f"offered {_short(offered)} is not a subset of the item's missing_tokens")
+            elif offered and not (isinstance(jm.get("rule"), list) and jm["rule"]
+                                  and all(cb.resolve_text(str(p)) is not None for p in jm["rule"])):
+                bad("jev_missing_choice", f"offers {offered} without rule slots giving the meaning: {_short(jm.get('rule'))}")
         fs = item.get("frozen_signature")
         if fs != NONE and not (isinstance(fs, str) and FROZEN_RE.match(fs)):
             bad("frozen_signature", f"{_short(fs)} is not none or a signed questionnaire row id")
@@ -420,12 +455,17 @@ def check_06_linkage(cb: Codebook, ctx: Context) -> CheckResult:
     else:
         doc = json.loads(jev.content)
         seen = [q["item_id"] for q in doc["questions"]]
+        qids = [q.get("question_id") for q in doc["questions"]]
+        for d in sorted({x for x in qids if qids.count(x) > 1}):
+            res.fail(f"question id {d!r} is not unique")
         for q in doc["questions"]:
             verify(f"question {q.get('question_id')}", q.get("item_id", ""), q.get("item_hash", ""))
         for item_id, item in build.items():
-            if item.get("linkage") == "jev_choice" and seen.count(item_id) != 1:
+            want = len(cb.parts(item_id) or [None])      # one question per part (amendment A6)
+            if item.get("linkage") == "jev_choice" and seen.count(item_id) != want:
                 why = next((x["reason"] for x in doc.get("not_generated", []) if x["item_id"] == item_id), "")
-                res.fail(f"{item_id}: jev_choice item yields {seen.count(item_id)} questions" + (f" ({why})" if why else ""))
+                res.fail(f"{item_id}: jev_choice item yields {seen.count(item_id)} questions (expected {want})"
+                         + (f" ({why})" if why else ""))
         for item_id in seen:
             if item_id in cb.items and cb.items[item_id].get("linkage") != "jev_choice":
                 res.fail(f"{item_id}: question generated for a non-jev_choice item")
@@ -464,12 +504,28 @@ def _pass_rank(p: Any) -> int | None:
     return {1: 1, 2: 2, "stage6": 3}.get(p)
 
 
+def _position(cb: Codebook, item_id: str, seen: frozenset[str] = frozenset()) -> tuple[Any, Any]:
+    """(pass, round) at which an item's value exists. A classifier item has its
+    own; an item without one (an extractor or mechanical step) exists once its
+    own gate item does (amendment A5), and an ungated one before any round."""
+    item = cb.items[item_id]
+    if _pass_rank(item.get("pass")) is not None and isinstance(item.get("round"), int):
+        return item.get("pass"), item.get("round")
+    gate = item.get("gate")
+    target = gate.get("item") if isinstance(gate, dict) else None
+    if isinstance(target, str) and target in cb.items and target not in seen:
+        return _position(cb, target, seen | {item_id})
+    return item.get("pass"), item.get("round")
+
+
 def check_07_gates(cb: Codebook, ctx: Context) -> CheckResult:
-    """A gate names an existing item and existing values (the gate item's value
-    codes or missing tokens); gates have no cycles; when the gated item has a
+    """A gate names an existing item and existing values (the gate item's codes
+    in any template form, or its missing tokens; ``values: any`` names no
+    value, amendment A3); gates have no cycles; when the gated item has a
     classifier round, its round is later than its gate's round in the same pass,
-    or its pass is later. Applicability-table gates (``key`` + ``cells``) are
-    checked the same way on their key item and cell keys."""
+    or its pass is later. A gate item without a pass/round takes the position of
+    its own gate (amendment A5). Applicability-table gates (``key`` +
+    ``cells``) are checked the same way on their key item and cell keys."""
     res = CheckResult(7, "gates")
     edges: dict[str, str] = {}
     for item_id, item in cb.items.items():
@@ -487,23 +543,25 @@ def check_07_gates(cb: Codebook, ctx: Context) -> CheckResult:
             _scoped(cb, res, item_id, f"gate item {target!r} does not exist")
             continue
         edges[item_id] = target
-        allowed = set(_value_codes(cb, target) or []) | {str(t) for t in cb.items[target].get("missing_tokens") or []}
+        allowed = set(cb.codes(target) or []) | set(_tokens(cb.items[target]))
         named = gate.get("values") if "item" in gate else list((gate.get("cells") or {}).keys())
         target_values = cb.items[target].get("values")
+        if named == ANY_VALUE:
+            named = []                                   # amendment A3: any real value of an existing item
         for v in named or []:
             if str(v) not in allowed:
                 why = " (it has no value list: values none)" if target_values == NONE else ""
                 _scoped(cb, res, item_id, f"gate value {v!r} is not a value or missing token of {target}{why}; "
                                           f"allowed: {sorted(allowed)}")
-        r_gated, r_gate = item.get("round"), cb.items[target].get("round")
-        p_gated, p_gate = _pass_rank(item.get("pass")), _pass_rank(cb.items[target].get("pass"))
+        r_gated, (p_gate_raw, r_gate) = item.get("round"), _position(cb, target)
+        p_gated, p_gate = _pass_rank(item.get("pass")), _pass_rank(p_gate_raw)
         if isinstance(r_gated, int):
             if p_gate is None or not isinstance(r_gate, int):
                 _scoped(cb, res, item_id, f"round {r_gated} (pass {item.get('pass')}) gated on {target}, which has no pass/round "
-                                          f"(pass {cb.items[target].get('pass')}, round {r_gate})")
+                                          f"(pass {cb.items[target].get('pass')}, round {r_gate}) and no gate that gives one")
             elif p_gated is not None and (p_gated < p_gate or (p_gated == p_gate and r_gated <= r_gate)):
                 _scoped(cb, res, item_id, f"pass {item.get('pass')} round {r_gated} is not after gate {target} "
-                                          f"pass {cb.items[target].get('pass')} round {r_gate}")
+                                          f"pass {p_gate_raw} round {r_gate}")
     for start in edges:
         seen, node = {start}, edges[start]
         while node in edges:
@@ -521,17 +579,20 @@ def check_08_values(cb: Codebook, ctx: Context) -> CheckResult:
     res = CheckResult(8, "values")
     missing = set(cb.vocab_values("missing"))
     for item_id, item in cb.items.items():
-        codes = _value_codes(cb, item_id)
-        if codes is None:
-            continue
+        lists = [("", _value_codes(cb, item_id))]
+        if cb.parts(item_id) is not None:             # amendment A6: codes checked per part
+            lists = [(f"part {name!r}: ", [str(v["code"]) for v in part]) for name, part in cb.parts(item_id) or []]
         exempt = set((item.get("missing_map") or {}).keys()) if isinstance(item.get("missing_map"), dict) else set()
-        for c in sorted({c for c in codes if codes.count(c) > 1}):
-            _scoped(cb, res, item_id, f"duplicate code {c!r}")
-        for c in codes:
-            if not SNAKE.match(c):
-                _scoped(cb, res, item_id, f"code {c!r} is not snake_case")
-            if c in missing and c not in exempt:
-                _scoped(cb, res, item_id, f"code {c!r} equals a missing token")
+        for label, codes in lists:
+            if codes is None:
+                continue
+            for c in sorted({c for c in codes if codes.count(c) > 1}):
+                _scoped(cb, res, item_id, f"{label}duplicate code {c!r}")
+            for c in codes:
+                if not SNAKE.match(c):
+                    _scoped(cb, res, item_id, f"{label}code {c!r} is not snake_case")
+                if c in missing and c not in exempt:
+                    _scoped(cb, res, item_id, f"{label}code {c!r} equals a missing token")
     return res
 
 
@@ -545,7 +606,16 @@ def check_09_coder_fits(cb: Codebook, ctx: Context) -> CheckResult:
             if cb.instruction(item_id) is None:
                 _scoped(cb, res, item_id, "classifier without an instruction slot")
             values = cb.value_list(item_id)
-            if values is None or any(cb.definition(item_id, n) is None for n in range(len(values))):
+            parts = cb.parts(item_id)
+            if parts is not None:                     # amendment A6
+                for n, (name, part) in enumerate(parts):
+                    if n and cb.part_instruction(item_id, n) is None:
+                        _scoped(cb, res, item_id, f"classifier part {name!r} without an instruction slot")
+                    if any(cb.part_definition(item_id, name, i) is None for i in range(len(part))):
+                        _scoped(cb, res, item_id, f"classifier part {name!r} without value definitions")
+            elif cb.computed_values(item_id) is not None:
+                pass                                  # amendment A2: choices computed per row
+            elif values is None or any(cb.definition(item_id, n) is None for n in range(len(values))):
                 _scoped(cb, res, item_id, f"classifier without value definitions (values: {_short(item.get('values'), 60)})")
             if item.get("threshold") == NONE:
                 _scoped(cb, res, item_id, "classifier without a threshold")
@@ -751,14 +821,36 @@ def check_16_full_rules(cb: Codebook, ctx: Context) -> CheckResult:
     so that clause is reported as a note."""
     res = CheckResult(16, "full rules beside every value")
     jev = ctx.file("jev_questions.json")
+    part_sentence = cb.shared_slot("part_prompt/sentence")
+    part_label = cb.shared_slot("part_prompt/temporary_answer/label")
     if jev is not None:
-        for q in json.loads(jev.content)["questions"]:
+        doc = json.loads(jev.content)
+        if part_sentence is not None and part_label is not None:
+            pp = doc.get("part_prompt") or {}
+            if pp.get("sentence") != part_sentence.text:
+                res.fail("jev_questions.json: part prompt does not carry the part-prompt sentence (all-03 a)")
+        for q in doc["questions"]:
             item_id = q["item_id"]
             rules = [r.text for r in cb.rule_texts(item_id)]
-            for n, crit in enumerate(q["criteria"]):
-                d = cb.definition(item_id, n)
-                if d is None or not _follows(crit["text"], d.text, rules):
+            for crit in q["criteria"]:
+                d = cb.resolve_text(str(crit.get("definition_slot", "")))
+                if d is None or not _follows(crit["text"], d, rules):
                     res.fail(f"jev question {item_id} value {crit['code']!r}: definition not followed by all {len(rules)} rules")
+            if "computed_values" in q and not _follows(q.get("rules_text", ""), "", rules):
+                res.fail(f"jev question {item_id}: computed-value question does not carry all {len(rules)} rules")
+            # every offered value, and only those, is a criterion (jev_choice: false, missing choices; A6, A7)
+            part = q.get("part")
+            if part is not None:
+                values = dict(cb.parts(item_id) or []).get(part) or []
+            else:
+                values = cb.value_list(item_id) or []
+            want = [str(v["code"]) for v in values if v.get("jev_choice") is not False]
+            want += [code for code, slots in cb.missing_choices(item_id) if slots]
+            got = [str(c["code"]) for c in q["criteria"]]
+            if got != want:
+                res.fail(f"jev question {q.get('question_id')}: choices {got} are not the offered values {want}")
+            if part_label is not None and (q.get("part_prompt_answer") or {}).get("label") != part_label.text:
+                res.fail(f"jev question {q.get('question_id')}: no temporary answer {part_label.text!r} (all-03 a)")
     ext = ctx.file("extractor_prompt_sections.md")
     if ext is not None:
         for item_id in re.findall(r"<!-- item: (\S+) sha256: ", ext.content):
@@ -774,8 +866,12 @@ def check_16_full_rules(cb: Codebook, ctx: Context) -> CheckResult:
                 d = cb.definition(item_id, n)
                 if d is None or not _follows(block, d.text, rules):
                     res.fail(f"prompt section {item_id} value {value['code']!r}: definition not followed by all rules")
-    res.notes.append("part-prompt clause (all-03 a): no part prompt generated; the codebook holds no signed "
-                     "part-prompt sentence (generator blocked, see manifest blocked_targets)")
+    if part_sentence is None or part_label is None:
+        res.notes.append("part-prompt clause (all-03 a): no part prompt generated; the codebook holds no signed "
+                         "part-prompt sentence (generator blocked, see manifest blocked_targets)")
+    else:
+        res.notes.append("part-prompt clause (all-03 a): jev_questions.json carries the part sentence, and every "
+                         "question the temporary answer, from the codebook's shared slots")
     res.notes.append(f"rule list heading used as scaffolding: {RULES_HEADING!r}")
     return res
 

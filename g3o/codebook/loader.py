@@ -175,6 +175,107 @@ class Codebook:
                 out.append(RuleText(f"items/{item_id}/rules/{n}", text))
         return out
 
+    # -- RC-D-005 forms (item-template r5 amendments A1-A8) -------------
+    def parts(self, item_id: str) -> list[tuple[str, list[dict[str, Any]]]] | None:
+        """Parts form (amendment A6): ``values`` is a mapping whose ``parts``
+        key lists, in order, the keys holding each part's ``{code, definition}``
+        list. None when the item does not use the form or a part is malformed."""
+        values = self.items[item_id].get("values")
+        if not (isinstance(values, dict) and isinstance(values.get("parts"), list) and values["parts"]):
+            return None
+        out: list[tuple[str, list[dict[str, Any]]]] = []
+        for name in values["parts"]:
+            part = values.get(name)
+            if not (isinstance(part, list) and part and all(isinstance(v, dict) and "code" in v for v in part)):
+                return None
+            out.append((str(name), part))
+        return out
+
+    def part_instruction(self, item_id: str, index: int) -> Slot | None:
+        """Part 0 uses the item's instruction; later parts use
+        ``values.part_instructions.<part>``."""
+        if index == 0:
+            return self.instruction(item_id)
+        parts = self.parts(item_id) or []
+        name = parts[index][0]
+        slot = ((self.items[item_id].get("values") or {}).get("part_instructions") or {}).get(name)
+        text = self.slot_text(slot)
+        return None if text is None else Slot(f"items/{item_id}/values/part_instructions/{name}", text)
+
+    def part_definition(self, item_id: str, part: str, index: int) -> Slot | None:
+        values = self.items[item_id].get("values") or {}
+        text = self.slot_text((values.get(part) or [])[index].get("definition"))
+        return None if text is None else Slot(f"items/{item_id}/values/{part}/{index}/definition", text)
+
+    def part_gate(self, item_id: str, part: str) -> dict[str, Any] | None:
+        """The gate mapping of a later part: a mapping in ``values`` whose
+        ``part`` names it (e.g. ``role_gate``)."""
+        values = self.items[item_id].get("values") or {}
+        for key, v in values.items():
+            if isinstance(v, dict) and v.get("part") == part:
+                return {k: x for k, x in v.items() if k != "text"} | {"key": key}
+        return None
+
+    def computed_values(self, item_id: str) -> str | None:
+        """Computed value list (amendment A2): ``values: {candidates: <text>}``."""
+        values = self.items[item_id].get("values")
+        if isinstance(values, dict) and isinstance(values.get("candidates"), str) and "parts" not in values:
+            return values["candidates"]
+        return None
+
+    def codes(self, item_id: str) -> list[str] | None:
+        """The item's value codes in any template form: the value list; the
+        first part of a parts item; for ``values: none`` (amendment A1), a
+        ``value_codes`` list, a ``value_vocabulary`` name, or yes / no for a
+        yes_no item. None when the item has no closed code set."""
+        item = self.items[item_id]
+        values = self.value_list(item_id)
+        if values is not None:
+            return [str(v["code"]) for v in values]
+        parts = self.parts(item_id)
+        if parts is not None:
+            return [str(v["code"]) for v in parts[0][1]]
+        if isinstance(item.get("value_codes"), list):
+            return [str(c) for c in item["value_codes"]]
+        if isinstance(item.get("value_vocabulary"), str):
+            return self.vocab_values(item["value_vocabulary"]) or None
+        if item.get("values") == NONE and item.get("answer_type") == "yes_no":
+            return ["yes", "no"]
+        return None
+
+    def missing_choices(self, item_id: str) -> list[tuple[str, list[Slot]]]:
+        """Missing labels offered as a jev choice (``jev_missing_choice``),
+        each with the rule slots that give its meaning (RC-D-005 12 a)."""
+        jm = self.items[item_id].get("jev_missing_choice")
+        if not isinstance(jm, dict) or not isinstance(jm.get("offered"), list):
+            return []
+        paths = jm.get("rule") if isinstance(jm.get("rule"), list) else []
+        slots = []
+        for p in paths:
+            text = self.resolve_text(str(p))
+            if text is not None:
+                slots.append(Slot(str(p), text))
+        return [(str(code), slots) for code in jm["offered"]]
+
+    def resolve_text(self, path: str) -> str | None:
+        node: Any = self.data
+        for part in path.split("/"):
+            if isinstance(node, list):
+                try:
+                    node = node[int(part)]
+                except (ValueError, IndexError):
+                    return None
+            elif isinstance(node, dict) and part in node:
+                node = node[part]
+            else:
+                return None
+        return self.slot_text(node)
+
+    def shared_slot(self, path: str) -> Slot | None:
+        """A slot under the top-level ``shared`` key (amendment A7)."""
+        text = self.resolve_text("shared/" + path)
+        return None if text is None else Slot("shared/" + path, text)
+
     def rule_slots_without_text(self, item_id: str) -> list[str]:
         """Paths of rule entries that are neither a shared-rule id nor a slot
         with ``text`` (they cannot be assembled verbatim)."""

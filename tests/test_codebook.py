@@ -451,3 +451,123 @@ def test_unexpressible_item_is_not_generated_and_is_reported() -> None:
 def test_generate_command_writes_files(tmp_path: Path) -> None:
     assert cli_main(["generate", "--repo-root", str(tmp_path)]) == 0
     assert (tmp_path / GENERATED_DIR / "manifest.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# RC-D-005 forms (planning/t010/item-template-r5-amendments.md A1-A8)
+# ---------------------------------------------------------------------------
+
+
+def _all_pass(d: dict, tmp_path: Path) -> dict:
+    cb = _cb(d)
+    files = generate_all(cb)
+    for f in files:
+        (tmp_path / f.relpath).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / f.relpath).write_bytes(f.bytes())
+    ctx = C.Context(generated=files, repo_root=tmp_path, signature_record=f"| sha256 | `{cb.sha256}` |\n",
+                    v25_columns=())
+    return {r.number: (r.status, r.findings) for r in C.run_checks(cb, ctx)}
+
+
+def _parts_item() -> dict:
+    return _item("core.rel", level=["activity"], pass_=2, round=1, values={
+        "structure": "Two linked parts in one item",
+        "parts": ["relationship", "role"],
+        "relationship": [{"code": "own", "definition": _slot("Own activity.")},
+                         {"code": "unresolved", "definition": _slot("Not settled. The role is not asked.")}],
+        "role": [{"code": "buyer", "definition": _slot("It buys.")}],
+        "part_instructions": {"role": _slot("What part does it play?")},
+        "role_gate": {"part": "role", "not_asked_when_relationship": ["unresolved"]},
+    })
+
+
+def test_parts_form_yields_one_question_per_part(tmp_path: Path) -> None:
+    d = _mini()
+    d["items"]["core.rel"] = _parts_item()
+    results = _all_pass(d, tmp_path)
+    assert all(s in ("pass", "n/a") for s, _ in results.values()), results
+    doc = json.loads(next(f for f in generate_all(_cb(d)) if f.name == "jev_questions.json").content)
+    qs = [q for q in doc["questions"] if q["item_id"] == "core.rel"]
+    assert [q["question_id"] for q in qs] == ["core.rel", "core.rel#role"]
+    assert qs[1]["instructions"] == "What part does it play?" and qs[1]["gate"]["key"] == "role_gate"
+    del d["items"]["core.rel"]["values"]["part_instructions"]
+    assert any("part 'role' without an instruction slot" in f for f in _run(d, 9).findings)
+
+
+def test_computed_values_question_carries_rules_once(tmp_path: Path) -> None:
+    d = _mini()
+    d["items"]["core.year"] = _item("core.year", level=["activity"], pass_=2, round=1,
+                                    values={"candidates": "deterministic year extraction, plus unknown (C16)"},
+                                    long_page_rule="earliest_year")
+    results = _all_pass(d, tmp_path)
+    assert all(s in ("pass", "n/a") for s, _ in results.values()), results
+    doc = json.loads(next(f for f in generate_all(_cb(d)) if f.name == "jev_questions.json").content)
+    q = next(q for q in doc["questions"] if q["item_id"] == "core.year")
+    assert q["computed_values"].startswith("deterministic") and "Own rule of year." in q["rules_text"]
+    d["items"]["core.year"]["coder"] = "mechanical"
+    assert any("computed value list" in f for f in _run(d, 1).findings)
+
+
+def test_jev_choice_false_and_missing_choice(tmp_path: Path) -> None:
+    d = _mini()
+    alpha = d["items"]["core.alpha"]
+    alpha["values"].append({"code": "set_mechanically", "definition": _slot("Set by a rule."), "jev_choice": False})
+    alpha["rules"].append(_slot("not_documented: the page is silent."))
+    alpha["jev_missing_choice"] = {"offered": ["not_documented"], "rule": ["items/core.alpha/rules/2"]}
+    results = _all_pass(d, tmp_path)
+    assert all(s in ("pass", "n/a") for s, _ in results.values()), results
+    cb = _cb(d)
+    files = generate_all(cb)
+    jev = next(f for f in files if f.name == "jev_questions.json")
+    doc = json.loads(jev.content)
+    q = next(q for q in doc["questions"] if q["item_id"] == "core.alpha")
+    assert [c["code"] for c in q["criteria"]] == ["yes_value", "no_value", "not_documented"]
+    q["criteria"] = q["criteria"][:2]
+    jev.content = json.dumps(doc)
+    assert any("are not the offered values" in f for f in C.check_16_full_rules(cb, C.Context(generated=files)).findings)
+    alpha["jev_missing_choice"] = {"offered": ["not_documented"], "rule": "none"}
+    assert any("without rule slots" in f for f in _run(d, 1).findings)
+
+
+def test_any_value_gate_missing_tokens_none_and_values_none_forms(tmp_path: Path) -> None:
+    d = _mini()
+    d["items"]["core.alpha"]["missing_tokens"] = "none"
+    d["items"]["core.number"] = _item("core.number", linkage="extractor", coder="quote_step", pass_="none",
+                                      instruction="none", values="none", answer_type="number", threshold="none",
+                                      long_page_rule="none", rules=[_slot("Copy the number.")],
+                                      gate={"item": "core.alpha", "values": ["yes_value"]})
+    d["items"]["core.unit"] = _item("core.unit", round=2, gate={"item": "core.number", "values": "any"})
+    d["items"]["core.flag"] = _item("core.flag", linkage="deterministic", coder="derived", pass_="none",
+                                    instruction="none", values="none", answer_type="single", threshold="none",
+                                    long_page_rule="none", rules=[_slot("Derived.")], value_vocabulary="family")
+    d["items"]["core.after_flag"] = _item("core.after_flag", linkage="deterministic", coder="mechanical",
+                                          pass_="none", instruction="none", values="none", answer_type="text",
+                                          threshold="none", long_page_rule="none", rules=[_slot("Name it.")],
+                                          gate={"item": "core.flag", "values": ["verdict"]})
+    results = _all_pass(d, tmp_path)
+    assert all(s in ("pass", "n/a") for s, _ in results.values()), results
+    d["items"]["core.number"]["gate"] = "none"                 # no position to order the unit after
+    assert any("no gate that gives one" in f for f in _run(d, 7).findings)
+    d["items"]["core.flag"]["value_vocabulary"] = "no_such_list"
+    assert any("names no vocabulary" in f for f in _run(d, 1).findings)
+
+
+def test_shared_prompt_slots_unblock_system_and_part_prompts(tmp_path: Path) -> None:
+    d = _mini()
+    d["shared"] = {"part_prompt": {"sentence": _slot("Only part of the page."),
+                                   "temporary_answer": {"label": _slot("not covered by this part"),
+                                                        "meaning": _slot("Not in this part.")}},
+                   "system_prompt": {**_slot("You are a coder."), "applies_to": ["pass 1"]}}
+    results = _all_pass(d, tmp_path)
+    assert all(s in ("pass", "n/a") for s, _ in results.values()), results
+    cb = _cb(d)
+    files = generate_all(cb)
+    assert "You are a coder." in next(f for f in files if f.name == "system_prompt.md").content
+    manifest = json.loads(next(f for f in files if f.name == "manifest.json").content)
+    assert manifest["blocked_targets"] == []
+    jev = next(f for f in files if f.name == "jev_questions.json")
+    doc = json.loads(jev.content)
+    assert doc["part_prompt"]["sentence"] == "Only part of the page."
+    del doc["questions"][0]["part_prompt_answer"]
+    jev.content = json.dumps(doc)
+    assert any("no temporary answer" in f for f in C.check_16_full_rules(cb, C.Context(generated=files)).findings)

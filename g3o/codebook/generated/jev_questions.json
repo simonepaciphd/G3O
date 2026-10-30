@@ -539,6 +539,44 @@
       ]
     },
     {
+      "question_id": "core.year_announced",
+      "item_id": "core.year_announced",
+      "item_hash": "490389fef42e79b3d4599328ae2115a1592f32ee2b46df77d03d0cb952467213",
+      "column": "year_announced",
+      "pass": 2,
+      "round": 3,
+      "gate": {
+        "table": "applicability keyed on activity_type (r2#8)",
+        "key": "core.activity_type",
+        "rule": "core.rule.applicability_table",
+        "cells": {
+          "policy_guidance": "ask",
+          "pilot_experiment": "ask",
+          "program_initiative": "ask",
+          "internal_operational": "ask",
+          "public_facing_service": "ask",
+          "unknown": "ask"
+        },
+        "inferred_cells": [],
+        "source": "applicability.json cells[item=core.year_announced]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a"
+      },
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "\"In which year does the page say this activity was first announced?\"",
+      "instruction_slot": "items/core.year_announced/instruction",
+      "criteria": [],
+      "computed_values": "deterministic year extraction, plus unknown (C16)",
+      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: \"In which year does the page say this activity was first announced?\" No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.",
+      "rule_slots": [
+        "items/core.year_announced/rules/0",
+        "items/core.year_announced/rules/1"
+      ]
+    },
+    {
       "question_id": "core.has_human_oversight",
       "item_id": "core.has_human_oversight",
       "item_hash": "3c2001c829bacae4f2f7e3961d8e95c0b7345000c1903cd508cc411d63ce4769",
@@ -1043,10 +1081,6 @@
     {
       "item_id": "core.genai_mechanism_basis",
       "reason": "instruction is not a text slot"
-    },
-    {
-      "item_id": "core.year_announced",
-      "reason": "values are not an ordered list of {code, definition} (got dict: \"{'candidates': 'deterministic year extraction, plus unknown (C16)'}\")"
     },
     {
       "item_id": "core.year_pilot_start",

@@ -46,9 +46,13 @@ INTENDED_TARGETS: dict[str, str] = {
     "data_dictionary.md": "T-090 data dictionary (docs/data_dictionary.md)",
     "extract_output_contract.md": "T-010 g3o/extract/prompts/output_contract.md",
     "validate_output_contract.md": "T-010 g3o/validate/prompts/output_contract.md",
+    "system_prompt.md": "T-022 / T-032 g3o/extract/prompts/system_prompt.md (and the Stage 6 prompts)",
 }
 
-#: Targets no generator can build from the codebook as signed.
+#: Targets no generator can build when the codebook lacks their text (the
+#: signed release 2.7 lacks both; the RC-D-005 candidate holds them under
+#: ``shared``, item-template amendment A7). ``blocked_targets(cb)`` lists the
+#: ones still blocked for a given codebook.
 BLOCKED_TARGETS: list[dict[str, str]] = [
     {
         "target": "g3o/extract/prompts/system_prompt.md",
@@ -67,6 +71,15 @@ BLOCKED_TARGETS: list[dict[str, str]] = [
         ),
     },
 ]
+
+
+def blocked_targets(cb: Codebook) -> list[dict[str, str]]:
+    out = []
+    if cb.shared_slot("system_prompt") is None:
+        out.append(BLOCKED_TARGETS[0])
+    if cb.shared_slot("part_prompt/sentence") is None or cb.shared_slot("part_prompt/temporary_answer/label") is None:
+        out.append(BLOCKED_TARGETS[1])
+    return out
 
 
 @dataclass
@@ -143,6 +156,17 @@ def _expressible_choice_item(cb: Codebook, item_id: str) -> str | None:
     item = cb.items[item_id]
     if cb.instruction(item_id) is None:
         return "instruction is not a text slot"
+    parts = cb.parts(item_id)
+    if parts is not None:
+        for n, (name, part) in enumerate(parts):
+            if cb.part_instruction(item_id, n) is None:
+                return f"part {name!r} has no instruction slot (values.part_instructions)"
+            bad = [str(v["code"]) for i, v in enumerate(part) if cb.part_definition(item_id, name, i) is None]
+            if bad:
+                return f"part {name!r} values without a definition text slot: {bad}"
+        return None
+    if cb.computed_values(item_id) is not None:
+        return None
     values = cb.value_list(item_id)
     if values is None:
         return f"values are not an ordered list of {{code, definition}} (got {type(item.get('values')).__name__}: {str(item.get('values'))[:80]!r})"
@@ -275,11 +299,90 @@ def target_name(target: str) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _offered(values: list[dict[str, Any]]) -> list[tuple[int, dict[str, Any]]]:
+    """Values offered as jev choices: every value except those flagged
+    ``jev_choice: false`` (e.g. ``not_assessable``, P3; amendment A7)."""
+    return [(n, v) for n, v in enumerate(values) if v.get("jev_choice") is not False]
+
+
+def _missing_criteria(cb: Codebook, item_id: str, rules: list[RuleText],
+                      used: list[tuple[str, str]]) -> list[dict[str, Any]]:
+    """Missing labels offered as choices (RC-D-005 12 a): the label's meaning
+    rule(s), then the item's full rules (check 16)."""
+    out = []
+    for code, slots in cb.missing_choices(item_id):
+        if not slots:
+            continue
+        meaning = "\n".join(s.text for s in slots)
+        used.extend((s.path, s.text) for s in slots)
+        used.extend((r.path, r.text) for r in rules)
+        out.append({"code": code, "missing_label": True, "text": _value_block(meaning, rules),
+                    "definition_slot": slots[0].path, "rule_slots": [r.path for r in rules]})
+    return out
+
+
+def _part_prompt(cb: Codebook, used: list[tuple[str, str]]) -> dict[str, Any] | None:
+    """The part-prompt sentence and temporary answer (all-03 a; RC-D-005 5 a)."""
+    sentence = cb.shared_slot("part_prompt/sentence")
+    label = cb.shared_slot("part_prompt/temporary_answer/label")
+    meaning = cb.shared_slot("part_prompt/temporary_answer/meaning")
+    if sentence is None or label is None:
+        return None
+    used.append((sentence.path, sentence.text))
+    used.append((label.path, label.text))
+    answer: dict[str, Any] = {"label": label.text, "label_slot": label.path}
+    if meaning is not None:
+        used.append((meaning.path, meaning.text))
+        answer.update({"meaning": meaning.text, "meaning_slot": meaning.path})
+    return {"sentence": sentence.text, "sentence_slot": sentence.path, "temporary_answer": answer}
+
+
+def _question(cb: Codebook, item_id: str, item: dict[str, Any], question_id: str, ins: Any,
+              criteria: list[dict[str, Any]], gate: Any, part: str | None,
+              temp: dict[str, Any] | None) -> dict[str, Any]:
+    q: dict[str, Any] = {
+        "question_id": question_id,
+        "item_id": item_id,
+        "item_hash": cb.item_hash(item_id),
+        "column": item.get("name"),
+        "pass": item.get("pass"),
+        "round": item.get("round"),
+        "gate": gate,
+        "answer_type": item.get("answer_type"),
+        "threshold": item.get("threshold"),
+        "frozen_signature": item.get("frozen_signature"),
+        "instructions": ins.text,
+        "instruction_slot": ins.path,
+        "criteria": criteria,
+    }
+    if part is not None:
+        q["part"] = part
+    ctx = item.get("question_context")
+    if isinstance(ctx, dict) and ctx.get("shows_value_of"):
+        q["shows_value_of"] = ctx["shows_value_of"]
+    if temp is not None:
+        q["part_prompt_answer"] = temp["temporary_answer"]
+    return q
+
+
+def _criterion(code: str, d: Any, rules: list[RuleText], used: list[tuple[str, str]]) -> dict[str, Any]:
+    used.append((d.path, d.text))
+    used.extend((r.path, r.text) for r in rules)
+    return {"code": code, "text": _value_block(d.text, rules), "definition_slot": d.path,
+            "rule_slots": [r.path for r in rules]}
+
+
 def gen_jev_questions(cb: Codebook) -> GeneratedFile:
-    """jev question and choice sets: one question per ``jev_choice`` item (T-011)."""
+    """jev question and choice sets: one question per ``jev_choice`` item, one
+    per part for a parts item (amendment A6) (T-011). Values flagged
+    ``jev_choice: false`` are not offered; offered missing labels are added
+    with their meaning rule; computed-value items (A2) carry their rules once
+    after the instruction. When the codebook holds the part-prompt texts, the
+    file carries the part sentence and every question the temporary answer."""
     used: list[tuple[str, str]] = []
     questions: list[dict[str, Any]] = []
     not_generated: list[dict[str, str]] = []
+    temp = _part_prompt(cb, used)
     for item_id, item in cb.build_items().items():
         if item.get("linkage") != "jev_choice":
             continue
@@ -287,39 +390,70 @@ def gen_jev_questions(cb: Codebook) -> GeneratedFile:
         if reason is not None:
             not_generated.append({"item_id": item_id, "reason": reason})
             continue
+        rules = cb.rule_texts(item_id)
+        parts = cb.parts(item_id)
+        if parts is not None:
+            for n, (name, part) in enumerate(parts):
+                ins = cb.part_instruction(item_id, n)
+                assert ins is not None
+                used.append((ins.path, ins.text))
+                criteria = []
+                for i, value in _offered(part):
+                    d = cb.part_definition(item_id, name, i)
+                    assert d is not None
+                    criteria.append(_criterion(str(value["code"]), d, rules, used))
+                criteria += _missing_criteria(cb, item_id, rules, used)
+                gate = item.get("gate") if n == 0 else cb.part_gate(item_id, name)
+                qid = item_id if n == 0 else f"{item_id}#{name}"
+                questions.append(_question(cb, item_id, item, qid, ins, criteria, gate, name, temp))
+            continue
         ins = cb.instruction(item_id)
         assert ins is not None
         used.append((ins.path, ins.text))
-        criteria = []
-        for code, def_path, definition, rules in _values_with_rules(cb, item_id):
-            used.append((def_path, definition))
+        computed = cb.computed_values(item_id)
+        if computed is not None:
+            q = _question(cb, item_id, item, item_id, ins, _missing_criteria(cb, item_id, rules, used),
+                          item.get("gate"), None, temp)
+            q["computed_values"] = computed
+            q["rules_text"] = f"{RULES_HEADING}\n{_numbered(rules)}" if rules else ""
+            q["rule_slots"] = [r.path for r in rules]
             used.extend((r.path, r.text) for r in rules)
-            criteria.append({
-                "code": code,
-                "text": _value_block(definition, rules),
-                "definition_slot": def_path,
-                "rule_slots": [r.path for r in rules],
-            })
-        questions.append({
-            "question_id": item_id,
-            "item_id": item_id,
-            "item_hash": cb.item_hash(item_id),
-            "column": item.get("name"),
-            "pass": item.get("pass"),
-            "round": item.get("round"),
-            "gate": item.get("gate"),
-            "answer_type": item.get("answer_type"),
-            "threshold": item.get("threshold"),
-            "frozen_signature": item.get("frozen_signature"),
-            "instructions": ins.text,
-            "instruction_slot": ins.path,
-            "criteria": criteria,
-        })
+            questions.append(q)
+            continue
+        criteria = []
+        for n, value in _offered(cb.value_list(item_id) or []):
+            d = cb.definition(item_id, n)
+            assert d is not None
+            criteria.append(_criterion(str(value["code"]), d, rules, used))
+        criteria += _missing_criteria(cb, item_id, rules, used)
+        questions.append(_question(cb, item_id, item, item_id, ins, criteria, item.get("gate"), None, temp))
     doc = _json_header(cb, "jev_questions")
     doc["intended_target"] = INTENDED_TARGETS["jev_questions.json"]
+    if temp is not None:
+        doc["part_prompt"] = temp
     doc["questions"] = questions
     doc["not_generated"] = not_generated
     return GeneratedFile("jev_questions.json", _json_dump(doc), used)
+
+
+def gen_system_prompt(cb: Codebook) -> GeneratedFile | None:
+    """The shared system prompt(s) (RC-D-005 6 a; amendment A7), when the
+    codebook holds them: one section per ``shared/system_prompt*`` slot."""
+    shared = cb.data.get("shared") or {}
+    keys = [k for k in shared if k.startswith("system_prompt") and cb.shared_slot(k) is not None]
+    if not keys:
+        return None
+    used: list[tuple[str, str]] = []
+    parts = [_md_header(cb, "system_prompt"), "# System prompts", "",
+             f"Codebook release `{cb.label}`, sha256 `{cb.sha256}`. "
+             f"Intended target: {INTENDED_TARGETS['system_prompt.md']}.", ""]
+    for k in keys:
+        slot = cb.shared_slot(k)
+        assert slot is not None
+        applies = shared[k].get("applies_to") if isinstance(shared[k], dict) else None
+        parts += [f"## `{slot.path}`", "", f"Applies to: {_scalar(applies) if applies else NONE}.", "", slot.text, ""]
+        used.append((slot.path, slot.text))
+    return GeneratedFile("system_prompt.md", "\n".join(parts).rstrip("\n") + "\n", used)
 
 
 def gen_extractor_sections(cb: Codebook) -> GeneratedFile:
@@ -376,15 +510,28 @@ def gen_enums(cb: Codebook) -> GeneratedFile:
         "ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {",
     ]
     names: list[tuple[str, str]] = []
+    part_lines: list[str] = []
     for item_id, item in cb.build_items().items():
         values = cb.value_list(item_id)
-        if values is None:
+        parts = cb.parts(item_id)
+        if values is None and parts is None:
             continue
+        if parts is not None:
+            values = parts[0][1]
+            for name, part in parts:
+                pcodes = ", ".join(repr(str(v["code"])) for v in part)
+                part_lines.append(f"    ({item_id!r}, {name!r}): ({pcodes},),")
         codes = ", ".join(repr(str(v["code"])) for v in values)
         lines.append(f"    {item_id!r}: ({cb.item_hash(item_id)!r}, ({codes},)),")
         names.append((_const_name(str(item.get("name"))), item_id))
     lines.append("}")
     lines.append("")
+    if part_lines:
+        lines.append("#: (item id, part) -> value codes, for items in the parts form (first part as ITEM_ENUMS)")
+        lines.append("ITEM_PART_ENUMS: dict[tuple[str, str], tuple[str, ...]] = {")
+        lines.extend(part_lines)
+        lines.append("}")
+        lines.append("")
     for const, item_id in names:
         lines.append(f"{const} = ITEM_ENUMS[{item_id!r}][1]  # {item_id}")
     return GeneratedFile("enums.py", "\n".join(lines) + "\n")
@@ -397,6 +544,10 @@ def _item_schema(cb: Codebook, item_id: str) -> dict[str, Any]:
     codes = [str(v["code"]) for v in values] if values is not None else None
     answer = item.get("answer_type")
     meta = {"x-item-id": item_id, "x-item-hash": cb.item_hash(item_id), "x-answer-type": answer}
+    parts = cb.parts(item_id)
+    if parts is not None:
+        meta["x-parts"] = {name: [str(v["code"]) for v in part] for name, part in parts}
+        return {**meta, "type": "string"}
     if codes is not None and answer == "multi":
         schema: dict[str, Any] = {"anyOf": [{"type": "array", "items": {"enum": codes}}, {"enum": missing}]}
     elif codes is not None:
@@ -445,7 +596,7 @@ def gen_manifest(cb: Codebook, files: list[GeneratedFile]) -> GeneratedFile:
     ]
     doc["generated_files"] = [{"path": f.relpath, "sha256": sha256_bytes(f.bytes()),
                                "intended_target": INTENDED_TARGETS.get(f.name)} for f in files]
-    doc["blocked_targets"] = BLOCKED_TARGETS
+    doc["blocked_targets"] = blocked_targets(cb)
     return GeneratedFile("manifest.json", _json_dump(doc))
 
 
@@ -457,11 +608,12 @@ GENERATORS = (
     gen_data_dictionary,
     gen_extract_output_contract,
     gen_validate_output_contract,
+    gen_system_prompt,
 )
 
 
 def generate_all(cb: Codebook) -> list[GeneratedFile]:
     """Every generated artefact, manifest last."""
-    files = [gen(cb) for gen in GENERATORS]
+    files = [f for f in (gen(cb) for gen in GENERATORS) if f is not None]
     files.append(gen_manifest(cb, files))
     return files
