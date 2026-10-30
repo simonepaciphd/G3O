@@ -217,7 +217,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 
 | Task | Lane | Waves | Status | Requires | Soft | Enables | Resources | Delivers | Write claim | Researcher gates | Acceptance IDs |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| T-001 | eng-b | W1 | in-progress | none | none | T-029, T-072 | RS-004, RS-006, RS-007, RS-025, RS-036 | none | spikes folder (`count-backfill.json`, `SPIKE-T001*`); droplet `~/reclass-spike-*/` | PI authorises read-only droplet SSH | A-015 |
+| T-001 | eng-b | W1 | verified | none | none | T-029, T-072 | RS-004, RS-006, RS-007, RS-025, RS-036 | none | spikes folder (`count-backfill.json`, `SPIKE-T001*`); droplet `~/reclass-spike-*/` | PI authorises read-only droplet SSH | A-015 |
 | T-002 | eng-c | W2 | blocked | T-010, T-013 | none | T-003, T-021, T-025 | RS-004, RS-008, RS-009, RS-012, RS-015, RS-024, RS-031 | none | spikes folder, files prefixed `SPIKE-T002*` | PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28) | A-004, A-021 |
 | T-003 | eng-c | W3 | pending | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c) | A-002 |
 | T-010 | integrator | W1 | in-progress | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items in one batch signature (CX-01.3†, RC-D-004); PI signs the codebook hash (A-001); push gate | A-001 |
@@ -304,7 +304,8 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 
 ### T-001 — Count stored-text availability for documented and unclear institutions
 
-Status: in-progress
+Status: verified
+Progress (2026-10-30, integrator): counts file and spike report in the spikes folder (`count-backfill.json`, `SPIKE-T001.md`; scripts on `reclass/t001-counts` `4f0460e`, local). Totals reconcile exactly with RS-025 / RS-036 (9,705; 27,648). Integrator re-ran 20 uids of its own sample plus 4 with missing files: 24/24 match (`SPIKE-T001-integrator-review.md`). Report-when trigger met at page level: usable stored text is missing for 8.71% of documented and 10.33% of unclear pages (institution level 0.15% / 0.78%); disk trigger not met (55.8 GB free). Raised to the PI 2026-10-30.
 Type: spike
 Priority: required
 Spec refs: R-074, R-076, A-015
