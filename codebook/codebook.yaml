@@ -1,9 +1,9 @@
-# G3O codebook release 2.7 — release candidate (T-010). Built by planning/t010/build_skeleton.py.
+# G3O codebook release 2.7 — RC-D-005 candidate, sign-off build (T-010). Built by planning/t010/build_skeleton.py --build r8-signoff.
 # Every slot text is copied verbatim from its `source`; `origin` records who approved it.
 # Signed only if planning/t010/signoff-record.md holds this file's sha256 (A-001).
 release:
   label: '2.7'
-  status: release candidate; signed only if the signature record holds this file's sha256
+  status: signed
   namespaces:
   - core
   - proc
@@ -22,6 +22,12 @@ release:
     translation: planning/t010/drafts/translation-r4.json (PI 2026-10-30 "all review approved")
     signoff: |-
       markers stripped, release label 2.7, version_introduced 2.7 on core items (PI 2026-10-30 "s1 b s2b; accept all"); CX-01.3 signed in one batch signature (RC-D-004)
+    r5: |-
+      planning/t010/drafts/fixes-r5.json (RC-D-005: rulings 2 a, 7 a, 8 b, 9 a, 10 a, 11 a, 12 a, 13 a, 14 a and P1 / P3 structural fixes; PI 2026-10-30, t010-rulings.md); sign-off build
+    r6: |-
+      planning/t010/drafts/fixes-r6.json (RC-D-005: wording W01-W45 approved as drafted, PI 2026-10-30 "drafts ok"; E1; resolutions in drafts/resolutions-r6.json, put to the PI in planning/t010/RC-D-005-clean-copy.md); round 2: planning/t010/drafts/fixes-r7.json and drafts/resolutions-r7.json (PI 2026-10-30 "fix the remainder points -- make coherent with previous rulings (subagent)")
+    r8: |-
+      planning/t010/drafts/fixes-r8.json: " plus `unknown`" cut from rule 1 of the three year items (PI 2026-10-30 "approved and cut"); clean copy planning/t010/RC-D-005-clean-copy.md approved
   r4_dropped:
   - card: activity-1 O1
     slot: items/core.observed_actor_relationship/rules/6
@@ -57,6 +63,7 @@ release:
     text: |-
       `not_required`, for `not_documented`, `unknown`, `no` and negative page verdicts; `_NA_` takes `set_by_rule`
     by: PI 2026-10-30 "approved!"; fixes-r4 FX08
+  status_note: release candidate; signed only if the signature record holds this file's sha256
 vocabularies:
   missing:
     values:
@@ -126,6 +133,20 @@ vocabularies:
         not_asked: not asked (shown with a version label)
       origin: PI 2026-10-30 "all review approved"; agent draft r4 translation
       source: drafts/translation-r4.json missing_labels_convention
+    jev_choice:
+      offered:
+      - not_documented
+      mechanical:
+      - not_asked
+      - unknown
+      - _NA_
+      meaning: each item's missing-label rule, named in items.<id>.jev_missing_choice
+      ruling: RC-D-005 12 a
+      resolution:
+        offered_on: |-
+          items whose `not_documented` is not already covered by a signed value definition, a signed missing-label rule, the frozen CX answer set or a signed order (RC-D-005 12a' iv, round 2); each names its meaning rule in jev_missing_choice
+        unknown: |-
+          never offered (12 a); the year items keep the C16 candidate `unknown` as a value, flagged values.candidates_not_offered, and it is set mechanically
   provenance:
     values:
     - code: stated
@@ -250,6 +271,16 @@ vocabularies:
       negative page verdicts (R-041): not_required
       not_asked: set_by_rule
       _NA_: set_by_rule
+    negative_page_verdicts:
+      item: core.page_verdict
+      values:
+      - confirms_absence
+      - no_genai
+      - background_only
+      - event_only
+      - other_body
+      status_by_answer_key: negative page verdicts (R-041)
+      ruling: RC-D-005 8 b
   relation:
     values:
     - same_activity
@@ -297,6 +328,28 @@ vocabularies:
       origin: r2
       source: codebook-rulings-round2.json n=31
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page shared card I05 slot 1'
+  family:
+    values:
+    - verdict
+    - disclosure
+    - completeness
+    - source
+    - safeguard
+    - activity_identity
+    - attribution
+    - activity_typing
+    - tool
+    - provenance
+    - governance
+    - dates
+    - scale
+    - outcomes
+    - evaluation
+    - quality
+    - support
+    - procurement
+    - ai_text
+    source: the `family` of every item in the signed build
 shared_rules:
   core.rule.genai_boundary:
   - text: |-
@@ -787,6 +840,7 @@ items:
           `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no` (C1 a), and left out of the base for institution-level rates
         origin_before_r4: spec
         r4_fixes: FX13
+      jev_choice: false
     rules:
     - text: |-
         The vocabulary has 9 values: the 8 below plus `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates; in published summaries it is reported as `unknown` and stays a coding value; `page_review_state` keeps only pipeline failures; v2.5 rows stay unconverted and are mapped by the translation table.
@@ -803,7 +857,16 @@ items:
     order_tie_rule: first_in_order
     long_page_rule:
       rule: priority_order
-      order: S3 a
+      order:
+      - confirms_activity
+      - ambiguous_attribution
+      - ambiguous_genai
+      - other_body
+      - event_only
+      - background_only
+      - confirms_absence
+      - no_genai
+      - not_assessable
       text:
         text: |-
           The verdict order for combining long-page parts has two tiers: supported verdicts in the S3 a order, then failed verdicts in the same order. The S3 a order is: confirms_activity, ambiguous_attribution, ambiguous_genai, other_body, event_only, background_only, confirms_absence, no_genai, not_assessable (`not_assessable` last, for completeness only, C1 a).
@@ -819,13 +882,19 @@ items:
         origin: ruling-r3
         source: codebook-rulings-round3.json page-02 (choice b); option text questions-r3.json page-02.b.mechanism
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I01 slot 13'
+      all_parts_not_covered:
+        value: not_assessable
+        exception_to: 'R-044 (all-03 a, PI comment: "not documented")'
+        ruling: RC-D-005 9 a
+      tier_order:
+      - supported
+      - failed
     support_required: true
     downgrade_target: tag_only
     threshold: &id002
       metric: chosen_answer_probability
       bar: 0.8
-    missing_tokens:
-    - not_assessable (mechanical)
+    missing_tokens: none
     input_text: main
     visibility: public
     frozen_signature: none
@@ -856,7 +925,14 @@ items:
     - S3 a
     - all-07
     - page-02
-    status: slot
+    - RC-D-005 8 b, 9 a, P3
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: the item takes no `not_documented`
+      grounds: 'signed: missing_tokens none (fixes-r5 R5-82); the item takes no reserved label'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
   core.disclosure_form:
     id: core.disclosure_form
     family: disclosure
@@ -974,11 +1050,6 @@ items:
       frozen_source: codebook-extension-proposal.md:41 CX-18
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I02 slot 11'
     - text: |-
-        Re-word CX-12/13: `mandated_report` only when the obligation concerns reporting on AI, algorithms or digital systems, named on the page; genre inference allowed only for documents whose title names AI/algorithmic reporting. Otherwise statutory annual reports code `formal_record`.
-      origin: r1
-      source: codebook-rulings-round1.json X01.mechanism
-      role: direction
-    - text: |-
         CX-12/13: a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.
       origin: PI 2026-10-30 "1a"; final-open W01
       source: cx-01.3-draft.json pilot.py L134 FORM[mandated_report]; ruling page-03
@@ -990,11 +1061,6 @@ items:
       edited_from: |-
         cx-01.3-draft.json pilot.py L134 FORM[mandated_report] (agent draft): 'Otherwise a statutory annual report is formal_record.' -> 'Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.'
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I02 slot 12'
-    - text: Add those reports to the same sentence.
-      origin: ruling-r3
-      source: codebook-rulings-round3.json page-04 (choice b); option text questions-r3.json page-04.b.mechanism
-      role: 'direction for CX-13 (wording: final-open W01, in the CX-13 cell)'
-      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I02 slot 13'
     - text: The page's kind cannot be determined from its text (e.g. an archived fragment with no header).
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX06
       source: drafts/fixes-r4.json FX06
@@ -1031,7 +1097,15 @@ items:
     - page-03
     - page-04
     - all-06
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        frozen CX item whose signed answer set has no `not_documented` (CX map: `unknown`, CX-17); its `unknown` rule covers a page whose kind cannot be told, and every page has a kind
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: |-
+        frozen CX answer set (CX-10..18; pilot.py FORM) has no `not_documented`; R2C04 / R-045: "frozen CX items keep their signed spellings with a mapping row"; CX map: `unknown` (CX-17)
   core.disclosure_scope:
     id: core.disclosure_scope
     family: disclosure
@@ -1051,7 +1125,11 @@ items:
       - mandated_report
       source: X02
     answer_type: single
-    instruction: none
+    instruction:
+      text: How many institutions does the listing or document this page belongs to cover?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W05
+      source: |-
+        drafts/rc-d-005-wording.json W05 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L196 page_questions disclosure_scope instructions" (frozen CX-01.2 question), with the "Code the source PAGE." lead-in dropped)
     values:
     - code: whole_of_government
       definition:
@@ -1098,11 +1176,6 @@ items:
       frozen_text: All pages.
       frozen_source: codebook-extension-proposal.md:56 CX-25
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I03 slot 6'
-    - text: |-
-        Ask `disclosure_scope` only when `disclosure_form` in {register_cross_institution, register_single_institution, mandated_report}; otherwise store `_NA_`.
-      origin: r1
-      source: codebook-rulings-round1.json X02.mechanism
-      role: direction
     - text: Coverage cannot be determined from the page.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX06
       source: drafts/fixes-r4.json FX06
@@ -1135,7 +1208,15 @@ items:
     - CX-20..CX-25
     - page-03
     - all-06
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        frozen CX item whose signed answer set has no `not_documented` (CX map: `unknown`, CX-24); its `unknown` rule ("Coverage cannot be determined from the page") covers the silent case
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: |-
+        frozen CX answer set (CX-20..25; pilot.py SCOPE) has no `not_documented`; R2C04 / R-045 frozen spellings; CX map: `unknown` (CX-24)
   core.page_complete:
     id: core.page_complete
     family: completeness
@@ -1188,11 +1269,6 @@ items:
       origin: spec
       source: SPEC.md:95 R-030
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I04 slot 4'
-    - text: Add a note in the codebook that yes means incomplete.
-      origin: ruling-r3
-      source: codebook-rulings-round3.json page-01 (choice c); option text questions-r3.json page-01.c.mechanism
-      role: 'direction: note (wording: final-open W04)'
-      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I04 slot 5'
     - text: |-
         Note: `yes` means incomplete (the page refers the reader onward); the name `page_complete` reads the other way.
       origin: PI 2026-10-30 "all accepted"; final-open W04
@@ -1215,7 +1291,14 @@ items:
     - X17
     - RC-D-002 row 13
     - page-01
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: 'yes/no item: `no` (the page does not refer elsewhere) already covers a silent page'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: |-
+        signed `no` definition: "The page does not refer the reader elsewhere for more information about any GenAI activity it mentions."
   core.source_type:
     id: core.source_type
     family: source
@@ -1230,10 +1313,13 @@ items:
     coder: classifier
     pass: 1
     round: 2
-    gate:
-      rule: only pages not typed automatically from domain or address (r2#25)
+    gate: none
     answer_type: single
-    instruction: none
+    instruction:
+      text: What kind of source is this page?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W08
+      source: |-
+        drafts/rc-d-005-wording.json W08 (g3o/extract/prompts/output_contract.md L123 column description ("Category of the source.") turned into a question)
     values:
     - code: news_major
       definition:
@@ -1279,10 +1365,13 @@ items:
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page source card I01 slot 7'
     - code: other
       definition:
-        text: None of the above; explain in `source_snippet`
+        text: None of the above
         origin: v25
         source: output_contract.md:217 §4 source_type
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page source card I01 slot 8'
+        omitted_tail: ; explain in `source_snippet`
+        omitted_by: |-
+          RC-D-005 I7 a (resolver): jev returns codes only (C-004); cut before the part it cannot do, as PI 2026-10-30 "2a"
     rules:
     - text: |-
         'Official' comes from the domain field and 'archive' from the address; the classifier only sorts the rest (news, vendor, academic, policy organisation, social media, procurement, other). The question wording is amended.
@@ -1294,6 +1383,11 @@ items:
       origin: r2
       source: codebook-rulings-round2.json n=30
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page source card I01 slot 10'
+    - text: 'not_documented: the page is silent.'
+      origin: |-
+        agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (round 2)
+      source: items/core.has_human_oversight/rules/2 (PI 2026-10-30 "approved!"; fixes-r4 FX06)
+      role: 'missing label not_documented: meaning for this item'
     order_tie_rule: first_in_order
     long_page_rule:
       rule: first_section
@@ -1326,7 +1420,22 @@ items:
     - R-002
     - source-01
     - all-06
-    status: slot
+    - RC-D-005 W08
+    - RC-D-005 F5 b
+    - RC-D-005 I7 a
+    - RC-D-005 round 2
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.source_type/rules/2
+      resolution: |-
+        RC-D-005 round 2: offered; no signed text covers a page that does not show its kind: `other` is "None of the above", not silence (round-1 exclusion rested on inference)
+    ask_condition:
+      rule: only pages not typed automatically from domain or address (r2#25)
+      carried_by: items/core.source_type/rules/0
+      resolution: RC-D-005 F5 source_type b
   core.content_contact_named:
     id: core.content_contact_named
     family: disclosure
@@ -1349,7 +1458,12 @@ items:
         source: final-open.json choices[F07] (pick a, confidence low).options[a].mechanism
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I05 slot 1'
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        Does the page name a person, office or unit as responsible for a GenAI activity it mentions, or for questions about it?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W06
+      source: |-
+        drafts/rc-d-005-wording.json W06 (planning/t010/drafts/cx-01.3-draft.json row "contact.py L42 contact question instructions" ("Does the page give this: {v}?") with {v} = contact.py L30 w4a wording)
     values:
     - code: 'yes'
       definition:
@@ -1381,11 +1495,6 @@ items:
       applied_to: |-
         cx-01.3-draft.json CX-51 (agent draft); earlier source: cx-01.3-draft.json CX-51; ruling page-05, page-07, page-08, page-09
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I05 slot 4'
-    - text: |-
-        Pipeline change: store a separate `chrome_text` (header/footer/nav) next to main text, and give jev both for the contact item only.
-      origin: r1
-      source: codebook-rulings-round1.json X06.mechanism
-      role: direction
     order_tie_rule: first_in_order
     long_page_rule: any_yes
     support_required: true
@@ -1402,7 +1511,13 @@ items:
     - X06
     - CX-51
     - page-05
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: 'yes/no item: `no` is "not stated" (CX-06 map sends `no` of the content items to "not documented")'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed CX map: "`no` of the `evaluation_type_*` and `content_*` items → "not documented""'
   core.content_contact_details:
     id: core.content_contact_details
     family: disclosure
@@ -1425,7 +1540,12 @@ items:
         source: final-open.json choices[F07] (pick a, confidence low).options[a].mechanism
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I06 slot 1'
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        Does the page give any contact details anywhere on it, such as an email address, phone number, postal address or contact form?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W07
+      source: |-
+        drafts/rc-d-005-wording.json W07 (planning/t010/drafts/cx-01.3-draft.json row "contact.py L42 contact question instructions" with {v} = contact.py L31 w4b wording)
     values:
     - code: 'yes'
       definition:
@@ -1457,11 +1577,6 @@ items:
       applied_to: |-
         cx-01.3-draft.json CX-51 (agent draft); earlier source: cx-01.3-draft.json CX-51; ruling page-05, page-07, page-08, page-09
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I06 slot 4'
-    - text: |-
-        Pipeline change: store a separate `chrome_text` (header/footer/nav) next to main text, and give jev both for the contact item only.
-      origin: r1
-      source: codebook-rulings-round1.json X06.mechanism
-      role: direction
     order_tie_rule: first_in_order
     long_page_rule: any_yes
     support_required: true
@@ -1479,7 +1594,13 @@ items:
     - CX-51
     - r2#48
     - page-05
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: 'yes/no item: `no` is "not stated" (CX-06 map sends `no` of the content items to "not documented")'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed CX map: "`no` of the `evaluation_type_*` and `content_*` items → "not documented""'
   core.content_contact:
     id: core.content_contact
     family: disclosure
@@ -1521,7 +1642,7 @@ items:
     refs:
     - CX-51
     - R-023
-    status: slot
+    status: signed
   core.content_contact_emails:
     id: core.content_contact_emails
     family: disclosure
@@ -1555,11 +1676,6 @@ items:
       origin: spec
       source: SPEC.md:124 R-058
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I08 slot 2'
-    - text: |-
-        Store the full list internally; publish only the domain part (and a count), or only role addresses (no personal-name pattern).
-      origin: r1
-      source: codebook-rulings-round1.json X08.mechanism
-      role: direction
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -1580,7 +1696,7 @@ items:
     - r2#48
     - page-10
     - page-12
-    status: slot
+    status: signed
   core.content_purpose:
     id: core.content_purpose
     family: disclosure
@@ -1627,24 +1743,13 @@ items:
         A page item is yes when any activity on the page has a stated value in the matching field, with no classifier question. This needs re-signature of the signed description items, a mapping table and test pages.
       origin_before_r4: r2
       r4_fixes: FX12
-    - text: |-
-        Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.
-      origin: r1
-      source: codebook-rulings-round1.json X05.mechanism
-      role: direction
-    - role: derivation
+    - text: 'purpose: the activity''s function items'
+      origin: PI 2026-10-30 "all accepted"; final-open W02
+      source: final-open.json sentences[W02].after
+      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I09 slot 4'
+      role: derivation
       derived_from:
       - core.function_*
-      draft:
-        text: 'purpose: the activity''s function items'
-        origin: PI 2026-10-30 "all accepted"; final-open W02
-        source: final-open.json sentences[W02].after
-        approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I09 slot 4'
-    - text: Description items and the data item are also "no" where the verdict shows no GenAI.
-      origin: ruling-r3
-      source: codebook-rulings-round3.json page-09 (choice c); option text questions-r3.json page-09.c.mechanism
-      role: 'direction (wording: final-open W03, in the CX-51 cell)'
-      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I09 slot 5'
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -1664,7 +1769,7 @@ items:
     - page-05
     - page-06
     - page-09
-    status: slot
+    status: signed
   core.content_tool_or_model:
     id: core.content_tool_or_model
     family: disclosure
@@ -1711,25 +1816,14 @@ items:
         A page item is yes when any activity on the page has a stated value in the matching field, with no classifier question. This needs re-signature of the signed description items, a mapping table and test pages.
       origin_before_r4: r2
       r4_fixes: FX12
-    - text: |-
-        Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.
-      origin: r1
-      source: codebook-rulings-round1.json X05.mechanism
-      role: direction
-    - role: derivation
+    - text: 'tool or model: tool or model name'
+      origin: PI 2026-10-30 "all accepted"; final-open W02
+      source: final-open.json sentences[W02].after
+      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I10 slot 4'
+      role: derivation
       derived_from:
       - core.tool_name
       - core.model_name
-      draft:
-        text: 'tool or model: tool or model name'
-        origin: PI 2026-10-30 "all accepted"; final-open W02
-        source: final-open.json sentences[W02].after
-        approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I10 slot 4'
-    - text: Description items and the data item are also "no" where the verdict shows no GenAI.
-      origin: ruling-r3
-      source: codebook-rulings-round3.json page-09 (choice c); option text questions-r3.json page-09.c.mechanism
-      role: 'direction (wording: final-open W03, in the CX-51 cell)'
-      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I10 slot 5'
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -1749,7 +1843,7 @@ items:
     - page-05
     - page-06
     - page-09
-    status: slot
+    status: signed
   core.content_vendor:
     id: core.content_vendor
     family: disclosure
@@ -1796,30 +1890,19 @@ items:
         A page item is yes when any activity on the page has a stated value in the matching field, with no classifier question. This needs re-signature of the signed description items, a mapping table and test pages.
       origin_before_r4: r2
       r4_fixes: FX12
-    - text: |-
-        Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.
-      origin: r1
-      source: codebook-rulings-round1.json X05.mechanism
-      role: direction
-    - role: derivation
+    - text: 'vendor: model developer, stated or looked up, or contracting party'
+      origin: PI 2026-10-30 "all accepted"; final-open W02
+      source: final-open.json sentences[W02].after
+      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I11 slot 4'
+      role: derivation
       derived_from:
       - core.developer
       - core.contracting_party
-      draft:
-        text: 'vendor: model developer, stated or looked up, or contracting party'
-        origin: PI 2026-10-30 "all accepted"; final-open W02
-        source: final-open.json sentences[W02].after
-        approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I11 slot 4'
       amended_by:
         text: Vendor is "yes" if a developer is recorded, whether stated on the page or looked up.
         origin: ruling-r3
         source: codebook-rulings-round3.json page-08 (choice c); option text questions-r3.json page-08.c.mechanism
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I11 slot 5'
-    - text: Description items and the data item are also "no" where the verdict shows no GenAI.
-      origin: ruling-r3
-      source: codebook-rulings-round3.json page-09 (choice c); option text questions-r3.json page-09.c.mechanism
-      role: 'direction (wording: final-open W03, in the CX-51 cell)'
-      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I11 slot 6'
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -1840,7 +1923,7 @@ items:
     - page-06
     - page-09
     - page-08
-    status: slot
+    status: signed
   core.content_data:
     id: core.content_data
     family: disclosure
@@ -1909,11 +1992,6 @@ items:
       applied_to: |-
         cx-01.3-draft.json CX-51 (agent draft); earlier source: cx-01.3-draft.json CX-51; ruling page-05, page-07, page-08, page-09
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I12 slot 5'
-    - text: |-
-        Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.
-      origin: r1
-      source: codebook-rulings-round1.json X05.mechanism
-      role: direction
     - text: One page question, asked on GenAI pages.
       origin: ruling-r3
       source: codebook-rulings-round3.json page-07 (choice a); option text questions-r3.json page-07.a.mechanism
@@ -1952,7 +2030,15 @@ items:
     - page-05
     - page-07
     - page-09
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        yes/no item: `no` is "not stated on the page" (CX-06 map sends `no` of the content items to "not documented")
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: |-
+        signed CX map: "`no` of the `evaluation_type_*` and `content_*` items → "not documented""; `no` = "not stated on the page"
   core.content_users:
     id: core.content_users
     family: disclosure
@@ -1999,31 +2085,20 @@ items:
         A page item is yes when any activity on the page has a stated value in the matching field, with no classifier question. This needs re-signature of the signed description items, a mapping table and test pages.
       origin_before_r4: r2
       r4_fixes: FX12
-    - text: |-
-        Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.
-      origin: r1
-      source: codebook-rulings-round1.json X05.mechanism
-      role: direction
-    - role: derivation
+    - text: 'users: `target_users` or `governed_population`'
+      origin: PI 2026-10-30 "all accepted"; final-open W02
+      source: final-open.json sentences[W02].after
+      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I13 slot 4'
+      role: derivation
       derived_from:
       - core.target_users
       - core.governed_population
-      draft:
-        text: 'users: `target_users` or `governed_population`'
-        origin: PI 2026-10-30 "all accepted"; final-open W02
-        source: final-open.json sentences[W02].after
-        approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I13 slot 4'
       amended_by:
         text: |-
           Users is "yes" if any activity states who the tool serves or who a governance rule applies to (`governed_population`).
         origin: ruling-r3
         source: codebook-rulings-round3.json page-08 (choice b); option text questions-r3.json page-08.b.mechanism
         approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I13 slot 5'
-    - text: Description items and the data item are also "no" where the verdict shows no GenAI.
-      origin: ruling-r3
-      source: codebook-rulings-round3.json page-09 (choice c); option text questions-r3.json page-09.c.mechanism
-      role: 'direction (wording: final-open W03, in the CX-51 cell)'
-      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I13 slot 6'
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -2044,7 +2119,7 @@ items:
     - page-06
     - page-09
     - page-08
-    status: slot
+    status: signed
   core.content_status_date:
     id: core.content_status_date
     family: disclosure
@@ -2091,27 +2166,16 @@ items:
         A page item is yes when any activity on the page has a stated value in the matching field, with no classifier question. This needs re-signature of the signed description items, a mapping table and test pages.
       origin_before_r4: r2
       r4_fixes: FX12
-    - text: |-
-        Ask `content_*` only on pages with a GenAI-bearing verdict (the five R-003 values); store `_NA_` otherwise; reword to 'about any GenAI activity on the page'.
-      origin: r1
-      source: codebook-rulings-round1.json X05.mechanism
-      role: direction
-    - role: derivation
+    - text: 'status or date: `adoption_stage` or a year field'
+      origin: PI 2026-10-30 "all accepted"; final-open W02
+      source: final-open.json sentences[W02].after
+      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I14 slot 4'
+      role: derivation
       derived_from:
       - core.adoption_stage
       - core.year_announced
       - core.year_pilot_start
       - core.year_production_start
-      draft:
-        text: 'status or date: `adoption_stage` or a year field'
-        origin: PI 2026-10-30 "all accepted"; final-open W02
-        source: final-open.json sentences[W02].after
-        approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I14 slot 4'
-    - text: Description items and the data item are also "no" where the verdict shows no GenAI.
-      origin: ruling-r3
-      source: codebook-rulings-round3.json page-09 (choice c); option text questions-r3.json page-09.c.mechanism
-      role: 'direction (wording: final-open W03, in the CX-51 cell)'
-      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I14 slot 5'
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -2131,7 +2195,7 @@ items:
     - page-05
     - page-06
     - page-09
-    status: slot
+    status: signed
   core.content_human_oversight:
     id: core.content_human_oversight
     family: safeguard
@@ -2166,19 +2230,13 @@ items:
         One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer; this needs re-signature of the signed safeguard items, a wording step and test pages.
       origin_before_r4: r2
       r4_fixes: FX12
-    - text: |-
-        Ask each safeguard once per (page x activity) in pass 2 and derive both the page-level `content_*` (any activity yes) and the activity-level `has_*` (yes / not_documented) from it.
-      origin: r1
-      source: codebook-rulings-round1.json X07.mechanism
-      role: direction
-    - role: derivation
+    - text: '`yes` if any activity on the page is `yes`, otherwise `no`.'
+      origin: agent-draft
+      source: cx-01.3-draft.json CX-52 draft_text; ruling page-10
+      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I15 slot 3'
+      role: derivation
       derived_from:
       - core.has_human_oversight
-      draft:
-        text: '`yes` if any activity on the page is `yes`, otherwise `no`.'
-        origin: agent-draft
-        source: cx-01.3-draft.json CX-52 draft_text; ruling page-10
-        approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I15 slot 3'
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -2199,7 +2257,7 @@ items:
     - page-10
     - page-11
     - page-09
-    status: slot
+    status: signed
   core.content_risk_assessment:
     id: core.content_risk_assessment
     family: safeguard
@@ -2234,19 +2292,13 @@ items:
         One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer; this needs re-signature of the signed safeguard items, a wording step and test pages.
       origin_before_r4: r2
       r4_fixes: FX12
-    - text: |-
-        Ask each safeguard once per (page x activity) in pass 2 and derive both the page-level `content_*` (any activity yes) and the activity-level `has_*` (yes / not_documented) from it.
-      origin: r1
-      source: codebook-rulings-round1.json X07.mechanism
-      role: direction
-    - role: derivation
+    - text: '`yes` if any activity on the page is `yes`, otherwise `no`.'
+      origin: agent-draft
+      source: cx-01.3-draft.json CX-52 draft_text; ruling page-10
+      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I16 slot 3'
+      role: derivation
       derived_from:
       - core.has_risk_assessment
-      draft:
-        text: '`yes` if any activity on the page is `yes`, otherwise `no`.'
-        origin: agent-draft
-        source: cx-01.3-draft.json CX-52 draft_text; ruling page-10
-        approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I16 slot 3'
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -2267,7 +2319,7 @@ items:
     - page-10
     - page-11
     - page-09
-    status: slot
+    status: signed
   core.content_user_notification:
     id: core.content_user_notification
     family: safeguard
@@ -2302,19 +2354,13 @@ items:
         One per-activity question per safeguard with the four answers; the page-level answer is yes if any activity is yes, otherwise no. The activity-level transparency question is re-worded to the signed notification definition, data classification stays activity-only, and contract clauses are tagged as a governance answer; this needs re-signature of the signed safeguard items, a wording step and test pages.
       origin_before_r4: r2
       r4_fixes: FX12
-    - text: |-
-        Ask each safeguard once per (page x activity) in pass 2 and derive both the page-level `content_*` (any activity yes) and the activity-level `has_*` (yes / not_documented) from it.
-      origin: r1
-      source: codebook-rulings-round1.json X07.mechanism
-      role: direction
-    - role: derivation
+    - text: '`yes` if any activity on the page is `yes`, otherwise `no`.'
+      origin: agent-draft
+      source: cx-01.3-draft.json CX-52 draft_text; ruling page-10
+      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I17 slot 3'
+      role: derivation
       derived_from:
       - core.has_transparency_notice
-      draft:
-        text: '`yes` if any activity on the page is `yes`, otherwise `no`.'
-        origin: agent-draft
-        source: cx-01.3-draft.json CX-52 draft_text; ruling page-10
-        approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I17 slot 3'
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -2335,7 +2381,7 @@ items:
     - page-10
     - page-11
     - page-09
-    status: slot
+    status: signed
   core.source_url:
     id: core.source_url
     family: source
@@ -2378,7 +2424,7 @@ items:
       map: identity
     refs:
     - X28
-    status: slot
+    status: signed
   core.source_title:
     id: core.source_title
     family: source
@@ -2419,7 +2465,7 @@ items:
       source: drafts/translation-r4.json entries[2]
     refs:
     - X28
-    status: slot
+    status: signed
   core.source_access_date:
     id: core.source_access_date
     family: source
@@ -2462,7 +2508,7 @@ items:
       map: identity
     refs:
     - X28
-    status: slot
+    status: signed
   core.source_language:
     id: core.source_language
     family: source
@@ -2509,7 +2555,7 @@ items:
       source: drafts/translation-r4.json entries[3]
     refs:
     - X27
-    status: slot
+    status: signed
   core.source_on_official_domain:
     id: core.source_on_official_domain
     family: source
@@ -2547,7 +2593,7 @@ items:
     translation_v25: new
     refs:
     - X37
-    status: slot
+    status: signed
   core.syndication_group:
     id: core.syndication_group
     family: source
@@ -2585,7 +2631,7 @@ items:
     translation_v25: new
     refs:
     - X38
-    status: slot
+    status: signed
   core.page_review_state:
     id: core.page_review_state
     family: source
@@ -2594,7 +2640,6 @@ items:
     - source
     pipelines:
     - web_extract
-    - procurement
     - ai_text
     linkage: deterministic
     coder: mechanical
@@ -2634,7 +2679,8 @@ items:
     - X39
     - r2#7
     - R-015
-    status: slot
+    - RC-D-005 14 a
+    status: signed
   core.discovery_path:
     id: core.discovery_path
     family: source
@@ -2672,7 +2718,7 @@ items:
     - X18
     - R-034
     - R-036
-    status: slot
+    status: signed
   core.text_source:
     id: core.text_source
     family: source
@@ -2713,7 +2759,7 @@ items:
     refs:
     - R-059
     - RC-D-002 F
-    status: slot
+    status: signed
   core.source_publication_date:
     id: core.source_publication_date
     family: source
@@ -2766,7 +2812,7 @@ items:
     - T3
     - source-01
     - all-06
-    status: slot
+    status: signed
   core.source_snippet:
     id: core.source_snippet
     family: source
@@ -2814,7 +2860,7 @@ items:
     refs:
     - X25
     - r2#35
-    status: slot
+    status: signed
   core.source_credibility:
     id: core.source_credibility
     family: source
@@ -2864,7 +2910,7 @@ items:
     refs:
     - X22
     - R-090
-    status: slot
+    status: signed
   core.activity_segment:
     id: core.activity_segment
     family: activity_identity
@@ -3044,7 +3090,7 @@ items:
     - activity-18
     - all-11
     - activity-19
-    status: slot
+    status: signed
   core.activity_name:
     id: core.activity_name
     family: activity_identity
@@ -3086,7 +3132,7 @@ items:
     refs:
     - R-006
     - C07
-    status: slot
+    status: signed
   core.observed_actor_name:
     id: core.observed_actor_name
     family: attribution
@@ -3127,7 +3173,7 @@ items:
     - A05
     - R-014
     - r2#23
-    status: slot
+    status: signed
   core.observed_actor_relationship:
     id: core.observed_actor_relationship
     family: attribution
@@ -3141,7 +3187,11 @@ items:
     round: 2
     gate: none
     answer_type: single
-    instruction: none
+    instruction:
+      text: |-
+        Whose activity is this, according to the page: the named institution's own, one of its units', a joint one it takes part in, or another body's?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W09
+      source: drafts/rc-d-005-wording.json W09 (new)
     values:
       structure: Two linked parts in one item
       relationship:
@@ -3268,6 +3318,14 @@ items:
           role: gate of the role part
           approved_r4: |-
             PI 2026-10-30 "approve all" (round 4): page activity-1 card I04 slot 11; page activity-1 card I04 slot 17
+      parts:
+      - relationship
+      - searched_institution_role
+      part_instructions:
+        searched_institution_role:
+          text: What part does the named institution play in this activity?
+          origin: PI 2026-10-30 "drafts ok"; agent draft W10
+          source: drafts/rc-d-005-wording.json W10 (new)
     rules:
     - text: |-
         The observed-actor relationship is coded per activity, not per page, with a QC flag on `confirms_activity` pages that have no own / unit / joint activity; the attribution role becomes the second of two linked parts of that relationship (relationship; role of the searched institution, "not asked" when the relationship is unresolved), describes only the searched institution, and counts "beneficiary" only when the page names it; the two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone; there is no separate published P06 column. The observed actor's own role is kept as a separate internal item, `observed_actor_role`, and not published; the C04 grain rule is kept.
@@ -3360,7 +3418,15 @@ items:
     - activity-15
     - activity-19
     - all-04
-    status: slot
+    - RC-D-005 W09-W10
+    - RC-D-005 R2 b
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.observed_actor_relationship/rules/6
+      resolution: 'RC-D-005 12a'' (iv): offered; the item''s own rule gives the meaning'
   core.activity_type:
     id: core.activity_type
     family: activity_typing
@@ -3464,7 +3530,15 @@ items:
     - r2#8
     - activity-02
     - activity-20
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        its `unknown` rule covers an activity whose kind cannot be told; the applicability table (r2#8) has an `unknown` column and no `not_documented` column, so a `not_documented` type would close every applicability gate
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: |-
+        signed `unknown` rule (fixes-r4 FX06): "the kind of undertaking is indeterminate from the available sources"; signed applicability table (r2#8) keys `unknown`, no `not_documented`
   core.action_type:
     id: core.action_type
     family: activity_typing
@@ -3478,7 +3552,10 @@ items:
     round: 2
     gate: none
     answer_type: single
-    instruction: none
+    instruction:
+      text: What kind of action is this activity?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W12
+      source: drafts/rc-d-005-wording.json W12 (new)
     values:
     - code: deployment
       definition:
@@ -3568,7 +3645,15 @@ items:
     - activity-02
     - activity-04
     - activity-20
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        its `unknown` rule ("The page mentions the activity but does not let it be settled") covers every case: an activity row is always mentioned on its page
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: |-
+        signed `unknown` rule (FX06): "The page mentions the activity but does not let it be settled"; an activity row is a passage of its page (core.rule.activity_unit)
   core.adoption_stage:
     id: core.adoption_stage
     family: activity_typing
@@ -3581,8 +3666,15 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -3595,7 +3687,11 @@ items:
       source: |-
         applicability.json cells[item=core.adoption_stage]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: single
-    instruction: none
+    instruction:
+      text: What stage has this activity reached, according to the page?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W13
+      source: |-
+        drafts/rc-d-005-wording.json W13 (new; "Record the most current status" idea from g3o/extract/prompts/system_prompt.md L54)
     values:
     - code: proposed
       definition:
@@ -3727,7 +3823,14 @@ items:
     - activity-05
     - activity-21
     - all-04
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        its `unknown` rule ("Evidence confirms GenAI activity exists but stage is indeterminate") covers the silent case
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed `unknown` rule (FX06): "Evidence confirms GenAI activity exists but stage is indeterminate."'
   core.procurement_status:
     id: core.procurement_status
     family: activity_typing
@@ -3742,8 +3845,15 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -3757,7 +3867,10 @@ items:
       source: |-
         applicability.json cells[item=core.procurement_status]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: single
-    instruction: none
+    instruction:
+      text: What purchase step, if any, does the page record for this activity's tool or service?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W14
+      source: drafts/rc-d-005-wording.json W14 (new)
     values:
     - code: none_documented
       definition:
@@ -3862,7 +3975,14 @@ items:
     - activity-05
     - activity-19
     - all-04
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule:
+      - items/core.procurement_status/rules/2
+      why: the item's rule says `not_documented` is not used for this item
+      grounds: 'signed rules/2: "`not_documented` is not used for this item"'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
   core.model_origin:
     id: core.model_origin
     family: tool
@@ -3875,8 +3995,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -3890,7 +4016,11 @@ items:
       source: |-
         applicability.json cells[item=core.model_origin]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: single
-    instruction: none
+    instruction:
+      text: Where does the model behind this activity's tool come from?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W16
+      source: |-
+        drafts/rc-d-005-wording.json W16 (new; value wording follows g3o/extract/prompts/output_contract.md §4.4 (access_type))
     values:
     - code: commercial
       definition:
@@ -3939,6 +4069,11 @@ items:
             drafts/definitions-r4.json entries[41] (items/core.model_origin/values/3/definition); confidence high
           source_before_r4: value unknown
           approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-1 card I09 slot 4'
+    - text: 'not_documented: the page is silent.'
+      origin: |-
+        agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)
+      source: items/core.has_human_oversight/rules/2 (PI 2026-10-30 "approved!"; fixes-r4 FX06)
+      role: 'missing label not_documented: meaning for this item'
     order_tie_rule: first_in_order
     long_page_rule:
       rule: highest_probability
@@ -3973,7 +4108,15 @@ items:
     - activity-04
     - activity-05
     - activity-20
-    status: slot
+    - RC-D-005 12a' iv
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.model_origin/rules/2
+      resolution: |-
+        RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions the model but does not settle it; a silent page is the other case
   core.build_arrangement:
     id: core.build_arrangement
     family: tool
@@ -3986,8 +4129,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -4001,7 +4150,10 @@ items:
       source: |-
         applicability.json cells[item=core.build_arrangement]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: single
-    instruction: none
+    instruction:
+      text: How was this activity's tool built?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W17
+      source: drafts/rc-d-005-wording.json W17 (new)
     values:
     - code: off_the_shelf_product
       definition:
@@ -4050,6 +4202,11 @@ items:
             drafts/definitions-r4.json entries[45] (items/core.build_arrangement/values/3/definition); confidence high
           source_before_r4: value unknown
           approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-1 card I10 slot 4'
+    - text: 'not_documented: the page is silent.'
+      origin: |-
+        agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)
+      source: items/core.has_human_oversight/rules/2 (PI 2026-10-30 "approved!"; fixes-r4 FX06)
+      role: 'missing label not_documented: meaning for this item'
     order_tie_rule: first_in_order
     long_page_rule:
       rule: priority_order
@@ -4089,7 +4246,15 @@ items:
     - activity-05
     - activity-19
     - all-04
-    status: slot
+    - RC-D-005 12a' iv
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.build_arrangement/rules/2
+      resolution: |-
+        RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions how the tool was built but does not settle it; a silent page is the other case
   core.interface:
     id: core.interface
     family: tool
@@ -4102,8 +4267,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -4117,7 +4288,10 @@ items:
       source: |-
         applicability.json cells[item=core.interface]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: single
-    instruction: none
+    instruction:
+      text: How do users reach this activity's tool?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W18
+      source: drafts/rc-d-005-wording.json W18 (new)
     values:
     - code: conversational
       definition:
@@ -4213,7 +4387,13 @@ items:
     - activity-09
     - activity-19
     - all-04
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.interface/rules/3
+      resolution: 'RC-D-005 12a'' (iv): offered; the item''s own rule gives the meaning'
   core.function_drafting_writing:
     id: core.function_drafting_writing
     family: tool
@@ -4226,8 +4406,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -4242,7 +4428,11 @@ items:
       source: |-
         applicability.json cells[item=core.function_drafting_writing]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: Does the page state that this activity's tool is used for drafting or writing text?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W19
+      source: |-
+        drafts/rc-d-005-wording.json W19 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))
     values:
     - code: 'yes'
       definition:
@@ -4296,7 +4486,13 @@ items:
     - activity-03
     - activity-04
     - activity-05
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: 'yes/no item: `no` is "the page does not state" this function'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed `no` definition: "The page does not state that the tool is used for ..."'
   core.function_summarization:
     id: core.function_summarization
     family: tool
@@ -4309,8 +4505,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -4325,7 +4527,12 @@ items:
       source: |-
         applicability.json cells[item=core.function_summarization]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        Does the page state that this activity's tool is used for summarising documents, reports or meetings?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W20
+      source: |-
+        drafts/rc-d-005-wording.json W20 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))
     values:
     - code: 'yes'
       definition:
@@ -4377,7 +4584,13 @@ items:
     - activity-03
     - activity-04
     - activity-05
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: 'yes/no item: `no` is "the page does not state" this function'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed `no` definition: "The page does not state that the tool is used for ..."'
   core.function_translation:
     id: core.function_translation
     family: tool
@@ -4390,8 +4603,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -4406,7 +4625,12 @@ items:
       source: |-
         applicability.json cells[item=core.function_translation]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        Does the page state that this activity's tool is used for translating text or speech between languages?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W21
+      source: |-
+        drafts/rc-d-005-wording.json W21 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))
     values:
     - code: 'yes'
       definition:
@@ -4458,7 +4682,13 @@ items:
     - activity-03
     - activity-04
     - activity-05
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: 'yes/no item: `no` is "the page does not state" this function'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed `no` definition: "The page does not state that the tool is used for ..."'
   core.function_search_retrieval:
     id: core.function_search_retrieval
     family: tool
@@ -4471,8 +4701,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -4487,7 +4723,11 @@ items:
       source: |-
         applicability.json cells[item=core.function_search_retrieval]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: Does the page state that this activity's tool is used for finding information?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W22
+      source: |-
+        drafts/rc-d-005-wording.json W22 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))
     values:
     - code: 'yes'
       definition:
@@ -4541,7 +4781,13 @@ items:
     - activity-03
     - activity-04
     - activity-05
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: 'yes/no item: `no` is "the page does not state" this function'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed `no` definition: "The page does not state that the tool is used for ..."'
   core.function_code:
     id: core.function_code
     family: tool
@@ -4554,8 +4800,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -4570,7 +4822,12 @@ items:
       source: |-
         applicability.json cells[item=core.function_code]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        Does the page state that this activity's tool is used for writing, reviewing or fixing software code?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W23
+      source: |-
+        drafts/rc-d-005-wording.json W23 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))
     values:
     - code: 'yes'
       definition:
@@ -4622,7 +4879,13 @@ items:
     - activity-03
     - activity-04
     - activity-05
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: 'yes/no item: `no` is "the page does not state" this function'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed `no` definition: "The page does not state that the tool is used for ..."'
   core.function_image_audio_video:
     id: core.function_image_audio_video
     family: tool
@@ -4635,8 +4898,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -4651,7 +4920,12 @@ items:
       source: |-
         applicability.json cells[item=core.function_image_audio_video]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        Does the page state that this activity's tool is used for creating or editing images, audio or video?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W24
+      source: |-
+        drafts/rc-d-005-wording.json W24 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))
     values:
     - code: 'yes'
       definition:
@@ -4703,7 +4977,13 @@ items:
     - activity-03
     - activity-04
     - activity-05
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: 'yes/no item: `no` is "the page does not state" this function'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed `no` definition: "The page does not state that the tool is used for ..."'
   core.function_extraction_classification:
     id: core.function_extraction_classification
     family: tool
@@ -4716,8 +4996,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -4732,7 +5018,12 @@ items:
       source: |-
         applicability.json cells[item=core.function_extraction_classification]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        Does the page state that this activity's tool is used for pulling information out of documents or forms, or sorting and classifying them?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W25
+      source: |-
+        drafts/rc-d-005-wording.json W25 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))
     values:
     - code: 'yes'
       definition:
@@ -4786,7 +5077,13 @@ items:
     - activity-03
     - activity-04
     - activity-05
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: 'yes/no item: `no` is "the page does not state" this function'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed `no` definition: "The page does not state that the tool is used for ..."'
   core.function_analysis_recommendation:
     id: core.function_analysis_recommendation
     family: tool
@@ -4799,8 +5096,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -4815,7 +5118,12 @@ items:
       source: |-
         applicability.json cells[item=core.function_analysis_recommendation]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        Does the page state that this activity's tool is used for analysing information or giving recommendations or scores to support human decisions?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W26
+      source: |-
+        drafts/rc-d-005-wording.json W26 (new; the task phrase is copied from the item's own `yes` definition (examples left in the definition))
     values:
     - code: 'yes'
       definition:
@@ -4869,7 +5177,13 @@ items:
     - activity-03
     - activity-04
     - activity-05
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: 'yes/no item: `no` is "the page does not state" this function'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed `no` definition: "The page does not state that the tool is used for ..."'
   core.tool_name:
     id: core.tool_name
     family: tool
@@ -4882,8 +5196,15 @@ items:
     pass: none
     round: none
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -4957,7 +5278,7 @@ items:
     - activity-05
     - activity-07
     - activity-08
-    status: slot
+    status: signed
   core.model_name:
     id: core.model_name
     family: tool
@@ -4970,8 +5291,15 @@ items:
     pass: none
     round: none
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -5031,7 +5359,7 @@ items:
     - activity-04
     - activity-05
     - activity-07
-    status: slot
+    status: signed
   core.contracting_party:
     id: core.contracting_party
     family: tool
@@ -5046,8 +5374,14 @@ items:
     pass: none
     round: none
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -5125,7 +5459,7 @@ items:
     - activity-07
     - activity-08
     - activity-19
-    status: slot
+    status: signed
   core.developer:
     id: core.developer
     family: tool
@@ -5138,8 +5472,15 @@ items:
     pass: none
     round: none
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -5222,7 +5563,7 @@ items:
     - activity-07
     - activity-08
     - activity-19
-    status: slot
+    status: signed
   core.developer_basis:
     id: core.developer_basis
     family: provenance
@@ -5272,7 +5613,7 @@ items:
     - r2#57
     - T3
     - shared-02
-    status: slot
+    status: signed
   core.deployment_mode:
     id: core.deployment_mode
     family: tool
@@ -5285,8 +5626,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -5337,6 +5684,11 @@ items:
             drafts/definitions-r4.json entries[65] (items/core.deployment_mode/values/2/definition); confidence high
           source_before_r4: value unknown
           approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I08 slot 4'
+    - text: 'not_documented: the page is silent.'
+      origin: |-
+        agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)
+      source: items/core.has_human_oversight/rules/2 (PI 2026-10-30 "approved!"; fixes-r4 FX06)
+      role: 'missing label not_documented: meaning for this item'
     order_tie_rule: first_in_order
     long_page_rule:
       rule: highest_probability
@@ -5368,7 +5720,15 @@ items:
     - activity-04
     - activity-05
     - activity-20
-    status: slot
+    - RC-D-005 12a' iv
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.deployment_mode/rules/1
+      resolution: |-
+        RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions integration but does not settle it; a silent page is the other case
   core.target_users:
     id: core.target_users
     family: tool
@@ -5381,8 +5741,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -5446,6 +5812,11 @@ items:
             drafts/definitions-r4.json entries[69] (items/core.target_users/values/3/definition); confidence high
           source_before_r4: value unknown
           approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I09 slot 5'
+    - text: 'not_documented: the page is silent.'
+      origin: |-
+        agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)
+      source: items/core.has_human_oversight/rules/2 (PI 2026-10-30 "approved!"; fixes-r4 FX06)
+      role: 'missing label not_documented: meaning for this item'
     order_tie_rule: first_in_order
     long_page_rule:
       rule: combined_list
@@ -5492,7 +5863,15 @@ items:
     - activity-04
     - activity-05
     - activity-22
-    status: slot
+    - RC-D-005 12a' iv
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.target_users/rules/2
+      resolution: |-
+        RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions users but does not settle it; a silent page is the other case
   core.governed_population:
     id: core.governed_population
     family: governance
@@ -5510,7 +5889,10 @@ items:
       - governance
       rule: core.rule.governance_gate
     answer_type: single
-    instruction: none
+    instruction:
+      text: Whom does this rule on GenAI use apply to?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W27
+      source: drafts/rc-d-005-wording.json W27 (new)
     values:
     - code: internal_personnel
       definition:
@@ -5558,6 +5940,11 @@ items:
             drafts/definitions-r4.json entries[73] (items/core.governed_population/values/3/definition); confidence high
           source_before_r4: value unknown
           approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I10 slot 4'
+    - text: 'not_documented: the page is silent.'
+      origin: |-
+        agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)
+      source: items/core.has_human_oversight/rules/2 (PI 2026-10-30 "approved!"; fixes-r4 FX06)
+      role: 'missing label not_documented: meaning for this item'
     order_tie_rule: first_in_order
     long_page_rule:
       rule: combined_list
@@ -5599,7 +5986,15 @@ items:
     - A04
     - T4
     - activity-22
-    status: slot
+    - RC-D-005 12a' iv
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.governed_population/rules/2
+      resolution: |-
+        RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions whom the rule applies to but does not settle it; a silent page is the other case
   core.governance_form:
     id: core.governance_form
     family: governance
@@ -5613,7 +6008,10 @@ items:
     round: 3
     gate: *id005
     answer_type: multi
-    instruction: none
+    instruction:
+      text: What form does this rule on GenAI use take? Choose all that apply.
+      origin: PI 2026-10-30 "drafts ok"; agent draft W28
+      source: drafts/rc-d-005-wording.json W28 (new)
     values:
     - code: dedicated_genai_or_ai_policy_or_guideline
       definition:
@@ -5686,6 +6084,11 @@ items:
             drafts/definitions-r4.json entries[79] (items/core.governance_form/values/5/definition); confidence high
           source_before_r4: value unknown
           approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I11 slot 6'
+    - text: 'not_documented: the page is silent.'
+      origin: |-
+        agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)
+      source: items/core.has_human_oversight/rules/2 (PI 2026-10-30 "approved!"; fixes-r4 FX06)
+      role: 'missing label not_documented: meaning for this item'
     order_tie_rule: all_that_apply
     long_page_rule: combined_list
     support_required: true
@@ -5706,7 +6109,15 @@ items:
     - S6 c
     - r2#29
     - T4
-    status: slot
+    - RC-D-005 12a' iv
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.governance_form/rules/3
+      resolution: |-
+        RC-D-005 12a' (iv): offered; its `unknown` rule covers a page that mentions the rule's form but does not settle it; a silent page is the other case
   core.governance_direction:
     id: core.governance_direction
     family: governance
@@ -5720,7 +6131,10 @@ items:
     round: 3
     gate: *id005
     answer_type: single
-    instruction: none
+    instruction:
+      text: Does this rule ban, limit, allow, require or encourage the GenAI use it covers?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W29
+      source: drafts/rc-d-005-wording.json W29 (new)
     values:
     - code: prohibits
       definition:
@@ -5848,7 +6262,13 @@ items:
     - activity-11
     - activity-19
     - all-04
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.governance_direction/rules/3
+      resolution: 'RC-D-005 12a'' (iv): offered; the item''s own rule gives the meaning'
   core.service_domain:
     id: core.service_domain
     family: activity_typing
@@ -5862,7 +6282,10 @@ items:
     round: 3
     gate: none
     answer_type: multi
-    instruction: none
+    instruction:
+      text: Which areas of government work does this activity concern? Choose all that apply.
+      origin: PI 2026-10-30 "drafts ok"; agent draft W15
+      source: drafts/rc-d-005-wording.json W15 (new)
     values:
     - code: general_public_services
       definition:
@@ -6048,7 +6471,13 @@ items:
     - activity-12
     - activity-13
     - activity-20
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.service_domain/rules/4
+      resolution: 'RC-D-005 12a'' (iv): offered; the item''s own rule gives the meaning'
   core.genai_mechanism_basis:
     id: core.genai_mechanism_basis
     family: verdict
@@ -6062,7 +6491,10 @@ items:
     round: 2
     gate: none
     answer_type: single
-    instruction: none
+    instruction:
+      text: What on the page shows that this activity's tool is generative AI?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W30
+      source: drafts/rc-d-005-wording.json W30 (new)
     values:
     - code: named_genai_product_or_model
       definition:
@@ -6137,7 +6569,15 @@ items:
     - r2#34
     - activity-19
     - all-04
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        asked only for activities the page shows as GenAI (core.rule.genai_boundary), so the page always shows some basis
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: |-
+        signed rules/0: "jev Choice on every confirms_activity page/activity" over the four bases; signed `confirms_activity` definition: "The text must be explicitly generative AI"
   core.year_announced:
     id: core.year_announced
     family: dates
@@ -6150,8 +6590,15 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -6171,12 +6618,21 @@ items:
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I15 slot 1'
     values:
       candidates: deterministic year extraction, plus unknown (C16)
+      candidates_not_offered:
+        codes:
+        - unknown
+        why: |-
+          RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"
     rules:
     - text: |-
-        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
-      origin: r1
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
+      origin: 'PI 2026-10-30 "approved and cut"; cut from: r1'
       source: codebook-rulings-round1.json C16.mechanism
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I15 slot 2'
+      text_before_r8: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
+      cut_r8: ' plus `unknown`'
+      cut_by: 'PI 2026-10-30 "approved and cut" (RC-D-005: `unknown` no longer offered, 12 a; cut-only, as in "2a")'
     - text: |-
         Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX12
@@ -6186,6 +6642,11 @@ items:
         Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable; new test pages are needed.
       origin_before_r4: r2
       r4_fixes: FX12
+    - text: 'not_documented: the page is silent.'
+      origin: |-
+        agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (round 2)
+      source: items/core.has_human_oversight/rules/2 (PI 2026-10-30 "approved!"; fixes-r4 FX06)
+      role: 'missing label not_documented: meaning for this item'
     order_tie_rule: first_in_order
     long_page_rule: earliest_year
     support_required: true
@@ -6211,7 +6672,15 @@ items:
     - activity-03
     - activity-04
     - activity-05
-    status: slot
+    - RC-D-005 round 2
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.year_announced/rules/2
+      resolution: |-
+        RC-D-005 round 2: offered; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"; RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical")
   core.year_pilot_start:
     id: core.year_pilot_start
     family: dates
@@ -6224,8 +6693,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -6240,15 +6715,30 @@ items:
       source: |-
         applicability.json cells[item=core.year_pilot_start]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: single
-    instruction: none
+    instruction:
+      text: In which year does the page say a pilot or trial of this activity began?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W31
+      source: drafts/rc-d-005-wording.json W31 (new; replaces the copied announced-year question (ruling 4))
     values:
       candidates: deterministic year extraction, plus unknown (C16)
+      candidates_not_offered:
+        codes:
+        - unknown
+        why: |-
+          RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"
     rules:
     - text: |-
-        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
-      origin: r1
-      source: codebook-rulings-round1.json C16.mechanism
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: "In which year does the page say a pilot or trial of this activity began?" No fallback to publication year. Across chunks: earliest chosen year.
+      origin: 'PI 2026-10-30 "approved and cut"; cut from: PI 2026-10-30 "drafts ok"; agent draft W44'
+      source: |-
+        drafts/rc-d-005-wording.json W44 (items/core.year_pilot_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I16 slot 1'
+      text_before_r6: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
+      text_before_r8: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say a pilot or trial of this activity began?" No fallback to publication year. Across chunks: earliest chosen year.
+      cut_r8: ' plus `unknown`'
+      cut_by: 'PI 2026-10-30 "approved and cut" (RC-D-005: `unknown` no longer offered, 12 a; cut-only, as in "2a")'
     - text: |-
         Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX12
@@ -6262,6 +6752,11 @@ items:
       origin: r1
       source: codebook-rulings-round1.json C17.mechanism
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I16 slot 3'
+    - text: 'not_documented: the page is silent.'
+      origin: |-
+        agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (round 2)
+      source: items/core.has_human_oversight/rules/2 (PI 2026-10-30 "approved!"; fixes-r4 FX06)
+      role: 'missing label not_documented: meaning for this item'
     order_tie_rule: first_in_order
     long_page_rule: earliest_year
     support_required: true
@@ -6298,7 +6793,15 @@ items:
     - activity-04
     - activity-05
     - activity-08
-    status: slot
+    - RC-D-005 round 2
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.year_pilot_start/rules/3
+      resolution: |-
+        RC-D-005 round 2: offered; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"; RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical")
   core.year_production_start:
     id: core.year_production_start
     family: dates
@@ -6311,8 +6814,14 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -6327,15 +6836,30 @@ items:
       source: |-
         applicability.json cells[item=core.year_production_start]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: single
-    instruction: none
+    instruction:
+      text: In which year does the page say this activity went into full, routine operation?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W32
+      source: drafts/rc-d-005-wording.json W32 (new; replaces the copied announced-year question (ruling 4))
     values:
       candidates: deterministic year extraction, plus unknown (C16)
+      candidates_not_offered:
+        codes:
+        - unknown
+        why: |-
+          RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"
     rules:
     - text: |-
-        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
-      origin: r1
-      source: codebook-rulings-round1.json C16.mechanism
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: "In which year does the page say this activity went into full, routine operation?" No fallback to publication year. Across chunks: earliest chosen year.
+      origin: 'PI 2026-10-30 "approved and cut"; cut from: PI 2026-10-30 "drafts ok"; agent draft W45'
+      source: |-
+        drafts/rc-d-005-wording.json W45 (items/core.year_production_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I17 slot 1'
+      text_before_r6: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
+      text_before_r8: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years plus `unknown`: "In which year does the page say this activity went into full, routine operation?" No fallback to publication year. Across chunks: earliest chosen year.
+      cut_r8: ' plus `unknown`'
+      cut_by: 'PI 2026-10-30 "approved and cut" (RC-D-005: `unknown` no longer offered, 12 a; cut-only, as in "2a")'
     - text: |-
         Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX12
@@ -6349,6 +6873,11 @@ items:
       origin: r1
       source: codebook-rulings-round1.json C17.mechanism
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I17 slot 3'
+    - text: 'not_documented: the page is silent.'
+      origin: |-
+        agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (round 2)
+      source: items/core.has_human_oversight/rules/2 (PI 2026-10-30 "approved!"; fixes-r4 FX06)
+      role: 'missing label not_documented: meaning for this item'
     order_tie_rule: first_in_order
     long_page_rule: earliest_year
     support_required: true
@@ -6385,7 +6914,15 @@ items:
     - activity-04
     - activity-05
     - activity-08
-    status: slot
+    - RC-D-005 round 2
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.year_production_start/rules/3
+      resolution: |-
+        RC-D-005 round 2: offered; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"; RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical")
   core.deployment_scale_number:
     id: core.deployment_scale_number
     family: scale
@@ -6398,8 +6935,14 @@ items:
     pass: none
     round: none
     gate:
+      item: core.activity_type
+      values:
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: not_asked
@@ -6472,7 +7015,12 @@ items:
     - activity-05
     - activity-07
     - activity-24
-    status: slot
+    - RC-D-005 11 a
+    status: signed
+    support_pair:
+      with: core.deployment_scale_unit
+      supported_only_if: both_halves_pass_quote_check
+      ruling: RC-D-005 11 a
   core.deployment_scale_unit:
     id: core.deployment_scale_unit
     family: scale
@@ -6486,10 +7034,14 @@ items:
     round: 4
     gate:
       item: core.deployment_scale_number
-      values:
-      - any stated
+      values: any
+      as_ruled: any stated
     answer_type: single
-    instruction: none
+    instruction:
+      text: What does the stated number for this activity count?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W33
+      source: |-
+        drafts/rc-d-005-wording.json W33 (new; follows the item rule ("jev Choice gives the unit" for the extracted number))
     values:
     - code: licences_or_seats
       definition:
@@ -6538,6 +7090,11 @@ items:
       origin: r1
       source: codebook-rulings-round1.json A09.mechanism
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I01 slot 6'
+    - text: 'not_documented: the page is silent.'
+      origin: |-
+        agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (round 2)
+      source: items/core.has_human_oversight/rules/2 (PI 2026-10-30 "approved!"; fixes-r4 FX06)
+      role: 'missing label not_documented: meaning for this item'
     order_tie_rule: first_in_order
     long_page_rule:
       rule: combined_list
@@ -6570,7 +7127,26 @@ items:
     - A09
     - C4 a
     - activity-24
-    status: slot
+    - RC-D-005 11 a
+    - RC-D-005 W33
+    - RC-D-005 F6 a
+    - RC-D-005 round 2
+    status: signed
+    support_pair:
+      with: core.deployment_scale_number
+      supported_only_if: both_halves_pass_quote_check
+      ruling: RC-D-005 11 a
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.deployment_scale_unit/rules/1
+      resolution: |-
+        RC-D-005 round 2: offered; `none` is "A number is stated, but it counts none of these units", not a page silent about what the number counts (round-1 exclusion rested on inference)
+    question_context:
+      shows_value_of:
+      - core.deployment_scale_number
+      resolution: RC-D-005 W33 note
   core.has_human_oversight:
     id: core.has_human_oversight
     family: safeguard
@@ -6583,8 +7159,15 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -6684,7 +7267,13 @@ items:
     - activity-06
     - activity-23
     - all-04
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.has_human_oversight/rules/2
+      resolution: 'RC-D-005 12a'' (iv): offered; the item''s own rule gives the meaning'
   core.has_transparency_notice:
     id: core.has_transparency_notice
     family: safeguard
@@ -6697,8 +7286,15 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -6798,7 +7394,13 @@ items:
     - activity-06
     - activity-23
     - all-04
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.has_transparency_notice/rules/2
+      resolution: 'RC-D-005 12a'' (iv): offered; the item''s own rule gives the meaning'
   core.has_data_classification:
     id: core.has_data_classification
     family: safeguard
@@ -6811,8 +7413,15 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -6912,7 +7521,13 @@ items:
     - activity-06
     - activity-23
     - all-04
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.has_data_classification/rules/2
+      resolution: 'RC-D-005 12a'' (iv): offered; the item''s own rule gives the meaning'
   core.has_risk_assessment:
     id: core.has_risk_assessment
     family: safeguard
@@ -6925,8 +7540,15 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -7026,7 +7648,13 @@ items:
     - activity-06
     - activity-23
     - all-04
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.has_risk_assessment/rules/2
+      resolution: 'RC-D-005 12a'' (iv): offered; the item''s own rule gives the meaning'
   core.outcome_kind:
     id: core.outcome_kind
     family: outcomes
@@ -7039,8 +7667,15 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -7054,7 +7689,11 @@ items:
       source: |-
         applicability.json cells[item=core.outcome_kind]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: single
-    instruction: none
+    instruction:
+      text: Does the page report a result of this activity, and if so, what kind?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W34
+      source: |-
+        drafts/rc-d-005-wording.json W34 (new; "does the page report an outcome ... of this activity" from item rule 3 (direction), shortened)
     values:
     - code: quantified
       definition:
@@ -7092,16 +7731,6 @@ items:
       frozen_text: 'Remaining text: a jev `Choice` over the stored text: `quantified` / `qualitative` / `none_reported`.'
       frozen_source: codebook-extension-proposal.md:106 CX-61
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I06 slot 4'
-    - text: |-
-        Ask CX-61 in pass 2 over the page text with the activity span marked; the extractor then quotes support for the chosen value.
-      origin: r1
-      source: codebook-rulings-round1.json X10.mechanism
-      role: direction
-    - text: |-
-        Pass-2 jev Choice on page text: does the page report an outcome (incident) of this activity: quantified / qualitative / none? The extractor extracts verbatim text only when not none; CX-60 then applies to legacy rows only.
-      origin: r1
-      source: codebook-rulings-round1.json X09.mechanism
-      role: direction
     - text: |-
         Your outcome and incident gates are re-ruled down to quotes only; the signed item answers both whether and what kind, and the separate existence question folds into it.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX12
@@ -7157,7 +7786,14 @@ items:
     - activity-05
     - activity-19
     - all-04
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        `none_reported` ("states no result") covers a silent page (CX-06 map: `none_reported` to "not documented")
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed CX map: "`none_reported` (CX-60, CX-61) → "not documented""'
   core.incident_kind:
     id: core.incident_kind
     family: outcomes
@@ -7170,8 +7806,15 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -7185,7 +7828,12 @@ items:
       source: |-
         applicability.json cells[item=core.incident_kind]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: single
-    instruction: none
+    instruction:
+      text: |-
+        Does the page report an incident with this activity, such as an error, failure or controversy, and if so, what kind?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W35
+      source: |-
+        drafts/rc-d-005-wording.json W35 (new; "errors, failures, or controversies" from g3o/extract/prompts/output_contract.md L112 (reported_incidents column description))
     values:
     - code: quantified
       definition:
@@ -7233,16 +7881,6 @@ items:
       frozen_text: 'Remaining text: a jev `Choice` over the stored text: `quantified` / `qualitative` / `none_reported`.'
       frozen_source: codebook-extension-proposal.md:106 CX-61
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I07 slot 5'
-    - text: |-
-        Ask CX-61 in pass 2 over the page text with the activity span marked; the extractor then quotes support for the chosen value.
-      origin: r1
-      source: codebook-rulings-round1.json X10.mechanism
-      role: direction
-    - text: |-
-        Pass-2 jev Choice on page text: does the page report an outcome (incident) of this activity: quantified / qualitative / none? The extractor extracts verbatim text only when not none; CX-60 then applies to legacy rows only.
-      origin: r1
-      source: codebook-rulings-round1.json X09.mechanism
-      role: direction
     - text: |-
         Your outcome and incident gates are re-ruled down to quotes only; the signed item answers both whether and what kind, and the separate existence question folds into it.
       origin: PI 2026-10-30 "approved!"; fixes-r4 FX12
@@ -7328,7 +7966,14 @@ items:
     - activity-04
     - activity-05
     - all-04
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        `none_reported` ("states no result") covers a silent page (CX-06 map: `none_reported` to "not documented")
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed CX map: "`none_reported` (CX-60, CX-61) → "not documented""'
   core.reported_outcomes:
     id: core.reported_outcomes
     family: outcomes
@@ -7343,7 +7988,9 @@ items:
     gate:
       item: core.outcome_kind
       values:
-      - not none_reported
+      - quantified
+      - qualitative
+      as_ruled: not none_reported
     answer_type: list
     instruction:
       text: Documented performance claims. Only record if explicitly stated. Never infer.
@@ -7361,11 +8008,6 @@ items:
         Deterministic step (no API): map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
       frozen_source: codebook-extension-proposal.md:105 CX-60
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I08 slot 2'
-    - text: |-
-        jev Choice per activity: page reports realised outcomes / only expected or projected outcomes / usage figures only / none. Unless none, the extractor returns verbatim spans (no length limit in storage, display cap per R-043). CX-61 then runs on the spans.
-      origin: r1
-      source: codebook-rulings-round1.json C22.mechanism
-      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I08 slot 3'
     order_tie_rule: none
     long_page_rule: combined_list
     support_required: true
@@ -7391,7 +8033,8 @@ items:
     - C22
     - R-024
     - CX-60
-    status: slot
+    - RC-D-005 F10 a
+    status: signed
   core.reported_incidents:
     id: core.reported_incidents
     family: outcomes
@@ -7406,7 +8049,10 @@ items:
     gate:
       item: core.incident_kind
       values:
-      - not none_reported
+      - quantified
+      - qualitative
+      - discontinuation_uncertain
+      as_ruled: not none_reported
     answer_type: list
     instruction:
       text: Documented errors, failures, or controversies. Only record if explicitly stated.
@@ -7424,11 +8070,6 @@ items:
         Deterministic step (no API): map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
       frozen_source: codebook-extension-proposal.md:105 CX-60
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I09 slot 2'
-    - text: |-
-        jev Choice: page reports a malfunction or error / data or privacy breach / public criticism or complaint / suspension or withdrawal / none. Unless none, the extractor returns verbatim spans.
-      origin: r1
-      source: codebook-rulings-round1.json C23.mechanism
-      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I09 slot 3'
     order_tie_rule: none
     long_page_rule: combined_list
     support_required: true
@@ -7454,7 +8095,8 @@ items:
     - C23
     - R-024
     - CX-60
-    status: slot
+    - RC-D-005 F10 a
+    status: signed
   core.evaluation_documented:
     id: core.evaluation_documented
     family: evaluation
@@ -7468,8 +8110,15 @@ items:
     pass: 2
     round: 3
     gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
       table: applicability keyed on activity_type (r2#8)
-      key: core.activity_type
       rule: core.rule.applicability_table
       cells:
         policy_guidance: ask
@@ -7616,11 +8265,6 @@ items:
       frozen_source: codebook-extension-proposal.md:79 CX-40
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I10 slot 15'
     - text: |-
-        Delete CX-32c's policy-review clause: a periodic review of the policy document is `not_documented` unless it requires testing, monitoring or evaluation of GenAI tools or their outputs.
-      origin: r1
-      source: codebook-rulings-round1.json X03.mechanism
-      role: direction
-    - text: |-
         CX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value. A clause requiring periodic review of the GenAI policy itself is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).
       origin: agent-draft
       source: cx-01.3-draft.json pilot.py L161 EVAL[required_or_planned]; ruling activity-29
@@ -7680,7 +8324,13 @@ items:
     - activity-03
     - activity-04
     - activity-05
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.evaluation_documented/rules/10
+      resolution: 'RC-D-005 12a'' (iv): offered; the item''s own rule gives the meaning'
   core.evaluation_type_pre_deployment_testing:
     id: core.evaluation_type_pre_deployment_testing
     family: evaluation
@@ -7701,7 +8351,12 @@ items:
       - required_or_planned
       after: downgrades (X04)
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: testing before deployment? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
+      origin: PI 2026-10-30 "drafts ok"; agent draft W36; EVAL_EMPHASIS (E1)
+      source: |-
+        drafts/rc-d-005-wording.json W36 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
     values:
     - code: 'yes'
       definition:
@@ -7729,11 +8384,6 @@ items:
         Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
       frozen_source: codebook-extension-proposal.md:85 CX-41
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I11 slot 3'
-    - text: |-
-        Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.
-      origin: r1
-      source: codebook-rulings-round1.json X04.mechanism
-      role: direction
     order_tie_rule: first_in_order
     long_page_rule: any_yes
     support_required: true
@@ -7753,7 +8403,14 @@ items:
     - R-022
     - X04
     - CX-41
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        yes/no item: `no` is "not documented" (CX-06 map sends `no` of the evaluation-type items to "not documented")
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed CX map: "`no` of the `evaluation_type_*` and `content_*` items → "not documented""'
   core.evaluation_type_pilot_evaluation:
     id: core.evaluation_type_pilot_evaluation
     family: evaluation
@@ -7774,7 +8431,12 @@ items:
       - required_or_planned
       after: downgrades (X04)
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: evaluation of a pilot or trial? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
+      origin: PI 2026-10-30 "drafts ok"; agent draft W37; EVAL_EMPHASIS (E1)
+      source: |-
+        drafts/rc-d-005-wording.json W37 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
     values:
     - code: 'yes'
       definition:
@@ -7803,11 +8465,6 @@ items:
         Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
       frozen_source: codebook-extension-proposal.md:85 CX-41
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I12 slot 3'
-    - text: |-
-        Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.
-      origin: r1
-      source: codebook-rulings-round1.json X04.mechanism
-      role: direction
     order_tie_rule: first_in_order
     long_page_rule: any_yes
     support_required: true
@@ -7827,7 +8484,14 @@ items:
     - R-022
     - X04
     - CX-41
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        yes/no item: `no` is "not documented" (CX-06 map sends `no` of the evaluation-type items to "not documented")
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed CX map: "`no` of the `evaluation_type_*` and `content_*` items → "not documented""'
   core.evaluation_type_independent_audit:
     id: core.evaluation_type_independent_audit
     family: evaluation
@@ -7848,7 +8512,12 @@ items:
       - required_or_planned
       after: downgrades (X04)
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: an audit or evaluation by an independent body? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
+      origin: PI 2026-10-30 "drafts ok"; agent draft W38; EVAL_EMPHASIS (E1)
+      source: |-
+        drafts/rc-d-005-wording.json W38 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
     values:
     - code: 'yes'
       definition:
@@ -7878,11 +8547,6 @@ items:
         Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
       frozen_source: codebook-extension-proposal.md:85 CX-41
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I13 slot 3'
-    - text: |-
-        Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.
-      origin: r1
-      source: codebook-rulings-round1.json X04.mechanism
-      role: direction
     order_tie_rule: first_in_order
     long_page_rule: any_yes
     support_required: true
@@ -7902,7 +8566,14 @@ items:
     - R-022
     - X04
     - CX-41
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        yes/no item: `no` is "not documented" (CX-06 map sends `no` of the evaluation-type items to "not documented")
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed CX map: "`no` of the `evaluation_type_*` and `content_*` items → "not documented""'
   core.evaluation_type_ongoing_monitoring:
     id: core.evaluation_type_ongoing_monitoring
     family: evaluation
@@ -7923,7 +8594,12 @@ items:
       - required_or_planned
       after: downgrades (X04)
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: ongoing monitoring of the tool in use? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
+      origin: PI 2026-10-30 "drafts ok"; agent draft W39; EVAL_EMPHASIS (E1)
+      source: |-
+        drafts/rc-d-005-wording.json W39 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
     values:
     - code: 'yes'
       definition:
@@ -7953,11 +8629,6 @@ items:
         Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
       frozen_source: codebook-extension-proposal.md:85 CX-41
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I14 slot 3'
-    - text: |-
-        Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.
-      origin: r1
-      source: codebook-rulings-round1.json X04.mechanism
-      role: direction
     order_tie_rule: first_in_order
     long_page_rule: any_yes
     support_required: true
@@ -7977,7 +8648,14 @@ items:
     - R-022
     - X04
     - CX-41
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        yes/no item: `no` is "not documented" (CX-06 map sends `no` of the evaluation-type items to "not documented")
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed CX map: "`no` of the `evaluation_type_*` and `content_*` items → "not documented""'
   core.evaluation_type_user_feedback:
     id: core.evaluation_type_user_feedback
     family: evaluation
@@ -7998,7 +8676,12 @@ items:
       - required_or_planned
       after: downgrades (X04)
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: user feedback or satisfaction surveys? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
+      origin: PI 2026-10-30 "drafts ok"; agent draft W40; EVAL_EMPHASIS (E1)
+      source: |-
+        drafts/rc-d-005-wording.json W40 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
     values:
     - code: 'yes'
       definition:
@@ -8028,11 +8711,6 @@ items:
         Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
       frozen_source: codebook-extension-proposal.md:85 CX-41
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I15 slot 3'
-    - text: |-
-        Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.
-      origin: r1
-      source: codebook-rulings-round1.json X04.mechanism
-      role: direction
     order_tie_rule: first_in_order
     long_page_rule: any_yes
     support_required: true
@@ -8052,7 +8730,14 @@ items:
     - R-022
     - X04
     - CX-41
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        yes/no item: `no` is "not documented" (CX-06 map sends `no` of the evaluation-type items to "not documented")
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed CX map: "`no` of the `evaluation_type_*` and `content_*` items → "not documented""'
   core.evaluation_type_bias_or_safety_testing:
     id: core.evaluation_type_bias_or_safety_testing
     family: evaluation
@@ -8073,7 +8758,12 @@ items:
       - required_or_planned
       after: downgrades (X04)
     answer_type: yes_no
-    instruction: none
+    instruction:
+      text: |-
+        The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: bias, fairness or safety testing? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
+      origin: PI 2026-10-30 "drafts ok"; agent draft W41; EVAL_EMPHASIS (E1)
+      source: |-
+        drafts/rc-d-005-wording.json W41 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
     values:
     - code: 'yes'
       definition:
@@ -8102,11 +8792,6 @@ items:
         Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
       frozen_source: codebook-extension-proposal.md:85 CX-41
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I16 slot 3'
-    - text: |-
-        Procedural: ask (or keep) type items only if `evaluation_documented` is still positive after R-041 and R-081; otherwise store `_NA_`.
-      origin: r1
-      source: codebook-rulings-round1.json X04.mechanism
-      role: direction
     order_tie_rule: first_in_order
     long_page_rule: any_yes
     support_required: true
@@ -8126,7 +8811,14 @@ items:
     - R-022
     - X04
     - CX-41
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        yes/no item: `no` is "not documented" (CX-06 map sends `no` of the evaluation-type items to "not documented")
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed CX map: "`no` of the `evaluation_type_*` and `content_*` items → "not documented""'
   core.stage_as_of:
     id: core.stage_as_of
     family: dates
@@ -8165,7 +8857,7 @@ items:
     translation_v25: new
     refs:
     - A08
-    status: slot
+    status: signed
   core.stage_as_of_basis:
     id: core.stage_as_of_basis
     family: provenance
@@ -8212,7 +8904,7 @@ items:
     - r2#57
     - T3
     - shared-01
-    status: slot
+    status: signed
   core.permanent_pilot:
     id: core.permanent_pilot
     family: activity_typing
@@ -8251,7 +8943,7 @@ items:
     translation_v25: new
     refs:
     - r2#28
-    status: slot
+    status: signed
   core.vendor_claim_only:
     id: core.vendor_claim_only
     family: quality
@@ -8290,7 +8982,7 @@ items:
     translation_v25: new
     refs:
     - r2#28
-    status: slot
+    status: signed
   core.unit_credit:
     id: core.unit_credit
     family: attribution
@@ -8329,7 +9021,7 @@ items:
     translation_v25: new
     refs:
     - r2#47
-    status: slot
+    status: signed
   core.uncertainty_flags:
     id: core.uncertainty_flags
     family: quality
@@ -8393,7 +9085,7 @@ items:
     - X24
     - r2#38
     - r2#39
-    status: slot
+    status: signed
   core.support_entailment:
     id: core.support_entailment
     family: support
@@ -8451,7 +9143,13 @@ items:
     - X35
     - R-040
     - r2#26
-    status: slot
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: 'the answer is about one quote: `false` covers a quote that does not state the value'
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: 'signed `false` definition: "The quoted text does not state that the field has the given value."'
   core.support_status:
     id: core.support_status
     family: support
@@ -8522,7 +9220,8 @@ items:
     - record-03
     - all-11
     - RC-D-003 O12
-    status: slot
+    status: signed
+    value_vocabulary: support_status
   core.supporting_text:
     id: core.supporting_text
     family: support
@@ -8583,7 +9282,7 @@ items:
     - R-058
     - X12
     - r2#17
-    status: slot
+    status: signed
   core.has_genai_activity:
     id: core.has_genai_activity
     family: verdict
@@ -8644,7 +9343,7 @@ items:
     - C5 a
     - C1 a
     - RC-D-003 O15
-    status: slot
+    status: signed
   core.verdict_rule:
     id: core.verdict_rule
     family: provenance
@@ -8680,7 +9379,7 @@ items:
     refs:
     - R-059
     - r2#45
-    status: slot
+    status: signed
   core.evidence_tier:
     id: core.evidence_tier
     family: verdict
@@ -8724,7 +9423,7 @@ items:
     - r2#21
     - T1
     - C5 a
-    status: slot
+    status: signed
   core.review_depth:
     id: core.review_depth
     family: quality
@@ -8761,7 +9460,7 @@ items:
     refs:
     - A07
     - R-005
-    status: slot
+    status: signed
   core.activity_relation_cross_page:
     id: core.activity_relation_cross_page
     family: activity_identity
@@ -8776,7 +9475,10 @@ items:
     round: 1
     gate: none
     answer_type: single
-    instruction: none
+    instruction:
+      text: How is the activity in the first record related to the activity in the second record?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W42
+      source: drafts/rc-d-005-wording.json W42 (new)
     values:
     - code: same_activity
       definition:
@@ -8907,7 +9609,9 @@ items:
       - unresolved
       - distinct_action
       - governs
+      - governed_by
       - component_of_program
+      - has_component
       - shared_participation
       - same_activity
       - unknown
@@ -8942,7 +9646,15 @@ items:
     - institution-02
     - all-11
     - all-04
-    status: slot
+    - RC-D-005 7 a
+    status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: compares two records, not a page; `unresolved` covers a pair that cannot be settled
+      resolution: 'RC-D-005 12a'' (iv), re-checked in round 2: not offered'
+      grounds: |-
+        signed priority order (unresolved ... unknown) has no `not_documented`, though R-044 ranks it in every order that has it; signed `unresolved`: "The sources do not settle whether the two records describe the same activity."
   core.pooled_activity_fields:
     id: core.pooled_activity_fields
     family: activity_identity
@@ -8951,13 +9663,18 @@ items:
     - activity
     pipelines:
     - stage6
-    linkage: jev_choice
-    coder: classifier
+    linkage: pipeline
+    coder: derived
     pass: stage6
     round: 2
     gate: none
     answer_type: single
-    instruction: none
+    instruction:
+      text: |-
+        The text below is a set of quotes about one activity, gathered from several sources, each with its source type and date. Answer each question about the activity from these quotes only.
+      origin: PI 2026-10-30 "drafts ok"; agent draft W43
+      source: |-
+        drafts/rc-d-005-wording.json W43 (new; framing from item rule 1 ("the union of the activity's supported quotes from all its sources (state = quotes with source type and date)"))
     values: none
     rules:
     - text: |-
@@ -8972,10 +9689,13 @@ items:
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page institution card I06 slot 2'
     order_tie_rule: first_in_order
     long_page_rule:
-      rule: per item (r2#6)
+      rule: none
+      pooled_fields: each field uses its own item's long_page_rule
+      source: r2#6
+      ruling: RC-D-005 10 a
     support_required: true
     downgrade_target: unknown
-    threshold: *id002
+    threshold: none
     missing_tokens:
     - not_asked
     - not_documented
@@ -8989,7 +9709,10 @@ items:
     refs:
     - X31
     - r2#6
-    status: slot
+    - RC-D-005 10 a
+    - RC-D-005 W43
+    - RC-D-005 R1 a
+    status: signed
   core.confidence:
     id: core.confidence
     family: quality
@@ -9040,7 +9763,7 @@ items:
     refs:
     - r2#27
     - X23
-    status: slot
+    status: signed
   core.n_sources:
     id: core.n_sources
     family: quality
@@ -9079,7 +9802,7 @@ items:
     translation_v25: new
     refs:
     - X32
-    status: slot
+    status: signed
   core.institution_summary:
     id: core.institution_summary
     family: verdict
@@ -9120,7 +9843,7 @@ items:
     refs:
     - X33
     - R-090
-    status: slot
+    status: signed
   core.cx_display_rollup:
     id: core.cx_display_rollup
     family: disclosure
@@ -9160,7 +9883,7 @@ items:
     translation_v25: new
     refs:
     - X34
-    status: slot
+    status: signed
   core.codebook_release:
     id: core.codebook_release
     family: provenance
@@ -9211,7 +9934,7 @@ items:
     - C3 a
     - r2#5
     - r2#32
-    status: slot
+    status: signed
   core.setup_pointer:
     id: core.setup_pointer
     family: provenance
@@ -9262,7 +9985,7 @@ items:
     - X20
     - R-026
     - r2#57
-    status: slot
+    status: signed
   core.evidence_channel:
     id: core.evidence_channel
     family: provenance
@@ -9301,7 +10024,7 @@ items:
     refs:
     - P15
     - R-050
-    status: slot
+    status: signed
   core.coder_record:
     id: core.coder_record
     family: provenance
@@ -9350,7 +10073,7 @@ items:
     - R-026
     - P10
     - r2#57
-    status: slot
+    status: signed
   proc.notice_stage:
     id: proc.notice_stage
     family: procurement
@@ -9793,7 +10516,8 @@ items:
     refs:
     - P16
     - r2#39
-    status: slot (owned by the multilingual subproject)
+    status: signed
+    owner: the multilingual subproject
   core.observed_actor_role:
     id: core.observed_actor_role
     family: attribution
@@ -9807,7 +10531,10 @@ items:
     round: 2
     gate: none
     answer_type: single
-    instruction: none
+    instruction:
+      text: What role does the body that the page shows acting in this activity play in it?
+      origin: PI 2026-10-30 "drafts ok"; agent draft W11
+      source: drafts/rc-d-005-wording.json W11 (new)
     values:
     - code: institutional_actor
       definition:
@@ -9882,11 +10609,16 @@ items:
       source: drafts/fixes-r4.json FX04
       role: which roles count as taking part
       r4_fixes: FX04
+    - text: 'not_documented: the page is silent.'
+      origin: |-
+        agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (12a' iv)
+      source: items/core.has_human_oversight/rules/2 (PI 2026-10-30 "approved!"; fixes-r4 FX06)
+      role: 'missing label not_documented: meaning for this item'
     order_tie_rule: first_in_order
     long_page_rule:
-      rule: same_part_as
-      item: core.observed_actor_relationship
-      fallback: highest_probability
+      rule: highest_probability
+      first_step:
+        same_part_as: core.observed_actor_relationship
       text:
         text: |-
           Take the role from the part that produced the combined relationship; if that part gives no real role, take the most-sure real role from the other parts.
@@ -9911,7 +10643,15 @@ items:
     - R-014
     - activity-15
     - final-open F06
-    status: slot
+    - RC-D-005 12a' iv
+    status: signed
+    jev_missing_choice:
+      offered:
+      - not_documented
+      rule:
+      - items/core.observed_actor_role/rules/2
+      resolution: |-
+        RC-D-005 12a' (iv): offered; no missing-label rule; the linked relationship item already offers `not_documented` for a silent page (its rules/6)
   core.date_upper_bound:
     id: core.date_upper_bound
     family: provenance
@@ -9953,7 +10693,7 @@ items:
     - r2#31
     - T3
     - A08
-    status: slot
+    status: signed
   core.support_rule_name:
     id: core.support_rule_name
     family: support
@@ -9997,7 +10737,7 @@ items:
     - R-041
     - record-01
     - record-02
-    status: slot
+    status: signed
   core.support_status_second_reason:
     id: core.support_status_second_reason
     family: support
@@ -10012,8 +10752,7 @@ items:
     coder: mechanical
     pass: none
     round: none
-    gate:
-      rule: empty unless two reasons hold (final-open F10)
+    gate: none
     answer_type: single
     instruction: none
     values:
@@ -10080,7 +10819,12 @@ items:
     - record-03
     - final-open F10
     - RC-D-003 O13
-    status: slot
+    - RC-D-005 F5 a
+    status: signed
+    fill_condition:
+      rule: empty unless two reasons hold (final-open F10)
+      carried_by: items/core.support_status_second_reason/rules/1
+      resolution: RC-D-005 F5 second_reason a
 retired:
 - name: genai_evidence
   replaced_by:
@@ -10215,3 +10959,38 @@ retired:
           "content_user_notification": "a notice or label telling users that they are interacting with GenAI or that content is AI-generated is described (a page merely announcing that the institution uses GenAI is NOT such a notice)",
     origin: cx-01.2
     source: cx-01.3-draft.json pilot.py L156 CONTENT[content_user_notification].frozen_text; ruling page-11
+shared:
+  part_prompt:
+    sentence:
+      text: |-
+        The text below is only one part of a longer page; the rest of the page is read separately. Answer from this part only.
+      origin: PI 2026-10-30 "drafts ok"; agent draft W01
+      source: |-
+        drafts/rc-d-005-wording.json W01 (new; part label idea from agent-workspace/2026-10-27-unclear-screen/unclear2.py L98, L128 (`page_part` = "1 of 3"))
+    temporary_answer:
+      label:
+        text: not covered by this part
+        origin: PI 2026-10-30 "drafts ok"; agent draft W02
+        source: drafts/rc-d-005-wording.json W02 (SPEC R-044 (label as written there))
+      meaning:
+        text: This part of the page does not deal with the question; another part of the page may.
+        origin: PI 2026-10-30 "drafts ok"; agent draft W03
+        source: drafts/rc-d-005-wording.json W03 (new)
+    applies_to: every part prompt of a long page (R-044, all-03 a) and of split pooled Stage 6 evidence (r2#6)
+  system_prompt:
+    text: |-
+      You are a research coder for the Global Government GenAI Observatory (G3O), a public, auditable dataset that measures how government institutions worldwide adopt generative AI. You read one web page, or one part of one, about a named institution and answer coding questions about it. Use only what the text says: record what it states explicitly and never infer, guess or use outside knowledge. Give each answer in the form the question asks for and nothing else: for a question with listed answers, choose from those answers only; for an extraction, copy the exact words from the text.
+    origin: PI 2026-10-30 "drafts ok"; agent draft W04
+    source: |-
+      drafts/rc-d-005-wording.json W04 (g3o/extract/prompts/system_prompt.md L3 (mission sentence, shortened), L39 ("Only record what is explicitly documented. Never infer"), L69 ("Return ONLY ..."); agent-workspace/2026-10-27-unclear-screen/unclear2.py L84 ("using only what the page says"))
+    applies_to:
+    - pass 1
+    - pass 2
+    - extractor
+  system_prompt_stage6:
+    text: |-
+      You are a research coder for the Global Government GenAI Observatory (G3O), a public, auditable dataset that measures how government institutions worldwide adopt generative AI. You read two activity records, or a set of quotes about one activity gathered from several sources, about a named institution and answer coding questions about them. Use only what the text says: record what it states explicitly and never infer, guess or use outside knowledge. Give each answer in the form the question asks for and nothing else: for a question with listed answers, choose from those answers only; for an extraction, copy the exact words from the text.
+    origin: agent-draft (resolver); W04 with its second sentence replaced (W04 note)
+    source: drafts/rc-d-005-wording.json W04; drafts/resolutions-r6.json W04-note (new sentence 2)
+    applies_to:
+    - stage6

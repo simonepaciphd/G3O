@@ -34,6 +34,35 @@ jobs:
       - name: Test (pytest)
         run: pytest -q -m "not network"
 
+  codebook:
+    # Codebook drift and generator checks (T-013; RC-D-002 A; item-template §4).
+    # The drift step regenerates every file under g3o/codebook/generated/ from
+    # codebook/codebook.yaml and fails on any byte difference (check 5): generated
+    # files are never edited by hand. The checks step runs generator checks 1-16
+    # on the codebook (R-007, A-001); a failure there is fixed by a codebook
+    # delta and a re-signature, never by loosening a check.
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Codebook drift (check 5)
+        run: python -m g3o.codebook drift
+
+      - name: Codebook generator checks 1-16
+        run: python -m g3o.codebook checks --verbose
+
   coverage:
     # Coverage gate (review F22 / WS4 T5). Runs the non-network suite once under
     # coverage and fails if total line coverage drops below the floor. The floor
