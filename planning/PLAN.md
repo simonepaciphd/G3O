@@ -12,6 +12,7 @@ Delta RC-D-003 (approved 2026-10-30, Simone, chat "all accepted"; text `planning
 Delta RC-D-004 (approved 2026-10-30, Simone, chat "approved"; text `planning/deltas/RC-D-004.md`; record `planning/t010/t010-rulings.md`): the PI signs the CX-01.3 questionnaire items in one batch signature on the listed items instead of item by item (SPEC v001.8: R-025; ruling S2 b). PLAN: the T-010 gate, its task-graph row and the W1 gate text. No card scope, dependency, acceptance or RESOURCES change; no version steps.
 Delta RC-D-005 (approved 2026-10-30, Simone, chat "approved! go forth"; text `planning/deltas/RC-D-005.md`; record `planning/t010/t010-rulings.md`; clean copy `planning/t010/RC-D-005-clean-copy.md`): codebook release 2.7 re-signed at sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f` after T-013's checks failed on `d24bbc7c…` (superseded, never used for a row); SPEC v001.9: R-007, R-015, R-040, R-041, R-044, R-045, R-074 (re-scrape under 200 characters), R-076 (every stored page), C-004. PLAN: T-010, T-013, T-016 (re-pilot scope), T-020, T-029, T-072. No RESOURCES change; no version steps.
 Delta RC-D-006 (approved 2026-10-31, Simone, chat 2026-10-31 "approve delta"; text `planning/deltas/RC-D-006.md`): T-014 write claim widened to `g3o/scrape/render.py` and the record-building hunks of `g3o/scrape/fetcher.py`, field rules 7a-10a; T-012 done condition (version-pin test `xfail(strict=True)` naming T-035, 13a) and owner assignment (12a); T-016 and T-002 results recorded (run by Simone 2026-10-31); T-020 estimator constants (2 a); T-061 outputs column. No SPEC, RESOURCES or codebook change.
+Delta RC-D-008 (approved 2026-10-31, Simone, chat "delta approved"; rulings "A a; accept all"; text `planning/deltas/RC-D-008.md`): T-012 inventory owners assigned (12a); write claims widened on T-012, T-022, T-026, T-028, T-035, T-090; the OpenAI Stage 6 path is retired by T-026 (A a). No SPEC, RESOURCES or codebook change.
 
 Prepared by: session `20261028-claude-v2-20be995c13d4020f` (Claude Code, claude-opus-5-5, researcher persona) under `planning-adjudication-protocol.md` v0.3; task cards converted by three forks of that session from the Plan-Draft cards and the integrator's delta brief, then assembled and checked by the parent.
 Base refs (fetched 2026-10-28): G3O `origin/main` `375f1ff` (Plan-Draft used `c6349d6`; #135 since changed `g3o/run/presweep/orchestrator.py` and `tests/test_presweep.py`); g3o-api `origin/main` `acdb030`; g3o-website `origin/main` `282ca6a`. Local G3O checkout is on `perf/validate-jev-parallel`; work branches from `origin/main`.
@@ -224,25 +225,25 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-003 | eng-c | W3 | pending | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c) | A-002 |
 | T-010 | integrator | W1 | complete | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items in one batch signature (CX-01.3†, RC-D-004); PI signs the codebook hash (A-001); push gate | A-001 |
 | T-011 | eng-a | W3 | pending | T-010, T-013, T-016 | none | T-015, T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
-| T-012 | eng-b | W2 | pending | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; the inventory file | none beyond push | A-011, A-013 |
+| T-012 | eng-b | W2 | pending | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; the inventory file; `g3o/report/health.py`, `g3o/report/outcomes.py`, `g3o/common/institution_report.py`, `g3o/persist/__init__.py` and their tests; `tests/test_contract.py`, `tests/test_consolidated_contract.py`, `tests/test_adversarial_llm_outputs.py`, `tests/test_genai_definition_adherence.py`, `tests/test_uid_stamping.py`; the v2.5-column hunk of `g3o/codebook/checks.py` (line 889 at `a5b1d30`, repointed at the frozen v2.5 list) (RC-D-008) | none beyond push | A-011, A-013 |
 | T-013 | eng-b | W1 | verified | none | T-010 | T-002, T-011, T-012, T-016, T-022, T-032 | RS-010, RS-013, RS-039 | none | `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml` | PI approves the item template and generator checks (r2#59); push of the branch | A-001 |
 | T-014 | eng-a | W2 | pending | none | none | T-022, T-025 | RS-016 | none | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests; `g3o/scrape/render.py` (optional `RenderedPage` fields) and the record-building hunks of `g3o/scrape/fetcher.py` (HTML path, unlocker path, page cache) (RC-D-006, PI 6a) | push of the branch | none |
 | T-015 | eng-a | W4 | pending | T-011, T-012, T-022, T-027 | none | T-026, T-028 | RS-012 | none | `g3o/common/source_fields.py`† and its tests | push of the branch | none |
 | T-016 | integrator | W2 | in-progress | T-010, T-013 | none | T-011 | RS-004, RS-005, RS-008, RS-009, RS-024, RS-031 | none | re-pilot folder `agent-workspace/2026-10-27-reclass-plan/repilot-v27/`† | PI approves the cost estimate; Simone runs the paid command via `! <command>` (red line 4); PI rules on the results | none |
 | T-020 | eng-a | W1 | blocked | none | T-002 | T-021, T-022, T-023 | RS-004, RS-014, RS-024 | none | the two new files | none beyond push | A-021 |
 | T-021 | eng-a | W4 | pending | T-002, T-011, T-012, T-020, T-027 | none | T-023, T-025, T-030 | RS-012, RS-019 | none | the new modules and tests | none beyond push | A-011, A-013 |
-| T-022 | eng-c | W3 | pending | T-010, T-012, T-013, T-014, T-020 | none | T-015, T-023, T-024, T-025, T-032 | RS-015 | none | the listed extract files | PI approves the nano prompt text; push gate | A-003, A-021 |
+| T-022 | eng-c | W3 | pending | T-010, T-012, T-013, T-014, T-020 | none | T-015, T-023, T-024, T-025, T-032 | RS-015 | none | the listed extract files; install of the generated `g3o/extract/prompts/system_prompt.md` and `g3o/extract/prompts/output_contract.md` (RC-D-008) | PI approves the nano prompt text; push gate | A-003, A-021 |
 | T-023 | eng-a | W5 | pending | T-011, T-020, T-021, T-022, T-027 | none | T-026, T-032 | RS-012 | none | the new modules and tests | none beyond push | A-003 |
 | T-032 | eng-c | W6 | pending | T-013, T-022, T-023 | none | T-024, T-030 | RS-015 | none | `g3o/extract/pass2_support.py`† and its tests | PI approves the pass-2 nano prompt text; push gate | A-003, A-021 |
 | T-024 | eng-c | W7 | pending | T-003, T-012, T-022, T-032 | none | T-026, T-028, T-041 | none | none | `g3o/common/support_check.py`† and its tests | push of the branch | A-002, A-016 |
 | T-025 | eng-b | W5 | pending | T-002, T-014, T-021, T-022 | none | T-029, T-030 | RS-016 | none | new modules `g3o/scrape/follow.py`†, `g3o/run/presweep/stage_follow.py`† and their tests | PI sets the per-institution URL cap value after T-002; push of the branch | A-004, A-014 |
-| T-026 | eng-a | W8 | pending | T-011, T-012, T-015, T-023, T-024, T-027 | none | T-028 | RS-011, RS-014 | none | the listed Stage 6 files and tests | push of the branch | A-010 |
+| T-026 | eng-a | W8 | pending | T-011, T-012, T-015, T-023, T-024, T-027 | none | T-028 | RS-011, RS-014 | none | the listed Stage 6 files and tests; retirement of the OpenAI Stage 6 path: the import hunk of `g3o/validate/stage_validate.py`, `g3o/validate/{client,qc,salvage}.py`, `tests/test_validate.py`, `tests/test_validate_salvage.py` (archived, PI A a), `scripts/verify_jev_validate_live.py`; install of the generated `g3o/validate/prompts/system_prompt.md` and `g3o/validate/prompts/output_contract.md` (RC-D-008) | push of the branch | A-010 |
 | T-027 | eng-b | W3 | pending | T-012 | none | T-015, T-021, T-023, T-026, T-028, T-050 | RS-012, RS-013, RS-014 | none | new module `g3o/common/jev_record.py`† and its tests | push of the branch | A-013 |
-| T-028 | eng-a | W9 | pending | T-012, T-015, T-024, T-026, T-027, T-050 | none | T-030, T-052, T-090 | RS-018 | none | `g3o/persist/writer.py` and its tests | push of the branch | A-007, A-017 |
+| T-028 | eng-a | W9 | pending | T-012, T-015, T-024, T-026, T-027, T-050 | none | T-030, T-052, T-090 | RS-018 | none | `g3o/persist/writer.py` and its tests; `g3o/persist/integrity.py`, `tests/test_integrity.py` (RC-D-008) | push of the branch | A-007, A-017 |
 | T-030 | eng-b | W10 | pending | T-021, T-025, T-028, T-032 | none | T-029 | none | none | the listed orchestrator, config, telemetry and e2e files; merges of the new-run card branches into `reclass/v2.7`† | push of the integration branch | none |
 | T-029 | eng-a | W11 | pending | T-001, T-025, T-030 | none | T-034, T-035 | RS-017 | none | new package `g3o/run/backfill/`† and its tests | push of the branch | A-005, A-015 |
 | T-034 | eng-a | W12 | pending | T-029 | none | T-035 | RS-026 | none | `g3o/run/backfill/transfers.py`† and its tests | push of the branch | A-022 |
-| T-035 | eng-b | W13 | pending | T-029, T-034 | none | T-031, T-041 | none | D-002 | `g3o/cli.py` hunks, the two pin files, e2e test additions; merges of T-029 and T-034 into `reclass/v2.7`† | push of the integration branch | none |
+| T-035 | eng-b | W13 | pending | T-029, T-034 | none | T-031, T-041 | none | D-002 | `g3o/cli.py` hunks, the two pin files, e2e test additions; merges of T-029 and T-034 into `reclass/v2.7`†; `g3o/common/contract_pin.py`, `tests/fixtures/run_contract/{FIELDS.md,manifest.json}`, the contract H1 template line of the T-013 generator (version token for `parse_version()`) (RC-D-008) | push of the integration branch | none |
 | T-031 | berivox | W14 | pending | T-035 | none | T-071 | none | none | the review file only | none | none |
 | T-040 | integrator | W2 | pending | T-010 | none | T-041 | RS-005, RS-008, RS-009, RS-011, RS-024 | none | `tests/fixtures/v27/`† and the label sheet | PI labels and approves expected values for real-page fixtures | A-003, A-004, A-010, A-011, A-012, A-020, A-021 |
 | T-041 | eng-b | W14 | blocked | T-024, T-035, T-040 | none | T-054, T-060, T-071 | RS-031 | none | the fixture-run folder | PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures | A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, A-022 |
@@ -265,7 +266,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-081 | quality | W23 | blocked | T-080 | none | T-082 | none | none | `quality/reads/`† | PI approves the read prompt and authorises the swarm launch (see DP-065); SSH authorisation for the page pull | none |
 | T-082 | integrator | W24 | pending | T-074, T-081 | none | T-083 | none | D-005 | `quality/QUALITY-PACKET.md`† | none | none |
 | T-083 | researcher | W25 | pending | T-082 | none | T-095 | none | none | `quality/PI-AUDIT.md`† | this card is the gate | none |
-| T-090 | integrator | W10 | pending | T-010, T-012, T-028 | none | T-095 | none | D-006 | the docs files in the G3O repo listed in Outputs (and the #175 README text only, not its file in another repo) | PI approves public prose; push | none |
+| T-090 | integrator | W10 | pending | T-010, T-012, T-028 | none | T-095 | none | D-006 | the docs files in the G3O repo listed in Outputs (and the #175 README text only, not its file in another repo); also `docs/replication.md`, `docs/architecture.md`, `CONTRIBUTING.md`, `data/README.md`, `g3o/extract/README.md`, `g3o/validate/README.md`, `g3o/persist/README.md`, and the `g3o/extract/__init__.py` and `g3o/validate/__init__.py` docstrings (RC-D-008) | PI approves public prose; push | none |
 | T-095 | colin | W26 | blocked | T-053, T-074, T-083, T-090 | none | T-096 | none | D-004 | release flag; deploys; release folder† | PI release sign-off; deploy; live DB write (release flag) | none |
 | T-096 | reviewer | W27 | pending | T-095 | none | none | none | none | `planning/reviews/TRACE.md`† | paid rerun — the agent prepares the command and cost estimate and Simone runs it via `! <command>` (red line 4); SSH authorisation; PI approves the agreement criterion | none |
 | T-097 | integrator | W1-W27 | pending | none | none | none | none | none | SPEC.md, RESOURCES.md, PLAN.md, CHANGELOG.md (sole writer after lock) | PI approves every delta | none |
@@ -768,7 +769,7 @@ The first chunk is an inventory of every enum, contract and version touchpoint (
 
 #### Ownership and collision control
 - Read scope: whole G3O repo, g3o-api and g3o-website (read-only, for the inventory)
-- Write claim: `contract.py`, `schema.py`, enum modules, schema test; the inventory file
+- Write claim: `contract.py`, `schema.py`, enum modules, schema test; the inventory file; `g3o/report/health.py`, `g3o/report/outcomes.py`, `g3o/common/institution_report.py`, `g3o/persist/__init__.py` and their tests; `tests/test_contract.py`, `tests/test_consolidated_contract.py`, `tests/test_adversarial_llm_outputs.py`, `tests/test_genai_definition_adherence.py`, `tests/test_uid_stamping.py`; the v2.5-column hunk of `g3o/codebook/checks.py` (line 889 at `a5b1d30`, repointed at the frozen v2.5 list) (RC-D-008)
 - Shared surfaces: `contract.py` — sole owner T-012; files in the inventory owned by other cards stay with them as the integrator assigns
 
 #### Procedure boundary
@@ -799,7 +800,7 @@ Changed files; verification results (each check above, with evidence); failures;
 #### Done condition
 Inventory accepted and owners assigned by the integrator; tests pass, except `test_contract_version_pin`, which is marked `xfail(strict=True)` naming T-035 (pin regeneration, DEC-021) (RC-D-006, PI 13a); touchpoint list attached.
 
-Progress (2026-10-31, integrator, RC-D-006): chunk 1 inventory at `planning/handoffs/T-012-touchpoints.md` on `reclass/t012-enums` `2c72fe2` (G3O 80 files, g3o-api 16, website 31, procurement 23; 10 surfaces not covered by any card). Chunk 1 ran alongside T-014 (11a). Owner assignment (12a) by the integrator follows this delta.
+Progress (2026-10-31, integrator, RC-D-006): chunk 1 inventory at `planning/handoffs/T-012-touchpoints.md` on `reclass/t012-enums` `2c72fe2` (G3O 80 files, g3o-api 16, website 31, procurement 23; 10 surfaces not covered by any card). Chunk 1 ran alongside T-014 (11a). Owner assignment (12a) by the integrator follows this delta. Done by RC-D-008 (2026-10-31): surfaces 1, 3, 9 and the `checks.py:889` hunk to T-012 chunk 2; 2 to T-028; 4, 7 and the generator H1 line to T-035; 5 and 8 to T-026 (OpenAI path retired, PI A a); 6 and the uninstalled v2.7 contracts to T-022 / T-026 (install); 10 to T-090.
 
 #### Chunking trigger
 Sequential chunks: chunk 1 inventory → integrator assignment → chunk 2 code.
@@ -1323,7 +1324,7 @@ The 60,000-character head+tail cap (`g3o/extract/batch.py:49` `DEFAULT_TEXT_CAP_
 
 #### Ownership and collision control
 - Read scope: RS-015, T-010, T-012, T-020, T-021 outputs
-- Write claim: the listed extract files
+- Write claim: the listed extract files; install of the generated `g3o/extract/prompts/system_prompt.md` and `g3o/extract/prompts/output_contract.md` (RC-D-008)
 - Shared surfaces: `stage_extract.py` — sole owner T-022; the nano Batch client is reused read-only by T-032
 
 #### Procedure boundary
@@ -1700,7 +1701,7 @@ RC-D-002 row 47: implements SPEC R-005 v001.6 (`background_only` in the `no` set
 
 #### Ownership and collision control
 - Read scope: `052fcb2`, RS-014, T-011, T-012, T-023, T-024, T-027
-- Write claim: the listed Stage 6 files and tests
+- Write claim: the listed Stage 6 files and tests; retirement of the OpenAI Stage 6 path: the import hunk of `g3o/validate/stage_validate.py`, `g3o/validate/{client,qc,salvage}.py`, `tests/test_validate.py`, `tests/test_validate_salvage.py` (archived, PI A a), `scripts/verify_jev_validate_live.py`; install of the generated `g3o/validate/prompts/system_prompt.md` and `g3o/validate/prompts/output_contract.md` (RC-D-008)
 - Shared surfaces: Stage 6 — sole owner T-026
 
 #### Procedure boundary
@@ -1845,7 +1846,7 @@ The CSV writer emits the page verdict, CX fields, full-length supporting text, j
 
 #### Ownership and collision control
 - Read scope: RS-018, T-012, T-024, T-026, T-027, T-050
-- Write claim: `g3o/persist/writer.py` and its tests
+- Write claim: `g3o/persist/writer.py` and its tests; `g3o/persist/integrity.py`, `tests/test_integrity.py` (RC-D-008)
 - Shared surfaces: CSV layout, agreed with T-050; integration by T-030
 
 #### Procedure boundary
@@ -2133,7 +2134,7 @@ Merge the T-029 back-fill and T-034 transfer branches into `reclass/v2.7`†, ap
 
 #### Ownership and collision control
 - Read scope: T-029 and T-034 branches, `reclass/v2.7`†
-- Write claim: `g3o/cli.py` hunks, the two pin files, e2e test additions; merges of T-029 and T-034 into `reclass/v2.7`†
+- Write claim: `g3o/cli.py` hunks, the two pin files, e2e test additions; merges of T-029 and T-034 into `reclass/v2.7`†; `g3o/common/contract_pin.py`, `tests/fixtures/run_contract/{FIELDS.md,manifest.json}`, the contract H1 template line of the T-013 generator (version token for `parse_version()`) (RC-D-008)
 - Shared surfaces: `cli.py` and pins — sole owner T-035 (eng-b)
 
 #### Procedure boundary
@@ -3829,7 +3830,7 @@ Documentation of every new field, value, version (extract v2.7, validate v1.5), 
 
 #### Ownership and collision control
 - Read scope: contract, writer, D-007 spec
-- Write claim: the docs files in the G3O repo listed in Outputs (and the #175 README text only, not its file in another repo)
+- Write claim: the docs files in the G3O repo listed in Outputs (and the #175 README text only, not its file in another repo); also `docs/replication.md`, `docs/architecture.md`, `CONTRIBUTING.md`, `data/README.md`, `g3o/extract/README.md`, `g3o/validate/README.md`, `g3o/persist/README.md`, and the `g3o/extract/__init__.py` and `g3o/validate/__init__.py` docstrings (RC-D-008)
 - Shared surfaces: #175 README file — Colin if outside the G3O repo
 
 #### Procedure boundary
