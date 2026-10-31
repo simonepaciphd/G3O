@@ -1,0 +1,84 @@
+{
+ "requests": 315,
+ "errors": 0,
+ "input_tokens": 5131342,
+ "usd": 0.2155,
+ "per_question": {
+  "core.deployment_mode": {
+   "n": 321,
+   "distribution": {
+    "not_documented": 294,
+    "integrated": 18,
+    "standalone": 7,
+    "not covered by this part": 2
+   },
+   "mean_chosen_probability": 0.648,
+   "share_at_or_above_0.8": 0.156
+  },
+  "core.target_users": {
+   "n": 321,
+   "distribution": {
+    "not_documented": 259,
+    "public": 28,
+    "internal_staff": 27,
+    "both": 7
+   },
+   "mean_chosen_probability": 0.742,
+   "share_at_or_above_0.8": 0.449
+  },
+  "core.year_announced": {
+   "n": 321,
+   "distribution": {
+    "not_documented": 187,
+    "not covered by this part": 56,
+    "2024": 16,
+    "2025": 11,
+    "2023": 9,
+    "2021": 8,
+    "2026": 7,
+    "2019": 7,
+    "2022": 5,
+    "2020": 5,
+    "2018": 4,
+    "2017": 3,
+    "2015": 3
+   },
+   "mean_chosen_probability": 0.405,
+   "share_at_or_above_0.8": 0.097
+  },
+  "core.year_pilot_start": {
+   "n": 321,
+   "distribution": {
+    "not_documented": 274,
+    "not covered by this part": 16,
+    "2025": 6,
+    "2019": 5,
+    "2020": 5,
+    "2024": 4,
+    "2022": 3,
+    "2018": 3,
+    "2026": 2,
+    "2023": 1,
+    "2021": 1,
+    "2017": 1
+   },
+   "mean_chosen_probability": 0.56,
+   "share_at_or_above_0.8": 0.206
+  },
+  "core.year_production_start": {
+   "n": 321,
+   "distribution": {
+    "not_documented": 265,
+    "not covered by this part": 46,
+    "2025": 3,
+    "2024": 2,
+    "2020": 2,
+    "2023": 1,
+    "2022": 1,
+    "2017": 1
+   },
+   "mean_chosen_probability": 0.504,
+   "share_at_or_above_0.8": 0.156
+  }
+ }
+}
