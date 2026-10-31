@@ -1,0 +1,3452 @@
+{
+ "generated_at": "2026-10-31T13:28:48.780215Z",
+ "mode": "dry-run (no request sent)",
+ "seed": 20261030,
+ "cap_usd": 6.0,
+ "codebook": {
+  "codebook_release": "2.7",
+  "codebook_sha256": "f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f",
+  "files": {
+   "system_prompt.md": "bcb27cbbcde47016a9d673db9f1d086d58a5f6f7d5a33aa58510ac5ba6c4475c",
+   "extractor_prompt_sections.md": "2cb948d72b796c0bf2173232848e468b61efa9da3b134e8f18d39baf78d1e6b4",
+   "jev_questions.json": "59070bd8dcc01e79b153aab03bded8bc0da666c43c73fea6204ad84ecd85cfc0"
+  }
+ },
+ "estimator": {
+  "jev_tokens_per_byte": 0.3947,
+  "chunk_state_tokens": 24000,
+  "chunk_byte_cap": 60805,
+  "dp007_margin": "unset",
+  "haiku_bytes_per_token": 3.2,
+  "haiku_note": "Haiku tokens estimated as bytes/3.2 (assumption; no free keyless token counter). Output tokens per call unknown: 1.5k / 3k / 8k low / central / high (brief)."
+ },
+ "prices_usd_per_mtok": {
+  "jev_in": 0.042,
+  "haiku_sync_in": 0.1,
+  "haiku_sync_out": 0.5,
+  "haiku_batch_in": 0.05,
+  "haiku_batch_out": 0.25
+ },
+ "sample": {
+  "n_pages": 50,
+  "n_chunks": 63,
+  "by_script": {
+   "latin": 40,
+   "cjk": 7,
+   "thai": 3
+  },
+  "nonlatin_pages": 10,
+  "long_pages": 6,
+  "by_corpus": {
+   "RS-008": 33,
+   "RS-009": 17
+  },
+  "institution_meta_source": {
+   "master_institutions.csv": 33,
+   "institution.json": 17
+  },
+  "v25_genai_evidence": {
+   "(no extract record)": 33,
+   "ambiguous": 9,
+   "confirms_absence": 7,
+   "confirms_activity": 1
+  },
+  "draw_notes": {
+   "pool": {
+    "RS-008": 25143,
+    "RS-009": 12884
+   },
+   "n_per_corpus": {
+    "RS-008": 33,
+    "RS-009": 17
+   },
+   "nonlatin_quota": {
+    "RS-008": 7,
+    "RS-009": 3
+   },
+   "long_quota": {
+    "RS-008": 4,
+    "RS-009": 2
+   },
+   "pool_by_script": {
+    "RS-008": {
+     "latin": 25132,
+     "other": 9,
+     "cjk": 2
+    },
+    "RS-009": {
+     "latin": 9813,
+     "other": 1109,
+     "cjk": 1816,
+     "thai": 146
+    }
+   },
+   "pool_long_pages": {
+    "RS-008": 983,
+    "RS-009": 469
+   },
+   "pool_over_max_long_chunks": {
+    "RS-008": 97,
+    "RS-009": 78
+   },
+   "thai_swaps": 3,
+   "shortfall_made_up_across_corpora": {
+    "nonlatin": 5,
+    "long": 0
+   },
+   "scrape_record_keys": {
+    "url": 50708,
+    "text": 50708,
+    "title": 50708,
+    "content_type": 50708,
+    "fetch_metadata": 50708
+   },
+   "eligible_candidates": 38027
+  },
+  "batch_subset": [
+   "RS-008:r20260830T114940Z-32ea:INST-0005154:177fbdbc2a434e6813582d389489d2ca",
+   "RS-008:r20260830T114940Z-32ea:INST-0552561:26dbf521f8e8605ec2f1bbe2c2c86875",
+   "RS-008:r20260830T114940Z-32ea:INST-0669763:2caa4856d33d9a18ee6ca6c794e91c8e",
+   "RS-008:r20260830T114940Z-32ea:INST-0680470:24603a89f1e360a771f3031681ff68b3",
+   "RS-008:r20260830T114940Z-32ea:INST-0683755:a5c819cad7ad516601a3da669b54e7f6",
+   "RS-008:r20260830T114940Z-32ea:INST-0700951:96bbf00d3f2c54e99086b4dc00a89ac6",
+   "RS-008:r20260830T114940Z-32ea:INST-0702688:dd7dee00370f4f3dfd06d92a45f6f2fd",
+   "RS-009:r20260903T120740Z-362c:INST-0030192:1fd305aabe64a070da70b0534a70c041",
+   "RS-009:r20260903T120740Z-362c:INST-0509274:161f8e8994e1e6cc2d0f817fbc67f1eb",
+   "RS-009:r20260912T001021Z-f4fb:INST-0549970:5b0f4536690d064c3f7017ced527507a"
+  ]
+ },
+ "fan_out": {
+  "measurable": false,
+  "reason": "Stored scrape records carry no link field (keys over every scanned record: content_type, fetch_metadata, text, title, url); fan-out within 3 hops cannot be computed from stored pages and no web fetching is allowed."
+ },
+ "fixed_request_counts": {
+  "J-P1R1": 63,
+  "H-SPAN": 63,
+  "H-PQ": 63,
+  "B1": 28
+ },
+ "max_est_tokens_per_request": {
+  "J-P1R1": 50116,
+  "J-P1R2": 48592,
+  "J-SEG(per pair question)": 3668,
+  "J-SEG(state)": 48705,
+  "J-P2A1": 50194,
+  "J-P2A3": 50355,
+  "H-SPAN": 23196,
+  "H-PQ": 32234,
+  "H-AQ": 59815
+ },
+ "seg_pair_questions_per_request_min": 3,
+ "estimates": {
+  "low": {
+   "assumptions": {
+    "genai_share": 0.2,
+    "spans_per_genai_chunk": 1,
+    "activities_per_genai_page": 1.0,
+    "register_share": 0.05,
+    "eval_share": 0.1,
+    "haiku_out": 1500
+   },
+   "requests": {
+    "J-P1R1": 63,
+    "J-P1R2": 3.2,
+    "H-SPAN": 63,
+    "H-PQ": 63,
+    "J-SEG": 0.0,
+    "J-P2A1": 12.6,
+    "J-P2A3": 1.3,
+    "H-AQ": 12.6,
+    "B1": 28,
+    "B2": 2.8
+   },
+   "jev_input_tokens": {
+    "J-P1R1": 700510,
+    "J-P1R2": 30225,
+    "J-SEG": 0,
+    "J-P2A1": 141125,
+    "J-P2A3": 14315
+   },
+   "haiku_input_tokens": {
+    "H-SPAN": 748181,
+    "H-PQ": 1317563,
+    "H-AQ": 611036,
+    "B1": 516229,
+    "B2": 141503
+   },
+   "haiku_output_tokens": {
+    "H-SPAN": 94500,
+    "H-PQ": 94500,
+    "H-AQ": 18900,
+    "B1": 42000,
+    "B2": 4200
+   },
+   "cost_usd": {
+    "J-P1R1": 0.0294,
+    "J-P1R2": 0.0013,
+    "J-SEG": 0.0,
+    "J-P2A1": 0.0059,
+    "J-P2A3": 0.0006,
+    "H-SPAN": 0.1221,
+    "H-PQ": 0.179,
+    "H-AQ": 0.0706,
+    "B1": 0.0363,
+    "B2": 0.0081
+   },
+   "total_usd": 0.4533,
+   "under_cap": true
+  },
+  "central": {
+   "assumptions": {
+    "genai_share": 0.4,
+    "spans_per_genai_chunk": 2,
+    "activities_per_genai_page": 1.5,
+    "register_share": 0.15,
+    "eval_share": 0.2,
+    "haiku_out": 3000
+   },
+   "requests": {
+    "J-P1R1": 63,
+    "J-P1R2": 9.4,
+    "H-SPAN": 63,
+    "H-PQ": 63,
+    "J-SEG": 25.2,
+    "J-P2A1": 37.8,
+    "J-P2A3": 7.6,
+    "H-AQ": 37.8,
+    "B1": 28,
+    "B2": 8.4
+   },
+   "jev_input_tokens": {
+    "J-P1R1": 700510,
+    "J-P1R2": 90675,
+    "J-SEG": 337146,
+    "J-P2A1": 423374,
+    "J-P2A3": 85892
+   },
+   "haiku_input_tokens": {
+    "H-SPAN": 748181,
+    "H-PQ": 1317563,
+    "H-AQ": 1833109,
+    "B1": 516229,
+    "B2": 424510
+   },
+   "haiku_output_tokens": {
+    "H-SPAN": 189000,
+    "H-PQ": 189000,
+    "H-AQ": 113400,
+    "B1": 84000,
+    "B2": 25200
+   },
+   "cost_usd": {
+    "J-P1R1": 0.0294,
+    "J-P1R2": 0.0038,
+    "J-SEG": 0.0142,
+    "J-P2A1": 0.0178,
+    "J-P2A3": 0.0036,
+    "H-SPAN": 0.1693,
+    "H-PQ": 0.2263,
+    "H-AQ": 0.24,
+    "B1": 0.0468,
+    "B2": 0.0275
+   },
+   "total_usd": 0.7787,
+   "under_cap": true
+  },
+  "high": {
+   "assumptions": {
+    "genai_share": 1.0,
+    "spans_per_genai_chunk": 4,
+    "activities_per_genai_page": 4.0,
+    "register_share": 0.5,
+    "eval_share": 0.5,
+    "haiku_out": 8000
+   },
+   "requests": {
+    "J-P1R1": 63,
+    "J-P1R2": 31.5,
+    "H-SPAN": 63,
+    "H-PQ": 63,
+    "J-SEG": 126.0,
+    "J-P2A1": 252.0,
+    "J-P2A3": 126.0,
+    "H-AQ": 252.0,
+    "B1": 28,
+    "B2": 56.0
+   },
+   "jev_input_tokens": {
+    "J-P1R1": 700510,
+    "J-P1R2": 302252,
+    "J-SEG": 2610066,
+    "J-P2A1": 2822496,
+    "J-P2A3": 1431536
+   },
+   "haiku_input_tokens": {
+    "H-SPAN": 748181,
+    "H-PQ": 1317563,
+    "H-AQ": 12220728,
+    "B1": 516229,
+    "B2": 2830068
+   },
+   "haiku_output_tokens": {
+    "H-SPAN": 504000,
+    "H-PQ": 504000,
+    "H-AQ": 2016000,
+    "B1": 224000,
+    "B2": 448000
+   },
+   "cost_usd": {
+    "J-P1R1": 0.0294,
+    "J-P1R2": 0.0127,
+    "J-SEG": 0.1096,
+    "J-P2A1": 0.1185,
+    "J-P2A3": 0.0601,
+    "H-SPAN": 0.3268,
+    "H-PQ": 0.3838,
+    "H-AQ": 2.2301,
+    "B1": 0.0818,
+    "B2": 0.2535
+   },
+   "total_usd": 3.6064,
+   "under_cap": true
+  }
+ },
+ "warnings": [
+  "RS-009:r20260903T120740Z-362c:INST-0509274:161f8e8994e1e6cc2d0f817fbc67f1eb chunk 1 of 4: state estimate 48393 > 32k",
+  "RS-009:r20260903T120740Z-362c:INST-0509274:161f8e8994e1e6cc2d0f817fbc67f1eb chunk 2 of 4: state estimate 45122 > 32k"
+ ],
+ "pages": [
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0005154:177fbdbc2a434e6813582d389489d2ca",
+   "corpus": "RS-008",
+   "institution_id": "INST-0005154",
+   "url": "https://www.waroona.wa.gov.au/council-meetings/ordinary-council-meeting/ordinary-council-meeting/119/documents/public-agenda-ocm-march-2024.pdf",
+   "content_type": "pdf",
+   "bytes": 95242,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 73329,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 21913
+   },
+   "n_chunks": 2,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Waroona",
+    "country": "Australia",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    47621,
+    47621
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     20963,
+     21013
+    ],
+    "J-P1R2": [
+     19439,
+     19489
+    ],
+    "J-SEG(per pair question)": [
+     3668,
+     3668
+    ],
+    "J-SEG(state)": [
+     19557,
+     19606
+    ],
+    "J-SEG(pairs per request)": [
+     11,
+     11
+    ],
+    "J-P2A1": [
+     21046,
+     21096
+    ],
+    "J-P2A3": [
+     21207,
+     21257
+    ],
+    "H-SPAN": [
+     20887,
+     20887
+    ],
+    "H-PQ": [
+     29925,
+     29925
+    ],
+    "H-AQ": [
+     57506,
+     57506
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0029049:db1411ec2750a5fdc0642dd1e24e790b",
+   "corpus": "RS-008",
+   "institution_id": "INST-0029049",
+   "url": "https://alis.alberta.ca/plan-your-career/workplace-trends/artificial-intelligence-ai/how-to-build-your-ai-skills/",
+   "content_type": "html",
+   "bytes": 8943,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 7149,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 1794
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Alberta",
+    "country": "Canada",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    8943
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     5418
+    ],
+    "J-P1R2": [
+     3894
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     4006
+    ],
+    "J-SEG(pairs per request)": [
+     15
+    ],
+    "J-P2A1": [
+     5496
+    ],
+    "J-P2A3": [
+     5657
+    ],
+    "H-SPAN": [
+     8800
+    ],
+    "H-PQ": [
+     17838
+    ],
+    "H-AQ": [
+     45420
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0453402:c8e6b7bb6997f913d6f8ff946ba917c3",
+   "corpus": "RS-008",
+   "institution_id": "INST-0453402",
+   "url": "https://www.corkcoco.ie/en/news/cork-businesses-set-for-major-boost-as-local-enterprise-week-returns",
+   "content_type": "html",
+   "bytes": 4079,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 3301,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 778
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Cork",
+    "country": "Ireland",
+    "level_of_government": "first_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    4079
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3481
+    ],
+    "J-P1R2": [
+     1957
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     2070
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3559
+    ],
+    "J-P2A3": [
+     3720
+    ],
+    "H-SPAN": [
+     7293
+    ],
+    "H-PQ": [
+     16331
+    ],
+    "H-AQ": [
+     43912
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0461778:128c7c72ccb201db9b02c8a5114e77ae",
+   "corpus": "RS-008",
+   "institution_id": "INST-0461778",
+   "url": "https://mfaft.gov.jm/site/government-strengthens-digital-links-with-jamaican-diaspora/",
+   "content_type": "html",
+   "bytes": 4068,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 3337,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 731
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Ministry Of Foreign Affairs & Foreign Trade",
+    "country": "Jamaica",
+    "level_of_government": "national",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    4068
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3491
+    ],
+    "J-P1R2": [
+     1967
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     2083
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3573
+    ],
+    "J-P2A3": [
+     3734
+    ],
+    "H-SPAN": [
+     7294
+    ],
+    "H-PQ": [
+     16331
+    ],
+    "H-AQ": [
+     43913
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0500321:eeb8c1c7b64d6fa24009c24e834a16a6",
+   "corpus": "RS-008",
+   "institution_id": "INST-0500321",
+   "url": "https://diaspora-bridge.education.gov.ng/bridge-p/ccmas-courses/216307b9-7a0a-424b-8d80-1338d8a66625",
+   "content_type": "html",
+   "bytes": 1316,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 1089,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 227
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Ministry Of Education",
+    "country": "Nigeria",
+    "level_of_government": "national",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    1316
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2401
+    ],
+    "J-P1R2": [
+     878
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     994
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2484
+    ],
+    "J-P2A3": [
+     2645
+    ],
+    "H-SPAN": [
+     6441
+    ],
+    "H-PQ": [
+     15479
+    ],
+    "H-AQ": [
+     43060
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0505130:6e1b173b427628784b7db0eef96ab30a",
+   "corpus": "RS-008",
+   "institution_id": "INST-0505130",
+   "url": "https://tagbilaran.gov.ph/",
+   "content_type": "html",
+   "bytes": 833,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 583,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 250
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "City of Tagbilaran",
+    "country": "Philippines",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    833
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2160
+    ],
+    "J-P1R2": [
+     636
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     754
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2244
+    ],
+    "J-P2A3": [
+     2405
+    ],
+    "H-SPAN": [
+     6251
+    ],
+    "H-PQ": [
+     15289
+    ],
+    "H-AQ": [
+     42870
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0533686:b2c2bd6ae1fcd3f1a9b72838e9214d2c",
+   "corpus": "RS-008",
+   "institution_id": "INST-0533686",
+   "url": "https://miasl.odoo.com/minister-s-event",
+   "content_type": "html",
+   "bytes": 27232,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 22447,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 4785
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Makari",
+    "country": "Sierra Leone",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    27232
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     12617
+    ],
+    "J-P1R2": [
+     11093
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     11206
+    ],
+    "J-SEG(pairs per request)": [
+     13
+    ],
+    "J-P2A1": [
+     12695
+    ],
+    "J-P2A3": [
+     12856
+    ],
+    "H-SPAN": [
+     14493
+    ],
+    "H-PQ": [
+     23530
+    ],
+    "H-AQ": [
+     51112
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0552561:26dbf521f8e8605ec2f1bbe2c2c86875",
+   "corpus": "RS-008",
+   "institution_id": "INST-0552561",
+   "url": "http://mpaai.gov.tt/",
+   "content_type": "html",
+   "bytes": 3667,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 2913,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 754
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Ministry Of Digital Transformation",
+    "country": "Trinidad and Tobago",
+    "level_of_government": "national",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    3667
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3317
+    ],
+    "J-P1R2": [
+     1793
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     1910
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3399
+    ],
+    "J-P2A3": [
+     3560
+    ],
+    "H-SPAN": [
+     7146
+    ],
+    "H-PQ": [
+     16184
+    ],
+    "H-AQ": [
+     43765
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0599817:5bd2856d47ad0d279896412c0681ca37",
+   "corpus": "RS-008",
+   "institution_id": "INST-0599817",
+   "url": "https://budget.finance.go.ug/sites/default/files/Indivisual%20LG%20Budgets/Kagadi%20District.pdf",
+   "content_type": "pdf",
+   "bytes": 165179,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 108885,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 56294
+   },
+   "n_chunks": 3,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Kinaga",
+    "country": "Uganda",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    55060,
+    55060,
+    55059
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     24049,
+     24019,
+     24045
+    ],
+    "J-P1R2": [
+     22525,
+     22495,
+     22521
+    ],
+    "J-SEG(per pair question)": [
+     3668,
+     3668,
+     3668
+    ],
+    "J-SEG(state)": [
+     22643,
+     22613,
+     22639
+    ],
+    "J-SEG(pairs per request)": [
+     10,
+     10,
+     10
+    ],
+    "J-P2A1": [
+     24132,
+     24102,
+     24128
+    ],
+    "J-P2A3": [
+     24293,
+     24263,
+     24289
+    ],
+    "H-SPAN": [
+     23196,
+     23196,
+     23195
+    ],
+    "H-PQ": [
+     32234,
+     32234,
+     32233
+    ],
+    "H-AQ": [
+     59815,
+     59815,
+     59815
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0636811:3950f76e38ae0a440a0d15ab63352f67",
+   "corpus": "RS-008",
+   "institution_id": "INST-0636811",
+   "url": "https://budget.finance.go.ug/sites/default/files/Sector%20Spending%20Agency%20Budgets%20and%20Performance/Ministry%20of%20Local%20Government_23.pdf",
+   "content_type": "pdf",
+   "bytes": 44779,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 34062,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 10717
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Ministry Of Local Govt.",
+    "country": "Uganda",
+    "level_of_government": "national",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    44779
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     19875
+    ],
+    "J-P1R2": [
+     18351
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     18467
+    ],
+    "J-SEG(pairs per request)": [
+     11
+    ],
+    "J-P2A1": [
+     19957
+    ],
+    "J-P2A3": [
+     20118
+    ],
+    "H-SPAN": [
+     20004
+    ],
+    "H-PQ": [
+     29042
+    ],
+    "H-AQ": [
+     56623
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0641578:15d0bc58ad3652aeb797d232d701ec0b",
+   "corpus": "RS-008",
+   "institution_id": "INST-0641578",
+   "url": "https://croft.parish.lincolnshire.gov.uk/",
+   "content_type": "html",
+   "bytes": 339,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 280,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 59
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Croft",
+    "country": "United Kingdom",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    339
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     1952
+    ],
+    "J-P1R2": [
+     428
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     546
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2036
+    ],
+    "J-P2A3": [
+     2197
+    ],
+    "H-SPAN": [
+     6091
+    ],
+    "H-PQ": [
+     15129
+    ],
+    "H-AQ": [
+     42710
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0641812:08e887b9386ecf9b02f314c6a3e28d07",
+   "corpus": "RS-008",
+   "institution_id": "INST-0641812",
+   "url": "https://www.deddingtonparishcouncil.org/2015.html",
+   "content_type": "html",
+   "bytes": 825,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 541,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 284
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Deddington",
+    "country": "United Kingdom",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    825
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2165
+    ],
+    "J-P1R2": [
+     641
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     759
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2249
+    ],
+    "J-P2A3": [
+     2410
+    ],
+    "H-SPAN": [
+     6246
+    ],
+    "H-PQ": [
+     15284
+    ],
+    "H-AQ": [
+     42865
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0654204:98883f5688b38c1fca63dbac3e9becb5",
+   "corpus": "RS-008",
+   "institution_id": "INST-0654204",
+   "url": "https://www.donorschoose.org/schools/pennsylvania/coudersport-area-school-district/12127",
+   "content_type": "html",
+   "bytes": 4710,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 3676,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 1034
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Coudersport Area SD",
+    "country": "United States",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    4710
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3780
+    ],
+    "J-P1R2": [
+     2256
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     2374
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3863
+    ],
+    "J-P2A3": [
+     4024
+    ],
+    "H-SPAN": [
+     7485
+    ],
+    "H-PQ": [
+     16522
+    ],
+    "H-AQ": [
+     44104
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0655412:e79af1d9bcd2e752344c72ffeb4c0ca4",
+   "corpus": "RS-008",
+   "institution_id": "INST-0655412",
+   "url": "https://boe.fairfieldschools.org/content/uploads/2025/07/Policy-Committee-Agenda-Packet-for-11.17.25.pdf",
+   "content_type": "pdf",
+   "bytes": 41353,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 32368,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 8985
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Fairfield School District",
+    "country": "United States",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    41353
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     18443
+    ],
+    "J-P1R2": [
+     16919
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     17037
+    ],
+    "J-SEG(pairs per request)": [
+     12
+    ],
+    "J-P2A1": [
+     18526
+    ],
+    "J-P2A3": [
+     18687
+    ],
+    "H-SPAN": [
+     18923
+    ],
+    "H-PQ": [
+     27961
+    ],
+    "H-AQ": [
+     55542
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0664482:54e845c59d61d881a24608385eb81857",
+   "corpus": "RS-008",
+   "institution_id": "INST-0664482",
+   "url": "https://wes.sau29.org/",
+   "content_type": "html",
+   "bytes": 291,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 223,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 68
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "Westmoreland School District",
+    "country": "United States",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    291
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     1933
+    ],
+    "J-P1R2": [
+     409
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     527
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2017
+    ],
+    "J-P2A3": [
+     2178
+    ],
+    "H-SPAN": [
+     6075
+    ],
+    "H-PQ": [
+     15112
+    ],
+    "H-AQ": [
+     42694
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0669231:7dd031cee4fc4e94ca1b4542871dbeb0",
+   "corpus": "RS-008",
+   "institution_id": "INST-0669231",
+   "url": "https://www.townoffarragut.org/",
+   "content_type": "render",
+   "bytes": 4222,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 3293,
+    "cjk": 0,
+    "thai": 0,
+    "other": 4,
+    "neutral": 925
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "CITY OF FARRAGUT",
+    "country": "United States",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    4222
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3675
+    ],
+    "J-P1R2": [
+     2151
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     2269
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3758
+    ],
+    "J-P2A3": [
+     3919
+    ],
+    "H-SPAN": [
+     7310
+    ],
+    "H-PQ": [
+     16347
+    ],
+    "H-AQ": [
+     43929
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0669763:2caa4856d33d9a18ee6ca6c794e91c8e",
+   "corpus": "RS-008",
+   "institution_id": "INST-0669763",
+   "url": "https://gonzalestexas.com/",
+   "content_type": "html",
+   "bytes": 1611,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 1288,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 323
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "CITY OF GONZALES",
+    "country": "United States",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    1611
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2473
+    ],
+    "J-P1R2": [
+     949
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     1067
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2557
+    ],
+    "J-P2A3": [
+     2718
+    ],
+    "H-SPAN": [
+     6498
+    ],
+    "H-PQ": [
+     15535
+    ],
+    "H-AQ": [
+     43117
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0678995:28edc604e7b5222a895c289ace60ca79",
+   "corpus": "RS-008",
+   "institution_id": "INST-0678995",
+   "url": "https://frenchboro.maine.gov/author/town-of-frenchboro/",
+   "content_type": "render",
+   "bytes": 2368,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 1621,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 747
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "TOWN OF FRENCHBORO",
+    "country": "United States",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    2368
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2802
+    ],
+    "J-P1R2": [
+     1278
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     1395
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2885
+    ],
+    "J-P2A3": [
+     3046
+    ],
+    "H-SPAN": [
+     6733
+    ],
+    "H-PQ": [
+     15770
+    ],
+    "H-AQ": [
+     43352
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0680470:24603a89f1e360a771f3031681ff68b3",
+   "corpus": "RS-008",
+   "institution_id": "INST-0680470",
+   "url": "https://www.townoflittleton-nc.us/",
+   "content_type": "html",
+   "bytes": 1682,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 1334,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 348
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "TOWN OF LITTLETON",
+    "country": "United States",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    1682
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2472
+    ],
+    "J-P1R2": [
+     948
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     1065
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2555
+    ],
+    "J-P2A3": [
+     2716
+    ],
+    "H-SPAN": [
+     6501
+    ],
+    "H-PQ": [
+     15539
+    ],
+    "H-AQ": [
+     43120
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0683755:a5c819cad7ad516601a3da669b54e7f6",
+   "corpus": "RS-008",
+   "institution_id": "INST-0683755",
+   "url": "https://www.wallacenc.gov/attorney",
+   "content_type": "html",
+   "bytes": 661,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 533,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 128
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "TOWN OF WALLACE",
+    "country": "United States",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    661
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2079
+    ],
+    "J-P1R2": [
+     555
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     672
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2162
+    ],
+    "J-P2A3": [
+     2323
+    ],
+    "H-SPAN": [
+     6191
+    ],
+    "H-PQ": [
+     15229
+    ],
+    "H-AQ": [
+     42810
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0688619:73dc4f5c7886321fe6e100272ed56a52",
+   "corpus": "RS-008",
+   "institution_id": "INST-0688619",
+   "url": "https://greentownshipmi.org/",
+   "content_type": "html",
+   "bytes": 601,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 489,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 112
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "TOWNSHIP OF GREEN",
+    "country": "United States",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    601
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2068
+    ],
+    "J-P1R2": [
+     544
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     662
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2152
+    ],
+    "J-P2A3": [
+     2313
+    ],
+    "H-SPAN": [
+     6184
+    ],
+    "H-PQ": [
+     15222
+    ],
+    "H-AQ": [
+     42803
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0698431:0ed7edbeb575d4c28496aef43526508b",
+   "corpus": "RS-008",
+   "institution_id": "INST-0698431",
+   "url": "https://hopewellva.gov/DocumentCenter/View/1088",
+   "content_type": "html",
+   "bytes": 269382,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 33296,
+    "cjk": 997,
+    "thai": 6,
+    "other": 4399,
+    "neutral": 230684
+   },
+   "n_chunks": 6,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "VILLAGE OF HOPEWELL",
+    "country": "United States",
+    "level_of_government": "local",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    53876,
+    53875,
+    53876,
+    53876,
+    53877,
+    2
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     29549,
+     29585,
+     29516,
+     31119,
+     33214,
+     1815
+    ],
+    "J-P1R2": [
+     28025,
+     28061,
+     27992,
+     29595,
+     31690,
+     291
+    ],
+    "J-SEG(per pair question)": [
+     3668,
+     3668,
+     3668,
+     3668,
+     3668,
+     3668
+    ],
+    "J-SEG(state)": [
+     28143,
+     28179,
+     28109,
+     29713,
+     31807,
+     408
+    ],
+    "J-SEG(pairs per request)": [
+     9,
+     9,
+     9,
+     8,
+     8,
+     16
+    ],
+    "J-P2A1": [
+     29632,
+     29668,
+     29599,
+     31202,
+     33297,
+     1898
+    ],
+    "J-P2A3": [
+     29793,
+     29829,
+     29760,
+     31363,
+     33458,
+     2059
+    ],
+    "H-SPAN": [
+     22817,
+     22816,
+     22817,
+     22817,
+     22817,
+     5981
+    ],
+    "H-PQ": [
+     31855,
+     31854,
+     31855,
+     31855,
+     31855,
+     15019
+    ],
+    "H-AQ": [
+     59436,
+     59435,
+     59436,
+     59436,
+     59436,
+     42600
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0700951:96bbf00d3f2c54e99086b4dc00a89ac6",
+   "corpus": "RS-008",
+   "institution_id": "INST-0700951",
+   "url": "https://www.calhouncountymi.gov/departments/board_of_commissioners/county_policies.php",
+   "content_type": "html",
+   "bytes": 2273,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 1670,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 603
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "COUNTY OF CALHOUN",
+    "country": "United States",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    2273
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2784
+    ],
+    "J-P1R2": [
+     1260
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     1372
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2862
+    ],
+    "J-P2A3": [
+     3023
+    ],
+    "H-SPAN": [
+     6708
+    ],
+    "H-PQ": [
+     15746
+    ],
+    "H-AQ": [
+     43327
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0701539:c621b3e3da82da8af5d77600f0520cfe",
+   "corpus": "RS-008",
+   "institution_id": "INST-0701539",
+   "url": "https://www.franklincountync.gov/",
+   "content_type": "render",
+   "bytes": 7299,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 5782,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 1517
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "COUNTY OF FRANKLIN",
+    "country": "United States",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    7299
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     4782
+    ],
+    "J-P1R2": [
+     3258
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     3371
+    ],
+    "J-SEG(pairs per request)": [
+     15
+    ],
+    "J-P2A1": [
+     4860
+    ],
+    "J-P2A3": [
+     5021
+    ],
+    "H-SPAN": [
+     8269
+    ],
+    "H-PQ": [
+     17306
+    ],
+    "H-AQ": [
+     44888
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0701679:0a0f6fa5ad66dcbbaee10fc91e5667c9",
+   "corpus": "RS-008",
+   "institution_id": "INST-0701679",
+   "url": "https://greenecountypa.gov/resources/51242",
+   "content_type": "pdf",
+   "bytes": 5212,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 3730,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 1482
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "COUNTY OF GREENE",
+    "country": "United States",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    5212
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3912
+    ],
+    "J-P1R2": [
+     2388
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     2500
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3990
+    ],
+    "J-P2A3": [
+     4151
+    ],
+    "H-SPAN": [
+     7607
+    ],
+    "H-PQ": [
+     16645
+    ],
+    "H-AQ": [
+     44226
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0701766:d4456ea383a5b97264ff08850580945f",
+   "corpus": "RS-008",
+   "institution_id": "INST-0701766",
+   "url": "https://landrecords.co.harrison.ms.us/DuProcessWebInquiry/",
+   "content_type": "html",
+   "bytes": 5110,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 4151,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 959
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "COUNTY OF HARRISON",
+    "country": "United States",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    5110
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3876
+    ],
+    "J-P1R2": [
+     2353
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     2465
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3955
+    ],
+    "J-P2A3": [
+     4116
+    ],
+    "H-SPAN": [
+     7588
+    ],
+    "H-PQ": [
+     16626
+    ],
+    "H-AQ": [
+     44207
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0701943:a085f74b76c8b14758886d89370f177f",
+   "corpus": "RS-008",
+   "institution_id": "INST-0701943",
+   "url": "https://jeffdaviscountyga.gov/",
+   "content_type": "html",
+   "bytes": 298,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 244,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 54
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "COUNTY OF JEFF DAVIS",
+    "country": "United States",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    298
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     1950
+    ],
+    "J-P1R2": [
+     426
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     538
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2028
+    ],
+    "J-P2A3": [
+     2189
+    ],
+    "H-SPAN": [
+     6083
+    ],
+    "H-PQ": [
+     15121
+    ],
+    "H-AQ": [
+     42702
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0702350:d68c137d3fe1b79f88e89bb0651dafb6",
+   "corpus": "RS-008",
+   "institution_id": "INST-0702350",
+   "url": "http://co.martin.tx.us/Archive/ViewFile/Item/123",
+   "content_type": "pdf",
+   "bytes": 75915,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 50390,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 25525
+   },
+   "n_chunks": 2,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "COUNTY OF MARTIN",
+    "country": "United States",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    37958,
+    37957
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     17132,
+     17093
+    ],
+    "J-P1R2": [
+     15608,
+     15569
+    ],
+    "J-SEG(per pair question)": [
+     3668,
+     3668
+    ],
+    "J-SEG(state)": [
+     15720,
+     15682
+    ],
+    "J-SEG(pairs per request)": [
+     12,
+     12
+    ],
+    "J-P2A1": [
+     17210,
+     17172
+    ],
+    "J-P2A3": [
+     17371,
+     17333
+    ],
+    "H-SPAN": [
+     17842,
+     17841
+    ],
+    "H-PQ": [
+     26880,
+     26879
+    ],
+    "H-AQ": [
+     54461,
+     54460
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0702688:dd7dee00370f4f3dfd06d92a45f6f2fd",
+   "corpus": "RS-008",
+   "institution_id": "INST-0702688",
+   "url": "https://pagecounty.virginia.gov/AgendaCenter/ViewFile/Minutes/_10192021-695",
+   "content_type": "pdf",
+   "bytes": 35721,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 27596,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 8125
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "COUNTY OF PAGE",
+    "country": "United States",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    35721
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     16152
+    ],
+    "J-P1R2": [
+     14628
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     14741
+    ],
+    "J-SEG(pairs per request)": [
+     12
+    ],
+    "J-P2A1": [
+     16231
+    ],
+    "J-P2A3": [
+     16392
+    ],
+    "H-SPAN": [
+     17150
+    ],
+    "H-PQ": [
+     26188
+    ],
+    "H-AQ": [
+     53770
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0702919:5866d787731f8620fd906b0bbcb42a0e",
+   "corpus": "RS-008",
+   "institution_id": "INST-0702919",
+   "url": "https://roanecountytn.gov/oak-ridge-reservation-in-roane-county-selected-for-national-ai-and-energy-infrastructure-initiative/",
+   "content_type": "html",
+   "bytes": 2514,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 2063,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 451
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "COUNTY OF ROANE",
+    "country": "United States",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    2514
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2894
+    ],
+    "J-P1R2": [
+     1370
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     1483
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2972
+    ],
+    "J-P2A3": [
+     3133
+    ],
+    "H-SPAN": [
+     6829
+    ],
+    "H-PQ": [
+     15867
+    ],
+    "H-AQ": [
+     43448
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0703148:083da90f4fdaad9c7f69fa96ea9b9304",
+   "corpus": "RS-008",
+   "institution_id": "INST-0703148",
+   "url": "https://cantongisportal.starkcountyohio.gov/portal/home/item.html?id=993384e1c90148cf9d0bff8cc54fca24",
+   "content_type": "render",
+   "bytes": 3296,
+   "script": "cjk",
+   "script_bytes": {
+    "latin": 573,
+    "cjk": 2250,
+    "thai": 0,
+    "other": 0,
+    "neutral": 473
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "COUNTY OF STARK",
+    "country": "United States",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    3296
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3184
+    ],
+    "J-P1R2": [
+     1660
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     1773
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3262
+    ],
+    "J-P2A3": [
+     3423
+    ],
+    "H-SPAN": [
+     7037
+    ],
+    "H-PQ": [
+     16075
+    ],
+    "H-AQ": [
+     43656
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0703148:26b9fa7504538f2084961c79fb18f1d2",
+   "corpus": "RS-008",
+   "institution_id": "INST-0703148",
+   "url": "https://cantongisportal.starkcountyohio.gov/portal/home/item.html?id=fb8d727ad86442d7b1818fb258dd8b63",
+   "content_type": "render",
+   "bytes": 3296,
+   "script": "cjk",
+   "script_bytes": {
+    "latin": 572,
+    "cjk": 2250,
+    "thai": 0,
+    "other": 0,
+    "neutral": 474
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "COUNTY OF STARK",
+    "country": "United States",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    3296
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3184
+    ],
+    "J-P1R2": [
+     1660
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     1773
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3262
+    ],
+    "J-P2A3": [
+     3423
+    ],
+    "H-SPAN": [
+     7037
+    ],
+    "H-PQ": [
+     16075
+    ],
+    "H-AQ": [
+     43656
+    ]
+   }
+  },
+  {
+   "page_id": "RS-008:r20260830T114940Z-32ea:INST-0703638:86aac75dc8df5ae368691d143ede0907",
+   "corpus": "RS-008",
+   "institution_id": "INST-0703638",
+   "url": "https://winnparishpolicejury.com/",
+   "content_type": "html",
+   "bytes": 4010,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 2656,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 1354
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": null,
+   "institution": {
+    "institution_name": "PARISH OF WINN",
+    "country": "United States",
+    "level_of_government": "second_subnational",
+    "source": "master_institutions.csv"
+   },
+   "chunk_bytes": [
+    4010
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3498
+    ],
+    "J-P1R2": [
+     1974
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     2087
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3576
+    ],
+    "J-P2A3": [
+     3738
+    ],
+    "H-SPAN": [
+     7239
+    ],
+    "H-PQ": [
+     16277
+    ],
+    "H-AQ": [
+     43858
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260903T120740Z-362c:INST-0015599:1e3b942b59abf76005089d57438a5b9a",
+   "corpus": "RS-009",
+   "institution_id": "INST-0015599",
+   "url": "https://pemagatshel.gov.bt/category/news/page/3/",
+   "content_type": "html",
+   "bytes": 3249,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 2440,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 809
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "ambiguous"
+   ],
+   "institution": {
+    "institution_name": "Pemagatshel",
+    "country": "Bhutan",
+    "level_of_government": "second_subnational",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    3249
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3159
+    ],
+    "J-P1R2": [
+     1635
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     1748
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3237
+    ],
+    "J-P2A3": [
+     3398
+    ],
+    "H-SPAN": [
+     7009
+    ],
+    "H-PQ": [
+     16047
+    ],
+    "H-AQ": [
+     43628
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260903T120740Z-362c:INST-0030192:1fd305aabe64a070da70b0534a70c041",
+   "corpus": "RS-009",
+   "institution_id": "INST-0030192",
+   "url": "https://wsjkw.hebei.gov.cn/mtbd/420549.jhtml",
+   "content_type": "html",
+   "bytes": 7391,
+   "script": "cjk",
+   "script_bytes": {
+    "latin": 6,
+    "cjk": 6498,
+    "thai": 0,
+    "other": 0,
+    "neutral": 887
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "ambiguous"
+   ],
+   "institution": {
+    "institution_name": "Hebei",
+    "country": "China",
+    "level_of_government": "first_subnational",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    7391
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     4801
+    ],
+    "J-P1R2": [
+     3277
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     3390
+    ],
+    "J-SEG(pairs per request)": [
+     15
+    ],
+    "J-P2A1": [
+     4879
+    ],
+    "J-P2A3": [
+     5040
+    ],
+    "H-SPAN": [
+     8330
+    ],
+    "H-PQ": [
+     17368
+    ],
+    "H-AQ": [
+     44950
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260903T120740Z-362c:INST-0033218:d4c176b3f989dd5773ccc2fff3e512be",
+   "corpus": "RS-009",
+   "institution_id": "INST-0033218",
+   "url": "http://www.jieyang.gov.cn/jyjxj/tzgg/qttz/content/post_1039136.html",
+   "content_type": "html",
+   "bytes": 2066,
+   "script": "cjk",
+   "script_bytes": {
+    "latin": 33,
+    "cjk": 1587,
+    "thai": 0,
+    "other": 0,
+    "neutral": 446
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "ambiguous"
+   ],
+   "institution": {
+    "institution_name": "Jieyang",
+    "country": "China",
+    "level_of_government": "second_subnational",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    2066
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2709
+    ],
+    "J-P1R2": [
+     1185
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     1297
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2787
+    ],
+    "J-P2A3": [
+     2948
+    ],
+    "H-SPAN": [
+     6667
+    ],
+    "H-PQ": [
+     15705
+    ],
+    "H-AQ": [
+     43286
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260903T120740Z-362c:INST-0461739:d4ad6c072a2d60fba4b1f201878639ff",
+   "corpus": "RS-009",
+   "institution_id": "INST-0461739",
+   "url": "https://docs.italia.it/italia/mid/programma-strategico-nazionale-per-intelligenza-artificiale-en-docs/en/bozza/strategic-areas-of-intervention-and-policies.html",
+   "content_type": "html",
+   "bytes": 35003,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 28304,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 6699
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "ambiguous"
+   ],
+   "institution": {
+    "institution_name": "Ministry Of Economic Development",
+    "country": "Italy",
+    "level_of_government": "national",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    35003
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     15892
+    ],
+    "J-P1R2": [
+     14368
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     14484
+    ],
+    "J-SEG(pairs per request)": [
+     12
+    ],
+    "J-P2A1": [
+     15974
+    ],
+    "J-P2A3": [
+     16135
+    ],
+    "H-SPAN": [
+     16988
+    ],
+    "H-PQ": [
+     26025
+    ],
+    "H-AQ": [
+     53607
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260903T120740Z-362c:INST-0463575:f6dea155a3ec4cf2b00f44309778ca56",
+   "corpus": "RS-009",
+   "institution_id": "INST-0463575",
+   "url": "https://www.mhlw.go.jp/www1/english/index.html",
+   "content_type": "html",
+   "bytes": 1034,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 854,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 180
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "confirms_absence"
+   ],
+   "institution": {
+    "institution_name": "Ministry Of Health, Labor, & Welfare",
+    "country": "Japan",
+    "level_of_government": "national",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    1034
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2240
+    ],
+    "J-P1R2": [
+     716
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     833
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2322
+    ],
+    "J-P2A3": [
+     2483
+    ],
+    "H-SPAN": [
+     6315
+    ],
+    "H-PQ": [
+     15353
+    ],
+    "H-AQ": [
+     42934
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260903T120740Z-362c:INST-0509274:161f8e8994e1e6cc2d0f817fbc67f1eb",
+   "corpus": "RS-009",
+   "institution_id": "INST-0509274",
+   "url": "https://bip.powiatsztumski.pl/697.html?file=8628",
+   "content_type": "html",
+   "bytes": 196752,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 18925,
+    "cjk": 69,
+    "thai": 0,
+    "other": 473,
+    "neutral": 177285
+   },
+   "n_chunks": 4,
+   "v25_genai_evidence": [
+    "confirms_absence"
+   ],
+   "institution": {
+    "institution_name": "Sztumski",
+    "country": "Poland",
+    "level_of_government": "second_subnational",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    49188,
+    49188,
+    49188,
+    49188
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     50116,
+     46845,
+     32045,
+     29646
+    ],
+    "J-P1R2": [
+     48592,
+     45321,
+     30521,
+     28122
+    ],
+    "J-SEG(per pair question)": [
+     3668,
+     3668,
+     3668,
+     3668
+    ],
+    "J-SEG(state)": [
+     48705,
+     45434,
+     30634,
+     28235
+    ],
+    "J-SEG(pairs per request)": [
+     3,
+     4,
+     8,
+     9
+    ],
+    "J-P2A1": [
+     50194,
+     46923,
+     32123,
+     29724
+    ],
+    "J-P2A3": [
+     50355,
+     47084,
+     32284,
+     29885
+    ],
+    "H-SPAN": [
+     21346,
+     21346,
+     21346,
+     21346
+    ],
+    "H-PQ": [
+     30384,
+     30384,
+     30384,
+     30384
+    ],
+    "H-AQ": [
+     57965,
+     57965,
+     57965,
+     57965
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260903T120740Z-362c:INST-0509296:1a8868aae05213d502c9eeaece8ace25",
+   "corpus": "RS-009",
+   "institution_id": "INST-0509296",
+   "url": "https://powiatwalecki.pl/seminarium-siec-inspiracji-wspolpraca-i-rozwoj-zachodniopomorskich-centrow-nauki/",
+   "content_type": "html",
+   "bytes": 1061,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 871,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 190
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "ambiguous"
+   ],
+   "institution": {
+    "institution_name": "Walecki",
+    "country": "Poland",
+    "level_of_government": "second_subnational",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    1061
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2294
+    ],
+    "J-P1R2": [
+     771
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     883
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2373
+    ],
+    "J-P2A3": [
+     2534
+    ],
+    "H-SPAN": [
+     6359
+    ],
+    "H-PQ": [
+     15397
+    ],
+    "H-AQ": [
+     42978
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260903T120740Z-362c:INST-0532634:6988afd332a9656e1cca3cc2fc0c9f6f",
+   "corpus": "RS-009",
+   "institution_id": "INST-0532634",
+   "url": "https://momah.gov.sa/en/hackathon",
+   "content_type": "html",
+   "bytes": 4947,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 4091,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 856
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "ambiguous"
+   ],
+   "institution": {
+    "institution_name": "Wadi Al Fara",
+    "country": "Saudi Arabia",
+    "level_of_government": "second_subnational",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    4947
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3803
+    ],
+    "J-P1R2": [
+     2279
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     2391
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3881
+    ],
+    "J-P2A3": [
+     4042
+    ],
+    "H-SPAN": [
+     7538
+    ],
+    "H-PQ": [
+     16575
+    ],
+    "H-AQ": [
+     44157
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260903T120740Z-362c:INST-0548752:51e9f4c84b369fa79d0edfa38c24f95a",
+   "corpus": "RS-009",
+   "institution_id": "INST-0548752",
+   "url": "https://www.pcc.gov.tw/downloadFile?fpath=VXBsb2FkLzI5Ny9yZWxmaWxlLzc2OTMvNjI0NS9kY2IxZDBlYi02M2U0LTQ4OTAtYjE0My04NDk5MDRlNzE3ZjUucGRm&sname=%E6%88%AA%E8%87%B3%E7%AC%AC4%E5%AD%A3%E5%B0%8D%E5%9C%8B%E5%85%A7%E5%9C%98%E9%AB%94%E8%A3%9C%E6%8D%90%E5%8A%A9%E6%83%85%E5%BD%A2%E8%A1%A8.pdf",
+   "content_type": "pdf",
+   "bytes": 3756,
+   "script": "cjk",
+   "script_bytes": {
+    "latin": 14,
+    "cjk": 3141,
+    "thai": 0,
+    "other": 0,
+    "neutral": 601
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "confirms_absence"
+   ],
+   "institution": {
+    "institution_name": "Min., Public Construction Commission",
+    "country": "Taiwan",
+    "level_of_government": "national",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    3756
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3436
+    ],
+    "J-P1R2": [
+     1912
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     2028
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3518
+    ],
+    "J-P2A3": [
+     3679
+    ],
+    "H-SPAN": [
+     7257
+    ],
+    "H-PQ": [
+     16295
+    ],
+    "H-AQ": [
+     43876
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260903T120740Z-362c:INST-0552252:9d76808ffda9a0ce0408b2db43782594",
+   "corpus": "RS-009",
+   "institution_id": "INST-0552252",
+   "url": "https://www.moac.go.th/foreignagri-news-preview-481591793014",
+   "content_type": "render",
+   "bytes": 11308,
+   "script": "thai",
+   "script_bytes": {
+    "latin": 163,
+    "cjk": 0,
+    "thai": 10752,
+    "other": 0,
+    "neutral": 393
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "ambiguous"
+   ],
+   "institution": {
+    "institution_name": "Ministry Of Agriculture & Cooperatives",
+    "country": "Thailand",
+    "level_of_government": "national",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    11308
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     6448
+    ],
+    "J-P1R2": [
+     4924
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     5040
+    ],
+    "J-SEG(pairs per request)": [
+     15
+    ],
+    "J-P2A1": [
+     6530
+    ],
+    "J-P2A3": [
+     6691
+    ],
+    "H-SPAN": [
+     9629
+    ],
+    "H-PQ": [
+     18666
+    ],
+    "H-AQ": [
+     46248
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260903T120740Z-362c:INST-0552262:d463f8e9fd1e84f7379b6ad11413bf7d",
+   "corpus": "RS-009",
+   "institution_id": "INST-0552262",
+   "url": "https://japan.industry.go.th/th/news-industry/329777",
+   "content_type": "html",
+   "bytes": 3937,
+   "script": "thai",
+   "script_bytes": {
+    "latin": 37,
+    "cjk": 0,
+    "thai": 3756,
+    "other": 0,
+    "neutral": 144
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "confirms_absence"
+   ],
+   "institution": {
+    "institution_name": "Ministry Of Industry",
+    "country": "Thailand",
+    "level_of_government": "national",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    3937
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3462
+    ],
+    "J-P1R2": [
+     1938
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     2055
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3545
+    ],
+    "J-P2A3": [
+     3706
+    ],
+    "H-SPAN": [
+     7282
+    ],
+    "H-PQ": [
+     16320
+    ],
+    "H-AQ": [
+     43901
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260906T213311Z-9a15:INST-0032818:87860bb6084d3bfa62268f022ca37340",
+   "corpus": "RS-009",
+   "institution_id": "INST-0032818",
+   "url": "http://www.altxw.com/tj/202606/t20260609_34836851.html",
+   "content_type": "html",
+   "bytes": 2897,
+   "script": "cjk",
+   "script_bytes": {
+    "latin": 35,
+    "cjk": 2427,
+    "thai": 0,
+    "other": 0,
+    "neutral": 435
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "confirms_activity"
+   ],
+   "institution": {
+    "institution_name": "阿勒泰市",
+    "country": "China",
+    "level_of_government": "local",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    2897
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     3000
+    ],
+    "J-P1R2": [
+     1476
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     1594
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     3083
+    ],
+    "J-P2A3": [
+     3244
+    ],
+    "H-SPAN": [
+     6905
+    ],
+    "H-PQ": [
+     15943
+    ],
+    "H-AQ": [
+     43524
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260906T213311Z-9a15:INST-0048166:499abfa7e7dc2a68e2aa40e310abb5cd",
+   "corpus": "RS-009",
+   "institution_id": "INST-0048166",
+   "url": "https://www.emta.ee/media/1273/download",
+   "content_type": "pdf",
+   "bytes": 61472,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 45602,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 15870
+   },
+   "n_chunks": 2,
+   "v25_genai_evidence": [
+    "confirms_absence"
+   ],
+   "institution": {
+    "institution_name": "Maksu- ja Tolliamet",
+    "country": "Estonia",
+    "level_of_government": "national",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    30736,
+    30736
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     14330,
+     14377
+    ],
+    "J-P1R2": [
+     12807,
+     12854
+    ],
+    "J-SEG(per pair question)": [
+     3668,
+     3668
+    ],
+    "J-SEG(state)": [
+     12923,
+     12970
+    ],
+    "J-SEG(pairs per request)": [
+     13,
+     13
+    ],
+    "J-P2A1": [
+     14413,
+     14460
+    ],
+    "J-P2A3": [
+     14574,
+     14621
+    ],
+    "H-SPAN": [
+     15581,
+     15581
+    ],
+    "H-PQ": [
+     24619,
+     24619
+    ],
+    "H-AQ": [
+     52200,
+     52200
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260912T001021Z-f4fb:INST-0014809:3e85363e3e10651a4ffa9f67dc533aa8",
+   "corpus": "RS-009",
+   "institution_id": "INST-0014809",
+   "url": "https://stad.gent/en/city-governance-organisation/city-policy/ghent-international/funded-projects/probe-proactive-public-access-government",
+   "content_type": "html",
+   "bytes": 7433,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 6002,
+    "cjk": 0,
+    "thai": 0,
+    "other": 0,
+    "neutral": 1431
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "ambiguous"
+   ],
+   "institution": {
+    "institution_name": "Gand",
+    "country": "Belgium",
+    "level_of_government": "local",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    7433
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     4825
+    ],
+    "J-P1R2": [
+     3301
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     3418
+    ],
+    "J-SEG(pairs per request)": [
+     15
+    ],
+    "J-P2A1": [
+     4908
+    ],
+    "J-P2A3": [
+     5069
+    ],
+    "H-SPAN": [
+     8343
+    ],
+    "H-PQ": [
+     17380
+    ],
+    "H-AQ": [
+     44962
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260912T001021Z-f4fb:INST-0209442:1491473dbc2a2ba9bfa6292400a47cf9",
+   "corpus": "RS-009",
+   "institution_id": "INST-0209442",
+   "url": "https://www.youtube.com/watch?v=ubCqVzeR69w",
+   "content_type": "render",
+   "bytes": 1294,
+   "script": "latin",
+   "script_bytes": {
+    "latin": 809,
+    "cjk": 0,
+    "thai": 0,
+    "other": 93,
+    "neutral": 392
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "confirms_absence"
+   ],
+   "institution": {
+    "institution_name": "Kadepur",
+    "country": "India",
+    "level_of_government": "local",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    1294
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2374
+    ],
+    "J-P1R2": [
+     850
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     968
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2458
+    ],
+    "J-P2A3": [
+     2619
+    ],
+    "H-SPAN": [
+     6412
+    ],
+    "H-PQ": [
+     15450
+    ],
+    "H-AQ": [
+     43031
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260912T001021Z-f4fb:INST-0549970:5b0f4536690d064c3f7017ced527507a",
+   "corpus": "RS-009",
+   "institution_id": "INST-0549970",
+   "url": "https://www.thungchanghan.go.th/pages/activity_detail/25",
+   "content_type": "html",
+   "bytes": 10122,
+   "script": "thai",
+   "script_bytes": {
+    "latin": 103,
+    "cjk": 0,
+    "thai": 9750,
+    "other": 0,
+    "neutral": 269
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "confirms_absence"
+   ],
+   "institution": {
+    "institution_name": "ทุ่งจังหัน",
+    "country": "Thailand",
+    "level_of_government": "local",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    10122
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     5888
+    ],
+    "J-P1R2": [
+     4364
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     4482
+    ],
+    "J-SEG(pairs per request)": [
+     15
+    ],
+    "J-P2A1": [
+     5972
+    ],
+    "J-P2A3": [
+     6133
+    ],
+    "H-SPAN": [
+     9167
+    ],
+    "H-PQ": [
+     18205
+    ],
+    "H-AQ": [
+     45786
+    ]
+   }
+  },
+  {
+   "page_id": "RS-009:r20260928T141425Z-7d56:INST-0462356:f83ef4f9c28db453b9f9a1ff7a292eba",
+   "corpus": "RS-009",
+   "institution_id": "INST-0462356",
+   "url": "https://www.city.odate.lg.jp/city/soshiki/kigyoshuseki/p12093",
+   "content_type": "html",
+   "bytes": 2531,
+   "script": "cjk",
+   "script_bytes": {
+    "latin": 85,
+    "cjk": 1974,
+    "thai": 0,
+    "other": 0,
+    "neutral": 472
+   },
+   "n_chunks": 1,
+   "v25_genai_evidence": [
+    "ambiguous"
+   ],
+   "institution": {
+    "institution_name": "大館市",
+    "country": "Japan",
+    "level_of_government": "local",
+    "source": "institution.json"
+   },
+   "chunk_bytes": [
+    2531
+   ],
+   "est_tokens_per_chunk": {
+    "J-P1R1": [
+     2890
+    ],
+    "J-P1R2": [
+     1366
+    ],
+    "J-SEG(per pair question)": [
+     3668
+    ],
+    "J-SEG(state)": [
+     1484
+    ],
+    "J-SEG(pairs per request)": [
+     16
+    ],
+    "J-P2A1": [
+     2973
+    ],
+    "J-P2A3": [
+     3134
+    ],
+    "H-SPAN": [
+     6819
+    ],
+    "H-PQ": [
+     15857
+    ],
+    "H-AQ": [
+     43438
+    ]
+   }
+  }
+ ],
+ "self_check": {
+  "J-P1R1 == chunks": true,
+  "note": "Paid-run self-check: J-P1R1 requests == chunks (+ halvings); H-SPAN == H-PQ == chunks; J-P2A1 == H-AQ == activities x chunks."
+ },
+ "elapsed_s": 645.2
+}
