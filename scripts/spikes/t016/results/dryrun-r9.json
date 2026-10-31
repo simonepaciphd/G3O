@@ -1,0 +1,22 @@
+{
+ "requests": {
+  "page": 554,
+  "entailment": 186
+ },
+ "est_tokens": {
+  "page": 26071403,
+  "entailment": 134327
+ },
+ "chunks": 315,
+ "pages_truncated_at_20": 3,
+ "questions_asked": 40,
+ "question_asks": 12471,
+ "est_usd_central": 1.1,
+ "est_usd_range": [
+  0.84,
+  1.25
+ ],
+ "cap_usd": 3.0,
+ "tokens_per_byte": 0.3947,
+ "note": "range scales tokens/byte 0.30-0.45"
+}
