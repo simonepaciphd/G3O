@@ -1,0 +1,774 @@
+{
+  "generated_by": "g3o.codebook.generators.manifest",
+  "do_not_edit": true,
+  "codebook_release": "2.7",
+  "codebook_sha256": "f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f",
+  "build_scope": [
+    "core"
+  ],
+  "items": [
+    {
+      "item_id": "core.page_verdict",
+      "item_hash": "d448710c4b15adc59edf76e6097a881a9bc0ab36221e9b895a8171c4f49abb0b",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.disclosure_form",
+      "item_hash": "af8cdf4d03cce301d4733c5d1f4c29c8abfe0354366592f2237e91eba6b7b694",
+      "frozen_signature": "CX-01.3:CX-10..CX-18",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.disclosure_scope",
+      "item_hash": "32e224fd58a2738763c9e708b84e4e8d0d24fc6c07c042d1aadc0d616be64617",
+      "frozen_signature": "CX-01.3:CX-20..CX-25",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.page_complete",
+      "item_hash": "a9f0477de324e7012112096cb6f65a79d6c95f891595b196f87fc11abb65e7fb",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.source_type",
+      "item_hash": "18fd64c5194e4ed8d3ac57036a9a29e58293264137772357e41d636a4747170f",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_contact_named",
+      "item_hash": "c14b41bf44f0d1a22b5392ae792c7ffe24c51fb4c6e332bae0cf67064590febe",
+      "frozen_signature": "CX-01.3:CX-51",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_contact_details",
+      "item_hash": "6ef720c9b22a50994be0bde73ee626c26f1ac59fcf3808a3d72a2249c82b8bf7",
+      "frozen_signature": "CX-01.3:CX-51",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_contact",
+      "item_hash": "20ce152ca168cd9eaa77ccf61f439277c2fdc9affb3f0faeb048e98cea94d65a",
+      "frozen_signature": "CX-01.3:CX-51",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_contact_emails",
+      "item_hash": "2effc2799f78ed142a3ba7ff624be69a3ece86e461907a3a18f880ed4798233a",
+      "frozen_signature": "CX-01.3:CX-53",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_purpose",
+      "item_hash": "770abc7dba5990f1615e2f5a3854fb202a2a77b69decb344b5fb721431a448a0",
+      "frozen_signature": "CX-01.3:CX-51",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_tool_or_model",
+      "item_hash": "b8f38f4a14576d7c232b0da604e4e60033488864a67c182fd887771ad245c997",
+      "frozen_signature": "CX-01.3:CX-51",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_vendor",
+      "item_hash": "a6520167c4b003ac67ebc0d74595d946e7e8792d7502dee43cf30ff7d24d2fb9",
+      "frozen_signature": "CX-01.3:CX-51",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_data",
+      "item_hash": "32b7a48c23a51ba63beb865cae0f6b9c864a519c4d6a1af1ad825fdbd55e4592",
+      "frozen_signature": "CX-01.3:CX-51",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_users",
+      "item_hash": "8beadad995b8aec7a4e72c3439d81abe22a362e0b7d16caff378782eac755f2f",
+      "frozen_signature": "CX-01.3:CX-51",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_status_date",
+      "item_hash": "cbbb379a84f4ba33eb7337d988fd9b3e60cda5a07e87b883000301276407323d",
+      "frozen_signature": "CX-01.3:CX-51",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_human_oversight",
+      "item_hash": "675a231b8ec3f9c7f5b62fe8e9c650c4a65ad5a84cbc53797e45b3f7f188223b",
+      "frozen_signature": "CX-01.3:CX-52",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_risk_assessment",
+      "item_hash": "616e2436f8583fbcf50e2fae297dfe88b014b49b250362c99d0866b6f6be341c",
+      "frozen_signature": "CX-01.3:CX-52",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.content_user_notification",
+      "item_hash": "46c75d27486b11590e6c9e20c681d28f9018e8dd4bd65a883d0f5ef4f2dff959",
+      "frozen_signature": "CX-01.3:CX-52",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.source_url",
+      "item_hash": "f69b8e39218bf4431807d0179fe0196361c1ed93585d744bf90ca1f9918a6ba7",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.source_title",
+      "item_hash": "567de2366b970d3285c1695c20d0d0b3f586ecc906330196223603c8d4f42ae4",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.source_access_date",
+      "item_hash": "c0ab53f9afdb4adfb57643bc0b682c5290a8196689feb91f972428dfe2fd92ef",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.source_language",
+      "item_hash": "6eef15a077d0980bc3b2d9c2ea3e9cb8a04d715167869edf4aa2e0fa659283a8",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.source_on_official_domain",
+      "item_hash": "808a40f0391818a73e8620b2812462e3bd34050aaf83ac8a597695765aaf042b",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.syndication_group",
+      "item_hash": "f3db8eda3ba82dd6282414e91888311b4df2d66902d70551e223cd1e3f23ac97",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.page_review_state",
+      "item_hash": "10518a8e804f53b1fe9782c51f9964fb7255d0793872752365c497f3c2c30316",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.discovery_path",
+      "item_hash": "271c46190676c2361db79e832f2f8625def1d54e988ca4bf3747da320ed12259",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.text_source",
+      "item_hash": "29a736c9fdd33449fe74745c291f9113f4526fb1ffda06effef07c842e65a6a2",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.source_publication_date",
+      "item_hash": "8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.source_snippet",
+      "item_hash": "a26fef1a984c518461bea85a9771caad96db7347f057ec8e66cf035ba014314e",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.source_credibility",
+      "item_hash": "787c52481878e073a52393208c9c9b56aa66be14783486d1bc95367b043e8978",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.activity_segment",
+      "item_hash": "44cc63f10ebef97a1402d517332330fb5ff41ffcf9de22de80b87a4f8e57b97e",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.activity_name",
+      "item_hash": "9a9a55c3d066738f911fdc5269670d927e3bee2da8236094fb9e2c68e1069401",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.observed_actor_name",
+      "item_hash": "d76dc7f2c930b753dd8511068222d56eb0e16384dcefe9064fc860a06e4ef25f",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.observed_actor_relationship",
+      "item_hash": "16ddef0cb7e4102dbb09949a7f1ecdb7e9a5b19d4f99bf54148b4a1bc1b00b74",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.activity_type",
+      "item_hash": "171e96a029766889465f3d0596bef25be502406a23e64cf85c060932d9e07b50",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.action_type",
+      "item_hash": "5aaa9dc3449dfa95f1700b2d4aeccc1d7cbcf04b46af301121dd6192407e614b",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.adoption_stage",
+      "item_hash": "199ba1e14fe71ca352701ab823081796103006e3d4ac2057bb093681ad1a59ff",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.procurement_status",
+      "item_hash": "bba50c17230cfc52b5c8b90a5a1ed8782e446f8f0a333491722dd92ffd5eea25",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.model_origin",
+      "item_hash": "ea3d7b2cadbf2f64522113b0d5e2dfa58915e56f0d473d998329056e016b210e",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.build_arrangement",
+      "item_hash": "03c8be5d39bfee5cb16a6945bf343fa6b1764a15227183c8db87264ec7f3ab1c",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.interface",
+      "item_hash": "75312626806d0d38c61dd1ce2f7301545b48ba622fe3f40d32e918e85774dc8b",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.function_drafting_writing",
+      "item_hash": "563531506d7276798c955dcb142561d91d8fb0f760d16474334df91e75d52cf4",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.function_summarization",
+      "item_hash": "d698879c119d6831964e88cafef1d8b813ea3e3c9734410f25c21c09e0615a93",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.function_translation",
+      "item_hash": "2466a158bf8871215a3dcc9540f4ddda1676d4ff15e4bfec70820c5fd3cd2836",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.function_search_retrieval",
+      "item_hash": "7f779b3d306cd266e9a2d3732767f3b2b9a101f3e5e4218683a1de77690e3364",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.function_code",
+      "item_hash": "f5d7bbaf1b034e3b147d3e1d8db7071f50f6ab0d2e8e35ed7dfe44f2abb7823f",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.function_image_audio_video",
+      "item_hash": "1e5956075de2cc48026418d5d81f52981f893c0ecfdb928a7b55876115f96f03",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.function_extraction_classification",
+      "item_hash": "155f87129441c51e70c713d3d85bb10369421c66ec949443e57fdbefc1043291",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.function_analysis_recommendation",
+      "item_hash": "a8026858596464541592c242ad14e9f56a02538a93fb29b1587cef9980f60509",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.tool_name",
+      "item_hash": "e606956923481de92a2b4c59bbffa78de57b1fcc574c7b2f5e666a7c000969b1",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.model_name",
+      "item_hash": "7dd785b572b3e2c6fb2bec9e18322fd3947632922cf627ddc43a1b3cd53ed834",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.contracting_party",
+      "item_hash": "73a561ad26b6e2535ca6b6f25409adb5d21dacc0ecd48722b16e6442ad34ff24",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.developer",
+      "item_hash": "f9bf2b0188ea76b1cb9f68dd866d8a8022fd75dc530d7caed4b2a3227a393ccc",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.developer_basis",
+      "item_hash": "b4da76c1b35bd2d108e8093c659e5917175046ffd66917ba2decf4d770a1a291",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.deployment_mode",
+      "item_hash": "d8e2608aeb147a2f4a0158523be100174bce0af2cb2d2ae909eaf7f8ceda3104",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.target_users",
+      "item_hash": "7a11470600f2085adb6fa27b888a52d431b5f187bf2ebb9e6b9edcdb248902b7",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.governed_population",
+      "item_hash": "b7e4f250f93adbdc0a3d7c9c1ff4a93aed888e5d8555ecb800bdcc946c9136c5",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.governance_form",
+      "item_hash": "5a68086467795ad4b1d057e7330020e2397a4f42ed2eaf6f611bbc1b34308fa5",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.governance_direction",
+      "item_hash": "c0c9559b087615ee1a68b39decf9623b138e4b12ff2cf0eaeeaf8cdc04cccced",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.service_domain",
+      "item_hash": "b3b632c1f7f3cab32d8847cc59a65316ebc0992d6e076bb1ec6d02478870bb54",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.genai_mechanism_basis",
+      "item_hash": "aef25db05adf60be6f2aa9ecd0c28636e6cac17dfcbb221bbdfbe5443b643cc0",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.year_announced",
+      "item_hash": "99f1076a1e8c1c23705fb423e90b9aaf4ecc4af9f0a3a7822880bba3e2442cd4",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.year_pilot_start",
+      "item_hash": "02b7b7bff0b2a9d7c1f5a528955427a81c0608eea8277a4cd1195ce83d44cc2b",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.year_production_start",
+      "item_hash": "5e51370bd8540c1161cb1a2e6257ebc333c85b3665b65237a88058a7b82d30e3",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.deployment_scale_number",
+      "item_hash": "732f308184bb60eedf1e67468eb657857b20ce4dcfc76fb97cf16c19454b3686",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.deployment_scale_unit",
+      "item_hash": "4a7cc03581fd7c61950d556903bdccfcf4bcdd5485ab782d5412cb0992d63a71",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.has_human_oversight",
+      "item_hash": "d4a11f0e37de294a9d09c27581a803ad795e03d71e863ab31418040e55660046",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.has_transparency_notice",
+      "item_hash": "63177f84cc942627dda8273ba841c33e3fa75b963691c4fffb3bcec40566ef0d",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.has_data_classification",
+      "item_hash": "c0a9a902c3e1dac3fda8ef2ec62bed86ed0e67276965684e8328b8ba0e100ed2",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.has_risk_assessment",
+      "item_hash": "56e835cc7f5744706d0502ca37f5d296458c7ab7d5d12aa5372066d1107563cb",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.outcome_kind",
+      "item_hash": "80a037b895fd0d167505a50b6760a28199c8e5a3d2734f5183f356742d9b50c8",
+      "frozen_signature": "CX-01.3:CX-61",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.incident_kind",
+      "item_hash": "8d59c74ce433b2e99bab93f90d38b6949d27c74bec470c39f2c41fac49301ee5",
+      "frozen_signature": "CX-01.3:CX-61",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.reported_outcomes",
+      "item_hash": "841fe4e05bdbe08ab94621fc8d47e330ac1a68b3fb8af5875eddf8de74af9554",
+      "frozen_signature": "CX-01.3:CX-60",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.reported_incidents",
+      "item_hash": "5965e825e8086c714fe752e1004c91a1c7f839644191a4e2077a3693f744e429",
+      "frozen_signature": "CX-01.3:CX-60",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.evaluation_documented",
+      "item_hash": "c769fcddf1fa71e4e91e4947ce96716448de13f9881a9eab6fbb931169482e24",
+      "frozen_signature": "CX-01.3:CX-30..CX-40",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.evaluation_type_pre_deployment_testing",
+      "item_hash": "805b0cbbb2fe62c8a62f35192934ed7a20dfc12e0c2c4479b85366251bda34f4",
+      "frozen_signature": "CX-01.3:CX-41",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.evaluation_type_pilot_evaluation",
+      "item_hash": "bc48c7ebb08729c2671fa4e16cf87be1ed0c35226893c896dbf1ee2eee7991f3",
+      "frozen_signature": "CX-01.3:CX-41",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.evaluation_type_independent_audit",
+      "item_hash": "efea36e1378b9a138191c882aaa10a431902b39926cea2714d9dfbd1465f2d84",
+      "frozen_signature": "CX-01.3:CX-41",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.evaluation_type_ongoing_monitoring",
+      "item_hash": "92d011d484c3821e59f55f6c7c6b6153250b7c453d84c1d0055125c409255817",
+      "frozen_signature": "CX-01.3:CX-41",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.evaluation_type_user_feedback",
+      "item_hash": "8c01f238f78f94fddf6fd0a5289181cd9653a6c0ffd33f278c4a339929b7d0cd",
+      "frozen_signature": "CX-01.3:CX-41",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.evaluation_type_bias_or_safety_testing",
+      "item_hash": "8c9b4323a9cfa5d921a11c442f87566af8df9f7ace0279ad675ece3469401d56",
+      "frozen_signature": "CX-01.3:CX-41",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.stage_as_of",
+      "item_hash": "a4cfb8749247a32920ceb3fd6cef7053a6dfc66866687cccf5c030875bc73ca4",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.stage_as_of_basis",
+      "item_hash": "d7088292a75ed257e9cc7e2ece470d33cdc3aaa19003815ed77979b23788b0a2",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.permanent_pilot",
+      "item_hash": "300a332733fec4ee2d42e5288bc95dc722d2cc159d9ffcae19e7c98b26ec5452",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.vendor_claim_only",
+      "item_hash": "9dda40ba9ac691c619a8447340735430e6a657f4b40f3a80650f1801830249f7",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.unit_credit",
+      "item_hash": "9ba4f21e759c415862d143345631e1e375687d471ac850a58cd020c2605c474a",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.uncertainty_flags",
+      "item_hash": "c4129942fd2c85becde37da31998d5a7599d74917b78b845d2d64259a9f0228e",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.support_entailment",
+      "item_hash": "f9f841754b15eac328de8a33ff5c089c96dec33b4e4ac774665c5fa399e4e3cc",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.support_status",
+      "item_hash": "0e544e6520cdfc980b214e82ff69ed6e43ef344b9bbb50096122c39d77df6e28",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.supporting_text",
+      "item_hash": "07b6262cefe97510c6c521d3c7a46503b8fa75d67c9fb7e490fecbb39d24017c",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.has_genai_activity",
+      "item_hash": "8594c479a9e5bfc1e0a97fddf8c820cf9561fc185ccc14cea22ac7e23054237a",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.verdict_rule",
+      "item_hash": "beba0bea88ea30453204e005e89d0dfb23d80d5624e8a0656b0e1aa6c45a7607",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.evidence_tier",
+      "item_hash": "d0d7454be200964d5ec47c0589c4c533e5cf8a44eb5991f607251cc3491c72f3",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.review_depth",
+      "item_hash": "1e0e3603138283d76aee43d38e7da00ff2027461b73af0f8fd2b54c5ec3e7795",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.activity_relation_cross_page",
+      "item_hash": "fea0b4ce0e16c47f1177145937bc9d96f11f84f156899c9dd171f21782dd919c",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.pooled_activity_fields",
+      "item_hash": "fc67ae7a795e99099949c382d5d944ec9f2c5cb6bd6ca215cf3d73e8c37dc16b",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.confidence",
+      "item_hash": "be718eed17df646c03fff6a7f335f7ea2b267c926236030d9bf91cb932dbd698",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.n_sources",
+      "item_hash": "ea16c31f1a1bb6ce87487f5e44204a5ab1a2afc0d3e12334d3a176c8556e7672",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.institution_summary",
+      "item_hash": "d9fb888186e8e3adb55f161442c71d9b12a220881989b2d03b20c65d52ea17a6",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.cx_display_rollup",
+      "item_hash": "f52d103820b333f6c591a4240b67d803a641e61caaaab1074c100baa2cae3953",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.codebook_release",
+      "item_hash": "d19547278ff8587cfdd0f00fb38382c63b2b746d5a1671b44af5f14b0cf9edbc",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.setup_pointer",
+      "item_hash": "65b098d4b8efc9532ece93367858c8019cfb0434582423ce3ae52c7cbfcf4d3b",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.evidence_channel",
+      "item_hash": "0919944a3cfacd18171a1334e8da4698f46ae9ac2423cc548bf1938ef37a57de",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.coder_record",
+      "item_hash": "213c3c3f241b5081f4f6cbde23e3db0d711564f03a04bede0010b1e9a35fb167",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "proc.notice_stage",
+      "item_hash": "adfb841a22b752298a352638b32cf2860cdb10f93b9d33bddb02e9a1331031f5",
+      "frozen_signature": "none",
+      "in_build_scope": false
+    },
+    {
+      "item_id": "proc.contract_value",
+      "item_hash": "5f6879f98422823cfca6ead2f11a68830fecd8ee4d21dfc54c94eb49478ec00c",
+      "frozen_signature": "none",
+      "in_build_scope": false
+    },
+    {
+      "item_id": "proc.procedure_type",
+      "item_hash": "30eba4030ae7e385270c6d1f9f3547865b6ca74f6c904c8de6d3bdcae238a58c",
+      "frozen_signature": "none",
+      "in_build_scope": false
+    },
+    {
+      "item_id": "proc.contract_period",
+      "item_hash": "0d5b529be2cf089a53645ae0245e0410e5e825f7911c651155ed3851d9166eec",
+      "frozen_signature": "none",
+      "in_build_scope": false
+    },
+    {
+      "item_id": "proc.contract_terms",
+      "item_hash": "7d3dc93a60028c4e079297c2f7f53ee5bdc910520a3bd471bea9de11f6438a3c",
+      "frozen_signature": "none",
+      "in_build_scope": false
+    },
+    {
+      "item_id": "text.ai_text_score",
+      "item_hash": "de453267fb2a76aa92fa3f726b88a096813a0f918829c09291951b81a761f0af",
+      "frozen_signature": "none",
+      "in_build_scope": false
+    },
+    {
+      "item_id": "text.detector_provenance",
+      "item_hash": "4b4f8305f63dca7910c64c9ca45cb56883d7a0aa436befe9c9a51a782f71333d",
+      "frozen_signature": "none",
+      "in_build_scope": false
+    },
+    {
+      "item_id": "text.document_classification",
+      "item_hash": "51c8347c91974df08e1ec76b3be958f1ba89aed8304281379c79782799da702f",
+      "frozen_signature": "none",
+      "in_build_scope": false
+    },
+    {
+      "item_id": "text.sampling_design",
+      "item_hash": "6d4b1efd6d4bd9ba176d6f4b9fe6882d6242f879f91bade02ccf071b0e2b3ca5",
+      "frozen_signature": "none",
+      "in_build_scope": false
+    },
+    {
+      "item_id": "text.genai_era_cutoff",
+      "item_hash": "d99c1ee4afabf588a46feff9a6375c6e0e13528f652075097b42d651d84e8610",
+      "frozen_signature": "none",
+      "in_build_scope": false
+    },
+    {
+      "item_id": "text.published_text_ai_use",
+      "item_hash": "476e94e4ae90eab23b998f420d184a35e85ba19e3a517ea20c95e99ddee1335a",
+      "frozen_signature": "none",
+      "in_build_scope": false
+    },
+    {
+      "item_id": "core.language_coverage",
+      "item_hash": "4d0e597ea9ef890f2a4cb621a3840ebff9d335198b8a51b83b37cdc5e19c2208",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.observed_actor_role",
+      "item_hash": "3b56edcce15ceda21e23aeebfcfc26112da874809ac7002e3562d8808e8f5aa4",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.date_upper_bound",
+      "item_hash": "82943a083cbd38b0f4fbc0d8f54b3d5eb273a4ebe3d136a77c32c2613be5f73e",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.support_rule_name",
+      "item_hash": "4906ff346c853e893883241928a250b7eb41abffea48ff7ecf44f34ac2b34d25",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    },
+    {
+      "item_id": "core.support_status_second_reason",
+      "item_hash": "15278c373296fcd2164444cc29b816e0d773a02d940a21b28f78a49c701fc90d",
+      "frozen_signature": "none",
+      "in_build_scope": true
+    }
+  ],
+  "generated_files": [
+    {
+      "path": "g3o/codebook/generated/jev_questions.json",
+      "sha256": "59070bd8dcc01e79b153aab03bded8bc0da666c43c73fea6204ad84ecd85cfc0",
+      "intended_target": "T-011 jev question and choice sets (path chosen by T-011)"
+    },
+    {
+      "path": "g3o/codebook/generated/extractor_prompt_sections.md",
+      "sha256": "2cb948d72b796c0bf2173232848e468b61efa9da3b134e8f18d39baf78d1e6b4",
+      "intended_target": "T-022 / T-032 extractor prompt sections (path chosen there)"
+    },
+    {
+      "path": "g3o/codebook/generated/enums.py",
+      "sha256": "ceb9cbb17153e2135f1c986169bcc42a97a3b802745050e1431978b8e7f2e654",
+      "intended_target": "T-012 enum constants (g3o/common/contract.py or a module T-012 names)"
+    },
+    {
+      "path": "g3o/codebook/generated/item_schemas.json",
+      "sha256": "788e3a8dd03dfd3704e13253f3b1c018bffbe11b90c93c377c17aab8d6f344a3",
+      "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)"
+    },
+    {
+      "path": "g3o/codebook/generated/data_dictionary.md",
+      "sha256": "6f8cc779f6cc61f544dcd49f402a81e289c1a3747ad83b42a4238310527e1ec8",
+      "intended_target": "T-090 data dictionary (docs/data_dictionary.md)"
+    },
+    {
+      "path": "g3o/codebook/generated/extract_output_contract.md",
+      "sha256": "194af299b0705b5b53164a944c408782ab4a8684b9d786c57a88da4d4c8d3813",
+      "intended_target": "T-010 g3o/extract/prompts/output_contract.md"
+    },
+    {
+      "path": "g3o/codebook/generated/validate_output_contract.md",
+      "sha256": "1f3359027439967557e6634e07a21d385c16e0d677ae31234f1a3aa1816c4e09",
+      "intended_target": "T-010 g3o/validate/prompts/output_contract.md"
+    },
+    {
+      "path": "g3o/codebook/generated/system_prompt.md",
+      "sha256": "bcb27cbbcde47016a9d673db9f1d086d58a5f6f7d5a33aa58510ac5ba6c4475c",
+      "intended_target": "T-022 / T-032 g3o/extract/prompts/system_prompt.md (and the Stage 6 prompts)"
+    }
+  ],
+  "blocked_targets": []
+}
