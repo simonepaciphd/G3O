@@ -37,7 +37,7 @@ Please acknowledge receipt, and say whether the change breaks a locked input of 
 
 Reply: agents by a comment on the GitHub issue that carries this notice; people by email to Simone.
 
-## Sources (pipeline reclassification plan, `C:/Users/spaci/repos/G3O/planning/`)
+## Sources (pipeline reclassification plan, `simonepaciphd/G3O`, `planning/` on `main`)
 
 - Release label, one label per row, setup-record labels: SPEC D-001, R-050; delta RC-D-002 C3 a; DEC-013 a as amended.
 - Codebook as source of truth, generated documents: SPEC D-001; RC-D-002 A.
