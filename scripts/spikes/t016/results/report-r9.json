@@ -1,0 +1,482 @@
+{
+ "requests": 740,
+ "errors": 0,
+ "input_tokens": 19536876,
+ "usd": 0.8205,
+ "per_question": {
+  "core.action_type": {
+   "n": 331,
+   "distribution": {
+    "not covered by this part": 254,
+    "deployment": 37,
+    "governance": 30,
+    "program": 7,
+    "staff_training": 3
+   },
+   "mean_chosen_probability": 0.926,
+   "share_at_or_above_0.8": 0.885
+  },
+  "core.activity_type": {
+   "n": 331,
+   "distribution": {
+    "not covered by this part": 258,
+    "public_facing_service": 21,
+    "policy_guidance": 18,
+    "program_initiative": 17,
+    "pilot_experiment": 9,
+    "internal_operational": 8
+   },
+   "mean_chosen_probability": 0.936,
+   "share_at_or_above_0.8": 0.9
+  },
+  "core.adoption_stage": {
+   "n": 331,
+   "distribution": {
+    "not covered by this part": 260,
+    "production": 32,
+    "announced": 17,
+    "pilot": 11,
+    "proposed": 10,
+    "discontinued": 1
+   },
+   "mean_chosen_probability": 0.916,
+   "share_at_or_above_0.8": 0.855
+  },
+  "core.content_contact_details": {
+   "n": 331,
+   "distribution": {
+    "no": 216,
+    "yes": 106,
+    "not covered by this part": 9
+   },
+   "mean_chosen_probability": 0.796,
+   "share_at_or_above_0.8": 0.653
+  },
+  "core.content_contact_named": {
+   "n": 331,
+   "distribution": {
+    "no": 252,
+    "yes": 62,
+    "not covered by this part": 17
+   },
+   "mean_chosen_probability": 0.766,
+   "share_at_or_above_0.8": 0.683
+  },
+  "core.content_data": {
+   "n": 331,
+   "distribution": {
+    "no": 281,
+    "yes": 32,
+    "not covered by this part": 18
+   },
+   "mean_chosen_probability": 0.767,
+   "share_at_or_above_0.8": 0.683
+  },
+  "core.deployment_mode": {
+   "n": 331,
+   "distribution": {
+    "not_documented": 288,
+    "integrated": 18,
+    "not covered by this part": 17,
+    "standalone": 8
+   },
+   "mean_chosen_probability": 0.569,
+   "share_at_or_above_0.8": 0.139
+  },
+  "core.disclosure_form": {
+   "n": 331,
+   "distribution": {
+    "formal_record": 224,
+    "informal_official": 51,
+    "not covered by this part": 28,
+    "third_party": 27,
+    "register_single_institution": 1
+   },
+   "mean_chosen_probability": 0.824,
+   "share_at_or_above_0.8": 0.662
+  },
+  "core.disclosure_scope": {
+   "n": 331,
+   "distribution": {
+    "single_institution": 175,
+    "not covered by this part": 119,
+    "multi_institution": 31,
+    "whole_of_government": 6
+   },
+   "mean_chosen_probability": 0.645,
+   "share_at_or_above_0.8": 0.317
+  },
+  "core.evaluation_documented": {
+   "n": 331,
+   "distribution": {
+    "not_documented": 255,
+    "not covered by this part": 63,
+    "required_or_planned": 7,
+    "results_reported": 3,
+    "conducted_no_results": 3
+   },
+   "mean_chosen_probability": 0.724,
+   "share_at_or_above_0.8": 0.363
+  },
+  "core.evaluation_type_bias_or_safety_testing": {
+   "n": 331,
+   "distribution": {
+    "no": 263,
+    "not covered by this part": 67,
+    "yes": 1
+   },
+   "mean_chosen_probability": 0.675,
+   "share_at_or_above_0.8": 0.233
+  },
+  "core.evaluation_type_independent_audit": {
+   "n": 331,
+   "distribution": {
+    "no": 256,
+    "not covered by this part": 74,
+    "yes": 1
+   },
+   "mean_chosen_probability": 0.639,
+   "share_at_or_above_0.8": 0.236
+  },
+  "core.evaluation_type_ongoing_monitoring": {
+   "n": 331,
+   "distribution": {
+    "no": 261,
+    "not covered by this part": 66,
+    "yes": 4
+   },
+   "mean_chosen_probability": 0.642,
+   "share_at_or_above_0.8": 0.196
+  },
+  "core.evaluation_type_pilot_evaluation": {
+   "n": 331,
+   "distribution": {
+    "no": 264,
+    "not covered by this part": 65,
+    "yes": 2
+   },
+   "mean_chosen_probability": 0.662,
+   "share_at_or_above_0.8": 0.205
+  },
+  "core.evaluation_type_pre_deployment_testing": {
+   "n": 331,
+   "distribution": {
+    "no": 256,
+    "not covered by this part": 72,
+    "yes": 3
+   },
+   "mean_chosen_probability": 0.667,
+   "share_at_or_above_0.8": 0.215
+  },
+  "core.evaluation_type_user_feedback": {
+   "n": 331,
+   "distribution": {
+    "no": 255,
+    "not covered by this part": 66,
+    "yes": 10
+   },
+   "mean_chosen_probability": 0.638,
+   "share_at_or_above_0.8": 0.211
+  },
+  "core.function_analysis_recommendation": {
+   "n": 331,
+   "distribution": {
+    "no": 220,
+    "not covered by this part": 70,
+    "yes": 41
+   },
+   "mean_chosen_probability": 0.613,
+   "share_at_or_above_0.8": 0.278
+  },
+  "core.function_code": {
+   "n": 331,
+   "distribution": {
+    "no": 276,
+    "not covered by this part": 51,
+    "yes": 4
+   },
+   "mean_chosen_probability": 0.811,
+   "share_at_or_above_0.8": 0.758
+  },
+  "core.function_drafting_writing": {
+   "n": 331,
+   "distribution": {
+    "no": 244,
+    "not covered by this part": 62,
+    "yes": 25
+   },
+   "mean_chosen_probability": 0.703,
+   "share_at_or_above_0.8": 0.239
+  },
+  "core.function_extraction_classification": {
+   "n": 331,
+   "distribution": {
+    "no": 276,
+    "not covered by this part": 51,
+    "yes": 4
+   },
+   "mean_chosen_probability": 0.735,
+   "share_at_or_above_0.8": 0.308
+  },
+  "core.function_image_audio_video": {
+   "n": 331,
+   "distribution": {
+    "no": 263,
+    "not covered by this part": 51,
+    "yes": 17
+   },
+   "mean_chosen_probability": 0.743,
+   "share_at_or_above_0.8": 0.447
+  },
+  "core.function_search_retrieval": {
+   "n": 331,
+   "distribution": {
+    "no": 244,
+    "not covered by this part": 54,
+    "yes": 33
+   },
+   "mean_chosen_probability": 0.679,
+   "share_at_or_above_0.8": 0.193
+  },
+  "core.function_summarization": {
+   "n": 331,
+   "distribution": {
+    "no": 268,
+    "not covered by this part": 51,
+    "yes": 12
+   },
+   "mean_chosen_probability": 0.75,
+   "share_at_or_above_0.8": 0.45
+  },
+  "core.function_translation": {
+   "n": 331,
+   "distribution": {
+    "no": 283,
+    "not covered by this part": 39,
+    "yes": 9
+   },
+   "mean_chosen_probability": 0.782,
+   "share_at_or_above_0.8": 0.677
+  },
+  "core.genai_mechanism_basis": {
+   "n": 331,
+   "distribution": {
+    "not covered by this part": 249,
+    "explicit_genai_label": 28,
+    "named_genai_product_or_model": 23,
+    "ai_chatbot_or_assistant_label_only": 21,
+    "generative_capability_described": 10
+   },
+   "mean_chosen_probability": 0.922,
+   "share_at_or_above_0.8": 0.864
+  },
+  "core.governance_form": {
+   "n": 331,
+   "distribution": {
+    "not_documented": 265,
+    "dedicated_genai_or_ai_policy_or_guideline": 29,
+    "not covered by this part": 22,
+    "clause_in_instrument_on_other_subject": 11,
+    "approved_tool_list_or_endorsement": 2,
+    "procurement_standard": 1,
+    "court_or_regulatory_order": 1
+   },
+   "mean_chosen_probability": 0.658,
+   "share_at_or_above_0.8": 0.266
+  },
+  "core.incident_kind": {
+   "n": 331,
+   "distribution": {
+    "none_reported": 203,
+    "not covered by this part": 88,
+    "qualitative": 37,
+    "quantified": 3
+   },
+   "mean_chosen_probability": 0.636,
+   "share_at_or_above_0.8": 0.335
+  },
+  "core.interface": {
+   "n": 331,
+   "distribution": {
+    "not_documented": 261,
+    "conversational": 27,
+    "not covered by this part": 24,
+    "other_interface": 17,
+    "backend_or_api": 2
+   },
+   "mean_chosen_probability": 0.595,
+   "share_at_or_above_0.8": 0.121
+  },
+  "core.observed_actor_relationship": {
+   "n": 331,
+   "distribution": {
+    "unit_of_institution": 95,
+    "this_institution": 93,
+    "not_documented": 71,
+    "other": 46,
+    "not covered by this part": 15,
+    "joint_participant": 11
+   },
+   "mean_chosen_probability": 0.537,
+   "share_at_or_above_0.8": 0.124
+  },
+  "core.observed_actor_relationship#searched_institution_role": {
+   "n": 331,
+   "distribution": {
+    "not_documented": 214,
+    "contracting_authority": 67,
+    "joint": 25,
+    "not covered by this part": 11,
+    "unit": 10,
+    "beneficiary": 4
+   },
+   "mean_chosen_probability": 0.549,
+   "share_at_or_above_0.8": 0.069
+  },
+  "core.observed_actor_role": {
+   "n": 331,
+   "distribution": {
+    "not_documented": 217,
+    "institutional_actor": 65,
+    "issuer": 34,
+    "not covered by this part": 10,
+    "participant": 5
+   },
+   "mean_chosen_probability": 0.602,
+   "share_at_or_above_0.8": 0.136
+  },
+  "core.outcome_kind": {
+   "n": 331,
+   "distribution": {
+    "not covered by this part": 115,
+    "quantified": 111,
+    "none_reported": 94,
+    "qualitative": 11
+   },
+   "mean_chosen_probability": 0.487,
+   "share_at_or_above_0.8": 0.1
+  },
+  "core.page_verdict": {
+   "n": 331,
+   "distribution": {
+    "no_genai": 198,
+    "confirms_activity": 67,
+    "not covered by this part": 54,
+    "other_body": 6,
+    "ambiguous_genai": 3,
+    "background_only": 3
+   },
+   "mean_chosen_probability": 0.808,
+   "share_at_or_above_0.8": 0.628
+  },
+  "core.service_domain": {
+   "n": 331,
+   "distribution": {
+    "general_public_services": 95,
+    "not_documented": 65,
+    "public_order_safety": 34,
+    "economic_affairs": 33,
+    "education": 30,
+    "environmental_protection": 24,
+    "housing_community_amenities": 18,
+    "not covered by this part": 11,
+    "health": 9,
+    "social_protection": 6,
+    "recreation_culture_religion": 6
+   },
+   "mean_chosen_probability": 0.694,
+   "share_at_or_above_0.8": 0.356
+  },
+  "core.source_type": {
+   "n": 331,
+   "distribution": {
+    "other": 289,
+    "procurement_tender": 20,
+    "academic": 6,
+    "news_major": 5,
+    "vendor": 5,
+    "news_trade": 3,
+    "not covered by this part": 2,
+    "policy_org": 1
+   },
+   "mean_chosen_probability": 0.845,
+   "share_at_or_above_0.8": 0.725
+  },
+  "core.support_entailment": {
+   "n": 186,
+   "distribution": {
+    "false": 161,
+    "true": 25
+   },
+   "mean_chosen_probability": 0.907,
+   "share_at_or_above_0.8": 0.849
+  },
+  "core.target_users": {
+   "n": 331,
+   "distribution": {
+    "not_documented": 232,
+    "public": 59,
+    "internal_staff": 24,
+    "both": 15,
+    "not covered by this part": 1
+   },
+   "mean_chosen_probability": 0.595,
+   "share_at_or_above_0.8": 0.136
+  },
+  "core.year_announced": {
+   "n": 331,
+   "distribution": {
+    "not_documented": 181,
+    "not covered by this part": 76,
+    "2024": 15,
+    "2025": 11,
+    "2019": 9,
+    "2021": 7,
+    "2026": 7,
+    "2023": 6,
+    "2020": 5,
+    "2022": 4,
+    "2018": 4,
+    "2015": 3,
+    "2017": 2,
+    "2016": 1
+   },
+   "mean_chosen_probability": 0.413,
+   "share_at_or_above_0.8": 0.103
+  },
+  "core.year_pilot_start": {
+   "n": 331,
+   "distribution": {
+    "not_documented": 266,
+    "not covered by this part": 37,
+    "2025": 5,
+    "2024": 5,
+    "2020": 5,
+    "2019": 3,
+    "2022": 3,
+    "2026": 2,
+    "2018": 2,
+    "2023": 1,
+    "2021": 1,
+    "2017": 1
+   },
+   "mean_chosen_probability": 0.555,
+   "share_at_or_above_0.8": 0.215
+  },
+  "core.year_production_start": {
+   "n": 331,
+   "distribution": {
+    "not_documented": 245,
+    "not covered by this part": 77,
+    "2025": 3,
+    "2024": 2,
+    "2023": 1,
+    "2022": 1,
+    "2020": 1,
+    "2017": 1
+   },
+   "mean_chosen_probability": 0.516,
+   "share_at_or_above_0.8": 0.157
+  }
+ }
+}

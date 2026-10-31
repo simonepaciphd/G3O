@@ -1,5 +1,7 @@
 """T-016 per-question diagnostics (offline; reads answers-t016.jsonl only)."""
-import json, math, sys
+import json
+import math
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 
