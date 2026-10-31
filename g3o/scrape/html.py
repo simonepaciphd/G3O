@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import copy
 import re
+from dataclasses import dataclass, field
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
@@ -31,6 +33,89 @@ def extract_text(soup: BeautifulSoup) -> str:
         if line.strip() and (len(line) > 20 or not line.replace(" ", "").isalpha())
     ]
     return "\n".join(lines)
+
+
+def extract_chrome_text(soup: BeautifulSoup) -> str:
+    """Extract the structural chrome text that :func:`extract_text` strips.
+
+    RC-D-002 F (PI ruling N1 a, 2026-10-29): the header / footer / nav / aside
+    text is kept as its own field rather than discarded, so the contact item
+    and CX-53 e-mail extraction can read it. Main text is not affected: this
+    function never mutates ``soup`` (it works on copies of the chrome
+    elements), so calling it before :func:`extract_text` on the same soup
+    leaves the main-text output byte-identical.
+
+    Only outermost chrome elements are read (a ``nav`` inside a ``header`` is
+    counted once, with its header). Noise tags inside a chrome element are
+    dropped, as :func:`extract_text` drops them. Chrome elements nested inside
+    a noise tag (e.g. a ``nav`` in a ``form``) are skipped, since
+    :func:`extract_text` removes them as noise, not as chrome. Every non-empty
+    stripped line is kept: the main-text short-line filter is NOT applied, so
+    short chrome lines such as "Contact" survive. Elements are joined in
+    document order with a newline.
+    """
+    parts: list[str] = []
+    for tag in soup.find_all(STRUCTURAL_TAGS):
+        if tag.find_parent(STRUCTURAL_TAGS) is not None:
+            continue
+        if tag.find_parent(NOISE_TAGS) is not None:
+            continue
+        clone = copy.copy(tag)
+        for noise in clone(NOISE_TAGS):
+            noise.decompose()
+        text = clone.get_text(separator="\n", strip=True)
+        lines = [line.strip() for line in text.split("\n") if line.strip()]
+        if lines:
+            parts.append("\n".join(lines))
+    return "\n".join(parts)
+
+
+@dataclass(frozen=True)
+class HtmlParts:
+    """Main text, chrome text and links of one HTML page (RC-D-002 F)."""
+
+    text: str
+    chrome_text: str
+    links: list[dict] = field(default_factory=list)
+    email_links: list[str] = field(default_factory=list)
+
+
+def extract_parts(soup: BeautifulSoup, base_url: str) -> HtmlParts:
+    """Main text, chrome text and links of a parsed page, in one call.
+
+    Order matters: :func:`extract_text` decomposes the chrome and noise tags
+    in place, so the chrome text and the links (which include nav and footer
+    links) are read first, from the intact soup. ``text`` is exactly what
+    :func:`extract_text` returns for the page.
+    """
+    chrome_text = extract_chrome_text(soup)
+    links = extract_links(soup, base_url)
+    email_links = extract_email_links(soup)
+    text = extract_text(soup)
+    return HtmlParts(
+        text=text, chrome_text=chrome_text, links=links, email_links=email_links
+    )
+
+
+def extract_email_links(soup: BeautifulSoup) -> list[str]:
+    """E-mail addresses from ``mailto:`` hrefs (PI ruling 8a, 2026-10-31).
+
+    Strips the ``mailto:`` scheme (any case) and any ``?query``, lowercases,
+    and dedupes keeping page order. Empty addresses are skipped. A ``mailto:``
+    listing several comma-separated recipients is kept as one string.
+    """
+    out: list[str] = []
+    seen: set[str] = set()
+    for a in soup.select("a[href]"):
+        href = a.get("href", "").strip()
+        if not href.lower().startswith("mailto:"):
+            continue
+        address = href[len("mailto:"):].split("?", 1)[0].strip().lower()
+        if not address or address in seen:
+            continue
+        seen.add(address)
+        out.append(address)
+    return out
 
 
 def extract_links(soup: BeautifulSoup, base_url: str) -> list[dict]:
