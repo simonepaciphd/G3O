@@ -77,6 +77,7 @@ class HtmlParts:
     text: str
     chrome_text: str
     links: list[dict] = field(default_factory=list)
+    email_links: list[str] = field(default_factory=list)
 
 
 def extract_parts(soup: BeautifulSoup, base_url: str) -> HtmlParts:
@@ -89,8 +90,32 @@ def extract_parts(soup: BeautifulSoup, base_url: str) -> HtmlParts:
     """
     chrome_text = extract_chrome_text(soup)
     links = extract_links(soup, base_url)
+    email_links = extract_email_links(soup)
     text = extract_text(soup)
-    return HtmlParts(text=text, chrome_text=chrome_text, links=links)
+    return HtmlParts(
+        text=text, chrome_text=chrome_text, links=links, email_links=email_links
+    )
+
+
+def extract_email_links(soup: BeautifulSoup) -> list[str]:
+    """E-mail addresses from ``mailto:`` hrefs (PI ruling 8a, 2026-10-31).
+
+    Strips the ``mailto:`` scheme (any case) and any ``?query``, lowercases,
+    and dedupes keeping page order. Empty addresses are skipped. A ``mailto:``
+    listing several comma-separated recipients is kept as one string.
+    """
+    out: list[str] = []
+    seen: set[str] = set()
+    for a in soup.select("a[href]"):
+        href = a.get("href", "").strip()
+        if not href.lower().startswith("mailto:"):
+            continue
+        address = href[len("mailto:"):].split("?", 1)[0].strip().lower()
+        if not address or address in seen:
+            continue
+        seen.add(address)
+        out.append(address)
+    return out
 
 
 def extract_links(soup: BeautifulSoup, base_url: str) -> list[dict]:

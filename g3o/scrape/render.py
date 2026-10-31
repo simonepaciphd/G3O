@@ -15,9 +15,15 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 
 from g3o.common import config
 from g3o.scrape import egress
@@ -80,6 +86,43 @@ class RenderedPage(BaseModel):
     title: str
     content_type: ContentType
     fetch_metadata: FetchMetadata
+    # RC-D-002 F (T-014): chrome text and page links, measured on the
+    # deterministic HTML and unlocker-HTML paths only. ``None`` means "not
+    # measured": render and PDF pages, and every record stored before the
+    # change (no back-fill, R-035 / R-059). An empty value means "measured,
+    # none on the page".
+    chrome_text: str | None = Field(
+        default=None,
+        description="Text of the stripped header/footer/nav/aside chrome, "
+        "kept separate from `text`.",
+    )
+    links: list[dict[str, Any]] | None = Field(
+        default=None,
+        description="Web links on the page (g3o.scrape.html.extract_links); "
+        "mailto/tel excluded.",
+    )
+    email_links: list[str] | None = Field(
+        default=None,
+        description="E-mail addresses from mailto: hrefs, lowercased, "
+        "deduped in page order.",
+    )
+
+    @model_serializer(mode="wrap")
+    def _omit_unmeasured(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        """Leave unmeasured (``None``) T-014 fields out of the serialised record.
+
+        Keeps a render, PDF or pre-change page byte-identical to its
+        serialisation before T-014, so persisted artifacts, the page cache and
+        anything hashed from them do not change for pages without the fields.
+        """
+        data = handler(self)
+        for name in _OPTIONAL_PAGE_FIELDS:
+            if data.get(name, ...) is None:
+                del data[name]
+        return data
+
+
+_OPTIONAL_PAGE_FIELDS = ("chrome_text", "links", "email_links")
 
 
 def _import_sync_playwright():

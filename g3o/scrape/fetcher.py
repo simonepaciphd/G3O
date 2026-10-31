@@ -649,6 +649,17 @@ def _failure_page(url: str, *, attempted_method: str) -> RenderedPage:
         ),
     )
 
+def _html_part_fields(parts: html_mod.HtmlParts | None) -> dict[str, Any]:
+    """The T-014 ``RenderedPage`` fields for one page; empty when not measured."""
+    if parts is None:
+        return {}
+    return {
+        "chrome_text": parts.chrome_text,
+        "links": parts.links,
+        "email_links": parts.email_links,
+    }
+
+
 def _unlocker_page(
     url: str, uresult: unlocker_mod.UnlockerResult, *, cache_floor: int
 ) -> RenderedPage:
@@ -661,6 +672,8 @@ def _unlocker_page(
     without a content-type header, so URL suffix is the only signal.
     """
     ucontent = uresult.content
+    # T-014 (RC-D-002 F): measured on the HTML branch only; None on PDF.
+    uparts: html_mod.HtmlParts | None = None
     if url.lower().endswith(".pdf"):
         utext = pdf_mod.extract_text(ucontent)
         utitle = _extract_pdf_title(ucontent)
@@ -669,12 +682,14 @@ def _unlocker_page(
     else:
         usoup = BeautifulSoup(ucontent, "html.parser")
         utitle = _extract_html_title(usoup)
-        utext = html_mod.extract_text(usoup)
+        uparts = html_mod.extract_parts(usoup, url)
+        utext = uparts.text
         umethod = "unlocker"
         uctype = "html"
     upage = RenderedPage(
         url=url, text=utext, title=utitle,
         content_type=uctype,  # type: ignore[arg-type]
+        **_html_part_fields(uparts),
         fetch_metadata=FetchMetadata(
             access_date=utc_today_iso(),
             http_status=uresult.inner_status,
@@ -891,6 +906,10 @@ def scrape_url(
         )
         return _failure_page(url, attempted_method="html")
 
+    # T-014 (RC-D-002 F): chrome text and links are measured on the HTML
+    # branch only; PDF pages (and any render/unlocker page returned below
+    # instead) leave them None.
+    parts: html_mod.HtmlParts | None = None
     if "pdf" in ctype or url.lower().endswith(".pdf"):
         text = pdf_mod.extract_text(content)
         title = _extract_pdf_title(content)
@@ -899,7 +918,9 @@ def scrape_url(
     else:
         soup = BeautifulSoup(content, "html.parser")
         title = _extract_html_title(soup)
-        text = html_mod.extract_text(soup)
+        # Relative links resolve against the post-redirect location.
+        parts = html_mod.extract_parts(soup, final_url or url)
+        text = parts.text
         method = "html"
         content_type = "html"
 
@@ -968,6 +989,7 @@ def scrape_url(
         text=text,
         title=title,
         content_type=content_type,  # type: ignore[arg-type]
+        **_html_part_fields(parts),
         fetch_metadata=FetchMetadata(
             access_date=utc_today_iso(),
             http_status=status,

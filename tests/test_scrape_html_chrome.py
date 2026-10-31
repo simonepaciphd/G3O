@@ -10,7 +10,10 @@ from __future__ import annotations
 import pytest
 from bs4 import BeautifulSoup
 
+from g3o.common import config
+from g3o.scrape import fetcher, unlocker
 from g3o.scrape import html as html_mod
+from g3o.scrape.render import FetchMetadata, RenderedPage
 
 BASE_URL = "https://www.agency.gov.example/about/"
 
@@ -155,8 +158,6 @@ def test_record_stored_before_the_change_loads_without_new_fields() -> None:
     an artifact written before the change must keep loading and read as
     "absent" (no back-fill, R-035 / R-059).
     """
-    from g3o.scrape.render import RenderedPage
-
     stored_at_base = (
         '{"url":"https://www.agency.gov.example/about/","text":"Main text",'
         '"title":"About","content_type":"html","fetch_metadata":'
@@ -167,3 +168,179 @@ def test_record_stored_before_the_change_loads_without_new_fields() -> None:
     assert page.text == "Main text"
     assert getattr(page, "chrome_text", None) is None
     assert getattr(page, "links", None) is None
+
+
+# ---------------------------------------------------------------------------
+# E-mail links (PI ruling 8a)
+# ---------------------------------------------------------------------------
+
+
+def test_email_links_strip_scheme_query_lowercase_dedupe() -> None:
+    soup = BeautifulSoup(
+        '<p><a href="mailto:Info@Agency.gov.example?subject=Hi">a</a>'
+        '<a href="MAILTO:press@agency.gov.example">b</a>'
+        '<a href="mailto:info@agency.gov.example">dup</a>'
+        '<a href="mailto:">empty</a><a href="tel:5550100">tel</a>'
+        '<a href="/x">web</a></p>',
+        "html.parser",
+    )
+    assert html_mod.extract_email_links(soup) == [
+        "info@agency.gov.example",
+        "press@agency.gov.example",
+    ]
+
+
+def test_extract_parts_carries_email_links() -> None:
+    parts = html_mod.extract_parts(_soup("main_with_chrome"), BASE_URL)
+    assert parts.email_links == ["info@agency.gov.example"]
+    assert parts.text == BASE_MAIN_TEXT["main_with_chrome"]
+
+
+# ---------------------------------------------------------------------------
+# Stored record: RenderedPage, the fetcher paths and its cache
+# ---------------------------------------------------------------------------
+
+STORED_AT_BASE = (
+    '{"url":"https://www.agency.gov.example/about/","text":"Main text",'
+    '"title":"About","content_type":"html","fetch_metadata":'
+    '{"access_date":"2026-10-01","http_status":200,"final_url":null,'
+    '"fetch_method":"html","elapsed_ms":120,"wait_for":null}}'
+)
+
+
+@pytest.fixture
+def _tmp_cache(tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "CACHE_DIR", tmp_path / "cache")
+
+
+def test_old_record_round_trips_byte_identical() -> None:
+    page = RenderedPage.model_validate_json(STORED_AT_BASE)
+    assert page.chrome_text is None
+    assert page.links is None
+    assert page.email_links is None
+    # Unmeasured fields are omitted, so the re-serialised record is the
+    # pre-change bytes exactly (artifacts, cache, hashes unchanged).
+    assert page.model_dump_json() == STORED_AT_BASE
+    assert "chrome_text" not in page.model_dump()
+
+
+def test_new_record_round_trips_with_fields() -> None:
+    page = RenderedPage.model_validate_json(STORED_AT_BASE).model_copy(
+        update={
+            "chrome_text": "Home\nContact",
+            "links": [{"url": "https://a.example/", "anchor_text": "A",
+                       "context": "", "source": "html"}],
+            "email_links": ["info@agency.gov.example"],
+        }
+    )
+    again = RenderedPage.model_validate_json(page.model_dump_json())
+    assert again == page
+    assert again.chrome_text == "Home\nContact"
+    assert again.email_links == ["info@agency.gov.example"]
+
+
+def test_measured_but_empty_fields_are_kept_not_dropped() -> None:
+    page = RenderedPage.model_validate_json(STORED_AT_BASE).model_copy(
+        update={"chrome_text": "", "links": [], "email_links": []}
+    )
+    dumped = page.model_dump_json()
+    assert '"chrome_text":""' in dumped and '"links":[]' in dumped
+    assert RenderedPage.model_validate_json(dumped) == page
+
+
+def test_old_record_round_trips_through_fetcher_cache(_tmp_cache) -> None:
+    page = RenderedPage.model_validate_json(STORED_AT_BASE)
+    fetcher._save(page)
+    cached = fetcher._load(page.url)
+    assert cached == page
+    assert cached.chrome_text is None and cached.links is None
+    assert cached.email_links is None
+
+
+def _html_download(content: bytes, final_url: str):
+    def _f(url):
+        return (content, "text/html", 200, final_url, 5)
+
+    return _f
+
+
+def test_html_path_stores_fields_and_cache_round_trips(_tmp_cache, monkeypatch) -> None:
+    url = "https://www.agency.gov.example/about/"
+    monkeypatch.setattr(
+        fetcher, "_download",
+        _html_download(FIXTURES["main_with_chrome"].encode("utf-8"), url),
+    )
+    page = fetcher.scrape_url(url, force_refresh=True, prefer_render_on_empty=False)
+    assert page.text == BASE_MAIN_TEXT["main_with_chrome"]
+    assert page.chrome_text == html_mod.extract_chrome_text(_soup("main_with_chrome"))
+    assert page.links == html_mod.extract_links(_soup("main_with_chrome"), url)
+    assert page.email_links == ["info@agency.gov.example"]
+    assert fetcher._load(url) == page
+
+
+def test_html_path_resolves_links_against_final_url(_tmp_cache, monkeypatch) -> None:
+    monkeypatch.setattr(
+        fetcher, "_download",
+        _html_download(
+            b"<html><body><main><p>Long enough main text for the page here.</p>"
+            b'<a href="next">n</a></main></body></html>',
+            "https://new.example/dir/",
+        ),
+    )
+    page = fetcher.scrape_url(
+        "https://old.example/", force_refresh=True, prefer_render_on_empty=False
+    )
+    assert [link["url"] for link in page.links] == ["https://new.example/dir/next"]
+
+
+def test_pdf_path_leaves_fields_absent(_tmp_cache, monkeypatch) -> None:
+    monkeypatch.setattr(
+        fetcher, "_download",
+        lambda url: (b"%PDF-fake", "application/pdf", 200, url, 5),
+    )
+    monkeypatch.setattr(fetcher.pdf_mod, "extract_text", lambda c: "PDF TEXT")
+    page = fetcher.scrape_url(
+        "https://x.example/a.pdf", force_refresh=True, prefer_render_on_empty=False
+    )
+    assert page.chrome_text is None and page.links is None
+    assert page.email_links is None
+    assert "chrome_text" not in page.model_dump_json()
+
+
+def test_unlocker_html_path_stores_fields(_tmp_cache) -> None:
+    result = unlocker.UnlockerResult(
+        success=True, content=FIXTURES["main_with_chrome"].encode("utf-8"),
+        inner_status=200, error=None, error_code=None, elapsed_ms=5,
+    )
+    url = "https://www.agency.gov.example/about/"
+    page = fetcher._unlocker_page(url, result, cache_floor=1)
+    assert page.text == BASE_MAIN_TEXT["main_with_chrome"]
+    assert page.chrome_text and "Agency of Examples" in page.chrome_text
+    assert page.email_links == ["info@agency.gov.example"]
+    assert len(page.links) == 5
+    assert fetcher._load(url) == page
+
+
+def test_unlocker_pdf_path_leaves_fields_absent(_tmp_cache, monkeypatch) -> None:
+    monkeypatch.setattr(fetcher.pdf_mod, "extract_text", lambda c: "PDF TEXT")
+    result = unlocker.UnlockerResult(
+        success=True, content=b"%PDF-fake", inner_status=200, error=None,
+        error_code=None, elapsed_ms=5,
+    )
+    page = fetcher._unlocker_page("https://x.example/a.pdf", result, cache_floor=1)
+    assert page.chrome_text is None and page.links is None
+    assert page.email_links is None
+
+
+def test_render_page_leaves_fields_absent() -> None:
+    page = RenderedPage(
+        url="https://x.example/", text="t", title="r", content_type="render",
+        fetch_metadata=FetchMetadata(
+            access_date="2026-10-31", http_status=200, final_url=None,
+            fetch_method="render", elapsed_ms=1, wait_for=None,
+        ),
+    )
+    assert page.chrome_text is None
+    assert set(page.model_dump()) == {
+        "url", "text", "title", "content_type", "fetch_metadata",
+    }
