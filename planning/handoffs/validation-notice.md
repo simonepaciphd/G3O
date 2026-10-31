@@ -1,10 +1,10 @@
-DRAFT — not sent; PI approval required (T-061)
+DRAFT — not sent; sending gated on the PI (T-061; DP-063 ruled 2026-10-31)
 
 # Notice to the G3O validation plan: the pipeline output contract is changing
 
-To: the integrator of the G3O validation plan (D001–D005), `C:/Users/spaci/repos/g3o_validation/planning/`
+To: Ludovico Marini, integrator of the G3O validation plan (D001–D005), `simonepaciphd/g3o_validation`
 From: the integrator of the G3O pipeline reclassification plan
-Date: [PI to decide: date of sending]
+Date: [filled in at sending]
 
 ## What is changing
 
@@ -12,7 +12,7 @@ The G3O pipeline reclassification plan replaces the pipeline's output contract w
 
 1. **Release label: `2.7`.** Each published row will carry one version label, the codebook release, in place of today's `contract_version`. The extract and validate contract labels (extract v2.7, validate v1.5) are recorded only in the run's setup record, not on rows.
 2. **The codebook is the source of the contract.** One machine-readable file, `codebook/codebook.yaml` in the `G3O` repo, is the contract of record. The contract and prompt documents, including `g3o/extract/prompts/output_contract.md`, the enums and the JSON schema, are to be generated from it.
-3. **The signed file.** Release 2.7 was signed by Simone Paci on 2026-10-30. Its sha256 is `d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764`, and it is on `G3O` `main`. The generated contract documents do not exist yet; they come from a later step of this plan.
+3. **The signed file.** Release 2.7 was signed by Simone Paci on 2026-10-30 (re-signed the same day after a correction; the first hash, `d24bbc7c…0764`, is superseded and no row was produced under it). Its sha256 is `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f`, and it is on `G3O` `main`. The generated contract documents do not exist yet; they come from a later step of this plan.
 4. **Vocabulary changes include:** a 9-value page-verdict vocabulary that replaces the 4-value `genai_evidence` enum; more activity-level fields; per-code supporting text from the source page.
 5. **Already-published institutions are reclassified.** Institutions already published as documented or unclear, including the 27,648 unclear, are reclassified under the new contract in the same change.
 6. **Old rows stay as they were.** v2.5 rows keep their contract version and are not converted. A two-way v2.5 ↔ v2.7 translation table is published, with unmappable cells marked.
@@ -33,12 +33,11 @@ This plan does not edit any file of the validation plan. Any change to your SPEC
 
 ## What we ask
 
-[PI to decide: (a) acknowledgement of receipt only; or (b) acknowledgement plus a statement of whether the change breaks a locked input of the validation plan.]
-If the change does break a locked input, please tell us, as that affects our deploy step.
+Please acknowledge receipt, and say whether the change breaks a locked input of the validation plan. If it does, that affects our deploy step.
 
-Reply to: coord mailbox `g3o-reclass-integrator`.
+Reply: agents by a comment on the GitHub issue that carries this notice; people by email to Simone.
 
-## Sources (pipeline reclassification plan, `C:/Users/spaci/repos/G3O/planning/`)
+## Sources (pipeline reclassification plan, `simonepaciphd/G3O`, `planning/` on `main`)
 
 - Release label, one label per row, setup-record labels: SPEC D-001, R-050; delta RC-D-002 C3 a; DEC-013 a as amended.
 - Codebook as source of truth, generated documents: SPEC D-001; RC-D-002 A.
@@ -54,28 +53,29 @@ Reply to: coord mailbox `g3o-reclass-integrator`.
 
 ## Internal — remove before sending
 
-### Coord mailbox message (draft; to be placed by the plan integrator after PI approval)
+### Channel (DP-063, PI 2026-10-31)
 
-Recipient is unresolved (see open item 1). Proposed file: `C:/Users/spaci/repos/ai-os-private/coord/mailbox/<recipient>/YYYYMMDD-HHMM-from-g3o-reclass-integrator.md`
+Agents work through git issues and pull requests; people email. So the notice goes two ways, both only on Simone's word:
+
+1. **GitHub issue** on `simonepaciphd/g3o_validation` (Ludovico's repo; his agent setup works through git), body = the notice above from "What is changing" to "Sources". Title: `Notice: G3O pipeline output contract changes to codebook release 2.7`. The plan integrator opens it after Simone says "send".
+2. **Email** from Simone to Ludovico, short, pointing to the issue:
 
 ```
----
-from: g3o-reclass-integrator
-to: <recipient>
-sent: <ISO timestamp at sending>
-re: G3O pipeline output contract changes to codebook release 2.7 (notice)
-ack: requested
----
-The G3O pipeline reclassification plan changes the pipeline output contract to codebook release 2.7 (signed 2026-10-30, sha256 d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764). Your SRC-12 / RS-016 pin Output Contract v2.5 at G3O 85e93e0. No deployment date is set.
+Subject: G3O pipeline contract is moving to codebook release 2.7
 
-Notice: C:/Users/spaci/repos/G3O/planning/handoffs/validation-notice.md
+Hi Ludovico,
 
-This plan does not edit the validation plan. Please acknowledge, and say whether the change breaks a locked input. Reply to g3o-reclass-integrator.
+The pipeline reclassification plan replaces Output Contract v2.5 (which your SRC-12 / RS-016 pin at G3O 85e93e0) with codebook release 2.7. No deployment date is set. The full notice is in an issue on g3o_validation: <issue link>.
+
+Could you acknowledge, and tell me whether this breaks a locked input of the validation plan? Your agent can answer on the issue.
+
+Simone
 ```
 
 ### Open items for the PI
 
-1. **Recipient and channel (DP-063).** The card recommends the coord mailbox, but the validation plan has no integrator mailbox yet: its PLAN binds the integrator's mailbox "at staffing/launch", and staffing is deferred. No `coord/mailbox/` directory for a validation integrator exists. Options: (a) create a role-alias mailbox (for example `g3o-validation-integrator`) and send there, so a future integrator finds it; (b) email via Simone; (c) both. [PI to decide]
-2. **Notice path.** The card names `C:/Users/spaci/repos/G3O/planning/handoffs/validation-notice.md`; this draft sits in the integrator worktree (`planning/w1-orchestration`). The mailbox message links the main-checkout path, which exists only once the branch is merged or the file is copied there. [PI to decide: link the worktree path, or merge first]
-3. **What to ask for** (see "What we ask"). [PI to decide]
-4. Card inputs name the validation plan's BL-001 / SPEC builder-v004.3 / PLAN plan-v001. The current lock is BL-002 (2026-10-29, a format-only restructure: SPEC builder-v004.4). The SRC-12 / RS-016 pin was checked in the current files.
+1. **Recipient and channel (DP-063): ruled 2026-10-31.** "Ludovico is integrator but will use a minimal system"; "agents should work through git issues/PRs, humans email". Recipient Ludovico Marini; channel a GitHub issue on `simonepaciphd/g3o_validation` plus Simone's email.
+2. **Notice path: settled.** The file is on `G3O` `main` (PR #139); the issue carries the text itself.
+3. **What to ask for: ruled 2 b** (acknowledgement plus whether the change breaks a locked input).
+4. **Date of sending.** Filled in when Simone says "send".
+5. Card inputs name the validation plan's BL-001 / SPEC builder-v004.3 / PLAN plan-v001. The current lock is BL-002 (2026-10-29, a format-only restructure: SPEC builder-v004.4). The SRC-12 / RS-016 pin was checked in the current files.

@@ -2918,6 +2918,7 @@ none
 
 Status: in-progress
 Note (2026-10-30, integrator): draft ready in `planning/handoffs/` (not sent); the recipient and channel choice (DP-063) is carried to the successor launch card `coord/launch/2026-10-31/5-g3o-reclass-cost-packet.txt`. Sending is gated on the PI.
+Note (2026-10-31, integrator): DP-063 ruled by the PI in chat: recipient Ludovico Marini (validation integrator, minimal system); "agents should work through git issues/PRs, humans email", so the notice goes as a GitHub issue on `simonepaciphd/g3o_validation` plus Simone's email, in place of the mailbox file; ask = acknowledgement plus whether a locked input breaks (2 b). Draft updated to the re-signed hash `f0b1348c…`. Still not sent; sending gated on the PI. The outputs column's "one mailbox file" is to be corrected in the next delta.
 Progress (2026-10-30, integrator): draft at `planning/handoffs/validation-notice.md` (not sent); waiting for PI approval of the text and the recipient/channel choice.
 Type: integrate
 Priority: required
@@ -3063,6 +3064,7 @@ none
 
 Status: in-progress
 Note (2026-10-30, integrator): draft ready in `planning/handoffs/` (not sent); the recipient and channel choice (DP-063) is carried to the successor launch card `coord/launch/2026-10-31/5-g3o-reclass-cost-packet.txt`. Sending is gated on the PI.
+Note (2026-10-31, integrator): PI ruling in chat: Simone reviews the subproject and contacts Litong herself by email ("agents should work through git issues/PRs, humans email"); scoping questions listed (5 a); request kept to the three year items (7 a); target date left to Simone. Draft updated to the re-signed hash `f0b1348c…`. Held with Simone; not sent.
 Progress (2026-10-30, integrator): draft at `planning/handoffs/D-010-multilingual-heads-up.md` (not sent); waiting for PI approval of the text and the recipient/channel choice.
 Type: integrate
 Priority: required

@@ -1,10 +1,10 @@
-DRAFT — not sent; PI approval required (T-063)
+DRAFT — not sent; held for Simone (T-063; DP-063 ruled 2026-10-31)
 
 # Heads-up to the multilingual subproject: a calendar and fiscal-year conversion rule is needed
 
-To: the multilingual subproject, `H:/My Drive/Research/G3O/subprojects/multilingual-pipeline/` [PI to decide: addressee — see open item 1]
+To: the multilingual subproject, `H:/My Drive/Research/G3O/subprojects/multilingual-pipeline/` [addressee: Simone is reviewing the subproject and will contact Litong; see open item 1]
 From: the integrator of the G3O pipeline reclassification plan
-Date: [PI to decide: date of sending]
+Date: [filled in at sending]
 
 ## The request
 
@@ -22,7 +22,11 @@ How these items work today, as signed: the pipeline extracts every four-digit ye
 
 No other item in the codebook refers to this rule.
 
-[PI to decide: whether to list, as scoping questions for the rule (not answers), e.g. which calendars and fiscal-year conventions are in scope, how a fiscal year that spans two calendar years maps to one year, and whether the rule is per country or per language.]
+Questions the rule will need to settle (for your subproject to answer; we do not propose answers):
+
+1. Which calendars and fiscal-year conventions are in scope?
+2. How does a fiscal year that spans two calendar years map to one year?
+3. Is the rule set per country or per language?
 
 ## Two related items for your subproject
 
@@ -33,18 +37,18 @@ No other item in the codebook refers to this rule.
 
 The rule is an input to the step that builds the pipeline's v2.7 classifier questions (card T-011). The year questions in that step wait for the rule; the rest of that step can go ahead without it. That step is scheduled after the current wave of work, but **no date has been set**. If your subproject cannot supply the rule before that step, please tell us; the year questions then stay paused.
 
-[PI to decide: whether to ask for a target date, and if so which.]
+[Target date: Simone to decide when she contacts the subproject.]
 
 ## What we are not asking
 
 We are not asking your subproject to change the pipeline code, and this plan does not write the rule or edit your subproject's files.
 
-Reply to: coord mailbox `g3o-reclass-integrator` [PI to decide: or by the channel you choose].
+Reply: people by email to Simone; agents by a comment on the GitHub issue or pull request that carries this request.
 
 ## Sources (pipeline reclassification plan, `C:/Users/spaci/repos/G3O/planning/`)
 
 - Request and both related items: SPEC D-010; RESOURCES RS-040; RC-D-002 L (procedural point), governance schedule N23 and N43; rulings r2#50 (year method), r2#39 and P16 (language coverage, flag dropped).
-- Year items and signed rule text: `codebook/codebook.yaml` release 2.7 (sha256 `d24bbc7c…0764`), items `core.year_announced`, `core.year_pilot_start`, `core.year_production_start` (refs C16, r2#50).
+- Year items and signed rule text: `codebook/codebook.yaml` release 2.7 (sha256 `f0b1348c…c72f`; re-signed 2026-10-30, superseding `d24bbc7c…0764`), items `core.year_announced`, `core.year_pilot_start`, `core.year_production_start` (refs C16, r2#50).
 - Language coverage: `core.language_coverage` (status "slot (owned by the multilingual subproject)"; refs P16, r2#39). Flag dropped: `core.uncertainty_flags` rules (refs X24, r2#39).
 - Timing: RC-D-002 M, O6 ("T-011's year questions wait for the calendar rule"); PLAN T-011 (wave W3), T-063.
 - Signature: `planning/t010/signoff-record.md`.
@@ -55,9 +59,9 @@ Reply to: coord mailbox `g3o-reclass-integrator` [PI to decide: or by the channe
 
 ### Open items for the PI
 
-1. **Addressee and channel.** The subproject has no named integrator or mailbox. Its roadmap names Litong as owner of Track A (rosters, smoke sets, pilot). Calendar conversion would most plausibly sit in Track C, downstream language handling (agent inference); Track C has no named owner, and its one recorded item (C1, QC lexicons) is marked ownership "currently unassigned". The card leaves the channel to you. [PI to decide]
-2. **Scoping questions** and **target date** (bracketed above). [PI to decide]
-3. **Other date fields.** Only the three year items cite the rule. Other date items (`core.source_publication_date`, `core.content_status_date`, `core.date_upper_bound`, and the shared 1 November 2022 cutoff) do not mention calendar conversion. Whether any of them also needs it is not settled in the codebook; widening the request would be a substantive call. [PI to decide: keep to the three year items, or ask the subproject to also consider these]
+1. **Addressee and channel: ruled 2026-10-31, held with Simone.** "I will look into the multilingual & reach out to Litong (he hasn't worked on it for a while)"; "agents should work through git issues/PRs, humans email". Simone contacts Litong by email; nothing is sent by an agent until she says so. The subproject has no repo of its own (it lives in Drive), so any agent-side copy would go as an issue on `simonepaciphd/G3O`.
+2. **Scoping questions: ruled 5 a** (listed above). **Target date:** not ruled; left to Simone's contact.
+3. **Other date fields: ruled 7 a.** The request stays with the three year items; `core.source_publication_date`, `core.content_status_date`, `core.date_upper_bound` and the 1 November 2022 cutoff are not raised.
 
 ### Observations for the plan integrator (not for the recipient)
 
