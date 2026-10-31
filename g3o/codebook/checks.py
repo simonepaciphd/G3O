@@ -886,9 +886,9 @@ def default_context(cb: Codebook, repo_root: Path = REPO_ROOT) -> Context:
     if isinstance(rel, str) and (repo_root / rel).exists():
         record = (repo_root / rel).read_text(encoding="utf-8")
     try:
-        from g3o.common.schema import DATA_COLUMNS
+        from g3o.common.schema import DATA_COLUMNS_V25
 
-        cols: tuple[str, ...] | None = tuple(DATA_COLUMNS)
+        cols: tuple[str, ...] | None = tuple(DATA_COLUMNS_V25)
     except Exception:  # noqa: BLE001 - the check reports the missing list
         cols = None
     return Context(generated=generate_all(cb), repo_root=repo_root, signature_record=record, v25_columns=cols)

@@ -170,6 +170,84 @@ GenAIEvidence = Literal[
 ]
 Confidence = Literal["high", "medium", "low"]
 
+# ---------------------------------------------------------------------------
+# Page verdict across contract versions (T-012; R-015, R-050, C-007)
+# ---------------------------------------------------------------------------
+#
+# ``GenAIEvidence`` above is the v2.5 vocabulary (4 values). From codebook
+# release 2.7 the same column, ``genai_evidence``, takes the 9-value page
+# verdict of codebook item ``core.page_verdict`` (R-015: "It replaces v2.5
+# `genai_evidence` in the same column"). v2.5 rows keep their 4-value answers
+# unconverted; the row's version label says which vocabulary applies, and
+# :func:`page_verdict_vocabulary` is the version guard.
+#
+# The tuple below is a verbatim copy of the generated
+# ``g3o.codebook.generated.enums.ITEM_ENUMS["core.page_verdict"]`` in codebook
+# order; ``tests/test_contract.py`` fails if the two drift.
+PageVerdict = Literal[
+    "confirms_activity",
+    "ambiguous_genai",
+    "ambiguous_attribution",
+    "other_body",
+    "event_only",
+    "background_only",
+    "confirms_absence",
+    "no_genai",
+    "not_assessable",
+]
+
+#: The v2.5 page-verdict vocabulary (column ``genai_evidence``).
+PAGE_VERDICT_V25: tuple[str, ...] = get_args(GenAIEvidence)
+#: The codebook-2.7 page-verdict vocabulary (``core.page_verdict``).
+PAGE_VERDICT_V27: tuple[str, ...] = get_args(PageVerdict)
+
+#: The codebook release this code is built against. v2.7 rows carry it as their
+#: version label (R-050, ``core.codebook_release``).
+CODEBOOK_RELEASE_V27 = "2.7"
+#: The v2.5 extract-contract label. v2.5 rows keep it as their version label
+#: (R-050: "v2.5 rows keep their contract version"; ``core.codebook_release``
+#: maps the v2.5 ``contract_version`` label to the same label).
+CONTRACT_VERSION_V25 = "v2.5"
+
+# Version label -> page-verdict vocabulary. Only labels with a known vocabulary
+# are listed; any other label is refused rather than guessed (e.g. a v2.6
+# re-pilot label, whose 7-value vocabulary was never a production contract).
+_PAGE_VERDICT_BY_VERSION: dict[str, tuple[str, ...]] = {
+    CONTRACT_VERSION_V25: PAGE_VERDICT_V25,
+    CODEBOOK_RELEASE_V27: PAGE_VERDICT_V27,
+}
+
+# Row provenance (``core.evidence_channel``). Values are the signed rule text of
+# that item: "Channel enum (web_extract, procurement, text_detection)".
+EvidenceChannel = Literal["web_extract", "procurement", "text_detection"]
+
+
+def page_verdict_vocabulary(version_label: str) -> tuple[str, ...]:
+    """The page-verdict values a row with this version label may carry.
+
+    ``"v2.5"`` gives the 4 v2.5 values, ``"2.7"`` the 9 codebook values. Any
+    other label raises ``ValueError``: a row whose vocabulary is unknown must
+    not validate by default.
+    """
+    try:
+        return _PAGE_VERDICT_BY_VERSION[version_label]
+    except KeyError:
+        raise ValueError(
+            f"no page-verdict vocabulary for version label {version_label!r}; "
+            f"known labels: {sorted(_PAGE_VERDICT_BY_VERSION)}"
+        ) from None
+
+
+def check_page_verdict(value: str, version_label: str) -> str:
+    """Return ``value`` if it is a page verdict of ``version_label``, else raise."""
+    allowed = page_verdict_vocabulary(version_label)
+    if value not in allowed:
+        raise ValueError(
+            f"genai_evidence={value!r} is not a page verdict of version "
+            f"{version_label!r}; allowed: {list(allowed)}"
+        )
+    return value
+
 
 def _coerce_uncertainty_flags(value: Any) -> Any:
     """Normalise the wire shape of ``uncertainty_flags`` to the stored shape.
@@ -448,7 +526,14 @@ class BatchResponse(BaseModel):
 
 
 class RunProvenance(BaseModel):
-    """Run-level metadata attached to every persisted row."""
+    """Run-level metadata attached to every persisted row.
+
+    The last three fields are the row's version label (R-050, T-012): the
+    codebook release (``"2.7"``), or the v2.5 contract label (``"v2.5"``) on a
+    v2.5 row; the setup pointer; and the evidence channel. All three are
+    pipeline-set, never model-produced, and required with no default, for the
+    reason given on :class:`ValidationProvenance`.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -457,6 +542,9 @@ class RunProvenance(BaseModel):
     run_model: str
     run_tool: str
     run_date: Annotated[str, StringConstraints(pattern=ISO_DATE_PATTERN)]
+    codebook_release: Annotated[str, StringConstraints(min_length=1)]
+    setup_pointer: str
+    evidence_channel: EvidenceChannel
 
     @field_validator("run_date")
     @classmethod
@@ -477,6 +565,12 @@ class PersistedRow(BaseModel):
 
     provenance: RunProvenance
     row: ContractRow
+
+    @model_validator(mode="after")
+    def _validate_verdict_against_version(self) -> PersistedRow:
+        # Version guard (R-015): the row's label picks the vocabulary.
+        check_page_verdict(self.row.genai_evidence, self.provenance.codebook_release)
+        return self
 
     def to_csv_dict(self) -> dict[str, object]:
         """Return a dict ordered to match `g3o.common.schema.DATA_COLUMNS`."""
@@ -901,6 +995,14 @@ class PersistedSource(BaseModel):
 
 __all__ = [
     "NA",
+    "PageVerdict",
+    "PAGE_VERDICT_V25",
+    "PAGE_VERDICT_V27",
+    "CODEBOOK_RELEASE_V27",
+    "CONTRACT_VERSION_V25",
+    "EvidenceChannel",
+    "page_verdict_vocabulary",
+    "check_page_verdict",
     "UncertaintyFlag",
     "UncertaintyFlags",
     "UNCERTAINTY_FLAG_VOCAB",
