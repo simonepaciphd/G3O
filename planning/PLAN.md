@@ -1,7 +1,7 @@
 # PLAN: G3O pipeline reclassification
 
 Status: READY-WITH-BLOCKS
-Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.10 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, v001.10 mechanical, 2026-10-30); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.2 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
+Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.11 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, v001.10 mechanical, 2026-10-30; v001.11 mechanical, 2026-10-31); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.2 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
 Baseline lock: 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock")
 Deadline: none
 Source draft plan/review: `C:/Users/spaci/repos/G3O/planning/Plan-Draft.md` (v001-draft1), `C:/Users/spaci/repos/G3O/planning/Plan-Review.md` (27 findings); rulings `C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md`
@@ -11,6 +11,7 @@ Delta RC-D-002 (approved 2026-10-29, Simone, chat "approve delta"; text `plannin
 Delta RC-D-003 (approved 2026-10-30, Simone, chat "all accepted"; text `planning/deltas/RC-D-003.md`; record `planning/t010/t010-rulings.md`): the SPEC departures of codebook review round 3 and the sign-off of its open items O1-O16 (SPEC v001.7: R-002, R-003, R-004, R-005, R-007, R-014, R-015, R-017, R-023, R-040, R-041, R-044, R-045, R-090, D-001, D-009, A-001, A-003, A-007, A-021). The item template `planning/t010/item-template.md` (27 fields, generator checks 1-16) is approved with it, which meets the T-013 input gate. Card impacts: T-020 implements the check-then-combine step, the temporary part answer "not covered by this part", first-part skipping, the missing-answer rank, the most-sure quote, the mapping steps and the two-tier verdict order (R-044, R-045; A-021); T-011 / T-021 / T-023 carry the part-prompt sentence, `content_data` as a page question and the allowed-pairs flag; T-022 / T-032 run the quote step on skipped items too (R-040), which T-002 counts in the quote-step cost; T-024 / T-027 / T-012 carry the support-status spellings and the items `support_rule_name` and `support_status_second_reason` (R-041); T-026 takes the reverse relation values, per-pair links and pooled-evidence order (R-017, R-044); T-028 / T-052 / T-053 publish the relationship and role as one column and report `unresolved` and `not_assessable` as `unknown` in summaries (R-014, R-005, R-015; A-007); T-015 and T-062 / T-090 take the date-origin map and `date_upper_bound` (D-009, R-090). No new card, no RESOURCES change, no version steps beyond the v2.7 release's two (C-007, r2#5).
 Delta RC-D-004 (approved 2026-10-30, Simone, chat "approved"; text `planning/deltas/RC-D-004.md`; record `planning/t010/t010-rulings.md`): the PI signs the CX-01.3 questionnaire items in one batch signature on the listed items instead of item by item (SPEC v001.8: R-025; ruling S2 b). PLAN: the T-010 gate, its task-graph row and the W1 gate text. No card scope, dependency, acceptance or RESOURCES change; no version steps.
 Delta RC-D-005 (approved 2026-10-30, Simone, chat "approved! go forth"; text `planning/deltas/RC-D-005.md`; record `planning/t010/t010-rulings.md`; clean copy `planning/t010/RC-D-005-clean-copy.md`): codebook release 2.7 re-signed at sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f` after T-013's checks failed on `d24bbc7c…` (superseded, never used for a row); SPEC v001.9: R-007, R-015, R-040, R-041, R-044, R-045, R-074 (re-scrape under 200 characters), R-076 (every stored page), C-004. PLAN: T-010, T-013, T-016 (re-pilot scope), T-020, T-029, T-072. No RESOURCES change; no version steps.
+Delta RC-D-006 (approved 2026-10-31, Simone, chat 2026-10-31 "approve delta"; text `planning/deltas/RC-D-006.md`): T-014 write claim widened to `g3o/scrape/render.py` and the record-building hunks of `g3o/scrape/fetcher.py`, field rules 7a-10a; T-012 done condition (version-pin test `xfail(strict=True)` naming T-035, 13a) and owner assignment (12a); T-016 and T-002 results recorded (run by Simone 2026-10-31); T-020 estimator constants (2 a); T-061 outputs column. No SPEC, RESOURCES or codebook change.
 
 Prepared by: session `20261028-claude-v2-20be995c13d4020f` (Claude Code, claude-opus-5-5, researcher persona) under `planning-adjudication-protocol.md` v0.3; task cards converted by three forks of that session from the Plan-Draft cards and the integrator's delta brief, then assembled and checked by the parent.
 Base refs (fetched 2026-10-28): G3O `origin/main` `375f1ff` (Plan-Draft used `c6349d6`; #135 since changed `g3o/run/presweep/orchestrator.py` and `tests/test_presweep.py`); g3o-api `origin/main` `acdb030`; g3o-website `origin/main` `282ca6a`. Local G3O checkout is on `perf/validate-jev-parallel`; work branches from `origin/main`.
@@ -219,15 +220,15 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | Task | Lane | Waves | Status | Requires | Soft | Enables | Resources | Delivers | Write claim | Researcher gates | Acceptance IDs |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | T-001 | eng-b | W1 | verified | none | none | T-029, T-072 | RS-004, RS-006, RS-007, RS-025, RS-036 | none | spikes folder (`count-backfill.json`, `SPIKE-T001*`); droplet `~/reclass-spike-*/` | PI authorises read-only droplet SSH | A-015 |
-| T-002 | eng-c | W2 | blocked | T-010, T-013 | none | T-003, T-021, T-025 | RS-004, RS-008, RS-009, RS-012, RS-015, RS-024, RS-031 | none | spikes folder, files prefixed `SPIKE-T002*` | PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28) | A-004, A-021 |
+| T-002 | eng-c | W2 | in-progress | T-010, T-013 | none | T-003, T-021, T-025 | RS-004, RS-008, RS-009, RS-012, RS-015, RS-024, RS-031 | none | spikes folder, files prefixed `SPIKE-T002*` | PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28) | A-004, A-021 |
 | T-003 | eng-c | W3 | pending | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c) | A-002 |
 | T-010 | integrator | W1 | complete | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items in one batch signature (CX-01.3†, RC-D-004); PI signs the codebook hash (A-001); push gate | A-001 |
 | T-011 | eng-a | W3 | pending | T-010, T-013, T-016 | none | T-015, T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
 | T-012 | eng-b | W2 | pending | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; the inventory file | none beyond push | A-011, A-013 |
 | T-013 | eng-b | W1 | verified | none | T-010 | T-002, T-011, T-012, T-016, T-022, T-032 | RS-010, RS-013, RS-039 | none | `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml` | PI approves the item template and generator checks (r2#59); push of the branch | A-001 |
-| T-014 | eng-a | W2 | pending | none | none | T-022, T-025 | RS-016 | none | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests | push of the branch | none |
+| T-014 | eng-a | W2 | pending | none | none | T-022, T-025 | RS-016 | none | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests; `g3o/scrape/render.py` (optional `RenderedPage` fields) and the record-building hunks of `g3o/scrape/fetcher.py` (HTML path, unlocker path, page cache) (RC-D-006, PI 6a) | push of the branch | none |
 | T-015 | eng-a | W4 | pending | T-011, T-012, T-022, T-027 | none | T-026, T-028 | RS-012 | none | `g3o/common/source_fields.py`† and its tests | push of the branch | none |
-| T-016 | integrator | W2 | pending | T-010, T-013 | none | T-011 | RS-004, RS-005, RS-008, RS-009, RS-024, RS-031 | none | re-pilot folder `agent-workspace/2026-10-27-reclass-plan/repilot-v27/`† | PI approves the cost estimate; Simone runs the paid command via `! <command>` (red line 4); PI rules on the results | none |
+| T-016 | integrator | W2 | in-progress | T-010, T-013 | none | T-011 | RS-004, RS-005, RS-008, RS-009, RS-024, RS-031 | none | re-pilot folder `agent-workspace/2026-10-27-reclass-plan/repilot-v27/`† | PI approves the cost estimate; Simone runs the paid command via `! <command>` (red line 4); PI rules on the results | none |
 | T-020 | eng-a | W1 | blocked | none | T-002 | T-021, T-022, T-023 | RS-004, RS-014, RS-024 | none | the two new files | none beyond push | A-021 |
 | T-021 | eng-a | W4 | pending | T-002, T-011, T-012, T-020, T-027 | none | T-023, T-025, T-030 | RS-012, RS-019 | none | the new modules and tests | none beyond push | A-011, A-013 |
 | T-022 | eng-c | W3 | pending | T-010, T-012, T-013, T-014, T-020 | none | T-015, T-023, T-024, T-025, T-032 | RS-015 | none | the listed extract files | PI approves the nano prompt text; push gate | A-003, A-021 |
@@ -252,7 +253,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-054 | eng-b | W15 | blocked | T-041, T-051, T-052 | none | T-055, T-074 | none | none | the disposable Neon branch; rehearsal folder† | PI authorises creation of and writes to the disposable branch; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed | none |
 | T-055 | colin | W16 | blocked | T-052, T-054 | none | T-071, T-074 | none | none | live DB schema (migration 021); production worker; golive folder† | PI authorises the live DB write (snapshot + apply) and the production deploy; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed | none |
 | T-060 | integrator | W15 | pending | T-010, T-012, T-041 | none | T-071 | RS-029 | D-008 | `planning/handoffs/D-008-procurement-delta.md`† | PI approves delta text; posting and email are external | none |
-| T-061 | integrator | W2 | in-progress | T-010 | none | T-071 | RS-033 | none | `planning/handoffs/validation-notice.md`†; one mailbox file | PI approves the notice text | none |
+| T-061 | integrator | W2 | in-progress | T-010 | none | T-071 | RS-033 | none | `planning/handoffs/validation-notice.md`†; GitHub issue `simonepaciphd/g3o_validation#3` plus Simone's e-mail (DP-063; RC-D-006) | PI approves the notice text | none |
 | T-062 | integrator | W18 | pending | T-071 | none | none | RS-038 | D-009 | `planning/handoffs/D-009-ai-text-delta.md`† | PI approves delta text; sending is external | none |
 | T-063 | integrator | W2 | in-progress | T-010 | none | none | RS-040 | D-010 | `planning/handoffs/D-010-multilingual-heads-up.md`† | PI approves the text; sending is external | none |
 | T-071 | eng-a | W17 | blocked | T-031, T-041, T-055, T-060, T-061 | none | T-062, T-070 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
@@ -378,7 +379,8 @@ Runtime over 2 hours → split by run.
 
 ### T-002 — Measure jev two-pass cost, latency and fan-out on a small set
 
-Status: blocked
+Status: in-progress
+Note (2026-10-31, integrator, RC-D-006): run 2026-10-31 by Simone (`!`): 50 pages, $0.3663 against a $0.78 central estimate and a $6 cap. Both Batch rounds ended with every request succeeded (170 s and 124 s round trips). Haiku accepted `effort="medium"` on all 161 calls. jev refused one page's 4 parts as too long at 29.6k-50.1k estimated tokens; one halving fixed each (largest accepted request 26.1k estimated tokens). Code and aggregates: PR #147 (`reclass/t002-spike`); raw answers in the spikes folder. Measured: cost, latency, Batch round trips, the token estimator. Not measured: link fan-out (only 3 of 50 pages had activities; page links are stored only after T-014). PI 3 b: whether the Haiku legs stay is decided after an offline Haiku-vs-jev agreement check (P4, free; done 2026-10-31, `SPIKE-T002-agreement.md`, awaiting the PI's decision).
 Type: spike
 Priority: critical-path
 Spec refs: R-002, R-003, R-004, R-008, R-032, R-044, C-002, C-004
@@ -795,7 +797,9 @@ none
 Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
 
 #### Done condition
-Inventory accepted and owners assigned by the integrator; tests pass; touchpoint list attached.
+Inventory accepted and owners assigned by the integrator; tests pass, except `test_contract_version_pin`, which is marked `xfail(strict=True)` naming T-035 (pin regeneration, DEC-021) (RC-D-006, PI 13a); touchpoint list attached.
+
+Progress (2026-10-31, integrator, RC-D-006): chunk 1 inventory at `planning/handoffs/T-012-touchpoints.md` on `reclass/t012-enums` `2c72fe2` (G3O 80 files, g3o-api 16, website 31, procurement 23; 10 surfaces not covered by any card). Chunk 1 ran alongside T-014 (11a). Owner assignment (12a) by the integrator follows this delta.
 
 #### Chunking trigger
 Sequential chunks: chunk 1 inventory → integrator assignment → chunk 2 code.
@@ -890,7 +894,11 @@ Priority: required
 Spec refs: R-023 (CX-53), R-031, R-035, R-059, N-004
 Decision refs: none (PI ruling N1 a, RC-D-002 F)
 
+Progress (2026-10-31, integrator, RC-D-006): branch `reclass/t014-scrape` `ea31916`, PR #145 open; proposed verified by the lane (2,249 offline tests pass, ruff clean). Open for the integrator: cache hits from before the change lack the fields (`text_source`, R-059); `<base href>` is not honoured; a multi-recipient `mailto:` is kept as one string.
+
 #### Objective
+RC-D-006 (PI 7a-10a): fields `chrome_text` and `links` (7a). `links` holds web links only; `mailto:` targets go to a separate `email_links` field, which serves CX-53 alongside e-mail extraction from text (8a). On rendered and PDF pages the new fields are absent (`None`), not empty (9a). Every non-empty chrome line is kept, with no short-line filter (10a).
+
 `g3o/scrape/html.py` strips header / footer / nav / aside (L11, L21 at `375f1ff`) and stores no links. Ruled (PI, 2026-10-29, "n1 a"): the scraper stores the stripped chrome text as a separate field, and the page's links. This serves `content_contact_details`, CX-53 e-mail extraction and follow-up links (R-031). There is no back-fill of stored pages: pages stored before the change lack both, a back-filled institution gains them only for pages fetched live again (R-035), and the row's `text_source` says which (R-059). Procurement is exempt (r2#54).
 
 #### Inputs
@@ -901,7 +909,7 @@ Decision refs: none (PI ruling N1 a, RC-D-002 F)
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
 |---|---|---|---|
-| Scraper change, plus tests | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, tests; branch `reclass/t014-scrape`† | T-003, T-022, T-024, T-025, T-029 | chrome text in its own field; links stored; main-text field unchanged; records stored before the change load with both fields absent |
+| Scraper change, plus tests | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, tests; `g3o/scrape/render.py` (optional `RenderedPage` fields) and the record-building hunks of `g3o/scrape/fetcher.py` (HTML path, unlocker path, page cache) (RC-D-006, PI 6a); branch `reclass/t014-scrape`† | T-003, T-022, T-024, T-025, T-029 | chrome text in its own field; links stored; main-text field unchanged; records stored before the change load with both fields absent |
 
 #### Execution resources
 - Persona/role: engineer, lane eng-a (RC-D-002 O5)
@@ -917,7 +925,7 @@ Decision refs: none (PI ruling N1 a, RC-D-002 F)
 
 #### Ownership and collision control
 - Read scope: RS-016
-- Write claim: `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests
+- Write claim: `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests; `g3o/scrape/render.py` (optional `RenderedPage` fields) and the record-building hunks of `g3o/scrape/fetcher.py` (HTML path, unlocker path, page cache) (RC-D-006, PI 6a)
 - Shared surfaces: `stage_scrape.py` (T-025 does not own it, DEC-003 b); orchestrator wiring → T-030
 
 #### Procedure boundary
@@ -1035,7 +1043,8 @@ Split `source_type` from the date and flag fields.
 
 ### T-016 — Re-pilot the re-signed questionnaire items (paid, small; RC-D-002 N28)
 
-Status: pending
+Status: in-progress
+Note (2026-10-31, integrator, RC-D-006): T-016 run 2026-10-31 by Simone (`!`) on her word, though the PLAN listed it unauthorized; 2,730 requests, 0 errors, 66.1M input tokens, $2.78 against a $4.14 central estimate and an $8 cap. Code and aggregate results: PR #146 (`reclass/t016-repilot`); raw answers stay in the re-pilot folder. PI ruled 2026-10-31 (1 a + c): weak questions are reworded and a not-applicable option is added to forced-choice activity items where coherent with the codebook; a subagent drafts and the PI approves; the change is a codebook delta with a new signature. Rewording and choices C1-C10 ruled 2026-10-31 (drafts `agent-workspace/2026-10-27-reclass-plan/t016-rewording/`); Simone approved a small paid rerun of the reworded items ("3 ok rerun"); codebook delta RC-D-007 in preparation.
 Scope (RC-D-005, E9): T-016 re-pilots every jev question generated from the re-signed codebook (52 questions, incl. the role part): the re-signed CX items and the non-CX items its card already lists, plus every item whose question is new in RC-D-005 (W05-W43, W10), the year questions without `unknown` (12 a), and the part-prompt sentence and temporary answer (W01-W03) on the long pages of the RS-008/RS-009 set, each run under the shared system prompt (W04, Stage 6 variant for the cross-page relation); per question: answer distribution, chosen-answer probability and comparison with the prior wording where it exists. The agent prepares the command and cost estimate; Simone runs it; the PI rules on the results before T-011.
 Type: spike
 Priority: critical-path
@@ -1110,6 +1119,7 @@ More pages or items than in the approved estimate → new paid gate.
 ### T-020 — Build the token-based page chunker and combination rule
 
 Status: blocked
+Note (2026-10-31, integrator, RC-D-006): token estimator constants (PI 2 a): tokens per byte, the T-002 medians: Latin 0.305 (64 requests), CJK 0.341 (10), Thai 0.334 (3, a thin sample). The provisional single constant 0.3947 erred by -32% to +84% on Latin. DP-007 is still required. When the extractor code lands, T-020 pins `anthropic==2.3.0` in `requirements.txt` / `pyproject.toml` (now installed only in the shared venv) (P5). Flag: jev refused requests estimated at 29.6k tokens and accepted one at 26.1k (T-002), below C-004's 32k; size chunks below the observed refusal until settled.
 Progress (2026-10-30, integrator): code and 52 tests on `reclass/t020-chunks` `45309d2` (local, not pushed; integrator re-ran the 52 tests, pass). Blocked on: T-002 estimator constants and the DP-007 margin (done condition); five stopped fields needing PI rulings, one of them a signed-codebook gap (`core.activity_relation_cross_page` priority order lacks `has_component` and `governed_by`, so a codebook delta and re-signature are needed); return report items listed for the PI 2026-10-30. RC-D-005 (approved 2026-10-30): the five stopped fields are ruled (7 a, 8 b, 9 a, 10 a, 11 a) and the ten readings settled (SPEC v001.9 R-044, C-004); still waits for T-002 and DP-007.
 Type: build
 Priority: critical-path
@@ -2918,7 +2928,7 @@ none
 
 Status: in-progress
 Note (2026-10-30, integrator): draft ready in `planning/handoffs/` (not sent); the recipient and channel choice (DP-063) is carried to the successor launch card `coord/launch/2026-10-31/5-g3o-reclass-cost-packet.txt`. Sending is gated on the PI.
-Note (2026-10-31, integrator): DP-063 ruled by the PI in chat: recipient Ludovico Marini (validation integrator, minimal system); "agents should work through git issues/PRs, humans email", so the notice goes as a GitHub issue on `simonepaciphd/g3o_validation` plus Simone's email, in place of the mailbox file; ask = acknowledgement plus whether a locked input breaks (2 b). Draft updated to the re-signed hash `f0b1348c…`. Still not sent; sending gated on the PI. The outputs column's "one mailbox file" is to be corrected in the next delta.
+Note (2026-10-31, integrator): DP-063 ruled by the PI in chat: recipient Ludovico Marini (validation integrator, minimal system); "agents should work through git issues/PRs, humans email", so the notice goes as a GitHub issue on `simonepaciphd/g3o_validation` plus Simone's email, in place of the mailbox file; ask = acknowledgement plus whether a locked input breaks (2 b). Draft updated to the re-signed hash `f0b1348c…`. Still not sent; sending gated on the PI. ~~The outputs column's "one mailbox file" is to be corrected in the next delta.~~ Done by RC-D-006.
 Note (2026-10-31, integrator): notice sent by Simone 2026-10-31 as issue simonepaciphd/g3o_validation#3 (assigned to Ludovico Marini; body = the notice text of `planning/handoffs/validation-notice.md`, PR #141) and by Simone's email to Ludovico (Simone, chat: "email sent to ludovico"). Status stays in-progress until his reply (acknowledgement plus locked-input statement, 2 b).
 Progress (2026-10-30, integrator): draft at `planning/handoffs/validation-notice.md` (not sent); waiting for PI approval of the text and the recipient/channel choice.
 Type: integrate
@@ -2955,7 +2965,7 @@ The G3O validation plan's integrator (`C:/Users/spaci/repos/g3o_validation/plann
 
 #### Ownership and collision control
 - Read scope: validation plan files (read-only)
-- Write claim: `planning/handoffs/validation-notice.md`†; one mailbox file
+- Write claim: `planning/handoffs/validation-notice.md`†; GitHub issue `simonepaciphd/g3o_validation#3` plus Simone's e-mail (DP-063; RC-D-006)
 - Shared surfaces: none (never edits the validation plan's files)
 
 #### Procedure boundary
