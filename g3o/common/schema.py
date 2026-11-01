@@ -11,9 +11,9 @@ Source of truth for column ordering in the production database. Two layers:
    pair below.
 
 2. **Stage 7 normalized surface** (Session C, Push #2):
-   - ``ACTIVITY_COLUMNS`` (35) → ``g3o_activities_v{N}.csv``: one row per
+   - ``ACTIVITY_COLUMNS`` (83; 37-column legacy prefix) → ``g3o_activities_v{N}.csv``: one row per
      ``(institution × activity)`` triple from the Stage 6 consolidator.
-   - ``ACTIVITY_SOURCE_COLUMNS`` (18) → ``g3o_activity_sources_v{N}.csv``:
+   - ``ACTIVITY_SOURCE_COLUMNS`` (61; 20-column legacy prefix) → ``g3o_activity_sources_v{N}.csv``:
      one row per source page, keyed back to the activity it supports
      (``activity_id = "_NA_"`` for absence/ambiguous/background_only sources).
      The final column, ``group_d_salvaged_fields``, is a deterministic persist-
@@ -21,7 +21,7 @@ Source of truth for column ordering in the production database. Two layers:
      Group-D field names whose illegal ``_NA_`` was salvage-imputed to a contract
      default on this source page, or ``""`` when none — so a salvage-imputed
      ``unknown`` is distinguishable from a model-asserted one.
-   - ``SUMMARY_COLUMNS`` (21) → ``g3o_institution_summary_v{N}.csv``: one row
+   - ``SUMMARY_COLUMNS`` (31; 22-column legacy prefix) → ``g3o_institution_summary_v{N}.csv``: one row
      per institution per run.
 
 Validators live with the extract module (Stage 5 contract) and the validate
@@ -29,6 +29,8 @@ module (Stage 6 contract) in ``g3o.common.contract``.
 """
 
 from __future__ import annotations
+
+from g3o.common.storage import expanded_columns as _expanded_columns
 
 DATA_COLUMNS: list[str] = [
     "global_row_id",
@@ -281,3 +283,15 @@ SUMMARY_COLUMNS: list[str] = [
     "best_confidence",
     "consolidated_uncertainty_flags",
 ]
+
+
+# Frozen normalized v2.5 wire order. Existing CSV readers keep accepting these
+# headers; expanded 2.7 rows are validated before Stage 7 writes any output.
+ACTIVITY_COLUMNS_V25 = tuple(ACTIVITY_COLUMNS)
+ACTIVITY_SOURCE_COLUMNS_V25 = tuple(ACTIVITY_SOURCE_COLUMNS)
+SUMMARY_COLUMNS_V25 = tuple(SUMMARY_COLUMNS)
+
+
+ACTIVITY_COLUMNS = _expanded_columns("activities", ACTIVITY_COLUMNS)
+ACTIVITY_SOURCE_COLUMNS = _expanded_columns("sources", ACTIVITY_SOURCE_COLUMNS)
+SUMMARY_COLUMNS = _expanded_columns("summary", SUMMARY_COLUMNS)

@@ -13,15 +13,15 @@ def test_common_imports():
     from g3o.common import config, schema  # noqa: F401
 
     assert len(schema.DATA_COLUMNS) == 47
-    # 37 = 35 base + the institution_uid/sweep_uid key layer (PI ruling 2026-08-14).
-    assert len(schema.ACTIVITY_COLUMNS) == 37
-    # 20 = 17 base + group_d_salvaged_fields (Group-D salvage flag, 2026-07-21)
-    # + the same two-column key layer.
-    assert len(schema.ACTIVITY_SOURCE_COLUMNS) == 20
-    # 22 = 21 base + institution_uid. No sweep_uid: the loader keys this CSV on
-    # institution_uid (it reads the verdict off it since 2026-08-25), and at
-    # institution grain sweep_uid restates the uid.
-    assert len(schema.SUMMARY_COLUMNS) == 22
+    # Q2a appends the approved normalized questionnaire/provenance surface.
+    # Frozen legacy prefixes remain 37/20/22 columns respectively.
+    assert len(schema.ACTIVITY_COLUMNS) == 83
+    assert len(schema.ACTIVITY_SOURCE_COLUMNS) == 61
+    assert len(schema.SUMMARY_COLUMNS) == 31
+    assert len(schema.ACTIVITY_COLUMNS_V25) == 37
+    assert len(schema.ACTIVITY_SOURCE_COLUMNS_V25) == 20
+    assert len(schema.SUMMARY_COLUMNS_V25) == 22
+
 
 
 def test_discovery_imports():

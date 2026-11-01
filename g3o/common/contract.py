@@ -953,19 +953,20 @@ class PersistedActivity(BaseModel):
 
     def to_csv_dict(self) -> dict[str, object]:
         """Return a dict ordered to match ``g3o.common.schema.ACTIVITY_COLUMNS``."""
-        from g3o.common.schema import ACTIVITY_COLUMNS
+        from g3o.common.schema import ACTIVITY_COLUMNS_V25
+        from g3o.common.storage import legacy_row
 
         merged: dict[str, object] = {
             **self.provenance.model_dump(),
             **self.institution.model_dump(),
             **self.activity.model_dump(),
         }
-        missing = [c for c in ACTIVITY_COLUMNS if c not in merged]
+        missing = [c for c in ACTIVITY_COLUMNS_V25 if c not in merged]
         if missing:
             raise RuntimeError(
                 f"PersistedActivity missing columns required by ACTIVITY_COLUMNS: {missing}"
             )
-        return {col: merged[col] for col in ACTIVITY_COLUMNS}
+        return legacy_row("activities", {col: merged[col] for col in ACTIVITY_COLUMNS_V25})
 
 
 class PersistedSource(BaseModel):
@@ -984,7 +985,8 @@ class PersistedSource(BaseModel):
 
     def to_csv_dict(self) -> dict[str, object]:
         """Return a dict ordered to match ``g3o.common.schema.ACTIVITY_SOURCE_COLUMNS``."""
-        from g3o.common.schema import ACTIVITY_SOURCE_COLUMNS
+        from g3o.common.schema import ACTIVITY_SOURCE_COLUMNS_V25
+        from g3o.common.storage import legacy_row
 
         merged: dict[str, object] = {
             **self.provenance.model_dump(),
@@ -992,13 +994,13 @@ class PersistedSource(BaseModel):
             **self.source.model_dump(),
             "group_d_salvaged_fields": self.group_d_salvaged_fields,
         }
-        missing = [c for c in ACTIVITY_SOURCE_COLUMNS if c not in merged]
+        missing = [c for c in ACTIVITY_SOURCE_COLUMNS_V25 if c not in merged]
         if missing:
             raise RuntimeError(
                 f"PersistedSource missing columns required by "
                 f"ACTIVITY_SOURCE_COLUMNS: {missing}"
             )
-        return {col: merged[col] for col in ACTIVITY_SOURCE_COLUMNS}
+        return legacy_row("sources", {col: merged[col] for col in ACTIVITY_SOURCE_COLUMNS_V25})
 
 
 __all__ = [
