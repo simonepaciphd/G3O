@@ -143,3 +143,7 @@ RS-010/018: ENUM clean local 87ac525; Q2a remains blocked. RS-039: r11 signed un
 ## 2026-11-01 approved D-007 resource binding
 
 S1a/S2a/P1a/P2 approved on page d9ca34714331. RS-010/018 now consumes handoffs/D-007-interface-spec.md and its 120-item map; RS-039 supplies signed r11/labels. Explicit fixtures do not establish actual provider/runtime settings. T-030/T-035 bind actual configuration; T-050B retains conformance and Colin acceptance. No new paid resource, DB access or external delivery authorized.
+
+## 2026-11-01 verified local continuation
+
+T-012 local writer/instrument and nine storage fixtures: G3O-eng-b-t012 at clean unpushed 6cbd55126bb1d1d6097156546133fcd464a356ee; handoffs/T-012-Q2a-verification.json. RS-012 optional probability fields and RS-013 zero fallback reviewed; T-027 must apply approved RC-D-010 and must not copy that fallback. Signed r11 has 52 classifier questions, all using chosen-answer-probability thresholds. T-027 planned isolated base is exact T-012 commit, not old origin/main. No additional external resource or paid call authorized.

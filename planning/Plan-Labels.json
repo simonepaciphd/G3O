@@ -6,9 +6,9 @@
   },
   "date": "2026-11-01",
   "sources": {
-    "SPEC.md": "10c59411cad3688e5cadf06efb66c315e98d7a27780c2cf3c8ff9b52d9b398f2",
-    "RESOURCES.md": "58c8d11e0f717f481240841fa8d8865ca33f99f506173a437d1c9ab223397f14",
-    "PLAN.md": "7545fea5cafea5bebdc1540dd12986b31b67e09cd182478c0925bb4338516cf3"
+    "SPEC.md": "67f752e459f9f93291194179549821143e3c99161c84392c8f1a1e4249ba3e83",
+    "RESOURCES.md": "48a4d2242a0cc997e05465782577e39081b66c46d2fae072c4fc532331f7438c",
+    "PLAN.md": "51c96ab65067d85656c14946144111aac33e78edf46bcee4ac1c3cc1f152c297"
   },
   "labels": {
     "T-001": {
@@ -85,7 +85,7 @@
     },
     "T-027": {
       "label": "Record automated coding answers",
-      "plain": "Use one answer record for automated coders, including probabilities, confidence and request details. Link each code to its question version and run setup."
+      "plain": "Record each automated answer with its available probabilities, request details, question version and run setup. When a classifier omits the chosen-answer probability, preserve the returned code and omission in provenance, apply the existing downgrade rules and record the cause."
     },
     "T-028": {
       "label": "Write the new output rows",

@@ -60,7 +60,7 @@ The logical key includes item, part, value, observation, source, chunk and passa
 coder_records_json is internal. Records reference support/observation/item/part and carry coder_type, coder_version, configured_model, actual_response_model, request_id, question_set_version, chunk_id, chosen_value, chosen_answer_probability and probability_distribution. Preserve the full distribution internally; the public API does not serve it. Setup configuration is not proof of a response model or request ID.
 - Classifier probabilities missing from a provider response remain missing. No 0, 1, inferred distribution or generic confidence is substituted.
 - Mechanical coders have no provider model/request by construction: typed null plus coder_not_applicable, with actual rule/version instead of fabricated IDs.
-- T-027 must bring any missing-probability policy to the PI before implementation. This document does not decide its downstream confidence or publication treatment.
+- RC-D-010 (PI reply 2026-11-01): if the chosen-answer probability is unavailable, preserve the returned code and missing probability in provenance, apply the existing downgrade rules to the affected code and record the unavailable-probability cause. Page verdicts retain the verdict with a downgrade tag. Mechanical/rule-set typed-not-applicable records are unchanged. Do not substitute generic confidence or a fabricated probability.
 - Code values, support states and confidence are separate facts. The 0.8 chosen-answer bar and signed page-downgrade rule are unchanged.
 
 ## 4. Pairwise relations and observations
@@ -102,7 +102,7 @@ The existing API loader enumerates old maps and ignores added CSV columns. Q2a c
 
 T-050A is a contract milestone within existing T-050, not a newly launched lane: requires signed T-010/T-013 and T-012's accepted inventory; produces the PI-reviewed field map and instrument protocol. It does not require built T-012 or T-027.
 T-012 then completes Q2a locally against T-050A and explicit fixtures; the moved writer subset includes normalized columns, lossless serialization, provenance validation/refusal and regression tests. It does not claim pipeline/API/DB readiness.
-T-027 starts only after T-012 is proposed verified (E4). Missing-probability policy returns to PI first.
+T-027 starts only after T-012 is proposed verified (E4). Missing-probability policy was approved as RC-D-010; any further changed policy returns to PI.
 T-050B requires T-012 + T-027, verifies the implemented contracts, and obtains PI send approval plus Colin acceptance (A-019).
 T-028 retains T-015/T-024/T-026/T-027 + T-050B, integrated outputs and remaining writer/integrity work; it begins after T-012 releases the shared writer claim.
 T-051/T-052/T-053 keep consumer acceptance, publication and DB/deployment gates.

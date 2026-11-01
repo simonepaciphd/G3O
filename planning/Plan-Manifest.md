@@ -23,3 +23,5 @@ Prior scoping: `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-scre
 ## Current continuation (2026-11-01)
 
 The historical stage table above describes the original baseline. Current SPEC v001.13 applies approved RC-D-007/009 and the exact S1a/S2a/P1a/P2 reply. T-050A approved; T-012 Q2a active, T-027 gated. Local branch planning/r11-rcd009; no remote push/merge/deploy. Current generated page: page/Plan-Visual.html. Delta application lock retains original RC-BL-001 history.
+
+Current execution update: SPEC v001.14 / RC-D-010; T-012 proposed verified locally with qualified test evidence; T-027 input review complete, engineering queued for capacity. See Delta-Lock-RC-D-010-2026-11-01.json and handoffs/T-027-engineering-handoff.md. Prior hash records are historical snapshots.

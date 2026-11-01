@@ -2,8 +2,8 @@
 
 Status: LOCKED
 Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); v001.5 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.6 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.7 by delta RC-D-003, approved 2026-10-30 (Simone Paci, chat "all accepted"); v001.8 by delta RC-D-004, approved 2026-10-30 (Simone Paci, chat "approved"); v001.9 by delta RC-D-005, approved 2026-10-30 (Simone Paci, chat "approved! go forth"); v001.10 mechanical (R-041 marker → pointer to the signed codebook), 2026-10-30 (Simone Paci, chat "clean up items on #4"); v001.11 mechanical (15 wording markers → pointers to the signed codebook), 2026-10-31 (Simone Paci, chat "you do 7"; approved "7 ok", PR #142)
-Version: v001.13
-Supersedes: v001.12 through approved D-007 choices; original baseline RC-BL-001 retained
+Version: v001.14
+Supersedes: v001.13 through RC-D-010 missing-probability ruling; original baseline RC-BL-001 retained.
 Owner: Simone Paci (sole substantive approver)
 Mode: revision (changes the production G3O pipeline and its published outputs)
 Authoritative inputs:
@@ -312,3 +312,7 @@ D-007 approved storage contract (RC-D-009 S1a/S2a/P1a/P2): handoffs/D-007-interf
 - v001.12 approved application: Simone Paci, 2026-11-01 successor instruction, fixed approvals and exact r11 release/signature authorization (RC-D-007/009); D-007 new decisions remain pending.
 
 - v001.13 approval: S1 a, S2 a, P1 a, P2 approve as is; page SHA256 d9ca34714331b5a565a3f30ca56a34dccc2ceb8a74ebf39ac37889d2d4a29977. Joint governance application: Delta-Lock-RC-D-009-2026-11-01.json. Original baseline remains immutable.
+
+## RC-D-010 — approved missing-probability treatment (2026-11-01)
+
+R-026/R-041/R-081/A-013: when a classifier returns a code without its chosen-answer probability, retain the code and missing probability in provenance, apply the existing downgrade rules to the affected code, and record that the probability was unavailable. The special page-verdict rule retains the verdict with a downgrade tag. Do not fabricate probabilities, use generic confidence, or downgrade mechanical/rule-set typed-not-applicable records as provider omissions. Exact ruling: archive/records/T-027-probability-ruling.json. Signed r11 and the 0.8 bar are unchanged.
