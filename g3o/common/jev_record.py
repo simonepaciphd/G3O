@@ -320,6 +320,9 @@ class CoderRecord:
         if instrument["instrument_id"] != self.setup_pointer:
             raise ValueError("record references a different instrument")
         payload = instrument["payload"]
+        if (payload["codebook_release"] == "2.7" and self.coder_type == "classifier"
+                and self.classifier_rule is None):
+            raise ValueError("release 2.7 classifier projection requires the signed item/part downgrade rule")
         if self.question_set_version != payload["question_set_version"]:
             raise ValueError("question-set version differs from the instrument")
         if self.classifier_rule is not None and self.classifier_rule.codebook_sha256 != payload["codebook_sha256"]:

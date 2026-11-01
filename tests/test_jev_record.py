@@ -331,3 +331,32 @@ def test_q2a_mechanical_projection_requires_matching_actual_rule(tmp_path):
 def test_malformed_json_record_is_refused(bad):
     with pytest.raises(ValueError):
         CoderRecord.from_json(json.dumps(bad))
+
+
+@pytest.mark.parametrize("answer_type", ["choice", "noul", "score"])
+def test_raw_legacy_capture_cannot_bypass_signed_27_downgrade_at_projection(tmp_path, answer_type):
+    data, instrument, _, _ = fixture_bundle(tmp_path)
+    source = data["sources"]["S1"]
+    support = next(s for s in source["item_support"] if s["item_id"] == "core.evaluation_documented")
+    raw = _record(item=support["item_id"], choice=support["value_json"], rule=False,
+                  support_id=support["support_id"], observation_id=support["observation_id"],
+                  chunk=support["chunk_id"])
+    if answer_type != "choice":
+        raw = replace(raw, answer_type=answer_type, chosen_value=0.5, confidence=None)
+    # Raw legacy capture remains lossless and explicitly unevaluated.
+    assert CoderRecord.from_json(raw.to_json()) == raw
+    assert raw.downgraded is None
+    assert raw.chosen_answer_probability is None
+    # A 2.7 writer projection must never certify that unevaluated record.
+    with pytest.raises(ValueError, match="requires the signed item/part downgrade rule"):
+        raw.storage_projection(support=support, instrument=instrument)
+    if answer_type == "choice":
+        signed = replace(raw, classifier_rule=_rule(support["item_id"]))
+        assert signed.final_value == "unknown"
+        assert signed.downgrade_cause == "distribution_unavailable"
+        projection = signed.storage_projection(support=support, instrument=instrument)
+        index = next(i for i, c in enumerate(source["coder_records"]) if c["support_id"] == support["support_id"])
+        source["coder_records"][index] = projection
+        StorageEnvelope(data, instrument, artifact_root=tmp_path)
+        assert projection["chosen_value"] == "results_reported"
+        assert CoderRecord.from_json(signed.to_json()).final_value == "unknown"
