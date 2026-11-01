@@ -19,9 +19,9 @@ Base refs (fetched 2026-10-28): G3O `origin/main` `375f1ff` (Plan-Draft used `c6
 Path notes: paths marked † are proposed names, confirmed by the executing engineer; a rename is a mechanical delta.
 
 
-Current continuation (2026-11-01): sole integrator 20261101-codex-v2-55eaba6e9fca45da; authoritative local branch planning/r11-rcd009 at C:/Users/spaci/worktrees/G3O-orch-20261101. This branch restores the accepted main 2a737f7 governance plus approved RC-D-007/009. The shared checkout on planning/reclass-v2.7 is an older pointer, not the continuation base. r11 installed locally; no PR merge or deployment. D-007 S1a/S2a/P1a/P2 approved; T-050A satisfied; T-012 local scope proposed verified. RC-D-010 missing-probability ruling approved.
+Current continuation (2026-11-01): sole integrator 20261101-codex-v2-62e267ac31cb419f; authoritative local branch planning/r11-rcd009 at C:/Users/spaci/worktrees/G3O-orch-20261101. Prior governance 3b98b92 verified unchanged before approved startup B. T-012 local scope remains proposed verified. T-027 local library independently verified at 6868825; no push, merge, deploy or next-card launch. See handoffs/T-027-local-verification.json. SPEC v001.14 and RC-D-010 are unchanged.
 
-RC-D-009 execution overlay: T-050A contract milestone PI-approved. T-012 Q2a PROPOSED VERIFIED at 6cbd551, with explicit Windows I/O test qualification; T-027 input review complete after that milestone, implementation queued for capacity with RC-D-010 approved. Graph T-050 node is remaining T-050B: implemented T-012/T-027 conformance plus separately authorized delivery and Colin acceptance. T-028 retains B and integrated upstream inputs. No API/site/runtime readiness follows from fixtures.
+RC-D-009 execution overlay: T-050A contract milestone PI-approved. T-012 Q2a PROPOSED VERIFIED at 6cbd551, with explicit Windows I/O test qualification; T-027 local library independently verified at 6868825 after that milestone; RC-D-010 applied and the no-rule 2.7 projection bypass corrected. Graph T-050 node is remaining T-050B: implemented T-012/T-027 conformance plus separately authorized delivery and Colin acceptance. T-028 retains B and integrated upstream inputs. No API/site/runtime readiness follows from fixtures.
 
 Approved claim overlay: T-012 additionally owns the Q2a writer subset and the three exception/import test files; T-028 owns remaining writer/integrity work sequentially. T-035 removes temporary exceptions only at the final pin step.
 
@@ -245,7 +245,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-024 | eng-c | W7 | pending | T-003, T-012, T-022, T-032 | none | T-026, T-028, T-041 | none | none | `g3o/common/support_check.py`† and its tests | push of the branch | A-002, A-016 |
 | T-025 | eng-b | W5 | pending | T-002, T-014, T-021, T-022 | none | T-029, T-030 | RS-016 | none | new modules `g3o/scrape/follow.py`†, `g3o/run/presweep/stage_follow.py`† and their tests | PI sets the per-institution URL cap value after T-002; push of the branch | A-004, A-014 |
 | T-026 | eng-a | W8 | pending | T-011, T-012, T-015, T-023, T-024, T-027 | none | T-028 | RS-011, RS-014 | none | the listed Stage 6 files and tests; retirement of the OpenAI Stage 6 path: the import hunk of `g3o/validate/stage_validate.py`, `g3o/validate/{client,qc,salvage}.py`, `tests/test_validate.py`, `tests/test_validate_salvage.py` (archived, PI A a), `scripts/verify_jev_validate_live.py`; install of the generated `g3o/validate/prompts/system_prompt.md` and `g3o/validate/prompts/output_contract.md` (RC-D-008) | push of the branch | A-010 |
-| T-027 | eng-b | W3 | in-progress | T-012 | none | T-015, T-021, T-023, T-026, T-028, T-050 | RS-012, RS-013, RS-014 | none | new module `g3o/common/jev_record.py`† and its tests | push of the branch | A-013 |
+| T-027 | eng-b | W3 | verified (local library; downstream acceptance retained) | T-012 | none | T-015, T-021, T-023, T-026, T-028, T-050 | RS-012, RS-013, RS-014 | none | new module `g3o/common/jev_record.py`† and its tests | push of the branch | A-013 |
 | T-028 | eng-a | W9 | pending | T-012, T-015, T-024, T-026, T-027, T-050 | none | T-030, T-052, T-090 | RS-018 | none | `g3o/persist/writer.py` and its tests; `g3o/persist/integrity.py`, `tests/test_integrity.py` (RC-D-008) | push of the branch | A-007, A-017 |
 | T-030 | eng-b | W10 | pending | T-021, T-025, T-028, T-032 | none | T-029 | none | none | instrument-binding hunks of presweep/planning.py and run manifest; the listed orchestrator, config, telemetry and e2e files; merges of the new-run card branches into `reclass/v2.7`† | push of the integration branch | none |
 | T-029 | eng-a | W11 | pending | T-001, T-025, T-030 | none | T-034, T-035 | RS-017 | none | new package `g3o/run/backfill/`† and its tests | push of the branch | A-005, A-015 |
@@ -1753,12 +1753,12 @@ Split the `no` rule from the merge rules.
 
 ### T-027 — Build the shared jev answer record
 
-Status: in-progress (input review complete; implementation queued for capacity)
+Status: verified (local library; downstream acceptance retained)
 Type: build
 Priority: critical-path
 Spec refs: R-026, A-013
 Decision refs: DEC-004
-Progress (2026-11-01, integrator): input review started after T-012 proposed verification. PI approved missing-probability downgrade as RC-D-010. Concrete implementation packet: handoffs/T-027-engineering-handoff.md. No T-027 branch or implementation created yet; four native Codex slots occupied at handoff preparation.
+Progress (2026-11-01, integrator): authorized startup B completed the narrow offline library on reclass/t027-record at 686882547d3390c05019256d6d120f4e6c1eb6b2. 245 focused regressions pass, including 72 T027 tests; independent review passes 260 signed-question cases and closes one P2 implementation defect. Full record JSON retains missingness cause and original/final code; explicit Q2a projection requires real original-code support and companion retention. Local acceptance: handoffs/T-027-local-verification.json. T031, consumer/runtime bindings, T050B and release gates remain.
 
 #### Objective
 One record type for every jev answer (probability distribution, confidence, model id, request id, question-set version, chunk id), used by T-021, T-023 and T-026. Under DEC-004 a it is written to per-institution JSON artifacts, with DB columns for confidence, model id and request id plus the full distribution in jsonb, via T-051/T-052. The API does not serve the distribution column (specified in T-050). RC-D-002 row 48: the record type covers every automated coder (P10a), stores the chosen-answer probability (r2#26), and links per-code coder details to the per-run version record (r2#57).
