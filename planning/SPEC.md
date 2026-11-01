@@ -2,8 +2,8 @@
 
 Status: LOCKED
 Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); v001.5 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.6 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.7 by delta RC-D-003, approved 2026-10-30 (Simone Paci, chat "all accepted"); v001.8 by delta RC-D-004, approved 2026-10-30 (Simone Paci, chat "approved"); v001.9 by delta RC-D-005, approved 2026-10-30 (Simone Paci, chat "approved! go forth"); v001.10 mechanical (R-041 marker → pointer to the signed codebook), 2026-10-30 (Simone Paci, chat "clean up items on #4"); v001.11 mechanical (15 wording markers → pointers to the signed codebook), 2026-10-31 (Simone Paci, chat "you do 7"; approved "7 ok", PR #142)
-Version: v001.12
-Supersedes: v001.11 current wording pointers; original baseline RC-BL-001 retained
+Version: v001.13
+Supersedes: v001.12 through approved D-007 choices; original baseline RC-BL-001 retained
 Owner: Simone Paci (sole substantive approver)
 Mode: revision (changes the production G3O pipeline and its published outputs)
 Authoritative inputs:
@@ -23,7 +23,7 @@ Authoritative inputs:
 
 Evidence tags: `USER` = PI ruling (ID given); `SOURCE:` = artifact; `INFERRED` = agent inference, provisional until approved; `OPEN` = unanswered.
 
-Current signed release: r11, SHA256 f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d; RC-D-007 and RC-D-009 applied 2026-11-01 under the current PI instruction. Signature and checks: t010/signoff-record.md. D-007 storage choices and remapping remain proposed; no acceptance gate is silently removed.
+Current signed release: r11, SHA256 f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d; RC-D-007 and RC-D-009 applied 2026-11-01 under the current PI instruction. Signature and checks: t010/signoff-record.md. D-007 S1a/S2a/P1a/P2 approved 2026-11-01; local acceptance precedes Colin, whose acceptance remains required before API/site. Normative contract: handoffs/D-007-interface-spec.md; exact reply in archive/records/.
 
 ## Goal and success
 
@@ -123,7 +123,7 @@ Current signed release: r11, SHA256 f948fe0b2a36448db57b70b195567ffc39fb024efb98
 | R-056 | No v2.7 row, back-fill or ordinary run, is public before the release decision: a release flag keeps such rows loaded but hidden until the PI releases them after the audit (R-080..R-083). | D-003, D-004 | USER item 21 b, PF-006 default (SRC-9) | must | Ordinary runs continue to load between deployment and release |
 | R-052 | New fields are published via the public API and the website. RC-D-002 row 22: the interface spec covers every chosen published item (R-057), but the public activity table holds only confirmed activities (r2#51); A05 and full e-mails stay internal; the additions are listed in D-007. Under Q6, the generated data dictionary owns the published definitions and the g3o-api README links to it. The X19 cap is dropped. | D-004, D-007 | USER S2; RC-D-002 row 22 (S4; N4; Q6; r2#46, 51, 60) | must | Owner: Colin (P2) |
 | R-057 | Publication scope: every chosen item is published at release (r2#60). The public activity table and the tier hold only activities on `confirms_activity` pages (r2#51). Internal-only items are listed in the codebook (public / internal field, R-007): the A05 record, full contact e-mails, per-code coder details (r2#57). | D-004, D-007 | RC-D-002 N9; r2#51 R2C28, r2#60 R2P27, r2#57 | must | |
-| R-058 | Published supporting quotes stay verbatim, with no masking. Contact e-mails are stored in full internally, and only the domain and a count are published. | D-004, D-007 | RC-D-002 N10; N4 a, S4 a; X08 | must | |
+| R-058 | Published supporting quotes stay verbatim, with no masking. Contact e-mails are stored in full internally, and only domain/count pairs are published. RC-D-009 S2a counts distinct address strings per actual page after domain-only lowercasing; local-part case is retained and no alias or plus-address assumptions are made. | D-004, D-007 | RC-D-002 N10; N4 a, S4 a; X08 | must | |
 | R-059 | Comparability labels: a two-way v2.5↔v2.7 translation table is published, with unmappable cells marked (r2#43). v2.5 `none` institutions show `no` labelled as produced by the v2.5 rule (`verdict_rule`, r2#45). A per-row `text_source` (stored / live re-fetch / new run) records which rows lack chrome text and links (RC-D-002 F). A methods note covers both (R-090). | D-004, D-006 | RC-D-002 N11; r2#43 R2C23, r2#45 R2P21; F | must | |
 | R-053 | SUPERSEDED (PI SF-014 i, "superseded", after R-051 ruling). | — | USER SF-014 i | — | Residual ruled Q-021 a: website hides new fields where the most recent row is v2.5 |
 | R-054 | Indices built on CX-01.2 fields stay withheld until the new fields cover the whole post-sweep snapshot (R-060 of CX-01, unchanged). | D-004 | USER Q8 b | must | Under Q4 b this is not reached within this plan (N-003) |
@@ -189,6 +189,8 @@ Current signed release: r11, SHA256 f948fe0b2a36448db57b70b195567ffc39fb024efb98
 | Pipeline (D-002) | DB / API | page, activity, institution rows | all v2.6 fields, jev confidence, supporting text, codebook release label, setup pointer, `evidence_channel`, link provenance (RC-D-002 row 30) | Row without codebook version, setup pointer or channel (RC-D-002 row 30; v001.5: "Row without contract version") |
 | Correction layer (D-003) | DB views | linked to original observation ids | before/after values (for split fields, read through the r2#46 mapping and the translation table, R-059; RC-D-002 row 30), release id, codebook release label, PI sign-off ref | Overwrite of original observation |
 | API/site (D-004) | Public | per institution / activity / evidence | new fields, supporting text, version label | Mixed-version rows unlabelled |
+
+D-007 approved storage contract (RC-D-009 S1a/S2a/P1a/P2): handoffs/D-007-interface-spec.md and D-007-field-map.json are normative for local Q2a. S1a permits empty export/SQL NULL values only with explicit unavailable-history reasons, never invented questionnaire tokens, version facts, setup records or probabilities. Incomplete new 2.7 provenance is rejected. Preserve existing keys and append questionnaire/version metadata, keyed per-item support and original observation/relation provenance. T-012 owns the local instrument builder and refusal checks; T-030/T-035 bind actual runtime configuration. T-050A contract acceptance precedes T-012; T-050B retains implementation conformance and Colin A-019 before API/site. Fixture-only producers do not establish runtime readiness.
 
 ## Quality attributes
 
@@ -272,6 +274,7 @@ Current signed release: r11, SHA256 f948fe0b2a36448db57b70b195567ffc39fb024efb98
 
 | Version | Delta ID | Changed spec IDs | Change | Approved by/at | Reason | Downstream artifacts superseded |
 |---|---|---|---|---|---|---|
+| v001.13 | RC-D-009 approved interface | D-007, R-026/R-050/R-052/R-058, A-013/A-019 | S1a/S2a storage policies and P1a/P2 local-first interface | Simone Paci, 2026-11-01T15:38:55.942Z, page d9ca34714331 | Contract approved; implementation tests pending | v001.12 exact preimage archived |
 | v001.12 | RC-D-007, RC-D-009 | current signed-wording/hash pointers; R-050 channel clarification | Approved r11 release/signature application; ai_text; r10 year rule retained; no new D-007 policy | Simone Paci, 2026-11-01 successor instruction and fixed approvals | Verified r11 and nine generated outputs | v001.11 pointers, archived |
 | v001-draft1 | — | all | First draft | not approved | Stage 1 | none |
 | v001.11 | — | R-004, R-005, R-014, R-015, R-016, R-017, R-020..R-024, R-030, R-045 | 15 `[wording: PI — …]` markers replaced by pointers to the signed wording in codebook release 2.7 (`f0b1348c…`); the R-087 §4.3 marker is kept (the codebook signs the ruling, not an amended §4.3 text) | fix-mechanical; Simone Paci, 2026-10-31, chat "you do 7", approved "7 ok" (PR #142 merged) | The wording was signed in the codebook under RC-D-005 | none |
@@ -307,3 +310,5 @@ Current signed release: r11, SHA256 f948fe0b2a36448db57b70b195567ffc39fb024efb98
 
 
 - v001.12 approved application: Simone Paci, 2026-11-01 successor instruction, fixed approvals and exact r11 release/signature authorization (RC-D-007/009); D-007 new decisions remain pending.
+
+- v001.13 approval: S1 a, S2 a, P1 a, P2 approve as is; page SHA256 d9ca34714331b5a565a3f30ca56a34dccc2ceb8a74ebf39ac37889d2d4a29977. Joint governance application: Delta-Lock-RC-D-009-2026-11-01.json. Original baseline remains immutable.

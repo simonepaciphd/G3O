@@ -139,3 +139,7 @@ Prepared by: Claude Code subagent (claude-opus-5-5), 2026-10-27; spot-checked an
 ## 2026-11-01 continuation evidence (no new resource commitment)
 
 RS-010/018: ENUM clean local 87ac525; Q2a remains blocked. RS-039: r11 signed under current PI authorization, exact hash in t010/signoff-record.md; LABELS generator PR150 at 34f6407 remains unmerged. D-007 candidate and full item mapping are in handoffs/. Current API loader ignores extra fields; T-051/052 capability checks are required before 2.7 ingestion. No DB connection or paid resource was used. Canonical continuation branch: planning/r11-rcd009 in G3O-orch-20261101.
+
+## 2026-11-01 approved D-007 resource binding
+
+S1a/S2a/P1a/P2 approved on page d9ca34714331. RS-010/018 now consumes handoffs/D-007-interface-spec.md and its 120-item map; RS-039 supplies signed r11/labels. Explicit fixtures do not establish actual provider/runtime settings. T-030/T-035 bind actual configuration; T-050B retains conformance and Colin acceptance. No new paid resource, DB access or external delivery authorized.

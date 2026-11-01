@@ -1,0 +1,46 @@
+{
+  "page_sha256": "d9ca34714331b5a565a3f30ca56a34dccc2ceb8a74ebf39ac37889d2d4a29977",
+  "edges": {
+    "T050A": [
+      "T010",
+      "T013",
+      "T012-inventory"
+    ],
+    "T012": [
+      "T050A"
+    ],
+    "T027": [
+      "T012"
+    ],
+    "T050B": [
+      "T012",
+      "T027"
+    ],
+    "T028": [
+      "T015",
+      "T024",
+      "T026",
+      "T027",
+      "T050B"
+    ]
+  },
+  "acyclic": true,
+  "T050A": "approved artifact, not new lane",
+  "T012": "in-progress",
+  "T027": "not-started",
+  "writer": "T012 then T028",
+  "retained_gates": [
+    "missing probability PI",
+    "A019 Colin before API/site",
+    "send",
+    "push/merge",
+    "deploy",
+    "DB",
+    "paid"
+  ],
+  "coverage": {
+    "runtime_mapped": 108,
+    "external_owner_pending": 1,
+    "outside_release": 11
+  }
+}

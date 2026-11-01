@@ -1,6 +1,6 @@
 {
-  "format": "g3o-d007-field-map-v0.1",
-  "state": "PROPOSED_NOT_APPROVED",
+  "format": "g3o-d007-field-map-v1",
+  "state": "PI_APPROVED_LOCAL_IMPLEMENTATION",
   "codebook_sha256": "f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d",
   "rows": [
     {
@@ -47,7 +47,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[0]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.disclosure_form",
@@ -77,7 +77,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.disclosure_scope",
@@ -104,7 +104,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.page_complete",
@@ -130,7 +130,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.source_type",
@@ -176,7 +176,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[1]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.content_contact_named",
@@ -202,7 +202,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.content_contact_details",
@@ -228,7 +228,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.content_contact",
@@ -251,7 +251,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.content_contact_emails",
@@ -264,10 +264,10 @@
       "coder": "mechanical",
       "storage_targets": [
         "sources/internal:content_contact_emails_json",
-        "sources/public:S2-pending"
+        "sources/public:contact_email_domain_counts_json"
       ],
       "column_or_member": "content_contact_emails_json",
-      "storage_type": "internal jsonb array; public derived shape pending S2",
+      "storage_type": "internal JSON list/missing union; public JSON domain/count pairs, distinct addresses per page",
       "value_codes_or_shape": "none",
       "missing_tokens": [
         "not_asked",
@@ -275,7 +275,15 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved",
+      "public_derivation": {
+        "column": "contact_email_domain_counts_json",
+        "unit": "actual page",
+        "count": "distinct extracted addresses",
+        "domain_normalization": "lowercase",
+        "local_part_normalization": "none",
+        "alias_assumptions": false
+      }
     },
     {
       "item_id": "core.content_purpose",
@@ -298,7 +306,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.content_tool_or_model",
@@ -321,7 +329,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.content_vendor",
@@ -344,7 +352,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.content_data",
@@ -370,7 +378,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.content_users",
@@ -393,7 +401,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.content_status_date",
@@ -416,7 +424,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.content_human_oversight",
@@ -439,7 +447,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.content_risk_assessment",
@@ -462,7 +470,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.content_user_notification",
@@ -485,7 +493,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.source_url",
@@ -511,7 +519,7 @@
         "column": "source_url",
         "map": "identity"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.source_title",
@@ -539,7 +547,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[2]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.source_access_date",
@@ -565,7 +573,7 @@
         "column": "source_access_date",
         "map": "identity"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.source_language",
@@ -600,7 +608,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[3]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.source_on_official_domain",
@@ -623,7 +631,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.syndication_group",
@@ -646,7 +654,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.page_review_state",
@@ -669,7 +677,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.discovery_path",
@@ -692,7 +700,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.text_source",
@@ -715,7 +723,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.source_publication_date",
@@ -741,7 +749,7 @@
         "column": "source_publication_date",
         "map": "identity"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.source_snippet",
@@ -769,7 +777,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[4]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.source_credibility",
@@ -801,7 +809,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[5]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.activity_segment",
@@ -835,7 +843,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.activity_name",
@@ -862,7 +870,7 @@
         "column": "activity_name",
         "map": "identity"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.observed_actor_name",
@@ -886,7 +894,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.observed_actor_relationship",
@@ -1110,7 +1118,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.activity_type",
@@ -1143,7 +1151,7 @@
         "column": "activity_type",
         "map": "identity"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.action_type",
@@ -1172,7 +1180,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.adoption_stage",
@@ -1213,7 +1221,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[6]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.procurement_status",
@@ -1242,7 +1250,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.model_origin",
@@ -1282,7 +1290,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[7]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.build_arrangement",
@@ -1320,7 +1328,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[8]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.interface",
@@ -1358,7 +1366,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[9]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.function_drafting_writing",
@@ -1394,7 +1402,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[10]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.function_summarization",
@@ -1430,7 +1438,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[11]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.function_translation",
@@ -1466,7 +1474,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[12]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.function_search_retrieval",
@@ -1502,7 +1510,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[13]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.function_code",
@@ -1538,7 +1546,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[14]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.function_image_audio_video",
@@ -1574,7 +1582,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[15]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.function_extraction_classification",
@@ -1610,7 +1618,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[16]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.function_analysis_recommendation",
@@ -1646,7 +1654,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[17]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.tool_name",
@@ -1679,7 +1687,7 @@
           "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I03 slot 4"
         }
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.model_name",
@@ -1703,7 +1711,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.contracting_party",
@@ -1741,7 +1749,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[18]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.developer",
@@ -1781,7 +1789,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[19]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.developer_basis",
@@ -1805,7 +1813,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.deployment_mode",
@@ -1840,7 +1848,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[20]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.target_users",
@@ -1871,7 +1879,7 @@
         "column": "target_users",
         "map": "identity"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.governed_population",
@@ -1899,7 +1907,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.governance_form",
@@ -1929,7 +1937,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.governance_direction",
@@ -1959,7 +1967,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.service_domain",
@@ -1995,7 +2003,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.genai_mechanism_basis",
@@ -2024,7 +2032,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.year_announced",
@@ -2059,7 +2067,7 @@
         "column": "year_announced",
         "map": "identity"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.year_pilot_start",
@@ -2104,7 +2112,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[21]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.year_production_start",
@@ -2149,7 +2157,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[22]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.deployment_scale_number",
@@ -2173,7 +2181,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.deployment_scale_unit",
@@ -2203,7 +2211,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.has_human_oversight",
@@ -2234,7 +2242,7 @@
         "column": "has_human_oversight",
         "map": "identity"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.has_transparency_notice",
@@ -2265,7 +2273,7 @@
         "column": "has_transparency_notice",
         "map": "identity"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.has_data_classification",
@@ -2296,7 +2304,7 @@
         "column": "has_data_classification",
         "map": "identity"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.has_risk_assessment",
@@ -2327,7 +2335,7 @@
         "column": "has_risk_assessment",
         "map": "identity"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.outcome_kind",
@@ -2366,7 +2374,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[23]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.incident_kind",
@@ -2409,7 +2417,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[24]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.reported_outcomes",
@@ -2440,7 +2448,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[25]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.reported_incidents",
@@ -2471,7 +2479,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[26]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.evaluation_documented",
@@ -2501,7 +2509,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.evaluation_type_pre_deployment_testing",
@@ -2529,7 +2537,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.evaluation_type_pilot_evaluation",
@@ -2557,7 +2565,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.evaluation_type_independent_audit",
@@ -2585,7 +2593,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.evaluation_type_ongoing_monitoring",
@@ -2613,7 +2621,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.evaluation_type_user_feedback",
@@ -2641,7 +2649,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.evaluation_type_bias_or_safety_testing",
@@ -2669,7 +2677,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.stage_as_of",
@@ -2693,7 +2701,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.stage_as_of_basis",
@@ -2717,7 +2725,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.permanent_pilot",
@@ -2741,7 +2749,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.vendor_claim_only",
@@ -2765,7 +2773,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.unit_credit",
@@ -2789,7 +2797,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.uncertainty_flags",
@@ -2826,7 +2834,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[27]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.support_entailment",
@@ -2852,7 +2860,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.support_status",
@@ -2875,7 +2883,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.supporting_text",
@@ -2898,7 +2906,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.has_genai_activity",
@@ -2930,7 +2938,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[28]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.verdict_rule",
@@ -2953,7 +2961,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.evidence_tier",
@@ -2976,7 +2984,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.review_depth",
@@ -2999,7 +3007,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.activity_relation_cross_page",
@@ -3032,7 +3040,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.pooled_activity_fields",
@@ -3056,7 +3064,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.confidence",
@@ -3092,7 +3100,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[29]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.n_sources",
@@ -3116,7 +3124,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.institution_summary",
@@ -3144,7 +3152,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[30]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.cx_display_rollup",
@@ -3168,7 +3176,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.codebook_release",
@@ -3200,7 +3208,7 @@
         "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
         "source": "drafts/translation-r4.json entries[31]"
       },
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.setup_pointer",
@@ -3225,7 +3233,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.evidence_channel",
@@ -3250,7 +3258,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.coder_record",
@@ -3273,7 +3281,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "proc.notice_stage",
@@ -3580,7 +3588,7 @@
         "_NA_"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.date_upper_bound",
@@ -3605,7 +3613,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed",
+      "state": "approved",
       "date_target_required": true
     },
     {
@@ -3629,7 +3637,7 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     },
     {
       "item_id": "core.support_status_second_reason",
@@ -3656,12 +3664,22 @@
         "unknown"
       ],
       "translation_v25": "new",
-      "state": "proposed"
+      "state": "approved"
     }
   ],
   "counts": {
     "runtime_mapped": 108,
     "external_owner_pending": 1,
     "outside_release": 11
+  },
+  "approval": {
+    "page_sha256": "d9ca34714331b5a565a3f30ca56a34dccc2ceb8a74ebf39ac37889d2d4a29977",
+    "saved_at": "2026-11-01T15:38:55.942Z",
+    "choices": {
+      "S1": "a",
+      "S2": "a",
+      "P1": "a",
+      "P2": "approve"
+    }
   }
 }

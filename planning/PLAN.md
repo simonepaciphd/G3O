@@ -1,7 +1,7 @@
 # PLAN: G3O pipeline reclassification
 
 Status: READY-WITH-BLOCKS
-Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.12 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, v001.10 mechanical, 2026-10-30; v001.11 mechanical, 2026-10-31); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.2 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
+Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.13 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, v001.10 mechanical, 2026-10-30; v001.11 mechanical, 2026-10-31); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.2 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
 Baseline lock: 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock")
 Deadline: none
 Source draft plan/review: `C:/Users/spaci/repos/G3O/planning/Plan-Draft.md` (v001-draft1), `C:/Users/spaci/repos/G3O/planning/Plan-Review.md` (27 findings); rulings `C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md`
@@ -19,9 +19,9 @@ Base refs (fetched 2026-10-28): G3O `origin/main` `375f1ff` (Plan-Draft used `c6
 Path notes: paths marked † are proposed names, confirmed by the executing engineer; a rename is a mechanical delta.
 
 
-Current continuation (2026-11-01): sole integrator 20261101-codex-v2-c10efbad5812817d; authoritative local branch planning/r11-rcd009 at C:/Users/spaci/worktrees/G3O-orch-20261101. This branch restores the accepted main 2a737f7 governance plus approved RC-D-007/009. The shared checkout on planning/reclass-v2.7 is an older pointer, not the continuation base. r11 installed locally; no PR merge or deployment. D-007 is review-ready, not approved.
+Current continuation (2026-11-01): sole integrator 20261101-codex-v2-55eaba6e9fca45da; authoritative local branch planning/r11-rcd009 at C:/Users/spaci/worktrees/G3O-orch-20261101. This branch restores the accepted main 2a737f7 governance plus approved RC-D-007/009. The shared checkout on planning/reclass-v2.7 is an older pointer, not the continuation base. r11 installed locally; no PR merge or deployment. D-007 S1a/S2a/P1a/P2 approved; T-050A satisfied; local implementation active.
 
-RC-D-009 execution overlay (authoritative for changed scope/status): T-012 is BLOCKED on D-007 and explicit local-writer gate remapping; Q2a remains required. T-027 NOT STARTED. T-050 is IN PROGRESS (draft only). Approved T-012 writer scope and tests below supersede the older constants-only boundary. Proposed T-050A/B milestone edges in handoffs/D-007-interface-spec.md are NOT ACTIVE until P1. Existing waves remain blocked at this subgraph; no downstream readiness is inferred.
+RC-D-009 execution overlay: T-050A contract milestone PI-approved. T-012 Q2a IN PROGRESS against explicit fixtures; T-027 NOT STARTED, gated on T-012 proposed verified. Graph T-050 node is remaining T-050B: implemented T-012/T-027 conformance plus separately authorized delivery and Colin acceptance. T-028 retains B and integrated upstream inputs. No API/site/runtime readiness follows from fixtures.
 
 Approved claim overlay: T-012 additionally owns the Q2a writer subset and the three exception/import test files; T-028 owns remaining writer/integrity work sequentially. T-035 removes temporary exceptions only at the final pin step.
 
@@ -232,7 +232,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-003 | eng-c | W3 | pending | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c) | A-002 |
 | T-010 | integrator | W1 | complete | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items in one batch signature (CX-01.3†, RC-D-004); PI signs the codebook hash (A-001); push gate | A-001 |
 | T-011 | eng-a | W3 | pending | T-010, T-013, T-016 | none | T-015, T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
-| T-012 | eng-b | W2 | blocked | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; inventory; Q2a writer/tests; import/telemetry/reproducibility tests (RC-D-009); `g3o/report/health.py`, `g3o/report/outcomes.py`, `g3o/common/institution_report.py`, `g3o/persist/__init__.py` and their tests; `tests/test_contract.py`, `tests/test_consolidated_contract.py`, `tests/test_adversarial_llm_outputs.py`, `tests/test_genai_definition_adherence.py`, `tests/test_uid_stamping.py`; the v2.5-column hunk of `g3o/codebook/checks.py` (line 889 at `a5b1d30`, repointed at the frozen v2.5 list) (RC-D-008) | none beyond push | A-011, A-013 |
+| T-012 | eng-b | W2 | in-progress | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; inventory; Q2a writer/tests; instrument/storage modules, fixtures and narrow integrity compatibility; import/telemetry/reproducibility tests (RC-D-009); `g3o/report/health.py`, `g3o/report/outcomes.py`, `g3o/common/institution_report.py`, `g3o/persist/__init__.py` and their tests; `tests/test_contract.py`, `tests/test_consolidated_contract.py`, `tests/test_adversarial_llm_outputs.py`, `tests/test_genai_definition_adherence.py`, `tests/test_uid_stamping.py`; the v2.5-column hunk of `g3o/codebook/checks.py` (line 889 at `a5b1d30`, repointed at the frozen v2.5 list) (RC-D-008) | T-050A approved; local fixtures only; push gate | A-011, A-013 |
 | T-013 | eng-b | W1 | verified | none | T-010 | T-002, T-011, T-012, T-016, T-022, T-032 | RS-010, RS-013, RS-039 | none | `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml` | PI approves the item template and generator checks (r2#59); push of the branch | A-001 |
 | T-014 | eng-a | W2 | pending | none | none | T-022, T-025 | RS-016 | none | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests; `g3o/scrape/render.py` (optional `RenderedPage` fields) and the record-building hunks of `g3o/scrape/fetcher.py` (HTML path, unlocker path, page cache) (RC-D-006, PI 6a) | push of the branch | none |
 | T-015 | eng-a | W4 | pending | T-011, T-012, T-022, T-027 | none | T-026, T-028 | RS-012 | none | `g3o/common/source_fields.py`† and its tests | push of the branch | none |
@@ -247,14 +247,14 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-026 | eng-a | W8 | pending | T-011, T-012, T-015, T-023, T-024, T-027 | none | T-028 | RS-011, RS-014 | none | the listed Stage 6 files and tests; retirement of the OpenAI Stage 6 path: the import hunk of `g3o/validate/stage_validate.py`, `g3o/validate/{client,qc,salvage}.py`, `tests/test_validate.py`, `tests/test_validate_salvage.py` (archived, PI A a), `scripts/verify_jev_validate_live.py`; install of the generated `g3o/validate/prompts/system_prompt.md` and `g3o/validate/prompts/output_contract.md` (RC-D-008) | push of the branch | A-010 |
 | T-027 | eng-b | W3 | pending | T-012 | none | T-015, T-021, T-023, T-026, T-028, T-050 | RS-012, RS-013, RS-014 | none | new module `g3o/common/jev_record.py`† and its tests | push of the branch | A-013 |
 | T-028 | eng-a | W9 | pending | T-012, T-015, T-024, T-026, T-027, T-050 | none | T-030, T-052, T-090 | RS-018 | none | `g3o/persist/writer.py` and its tests; `g3o/persist/integrity.py`, `tests/test_integrity.py` (RC-D-008) | push of the branch | A-007, A-017 |
-| T-030 | eng-b | W10 | pending | T-021, T-025, T-028, T-032 | none | T-029 | none | none | the listed orchestrator, config, telemetry and e2e files; merges of the new-run card branches into `reclass/v2.7`† | push of the integration branch | none |
+| T-030 | eng-b | W10 | pending | T-021, T-025, T-028, T-032 | none | T-029 | none | none | instrument-binding hunks of presweep/planning.py and run manifest; the listed orchestrator, config, telemetry and e2e files; merges of the new-run card branches into `reclass/v2.7`† | push of the integration branch | none |
 | T-029 | eng-a | W11 | pending | T-001, T-025, T-030 | none | T-034, T-035 | RS-017 | none | new package `g3o/run/backfill/`† and its tests | push of the branch | A-005, A-015 |
 | T-034 | eng-a | W12 | pending | T-029 | none | T-035 | RS-026 | none | `g3o/run/backfill/transfers.py`† and its tests | push of the branch | A-022 |
 | T-035 | eng-b | W13 | pending | T-029, T-034 | none | T-031, T-041 | none | D-002 | `g3o/cli.py` hunks, the two pin files, e2e test additions; merges of T-029 and T-034 into `reclass/v2.7`†; `g3o/common/contract_pin.py`, `tests/fixtures/run_contract/{FIELDS.md,manifest.json}`, the contract H1 template line of the T-013 generator (version token for `parse_version()`) (RC-D-008) | push of the integration branch | none |
 | T-031 | berivox | W14 | pending | T-035 | none | T-071 | none | none | the review file only | none | none |
 | T-040 | integrator | W2 | pending | T-010 | none | T-041 | RS-005, RS-008, RS-009, RS-011, RS-024 | none | `tests/fixtures/v27/`† and the label sheet | PI labels and approves expected values for real-page fixtures | A-003, A-004, A-010, A-011, A-012, A-020, A-021 |
 | T-041 | eng-b | W14 | blocked | T-024, T-035, T-040 | none | T-054, T-060, T-071 | RS-031 | none | the fixture-run folder | PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures | A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, A-022 |
-| T-050 | integrator | W4 | draft-review | T-010, T-012, T-027 | none | T-028, T-051 | RS-020, RS-023 | D-007 | `C:/Users/spaci/repos/G3O/planning/handoffs/D-007-interface-spec.md`† | PI approves the spec before it is sent; posting the GitHub issues is an external message | none |
+| T-050 | integrator | W4 | in-progress | T-010, T-012, T-027 | none | T-028, T-051 | RS-020, RS-023 | D-007 | `C:/Users/spaci/repos/G3O/planning/handoffs/D-007-interface-spec.md`† | A approved; B implementation conformance and Colin acceptance; PI authorizes send; posting the GitHub issues is an external message | none |
 | T-051 | colin | W5 | pending | T-050 | none | T-052, T-054 | RS-020 | none | `sql/021*`†, `sql/down/021*`†, `scripts/load_corrections.py`† | PI authorises creation of and writes to the disposable branch used by this card's self-check; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; live apply is the T-055 gate; push on Colin's branch | none |
 | T-052 | colin | W10 | pending | T-028, T-051 | none | T-053, T-054, T-055, T-074 | RS-023 | none | Colin's files listed in Outputs | deploy to staging only (production deploy is T-055); push on Colin's branch | none |
 | T-053 | colin | W11 | pending | T-052 | none | T-095 | RS-022 | none | Colin's files listed in Outputs | PI approves public copy and the display cap value; deploy gate | none |
@@ -278,14 +278,16 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-096 | reviewer | W27 | pending | T-095 | none | none | none | none | `planning/reviews/TRACE.md`† | paid rerun — the agent prepares the command and cost estimate and Simone runs it via `! <command>` (red line 4); SSH authorisation; PI approves the agreement criterion | none |
 | T-097 | integrator | W1-W27 | pending | none | none | none | none | none | SPEC.md, RESOURCES.md, PLAN.md, CHANGELOG.md (sole writer after lock) | PI approves every delta | none |
 
+Approved milestone expansion: T-050A (satisfied artifact) -> T-012 -> T-027 -> T-050B -> T-028. T-050A is not a new task or lane. Graph T-050 denotes B; remaining waves retain their meaning. Verification: archive/records/D-007-remap-check.json.
+
 ## Parallel waves
 
 | Wave | Target | Ready condition | Lanes/tasks | Collision result | Integration/review gate |
 |---|---|---|---|---|---|
 | W1 | after lock | lock + per-card gates | eng-b: T-001, integrator: T-010, eng-b: T-013, eng-a: T-020, T-097 (standing W1-W27) | disjoint claims (one writer per path) | T-001: PI authorises read-only droplet SSH; T-010: PI writes or line-edits every coding rule; PI approves the item template and signs the CX items in one batch signature (RC-D-004); PI signs the codebook hash (A-001); push gate; T-013: PI approves the item template and generator checks (r2#59); push of the branch; T-020: none beyond push (RC-D-002 N34: T-002 moved to W2, T-013 added) |
-| W2 | after W1 | verified: T-010, T-013 | eng-c: T-002, eng-b: T-012, tbd: T-014, tbd: T-016, integrator: T-040, integrator: T-061, integrator: T-063 | disjoint claims (one writer per path) | T-002: PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28); T-012: none beyond push; T-014: push of the branch; T-016: PI approves the cost estimate; Simone runs the paid command; PI rules on the results; T-040: PI labels and approves expected values for real-page fixtures; T-061: PI approves the notice text; T-063: PI approves the text; sending is external |
+| W2 | after W1 | verified: T-010, T-013 | eng-c: T-002, eng-b: T-012, tbd: T-014, tbd: T-016, integrator: T-040, integrator: T-061, integrator: T-063 | disjoint claims (one writer per path) | T-002: PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28); T-012: approved T-050A, local implementation only, push gate; T-014: push of the branch; T-016: PI approves the cost estimate; Simone runs the paid command; PI rules on the results; T-040: PI labels and approves expected values for real-page fixtures; T-061: PI approves the notice text; T-063: PI approves the text; sending is external |
 | W3 | after W2 | verified: T-002, T-010, T-012, T-013, T-014, T-016, T-020 | eng-c: T-003, eng-a: T-011, eng-c: T-022, eng-b: T-027 | disjoint claims (one writer per path) | T-003: PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c); T-011: PI approves question wording that is not verbatim contract or CX text; push gate; T-022: PI approves the nano prompt text; push gate; T-027: push of the branch |
-| W4 | after W3 | verified: T-002, T-010, T-011, T-012, T-020, T-022, T-027 | eng-a: T-021, integrator: T-050, tbd: T-015 | disjoint claims (one writer per path) | T-021: none beyond push; T-050: PI approves the spec before it is sent; posting the GitHub issues is an external message; T-015: push of the branch |
+| W4 | after W3 | verified: T-002, T-010, T-011, T-012, T-020, T-022, T-027 | eng-a: T-021, integrator: T-050B, tbd: T-015 | disjoint claims (one writer per path) | T-021: none beyond push; T-050B: implementation conformance, PI send and Colin acceptance; posting the GitHub issues is an external message; T-015: push of the branch |
 | W5 | after W4 | verified: T-002, T-011, T-020, T-021, T-022, T-027, T-050 | eng-a: T-023, eng-b: T-025, colin: T-051 | disjoint claims (one writer per path) | T-023: none beyond push; T-025: PI sets the per-institution URL cap value after T-002; push of the branch; T-051: PI authorises creation of and writes to the disposable branch used by this card's self-check; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; live apply is the T-055 gate; push on Colin's branch |
 | W6 | after W5 | verified: T-022, T-023 | eng-c: T-032 | disjoint claims (one writer per path) | T-032: PI approves the pass-2 nano prompt text; push gate |
 | W7 | after W6 | verified: T-003, T-012, T-022, T-032 | eng-c: T-024 | disjoint claims (one writer per path) | T-024: push of the branch |
@@ -735,12 +737,12 @@ Split per pass.
 
 ### T-012 — Update enums, schema and contract constants in code
 
-Status: blocked
+Status: in-progress
 Type: build
 Priority: critical-path
 Spec refs: R-015, R-020, R-021, R-022, R-023, R-024, R-050, C-007
 Decision refs: DEC-005, DEC-013
-Progress (2026-11-01, integrator; RC-D-007/009): BLOCKED: Q1a/Q3a/E1-E3 implemented at clean local 87ac525; recorded offline suite 2337 passed, 1 skipped, 2 deselected, 6 xfailed. Q2a requires normalized questionnaire/version columns and writer implementation; D-007 and gate remap pending. Approved write scope adds g3o/persist/writer.py and matching tests, tests/test_imports.py, tests/test_run_telemetry.py, tests/test_reproducibility_regression.py. Do not propose verified until Q2a passes. Done-condition exceptions: telemetry pin and raw extract/validate schema goldens strict xfail naming T-035, with all non-enum golden checks active; existing contract pin exception retained. New instrument module claim is proposed, not yet active.
+Progress (2026-11-01, integrator; RC-D-009 approved decisions): T-050A contract and local-first gate approved. Q2a delegated to engineer in G3O-eng-b-t012 starting at 87ac525. All eight D-007 verification clauses apply; proposed verification requires full writer/instrument evidence.
 
 #### Objective
 `contract.py` and `schema.py` carry:
@@ -771,18 +773,18 @@ The first chunk is an inventory of every enum, contract and version touchpoint (
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-b/`† on `reclass/t012-enums`†, branched from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
 
 #### Dependencies
-- Requires: T-010, T-013 (RC-D-002 row 40)
+- Requires: T-010, T-013 and completed T-050A contract artifact (not T-050B)
 - Enables: T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090
 - Can run with: T-002, T-014, T-016, T-040, T-061, T-063 (W2)
-- Researcher gates: unresolved D-007/interface and local-writer gate disposition; existing push/merge gates retained
+- Researcher gates: S1a/S2a/P1a/P2 satisfied; push/merge gates retained
 
 #### Ownership and collision control
 - Read scope: whole G3O repo, g3o-api and g3o-website (read-only, for the inventory)
-- Write claim: Q2a `g3o/persist/writer.py` and matching tests; `tests/test_imports.py`, `tests/test_run_telemetry.py`, `tests/test_reproducibility_regression.py` (RC-D-009); `contract.py`, `schema.py`, enum modules, schema test; the inventory file; `g3o/report/health.py`, `g3o/report/outcomes.py`, `g3o/common/institution_report.py`, `g3o/persist/__init__.py` and their tests; `tests/test_contract.py`, `tests/test_consolidated_contract.py`, `tests/test_adversarial_llm_outputs.py`, `tests/test_genai_definition_adherence.py`, `tests/test_uid_stamping.py`; the v2.5-column hunk of `g3o/codebook/checks.py` (line 889 at `a5b1d30`, repointed at the frozen v2.5 list) (RC-D-008)
+- Write claim: g3o/common/{instrument,storage,storage_fields}.py; tests/test_instrument.py, tests/test_storage.py, tests/fixtures/storage_contract/; narrow persist/integrity.py legacy-header compatibility (T-028 retains remaining integrity work); mechanical normalized-header counts/appendix in docs/data_dictionary.md to keep active schema checks (T-090 retains broader documentation); Q2a `g3o/persist/writer.py` and matching tests; `tests/test_imports.py`, `tests/test_run_telemetry.py`, `tests/test_reproducibility_regression.py` (RC-D-009); `contract.py`, `schema.py`, enum modules, schema test; the inventory file; `g3o/report/health.py`, `g3o/report/outcomes.py`, `g3o/common/institution_report.py`, `g3o/persist/__init__.py` and their tests; `tests/test_contract.py`, `tests/test_consolidated_contract.py`, `tests/test_adversarial_llm_outputs.py`, `tests/test_genai_definition_adherence.py`, `tests/test_uid_stamping.py`; the v2.5-column hunk of `g3o/codebook/checks.py` (line 889 at `a5b1d30`, repointed at the frozen v2.5 list) (RC-D-008)
 - Shared surfaces: `contract.py` — sole owner T-012; files in the inventory owned by other cards stay with them as the integrator assigns
 
 #### Procedure boundary
-- Included: constants, types, inventory, normalized version/questionnaire columns and Q2a writer serialization with matching tests (RC-D-009); missing interface/gate decisions remain blockers
+- Included: constants, types, inventory, normalized version/questionnaire columns and Q2a writer serialization with matching tests (RC-D-009); approved local instrument builder/validator and Stage7 refusal; actual upstream/runtime production remains T-026/T-028/T-030/T-035
 - Excluded: pin regeneration (T-035, DEC-021); files outside the write claim
 - Fixed decisions: R-015 mapping (v2.5 rows unconverted); DEC-005 a and DEC-013 a labels, as amended (RC-D-002 N24, C3 a); N3 a
 
@@ -807,6 +809,8 @@ none
 Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
 
 #### Done condition
+All eight D-007 section 8 checks pass: three-institution normalized goldens, keyed support round-trip, page/activity grain, original relation endpoints, version/provenance refusal and S1a/S2a. Approved strict T-035 exceptions remain narrow; no broad skips.
+
 Inventory accepted and owners assigned by the integrator; tests pass, except `test_contract_version_pin`, which is marked `xfail(strict=True)` naming T-035 (pin regeneration, DEC-021) (RC-D-006, PI 13a); touchpoint list attached.
 
 Progress (2026-10-31, integrator, RC-D-006): chunk 1 inventory at `planning/handoffs/T-012-touchpoints.md` on `reclass/t012-enums` `2c72fe2` (G3O 80 files, g3o-api 16, website 31, procurement 23; 10 surfaces not covered by any card). Chunk 1 ran alongside T-014 (11a). Owner assignment (12a) by the integrator follows this delta. Done by RC-D-008 (2026-10-31): surfaces 1, 3, 9 and the `checks.py:889` hunk to T-012 chunk 2; 2 to T-028; 4, 7 and the generator H1 line to T-035; 5 and 8 to T-026 (OpenAI path retired, PI A a); 6 and the uninstalled v2.7 contracts to T-022 / T-026 (install); 10 to T-090.
@@ -1763,7 +1767,7 @@ One record type for every jev answer (probability distribution, confidence, mode
 | Input | Location/producer | Required state/version | Missing-input behavior |
 |---|---|---|---|
 | RS-012, RS-013 answer-record pattern (Stage 2/3) | `origin/main` | — | follow |
-| Enums | T-012 | merged | stop |
+| Enums and local writer | T-012 | proposed verified (E4), exact local commit | stop |
 
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
@@ -1780,7 +1784,7 @@ One record type for every jev answer (probability distribution, confidence, mode
 - Requires: T-012
 - Enables: T-015, T-021, T-023, T-026, T-028, T-050
 - Can run with: T-003, T-011, T-022 (W3)
-- Researcher gates: push of the branch
+- Researcher gates: missing-probability policy to PI before implementation; push of the branch
 
 #### Ownership and collision control
 - Read scope: RS-012, RS-013, T-012
@@ -1796,8 +1800,8 @@ One record type for every jev answer (probability distribution, confidence, mode
 - Spec version: SPEC v001.4, the Stage 6 locked version once locked
 - Report to: integrator (coord mailbox `g3o-reclass-integrator`)
 - Report when: jev returns no distribution for a question type
-- Stop boundary: none
-- Safe continuation: all
+- Stop boundary: missing-probability policy implementation
+- Safe continuation: record inventory and options; no invented probability or publication policy
 - Forbidden: editing `SPEC.md`, `RESOURCES.md`, `PLAN.md` or `CHANGELOG.md` directly
 
 #### Verification and review
@@ -1825,7 +1829,7 @@ Type: build
 Priority: critical-path
 Spec refs: R-015, R-043, R-050, R-051
 Decision refs: DEC-005, DEC-016
-Progress (2026-11-01, integrator; RC-D-007/009): Q2a moves normalized version/questionnaire columns and matching local serialization tests into T-012 now. T-012 temporarily owns that writer subset; T-028 takes remaining integrated writer/integrity work only after claim handoff. Existing Colin acceptance input is still binding pending explicit P1 disposition. T-028 is not complete.
+Progress (2026-11-01, integrator; P1a): local Q2a subset may be accepted before Colin. Remaining T-028 retains T-050B/Colin acceptance, integrated upstream outputs and explicit writer/integrity claim handoff from T-012. No simultaneous ownership.
 
 #### Objective
 The CSV writer emits the page verdict, CX fields, full-length supporting text, jev summary fields and an explicit `contract_version` column on every row (DEC-005 a), with the column list as specified in T-050. RC-D-002 row 49: columns for every published item (R-057); codebook release label + setup pointer + `evidence_channel` in place of `contract_version` (r2#32); legacy-column fill (r2#46); `text_source` and the v2.5-rule label (R-059); support status; 9-value counts; e-mail domain + count and unmasked quotes (R-058); A06 / A07; the full quote text stays in CSV (DEC-016 c, r2#17).
@@ -1852,7 +1856,7 @@ The CSV writer emits the page verdict, CX fields, full-length supporting text, j
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-a/`†, feature branch from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
 
 #### Dependencies
-- Requires: T-012, T-015, T-024, T-026, T-027, T-050
+- Requires: T-012, T-015, T-024, T-026, T-027, T-050 (remaining milestone B)
 - Enables: T-030, T-052, T-090
 - Can run with: none (W9)
 - Researcher gates: push of the branch
@@ -1931,7 +1935,7 @@ Integrate the new-run path only: wire the new stages (T-021 to T-028, T-032) int
 
 #### Ownership and collision control
 - Read scope: all card branches
-- Write claim: the listed orchestrator, config, telemetry and e2e files; merges of the new-run card branches into `reclass/v2.7`†
+- Write claim: actual configuration-to-instrument binding in g3o/run/presweep/planning.py and run-manifest fields with tests (P1a); the listed orchestrator, config, telemetry and e2e files; merges of the new-run card branches into `reclass/v2.7`†
 - Shared surfaces: orchestrator and the `reclass/v2.7`† branch — owner eng-b (T-030, then T-035); pins and `cli.py` hunks are T-035's
 
 #### Procedure boundary
@@ -1960,6 +1964,8 @@ none
 Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
 
 #### Done condition
+Actual run configuration binds the validated immutable instrument record before any 2.7 row; fixture-only records are insufficient.
+
 Suite green on `reclass/v2.7`† with the new-run e2e passing, return report filed with the integrator.
 
 #### Chunking trigger
@@ -2117,7 +2123,7 @@ Type: integrate
 Priority: critical-path
 Spec refs: D-002, D-003, R-050, R-077, C-005, C-007
 Decision refs: DEC-002, DEC-013, DEC-020, DEC-021
-Progress (2026-11-01, integrator; RC-D-007/009): At final integration regenerate the approved pins once and retire the temporary contract-version, telemetry-version and raw extract/validate request-schema strict expected failures. Keep remaining request/prompt/generation/serialization golden checks active throughout. Runtime instrument binding for CLI/backfill/transfer is proposed by D-007/P1.
+Progress (2026-11-01, integrator; RC-D-007/009): At final integration regenerate the approved pins once and retire the temporary contract-version, telemetry-version and raw extract/validate request-schema strict expected failures. Keep remaining request/prompt/generation/serialization golden checks active throughout. Runtime instrument binding for CLI/backfill/transfer is approved by P1a and belongs here.
 
 #### Objective
 Merge the T-029 back-fill and T-034 transfer branches into `reclass/v2.7`†, apply their `cli.py` hunks as the sole writer of `cli.py`, get a mocked e2e green through the new-run, back-fill and transfer entry points (PF-018), and regenerate `contract_version_pin.json` and `reproducibility.json` once (DEC-021, moved here from T-030).
@@ -2179,6 +2185,8 @@ none
 Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
 
 #### Done condition
+CLI/backfill/transfer routes bind actual instrument configuration without synthetic setup pointers or reused original correction run IDs.
+
 Suite green on `reclass/v2.7`† with all three entry-point e2e cases passing, pins regenerated once, return report filed with the integrator.
 
 #### Chunking trigger
@@ -2416,12 +2424,12 @@ More than one rerun cycle → new card.
 
 ### T-050 — Write the D-007 interface specification for Colin
 
-Status: in-progress (draft; approval and acceptance pending)
+Status: in-progress (A approved; B conformance, delivery and acceptance pending)
 Type: document
 Priority: critical-path
 Spec refs: D-007, R-043, R-050, R-051, R-052, R-055, R-056, R-073, A-019, C-005
 Decision refs: DEC-001, DEC-004, DEC-005, DEC-015, DEC-016
-Progress (2026-11-01, integrator; RC-D-007/009): IN PROGRESS, review candidate only: handoffs/D-007-interface-spec.md and D-007-field-map.json. Proposed early contract milestone A breaks the Q2a cycle; later milestone B retains T-012/T-027 conformance and Colin acceptance. No new milestone is active until P1. PI approval, send authorization and A-019 acceptance remain pending.
+Progress (2026-11-01, integrator; approved S1a/S2a/P1a/P2): T-050A complete and contract/map returned to T-012. T-050B retains implemented T-012/T-027 conformance, explicit PI send authorization and Colin A-019. Full T-050 is not complete.
 
 #### Objective
 An accepted interface specification giving Colin the exact fields, types, version display, most-recent rule, hidden-fields rule (Q-021 a), release flag, back-fill visibility (R-055, R-056), and the correction-layer interface, delivered as GitHub issues on g3o-api / g3o-website. RC-D-002 row 49: columns for every published item (R-057), with only confirmed activities in the public activity table (r2#51); codebook release label + setup pointer + `evidence_channel` in place of `contract_version` (r2#32); legacy-column fill (r2#46); `text_source` and the v2.5-rule label (R-059); support status; 9-value counts; e-mail domain + count and unmasked quotes (R-058); X41 display-only translation on the website; A06 / A07; full quote text in CSV / API (DEC-016 c, r2#17). Under Q6 the generated data dictionary owns the published definitions, and the API's evidence-status doc (g3o-api `docs/evidence-status-contract.md`) is restated for 9 values.
@@ -2448,6 +2456,8 @@ An accepted interface specification giving Colin the exact fields, types, versio
 - Working directory/environment: `C:/Users/spaci/repos/G3O/planning/`
 
 #### Dependencies
+- Milestone A (approved): signed T-010/T-013 and accepted T-012 inventory; no built T-012/T-027 requirement. Its artifact is a T-012 prerequisite.
+- Graph row and Requires below denote remaining milestone B only.
 - Requires: T-010, T-012, T-027
 - Enables: T-028, T-051
 - Can run with: T-015, T-021
@@ -2486,6 +2496,8 @@ An accepted interface specification giving Colin the exact fields, types, versio
 Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
 
 #### Done condition
+Milestone A: exact PI-approved contract/map, 120-item coverage and independent draft review (met). Milestone B: implemented conformance and consumer acceptance (pending).
+
 Spec file written, PI-approved, issues posted, and Colin's acceptance recorded (A-019).
 
 #### Chunking trigger

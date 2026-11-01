@@ -17,3 +17,5 @@ Sole writer: the plan integrator (DEC-012 a). Every entry after the baseline nee
 
 | 2026-11-01 | RC-D-007 | SPEC v001.12; signature; codebook; nine generated files; PLAN; notice addenda | Approved rewording installed as r11; ai_text only change from r10; year rule retained; all applicable release checks pass | PI fixed approvals and current successor instruction to publish r11 release/signature work |
 | 2026-11-01 | RC-D-009 | PLAN; deltas/RC-D-009.md; handoffs | Approved Q1a/Q2a/Q3a, E1-E4, L1-L5/P1-P3 and narrow strict golden exception recorded; T-012 blocked, T-027 not started; D-007 proposed remap/policies await explicit decisions | PI 2026-11-01 fixed approvals; new S1/S2/P1/P2 remain PENDING |
+
+| 2026-11-01 | RC-D-009 disposition | SPEC v001.13; RESOURCES; PLAN; D-007 contract/map; reply; delta application lock | S1a explicit missingness; S2a distinct email counts; P1a local-first; P2 interface approved. T-050A met, Q2a resumed; T-027 gated; A-019 retained | Simone Paci, page d9ca34714331, saved_at 2026-11-01T15:38:55.942Z |

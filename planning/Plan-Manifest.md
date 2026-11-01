@@ -19,3 +19,7 @@ Prior scoping: `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-scre
 | 6. Baseline lock | SPEC + RESOURCES + PLAN | locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); record `Baseline-Lock-2026-10-28.json`; pre-lock copies `archive/2026-10-28-baseline-prelock/` |
 | 7. Launch | handoffs (engineer cards) | not-started (PLAN_ONLY) |
 | 8. Reconcile | `CHANGELOG.md` + `Spec-Reconciliation.md` | not-started |
+
+## Current continuation (2026-11-01)
+
+The historical stage table above describes the original baseline. Current SPEC v001.13 applies approved RC-D-007/009 and the exact S1a/S2a/P1a/P2 reply. T-050A approved; T-012 Q2a active, T-027 gated. Local branch planning/r11-rcd009; no remote push/merge/deploy. Current generated page: page/Plan-Visual.html. Delta application lock retains original RC-BL-001 history.
