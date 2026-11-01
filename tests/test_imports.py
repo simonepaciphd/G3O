@@ -12,7 +12,7 @@ def test_top_level_import():
 def test_common_imports():
     from g3o.common import config, schema  # noqa: F401
 
-    assert len(schema.DATA_COLUMNS) == 44
+    assert len(schema.DATA_COLUMNS) == 47
     # 37 = 35 base + the institution_uid/sweep_uid key layer (PI ruling 2026-08-14).
     assert len(schema.ACTIVITY_COLUMNS) == 37
     # 20 = 17 base + group_d_salvaged_fields (Group-D salvage flag, 2026-07-21)

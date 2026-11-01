@@ -460,7 +460,7 @@ def test_run_provenance_requires_the_version_label(field):
 
 def test_run_provenance_rejects_an_unknown_evidence_channel():
     with pytest.raises(ValidationError):
-        run_provenance(evidence_channel="ai_text")
+        run_provenance(evidence_channel="text_detection")
 
 
 # ---------------------------------------------------------------------------
@@ -604,3 +604,27 @@ def test_provenance_still_rejects_malformed_run_date_shape(model):
     """The pattern constraint is unchanged and still runs first."""
     with pytest.raises(ValidationError):
         model.model_validate(_provenance("08/05/2026", model))
+
+
+@pytest.mark.parametrize("value", PAGE_VERDICT_V27)
+def test_live_row_reads_v27_verdicts_and_persists_with_version_guard(value):
+    payload = active_row() if value == "confirms_activity" else absent_row()
+    payload["genai_evidence"] = value
+    row = ContractRow.model_validate(payload)
+    persisted = PersistedRow(provenance=run_provenance(codebook_release="2.7"), row=row)
+    assert persisted.to_csv_dict()["genai_evidence"] == value
+    if value not in PAGE_VERDICT_V25:
+        with pytest.raises(ValidationError, match="not a page verdict"):
+            PersistedRow(provenance=run_provenance(), row=row)
+
+
+def test_extractor_and_consolidator_advertise_nine_verdicts():
+    from g3o.common.contract import SourceRecord
+    for model in (ContractRow, SourceRecord):
+        schema = model.model_json_schema()["properties"]["genai_evidence"]
+        assert schema["enum"] == list(PAGE_VERDICT_V27)
+        assert "ambiguous" not in schema["enum"]
+
+
+def test_ai_text_is_the_canonical_channel():
+    assert run_provenance(evidence_channel="ai_text").evidence_channel == "ai_text"

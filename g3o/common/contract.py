@@ -165,7 +165,7 @@ SourceType = Literal[
     "other",
 ]
 SourceCredibility = Literal["high", "medium", "low"]
-GenAIEvidence = Literal[
+GenAIEvidenceV25 = Literal[
     "confirms_activity", "confirms_absence", "ambiguous", "background_only"
 ]
 Confidence = Literal["high", "medium", "low"]
@@ -174,7 +174,7 @@ Confidence = Literal["high", "medium", "low"]
 # Page verdict across contract versions (T-012; R-015, R-050, C-007)
 # ---------------------------------------------------------------------------
 #
-# ``GenAIEvidence`` above is the v2.5 vocabulary (4 values). From codebook
+# ``GenAIEvidenceV25`` above is the v2.5 vocabulary (4 values). From codebook
 # release 2.7 the same column, ``genai_evidence``, takes the 9-value page
 # verdict of codebook item ``core.page_verdict`` (R-015: "It replaces v2.5
 # `genai_evidence` in the same column"). v2.5 rows keep their 4-value answers
@@ -197,9 +197,17 @@ PageVerdict = Literal[
 ]
 
 #: The v2.5 page-verdict vocabulary (column ``genai_evidence``).
-PAGE_VERDICT_V25: tuple[str, ...] = get_args(GenAIEvidence)
+PAGE_VERDICT_V25: tuple[str, ...] = get_args(GenAIEvidenceV25)
 #: The codebook-2.7 page-verdict vocabulary (``core.page_verdict``).
 PAGE_VERDICT_V27: tuple[str, ...] = get_args(PageVerdict)
+
+# Q1a (PI 2026-11-01): the live extractor schema now advertises the nine
+# v2.7 verdicts. Retain the old spelling only when reading legacy payloads;
+# persisted rows must pass the version guard before any CSV is produced.
+GenAIEvidence = Annotated[
+    PageVerdict | GenAIEvidenceV25,
+    WithJsonSchema({"type": "string", "enum": list(PAGE_VERDICT_V27)}),
+]
 
 #: The codebook release this code is built against. v2.7 rows carry it as their
 #: version label (R-050, ``core.codebook_release``).
@@ -217,9 +225,9 @@ _PAGE_VERDICT_BY_VERSION: dict[str, tuple[str, ...]] = {
     CODEBOOK_RELEASE_V27: PAGE_VERDICT_V27,
 }
 
-# Row provenance (``core.evidence_channel``). Values are the signed rule text of
-# that item: "Channel enum (web_extract, procurement, text_detection)".
-EvidenceChannel = Literal["web_extract", "procurement", "text_detection"]
+# Row provenance (``core.evidence_channel``), corrected by PI Q3a
+# (2026-11-01) to match the codebook pipeline list (candidate r11).
+EvidenceChannel = Literal["web_extract", "procurement", "ai_text"]
 
 
 def page_verdict_vocabulary(version_label: str) -> tuple[str, ...]:

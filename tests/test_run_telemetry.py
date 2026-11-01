@@ -134,6 +134,13 @@ def test_manifest_keeps_the_planning_half(tmp_path: Path) -> None:
     assert "institution_search_languages" in manifest["config"]
 
 
+def test_manifest_contract_block_matches_current_surface(tmp_path: Path) -> None:
+    """Telemetry reports the running schema even while T-035 owns stale pins."""
+    _, manifest = _launch_dry(tmp_path)
+    assert manifest["contract"] == contract_surface()
+
+
+@pytest.mark.xfail(strict=True, reason="T-035 regenerates contract pins at integration (DEC-021; PI E2, 2026-11-01)")
 def test_manifest_contract_block_is_the_enforced_pin(tmp_path: Path) -> None:
     """§4.1's "same pin PR #29 enforces" — asserted, not asserted-in-prose."""
     _, manifest = _launch_dry(tmp_path)
