@@ -37,6 +37,11 @@ ITEM_MARKER = "<!-- item: {item_id} sha256: {item_hash} -->"
 VALUE_MARKER = "<!-- value: {code} -->"
 RULES_HEADING = "Rules:"
 
+#: The entailment question that carries the plain-word labels (RC-D-007, C7 a).
+ENTAILMENT_ITEM = "core.support_entailment"
+LABEL_KEY = "entailment_label"
+PART_LABELS_KEY = "part_entailment_labels"
+
 #: Where each generated output is meant to land; the owning card moves it.
 INTENDED_TARGETS: dict[str, str] = {
     "jev_questions.json": "T-011 jev question and choice sets (path chosen by T-011)",
@@ -233,6 +238,12 @@ def _render_item_reference(cb: Codebook, item_id: str, used: list[tuple[str, str
     if ins is not None:
         lines += ["### Instruction", "", ins.text, ""]
         used.append((ins.path, ins.text))
+    for key, heading in (("instruction_page", "Instruction (page form)"), (LABEL_KEY, "Entailment label"),
+                         ("label_rules", "Label rules")):
+        text = cb.slot_text(item.get(key))
+        if text is not None:
+            lines += [f"### {heading}", "", text, ""]
+            used.append((f"items/{item_id}/{key}", text))
 
     values = cb.value_list(item_id)
     if values is not None:
@@ -244,6 +255,10 @@ def _render_item_reference(cb: Codebook, item_id: str, used: list[tuple[str, str
             if slot is not None:
                 lines += [slot.text, ""]
                 used.append((slot.path, slot.text))
+            label = cb.slot_text(value.get(LABEL_KEY))
+            if label is not None:
+                lines += [f"Entailment label: {label}", ""]
+                used.append((f"items/{item_id}/values/{n}/{LABEL_KEY}", label))
     elif isinstance(item.get("values"), dict):
         lines += ["### Values (structured; rendered by slot path)", ""]
         for path, text in _walk_slots(item["values"], f"items/{item_id}/values"):
@@ -337,6 +352,81 @@ def _part_prompt(cb: Codebook, used: list[tuple[str, str]]) -> dict[str, Any] | 
     return {"sentence": sentence.text, "sentence_slot": sentence.path, "temporary_answer": answer}
 
 
+def label_frame(item: dict[str, Any]) -> str | None:
+    """Question form for an item's entailment check: ``activity`` when any
+    level is ``activity``; ``page`` when every level is ``page`` or ``source``;
+    None otherwise (RC-D-007 generator spec 1; ``label_rules`` states the list)."""
+    levels = item.get("level")
+    levels = [levels] if isinstance(levels, str) else list(levels or [])
+    if "activity" in levels:
+        return "activity"
+    if levels and set(levels) <= {"page", "source"}:
+        return "page"
+    return None
+
+
+def _value_labels(values: list[dict[str, Any]], base: str,
+                  used: list[tuple[str, str]]) -> dict[str, dict[str, str]]:
+    out = {}
+    for n, value in enumerate(values):
+        text = Codebook.slot_text(value.get(LABEL_KEY))
+        if text is None:
+            continue
+        path = f"{base}/{n}/{LABEL_KEY}"
+        used.append((path, text))
+        out[str(value["code"])] = {"text": text, "slot": path}
+    return out
+
+
+def _part_field_label(cb: Codebook, item_id: str, part: str) -> tuple[str, str] | None:
+    """A later part's field label: ``values.part_entailment_labels`` as one slot
+    (the one later part) or as a mapping keyed by part name."""
+    node = (cb.items[item_id].get("values") or {}).get(PART_LABELS_KEY)
+    base = f"items/{item_id}/values/{PART_LABELS_KEY}"
+    text = Codebook.slot_text(node)
+    if text is not None:
+        return base, text
+    if isinstance(node, dict):
+        text = Codebook.slot_text(node.get(part))
+        if text is not None:
+            return f"{base}/{part}", text
+    return None
+
+
+def entailment_labels(cb: Codebook, used: list[tuple[str, str]]) -> dict[str, dict[str, Any]]:
+    """Plain-word field and value labels per build-scope item with an
+    ``entailment_label`` (RC-D-007 generator spec 1). A parts item carries
+    every part under ``parts``; its top-level ``field`` / ``values`` repeat the
+    first part. Computed-value (year) items carry no value labels: the value
+    label is the year itself (``value_label: year``)."""
+    out: dict[str, dict[str, Any]] = {}
+    for item_id, item in cb.build_items().items():
+        field_text = Codebook.slot_text(item.get(LABEL_KEY))
+        if field_text is None:
+            continue
+        field_slot = f"items/{item_id}/{LABEL_KEY}"
+        used.append((field_slot, field_text))
+        entry: dict[str, Any] = {"frame": label_frame(item), "field": field_text, "field_slot": field_slot}
+        parts = cb.parts(item_id)
+        if parts is not None:
+            entry_parts: dict[str, Any] = {}
+            for n, (name, part) in enumerate(parts):
+                pf = (field_slot, field_text) if n == 0 else _part_field_label(cb, item_id, name)
+                if n > 0 and pf is not None:
+                    used.append(pf)
+                entry_parts[name] = {"field": pf[1] if pf else None, "field_slot": pf[0] if pf else None,
+                                     "values": _value_labels(part, f"items/{item_id}/values/{name}", used)}
+            entry["values"] = entry_parts[parts[0][0]]["values"]
+            entry["parts"] = entry_parts
+        elif cb.computed_values(item_id) is not None:
+            entry["values"] = {}
+            entry["value_label"] = "year"
+        else:
+            entry["values"] = _value_labels(cb.value_list(item_id) or [], f"items/{item_id}/values", used)
+        out[item_id] = entry
+    return out
+
+
 def _question(cb: Codebook, item_id: str, item: dict[str, Any], question_id: str, ins: Any,
               criteria: list[dict[str, Any]], gate: Any, part: str | None,
               temp: dict[str, Any] | None) -> dict[str, Any]:
@@ -370,6 +460,24 @@ def _criterion(code: str, d: Any, rules: list[RuleText], used: list[tuple[str, s
     used.extend((r.path, r.text) for r in rules)
     return {"code": code, "text": _value_block(d.text, rules), "definition_slot": d.path,
             "rule_slots": [r.path for r in rules]}
+
+
+def _add_entailment_labels(cb: Codebook, questions: list[dict[str, Any]], used: list[tuple[str, str]]) -> None:
+    """On the entailment question: the page-form instruction and the labels
+    (RC-D-007 generator spec 1-2). Nothing is added when the codebook holds
+    neither, so a release without labels generates the same bytes as before."""
+    q = next((q for q in questions if q["question_id"] == ENTAILMENT_ITEM), None)
+    if q is None:
+        return
+    page = cb.resolve_text(f"items/{ENTAILMENT_ITEM}/instruction_page")
+    if page is not None:
+        path = f"items/{ENTAILMENT_ITEM}/instruction_page"
+        used.append((path, page))
+        q["instructions_page"] = page
+        q["instruction_page_slot"] = path
+    labels = entailment_labels(cb, used)
+    if labels:
+        q["labels"] = labels
 
 
 def gen_jev_questions(cb: Codebook) -> GeneratedFile:
@@ -430,6 +538,7 @@ def gen_jev_questions(cb: Codebook) -> GeneratedFile:
             criteria.append(_criterion(str(value["code"]), d, rules, used))
         criteria += _missing_criteria(cb, item_id, rules, used)
         questions.append(_question(cb, item_id, item, item_id, ins, criteria, item.get("gate"), None, temp))
+    _add_entailment_labels(cb, questions, used)
     doc = _json_header(cb, "jev_questions")
     doc["intended_target"] = INTENDED_TARGETS["jev_questions.json"]
     if temp is not None:

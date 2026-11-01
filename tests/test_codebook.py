@@ -595,3 +595,169 @@ def test_schema_validates_signed_file_and_rc_d_005_candidate() -> None:
     for cb in (load_codebook(), cand):
         errors = list(jsonschema.Draft202012Validator(schema).iter_errors(cb.data))
         assert not errors, [(list(e.absolute_path)[:3], e.message[:120]) for e in errors[:5]]
+
+
+# ---------------------------------------------------------------------------
+# RC-D-007 entailment labels (C7 a): generator spec for T-013
+# ---------------------------------------------------------------------------
+
+
+def _labelled_mini() -> dict:
+    """The mini codebook plus a labelled parts item, a year item and the
+    entailment item: page form for alpha / beta (level page), activity form
+    for the rest, as ``label_rules`` lists."""
+    d = _mini()
+    d["items"]["core.rel"] = _parts_item()
+    d["items"]["core.year"] = _item("core.year", level=["activity"], pass_=2, round=1,
+                                    values={"candidates": "deterministic year extraction, plus unknown (C16)"},
+                                    long_page_rule="earliest_year")
+    for item_id, field_label in (("core.alpha", "alpha field"), ("core.beta", "beta field"),
+                                 ("core.rel", "acting body"), ("core.year", "year it started")):
+        d["items"][item_id]["entailment_label"] = _slot(field_label)
+    for item_id in ("core.alpha", "core.beta"):
+        for v in d["items"][item_id]["values"]:
+            v["entailment_label"] = _slot(f"{item_id} {v['code']} label")
+    rel = d["items"]["core.rel"]["values"]
+    for part in ("relationship", "role"):
+        for v in rel[part]:
+            v["entailment_label"] = _slot(f"{part} {v['code']} label")
+    rel["part_entailment_labels"] = _slot("its part")
+    d["items"]["core.support_entailment"] = _item(
+        "core.support_entailment", level=["row"], pass_="none", answer_type="yes_no",
+        instruction=_slot('Does this text state that the <field label> of the activity "<activity name>" is "<value label>"?'),
+        instruction_page=_slot('Does this text state that the <field label> of the page is "<value label>"?'),
+        label_rules=_slot("Field and value labels. Items coded per page (`alpha`, `beta`) use the page form "
+                          "`instruction_page`; every other item uses the activity form."),
+        values=[{"code": "true", "definition": _slot("It states it.")},
+                {"code": "false", "definition": _slot("It does not state it.")}],
+        rules=[_slot("Quote plus window.")], support_required=False, long_page_rule="none")
+    return d
+
+
+def _entailment_question(cb: Codebook) -> tuple:
+    files = generate_all(cb)
+    jev = next(f for f in files if f.name == "jev_questions.json")
+    q = next(q for q in json.loads(jev.content)["questions"] if q["question_id"] == "core.support_entailment")
+    return files, jev, q
+
+
+def test_labels_emitted_on_the_entailment_question(tmp_path: Path) -> None:
+    d = _labelled_mini()
+    results = _all_pass(d, tmp_path)
+    assert all(s in ("pass", "n/a") for s, _ in results.values()), results
+    _, _, q = _entailment_question(_cb(d))
+    assert q["instructions_page"].endswith('of the page is "<value label>"?')
+    assert q["instruction_page_slot"] == "items/core.support_entailment/instruction_page"
+    labels = q["labels"]
+    assert set(labels) == {"core.alpha", "core.beta", "core.rel", "core.year"}
+    assert labels["core.alpha"] == {
+        "frame": "page", "field": "alpha field", "field_slot": "items/core.alpha/entailment_label",
+        "values": {"yes_value": {"text": "core.alpha yes_value label",
+                                 "slot": "items/core.alpha/values/0/entailment_label"},
+                   "no_value": {"text": "core.alpha no_value label",
+                                "slot": "items/core.alpha/values/1/entailment_label"}}}
+    assert labels["core.year"] == {"frame": "activity", "field": "year it started",
+                                   "field_slot": "items/core.year/entailment_label",
+                                   "values": {}, "value_label": "year"}
+    rel = labels["core.rel"]
+    assert rel["frame"] == "activity" and rel["values"] == rel["parts"]["relationship"]["values"]
+    assert rel["parts"]["role"]["field"] == "its part"
+    assert rel["parts"]["role"]["field_slot"] == "items/core.rel/values/part_entailment_labels"
+    assert rel["parts"]["role"]["values"]["buyer"]["slot"] == "items/core.rel/values/role/0/entailment_label"
+
+
+def test_labels_every_label_slot_reaches_check_03() -> None:
+    cb = _cb(_labelled_mini())
+    files, jev, _ = _entailment_question(cb)
+    res = C.check_03_verbatim(cb, C.Context(generated=files))
+    assert res.status == "pass"
+    # 4 field labels + 1 part field label + 7 value labels + instruction_page
+    assert any(n.startswith("13 entailment label slots") for n in res.notes), res.notes
+    jev.used_slots = [(p, t) for p, t in jev.used_slots if p != "items/core.rel/values/part_entailment_labels"]
+    res = C.check_03_verbatim(cb, C.Context(generated=files))
+    assert any("label slot items/core.rel/values/part_entailment_labels not used" in f for f in res.findings)
+
+
+def test_labels_check_06_seeded_faults() -> None:
+    d = _labelled_mini()
+    assert _run(d, 6).status == "pass"
+    bad = copy.deepcopy(d)
+    del bad["items"]["core.beta"]["values"][1]["entailment_label"]
+    assert any("core.beta: values without an entailment_label: ['no_value']" in f for f in _run(bad, 6).findings)
+    bad = copy.deepcopy(d)
+    del bad["items"]["core.rel"]["values"]["part_entailment_labels"]
+    assert any("part 'role' has no field label" in f for f in _run(bad, 6).findings)
+    bad = copy.deepcopy(d)
+    del bad["items"]["core.year"]["entailment_label"]
+    assert any("core.year: support_required with a value set but no entailment_label" in f
+               for f in _run(bad, 6).findings)
+    bad = copy.deepcopy(d)
+    bad["items"]["core.beta"]["level"] = ["page", "activity"]          # activity form now, still listed as page
+    assert any("lists ['beta'] not page-level" in f for f in _run(bad, 6).findings)
+    bad = copy.deepcopy(d)
+    bad["items"]["core.alpha"]["level"] = ["row"]
+    assert any("gives no entailment frame" in f for f in _run(bad, 6).findings)
+    bad = copy.deepcopy(d)
+    del bad["items"]["core.support_entailment"]["label_rules"]
+    assert any("label_rules missing" in f for f in _run(bad, 6).findings)
+
+
+def test_labels_absent_leave_the_question_unchanged() -> None:
+    """A release without labels (the signed 2.7 file) emits no label keys, so
+    its committed generated files stay byte-identical (check 5)."""
+    d = _labelled_mini()
+    for it in d["items"].values():
+        it.pop("entailment_label", None)
+        it.pop("instruction_page", None)
+        for v in it["values"] if isinstance(it["values"], list) else []:
+            v.pop("entailment_label", None)
+    d["items"]["core.rel"]["values"] = _parts_item()["values"]
+    _, _, q = _entailment_question(_cb(d))
+    assert "labels" not in q and "instructions_page" not in q
+
+
+#: The RC-D-007 candidate lives outside the repo until signature; set this
+#: variable to its path to run the candidate case, e.g.
+#: C:/Users/spaci/worktrees/G3O-rcd007/planning/t010/candidate-r9/codebook-r9-signoff.yaml
+CANDIDATE_ENV = "G3O_CODEBOOK_CANDIDATE"
+
+
+def _labelled_codebooks() -> list[Codebook]:
+    import os
+
+    out = []
+    signed = load_codebook()
+    if any("entailment_label" in it for it in signed.build_items().values()):
+        out.append(signed)
+    cand = os.environ.get(CANDIDATE_ENV)
+    if cand and Path(cand).exists():
+        out.append(load_codebook(cand))
+    return out
+
+
+@pytest.mark.parametrize("which", [0, 1])
+def test_labels_on_a_labelled_release(which: int) -> None:
+    """Every support_required item with a value set, and each of its values
+    (each part), has a label; checks 3 and 6 pass."""
+    books = _labelled_codebooks()
+    if which >= len(books):
+        pytest.skip(f"no labelled codebook #{which} (the signed file is unlabelled; set {CANDIDATE_ENV})")
+    cb = books[which]
+    files, _, q = _entailment_question(cb)
+    labels = q["labels"]
+    for item_id, item in cb.build_items().items():
+        parts = cb.parts(item_id)
+        computed = cb.computed_values(item_id) is not None
+        if item.get("support_required") is not True or (cb.value_list(item_id) is None and parts is None and not computed):
+            continue
+        entry = labels[item_id]
+        assert entry["field"], item_id
+        for name, vals in parts or [("values", cb.value_list(item_id) or [])]:
+            group = entry["parts"][name] if parts else entry
+            assert group["field"], (item_id, name)
+            assert set(group["values"]) == {str(v["code"]) for v in vals}, (item_id, name)
+        if computed:
+            assert entry["values"] == {} and entry["value_label"] == "year"
+    ctx = C.Context(generated=files)
+    assert C.check_03_verbatim(cb, ctx).status == "pass"
+    assert C.check_06_linkage(cb, ctx).status == "pass"
