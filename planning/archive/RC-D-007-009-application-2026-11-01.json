@@ -1,0 +1,28 @@
+{
+  "format": "g3o-approved-delta-application-v1",
+  "date": "2026-11-01",
+  "baseline": "RC-BL-001 retained unchanged",
+  "approved_deltas": [
+    "RC-D-007 approved wording/r11 signature",
+    "RC-D-009 fixed approvals only"
+  ],
+  "pending_not_locked": [
+    "D-007 S1",
+    "D-007 S2",
+    "D-007 P1",
+    "D-007 P2",
+    "Colin A-019"
+  ],
+  "approval_source": "Current user successor instruction and exact fixed approvals; native activation c10efbad5812817d",
+  "hashes": {
+    "SPEC.md": "ac09e1afd348c5ae1b213cb61f6d3df2124a16d8920fdcf530f7f37af0cad2f0",
+    "RESOURCES.md": "911a890eaa8eea630356779b9f1aef966d8fe0842ac3e761fd8571ef14c4ce6e",
+    "PLAN.md": "1331201229e56d02ada512b663db9384fa2ce3c668ae8851611696c40dd9f028",
+    "CHANGELOG.md": "82b3c7e3de881eed693b6ac09c1f18d9140fd08ac141b0ef8396614c298381c2",
+    "t010/signoff-record.md": "107e9d6ac55c6bfcc1e79ec0f7ab7dbfbf986e395af5cfca01eb5d1123566a1c",
+    "deltas/RC-D-007.md": "34e04838b6c0e6229a4d5c0b99a0843bcd50445c23ce4430dda3669eea6754bc",
+    "deltas/RC-D-009.md": "36fa88c0d7aeebc16ce28a393f96552103a7b6668be6607548d03debcd74ffee",
+    "handoffs/D-007-interface-spec.md": "643a88387b6060dd5eff01299d36e622365c3f500e75cd416c04e9ae462285cd",
+    "handoffs/D-007-field-map.json": "9db52d4cc640def96e3d57ac6d7fb1776cf03e412818cb56eafd64472fc424a6"
+  }
+}

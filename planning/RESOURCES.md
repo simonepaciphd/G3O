@@ -135,3 +135,7 @@ Prepared by: Claude Code subagent (claude-opus-5-5), 2026-10-27; spot-checked an
 | v001.2 | RC-D-002: notes on RS-016, RS-019, RS-020, RS-023, RS-024, RS-029; new RS-038 (AI-text-detection repo), RS-039 (codebook-review records), RS-040 (multilingual subproject); map rows D-001 / R-007, D-009, D-010 | Simone Paci, 2026-10-29, chat "approve delta" |
 | v001.1 | RC-D-001: extractor gpt-5-nano → Claude Haiku 5.5 (title, RS-015 note, RS-031, new RS-037) | Simone Paci, 2026-10-29, chat "approve delta" |
 | v001 | Stage 2 subagent draft; parent spot-checks; PI gap rulings G1 b, G7 b, G8 c, G11 b, G12, RQ-003/006/007 applied; design gaps routed to Stage 3 | Simone Paci, 2026-10-27 |
+
+## 2026-11-01 continuation evidence (no new resource commitment)
+
+RS-010/018: ENUM clean local 87ac525; Q2a remains blocked. RS-039: r11 signed under current PI authorization, exact hash in t010/signoff-record.md; LABELS generator PR150 at 34f6407 remains unmerged. D-007 candidate and full item mapping are in handoffs/. Current API loader ignores extra fields; T-051/052 capability checks are required before 2.7 ingestion. No DB connection or paid resource was used. Canonical continuation branch: planning/r11-rcd009 in G3O-orch-20261101.

@@ -1,16 +1,16 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extract_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f -->
+<!-- codebook release: 2.7 | codebook sha256: f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d -->
 
 # G3O output contract (extract), generated from the codebook
 
-Codebook release `2.7`, sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f`. 99 items.
+Codebook release `2.7`, sha256 `f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d`. 99 items.
 
 ## `core.page_verdict`
-<!-- item: core.page_verdict sha256: d448710c4b15adc59edf76e6097a881a9bc0ab36221e9b895a8171c4f49abb0b -->
+<!-- item: core.page_verdict sha256: 53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44 -->
 
 | Field | Value |
 |---|---|
-| item hash | `d448710c4b15adc59edf76e6097a881a9bc0ab36221e9b895a8171c4f49abb0b` |
+| item hash | `53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44` |
 | family | `verdict` |
 | name | `page_verdict` |
 | level | `page` |
@@ -38,61 +38,83 @@ Codebook release `2.7`, sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a66
 
 Code this PAGE for the named institution only, using only what the page says. Does it document a generative-AI activity at this institution? If several values fit, take the first in this order.
 
+### Entailment label
+
+generative-AI content
+
 ### Values
 
 #### `confirms_activity`
 
 The page documents a specific generative-AI activity AT THIS institution: its own GenAI tool, pilot, policy or guidance on GenAI, procurement, deployment, or institution-directed staff GenAI training. The text must be explicitly generative AI (LLMs, ChatGPT, Copilot, Gemini, AI chatbots, AI-generated content or equivalents) and tied to this institution, not only to a national programme or another body. The activity must be carried out or adopted by the named institution itself. Exclude activity by a parent, higher-level or neighbouring body (e.g. a district, county, regency, region, consortium or city department when the named institution is a village, ward or sub-unit), by a similarly named organisation or company, and pages by vendors that only use the place name. Generic 'AI', 'artificial intelligence', 'smart' systems, automation, analytics, prediction, transcription, translation, image or video recognition, or traditional machine-learning tools do not count unless the page says the tool generates text, images, audio, code or other content, or names a generative product or model (e.g. ChatGPT, Copilot, Gemini, Claude, an LLM, an AI chatbot or AI assistant).
 
+Entailment label: a generative-AI activity at this institution
+
 #### `ambiguous_genai`
 
 The page mentions AI at this institution, but it cannot be settled whether it is generative AI (e.g. a generic 'AI strategy', 'AI tools', analytics, traditional machine learning).
+
+Entailment label: AI at this institution that may not be generative
 
 #### `ambiguous_attribution`
 
 The page mentions generative AI, but it cannot be settled whether THIS institution is involved (e.g. a country-wide or regional GenAI initiative without confirmation that this institution takes part, or a page about a similarly named body).
 
+Entailment label: generative AI that may not involve this institution
+
 #### `other_body`
 
 The page documents a generative-AI activity, but it clearly belongs to a different body, not the named institution: a parent, higher-level or neighbouring body (e.g. a district, county, regency, region, consortium or city department when the named institution is a village, ward or sub-unit), a similarly named organisation or company, or a vendor or marketing page that only uses the place name.
 
+Entailment label: a generative-AI activity of another body
+
 #### `event_only`
 
-The only GenAI content is a public-facing event, workshop, seminar, showcase or educational programme, with no documented adoption, procurement, deployment or governance by the institution itself (WS10 D1: not a qualifying activity).
+The only GenAI content is a public-facing event, workshop, seminar, showcase or educational programme, with no documented adoption, procurement, deployment or governance by the institution itself (not a qualifying activity).
+
+Entailment label: only a public GenAI event or educational programme
 
 #### `background_only`
 
 The page gives only general context (national AI strategy, vendor overview, news about GenAI in general) and documents no activity at this institution.
 
+Entailment label: only general background on AI
+
 #### `confirms_absence`
 
-v2.5 `confirms_absence` (page states absence; distinct from `no_genai`, no relevant content)
+The page states that this institution has no generative-AI activity, for example that it does not use GenAI tools. Different from no_genai, where the page simply has no relevant content.
+
+Entailment label: a statement that this institution has no generative-AI activity
 
 #### `no_genai`
 
 The page contains no generative-AI content relevant to this institution.
 
+Entailment label: nothing on generative AI at this institution
+
 #### `not_assessable`
 
 `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates
+
+Entailment label: not reviewed
 
 ### Rules
 
 1. `items/core.page_verdict/rules/0`
 
-The vocabulary has 9 values: the 8 below plus `not_assessable`, set mechanically when a page was not reviewed, never a classifier answer, not blocking institution `no`, and left out of the base for institution-level rates; in published summaries it is reported as `unknown` and stays a coding value; `page_review_state` keeps only pipeline failures; v2.5 rows stay unconverted and are mapped by the translation table.
+`not_assessable` is not one of the answers: it is set when a page was not reviewed.
 
 2. `shared_rules/core.rule.genai_boundary/0` (shared rule `core.rule.genai_boundary`)
 
-Generative-AI wording: the re-pilot 2 wording governs (SRC-7 L34-45), including that a named "AI chatbot or AI assistant" counts as a generative product; `system_prompt.md` L15 rule ("chatbot" alone is not evidence) is amended to match. A named "AI chatbot" or "AI assistant" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming.
+A tool the page calls an "AI chatbot" or "AI assistant" counts as generative AI, even where a rule-based chatbot would otherwise be excluded.
 
 3. `shared_rules/core.rule.genai_boundary/1` (shared rule `core.rule.genai_boundary`)
 
-S1 a: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.
+Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.
 
 4. `shared_rules/core.rule.ws10_event/0` (shared rule `core.rule.ws10_event`)
 
-WS10 D1 action boundary: a public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.
+A public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.
 
 5. `shared_rules/core.rule.attribution_grain/0` (shared rule `core.rule.attribution_grain`)
 
@@ -109,11 +131,11 @@ A joint activity counts when the page names this institution as a participant.
 All supported verdicts in the signed order first, then failed verdicts in the same order.
 
 ## `core.disclosure_form`
-<!-- item: core.disclosure_form sha256: af8cdf4d03cce301d4733c5d1f4c29c8abfe0354366592f2237e91eba6b7b694 -->
+<!-- item: core.disclosure_form sha256: 6d5ce44a18eea9599e585257ed852f2bf73a412c1de68bd3c8ef7ec1dde80256 -->
 
 | Field | Value |
 |---|---|
-| item hash | `af8cdf4d03cce301d4733c5d1f4c29c8abfe0354366592f2237e91eba6b7b694` |
+| item hash | `6d5ce44a18eea9599e585257ed852f2bf73a412c1de68bd3c8ef7ec1dde80256` |
 | family | `disclosure` |
 | name | `disclosure_form` |
 | level | `page` |
@@ -141,41 +163,57 @@ All supported verdicts in the signed order first, then failed verdicts in the sa
 
 What kind of document is this page?
 
+### Entailment label
+
+kind of document
+
 ### Values
 
 #### `register_cross_institution`
 
 The page is, or is one entry in, a structured list of AI or algorithmic systems kept by a government body, with several entries in a common format (inventory, register, catalogue, algorithmic transparency record in a standard template), **and the list covers more than one institution** (a national or sectoral register, a standard-template record series across agencies).
 
+Entailment label: an entry in a register that covers several institutions
+
 #### `register_single_institution`
 
-As CX-10, but the list covers **one institution only** (e.g. a city's own table of its AI tools).
+As `register_cross_institution`, but the list covers **one institution only** (e.g. a city's own table of its AI tools).
+
+Entailment label: an entry in one institution's own register
 
 #### `mandated_report`
 
 The page is a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems, such as a statutory annual-report section or a compliance or transparency report under a named rule.
 
+Entailment label: a report required by a rule on AI reporting
+
 #### `formal_record`
 
-An official one-off document of record from a government body: adopted policy or guidance, legislation, council or board minutes or resolutions, budget documents, procurement notice or award, audit or inspection report, **response to a freedom-of-information request** (CX-01.1, W5 = b).
+An official one-off document of record from a government body: adopted policy or guidance, legislation, council or board minutes or resolutions, budget documents, procurement notice or award, audit or inspection report, **response to a freedom-of-information request**.
+
+Entailment label: an official document of record
 
 #### `informal_official`
 
 A government body's own communication with no reporting obligation and no standard format: press release, news item, blog, social post, speech, event page, service or FAQ page.
 
+Entailment label: an informal communication from a government body
+
 #### `third_party`
 
 Not published by a government body: news, vendor, academic, NGO or policy organization. A register entry quoted in a news article is `third_party` (code the page, not what it quotes).
+
+Entailment label: a page not published by a government body
 
 ### Rules
 
 1. `items/core.disclosure_form/rules/0`
 
-Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values (CX-10, CX-10b). `disclosure_scope` (§3) still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).
+Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values. `disclosure_scope` still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).
 
 2. `items/core.disclosure_form/rules/1`
 
-The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`. This is the one stated exception to CX-03.
+The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`.
 
 3. `items/core.disclosure_form/rules/2`
 
@@ -183,18 +221,18 @@ The obligation must be named on the page, except that it may be inferred from th
 
 4. `items/core.disclosure_form/rules/3`
 
-CX-12/13: a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.
+A document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.
 
 5. `items/core.disclosure_form/rules/4`
 
 The page's kind cannot be determined from its text (e.g. an archived fragment with no header).
 
 ## `core.disclosure_scope`
-<!-- item: core.disclosure_scope sha256: 32e224fd58a2738763c9e708b84e4e8d0d24fc6c07c042d1aadc0d616be64617 -->
+<!-- item: core.disclosure_scope sha256: 089514643eaca8c94b06d0d617c2082f6604ef19a8f6c3680be56860fe8143b2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `32e224fd58a2738763c9e708b84e4e8d0d24fc6c07c042d1aadc0d616be64617` |
+| item hash | `089514643eaca8c94b06d0d617c2082f6604ef19a8f6c3680be56860fe8143b2` |
 | family | `disclosure` |
 | name | `disclosure_scope` |
 | level | `page` |
@@ -222,19 +260,29 @@ The page's kind cannot be determined from its text (e.g. an archived fragment wi
 
 How many institutions does the listing or document this page belongs to cover?
 
+### Entailment label
+
+coverage of the listing or document
+
 ### Values
 
 #### `whole_of_government`
 
 The listing or document the page belongs to covers institutions across the government (all central agencies, or all units of a level).
 
+Entailment label: the whole of government
+
 #### `multi_institution`
 
 It covers several institutions, but not government-wide (a sector, a region, a group of agencies).
 
+Entailment label: several institutions
+
 #### `single_institution`
 
 It covers one institution only.
+
+Entailment label: one institution
 
 ### Rules
 
@@ -244,18 +292,18 @@ Yes, as below.
 
 2. `items/core.disclosure_scope/rules/1`
 
-Pages whose `disclosure_form` is `register_cross_institution`, `register_single_institution` or `mandated_report`. On other pages the field is not asked and stores the reserved "not asked" label (CX-06).
+Pages whose `disclosure_form` is `register_cross_institution`, `register_single_institution` or `mandated_report`. On other pages the field is not asked and stores the reserved "not asked" label.
 
 3. `items/core.disclosure_scope/rules/2`
 
 Coverage cannot be determined from the page.
 
 ## `core.page_complete`
-<!-- item: core.page_complete sha256: a9f0477de324e7012112096cb6f65a79d6c95f891595b196f87fc11abb65e7fb -->
+<!-- item: core.page_complete sha256: 0125217cda0f3b064a80821fd9ae31c1fa5fb158dc73ead1c3d95be09379f503 -->
 
 | Field | Value |
 |---|---|
-| item hash | `a9f0477de324e7012112096cb6f65a79d6c95f891595b196f87fc11abb65e7fb` |
+| item hash | `0125217cda0f3b064a80821fd9ae31c1fa5fb158dc73ead1c3d95be09379f503` |
 | family | `completeness` |
 | name | `page_complete` |
 | level | `page` |
@@ -283,15 +331,23 @@ Coverage cannot be determined from the page.
 
 'Does the page refer the reader to another page or document for more information about a GenAI activity it mentions?'
 
+### Entailment label
+
+referral elsewhere for more on a GenAI activity
+
 ### Values
 
 #### `yes`
 
 The page refers the reader to another page or document for more information about a GenAI activity it mentions, so the page is incomplete (see the note on the name).
 
+Entailment label: given
+
 #### `no`
 
 The page does not refer the reader elsewhere for more information about any GenAI activity it mentions.
+
+Entailment label: not given
 
 ### Rules
 
@@ -304,11 +360,11 @@ The first pass also records whether the page holds all available information abo
 Note: `yes` means incomplete (the page refers the reader onward); the name `page_complete` reads the other way.
 
 ## `core.source_type`
-<!-- item: core.source_type sha256: 18fd64c5194e4ed8d3ac57036a9a29e58293264137772357e41d636a4747170f -->
+<!-- item: core.source_type sha256: eeec6e92b28743e0e64973fc7847010727a12a4b47d0cefcb38ab7ada9a7e5c0 -->
 
 | Field | Value |
 |---|---|
-| item hash | `18fd64c5194e4ed8d3ac57036a9a29e58293264137772357e41d636a4747170f` |
+| item hash | `eeec6e92b28743e0e64973fc7847010727a12a4b47d0cefcb38ab7ada9a7e5c0` |
 | family | `source` |
 | name | `source_type` |
 | level | `source` |
@@ -336,60 +392,80 @@ Note: `yes` means incomplete (the page refers the reader onward); the name `page
 
 What kind of source is this page?
 
+### Entailment label
+
+kind of source
+
 ### Values
 
 #### `news_major`
 
 Major national/international news outlet (Reuters, BBC, NYT, Le Monde, NHK, etc.)
 
+Entailment label: a major news outlet
+
 #### `news_trade`
 
 Technology or government trade press (GovTech, FedScoop, PublicTechnology, etc.)
+
+Entailment label: technology or government trade press
 
 #### `vendor`
 
 Vendor website, case study, blog post, or press release
 
+Entailment label: a vendor's page
+
 #### `academic`
 
 Peer-reviewed paper, working paper, university report
 
+Entailment label: academic work
+
 #### `policy_org`
 
-Think tank, IGO, or policy organization (OECD, World Bank, ITU, Brookings, etc.)
+Think tank, intergovernmental organisation or other policy organisation (OECD, World Bank, ITU, Brookings, etc.); not a government body's own page.
+
+Entailment label: a think tank or policy organisation
 
 #### `social_media`
 
 Official social media accounts (Twitter/X, LinkedIn from institutional accounts)
 
+Entailment label: an official social media account
+
 #### `procurement_tender`
 
 Tender notice, RFP, contract award, vendor selection document
 
+Entailment label: a tender, contract award or vendor selection document
+
 #### `other`
 
-None of the above
+None of the above, including a government body's own page.
+
+Entailment label: another kind of source, including a government body's own page
 
 ### Rules
 
 1. `items/core.source_type/rules/0`
 
-'Official' comes from the domain field and 'archive' from the address; the classifier only sorts the rest (news, vendor, academic, policy organisation, social media, procurement, other). The question wording is amended.
+Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.
 
 2. `items/core.source_type/rules/1`
 
-Source type is answered by the same classifier question in every pipeline where it applies. The AI-text pipeline drops its genre table and procurement's fixed value is replaced.
+The same question is used in every pipeline where it applies.
 
 3. `items/core.source_type/rules/2`
 
 not_documented: the page is silent.
 
 ## `core.content_contact_named`
-<!-- item: core.content_contact_named sha256: c14b41bf44f0d1a22b5392ae792c7ffe24c51fb4c6e332bae0cf67064590febe -->
+<!-- item: core.content_contact_named sha256: b4589c821abd21e0a49357bf82144bcd2b8cf3d855cfef37b73dcf9e68455312 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c14b41bf44f0d1a22b5392ae792c7ffe24c51fb4c6e332bae0cf67064590febe` |
+| item hash | `b4589c821abd21e0a49357bf82144bcd2b8cf3d855cfef37b73dcf9e68455312` |
 | family | `disclosure` |
 | name | `content_contact_named` |
 | level | `page` |
@@ -417,28 +493,36 @@ not_documented: the page is silent.
 
 Does the page name a person, office or unit as responsible for a GenAI activity it mentions, or for questions about it?
 
+### Entailment label
+
+named person, office or unit responsible for a GenAI activity
+
 ### Values
 
 #### `yes`
 
 The page gives a named person, office or unit as responsible for the activity or for questions about it; a named official with no contact details counts.
 
+Entailment label: given
+
 #### `no`
 
 The page names no person, office or unit as responsible for the activity or for questions about it. Pages whose verdict shows no GenAI also take this value.
+
+Entailment label: not given
 
 ### Rules
 
 1. `items/core.content_contact_named/rules/0`
 
-Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
+Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
 ## `core.content_contact_details`
-<!-- item: core.content_contact_details sha256: 6ef720c9b22a50994be0bde73ee626c26f1ac59fcf3808a3d72a2249c82b8bf7 -->
+<!-- item: core.content_contact_details sha256: f48276daef2a6c61dab279f0cc18134ae65dce1710dd788428c3fe85282df5af -->
 
 | Field | Value |
 |---|---|
-| item hash | `6ef720c9b22a50994be0bde73ee626c26f1ac59fcf3808a3d72a2249c82b8bf7` |
+| item hash | `f48276daef2a6c61dab279f0cc18134ae65dce1710dd788428c3fe85282df5af` |
 | family | `disclosure` |
 | name | `content_contact_details` |
 | level | `page` |
@@ -466,28 +550,36 @@ Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (p
 
 Does the page give any contact details anywhere on it, such as an email address, phone number, postal address or contact form?
 
+### Entailment label
+
+contact details
+
 ### Values
 
 #### `yes`
 
 The page gives contact details anywhere on it: an email address, phone number, postal address or contact form, including press or vendor contacts and site footers.
 
+Entailment label: given
+
 #### `no`
 
 No contact details appear anywhere on the page, including its header and footer. Pages whose verdict shows no GenAI also take this value.
+
+Entailment label: not given
 
 ### Rules
 
 1. `items/core.content_contact_details/rules/0`
 
-Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
+Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
 ## `core.content_contact`
-<!-- item: core.content_contact sha256: 20ce152ca168cd9eaa77ccf61f439277c2fdc9affb3f0faeb048e98cea94d65a -->
+<!-- item: core.content_contact sha256: 54e3e1cdd6dace09cfee9d4924959c67a4280f3e91042c803d37c79399b3109d -->
 
 | Field | Value |
 |---|---|
-| item hash | `20ce152ca168cd9eaa77ccf61f439277c2fdc9affb3f0faeb048e98cea94d65a` |
+| item hash | `54e3e1cdd6dace09cfee9d4924959c67a4280f3e91042c803d37c79399b3109d` |
 | family | `disclosure` |
 | name | `content_contact` |
 | level | `page` |
@@ -515,7 +607,7 @@ Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (p
 
 1. `items/core.content_contact/rules/0`
 
-Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
+Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
 ## `core.content_contact_emails`
 <!-- item: core.content_contact_emails sha256: 2effc2799f78ed142a3ba7ff624be69a3ece86e461907a3a18f880ed4798233a -->
@@ -557,11 +649,11 @@ When `content_contact` = yes, extract the contact with a deterministic `@` searc
 Published supporting quotes stay verbatim, with no masking. Contact e-mails are stored in full internally, and only the domain and a count are published.
 
 ## `core.content_purpose`
-<!-- item: core.content_purpose sha256: 770abc7dba5990f1615e2f5a3854fb202a2a77b69decb344b5fb721431a448a0 -->
+<!-- item: core.content_purpose sha256: 39119986021b5530c0fac7b8f267ad8c4471d1bd7ac85b00882d6a078e42226f -->
 
 | Field | Value |
 |---|---|
-| item hash | `770abc7dba5990f1615e2f5a3854fb202a2a77b69decb344b5fb721431a448a0` |
+| item hash | `39119986021b5530c0fac7b8f267ad8c4471d1bd7ac85b00882d6a078e42226f` |
 | family | `disclosure` |
 | name | `content_purpose` |
 | level | `page` |
@@ -589,11 +681,11 @@ Published supporting quotes stay verbatim, with no masking. Contact e-mails are 
 
 1. `items/core.content_purpose/rules/0`
 
-Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the page). For the items CX-51 and CX-52 mark as derived, `yes` and `no` are derived from the activity codes as they state, with no question. Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)).
+Included: the page description items, each `yes` / `no` (yes = stated on the page). For the items marked as derived, `yes` and `no` are derived from the activity codes as stated, with no question.
 
 2. `items/core.content_purpose/rules/1`
 
-Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
+Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
 3. `items/core.content_purpose/rules/2`
 
@@ -604,11 +696,11 @@ A page item is yes when any activity on the page has a stated value in the match
 purpose: the activity's function items
 
 ## `core.content_tool_or_model`
-<!-- item: core.content_tool_or_model sha256: b8f38f4a14576d7c232b0da604e4e60033488864a67c182fd887771ad245c997 -->
+<!-- item: core.content_tool_or_model sha256: 0ce2d910b0e5ddd89507e377d42a5ec1f893ca639d72218f95a651299b68156e -->
 
 | Field | Value |
 |---|---|
-| item hash | `b8f38f4a14576d7c232b0da604e4e60033488864a67c182fd887771ad245c997` |
+| item hash | `0ce2d910b0e5ddd89507e377d42a5ec1f893ca639d72218f95a651299b68156e` |
 | family | `disclosure` |
 | name | `content_tool_or_model` |
 | level | `page` |
@@ -636,11 +728,11 @@ purpose: the activity's function items
 
 1. `items/core.content_tool_or_model/rules/0`
 
-Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the page). For the items CX-51 and CX-52 mark as derived, `yes` and `no` are derived from the activity codes as they state, with no question. Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)).
+Included: the page description items, each `yes` / `no` (yes = stated on the page). For the items marked as derived, `yes` and `no` are derived from the activity codes as stated, with no question.
 
 2. `items/core.content_tool_or_model/rules/1`
 
-Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
+Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
 3. `items/core.content_tool_or_model/rules/2`
 
@@ -651,11 +743,11 @@ A page item is yes when any activity on the page has a stated value in the match
 tool or model: tool or model name
 
 ## `core.content_vendor`
-<!-- item: core.content_vendor sha256: a6520167c4b003ac67ebc0d74595d946e7e8792d7502dee43cf30ff7d24d2fb9 -->
+<!-- item: core.content_vendor sha256: d72f86d324de7854283f212f178cf5daf93d3fd620321ca8086011ba4c60a384 -->
 
 | Field | Value |
 |---|---|
-| item hash | `a6520167c4b003ac67ebc0d74595d946e7e8792d7502dee43cf30ff7d24d2fb9` |
+| item hash | `d72f86d324de7854283f212f178cf5daf93d3fd620321ca8086011ba4c60a384` |
 | family | `disclosure` |
 | name | `content_vendor` |
 | level | `page` |
@@ -683,11 +775,11 @@ tool or model: tool or model name
 
 1. `items/core.content_vendor/rules/0`
 
-Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the page). For the items CX-51 and CX-52 mark as derived, `yes` and `no` are derived from the activity codes as they state, with no question. Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)).
+Included: the page description items, each `yes` / `no` (yes = stated on the page). For the items marked as derived, `yes` and `no` are derived from the activity codes as stated, with no question.
 
 2. `items/core.content_vendor/rules/1`
 
-Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
+Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
 3. `items/core.content_vendor/rules/2`
 
@@ -698,11 +790,11 @@ A page item is yes when any activity on the page has a stated value in the match
 vendor: model developer, stated or looked up, or contracting party
 
 ## `core.content_data`
-<!-- item: core.content_data sha256: 32b7a48c23a51ba63beb865cae0f6b9c864a519c4d6a1af1ad825fdbd55e4592 -->
+<!-- item: core.content_data sha256: 873afed104d45718bd358c1d669cfafa141d7f93933ccb9eebfa61098d5811cb -->
 
 | Field | Value |
 |---|---|
-| item hash | `32b7a48c23a51ba63beb865cae0f6b9c864a519c4d6a1af1ad825fdbd55e4592` |
+| item hash | `873afed104d45718bd358c1d669cfafa141d7f93933ccb9eebfa61098d5811cb` |
 | family | `disclosure` |
 | name | `content_data` |
 | level | `page` |
@@ -730,25 +822,33 @@ vendor: model developer, stated or looked up, or contracting party
 
 Code the source PAGE. Does the page state this about any GenAI activity on the page: the data inputs or data handled are described? yes = stated on the page.
 
+### Entailment label
+
+description of the data a GenAI activity uses
+
 ### Values
 
 #### `yes`
 
 stated on the page
 
+Entailment label: given
+
 #### `no`
 
 not stated on the page
+
+Entailment label: not given
 
 ### Rules
 
 1. `items/core.content_data/rules/0`
 
-Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the page). For the items CX-51 and CX-52 mark as derived, `yes` and `no` are derived from the activity codes as they state, with no question. Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)).
+Included: the page description items, each `yes` / `no` (yes = stated on the page). For the items marked as derived, `yes` and `no` are derived from the activity codes as stated, with no question.
 
 2. `items/core.content_data/rules/1`
 
-Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
+Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
 3. `items/core.content_data/rules/2`
 
@@ -759,11 +859,11 @@ One page question, asked on GenAI pages.
 Description items and the data item are also "no" where the verdict shows no GenAI.
 
 ## `core.content_users`
-<!-- item: core.content_users sha256: 8beadad995b8aec7a4e72c3439d81abe22a362e0b7d16caff378782eac755f2f -->
+<!-- item: core.content_users sha256: d6fbce57ebe146ea3aff9da461b2d3a2a5f5d297c3cbd78f9bdc0e95d02c0489 -->
 
 | Field | Value |
 |---|---|
-| item hash | `8beadad995b8aec7a4e72c3439d81abe22a362e0b7d16caff378782eac755f2f` |
+| item hash | `d6fbce57ebe146ea3aff9da461b2d3a2a5f5d297c3cbd78f9bdc0e95d02c0489` |
 | family | `disclosure` |
 | name | `content_users` |
 | level | `page` |
@@ -791,11 +891,11 @@ Description items and the data item are also "no" where the verdict shows no Gen
 
 1. `items/core.content_users/rules/0`
 
-Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the page). For the items CX-51 and CX-52 mark as derived, `yes` and `no` are derived from the activity codes as they state, with no question. Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)).
+Included: the page description items, each `yes` / `no` (yes = stated on the page). For the items marked as derived, `yes` and `no` are derived from the activity codes as stated, with no question.
 
 2. `items/core.content_users/rules/1`
 
-Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
+Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
 3. `items/core.content_users/rules/2`
 
@@ -806,11 +906,11 @@ A page item is yes when any activity on the page has a stated value in the match
 users: `target_users` or `governed_population`
 
 ## `core.content_status_date`
-<!-- item: core.content_status_date sha256: cbbb379a84f4ba33eb7337d988fd9b3e60cda5a07e87b883000301276407323d -->
+<!-- item: core.content_status_date sha256: a5f8aa5599a4623ff0b818d64f7e553e2757ce430ace86b470e117fe684962e5 -->
 
 | Field | Value |
 |---|---|
-| item hash | `cbbb379a84f4ba33eb7337d988fd9b3e60cda5a07e87b883000301276407323d` |
+| item hash | `a5f8aa5599a4623ff0b818d64f7e553e2757ce430ace86b470e117fe684962e5` |
 | family | `disclosure` |
 | name | `content_status_date` |
 | level | `page` |
@@ -838,11 +938,11 @@ users: `target_users` or `governed_population`
 
 1. `items/core.content_status_date/rules/0`
 
-Included: the items in CX-51 and CX-52, each `yes` / `no` (yes = stated on the page). For the items CX-51 and CX-52 mark as derived, `yes` and `no` are derived from the activity codes as they state, with no question. Whether they replace or sit beside T2 is an index-construction choice (exclusivity is reported only, index decision 1 = (b)).
+Included: the page description items, each `yes` / `no` (yes = stated on the page). For the items marked as derived, `yes` and `no` are derived from the activity codes as stated, with no question.
 
 2. `items/core.content_status_date/rules/1`
 
-Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes (CX-01.2, contact wording w4): `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts, C1 = a) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
+Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
 3. `items/core.content_status_date/rules/2`
 
@@ -1422,11 +1522,11 @@ Snippets are verbatim in every pipeline, no translations are stored, and procure
 `source_credibility` = fixed map from `source_type` plus `low` when `source_publication_date` = unknown; drop the translation clause.
 
 ## `core.activity_segment`
-<!-- item: core.activity_segment sha256: 44cc63f10ebef97a1402d517332330fb5ff41ffcf9de22de80b87a4f8e57b97e -->
+<!-- item: core.activity_segment sha256: e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759 -->
 
 | Field | Value |
 |---|---|
-| item hash | `44cc63f10ebef97a1402d517332330fb5ff41ffcf9de22de80b87a4f8e57b97e` |
+| item hash | `e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759` |
 | family | `activity_identity` |
 | name | `activity_relation_within_page` |
 | level | `activity` |
@@ -1454,43 +1554,65 @@ Snippets are verbatim in every pipeline, no translations are stored, and procure
 
 The extractor proposes spans; jev answers per span: new distinct activity / same as span k / component of span k / not an activity.
 
+### Entailment label
+
+relation to the other activity
+
 ### Values
 
 #### `same_activity`
 
 The two passages describe the same activity: the same action by the same actor on the same tool or instrument.
 
+Entailment label: the same activity
+
 #### `component_of_program`
 
 The first passage's activity is a named component of the program described in the second. Both stay separate activities, linked.
+
+Entailment label: a named component of the other activity's programme
 
 #### `has_component`
 
 The first passage describes a program, and the second passage's activity is one of its named components. Both stay separate activities, linked.
 
+Entailment label: a programme that has the other activity as a named component
+
 #### `shared_participation`
 
 The two passages describe one joint action in which several bodies take part. They are one activity: the two passages are merged. The link needs at least two bodies, each named on the page as taking part, with a quote.
+
+Entailment label: one joint action shared with the other activity
 
 #### `governs`
 
 The first passage's activity is a policy or other governance instrument that sets rules for the activity in the second (for example a policy and a tool it approves). When a pair fits both this link and a component link, this link is used.
 
+Entailment label: a rule that governs the other activity
+
 #### `governed_by`
 
 The second passage's activity is a policy or other governance instrument that sets rules for the activity in the first. When a pair fits both this link and a component link, this link is used.
+
+Entailment label: governed by the other activity's rule
 
 #### `distinct_action`
 
 The two passages describe different activities, and none of the other links applies.
 
+Entailment label: a different activity
+
 #### `unresolved`
 
 The page does not settle whether the two passages describe the same activity or different ones. They are kept separate.
 
+Entailment label: not settled
+
 #### `not_an_activity`
 
 The passage does not describe an activity as the activity rule defines one. In a pair of passages, it is used when either passage is not an activity; no other link is coded for that pair.
+
+Entailment label: not an activity
 
 ### Rules
 
@@ -1583,11 +1705,11 @@ Short name. Use official name if one exists (e.g., "MyCity Chatbot", "Pair Platf
 The extractor returns the verbatim actor name and organisational unit. jev Choice gives the relationship (this institution / unit of it / joint participant / other / unresolved) and the role (as v2.6).
 
 ## `core.observed_actor_relationship`
-<!-- item: core.observed_actor_relationship sha256: 16ddef0cb7e4102dbb09949a7f1ecdb7e9a5b19d4f99bf54148b4a1bc1b00b74 -->
+<!-- item: core.observed_actor_relationship sha256: eb128ea7cd4da3523104479bb645e543c69c729fa6164d14f6cce3607ed271b7 -->
 
 | Field | Value |
 |---|---|
-| item hash | `16ddef0cb7e4102dbb09949a7f1ecdb7e9a5b19d4f99bf54148b4a1bc1b00b74` |
+| item hash | `eb128ea7cd4da3523104479bb645e543c69c729fa6164d14f6cce3607ed271b7` |
 | family | `attribution` |
 | name | `observed_actor_relationship` |
 | level | `activity` |
@@ -1615,57 +1737,105 @@ The extractor returns the verbatim actor name and organisational unit. jev Choic
 
 Whose activity is this, according to the page: the named institution's own, one of its units', a joint one it takes part in, or another body's?
 
+### Entailment label
+
+body that carries out the activity
+
 ### Values (structured; rendered by slot path)
 
 `items/core.observed_actor_relationship/values/relationship/0/definition`
 
-The searched institution itself carries out or adopts the activity.
+The page names the searched institution itself, not one of its units, as carrying out or adopting the activity.
+
+`items/core.observed_actor_relationship/values/relationship/0/entailment_label`
+
+the named institution itself
 
 `items/core.observed_actor_relationship/values/relationship/1/definition`
 
-An organisational unit of the searched institution (a department, office or service) carries out the activity; it counts for the institution.
+The page names an organisational unit of the searched institution (a department, office or service) as carrying out the activity; it counts for the institution. Choose this, not the institution itself, whenever the page names the unit.
+
+`items/core.observed_actor_relationship/values/relationship/1/entailment_label`
+
+a unit of the named institution
 
 `items/core.observed_actor_relationship/values/relationship/2/definition`
 
 The activity is a joint one, and the page names the searched institution as a participant.
 
+`items/core.observed_actor_relationship/values/relationship/2/entailment_label`
+
+a joint group that includes the named institution
+
 `items/core.observed_actor_relationship/values/relationship/3/definition`
 
 The activity belongs to another body: a parent, sibling or neighbouring body, a separate court, board or authority, a similarly named organisation, or a vendor. The searched institution's role is still asked.
+
+`items/core.observed_actor_relationship/values/relationship/3/entailment_label`
+
+another body
 
 `items/core.observed_actor_relationship/values/relationship/4/definition`
 
 The page does not settle whose activity this is. The role of the searched institution is not asked.
 
+`items/core.observed_actor_relationship/values/relationship/4/entailment_label`
+
+not settled by the page
+
 `items/core.observed_actor_relationship/values/searched_institution_role/0/definition`
 
 The searched institution buys or contracts for the tool or service in its own name.
+
+`items/core.observed_actor_relationship/values/searched_institution_role/0/entailment_label`
+
+buying or contracting in its own name
 
 `items/core.observed_actor_relationship/values/searched_institution_role/1/definition`
 
 Another body runs or buys the activity for the searched institution, and the page names the searched institution as benefiting.
 
+`items/core.observed_actor_relationship/values/searched_institution_role/1/entailment_label`
+
+benefiting from an activity another body runs or buys
+
 `items/core.observed_actor_relationship/values/searched_institution_role/2/definition`
 
 The searched institution buys or sets up a contract or framework on behalf of other bodies.
 
+`items/core.observed_actor_relationship/values/searched_institution_role/2/entailment_label`
+
+buying on behalf of other bodies
+
 `items/core.observed_actor_relationship/values/searched_institution_role/3/definition`
 
-The searched institution takes part as a unit of the body that carries out the activity.
+The searched institution is itself a unit (a department, office or school) of a larger body that carries out the activity. Not for an activity that a unit of the searched institution carries out.
+
+`items/core.observed_actor_relationship/values/searched_institution_role/3/entailment_label`
+
+a unit of the larger body that carries out the activity
 
 `items/core.observed_actor_relationship/values/searched_institution_role/4/definition`
 
 The searched institution takes part as one of several joint participants.
 
+`items/core.observed_actor_relationship/values/searched_institution_role/4/entailment_label`
+
+one of several joint participants
+
 `items/core.observed_actor_relationship/values/part_instructions/searched_institution_role`
 
 What part does the named institution play in this activity?
+
+`items/core.observed_actor_relationship/values/part_entailment_labels`
+
+named institution's part
 
 ### Rules
 
 1. `items/core.observed_actor_relationship/rules/0`
 
-The observed-actor relationship is coded per activity, not per page, with a QC flag on `confirms_activity` pages that have no own / unit / joint activity; the attribution role becomes the second of two linked parts of that relationship (relationship; role of the searched institution, "not asked" when the relationship is unresolved), describes only the searched institution, and counts "beneficiary" only when the page names it; the two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone; there is no separate published P06 column. The observed actor's own role is kept as a separate internal item, `observed_actor_role`, and not published; the C04 grain rule is kept.
+The relationship is coded per activity. The role of the searched institution is the second part of this question: it describes only the searched institution, is not asked when the relationship is unresolved, and counts `beneficiary` only when the page names it. The two parts are published as one column: the relationship code, then `:` and the role code when the role is a real answer, otherwise the relationship code alone. The observed actor's own role is a separate internal question and is not published.
 
 2. `items/core.observed_actor_relationship/rules/1`
 
@@ -1685,7 +1855,7 @@ A joint activity counts when the page names this institution as a participant.
 
 6. `items/core.observed_actor_relationship/rules/4`
 
-Relationship: this institution, unit, joint participant, other, unresolved, unknown.
+Relationship answers: this institution, unit of the institution, joint participant, other, unresolved, or not documented.
 
 7. `items/core.observed_actor_relationship/rules/5`
 
@@ -1693,7 +1863,7 @@ Role of the searched institution: contracting authority, beneficiary, central pu
 
 8. `items/core.observed_actor_relationship/rules/6`
 
-A silent page gets "not documented"; a page that mentions the matter but cannot be settled gets "unknown".
+Not documented: the page says nothing on this question. For whose activity this is, a page that says something but does not settle it gets unresolved.
 
 ### long_page_rule text
 
@@ -1702,11 +1872,11 @@ A silent page gets "not documented"; a page that mentions the matter but cannot 
 the role part is taken from the same part that produced the relationship
 
 ## `core.activity_type`
-<!-- item: core.activity_type sha256: 171e96a029766889465f3d0596bef25be502406a23e64cf85c060932d9e07b50 -->
+<!-- item: core.activity_type sha256: 5c28210b54b5c1510bff389b9e4949d8b009be0e4ad6623263f248c567d424db -->
 
 | Field | Value |
 |---|---|
-| item hash | `171e96a029766889465f3d0596bef25be502406a23e64cf85c060932d9e07b50` |
+| item hash | `5c28210b54b5c1510bff389b9e4949d8b009be0e4ad6623263f248c567d424db` |
 | family | `activity_typing` |
 | name | `activity_type` |
 | level | `activity` |
@@ -1732,7 +1902,11 @@ the role part is taken from the same part that produced the relationship
 
 ### Instruction
 
-G3O activity typology. See definitions below.
+What kind of activity is this, according to the page?
+
+### Entailment label
+
+kind of activity
 
 ### Values
 
@@ -1740,31 +1914,41 @@ G3O activity typology. See definitions below.
 
 Executive orders, agency memos, acceptable-use rules, procurement standards, internal guidance on permissible GenAI tools and data handling.
 
+Entailment label: a policy or guidance
+
 #### `pilot_experiment`
 
 Limited trials, sandboxes, proof-of-concept deployments, or time-bounded experiments.
+
+Entailment label: a pilot or trial
 
 #### `program_initiative`
 
 Cross-agency programs, governance bodies, training programs, or platform rollouts spanning multiple units.
 
+Entailment label: a programme that spans several units
+
 #### `internal_operational`
 
 Routine internal use for drafting, summarization, knowledge search, translation, internal helpdesks, or developer tooling.
+
+Entailment label: routine internal use
 
 #### `public_facing_service`
 
 Citizen- or business-facing chatbots, service navigation, translation, complaint handling, case triage.
 
+Entailment label: a service for the public or businesses
+
 ### Rules
 
 1. `items/core.activity_type/rules/0`
 
-**Rule: policy vs. pilot.** If an institution has issued a GenAI policy AND is running a pilot, these are **two distinct activities**. Produce separate rows for each (with their respective sources).
+A GenAI policy and a pilot at the same institution are two separate activities; code only the activity in question.
 
 2. `items/core.activity_type/rules/1`
 
-**Rule: country-wide program.** If a national program exists but this specific institution's participation is confirmed by a source, record it as an activity. If participation is NOT confirmed, do NOT record an activity row -- instead produce a row with `has_genai_activity` = `unclear`, `genai_evidence` = `ambiguous`, and flag `institution_attribution`.
+A national programme counts as this institution's activity only when the page confirms that this institution takes part.
 
 3. `shared_rules/core.rule.allowed_type_action_pairs/0` (shared rule `core.rule.allowed_type_action_pairs`)
 
@@ -1776,14 +1960,14 @@ a disallowed pair is flagged for review and no label is changed
 
 5. `items/core.activity_type/rules/3`
 
-Evidence confirms a GenAI activity at this institution, but the kind of undertaking is indeterminate from the available sources. Use only after the five kinds above have been considered and none is supportable -- never as a default.
+`unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms a GenAI activity at this institution but does not let its kind be told; it is never a default.
 
 ## `core.action_type`
-<!-- item: core.action_type sha256: 5aaa9dc3449dfa95f1700b2d4aeccc1d7cbcf04b46af301121dd6192407e614b -->
+<!-- item: core.action_type sha256: bfe28f4947f246600468c1a6587f739518ef7a5e6771733389a6fbbcfb5b81ce -->
 
 | Field | Value |
 |---|---|
-| item hash | `5aaa9dc3449dfa95f1700b2d4aeccc1d7cbcf04b46af301121dd6192407e614b` |
+| item hash | `bfe28f4947f246600468c1a6587f739518ef7a5e6771733389a6fbbcfb5b81ce` |
 | family | `activity_typing` |
 | name | `action_type` |
 | level | `activity` |
@@ -1811,56 +1995,64 @@ Evidence confirms a GenAI activity at this institution, but the kind of undertak
 
 What kind of action is this activity?
 
+### Entailment label
+
+kind of action
+
 ### Values
 
 #### `deployment`
 
 The institution puts a GenAI tool to use, or tries one out, for its own work or for the public. The stage and the purchase status are coded separately.
 
+Entailment label: putting a GenAI tool to use
+
 #### `governance`
 
 The institution issues or applies a rule on GenAI use: a policy, guidance, approved-tool list, order or standard. A body that sets or oversees such rules also counts.
+
+Entailment label: a rule on GenAI use
 
 #### `staff_training`
 
 The institution trains its own staff to use GenAI.
 
+Entailment label: training of the institution's own staff
+
 #### `program`
 
 A container activity whose named components are each their own activity, linked to it. Used only when the page names the components.
+
+Entailment label: a programme with named components
 
 ### Rules
 
 1. `items/core.action_type/rules/0`
 
-jev Choice per activity: deployment / procurement / governance / staff_training / proposal / program / unknown. (Whether `proposal` is a type or only a stage is a PI choice.)
+One answer per activity: deployment, governance, staff training or program. Purchases and proposals are not action types; the purchase status and the stage carry them.
 
-2. `items/core.action_type/rules/1`
-
-Drop 'proposal' and 'procurement' from action type, since stage and procurement status carry those, and define 'program' as a container used only with named components.
-
-3. `shared_rules/core.rule.allowed_type_action_pairs/0` (shared rule `core.rule.allowed_type_action_pairs`)
+2. `shared_rules/core.rule.allowed_type_action_pairs/0` (shared rule `core.rule.allowed_type_action_pairs`)
 
 List the allowed (type, action) pairs; activities with other pairs are flagged for review
 
-4. `shared_rules/core.rule.allowed_type_action_pairs/1` (shared rule `core.rule.allowed_type_action_pairs`)
+3. `shared_rules/core.rule.allowed_type_action_pairs/1` (shared rule `core.rule.allowed_type_action_pairs`)
 
 a disallowed pair is flagged for review and no label is changed
 
-5. `shared_rules/core.rule.governance_gate/0` (shared rule `core.rule.governance_gate`)
+4. `shared_rules/core.rule.governance_gate/0` (shared rule `core.rule.governance_gate`)
 
 A body that sets or oversees rules gets the governance questions.
 
-6. `items/core.action_type/rules/4`
+5. `items/core.action_type/rules/3`
 
-The page mentions the activity but does not let it be settled.
+`unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page mentions the activity but does not let its kind of action be settled.
 
 ## `core.adoption_stage`
-<!-- item: core.adoption_stage sha256: 199ba1e14fe71ca352701ab823081796103006e3d4ac2057bb093681ad1a59ff -->
+<!-- item: core.adoption_stage sha256: 3c9a80bba2641f0192a3812d0281bb44469e5efffe698f13b8f7117dc6939c6f -->
 
 | Field | Value |
 |---|---|
-| item hash | `199ba1e14fe71ca352701ab823081796103006e3d4ac2057bb093681ad1a59ff` |
+| item hash | `3c9a80bba2641f0192a3812d0281bb44469e5efffe698f13b8f7117dc6939c6f` |
 | family | `activity_typing` |
 | name | `adoption_stage` |
 | level | `activity` |
@@ -1888,60 +2080,66 @@ The page mentions the activity but does not let it be settled.
 
 What stage has this activity reached, according to the page?
 
+### Entailment label
+
+stage
+
 ### Values
 
 #### `proposed`
 
 Exploratory or hedged intent with no concrete commitment: "considering," "exploring," "studying feasibility," early discussions, unfunded or undated ideas. The text must still be explicitly generative-AI and tied to this institution. No named tool tied to a timeline, no signed MoU or contract, no budget line, no adopted policy.
 
+Entailment label: proposed or being explored
+
 #### `announced`
 
 Publicly stated intent to deploy with a concrete, documented commitment but no evidence of actual use. Includes: MoUs, budget allocations without deployment, strategy timelines.
+
+Entailment label: announced with a concrete commitment
 
 #### `pilot`
 
 Limited deployment: subset of users/departments/use cases; described as trial/pilot/PoC/experiment; time-bounded.
 
+Entailment label: a pilot or trial
+
 #### `production`
 
 Fully operational: available to intended user base, no longer experimental, in routine operations.
+
+Entailment label: in full, routine operation
 
 #### `discontinued`
 
 Previously deployed but explicitly ended, cancelled, or suspended.
 
+Entailment label: ended, cancelled or suspended
+
 ### Rules
 
 1. `items/core.adoption_stage/rules/0`
 
-Keep adoption_stage for use; add `procurement_status`: none_documented / tender_or_rfp / award_or_contract / payment_or_subscription / unknown. Payment-only activities get adoption_stage `unknown` plus procurement_status `payment_or_subscription`.
+Purchase steps are coded in the purchase-status question, not here. A payment or subscription alone does not show use: such an activity's stage is unknown unless the page shows use (set by rule, not chosen).
 
-2. `items/core.adoption_stage/rules/1`
+2. `shared_rules/core.rule.ws10_proposals/0` (shared rule `core.rule.ws10_proposals`)
 
-Purchase records fill the purchase-status field and get an "unknown" adoption stage unless use is shown. The owed contract amendment shrinks to removing purchase language, the procurement rules are amended, and the evidence-tier wording is fixed.
+Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.
 
 3. `items/core.adoption_stage/rules/2`
 
-The §4.3 amendment shrinks to removing purchase language, and no longer waits on procurement's owed text.
-
-4. `shared_rules/core.rule.ws10_proposals/0` (shared rule `core.rule.ws10_proposals`)
-
-WS10 D4: institution-specific, explicitly GenAI proposals remain a qualifying activity.
-
-5. `items/core.adoption_stage/rules/4`
-
 **"Permanent pilot" rule:** If described as "pilot" but running >12 months AND serving the full intended user base, code `production`. Note in `scope_notes`: "Described as pilot but operational >12 months with full user base."
 
-6. `items/core.adoption_stage/rules/5`
+4. `items/core.adoption_stage/rules/3`
 
-Evidence confirms GenAI activity exists but stage is indeterminate.
+`unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.
 
 ## `core.procurement_status`
-<!-- item: core.procurement_status sha256: bba50c17230cfc52b5c8b90a5a1ed8782e446f8f0a333491722dd92ffd5eea25 -->
+<!-- item: core.procurement_status sha256: 069cac4eae165dba976c259f3d778a07c2a07fe9ff5d88f60f780c501519af39 -->
 
 | Field | Value |
 |---|---|
-| item hash | `bba50c17230cfc52b5c8b90a5a1ed8782e446f8f0a333491722dd92ffd5eea25` |
+| item hash | `069cac4eae165dba976c259f3d778a07c2a07fe9ff5d88f60f780c501519af39` |
 | family | `activity_typing` |
 | name | `procurement_status` |
 | level | `activity` |
@@ -1969,23 +2167,35 @@ Evidence confirms GenAI activity exists but stage is indeterminate.
 
 What purchase step, if any, does the page record for this activity's tool or service?
 
+### Entailment label
+
+purchase step
+
 ### Values
 
 #### `none_documented`
 
 The page documents the activity but no purchase step for it.
 
+Entailment label: none recorded
+
 #### `tender_or_rfp`
 
 The institution has issued a call for tenders, a request for proposals or a similar invitation to bid for the tool or service.
+
+Entailment label: a call for tenders or proposals
 
 #### `award_or_contract`
 
 A contract, award or licence agreement for the tool or service is reported as made.
 
+Entailment label: a contract, award or licence
+
 #### `payment_or_subscription`
 
 The page records a payment, invoice or subscription for the tool or service. On its own this does not show use; the stage is then unknown unless use is shown.
+
+Entailment label: a payment or subscription
 
 ### Rules
 
@@ -2006,11 +2216,11 @@ A page that describes the activity but shows no purchase step takes `none_docume
 The page mentions a purchase of the tool or service but does not let it be settled.
 
 ## `core.model_origin`
-<!-- item: core.model_origin sha256: ea3d7b2cadbf2f64522113b0d5e2dfa58915e56f0d473d998329056e016b210e -->
+<!-- item: core.model_origin sha256: 604814a8eeb44403f59c7eb1c3dd321e8618344ef2c7492918e0dfb91e38084f -->
 
 | Field | Value |
 |---|---|
-| item hash | `ea3d7b2cadbf2f64522113b0d5e2dfa58915e56f0d473d998329056e016b210e` |
+| item hash | `604814a8eeb44403f59c7eb1c3dd321e8618344ef2c7492918e0dfb91e38084f` |
 | family | `tool` |
 | name | `model_origin` |
 | level | `activity` |
@@ -2038,19 +2248,29 @@ The page mentions a purchase of the tool or service but does not let it be settl
 
 Where does the model behind this activity's tool come from?
 
+### Entailment label
+
+source of the model
+
 ### Values
 
 #### `commercial`
 
 The model comes from a commercial provider (for example OpenAI, Microsoft, Google or Anthropic) and is used through its product, licence or programming interface.
 
+Entailment label: a commercial provider
+
 #### `open_weight`
 
 The model's weights are openly released (for example Llama, Mistral or Falcon), whether the institution or a provider runs it.
 
+Entailment label: an openly released model
+
 #### `government_developed`
 
 The model was developed by or for a government (for example France's Albert or Germany's OpenGPT-X), including by the institution's own team.
+
+Entailment label: a model developed by or for a government
 
 ### Rules
 
@@ -2067,11 +2287,11 @@ The page mentions the model behind the tool but does not let it be settled.
 not_documented: the page is silent.
 
 ## `core.build_arrangement`
-<!-- item: core.build_arrangement sha256: 03c8be5d39bfee5cb16a6945bf343fa6b1764a15227183c8db87264ec7f3ab1c -->
+<!-- item: core.build_arrangement sha256: 26747e9b192f65d107fefbb46c7423d785b554a37936e2dd775eee596ecfc205 -->
 
 | Field | Value |
 |---|---|
-| item hash | `03c8be5d39bfee5cb16a6945bf343fa6b1764a15227183c8db87264ec7f3ab1c` |
+| item hash | `26747e9b192f65d107fefbb46c7423d785b554a37936e2dd775eee596ecfc205` |
 | family | `tool` |
 | name | `build_arrangement` |
 | level | `activity` |
@@ -2099,19 +2319,29 @@ not_documented: the page is silent.
 
 How was this activity's tool built?
 
+### Entailment label
+
+way the tool was built
+
 ### Values
 
 #### `off_the_shelf_product`
 
 The institution uses a ready-made product as supplied (for example a commercial chat assistant or an office-suite assistant), set up but not built on.
 
+Entailment label: a ready-made product
+
 #### `custom_application_on_external_model`
 
 The institution, or a contractor for it, built its own application (a chatbot, assistant or workflow) on a model it did not train.
 
+Entailment label: its own application on a model it did not train
+
 #### `model_trained_or_fine_tuned_by_institution`
 
 The institution, or a contractor for it, trained or fine-tuned the model itself. Internal use alone does not show this.
+
+Entailment label: a model the institution trained or fine-tuned
 
 ### Rules
 
@@ -2128,11 +2358,11 @@ The page mentions how the tool was built but does not let it be settled.
 not_documented: the page is silent.
 
 ## `core.interface`
-<!-- item: core.interface sha256: 75312626806d0d38c61dd1ce2f7301545b48ba622fe3f40d32e918e85774dc8b -->
+<!-- item: core.interface sha256: 1f6053a45c6b23423f842cf6f7298ebec811773fa4dab7c930493f3dc4ffdb52 -->
 
 | Field | Value |
 |---|---|
-| item hash | `75312626806d0d38c61dd1ce2f7301545b48ba622fe3f40d32e918e85774dc8b` |
+| item hash | `1f6053a45c6b23423f842cf6f7298ebec811773fa4dab7c930493f3dc4ffdb52` |
 | family | `tool` |
 | name | `interface` |
 | level | `activity` |
@@ -2160,44 +2390,50 @@ not_documented: the page is silent.
 
 How do users reach this activity's tool?
 
+### Entailment label
+
+way users reach the tool
+
 ### Values
 
 #### `conversational`
 
-Users type or speak to the tool in a chat or question-and-answer exchange, as with a chatbot or assistant window.
+Users type or speak to the tool in a chat or question-and-answer exchange, as with a chatbot or assistant window. A tool the page calls a chatbot or assistant counts.
+
+Entailment label: a chat or question-and-answer exchange
 
 #### `backend_or_api`
 
 The tool runs behind the scenes, or other software calls it through a programming interface; users do not talk to it directly.
 
+Entailment label: a back-end or programming interface
+
 #### `other_interface`
 
 Users reach the tool in another way than a chat exchange or a back-end connection.
+
+Entailment label: another way
 
 ### Rules
 
 1. `items/core.interface/rules/0`
 
-`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
+One answer per activity: conversational, back-end or API, or another interface. Whether the tool sits inside software the institution already used is the deployment-mode question.
 
 2. `items/core.interface/rules/1`
 
-Interface becomes conversational / back-end or API / other interface / not applicable / unknown, and deployment mode carries integrated versus standalone.
+The classifier chooses among the real interfaces and the missing-answer labels.
 
 3. `items/core.interface/rules/2`
 
-The classifier chooses among the real interfaces and the missing-answer labels.
-
-4. `items/core.interface/rules/3`
-
-A silent page gets "not documented"; a page that mentions the matter but cannot be settled gets "unknown".
+Not documented: the page does not say how users reach the tool.
 
 ## `core.function_drafting_writing`
-<!-- item: core.function_drafting_writing sha256: 563531506d7276798c955dcb142561d91d8fb0f760d16474334df91e75d52cf4 -->
+<!-- item: core.function_drafting_writing sha256: a053690516ee898f1bdff22da452ed5f433f2372b5533f9dfbb6b9ea8ad338fe -->
 
 | Field | Value |
 |---|---|
-| item hash | `563531506d7276798c955dcb142561d91d8fb0f760d16474334df91e75d52cf4` |
+| item hash | `a053690516ee898f1bdff22da452ed5f433f2372b5533f9dfbb6b9ea8ad338fe` |
 | family | `tool` |
 | name | `function_drafting_writing` |
 | level | `activity` |
@@ -2225,28 +2461,36 @@ A silent page gets "not documented"; a page that mentions the matter but cannot 
 
 Does the page state that this activity's tool is used for drafting or writing text?
 
+### Entailment label
+
+tool
+
 ### Values
 
 #### `yes`
 
 The page states that the tool is used for drafting or writing text, such as memos, letters, press releases or social media posts.
 
+Entailment label: used for drafting or writing text
+
 #### `no`
 
 The page does not state that the tool is used for drafting or writing text, such as memos, letters, press releases or social media posts.
+
+Entailment label: not used for drafting or writing text
 
 ### Rules
 
 1. `items/core.function_drafting_writing/rules/0`
 
-`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
+Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_summarization`
-<!-- item: core.function_summarization sha256: d698879c119d6831964e88cafef1d8b813ea3e3c9734410f25c21c09e0615a93 -->
+<!-- item: core.function_summarization sha256: edfbd403f224c2df70919e51689a7ec36b3dbb599872860118adb077153dffb4 -->
 
 | Field | Value |
 |---|---|
-| item hash | `d698879c119d6831964e88cafef1d8b813ea3e3c9734410f25c21c09e0615a93` |
+| item hash | `edfbd403f224c2df70919e51689a7ec36b3dbb599872860118adb077153dffb4` |
 | family | `tool` |
 | name | `function_summarization` |
 | level | `activity` |
@@ -2274,28 +2518,36 @@ The page does not state that the tool is used for drafting or writing text, such
 
 Does the page state that this activity's tool is used for summarising documents, reports or meetings?
 
+### Entailment label
+
+tool
+
 ### Values
 
 #### `yes`
 
 The page states that the tool is used for summarising documents, reports or meetings.
 
+Entailment label: used for summarising documents, reports or meetings
+
 #### `no`
 
 The page does not state that the tool is used for summarising documents, reports or meetings.
+
+Entailment label: not used for summarising documents, reports or meetings
 
 ### Rules
 
 1. `items/core.function_summarization/rules/0`
 
-`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
+Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_translation`
-<!-- item: core.function_translation sha256: 2466a158bf8871215a3dcc9540f4ddda1676d4ff15e4bfec70820c5fd3cd2836 -->
+<!-- item: core.function_translation sha256: 872277e5bf01ebeae5c7651032d8a86a71c71a8e79373466d23bb3e22ac470ed -->
 
 | Field | Value |
 |---|---|
-| item hash | `2466a158bf8871215a3dcc9540f4ddda1676d4ff15e4bfec70820c5fd3cd2836` |
+| item hash | `872277e5bf01ebeae5c7651032d8a86a71c71a8e79373466d23bb3e22ac470ed` |
 | family | `tool` |
 | name | `function_translation` |
 | level | `activity` |
@@ -2323,28 +2575,36 @@ The page does not state that the tool is used for summarising documents, reports
 
 Does the page state that this activity's tool is used for translating text or speech between languages?
 
+### Entailment label
+
+tool
+
 ### Values
 
 #### `yes`
 
 The page states that the tool is used for translating text or speech between languages.
 
+Entailment label: used for translating between languages
+
 #### `no`
 
 The page does not state that the tool is used for translating text or speech between languages.
+
+Entailment label: not used for translating between languages
 
 ### Rules
 
 1. `items/core.function_translation/rules/0`
 
-`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
+Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_search_retrieval`
-<!-- item: core.function_search_retrieval sha256: 7f779b3d306cd266e9a2d3732767f3b2b9a101f3e5e4218683a1de77690e3364 -->
+<!-- item: core.function_search_retrieval sha256: 24d3e6c6e7c999d5ea25cf87318eb9aee07a7300048ebc8a9c027a89f53e285b -->
 
 | Field | Value |
 |---|---|
-| item hash | `7f779b3d306cd266e9a2d3732767f3b2b9a101f3e5e4218683a1de77690e3364` |
+| item hash | `24d3e6c6e7c999d5ea25cf87318eb9aee07a7300048ebc8a9c027a89f53e285b` |
 | family | `tool` |
 | name | `function_search_retrieval` |
 | level | `activity` |
@@ -2372,28 +2632,36 @@ The page does not state that the tool is used for translating text or speech bet
 
 Does the page state that this activity's tool is used for finding information?
 
+### Entailment label
+
+tool
+
 ### Values
 
 #### `yes`
 
 The page states that the tool is used for finding information, such as answering questions from documents or searching the institution's own records.
 
+Entailment label: used for finding information
+
 #### `no`
 
 The page does not state that the tool is used for finding information, such as answering questions from documents or searching the institution's own records.
+
+Entailment label: not used for finding information
 
 ### Rules
 
 1. `items/core.function_search_retrieval/rules/0`
 
-`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
+Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_code`
-<!-- item: core.function_code sha256: f5d7bbaf1b034e3b147d3e1d8db7071f50f6ab0d2e8e35ed7dfe44f2abb7823f -->
+<!-- item: core.function_code sha256: ab11951183a0b10e3b61f8d61d1b0d37e3b3e973fe211d739cffe02798edcc08 -->
 
 | Field | Value |
 |---|---|
-| item hash | `f5d7bbaf1b034e3b147d3e1d8db7071f50f6ab0d2e8e35ed7dfe44f2abb7823f` |
+| item hash | `ab11951183a0b10e3b61f8d61d1b0d37e3b3e973fe211d739cffe02798edcc08` |
 | family | `tool` |
 | name | `function_code` |
 | level | `activity` |
@@ -2421,28 +2689,36 @@ The page does not state that the tool is used for finding information, such as a
 
 Does the page state that this activity's tool is used for writing, reviewing or fixing software code?
 
+### Entailment label
+
+tool
+
 ### Values
 
 #### `yes`
 
 The page states that the tool is used for writing, reviewing or fixing software code.
 
+Entailment label: used for writing, reviewing or fixing code
+
 #### `no`
 
 The page does not state that the tool is used for writing, reviewing or fixing software code.
+
+Entailment label: not used for writing, reviewing or fixing code
 
 ### Rules
 
 1. `items/core.function_code/rules/0`
 
-`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
+Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_image_audio_video`
-<!-- item: core.function_image_audio_video sha256: 1e5956075de2cc48026418d5d81f52981f893c0ecfdb928a7b55876115f96f03 -->
+<!-- item: core.function_image_audio_video sha256: 538dff367d93a589aa7561b3306a2bb3fddded3f6655ae9478ecc57e42b2c242 -->
 
 | Field | Value |
 |---|---|
-| item hash | `1e5956075de2cc48026418d5d81f52981f893c0ecfdb928a7b55876115f96f03` |
+| item hash | `538dff367d93a589aa7561b3306a2bb3fddded3f6655ae9478ecc57e42b2c242` |
 | family | `tool` |
 | name | `function_image_audio_video` |
 | level | `activity` |
@@ -2470,28 +2746,36 @@ The page does not state that the tool is used for writing, reviewing or fixing s
 
 Does the page state that this activity's tool is used for creating or editing images, audio or video?
 
+### Entailment label
+
+tool
+
 ### Values
 
 #### `yes`
 
 The page states that the tool is used for creating or editing images, audio or video.
 
+Entailment label: used for creating or editing images, audio or video
+
 #### `no`
 
 The page does not state that the tool is used for creating or editing images, audio or video.
+
+Entailment label: not used for creating or editing images, audio or video
 
 ### Rules
 
 1. `items/core.function_image_audio_video/rules/0`
 
-`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
+Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_extraction_classification`
-<!-- item: core.function_extraction_classification sha256: 155f87129441c51e70c713d3d85bb10369421c66ec949443e57fdbefc1043291 -->
+<!-- item: core.function_extraction_classification sha256: c6b8d591da62fc1af2e39bd85f12bc2a27e423a2e24ff8f4441bdeef4c03fc6f -->
 
 | Field | Value |
 |---|---|
-| item hash | `155f87129441c51e70c713d3d85bb10369421c66ec949443e57fdbefc1043291` |
+| item hash | `c6b8d591da62fc1af2e39bd85f12bc2a27e423a2e24ff8f4441bdeef4c03fc6f` |
 | family | `tool` |
 | name | `function_extraction_classification` |
 | level | `activity` |
@@ -2519,28 +2803,36 @@ The page does not state that the tool is used for creating or editing images, au
 
 Does the page state that this activity's tool is used for pulling information out of documents or forms, or sorting and classifying them?
 
+### Entailment label
+
+tool
+
 ### Values
 
 #### `yes`
 
 The page states that the tool is used for pulling information out of documents or forms, or sorting and classifying them.
 
+Entailment label: used for pulling information out of documents or sorting them
+
 #### `no`
 
 The page does not state that the tool is used for pulling information out of documents or forms, or sorting and classifying them.
+
+Entailment label: not used for pulling information out of documents or sorting them
 
 ### Rules
 
 1. `items/core.function_extraction_classification/rules/0`
 
-`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
+Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.function_analysis_recommendation`
-<!-- item: core.function_analysis_recommendation sha256: a8026858596464541592c242ad14e9f56a02538a93fb29b1587cef9980f60509 -->
+<!-- item: core.function_analysis_recommendation sha256: 46e598ead1d140774354594de96cc8e910dc942454798338b0535efc6c39dc4b -->
 
 | Field | Value |
 |---|---|
-| item hash | `a8026858596464541592c242ad14e9f56a02538a93fb29b1587cef9980f60509` |
+| item hash | `46e598ead1d140774354594de96cc8e910dc942454798338b0535efc6c39dc4b` |
 | family | `tool` |
 | name | `function_analysis_recommendation` |
 | level | `activity` |
@@ -2568,21 +2860,29 @@ The page does not state that the tool is used for pulling information out of doc
 
 Does the page state that this activity's tool is used for analysing information or giving recommendations or scores to support human decisions?
 
+### Entailment label
+
+tool
+
 ### Values
 
 #### `yes`
 
 The page states that the tool is used for analysing information or giving recommendations or scores to support human decisions, such as case triage or eligibility checks.
 
+Entailment label: used for analysis or recommendations that support decisions
+
 #### `no`
 
 The page does not state that the tool is used for analysing information or giving recommendations or scores to support human decisions, such as case triage or eligibility checks.
+
+Entailment label: not used for analysis or recommendations that support decisions
 
 ### Rules
 
 1. `items/core.function_analysis_recommendation/rules/0`
 
-`interface` (one Choice): conversational / embedded_in_existing_software / standalone_application / backend_or_api / not_applicable / unknown. Functions as separate jev yes/no items (jev returns one code per question): drafting_writing, summarization, translation, search_retrieval, code, image_audio_video, extraction_classification, analysis_recommendation. Each item is chunk-safe with any-yes.
+Each function is its own yes/no question about this activity's tool. On a long page the answer is yes if any part says yes.
 
 ## `core.tool_name`
 <!-- item: core.tool_name sha256: e606956923481de92a2b4c59bbffa78de57b1fcc574c7b2f5e666a7c000969b1 -->
@@ -2792,11 +3092,11 @@ Developer (from lookup or page, with its basis recorded) and contracting party (
 Every 'how we know' field uses the same five values: stated, from metadata, looked up, derived, quoted by the quote step. The per-run version record also holds the codebook version, the channel tag stays on each row, and per-code coder details are stored internally and linked to that record.
 
 ## `core.deployment_mode`
-<!-- item: core.deployment_mode sha256: d8e2608aeb147a2f4a0158523be100174bce0af2cb2d2ae909eaf7f8ceda3104 -->
+<!-- item: core.deployment_mode sha256: b98e0a21cf8e6214df70fb55b4d1c07d269ccb33edb7018f6d942abbb9a0602c -->
 
 | Field | Value |
 |---|---|
-| item hash | `d8e2608aeb147a2f4a0158523be100174bce0af2cb2d2ae909eaf7f8ceda3104` |
+| item hash | `b98e0a21cf8e6214df70fb55b4d1c07d269ccb33edb7018f6d942abbb9a0602c` |
 | family | `tool` |
 | name | `deployment_mode` |
 | level | `activity` |
@@ -2824,15 +3124,23 @@ Every 'how we know' field uses the same five values: stated, from metadata, look
 
 `standalone`: separate tool/interface. `integrated`: embedded in existing system (e.g., Copilot inside Outlook).
 
+### Entailment label
+
+fit with existing software
+
 ### Values
 
 #### `integrated`
 
 integrated: the GenAI feature works inside software or a service channel the institution already used (office suite, case system, existing website service).
 
+Entailment label: built into software or a service already in use
+
 #### `standalone`
 
 standalone: a separate application or site created for the GenAI tool.
+
+Entailment label: a separate application or site
 
 ### Rules
 
@@ -2845,11 +3153,11 @@ The page mentions whether the tool is separate or built into existing software b
 not_documented: the page is silent.
 
 ## `core.target_users`
-<!-- item: core.target_users sha256: 7a11470600f2085adb6fa27b888a52d431b5f187bf2ebb9e6b9edcdb248902b7 -->
+<!-- item: core.target_users sha256: 34d84236cf9dff00347f35585a18556f9861c83aa4578d8104e9d84821514d94 -->
 
 | Field | Value |
 |---|---|
-| item hash | `7a11470600f2085adb6fa27b888a52d431b5f187bf2ebb9e6b9edcdb248902b7` |
+| item hash | `34d84236cf9dff00347f35585a18556f9861c83aa4578d8104e9d84821514d94` |
 | family | `tool` |
 | name | `target_users` |
 | level | `activity` |
@@ -2877,25 +3185,35 @@ not_documented: the page is silent.
 
 Who interacts with the GenAI system.
 
+### Entailment label
+
+users of the tool
+
 ### Values
 
 #### `internal_staff`
 
 Only the institution's own staff use the tool.
 
+Entailment label: the institution's own staff only
+
 #### `public`
 
 People outside the institution use the tool: members of the public, residents or businesses.
+
+Entailment label: people outside the institution
 
 #### `both`
 
 Both the institution's staff and people outside it use the tool. On long pages, one part naming staff and another the public also gives this value.
 
+Entailment label: both staff and people outside the institution
+
 ### Rules
 
 1. `items/core.target_users/rules/0`
 
-target_users only for tool activities (`not_applicable` otherwise). A04 for governance.
+Asked only for tool activities.
 
 2. `items/core.target_users/rules/1`
 
@@ -2912,11 +3230,11 @@ not_documented: the page is silent.
 Drop 'not covered by this part' and missing labels from the list. 'both' present, or staff and public both present, gives 'both'. One real value gives that value. No real value: not_documented if any part says the page is silent, else unknown. Every part 'not covered' gives not_documented.
 
 ## `core.governed_population`
-<!-- item: core.governed_population sha256: b7e4f250f93adbdc0a3d7c9c1ff4a93aed888e5d8555ecb800bdcc946c9136c5 -->
+<!-- item: core.governed_population sha256: a786dcbf8d250e7bd267a110a2fb65ae851fe1f5c33c863002e96563dd3ed430 -->
 
 | Field | Value |
 |---|---|
-| item hash | `b7e4f250f93adbdc0a3d7c9c1ff4a93aed888e5d8555ecb800bdcc946c9136c5` |
+| item hash | `a786dcbf8d250e7bd267a110a2fb65ae851fe1f5c33c863002e96563dd3ed430` |
 | family | `governance` |
 | name | `governed_population` |
 | level | `activity` |
@@ -2944,19 +3262,29 @@ Drop 'not covered by this part' and missing labels from the list. 'both' present
 
 Whom does this rule on GenAI use apply to?
 
+### Entailment label
+
+people the rule applies to
+
 ### Values
 
 #### `internal_personnel`
 
 The rule applies to the institution's own staff and officials.
 
+Entailment label: the institution's own staff and officials
+
 #### `external_users`
 
 The rule applies to people or bodies outside the institution, such as the public or the parties it regulates.
 
+Entailment label: people or bodies outside the institution
+
 #### `both`
 
 The rule applies both to the institution's own staff and to people or bodies outside it. On long pages, one part naming each also gives this value.
+
+Entailment label: both staff and people or bodies outside the institution
 
 ### Rules
 
@@ -2979,11 +3307,11 @@ not_documented: the page is silent.
 Drop 'not covered by this part' and missing labels from the list. 'both' present, or staff and public both present, gives 'both'. One real value gives that value. No real value: not_documented if any part says the page is silent, else unknown. Every part 'not covered' gives not_documented.
 
 ## `core.governance_form`
-<!-- item: core.governance_form sha256: 5a68086467795ad4b1d057e7330020e2397a4f42ed2eaf6f611bbc1b34308fa5 -->
+<!-- item: core.governance_form sha256: 49492f6cc3240e7b05bb438a5869d24e4e30904ac281d54ddf0ffbb235cc3717 -->
 
 | Field | Value |
 |---|---|
-| item hash | `5a68086467795ad4b1d057e7330020e2397a4f42ed2eaf6f611bbc1b34308fa5` |
+| item hash | `49492f6cc3240e7b05bb438a5869d24e4e30904ac281d54ddf0ffbb235cc3717` |
 | family | `governance` |
 | name | `governance_form` |
 | level | `activity` |
@@ -3011,27 +3339,41 @@ Drop 'not covered by this part' and missing labels from the list. 'both' present
 
 What form does this rule on GenAI use take? Choose all that apply.
 
+### Entailment label
+
+form of the rule
+
 ### Values
 
 #### `dedicated_genai_or_ai_policy_or_guideline`
 
 A policy, guideline, code of practice or acceptable-use rule whose main subject is generative AI or AI.
 
+Entailment label: a policy or guideline mainly about generative AI or AI
+
 #### `approved_tool_list_or_endorsement`
 
 A list of approved or permitted GenAI tools, or an official endorsement of a named tool.
+
+Entailment label: a list of approved tools or an endorsement of a tool
 
 #### `clause_in_instrument_on_other_subject`
 
 A clause on GenAI inside a rule, policy or guidance whose main subject is something else (for example IT security or records management).
 
+Entailment label: a clause in a rule on another subject
+
 #### `court_or_regulatory_order`
 
 An order, decision or practice direction on GenAI use issued by a court or a regulator.
 
+Entailment label: an order of a court or regulator
+
 #### `procurement_standard`
 
 A standard or requirement for buying GenAI tools or services, such as purchasing criteria or contract terms.
+
+Entailment label: a standard for buying GenAI tools or services
 
 ### Rules
 
@@ -3041,7 +3383,7 @@ jev Choice: dedicated_genai_or_ai_policy_or_guideline / approved_tool_list_or_en
 
 2. `items/core.governance_form/rules/1`
 
-S6 c: `governance_form` becomes multi-select, so a document can be both guideline and endorsement.
+More than one form can apply: a document can be both a guideline and an endorsement.
 
 3. `items/core.governance_form/rules/2`
 
@@ -3052,11 +3394,11 @@ The page mentions the form of the rule but does not let it be settled.
 not_documented: the page is silent.
 
 ## `core.governance_direction`
-<!-- item: core.governance_direction sha256: c0c9559b087615ee1a68b39decf9623b138e4b12ff2cf0eaeeaf8cdc04cccced -->
+<!-- item: core.governance_direction sha256: 447d9f41a426d6b143bd16c4149cb67d7b94321a1cf583c7563f7f07958d3d54 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c0c9559b087615ee1a68b39decf9623b138e4b12ff2cf0eaeeaf8cdc04cccced` |
+| item hash | `447d9f41a426d6b143bd16c4149cb67d7b94321a1cf583c7563f7f07958d3d54` |
 | family | `governance` |
 | name | `governance_direction` |
 | level | `activity` |
@@ -3084,27 +3426,41 @@ not_documented: the page is silent.
 
 Does this rule ban, limit, allow, require or encourage the GenAI use it covers?
 
+### Entailment label
+
+stance of the rule on GenAI use
+
 ### Values
 
 #### `prohibits`
 
 The rule bans the GenAI use it covers, with no use allowed.
 
+Entailment label: a ban
+
 #### `restricts_with_conditions`
 
 The rule allows use only under conditions (for example approval, training, limits on data, or human review), or bans some uses and allows others. On long pages, a ban in one part and a permission in another also give this value.
+
+Entailment label: use allowed only under conditions
 
 #### `permits`
 
 The rule allows the use without conditions.
 
+Entailment label: use allowed without conditions
+
 #### `requires`
 
 The rule makes GenAI use mandatory for some task or for some staff.
 
+Entailment label: use required
+
 #### `promotes`
 
 The rule encourages or supports GenAI use without making it mandatory.
+
+Entailment label: use encouraged
 
 ### Rules
 
@@ -3131,11 +3487,11 @@ A silent page gets "not documented"; a page that mentions the matter but cannot 
 Order: restricts_with_conditions, prohibits, permits, requires, promotes, not_documented, unknown.
 
 ## `core.service_domain`
-<!-- item: core.service_domain sha256: b3b632c1f7f3cab32d8847cc59a65316ebc0992d6e076bb1ec6d02478870bb54 -->
+<!-- item: core.service_domain sha256: 6d4627193be4485e52d5ceaa662c7d109d39035a481c91c4da0440bb560ba7a3 -->
 
 | Field | Value |
 |---|---|
-| item hash | `b3b632c1f7f3cab32d8847cc59a65316ebc0992d6e076bb1ec6d02478870bb54` |
+| item hash | `6d4627193be4485e52d5ceaa662c7d109d39035a481c91c4da0440bb560ba7a3` |
 | family | `activity_typing` |
 | name | `service_domain` |
 | level | `activity` |
@@ -3163,57 +3519,83 @@ Order: restricts_with_conditions, prohibits, permits, requires, promotes, not_do
 
 Which areas of government work does this activity concern? Choose all that apply.
 
+### Entailment label
+
+area of government work
+
 ### Values
 
 #### `general_public_services`
 
-Running government itself: executive and legislative bodies, financial, fiscal and tax affairs, foreign affairs, and general administration and internal services. The earlier value 'general administration' is coded here.
+Running government itself: executive and legislative bodies, financial, fiscal and tax affairs, foreign affairs and foreign economic aid, general administration and internal services, and basic research.
+
+Entailment label: general public services
 
 #### `defence`
 
-Military and civil defence.
+Military and civil defence, and foreign military aid.
+
+Entailment label: defence
 
 #### `public_order_safety`
 
 Police, fire protection, the courts and prisons.
 
+Entailment label: public order and safety
+
 #### `economic_affairs`
 
-Economic, commercial and labour affairs; agriculture, forestry and fishing; fuel and energy; industry and construction; transport; communication.
+Economic, commercial and labour affairs; agriculture, forestry, fishing and hunting; fuel and energy; mining, manufacturing and construction; transport; communication (post and telecommunications); other industries, such as trade, tourism, hotels and restaurants.
+
+Entailment label: economic affairs
 
 #### `environmental_protection`
 
 Waste and waste-water management, pollution control, and the protection of biodiversity and landscape.
 
+Entailment label: environmental protection
+
 #### `housing_community_amenities`
 
 Housing and community development, water supply and street lighting.
+
+Entailment label: housing and community amenities
 
 #### `health`
 
 Medical products, outpatient and hospital services, and public health services.
 
+Entailment label: health
+
 #### `recreation_culture_religion`
 
 Recreation and sport, culture, broadcasting and publishing, and religious and other community services.
 
+Entailment label: recreation, culture and religion
+
 #### `education`
 
-Education at every level, from pre-primary to university, and services that support it.
+Education at every level, from pre-primary to tertiary, education not tied to a level, and services that support it. Training an institution's own staff counts under that institution's area, not education.
+
+Entailment label: education
 
 #### `social_protection`
 
 Support in sickness and disability, old age, for survivors, families and children, in unemployment, for housing, and against social exclusion.
 
+Entailment label: social protection
+
 #### `other`
 
 An area that fits none of the ten areas above.
+
+Entailment label: another area
 
 ### Rules
 
 1. `items/core.service_domain/rules/0`
 
-One classifier question per activity over a short list of areas plus 'general administration' and 'unknown'.
+One question per activity: tick every area of government work the activity concerns.
 
 2. `items/core.service_domain/rules/1`
 
@@ -3225,13 +3607,9 @@ Activities that fit no area get "other".
 
 4. `items/core.service_domain/rules/3`
 
-The question becomes a tick-all-that-apply list.
+Not documented: the page does not say which area of government work the activity concerns.
 
 5. `items/core.service_domain/rules/4`
-
-A silent page gets "not documented"; a page that mentions the matter but cannot be settled gets "unknown".
-
-6. `items/core.service_domain/rules/5`
 
 No separate value. A rule says the earlier 'general administration' is coded 'general public services'.
 
@@ -3242,11 +3620,11 @@ No separate value. A rule says the earlier 'general administration' is coded 'ge
 Take every area any part ticks with a supported answer. Each area's quote and certainty come from the part most sure of it. Missing labels only if no part ticks a real area.
 
 ## `core.genai_mechanism_basis`
-<!-- item: core.genai_mechanism_basis sha256: aef25db05adf60be6f2aa9ecd0c28636e6cac17dfcbb221bbdfbe5443b643cc0 -->
+<!-- item: core.genai_mechanism_basis sha256: de94ee8e9e42e7a6d0ed45e30260dad5d3be1c15b4b7b07b5bef3ca54331c837 -->
 
 | Field | Value |
 |---|---|
-| item hash | `aef25db05adf60be6f2aa9ecd0c28636e6cac17dfcbb221bbdfbe5443b643cc0` |
+| item hash | `de94ee8e9e42e7a6d0ed45e30260dad5d3be1c15b4b7b07b5bef3ca54331c837` |
 | family | `verdict` |
 | name | `genai_mechanism_basis` |
 | level | `activity` |
@@ -3274,44 +3652,56 @@ Take every area any part ticks with a supported answer. Each area's quote and ce
 
 What on the page shows that this activity's tool is generative AI?
 
+### Entailment label
+
+sign that the tool is generative AI
+
 ### Values
 
 #### `named_genai_product_or_model`
 
 The page names a generative product or model, such as ChatGPT, Copilot, Gemini, Claude or a named language model.
 
+Entailment label: a named generative product or model
+
 #### `explicit_genai_label`
 
 The page calls the tool generative AI, a large language model or the like, without naming a product.
+
+Entailment label: a generative-AI label
 
 #### `generative_capability_described`
 
 The page says the tool generates text, images, audio, code or other content, without naming a product or using a generative-AI label.
 
+Entailment label: a description of the content it generates
+
 #### `ai_chatbot_or_assistant_label_only`
 
 The only signal is that the page calls the tool an 'AI chatbot' or 'AI assistant'; under the GenAI boundary rule this counts as generative.
+
+Entailment label: only the words 'AI chatbot' or 'AI assistant'
 
 ### Rules
 
 1. `items/core.genai_mechanism_basis/rules/0`
 
-jev Choice on every confirms_activity page/activity: named_genai_product_or_model / explicit_genai_label / generative_capability_described / ai_chatbot_or_assistant_label_only. The extractor returns the supporting quote.
+Asked for every activity on a page that confirms a GenAI activity. The supporting quote is extracted separately.
 
 2. `shared_rules/core.rule.genai_boundary/0` (shared rule `core.rule.genai_boundary`)
 
-Generative-AI wording: the re-pilot 2 wording governs (SRC-7 L34-45), including that a named "AI chatbot or AI assistant" counts as a generative product; `system_prompt.md` L15 rule ("chatbot" alone is not evidence) is amended to match. A named "AI chatbot" or "AI assistant" counts as generative and overrides the rule-based-chatbot exclusion (contract L12) for that naming.
+A tool the page calls an "AI chatbot" or "AI assistant" counts as generative AI, even where a rule-based chatbot would otherwise be excluded.
 
 3. `shared_rules/core.rule.genai_boundary/1` (shared rule `core.rule.genai_boundary`)
 
-S1 a: translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.
+Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.
 
 ## `core.year_announced`
-<!-- item: core.year_announced sha256: 99f1076a1e8c1c23705fb423e90b9aaf4ecc4af9f0a3a7822880bba3e2442cd4 -->
+<!-- item: core.year_announced sha256: 70545adcdfadf5991e81f6119f52148d28b81a52722e7a5a97740e8b51415b0e -->
 
 | Field | Value |
 |---|---|
-| item hash | `99f1076a1e8c1c23705fb423e90b9aaf4ecc4af9f0a3a7822880bba3e2442cd4` |
+| item hash | `70545adcdfadf5991e81f6119f52148d28b81a52722e7a5a97740e8b51415b0e` |
 | family | `dates` |
 | name | `year_announced` |
 | level | `activity` |
@@ -3337,7 +3727,11 @@ S1 a: translation counts as generative AI only when the page ties it to a named 
 
 ### Instruction
 
-"In which year does the page say this activity was first announced?"
+In which year does the page say this activity was first announced?
+
+### Entailment label
+
+year it was first announced
 
 ### Values (structured; rendered by slot path)
 
@@ -3345,22 +3739,22 @@ S1 a: translation counts as generative AI only when the page ties it to a named 
 
 1. `items/core.year_announced/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: "In which year does the page say this activity was first announced?" No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_announced/rules/1`
 
-Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
+Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
 
 3. `items/core.year_announced/rules/2`
 
 not_documented: the page is silent.
 
 ## `core.year_pilot_start`
-<!-- item: core.year_pilot_start sha256: 02b7b7bff0b2a9d7c1f5a528955427a81c0608eea8277a4cd1195ce83d44cc2b -->
+<!-- item: core.year_pilot_start sha256: a1866c316cd97d1d3558cb9d83b04dd362b7edc0876b5214463e3c3ec1619ac9 -->
 
 | Field | Value |
 |---|---|
-| item hash | `02b7b7bff0b2a9d7c1f5a528955427a81c0608eea8277a4cd1195ce83d44cc2b` |
+| item hash | `a1866c316cd97d1d3558cb9d83b04dd362b7edc0876b5214463e3c3ec1619ac9` |
 | family | `dates` |
 | name | `year_pilot_start` |
 | level | `activity` |
@@ -3388,17 +3782,21 @@ not_documented: the page is silent.
 
 In which year does the page say a pilot or trial of this activity began?
 
+### Entailment label
+
+year its pilot or trial began
+
 ### Values (structured; rendered by slot path)
 
 ### Rules
 
 1. `items/core.year_pilot_start/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: "In which year does the page say a pilot or trial of this activity began?" No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_pilot_start/rules/1`
 
-Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
+Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
 
 3. `items/core.year_pilot_start/rules/2`
 
@@ -3409,11 +3807,11 @@ Two columns, each stated-only.
 not_documented: the page is silent.
 
 ## `core.year_production_start`
-<!-- item: core.year_production_start sha256: 5e51370bd8540c1161cb1a2e6257ebc333c85b3665b65237a88058a7b82d30e3 -->
+<!-- item: core.year_production_start sha256: 1149b8097fc10f3964d32b6b7f7f6b3cf8753cfc0b779252b9e060d31e4a90b3 -->
 
 | Field | Value |
 |---|---|
-| item hash | `5e51370bd8540c1161cb1a2e6257ebc333c85b3665b65237a88058a7b82d30e3` |
+| item hash | `1149b8097fc10f3964d32b6b7f7f6b3cf8753cfc0b779252b9e060d31e4a90b3` |
 | family | `dates` |
 | name | `year_production_start` |
 | level | `activity` |
@@ -3441,17 +3839,21 @@ not_documented: the page is silent.
 
 In which year does the page say this activity went into full, routine operation?
 
+### Entailment label
+
+year it went into full operation
+
 ### Values (structured; rendered by slot path)
 
 ### Rules
 
 1. `items/core.year_production_start/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. jev Choice over those years: "In which year does the page say this activity went into full, routine operation?" No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_production_start/rules/1`
 
-Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
+Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
 
 3. `items/core.year_production_start/rules/2`
 
@@ -3505,11 +3907,11 @@ the quote step copies the scale number verbatim and the classifier picks the uni
 The quote step runs for every activity; skipped items are kept internally and published as "not asked".
 
 ## `core.deployment_scale_unit`
-<!-- item: core.deployment_scale_unit sha256: 4a7cc03581fd7c61950d556903bdccfcf4bcdd5485ab782d5412cb0992d63a71 -->
+<!-- item: core.deployment_scale_unit sha256: c4359e7dd8e604b19a00b999b3d14d2407d5b6c8f398a8f759a417693852e7eb -->
 
 | Field | Value |
 |---|---|
-| item hash | `4a7cc03581fd7c61950d556903bdccfcf4bcdd5485ab782d5412cb0992d63a71` |
+| item hash | `c4359e7dd8e604b19a00b999b3d14d2407d5b6c8f398a8f759a417693852e7eb` |
 | family | `scale` |
 | name | `deployment_scale_unit` |
 | level | `activity` |
@@ -3537,27 +3939,41 @@ The quote step runs for every activity; skipped items are kept internally and pu
 
 What does the stated number for this activity count?
 
+### Entailment label
+
+unit counted by the stated number
+
 ### Values
 
 #### `licences_or_seats`
 
 The number counts licences, seats or accounts bought or issued.
 
+Entailment label: licences, seats or accounts
+
 #### `users`
 
 The number counts people who use the tool.
+
+Entailment label: people who use the tool
 
 #### `interactions`
 
 The number counts uses of the tool, such as questions answered, conversations held or documents handled.
 
+Entailment label: uses of the tool
+
 #### `units_or_departments`
 
 The number counts offices, departments, schools or other units that use the tool.
 
+Entailment label: offices, departments or other units
+
 #### `none`
 
 A number is stated, but it counts none of these units.
+
+Entailment label: none of these units
 
 ### Rules
 
@@ -3570,11 +3986,11 @@ The extractor returns the verbatim number span. jev Choice gives the unit: licen
 not_documented: the page is silent.
 
 ## `core.has_human_oversight`
-<!-- item: core.has_human_oversight sha256: d4a11f0e37de294a9d09c27581a803ad795e03d71e863ab31418040e55660046 -->
+<!-- item: core.has_human_oversight sha256: 2baab3c1c2c4a87916acd613ef01aa56ccbaddeb739f920c793a649e9b2b839f -->
 
 | Field | Value |
 |---|---|
-| item hash | `d4a11f0e37de294a9d09c27581a803ad795e03d71e863ab31418040e55660046` |
+| item hash | `2baab3c1c2c4a87916acd613ef01aa56ccbaddeb739f920c793a649e9b2b839f` |
 | family | `safeguard` |
 | name | `has_human_oversight` |
 | level | `activity` |
@@ -3602,19 +4018,29 @@ not_documented: the page is silent.
 
 Is human review required before acting on GenAI outputs?
 
+### Entailment label
+
+human review of GenAI outputs
+
 ### Values
 
 #### `yes`
 
 yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it).
 
+Entailment label: in place or required
+
 #### `no`
 
 no: the page states it does not apply.
 
+Entailment label: not in place
+
 #### `unclear`
 
 unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.
+
+Entailment label: mentioned, but not settled for this activity
 
 ### Rules
 
@@ -3635,11 +4061,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.has_transparency_notice`
-<!-- item: core.has_transparency_notice sha256: 63177f84cc942627dda8273ba841c33e3fa75b963691c4fffb3bcec40566ef0d -->
+<!-- item: core.has_transparency_notice sha256: bcefdc276e698be877c13588df80ffcddac8e3542453155ea2e770133a865883 -->
 
 | Field | Value |
 |---|---|
-| item hash | `63177f84cc942627dda8273ba841c33e3fa75b963691c4fffb3bcec40566ef0d` |
+| item hash | `bcefdc276e698be877c13588df80ffcddac8e3542453155ea2e770133a865883` |
 | family | `safeguard` |
 | name | `has_transparency_notice` |
 | level | `activity` |
@@ -3667,19 +4093,29 @@ not_documented: the page is silent.
 
 Are users/citizens notified that GenAI is involved?
 
+### Entailment label
+
+notice to users that GenAI is involved
+
 ### Values
 
 #### `yes`
 
 yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it).
 
+Entailment label: in place or required
+
 #### `no`
 
 no: the page states it does not apply.
 
+Entailment label: not in place
+
 #### `unclear`
 
 unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.
+
+Entailment label: mentioned, but not settled for this activity
 
 ### Rules
 
@@ -3700,11 +4136,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.has_data_classification`
-<!-- item: core.has_data_classification sha256: c0a9a902c3e1dac3fda8ef2ec62bed86ed0e67276965684e8328b8ba0e100ed2 -->
+<!-- item: core.has_data_classification sha256: ba98b2d241f40f7137c626e7e7c0ad41c0b87581fc538d6f4caf1813bcd3cd59 -->
 
 | Field | Value |
 |---|---|
-| item hash | `c0a9a902c3e1dac3fda8ef2ec62bed86ed0e67276965684e8328b8ba0e100ed2` |
+| item hash | `ba98b2d241f40f7137c626e7e7c0ad41c0b87581fc538d6f4caf1813bcd3cd59` |
 | family | `safeguard` |
 | name | `has_data_classification` |
 | level | `activity` |
@@ -3732,19 +4168,29 @@ not_documented: the page is silent.
 
 Are there documented data-handling restrictions for GenAI use?
 
+### Entailment label
+
+restriction on the data GenAI may handle
+
 ### Values
 
 #### `yes`
 
 yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it).
 
+Entailment label: in place or required
+
 #### `no`
 
 no: the page states it does not apply.
 
+Entailment label: not in place
+
 #### `unclear`
 
 unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.
+
+Entailment label: mentioned, but not settled for this activity
 
 ### Rules
 
@@ -3765,11 +4211,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.has_risk_assessment`
-<!-- item: core.has_risk_assessment sha256: 56e835cc7f5744706d0502ca37f5d296458c7ab7d5d12aa5372066d1107563cb -->
+<!-- item: core.has_risk_assessment sha256: 4b340b3af9416bb9713e92e6558919763d64617c523fb4bbc5e633f149358ea4 -->
 
 | Field | Value |
 |---|---|
-| item hash | `56e835cc7f5744706d0502ca37f5d296458c7ab7d5d12aa5372066d1107563cb` |
+| item hash | `4b340b3af9416bb9713e92e6558919763d64617c523fb4bbc5e633f149358ea4` |
 | family | `safeguard` |
 | name | `has_risk_assessment` |
 | level | `activity` |
@@ -3797,19 +4243,29 @@ not_documented: the page is silent.
 
 Has a formal risk/impact assessment been documented?
 
+### Entailment label
+
+formal risk or impact assessment
+
 ### Values
 
 #### `yes`
 
 yes: the page states the safeguard applies to this activity (for a governance activity: the rule requires it).
 
+Entailment label: in place or required
+
 #### `no`
 
 no: the page states it does not apply.
 
+Entailment label: not in place
+
 #### `unclear`
 
 unclear: the page mentions the safeguard but it cannot be settled whether it applies to this activity.
+
+Entailment label: mentioned, but not settled for this activity
 
 ### Rules
 
@@ -3830,11 +4286,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.outcome_kind`
-<!-- item: core.outcome_kind sha256: 80a037b895fd0d167505a50b6760a28199c8e5a3d2734f5183f356742d9b50c8 -->
+<!-- item: core.outcome_kind sha256: 4c8e83ed8ecfe9f8697ff1af3e5a98136d92a93a16f62244314f85417af3b105 -->
 
 | Field | Value |
 |---|---|
-| item hash | `80a037b895fd0d167505a50b6760a28199c8e5a3d2734f5183f356742d9b50c8` |
+| item hash | `4c8e83ed8ecfe9f8697ff1af3e5a98136d92a93a16f62244314f85417af3b105` |
 | family | `outcomes` |
 | name | `outcome_kind` |
 | level | `activity` |
@@ -3862,36 +4318,42 @@ not_documented: the page is silent.
 
 Does the page report a result of this activity, and if so, what kind?
 
+### Entailment label
+
+reported result
+
 ### Values
 
 #### `quantified`
 
-states a measured or numeric result
+The page reports a result of this activity that is measured or given as a number.
+
+Entailment label: a measured or numeric result
 
 #### `qualitative`
 
-states a result in words only, with no measure
+The page reports a result of this activity in words only, with no measure. Goals, plans or expected benefits are not results.
+
+Entailment label: a result in words only
 
 #### `none_reported`
 
-states no result
+The page reports no result of this activity.
+
+Entailment label: none reported
 
 ### Rules
 
 1. `items/core.outcome_kind/rules/0`
 
-A jev `Choice` per (finding × page), over the page text with this activity's span marked, asked for outcomes and for incidents separately: `quantified` / `qualitative` / `none_reported`. It answers both whether the page reports an outcome (an incident) of this activity and of what kind; no separate existence question is asked. The outcome or incident text is extracted only when the answer is not `none_reported`. The incident item also takes the value in CX-61b.
-
-2. `items/core.outcome_kind/rules/1`
-
-Your outcome and incident gates are re-ruled down to quotes only; the signed item answers both whether and what kind, and the separate existence question folds into it.
+Asked about this activity only, once for results and once for incidents. The answer says both whether the page reports one and what kind; the text of the result or incident is extracted only when the answer is not `none_reported`. The incident question also offers `discontinuation_uncertain`.
 
 ## `core.incident_kind`
-<!-- item: core.incident_kind sha256: 8d59c74ce433b2e99bab93f90d38b6949d27c74bec470c39f2c41fac49301ee5 -->
+<!-- item: core.incident_kind sha256: 86e86970bf31247adafccf0da05b86c1f8ec5cdcb59c2a0bf906e091710526ad -->
 
 | Field | Value |
 |---|---|
-| item hash | `8d59c74ce433b2e99bab93f90d38b6949d27c74bec470c39f2c41fac49301ee5` |
+| item hash | `86e86970bf31247adafccf0da05b86c1f8ec5cdcb59c2a0bf906e091710526ad` |
 | family | `outcomes` |
 | name | `incident_kind` |
 | level | `activity` |
@@ -3919,43 +4381,51 @@ Your outcome and incident gates are re-ruled down to quotes only; the signed ite
 
 Does the page report an incident with this activity, such as an error, failure or controversy, and if so, what kind?
 
+### Entailment label
+
+reported incident
+
 ### Values
 
 #### `quantified`
 
-states a measured or numeric result
+The page reports an incident with this activity and gives a measure or number for it.
+
+Entailment label: an incident given with a measure or number
 
 #### `qualitative`
 
-states a result in words only, with no measure
+The page reports an incident with this activity in words only, with no measure.
+
+Entailment label: an incident described in words only
 
 #### `none_reported`
 
-states no result
+The page reports no incident with this activity.
+
+Entailment label: none reported
 
 #### `discontinuation_uncertain`
 
 The page suggests that this activity may have been ended, cancelled or suspended, but does not confirm it.
 
+Entailment label: a possible but unconfirmed end of the activity
+
 ### Rules
 
 1. `items/core.incident_kind/rules/0`
 
-A jev `Choice` per (finding × page), over the page text with this activity's span marked, asked for outcomes and for incidents separately: `quantified` / `qualitative` / `none_reported`. It answers both whether the page reports an outcome (an incident) of this activity and of what kind; no separate existence question is asked. The outcome or incident text is extracted only when the answer is not `none_reported`. The incident item also takes the value in CX-61b.
+Asked about this activity only, once for results and once for incidents. The answer says both whether the page reports one and what kind; the text of the result or incident is extracted only when the answer is not `none_reported`. The incident question also offers `discontinuation_uncertain`.
 
 2. `items/core.incident_kind/rules/1`
 
-Your outcome and incident gates are re-ruled down to quotes only; the signed item answers both whether and what kind, and the separate existence question folds into it.
+Retire flags that just mirror a column; keep 'identity unresolved' and 'stage ambiguous', and fold 'discontinuation uncertain' into the incident question as a value instead of a separate question.
 
 3. `items/core.incident_kind/rules/2`
 
-Retire flags that just mirror a column; keep 'identity unresolved' and 'stage ambiguous', and fold 'discontinuation uncertain' into the incident question as a value instead of a separate question.
-
-4. `items/core.incident_kind/rules/3`
-
 `discontinuation_uncertain` (incident item only)
 
-5. `items/core.incident_kind/rules/4`
+4. `items/core.incident_kind/rules/3`
 
 The incident question ignores stops unless a problem is reported.
 
@@ -4038,11 +4508,11 @@ Documented errors, failures, or controversies. Only record if explicitly stated.
 Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
 
 ## `core.evaluation_documented`
-<!-- item: core.evaluation_documented sha256: c769fcddf1fa71e4e91e4947ce96716448de13f9881a9eab6fbb931169482e24 -->
+<!-- item: core.evaluation_documented sha256: 821b1906675ae2202acb97e41245ca25ebec5a5e26518edc7a8d22a1d3b0097c -->
 
 | Field | Value |
 |---|---|
-| item hash | `c769fcddf1fa71e4e91e4947ce96716448de13f9881a9eab6fbb931169482e24` |
+| item hash | `821b1906675ae2202acb97e41245ca25ebec5a5e26518edc7a8d22a1d3b0097c` |
 | family | `evaluation` |
 | name | `evaluation_documented` |
 | level | `activity`, `page` |
@@ -4070,29 +4540,41 @@ Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothin
 
 Does this page document an evaluation of this GenAI activity?
 
+### Entailment label
+
+evaluation
+
 ### Values
 
 #### `results_reported`
 
 The page states that this activity was tested, evaluated, audited or monitored **and** reports a result (a metric, a finding or a conclusion).
 
+Entailment label: carried out, with results reported
+
 #### `conducted_no_results`
 
 The page states that an evaluation, test, audit, pilot review or monitoring took place or is in place, but reports no result.
+
+Entailment label: carried out, with no results reported
 
 #### `required_or_planned`
 
 The page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy finding that requires evaluation of GenAI tools takes this value.
 
+Entailment label: required or planned
+
 #### `unclear`
 
-The page makes an evaluative statement, but its subject, or whether it concerns this GenAI activity, cannot be settled. An evaluation clearly of a different tool or activity is `not_documented`, not `unclear` (CX-01.2, C4 = a).
+The page makes an evaluative statement, but its subject, or whether it concerns this GenAI activity, cannot be settled. An evaluation clearly of a different tool or activity is `not_documented`, not `unclear`.
+
+Entailment label: mentioned, but not clearly about this activity
 
 ### Rules
 
 1. `items/core.evaluation_documented/rules/0`
 
-A requirement to carry out a risk or impact assessment is **not** `required_or_planned`; it belongs to `has_risk_assessment` alone (consistent with CX-37).
+A requirement to carry out a risk or impact assessment is **not** `required_or_planned`; it belongs to `has_risk_assessment` alone.
 
 2. `items/core.evaluation_documented/rules/1`
 
@@ -4100,7 +4582,7 @@ A clause requiring periodic review of the GenAI policy itself is `not_documented
 
 3. `items/core.evaluation_documented/rules/2`
 
-A required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as `required_or_planned`. A pure risk or impact assessment requirement stays under CX-32b.
+A required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as `required_or_planned`. A pure risk or impact assessment requirement stays under `has_risk_assessment`.
 
 4. `items/core.evaluation_documented/rules/3`
 
@@ -4124,22 +4606,22 @@ A pilot stage alone is `not_documented`. "The pilot will be evaluated" is `requi
 
 9. `items/core.evaluation_documented/rules/8`
 
-(1) An agency blog: "after a three-month trial, 78% of staff said the assistant saved time" → `results_reported`. (2) Minutes: "the pilot is being reviewed by IT" → `conducted_no_results`. (3) A guidance memo: "all GenAI tools must be tested before deployment" → `required_or_planned` on the policy finding. (4) A press release: "the chatbot has answered 40,000 questions" → `not_documented` (a usage count with no evaluation described; CX-36). (5) A vendor case study: "accuracy improved 30%" with no named evaluator → `not_documented` (CX-38).
+(1) An agency blog: "after a three-month trial, 78% of staff said the assistant saved time" → `results_reported`. (2) Minutes: "the pilot is being reviewed by IT" → `conducted_no_results`. (3) A guidance memo: "all GenAI tools must be tested before deployment" → `required_or_planned` on the policy finding. (4) A press release: "the chatbot has answered 40,000 questions" → `not_documented` (a usage count with no evaluation described). (5) A vendor case study: "accuracy improved 30%" with no named evaluator → `not_documented`.
 
 10. `items/core.evaluation_documented/rules/9`
 
-CX-32: the page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value. A clause requiring periodic review of the GenAI policy itself is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs (CX-32c). A requirement to carry out a risk or impact assessment is NOT this value (CX-32b).
+The page states that an evaluation is required (by a rule) or planned, with no evidence that it has happened. A policy that requires evaluation of GenAI tools takes this value. A clause requiring periodic review of the GenAI policy itself is NOT this value unless it requires testing, monitoring or evaluation of GenAI tools or their outputs. A requirement to carry out a risk or impact assessment is NOT this value.
 
 11. `items/core.evaluation_documented/rules/10`
 
 The page has no evaluation statement about this activity.
 
 ## `core.evaluation_type_pre_deployment_testing`
-<!-- item: core.evaluation_type_pre_deployment_testing sha256: 805b0cbbb2fe62c8a62f35192934ed7a20dfc12e0c2c4479b85366251bda34f4 -->
+<!-- item: core.evaluation_type_pre_deployment_testing sha256: 0528b068190b671ec6b3c712016999d5a3946bd38a3e2594b5ee84d183f430ff -->
 
 | Field | Value |
 |---|---|
-| item hash | `805b0cbbb2fe62c8a62f35192934ed7a20dfc12e0c2c4479b85366251bda34f4` |
+| item hash | `0528b068190b671ec6b3c712016999d5a3946bd38a3e2594b5ee84d183f430ff` |
 | family | `evaluation` |
 | name | `evaluation_type_pre_deployment_testing` |
 | level | `activity`, `page` |
@@ -4165,7 +4647,11 @@ The page has no evaluation statement about this activity.
 
 ### Instruction
 
-The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: testing before deployment? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
+The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: testing before deployment? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
+
+### Entailment label
+
+evaluation
 
 ### Values
 
@@ -4173,9 +4659,13 @@ The page documents an evaluation of this GenAI activity, or a requirement or pla
 
 The page documents an evaluation of this type for the activity: testing before deployment.
 
+Entailment label: includes testing before deployment
+
 #### `no`
 
 The page does not document an evaluation of this type (testing before deployment) for the activity.
+
+Entailment label: does not include testing before deployment
 
 ### Rules
 
@@ -4184,11 +4674,11 @@ The page does not document an evaluation of this type (testing before deployment
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_pilot_evaluation`
-<!-- item: core.evaluation_type_pilot_evaluation sha256: bc48c7ebb08729c2671fa4e16cf87be1ed0c35226893c896dbf1ee2eee7991f3 -->
+<!-- item: core.evaluation_type_pilot_evaluation sha256: 918cedd8b8b4237ec7ab0b65c062af84d1d452dbb8ce318786b61b98f2a3094b -->
 
 | Field | Value |
 |---|---|
-| item hash | `bc48c7ebb08729c2671fa4e16cf87be1ed0c35226893c896dbf1ee2eee7991f3` |
+| item hash | `918cedd8b8b4237ec7ab0b65c062af84d1d452dbb8ce318786b61b98f2a3094b` |
 | family | `evaluation` |
 | name | `evaluation_type_pilot_evaluation` |
 | level | `activity`, `page` |
@@ -4214,7 +4704,11 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 
 ### Instruction
 
-The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: evaluation of a pilot or trial? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
+The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: evaluation of a pilot or trial? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
+
+### Entailment label
+
+evaluation
 
 ### Values
 
@@ -4222,9 +4716,13 @@ The page documents an evaluation of this GenAI activity, or a requirement or pla
 
 The page documents an evaluation of this type for the activity: evaluation of a pilot or trial.
 
+Entailment label: includes evaluation of a pilot or trial
+
 #### `no`
 
 The page does not document an evaluation of this type (evaluation of a pilot or trial) for the activity.
+
+Entailment label: does not include evaluation of a pilot or trial
 
 ### Rules
 
@@ -4233,11 +4731,11 @@ The page does not document an evaluation of this type (evaluation of a pilot or 
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_independent_audit`
-<!-- item: core.evaluation_type_independent_audit sha256: efea36e1378b9a138191c882aaa10a431902b39926cea2714d9dfbd1465f2d84 -->
+<!-- item: core.evaluation_type_independent_audit sha256: c249cc7b5fb312a743eac34632fae82d275079fcd20db7c7928972eddc0fe8d7 -->
 
 | Field | Value |
 |---|---|
-| item hash | `efea36e1378b9a138191c882aaa10a431902b39926cea2714d9dfbd1465f2d84` |
+| item hash | `c249cc7b5fb312a743eac34632fae82d275079fcd20db7c7928972eddc0fe8d7` |
 | family | `evaluation` |
 | name | `evaluation_type_independent_audit` |
 | level | `activity`, `page` |
@@ -4263,7 +4761,11 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 
 ### Instruction
 
-The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: an audit or evaluation by an independent body? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
+The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: an audit or evaluation by an independent body? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
+
+### Entailment label
+
+evaluation
 
 ### Values
 
@@ -4271,9 +4773,13 @@ The page documents an evaluation of this GenAI activity, or a requirement or pla
 
 The page documents an evaluation of this type for the activity: an audit or evaluation by an independent body.
 
+Entailment label: includes an audit or evaluation by an independent body
+
 #### `no`
 
 The page does not document an evaluation of this type (an audit or evaluation by an independent body) for the activity.
+
+Entailment label: does not include an audit or evaluation by an independent body
 
 ### Rules
 
@@ -4282,11 +4788,11 @@ The page does not document an evaluation of this type (an audit or evaluation by
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_ongoing_monitoring`
-<!-- item: core.evaluation_type_ongoing_monitoring sha256: 92d011d484c3821e59f55f6c7c6b6153250b7c453d84c1d0055125c409255817 -->
+<!-- item: core.evaluation_type_ongoing_monitoring sha256: 6478e6bc28b9f774bd10a2e94d19d3390d9c0c230f0e0ad6e98568339cdc9bc1 -->
 
 | Field | Value |
 |---|---|
-| item hash | `92d011d484c3821e59f55f6c7c6b6153250b7c453d84c1d0055125c409255817` |
+| item hash | `6478e6bc28b9f774bd10a2e94d19d3390d9c0c230f0e0ad6e98568339cdc9bc1` |
 | family | `evaluation` |
 | name | `evaluation_type_ongoing_monitoring` |
 | level | `activity`, `page` |
@@ -4312,7 +4818,11 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 
 ### Instruction
 
-The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: ongoing monitoring of the tool in use? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
+The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: ongoing monitoring of the tool in use? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
+
+### Entailment label
+
+evaluation
 
 ### Values
 
@@ -4320,9 +4830,13 @@ The page documents an evaluation of this GenAI activity, or a requirement or pla
 
 The page documents an evaluation of this type for the activity: ongoing monitoring of the tool in use.
 
+Entailment label: includes ongoing monitoring of the tool in use
+
 #### `no`
 
 The page does not document an evaluation of this type (ongoing monitoring of the tool in use) for the activity.
+
+Entailment label: does not include ongoing monitoring of the tool in use
 
 ### Rules
 
@@ -4331,11 +4845,11 @@ The page does not document an evaluation of this type (ongoing monitoring of the
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_user_feedback`
-<!-- item: core.evaluation_type_user_feedback sha256: 8c01f238f78f94fddf6fd0a5289181cd9653a6c0ffd33f278c4a339929b7d0cd -->
+<!-- item: core.evaluation_type_user_feedback sha256: b71826e593f8adaeb2f92918403fc768807c62e7051582862336589932e902f5 -->
 
 | Field | Value |
 |---|---|
-| item hash | `8c01f238f78f94fddf6fd0a5289181cd9653a6c0ffd33f278c4a339929b7d0cd` |
+| item hash | `b71826e593f8adaeb2f92918403fc768807c62e7051582862336589932e902f5` |
 | family | `evaluation` |
 | name | `evaluation_type_user_feedback` |
 | level | `activity`, `page` |
@@ -4361,7 +4875,11 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 
 ### Instruction
 
-The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: user feedback or satisfaction surveys? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
+The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: user feedback or satisfaction surveys? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
+
+### Entailment label
+
+evaluation
 
 ### Values
 
@@ -4369,9 +4887,13 @@ The page documents an evaluation of this GenAI activity, or a requirement or pla
 
 The page documents an evaluation of this type for the activity: user feedback or satisfaction surveys.
 
+Entailment label: includes user feedback or satisfaction surveys
+
 #### `no`
 
 The page does not document an evaluation of this type (user feedback or satisfaction surveys) for the activity.
+
+Entailment label: does not include user feedback or satisfaction surveys
 
 ### Rules
 
@@ -4380,11 +4902,11 @@ The page does not document an evaluation of this type (user feedback or satisfac
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_bias_or_safety_testing`
-<!-- item: core.evaluation_type_bias_or_safety_testing sha256: 8c9b4323a9cfa5d921a11c442f87566af8df9f7ace0279ad675ece3469401d56 -->
+<!-- item: core.evaluation_type_bias_or_safety_testing sha256: e29aa95f78c13cb7270cb9dc368b7a0dfa3aea2bc835e11f892a35b6a196d1aa -->
 
 | Field | Value |
 |---|---|
-| item hash | `8c9b4323a9cfa5d921a11c442f87566af8df9f7ace0279ad675ece3469401d56` |
+| item hash | `e29aa95f78c13cb7270cb9dc368b7a0dfa3aea2bc835e11f892a35b6a196d1aa` |
 | family | `evaluation` |
 | name | `evaluation_type_bias_or_safety_testing` |
 | level | `activity`, `page` |
@@ -4410,7 +4932,11 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 
 ### Instruction
 
-The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: bias, fairness or safety testing? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
+The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: bias, fairness or safety testing? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
+
+### Entailment label
+
+evaluation
 
 ### Values
 
@@ -4418,9 +4944,13 @@ The page documents an evaluation of this GenAI activity, or a requirement or pla
 
 The page documents an evaluation of this type for the activity: bias, fairness or safety testing.
 
+Entailment label: includes bias, fairness or safety testing
+
 #### `no`
 
 The page does not document an evaluation of this type (bias, fairness or safety testing) for the activity.
+
+Entailment label: does not include bias, fairness or safety testing
 
 ### Rules
 
@@ -4651,11 +5181,11 @@ Retire flags that just mirror a column; keep 'identity unresolved' and 'stage am
 AI-text flags fold into the main list, the language-barrier flag is dropped everywhere, and language coverage is carried by the multilingual subproject's item.
 
 ## `core.support_entailment`
-<!-- item: core.support_entailment sha256: f9f841754b15eac328de8a33ff5c089c96dec33b4e4ac774665c5fa399e4e3cc -->
+<!-- item: core.support_entailment sha256: 6156631ceb19770919ed6792092f3169bb7442317702b6fb1fbfe76d26a6b172 -->
 
 | Field | Value |
 |---|---|
-| item hash | `f9f841754b15eac328de8a33ff5c089c96dec33b4e4ac774665c5fa399e4e3cc` |
+| item hash | `6156631ceb19770919ed6792092f3169bb7442317702b6fb1fbfe76d26a6b172` |
 | family | `support` |
 | name | `support_entailment` |
 | level | `row` |
@@ -4681,23 +5211,31 @@ AI-text flags fold into the main list, the language-barrier flag is dropped ever
 
 ### Instruction
 
-'Does this text state that <field> is <value>?'
+Does this text state or clearly show that the <field label> of the activity "<activity name>" is "<value label>"?
+
+### Instruction (page form)
+
+Does this text state or clearly show that the <field label> of the page is "<value label>"?
+
+### Label rules
+
+The field label is the checked item's `entailment_label` and the value label its value's `entailment_label` (for the role part of `observed_actor_relationship`, `values.part_entailment_labels` and the role values' labels). For the three year items the value label is the year as written, for example "2024". Items coded per page or per source (`content_contact_details`, `content_contact_named`, `content_data`, `disclosure_form`, `disclosure_scope`, `page_complete`, `page_verdict`, `source_type`) use the page form `instruction_page`; every other item uses the activity form, naming the activity (for a two-record relation, the first record's activity).
 
 ### Values
 
 #### `true`
 
-The quoted text states that the field has the given value.
+The quoted text states or clearly shows that the field has the given value.
 
 #### `false`
 
-The quoted text does not state that the field has the given value. The answer's support status becomes 'downgraded: quote does not state the value'.
+The quoted text does not state or clearly show that the field has the given value. The answer's support status becomes 'downgraded: quote does not state the value'.
 
 ### Rules
 
 1. `items/core.support_entailment/rules/0`
 
-State = quote (plus a short window); question: 'Does this text state that <field> is <value>?' true/false; false or confidence < threshold -> downgrade `no_support`.
+State = quote (plus a short window); question: 'Does this text state or clearly show that the <field label> of the activity "<activity name>" is "<value label>"?' true/false; false or confidence < threshold -> downgrade `no_support`.
 
 ## `core.support_status`
 <!-- item: core.support_status sha256: 0e544e6520cdfc980b214e82ff69ed6e43ef344b9bbb50096122c39d77df6e28 -->
@@ -4899,11 +5437,11 @@ A manifest (contract versions, `JEV_QUESTION_SET_VERSION`, jev model, extractor 
 Every jev answer is stored with its probability distribution, confidence, response model id and request id. Every automated coder (classifier, quote step, detector, mechanical rules) stores coder type, model, version and request id; the per-run version record holds the codebook version, and per-code coder details are internal and linked to it; the row carries the codebook version + setup pointer; the classifier record keeps the chosen-answer probability.
 
 ## `core.evidence_channel`
-<!-- item: core.evidence_channel sha256: 0919944a3cfacd18171a1334e8da4698f46ae9ac2423cc548bf1938ef37a57de -->
+<!-- item: core.evidence_channel sha256: 3f0aecba911cd3885adec08bce01216562ab796732c3ac5668e937a579ccc518 -->
 
 | Field | Value |
 |---|---|
-| item hash | `0919944a3cfacd18171a1334e8da4698f46ae9ac2423cc548bf1938ef37a57de` |
+| item hash | `3f0aecba911cd3885adec08bce01216562ab796732c3ac5668e937a579ccc518` |
 | family | `provenance` |
 | name | `evidence_channel` |
 | level | `row` |
@@ -4931,7 +5469,7 @@ Every jev answer is stored with its probability distribution, confidence, respon
 
 1. `items/core.evidence_channel/rules/0`
 
-Channel enum (web_extract, procurement, text_detection)
+Channel enum (web_extract, procurement, ai_text)
 
 ## `core.coder_record`
 <!-- item: core.coder_record sha256: 213c3c3f241b5081f4f6cbde23e3db0d711564f03a04bede0010b1e9a35fb167 -->
@@ -4973,11 +5511,11 @@ Every jev answer is stored with its probability distribution, confidence, respon
 `coder_type`, `coder_model`, `coder_version`, `request_id` common across channels
 
 ## `core.observed_actor_role`
-<!-- item: core.observed_actor_role sha256: 3b56edcce15ceda21e23aeebfcfc26112da874809ac7002e3562d8808e8f5aa4 -->
+<!-- item: core.observed_actor_role sha256: 47c6b173d8d672bffc766f9603b797b24a136c418aebb5be2c4a0a0c236d93fc -->
 
 | Field | Value |
 |---|---|
-| item hash | `3b56edcce15ceda21e23aeebfcfc26112da874809ac7002e3562d8808e8f5aa4` |
+| item hash | `47c6b173d8d672bffc766f9603b797b24a136c418aebb5be2c4a0a0c236d93fc` |
 | family | `attribution` |
 | name | `observed_actor_role` |
 | level | `activity` |
@@ -5005,37 +5543,53 @@ Every jev answer is stored with its probability distribution, confidence, respon
 
 What role does the body that the page shows acting in this activity play in it?
 
+### Entailment label
+
+role of the body acting in it
+
 ### Values
 
 #### `institutional_actor`
 
-The actor seen on the page carries out or adopts the activity as an institution.
+The actor carries out or adopts the activity (a tool, pilot, training or programme) as an institution. For a policy, rule or guidance the actor issued, choose issuer.
+
+Entailment label: carrying it out as an institution
 
 #### `issuer`
 
-The actor issued the policy, rule, guidance or document.
+The actor issued the policy, rule, guidance or document that the activity is.
+
+Entailment label: the issuer of the rule or document
 
 #### `participant`
 
 The actor takes part in an activity that someone else runs.
 
+Entailment label: a participant in an activity someone else runs
+
 #### `external_speaker`
 
 The actor speaks or presents about GenAI, for example at an event, without carrying out the activity.
+
+Entailment label: a speaker who does not carry it out
 
 #### `service_provider`
 
 The actor supplies the tool or service, as a vendor, contractor or developer.
 
+Entailment label: the supplier of the tool or service
+
 #### `event_host`
 
 The actor hosts or organises an event about GenAI.
+
+Entailment label: the host of an event about GenAI
 
 ### Rules
 
 1. `items/core.observed_actor_role/rules/0`
 
-Code it as before; not published.
+This answer is kept for internal checks and not published.
 
 2. `items/core.observed_actor_role/rules/1`
 

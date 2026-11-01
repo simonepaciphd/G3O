@@ -1,3 +1,9 @@
+## 2026-11-01 reconciliation addendum — internal, NOT SENT
+
+The earlier draft below is retained as historical wording and must not be sent unchanged. Current local release is r11, SHA256 f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d, with nine generated outputs now present on the integrator branch; it is not merged/deployed. The claim that generated documents do not exist is obsolete. LABELS PR150 is open, unmerged. r11 preserves r10 year rules and classifier questions; ai_text is the sole r10->r11 semantic change.
+
+T-061 prior delivery is recorded in PLAN (simonepaciphd/g3o_validation#3); no follow-up sent here. The new-hash/LABELS/D-007 follow-up needs PI send approval. Recipient/channel decisions remain settled. Do not overwrite the receiving plan or its lock.
+
 DRAFT — not sent; sending gated on the PI (T-061; DP-063 ruled 2026-10-31)
 
 # Notice to the G3O validation plan: the pipeline output contract is changing
