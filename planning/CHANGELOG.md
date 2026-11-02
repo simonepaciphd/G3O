@@ -37,3 +37,5 @@ Sole writer: the plan integrator (DEC-012 a). Every entry after the baseline nee
 | 2026-11-02 | Safe-review local preparation | New verification/reconciliation/handoff | CI-only candidate independently verified140assertions; no implementation findings. Approved RC-D012/013 applied; runtime/research integration and external approvals remain gated. | Bounded task authorization; no task completed |
 
 | 2026-11-02 | Safe-review final local acceptance | Verification, manifest, handoff, reconciliation | Separate readiness review113/113,0 findings; preserve all unresolved research/runtime/external gates. Authorized local planning commit only. | Independent readiness report; not release approval |
+
+| 2026-11-02 | Publication authorization | Approval record, current handoff and manifest | Record explicit PI push/merge authorization and current publication-evidence pointer; preserve all research/runtime/task gates. No merge completion claimed by this entry. | PI: "ok let's push and merge all of this work, i will launch the next stage handoff" |

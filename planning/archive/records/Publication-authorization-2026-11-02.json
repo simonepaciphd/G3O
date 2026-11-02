@@ -1,0 +1,10 @@
+{
+  "date": "2026-11-02",
+  "source": "Explicit PI chat message",
+  "verbatim": "ok let's push and merge all of this work, i will launch the next stage handoff",
+  "scope": "Publish and merge reviewed CI, signed source/library preparation, calibrated chunker subset and planning records. PI launches next stage separately.",
+  "preserved_gates": "No new research policy, live pipeline run, paid/provider call, database write or external research contact. All incomplete task statuses remain.",
+  "combiner_boundary": "Port reviewed estimator/lossless chunker only; do not import older calibration-branch combination behavior over accepted T027.",
+  "administrative_override": "Separate explicit approval required and recorded in publication evidence if granted; not inferred here.",
+  "publication_record": "H:/My Drive/Research/G3O/agent-workspace/2026-11-02-merge/integrator/STATUS.json"
+}

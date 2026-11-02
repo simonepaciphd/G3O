@@ -1,5 +1,12 @@
 # Safe-review next stage — local preparation, 2026-11-02
 
+## Publication continuation — 2026-11-02
+
+Simone explicitly authorized: "ok let's push and merge all of this work, i will launch the next stage handoff". This supersedes the earlier local-phase prohibition on publishing the reviewed work below; it does not authorize live pipeline execution or clear research/runtime/external-contact gates. Exact authorization: `../archive/records/Publication-authorization-2026-11-02.json`.
+
+Use the current publication record before starting from a moving branch: `H:/My Drive/Research/G3O/agent-workspace/2026-11-02-merge/integrator/STATUS.json`. It records verified PR/head/main pins and whether merges actually completed. Original review pins and local-only statements below describe the earlier frozen phase, not later publication status. The calibrated estimator/lossless chunker is carried forward without the older combination implementation; accepted T-027 behavior remains authoritative. Source recovery stays internal on Drive. A repository merge is not full research-pipeline or release acceptance.
+
+
 This supersedes Preparation-next-stage.md only for current preparation status and RC-D-012/013 dispositions. Earlier verification/locks remain historical evidence.
 
 ## Verified locally
