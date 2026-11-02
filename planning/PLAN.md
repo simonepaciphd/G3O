@@ -655,6 +655,8 @@ More than 2 review rounds → split extract contract from validate contract.
 
 ### T-011 — Build the v2.7 jev question sets (pass 1, pass 2, Stage 6)
 
+Preparation update (2026-11-02): signed r11/LABELS sources assembled and independently verified at 2812ca22253adfa1f70f81d08f377fa15a8619f9; source artifacts are not installed runtime question sets. Later r9/r10 rulings and the r11 signature are preserved. T-016 corrected-probability disposition and the existing calendar/fiscal gate remain; do not infer a paid rerun. Preserve four-digit2015–2030 activity/context years, no publication-year fallback, earliest chosen year across chunks; Simone owns D-010 contact. See handoffs/Preparation-next-stage.md.
+
 Status: pending
 Type: build
 Priority: critical-path
@@ -823,6 +825,8 @@ Progress (2026-10-31, integrator, RC-D-006): chunk 1 inventory at `planning/hand
 Sequential chunks: chunk 1 inventory → integrator assignment → chunk 2 code.
 
 ### T-013 — Build the codebook schema, loader, generators and CI check (RC-D-002 A)
+
+Preparation update (2026-11-02): explicit r11/LABELS source assembly on accepted email/T-027 base at 2812ca22253adfa1f70f81d08f377fa15a8619f9; all9outputs exact,16source checks pass, DATA_COLUMNS_V25 compatibility retained. Independent92assertions and205focused regressions pass (1optional fixture skipped). Actual stage consumers and T-030/T-035 execution binding remain separate; no full pipeline acceptance.
 
 Status: verified
 Progress (2026-10-30, integrator): schema, loader, generators, checks 1-16, CI drift step and 33 tests on `reclass/t013-codebook` `78da0e2` (local). Drift, verbatim, frozen-item, hash and linkage-of-generated-output checks pass; integrator re-ran checks and drift. Checks 1, 6, 7, 9, 10, 11 and 13 FAIL on the signed codebook `d24bbc7c…` (e.g. 38 of 53 classifier items have no instruction slot; every item `status: slot`); per the card the fix is a codebook delta plus re-signature. Generated contract docs are emitted under `g3o/codebook/generated/`; they reach the live prompt paths only with T-012 / T-022 / T-032. System prompt and part-prompt sentence: no codebook wording (R-044 marker open). Raised to the PI 2026-10-30. RC-D-005 (approved 2026-10-30): generator support for the RC-D-005 forms on `reclass/t013-codebook` (`f5cc378`, `0a542ba`, `307517f`): negative verdicts, offered missing token, values not offered, system prompts and part prompts, `codebook/schema.json` for both shapes. Unblocked by the re-signature (`f0b1348c…`); left: regenerate and commit the generated files, checks 1-16 all pass. Verified 2026-10-30 (integrator): generated files regenerated from `f0b1348c…` and committed (`45f6d88`); checks 1-16 pass (12 N/A); suite 2257 passed, 1 skipped, 0 failed; ruff clean on `g3o`, `tests`. The integrator moved the signed-file test pins to the re-signed file (not independently reviewed). Not pushed; P4: merges into `reclass/v2.7` only on the PI's word.
@@ -1064,6 +1068,8 @@ Split `source_type` from the date and flag fields.
 
 ### T-016 — Re-pilot the re-signed questionnaire items (paid, small; RC-D-002 N28)
 
+Preparation update (2026-11-02): later repilot-r9/r10 evidence and accepted RC-D-007/r11 wording supersede the old note that the delta is in preparation. Saved r10 has315result envelopes and321nested response parts/unique request IDs; all5question aggregates,5ID spot checks,5,131,342tokens and historical-rate USD0.2155 reproduce offline. Its reported chosen-probability summaries use saved confidence instead of distribution lookup; corrected summaries are independently verified in Drive agent-workspace/2026-11-02-preparation/integrator/T016-OFFLINE-RECONCILIATION.json. Original records/approved wording unchanged. Full task closure and corrected-summary disposition remain; no paid rerun authorized or inferred.
+
 Status: in-progress
 Note (2026-10-31, integrator, RC-D-006): T-016 run 2026-10-31 by Simone (`!`) on her word, though the PLAN listed it unauthorized; 2,730 requests, 0 errors, 66.1M input tokens, $2.78 against a $4.14 central estimate and an $8 cap. Code and aggregate results: PR #146 (`reclass/t016-repilot`); raw answers stay in the re-pilot folder. PI ruled 2026-10-31 (1 a + c): weak questions are reworded and a not-applicable option is added to forced-choice activity items where coherent with the codebook; a subagent drafts and the PI approves; the change is a codebook delta with a new signature. Rewording and choices C1-C10 ruled 2026-10-31 (drafts `agent-workspace/2026-10-27-reclass-plan/t016-rewording/`); Simone approved a small paid rerun of the reworded items ("3 ok rerun"); codebook delta RC-D-007 in preparation.
 Scope (RC-D-005, E9): T-016 re-pilots every jev question generated from the re-signed codebook (52 questions, incl. the role part): the re-signed CX items and the non-CX items its card already lists, plus every item whose question is new in RC-D-005 (W05-W43, W10), the year questions without `unknown` (12 a), and the part-prompt sentence and temporary answer (W01-W03) on the long pages of the RS-008/RS-009 set, each run under the shared system prompt (W04, Stage 6 variant for the cross-page relation); per question: answer distribution, chosen-answer probability and comparison with the prior wording where it exists. The agent prepares the command and cost estimate; Simone runs it; the PI rules on the results before T-011.
@@ -1138,6 +1144,8 @@ Report, answers and the paid-run record (command, estimate, actual cost) written
 More pages or items than in the approved estimate → new paid gate.
 
 ### T-020 — Build the token-based page chunker and combination rule
+
+Preparation update (2026-11-02): approved UTF8 tokens/byte Latin0.305/CJK0.341/Thai0.334 implemented and independently verified on separate ffb5be23fe8b25cdf12ee4315002e8c8d88c7bce;66engineer tests plus independent byte/mixed/lossless/guard assertions pass. Thai n3 remains thin. Default/partial margin configurations cannot pass assert_calibrated; no DP-007 margin chosen. Status stays blocked. Unchanged legacy combination code predates RC-D-010/T-027 and is not imported or recertified by this calibration. WholeT020/runtime acceptance remains pending.
 
 Status: blocked
 Note (2026-10-31, integrator, RC-D-006): token estimator constants (PI 2 a): tokens per byte, the T-002 medians: Latin 0.305 (64 requests), CJK 0.341 (10), Thai 0.334 (3, a thin sample). The provisional single constant 0.3947 erred by -32% to +84% on Latin. DP-007 is still required. When the extractor code lands, T-020 pins `anthropic==2.3.0` in `requirements.txt` / `pyproject.toml` (now installed only in the shared venv) (P5). Flag: jev refused requests estimated at 29.6k tokens and accepted one at 26.1k (T-002), below C-004's 32k; size chunks below the observed refusal until settled.
@@ -1909,6 +1917,8 @@ Tests pass on branch `reclass/t028-writer`†, return report filed with the inte
 none
 
 ### T-030 — Integrate the v2.7 new-run path (code integrator task)
+
+Preparation update (2026-11-02): source-only r11/LABELS assembly is available at 2812ca22253adfa1f70f81d08f377fa15a8619f9; this closes the r8-source preparation gap only. Actual upstream stage assembly, executed configuration and immutable instrument binding remain gated. Separate T-020 branch is not part of this source candidate. T-035 final pins/six exceptions and T-031 integrated-candidate requirement remain unchanged.
 
 Status: pending
 Type: integrate

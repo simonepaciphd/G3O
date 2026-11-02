@@ -1,0 +1,203 @@
+{
+  "format": "g3o-bounded-preparation-verification-v1",
+  "recorded_at": "2026-11-02T17:10:53.359636+00:00",
+  "activation": "20261102-codex-v2-674bbdfd6183fe75",
+  "authorization": "Simone 2026-11-02 bounded orchestration/implementation request; one delegated agent at a time capacity override",
+  "status": "verified_local_source_assembly_and_separate_estimator_only",
+  "source_governance_commit": "6777ca725738ee09379bf2d94f7bda75d328cb8d",
+  "r11_assembly": {
+    "worktree": "C:\\Users\\spaci\\worktrees\\G3O-r11-prep-20261102",
+    "branch": "reclass/r11-preparation",
+    "base": "36d88bc7e20b3347b92f72e749d12f43a36ccc27",
+    "commit": "2812ca22253adfa1f70f81d08f377fa15a8619f9",
+    "tree": "3363faabb64c268c51bdb6d8758265f8855f426a",
+    "clean": true,
+    "files": [
+      {
+        "path": "codebook/codebook.yaml",
+        "raw_sha256": "f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d",
+        "bytes": 596134,
+        "git_blob": "3c0e7896e1bb7a07773f69827f7c2bfd8f877be5"
+      },
+      {
+        "path": "g3o/codebook/checks.py",
+        "raw_sha256": "8bc97c1f2cc0be475ee84684fb96b6fde1ff606e321baaa3116f985714827ac8",
+        "bytes": 50857,
+        "git_blob": "01737a650279067d52fbc1f67bdc9053fbd14be6"
+      },
+      {
+        "path": "g3o/codebook/generated/data_dictionary.md",
+        "raw_sha256": "7c4e307fe14cbec8e9dd77aabac3d2a1f343ac9023124d3518e2f4e2e4217520",
+        "bytes": 249557,
+        "git_blob": "caec706c7e5ae893b8da33f9b517ed0dd27472e7"
+      },
+      {
+        "path": "g3o/codebook/generated/enums.py",
+        "raw_sha256": "fd8d9800e178d8e1a507524b9993451f16d00dbe2ba64486e97aea4034034266",
+        "bytes": 14167,
+        "git_blob": "c8b7d9dff723799611b36810210166943ea73a73"
+      },
+      {
+        "path": "g3o/codebook/generated/extract_output_contract.md",
+        "raw_sha256": "3dc738f75d604ebf0fa2c8349854e865c4d388efae5980b31c2fe832ef8ecab6",
+        "bytes": 232316,
+        "git_blob": "94c22a7570b952101da66bca5932eac709c112f2"
+      },
+      {
+        "path": "g3o/codebook/generated/extractor_prompt_sections.md",
+        "raw_sha256": "7138a3bc12e1f70eb916c8dbd8fe42c1d4604eefc6eb277f0031156bd58ef91d",
+        "bytes": 17260,
+        "git_blob": "9b18e8ff0deb9f8660894aadea91a252b8dcb81c"
+      },
+      {
+        "path": "g3o/codebook/generated/item_schemas.json",
+        "raw_sha256": "b9d4a462387f0185fcc86a82085c547df4fa8f8b676cf18a8cde0997965dc013",
+        "bytes": 36226,
+        "git_blob": "da88d47fb7547f0d011e71656c71540c4caf541c"
+      },
+      {
+        "path": "g3o/codebook/generated/jev_questions.json",
+        "raw_sha256": "b907438025850283454311d92c2ba966d7552b67ec99b7fe369c9bf8f91bcc0f",
+        "bytes": 365482,
+        "git_blob": "a3972745dfea476dc2bdd464a767ed8805eb5149"
+      },
+      {
+        "path": "g3o/codebook/generated/manifest.json",
+        "raw_sha256": "6599461f52207a9b0bcf0037461722977f131e302de5fac40f5d2559314556b0",
+        "bytes": 27327,
+        "git_blob": "5181cd8e868f2a6f8ca3e4512faf037d373a4e2c"
+      },
+      {
+        "path": "g3o/codebook/generated/system_prompt.md",
+        "raw_sha256": "2da2a2f1647947617a84a66c9a11952811f80c008de2e012f486ab744f991106",
+        "bytes": 1808,
+        "git_blob": "bbaabfaea87f51ace3c7ef372d8e95995fdd6f78"
+      },
+      {
+        "path": "g3o/codebook/generated/validate_output_contract.md",
+        "raw_sha256": "75b734f5ad7811077b13dceb7241b70cd372fdd5b9d35973cc3f38f2063dc983",
+        "bytes": 23461,
+        "git_blob": "7cd37efa4c156733936b39883fed684399f3eb01"
+      },
+      {
+        "path": "g3o/codebook/generators.py",
+        "raw_sha256": "844f53f412cbf3c71eb7f715e02757ca5334ffc6324a61dfd504d003500bcf59",
+        "bytes": 33642,
+        "git_blob": "d377b5f294e1980e895682f3caa8a84c16d9b5e1"
+      },
+      {
+        "path": "planning/t010/signoff-record.md",
+        "raw_sha256": "107e9d6ac55c6bfcc1e79ec0f7ab7dbfbf986e395af5cfca01eb5d1123566a1c",
+        "bytes": 9283,
+        "git_blob": "77026868a3f303ff1ee8cfa9bcc519e7c130c728"
+      },
+      {
+        "path": "tests/test_codebook.py",
+        "raw_sha256": "d18f2f3f55559cc4a653e87575b2731bf8c20b51a73a3ead86f7f366e4f42b33",
+        "bytes": 37929,
+        "git_blob": "46e49dbb7c6bea015bf0b2303e5955be881f3c2f"
+      }
+    ]
+  },
+  "t020_calibration": {
+    "worktree": "C:\\Users\\spaci\\worktrees\\G3O-t020-calibration-20261102",
+    "branch": "reclass/t020-calibration",
+    "base": "45309d28983cb9213b63d63804ac707a1f705ddf",
+    "commit": "ffb5be23fe8b25cdf12ee4315002e8c8d88c7bce",
+    "tree": "dac8d183be230cb7c76ea4a7be47df7dfea2f384",
+    "clean": true,
+    "files": [
+      {
+        "path": "g3o/common/page_chunks.py",
+        "raw_sha256": "a69229b552f80845209cbc6c7e5a85117c06e0a5a879e498d3052a920e508a65",
+        "bytes": 46442,
+        "git_blob": "85d3a7d25688b5f2bbdd2a2a253f9c442ce8f4f6"
+      },
+      {
+        "path": "tests/test_page_chunks.py",
+        "raw_sha256": "8e041c038600705cf1d61f5dd16bdd21d06ef8e8a3a3aa35ac2d6499314bf5b3",
+        "bytes": 31479,
+        "git_blob": "e60fded46eeb7b762a25f641368d16ef86ae8c64"
+      }
+    ]
+  },
+  "spec": "v001.15",
+  "resources": "v001.3",
+  "r11_sha256": "f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d",
+  "labels_commit": "34f64073aa6a8423b0132c7a13da145b92b09496",
+  "tests": {
+    "engineer_source_checks": 16,
+    "exact_generated_outputs": 9,
+    "engineer_r11_tests": 342,
+    "engineer_optional_skips": 1,
+    "engineer_t020_tests": 66,
+    "independent_assertions": 92,
+    "independent_source_checks": 16,
+    "independent_regressions": 205,
+    "independent_optional_skips": 1,
+    "full_suite_run": false
+  },
+  "protected_runtime_and_golden_files": 42,
+  "integrated_runtime": false,
+  "approved_for_release": false,
+  "T020_complete": false,
+  "T016_complete": false,
+  "T050B_complete": false,
+  "full_pipeline_reconciliation": "UNVERIFIED; only the explicitly scoped requirements below are evaluated",
+  "T016": {
+    "saved_envelopes": 315,
+    "nested_response_parts": 321,
+    "distinct_request_ids": 321,
+    "input_tokens": 5131342,
+    "saved_rate_cost_usd": 0.2155,
+    "reporting_finding": "Historical r10 mean_chosen_probability/share uses saved confidence, not chosen-value distribution lookup; separate corrected summary independently reproduced. Approved wording is unchanged; full T016 closure needs disposition. No paid rerun inferred."
+  },
+  "remaining_gates": {
+    "T020": "DP-007 margin; old standalone combination behavior not certified against current RC-D010/T027; no runtime import",
+    "T011_T016": "Corrected pilot probability summary disposition/full done-condition closure; existing calendar/fiscal gate. Preserve activity/context four-digit2015-2030, no publication fallback, earliest chosen year across chunks; Simone owns D010 contact.",
+    "T024": "Approved T003 matcher metric/threshold and actual T012/T022/T032 composition; full main/header/footer/contact gate and support path",
+    "T028": "Actual T015/T024/T026 outputs, complete T027 original/final companion and matching support, observation/relation closure, full T050B and Colin A019",
+    "T030_T035": "Actual executed configuration and immutable instrument binding, new-run/backfill/transfer assembly, final pins; six strict T035 exceptions retained",
+    "T031": "Integrated candidate required",
+    "T050B": "Explicit PI send approval and Colin A019; no external send",
+    "missing_values": "Preserve observed empty list, signed missing tokens, explicit unavailable-history null/reasons; downstream clarification only, PI escalation only if meaning changes"
+  },
+  "preserved": [
+    "RC-D011 whole-address lowercase, distinct addresses per actual page; aliases/plus distinct; fulladdresses internal, public domain/count, quotes verbatim",
+    "T027 local acceptance",
+    "T012 Windows-I/O cross-invocation qualification",
+    "Six existing strict T035 exceptions",
+    "All locked research decisions and missing-value meanings"
+  ],
+  "prohibited_actions_performed": [],
+  "evidence": [
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-preparation\\source-audit\\audit.json",
+      "sha256": "e8a6e853958df2093b3c987fb39c1c8ec4a995b44a6631c45a5fbf5fdac93e8d"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-preparation\\engineer\\MANIFEST.json",
+      "sha256": "2ba90ebc48144940b507e9bef2838ea10df71e74b86735974ad6ddf2ea3bd00c"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-preparation\\engineer\\RESULT.txt",
+      "sha256": "ccabbace69599ca5711160d294387b7a2009641cc2fe83d761edf5f6671aa5b9"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-preparation\\independent-review\\verification.json",
+      "sha256": "3ffedd10114ce04d3ad66cbe0f97e5fb325a884cf400dd89820cf5b44555c405"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-preparation\\independent-review\\REPORT.txt",
+      "sha256": "61a7deb1e0b73b7fe87cd6768f329f83795bc34d64db5ebfe9ef6c524b0e278d"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-preparation\\integrator\\T016-OFFLINE-RECONCILIATION.json",
+      "sha256": "f8c1331977a76153953b2833cbed1b91be7b57094384dbb41f640f7b3ee92e5f"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-preparation\\integrator\\audit_t016_offline.py",
+      "sha256": "e661b9246b0868e3019d5cdf8530935649aa7a0844a4be8fd524644ea9663d06"
+    }
+  ]
+}
