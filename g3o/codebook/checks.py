@@ -24,11 +24,16 @@ from pathlib import Path
 from typing import Any
 
 from g3o.codebook.generators import (
+    ENTAILMENT_ITEM,
     ITEM_MARKER,
+    LABEL_KEY,
+    PART_LABELS_KEY,
     RULES_HEADING,
     VALUE_MARKER,
     GeneratedFile,
+    _walk_slots,
     generate_all,
+    label_frame,
 )
 from g3o.codebook.loader import NONE, REPO_ROOT, Codebook, sha256_bytes
 
@@ -349,7 +354,29 @@ def check_03_verbatim(cb: Codebook, ctx: Context) -> CheckResult:
             src = _resolve_slot(cb, path)
             if src is not None and src != text:
                 res.fail(f"{f.name}: slot {path} text differs from the codebook")
+    # every entailment label slot and the page-form question reach jev_questions.json (RC-D-007)
+    label_paths = _label_slot_paths(cb)
+    if label_paths:
+        jev = ctx.file("jev_questions.json")
+        used = {p for p, _ in jev.used_slots} if jev is not None else set()
+        for path in label_paths:
+            if path not in used:
+                res.fail(f"jev_questions.json: label slot {path} not used")
+        res.notes.append(f"{len(label_paths)} entailment label slots (incl. instruction_page) checked in jev_questions.json")
     return res
+
+
+def _label_slot_paths(cb: Codebook) -> list[str]:
+    """Paths of every ``entailment_label`` / ``part_entailment_labels`` slot of a
+    build-scope item, plus the entailment item's ``instruction_page``."""
+    paths = []
+    for item_id, item in cb.build_items().items():
+        for path, _ in _walk_slots(item, f"items/{item_id}"):
+            segs = path.split("/")
+            if (segs[-1] in (LABEL_KEY, PART_LABELS_KEY) or (len(segs) > 1 and segs[-2] == PART_LABELS_KEY)
+                    or path == f"items/{ENTAILMENT_ITEM}/instruction_page"):
+                paths.append(path)
+    return paths
 
 
 def _json_strings(x: Any) -> list[str]:
@@ -439,7 +466,15 @@ def check_05_no_drift(cb: Codebook, ctx: Context) -> CheckResult:
 def check_06_linkage(cb: Codebook, ctx: Context) -> CheckResult:
     """A-001 linkage: every generated question, prompt section and enum names an
     existing item and that item's current hash; each ``jev_choice`` item yields
-    exactly one question and each ``extractor`` item exactly one prompt section."""
+    exactly one question and each ``extractor`` item exactly one prompt section.
+
+    Entailment labels (RC-D-007, C7 a), when the codebook holds any: the
+    entailment question carries one ``labels`` entry per labelled item, with the
+    frame its ``level`` gives; every value (and every part) of a labelled item
+    has a label; every ``support_required`` item with a closed or computed value
+    set is labelled; and the page-form items are exactly the ones
+    ``label_rules`` lists (reading: the backticked names in the parenthesis
+    before "use the page form")."""
     res = CheckResult(6, "linkage (A-001)")
     build = cb.build_items()
 
@@ -469,6 +504,7 @@ def check_06_linkage(cb: Codebook, ctx: Context) -> CheckResult:
         for item_id in seen:
             if item_id in cb.items and cb.items[item_id].get("linkage") != "jev_choice":
                 res.fail(f"{item_id}: question generated for a non-jev_choice item")
+        _check_entailment_labels(cb, doc, res)
 
     ext = ctx.file("extractor_prompt_sections.md")
     if ext is None:
@@ -498,6 +534,52 @@ def check_06_linkage(cb: Codebook, ctx: Context) -> CheckResult:
 # ---------------------------------------------------------------------------
 # checks 7-11
 # ---------------------------------------------------------------------------
+
+
+PAGE_FORM_LIST = re.compile(r"\(([^()]*)\)\s*use the page form")
+
+
+def _check_entailment_labels(cb: Codebook, doc: dict[str, Any], res: CheckResult) -> None:
+    build = cb.build_items()
+    labelled = {i: it for i, it in build.items() if cb.slot_text(it.get(LABEL_KEY)) is not None}
+    if not labelled:
+        return
+    q = next((q for q in doc["questions"] if q.get("question_id") == ENTAILMENT_ITEM), None)
+    labels = (q or {}).get("labels") or {}
+    for item_id in sorted(set(labelled) - set(labels)):
+        res.fail(f"{item_id}: has an entailment_label but no labels entry on {ENTAILMENT_ITEM}")
+    for item_id in sorted(set(labels) - set(labelled)):
+        res.fail(f"{ENTAILMENT_ITEM}: labels entry for {item_id}, which has no entailment_label")
+    for item_id, item in labelled.items():
+        frame = label_frame(item)
+        if frame is None:
+            res.fail(f"{item_id}: level {item.get('level')!r} gives no entailment frame (activity or page)")
+        elif item_id in labels and labels[item_id].get("frame") != frame:
+            res.fail(f"{item_id}: labels frame {labels[item_id].get('frame')!r}, level gives {frame!r}")
+        parts = cb.parts(item_id)
+        values = cb.value_list(item_id)
+        groups = parts if parts is not None else ([("values", values)] if values is not None else [])
+        for n, (name, vals) in enumerate(groups):
+            bare = [str(v["code"]) for v in vals if cb.slot_text(v.get(LABEL_KEY)) is None]
+            if bare:
+                res.fail(f"{item_id}: {name} without an entailment_label: {bare}")
+            if parts is not None and n > 0 and not ((labels.get(item_id) or {}).get("parts") or {}).get(name, {}).get("field"):
+                res.fail(f"{item_id}: part {name!r} has no field label ({PART_LABELS_KEY})")
+    for item_id, item in build.items():
+        closed = cb.value_list(item_id) is not None or cb.parts(item_id) is not None or cb.computed_values(item_id) is not None
+        if item.get("support_required") is True and closed and item_id not in labelled:
+            res.fail(f"{item_id}: support_required with a value set but no entailment_label")
+    rules = cb.resolve_text(f"items/{ENTAILMENT_ITEM}/label_rules")
+    m = PAGE_FORM_LIST.search(rules) if rules is not None else None
+    if m is None:
+        res.fail(f"{ENTAILMENT_ITEM}: label_rules missing or names no page-form item list")
+        return
+    listed = set(re.findall(r"`([^`]+)`", m.group(1)))
+    page = {str(it.get("name")) for it in labelled.values() if label_frame(it) == "page"}
+    if listed != page:
+        res.fail(f"label_rules page form lists {sorted(listed - page)} not page-level, "
+                 f"omits page-level {sorted(page - listed)}")
+    res.notes.append(f"entailment labels: {len(labelled)} items, {len(page)} page form")
 
 
 def _pass_rank(p: Any) -> int | None:
