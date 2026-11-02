@@ -150,18 +150,40 @@ def _stage_jobs() -> dict[str, BatchJob]:
     }
 
 
-def _job_line_hashes() -> dict[str, str]:
-    return {
-        stage: hashlib.sha256(
-            _serialize_job_line(
-                job,
-                model=FROZEN_MODEL,
-                response_format=None,  # builders attach per-job response_format
-                endpoint=DEFAULT_ENDPOINT,
+def _restore_v25_verdict(node: Any) -> int:
+    from g3o.common.contract import PAGE_VERDICT_V25, PAGE_VERDICT_V27
+
+    changed = 0
+    if isinstance(node, dict):
+        props = node.get("properties", {})
+        if "genai_evidence" in props:
+            field = props["genai_evidence"]
+            assert field["enum"] == list(PAGE_VERDICT_V27)
+            field["enum"] = list(PAGE_VERDICT_V25)
+            changed += 1
+        changed += sum(_restore_v25_verdict(v) for v in node.values())
+    elif isinstance(node, list):
+        changed += sum(_restore_v25_verdict(v) for v in node)
+    return changed
+
+
+def _job_line_hashes(*, legacy_verdict: bool = False) -> dict[str, str]:
+    hashes = {}
+    for stage, job in _stage_jobs().items():
+        raw = _serialize_job_line(
+            job, model=FROZEN_MODEL, response_format=None, endpoint=DEFAULT_ENDPOINT
+        )
+        if legacy_verdict and stage in ("extract", "validate"):
+            # Q1a changes ONLY this enum in the request schema. Restore it
+            # in memory to retain all other golden checks until T-035.
+            payload = json.loads(raw)
+            assert raw == (json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8"), "serializer formatting changed"
+            assert _restore_v25_verdict(payload["body"]["response_format"]), (
+                f"{stage} schema no longer contains the verdict"
             )
-        ).hexdigest()
-        for stage, job in _stage_jobs().items()
-    }
+            raw = (json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8")
+        hashes[stage] = hashlib.sha256(raw).hexdigest()
+    return hashes
 
 
 def _current() -> dict[str, Any]:
@@ -224,7 +246,7 @@ def test_frozen_sample_reproduces_golden():
 
 def test_frozen_job_lines_reproduce_golden():
     golden = _golden()["job_line_sha256"]
-    current = _job_line_hashes()
+    current = _job_line_hashes(legacy_verdict=True)
     changed = sorted(s for s in current if current[s] != golden.get(s))
     assert not changed, (
         f"serialized LLM request line(s) changed for stage(s) {changed}: a "
@@ -244,3 +266,9 @@ def test_job_lines_carry_the_generation_parameter_pin():
             )
         )
         assert line["body"]["reasoning_effort"] == "medium", stage
+
+
+@pytest.mark.parametrize("stage", ["extract", "validate"])
+@pytest.mark.xfail(strict=True, reason="T-035 regenerates request goldens after Q1a; narrow schema exception approved by PI 2026-11-01")
+def test_v27_request_schema_matches_integration_golden(stage):
+    assert _job_line_hashes()[stage] == _golden()["job_line_sha256"][stage]

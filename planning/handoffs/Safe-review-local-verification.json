@@ -1,0 +1,81 @@
+{
+  "date": "2026-11-02",
+  "classification": "verified local CI preparation and approved plan dispositions; no whole-pipeline or release approval",
+  "planning_base": "02e7637a15c341d9a952bf83468a4ca556663ea5",
+  "ci": {
+    "worktree": "C:\\Users\\spaci\\worktrees\\G3O-safe-ci-20261102",
+    "branch": "fix/free-review-ci",
+    "base": "2a737f769f974348a610cc6f6ad6ed6a9840196b",
+    "head": "c6cdf4057b97f205d5f12de826e7c61bcd2af901",
+    "tree": "8ad7aebf8ba6dee5d198f8290c620c642b002d4f",
+    "synthetic_merge_tree": "8ad7aebf8ba6dee5d198f8290c620c642b002d4f",
+    "clean": true
+  },
+  "engineer_tests": {
+    "passed": 2294,
+    "skipped": 1,
+    "xfailed": 1,
+    "network_deselected": 2,
+    "coverage_percent": 91.04,
+    "focused_guard_provider_tests": 45,
+    "final_guard_tests": 6,
+    "wheel_build_install_imports": "pass",
+    "codebook_drift_and_checks": "pass; check12 not applicable without previous codebook",
+    "local_python": "Windows3.14; separate WSL namespace proof",
+    "hosted_matrix": "not run"
+  },
+  "independent_verification": {
+    "assertions": 140,
+    "findings": 0,
+    "report": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-safe-review\\independent-review\\REPORT.txt",
+    "sha256": "6a7e7299215d652b15cc88894d47e7092ecf316f481e9eda669777b9ec5b038f"
+  },
+  "decisions": {
+    "T016": "Corrected separate reporting record accepted; exact command/full closure pending.",
+    "T011": "Calendar conversion deferred; signed literal-year method unchanged.",
+    "DP007": "Uniform90% selected for implementation; approved bases unchanged; actual overhead/runtime verification pending."
+  },
+  "preserved": {
+    "locked_hashes": {
+      "SPEC.md": "3b2d38d1d4003b71339211842b0f7932d8537e1c3b08f42114760e1e978941b0",
+      "RESOURCES.md": "6edc4da670229dd0cedbeb6cb8809ca7430f9791ddc0633492395d6c4720abbe",
+      "handoffs/D-007-interface-spec.md": "0c37089a97a71cf9b201720c73f237cc437918af3fa2f81886aa6042d3cce53b",
+      "handoffs/D-007-field-map.json": "5dfb8dc5d4cb0bdc9e14dc9cf0216cfd8cd47281bf648cafff8cc70c70ee2465",
+      "Delta-Lock-RC-D-011-2026-11-02.json": "0ea1e6bbfad76ad4e8207326938217a7e065d8db4d3985753ee971ca42c0eee6"
+    },
+    "task_status_lines_unchanged": true,
+    "r11_head": "2812ca22253adfa1f70f81d08f377fa15a8619f9",
+    "calibration_head": "ffb5be23fe8b25cdf12ee4315002e8c8d88c7bce",
+    "six_T035_exceptions": "retained; not exercised by this main-based CI suite"
+  },
+  "source_recovery": {
+    "status": "input recovery only; no calibration or PI approval",
+    "candidate_records": 331,
+    "empty_results": 718,
+    "source_pages": 50,
+    "candidate_pages": 39,
+    "unique_page_quote_pairs": 222,
+    "readback_checks": 9,
+    "manifest": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-safe-review\\t003-recovery\\MANIFEST.json",
+    "sha256": "f31905c6530829e71b513c866e317f94b0d317ce56ebf65bc22275e9741901bb",
+    "gaps": [
+      "PI true/false presence labels and independent30-pair review",
+      "Approved hold-out grouping/selection",
+      "Language labels and real chrome pairs",
+      "Exact original chunk reconstruction",
+      "Held-out error table and PI-approved metric/threshold/display cap"
+    ]
+  },
+  "separate_readiness_review": {
+    "verdict": "PASS-with-explicit-gates",
+    "passed": 113,
+    "findings": 0,
+    "report": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-safe-review\\readiness-review\\REPORT.txt",
+    "report_sha256": "1e74b847f1d569977977da7f6540d5eb50d5b24bdfe51c092595dbf6b09c078e",
+    "gates": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-safe-review\\readiness-review\\gates.json",
+    "gates_sha256": "67ef70e387a2c712e0f1f111d14609dcb2fbf0ba84603560d4f7ca4adb8d8f4c",
+    "release_approved": false
+  },
+  "external_actions": "none",
+  "next_handoff": "handoffs/Safe-review-next-stage.md"
+}

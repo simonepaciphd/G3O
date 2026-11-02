@@ -1,0 +1,78 @@
+{
+  "date": "2026-11-01",
+  "integrator": "20261101-codex-v2-c10efbad5812817d",
+  "branch": "planning/r11-rcd009",
+  "worktree": "C:\\Users\\spaci\\worktrees\\G3O-orch-20261101",
+  "baseline_main": "2a737f769f974348a610cc6f6ad6ed6a9840196b",
+  "parent_labels": "34f64073aa6a8423b0132c7a13da145b92b09496",
+  "governance_source_note": "Parent LABELS predates RC-D-006/008; their five planning paths restored from accepted main before edits.",
+  "approved": [
+    "Q1a",
+    "Q2a",
+    "Q3a",
+    "r10 year rule",
+    "E1-E4",
+    "L1-L5",
+    "P1-P3",
+    "narrow strict extract/validate golden exception until T-035"
+  ],
+  "T012": {
+    "status": "blocked",
+    "commit": "87ac525a6c3c7976f1b0e991f11ef11c13d2485d",
+    "clean": true,
+    "pushed": false,
+    "next": "PI D-007 choices and gate disposition, then existing engineer lane implements Q2a"
+  },
+  "T027": {
+    "status": "not_started",
+    "gate": "T012 proposed verified; missing-probability policy to PI first"
+  },
+  "r11": {
+    "sha256": "f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d",
+    "installed": "isolated integrator worktree only",
+    "checks": "16/16 pass with r8 previous; nine outputs reproduce byte-for-byte",
+    "tests": "44 passed, 1 optional candidate skipped"
+  },
+  "LABELS": {
+    "pr": 150,
+    "head": "34f64073aa6a8423b0132c7a13da145b92b09496",
+    "state": "open_unmerged",
+    "T024": "handoffs/T-024-label-interface.md"
+  },
+  "D007": {
+    "state": "proposed_not_approved",
+    "map_counts": {
+      "runtime": 108,
+      "external_owner": 1,
+      "outside_release": 11
+    },
+    "pending": [
+      "S1 historical missingness",
+      "S2 public email counting",
+      "P1 local writer/Colin gate remap and producer scope",
+      "P2 complete interface approval"
+    ],
+    "proposed_order": [
+      "T050A",
+      "T012",
+      "T027",
+      "T050B",
+      "T028"
+    ],
+    "A019": "pending, retained before API/site work"
+  },
+  "gates": [
+    "No paid execution",
+    "No merge/deployment/database write",
+    "No external notice sent",
+    "No probability defaults",
+    "No old-loader v2.7 ingestion"
+  ],
+  "decision_page": "H:/My Drive/Research/G3O/agent-workspace/2026-11-01-orch/g3o-storage-continuation-20261101.html",
+  "independent_review": {
+    "state": "ready_for_PI_review",
+    "findings_addressed": 12,
+    "artifact": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-01-orch\\engineer-review\\review.json",
+    "sha256": "96ae98990998c3c92c3f3db14fcb8ccbf406bd75166db102cc246b4dd649cf33"
+  }
+}

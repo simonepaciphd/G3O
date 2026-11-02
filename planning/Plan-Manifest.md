@@ -19,3 +19,25 @@ Prior scoping: `H:/My Drive/Research/G3O/agent-workspace/2026-10-27-unclear-scre
 | 6. Baseline lock | SPEC + RESOURCES + PLAN | locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); record `Baseline-Lock-2026-10-28.json`; pre-lock copies `archive/2026-10-28-baseline-prelock/` |
 | 7. Launch | handoffs (engineer cards) | not-started (PLAN_ONLY) |
 | 8. Reconcile | `CHANGELOG.md` + `Spec-Reconciliation.md` | not-started |
+
+## Current continuation (2026-11-01)
+
+The historical stage table above describes the original baseline. Current SPEC v001.13 applies approved RC-D-007/009 and the exact S1a/S2a/P1a/P2 reply. T-050A approved; T-012 Q2a active, T-027 gated. Local branch planning/r11-rcd009; no remote push/merge/deploy. Current generated page: page/Plan-Visual.html. Delta application lock retains original RC-BL-001 history.
+
+Current execution update: SPEC v001.14 / RC-D-010; T-012 proposed verified locally with qualified test evidence; T-027 input review complete, engineering queued for capacity. See Delta-Lock-RC-D-010-2026-11-01.json and handoffs/T-027-engineering-handoff.md. Prior hash records are historical snapshots.
+
+Latest bounded execution (2026-11-01): startup B approved; T-027 local library independently verified at 6868825 (245 regressions, 72 record tests, 260 independent cases). One implementation defect corrected with no spec delta. See handoffs/T-027-local-verification.json and archive/records/T-027-local-reconciliation.md. SPEC remains v001.14; no successor launch, external delivery, push/merge/deploy or full pipeline acceptance.
+
+Latest bounded execution (2026-11-02): RC-D-011 email follow-up independently accepted locally at 36d88bc7e20b3347b92f72e749d12f43a36ccc27; 326 engineer regressions, 22 independent conformance tests and 192 independent regressions. SPEC v001.15/RESOURCES v001.3 and D-007 v1.1 unchanged. See handoffs/RC-D-011-local-verification.json and handoffs/RC-D-011-next-stage.md. Four subagents covered implementation, contract review, source/readiness audit and independent final verification. Full T-050B/runtime/external/T-031 remain gated. Historical stage table and application lock remain original records.
+
+Latest bounded preparation (2026-11-02): source assembly 2812ca22253adfa1f70f81d08f377fa15a8619f9 and separate estimator calibration ffb5be23fe8b25cdf12ee4315002e8c8d88c7bce independently verified locally; no task status promoted to complete.16source checks/9outputs,342engineer tests/1optional skip,66chunker tests,92independent assertions/205regressions/1optional skip. T016 offline report correction is separate; accepted wording retained. DP007,calendar,T024/T028 producers and fullT050B,T030/T035/T031/release gates remain. See handoffs/Preparation-local-verification.json and Preparation-next-stage.md; locked SPEC/RESOURCES/application records unchanged.
+
+Current PI disposition (2026-11-02, RC-D-012): corrected T-016 summary accepted as reporting record; full closure provenance still pending. Calendar conversion deferred, so it no longer blocks the unchanged signed literal-year method; other T-011 inputs remain. SPEC v001.15/RESOURCES v001.3 and original locks unchanged. No task marked complete. Exact replies: archive/records/Safe-review-PI-rulings.json.
+
+Current DP-007 disposition (2026-11-02, RC-D-013): PI chose uniform 90% on Latin0.305/CJK0.341/Thai0.334. Choice resolved; implementation/whole-request overhead/runtime validation remain gated. No task completed or runtime configuration changed. Exact reply: archive/records/DP007-PI-ruling.json.
+
+Latest safe-review preparation (2026-11-02): isolated CI c6cdf4057b97f205d5f12de826e7c61bcd2af901 verified locally (2294pass/1skip/1xfail/2networkdeselected;91.04%coverage;140independentassertions). RC-D012/013 record corrected reporting, calendar deferral and uniform90% margin. Research branches remain separate, no task completed or release approval. Current handoff: handoffs/Safe-review-next-stage.md; verification: handoffs/Safe-review-local-verification.json. Separate readiness review PASSED with explicit gates:113 checks,0 actionable findings; local preparation only, no release/external approval.
+
+T-003 recovery completed as input recovery only:331 unlabeled candidates/718empty results/50source pages; no calibrated matcher approval found within documented local scope. See Drive safe-review/t003-recovery/HANDOFF.txt and current Safe-review-next-stage.md. Separate readiness review PASSED with explicit gates:113 checks,0 actionable findings; local preparation only, no release/external approval.
+
+Publication continuation (2026-11-02): PI explicitly authorized push/merge of reviewed preparation; next-stage execution remains separate. Current publication pins/completion: Drive agent-workspace/2026-11-02-merge/integrator/STATUS.json. Source/research/runtime gates and original review records remain; no task promoted. Exact approval: archive/records/Publication-authorization-2026-11-02.json.

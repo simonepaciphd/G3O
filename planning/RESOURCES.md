@@ -1,7 +1,9 @@
 # Resources: G3O pipeline reclassification (jev classifies, the extractor (Claude Haiku 5.5) extracts support; contract v2.7; back-fill)
 
+RC-D-011 (Simone, 2026-11-02) supersedes RC-D-009 S2a's case rule only. Lowercase the entire extracted email address (local part and domain) before deduplication; count case-only variants once per actual page. Keep full normalized addresses internal and publish only domain/count pairs. Do not collapse aliases or plus-addresses; supporting quotes remain verbatim. RS-010/018 use D-007 contract v1.1 and the revised map. RS-039's signed r11 remains unchanged: its email item does not specify case. No resource addition.
+
 Status: LOCKED (approved Simone Paci, 2026-10-27, chat "APPROVED"; locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock")); v001.1 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.2 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta")
-Version: v001.2
+Version: v001.3
 Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.4 at lock (written against v001.1; the v001.2-v001.4 changes add no resource link not already listed: release flag and correction layer use RS-020, §4.3 text RS-029, validation notice RS-033)
 Search scope: `H:/My Drive/Research/G3O/asset-registry.csv` (path greps, not a full parse); SRC-1..SRC-8 and files they cite; G3O repo via `git show/grep` on `origin/main` (`c6349d6`) and `archive/exval-v2.6` (`052fcb2`), plus the untracked `runs/` listing; g3o-api `origin/main` (`fc33ea3`; schema, sql, scripts, worker files by grep); g3o-website origin file list and `planning/ra-roles` file list; the four agent-workspace folders in SRC-1/4/5/8; procurement-pipeline CLAUDE.md/AGENTS.md and `pipeline/core/contract.py`; CX-01.2 index-design folder (pilot/, evidence/); RAs/Website Team listing; g3o_validation `planning/RESOURCES.md` listing; local auto-memory.
 Not searched: the droplet (`/home/g3o/runs`, scratch dirs), the live Neon DB, TypeSafe/OpenAI, `inputs/` (not listed), `background/`, GitHub remotes beyond fetch. Not opened: g3o-api bundles, other worktrees, WS10 `calibration20/`, `docs/Paper/`.
@@ -135,3 +137,15 @@ Prepared by: Claude Code subagent (claude-opus-5-5), 2026-10-27; spot-checked an
 | v001.2 | RC-D-002: notes on RS-016, RS-019, RS-020, RS-023, RS-024, RS-029; new RS-038 (AI-text-detection repo), RS-039 (codebook-review records), RS-040 (multilingual subproject); map rows D-001 / R-007, D-009, D-010 | Simone Paci, 2026-10-29, chat "approve delta" |
 | v001.1 | RC-D-001: extractor gpt-5-nano → Claude Haiku 5.5 (title, RS-015 note, RS-031, new RS-037) | Simone Paci, 2026-10-29, chat "approve delta" |
 | v001 | Stage 2 subagent draft; parent spot-checks; PI gap rulings G1 b, G7 b, G8 c, G11 b, G12, RQ-003/006/007 applied; design gaps routed to Stage 3 | Simone Paci, 2026-10-27 |
+
+## 2026-11-01 continuation evidence (no new resource commitment)
+
+RS-010/018: ENUM clean local 87ac525; Q2a remains blocked. RS-039: r11 signed under current PI authorization, exact hash in t010/signoff-record.md; LABELS generator PR150 at 34f6407 remains unmerged. D-007 candidate and full item mapping are in handoffs/. Current API loader ignores extra fields; T-051/052 capability checks are required before 2.7 ingestion. No DB connection or paid resource was used. Canonical continuation branch: planning/r11-rcd009 in G3O-orch-20261101.
+
+## 2026-11-01 approved D-007 resource binding
+
+S1a/S2a/P1a/P2 approved on page d9ca34714331. RS-010/018 now consumes handoffs/D-007-interface-spec.md and its 120-item map; RS-039 supplies signed r11/labels. Explicit fixtures do not establish actual provider/runtime settings. T-030/T-035 bind actual configuration; T-050B retains conformance and Colin acceptance. No new paid resource, DB access or external delivery authorized.
+
+## 2026-11-01 verified local continuation
+
+T-012 local writer/instrument and nine storage fixtures: G3O-eng-b-t012 at clean unpushed 6cbd55126bb1d1d6097156546133fcd464a356ee; handoffs/T-012-Q2a-verification.json. RS-012 optional probability fields and RS-013 zero fallback reviewed; T-027 must apply approved RC-D-010 and must not copy that fallback. Signed r11 has 52 classifier questions, all using chosen-answer-probability thresholds. T-027 planned isolated base is exact T-012 commit, not old origin/main. No additional external resource or paid call authorized.

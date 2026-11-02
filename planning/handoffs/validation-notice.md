@@ -1,3 +1,15 @@
+## Approved storage continuation — internal update, NOT SENT
+
+RC-D-011 (Simone, 2026-11-02) supersedes RC-D-009 S2a's case rule only. Lowercase the entire extracted email address (local part and domain) before deduplication; count case-only variants once per actual page. Keep full normalized addresses internal and publish only domain/count pairs. Do not collapse aliases or plus-addresses; supporting quotes remain verbatim. Current source: D-007 interface v1.1 and RC-D-011. External delivery remains gated.
+
+D-007 storage/provenance approved 2026-11-01 (S1a/S2a/P1a/P2); T-012 local writer/instrument proposed verified at 6cbd551, not integrated runtime readiness. RC-D-010 missing-probability ruling now approved: apply existing downgrade rules, retain original code and missing probability with cause. Signed r11/year rules remain unchanged. This supplements the reconciled draft below; external follow-up still requires PI send approval.
+
+## 2026-11-01 reconciliation addendum — internal, NOT SENT
+
+The earlier draft below is retained as historical wording and must not be sent unchanged. Current local release is r11, SHA256 f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d, with nine generated outputs now present on the integrator branch; it is not merged/deployed. The claim that generated documents do not exist is obsolete. LABELS PR150 is open, unmerged. r11 preserves r10 year rules and classifier questions; ai_text is the sole r10->r11 semantic change.
+
+T-061 prior delivery is recorded in PLAN (simonepaciphd/g3o_validation#3); no follow-up sent here. The new-hash/LABELS/D-007 follow-up needs PI send approval. Recipient/channel decisions remain settled. Do not overwrite the receiving plan or its lock.
+
 DRAFT — not sent; sending gated on the PI (T-061; DP-063 ruled 2026-10-31)
 
 # Notice to the G3O validation plan: the pipeline output contract is changing

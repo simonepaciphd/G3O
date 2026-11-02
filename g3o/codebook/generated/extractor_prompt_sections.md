@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extractor_prompt_sections. -->
-<!-- codebook release: 2.7 | codebook sha256: f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f -->
+<!-- codebook release: 2.7 | codebook sha256: f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d -->
 
 # Extractor prompt sections
 
-Codebook release `2.7`, sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
+Codebook release `2.7`, sha256 `f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
 
 ## `core.source_publication_date`
 <!-- item: core.source_publication_date sha256: 8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320 -->
@@ -26,9 +26,9 @@ Column `source_snippet`; item hash `a26fef1a984c518461bea85a9771caad96db7347f057
 2. Snippets are verbatim in every pipeline, no translations are stored, and procurement's rule is amended.
 
 ## `core.activity_segment`
-<!-- item: core.activity_segment sha256: 44cc63f10ebef97a1402d517332330fb5ff41ffcf9de22de80b87a4f8e57b97e -->
+<!-- item: core.activity_segment sha256: e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759 -->
 
-Column `activity_relation_within_page`; item hash `44cc63f10ebef97a1402d517332330fb5ff41ffcf9de22de80b87a4f8e57b97e`.
+Column `activity_relation_within_page`; item hash `e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759`.
 
 ### Instruction
 

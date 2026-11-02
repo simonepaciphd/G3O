@@ -1,0 +1,214 @@
+{
+  "format": "g3o-rcd011-local-acceptance-v1",
+  "recorded_at": "2026-11-02T15:26:52.495671+00:00",
+  "activation": "20261102-codex-v2-53c1342c65a05a30",
+  "authorization": "Simone attached request 2026-11-02: implement and independently verify RC-D-011, reconcile bounded offline work; retain runtime/external gates",
+  "status": "verified_bounded_local_email_scope",
+  "scoped_work_complete": true,
+  "full_T050B_acceptance": false,
+  "runtime_acceptance": false,
+  "spec": "v001.15",
+  "resources": "v001.3",
+  "interface": "D-007 v1.1",
+  "source_governance_commit": "e49c497963e150bb89fd4c710780d52d1c2899ba",
+  "base_commit": "686882547d3390c05019256d6d120f4e6c1eb6b2",
+  "implementation_commit": "36d88bc7e20b3347b92f72e749d12f43a36ccc27",
+  "implementation_tree": "d96293f3cb682eb21d0ba5a1cf2861cb7e8e65ff",
+  "branch": "reclass/rcd011-email",
+  "worktree": "C:\\Users\\spaci\\worktrees\\G3O-email-rcd011-20261102",
+  "implementation_files": [
+    "g3o/common/storage.py",
+    "g3o/common/storage_fields.py",
+    "tests/fixtures/storage_contract/combined_activity/sources.csv",
+    "tests/fixtures/storage_contract/page_two_activities/sources.csv",
+    "tests/test_storage.py"
+  ],
+  "code_hashes": {
+    "C:\\Users\\spaci\\worktrees\\G3O-email-rcd011-20261102\\g3o\\common\\storage.py": "ff8aada1d3f7268e9ef8d9f3d456dacc3c0194e65d6f2aa53a33d7877bc7da49",
+    "C:\\Users\\spaci\\worktrees\\G3O-email-rcd011-20261102\\g3o\\common\\storage_fields.py": "5bfd6f947bd6817ee71e8a7594afbf94ce5eab08fa48dad4f533f05e8687256c",
+    "C:\\Users\\spaci\\worktrees\\G3O-email-rcd011-20261102\\tests\\fixtures\\storage_contract\\combined_activity\\sources.csv": "5f08ca658c923833ebfca2c1e55ed021a5c7b1046a97c0f79f3dc7d223765a07",
+    "C:\\Users\\spaci\\worktrees\\G3O-email-rcd011-20261102\\tests\\fixtures\\storage_contract\\page_two_activities\\sources.csv": "693caf740ad9354d9ccb7c5ae991362c58b1f2585ffe0a775fd73467c302875b",
+    "C:\\Users\\spaci\\worktrees\\G3O-email-rcd011-20261102\\tests\\test_storage.py": "3fab5bc34372fbcb7eb8e530cca37519d6230cdbc11103f940e1b5cb2542268a",
+    "C:\\Users\\spaci\\worktrees\\G3O-email-rcd011-20261102\\tests\\_storage_fixture.py": "2d8615db9ec33b066d87ae7360b51ad81c15091365182fdd734de861dda0a948",
+    "C:\\Users\\spaci\\worktrees\\G3O-email-rcd011-20261102\\g3o\\scrape\\html.py": "73fc85b261ff1bdfc1f97c3b5cdd44a4a15f6f8930003f136add62bf67da877b",
+    "C:\\Users\\spaci\\worktrees\\G3O-email-rcd011-20261102\\g3o\\persist\\writer.py": "bc6bb68c241921fc107b113c327df002cdc0135be684cb72b35c648f55792762",
+    "C:\\Users\\spaci\\worktrees\\G3O-email-rcd011-20261102\\g3o\\common\\instrument.py": "6c3845418d2e6c37376a2d6ac863e81db627b87b603877ec0a9f04bf2f74db1f",
+    "C:\\Users\\spaci\\worktrees\\G3O-email-rcd011-20261102\\g3o\\common\\jev_record.py": "3280e874a422e55f87415495adff5e34c350a6b2c7cacd1eaa8b76f61032277c",
+    "C:\\Users\\spaci\\worktrees\\G3O-email-rcd011-20261102\\codebook\\codebook.yaml": "f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f"
+  },
+  "evidence": [
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-rcd011\\engineer\\MANIFEST.json",
+      "sha256": "17f0d7499928e7eccec2e6043c00c0175f66b047f99b17dc02bc230380364c61"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-rcd011\\engineer\\handoff.json",
+      "sha256": "9aa31a07eb0f7a781c2d1721c61a0f99f30eca996dda073bf456f9f2e6e3d8a2"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-rcd011\\contract-review\\MANIFEST.json",
+      "sha256": "8d0c63fc7190721b47c11ec96257dccd31fb3378e0504a8ecc1349f85ee0ec97"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-rcd011\\contract-review\\acceptance-matrix.json",
+      "sha256": "b4bab9eb879eccefb8cb6ff7fd19e1d3b31dc80ecc2bfaeab78587717e7b999d"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-rcd011\\source-audit\\MANIFEST.json",
+      "sha256": "748b2f30456c6f88b6abe0d161381bf51a84a86d0db1f2e24431b22a1a4ccce2"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-rcd011\\source-audit\\source-audit.json",
+      "sha256": "4a7136857d90f5e8c093b7c50695a29ceed4257a9b480382d93283466fdb1812"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-rcd011\\source-audit\\readiness\\gates.json",
+      "sha256": "089ccf0b01e5447850e6373d697a8de5287feeda0dbd447447979803147af4db"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-rcd011\\conformance-review\\MANIFEST.json",
+      "sha256": "0c653ce30172c455f19c841406fbc538dd79c7b64c180da2c3719fda129d5f17"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-rcd011\\conformance-review\\REPORT.txt",
+      "sha256": "fe59b3342be800d41ff62b23f9f1e506a7c98c6f46ae8b4442cdc9bcb45dd65f"
+    },
+    {
+      "path": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-02-rcd011\\conformance-review\\matrix-coverage.json",
+      "sha256": "321423308ae47285f9beb053cfe2f0bdbda6ce92b533baa9777dabee914c0d79"
+    }
+  ],
+  "verification": {
+    "engineer_relevant_regressions": 326,
+    "engineer_focused": 161,
+    "new_engineer_email_cases": 17,
+    "baseline_failures_reproduced": 4,
+    "independent_conformance": 22,
+    "independent_focused_regressions": 192,
+    "contract_cases": 24,
+    "map_entries": 120,
+    "compiled_field_comparisons": 960,
+    "signed_generated_outputs_reproduced_in_memory": 9,
+    "full_suite_rerun": false
+  },
+  "findings": {
+    "implementation": [],
+    "review_harness": "Two intermediate compiler-target assertions corrected; retained logs explicitly distinguish them from product defects",
+    "Q01": "Existing public missing-marker truth table remains downstream-only clarification; no missingness-policy change"
+  },
+  "boundaries": [
+    "Source checkout retains r8; signed r11/LABELS assembly not performed",
+    "T024 runtime main/header/footer/contact-gate integration unverified; local mailto helper parity verified",
+    "T026/T028 actual producer, companion and final-value/support composition remains",
+    "T030/T035 actual instrument/runtime binding and final pins remain",
+    "T050B explicit PI send approval and Colin A019 remain",
+    "T031 integrated review remains",
+    "Prior T012 Windows-I/O qualification and six strict T035 exceptions preserved",
+    "T027 acceptance intact; historical S2a evidence not recertified",
+    "No paid/provider calls, external messages, DB writes, push, merge, deployment or publication"
+  ],
+  "remaining_gates": [
+    {
+      "id": "LOCAL-T012",
+      "task": "T-012",
+      "status": "VERIFIED_BOUNDED_LOCAL_SLICE",
+      "ready_scope": "Independent final-candidate conformance passed; parent accepts only the bounded local email/storage slice. No whole-task completion inferred.",
+      "retained": [
+        "Earlier Windows-I/O cross-invocation qualification",
+        "Six existing T035-owned exceptions",
+        "Actual runtime instrument settings not established"
+      ]
+    },
+    {
+      "id": "LOCAL-T050B",
+      "task": "T-050B",
+      "status": "LOCAL_CONFORMANCE_VERIFIED_FULL_MILESTONE_INCOMPLETE",
+      "ready_scope": "Local implemented-library/email conformance renewed at36d88bc; full T050B remains gated by PI send and Colin A019.",
+      "retained": [
+        "PI send authorization",
+        "Colin A019 acceptance",
+        "No external send authorized here"
+      ]
+    },
+    {
+      "id": "EXTRACTION",
+      "task": "T-024",
+      "status": "NOT_READY_FOR_UNRESTRICTED_IMPLEMENTATION",
+      "ready_scope": "RC-D011 normalization rule is settled and may be carried into an authorized future consumer assignment.",
+      "retained": [
+        "T003 approved matcher metric/threshold",
+        "T012 source assembly",
+        "T022/T032 actual quote producers",
+        "r11/LABELS binding with explicit multipart/year/free-text semantics",
+        "Per-code support and signed downgrade rules; existing0.8 bar"
+      ]
+    },
+    {
+      "id": "WRITER",
+      "task": "T-028",
+      "status": "BLOCKED_EXISTING_GATES",
+      "ready_scope": "Email storage library acceptance does not accept the integrated writer.",
+      "retained": [
+        "T015,T024,T026 integrated upstream outputs",
+        "T027 full companion retention and actual matching support for original/final codes",
+        "T050B and Colin A019",
+        "T012 release of shared writer/integrity claim",
+        "Actual page/observation/relation closure and instrument provenance"
+      ]
+    },
+    {
+      "id": "ASSEMBLY",
+      "task": "T-030/T-035",
+      "status": "NOT_ASSEMBLED",
+      "ready_scope": "Exact source bundle specified by source-audit.json.",
+      "retained": [
+        "Candidate36d88bc retains r8 YAML/generated files",
+        "Select exact signed r11 YAML and LABELS outputs explicitly",
+        "Bind instrument to actual executed configuration",
+        "T035 owns final pins/golden regeneration",
+        "T031 integrated review still required"
+      ]
+    },
+    {
+      "id": "CHUNKER",
+      "task": "T-020",
+      "status": "BLOCKED_DP007_AND_CALIBRATED_IMPLEMENTATION",
+      "ready_scope": "Approved constants already exist; their absence is not an unresolved measurement choice.",
+      "retained": [
+        "Implement tokens/byte Latin0.305,CJK0.341,Thai0.334 from RC-D006",
+        "Pinned45309d2 still per-character chars/token placeholders and zero margins",
+        "DP007 safety margin has no verified disposition",
+        "Do not select a new margin from the estimated26.1k acceptance/29.6k refusal alone",
+        "Retain thin Thai sample qualification and authorized dependency pinning"
+      ]
+    },
+    {
+      "id": "QUESTIONS",
+      "task": "T-011/T-016",
+      "status": "READINESS_RECONCILIATION_REQUIRED",
+      "ready_scope": "r11 changes only the channel rule from r10; classifier questions and retained year rules are unchanged.",
+      "retained": [
+        "Reconcile existing T016 PI-ruled evidence gate against accepted later wording/results",
+        "Do not infer a paid rerun solely from stale T016 prose or r11 label",
+        "T011 year questions retain explicit calendar-rule gate pending integrator/PI disposition",
+        "Signed rule remains activity/context four-digit2015-2030, no publication-year fallback, earliest chosen year across chunks",
+        "Do not add calendar conversion or silently drop the gate",
+        "D010 contact remains with Simone; no external contact authorized"
+      ]
+    },
+    {
+      "id": "Q01",
+      "task": "T-050B/Colin public interface",
+      "status": "DOWNSTREAM_ONLY_CLARIFICATION",
+      "ready_scope": "Does not block approved finite-list lowercase normalization.",
+      "retained": [
+        "Preserve distinctions among empty observed list,signed missing tokens,and explicit unavailable-history reasons",
+        "Confirm existing authorized public wire mapping/reason truth table",
+        "If token propagation versus typed-null/reason versus omission changes meaning,return to PI",
+        "Do not change missingness policy in this patch"
+      ]
+    }
+  ],
+  "agents_used": 4,
+  "roles": "engineer; independent contract reviewer; source auditor followed by readiness reviewer in same admitted lane; independent conformance reviewer"
+}

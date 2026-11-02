@@ -1,0 +1,9 @@
+{
+  "format": "g3o-chat-ruling-v1",
+  "date": "2026-11-01",
+  "activation": "20261101-codex-v2-55eaba6e9fca45da",
+  "id": "RC-D-010",
+  "question": "T-027: if a classifier returns a code but no probability for that chosen answer, how should the affected result proceed? Both choices retain the returned code and missing probability in provenance, without inventing a number. This is new: the approved 0.8 rule covers measured probabilities, and D-007 expressly leaves missing-probability treatment to you.",
+  "answer": "Apply the existing downgrade rules to the affected code, recording that its probability was unavailable.",
+  "source": "User asynchronous decision reply in this conversation; no invented response timestamp"
+}

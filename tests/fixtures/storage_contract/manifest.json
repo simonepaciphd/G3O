@@ -1,0 +1,44 @@
+{
+  "format": "g3o-storage-fixtures-v1",
+  "purpose": "Explicit offline PI-authorized local fixtures; not production provenance",
+  "codebook_sha256": "f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d",
+  "map_sha256": "3c83860ebcfa559b50685c872d2cd0929b8cff63abd4a08d0ace17d1c3a2e96d",
+  "artifacts": [
+    {
+      "path": "legacy/activities.csv",
+      "sha256": "f002ebc68adcc9e3e60c2d4fe1c37adedf86e1637319534aa96d8a7bd18dd677"
+    },
+    {
+      "path": "legacy/sources.csv",
+      "sha256": "bc32d01ceb1b850d2af1199687df7d1eef03a465c60ba2d2bf9ae2a059ebcae3"
+    },
+    {
+      "path": "legacy/summary.csv",
+      "sha256": "e1af5d05f3a8c157cafc643b2895e4ba1d47ffee8840729edaf62fb0b25804e4"
+    },
+    {
+      "path": "page_two_activities/activities.csv",
+      "sha256": "aeded15f829feb3c44a1c155d7545a9361f32a653bb235f1c28f88997c39622f"
+    },
+    {
+      "path": "page_two_activities/sources.csv",
+      "sha256": "8204c4a89a5696a13c53766a7179d9275846da35a910a52d081e3f1167a7988b"
+    },
+    {
+      "path": "page_two_activities/summary.csv",
+      "sha256": "6895e0bc441d26a118800159893797e04e862accc48237d473e8dcf98668d77b"
+    },
+    {
+      "path": "combined_activity/activities.csv",
+      "sha256": "b4d8d47cf458ce3b1507aa9c9ec48d3cb87a62ca4bb2411906749fd623210012"
+    },
+    {
+      "path": "combined_activity/sources.csv",
+      "sha256": "504a01456f17f5e113754cc7107aa80cd26c4e8d21e5ef497eae1d39d5c8ed98"
+    },
+    {
+      "path": "combined_activity/summary.csv",
+      "sha256": "5e392d4d94d8677780dac9c73dfef3228b8f5018288fc28ff527c3d3ff7c3a3b"
+    }
+  ]
+}

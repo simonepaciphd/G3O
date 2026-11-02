@@ -1,0 +1,47 @@
+{
+  "format": "decision-page-reply-v1",
+  "page_id": "g3o-storage-continuation-20261101",
+  "page_title": "Approve the storage contract so engineering can continue",
+  "page_sha256": "d9ca34714331b5a565a3f30ca56a34dccc2ceb8a74ebf39ac37889d2d4a29977",
+  "project": "g3o",
+  "saved_at": "2026-11-01T15:38:55.942Z",
+  "answers": [
+    {
+      "id": "S1",
+      "title": "How should an export represent unavailable historical fields?",
+      "kind": "substantive",
+      "choice": "a",
+      "choice_label": "Empty value with explicit reason",
+      "recommended": null,
+      "comments": ""
+    },
+    {
+      "id": "S2",
+      "title": "What should a public email count measure?",
+      "kind": "substantive",
+      "choice": "a",
+      "choice_label": "Distinct addresses per domain",
+      "recommended": null,
+      "comments": ""
+    },
+    {
+      "id": "P1",
+      "title": "When may the local writer work be accepted?",
+      "kind": "procedural",
+      "choice": "a",
+      "choice_label": "Accept local work first",
+      "recommended": "a",
+      "comments": ""
+    },
+    {
+      "id": "P2",
+      "title": "Approve the complete storage and provenance interface",
+      "kind": "review",
+      "choice": "approve",
+      "choice_label": "Approve as is",
+      "recommended": null,
+      "comments": ""
+    }
+  ],
+  "overall": ""
+}

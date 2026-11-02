@@ -26,7 +26,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from g3o.common.paths import iter_institution_dirs
-from g3o.common.schema import ACTIVITY_COLUMNS, ACTIVITY_SOURCE_COLUMNS, SUMMARY_COLUMNS
+from g3o.common.schema import (
+    ACTIVITY_COLUMNS_V25,
+    ACTIVITY_SOURCE_COLUMNS_V25,
+    SUMMARY_COLUMNS_V25,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -122,19 +126,19 @@ def _load_csv(path: Path, required_columns: list[str]) -> list[dict[str, str]]:
 def _load_activities_csv(run_dir: Path, version: int = 1) -> list[dict[str, str]]:
     """Load g3o_activities_v{N}.csv."""
     path = run_dir / "final" / f"g3o_activities_v{version}.csv"
-    return _load_csv(path, ACTIVITY_COLUMNS)
+    return _load_csv(path, list(ACTIVITY_COLUMNS_V25))
 
 
 def _load_sources_csv(run_dir: Path, version: int = 1) -> list[dict[str, str]]:
     """Load g3o_activity_sources_v{N}.csv."""
     path = run_dir / "final" / f"g3o_activity_sources_v{version}.csv"
-    return _load_csv(path, ACTIVITY_SOURCE_COLUMNS)
+    return _load_csv(path, list(ACTIVITY_SOURCE_COLUMNS_V25))
 
 
 def _load_summary_csv(run_dir: Path, version: int = 1) -> list[dict[str, str]]:
     """Load g3o_institution_summary_v{N}.csv."""
     path = run_dir / "final" / f"g3o_institution_summary_v{version}.csv"
-    return _load_csv(path, SUMMARY_COLUMNS)
+    return _load_csv(path, list(SUMMARY_COLUMNS_V25))
 
 
 # ---------------------------------------------------------------------------
