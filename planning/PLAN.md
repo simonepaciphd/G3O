@@ -1,5 +1,7 @@
 # PLAN: G3O pipeline reclassification
 
+Current bounded-phase ruling (2026-11-02, RC-D-012): Simone accepts the separate corrected T-016 probability summary as the reporting record, retaining original records and approved wording; remaining closure provenance is still required. Calendar conversion is deferred and no longer blocks the signed literal-year method. Preserve literal four-digit 2015–2030 activity/context years, no publication-year fallback and earliest chosen year across chunks. D-010 remains unsent and Simone-owned. Other prerequisites remain; no task status is promoted. Exact replies: archive/records/Safe-review-PI-rulings.json.
+
 Current execution overlay (2026-11-02, RC-D-011; integrator 20261102-codex-v2-53c1342c65a05a30): bounded T-012 email normalization is independently VERIFIED locally at 36d88bc7e20b3347b92f72e749d12f43a36ccc27; 326 engineer regressions, 22 independent conformance tests and 192 independent regressions pass. Whole-address lowercase and per-actual-page case deduplication, internal full normalized addresses, public domain/count pairs, distinct plus/aliases and verbatim quotes are verified for local fixtures. Renewed T-050B local email conformance is accepted; full T-050B remains incomplete. Source checkout retains r8; exact r11/LABELS assembly, T-024/T-028 actual integration, T-030/T-035 runtime binding, PI send/Colin A-019 and T-031 stay gated. T-027 acceptance, prior T-012 Windows-I/O qualification and six strict T-035 exceptions are preserved. SPEC v001.15 / RESOURCES v001.3 unchanged; task IDs, dependencies and waves unchanged. Evidence: handoffs/RC-D-011-local-verification.json; next gates: handoffs/RC-D-011-next-stage.md. Earlier pending implementation statements in signed/adoption records describe their original source snapshot, not current execution status.
 
 Status: READY-WITH-BLOCKS
@@ -482,6 +484,8 @@ More than 50 pages requested → new paid gate.
 
 ### T-003 — Calibrate the fuzzy quote matcher (Q-020 b)
 
+Input-recovery update (2026-11-02): PI-requested delegated search found no approved calibration within22 local worktrees/named Drive evidence/targeted Git history. Recovered331 unlabeled quote candidates,718 empty results and50 source pages with9readback checks; no gold labels/split chosen. Missing exact chunk reconstruction, language labels, real chrome pairs, PI independent30-pair review and metric/threshold/display-cap approvals. Input recovery does not complete T-003 or unblock T-024. Evidence: Drive agent-workspace/2026-11-02-safe-review/t003-recovery/HANDOFF.txt.
+
 Status: pending
 Type: spike
 Priority: critical-path
@@ -655,6 +659,8 @@ More than 2 review rounds → split extract contract from validate contract.
 
 ### T-011 — Build the v2.7 jev question sets (pass 1, pass 2, Stage 6)
 
+RC-D-012 disposition (2026-11-02): calendar conversion deferred by explicit PI reply; proceed with the signed literal-year method when other inputs are satisfied. This supersedes earlier calendar-blocking statements below. T-016 corrected reporting is accepted, but full T-016 closure remains open.
+
 Preparation update (2026-11-02): signed r11/LABELS sources assembled and independently verified at 2812ca22253adfa1f70f81d08f377fa15a8619f9; source artifacts are not installed runtime question sets. Later r9/r10 rulings and the r11 signature are preserved. T-016 corrected-probability disposition and the existing calendar/fiscal gate remain; do not infer a paid rerun. Preserve four-digit2015–2030 activity/context years, no publication-year fallback, earliest chosen year across chunks; Simone owns D-010 contact. See handoffs/Preparation-next-stage.md.
 
 Status: pending
@@ -681,7 +687,7 @@ RC-D-002 row 39: CX wording is byte-identical to the re-signed version (CX-01.3�
 | Re-signed CX wording (CX-01.3†) | codebook, T-010 | signed | stop |
 | T-013 generators | branch `reclass/t013-codebook`† | merged | stop |
 | T-016 re-pilot results | re-pilot folder | PI-ruled | stop |
-| Calendar and fiscal-year conversion rule | multilingual subproject via T-063 (D-010) | received | stop the year-candidate questions; report |
+| Calendar and fiscal-year conversion rule | multilingual subproject via T-063 (D-010) | deferred by PI, RC-D-012 | does not block current signed literal-year method; no conversion added; other inputs still required |
 | RS-013 question-set pattern | G3O `origin/main` | `375f1ff` | follow the pattern |
 
 #### Outputs
@@ -1068,6 +1074,8 @@ Split `source_type` from the date and flag fields.
 
 ### T-016 — Re-pilot the re-signed questionnaire items (paid, small; RC-D-002 N28)
 
+RC-D-012 disposition (2026-11-02): PI accepts the separate corrected chosen-answer probability summary as the reporting record. This resolves the reporting decision in the historical preparation note below. Original records and signed wording remain; reconcile remaining command/estimate/actual-cost evidence before full closure. No paid rerun.
+
 Preparation update (2026-11-02): later repilot-r9/r10 evidence and accepted RC-D-007/r11 wording supersede the old note that the delta is in preparation. Saved r10 has315result envelopes and321nested response parts/unique request IDs; all5question aggregates,5ID spot checks,5,131,342tokens and historical-rate USD0.2155 reproduce offline. Its reported chosen-probability summaries use saved confidence instead of distribution lookup; corrected summaries are independently verified in Drive agent-workspace/2026-11-02-preparation/integrator/T016-OFFLINE-RECONCILIATION.json. Original records/approved wording unchanged. Full task closure and corrected-summary disposition remain; no paid rerun authorized or inferred.
 
 Status: in-progress
@@ -1145,6 +1153,8 @@ More pages or items than in the approved estimate → new paid gate.
 
 ### T-020 — Build the token-based page chunker and combination rule
 
+Current PI disposition (2026-11-02, RC-D-013): DP-007 is resolved as uniform 90% margin, preserving the approved bases; effective rates Latin0.5795/CJK0.6479/Thai0.6346. Earlier no-margin statements below are historical. Implementation, actual whole-request overhead, runtime verification and accepted T-027 composition remain required, so T-020 stays blocked. Exact ruling: archive/records/DP007-PI-ruling.json.
+
 Preparation update (2026-11-02): approved UTF8 tokens/byte Latin0.305/CJK0.341/Thai0.334 implemented and independently verified on separate ffb5be23fe8b25cdf12ee4315002e8c8d88c7bce;66engineer tests plus independent byte/mixed/lossless/guard assertions pass. Thai n3 remains thin. Default/partial margin configurations cannot pass assert_calibrated; no DP-007 margin chosen. Status stays blocked. Unchanged legacy combination code predates RC-D-010/T-027 and is not imported or recertified by this calibration. WholeT020/runtime acceptance remains pending.
 
 Status: blocked
@@ -1210,8 +1220,8 @@ Chunk pages by estimated tokens to fit jev's 32k-token state limit, keeping halv
 
 #### Decision points
 - DP-007: Safety margin below the 32k-token limit for the estimator
-  - Default: a margin equal to the largest estimator error T-002 observes for the page's script
-  - Recommendation: same — ties the margin to measured error rather than a guessed constant
+  - Default: PI selected uniform 90% margin on all three approved bases (RC-D-013, 2026-11-02); supersedes the original script-specific default.
+  - Recommendation: PI-selected uniform 90% — decision resolved by PI; whole-request overhead and runtime checks remain required. Original recommendation is retained in the pre-safe-review archive.
 
 #### Return report
 Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.

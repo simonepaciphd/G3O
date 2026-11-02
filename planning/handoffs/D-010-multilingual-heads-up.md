@@ -1,3 +1,7 @@
+## 2026-11-02 RC-D-012 disposition — internal, NOT SENT
+
+Simone explicitly ruled: "Defer conversion; proceed with signed method". Calendar/fiscal conversion is deferred and no longer blocks the current signed literal-year method; no conversion is added. Four-digit 2015–2030 activity/context years, no publication-year fallback and earliest chosen year across chunks remain fixed. Other implementation prerequisites still apply. Simone retains the separate multilingual contact. Earlier waiting language below is historical, superseded for this gate, and not send-ready. Exact reply: ../archive/records/Safe-review-PI-rulings.json.
+
 ## 2026-11-01 reconciliation addendum — internal, NOT SENT
 
 The earlier draft below is retained as historical wording and must not be sent unchanged. Current local release is r11, SHA256 f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d, with nine generated outputs now present on the integrator branch; it is not merged/deployed. The claim that generated documents do not exist is obsolete. LABELS PR150 is open, unmerged. r11 preserves r10 year rules and classifier questions; ai_text is the sole r10->r11 semantic change.

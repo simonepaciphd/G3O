@@ -1,0 +1,26 @@
+{
+  "date": "2026-11-02",
+  "source": "Explicit asynchronous PI reply in this chat",
+  "question": "DP-007 needs your choice of an offline sizing margin. Saved observations support two proposals that preserve the approved base rates: A adds 90% Latin, 51% CJK and 1% Thai; B adds 90% to all three, giving more padding for the small CJK/Thai samples (10 and 3 observations). Neither guarantees safety; both still require measured whole-request overhead and runtime verification. Which should be recorded for implementation?",
+  "answer": "B: uniform 90% margin",
+  "approved_bases": {
+    "latin": 0.305,
+    "cjk": 0.341,
+    "thai": 0.334
+  },
+  "approved_margins": {
+    "latin": 0.9,
+    "cjk": 0.9,
+    "thai": 0.9
+  },
+  "effective_rates": {
+    "latin": 0.5795,
+    "cjk": 0.6479,
+    "thai": 0.6346
+  },
+  "limits": [
+    "Policy selected for implementation, not installed in runtime configuration.",
+    "Whole-request overhead and runtime verification still required.",
+    "No safety guarantee or paid/external authorization."
+  ]
+}
