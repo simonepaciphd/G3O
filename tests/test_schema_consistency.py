@@ -8,6 +8,11 @@ from the original 13-column shape (preserved here as
 ``PILOT_V1_SUMMARY_COLUMNS``) to a 21-column normalized shape. The pilot v1
 CSV remains a frozen historical artifact and is now checked against its own
 schema, not the live ``SUMMARY_COLUMNS``.
+
+Note (T-012, ruling N3 a): the same now holds for the full-database CSV. The
+live ``DATA_COLUMNS`` gained the v2.7 version label (R-050), so pilot v1 is
+checked against the frozen ``PILOT_V1_DATA_COLUMNS`` below. Pilot v1 stays
+retired as evidence (C-006); this only pins its published shape.
 """
 
 from __future__ import annotations
@@ -20,6 +25,7 @@ from g3o.common.schema import (
     ACTIVITY_COLUMNS,
     ACTIVITY_SOURCE_COLUMNS,
     DATA_COLUMNS,
+    DATA_COLUMNS_V25,
     SUMMARY_COLUMNS,
 )
 
@@ -45,6 +51,56 @@ PILOT_V1_SUMMARY_COLUMNS = [
     "activities_found",
     "tools_found",
     "best_summary",
+]
+
+# Frozen historical schema for pilot v1's full-database CSV (N3 a). Do not edit
+# unless the pilot v1 CSV is also regenerated. The live Stage 5 schema is
+# `g3o.common.schema.DATA_COLUMNS`.
+PILOT_V1_DATA_COLUMNS = [
+    "global_row_id",
+    "run_id",
+    "row_id",
+    "batch_id",
+    "institution_id",
+    "institution_name",
+    "country",
+    "branch_of_government",
+    "level_of_government",
+    "has_genai_activity",
+    "institution_summary",
+    "institution_search_languages",
+    "activity_name",
+    "activity_type",
+    "adoption_stage",
+    "access_type",
+    "interaction_type",
+    "tool_name",
+    "vendor",
+    "deployment_mode",
+    "target_users",
+    "year_announced",
+    "year_deployed",
+    "has_human_oversight",
+    "has_transparency_notice",
+    "has_data_classification",
+    "has_risk_assessment",
+    "reported_outcomes",
+    "reported_incidents",
+    "scope_notes",
+    "source_url",
+    "source_title",
+    "source_publication_date",
+    "source_access_date",
+    "source_type",
+    "source_language",
+    "source_credibility",
+    "genai_evidence",
+    "source_snippet",
+    "confidence",
+    "uncertainty_flags",
+    "run_model",
+    "run_tool",
+    "run_date",
 ]
 
 CONTRACT_COLUMNS = [
@@ -90,11 +146,28 @@ CONTRACT_COLUMNS = [
 ]
 
 
-def test_pilot_v1_full_header_matches_data_columns():
+def test_pilot_v1_full_header_matches_pilot_v1_schema():
     assert PILOT_FULL.exists(), f"Pilot v1 file missing: {PILOT_FULL}"
     with PILOT_FULL.open(encoding="utf-8") as f:
         header = next(csv.reader(f))
-    assert header == DATA_COLUMNS
+    assert header == PILOT_V1_DATA_COLUMNS
+
+
+def test_v25_data_columns_are_frozen():
+    """``DATA_COLUMNS_V25`` is what ``g3o.codebook.checks`` reads as the v2.5
+    column list (RC-D-008 H2). It is the 44-column shape pilot v1 also has."""
+    assert list(DATA_COLUMNS_V25) == PILOT_V1_DATA_COLUMNS
+    assert len(DATA_COLUMNS_V25) == 44
+
+
+def test_data_columns_are_v25_plus_the_version_label():
+    """The live list is the v2.5 list plus the R-050 version label, appended."""
+    assert DATA_COLUMNS == [
+        *DATA_COLUMNS_V25,
+        "codebook_release",
+        "setup_pointer",
+        "evidence_channel",
+    ]
 
 
 def test_pilot_v1_summary_header_matches_pilot_v1_schema():
@@ -107,19 +180,32 @@ def test_pilot_v1_summary_header_matches_pilot_v1_schema():
 
 
 def test_contract_columns_are_subset_of_data_columns():
-    missing = [c for c in CONTRACT_COLUMNS if c not in DATA_COLUMNS]
-    assert not missing, f"Contract columns missing from DATA_COLUMNS: {missing}"
+    for columns in (DATA_COLUMNS, DATA_COLUMNS_V25):
+        missing = [c for c in CONTRACT_COLUMNS if c not in columns]
+        assert not missing, f"Contract columns missing: {missing}"
 
 
-def test_pipeline_extra_columns_are_exactly_five():
+RUN_PROVENANCE_COLUMNS = {
+    "global_row_id",
+    "run_id",
+    "run_model",
+    "run_tool",
+    "run_date",
+}
+VERSION_LABEL_COLUMNS = {"codebook_release", "setup_pointer", "evidence_channel"}
+
+
+def test_pipeline_extra_columns_are_exactly_five_in_v25():
+    """Asserted against the frozen v2.5 list (N3 a, same treatment as pilot v1):
+    the version label (R-050) adds three pipeline columns to the live list."""
+    extras = [c for c in DATA_COLUMNS_V25 if c not in CONTRACT_COLUMNS]
+    assert set(extras) == RUN_PROVENANCE_COLUMNS
+
+
+def test_pipeline_extra_columns_are_provenance_plus_version_label():
     extras = [c for c in DATA_COLUMNS if c not in CONTRACT_COLUMNS]
-    assert set(extras) == {
-        "global_row_id",
-        "run_id",
-        "run_model",
-        "run_tool",
-        "run_date",
-    }
+    assert set(extras) == RUN_PROVENANCE_COLUMNS | VERSION_LABEL_COLUMNS
+    assert len(extras) == 8
 
 
 def test_data_dictionary_column_counts_match_the_schema():

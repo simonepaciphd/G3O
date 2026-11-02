@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.validate_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f -->
+<!-- codebook release: 2.7 | codebook sha256: f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d -->
 
 # G3O output contract (validate, Stage 6), generated from the codebook
 
-Codebook release `2.7`, sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f`. 14 items.
+Codebook release `2.7`, sha256 `f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d`. 14 items.
 
 ## `core.has_genai_activity`
 <!-- item: core.has_genai_activity sha256: 8594c479a9e5bfc1e0a97fddf8c820cf9561fc185ccc14cea22ac7e23054237a -->
@@ -154,11 +154,11 @@ Use = a deployment or program at pilot, production or discontinued; commitment =
 n_pages_reviewed, n_pages_by_verdict (8 counts), n_pages_failed, n_followed_links, all computed at Stage 6.
 
 ## `core.activity_relation_cross_page`
-<!-- item: core.activity_relation_cross_page sha256: fea0b4ce0e16c47f1177145937bc9d96f11f84f156899c9dd171f21782dd919c -->
+<!-- item: core.activity_relation_cross_page sha256: ace0da2bc93b3c6a70f0a97873b123abea5906bba93b238f926feff086ed6e5c -->
 
 | Field | Value |
 |---|---|
-| item hash | `fea0b4ce0e16c47f1177145937bc9d96f11f84f156899c9dd171f21782dd919c` |
+| item hash | `ace0da2bc93b3c6a70f0a97873b123abea5906bba93b238f926feff086ed6e5c` |
 | family | `activity_identity` |
 | name | `activity_relation` |
 | level | `activity` |
@@ -186,39 +186,59 @@ n_pages_reviewed, n_pages_by_verdict (8 counts), n_pages_failed, n_followed_link
 
 How is the activity in the first record related to the activity in the second record?
 
+### Entailment label
+
+relation to the other activity
+
 ### Values
 
 #### `same_activity`
 
 The two activity records describe the same activity: the same action by the same actor on the same tool or instrument. Only records joined by this link are merged.
 
+Entailment label: the same activity
+
 #### `component_of_program`
 
 The first record's activity is a named component of the program in the second. Both stay separate activities, linked.
+
+Entailment label: a named component of the other activity's programme
 
 #### `has_component`
 
 The first record describes a program, and the second record's activity is one of its named components. Both stay separate activities, linked.
 
+Entailment label: a programme that has the other activity as a named component
+
 #### `shared_participation`
 
 The two records describe one joint action in which several bodies take part. They are one activity: the two records are merged. The link needs at least two bodies, each named as taking part, with a quote.
+
+Entailment label: one joint action shared with the other activity
 
 #### `governs`
 
 The first record's activity is a policy or other governance instrument that sets rules for the activity in the second. When a pair fits both this link and a component link, this link is used.
 
+Entailment label: a rule that governs the other activity
+
 #### `governed_by`
 
 The second record's activity is a policy or other governance instrument that sets rules for the activity in the first. When a pair fits both this link and a component link, this link is used.
+
+Entailment label: governed by the other activity's rule
 
 #### `distinct_action`
 
 The two records describe different activities, and none of the other links applies. The value is stored with a rule note.
 
+Entailment label: a different activity
+
 #### `unresolved`
 
 The sources do not settle whether the two records describe the same activity. They are never merged.
+
+Entailment label: not settled
 
 ### Rules
 
@@ -510,11 +530,11 @@ A manifest (contract versions, `JEV_QUESTION_SET_VERSION`, jev model, extractor 
 Every jev answer is stored with its probability distribution, confidence, response model id and request id. Every automated coder (classifier, quote step, detector, mechanical rules) stores coder type, model, version and request id; the per-run version record holds the codebook version, and per-code coder details are internal and linked to it; the row carries the codebook version + setup pointer; the classifier record keeps the chosen-answer probability.
 
 ## `core.evidence_channel`
-<!-- item: core.evidence_channel sha256: 0919944a3cfacd18171a1334e8da4698f46ae9ac2423cc548bf1938ef37a57de -->
+<!-- item: core.evidence_channel sha256: 3f0aecba911cd3885adec08bce01216562ab796732c3ac5668e937a579ccc518 -->
 
 | Field | Value |
 |---|---|
-| item hash | `0919944a3cfacd18171a1334e8da4698f46ae9ac2423cc548bf1938ef37a57de` |
+| item hash | `3f0aecba911cd3885adec08bce01216562ab796732c3ac5668e937a579ccc518` |
 | family | `provenance` |
 | name | `evidence_channel` |
 | level | `row` |
@@ -542,7 +562,7 @@ Every jev answer is stored with its probability distribution, confidence, respon
 
 1. `items/core.evidence_channel/rules/0`
 
-Channel enum (web_extract, procurement, text_detection)
+Channel enum (web_extract, procurement, ai_text)
 
 ## `core.coder_record`
 <!-- item: core.coder_record sha256: 213c3c3f241b5081f4f6cbde23e3db0d711564f03a04bede0010b1e9a35fb167 -->

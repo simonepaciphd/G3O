@@ -7,7 +7,12 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from g3o.codebook.generated.enums import CODEBOOK_RELEASE, ITEM_ENUMS
 from g3o.common.contract import (
+    CODEBOOK_RELEASE_V27,
+    CONTRACT_VERSION_V25,
+    PAGE_VERDICT_V25,
+    PAGE_VERDICT_V27,
     UNCERTAINTY_FLAG_VOCAB,
     BatchMetadata,
     BatchResponse,
@@ -15,6 +20,8 @@ from g3o.common.contract import (
     PersistedRow,
     RunProvenance,
     ValidationProvenance,
+    check_page_verdict,
+    page_verdict_vocabulary,
 )
 from g3o.common.schema import DATA_COLUMNS
 
@@ -412,14 +419,23 @@ def test_batchmetadata_invalid_timestamp():
 # ---------------------------------------------------------------------------
 
 
+def run_provenance(**overrides: Any) -> RunProvenance:
+    base: dict[str, Any] = {
+        "global_row_id": "run-001-row-0001",
+        "run_id": "20260508-test",
+        "run_model": "gpt-5-nano",
+        "run_tool": "g3o.extract",
+        "run_date": "2026-05-08",
+        "codebook_release": CONTRACT_VERSION_V25,
+        "setup_pointer": "setup-test",
+        "evidence_channel": "web_extract",
+    }
+    base.update(overrides)
+    return RunProvenance(**base)
+
+
 def test_persistedrow_to_csv_dict_matches_data_columns():
-    prov = RunProvenance(
-        global_row_id="run-001-row-0001",
-        run_id="20260508-test",
-        run_model="gpt-5-nano",
-        run_tool="g3o.extract",
-        run_date="2026-05-08",
-    )
+    prov = run_provenance()
     row = ContractRow.model_validate(active_row())
     persisted = PersistedRow(provenance=prov, row=row)
 
@@ -428,6 +444,97 @@ def test_persistedrow_to_csv_dict_matches_data_columns():
     assert csv_dict["global_row_id"] == "run-001-row-0001"
     assert csv_dict["run_model"] == "gpt-5-nano"
     assert csv_dict["activity_name"] == "Internal Copilot pilot"
+    assert csv_dict["codebook_release"] == "v2.5"
+    assert csv_dict["setup_pointer"] == "setup-test"
+    assert csv_dict["evidence_channel"] == "web_extract"
+
+
+@pytest.mark.parametrize("field", ["codebook_release", "setup_pointer", "evidence_channel"])
+def test_run_provenance_requires_the_version_label(field):
+    """R-050: every row carries its version label; no default may ship an empty one."""
+    payload = run_provenance().model_dump()
+    del payload[field]
+    with pytest.raises(ValidationError):
+        RunProvenance.model_validate(payload)
+
+
+def test_run_provenance_rejects_an_unknown_evidence_channel():
+    with pytest.raises(ValidationError):
+        run_provenance(evidence_channel="text_detection")
+
+
+# ---------------------------------------------------------------------------
+# Page verdict: codebook copy and version guard (T-012; R-015, R-050)
+# ---------------------------------------------------------------------------
+
+
+def test_page_verdict_matches_the_codebook():
+    """The 9-value Literal is a verbatim, ordered copy of the generated enum."""
+    assert CODEBOOK_RELEASE == CODEBOOK_RELEASE_V27
+    assert PAGE_VERDICT_V27 == ITEM_ENUMS["core.page_verdict"][1]
+    assert len(PAGE_VERDICT_V27) == 9
+
+
+def test_v25_page_verdict_is_unchanged():
+    assert PAGE_VERDICT_V25 == (
+        "confirms_activity", "confirms_absence", "ambiguous", "background_only"
+    )
+
+
+@pytest.mark.parametrize(
+    ("label", "expected"),
+    [(CONTRACT_VERSION_V25, PAGE_VERDICT_V25), (CODEBOOK_RELEASE_V27, PAGE_VERDICT_V27)],
+)
+def test_page_verdict_vocabulary_by_version(label, expected):
+    assert page_verdict_vocabulary(label) == expected
+
+
+@pytest.mark.parametrize("label", ["v2.6", "2.6", "v2.7", "2.5", "", "v2.4"])
+def test_page_verdict_vocabulary_refuses_unknown_labels(label):
+    with pytest.raises(ValueError, match="no page-verdict vocabulary"):
+        page_verdict_vocabulary(label)
+
+
+@pytest.mark.parametrize("value", PAGE_VERDICT_V27)
+def test_every_v27_verdict_passes_under_27(value):
+    assert check_page_verdict(value, "2.7") == value
+
+
+@pytest.mark.parametrize("value", PAGE_VERDICT_V25)
+def test_every_v25_verdict_passes_under_v25(value):
+    assert check_page_verdict(value, "v2.5") == value
+
+
+def test_v25_only_value_fails_under_27():
+    """``ambiguous`` was split in 2.7; a 2.7 row may not carry it."""
+    with pytest.raises(ValueError, match="not a page verdict"):
+        check_page_verdict("ambiguous", "2.7")
+
+
+@pytest.mark.parametrize("value", sorted(set(PAGE_VERDICT_V27) - set(PAGE_VERDICT_V25)))
+def test_v27_only_values_fail_under_v25(value):
+    """v2.5 rows stay unconverted (R-015): no 2.7 value on a v2.5 row."""
+    with pytest.raises(ValueError, match="not a page verdict"):
+        check_page_verdict(value, "v2.5")
+
+
+def test_v25_row_persists_under_its_v25_label():
+    """v2.5 rows still validate (T-012 output contract)."""
+    PersistedRow(provenance=run_provenance(), row=ContractRow.model_validate(absent_row()))
+
+
+def test_persistedrow_guard_refuses_a_v25_value_under_a_27_label():
+    row = ContractRow.model_validate(
+        absent_row(genai_evidence="ambiguous")
+    )
+    with pytest.raises(ValidationError, match="not a page verdict"):
+        PersistedRow(provenance=run_provenance(codebook_release="2.7"), row=row)
+
+
+def test_persistedrow_guard_refuses_an_unknown_label():
+    row = ContractRow.model_validate(absent_row())
+    with pytest.raises(ValidationError, match="no page-verdict vocabulary"):
+        PersistedRow(provenance=run_provenance(codebook_release="v2.6"), row=row)
 
 
 def test_proposed_adoption_stage_validates():
@@ -471,6 +578,10 @@ def _provenance(run_date: str, model: Any = None) -> dict[str, Any]:
     if model is ValidationProvenance:
         base["institution_uid"] = "G3O-I-00000001"
         base["sweep_uid"] = "G3O-S-00000001"
+    if model is RunProvenance:
+        base["codebook_release"] = CONTRACT_VERSION_V25
+        base["setup_pointer"] = "setup-test"
+        base["evidence_channel"] = "web_extract"
     return base
 
 
@@ -493,3 +604,27 @@ def test_provenance_still_rejects_malformed_run_date_shape(model):
     """The pattern constraint is unchanged and still runs first."""
     with pytest.raises(ValidationError):
         model.model_validate(_provenance("08/05/2026", model))
+
+
+@pytest.mark.parametrize("value", PAGE_VERDICT_V27)
+def test_live_row_reads_v27_verdicts_and_persists_with_version_guard(value):
+    payload = active_row() if value == "confirms_activity" else absent_row()
+    payload["genai_evidence"] = value
+    row = ContractRow.model_validate(payload)
+    persisted = PersistedRow(provenance=run_provenance(codebook_release="2.7"), row=row)
+    assert persisted.to_csv_dict()["genai_evidence"] == value
+    if value not in PAGE_VERDICT_V25:
+        with pytest.raises(ValidationError, match="not a page verdict"):
+            PersistedRow(provenance=run_provenance(), row=row)
+
+
+def test_extractor_and_consolidator_advertise_nine_verdicts():
+    from g3o.common.contract import SourceRecord
+    for model in (ContractRow, SourceRecord):
+        schema = model.model_json_schema()["properties"]["genai_evidence"]
+        assert schema["enum"] == list(PAGE_VERDICT_V27)
+        assert "ambiguous" not in schema["enum"]
+
+
+def test_ai_text_is_the_canonical_channel():
+    assert run_provenance(evidence_channel="ai_text").evidence_channel == "ai_text"

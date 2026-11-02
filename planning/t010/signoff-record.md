@@ -1,3 +1,53 @@
+# T-010 signature record: release 2.7, r11 (RC-D-007 / RC-D-009)
+
+## Current signature authorization
+
+| | |
+|---|---|
+| sha256 | `f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d` |
+| File | `codebook/codebook.yaml` |
+| Release | `2.7` |
+| Approver | Simone Paci |
+| Date | 2026-11-01, current chat |
+| Recorder | researcher integrator, 20261101-codex-v2-c10efbad5812817d |
+
+Authorization is the PI's current instruction to publish approved governance changes including “the r11 release/signature work”, coupled to the exact r11 SHA256 in that same instruction. This record does not invent an earlier signature date or quote “I sign”. The complete engineering handoff records Q3a and the exact candidate; the current instruction retains r10's year rule. Prior wording approvals are recorded in the RC-D-007 clean copy; historical signature below is superseded.
+
+The signed bytes are copied without rewriting. The release stays 2.7; r11 differs from r10 only in the channel rule text (`text_detection` to `ai_text`), with classifier questions and all year rules unchanged. Frozen CX items remain covered by the existing batch-signature form (RC-D-004). All applicable checks and fresh generation must pass before installation.
+
+## Frozen CX items covered by this signature
+
+| CX row | Item |
+|---|---|
+| CX-batch | `core.disclosure_form` |
+| CX-batch | `core.disclosure_scope` |
+| CX-batch | `core.content_contact_named` |
+| CX-batch | `core.content_contact_details` |
+| CX-batch | `core.content_contact` |
+| CX-batch | `core.content_contact_emails` |
+| CX-batch | `core.content_purpose` |
+| CX-batch | `core.content_tool_or_model` |
+| CX-batch | `core.content_vendor` |
+| CX-batch | `core.content_data` |
+| CX-batch | `core.content_users` |
+| CX-batch | `core.content_status_date` |
+| CX-batch | `core.content_human_oversight` |
+| CX-batch | `core.content_risk_assessment` |
+| CX-batch | `core.content_user_notification` |
+| CX-batch | `core.outcome_kind` |
+| CX-batch | `core.incident_kind` |
+| CX-batch | `core.reported_outcomes` |
+| CX-batch | `core.reported_incidents` |
+| CX-batch | `core.evaluation_documented` |
+| CX-batch | `core.evaluation_type_pre_deployment_testing` |
+| CX-batch | `core.evaluation_type_pilot_evaluation` |
+| CX-batch | `core.evaluation_type_independent_audit` |
+| CX-batch | `core.evaluation_type_ongoing_monitoring` |
+| CX-batch | `core.evaluation_type_user_feedback` |
+| CX-batch | `core.evaluation_type_bias_or_safety_testing` |
+
+## Historical signature record (superseded; retained verbatim below)
+
 # T-010 sign-off record: codebook release 2.7 (re-signed under RC-D-005) and CX-01.3
 
 The codebook file is signed only while this record holds its sha256 (A-001; `release.signature_record` in the file). The first signature table below is the current one; the 2026-10-30 morning signature (`d24bbc7c…`) is kept further down as superseded.

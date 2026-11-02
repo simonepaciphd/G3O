@@ -7,7 +7,7 @@ for every institution in a run (storage layout v2 — see
 canonical CSVs to ``runs/<run_id>/final/``:
 
 - ``g3o_activities_v{N}.csv``         (one row per ``(institution × activity)``)
-- ``g3o_activity_sources_v{N}.csv``   (one row per source page; ``activity_id``
+- ``g3o_activity_sources_v{N}.csv``   (one row per page/activity evidence claim; ``activity_id``
                                        FK or ``_NA_``)
 - ``g3o_institution_summary_v{N}.csv``(one row per institution per run)
 
@@ -44,7 +44,9 @@ from g3o.common.schema import (
     ACTIVITY_COLUMNS,
     ACTIVITY_SOURCE_COLUMNS,
     SUMMARY_COLUMNS,
+    SUMMARY_COLUMNS_V25,
 )
+from g3o.common.storage import StorageEnvelope, legacy_row
 from g3o.extract.salvage import REASON_SALVAGED
 from g3o.persist.integrity import IntegrityError, validate_run_csvs
 
@@ -113,6 +115,7 @@ class LoadedInstitution:
     #: The master's permanent key for this institution, off the run manifest.
     #: Not on ``response``: that object is parsed from Stage 6 model output.
     institution_uid: str
+    storage: StorageEnvelope | None = None
 
 
 def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], list[str]]:
@@ -144,6 +147,10 @@ def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], l
         raise FileNotFoundError(f"run_dir does not exist: {run_dir}")
 
     uid_by_inst = institution_uid_map(run_dir)
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    declared_release = manifest.get("storage_contract", {}).get("codebook_release")
+    if declared_release not in (None, "v2.5", "2.7"):
+        raise ValueError("unsupported storage codebook release")
 
     loaded: list[LoadedInstitution] = []
     failures: list[str] = []
@@ -164,12 +171,25 @@ def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], l
         if not institution_uid:
             unstamped.append(institution_id)
             continue
+        storage_path = inst_dir / "6_storage.json"
+        storage = None
+        if storage_path.exists():
+            storage = StorageEnvelope.load(storage_path, run_dir / "final" / "instruments", artifact_root=run_dir)
+            if declared_release is not None and declared_release != storage.data["codebook_release"]:
+                raise ValueError("manifest/envelope codebook release mismatch")
+            if storage.data["institution_uid"] != institution_uid or storage.data["institution_id"] != institution_id:
+                raise ValueError("storage envelope is bound to another institution")
+            if set(storage.data["activities"]) != {a.activity_id for a in response.activities} or set(storage.data["sources"]) != {v.source_id for v in response.sources}:
+                raise ValueError("storage row identifiers differ from consolidated rows")
+        elif declared_release == "2.7":
+            raise ValueError(f"{institution_id}: 2.7 run lacks explicit 6_storage.json")
         loaded.append(
             LoadedInstitution(
                 institution_id=institution_id,
                 response=response,
                 source_path=path,
                 institution_uid=institution_uid,
+                storage=storage,
             )
         )
     if unstamped:
@@ -266,6 +286,8 @@ def build_activity_rows(
     institution_uid: str,
     run_tool: str = DEFAULT_RUN_TOOL_ACTIVITY,
     run_date: str | None = None,
+    storage: StorageEnvelope | None = None,
+    storage_metadata: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Build one CSV-shaped dict per ``ConsolidatedActivity``.
 
@@ -291,7 +313,9 @@ def build_activity_rows(
         pa = PersistedActivity(
             provenance=provenance, institution=institution, activity=activity
         )
-        rows.append(pa.to_csv_dict())
+        base = pa.to_csv_dict()
+        rows.append(storage.row("activities", activity.activity_id, base, run_id=run_id, institution_uid=institution_uid)
+                    if storage is not None else legacy_row("activities", base, storage_metadata))
     return rows
 
 
@@ -304,6 +328,8 @@ def build_source_rows(
     run_tool: str = DEFAULT_RUN_TOOL_SOURCE,
     run_date: str | None = None,
     salvaged_by_source: dict[tuple[str, str], str] | None = None,
+    storage: StorageEnvelope | None = None,
+    storage_metadata: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Build one CSV-shaped dict per ``SourceRecord``.
 
@@ -339,7 +365,9 @@ def build_source_rows(
                 (institution_id, source.source_url), ""
             ),
         )
-        rows.append(ps.to_csv_dict())
+        base = ps.to_csv_dict()
+        rows.append(storage.row("sources", source.source_id, base, run_id=run_id, institution_uid=institution_uid)
+                    if storage is not None else legacy_row("sources", base, storage_metadata))
     return rows
 
 
@@ -349,6 +377,8 @@ def build_summary_row(
     run_id: str,
     institution_uid: str,
     run_date: str | None = None,
+    storage: StorageEnvelope | None = None,
+    storage_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build one CSV-shaped dict matching ``SUMMARY_COLUMNS``.
 
@@ -397,10 +427,11 @@ def build_summary_row(
         "consolidated_uncertainty_flags": _aggregate_uncertainty_flags(activities),
     }
 
-    missing = [c for c in SUMMARY_COLUMNS if c not in row]
+    missing = [c for c in SUMMARY_COLUMNS_V25 if c not in row]
     if missing:
         raise RuntimeError(f"summary row missing required columns: {missing}")
-    return {col: row[col] for col in SUMMARY_COLUMNS}
+    return (storage.row("summary", None, row, run_id=run_id, institution_uid=institution_uid)
+            if storage is not None else legacy_row("summary", row, storage_metadata))
 
 
 # ---------------------------------------------------------------------------
@@ -462,6 +493,9 @@ def _strip_nul(rows: list[dict[str, Any]], *, path: Path) -> list[dict[str, Any]
 def _write_csv(path: Path, columns: list[str], rows: list[dict[str, Any]]) -> int:
     """Write ``rows`` to ``path`` with header ``columns``. Returns row count."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    for row in rows:
+        if row.get("codebook_release") == "2.7" and any(isinstance(v, str) and "\x00" in v for v in row.values()):
+            raise ValueError("2.7 storage cannot alter NUL-bearing text after provenance hashing")
     rows = _strip_nul(rows, path=path)
     with path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=columns, extrasaction="raise")
@@ -521,7 +555,13 @@ def write_run_csvs(
                 + ", ".join(str(p) for p in existing)
             )
 
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    storage_metadata = manifest.get("storage_contract", {})
+    if storage_metadata and not isinstance(storage_metadata, dict):
+        raise ValueError("storage_contract must be explicit metadata")
     loaded, failures = load_consolidated_outputs(run_dir)
+    if failures and storage_metadata.get("codebook_release") == "2.7":
+        raise ValueError("2.7 output cannot silently omit failed institution payloads")
     salvaged_by_source = salvaged_fields_by_source(run_dir)
 
     activity_rows: list[dict[str, Any]] = []
@@ -536,6 +576,8 @@ def write_run_csvs(
                 institution_uid=li.institution_uid,
                 run_tool=activities_tool,
                 run_date=run_date,
+                storage=li.storage,
+                storage_metadata=storage_metadata,
             )
         )
         source_rows.extend(
@@ -547,6 +589,8 @@ def write_run_csvs(
                 run_tool=sources_tool,
                 run_date=run_date,
                 salvaged_by_source=salvaged_by_source,
+                storage=li.storage,
+                storage_metadata=storage_metadata,
             )
         )
         summary_rows.append(
@@ -555,6 +599,8 @@ def write_run_csvs(
                 run_id=run_id,
                 institution_uid=li.institution_uid,
                 run_date=run_date,
+                storage=li.storage,
+                storage_metadata=storage_metadata,
             )
         )
 

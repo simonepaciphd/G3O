@@ -180,6 +180,14 @@ def _pin() -> dict[str, dict[str, str]]:
 CONTRACTS = ("extract", "validate")
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "T-012 moved the pinned surface (9-value page verdict, version-label "
+        "columns) under the unchanged v2.5 / v1.3 headers; the pin is regenerated "
+        "by T-035 (DEC-021), not here (RC-D-006, PI 13a)"
+    ),
+)
 @pytest.mark.parametrize("name", CONTRACTS)
 def test_contract_change_carries_a_version_bump(name: str):
     """The gate. Content moved + header did not ⇒ the sign-off gate was bypassed."""

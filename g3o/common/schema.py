@@ -2,17 +2,18 @@
 
 Source of truth for column ordering in the production database. Two layers:
 
-1. **Stage 5 row-level surface** — ``DATA_COLUMNS`` (44 columns). Mirrors the
-   per-page extract output (one row per ``(institution × activity × source)``
+1. **Stage 5 row-level surface** — ``DATA_COLUMNS`` (47 columns: the 44
+   of v2.5, frozen as ``DATA_COLUMNS_V25``, plus the 3-column version label).
+   Mirrors the per-page extract output (one row per ``(institution × activity × source)``
    triple). Used by ``g3o.common.contract.PersistedRow.to_csv_dict()`` for
    debug / inspection persistence of raw Stage 5 outputs. **Legacy as of
    Session C**: the canonical Stage 7 database now ships as the normalized
    pair below.
 
 2. **Stage 7 normalized surface** (Session C, Push #2):
-   - ``ACTIVITY_COLUMNS`` (35) → ``g3o_activities_v{N}.csv``: one row per
+   - ``ACTIVITY_COLUMNS`` (83; 37-column legacy prefix) → ``g3o_activities_v{N}.csv``: one row per
      ``(institution × activity)`` triple from the Stage 6 consolidator.
-   - ``ACTIVITY_SOURCE_COLUMNS`` (18) → ``g3o_activity_sources_v{N}.csv``:
+   - ``ACTIVITY_SOURCE_COLUMNS`` (61; 20-column legacy prefix) → ``g3o_activity_sources_v{N}.csv``:
      one row per source page, keyed back to the activity it supports
      (``activity_id = "_NA_"`` for absence/ambiguous/background_only sources).
      The final column, ``group_d_salvaged_fields``, is a deterministic persist-
@@ -20,7 +21,7 @@ Source of truth for column ordering in the production database. Two layers:
      Group-D field names whose illegal ``_NA_`` was salvage-imputed to a contract
      default on this source page, or ``""`` when none — so a salvage-imputed
      ``unknown`` is distinguishable from a model-asserted one.
-   - ``SUMMARY_COLUMNS`` (21) → ``g3o_institution_summary_v{N}.csv``: one row
+   - ``SUMMARY_COLUMNS`` (31; 22-column legacy prefix) → ``g3o_institution_summary_v{N}.csv``: one row
      per institution per run.
 
 Validators live with the extract module (Stage 5 contract) and the validate
@@ -28,6 +29,8 @@ module (Stage 6 contract) in ``g3o.common.contract``.
 """
 
 from __future__ import annotations
+
+from g3o.common.storage import expanded_columns as _expanded_columns
 
 DATA_COLUMNS: list[str] = [
     "global_row_id",
@@ -74,7 +77,62 @@ DATA_COLUMNS: list[str] = [
     "run_model",
     "run_tool",
     "run_date",
+    # Version label (3), R-050 / T-012: codebook release (or the v2.5 contract
+    # label on a v2.5 row), setup pointer, evidence channel.
+    "codebook_release",
+    "setup_pointer",
+    "evidence_channel",
 ]
+
+# Frozen: the 44 ``DATA_COLUMNS`` of contract v2.5 (G3O ``a5b1d30``), before
+# T-012 added the version label. Do not edit. ``g3o.codebook.checks`` reads it
+# as "the v2.5 column list" for the ``translation_v25`` check (RC-D-008 H2).
+DATA_COLUMNS_V25: tuple[str, ...] = (
+    "global_row_id",
+    "run_id",
+    "row_id",
+    "batch_id",
+    "institution_id",
+    "institution_name",
+    "country",
+    "branch_of_government",
+    "level_of_government",
+    "has_genai_activity",
+    "institution_summary",
+    "institution_search_languages",
+    "activity_name",
+    "activity_type",
+    "adoption_stage",
+    "access_type",
+    "interaction_type",
+    "tool_name",
+    "vendor",
+    "deployment_mode",
+    "target_users",
+    "year_announced",
+    "year_deployed",
+    "has_human_oversight",
+    "has_transparency_notice",
+    "has_data_classification",
+    "has_risk_assessment",
+    "reported_outcomes",
+    "reported_incidents",
+    "scope_notes",
+    "source_url",
+    "source_title",
+    "source_publication_date",
+    "source_access_date",
+    "source_type",
+    "source_language",
+    "source_credibility",
+    "genai_evidence",
+    "source_snippet",
+    "confidence",
+    "uncertainty_flags",
+    "run_model",
+    "run_tool",
+    "run_date",
+)
 
 ACTIVITY_COLUMNS: list[str] = [
     # Key layer (2) — the loader's required columns. `institution_uid` is the
@@ -225,3 +283,15 @@ SUMMARY_COLUMNS: list[str] = [
     "best_confidence",
     "consolidated_uncertainty_flags",
 ]
+
+
+# Frozen normalized v2.5 wire order. Existing CSV readers keep accepting these
+# headers; expanded 2.7 rows are validated before Stage 7 writes any output.
+ACTIVITY_COLUMNS_V25 = tuple(ACTIVITY_COLUMNS)
+ACTIVITY_SOURCE_COLUMNS_V25 = tuple(ACTIVITY_SOURCE_COLUMNS)
+SUMMARY_COLUMNS_V25 = tuple(SUMMARY_COLUMNS)
+
+
+ACTIVITY_COLUMNS = _expanded_columns("activities", ACTIVITY_COLUMNS)
+ACTIVITY_SOURCE_COLUMNS = _expanded_columns("sources", ACTIVITY_SOURCE_COLUMNS)
+SUMMARY_COLUMNS = _expanded_columns("summary", SUMMARY_COLUMNS)
