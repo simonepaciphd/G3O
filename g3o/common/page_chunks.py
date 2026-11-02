@@ -10,7 +10,7 @@ page is split into parts by *estimated tokens*, not bytes (DEC-008 c). The
 estimator is additive per character: each character is assigned a script
 bucket (Latin / CJK / Thai, the three scripts T-002 calibrates; everything
 else falls back to a configurable bucket) and contributes
-``(1 + margin) / chars_per_token`` tokens. A page is split at the coarsest
+``utf8_byte_count * tokens_per_byte * (1 + margin)`` tokens. A page is split at the coarsest
 boundary that works (paragraph, line, sentence end, whitespace, character),
 and parts are packed greedily in page order. Concatenating a page's parts
 gives back the page text exactly; every part carries a stable ``chunk_id`` and
@@ -68,7 +68,7 @@ __all__ = [
     "HIGHEST_PROBABILITY",
     "JEV_STATE_TOKEN_LIMIT",
     "NOT_COVERED",
-    "PLACEHOLDER_CHARS_PER_TOKEN",
+    "CALIBRATED_TOKENS_PER_BYTE",
     "PLACEHOLDER_SAFETY_MARGIN",
     "PRIORITY_ORDER",
     "S3A_VERDICT_ORDER",
@@ -108,14 +108,13 @@ __all__ = [
 #: Configurable per call.
 JEV_STATE_TOKEN_LIMIT = 32_000
 
-#: PLACEHOLDER — NOT CALIBRATED. Characters per token, per script bucket.
-#: T-002 (``SPIKE-T002.md``) measures the real constants against jev's token
-#: counts (DEC-008 c); these values are stand-ins so the build and its tests
-#: can run. The card's done condition needs the T-002 values in place.
-PLACEHOLDER_CHARS_PER_TOKEN: Mapping[str, float] = {
-    "latin": 4.0,  # PLACEHOLDER (T-002)
-    "cjk": 1.0,  # PLACEHOLDER (T-002)
-    "thai": 2.0,  # PLACEHOLDER (T-002)
+#: Approved T-002 medians, tokens per UTF-8 byte (RC-D-006, PI 2 a).
+#: Latin: 64 requests; CJK: 10; Thai: 3 (thin evidence, no stronger claim).
+#: These ratios are calibrated; the DP-007 safety margin remains unresolved.
+CALIBRATED_TOKENS_PER_BYTE: Mapping[str, float] = {
+    "latin": 0.305,
+    "cjk": 0.341,
+    "thai": 0.334,
 }
 
 #: PLACEHOLDER — DP-007 is open: the safety margin below the 32k limit is not
@@ -252,46 +251,49 @@ def script_of(ch: str) -> str:
 
 @dataclass(frozen=True)
 class TokenEstimator:
-    """Additive per-character token estimate, one constant per script.
+    """Additive token estimate using UTF-8 byte counts in each script bucket.
 
-    ``chars_per_token`` and ``safety_margin`` default to the PLACEHOLDER
-    tables; ``placeholder`` stays ``True`` until real T-002 / DP-007 values
-    are passed, and :meth:`assert_calibrated` refuses a placeholder estimator
-    (production entry points should call it).
+    ``tokens_per_byte`` defaults to the approved T-002 ratios. DP-007 remains
+    unresolved: ``safety_margin=None`` uses zero placeholders for offline
+    estimates only, and :meth:`assert_calibrated` refuses that configuration.
+    Production callers must supply every script's margin and explicitly clear
+    ``placeholder`` after the separate approval gate. Explicit configuration
+    does not itself establish PI approval or full T-020 acceptance.
     """
 
-    chars_per_token: Mapping[str, float] = field(
-        default_factory=lambda: dict(PLACEHOLDER_CHARS_PER_TOKEN)
+    tokens_per_byte: Mapping[str, float] = field(
+        default_factory=lambda: dict(CALIBRATED_TOKENS_PER_BYTE)
     )
-    safety_margin: Mapping[str, float] = field(
-        default_factory=lambda: dict(PLACEHOLDER_SAFETY_MARGIN)
-    )
+    safety_margin: Mapping[str, float] | None = None
     placeholder: bool = True
 
     def __post_init__(self) -> None:
         for script in ("latin", "cjk", "thai"):
-            cpt = self.chars_per_token.get(script)
-            if cpt is None or cpt <= 0:
-                raise ValueError(f"chars_per_token[{script!r}] must be > 0, got {cpt!r}")
-            m = self.safety_margin.get(script, 0.0)
-            if m < 0:
-                raise ValueError(f"safety_margin[{script!r}] must be >= 0, got {m!r}")
+            tpb = self.tokens_per_byte.get(script)
+            if tpb is None or not math.isfinite(tpb) or tpb <= 0:
+                raise ValueError(f"tokens_per_byte[{script!r}] must be finite and > 0, got {tpb!r}")
+            m = (self.safety_margin or PLACEHOLDER_SAFETY_MARGIN).get(script, 0.0)
+            if not math.isfinite(m) or m < 0:
+                raise ValueError(f"safety_margin[{script!r}] must be finite and >= 0, got {m!r}")
 
     def assert_calibrated(self) -> None:
-        if self.placeholder:
+        if self.placeholder or self.safety_margin is None or not {
+            "latin", "cjk", "thai"
+        }.issubset(self.safety_margin):
             raise RuntimeError(
-                "TokenEstimator uses PLACEHOLDER constants; fill them from T-002 "
-                "(SPIKE-T002.md) and DP-007 before a production run"
+                "DP-007 safety margin remains PLACEHOLDER; explicit complete margin "
+                "configuration and approval are required before a production run"
             )
 
     def _weight(self, script: str) -> float:
-        return (1.0 + self.safety_margin.get(script, 0.0)) / self.chars_per_token[script]
+        margin = (self.safety_margin or PLACEHOLDER_SAFETY_MARGIN).get(script, 0.0)
+        return self.tokens_per_byte[script] * (1.0 + margin)
 
     def raw(self, text: str) -> float:
         """Unrounded estimate (additive: ``raw(a + b) == raw(a) + raw(b)``)."""
         counts = {"latin": 0, "cjk": 0, "thai": 0}
         for ch in text:
-            counts[script_of(ch)] += 1
+            counts[script_of(ch)] += len(ch.encode("utf-8"))
         return sum(n * self._weight(s) for s, n in counts.items() if n)
 
     def tokens(self, text: str) -> int:
