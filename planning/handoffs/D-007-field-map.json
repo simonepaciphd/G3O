@@ -281,7 +281,7 @@
         "unit": "actual page",
         "count": "distinct extracted addresses",
         "domain_normalization": "lowercase",
-        "local_part_normalization": "none",
+        "local_part_normalization": "lowercase",
         "alias_assumptions": false
       }
     },

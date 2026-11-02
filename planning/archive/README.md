@@ -5,3 +5,5 @@ Original baseline archives remain immutable. 2026-11-01-before-d007-approval/ pr
 - 2026-11-01-before-probability-ruling/: exact e06cf4b preimages before approved RC-D-010; prior RC-D-009 delta lock remains historical evidence.
 
 - records/T-027-local-reconciliation.md: approved startup B local-library completion, independent review/fix and retained gates (2026-11-01); SPEC unchanged.
+
+- 2026-11-02-before-email-policy/: exact pre-RC-D-011 governance/contract/page preimages. Superseded RC-D-010 application lock retained in records/; baseline unchanged.

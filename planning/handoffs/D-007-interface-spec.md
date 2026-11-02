@@ -1,4 +1,6 @@
-# D-007 storage and publication interface — approved contract v1.0
+# D-007 storage and publication interface — approved contract v1.1
+
+RC-D-011 (Simone, 2026-11-02) supersedes RC-D-009 S2a's case rule only. Lowercase the entire extracted email address (local part and domain) before deduplication; count case-only variants once per actual page. Keep full normalized addresses internal and publish only domain/count pairs. Do not collapse aliases or plus-addresses; supporting quotes remain verbatim. Approved directly in chat; see ../deltas/RC-D-011.md. Historical acceptance below does not certify the revised storage counter.
 
 Status: PI-APPROVED for local implementation (S1 a, S2 a, P1 a, P2 approve); not sent, not accepted by Colin. Approval: 2026-11-01T15:38:55.942Z; exact page SHA256 d9ca34714331b5a565a3f30ca56a34dccc2ceb8a74ebf39ac37889d2d4a29977; reply in ../archive/records/g3o-storage-continuation-20261101.reply.json. Reviewed preimage retained in ../archive/2026-11-01-before-d007-approval/.
 Integrator: 20261101-codex-v2-c10efbad5812817d, researcher, 2026-11-01.
@@ -35,7 +37,7 @@ Wire rules:
 - field_availability_json is an object keyed by item ID. Approved reason strings are legacy_not_collected, historical_provenance_unavailable and coder_not_applicable. These describe storage/provenance only and are not questionnaire response codes. S1a permits explicitly incomplete historical provenance in legacy exports, retaining only version facts supported by actual metadata. Incomplete new-release rows are rejected.
 - New 2.7 rows reject absent required fields, invalid codes or incomplete provenance. A rule-skipped question uses its signed token and records the rule; it is never repaired by a generic default.
 
-Full extracted email addresses stay internal. S2a publishes contact_email_domain_counts_json as an array of {domain,count} objects counting distinct extracted address strings per actual page after lowercasing only the domain. Preserve local-part case; make no alias or plus-address assumptions. Repeat appearances do not increase the count. No zero is emitted merely because extraction did not run. Published verbatim quotes retain the separate R-058 rule.
+Full extracted email addresses stay internal. RC-D-011 publishes contact_email_domain_counts_json as an array of {domain,count} objects counting distinct extracted address strings per actual page after lowercasing the whole address (local part and domain). Store the full normalized addresses internally; case-only variants count once. Make no alias or plus-address assumptions. Repeat appearances do not increase the count. No zero is emitted merely because extraction did not run. Published verbatim quotes retain the separate R-058 rule.
 
 ### Named rollup records
 
@@ -125,3 +127,5 @@ Before Q2a is proposed verified:
 T-024 handoff: consume generated support_entailment labels, instruction_page and signed label_rules. Multipart labels preserve parts plus first-part top-level alias. Check each selected multivalue separately, use year strings for computed years, and do not demand finite answer-label maps for free text. No raw item code is substituted for a plain-language label. Signed support exemptions are retained.
 
 Acceptance record: P2 APPROVED; S1a/S2a/P1a APPROVED (reply above); independent draft review ready for PI review with all 12 findings addressed (Drive engineer-review/review.json SHA256 96ae98990998c3c92c3f3db14fcb8ccbf406bd75166db102cc246b4dd649cf33); local implementation IN PROGRESS; Colin A-019 PENDING; send approval PENDING.
+
+Current acceptance (2026-11-02): revised policy APPROVED; T-014 case behavior aligned; T-012 storage counter and provenance pin need implementation and renewed local email conformance. Prior S2a results are historical. T-027 acceptance unaffected. Colin A-019 and send approval PENDING.

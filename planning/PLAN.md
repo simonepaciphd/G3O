@@ -1,7 +1,9 @@
 # PLAN: G3O pipeline reclassification
 
+Current policy overlay (2026-11-02, RC-D-011; integrator 20261102-codex-v2-6f772076f50e59e6): Lowercase the entire extracted email address (local part and domain) before deduplication; count case-only variants once per actual page. Keep full normalized addresses internal and publish only domain/count pairs. Do not collapse aliases or plus-addresses; supporting quotes remain verbatim. This supersedes earlier S2a case-preservation references and INT-001's proposed T-014 repair. T-014 already lowercases its extracted email links. T-012 storage normalization/counting, map provenance and tests need alignment and renewed local T-050B email conformance. Prior T-012/T-050B evidence remains historical under S2a; T-027 acceptance stands. T-024/T-028 must consume the revised rule. Existing dependency graph, lane ownership and runtime/external/T-031 gates stay in force. Current SPEC v001.15 / RESOURCES v001.3; exact ruling and affected-subgraph review: deltas/RC-D-011.md; prepared follow-up: handoffs/RC-D-011-email-alignment.md.
+
 Status: READY-WITH-BLOCKS
-Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.13 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, v001.10 mechanical, 2026-10-30; v001.11 mechanical, 2026-10-31); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.2 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
+Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.15 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, v001.10 mechanical, 2026-10-30; v001.11 mechanical, 2026-10-31); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.3 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
 Baseline lock: 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock")
 Deadline: none
 Source draft plan/review: `C:/Users/spaci/repos/G3O/planning/Plan-Draft.md` (v001-draft1), `C:/Users/spaci/repos/G3O/planning/Plan-Review.md` (27 findings); rulings `C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md`
@@ -737,6 +739,8 @@ Split per pass.
 
 ### T-012 — Update enums, schema and contract constants in code
 
+RC-D-011 update (2026-11-02): Reopen only the email normalization/counting slice and map provenance pin under RC-D-011. Prior local verification is historical for that slice; other qualified evidence remains. Follow handoffs/RC-D-011-email-alignment.md.
+
 Status: verified (proposed local verification; not complete; test invocation qualification)
 Type: build
 Priority: critical-path
@@ -776,7 +780,7 @@ The first chunk is an inventory of every enum, contract and version touchpoint (
 - Requires: T-010, T-013 and completed T-050A contract artifact (not T-050B)
 - Enables: T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090
 - Can run with: T-002, T-014, T-016, T-040, T-061, T-063 (W2)
-- Researcher gates: S1a/S2a/P1a/P2 satisfied; push/merge gates retained
+- Researcher gates: S1a/P1a/P2 and RC-D-011 email policy approved; revised email implementation/revalidation pending; push/merge gates retained
 
 #### Ownership and collision control
 - Read scope: whole G3O repo, g3o-api and g3o-website (read-only, for the inventory)
@@ -809,7 +813,7 @@ none
 Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
 
 #### Done condition
-All eight D-007 section 8 checks pass: three-institution normalized goldens, keyed support round-trip, page/activity grain, original relation endpoints, version/provenance refusal and S1a/S2a. Approved strict T-035 exceptions remain narrow; no broad skips.
+All eight D-007 section 8 checks pass: three-institution normalized goldens, keyed support round-trip, page/activity grain, original relation endpoints, version/provenance refusal, S1a and RC-D-011 whole-address lowercase counting. Approved strict T-035 exceptions remain narrow; no broad skips.
 
 Inventory accepted and owners assigned by the integrator; tests pass, except `test_contract_version_pin`, which is marked `xfail(strict=True)` naming T-035 (pin regeneration, DEC-021) (RC-D-006, PI 13a); touchpoint list attached.
 
@@ -902,6 +906,8 @@ Tests and CI drift check pass on `reclass/t013-codebook`†; template approved b
 Split per generator target (questions, prompts, enums / schema, docs).
 
 ### T-014 — Store chrome text and page links in the scraper (RC-D-002 F)
+
+RC-D-011 update (2026-11-02): INT-001 case-preservation repair SUPERSEDED by RC-D-011. Current whole-address lowercase email-link extraction matches the revised case rule; no case-preservation patch is required.
 
 Status: pending
 Type: build
@@ -1523,6 +1529,8 @@ none
 
 ### T-024 — Build support check, downgrade and deterministic extraction
 
+RC-D-011 update (2026-11-02): Apply RC-D-011 whole-address lowercase normalization and case-only deduplication to deterministic email extraction; retain distinct aliases/plus-addresses and page grain. Existing input gates remain.
+
 Status: pending
 Type: build
 Priority: critical-path
@@ -1823,6 +1831,8 @@ Tests pass on branch `reclass/t027-record`†, return report filed with the inte
 none
 
 ### T-028 — Update the Stage 7 writer for v2.7 rows
+
+RC-D-011 update (2026-11-02): Consume RC-D-011 normalized internal emails and domain counts; require renewed T-012/T-050B email conformance and all existing upstream/integration gates.
 
 Status: pending
 Type: build
@@ -2423,6 +2433,8 @@ All fixtures pass, or each failure is PI-ruled; report filed with the integrator
 More than one rerun cycle → new card.
 
 ### T-050 — Write the D-007 interface specification for Colin
+
+RC-D-011 update (2026-11-02): Prior implemented-library conformance passed under S2a. Under RC-D-011, local email conformance is pending storage alignment/revalidation; full T-050B additionally retains authorized send and Colin A-019. T-027 acceptance unaffected.
 
 Status: in-progress (A approved; B conformance, delivery and acceptance pending)
 Type: document

@@ -1,0 +1,46 @@
+{
+  "format": "g3o-approved-delta-application-v1",
+  "delta": "RC-D-010",
+  "approval": "Simone chat reply 2026-11-01: Apply the existing downgrade rules to the affected code, recording that its probability was unavailable.",
+  "baseline": "RC-BL-001 retained",
+  "SPEC_version": "v001.14",
+  "previous_application": "Delta-Lock-RC-D-009-2026-11-01.json (historical e06cf4b snapshot)",
+  "preimages": "archive/2026-11-01-before-probability-ruling",
+  "artifacts": {
+    "SPEC.md": "67f752e459f9f93291194179549821143e3c99161c84392c8f1a1e4249ba3e83",
+    "RESOURCES.md": "48a4d2242a0cc997e05465782577e39081b66c46d2fae072c4fc532331f7438c",
+    "PLAN.md": "51c96ab65067d85656c14946144111aac33e78edf46bcee4ac1c3cc1f152c297",
+    "CHANGELOG.md": "c63e39dedd3faf26387cf28c76c5d745ba69e67de00af4c98a80248f89abc046",
+    "Plan-Labels.json": "06537372e7dd8f860f57c892962bfe91e681e60b116fd505e0b0ebc3d6c7cae3",
+    "page/Plan-Visual.html": "aed3eae462cf2aa7729453828662f6020673f3b9bc2f2d3132806a49cb643c44",
+    "deltas/RC-D-009.md": "6c0cbac4becde69f6926f2b294f9891cb23d672a11a9cb2359e170080c1db82e",
+    "deltas/RC-D-010.md": "8a10ab57a6ade78a85b3f0dfe4f196e9bd73cb1c85060ae01b426c9a1050e125",
+    "handoffs/D-007-interface-spec.md": "f87edde01e17e0e36a9424c69bd8a5bcbc52cfa05586d4f876bf169313390248",
+    "handoffs/D-007-field-map.json": "3c83860ebcfa559b50685c872d2cd0929b8cff63abd4a08d0ace17d1c3a2e96d",
+    "handoffs/T-012-Q2a-verification.json": "480b49d44239931652e5af41e50d1c59c596f7459a4e2eefd35c0ef67026be38",
+    "handoffs/T-027-engineering-handoff.md": "c93f1e33befd208905f571365b8d10b3a373f6948a816dc05be352d1c4ca1630",
+    "handoffs/T-024-label-interface.md": "876b927bf0609183728b5c5c3fec090a0d99977c090c3aa738cd956776c05fda",
+    "handoffs/validation-notice.md": "da066c82fb966922541bc684da4d67af98295787ebddabc03df49de39be39f43",
+    "Spec-Reconciliation-2026-11-01-local.md": "68258e49b0a138048168beb6a87513160eabed0be2e64199010feef3f6f3440d",
+    "archive/records/T-027-probability-ruling.json": "b3d7148a6f8ed83a97ceb9da8854a151f62e60f9ea52349ec32bd15b67595733"
+  },
+  "checks": {
+    "plan_viewer": "PASS; zero status/source/label warnings; ten pre-existing untyped deliverable warnings",
+    "labels": {
+      "tasks": 50,
+      "deliverables": 10,
+      "resources": 40,
+      "writer_pass": "completed under explicit extra-slot authorization"
+    },
+    "task_graph": "50 tasks, acyclic; T050A artifact satisfied, node T050 remaining B",
+    "T012": "proposed verified local scope; exact qualified evidence in handoffs/T-012-Q2a-verification.json"
+  },
+  "pending": [
+    "T027 implementation (capacity queue; policy approved)",
+    "T050B implemented conformance, PI send authorization and Colin acceptance",
+    "T026/T028 integration and T030/T035 runtime instrument binding",
+    "T031/CI Windows I/O flake and T035 final pins",
+    "merge/deployment/database/public release/external notice gates"
+  ],
+  "scope": "Local governance application and qualified verification; not full pipeline acceptance"
+}

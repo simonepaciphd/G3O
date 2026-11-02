@@ -2,8 +2,8 @@
 
 Status: LOCKED
 Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); v001.5 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.6 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.7 by delta RC-D-003, approved 2026-10-30 (Simone Paci, chat "all accepted"); v001.8 by delta RC-D-004, approved 2026-10-30 (Simone Paci, chat "approved"); v001.9 by delta RC-D-005, approved 2026-10-30 (Simone Paci, chat "approved! go forth"); v001.10 mechanical (R-041 marker → pointer to the signed codebook), 2026-10-30 (Simone Paci, chat "clean up items on #4"); v001.11 mechanical (15 wording markers → pointers to the signed codebook), 2026-10-31 (Simone Paci, chat "you do 7"; approved "7 ok", PR #142)
-Version: v001.14
-Supersedes: v001.13 through RC-D-010 missing-probability ruling; original baseline RC-BL-001 retained.
+Version: v001.15
+Supersedes: v001.14 through RC-D-011 whole-address lowercase email counting; original baseline RC-BL-001 retained.
 Owner: Simone Paci (sole substantive approver)
 Mode: revision (changes the production G3O pipeline and its published outputs)
 Authoritative inputs:
@@ -24,6 +24,8 @@ Authoritative inputs:
 Evidence tags: `USER` = PI ruling (ID given); `SOURCE:` = artifact; `INFERRED` = agent inference, provisional until approved; `OPEN` = unanswered.
 
 Current signed release: r11, SHA256 f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d; RC-D-007 and RC-D-009 applied 2026-11-01 under the current PI instruction. Signature and checks: t010/signoff-record.md. D-007 S1a/S2a/P1a/P2 approved 2026-11-01; local acceptance precedes Colin, whose acceptance remains required before API/site. Normative contract: handoffs/D-007-interface-spec.md; exact reply in archive/records/.
+
+RC-D-011 (Simone, 2026-11-02) supersedes RC-D-009 S2a's case rule only. Lowercase the entire extracted email address (local part and domain) before deduplication; count case-only variants once per actual page. Keep full normalized addresses internal and publish only domain/count pairs. Do not collapse aliases or plus-addresses; supporting quotes remain verbatim.
 
 ## Goal and success
 
@@ -123,7 +125,7 @@ Current signed release: r11, SHA256 f948fe0b2a36448db57b70b195567ffc39fb024efb98
 | R-056 | No v2.7 row, back-fill or ordinary run, is public before the release decision: a release flag keeps such rows loaded but hidden until the PI releases them after the audit (R-080..R-083). | D-003, D-004 | USER item 21 b, PF-006 default (SRC-9) | must | Ordinary runs continue to load between deployment and release |
 | R-052 | New fields are published via the public API and the website. RC-D-002 row 22: the interface spec covers every chosen published item (R-057), but the public activity table holds only confirmed activities (r2#51); A05 and full e-mails stay internal; the additions are listed in D-007. Under Q6, the generated data dictionary owns the published definitions and the g3o-api README links to it. The X19 cap is dropped. | D-004, D-007 | USER S2; RC-D-002 row 22 (S4; N4; Q6; r2#46, 51, 60) | must | Owner: Colin (P2) |
 | R-057 | Publication scope: every chosen item is published at release (r2#60). The public activity table and the tier hold only activities on `confirms_activity` pages (r2#51). Internal-only items are listed in the codebook (public / internal field, R-007): the A05 record, full contact e-mails, per-code coder details (r2#57). | D-004, D-007 | RC-D-002 N9; r2#51 R2C28, r2#60 R2P27, r2#57 | must | |
-| R-058 | Published supporting quotes stay verbatim, with no masking. Contact e-mails are stored in full internally, and only domain/count pairs are published. RC-D-009 S2a counts distinct address strings per actual page after domain-only lowercasing; local-part case is retained and no alias or plus-address assumptions are made. | D-004, D-007 | RC-D-002 N10; N4 a, S4 a; X08 | must | |
+| R-058 | Published supporting quotes stay verbatim, with no masking. Contact e-mails are stored in full internally, and only domain/count pairs are published. RC-D-011 supersedes RC-D-009 S2a: lowercase the entire extracted address before deduplication and count case-only variants once per actual page; no alias or plus-address assumptions are made. | D-004, D-007 | RC-D-002 N10; N4 a, S4 a; X08 | must | |
 | R-059 | Comparability labels: a two-way v2.5↔v2.7 translation table is published, with unmappable cells marked (r2#43). v2.5 `none` institutions show `no` labelled as produced by the v2.5 rule (`verdict_rule`, r2#45). A per-row `text_source` (stored / live re-fetch / new run) records which rows lack chrome text and links (RC-D-002 F). A methods note covers both (R-090). | D-004, D-006 | RC-D-002 N11; r2#43 R2C23, r2#45 R2P21; F | must | |
 | R-053 | SUPERSEDED (PI SF-014 i, "superseded", after R-051 ruling). | — | USER SF-014 i | — | Residual ruled Q-021 a: website hides new fields where the most recent row is v2.5 |
 | R-054 | Indices built on CX-01.2 fields stay withheld until the new fields cover the whole post-sweep snapshot (R-060 of CX-01, unchanged). | D-004 | USER Q8 b | must | Under Q4 b this is not reached within this plan (N-003) |
@@ -274,6 +276,7 @@ D-007 approved storage contract (RC-D-009 S1a/S2a/P1a/P2): handoffs/D-007-interf
 
 | Version | Delta ID | Changed spec IDs | Change | Approved by/at | Reason | Downstream artifacts superseded |
 |---|---|---|---|---|---|---|
+| v001.15 | RC-D-011 | R-058, D-007; A-013 verification | Whole-address lowercase and case-only deduplication per actual page | Simone Paci, 2026-11-02, exact chat in deltas/RC-D-011.md | PI reverses local-part case preservation | Prior contract and application lock snapshotted; old repair withdrawn |
 | v001.13 | RC-D-009 approved interface | D-007, R-026/R-050/R-052/R-058, A-013/A-019 | S1a/S2a storage policies and P1a/P2 local-first interface | Simone Paci, 2026-11-01T15:38:55.942Z, page d9ca34714331 | Contract approved; implementation tests pending | v001.12 exact preimage archived |
 | v001.12 | RC-D-007, RC-D-009 | current signed-wording/hash pointers; R-050 channel clarification | Approved r11 release/signature application; ai_text; r10 year rule retained; no new D-007 policy | Simone Paci, 2026-11-01 successor instruction and fixed approvals | Verified r11 and nine generated outputs | v001.11 pointers, archived |
 | v001-draft1 | — | all | First draft | not approved | Stage 1 | none |
@@ -316,3 +319,5 @@ D-007 approved storage contract (RC-D-009 S1a/S2a/P1a/P2): handoffs/D-007-interf
 ## RC-D-010 — approved missing-probability treatment (2026-11-01)
 
 R-026/R-041/R-081/A-013: when a classifier returns a code without its chosen-answer probability, retain the code and missing probability in provenance, apply the existing downgrade rules to the affected code, and record that the probability was unavailable. The special page-verdict rule retains the verdict with a downgrade tag. Do not fabricate probabilities, use generic confidence, or downgrade mechanical/rule-set typed-not-applicable records as provider omissions. Exact ruling: archive/records/T-027-probability-ruling.json. Signed r11 and the 0.8 bar are unchanged.
+
+RC-D-011 sign-off: Simone Paci, 2026-11-02, chat: "wait I actually changed my mind about the defect: let's have emails de-capitalized and counted as one in those cases." Applied as the approved R-058/D-007 policy replacement; implementation acceptance remains pending.

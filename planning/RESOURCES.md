@@ -1,7 +1,9 @@
 # Resources: G3O pipeline reclassification (jev classifies, the extractor (Claude Haiku 5.5) extracts support; contract v2.7; back-fill)
 
+RC-D-011 (Simone, 2026-11-02) supersedes RC-D-009 S2a's case rule only. Lowercase the entire extracted email address (local part and domain) before deduplication; count case-only variants once per actual page. Keep full normalized addresses internal and publish only domain/count pairs. Do not collapse aliases or plus-addresses; supporting quotes remain verbatim. RS-010/018 use D-007 contract v1.1 and the revised map. RS-039's signed r11 remains unchanged: its email item does not specify case. No resource addition.
+
 Status: LOCKED (approved Simone Paci, 2026-10-27, chat "APPROVED"; locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock")); v001.1 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.2 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta")
-Version: v001.2
+Version: v001.3
 Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.4 at lock (written against v001.1; the v001.2-v001.4 changes add no resource link not already listed: release flag and correction layer use RS-020, §4.3 text RS-029, validation notice RS-033)
 Search scope: `H:/My Drive/Research/G3O/asset-registry.csv` (path greps, not a full parse); SRC-1..SRC-8 and files they cite; G3O repo via `git show/grep` on `origin/main` (`c6349d6`) and `archive/exval-v2.6` (`052fcb2`), plus the untracked `runs/` listing; g3o-api `origin/main` (`fc33ea3`; schema, sql, scripts, worker files by grep); g3o-website origin file list and `planning/ra-roles` file list; the four agent-workspace folders in SRC-1/4/5/8; procurement-pipeline CLAUDE.md/AGENTS.md and `pipeline/core/contract.py`; CX-01.2 index-design folder (pilot/, evidence/); RAs/Website Team listing; g3o_validation `planning/RESOURCES.md` listing; local auto-memory.
 Not searched: the droplet (`/home/g3o/runs`, scratch dirs), the live Neon DB, TypeSafe/OpenAI, `inputs/` (not listed), `background/`, GitHub remotes beyond fetch. Not opened: g3o-api bundles, other worktrees, WS10 `calibration20/`, `docs/Paper/`.
