@@ -2,7 +2,7 @@
 Definitions remain in the signed codebook; no questionnaire decisions live here.
 """
 
-MAP_SOURCE_SHA256 = '3c83860ebcfa559b50685c872d2cd0929b8cff63abd4a08d0ace17d1c3a2e96d'
+MAP_SOURCE_SHA256 = '5dfb8dc5d4cb0bdc9e14dc9cf0216cfd8cd47281bf648cafff8cc70c70ee2465'
 CODEBOOK_SHA256 = 'f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d'
 FIELDS = {'core.page_verdict': {'name': 'page_verdict',
                        'storage_targets': ['sources'],

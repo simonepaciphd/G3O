@@ -131,18 +131,29 @@ def validate_value(item_id: str, value: Any, *, part: str | None = None) -> None
         raise ValueError(f"invalid year text for {item_id}")
 
 
-def email_domain_counts(emails: list[str] | str) -> list[dict[str, Any]] | str:
-    if isinstance(emails, str):
-        validate_value("core.content_contact_emails", emails)
-        return emails
+def normalize_contact_emails(emails: list[str] | str) -> list[str] | str:
+    """Apply RC-D-011 to extracted addresses, preserving first-seen page order.
+
+    Only case is normalized: aliases/plus tags remain distinct, and signed
+    missing tokens remain tokens rather than fabricated empty collections.
+    """
     validate_value("core.content_contact_emails", emails)
-    distinct: set[tuple[str, str]] = set()
+    if isinstance(emails, str):
+        return emails
+    normalized: dict[str, None] = {}
     for email in emails:
         local, separator, domain = email.rpartition("@")
         if not separator or not local or not domain or any(c.isspace() for c in email):
             raise ValueError("email count input must contain extracted addresses")
-        distinct.add((local, domain.lower()))  # local case and aliases deliberately retained
-    counts = Counter(domain for _, domain in distinct)
+        normalized[email.lower()] = None
+    return list(normalized)
+
+
+def email_domain_counts(emails: list[str] | str) -> list[dict[str, Any]] | str:
+    normalized = normalize_contact_emails(emails)
+    if isinstance(normalized, str):
+        return normalized
+    counts = Counter(email.rpartition("@")[2] for email in normalized)
     return [{"domain": domain, "count": counts[domain]} for domain in sorted(counts)]
 
 
@@ -204,6 +215,8 @@ class StorageEnvelope:
         _require_keys(row["values"], expected, f"{table} questionnaire values")
         for item_id, value in row["values"].items():
             validate_value(item_id, value)
+            if item_id == "core.content_contact_emails":
+                row["values"][item_id] = normalize_contact_emails(value)
         if table != "summary":
             _strings(row["observation_ids"], "observation_ids")
             if not row["observation_ids"]:

@@ -120,9 +120,9 @@ def test_merged_final_activity_retains_both_original_endpoints(tmp_path):
     assert relation["lhs_final_activity_id"] == relation["rhs_final_activity_id"] == "A1"
 
 
-def test_email_counts_are_distinct_with_domain_only_casefolding():
+def test_email_counts_are_distinct_with_whole_address_lowercasing():
     assert email_domain_counts(["Ada@EXAMPLE.GOV", "Ada@example.gov", "ada@example.gov", "Ada+pilot@example.gov", "x@other.gov"]) == [
-        {"domain": "example.gov", "count": 3}, {"domain": "other.gov", "count": 1}]
+        {"domain": "example.gov", "count": 2}, {"domain": "other.gov", "count": 1}]
     assert email_domain_counts([]) == []
     assert email_domain_counts("not_asked") == "not_asked"
 
@@ -134,7 +134,7 @@ def test_public_projection_hides_internal_extracted_fields(tmp_path):
     assert "content_contact_emails_json" not in public
     assert "page_artifact_path" not in public
     assert "coder_records_json" not in public
-    assert json.loads(public["contact_email_domain_counts_json"]) == [{"domain": "example.gov", "count": 3}]
+    assert json.loads(public["contact_email_domain_counts_json"]) == [{"domain": "example.gov", "count": 2}]
     assert "observed_actor_role" not in public_projection("activities", rows["activities"][0])
 
 
@@ -383,3 +383,101 @@ def test_summary_only_support_cycle_is_rejected(tmp_path):
     data["summary"]["item_support"].append(summary_support)
     with pytest.raises(ValueError, match="cyclic pooled"):
         StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+@pytest.mark.parametrize("emails,expected", [
+    (["Alice@EXAMPLE.org", "alice@example.org", "Alice@example.org"],
+     [{"domain": "example.org", "count": 1}]),
+    (["Alice@EXAMPLE.org", "bob@example.org", "alice+news@example.org",
+      "ALICE+NEWS@EXAMPLE.ORG", "a.lice@example.org", "Alice@OTHER.org"],
+     [{"domain": "example.org", "count": 4}, {"domain": "other.org", "count": 1}]),
+    ([], []),
+    ("not_asked", "not_asked"),
+    ("not_documented", "not_documented"),
+    ("unknown", "unknown"),
+])
+def test_rcd011_direct_email_counts(emails, expected):
+    assert email_domain_counts(emails) == expected
+
+
+@pytest.mark.parametrize("emails", [None, "", ["not-an-address"], ["a b@example.org"]])
+def test_rcd011_unavailable_or_malformed_email_input_is_not_zero(emails):
+    with pytest.raises(ValueError):
+        email_domain_counts(emails)
+
+
+def test_rcd011_internal_and_public_email_json_csv_roundtrip(tmp_path):
+    data, record, response, _ = fixture_bundle(tmp_path)
+    raw = ["Alice@EXAMPLE.org", "alice@example.org", "Alice@example.org",
+           "Bob@example.org", "alice+news@example.org", "ALICE+NEWS@example.org"]
+    expected = ["alice@example.org", "bob@example.org", "alice+news@example.org"]
+    for source in data["sources"].values():
+        source["values"]["core.content_contact_emails"] = list(raw)
+    before_support = canonical_json([s["item_support"] for s in data["sources"].values()])
+    envelope = StorageEnvelope(json.loads(canonical_json(data)), record, artifact_root=tmp_path)
+    for source in envelope.data["sources"].values():
+        assert source["values"]["core.content_contact_emails"] == expected
+    assert data["sources"]["S1"]["values"]["core.content_contact_emails"] == raw
+    assert canonical_json([s["item_support"] for s in envelope.data["sources"].values()]) == before_support
+    rows = _rows(response, envelope)
+    # Both claims belong to one actual page: each repeats its count, never sums it.
+    assert len(rows["sources"]) == 2
+    assert json.loads(rows["summary"][0]["review_depth"])["web_extract"]["n_pages_reviewed"] == 1
+    path = tmp_path / "email-roundtrip.csv"
+    with path.open("w", encoding="utf-8", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=ACTIVITY_SOURCE_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows["sources"])
+    with path.open(encoding="utf-8", newline="") as stream:
+        restored = list(csv.DictReader(stream))
+    for row in restored:
+        assert json.loads(row["content_contact_emails_json"]) == expected
+        counts = [{"domain": "example.org", "count": 3}]
+        assert json.loads(row["contact_email_domain_counts_json"]) == counts
+        public = public_projection("sources", row)
+        assert "content_contact_emails_json" not in public
+        assert "page_artifact_path" not in public
+        assert "coder_records_json" not in public
+        assert json.loads(public["contact_email_domain_counts_json"]) == counts
+        assert "@" not in public["contact_email_domain_counts_json"]
+        assert str(tmp_path) not in canonical_json(public)
+
+
+def test_rcd011_extractor_to_storage_agrees_with_direct_input(tmp_path):
+    from bs4 import BeautifulSoup
+
+    from g3o.scrape.html import extract_email_links
+
+    raw = ["Alice@EXAMPLE.org", "alice@example.org", "Alice@example.org", "Alice+news@example.org"]
+    html = "".join(f'<a href="mailto:{email}">Contact</a>' for email in raw)
+    extracted = extract_email_links(BeautifulSoup(html, "html.parser"))
+    assert extracted == ["alice@example.org", "alice+news@example.org"]
+    data, record, response, _ = fixture_bundle(tmp_path)
+    results = []
+    for emails in (raw, extracted):
+        for source in data["sources"].values():
+            source["values"]["core.content_contact_emails"] = list(emails)
+        envelope = StorageEnvelope(data, record, artifact_root=tmp_path)
+        row = _rows(response, envelope)["sources"][0]
+        results.append((row["content_contact_emails_json"], row["contact_email_domain_counts_json"]))
+    assert results[0] == results[1]
+    assert json.loads(results[0][0]) == extracted
+    assert json.loads(results[0][1]) == [{"domain": "example.org", "count": 2}]
+
+
+@pytest.mark.parametrize("value", [[], "not_asked", "not_documented", "unknown"])
+def test_rcd011_empty_and_signed_missing_values_survive_storage(tmp_path, value):
+    data, record, response, _ = fixture_bundle(tmp_path)
+    for source in data["sources"].values():
+        source["values"]["core.content_contact_emails"] = value
+    envelope = StorageEnvelope(data, record, artifact_root=tmp_path)
+    for row in _rows(response, envelope)["sources"]:
+        assert json.loads(row["content_contact_emails_json"]) == value
+        assert json.loads(row["contact_email_domain_counts_json"]) == value
+
+
+def test_rcd011_unavailable_legacy_email_remains_null():
+    row = _rows(_yes_response(), None)["sources"][0]
+    assert row["content_contact_emails_json"] is None
+    assert row["contact_email_domain_counts_json"] is None
+    assert public_projection("sources", row)["contact_email_domain_counts_json"] is None
