@@ -1,0 +1,48 @@
+{
+  "format": "g3o-approved-delta-application-v1",
+  "delta": "RC-D-009",
+  "approval": {
+    "page_sha256": "d9ca34714331b5a565a3f30ca56a34dccc2ceb8a74ebf39ac37889d2d4a29977",
+    "saved_at": "2026-11-01T15:38:55.942Z",
+    "choices": {
+      "S1": "a",
+      "S2": "a",
+      "P1": "a",
+      "P2": "approve"
+    }
+  },
+  "baseline": "RC-BL-001 (original retained)",
+  "SPEC_version": "v001.13",
+  "scope": "Joint application of approved storage decisions and local-first remapping; not a new blanket execution/merge/publication authorization",
+  "preimages": "archive/2026-11-01-before-d007-approval",
+  "artifacts": {
+    "SPEC.md": "10c59411cad3688e5cadf06efb66c315e98d7a27780c2cf3c8ff9b52d9b398f2",
+    "RESOURCES.md": "58c8d11e0f717f481240841fa8d8865ca33f99f506173a437d1c9ab223397f14",
+    "PLAN.md": "7545fea5cafea5bebdc1540dd12986b31b67e09cd182478c0925bb4338516cf3",
+    "CHANGELOG.md": "d2b55a6b568a1695fc18bd430c43218f3d8197c6eca1f7363d64ad2f5b73834e",
+    "Plan-Labels.json": "d07871a6e46c82ae3c55e881434a6f8ead32f426b4e94db1a649338828c35923",
+    "page/Plan-Visual.html": "54031a8c9dbd271211d9e54b7104a6589a7ee877b31bf691a5a08888ea3a4ddb",
+    "deltas/RC-D-009.md": "6c0cbac4becde69f6926f2b294f9891cb23d672a11a9cb2359e170080c1db82e",
+    "handoffs/D-007-interface-spec.md": "128cebe2b89b233abc9158bb0ec6d90f933fcb5641ca067fe63f0009a92669c9",
+    "handoffs/D-007-field-map.json": "3c83860ebcfa559b50685c872d2cd0929b8cff63abd4a08d0ace17d1c3a2e96d",
+    "archive/records/g3o-storage-continuation-20261101.reply.json": "7ba5be6594bf94f936d73018dcce6e980cc58ec29bc48036f9e227ada0a14fcc",
+    "archive/records/D-007-remap-check.json": "1ee97223f978f66aaf3cbb6d026fc6a2f3116941ac4942ee77bb792853a4cd5c"
+  },
+  "checks": {
+    "plan_viewer": "pass; ten untyped-deliverable warnings retained",
+    "labels": {
+      "tasks": 50,
+      "deliverables": 10,
+      "resources": 40
+    },
+    "map": "120 unique items",
+    "milestone_graph": "acyclic"
+  },
+  "pending": [
+    "T012 Q2a verification",
+    "T027 missing-probability policy",
+    "T050B conformance and Colin acceptance",
+    "external send",
+    "push/merge/deploy/DB/paid gates"
+  ]
+}

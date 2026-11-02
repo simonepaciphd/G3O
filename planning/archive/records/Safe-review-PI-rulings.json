@@ -1,0 +1,23 @@
+{
+  "format": "g3o-safe-review-pi-rulings-v1",
+  "date": "2026-11-02",
+  "activation": "20261102-codex-v2-3a09e3d2f52dd435",
+  "source": "Explicit asynchronous user replies in this chat",
+  "questions": [
+    {
+      "id": "T016-reporting",
+      "question": "The saved pilot report labelled generic confidence as the chosen answer’s probability. The independently checked correction raises the mean for announced year from 0.405 to 0.594, pilot year from 0.560 to 0.707, and production year from 0.504 to 0.668. Should the separate corrected summary become the reporting record, with original files and approved wording retained? This would resolve the reporting decision only; remaining pilot closure checks would still apply.",
+      "answer": "Accept corrected summary"
+    },
+    {
+      "id": "T011-calendar",
+      "question": "The signed questionnaire already uses literal four-digit activity/context years from 2015–2030, with no publication-year fallback and the earliest chosen year across chunks. An older task gate still requires a calendar/fiscal-year conversion rule. Should that conversion requirement remain blocking, or should it be deferred so the signed literal-year method can proceed while you retain the separate multilingual contact?",
+      "answer": "Defer conversion; proceed with signed method"
+    }
+  ],
+  "limits": [
+    "No new year conversion or wording.",
+    "T016 reporting acceptance does not establish full closure.",
+    "No paid rerun or external send authorized."
+  ]
+}

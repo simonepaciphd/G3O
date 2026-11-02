@@ -1,0 +1,79 @@
+{
+  "format": "g3o-integrator-verification-v1",
+  "activation": "20261101-codex-v2-55eaba6e9fca45da",
+  "task": "T-012",
+  "status": "proposed_verified_local_scope",
+  "commit": "6cbd55126bb1d1d6097156546133fcd464a356ee",
+  "evidence_source": "H:/My Drive/Research/G3O/agent-workspace/2026-11-01-q2a/handoff.json",
+  "evidence_sha256": "7b3b5e83a4c0dd0c02d5497fb4043b7222004d89ac16092203d00ca8a8a56d75",
+  "tests": {
+    "full_final_invocation": {
+      "command": "C:/Users/spaci/repos/G3O/.venv/Scripts/python.exe -m pytest -o addopts= -q -m \"not network\"",
+      "passed": 2408,
+      "failed": 1,
+      "skipped": 1,
+      "deselected": 2,
+      "xfailed": 6,
+      "seconds": 399.99,
+      "failure": "tests/test_run_state.py::test_multi_chunk_split_and_distinct_metadata: Windows PermissionError[WinError5] at unchanged run_state.py os.replace of its own temp state file",
+      "single_green_full_run": false
+    },
+    "unchanged_module_rerun": {
+      "module": "tests/test_run_state.py",
+      "passed": 38,
+      "failed": 0,
+      "seconds": 25.1,
+      "fresh_per_invocation_pytest_temp": true,
+      "includes_final_failure_and_initial_timeout_test": true
+    },
+    "final_focused": {
+      "passed": 77,
+      "seconds": 113.81,
+      "scope": "storage, instrument, imports and unchanged initial run_state timeout test"
+    },
+    "coverage_disposition": "Every one of the 2409 final selected non-skipped/non-xfailed offline tests has passing evidence on the same frozen23-file snapshot: final full invocation passed2408, and the unchanged38-test module rerun cleared its one failure. This is complete passing coverage across invocations, not a single green full invocation. Preserve Windows-I/O limitation for T031/CI.",
+    "initial_full_invocation": {
+      "passed": 2403,
+      "failed": 2,
+      "skipped": 1,
+      "deselected": 2,
+      "xfailed": 6,
+      "seconds": 648.44,
+      "disposition": "Stale37/20/22 count assertions corrected mechanically to83/61/31; unchanged10s run_state token-cap test passed focused and final full reruns. Initial trace retained."
+    },
+    "ruff": "all g3o and tests passed",
+    "whitespace": "git -c core.whitespace=cr-at-eol diff --cached --check passed before commit",
+    "snapshot": "final-test-snapshot.json; all23 working-tree hashes unchanged after tests and commit",
+    "unchanged_run_state_git_blobs": {
+      "g3o/common/run_state.py": "23b8d1e59ab1051f9bf7f5d90c875cef8f21ee3f",
+      "tests/test_run_state.py": "19e3250251c993198e49fe20d411071f0809a0f6"
+    },
+    "no_new_skip_xfail_or_deadline_change": true
+  },
+  "independent_regressions": {
+    "passed": 9,
+    "deselected": 33,
+    "log": "H:/My Drive/Research/G3O/agent-workspace/2026-11-01-orch/independent-storage-review.txt",
+    "sha256": "f6ad27ee81201cf0ac20655d7e3135051296ed6f189fa75962b0107d1ffc3991"
+  },
+  "map_review": {
+    "result": "PASS",
+    "items": 120,
+    "shared_semantic_fields_compared": 960,
+    "signed_code_lists_compared": 49,
+    "explicit_projection": "email internal/public source locations become one source row plus separately derived public domain-count column; privacy tests cover both",
+    "approved_map_sha256": "3c83860ebcfa559b50685c872d2cd0929b8cff63abd4a08d0ace17d1c3a2e96d",
+    "static_projection_sha256": "8405f55573258ccb8285b7c289d2a95b45c41fbf5695d398726649561e60b804"
+  },
+  "retained_gates": [
+    "T027 may start only after integrator accepts proposed verification; missing-probability policy returns to PI before implementation. Missing probabilities are stored as missing, never0/1.",
+    "T026/T028 must produce real integrated observations, support/coder records and 6_storage.json; current Stage6 model surface remains legacy.",
+    "T030/T035 bind real executed runtime configuration to instrument builder; representative fixture acceptance is not production readiness.",
+    "T028 retains integrated writer/integrity work. Legacy integrity readers check frozen minimum headers and do not certify arbitrary externally modified2.7 CSVs.",
+    "T035 owns final contract pins and removal of all six named strict exceptions; none broadened.",
+    "T050B still requires implemented conformance, PI send approval and Colin A019 acceptance. T051/T052/API/site remain gated; old loader must not ingest2.7 without capability/version checks before DML.",
+    "No push, merge, deployment, database write, paid execution or external notice performed. R11 signed artifacts/governance not edited by engineer.",
+    "Full-run Windows-I/O flakiness remains explicit for T031/CI; no acceptance-rule change made."
+  ],
+  "qualification": "Proposed local verification only. No single green full suite invocation. Windows I/O flake retained for T-031/CI; no new waiver, skip, xfail or deadline relaxation."
+}

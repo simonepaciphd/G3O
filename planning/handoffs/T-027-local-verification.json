@@ -1,0 +1,46 @@
+{
+  "format": "g3o-t027-local-acceptance-v1",
+  "recorded_at": "2026-11-01T22:59:11.462502+00:00",
+  "activation": "20261101-codex-v2-62e267ac31cb419f",
+  "authorization": "Simone approved startup B on2026-11-01, relayed by startup coordinator; bounded offline T027 implementation and independent review.",
+  "task": "T-027",
+  "status": "verified_local_library_scope",
+  "scoped_work_complete": true,
+  "full_pipeline_acceptance": false,
+  "commit": "686882547d3390c05019256d6d120f4e6c1eb6b2",
+  "base_commit": "6cbd55126bb1d1d6097156546133fcd464a356ee",
+  "branch": "reclass/t027-record",
+  "worktree": "C:/Users/spaci/worktrees/G3O-eng-b-t027",
+  "code_files_sha256": {
+    "g3o/common/jev_record.py": "7bab49907151b7ce7125c5291c691055b0eb726011c622b8b5fa5feae61d09e9",
+    "tests/test_jev_record.py": "6237ffba3e84bee71b9548c676d43c9e41bda6d56b3cd5b093d18fad3b4960b9"
+  },
+  "independent_review": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-01-t027\\reviewer\\final-review.json",
+  "independent_review_sha256": "0d27fdcb816c8a97da4adfd0f6fd6006dab5579d402986bff37ee55ea156963d",
+  "engineer_manifest": "H:\\My Drive\\Research\\G3O\\agent-workspace\\2026-11-01-t027\\engineer\\artifact-manifest.json",
+  "engineer_manifest_sha256": "1eafcb3516fbafae6a5655c491f1ce29edec359567dcd79491f40365dca6f5db",
+  "verification": {
+    "focused_regressions_passed": 245,
+    "new_record_tests_passed": 72,
+    "independent_signed_probability_cases": 260,
+    "signed_generated_questions": 52,
+    "author_signed_roundtrips": 208,
+    "lint": "PASS",
+    "whitespace": "PASS",
+    "scope": "only jev_record.py and test_jev_record.py; no existing consumers modified",
+    "source_manifest": "66/66 preimages matched at startup"
+  },
+  "finding_disposition": {
+    "T027-IR-001": "FIX-IMPLEMENTATION; release2.7 classifier projection now requires signed applicable item/part rule; independently verified closed. No spec change."
+  },
+  "contract_limits": [
+    "Complete record JSON retains original and final code, confidence, missingness cause, setup linkage and all chunk/request/model provenance.",
+    "Q2a projection requires existing original-code support plus actual instrument; it omits additional fields and cannot replace complete companion JSON. Consumers must persist/link both.",
+    "T015/T021/T023/T026/T028 own consumer and final-value/support wiring; T030/T035 own executed instrument/runtime binding.",
+    "T050B still requires implemented conformance, separately authorized delivery and Colin acceptance; API/site release gated.",
+    "T031 integrated Berivox review and six strict T035 exceptions remain; T012 Windows-I/O qualification unchanged.",
+    "No paid/provider calls, external messages, pushes, merges, DB changes or deployments."
+  ],
+  "unresolved_decisions": [],
+  "next_action": "Return bounded accepted library to integrator; no next implementation lane launched."
+}

@@ -1,0 +1,12 @@
+{
+  "r10_git_commit": "3a0bc88",
+  "r10_git_path": "planning/t010/candidate-r10/codebook-r10-signoff.yaml",
+  "r10_sha256": "5f5d1b1fc6ca48d70fbbdb9ebe9c01d4f7829f1e3d60f3386021e03db54c53df",
+  "replace_utf8_once": {
+    "before": "Channel enum (web_extract, procurement, text_detection)",
+    "after": "Channel enum (web_extract, procurement, ai_text)"
+  },
+  "r11_sha256": "f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d",
+  "line_endings": "preserve exact input bytes; CRLF",
+  "signature_record": "planning/t010/signoff-record.md"
+}

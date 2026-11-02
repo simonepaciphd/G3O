@@ -1,0 +1,43 @@
+{
+  "format": "g3o-approved-delta-application-v1",
+  "delta": "RC-D-011",
+  "approval": "Simone chat 2026-11-02: wait I actually changed my mind about the defect: let's have emails de-capitalized and counted as one in those cases.",
+  "baseline": "RC-BL-001 retained",
+  "SPEC_version": "v001.15",
+  "RESOURCES_version": "v001.3",
+  "previous_application": "archive/records/Delta-Lock-RC-D-010-2026-11-01.json",
+  "preimages": "archive/2026-11-02-before-email-policy",
+  "artifacts": {
+    "CHANGELOG.md": "f1ed49b98bc938cd718b87b4a4c1421df11b31c4e7bfdd61ac8b8996ea58b1d3",
+    "PLAN.md": "ffd7ff4920a1db7526bb8559823ff0037f2068cb0ec02ceae36432a46cafd29b",
+    "Plan-Labels.json": "868b30474aa105667c5e0c9cfdd00c59d2823ef5f83666b864d86af1a0ac885d",
+    "RESOURCES.md": "6edc4da670229dd0cedbeb6cb8809ca7430f9791ddc0633492395d6c4720abbe",
+    "SPEC.md": "3b2d38d1d4003b71339211842b0f7932d8537e1c3b08f42114760e1e978941b0",
+    "deltas/RC-D-011.md": "a09cfd3dd09059c9db82e75495d8e104eb3351c7e80a1b44fe122e6689eed463",
+    "handoffs/D-007-field-map.json": "5dfb8dc5d4cb0bdc9e14dc9cf0216cfd8cd47281bf648cafff8cc70c70ee2465",
+    "handoffs/D-007-interface-spec.md": "0c37089a97a71cf9b201720c73f237cc437918af3fa2f81886aa6042d3cce53b",
+    "handoffs/D-007-notices/README.md": "b786c7ffa904588527c32b257b3d3b7eef0525ae295cd9b5534dde6db70ab74a",
+    "handoffs/D-007-notices/T-051-issue-draft.md": "5996316401b944a16e7f97294bbcfbe70733c35b9994b0ac75fc31e9f71d9ae0",
+    "handoffs/D-007-notices/T-052-issue-draft.md": "c2bfea09dd0bf93867dffe082d00a842ae746645cd4c5d62ad18f76df99243f4",
+    "handoffs/D-007-notices/T-053-issue-draft.md": "2d1c39c4bf2f1924bb0106ca61381f1dc4ec824621e44f321fd22b044f8d555b",
+    "handoffs/RC-D-011-email-alignment.md": "14e0bf744d208e5c2ea5d8a62affe20fee9d751ddeb39506a77996c5d625953a",
+    "handoffs/T-024-label-interface.md": "a7e632170701c1b1dd1d80465646aff505b58ad76155cdc9c2bb0e4622601fce",
+    "handoffs/validation-notice.md": "94dddbd0b9d53966f7d23b0c0b69088e88e82719cb00ab1c648aee74b9abea0d",
+    "page/Plan-Visual.html": "e38d4f2f4639d6435923ee58a6d8c7b9604b925e4390bb42ef47984ee722eceb"
+  },
+  "checks": {
+    "plan_viewer": "PASS; 10 pre-existing W-UNTYPED warnings; rebuilt local page",
+    "map": "120 entries, only email local_part_normalization changed to lowercase",
+    "labels": "unchanged task labels; all three source hashes current",
+    "task_graph": "task ID sequence and Mermaid dependency blocks unchanged",
+    "preimages": "all snapshot bytes match original HEAD blobs",
+    "signed_codebook": "r11 hash unchanged",
+    "implementation": "not modified; revised storage email conformance pending"
+  },
+  "pending": [
+    "T-012 storage normalization/counting, map pin and tests",
+    "Renewed T-050B local email conformance",
+    "Runtime integration, T-050B authorized send/Colin acceptance, T-031 and publication"
+  ],
+  "scope": "Approved policy/governance application only; no runtime acceptance"
+}

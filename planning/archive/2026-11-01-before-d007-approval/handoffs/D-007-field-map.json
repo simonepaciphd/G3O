@@ -1,0 +1,3667 @@
+{
+  "format": "g3o-d007-field-map-v0.1",
+  "state": "PROPOSED_NOT_APPROVED",
+  "codebook_sha256": "f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d",
+  "rows": [
+    {
+      "item_id": "core.page_verdict",
+      "name": "page_verdict",
+      "level": [
+        "page"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "page_verdict",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "confirms_activity",
+        "ambiguous_genai",
+        "ambiguous_attribution",
+        "other_body",
+        "event_only",
+        "background_only",
+        "confirms_absence",
+        "no_genai",
+        "not_assessable"
+      ],
+      "missing_tokens": "none",
+      "translation_v25": {
+        "column": "genai_evidence",
+        "map": {
+          "confirms_activity": "confirms_activity",
+          "ambiguous_genai": "ambiguous",
+          "ambiguous_attribution": "ambiguous",
+          "background_only": "background_only",
+          "confirms_absence": "confirms_absence",
+          "no_genai": "confirms_absence"
+        },
+        "unmappable": [
+          "other_body",
+          "event_only",
+          "not_assessable"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[0]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.disclosure_form",
+      "name": "disclosure_form",
+      "level": [
+        "page"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "disclosure_form",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "register_cross_institution",
+        "register_single_institution",
+        "mandated_report",
+        "formal_record",
+        "informal_official",
+        "third_party"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.disclosure_scope",
+      "name": "disclosure_scope",
+      "level": [
+        "page"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "disclosure_scope",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "whole_of_government",
+        "multi_institution",
+        "single_institution"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.page_complete",
+      "name": "page_complete",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "page_complete",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.source_type",
+      "name": "source_type",
+      "level": [
+        "source"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "source_type",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "news_major",
+        "news_trade",
+        "vendor",
+        "academic",
+        "policy_org",
+        "social_media",
+        "procurement_tender",
+        "other"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": {
+        "column": "source_type",
+        "map": {
+          "news_major": "news_major",
+          "news_trade": "news_trade",
+          "vendor": "vendor",
+          "academic": "academic",
+          "policy_org": "policy_org",
+          "social_media": "social_media",
+          "procurement_tender": "procurement_tender",
+          "other": "other"
+        },
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[1]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_contact_named",
+      "name": "content_contact_named",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "content_contact_named",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_contact_details",
+      "name": "content_contact_details",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "content_contact_details",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_contact",
+      "name": "content_contact",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "content_contact",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_contact_emails",
+      "name": "content_contact_emails",
+      "level": [
+        "page"
+      ],
+      "answer_type": "list",
+      "visibility": "public_derived",
+      "coder": "mechanical",
+      "storage_targets": [
+        "sources/internal:content_contact_emails_json",
+        "sources/public:S2-pending"
+      ],
+      "column_or_member": "content_contact_emails_json",
+      "storage_type": "internal jsonb array; public derived shape pending S2",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_purpose",
+      "name": "content_purpose",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "content_purpose",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_tool_or_model",
+      "name": "content_tool_or_model",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "content_tool_or_model",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_vendor",
+      "name": "content_vendor",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "content_vendor",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_data",
+      "name": "content_data",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "content_data",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_users",
+      "name": "content_users",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "content_users",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_status_date",
+      "name": "content_status_date",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "content_status_date",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_human_oversight",
+      "name": "content_human_oversight",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "content_human_oversight",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_risk_assessment",
+      "name": "content_risk_assessment",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "content_risk_assessment",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.content_user_notification",
+      "name": "content_user_notification",
+      "level": [
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "content_user_notification",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.source_url",
+      "name": "source_url",
+      "level": [
+        "source"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "source_url",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": {
+        "column": "source_url",
+        "map": "identity"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.source_title",
+      "name": "source_title",
+      "level": [
+        "source"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "source_title",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": {
+        "column": "source_title",
+        "map": "identity",
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[2]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.source_access_date",
+      "name": "source_access_date",
+      "level": [
+        "source"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "source_access_date",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": {
+        "column": "source_access_date",
+        "map": "identity"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.source_language",
+      "name": "source_language",
+      "level": [
+        "source"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "source_language",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": {
+        "column": "source_language",
+        "map": {
+          "<two-letter tag>": "<same tag>"
+        },
+        "unmappable": [
+          "<tag with a script subtag>",
+          "<three-letter tag>",
+          "mul"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[3]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.source_on_official_domain",
+      "name": "source_on_official_domain",
+      "level": [
+        "source"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "source_on_official_domain",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.syndication_group",
+      "name": "syndication_group",
+      "level": [
+        "source"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "syndication_group",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.page_review_state",
+      "name": "page_review_state",
+      "level": [
+        "source"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "page_review_state",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.discovery_path",
+      "name": "discovery_path",
+      "level": [
+        "source"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "discovery_path",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.text_source",
+      "name": "text_source",
+      "level": [
+        "source"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "text_source",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.source_publication_date",
+      "name": "source_publication_date",
+      "level": [
+        "source"
+      ],
+      "answer_type": "date",
+      "visibility": "public",
+      "coder": "quote_step",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "source_publication_date",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": {
+        "column": "source_publication_date",
+        "map": "identity"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.source_snippet",
+      "name": "source_snippet",
+      "level": [
+        "source"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "quote_step",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "source_snippet",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": {
+        "column": "source_snippet",
+        "map": "identity",
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[4]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.source_credibility",
+      "name": "source_credibility",
+      "level": [
+        "source"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "source_credibility",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": {
+        "column": "source_credibility",
+        "map": {
+          "high": "high",
+          "medium": "medium",
+          "low": "low"
+        },
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[5]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.activity_segment",
+      "name": "activity_relation_within_page",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities/activity_relations_json"
+      ],
+      "column_or_member": "relation",
+      "storage_type": "relation record with relation_scope=within_page and original observation endpoints",
+      "value_codes_or_shape": [
+        "same_activity",
+        "component_of_program",
+        "has_component",
+        "shared_participation",
+        "governs",
+        "governed_by",
+        "distinct_action",
+        "unresolved",
+        "not_an_activity"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.activity_name",
+      "name": "activity_name",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "quote_step",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "activity_name",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "activity_name",
+        "map": "identity"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.observed_actor_name",
+      "name": "observed_actor_name",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "text",
+      "visibility": "internal",
+      "coder": "quote_step",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "observed_actor_name",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.observed_actor_relationship",
+      "name": "observed_actor_relationship",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "observed_actor_relationship",
+      "storage_type": "jsonb object: relationship, searched_institution_role",
+      "value_codes_or_shape": {
+        "structure": "Two linked parts in one item",
+        "relationship": [
+          {
+            "code": "this_institution",
+            "definition": {
+              "text": "The page names the searched institution itself, not one of its units, as carrying out or adopting the activity.",
+              "origin": "PI 2026-10-31 \"edits reviewed and accepted\"; agent draft T16-13 (T-016 rewording)",
+              "source": "drafts/definitions-r4.json entries[18] (items/core.observed_actor_relationship/values/relationship/0/definition); confidence medium",
+              "source_before_r4": "value this_institution",
+              "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I04 slot 1",
+              "origin_before_r9": "PI 2026-10-30 \"approve all\"; agent draft r4",
+              "text_before_r9": "The searched institution itself carries out or adopts the activity."
+            },
+            "code_source": "value-lists.json core.observed_actor_relationship alternatives['Draft 2'].part_1_relationship[0]; ruling activity-14",
+            "entailment_label": {
+              "text": "the named institution itself",
+              "origin": "PI 2026-10-31 \"c7 a\"; RC-D-007 draft"
+            }
+          },
+          {
+            "code": "unit_of_institution",
+            "definition": {
+              "text": "The page names an organisational unit of the searched institution (a department, office or service) as carrying out the activity; it counts for the institution. Choose this, not the institution itself, whenever the page names the unit.",
+              "origin": "PI 2026-10-31 \"edits reviewed and accepted\"; agent draft T16-14 (T-016 rewording)",
+              "source": "drafts/definitions-r4.json entries[19] (items/core.observed_actor_relationship/values/relationship/1/definition); confidence high",
+              "source_before_r4": "value unit_of_institution",
+              "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I04 slot 2",
+              "origin_before_r9": "PI 2026-10-30 \"approve all\"; agent draft r4",
+              "text_before_r9": "An organisational unit of the searched institution (a department, office or service) carries out the activity; it counts for the institution."
+            },
+            "code_source": "value-lists.json core.observed_actor_relationship alternatives['Draft 2'].part_1_relationship[1]; ruling activity-14",
+            "entailment_label": {
+              "text": "a unit of the named institution",
+              "origin": "PI 2026-10-31 \"c7 a\"; RC-D-007 draft"
+            }
+          },
+          {
+            "code": "joint_participant",
+            "definition": {
+              "text": "The activity is a joint one, and the page names the searched institution as a participant.",
+              "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+              "source": "drafts/definitions-r4.json entries[20] (items/core.observed_actor_relationship/values/relationship/2/definition); confidence high",
+              "source_before_r4": "value joint_participant",
+              "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I04 slot 3"
+            },
+            "code_source": "value-lists.json core.observed_actor_relationship alternatives['Draft 2'].part_1_relationship[2]; ruling activity-14",
+            "entailment_label": {
+              "text": "a joint group that includes the named institution",
+              "origin": "PI 2026-10-31 \"c7 a\"; RC-D-007 draft"
+            }
+          },
+          {
+            "code": "other",
+            "definition": {
+              "text": "The activity belongs to another body: a parent, sibling or neighbouring body, a separate court, board or authority, a similarly named organisation, or a vendor. The searched institution's role is still asked.",
+              "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+              "source": "drafts/definitions-r4.json entries[21] (items/core.observed_actor_relationship/values/relationship/3/definition); confidence medium",
+              "source_before_r4": "value other",
+              "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I04 slot 4"
+            },
+            "code_source": "value-lists.json core.observed_actor_relationship alternatives['Draft 2'].part_1_relationship[3]; ruling activity-14",
+            "entailment_label": {
+              "text": "another body",
+              "origin": "PI 2026-10-31 \"c7 a\"; RC-D-007 draft"
+            }
+          },
+          {
+            "code": "unresolved",
+            "definition": {
+              "text": "The page does not settle whose activity this is. The role of the searched institution is not asked.",
+              "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+              "source": "drafts/definitions-r4.json entries[22] (items/core.observed_actor_relationship/values/relationship/4/definition); confidence medium",
+              "source_before_r4": "value unresolved",
+              "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I04 slot 5"
+            },
+            "code_source": "value-lists.json core.observed_actor_relationship alternatives['Draft 2'].part_1_relationship[4]; ruling activity-14",
+            "entailment_label": {
+              "text": "not settled by the page",
+              "origin": "PI 2026-10-31 \"c7 a\"; RC-D-007 draft"
+            }
+          }
+        ],
+        "searched_institution_role": [
+          {
+            "code": "contracting_authority",
+            "definition": {
+              "text": "The searched institution buys or contracts for the tool or service in its own name.",
+              "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+              "source": "drafts/definitions-r4.json entries[23] (items/core.observed_actor_relationship/values/searched_institution_role/0/definition); confidence medium",
+              "source_before_r4": "value contracting_authority",
+              "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I04 slot 6"
+            },
+            "code_source": "value-lists.json core.observed_actor_relationship alternatives['Draft 2'].part_2_role_of_searched_institution[0]; ruling activity-14",
+            "entailment_label": {
+              "text": "buying or contracting in its own name",
+              "origin": "PI 2026-10-31 \"c7 a\"; RC-D-007 draft"
+            }
+          },
+          {
+            "code": "beneficiary",
+            "definition": {
+              "text": "Another body runs or buys the activity for the searched institution, and the page names the searched institution as benefiting.",
+              "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+              "source": "drafts/definitions-r4.json entries[24] (items/core.observed_actor_relationship/values/searched_institution_role/1/definition); confidence high",
+              "source_before_r4": "value beneficiary",
+              "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I04 slot 7"
+            },
+            "code_source": "value-lists.json core.observed_actor_relationship alternatives['Draft 2'].part_2_role_of_searched_institution[1]; ruling activity-14",
+            "entailment_label": {
+              "text": "benefiting from an activity another body runs or buys",
+              "origin": "PI 2026-10-31 \"c7 a\"; RC-D-007 draft"
+            }
+          },
+          {
+            "code": "central_purchasing_body",
+            "definition": {
+              "text": "The searched institution buys or sets up a contract or framework on behalf of other bodies.",
+              "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+              "source": "drafts/definitions-r4.json entries[25] (items/core.observed_actor_relationship/values/searched_institution_role/2/definition); confidence medium",
+              "source_before_r4": "value central_purchasing_body",
+              "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I04 slot 8"
+            },
+            "code_source": "value-lists.json core.observed_actor_relationship alternatives['Draft 2'].part_2_role_of_searched_institution[2]; ruling activity-14",
+            "entailment_label": {
+              "text": "buying on behalf of other bodies",
+              "origin": "PI 2026-10-31 \"c7 a\"; RC-D-007 draft"
+            }
+          },
+          {
+            "code": "unit",
+            "definition": {
+              "text": "The searched institution is itself a unit (a department, office or school) of a larger body that carries out the activity. Not for an activity that a unit of the searched institution carries out.",
+              "origin": "PI 2026-10-31 \"edits reviewed and accepted\"; agent draft T16-17 (T-016 rewording)",
+              "source": "drafts/definitions-r4.json entries[26] (items/core.observed_actor_relationship/values/searched_institution_role/3/definition); confidence low",
+              "source_before_r4": "value unit",
+              "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I04 slot 9",
+              "origin_before_r9": "PI 2026-10-30 \"approve all\"; agent draft r4",
+              "text_before_r9": "The searched institution takes part as a unit of the body that carries out the activity."
+            },
+            "code_source": "value-lists.json core.observed_actor_relationship alternatives['Draft 2'].part_2_role_of_searched_institution[3]; ruling activity-14",
+            "entailment_label": {
+              "text": "a unit of the larger body that carries out the activity",
+              "origin": "PI 2026-10-31 \"c7 a\"; RC-D-007 draft"
+            }
+          },
+          {
+            "code": "joint",
+            "definition": {
+              "text": "The searched institution takes part as one of several joint participants.",
+              "origin": "PI 2026-10-30 \"approve all\"; agent draft r4",
+              "source": "drafts/definitions-r4.json entries[27] (items/core.observed_actor_relationship/values/searched_institution_role/4/definition); confidence low",
+              "source_before_r4": "value joint",
+              "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I04 slot 10"
+            },
+            "code_source": "value-lists.json core.observed_actor_relationship alternatives['Draft 2'].part_2_role_of_searched_institution[4]; ruling activity-14",
+            "entailment_label": {
+              "text": "one of several joint participants",
+              "origin": "PI 2026-10-31 \"c7 a\"; RC-D-007 draft"
+            }
+          }
+        ],
+        "role_missing_tokens": [
+          "not_asked",
+          "not_documented",
+          "unknown"
+        ],
+        "role_gate": {
+          "part": "searched_institution_role",
+          "keyed_on": "relationship",
+          "not_asked_when_relationship": [
+            "unresolved"
+          ],
+          "asked_when_relationship_includes": [
+            "other"
+          ],
+          "gated_out_value": "not_asked",
+          "text": {
+            "text": "the role is asked when the relationship is `other`; skipped only when `unresolved`",
+            "origin": "PI 2026-10-30 \"all accepted\"; RC-D-003 activity-14 b",
+            "source": "deltas/RC-D-003.md:262 (activity-14 b)",
+            "role": "gate of the role part",
+            "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I04 slot 11; page activity-1 card I04 slot 17"
+          }
+        },
+        "parts": [
+          "relationship",
+          "searched_institution_role"
+        ],
+        "part_instructions": {
+          "searched_institution_role": {
+            "text": "What part does the named institution play in this activity?",
+            "origin": "PI 2026-10-30 \"drafts ok\"; agent draft W10",
+            "source": "drafts/rc-d-005-wording.json W10 (new)"
+          }
+        },
+        "part_entailment_labels": {
+          "text": "named institution's part",
+          "origin": "PI 2026-10-31 \"c7 a\"; RC-D-007 draft"
+        }
+      },
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.activity_type",
+      "name": "activity_type",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "activity_type",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "policy_guidance",
+        "pilot_experiment",
+        "program_initiative",
+        "internal_operational",
+        "public_facing_service"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "activity_type",
+        "map": "identity"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.action_type",
+      "name": "action_type",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "action_type",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "deployment",
+        "governance",
+        "staff_training",
+        "program"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.adoption_stage",
+      "name": "adoption_stage",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "adoption_stage",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "proposed",
+        "announced",
+        "pilot",
+        "production",
+        "discontinued"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "adoption_stage",
+        "map": {
+          "proposed": "proposed",
+          "announced": "announced",
+          "pilot": "pilot",
+          "production": "production",
+          "discontinued": "discontinued"
+        },
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[6]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.procurement_status",
+      "name": "procurement_status",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "procurement_status",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "none_documented",
+        "tender_or_rfp",
+        "award_or_contract",
+        "payment_or_subscription"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.model_origin",
+      "name": "model_origin",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "model_origin",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "commercial",
+        "open_weight",
+        "government_developed"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "access_type",
+        "map": {
+          "commercial": "proprietary_vendor",
+          "open_weight": "open_source"
+        },
+        "unmappable": [
+          "government_developed"
+        ],
+        "condition": "When build arrangement is model_trained_or_fine_tuned_by_institution, the old column is not filled (old rules would give mixed or in_house).",
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[7]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.build_arrangement",
+      "name": "build_arrangement",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "build_arrangement",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "off_the_shelf_product",
+        "custom_application_on_external_model",
+        "model_trained_or_fine_tuned_by_institution"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "access_type",
+        "map": {},
+        "unmappable": [
+          "off_the_shelf_product",
+          "custom_application_on_external_model",
+          "model_trained_or_fine_tuned_by_institution"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[8]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.interface",
+      "name": "interface",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "interface",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "conversational",
+        "backend_or_api",
+        "other_interface"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "interaction_type",
+        "map": {},
+        "unmappable": [
+          "conversational",
+          "backend_or_api",
+          "other_interface"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[9]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.function_drafting_writing",
+      "name": "function_drafting_writing",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "function_drafting_writing",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "interaction_type",
+        "map": {},
+        "unmappable": [
+          "yes",
+          "no"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[10]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.function_summarization",
+      "name": "function_summarization",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "function_summarization",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "interaction_type",
+        "map": {},
+        "unmappable": [
+          "yes",
+          "no"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[11]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.function_translation",
+      "name": "function_translation",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "function_translation",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "interaction_type",
+        "map": {},
+        "unmappable": [
+          "yes",
+          "no"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[12]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.function_search_retrieval",
+      "name": "function_search_retrieval",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "function_search_retrieval",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "interaction_type",
+        "map": {},
+        "unmappable": [
+          "yes",
+          "no"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[13]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.function_code",
+      "name": "function_code",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "function_code",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "interaction_type",
+        "map": {},
+        "unmappable": [
+          "yes",
+          "no"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[14]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.function_image_audio_video",
+      "name": "function_image_audio_video",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "function_image_audio_video",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "interaction_type",
+        "map": {},
+        "unmappable": [
+          "yes",
+          "no"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[15]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.function_extraction_classification",
+      "name": "function_extraction_classification",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "function_extraction_classification",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "interaction_type",
+        "map": {},
+        "unmappable": [
+          "yes",
+          "no"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[16]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.function_analysis_recommendation",
+      "name": "function_analysis_recommendation",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "function_analysis_recommendation",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "interaction_type",
+        "map": {},
+        "unmappable": [
+          "yes",
+          "no"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[17]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.tool_name",
+      "name": "tool_name",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "list",
+      "visibility": "public",
+      "coder": "quote_step",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "tool_name",
+      "storage_type": "jsonb union: array | signed missing-token string | approved unavailable null",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "tool_name",
+        "map": "identity",
+        "series_break": {
+          "text": "Note the change in the comparison notes.",
+          "origin": "ruling-r3",
+          "source": "codebook-rulings-round3.json activity-08 (choice b); option text questions-r3.json activity-08.b.mechanism",
+          "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I03 slot 4"
+        }
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.model_name",
+      "name": "model_name",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "list",
+      "visibility": "public",
+      "coder": "quote_step",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "model_name",
+      "storage_type": "jsonb union: array | signed missing-token string | approved unavailable null",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.contracting_party",
+      "name": "contracting_party",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "quote_step",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "contracting_party",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "vendor",
+        "map": {},
+        "series_break": {
+          "text": "Note the change in the comparison notes.",
+          "origin": "ruling-r3",
+          "source": "codebook-rulings-round3.json activity-08 (choice b); option text questions-r3.json activity-08.b.mechanism",
+          "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I05 slot 4"
+        },
+        "unmappable": [
+          "(contracting party text)"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[18]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.developer",
+      "name": "developer",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "developer",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "vendor",
+        "map": {
+          "(developer text, basis stated)": "(same text)"
+        },
+        "series_break": {
+          "text": "Note the change in the comparison notes.",
+          "origin": "ruling-r3",
+          "source": "codebook-rulings-round3.json activity-08 (choice b); option text questions-r3.json activity-08.b.mechanism",
+          "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I06 slot 4"
+        },
+        "unmappable": [
+          "(developer text, basis lookup)"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[19]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.developer_basis",
+      "name": "developer_basis",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "developer_basis",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.deployment_mode",
+      "name": "deployment_mode",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "deployment_mode",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "integrated",
+        "standalone"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "deployment_mode",
+        "map": {
+          "integrated": "integrated",
+          "standalone": "standalone"
+        },
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[20]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.target_users",
+      "name": "target_users",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "target_users",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "internal_staff",
+        "public",
+        "both"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "target_users",
+        "map": "identity"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.governed_population",
+      "name": "governed_population",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "governed_population",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "internal_personnel",
+        "external_users",
+        "both"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.governance_form",
+      "name": "governance_form",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "multi",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "governance_form",
+      "storage_type": "jsonb union: array | signed missing-token string | approved unavailable null",
+      "value_codes_or_shape": [
+        "dedicated_genai_or_ai_policy_or_guideline",
+        "approved_tool_list_or_endorsement",
+        "clause_in_instrument_on_other_subject",
+        "court_or_regulatory_order",
+        "procurement_standard"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.governance_direction",
+      "name": "governance_direction",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "governance_direction",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "prohibits",
+        "restricts_with_conditions",
+        "permits",
+        "requires",
+        "promotes"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.service_domain",
+      "name": "service_domain",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "multi",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "service_domain",
+      "storage_type": "jsonb union: array | signed missing-token string | approved unavailable null",
+      "value_codes_or_shape": [
+        "general_public_services",
+        "defence",
+        "public_order_safety",
+        "economic_affairs",
+        "environmental_protection",
+        "housing_community_amenities",
+        "health",
+        "recreation_culture_religion",
+        "education",
+        "social_protection",
+        "other"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.genai_mechanism_basis",
+      "name": "genai_mechanism_basis",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "genai_mechanism_basis",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "named_genai_product_or_model",
+        "explicit_genai_label",
+        "generative_capability_described",
+        "ai_chatbot_or_assistant_label_only"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.year_announced",
+      "name": "year_announced",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "year_announced",
+      "storage_type": "text",
+      "value_codes_or_shape": {
+        "candidates": "deterministic year extraction, plus unknown (C16)",
+        "candidates_not_offered": {
+          "codes": [
+            "unknown"
+          ],
+          "why": "RC-D-005 12 a (PI 2026-10-30 \"12 a\"; option as asked: \"a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical\") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): \"Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them\""
+        }
+      },
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "year_announced",
+        "map": "identity"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.year_pilot_start",
+      "name": "year_pilot_start",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "year_pilot_start",
+      "storage_type": "text",
+      "value_codes_or_shape": {
+        "candidates": "deterministic year extraction, plus unknown (C16)",
+        "candidates_not_offered": {
+          "codes": [
+            "unknown"
+          ],
+          "why": "RC-D-005 12 a (PI 2026-10-30 \"12 a\"; option as asked: \"a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical\") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): \"Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them\""
+        }
+      },
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "year_deployed",
+        "map": {
+          "rule": "year_deployed = the earlier of year_pilot_start and year_production_start; if only one is a year, that year; if neither, unknown"
+        },
+        "series_break": {
+          "text": "Note the change in the comparison notes.",
+          "origin": "ruling-r3",
+          "source": "codebook-rulings-round3.json activity-08 (choice b); option text questions-r3.json activity-08.b.mechanism",
+          "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I16 slot 4"
+        },
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[21]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.year_production_start",
+      "name": "year_production_start",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "year_production_start",
+      "storage_type": "text",
+      "value_codes_or_shape": {
+        "candidates": "deterministic year extraction, plus unknown (C16)",
+        "candidates_not_offered": {
+          "codes": [
+            "unknown"
+          ],
+          "why": "RC-D-005 12 a (PI 2026-10-30 \"12 a\"; option as asked: \"a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical\") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): \"Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them\""
+        }
+      },
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "year_deployed",
+        "map": {
+          "rule": "year_deployed = the earlier of year_pilot_start and year_production_start; if only one is a year, that year; if neither, unknown"
+        },
+        "series_break": {
+          "text": "Note the change in the comparison notes.",
+          "origin": "ruling-r3",
+          "source": "codebook-rulings-round3.json activity-08 (choice b); option text questions-r3.json activity-08.b.mechanism",
+          "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-2 card I17 slot 4"
+        },
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[22]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.deployment_scale_number",
+      "name": "deployment_scale_number",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "number",
+      "visibility": "public",
+      "coder": "quote_step",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "deployment_scale_number",
+      "storage_type": "text (verbatim numeric span)",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.deployment_scale_unit",
+      "name": "deployment_scale_unit",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "deployment_scale_unit",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "licences_or_seats",
+        "users",
+        "interactions",
+        "units_or_departments",
+        "none"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.has_human_oversight",
+      "name": "has_human_oversight",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "has_human_oversight",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no",
+        "unclear"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "has_human_oversight",
+        "map": "identity"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.has_transparency_notice",
+      "name": "has_transparency_notice",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "has_transparency_notice",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no",
+        "unclear"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "has_transparency_notice",
+        "map": "identity"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.has_data_classification",
+      "name": "has_data_classification",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "has_data_classification",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no",
+        "unclear"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "has_data_classification",
+        "map": "identity"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.has_risk_assessment",
+      "name": "has_risk_assessment",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "has_risk_assessment",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no",
+        "unclear"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "has_risk_assessment",
+        "map": "identity"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.outcome_kind",
+      "name": "outcome_kind",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "outcome_kind",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "quantified",
+        "qualitative",
+        "none_reported"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "reported_outcomes",
+        "map": {
+          "none_reported": "none_reported"
+        },
+        "via": {
+          "quantified": "core.reported_outcomes",
+          "qualitative": "core.reported_outcomes"
+        },
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[23]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.incident_kind",
+      "name": "incident_kind",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "incident_kind",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "quantified",
+        "qualitative",
+        "none_reported",
+        "discontinuation_uncertain"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "reported_incidents",
+        "map": {
+          "none_reported": "none_reported"
+        },
+        "unmappable": [
+          "discontinuation_uncertain"
+        ],
+        "via": {
+          "quantified": "core.reported_incidents",
+          "qualitative": "core.reported_incidents"
+        },
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[24]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.reported_outcomes",
+      "name": "reported_outcomes",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "list",
+      "visibility": "public",
+      "coder": "quote_step",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "reported_outcomes",
+      "storage_type": "jsonb union: array | signed missing-token string | approved unavailable null",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "reported_outcomes",
+        "map": {
+          "rule": "the verbatim spans joined with ' | ', in full; 'none_reported' when the outcome kind is none_reported"
+        },
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[25]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.reported_incidents",
+      "name": "reported_incidents",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "list",
+      "visibility": "public",
+      "coder": "quote_step",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "reported_incidents",
+      "storage_type": "jsonb union: array | signed missing-token string | approved unavailable null",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "reported_incidents",
+        "map": {
+          "rule": "the verbatim spans joined with ' | ', in full; 'none_reported' when the incident kind is none_reported"
+        },
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[26]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.evaluation_documented",
+      "name": "evaluation_documented",
+      "level": [
+        "activity",
+        "page"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "evaluation_documented",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "results_reported",
+        "conducted_no_results",
+        "required_or_planned",
+        "unclear"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.evaluation_type_pre_deployment_testing",
+      "name": "evaluation_type_pre_deployment_testing",
+      "level": [
+        "activity",
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "evaluation_type_pre_deployment_testing",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.evaluation_type_pilot_evaluation",
+      "name": "evaluation_type_pilot_evaluation",
+      "level": [
+        "activity",
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "evaluation_type_pilot_evaluation",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.evaluation_type_independent_audit",
+      "name": "evaluation_type_independent_audit",
+      "level": [
+        "activity",
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "evaluation_type_independent_audit",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.evaluation_type_ongoing_monitoring",
+      "name": "evaluation_type_ongoing_monitoring",
+      "level": [
+        "activity",
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "evaluation_type_ongoing_monitoring",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.evaluation_type_user_feedback",
+      "name": "evaluation_type_user_feedback",
+      "level": [
+        "activity",
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "evaluation_type_user_feedback",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.evaluation_type_bias_or_safety_testing",
+      "name": "evaluation_type_bias_or_safety_testing",
+      "level": [
+        "activity",
+        "page"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "sources"
+      ],
+      "column_or_member": "evaluation_type_bias_or_safety_testing",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "yes",
+        "no"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.stage_as_of",
+      "name": "stage_as_of",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "date",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "stage_as_of",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.stage_as_of_basis",
+      "name": "stage_as_of_basis",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "stage_as_of_basis",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.permanent_pilot",
+      "name": "permanent_pilot",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "permanent_pilot",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.vendor_claim_only",
+      "name": "vendor_claim_only",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "vendor_claim_only",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.unit_credit",
+      "name": "unit_credit",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "unit_credit",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.uncertainty_flags",
+      "name": "uncertainty_flags",
+      "level": [
+        "activity",
+        "row"
+      ],
+      "answer_type": "list",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "activities",
+        "all/item_support_json"
+      ],
+      "column_or_member": "uncertainty_flags",
+      "storage_type": "jsonb union: array | signed missing-token string | approved unavailable null",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "uncertainty_flags",
+        "map": {
+          "stage_ambiguous": "stage_ambiguous",
+          "incident_kind = discontinuation_uncertain": "discontinued_uncertain"
+        },
+        "unmappable": [
+          "identity_unresolved"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[27]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.support_entailment",
+      "name": "support_entailment",
+      "level": [
+        "row"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "internal",
+      "coder": "classifier",
+      "storage_targets": [
+        "all/coder_records_json"
+      ],
+      "column_or_member": "support_entailment",
+      "storage_type": "nested exact signed value",
+      "value_codes_or_shape": [
+        "true",
+        "false"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.support_status",
+      "name": "support_status",
+      "level": [
+        "row"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "all/item_support_json"
+      ],
+      "column_or_member": "support_status",
+      "storage_type": "nested exact signed value",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.supporting_text",
+      "name": "supporting_text",
+      "level": [
+        "row"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "quote_step",
+      "storage_targets": [
+        "all/item_support_json"
+      ],
+      "column_or_member": "supporting_text",
+      "storage_type": "nested exact signed value",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.has_genai_activity",
+      "name": "has_genai_activity",
+      "level": [
+        "institution"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "summary"
+      ],
+      "column_or_member": "has_genai_activity",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": {
+        "column": "has_genai_activity",
+        "map": {
+          "yes": "yes",
+          "no": "no",
+          "unclear": "unclear"
+        },
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[28]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.verdict_rule",
+      "name": "verdict_rule",
+      "level": [
+        "institution"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "summary"
+      ],
+      "column_or_member": "verdict_rule",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.evidence_tier",
+      "name": "evidence_tier",
+      "level": [
+        "institution"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "summary"
+      ],
+      "column_or_member": "evidence_tier",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.review_depth",
+      "name": "review_depth",
+      "level": [
+        "institution"
+      ],
+      "answer_type": "list",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "summary"
+      ],
+      "column_or_member": "review_depth",
+      "storage_type": "jsonb object by evidence channel: n_pages_reviewed, n_pages_by_verdict (9 keys), n_pages_failed, n_followed_links",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.activity_relation_cross_page",
+      "name": "activity_relation",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities/activity_relations_json"
+      ],
+      "column_or_member": "relation",
+      "storage_type": "jsonb relation records with observation endpoints",
+      "value_codes_or_shape": [
+        "same_activity",
+        "component_of_program",
+        "has_component",
+        "shared_participation",
+        "governs",
+        "governed_by",
+        "distinct_action",
+        "unresolved"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.pooled_activity_fields",
+      "name": "pooled_activity_fields",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "activities/item_support_json"
+      ],
+      "column_or_member": "input_support_ids",
+      "storage_type": "combined field lineage; signed item combining rules",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.confidence",
+      "name": "confidence",
+      "level": [
+        "source",
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "activities",
+        "sources"
+      ],
+      "column_or_member": "confidence",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": {
+        "column": "confidence",
+        "map": {},
+        "unmappable": [
+          "high",
+          "medium",
+          "low"
+        ],
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[29]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.n_sources",
+      "name": "n_sources",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "number",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "n_sources",
+      "storage_type": "nonnegative integer",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.institution_summary",
+      "name": "institution_summary",
+      "level": [
+        "institution"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "summary"
+      ],
+      "column_or_member": "institution_summary",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": {
+        "column": "institution_summary",
+        "map": "identity",
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[30]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.cx_display_rollup",
+      "name": "cx_display_rollup",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "list",
+      "visibility": "public",
+      "coder": "derived",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "cx_display_rollup",
+      "storage_type": "jsonb object keyed by item_id: value,input_support_ids,source_ids,observation_ids,combining_rule_ref",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.codebook_release",
+      "name": "codebook_release",
+      "level": [
+        "row"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "activities",
+        "sources",
+        "summary"
+      ],
+      "column_or_member": "codebook_release",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": {
+        "column": "contract_version",
+        "map": {
+          "(codebook release label)": "(same label in contract_version)"
+        },
+        "origin": "PI 2026-10-30 \"all review approved\"; agent draft r4 translation",
+        "source": "drafts/translation-r4.json entries[31]"
+      },
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.setup_pointer",
+      "name": "setup_pointer",
+      "level": [
+        "row"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "activities",
+        "sources",
+        "summary"
+      ],
+      "column_or_member": "setup_pointer",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.evidence_channel",
+      "name": "evidence_channel",
+      "level": [
+        "row"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "activities",
+        "sources",
+        "summary"
+      ],
+      "column_or_member": "evidence_channel",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.coder_record",
+      "name": "coder_record",
+      "level": [
+        "row"
+      ],
+      "answer_type": "text",
+      "visibility": "internal",
+      "coder": "mechanical",
+      "storage_targets": [
+        "all/coder_records_json"
+      ],
+      "column_or_member": "coder_record",
+      "storage_type": "jsonb union: array | signed missing-token string | approved unavailable null",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "proc.notice_stage",
+      "name": "notice_stage",
+      "level": [
+        "contract"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "excluded_outside_release"
+      ],
+      "column_or_member": "notice_stage",
+      "storage_type": "none",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "excluded"
+    },
+    {
+      "item_id": "proc.contract_value",
+      "name": "contract_value",
+      "level": [
+        "contract"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "excluded_outside_release"
+      ],
+      "column_or_member": "contract_value",
+      "storage_type": "none",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "excluded"
+    },
+    {
+      "item_id": "proc.procedure_type",
+      "name": "procedure_type",
+      "level": [
+        "contract"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "excluded_outside_release"
+      ],
+      "column_or_member": "procedure_type",
+      "storage_type": "none",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "excluded"
+    },
+    {
+      "item_id": "proc.contract_period",
+      "name": "contract_period",
+      "level": [
+        "contract"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "excluded_outside_release"
+      ],
+      "column_or_member": "contract_period",
+      "storage_type": "none",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "excluded"
+    },
+    {
+      "item_id": "proc.contract_terms",
+      "name": "contract_terms",
+      "level": [
+        "contract"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "excluded_outside_release"
+      ],
+      "column_or_member": "contract_terms",
+      "storage_type": "none",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "excluded"
+    },
+    {
+      "item_id": "text.ai_text_score",
+      "name": "ai_text_score",
+      "level": [
+        "document"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "excluded_outside_release"
+      ],
+      "column_or_member": "ai_text_score",
+      "storage_type": "none",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "excluded"
+    },
+    {
+      "item_id": "text.detector_provenance",
+      "name": "detector_provenance",
+      "level": [
+        "document"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "excluded_outside_release"
+      ],
+      "column_or_member": "detector_provenance",
+      "storage_type": "none",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "excluded"
+    },
+    {
+      "item_id": "text.document_classification",
+      "name": "document_classification",
+      "level": [
+        "document"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "excluded_outside_release"
+      ],
+      "column_or_member": "document_classification",
+      "storage_type": "none",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "excluded"
+    },
+    {
+      "item_id": "text.sampling_design",
+      "name": "sampling_design",
+      "level": [
+        "document"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "excluded_outside_release"
+      ],
+      "column_or_member": "sampling_design",
+      "storage_type": "none",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "excluded"
+    },
+    {
+      "item_id": "text.genai_era_cutoff",
+      "name": "genai_era_cutoff",
+      "level": [
+        "document"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "excluded_outside_release"
+      ],
+      "column_or_member": "genai_era_cutoff",
+      "storage_type": "none",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "excluded"
+    },
+    {
+      "item_id": "text.published_text_ai_use",
+      "name": "published_text_ai_use",
+      "level": [
+        "institution"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "excluded_outside_release"
+      ],
+      "column_or_member": "published_text_ai_use",
+      "storage_type": "none",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "excluded"
+    },
+    {
+      "item_id": "core.language_coverage",
+      "name": "language_coverage",
+      "level": [
+        "row"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "external_owner:multilingual-pipeline"
+      ],
+      "column_or_member": "language_coverage",
+      "storage_type": "owned slot; runtime schema not fabricated",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "external_owner_pending"
+    },
+    {
+      "item_id": "core.observed_actor_role",
+      "name": "observed_actor_role",
+      "level": [
+        "activity"
+      ],
+      "answer_type": "single",
+      "visibility": "internal",
+      "coder": "classifier",
+      "storage_targets": [
+        "activities"
+      ],
+      "column_or_member": "observed_actor_role",
+      "storage_type": "text",
+      "value_codes_or_shape": [
+        "institutional_actor",
+        "issuer",
+        "participant",
+        "external_speaker",
+        "service_provider",
+        "event_host"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown",
+        "_NA_"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.date_upper_bound",
+      "name": "date_upper_bound",
+      "level": [
+        "source",
+        "activity"
+      ],
+      "answer_type": "yes_no",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "sources",
+        "activities"
+      ],
+      "column_or_member": "date_upper_bound",
+      "storage_type": "text",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed",
+      "date_target_required": true
+    },
+    {
+      "item_id": "core.support_rule_name",
+      "name": "support_rule_name",
+      "level": [
+        "row"
+      ],
+      "answer_type": "text",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "all/item_support_json"
+      ],
+      "column_or_member": "support_rule_name",
+      "storage_type": "nested exact signed value",
+      "value_codes_or_shape": "none",
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    },
+    {
+      "item_id": "core.support_status_second_reason",
+      "name": "support_status_second_reason",
+      "level": [
+        "row"
+      ],
+      "answer_type": "single",
+      "visibility": "public",
+      "coder": "mechanical",
+      "storage_targets": [
+        "all/item_support_json"
+      ],
+      "column_or_member": "support_status_second_reason",
+      "storage_type": "nested exact signed value",
+      "value_codes_or_shape": [
+        "downgraded_no_quote",
+        "downgraded_low_confidence",
+        "downgraded_quote_not_stating_value"
+      ],
+      "missing_tokens": [
+        "not_asked",
+        "not_documented",
+        "unknown"
+      ],
+      "translation_v25": "new",
+      "state": "proposed"
+    }
+  ],
+  "counts": {
+    "runtime_mapped": 108,
+    "external_owner_pending": 1,
+    "outside_release": 11
+  }
+}
