@@ -1,6 +1,6 @@
 # PLAN: G3O pipeline reclassification
 
-Current policy overlay (2026-11-02, RC-D-011; integrator 20261102-codex-v2-6f772076f50e59e6): Lowercase the entire extracted email address (local part and domain) before deduplication; count case-only variants once per actual page. Keep full normalized addresses internal and publish only domain/count pairs. Do not collapse aliases or plus-addresses; supporting quotes remain verbatim. This supersedes earlier S2a case-preservation references and INT-001's proposed T-014 repair. T-014 already lowercases its extracted email links. T-012 storage normalization/counting, map provenance and tests need alignment and renewed local T-050B email conformance. Prior T-012/T-050B evidence remains historical under S2a; T-027 acceptance stands. T-024/T-028 must consume the revised rule. Existing dependency graph, lane ownership and runtime/external/T-031 gates stay in force. Current SPEC v001.15 / RESOURCES v001.3; exact ruling and affected-subgraph review: deltas/RC-D-011.md; prepared follow-up: handoffs/RC-D-011-email-alignment.md.
+Current execution overlay (2026-11-02, RC-D-011; integrator 20261102-codex-v2-53c1342c65a05a30): bounded T-012 email normalization is independently VERIFIED locally at 36d88bc7e20b3347b92f72e749d12f43a36ccc27; 326 engineer regressions, 22 independent conformance tests and 192 independent regressions pass. Whole-address lowercase and per-actual-page case deduplication, internal full normalized addresses, public domain/count pairs, distinct plus/aliases and verbatim quotes are verified for local fixtures. Renewed T-050B local email conformance is accepted; full T-050B remains incomplete. Source checkout retains r8; exact r11/LABELS assembly, T-024/T-028 actual integration, T-030/T-035 runtime binding, PI send/Colin A-019 and T-031 stay gated. T-027 acceptance, prior T-012 Windows-I/O qualification and six strict T-035 exceptions are preserved. SPEC v001.15 / RESOURCES v001.3 unchanged; task IDs, dependencies and waves unchanged. Evidence: handoffs/RC-D-011-local-verification.json; next gates: handoffs/RC-D-011-next-stage.md. Earlier pending implementation statements in signed/adoption records describe their original source snapshot, not current execution status.
 
 Status: READY-WITH-BLOCKS
 Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.15 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, v001.10 mechanical, 2026-10-30; v001.11 mechanical, 2026-10-31); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.3 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
@@ -154,7 +154,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | R-055 | T-051, T-052; T-097 wave-window check | T-054, T-095 | mapped |
 | R-056 | T-050, T-051, T-052 (release flag), T-074 (load hidden), T-095 (release) | T-054, T-095 | mapped |
 | R-057 | T-050, T-028, T-052, T-053 | T-095 (A-007) | mapped (RC-D-002 N35) |
-| R-058 | T-024 (e-mails), T-028, T-052, T-053 | T-095 (A-007) | mapped (RC-D-002 N35) |
+| R-058 | T-012 (local storage), T-024 (e-mails), T-028, T-052, T-053 | T-095 (A-007) | mapped (RC-D-002 N35) |
 | R-059 | T-014, T-029 (`text_source`), T-028, T-090 (translation table, methods note) | T-095, A-017 | mapped (RC-D-002 N35) |
 | R-070 | T-070 (DEC-019) | T-074 (A-005) | mapped |
 | R-071 | T-070 (filter, transfer-owner exception) | T-074 | mapped |
@@ -739,7 +739,7 @@ Split per pass.
 
 ### T-012 — Update enums, schema and contract constants in code
 
-RC-D-011 update (2026-11-02): Reopen only the email normalization/counting slice and map provenance pin under RC-D-011. Prior local verification is historical for that slice; other qualified evidence remains. Follow handoffs/RC-D-011-email-alignment.md.
+RC-D-011 execution update (2026-11-02): Bounded email slice independently verified at 36d88bc7; full-address internal normalization, domain counts, map provenance and roundtrips pass. Preserve other qualified local evidence; this is not runtime acceptance. See handoffs/RC-D-011-local-verification.json.
 
 Status: verified (proposed local verification; not complete; test invocation qualification)
 Type: build
@@ -780,7 +780,7 @@ The first chunk is an inventory of every enum, contract and version touchpoint (
 - Requires: T-010, T-013 and completed T-050A contract artifact (not T-050B)
 - Enables: T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090
 - Can run with: T-002, T-014, T-016, T-040, T-061, T-063 (W2)
-- Researcher gates: S1a/P1a/P2 and RC-D-011 email policy approved; revised email implementation/revalidation pending; push/merge gates retained
+- Researcher gates: S1a/P1a/P2 and RC-D-011 email policy approved; bounded email implementation/revalidation verified locally; runtime and push/merge gates retained
 
 #### Ownership and collision control
 - Read scope: whole G3O repo, g3o-api and g3o-website (read-only, for the inventory)
@@ -1529,7 +1529,7 @@ none
 
 ### T-024 — Build support check, downgrade and deterministic extraction
 
-RC-D-011 update (2026-11-02): Apply RC-D-011 whole-address lowercase normalization and case-only deduplication to deterministic email extraction; retain distinct aliases/plus-addresses and page grain. Existing input gates remain.
+RC-D-011 execution update (2026-11-02): Consume the verified RC-D-011 local normalizer under existing input gates. Actual main/header/footer extraction and contact-gate runtime remain unverified; no task launch.
 
 Status: pending
 Type: build
@@ -1832,7 +1832,7 @@ none
 
 ### T-028 — Update the Stage 7 writer for v2.7 rows
 
-RC-D-011 update (2026-11-02): Consume RC-D-011 normalized internal emails and domain counts; require renewed T-012/T-050B email conformance and all existing upstream/integration gates.
+RC-D-011 execution update (2026-11-02): Renewed local T-012/T-050B email conformance is available; integrated upstream outputs, full companion/support composition and T-050B external acceptance remain required. No task launch.
 
 Status: pending
 Type: build
@@ -2434,9 +2434,9 @@ More than one rerun cycle → new card.
 
 ### T-050 — Write the D-007 interface specification for Colin
 
-RC-D-011 update (2026-11-02): Prior implemented-library conformance passed under S2a. Under RC-D-011, local email conformance is pending storage alignment/revalidation; full T-050B additionally retains authorized send and Colin A-019. T-027 acceptance unaffected.
+RC-D-011 execution update (2026-11-02): Renewed local email conformance independently verified at 36d88bc7 (22 conformance/192 focused regressions). Full T-050B still requires authorized send and Colin A-019; fixtures do not establish runtime assembly. Historical S2a evidence and T-027 acceptance remain qualified.
 
-Status: in-progress (A approved; B conformance, delivery and acceptance pending)
+Status: in-progress (A approved; renewed local email conformance verified; B delivery and acceptance pending)
 Type: document
 Priority: critical-path
 Spec refs: D-007, R-043, R-050, R-051, R-052, R-055, R-056, R-073, A-019, C-005
