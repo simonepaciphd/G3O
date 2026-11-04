@@ -190,6 +190,73 @@ def test_email_links_strip_scheme_query_lowercase_dedupe() -> None:
     ]
 
 
+def test_multi_recipient_mailto_splits_into_addresses() -> None:
+    """PI ruling C4 b: split on ``,``, ``;`` and ``%2C`` (any case)."""
+    soup = BeautifulSoup(
+        '<p><a href="mailto:A@x.example,b@x.example">1</a>'
+        '<a href="mailto:c@x.example; D@y.example?cc=e@z.example">2</a>'
+        '<a href="mailto:f@x.example%2Cg@x.example%2ch@x.example">3</a>'
+        '<a href="mailto:a@x.example,,;">dup+empty</a></p>',
+        "html.parser",
+    )
+    assert html_mod.extract_email_links(soup) == [
+        "a@x.example", "b@x.example", "c@x.example", "d@y.example",
+        "f@x.example", "g@x.example", "h@x.example",
+    ]
+
+
+def test_split_addresses_count_once_each_downstream() -> None:
+    """C4 b feeds RC-D-011 counting address by address, unchanged."""
+    from g3o.common.storage import email_domain_counts
+
+    soup = BeautifulSoup(
+        '<a href="mailto:Alice@Example.org,bob@example.org;alice@example.org">m</a>',
+        "html.parser",
+    )
+    emails = html_mod.extract_email_links(soup)
+    assert emails == ["alice@example.org", "bob@example.org"]
+    assert email_domain_counts(emails) == [{"domain": "example.org", "count": 2}]
+
+
+# ---------------------------------------------------------------------------
+# <base href> (PI ruling C3 a)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("base", "expected"),
+    [
+        ('<base href="https://cdn.example/root/">', "https://cdn.example/root/next"),
+        ('<base href="/sub/">', "https://www.agency.gov.example/sub/next"),
+        ('<base href="../up/">', "https://www.agency.gov.example/up/next"),
+        ('<base target="_blank">', "https://www.agency.gov.example/about/next"),
+        ('<base href="">', "https://www.agency.gov.example/about/next"),
+        ('<base href="javascript:void(0)">', "https://www.agency.gov.example/about/next"),
+        ("", "https://www.agency.gov.example/about/next"),
+    ],
+)
+def test_links_honour_base_href(base: str, expected: str) -> None:
+    soup = BeautifulSoup(
+        f'<html><head>{base}</head><body><a href="next">n</a>'
+        '<a href="https://abs.example/x">abs</a></body></html>',
+        "html.parser",
+    )
+    urls = [link["url"] for link in html_mod.extract_links(soup, BASE_URL)]
+    assert urls == [expected, "https://abs.example/x"]
+
+
+def test_first_base_href_wins() -> None:
+    soup = BeautifulSoup(
+        '<head><base target="_top"><base href="https://one.example/">'
+        '<base href="https://two.example/"></head><a href="p">p</a>',
+        "html.parser",
+    )
+    assert html_mod.document_base_url(soup, BASE_URL) == "https://one.example/"
+    assert [link["url"] for link in html_mod.extract_links(soup, BASE_URL)] == [
+        "https://one.example/p"
+    ]
+
+
 def test_extract_parts_carries_email_links() -> None:
     parts = html_mod.extract_parts(_soup("main_with_chrome"), BASE_URL)
     assert parts.email_links == ["info@agency.gov.example"]
@@ -291,6 +358,22 @@ def test_html_path_resolves_links_against_final_url(_tmp_cache, monkeypatch) -> 
         "https://old.example/", force_refresh=True, prefer_render_on_empty=False
     )
     assert [link["url"] for link in page.links] == ["https://new.example/dir/next"]
+
+
+def test_html_path_resolves_relative_base_against_final_url(_tmp_cache, monkeypatch) -> None:
+    monkeypatch.setattr(
+        fetcher, "_download",
+        _html_download(
+            b'<html><head><base href="../lib/"></head><body><main>'
+            b"<p>Long enough main text for the page here.</p>"
+            b'<a href="next">n</a></main></body></html>',
+            "https://new.example/dir/page",
+        ),
+    )
+    page = fetcher.scrape_url(
+        "https://old.example/", force_refresh=True, prefer_render_on_empty=False
+    )
+    assert [link["url"] for link in page.links] == ["https://new.example/lib/next"]
 
 
 def test_pdf_path_leaves_fields_absent(_tmp_cache, monkeypatch) -> None:

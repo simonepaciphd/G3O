@@ -100,9 +100,10 @@ def extract_parts(soup: BeautifulSoup, base_url: str) -> HtmlParts:
 def extract_email_links(soup: BeautifulSoup) -> list[str]:
     """E-mail addresses from ``mailto:`` hrefs (PI ruling 8a, 2026-10-31).
 
-    Strips the ``mailto:`` scheme (any case) and any ``?query``, lowercases,
-    and dedupes keeping page order. Empty addresses are skipped. A ``mailto:``
-    listing several comma-separated recipients is kept as one string.
+    Strips the ``mailto:`` scheme (any case) and any ``?query``, splits a
+    ``mailto:`` listing several recipients into its addresses on ``,``, ``;``
+    and ``%2C`` (PI ruling C4 b, 2026-11-04), lowercases each, and dedupes
+    keeping page order. Empty addresses are skipped.
     """
     out: list[str] = []
     seen: set[str] = set()
@@ -110,21 +111,49 @@ def extract_email_links(soup: BeautifulSoup) -> list[str]:
         href = a.get("href", "").strip()
         if not href.lower().startswith("mailto:"):
             continue
-        address = href[len("mailto:"):].split("?", 1)[0].strip().lower()
-        if not address or address in seen:
-            continue
-        seen.add(address)
-        out.append(address)
+        recipients = href[len("mailto:"):].split("?", 1)[0]
+        for piece in _MAILTO_SEPARATORS.split(recipients):
+            address = piece.strip().lower()
+            if not address or address in seen:
+                continue
+            seen.add(address)
+            out.append(address)
     return out
+
+
+#: Recipient separators inside one ``mailto:`` href (PI ruling C4 b).
+_MAILTO_SEPARATORS = re.compile(r",|;|%2c", re.IGNORECASE)
+
+
+def document_base_url(soup: BeautifulSoup, page_url: str) -> str:
+    """The URL relative links resolve against (PI ruling C3 a, 2026-11-04).
+
+    The first ``<base href>`` in the document, resolved against the page URL.
+    Falls back to the page URL when there is none, when its ``href`` is empty,
+    or when it resolves to a ``javascript:`` or ``data:`` URL, which HTML does
+    not accept as a base.
+    """
+    base = soup.find("base", href=True)
+    if base is None:
+        return page_url
+    href = base.get("href", "").strip()
+    if not href:
+        return page_url
+    resolved = urljoin(page_url, href)
+    if resolved.lower().startswith(("javascript:", "data:")):
+        return page_url
+    return resolved
 
 
 def extract_links(soup: BeautifulSoup, base_url: str) -> list[dict]:
     """Extract anchor links with surrounding context.
 
     Skips javascript/anchor/mailto/tel hrefs, normalizes relative URLs to
-    absolute, dedupes by URL, and captures up to 300 characters of parent
-    paragraph/list context.
+    absolute against :func:`document_base_url` (the page's ``<base href>``
+    when it has one, PI ruling C3 a), dedupes by URL, and captures up to 300
+    characters of parent paragraph/list context.
     """
+    base_url = document_base_url(soup, base_url)
     out: list[dict] = []
     seen: set[str] = set()
     for a in soup.select("a[href]"):
