@@ -20,7 +20,7 @@ Instruction file for Claude Code. Start Claude Code with **this folder** (`procu
 - Every observation is a row in the G3O output contract (pinned here as `docs/reference/output_contract_v2.0.SNAPSHOT.md`; the live contract is `../g3o/extract/prompts/output_contract.md`). The pipeline is an evidence channel, not a second observatory.
 - **No new data sources.** Only the repositories in `config/sources.yaml`.
 - **No new taxonomies, relevance schemes or units of analysis.** Fields that only procurement surfaces (contract value, procedure type, supplier role, contractual governance terms) go in the procurement extension table.
-- The query set `config/genai_queries.yaml` is PI-approved (v1.0). Do not add terms or languages; Italian terms come from the multilingual subproject.
+- The query set `config/genai_queries.yaml` is PI-approved (v1.0). Do not add terms or languages, with one exception: the PI ruled on 2026-11-04 (SD-003) that Asenat decides the Italian terms for this pipeline, added as a new versioned query set (T-044). The multilingual subproject is frozen.
 
 ## What is the user's, and what is Simone's
 
