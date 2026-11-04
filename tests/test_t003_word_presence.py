@@ -37,11 +37,10 @@ def test_case_and_width_are_normalized():
     assert wp.score("ＳＴＡＦＦ USE chatgpt", PAGE, "latin")["presence_word"] == 1.0
 
 
-def test_cjk_unit_is_left_open_by_default():
-    page = "本市は生成AIの利用方針を策定した。"
+def test_cjk_defaults_to_word_unit():
+    page = "本市は 生成AIの利用方針 を策定した。"
     s = wp.score("生成AIの利用方針", page, "cjk")
-    assert s["primary_unit"] == "" and s["rule_80"] is None
-    assert s["rule_80_char"] is True
+    assert s["primary_unit"] == "word" and s["rule_80"] is True
 
 
 def test_cjk_char_unit_when_chosen():
@@ -74,7 +73,7 @@ def test_run_on_synthetic_recovery(tmp_path):
     out = tmp_path / "o.csv"
     summary = wp.run(tmp_path, out, 0.8)
     assert summary == {"candidates_scored": 2, "missing_page": 0, "threshold": 0.8,
-                       "nonspaced_unit": None,
+                       "nonspaced_unit": "word", "institutions": {"tuning": 1, "holdout": 0},
                        "by_script": {"latin": {"n": 2, "rule_80_true": 1, "rule_80_blank": 0,
                                                "rule_80_word_true": 1}}}
     rows = out.read_text(encoding="utf-8").splitlines()
@@ -85,3 +84,13 @@ def test_run_on_synthetic_recovery(tmp_path):
 def test_threshold_is_configurable(t):
     s = wp.score("staff use ChatGPT for writing", PAGE, "latin", t)
     assert s["rule_80"] is (0.8 >= t)
+
+
+def test_partitions_grouped_stratified_and_seeded():
+    cands = {f"L{i}": ["latin"] * 2 for i in range(10)}
+    cands |= {"BIG": ["latin"] * 150, "C1": ["cjk"], "C2": ["cjk"], "T1": ["thai"]}
+    a, b = wp.assign_partitions(cands), wp.assign_partitions(cands)
+    assert a == b
+    assert a["BIG"] == "tuning" and a["T1"] == "tuning"
+    assert sum(a[f"L{i}"] == "holdout" for i in range(11) if f"L{i}" in a) == 2
+    assert sorted([a["C1"], a["C2"]]) == ["holdout", "tuning"]

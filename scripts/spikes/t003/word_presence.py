@@ -12,8 +12,8 @@ Counting unit. Space-delimited scripts use words. For CJK and Thai, which do not
 delimit words with spaces, the unit is open (RC-D-014 open item 1). The script
 reports both `word` (runs of letters and digits, which for CJK/Thai are often
 whole clauses) and `char` (single letters/digits), with `rule_80_word` and
-`rule_80_char`. `rule_80` uses `word` for space-delimited scripts; for CJK/Thai
-it is left blank unless `--nonspaced-unit` is given. A dictionary tokenizer
+`rule_80_char`. `rule_80` uses `word` for every script (PI ruling 2026-11-04,
+"2 word"); `--nonspaced-unit char` exists for diagnostics only. A dictionary tokenizer
 variant is not computed (it would need a new dependency).
 
 Evidence for that choice (2026-11-04, 331 recovered candidates; negative control =
@@ -35,9 +35,11 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import random
 import re
 import sys
 import unicodedata
+from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -67,12 +69,12 @@ def presence(quote_tokens: list[str], page_tokens: Iterable[str]) -> float | Non
     return sum(t in page for t in quote_tokens) / len(quote_tokens)
 
 
-def primary_unit(script: str, nonspaced_unit: str | None = None) -> str | None:
+def primary_unit(script: str, nonspaced_unit: str | None = "word") -> str | None:
     return nonspaced_unit if script.lower() in NON_SPACED_SCRIPTS else "word"
 
 
 def score(quote: str, page_text: str, script: str, threshold: float = THRESHOLD,
-          nonspaced_unit: str | None = None) -> dict:
+          nonspaced_unit: str | None = "word") -> dict:
     qw, qc = word_tokens(quote), char_tokens(quote)
     pw = word_tokens(page_text)
     pc = char_tokens(page_text)
@@ -98,7 +100,39 @@ def _page_text(page_row: dict) -> str:
     return rec.get("text") or ""
 
 
-def run(recovery_dir: Path, out: Path, threshold: float, nonspaced_unit: str | None = None) -> dict:
+HOLDOUT_SHARE = 0.20
+SPLIT_SEED = 20261104
+FORCE_TUNING_MIN = 100  # an institution with this many candidates stays in tuning
+
+
+def institution_of(page_id: str) -> str:
+    """page_id is '<corpus>:<run>:<INST-id>:<hash>'."""
+    return page_id.split(":")[2]
+
+
+def assign_partitions(cands: dict[str, list[str]]) -> dict[str, str]:
+    """Institution -> 'tuning' | 'holdout' (integrator pick under PI delegation, 2026-11-04).
+
+    `cands` maps institution -> the scripts of its candidates. Grouped by institution
+    (PI "Group by institution"), stratified by dominant script, 20% of institutions
+    held out (rounded, at least 1 per script with >=2 institutions), seeded. Any
+    institution with >= FORCE_TUNING_MIN candidates stays in tuning.
+    """
+    by_script: dict[str, list[str]] = {}
+    for inst, scripts in sorted(cands.items()):
+        dom = sorted(Counter(scripts).items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+        by_script.setdefault(dom, []).append(inst)
+    rng = random.Random(SPLIT_SEED)
+    out = {}
+    for _, insts in sorted(by_script.items()):
+        eligible = [i for i in insts if len(cands[i]) < FORCE_TUNING_MIN]
+        k = 0 if len(insts) < 2 else max(1, round(HOLDOUT_SHARE * len(insts)))
+        held = set(rng.sample(eligible, min(k, len(eligible))))
+        out.update({i: "holdout" if i in held else "tuning" for i in insts})
+    return out
+
+
+def run(recovery_dir: Path, out: Path, threshold: float, nonspaced_unit: str | None = "word") -> dict:
     pages = {}
     with open(recovery_dir / "SOURCE-PAGES.jsonl", encoding="utf-8") as f:
         for line in f:
@@ -108,7 +142,16 @@ def run(recovery_dir: Path, out: Path, threshold: float, nonspaced_unit: str | N
     by_script: dict[str, list[int]] = {}
     fields = ["candidate_id", "page_id", "script", "text_surface", "quote_words", "quote_chars",
               "presence_word", "presence_char", "rule_80_word", "rule_80_char", "primary_unit", "rule_80",
-              "threshold"]
+              "threshold", "institution", "partition"]
+    groups: dict[str, list[str]] = {}
+    with open(recovery_dir / "CANDIDATES.jsonl", encoding="utf-8") as f:
+        for line in f:
+            c = json.loads(line)
+            q = c["saved_quote_record"]
+            if isinstance(q, str):
+                q = json.loads(q)
+            groups.setdefault(institution_of(q["page_id"]), []).append(c["script"])
+    part = assign_partitions(groups)
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(recovery_dir / "CANDIDATES.jsonl", encoding="utf-8") as f, \
             open(out, "w", encoding="utf-8", newline="") as g:
@@ -125,7 +168,9 @@ def run(recovery_dir: Path, out: Path, threshold: float, nonspaced_unit: str | N
                 continue
             s = score(q["quote"], _page_text(page), c["script"], threshold, nonspaced_unit)
             w.writerow({"candidate_id": c["candidate_id"], "page_id": q["page_id"], "script": c["script"],
-                        "text_surface": c["text_surface"], "threshold": threshold, **s})
+                        "text_surface": c["text_surface"], "threshold": threshold, **s,
+                        "institution": institution_of(q["page_id"]),
+                        "partition": part[institution_of(q["page_id"])]})
             n += 1
             tally = by_script.setdefault(c["script"], [0, 0, 0, 0])
             tally[0] += 1
@@ -134,6 +179,8 @@ def run(recovery_dir: Path, out: Path, threshold: float, nonspaced_unit: str | N
             tally[3] += s["rule_80_word"] is True
     return {"candidates_scored": n, "missing_page": missing, "threshold": threshold,
             "nonspaced_unit": nonspaced_unit,
+            "institutions": {"tuning": sum(v == "tuning" for v in part.values()),
+                             "holdout": sum(v == "holdout" for v in part.values())},
             "by_script": {k: {"n": v[0], "rule_80_true": v[1], "rule_80_blank": v[2], "rule_80_word_true": v[3]}
                           for k, v in sorted(by_script.items())}}
 
@@ -143,8 +190,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--recovery-dir", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--threshold", type=float, default=THRESHOLD)
-    ap.add_argument("--nonspaced-unit", choices=["word", "char"], default=None,
-                    help="counting unit for CJK/Thai (open PI choice, RC-D-014); omitted = rule_80 blank")
+    ap.add_argument("--nonspaced-unit", choices=["word", "char"], default="word",
+                    help="counting unit for CJK/Thai; PI ruled word (2026-11-04); char is diagnostic only")
     a = ap.parse_args(argv)
     summary = run(a.recovery_dir, a.out, a.threshold, a.nonspaced_unit)
     json.dump(summary, sys.stdout, indent=1)
