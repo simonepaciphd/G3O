@@ -94,3 +94,16 @@ def test_partitions_grouped_stratified_and_seeded():
     assert a["BIG"] == "tuning" and a["T1"] == "tuning"
     assert sum(a[f"L{i}"] == "holdout" for i in range(11) if f"L{i}" in a) == 2
     assert sorted([a["C1"], a["C2"]]) == ["holdout", "tuning"]
+
+
+def test_thai_combining_marks_stay_inside_the_word():
+    # U+0E31, U+0E34, U+0E4C are Mn; SARA AM (U+0E33) becomes NIKHAHIT (Mn) + SARA AA under NFKC.
+    # Thai has no spaces between words and no segmenter is used, so the whole run is one token.
+    toks = wp.word_tokens("การนำปัญญาประดิษฐ์")
+    assert toks == [wp.normalize("การนำปัญญาประดิษฐ์")]
+    assert wp.word_tokens("การนำปัญญาประดิษฐ์ (AI) และเทคโนโลยี") == [
+        wp.normalize("การนำปัญญาประดิษฐ์"), "ai", wp.normalize("และเทคโนโลยี")]
+
+
+def test_marks_do_not_change_latin_tokens():
+    assert wp.word_tokens("Staff don't use naïve café") == ["staff", "don't", "use", "naïve", "café"]
