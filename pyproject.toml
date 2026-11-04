@@ -43,6 +43,10 @@ dependencies = [
     # TypeSafe jev decision model for Stages 2/3 (classify_official_site,
     # classify_triage). See jev-integration-plan.md.
     "typesafe-sdk>=0.7",
+    # Quote-presence matcher (R-042). Exact pin is deliberate (DEC-007 a): the
+    # T-003 threshold was calibrated on this version; change it only with a
+    # re-calibration.
+    "rapidfuzz==3.14.3",
 ]
 
 [project.optional-dependencies]
