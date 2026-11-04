@@ -1,5 +1,15 @@
 # PLAN: G3O pipeline reclassification
 
+Current ruling overlay (2026-11-04, RC-D-015, PROPOSED until "approve delta"; text `planning/deltas/RC-D-015.md`):
+- T-003 jev wording approved; controls both kinds; jev 4+ = most probable level.
+- T-014 complete (PR #145, follow-ups PR #157: `<base href>` honoured, mailto split, pre-change cache gaps accepted).
+- T-020 code merged (PR #156).
+- Thai word fix merged (PR #155).
+- T-040 agent labels accepted, label wording approved.
+- Link ranking by nearness to evidence; first-discoverer parent; RQ-003 owners as verified; unreadable PDFs re-extracted, then not_assessable; re-pilot covers reworded items; row-50 extras untested.
+- Calendar conversion to be built before release, reversing RC-D-012's deferral.
+- One combined codebook re-sign (state pin sentence, finding items one round later).
+
 Current ruling overlay (2026-11-04, RC-D-014; rulings by Simone on decision page a1c28a08 and in chat, approved chat "1 approve", text `planning/deltas/RC-D-014.md`): quote match = 80% original-language word presence; calibration labels = jev 4+ or the 80% rule, revisited if they do not correlate strongly; per-script thresholds where needed; wording approval later, one packet before the T-030 merge; URL cap 10; Haiku legs kept; T-016 closed without re-test; real-page fixtures labelled by agent + jev, not the PI; new wave window after 2027-01-01, dates decided at the 2026-12-01 check; DP-003/004/008/009/031/060/061/062/064/068 ruled per their recommendations. Second round: words counted in every script; no blind 30-pair check; held-out split and the "strongly" bar (Spearman 0.5) picked by the integrator under PI delegation. Open: window dates.
 
 Current bounded-phase ruling (2026-11-02, RC-D-012): Simone accepts the separate corrected T-016 probability summary as the reporting record, retaining original records and approved wording; remaining closure provenance is still required. Calendar conversion is deferred and no longer blocks the signed literal-year method. Preserve literal four-digit 2015–2030 activity/context years, no publication-year fallback and earliest chosen year across chunks. D-010 remains unsent and Simone-owned. Other prerequisites remain; no task status is promoted. Exact replies: archive/records/Safe-review-PI-rulings.json.
@@ -927,7 +937,8 @@ Split per generator target (questions, prompts, enums / schema, docs).
 
 RC-D-011 update (2026-11-02): INT-001 case-preservation repair SUPERSEDED by RC-D-011. Current whole-address lowercase email-link extraction matches the revised case rule; no case-preservation patch is required.
 
-Status: pending
+Status: complete
+Progress (2026-11-04, integrator, RC-D-015): PR #145 merged 2026-10-31 (ef684f5). Open points ruled: C2 a (pre-change cache hits give None = not measured), C3 a and C4 b, implemented and merged in PR #157 (498f5d5); orchestrator re-ran the full offline suite (0 failed, 6 strict xfails unchanged).
 Type: build
 Priority: required
 Spec refs: R-023 (CX-53), R-031, R-035, R-059, N-004
@@ -1168,6 +1179,7 @@ Current PI disposition (2026-11-02, RC-D-013): DP-007 is resolved as uniform 90%
 Preparation update (2026-11-02): approved UTF8 tokens/byte Latin0.305/CJK0.341/Thai0.334 implemented and independently verified on separate ffb5be23fe8b25cdf12ee4315002e8c8d88c7bce;66engineer tests plus independent byte/mixed/lossless/guard assertions pass. Thai n3 remains thin. Default/partial margin configurations cannot pass assert_calibrated; no DP-007 margin chosen. Status stays blocked. Unchanged legacy combination code predates RC-D-010/T-027 and is not imported or recertified by this calibration. WholeT020/runtime acceptance remains pending.
 
 Status: blocked
+Progress (2026-11-04, integrator, RC-D-015): the e4e47ab prep was ported byte-identically and merged in PR #156 (35a03ae): 90% margin default, pooled split, local paths stripped from the public fixture (C5 b). It is still blocked on runtime/provider token accounting, the T-026 pooled builder, T-027 call-site composition and the T-031 review.
 Note (2026-10-31, integrator, RC-D-006): token estimator constants (PI 2 a): tokens per byte, the T-002 medians: Latin 0.305 (64 requests), CJK 0.341 (10), Thai 0.334 (3, a thin sample). The provisional single constant 0.3947 erred by -32% to +84% on Latin. DP-007 is still required. When the extractor code lands, T-020 pins `anthropic==2.3.0` in `requirements.txt` / `pyproject.toml` (now installed only in the shared venv) (P5). Flag: jev refused requests estimated at 29.6k tokens and accepted one at 26.1k (T-002), below C-004's 32k; size chunks below the observed refusal until settled.
 Progress (2026-10-30, integrator): code and 52 tests on `reclass/t020-chunks` `45309d2` (local, not pushed; integrator re-ran the 52 tests, pass). Blocked on: T-002 estimator constants and the DP-007 margin (done condition); five stopped fields needing PI rulings, one of them a signed-codebook gap (`core.activity_relation_cross_page` priority order lacks `has_component` and `governed_by`, so a codebook delta and re-signature are needed); return report items listed for the PI 2026-10-30. RC-D-005 (approved 2026-10-30): the five stopped fields are ruled (7 a, 8 b, 9 a, 10 a, 11 a) and the ten readings settled (SPEC v001.9 R-044, C-004); still waits for T-002 and DP-007.
 Type: build
