@@ -295,7 +295,7 @@ def check_sets(cb: Codebook | None = None, set_dir: Path = SET_DIR) -> list[str]
         if not p.exists():
             errors.append(f"{fname} missing")
             continue
-        text = p.read_bytes().decode("utf-8")
+        text = p.read_text(encoding="utf-8")  # universal newlines: autocrlf checkouts
         if text != dump(built[name]):
             errors.append(f"{fname} differs from the build output (rebuild)")
         docs[name] = json.loads(text)
