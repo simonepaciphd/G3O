@@ -3,9 +3,9 @@
 Runs `g3o.extract.years` over every stored page text of RS-008 and RS-009 (located exactly as the F4 readability
 spike does: RS-008 from --rs008-dir / G3O_RS008_DIR, RS-009 under the Drive root from --drive / G3O_DRIVE_ROOT)
 and reports:
-  - per fiscal form (fiscal_one, fiscal_two, plus marked-but-unruled fiscal_unruled): labels found, pages, unique
-    texts, and how often a label contributes a year the literal rule finds nowhere on that page;
-  - unmarked year ranges (no fiscal marker): counted only, no candidates (open PI question);
+  - per fiscal form (fiscal_one, fiscal_two, fiscal_range): labels found, pages, unique texts, and how often a
+    label contributes a year the plain literal rule finds nowhere on that page;
+  - unmarked year ranges (no fiscal marker; module form range_lower, lower year only): counted by shape;
   - years written in other calendars or non-ASCII digits, and non-English fiscal markers: counted, not converted
     (RC-D-017 9a "fiscal-year labels only"; the counting patterns here are heuristics for sizing, not rules).
 Counts run over unique texts (sha256 of `text`); page totals include duplicates. Examples (10 per form, unique
@@ -44,7 +44,7 @@ REL_OUT = "agent-workspace/2026-10-27-reclass-plan/spikes"
 SOURCES = ("RS-008", "RS-009")
 N_EXAMPLES = 10
 CTX = 60
-FISCAL_KINDS = (Y.FISCAL_ONE, Y.FISCAL_TWO, Y.FISCAL_UNRULED)
+FISCAL_KINDS = Y.FISCAL_KINDS
 
 
 def _digits(s: str) -> int | None:
@@ -100,18 +100,21 @@ def analyse(text: str) -> dict:
                  "non_en": Counter(), "unmarked": Counter(), "letter_adj": 0, "examples": defaultdict(list)}
     spans = [(f.start, f.end) for f in labels]
     for f in labels:
-        kept = [y for y in f.years if Y.in_range(y)] if f.kind != Y.FISCAL_UNRULED else []
-        dropped = [y for y in f.years if not Y.in_range(y)] if f.kind != Y.FISCAL_UNRULED else []
+        kept = [y for y in f.candidate_years if Y.in_range(y)]
+        dropped = [y for y in f.candidate_years if not Y.in_range(y)]
         new = [y for y in kept if y not in literal]
         res["kind"][f.kind] += 1
-        if not kept and f.kind != Y.FISCAL_UNRULED:
+        if not kept:
             res["kind"][f.kind + "_all_out_of_range"] += 1
         if new:
             res["adds"][f.kind] += 1
             res["adds_any"] = True
         res["labels"].append((f, kept, dropped, new))
     for name, rx in OTHER.items():
-        res["other"][name] = sum(1 for _ in rx.finditer(text))
+        ms = list(rx.finditer(text))
+        res["other"][name] = len(ms)
+        if ms:
+            res["examples"]["other_" + name].append(snippet(text, ms[0].start(), ms[0].end()))
     for m in NON_ASCII_GREG.finditer(text):
         s = m.group(1)
         if s.isascii():
@@ -125,6 +128,8 @@ def analyse(text: str) -> dict:
                 or _NUM_NEAR.search(text, max(0, m.start() - 12), m.start())
             if near:
                 res["non_en"][name] += 1
+                if len(res["examples"]["nonen_" + name]) < 1:
+                    res["examples"]["nonen_" + name].append(snippet(text, m.start(), m.end()))
     for m in UNMARKED.finditer(text):
         if any(a <= m.start() < b for a, b in spans):
             continue
@@ -224,8 +229,9 @@ def main(argv=None) -> int:
                         shown.add(f.kind)
                         examples[f.kind].append(f"`{pid}` {sorted(set(kept)) or '-'} :: {snippet(text, f.start, f.end)}")
                 for k, v in res["examples"].items():
-                    if len(unmarked_examples[k]) < 3:
-                        unmarked_examples[k].extend(v[: 3 - len(unmarked_examples[k])])
+                    cap = 3 if k.startswith("unmarked_") else 8
+                    if len(unmarked_examples[k]) < cap:
+                        unmarked_examples[k].extend(v[: cap - len(unmarked_examples[k])])
             for s0, e0, ltext, kind, named, kept, dropped, new in r["labels"]:
                 w.writerow([source, pid, rec.get("url", ""), sha, int(dup), s0, e0, ltext, kind,
                             ";".join(map(str, named)), ";".join(map(str, kept)), ";".join(map(str, dropped)),
@@ -260,21 +266,20 @@ def render(counts: dict, examples: dict, unmarked_examples: dict) -> str:
     for k in FISCAL_KINDS:
         row(f"`{k}` labels", U, "labels_" + k)
         row(f"texts with `{k}`", U, "texts_with_" + k)
-        if k != Y.FISCAL_UNRULED:
-            row(f"`{k}` labels adding a year the literal rule finds nowhere on the page", U, "labels_adding_year_" + k)
-            row(f"`{k}` labels with every named year outside 2015-2030 (dropped)", U, "labels_" + k + "_all_out_of_range")
+        row(f"`{k}` labels adding a year the literal rule finds nowhere on the page", U, "labels_adding_year_" + k)
+        row(f"`{k}` labels with every candidate year outside 2015-2030 (dropped)", U, "labels_" + k + "_all_out_of_range")
     row("texts where a fiscal label adds a year not found by the literal rule", U, "texts_with_added_year")
     row("pages where a fiscal label adds a year (incl. duplicates)", P, "pages_with_added_year")
-    L += ["", "## Unmarked two-year ranges (no fiscal marker; no candidates; open question)", "",
+    L += ["", "## Unmarked year ranges (no fiscal marker; module gives the lower year only, PI 6 a / 1b)", "",
           "| form | " + " | ".join(cols) + " |", "|---|" + "---|" * len(cols)]
     for k in ("consecutive_two_digit", "consecutive_four_digit", "nonconsecutive_two_digit", "nonconsecutive_four_digit"):
         row(f"`{k}` occurrences", U, "unmarked_" + k)
         row(f"texts with `{k}`", U, "texts_unmarked_" + k)
-    L += ["", "First year 2014-2030; second year after the first and at most 15 years later. Literal four-digit years "
-          "inside them are already candidates; only a two-digit second year (`2024/25`, `2019-21`) or the in-between "
-          "years would be new.", ""]
+    L += ["", "Counting shape for sizing: first year 2014-2030; second year after the first and at most 15 years later "
+          "(the module itself has no span limit). Under PI 1b the written upper four-digit year is dropped.", ""]
     for k, v in sorted(unmarked_examples.items()):
-        L.append(f"- `{k}`: " + " / ".join(f"`{s}`" for s in v))
+        if k.startswith("unmarked_"):
+            L.append(f"- `{k}`: " + " / ".join(f"`{s}`" for s in v))
     L += ["", "## Out of scope: other calendars, non-ASCII digits (counted, not converted; heuristic patterns)", "",
           "| pattern | occurrences (all) | texts (all) | RS-008 texts | RS-009 texts |", "|---|---|---|---|---|"]
     for k in sorted({x[len("other_"):] for x in U["all"] if x.startswith("other_")}):
@@ -286,6 +291,10 @@ def render(counts: dict, examples: dict, unmarked_examples: dict) -> str:
           "| marker | occurrences (all) | texts (all) |", "|---|---|---|"]
     for k in sorted(NON_EN_FISCAL):
         L.append(f"| `{k}` | {U['all'].get('nonen_' + k, 0)} | {U['all'].get('texts_nonen_' + k, 0)} |")
+    L += ["", "## Out-of-scope examples (first 8 unique texts per pattern; for the T-064 conversions proposal)", ""]
+    for k, v in sorted(unmarked_examples.items()):
+        if not k.startswith("unmarked_"):
+            L.append(f"- `{k}`: " + " / ".join(f"`{s}`" for s in v))
     L += ["", "## Examples (first 10 unique texts per form, one label each; `[[...]]` is the label; list = years kept)", ""]
     for k in FISCAL_KINDS:
         L.append(f"### `{k}`")

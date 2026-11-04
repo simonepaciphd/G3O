@@ -1,21 +1,26 @@
-"""T-064: year candidates (literal + fiscal-year labels), RC-D-017 9a-e and "3 a". Synthetic strings only (DP-064e)."""
+"""T-064: year candidates (literal, fiscal-year labels, ranges): RC-D-017 9a-e, "3 a"; PI 2026-11-04 "6 a", "7", "8 a", "1b".
+
+Synthetic strings only (DP-064e)."""
 
 from __future__ import annotations
 
 import pytest
 
+from g3o.extract import years as Y
 from g3o.extract.years import (
     FISCAL_ONE,
+    FISCAL_RANGE,
     FISCAL_TWO,
-    FISCAL_UNRULED,
     LITERAL,
+    RANGE_LOWER,
     extract_year_candidates,
     fiscal_labels,
+    year_ranges,
 )
 
 
-def years(text: str) -> list[int]:
-    return [c.year for c in extract_year_candidates(text)]
+def years(text: str, lower_only: bool | None = None) -> list[int]:
+    return [c.year for c in extract_year_candidates(text, lower_only)]
 
 
 def forms_of(text: str, year: int) -> set[str]:
@@ -96,11 +101,11 @@ def test_fiscal_two_two_digit_second_year():
     assert {s.form for s in cands[0].sources} == {FISCAL_TWO, LITERAL}
 
 
-def test_fiscal_two_negative_nonconsecutive_is_unruled():
+def test_fiscal_two_negative_nonconsecutive_is_range():
     text = "FY2024-26 programme"
     (lab,) = fiscal_labels(text)
-    assert lab.kind == FISCAL_UNRULED and lab.years == (2024, 2026)
-    assert years(text) == [2024]  # literal only; "26" gives nothing until ruled
+    assert lab.kind == FISCAL_RANGE and lab.years == (2024, 2026)
+    assert years(text) == [2024]
 
 
 @pytest.mark.parametrize("text,expected", [("FY2014/15", [2015]), ("FY2030/31", [2030]),
@@ -109,14 +114,72 @@ def test_fiscal_two_range_edges(text, expected):
     assert years(text) == expected
 
 
-# ---- unmarked ranges: no decision taken (open PI question) ---------------------------------------------
+# ---- ranges: lower year only ("6 a", "7", "1b") --------------------------------------------------------
 
-@pytest.mark.parametrize("text,expected", [("2019-2021", [2019, 2021]), ("2024/25", [2024]),
-                                           ("2024-2025", [2024, 2025]), ("2019-21", [2019])])
-def test_unmarked_ranges_literal_only(text, expected):
-    assert fiscal_labels(text) == []
-    assert years(text) == expected
-    assert all(s.form == LITERAL for c in extract_year_candidates(text) for s in c.sources)
+def test_module_default_is_lower_year_only():
+    assert Y.RANGES_LOWER_YEAR_ONLY is True
+
+
+@pytest.mark.parametrize("text,lower_only,literal_only", [
+    ("2019-2021", [2019], [2019, 2021]),
+    ("2024-25", [2024], [2024]),
+    ("2024/2025", [2024], [2024, 2025]),
+    ("2019-21", [2019], [2019]),
+    ("2020–2022", [2020], [2020, 2022]),   # en dash
+    ("2020—2022", [2020], [2020, 2022]),   # em dash
+    ("2020 - 2022", [2020], [2020, 2022]),
+    ("2020 / 2022", [2020], [2020, 2022]),
+    ("FY 2022-2026", [2022], [2022, 2026]),       # marked, not consecutive ("7")
+    ("FY2024-26", [2024], [2024]),
+    ("2022-2026 fiscal year", [2022], [2022, 2026]),
+])
+def test_ranges_both_settings(text, lower_only, literal_only):
+    assert years(text, True) == lower_only
+    assert years(text, False) == literal_only
+    assert years(text) == lower_only  # module default
+
+
+@pytest.mark.parametrize("text", ["FY2024/25", "FY 2024-2025", "2024-25 financial year"])
+def test_consecutive_fiscal_keeps_both_under_either_setting(text):
+    assert years(text, True) == [2024, 2025] and years(text, False) == [2024, 2025]
+
+
+def test_unmarked_range_source_form():
+    (c,) = extract_year_candidates("Plan 2019-2021.")
+    assert c.year == 2019 and c.forms == (LITERAL, RANGE_LOWER)
+    (r,) = year_ranges("Plan 2019-2021.")
+    assert r.text == "2019-2021" and r.years == (2019, 2021)
+
+
+def test_standalone_upper_year_still_counts():
+    assert years("2019-2021 and 2021", True) == [2019, 2021]
+    (_, c21) = extract_year_candidates("2019-2021 and 2021", True)
+    assert [s.start for s in c21.sources] == [14]  # only the standalone mention, not the range's upper year
+
+
+def test_upper_year_does_not_leak_through_literal_path():
+    for text, lower in (("2019-2021", 2019), ("FY 2022-2026", 2022), ("2020 – 2022", 2020)):
+        (c,) = extract_year_candidates(text, True)
+        assert c.year == lower
+        literal_starts = [s.start for s in c.sources if s.form == LITERAL]
+        assert literal_starts == [text.index(str(lower))]
+
+
+def test_lower_year_out_of_range_drops_whole_range():
+    # "2010-2020": lower year outside 2015-2030, upper year dropped by "1b": no candidate at all.
+    assert years("2010-2020", True) == [] and years("2010-2020", False) == [2020]
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("2020 to 2022", [2020, 2022]),        # words are not separators (open question)
+    ("2019-2020-2021", [2019, 2020, 2021]),  # chains are not ranges
+    ("2024-06-30", [2024]),                # ISO date
+    ("2025-2019", [2019, 2025]),           # descending: not a range
+    ("2020-2020", [2020]),
+])
+def test_not_ranges(text, expected):
+    assert year_ranges(text) == []
+    assert years(text, True) == expected
 
 
 # ---- de-duplication, ties, determinism -----------------------------------------------------------------
