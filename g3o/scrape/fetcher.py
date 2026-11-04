@@ -250,6 +250,9 @@ def _load(url: str, *, min_chars: int = 1) -> RenderedPage | None:
     if raw is None:
         return None
     cached = RenderedPage.model_validate_json(raw)
+    # A page cached before T-014 is served as-is, with chrome_text / links /
+    # email_links absent (None = not measured), even in a new run: no re-fetch,
+    # no cache invalidation (PI ruling C2 a, 2026-11-04).
     # Treat a cached below-floor page as a miss so the deterministic + render
     # path re-runs (F17: near-empty pages retry next run). Without this, a page
     # cached before this floor existed — or any short page — would short-circuit
