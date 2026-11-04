@@ -27,6 +27,14 @@ Cost and cap
   0.6346). Before each call the run reserves the 64k-token request maximum and stops before any call that could
   take spend past the cap. No halving on max_tokens_exceeded: the failure is recorded (halving could drop the
   quote's support).
+
+PI rulings applied (decision page v27-gates-1104, saved 2026-11-04T16:23:45Z; record
+agent-workspace/2026-11-04-v27-orch/decisions/v27-gates-1104.reply.json)
+  A1 a "Drafted anchors"          the question wording below, as drafted, no line edits
+  A2 a "Both kinds"               onpage + offpage controls, 40% of words swapped
+  A3 a "Most likely level"        jev 4+ means fidelity_argmax >= 4 (applied in the step-5 analysis)
+  P1 a "Score 222 unique, map back"  one item per unique (chunk_id, quote); candidate_ids kept
+  P2 a "Fix now"                  word_presence.py keeps combining marks inside words (Thai)
 """
 
 from __future__ import annotations
@@ -72,8 +80,13 @@ CAP_MAX_USD = 1.00
 BASES = {"latin": 0.305, "cjk": 0.341, "thai": 0.334}   # RC-D-013 approved bases (tokens per UTF-8 byte)
 MARGIN = 0.90                                           # RC-D-013 uniform margin: effective = base x 1.90
 
-# ---- The question. DRAFT until the PI approves the exact wording (RC-D-014 P1; card step 2).
-WORDING_STATUS = "DRAFT"   # set to "APPROVED <date> <PI chat quote>" only after Simone approves it
+RULINGS = {"A1": "a — Drafted anchors", "A2": "a — Both kinds", "A3": "a — Most likely level",
+           "P1": "a — Score 222 unique, map back", "P2": "a — Fix now",
+           "source": "decision page v27-gates-1104, saved 2026-11-04T16:23:45Z"}
+JEV_4PLUS_FIELD = "fidelity_argmax"   # A3 a: label = most likely level, fidelity >= 4
+
+# ---- The question (RC-D-014 P1; card step 2). Paid runs need an APPROVED status.
+WORDING_STATUS = 'APPROVED 2026-11-04 decision page v27-gates-1104 A1: "a — Drafted anchors"'
 QUESTION_ID = "quote_fidelity"
 QUESTION_INSTRUCTIONS = (
     "How accurately does the quote represent the source? Compare `quote` with `source_text`, both in the "
@@ -334,6 +347,7 @@ def dry_run(args) -> dict:
     ctrl = [x for x in items if x["kind"] == "control"]
     summary = {
         "generated_at": now(), "mode": "dry-run", "seed": SEED, "wording_status": WORDING_STATUS,
+        "rulings": RULINGS, "jev_4plus_field": JEV_4PLUS_FIELD,
         "question": {"id": QUESTION_ID, "type": "score", "instructions": QUESTION_INSTRUCTIONS,
                      "levels": list(QUESTION_LEVELS), "sha256": sha256(question_text())},
         "controls": {"kinds": list(args.control_kinds), "fraction": args.control_fraction,

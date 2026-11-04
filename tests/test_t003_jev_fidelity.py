@@ -162,6 +162,7 @@ def test_account_error_is_reraised(rec, tmp_path):
 
 def test_paid_run_refuses_draft_wording_and_high_cap(tmp_path, monkeypatch):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.setattr(jf, "WORDING_STATUS", "DRAFT")
     with pytest.raises(SystemExit, match="DRAFT"):
         jf.main(["run", "--out-dir", str(tmp_path)])
     monkeypatch.setattr(jf, "WORDING_STATUS", "APPROVED test")
@@ -176,5 +177,31 @@ def test_dry_run_writes_files_offline(rec, tmp_path):
     rc = jf.main(["dry-run", "--recovery-dir", str(rec), "--out-dir", str(out),
                   "--t002-dryrun", str(tmp_path / "missing.json")])
     d = json.loads((out / "SPIKE-T003-jev-dryrun.json").read_text(encoding="utf-8"))
-    assert rc == 0 and d["wording_status"] == "DRAFT" and d["estimate"]["all"]["items"] == 10
+    assert rc == 0 and d["wording_status"].startswith("APPROVED") and d["estimate"]["all"]["items"] == 10
     assert len((out / "SPIKE-T003-jev-items.jsonl").read_text(encoding="utf-8").splitlines()) == 10
+
+
+def test_rulings_recorded():
+    assert jf.WORDING_STATUS.startswith("APPROVED 2026-11-04") and "v27-gates-1104" in jf.WORDING_STATUS
+    assert jf.JEV_4PLUS_FIELD == "fidelity_argmax"
+    assert jf.CONTROL_KINDS == ("onpage", "offpage") and jf.CONTROL_FRACTION == 0.4
+
+
+def test_thai_controls_swap_whole_runs(tmp_path):
+    th = "การนำปัญญาประดิษฐ์ มาใช้ ในงาน เกษตร แม่นยำ"
+    pages = [{"page_id": PID_A, "source_record": {"text": th + " ของ จังหวัด", "title": "", "url": ""}},
+             {"page_id": PID_B, "source_record": {"text": "โรงเรียน ห้องสมุด ถนน", "title": "", "url": ""}}]
+    (tmp_path / "SOURCE-PAGES.jsonl").write_text("".join(json.dumps(p) + "\n" for p in pages), encoding="utf-8")
+    rows = [{"candidate_id": "T1", "script": "thai",
+             "saved_quote_record": {"page_id": PID_A, "chunk_id": f"{PID_A}#c1of1", "quote": th}},
+            {"candidate_id": "T2", "script": "thai",
+             "saved_quote_record": {"page_id": PID_B, "chunk_id": f"{PID_B}#c1of1", "quote": "โรงเรียน ถนน"}}]
+    (tmp_path / "CANDIDATES.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    items, _, _, _ = jf.build_items(tmp_path)
+    ctrl = [x for x in items if x["kind"] == "control"]
+    assert {x["control_kind"] for x in ctrl} == {"onpage", "offpage"}  # T2 has 2 runs: too short
+    page_runs = set(jf.wp.word_tokens(pages[0]["source_record"]["text"] + " " + pages[1]["source_record"]["text"]))
+    for x in ctrl:
+        for s in x["swaps"]:  # each swap is one whole space-delimited Thai run, never a fragment
+            assert jf.wp.word_tokens(s["new"]) == [jf.wp.normalize(s["new"])]
+            assert jf.wp.normalize(s["new"]) in page_runs
