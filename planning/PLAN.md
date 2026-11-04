@@ -4,6 +4,7 @@ Current ruling overlay (2026-11-04, RC-D-015, APPROVED 2026-11-04 chat "I approv
 - T-003 jev wording approved; controls both kinds; jev 4+ = most probable level.
 - T-003 paid run done ($0.13); "strongly" bar met for Latin and CJK on expected score (R1 b); OR gold kept (R2 a); per-script cutoffs to be tuned (R3 b).
 - T-040 labels confirmed at most-likely 4+ (R4 a); low ones relabelled and re-scored (R5 a).
+- RC-D-016 (PROPOSED): cutoffs 0.80 Latin and CJK, Thai default 0.80 (".8 for both is fine"); the Alberta fixture keeps its v2 label with no further re-score ("no need to rescore again").
 - T-014 complete (PR #145, follow-ups PR #157: `<base href>` honoured, mailto split, pre-change cache gaps accepted).
 - T-020 code merged (PR #156).
 - Thai word fix merged (PR #155).
