@@ -11,6 +11,10 @@ Modes
            wording is a draft, if the items differ from the dry-run, or if --cap is above $1. Append-only answers
            file with resume: run the same line again and done items are skipped.
 
+Paths
+  Inputs and outputs default to folders under the Drive root, read from G3O_DRIVE_ROOT or --drive; with neither
+  set the script exits 2. --recovery-dir, --out and --t002-dryrun override single paths.
+
 Items
   candidate  every unique (chunk_id, quote) pair among the 331 recovered candidates (duplicate candidates, e.g.
              sync vs Batch or one quote under two codes, share one item; the mapping is kept).
@@ -59,9 +63,26 @@ _spec = importlib.util.spec_from_file_location("word_presence", HERE / "word_pre
 wp = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(wp)
 
-RECOVERY_DIR = Path("H:/My Drive/Research/G3O/agent-workspace/2026-11-02-safe-review/t003-recovery")
-T002_DRYRUN = Path("H:/My Drive/Research/G3O/agent-workspace/2026-10-27-reclass-plan/spikes/SPIKE-T002-dryrun.json")
-OUT_DIR = Path("H:/My Drive/Research/G3O/agent-workspace/2026-11-04-v27-orch/lane-a")
+# Paths relative to the Drive root (G3O_DRIVE_ROOT); overridable per run.
+REL_RECOVERY_DIR = "agent-workspace/2026-11-02-safe-review/t003-recovery"
+REL_T002_DRYRUN = "agent-workspace/2026-10-27-reclass-plan/spikes/SPIKE-T002-dryrun.json"
+REL_OUT_DIR = "agent-workspace/2026-11-04-v27-orch/lane-a"
+
+DRIVE_ENV = "G3O_DRIVE_ROOT"   # the G3O Drive root (the folder holding agent-workspace/); no machine path in git
+
+
+def drive_root(override: Path | None = None) -> Path:
+    """The Drive root from --drive or G3O_DRIVE_ROOT. Exits with code 2 and a clear message when neither is set."""
+    v = override or os.environ.get(DRIVE_ENV)
+    if not v:
+        print(f"{DRIVE_ENV} is not set: point it at the G3O Drive root (the folder holding agent-workspace/), "
+              "or pass --drive.", file=sys.stderr)
+        raise SystemExit(2)
+    p = Path(v)
+    if not (p / "agent-workspace").is_dir():
+        print(f"{DRIVE_ENV}={v} has no agent-workspace/ folder.", file=sys.stderr)
+        raise SystemExit(2)
+    return p
 
 SEED = 20261104
 CONTROL_KINDS = ("onpage", "offpage")
@@ -488,16 +509,21 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="mode", required=True)
     for name in ("dry-run", "run"):
         p = sub.add_parser(name)
-        p.add_argument("--recovery-dir", type=Path, default=RECOVERY_DIR)
-        p.add_argument("--out-dir", type=Path, default=OUT_DIR)
+        p.add_argument("--drive", type=Path, default=None, help=f"Drive root; default ${DRIVE_ENV}")
+        p.add_argument("--recovery-dir", type=Path, default=None, help=f"default <drive>/{REL_RECOVERY_DIR}")
+        p.add_argument("--out", "--out-dir", dest="out_dir", type=Path, default=None,
+                       help=f"default <drive>/{REL_OUT_DIR}")
         if name == "dry-run":
-            p.add_argument("--t002-dryrun", type=Path, default=T002_DRYRUN)
+            p.add_argument("--t002-dryrun", type=Path, default=None, help=f"default <drive>/{REL_T002_DRYRUN}")
             p.add_argument("--control-kinds", type=lambda s: tuple(x for x in s.split(",") if x),
                            default=CONTROL_KINDS, help="comma list of onpage,offpage; empty string for none")
             p.add_argument("--control-fraction", type=float, default=CONTROL_FRACTION)
         else:
             p.add_argument("--cap", type=float, default=CAP_MAX_USD)
     a = ap.parse_args(argv)
+    for attr, rel in (("recovery_dir", REL_RECOVERY_DIR), ("out_dir", REL_OUT_DIR), ("t002_dryrun", REL_T002_DRYRUN)):
+        if hasattr(a, attr) and getattr(a, attr) is None:
+            setattr(a, attr, drive_root(a.drive) / rel)
     if a.mode == "dry-run":
         s = dry_run(a)
         print(json.dumps({k: s[k] for k in ("counts", "chunk_bytes_check", "estimate", "max_est_tokens_margin",

@@ -7,7 +7,8 @@ presence vs jev 1-5 >= 0.5 per script with n >= 30, near-miss controls included;
 (Latin, CJK), so this script tabulates cutoff errors for the PI. It chooses no threshold, split, unit or cutoff.
 
 Usage:
-    python analyze_t003.py --lane-dir <dir> [--presence-csv <csv>] [--out-prefix SPIKE-T003-analysis]
+    python analyze_t003.py [--drive <root> | --lane-dir <dir>] [--out <dir>] [--presence-csv <csv>]
+Inputs default to <G3O_DRIVE_ROOT>/agent-workspace/2026-11-04-v27-orch/lane-a; exits 2 if no root is given.
 """
 
 from __future__ import annotations
@@ -16,10 +17,28 @@ import argparse
 import csv
 import json
 import math
+import os
+import sys
 from collections import Counter
 from pathlib import Path
 
-LANE_DIR = Path("H:/My Drive/Research/G3O/agent-workspace/2026-11-04-v27-orch/lane-a")
+REL_LANE_DIR = "agent-workspace/2026-11-04-v27-orch/lane-a"   # relative to the Drive root (G3O_DRIVE_ROOT)
+
+DRIVE_ENV = "G3O_DRIVE_ROOT"   # the G3O Drive root (the folder holding agent-workspace/); no machine path in git
+
+
+def drive_root(override: Path | None = None) -> Path:
+    """The Drive root from --drive or G3O_DRIVE_ROOT. Exits with code 2 and a clear message when neither is set."""
+    v = override or os.environ.get(DRIVE_ENV)
+    if not v:
+        print(f"{DRIVE_ENV} is not set: point it at the G3O Drive root (the folder holding agent-workspace/), "
+              "or pass --drive.", file=sys.stderr)
+        raise SystemExit(2)
+    p = Path(v)
+    if not (p / "agent-workspace").is_dir():
+        print(f"{DRIVE_ENV}={v} has no agent-workspace/ folder.", file=sys.stderr)
+        raise SystemExit(2)
+    return p
 SCRIPTS = ("latin", "cjk", "thai")
 BAR_RHO, BAR_N = 0.5, 30
 JEV_4PLUS = 4
@@ -392,10 +411,16 @@ def main(argv=None) -> int:
     import hashlib
     from datetime import datetime, timezone
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--lane-dir", type=Path, default=LANE_DIR)
+    ap.add_argument("--drive", type=Path, default=None, help=f"Drive root; default ${DRIVE_ENV}")
+    ap.add_argument("--lane-dir", type=Path, default=None, help=f"inputs; default <drive>/{REL_LANE_DIR}")
+    ap.add_argument("--out", type=Path, default=None, help="report folder; default the lane dir")
     ap.add_argument("--presence-csv", type=Path, default=None)
     ap.add_argument("--out-prefix", default="SPIKE-T003-analysis")
     a = ap.parse_args(argv)
+    if a.lane_dir is None:
+        a.lane_dir = drive_root(a.drive) / REL_LANE_DIR
+    out_dir = a.out or a.lane_dir
+    out_dir.mkdir(parents=True, exist_ok=True)
     pcsv = a.presence_csv or a.lane_dir / "T003-word-presence-thai-fix.csv"
     items, ans, pres = load(a.lane_dir, pcsv)
     rows, missing = build_rows(items, ans, pres)
@@ -404,8 +429,8 @@ def main(argv=None) -> int:
     meta = {"generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "rulings": RULINGS,
             "inputs": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in files},
             "counts": {"items": len(items), "answers_ok": len(ans), "rows": len(rows), "missing": missing}}
-    (a.lane_dir / f"{a.out_prefix}.json").write_text(json.dumps({"meta": meta, **res}, indent=1), encoding="utf-8")
-    (a.lane_dir / f"{a.out_prefix}.md").write_text(render_md(res, meta), encoding="utf-8")
+    (out_dir / f"{a.out_prefix}.json").write_text(json.dumps({"meta": meta, **res}, indent=1), encoding="utf-8")
+    (out_dir / f"{a.out_prefix}.md").write_text(render_md(res, meta), encoding="utf-8")
     print(json.dumps({"counts": meta["counts"], "bar_ruled": res["bar_ruled"]}, indent=1))
     return 0 if not missing else 1
 

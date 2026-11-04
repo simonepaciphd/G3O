@@ -134,3 +134,37 @@ def test_chosen_cutoffs_recorded(tmp_path):
     ch = res["chosen_cutoffs"]["latin"]
     assert ch["cutoff"] == 0.8 and ch["tuning"]["candidates_false_match"] == 0
     assert ch["holdout"]["candidates_n"] == 1 and "note" in res["chosen_cutoffs"]["thai"]
+
+
+def test_no_drive_root_exits_2(monkeypatch):
+    monkeypatch.delenv(an.DRIVE_ENV, raising=False)
+    with pytest.raises(SystemExit) as e:
+        an.main([])
+    assert e.value.code == 2
+
+
+def test_out_override_writes_elsewhere(tmp_path):
+    lane = _fixture(tmp_path)
+    out = tmp_path / "reports"
+    assert an.main(["--lane-dir", str(lane), "--out", str(out)]) == 0
+    assert (out / "SPIKE-T003-analysis.json").exists() and not (lane / "SPIKE-T003-analysis.json").exists()
+
+
+# Built from parts so this file itself carries none of the strings it forbids.
+# The user-name check is a whole-word match: the approved jev wording has an ordinary word with that prefix.
+_BAD = ["C:" + "/Users", "C:" + "\\" + "Users", "My " + "Drive", "H:" + "/", "H:" + "\\"]
+
+
+def test_no_machine_paths_in_source():
+    import re
+    src = _P.read_text(encoding="utf-8")
+    for bad in _BAD:
+        assert bad not in src
+    assert not re.search("spa" + r"ci(?![a-z])", src)
+
+
+@pytest.mark.skipif(not __import__("os").environ.get("G3O_DRIVE_ROOT"), reason="needs G3O_DRIVE_ROOT (Drive data)")
+def test_real_analysis_reproduces_ruled_bar(tmp_path):
+    assert an.main(["--out", str(tmp_path)]) == 0
+    res = json.loads((tmp_path / "SPIKE-T003-analysis.json").read_text(encoding="utf-8"))
+    assert res["bar_ruled"]["latin"]["rho"] == 0.5277 and res["bar_ruled"]["cjk"]["rho"] == 0.5755

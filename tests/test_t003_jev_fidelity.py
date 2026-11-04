@@ -164,12 +164,12 @@ def test_paid_run_refuses_draft_wording_and_high_cap(tmp_path, monkeypatch):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
     monkeypatch.setattr(jf, "WORDING_STATUS", "DRAFT")
     with pytest.raises(SystemExit, match="DRAFT"):
-        jf.main(["run", "--out-dir", str(tmp_path)])
+        jf.main(["run", "--out-dir", str(tmp_path), "--recovery-dir", str(tmp_path)])
     monkeypatch.setattr(jf, "WORDING_STATUS", "APPROVED test")
     with pytest.raises(SystemExit, match="refused"):
-        jf.main(["run", "--out-dir", str(tmp_path), "--cap", "1.5"])
+        jf.main(["run", "--out-dir", str(tmp_path), "--recovery-dir", str(tmp_path), "--cap", "1.5"])
     with pytest.raises(SystemExit, match="TYPESAFE_API_KEY"):
-        jf.main(["run", "--out-dir", str(tmp_path)])
+        jf.main(["run", "--out-dir", str(tmp_path), "--recovery-dir", str(tmp_path)])
 
 
 def test_dry_run_writes_files_offline(rec, tmp_path):
@@ -205,3 +205,42 @@ def test_thai_controls_swap_whole_runs(tmp_path):
         for s in x["swaps"]:  # each swap is one whole space-delimited Thai run, never a fragment
             assert jf.wp.word_tokens(s["new"]) == [jf.wp.normalize(s["new"])]
             assert jf.wp.normalize(s["new"]) in page_runs
+
+
+def test_no_drive_root_exits_2(monkeypatch, tmp_path):
+    monkeypatch.delenv(jf.DRIVE_ENV, raising=False)
+    with pytest.raises(SystemExit) as e:
+        jf.main(["dry-run"])
+    assert e.value.code == 2
+    with pytest.raises(SystemExit) as e:
+        jf.drive_root(tmp_path)  # exists but has no agent-workspace/
+    assert e.value.code == 2
+
+
+def test_drive_root_from_setting(monkeypatch, tmp_path):
+    (tmp_path / "agent-workspace").mkdir()
+    monkeypatch.setenv(jf.DRIVE_ENV, str(tmp_path))
+    assert jf.drive_root() == tmp_path
+
+
+# Built from parts so this file itself carries none of the strings it forbids.
+# The user-name check is a whole-word match: the approved jev wording has an ordinary word with that prefix.
+_BAD = ["C:" + "/Users", "C:" + "\\" + "Users", "My " + "Drive", "H:" + "/", "H:" + "\\"]
+
+
+def test_no_machine_paths_in_source():
+    import re
+    src = _P.read_text(encoding="utf-8")
+    for bad in _BAD:
+        assert bad not in src
+    assert not re.search("spa" + r"ci(?![a-z])", src)
+
+
+@pytest.mark.skipif(not __import__("os").environ.get("G3O_DRIVE_ROOT"), reason="needs G3O_DRIVE_ROOT (Drive data)")
+def test_real_dry_run_reproduces_recorded_items(tmp_path):
+    import os
+    root = Path(os.environ["G3O_DRIVE_ROOT"])
+    rec = json.loads((root / jf.REL_OUT_DIR / "SPIKE-T003-jev-dryrun.json").read_text(encoding="utf-8"))
+    assert jf.main(["dry-run", "--out", str(tmp_path)]) == 0
+    new = json.loads((tmp_path / "SPIKE-T003-jev-dryrun.json").read_text(encoding="utf-8"))
+    assert new["items_sha256"] == rec["items_sha256"] and new["question"]["sha256"] == rec["question"]["sha256"]
