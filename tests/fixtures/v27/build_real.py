@@ -310,13 +310,30 @@ add(
     sp_ref(1),
     "Alberta",
     [
-        e(
-            "core.page_verdict",
-            "background_only",
-            f"{PV} background_only: general explainer on GenAI at work, no activity at this institution",
-            "Generative AI is a new form of AI that can create content",
-            jc="JC-R9",
-        )
+        {
+            **e(
+                "core.page_verdict",
+                "ambiguous_genai",
+                f"{PV} ambiguous_genai: the page mentions AI at this institution (the Alberta AI Academy, "
+                "created for Alberta's public servants) but does not settle that the Academy is generative AI; "
+                "confirms_activity (institution-directed staff GenAI training) needs the text to be explicitly "
+                "generative for the activity, so the order rule does not reach it",
+                "The Alberta AI Academy was created to help Alberta's public servants be leaders in this technological shift.",
+                jc="JC-R9",
+            ),
+            "label_version": 2,
+            "label_history": [
+                {
+                    "label_version": 1,
+                    "value": "background_only",
+                    "evidence_quote": "Generative AI is a new form of AI that can create content",
+                    "jev_argmax_1_5": 1,
+                    "jev_expected_1_5": 2.05,
+                    "jev_key": "v27-real-12#0",
+                    "superseded_by": "PI 2026-11-04 v27-results-1104 R4 a + R5 a (relabel and re-score)",
+                }
+            ],
+        }
     ],
 )
 add(

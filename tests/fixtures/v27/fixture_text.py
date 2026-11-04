@@ -47,6 +47,12 @@ _FILLER = (
 )
 
 
+def label_key(fixture_id: str, k: int, expected: dict) -> str:
+    """Key of one expected value: <fixture_id>#<index>, plus @v<n> once a label is relabelled (n >= 2)."""
+    v = expected.get("label_version", 1)
+    return f"{fixture_id}#{k}" + (f"@v{v}" if v > 1 else "")
+
+
 def filler(tokens: int, seed: int = 0) -> str:
     """Return about ``tokens`` tokens of neutral prose, numbered so no two paragraphs repeat."""
     target = tokens * CHARS_PER_TOKEN

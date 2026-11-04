@@ -8,7 +8,9 @@ Modes
   dry-run  FREE, offline. Builds one item per scorable real-page label from tests/fixtures/v27/real.json, resolves
            each page from its pinned Drive store (hash-checked), cuts the page to the part holding the label's
            evidence quote when the page is over the state limit, estimates tokens and cost. Writes
-           T040-jev-items.jsonl and T040-jev-dryrun.json to --out-dir.
+           T040-jev-items.jsonl and T040-jev-dryrun.json to --out-dir (with --round R: -R suffixed files).
+  --only K --round R  re-score only label key K (repeatable). A relabelled label has key <fixture>#<i>@v<n>, so the
+           earlier answer stays in the append-only answers file under its old key and both remain visible.
   run      PAID. Simone runs it (red line 4). Needs TYPESAFE_API_KEY and G3O_DRIVE_ROOT (or --drive). Refuses while WORDING_STATUS is DRAFT, if the
            items differ from the dry-run, or if --cap is above $1. Append-only answers file with resume.
 
@@ -108,7 +110,7 @@ def label_text(items: dict, item: str, value) -> tuple[str, str]:
     ) else ""
 
 
-def build_items(drive):
+def build_items(drive, only=None):
     import yaml
 
     items = yaml.safe_load((REPO / "codebook" / "codebook.yaml").read_text(encoding="utf-8"))[
@@ -140,7 +142,7 @@ def build_items(drive):
             )
             out.append(
                 {
-                    "item_id": f"{f['fixture_id']}#{k}",
+                    "item_id": ft.label_key(f["fixture_id"], k, e),
                     "fixture_id": f["fixture_id"],
                     "item": e["item"],
                     "label": e["value"],
@@ -152,7 +154,18 @@ def build_items(drive):
                     "est_tokens_margin": int(est * (1 + MARGIN)),
                 }
             )
+    if only:
+        missing = set(only) - {x["item_id"] for x in out}
+        if missing:
+            raise SystemExit(f"--only keys not among the scorable labels: {sorted(missing)}")
+        out = [x for x in out if x["item_id"] in set(only)]
     return out
+
+
+def files(args):
+    """Items and dry-run file names; a named --round gets its own pair so earlier rounds stay as evidence."""
+    sfx = f"-{args.round}" if args.round else ""
+    return args.out_dir / f"T040-jev-items{sfx}.jsonl", args.out_dir / f"T040-jev-dryrun{sfx}.json"
 
 
 def digest(items):
@@ -164,9 +177,9 @@ def cost(tokens):
 
 
 def dry_run(args):
-    items = build_items(args.drive)
-    out = args.out_dir
-    with (out / "T040-jev-items.jsonl").open("w", encoding="utf-8", newline="\n") as fo:
+    items = build_items(args.drive, args.only)
+    items_path, dry_path = files(args)
+    with items_path.open("w", encoding="utf-8", newline="\n") as fo:
         for x in items:
             fo.write(json.dumps(x, ensure_ascii=False) + "\n")
     tot = sum(x["est_tokens"] for x in items)
@@ -189,11 +202,11 @@ def dry_run(args):
         "max_est_tokens_margin": max(x["est_tokens_margin"] for x in items),
         "cap_usd": CAP_MAX_USD,
         "reserve_per_call_usd": round(cost(JEV_REQUEST_TOKENS), 6),
+        "round": args.round or "r1",
+        "only": args.only or None,
         "items_sha256": digest(items),
     }
-    (out / "T040-jev-dryrun.json").write_text(
-        json.dumps(s, ensure_ascii=False, indent=1), encoding="utf-8"
-    )
+    dry_path.write_text(json.dumps(s, ensure_ascii=False, indent=1), encoding="utf-8")
     print(
         json.dumps(
             {
@@ -291,8 +304,8 @@ def paid_run(args):
     if args.cap > CAP_MAX_USD:
         print(f"refused: --cap above ${CAP_MAX_USD}")
         return 3
-    dr = json.loads((args.out_dir / "T040-jev-dryrun.json").read_text(encoding="utf-8"))
-    items = build_items(args.drive)
+    dr = json.loads(files(args)[1].read_text(encoding="utf-8"))
+    items = build_items(args.drive, args.only)
     if digest(items) != dr["items_sha256"]:
         print("refused: items differ from the dry-run; re-run dry-run and re-approve")
         return 3
@@ -323,9 +336,25 @@ def main(argv=None):
             help="G3O Drive root; default: the G3O_DRIVE_ROOT setting",
         )
         p.add_argument("--out-dir", type=Path, default=None, help=f"default: <drive>/{OUT_SUBDIR}")
+        p.add_argument(
+            "--only",
+            action="append",
+            default=None,
+            help="score only this label key (repeatable), e.g. v27-real-12#0@v2",
+        )
+        p.add_argument(
+            "--round",
+            default="",
+            help="name of a re-score round (own items/dry-run files); required with --only",
+        )
         if name == "run":
             p.add_argument("--cap", type=float, default=CAP_MAX_USD)
     args = ap.parse_args(argv)
+    if args.only and not args.round:
+        print(
+            "error: --only needs --round (keeps earlier dry-run files as evidence)", file=sys.stderr
+        )
+        return 2
     try:
         args.drive = args.drive or ft.drive_root()
     except RuntimeError as e:

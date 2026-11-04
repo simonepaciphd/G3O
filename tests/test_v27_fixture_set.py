@@ -150,11 +150,14 @@ def test_no_pilot_v1_input():
 def test_jev_label_scores_join_and_readings():
     scores = list(csv.DictReader((FIX / "jev-label-scores.csv").open(encoding="utf-8")))
     sheet = list(csv.DictReader((FIX / "label-sheet.csv").open(encoding="utf-8")))
-    assert (
-        len({s["key"] for s in scores})
-        == len(scores)
-        == sum(1 for r in sheet if r["jev_argmax_1_5"])
-    )
+    keys = {s["key"] for s in scores}
+    assert len(keys) == len(scores)
+    # current real label keys that have a score are filled; superseded keys (relabels) stay in the scores file
+    sheet_keys = {r["jev_key"] for r in sheet if r["jev_key"]}
+    assert {r["jev_key"] for r in sheet if r["jev_argmax_1_5"]} == keys & sheet_keys
+    for r in sheet:
+        if r["label_version"] not in ("", "1"):
+            assert r["jev_key"].endswith("@v" + r["label_version"])
     for s in scores:
         probs = {int(k): v for k, v in json.loads(s["probabilities_1_5"]).items()}
         top = max(probs, key=lambda k: (probs[k], -k))

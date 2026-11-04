@@ -7,10 +7,14 @@ jev_expected_1_5 (probability-weighted level + 1). Which reading gates a label i
 """
 
 import csv
+import importlib.util
 import json
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+_spec = importlib.util.spec_from_file_location("fixture_text", HERE / "fixture_text.py")
+ft = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(ft)
 COLS = [
     "fixture_id",
     "kind",
@@ -25,6 +29,8 @@ COLS = [
     "labeller",
     "label_date",
     "judgement_call",
+    "label_version",
+    "jev_key",
     "jev_argmax_1_5",
     "jev_expected_1_5",
     "jev_confidence",
@@ -43,7 +49,7 @@ def main():
         for f in json.loads((HERE / name).read_text(encoding="utf-8"))["fixtures"]:
             for k, e in enumerate(f["expected"]):
                 v = e["value"]
-                js = scores.get(f"{f['fixture_id']}#{k}", {})
+                js = scores.get(ft.label_key(f["fixture_id"], k, e), {})
                 rows.append(
                     {
                         "fixture_id": f["fixture_id"],
@@ -61,6 +67,10 @@ def main():
                         "labeller": e.get("labeller", "agent (synthetic: by construction)"),
                         "label_date": e.get("label_date", "2026-11-04"),
                         "judgement_call": e.get("judgement_call", ""),
+                        "label_version": e.get("label_version", 1),
+                        "jev_key": ft.label_key(f["fixture_id"], k, e)
+                        if f["kind"] == "real"
+                        else "",
                         "jev_argmax_1_5": js.get("jev_argmax_1_5", ""),
                         "jev_expected_1_5": js.get("jev_expected_1_5", ""),
                         "jev_confidence": js.get("confidence", ""),

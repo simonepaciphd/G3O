@@ -457,15 +457,27 @@
     {
      "item": "core.page_verdict",
      "scope": "page",
-     "value": "background_only",
-     "rule": "codebook 2.7 core.page_verdict background_only: general explainer on GenAI at work, no activity at this institution",
-     "evidence_quote": "Generative AI is a new form of AI that can create content",
+     "value": "ambiguous_genai",
+     "rule": "codebook 2.7 core.page_verdict ambiguous_genai: the page mentions AI at this institution (the Alberta AI Academy, created for Alberta's public servants) but does not settle that the Academy is generative AI; confirms_activity (institution-directed staff GenAI training) needs the text to be explicitly generative for the activity, so the order rule does not reach it",
+     "evidence_quote": "The Alberta AI Academy was created to help Alberta's public servants be leaders in this technological shift.",
      "labeller": "agent",
      "label_session": "20261104-claude-v2-87b58de9a1ec1fe0",
      "label_model": "claude-opus-5-5",
      "label_date": "2026-11-04",
      "jev_score": null,
-     "judgement_call": "JC-R9"
+     "judgement_call": "JC-R9",
+     "label_version": 2,
+     "label_history": [
+      {
+       "label_version": 1,
+       "value": "background_only",
+       "evidence_quote": "Generative AI is a new form of AI that can create content",
+       "jev_argmax_1_5": 1,
+       "jev_expected_1_5": 2.05,
+       "jev_key": "v27-real-12#0",
+       "superseded_by": "PI 2026-11-04 v27-results-1104 R4 a + R5 a (relabel and re-score)"
+      }
+     ]
     }
    ],
    "note": ""
