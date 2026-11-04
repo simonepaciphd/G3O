@@ -1,7 +1,7 @@
 # SPEC: G3O pipeline reclassification
 
 Status: LOCKED
-Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); v001.5 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.6 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.7 by delta RC-D-003, approved 2026-10-30 (Simone Paci, chat "all accepted"); v001.8 by delta RC-D-004, approved 2026-10-30 (Simone Paci, chat "approved"); v001.9 by delta RC-D-005, approved 2026-10-30 (Simone Paci, chat "approved! go forth"); v001.10 mechanical (R-041 marker → pointer to the signed codebook), 2026-10-30 (Simone Paci, chat "clean up items on #4"); v001.11 mechanical (15 wording markers → pointers to the signed codebook), 2026-10-31 (Simone Paci, chat "you do 7"; approved "7 ok", PR #142); v001.16 by delta RC-D-014, rulings 2026-11-04 (Simone Paci, decision page a1c28a08 and chat), approved 2026-11-04 (chat "1 approve"); v001.17 by delta RC-D-015, rulings 2026-11-04 (Simone Paci, decision pages 95487980 and 840f841f), approved 2026-11-04 (chat "I approve delta"); v001.18 by delta RC-D-016 (chat rulings 2026-11-04), PROPOSED until "approve delta"
+Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); v001.5 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.6 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.7 by delta RC-D-003, approved 2026-10-30 (Simone Paci, chat "all accepted"); v001.8 by delta RC-D-004, approved 2026-10-30 (Simone Paci, chat "approved"); v001.9 by delta RC-D-005, approved 2026-10-30 (Simone Paci, chat "approved! go forth"); v001.10 mechanical (R-041 marker → pointer to the signed codebook), 2026-10-30 (Simone Paci, chat "clean up items on #4"); v001.11 mechanical (15 wording markers → pointers to the signed codebook), 2026-10-31 (Simone Paci, chat "you do 7"; approved "7 ok", PR #142); v001.16 by delta RC-D-014, rulings 2026-11-04 (Simone Paci, decision page a1c28a08 and chat), approved 2026-11-04 (chat "1 approve"); v001.17 by delta RC-D-015, rulings 2026-11-04 (Simone Paci, decision pages 95487980 and 840f841f), approved 2026-11-04 (chat "I approve delta"); v001.18 by delta RC-D-016 (chat rulings 2026-11-04), approved 2026-11-04 (chat "approve delta")
 Version: v001.18
 Supersedes: v001.15 through RC-D-014 deploy-blocker rulings of 2026-11-04 ; v001.14 through RC-D-011 whole-address lowercase email counting; original baseline RC-BL-001 retained.
 Owner: Simone Paci (sole substantive approver)
@@ -336,6 +336,6 @@ Full text and verbatim choices: `deltas/RC-D-015.md`. Rules recorded here:
 - Calendar conversion (Q3 b): built before release; this reverses the RC-D-012 deferral. Signed year rule unchanged.
 - Codebook (Q1 b, Q2 a, P1 a): one combined re-sign (r12). The question-set state is pinned in the versioned set files plus the wording-packet approval, and the finding items move one round later.
 
-## RC-D-016 — T-003 cutoffs (2026-11-04; PROPOSED)
+## RC-D-016 — T-003 cutoffs (2026-11-04; APPROVED, chat "approve delta")
 
 R-042 (R3 b values, chat ".8 for both is fine"): the word-presence cutoff is 0.80 for Latin and CJK; Thai keeps the default 0.80. Text: `deltas/RC-D-016.md`.
