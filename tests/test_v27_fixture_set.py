@@ -5,6 +5,7 @@ values are codebook codes, that every expected value cites a rule, that real-pag
 carry no page text and a hash-pinned reference, and that judgement calls are registered.
 It does not run the pipeline (that is T-041, paid).
 """
+
 from __future__ import annotations
 
 import csv
@@ -20,8 +21,17 @@ FIX = ROOT / "tests" / "fixtures" / "v27"
 CODEBOOK = ROOT / "codebook" / "codebook.yaml"
 SIGNED_SHA = "f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d"
 A_IDS = ["A-003", "A-004", "A-010", "A-011", "A-012", "A-020", "A-021", "A-022"]
-VERDICTS = ["confirms_activity", "ambiguous_genai", "ambiguous_attribution", "other_body", "event_only",
-            "background_only", "confirms_absence", "no_genai", "not_assessable"]
+VERDICTS = [
+    "confirms_activity",
+    "ambiguous_genai",
+    "ambiguous_attribution",
+    "other_body",
+    "event_only",
+    "background_only",
+    "confirms_absence",
+    "no_genai",
+    "not_assessable",
+]
 MISSING = {"not_asked", "not_documented", "unknown", "_NA_"}
 
 
@@ -60,8 +70,12 @@ def test_at_least_three_fixtures_per_a_id(fixtures, a_id):
 
 @pytest.mark.parametrize("verdict", VERDICTS)
 def test_every_page_verdict_value_has_a_fixture(fixtures, verdict):
-    hits = [f for f in fixtures if "A-011" in f["a_ids"]
-            and any(e["item"] == "core.page_verdict" and e["value"] == verdict for e in f["expected"])]
+    hits = [
+        f
+        for f in fixtures
+        if "A-011" in f["a_ids"]
+        and any(e["item"] == "core.page_verdict" and e["value"] == verdict for e in f["expected"])
+    ]
     assert hits, verdict
 
 
@@ -72,7 +86,9 @@ def test_expected_values_are_codebook_codes(fixtures, items):
             if it is None or e.get("value_kind"):
                 continue  # mechanics keys (followed_urls, provenance, ...) and counts
             vals = it.get("values")
-            if not isinstance(vals, list) or not all(isinstance(v, dict) and v.get("code") for v in vals):
+            if not isinstance(vals, list) or not all(
+                isinstance(v, dict) and v.get("code") for v in vals
+            ):
                 continue  # free-text, list, date and year items
             codes = {v["code"] for v in vals} | MISSING
             assert e["value"] in codes, (f["fixture_id"], e["item"], e["value"])
@@ -113,6 +129,7 @@ def test_label_sheet_matches_fixtures(fixtures):
 
 def test_synthetic_long_pages_exceed_chunk_threshold():
     import importlib.util
+
     spec = importlib.util.spec_from_file_location("fixture_text", FIX / "fixture_text.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

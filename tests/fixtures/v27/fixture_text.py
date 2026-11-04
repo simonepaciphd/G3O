@@ -8,11 +8,33 @@ the 32k-token chunk threshold (C-004) without storing the filler in git.
 Real-page fixtures carry no text: they point at a stored scrape record by path and hash,
 and ``load_real_text`` resolves and verifies it.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
+
+DRIVE_ENV = "G3O_DRIVE_ROOT"
+
+
+def drive_root() -> Path:
+    """The G3O Drive root (holds agent-workspace/), read from the G3O_DRIVE_ROOT setting.
+
+    Real-page stores are referenced relative to this root, so no machine path lives in git.
+    Raises RuntimeError with a clear message when the setting is unset or does not exist.
+    """
+    v = os.environ.get(DRIVE_ENV)
+    if not v:
+        raise RuntimeError(
+            f"{DRIVE_ENV} is not set: point it at the G3O Drive root (the folder holding agent-workspace/)"
+        )
+    p = Path(v)
+    if not (p / "agent-workspace").is_dir():
+        raise RuntimeError(f"{DRIVE_ENV}={v} has no agent-workspace/ folder")
+    return p
+
 
 CHARS_PER_TOKEN = 4
 
@@ -58,9 +80,12 @@ def load_real_text(ref: dict, drive_root: str | Path) -> str:
     ``line_1based`` and ``text_sha256``. Raises ValueError on a hash mismatch.
     """
     path = Path(drive_root) / ref["store"]
-    if "member" in ref:  # stored scrape inside a pulled tar (RS-009); read in memory, never extracted
+    if (
+        "member" in ref
+    ):  # stored scrape inside a pulled tar (RS-009); read in memory, never extracted
         import gzip
         import tarfile
+
         with tarfile.open(path) as tf:
             raw = tf.extractfile(ref["member"]).read()
         if hashlib.sha256(raw).hexdigest() != ref["member_sha256"]:

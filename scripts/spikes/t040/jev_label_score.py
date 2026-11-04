@@ -9,12 +9,13 @@ Modes
            each page from its pinned Drive store (hash-checked), cuts the page to the part holding the label's
            evidence quote when the page is over the state limit, estimates tokens and cost. Writes
            T040-jev-items.jsonl and T040-jev-dryrun.json to --out-dir.
-  run      PAID. Simone runs it (red line 4). Needs TYPESAFE_API_KEY. Refuses while WORDING_STATUS is DRAFT, if the
+  run      PAID. Simone runs it (red line 4). Needs TYPESAFE_API_KEY and G3O_DRIVE_ROOT (or --drive). Refuses while WORDING_STATUS is DRAFT, if the
            items differ from the dry-run, or if --cap is above $1. Append-only answers file with resume.
 
 Not scored (no page-label meaning): segmentation counts (n_activities) and institution-level items; they are
 covered by the page labels they rest on and by T-041.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,8 +30,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 FIX = REPO / "tests" / "fixtures" / "v27"
-DRIVE = Path("H:/My Drive/Research/G3O")
-OUT_DIR = DRIVE / "agent-workspace/2026-11-04-v27-orch/lane-d"
+OUT_SUBDIR = (
+    "agent-workspace/2026-11-04-v27-orch/lane-d"  # under the Drive root (G3O_DRIVE_ROOT setting)
+)
 
 _spec = importlib.util.spec_from_file_location("fixture_text", FIX / "fixture_text.py")
 ft = importlib.util.module_from_spec(_spec)
@@ -38,13 +40,17 @@ _spec.loader.exec_module(ft)
 
 JEV_IN_PER_M = 0.042
 JEV_REQUEST_TOKENS = 64_000
-STATE_TOKENS = 24_000                      # page part cap inside the 32k state (T-002 chunk size)
+STATE_TOKENS = 24_000  # page part cap inside the 32k state (T-002 chunk size)
 CAP_MAX_USD = 1.00
-BASES = {"latin": 0.305, "cjk": 0.341, "thai": 0.334}   # RC-D-013 approved bases (tokens per UTF-8 byte)
-MARGIN = 0.90                                           # RC-D-013 uniform margin
+BASES = {
+    "latin": 0.305,
+    "cjk": 0.341,
+    "thai": 0.334,
+}  # RC-D-013 approved bases (tokens per UTF-8 byte)
+MARGIN = 0.90  # RC-D-013 uniform margin
 SKIP_ITEMS = {"n_activities", "core.has_genai_activity"}
 
-WORDING_STATUS = "DRAFT"   # set to "APPROVED <date> <PI chat quote>" only after Simone approves the wording
+WORDING_STATUS = 'APPROVED 2026-11-04 decision page v27-gates-1104 D3: "a — Approve as drafted"'
 QUESTION_ID = "label_fidelity"
 QUESTION_INSTRUCTIONS = (
     "How accurately does `label` describe `page_text` for the institution named in `institution`? `item_question` "
@@ -82,21 +88,32 @@ def page_part(text: str, quote: str | None, script: str) -> tuple[str, str]:
     b = text.encode("utf-8")
     i = text.find(quote) if quote else -1
     start = max(0, len(text[:i].encode("utf-8")) - cap // 2) if i >= 0 else 0
-    return b[start:start + cap].decode("utf-8", errors="ignore"), f"bytes {start}-{start + cap} (around evidence quote)"
+    return b[start : start + cap].decode(
+        "utf-8", errors="ignore"
+    ), f"bytes {start}-{start + cap} (around evidence quote)"
 
 
 def label_text(items: dict, item: str, value) -> tuple[str, str]:
     it = items.get(item, {})
-    q = (it.get("instruction") or {}).get("text") if isinstance(it.get("instruction"), dict) else it.get("instruction")
+    q = (
+        (it.get("instruction") or {}).get("text")
+        if isinstance(it.get("instruction"), dict)
+        else it.get("instruction")
+    )
     for v in it.get("values") or []:
         if isinstance(v, dict) and v.get("code") == value:
             return q or item, (v.get("definition") or {}).get("text", "")
-    return q or item, "missing-value label: the page does not document this" if value in ("not_documented",) else ""
+    return q or item, "missing-value label: the page does not document this" if value in (
+        "not_documented",
+    ) else ""
 
 
-def build_items(drive=DRIVE):
+def build_items(drive):
     import yaml
-    items = yaml.safe_load((REPO / "codebook" / "codebook.yaml").read_text(encoding="utf-8"))["items"]
+
+    items = yaml.safe_load((REPO / "codebook" / "codebook.yaml").read_text(encoding="utf-8"))[
+        "items"
+    ]
     out = []
     for f in json.loads((FIX / "real.json").read_text(encoding="utf-8"))["fixtures"]:
         if "page_ref" not in f:
@@ -108,14 +125,33 @@ def build_items(drive=DRIVE):
                 continue
             part, where = page_part(text, e.get("evidence_quote"), script)
             q, d = label_text(items, e["item"], e["value"])
-            state = {"institution": f"{f['institution'].get('name')} ({f['institution'].get('country')})",
-                     "item_question": q, "label": e["value"], "label_definition": d,
-                     "label_scope": e["scope"], "page_text": part}
+            state = {
+                "institution": f"{f['institution'].get('name')} ({f['institution'].get('country')})",
+                "item_question": q,
+                "label": e["value"],
+                "label_definition": d,
+                "label_scope": e["scope"],
+                "page_text": part,
+            }
             sb = json.dumps(state, ensure_ascii=False)
-            est = int(len((sb + QUESTION_INSTRUCTIONS + "".join(QUESTION_LEVELS)).encode("utf-8")) * BASES[script])
-            out.append({"item_id": f"{f['fixture_id']}#{k}", "fixture_id": f["fixture_id"], "item": e["item"],
-                        "label": e["value"], "script": script, "page_part": where, "state": state,
-                        "state_sha256": sha256(sb), "est_tokens": est, "est_tokens_margin": int(est * (1 + MARGIN))})
+            est = int(
+                len((sb + QUESTION_INSTRUCTIONS + "".join(QUESTION_LEVELS)).encode("utf-8"))
+                * BASES[script]
+            )
+            out.append(
+                {
+                    "item_id": f"{f['fixture_id']}#{k}",
+                    "fixture_id": f["fixture_id"],
+                    "item": e["item"],
+                    "label": e["value"],
+                    "script": script,
+                    "page_part": where,
+                    "state": state,
+                    "state_sha256": sha256(sb),
+                    "est_tokens": est,
+                    "est_tokens_margin": int(est * (1 + MARGIN)),
+                }
+            )
     return out
 
 
@@ -135,15 +171,43 @@ def dry_run(args):
             fo.write(json.dumps(x, ensure_ascii=False) + "\n")
     tot = sum(x["est_tokens"] for x in items)
     totm = sum(x["est_tokens_margin"] for x in items)
-    s = {"generated_at": now(), "mode": "dry-run", "wording_status": WORDING_STATUS,
-         "question": {"id": QUESTION_ID, "instructions": QUESTION_INSTRUCTIONS, "levels": list(QUESTION_LEVELS)},
-         "n_items": len(items), "by_script": {k: sum(x["script"] == k for x in items) for k in BASES},
-         "est_tokens": tot, "est_tokens_margin": totm, "cost_usd": round(cost(tot), 4),
-         "cost_usd_margin": round(cost(totm), 4), "max_est_tokens_margin": max(x["est_tokens_margin"] for x in items),
-         "cap_usd": CAP_MAX_USD, "reserve_per_call_usd": round(cost(JEV_REQUEST_TOKENS), 6),
-         "items_sha256": digest(items)}
-    (out / "T040-jev-dryrun.json").write_text(json.dumps(s, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(json.dumps({k: s[k] for k in ("n_items", "by_script", "est_tokens_margin", "cost_usd_margin", "items_sha256")}))
+    s = {
+        "generated_at": now(),
+        "mode": "dry-run",
+        "wording_status": WORDING_STATUS,
+        "question": {
+            "id": QUESTION_ID,
+            "instructions": QUESTION_INSTRUCTIONS,
+            "levels": list(QUESTION_LEVELS),
+        },
+        "n_items": len(items),
+        "by_script": {k: sum(x["script"] == k for x in items) for k in BASES},
+        "est_tokens": tot,
+        "est_tokens_margin": totm,
+        "cost_usd": round(cost(tot), 4),
+        "cost_usd_margin": round(cost(totm), 4),
+        "max_est_tokens_margin": max(x["est_tokens_margin"] for x in items),
+        "cap_usd": CAP_MAX_USD,
+        "reserve_per_call_usd": round(cost(JEV_REQUEST_TOKENS), 6),
+        "items_sha256": digest(items),
+    }
+    (out / "T040-jev-dryrun.json").write_text(
+        json.dumps(s, ensure_ascii=False, indent=1), encoding="utf-8"
+    )
+    print(
+        json.dumps(
+            {
+                k: s[k]
+                for k in (
+                    "n_items",
+                    "by_script",
+                    "est_tokens_margin",
+                    "cost_usd_margin",
+                    "items_sha256",
+                )
+            }
+        )
+    )
     return s
 
 
@@ -168,18 +232,38 @@ def score(items, ask, log_path: Path, cap, question):
             try:
                 res = ask(x["state"], {QUESTION_ID: question})
             except Exception as e:  # noqa: BLE001
-                fo.write(json.dumps({"key": x["item_id"], "ok": False, "error": repr(e)[:800], "ts": now()}) + "\n")
+                fo.write(
+                    json.dumps(
+                        {"key": x["item_id"], "ok": False, "error": repr(e)[:800], "ts": now()}
+                    )
+                    + "\n"
+                )
                 if type(e).__name__ == "JevAccountError":
                     raise
                 continue
             a = res.answers[QUESTION_ID]
             c = cost(res.input_tokens)
             spent += c
-            fo.write(json.dumps({"key": x["item_id"], "ok": True, "level": a.score, "jev_score_1_5": None if a.score is None else int(a.score) + 1,
-                                 "probabilities": a.probabilities, "confidence": a.confidence,
-                                 "response_model": res.response_model, "request_id": res.request_id,
-                                 "input_tokens": res.input_tokens, "cost_usd": c, "latency_s": time.perf_counter() - t0,
-                                 "ts": now()}, default=str) + "\n")
+            fo.write(
+                json.dumps(
+                    {
+                        "key": x["item_id"],
+                        "ok": True,
+                        "level": a.score,
+                        "jev_score_1_5": None if a.score is None else int(a.score) + 1,
+                        "probabilities": a.probabilities,
+                        "confidence": a.confidence,
+                        "response_model": res.response_model,
+                        "request_id": res.request_id,
+                        "input_tokens": res.input_tokens,
+                        "cost_usd": c,
+                        "latency_s": time.perf_counter() - t0,
+                        "ts": now(),
+                    },
+                    default=str,
+                )
+                + "\n"
+            )
             fo.flush()
     print(f"done; spent ${spent:.4f}")
     return 0
@@ -198,10 +282,18 @@ def paid_run(args):
         print("refused: items differ from the dry-run; re-run dry-run and re-approve")
         return 3
     import typesafe_sdk as ts
+
     from g3o.common import credentials, jev_client
+
     client = jev_client.client_from_credentials(credentials.resolve())
     q = ts.Score(instructions=QUESTION_INSTRUCTIONS, criteria=list(QUESTION_LEVELS))
-    return score(items, lambda st, qs: jev_client.ask(st, qs, client=client), args.out_dir / "T040-jev-answers.jsonl", args.cap, q)
+    return score(
+        items,
+        lambda st, qs: jev_client.ask(st, qs, client=client),
+        args.out_dir / "T040-jev-answers.jsonl",
+        args.cap,
+        q,
+    )
 
 
 def main(argv=None):
@@ -209,11 +301,22 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="mode", required=True)
     for name in ("dry-run", "run"):
         p = sub.add_parser(name)
-        p.add_argument("--drive", type=Path, default=DRIVE)
-        p.add_argument("--out-dir", type=Path, default=OUT_DIR)
+        p.add_argument(
+            "--drive",
+            type=Path,
+            default=None,
+            help="G3O Drive root; default: the G3O_DRIVE_ROOT setting",
+        )
+        p.add_argument("--out-dir", type=Path, default=None, help=f"default: <drive>/{OUT_SUBDIR}")
         if name == "run":
             p.add_argument("--cap", type=float, default=CAP_MAX_USD)
     args = ap.parse_args(argv)
+    try:
+        args.drive = args.drive or ft.drive_root()
+    except RuntimeError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+    args.out_dir = args.out_dir or (args.drive / OUT_SUBDIR)
     if args.mode == "dry-run":
         dry_run(args)
         return 0
