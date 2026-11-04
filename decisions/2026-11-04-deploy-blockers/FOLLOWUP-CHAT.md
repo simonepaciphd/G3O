@@ -23,3 +23,17 @@ Page reply: `g3o-deploy-blockers-2026-11-04.reply.json`, page_sha256 `a1c28a0849
 - 3: T-040 real-page fixture expected values are labelled by an agent and scored by jev instead of by the PI.
 - 4: the new display window stays open (no dates). It is decided at the 2026-12-01 check (P11).
 - Procedural 5-10 accepted as listed.
+
+## Second round (same day)
+
+The integrator asked for: 1 approve delta RC-D-014; 2 CJK/Thai counting unit, word vs character (negative-control evidence in Drive agent-workspace/2026-11-04-deploy-rulings/NOTE-word-presence.md); 3 tuning/held-out split; 4 blind 30-pair PI check yes/no; 5 numeric bar for "correlates strongly"; 6 push; 7 which cards to launch; 8 confirm T-016 complete.
+
+Simone's reply, verbatim:
+
+> 1 approve, 2 word, 3 you pick, 4no 5 you pick
+
+Reading: delta approved; the 80% rule counts words in every script; no blind 30-pair check; items 3 and 5 delegated to the integrator. Items 6-8 not answered.
+
+Integrator picks under that delegation (session 20261104-claude-v2-c0d8af698f4f13de, claude-opus-5-5), open to PI override:
+- 3: 20% of institutions held out, stratified by dominant script, seed 20261104, institutions with 100+ candidates kept in tuning (38 institutions: 30 tuning, 8 held out; held-out candidates Latin 27, CJK 33, Thai 5; Thai tuning n=1, so Thai cutoffs are not tunable and Thai held-out errors are flagged not estimable). Implemented in `scripts/spikes/t003/word_presence.py` (`assign_partitions`).
+- 5: Spearman rank correlation of 80%-rule word presence with jev 1-5 scores of at least 0.5, per script with n of at least 30 (Latin, CJK), computed with near-miss controls included; below 0.5 the rule is revisited. Cohen's kappa on the binary decisions is reported, not used as the bar, because about 99% of candidates pass the rule.

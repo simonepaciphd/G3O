@@ -1,13 +1,13 @@
 # PLAN: G3O pipeline reclassification
 
-Current ruling overlay (2026-11-04, RC-D-014; rulings by Simone on decision page a1c28a08 and in chat, application proposed, text `planning/deltas/RC-D-014.md`): quote match = 80% original-language word presence; calibration labels = jev 4+ or the 80% rule, revisited if they do not correlate strongly; per-script thresholds where needed; wording approval later, one packet before the T-030 merge; URL cap 10; Haiku legs kept; T-016 closed without re-test; real-page fixtures labelled by agent + jev, not the PI; new wave window after 2027-01-01, dates decided at the 2026-12-01 check; DP-003/004/008/009/031/060/061/062/064/068 ruled per their recommendations. Open: CJK/Thai counting unit, tuning/held-out split, blind 30-pair PI check, window dates, the bar for "strongly".
+Current ruling overlay (2026-11-04, RC-D-014; rulings by Simone on decision page a1c28a08 and in chat, approved chat "1 approve", text `planning/deltas/RC-D-014.md`): quote match = 80% original-language word presence; calibration labels = jev 4+ or the 80% rule, revisited if they do not correlate strongly; per-script thresholds where needed; wording approval later, one packet before the T-030 merge; URL cap 10; Haiku legs kept; T-016 closed without re-test; real-page fixtures labelled by agent + jev, not the PI; new wave window after 2027-01-01, dates decided at the 2026-12-01 check; DP-003/004/008/009/031/060/061/062/064/068 ruled per their recommendations. Second round: words counted in every script; no blind 30-pair check; held-out split and the "strongly" bar (Spearman 0.5) picked by the integrator under PI delegation. Open: window dates.
 
 Current bounded-phase ruling (2026-11-02, RC-D-012): Simone accepts the separate corrected T-016 probability summary as the reporting record, retaining original records and approved wording; remaining closure provenance is still required. Calendar conversion is deferred and no longer blocks the signed literal-year method. Preserve literal four-digit 2015–2030 activity/context years, no publication-year fallback and earliest chosen year across chunks. D-010 remains unsent and Simone-owned. Other prerequisites remain; no task status is promoted. Exact replies: archive/records/Safe-review-PI-rulings.json.
 
 Current execution overlay (2026-11-02, RC-D-011; integrator 20261102-codex-v2-53c1342c65a05a30): bounded T-012 email normalization is independently VERIFIED locally at 36d88bc7e20b3347b92f72e749d12f43a36ccc27; 326 engineer regressions, 22 independent conformance tests and 192 independent regressions pass. Whole-address lowercase and per-actual-page case deduplication, internal full normalized addresses, public domain/count pairs, distinct plus/aliases and verbatim quotes are verified for local fixtures. Renewed T-050B local email conformance is accepted; full T-050B remains incomplete. Source checkout retains r8; exact r11/LABELS assembly, T-024/T-028 actual integration, T-030/T-035 runtime binding, PI send/Colin A-019 and T-031 stay gated. T-027 acceptance, prior T-012 Windows-I/O qualification and six strict T-035 exceptions are preserved. SPEC v001.15 / RESOURCES v001.3 unchanged; task IDs, dependencies and waves unchanged. Evidence: handoffs/RC-D-011-local-verification.json; next gates: handoffs/RC-D-011-next-stage.md. Earlier pending implementation statements in signed/adoption records describe their original source snapshot, not current execution status.
 
 Status: READY-WITH-BLOCKS
-Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.16 (v001.16 by RC-D-014, 2026-11-04, application proposed; v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, v001.10 mechanical, 2026-10-30; v001.11 mechanical, 2026-10-31); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.3 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
+Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.16 (v001.16 by RC-D-014, 2026-11-04, approved chat "1 approve"; v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, v001.10 mechanical, 2026-10-30; v001.11 mechanical, 2026-10-31); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.3 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
 Baseline lock: 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock")
 Deadline: none
 Source draft plan/review: `C:/Users/spaci/repos/G3O/planning/Plan-Draft.md` (v001-draft1), `C:/Users/spaci/repos/G3O/planning/Plan-Review.md` (27 findings); rulings `C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md`
@@ -395,7 +395,7 @@ Runtime over 2 hours → split by run.
 
 ### T-002 — Measure jev two-pass cost, latency and fan-out on a small set
 
-RC-D-014 (2026-11-04; rulings by Simone, application proposed): PI S5 a ("yes -- let's just switch to haiku 5.5") closes the PI 3 b question: the Haiku extraction legs stay (the extractor has been Claude Haiku 5.5 since RC-D-001). S4 set the URL cap at 10 without fan-out data, so the fan-out hand-off in the done condition no longer gates T-025. Status stays `in-progress`: the `SPIKE-T002.md` report named in the outputs is not yet written.
+RC-D-014 (2026-11-04; rulings by Simone, approved): PI S5 a ("yes -- let's just switch to haiku 5.5") closes the PI 3 b question: the Haiku extraction legs stay (the extractor has been Claude Haiku 5.5 since RC-D-001). S4 set the URL cap at 10 without fan-out data, so the fan-out hand-off in the done condition no longer gates T-025. Status stays `in-progress`: the `SPIKE-T002.md` report named in the outputs is not yet written.
 
 Status: in-progress
 Note (2026-10-31, integrator, RC-D-006): run 2026-10-31 by Simone (`!`): 50 pages, $0.3663 against a $0.78 central estimate and a $6 cap. Both Batch rounds ended with every request succeeded (170 s and 124 s round trips). Haiku accepted `effort="medium"` on all 161 calls. jev refused one page's 4 parts as too long at 29.6k-50.1k estimated tokens; one halving fixed each (largest accepted request 26.1k estimated tokens). Code and aggregates: PR #147 (`reclass/t002-spike`); raw answers in the spikes folder. Measured: cost, latency, Batch round trips, the token estimator. Not measured: link fan-out (only 3 of 50 pages had activities; page links are stored only after T-014). PI 3 b: whether the Haiku legs stay is decided after an offline Haiku-vs-jev agreement check (P4, free; done 2026-10-31, `SPIKE-T002-agreement.md`, awaiting the PI's decision).
@@ -488,7 +488,7 @@ More than 50 pages requested → new paid gate.
 
 ### T-003 — Calibrate the fuzzy quote matcher (Q-020 b)
 
-RC-D-014 (2026-11-04; rulings by Simone, application proposed): Match rule (S1 a, confirmed): a quote matches when at least 80% of its original-language words are present in the source text; text may only be removed for conciseness or reformulated for clarity. Labels (P1 a + follow-up): a pair is a true match if jev scores it 4+ on a 1-5 fidelity scale ("how accurately does the quote represent the source") or if the 80% rule holds; if the 80% rule does not correlate strongly with jev, the PI revisits the rule (no numeric bar set; report the agreement table and a rank correlation). A light offline script computes the 80% rule (word and character variants for CJK/Thai). The jev scoring run is paid: dry-run estimate, $1 cap, Simone's `!` line. Open: CJK/Thai counting unit (S1 b), tuning/held-out split (S1 c; not approved as of 2026-11-02), whether the blind 30-pair PI check still runs.
+RC-D-014 (2026-11-04; rulings by Simone, approved): Match rule (S1 a, confirmed): a quote matches when at least 80% of its original-language words are present in the source text; text may only be removed for conciseness or reformulated for clarity. Labels (P1 a + follow-up): a pair is a true match if jev scores it 4+ on a 1-5 fidelity scale ("how accurately does the quote represent the source") or if the 80% rule holds; if the 80% rule does not correlate strongly with jev, the PI revisits the rule (bar below; also report the agreement table). A light offline script computes the 80% rule, counting words in every script (PI, 2026-11-04; character presence kept as a diagnostic). Held-out split (integrator pick under PI delegation): 20% of institutions held out, stratified by dominant script, seed 20261104, institutions with 100+ candidates kept in tuning (38 institutions: 30 tuning, 8 held out; held-out candidates Latin 27, CJK 33, Thai 5; Thai tuning n=1, so Thai cutoffs are not tunable and Thai held-out errors are flagged not estimable). "Strongly" (integrator pick under PI delegation): Spearman rank correlation of 80%-rule word presence with jev 1-5 scores of at least 0.5, per script with n of at least 30 (Latin, CJK), computed with near-miss controls included; below 0.5 the rule is revisited. Cohen's kappa on the binary decisions is reported, not used as the bar, because about 99% of candidates pass the rule. The jev scoring run is paid: dry-run estimate, $1 cap, Simone's `!` line. No blind 30-pair PI check (PI, 2026-11-04).
 
 Input-recovery update (2026-11-02): PI-requested delegated search found no approved calibration within22 local worktrees/named Drive evidence/targeted Git history. Recovered331 unlabeled quote candidates,718 empty results and50 source pages with9readback checks; no gold labels/split chosen. Missing exact chunk reconstruction, language labels, real chrome pairs, PI independent30-pair review and metric/threshold/display-cap approvals. Input recovery does not complete T-003 or unblock T-024. Evidence: Drive agent-workspace/2026-11-02-safe-review/t003-recovery/HANDOFF.txt.
 
@@ -547,7 +547,7 @@ Using pinned `rapidfuzz` (DEC-007 a), choose a metric and threshold for matching
 
 #### Verification and review
 - Self-check: hold-out split; error rates reported on the hold-out
-- Independent review: PI labels 30 pairs
+- Independent review: none by the PI (RC-D-014: no blind 30-pair check); labels from jev 4+ or the 80% rule
 - Acceptance tests: A-002 (via T-024, T-041)
 - Failure/rollback: n/a
 
@@ -665,7 +665,7 @@ More than 2 review rounds → split extract contract from validate contract.
 
 ### T-011 — Build the v2.7 jev question sets (pass 1, pass 2, Stage 6)
 
-RC-D-014 (2026-11-04; rulings by Simone, application proposed): S3 b: question wording that is not verbatim codebook/contract text is approved later. The build proceeds and stops before merge. The integrator puts one approval packet (T-011 questions, T-022 pass-1 prompt, T-032 pass-2 prompt) to the PI before the T-030 integration merge.
+RC-D-014 (2026-11-04; rulings by Simone, approved): S3 b: question wording that is not verbatim codebook/contract text is approved later. The build proceeds and stops before merge. The integrator puts one approval packet (T-011 questions, T-022 pass-1 prompt, T-032 pass-2 prompt) to the PI before the T-030 integration merge.
 
 RC-D-012 disposition (2026-11-02): calendar conversion deferred by explicit PI reply; proceed with the signed literal-year method when other inputs are satisfied. This supersedes earlier calendar-blocking statements below. T-016 corrected reporting is accepted, but full T-016 closure remains open.
 
@@ -1082,7 +1082,7 @@ Split `source_type` from the date and flag fields.
 
 ### T-016 — Re-pilot the re-signed questionnaire items (paid, small; RC-D-002 N28)
 
-RC-D-014 (2026-11-04; rulings by Simone, application proposed): S6 a ("skip re-test"): no re-test; T-016 closes without the exact executed r10 command. The saved $0.23 estimate and the $0.2155 recomputed cost are recorded as not invoice evidence. With RC-D-012's accepted corrected summary, the done condition is met; status `complete` (integrator).
+RC-D-014 (2026-11-04; rulings by Simone, approved): S6 a ("skip re-test"): no re-test; T-016 closes without the exact executed r10 command. The saved $0.23 estimate and the $0.2155 recomputed cost are recorded as not invoice evidence. With RC-D-012's accepted corrected summary, the done condition is met; status `complete` (integrator).
 
 RC-D-012 disposition (2026-11-02): PI accepts the separate corrected chosen-answer probability summary as the reporting record. This resolves the reporting decision in the historical preparation note below. Original records and signed wording remain; reconcile remaining command/estimate/actual-cost evidence before full closure. No paid rerun.
 
@@ -1323,7 +1323,7 @@ More than 1 week → split CX fields from the verdict.
 
 ### T-022 — Rework the nano extraction call (spans, pass-1 quotes, links, residual free text)
 
-RC-D-014 (2026-11-04; rulings by Simone, application proposed): S3 b: the pass-1 prompt text is approved later, in the single wording packet before the T-030 merge (see T-011). P5 a: span offsets count from the start of the whole page (DP-008).
+RC-D-014 (2026-11-04; rulings by Simone, approved): S3 b: the pass-1 prompt text is approved later, in the single wording packet before the T-030 merge (see T-011). P5 a: span offsets count from the start of the whole page (DP-008).
 
 Status: pending
 Type: build
@@ -1487,7 +1487,7 @@ Split the CX finding fields from Group D.
 
 ### T-032 — Build the pass-2 supporting-text call
 
-RC-D-014 (2026-11-04; rulings by Simone, application proposed): S3 b: the pass-2 prompt text is approved later, in the single wording packet before the T-030 merge (see T-011). P6 a: one request per page (DP-009).
+RC-D-014 (2026-11-04; rulings by Simone, approved): S3 b: the pass-2 prompt text is approved later, in the single wording packet before the T-030 merge (see T-011). P6 a: one request per page (DP-009).
 
 Status: pending
 Type: build
@@ -1561,7 +1561,7 @@ none
 
 ### T-024 — Build support check, downgrade and deterministic extraction
 
-RC-D-014 (2026-11-04; rulings by Simone, application proposed): The support check applies the RC-D-014 match rule (SPEC R-042) with the metric and threshold(s) T-003 calibrates on jev/80% labels; per-script thresholds only where needed (S2 b).
+RC-D-014 (2026-11-04; rulings by Simone, approved): The support check applies the RC-D-014 match rule (SPEC R-042) with the metric and threshold(s) T-003 calibrates on jev/80% labels; per-script thresholds only where needed (S2 b).
 
 RC-D-011 execution update (2026-11-02): Consume the verified RC-D-011 local normalizer under existing input gates. Actual main/header/footer extraction and contact-gate runtime remain unverified; no task launch.
 
@@ -1641,7 +1641,7 @@ none
 
 ### T-025 — Build link following (3 hops, URL cap, once per URL, provenance)
 
-RC-D-014 (2026-11-04; rulings by Simone, application proposed): S4 a: the per-institution followed-URL cap is 10. The cap gate is met; the build sets 10 as the configured value.
+RC-D-014 (2026-11-04; rulings by Simone, approved): S4 a: the per-institution followed-URL cap is 10. The cap gate is met; the build sets 10 as the configured value.
 
 Status: pending
 Type: build
@@ -2318,7 +2318,7 @@ Split pipeline review from contract review.
 
 ### T-040 — Build the v2.7 fixture set
 
-RC-D-014 (2026-11-04; rulings by Simone, application proposed): P4 a ("skip") + follow-up ("replace with agent + jev"): the PI does not label real-page fixtures. An agent labels expected values and jev scores them. P3 b: at least 3 fixtures per A-ID plus one per page-verdict value (DP-031).
+RC-D-014 (2026-11-04; rulings by Simone, approved): P4 a ("skip") + follow-up ("replace with agent + jev"): the PI does not label real-page fixtures. An agent labels expected values and jev scores them. P3 b: at least 3 fixtures per A-ID plus one per page-verdict value (DP-031).
 
 Status: pending
 Type: build
@@ -2399,7 +2399,7 @@ Split per A-ID.
 
 ### T-041 — Run the fixtures on the integrated pipeline (paid, small)
 
-RC-D-014 (2026-11-04; rulings by Simone, application proposed): Fixture expected values come from agent labels plus jev scores (RC-D-014 P4). The PI still approves the cost estimate, runs the paid run via `!` and rules on fixture failures.
+RC-D-014 (2026-11-04; rulings by Simone, approved): Fixture expected values come from agent labels plus jev scores (RC-D-014 P4). The PI still approves the cost estimate, runs the paid run via `!` and rules on fixture failures.
 
 Status: blocked
 Type: verify
@@ -4092,7 +4092,7 @@ none
 
 ### T-097 — Standing integration: deltas, CHANGELOG, claims
 
-RC-D-014 (2026-11-04; rulings by Simone, application proposed): S7 a ("yes") + follow-up ("4 open"): a new wave window will be opened for runs after 2027-01-01; dates are not set. They are decided at the 2026-12-01 check (P11 a, DP-068), recorded as a startup pin.
+RC-D-014 (2026-11-04; rulings by Simone, approved): S7 a ("yes") + follow-up ("4 open"): a new wave window will be opened for runs after 2027-01-01; dates are not set. They are decided at the 2026-12-01 check (P11 a, DP-068), recorded as a startup pin.
 
 Status: pending
 Type: integrate
