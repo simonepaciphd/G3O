@@ -84,3 +84,42 @@ def test_analyze_and_main_write_reports(tmp_path):
     assert res["bar"]["candidates_331_plus_controls"]["latin"]["n_ok"] is False
     assert "holdout" in res["partition"] and "flag" in res["partition"]["holdout"]["thai"]
     assert (lane / "SPIKE-T003-analysis.md").read_text(encoding="utf-8").startswith("# SPIKE-T003")
+
+
+def _row(script, partition, kind, presence, fid):
+    return {"script": script, "partition": partition, "row": kind, "presence_word": presence,
+            "fidelity_argmax": fid, "jev_4plus": fid >= 4}
+
+
+def test_gold_is_or_at_080():
+    assert an.gold(_row("latin", "tuning", "candidate", 0.8, 1)) is True
+    assert an.gold(_row("latin", "tuning", "candidate", 0.5, 4)) is True
+    assert an.gold(_row("latin", "tuning", "candidate", 0.79, 3)) is False
+
+
+def test_cutoff_table_counts():
+    rows = [_row("latin", "tuning", "candidate", 1.0, 5),
+            _row("latin", "tuning", "candidate", 0.6, 2),      # FM for c <= 0.60
+            _row("latin", "tuning", "candidate", 0.85, 2),     # gold true by rule; FR for c > 0.85
+            _row("latin", "tuning", "control_offpage", 0.6, 5),  # gold true by jev; FR for c > 0.60
+            _row("latin", "tuning", "control_onpage", 1.0, 2),   # scrambled, accepted at every cutoff
+            _row("latin", "holdout", "candidate", 0.6, 2)]       # other partition: ignored
+    t = {r["cutoff"]: r for r in an.cutoff_table(rows, "latin", "tuning")}
+    assert [r for r in t] == list(an.CUTOFFS) and an.CUTOFFS[0] == 0.5 and an.CUTOFFS[-1] == 1.0
+    assert t[0.6]["candidates_false_match"] == 1 and t[0.65]["candidates_false_match"] == 0
+    assert t[0.85]["candidates_false_reject"] == 0 and t[0.9]["candidates_false_reject"] == 1
+    assert t[0.6]["offpage_false_reject"] == 0 and t[0.65]["offpage_false_reject"] == 1
+    assert all(r["onpage_scrambled_accepted"] == 1 for r in t.values())
+    assert all(r["candidates_false_match"] == 0 for c, r in t.items() if c >= 0.8)  # OR gold: no FM at >= 0.80
+    assert t[0.5]["candidates_n"] == 3
+
+
+def test_rulings_and_ruled_bar(tmp_path):
+    assert {"A3", "P1", "R1", "R2", "R3"} <= set(an.RULINGS)
+    assert (an.BAR_SET, an.BAR_FIELD) == ("candidates_331_plus_controls", "rho_expected")
+    lane = _fixture(tmp_path)
+    an.main(["--lane-dir", str(lane)])
+    res = json.loads((lane / "SPIKE-T003-analysis.json").read_text(encoding="utf-8"))
+    assert res["meta"]["rulings"]["R1"].startswith("v27-results-1104 R1 b")
+    assert res["bar_ruled"]["latin"]["verdict"] == "n/a (n < 30)"
+    assert set(res["cutoffs"]["tuning"]) == {"latin", "cjk"}

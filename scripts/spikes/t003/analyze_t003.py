@@ -2,9 +2,9 @@
 
 Label rulings applied: jev 4+ = fidelity_argmax >= 4 (v27-gates-1104 A3 a); 222 unique pairs mapped back to the
 331 candidates (P1 a); gold = jev 4+ OR rule_80 (RC-D-014 P1 follow-up). Bar (RC-D-014): Spearman rho of word
-presence vs jev 1-5 >= 0.5 per script with n >= 30, near-miss controls included.
-
-This script reports; it chooses no threshold, split, unit or cutoff.
+presence vs jev 1-5 >= 0.5 per script with n >= 30, near-miss controls included; read with fidelity_expected on the
+331 candidates plus controls (v27-results-1104 R1 b). R2 a keeps the OR gold; R3 b asks for per-script cutoffs
+(Latin, CJK), so this script tabulates cutoff errors for the PI. It chooses no threshold, split, unit or cutoff.
 
 Usage:
     python analyze_t003.py --lane-dir <dir> [--presence-csv <csv>] [--out-prefix SPIKE-T003-analysis]
@@ -23,6 +23,20 @@ LANE_DIR = Path("H:/My Drive/Research/G3O/agent-workspace/2026-11-04-v27-orch/la
 SCRIPTS = ("latin", "cjk", "thai")
 BAR_RHO, BAR_N = 0.5, 30
 JEV_4PLUS = 4
+CUTOFFS = tuple(round(0.50 + 0.05 * i, 2) for i in range(11))   # 0.50 .. 1.00, for display only
+GOLD_RULE_CUTOFF = 0.80                                          # the rule inside the OR gold (RC-D-014 S1)
+TUNABLE_SCRIPTS = ("latin", "cjk")                               # Thai: tuning n = 1, not tunable
+
+RULINGS = {
+    "A3": "v27-gates-1104 A3 a 'Most likely level': jev 4+ label = fidelity_argmax >= 4",
+    "P1": "v27-gates-1104 P1 a 'Score 222 unique, map back'",
+    "R1": "v27-results-1104 R1 b 'Average score, all candidates': the Spearman bar uses fidelity_expected on the "
+          "331 mapped candidates plus controls",
+    "R2": "v27-results-1104 R2 a \"Keep 'or'\": gold = jev 4+ OR rule_80",
+    "R3": "v27-results-1104 R3 b 'Per-script cutoffs': Latin and CJK tuned separately; Thai keeps the default",
+    "source": "decision pages v27-gates-1104 (saved 2026-11-04T16:23:45Z), v27-results-1104 (2026-11-04T17:54:45Z)",
+}
+BAR_SET, BAR_FIELD = "candidates_331_plus_controls", "rho_expected"   # R1 b
 
 
 # ---- statistics ------------------------------------------------------------------------------------
@@ -201,6 +215,44 @@ def analyze(rows: list[dict]) -> dict:
             if s == "thai" and p == "holdout":
                 block["flag"] = "not estimable: Thai tuning has n=1 (RC-D-014); held-out Thai errors not estimable"
             out["partition"][p][s] = block
+    out["bar_ruled"] = {}
+    for s in SCRIPTS:
+        b = out["spearman"][BAR_SET][s]
+        rho = b[BAR_FIELD]
+        out["bar_ruled"][s] = {"set": BAR_SET, "field": BAR_FIELD, "n": b["n"], "rho": rho,
+                               "verdict": "n/a (n < 30)" if b["n"] < BAR_N else
+                               ("met" if rho is not None and rho >= BAR_RHO else "not met")}
+    out["cutoffs"] = {p: {s: cutoff_table(rows, s, p) for s in TUNABLE_SCRIPTS} for p in ("tuning", "holdout")}
+    return out
+
+
+def gold(r: dict) -> bool:
+    """OR gold (R2 a): jev 4+ or the 80% rule at its RC-D-014 cutoff, independent of the cutoff being examined."""
+    return r["jev_4plus"] or r["presence_word"] >= GOLD_RULE_CUTOFF - 1e-9
+
+
+def cutoff_table(rows: list[dict], script: str, partition: str, cutoffs=CUTOFFS) -> list[dict]:
+    """Errors of the decision `presence_word >= c` against the OR gold, per cutoff c.
+
+    false_match  decision true, gold false: only possible for c < 0.80 (presence in [c, 0.80) and jev < 4).
+    false_reject decision false, gold true: presence below c but gold true (jev 4+, or presence in [0.80, c)).
+    Candidates and offpage controls are counted against the gold. Onpage (scrambled) controls are gold-true
+    whenever the rule passes, so their acceptances with jev < 4 are counted separately and never as errors.
+    """
+    sel = [r for r in rows if r["script"] == script and r["partition"] == partition]
+    out = []
+    for c in cutoffs:
+        row = {"cutoff": c}
+        for label, kinds in (("candidates", ("candidate",)), ("offpage", ("control_offpage",))):
+            rs = [r for r in sel if r["row"] in kinds]
+            dec = [r["presence_word"] >= c - 1e-9 for r in rs]
+            row[f"{label}_n"] = len(rs)
+            row[f"{label}_false_match"] = sum(d and not gold(r) for d, r in zip(dec, rs, strict=True))
+            row[f"{label}_false_reject"] = sum(not d and gold(r) for d, r in zip(dec, rs, strict=True))
+        on = [r for r in sel if r["row"] == "control_onpage"]
+        row["onpage_n"] = len(on)
+        row["onpage_scrambled_accepted"] = sum(r["presence_word"] >= c - 1e-9 and not r["jev_4plus"] for r in on)
+        out.append(row)
     return out
 
 
@@ -223,7 +275,13 @@ def render_md(res: dict, meta: dict) -> str:
           "190 offpage, 40% of words swapped (A2 a). jev model `jev-1.13.0`; paid run $0.131432 (Simone).",
           "- Word presence from the Thai-fixed `word_presence.py` (PR #155). Controls' presence is computed by the "
           "same function at item build time.", "",
-          "## Bar (RC-D-014): Spearman rho >= 0.5 per script, n >= 30, controls included", "",
+          "- Rulings: " + "; ".join(f"{k}: {v}" for k, v in RULINGS.items() if k != "source") + ".", "",
+          "## Bar as ruled (R1 b): rho of presence vs jev expected score, 331 candidates + controls", "",
+          "| Script | n | rho | Verdict |", "|---|---|---|---|"] + [
+          f"| {s} | {b['n']} | {_fmt(b['rho'])} | {b['verdict']} |" for s, b in res["bar_ruled"].items()] + [
+          "", "Under R1 b the bar is **met for Latin and CJK**; Thai is n/a (n = 18 < 30). The 4+ label stays "
+          "`fidelity_argmax` (A3 a).", "",
+          "## Bar (RC-D-014), every reading computed before R1", "",
           "| Set | Script | n | rho (argmax) | rho (expected) | Meets bar (argmax / expected) |",
           "|---|---|---|---|---|---|"]
     for name in ("candidates_331_plus_controls", "unique_222_plus_controls"):
@@ -268,6 +326,33 @@ def render_md(res: dict, meta: dict) -> str:
                 flag = blk[s].get("flag", "") if label == "candidates" else ""
                 L.append(f"| {p} | {s} | {label} | {b['institutions']} | {b['n']} | {b['both']} | {b['jev_only']} | "
                          f"{b['rule_only']} | {b['neither']} | {b['gold_true']} | {flag} |")
+    L += ["", "## Per-script cutoffs (R3 b): errors of `presence_word >= c` against the OR gold", "",
+          "Choose-none table: no cutoff is selected. Gold = jev 4+ OR presence >= 0.80 (fixed; R2 a). FM = false "
+          "match, FR = false reject. Onpage controls are scrambled quotes with every word present; "
+          "`scrambled accepted` = decision true and jev < 4, reported separately because the OR gold calls them "
+          "true matches.", "",
+          "What the objective can and cannot see: because the gold contains the 0.80 rule itself, any cutoff c >= "
+          "0.80 has zero false matches by construction, and raising c above 0.80 can only add false rejects. "
+          "Lowering c below 0.80 can only add false matches (presence in [c, 0.80) with jev < 4) or remove false "
+          "rejects (jev 4+ with presence below 0.80). Leniency above 0.80, i.e. quotes whose words are all present "
+          "but whose meaning is changed, is invisible to the gold; only the `scrambled accepted` column shows it, "
+          "and no word-presence cutoff removes it: most scrambled controls have presence exactly 1.0.", ""]
+    for p in ("tuning", "holdout"):
+        for s in TUNABLE_SCRIPTS:
+            t = res["cutoffs"][p][s]
+            L += [f"### {p}, {s} (candidates n={t[0]['candidates_n']}, offpage n={t[0]['offpage_n']}, "
+                  f"onpage n={t[0]['onpage_n']})", "",
+                  "| cutoff | cand FM | cand FR | offpage FM | offpage FR | scrambled accepted |",
+                  "|---|---|---|---|---|---|"]
+            L += [f"| {r['cutoff']:.2f} | {r['candidates_false_match']} | {r['candidates_false_reject']} | "
+                  f"{r['offpage_false_match']} | {r['offpage_false_reject']} | {r['onpage_scrambled_accepted']} |"
+                  for r in t]
+            L.append("")
+    L += ["Thai: not tunable (tuning n = 1); keeps the default (R3 b). Held-out Thai errors are not estimable.", "",
+          "RC-D-014 S2 b says per-script cutoffs \"where held-out errors require\" them. At the 0.80 rule the "
+          "held-out candidates show 0 errors in Latin and CJK, so the held-out evidence does not by itself require "
+          "a per-script cutoff (held-out offpage controls show 2 false rejects per script at 0.80: jev 4+ on quotes "
+          "with about 60% of words present); R3 b rules per-script cutoffs anyway. Held-out CJK is one institution.", ""]
     L += ["", "## Structural notes", "",
           "- Without controls, word presence is almost constant (nearly every candidate is at or near 1.0), so rho "
           "on candidates alone mostly reflects jev variance; the bar is defined with controls included.",
@@ -296,12 +381,12 @@ def main(argv=None) -> int:
     rows, missing = build_rows(items, ans, pres)
     res = analyze(rows)
     files = [a.lane_dir / "SPIKE-T003-jev-items.jsonl", a.lane_dir / "SPIKE-T003-jev-answers.jsonl", pcsv]
-    meta = {"generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    meta = {"generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"), "rulings": RULINGS,
             "inputs": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in files},
             "counts": {"items": len(items), "answers_ok": len(ans), "rows": len(rows), "missing": missing}}
     (a.lane_dir / f"{a.out_prefix}.json").write_text(json.dumps({"meta": meta, **res}, indent=1), encoding="utf-8")
     (a.lane_dir / f"{a.out_prefix}.md").write_text(render_md(res, meta), encoding="utf-8")
-    print(json.dumps({"counts": meta["counts"], "bar": res["bar"]}, indent=1))
+    print(json.dumps({"counts": meta["counts"], "bar_ruled": res["bar_ruled"]}, indent=1))
     return 0 if not missing else 1
 
 
