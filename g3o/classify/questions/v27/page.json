@@ -1,0 +1,735 @@
+{
+  "question_set": "page",
+  "question_set_version": "g3o.classify.questions.v27.jev.1",
+  "built_by": "g3o.classify.questions.v27.build",
+  "do_not_edit": true,
+  "build_command": "python -m g3o.classify.questions.v27 build",
+  "codebook_release": "2.7",
+  "codebook_sha256": "f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d",
+  "source": "g3o.codebook.generators.gen_jev_questions (regenerated from the codebook)",
+  "pass": 1,
+  "unit": "page (or one part of a long page)",
+  "system_prompt_slot": "shared/system_prompt",
+  "system_prompt": "You are a research coder for the Global Government GenAI Observatory (G3O), a public, auditable dataset that measures how government institutions worldwide adopt generative AI. You read one web page, or one part of one, about a named institution and answer coding questions about it. Use only what the text says: record what it states explicitly and never infer, guess or use outside knowledge. Give each answer in the form the question asks for and nothing else: for a question with listed answers, choose from those answers only; for an extraction, copy the exact words from the text.",
+  "part_prompt": {
+    "sentence": "The text below is only one part of a longer page; the rest of the page is read separately. Answer from this part only.",
+    "sentence_slot": "shared/part_prompt/sentence",
+    "temporary_answer": {
+      "label": "not covered by this part",
+      "label_slot": "shared/part_prompt/temporary_answer/label",
+      "meaning": "This part of the page does not deal with the question; another part of the page may.",
+      "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
+    }
+  },
+  "state": {
+    "packet_items": [
+      "W-01",
+      "W-02"
+    ],
+    "approval": "pending",
+    "form_source": "T-016 re-pilot state (scripts/spikes/t016/repilot_v27.py page_units)",
+    "fields": [
+      {
+        "name": "coder_instructions",
+        "value": "signed slot shared/system_prompt, verbatim"
+      },
+      {
+        "name": "institution",
+        "value": "institution name from the master"
+      },
+      {
+        "name": "country",
+        "value": "country from the master"
+      },
+      {
+        "name": "level_of_government",
+        "value": "level of government from the master"
+      },
+      {
+        "name": "page_url",
+        "value": "stored page URL"
+      },
+      {
+        "name": "page_title",
+        "value": "stored page title"
+      },
+      {
+        "name": "page_part",
+        "value": "chunk marker '{i} of {n}' (always present)"
+      },
+      {
+        "name": "part_note",
+        "value": "signed slot shared/part_prompt/sentence, only when n > 1"
+      },
+      {
+        "name": "page_text",
+        "value": "the part's main text"
+      }
+    ]
+  },
+  "non_verbatim": [
+    {
+      "packet_item": "W-01",
+      "approval": "pending"
+    },
+    {
+      "packet_item": "W-02",
+      "approval": "pending"
+    }
+  ],
+  "questions": [
+    {
+      "question_id": "core.page_verdict",
+      "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.page_verdict`",
+      "item_id": "core.page_verdict",
+      "item_hash": "53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44",
+      "column": "page_verdict",
+      "pass": 1,
+      "round": 1,
+      "gate": "none",
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "Code this PAGE for the named institution only, using only what the page says. Does it document a generative-AI activity at this institution? If several values fit, take the first in this order.",
+      "instruction_slot": "items/core.page_verdict/instruction",
+      "criteria": [
+        {
+          "code": "confirms_activity",
+          "text": "The page documents a specific generative-AI activity AT THIS institution: its own GenAI tool, pilot, policy or guidance on GenAI, procurement, deployment, or institution-directed staff GenAI training. The text must be explicitly generative AI (LLMs, ChatGPT, Copilot, Gemini, AI chatbots, AI-generated content or equivalents) and tied to this institution, not only to a national programme or another body. The activity must be carried out or adopted by the named institution itself. Exclude activity by a parent, higher-level or neighbouring body (e.g. a district, county, regency, region, consortium or city department when the named institution is a village, ward or sub-unit), by a similarly named organisation or company, and pages by vendors that only use the place name. Generic 'AI', 'artificial intelligence', 'smart' systems, automation, analytics, prediction, transcription, translation, image or video recognition, or traditional machine-learning tools do not count unless the page says the tool generates text, images, audio, code or other content, or names a generative product or model (e.g. ChatGPT, Copilot, Gemini, Claude, an LLM, an AI chatbot or AI assistant).\n\nRules:\n1. `not_assessable` is not one of the answers: it is set when a page was not reviewed.\n2. A tool the page calls an \"AI chatbot\" or \"AI assistant\" counts as generative AI, even where a rule-based chatbot would otherwise be excluded.\n3. Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. A public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/0/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "ambiguous_genai",
+          "text": "The page mentions AI at this institution, but it cannot be settled whether it is generative AI (e.g. a generic 'AI strategy', 'AI tools', analytics, traditional machine learning).\n\nRules:\n1. `not_assessable` is not one of the answers: it is set when a page was not reviewed.\n2. A tool the page calls an \"AI chatbot\" or \"AI assistant\" counts as generative AI, even where a rule-based chatbot would otherwise be excluded.\n3. Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. A public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/1/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "ambiguous_attribution",
+          "text": "The page mentions generative AI, but it cannot be settled whether THIS institution is involved (e.g. a country-wide or regional GenAI initiative without confirmation that this institution takes part, or a page about a similarly named body).\n\nRules:\n1. `not_assessable` is not one of the answers: it is set when a page was not reviewed.\n2. A tool the page calls an \"AI chatbot\" or \"AI assistant\" counts as generative AI, even where a rule-based chatbot would otherwise be excluded.\n3. Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. A public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/2/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "other_body",
+          "text": "The page documents a generative-AI activity, but it clearly belongs to a different body, not the named institution: a parent, higher-level or neighbouring body (e.g. a district, county, regency, region, consortium or city department when the named institution is a village, ward or sub-unit), a similarly named organisation or company, or a vendor or marketing page that only uses the place name.\n\nRules:\n1. `not_assessable` is not one of the answers: it is set when a page was not reviewed.\n2. A tool the page calls an \"AI chatbot\" or \"AI assistant\" counts as generative AI, even where a rule-based chatbot would otherwise be excluded.\n3. Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. A public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/3/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "event_only",
+          "text": "The only GenAI content is a public-facing event, workshop, seminar, showcase or educational programme, with no documented adoption, procurement, deployment or governance by the institution itself (not a qualifying activity).\n\nRules:\n1. `not_assessable` is not one of the answers: it is set when a page was not reviewed.\n2. A tool the page calls an \"AI chatbot\" or \"AI assistant\" counts as generative AI, even where a rule-based chatbot would otherwise be excluded.\n3. Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. A public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/4/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "background_only",
+          "text": "The page gives only general context (national AI strategy, vendor overview, news about GenAI in general) and documents no activity at this institution.\n\nRules:\n1. `not_assessable` is not one of the answers: it is set when a page was not reviewed.\n2. A tool the page calls an \"AI chatbot\" or \"AI assistant\" counts as generative AI, even where a rule-based chatbot would otherwise be excluded.\n3. Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. A public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/5/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "confirms_absence",
+          "text": "The page states that this institution has no generative-AI activity, for example that it does not use GenAI tools. Different from no_genai, where the page simply has no relevant content.\n\nRules:\n1. `not_assessable` is not one of the answers: it is set when a page was not reviewed.\n2. A tool the page calls an \"AI chatbot\" or \"AI assistant\" counts as generative AI, even where a rule-based chatbot would otherwise be excluded.\n3. Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. A public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/6/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        },
+        {
+          "code": "no_genai",
+          "text": "The page contains no generative-AI content relevant to this institution.\n\nRules:\n1. `not_assessable` is not one of the answers: it is set when a page was not reviewed.\n2. A tool the page calls an \"AI chatbot\" or \"AI assistant\" counts as generative AI, even where a rule-based chatbot would otherwise be excluded.\n3. Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.\n4. A public-facing GenAI event or educational programme is not a qualifying activity; an event page can support a separate record only when it documents the institution's own adoption, procurement, deployment or governance.\n5. An activity carried out by an organisational unit of the named institution (department, office, service) counts for the named institution. An activity of its parent, a sibling, or a separate court, board or authority does not, unless the page says the named institution takes part.\n6. A joint activity counts when the page names this institution as a participant.",
+          "definition_slot": "items/core.page_verdict/values/7/definition",
+          "rule_slots": [
+            "items/core.page_verdict/rules/0",
+            "shared_rules/core.rule.genai_boundary/0",
+            "shared_rules/core.rule.genai_boundary/1",
+            "shared_rules/core.rule.ws10_event/0",
+            "shared_rules/core.rule.attribution_grain/0",
+            "shared_rules/core.rule.attribution_grain/1"
+          ]
+        }
+      ],
+      "part_prompt_answer": {
+        "label": "not covered by this part",
+        "label_slot": "shared/part_prompt/temporary_answer/label",
+        "meaning": "This part of the page does not deal with the question; another part of the page may.",
+        "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
+      },
+      "jev_type": "Choice"
+    },
+    {
+      "question_id": "core.disclosure_form",
+      "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.disclosure_form`",
+      "item_id": "core.disclosure_form",
+      "item_hash": "6d5ce44a18eea9599e585257ed852f2bf73a412c1de68bd3c8ef7ec1dde80256",
+      "column": "disclosure_form",
+      "pass": 1,
+      "round": 2,
+      "gate": "none",
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "CX-01.3:CX-10..CX-18",
+      "instructions": "What kind of document is this page?",
+      "instruction_slot": "items/core.disclosure_form/instruction",
+      "criteria": [
+        {
+          "code": "register_cross_institution",
+          "text": "The page is, or is one entry in, a structured list of AI or algorithmic systems kept by a government body, with several entries in a common format (inventory, register, catalogue, algorithmic transparency record in a standard template), **and the list covers more than one institution** (a national or sectoral register, a standard-template record series across agencies).\n\nRules:\n1. Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values. `disclosure_scope` still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).\n2. The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`.\n3. (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`.\n4. A document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.\n5. The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+          "definition_slot": "items/core.disclosure_form/values/0/definition",
+          "rule_slots": [
+            "items/core.disclosure_form/rules/0",
+            "items/core.disclosure_form/rules/1",
+            "items/core.disclosure_form/rules/2",
+            "items/core.disclosure_form/rules/3",
+            "items/core.disclosure_form/rules/4"
+          ]
+        },
+        {
+          "code": "register_single_institution",
+          "text": "As `register_cross_institution`, but the list covers **one institution only** (e.g. a city's own table of its AI tools).\n\nRules:\n1. Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values. `disclosure_scope` still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).\n2. The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`.\n3. (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`.\n4. A document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.\n5. The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+          "definition_slot": "items/core.disclosure_form/values/1/definition",
+          "rule_slots": [
+            "items/core.disclosure_form/rules/0",
+            "items/core.disclosure_form/rules/1",
+            "items/core.disclosure_form/rules/2",
+            "items/core.disclosure_form/rules/3",
+            "items/core.disclosure_form/rules/4"
+          ]
+        },
+        {
+          "code": "mandated_report",
+          "text": "The page is a document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems, such as a statutory annual-report section or a compliance or transparency report under a named rule.\n\nRules:\n1. Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values. `disclosure_scope` still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).\n2. The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`.\n3. (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`.\n4. A document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.\n5. The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+          "definition_slot": "items/core.disclosure_form/values/2/definition",
+          "rule_slots": [
+            "items/core.disclosure_form/rules/0",
+            "items/core.disclosure_form/rules/1",
+            "items/core.disclosure_form/rules/2",
+            "items/core.disclosure_form/rules/3",
+            "items/core.disclosure_form/rules/4"
+          ]
+        },
+        {
+          "code": "formal_record",
+          "text": "An official one-off document of record from a government body: adopted policy or guidance, legislation, council or board minutes or resolutions, budget documents, procurement notice or award, audit or inspection report, **response to a freedom-of-information request**.\n\nRules:\n1. Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values. `disclosure_scope` still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).\n2. The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`.\n3. (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`.\n4. A document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.\n5. The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+          "definition_slot": "items/core.disclosure_form/values/3/definition",
+          "rule_slots": [
+            "items/core.disclosure_form/rules/0",
+            "items/core.disclosure_form/rules/1",
+            "items/core.disclosure_form/rules/2",
+            "items/core.disclosure_form/rules/3",
+            "items/core.disclosure_form/rules/4"
+          ]
+        },
+        {
+          "code": "informal_official",
+          "text": "A government body's own communication with no reporting obligation and no standard format: press release, news item, blog, social post, speech, event page, service or FAQ page.\n\nRules:\n1. Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values. `disclosure_scope` still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).\n2. The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`.\n3. (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`.\n4. A document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.\n5. The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+          "definition_slot": "items/core.disclosure_form/values/4/definition",
+          "rule_slots": [
+            "items/core.disclosure_form/rules/0",
+            "items/core.disclosure_form/rules/1",
+            "items/core.disclosure_form/rules/2",
+            "items/core.disclosure_form/rules/3",
+            "items/core.disclosure_form/rules/4"
+          ]
+        },
+        {
+          "code": "third_party",
+          "text": "Not published by a government body: news, vendor, academic, NGO or policy organization. A register entry quoted in a news article is `third_party` (code the page, not what it quotes).\n\nRules:\n1. Any government-kept multi-entry list in a common format counts as a register, including one institution's own list; single-institution and cross-institution registers are separate values. `disclosure_scope` still codes whole-of-government vs multi-institution for cross-institution registers; `register_single_institution` must carry `disclosure_scope` = `single_institution` (QC check).\n2. The obligation must be named on the page, except that it may be inferred from the document's genre **when the document's title names AI or algorithmic reporting**. Otherwise a statutory annual report or a compliance report under a rule not about AI is `formal_record`.\n3. (1) A city's entry in a national algorithm register describing its chatbot → `register_cross_institution`. (2) A ministry annual-report section headed with the regulation that requires AI-use reporting → `mandated_report`. (3) Council minutes approving a Copilot licence → `formal_record`. (4) A mayor's press release launching a chatbot → `informal_official`. (5) A trade-press article about that chatbot → `third_party`. (6) A city web page that lists its five AI tools in a table it made itself → `register_single_institution`.\n4. A document produced to meet a reporting obligation that concerns reporting on AI, algorithms or digital systems (statutory annual-report section, compliance or transparency report under a rule). The obligation must be named on the page, except that it may be inferred from the document's genre when the document's title names AI or algorithmic reporting. Otherwise a statutory annual report or a compliance report under a rule not about AI is formal_record.\n5. The page's kind cannot be determined from its text (e.g. an archived fragment with no header).",
+          "definition_slot": "items/core.disclosure_form/values/5/definition",
+          "rule_slots": [
+            "items/core.disclosure_form/rules/0",
+            "items/core.disclosure_form/rules/1",
+            "items/core.disclosure_form/rules/2",
+            "items/core.disclosure_form/rules/3",
+            "items/core.disclosure_form/rules/4"
+          ]
+        }
+      ],
+      "part_prompt_answer": {
+        "label": "not covered by this part",
+        "label_slot": "shared/part_prompt/temporary_answer/label",
+        "meaning": "This part of the page does not deal with the question; another part of the page may.",
+        "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
+      },
+      "jev_type": "Choice"
+    },
+    {
+      "question_id": "core.page_complete",
+      "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.page_complete`",
+      "item_id": "core.page_complete",
+      "item_hash": "0125217cda0f3b064a80821fd9ae31c1fa5fb158dc73ead1c3d95be09379f503",
+      "column": "page_complete",
+      "pass": 1,
+      "round": 2,
+      "gate": {
+        "item": "core.page_verdict",
+        "values": [
+          "confirms_activity",
+          "ambiguous_genai",
+          "ambiguous_attribution",
+          "other_body",
+          "event_only"
+        ]
+      },
+      "answer_type": "yes_no",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "'Does the page refer the reader to another page or document for more information about a GenAI activity it mentions?'",
+      "instruction_slot": "items/core.page_complete/instruction",
+      "criteria": [
+        {
+          "code": "yes",
+          "text": "The page refers the reader to another page or document for more information about a GenAI activity it mentions, so the page is incomplete (see the note on the name).\n\nRules:\n1. The first pass also records whether the page holds all available information about every activity it mentions, or links to further pages with information about any of them.\n2. Note: `yes` means incomplete (the page refers the reader onward); the name `page_complete` reads the other way.",
+          "definition_slot": "items/core.page_complete/values/0/definition",
+          "rule_slots": [
+            "items/core.page_complete/rules/0",
+            "items/core.page_complete/rules/1"
+          ]
+        },
+        {
+          "code": "no",
+          "text": "The page does not refer the reader elsewhere for more information about any GenAI activity it mentions.\n\nRules:\n1. The first pass also records whether the page holds all available information about every activity it mentions, or links to further pages with information about any of them.\n2. Note: `yes` means incomplete (the page refers the reader onward); the name `page_complete` reads the other way.",
+          "definition_slot": "items/core.page_complete/values/1/definition",
+          "rule_slots": [
+            "items/core.page_complete/rules/0",
+            "items/core.page_complete/rules/1"
+          ]
+        }
+      ],
+      "part_prompt_answer": {
+        "label": "not covered by this part",
+        "label_slot": "shared/part_prompt/temporary_answer/label",
+        "meaning": "This part of the page does not deal with the question; another part of the page may.",
+        "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
+      },
+      "jev_type": "Choice"
+    },
+    {
+      "question_id": "core.source_type",
+      "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.source_type`",
+      "item_id": "core.source_type",
+      "item_hash": "eeec6e92b28743e0e64973fc7847010727a12a4b47d0cefcb38ab7ada9a7e5c0",
+      "column": "source_type",
+      "pass": 1,
+      "round": 2,
+      "gate": "none",
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "What kind of source is this page?",
+      "instruction_slot": "items/core.source_type/instruction",
+      "criteria": [
+        {
+          "code": "news_major",
+          "text": "Major national/international news outlet (Reuters, BBC, NYT, Le Monde, NHK, etc.)\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
+          "definition_slot": "items/core.source_type/values/0/definition",
+          "rule_slots": [
+            "items/core.source_type/rules/0",
+            "items/core.source_type/rules/1",
+            "items/core.source_type/rules/2"
+          ]
+        },
+        {
+          "code": "news_trade",
+          "text": "Technology or government trade press (GovTech, FedScoop, PublicTechnology, etc.)\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
+          "definition_slot": "items/core.source_type/values/1/definition",
+          "rule_slots": [
+            "items/core.source_type/rules/0",
+            "items/core.source_type/rules/1",
+            "items/core.source_type/rules/2"
+          ]
+        },
+        {
+          "code": "vendor",
+          "text": "Vendor website, case study, blog post, or press release\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
+          "definition_slot": "items/core.source_type/values/2/definition",
+          "rule_slots": [
+            "items/core.source_type/rules/0",
+            "items/core.source_type/rules/1",
+            "items/core.source_type/rules/2"
+          ]
+        },
+        {
+          "code": "academic",
+          "text": "Peer-reviewed paper, working paper, university report\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
+          "definition_slot": "items/core.source_type/values/3/definition",
+          "rule_slots": [
+            "items/core.source_type/rules/0",
+            "items/core.source_type/rules/1",
+            "items/core.source_type/rules/2"
+          ]
+        },
+        {
+          "code": "policy_org",
+          "text": "Think tank, intergovernmental organisation or other policy organisation (OECD, World Bank, ITU, Brookings, etc.); not a government body's own page.\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
+          "definition_slot": "items/core.source_type/values/4/definition",
+          "rule_slots": [
+            "items/core.source_type/rules/0",
+            "items/core.source_type/rules/1",
+            "items/core.source_type/rules/2"
+          ]
+        },
+        {
+          "code": "social_media",
+          "text": "Official social media accounts (Twitter/X, LinkedIn from institutional accounts)\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
+          "definition_slot": "items/core.source_type/values/5/definition",
+          "rule_slots": [
+            "items/core.source_type/rules/0",
+            "items/core.source_type/rules/1",
+            "items/core.source_type/rules/2"
+          ]
+        },
+        {
+          "code": "procurement_tender",
+          "text": "Tender notice, RFP, contract award, vendor selection document\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
+          "definition_slot": "items/core.source_type/values/6/definition",
+          "rule_slots": [
+            "items/core.source_type/rules/0",
+            "items/core.source_type/rules/1",
+            "items/core.source_type/rules/2"
+          ]
+        },
+        {
+          "code": "other",
+          "text": "None of the above, including a government body's own page.\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
+          "definition_slot": "items/core.source_type/values/7/definition",
+          "rule_slots": [
+            "items/core.source_type/rules/0",
+            "items/core.source_type/rules/1",
+            "items/core.source_type/rules/2"
+          ]
+        },
+        {
+          "code": "not_documented",
+          "missing_label": true,
+          "text": "not_documented: the page is silent.\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
+          "definition_slot": "items/core.source_type/rules/2",
+          "rule_slots": [
+            "items/core.source_type/rules/0",
+            "items/core.source_type/rules/1",
+            "items/core.source_type/rules/2"
+          ]
+        }
+      ],
+      "part_prompt_answer": {
+        "label": "not covered by this part",
+        "label_slot": "shared/part_prompt/temporary_answer/label",
+        "meaning": "This part of the page does not deal with the question; another part of the page may.",
+        "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
+      },
+      "jev_type": "Choice"
+    },
+    {
+      "question_id": "core.content_contact_named",
+      "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.content_contact_named`",
+      "item_id": "core.content_contact_named",
+      "item_hash": "b4589c821abd21e0a49357bf82144bcd2b8cf3d855cfef37b73dcf9e68455312",
+      "column": "content_contact_named",
+      "pass": 1,
+      "round": 2,
+      "gate": {
+        "item": "core.page_verdict",
+        "values": [
+          "confirms_activity",
+          "ambiguous_genai",
+          "ambiguous_attribution",
+          "other_body",
+          "event_only"
+        ],
+        "gated_out_value": "no",
+        "source": "final-open F07 (PI 2026-10-30 \"all accepted\")",
+        "text": {
+          "text": "Gate on the five GenAI verdicts, as the data question; pages with no GenAI get 'no'.",
+          "origin": "PI 2026-10-30 \"all accepted\"; final-open F07",
+          "source": "final-open.json choices[F07] (pick a, confidence low).options[a].mechanism",
+          "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I05 slot 1"
+        }
+      },
+      "answer_type": "yes_no",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "CX-01.3:CX-51",
+      "instructions": "Does the page name a person, office or unit as responsible for a GenAI activity it mentions, or for questions about it?",
+      "instruction_slot": "items/core.content_contact_named/instruction",
+      "criteria": [
+        {
+          "code": "yes",
+          "text": "The page gives a named person, office or unit as responsible for the activity or for questions about it; a named official with no contact details counts.\n\nRules:\n1. Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.",
+          "definition_slot": "items/core.content_contact_named/values/0/definition",
+          "rule_slots": [
+            "items/core.content_contact_named/rules/0"
+          ]
+        },
+        {
+          "code": "no",
+          "text": "The page names no person, office or unit as responsible for the activity or for questions about it. Pages whose verdict shows no GenAI also take this value.\n\nRules:\n1. Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.",
+          "definition_slot": "items/core.content_contact_named/values/1/definition",
+          "rule_slots": [
+            "items/core.content_contact_named/rules/0"
+          ]
+        }
+      ],
+      "part_prompt_answer": {
+        "label": "not covered by this part",
+        "label_slot": "shared/part_prompt/temporary_answer/label",
+        "meaning": "This part of the page does not deal with the question; another part of the page may.",
+        "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
+      },
+      "jev_type": "Choice"
+    },
+    {
+      "question_id": "core.content_contact_details",
+      "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.content_contact_details`",
+      "item_id": "core.content_contact_details",
+      "item_hash": "f48276daef2a6c61dab279f0cc18134ae65dce1710dd788428c3fe85282df5af",
+      "column": "content_contact_details",
+      "pass": 1,
+      "round": 2,
+      "gate": {
+        "item": "core.page_verdict",
+        "values": [
+          "confirms_activity",
+          "ambiguous_genai",
+          "ambiguous_attribution",
+          "other_body",
+          "event_only"
+        ],
+        "gated_out_value": "no",
+        "source": "final-open F07 (PI 2026-10-30 \"all accepted\")",
+        "text": {
+          "text": "Gate on the five GenAI verdicts, as the data question; pages with no GenAI get 'no'.",
+          "origin": "PI 2026-10-30 \"all accepted\"; final-open F07",
+          "source": "final-open.json choices[F07] (pick a, confidence low).options[a].mechanism",
+          "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page page card I06 slot 1"
+        }
+      },
+      "answer_type": "yes_no",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "CX-01.3:CX-51",
+      "instructions": "Does the page give any contact details anywhere on it, such as an email address, phone number, postal address or contact form?",
+      "instruction_slot": "items/core.content_contact_details/instruction",
+      "criteria": [
+        {
+          "code": "yes",
+          "text": "The page gives contact details anywhere on it: an email address, phone number, postal address or contact form, including press or vendor contacts and site footers.\n\nRules:\n1. Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.",
+          "definition_slot": "items/core.content_contact_details/values/0/definition",
+          "rule_slots": [
+            "items/core.content_contact_details/rules/0"
+          ]
+        },
+        {
+          "code": "no",
+          "text": "No contact details appear anywhere on the page, including its header and footer. Pages whose verdict shows no GenAI also take this value.\n\nRules:\n1. Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.",
+          "definition_slot": "items/core.content_contact_details/values/1/definition",
+          "rule_slots": [
+            "items/core.content_contact_details/rules/0"
+          ]
+        }
+      ],
+      "part_prompt_answer": {
+        "label": "not covered by this part",
+        "label_slot": "shared/part_prompt/temporary_answer/label",
+        "meaning": "This part of the page does not deal with the question; another part of the page may.",
+        "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
+      },
+      "jev_type": "Choice"
+    },
+    {
+      "question_id": "core.content_data",
+      "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.content_data`",
+      "item_id": "core.content_data",
+      "item_hash": "873afed104d45718bd358c1d669cfafa141d7f93933ccb9eebfa61098d5811cb",
+      "column": "content_data",
+      "pass": 1,
+      "round": 2,
+      "gate": {
+        "item": "core.page_verdict",
+        "values": [
+          "confirms_activity",
+          "ambiguous_genai",
+          "ambiguous_attribution",
+          "other_body",
+          "event_only"
+        ],
+        "gated_out_value": "no",
+        "source": "page-09 c"
+      },
+      "answer_type": "yes_no",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "CX-01.3:CX-51",
+      "instructions": "Code the source PAGE. Does the page state this about any GenAI activity on the page: the data inputs or data handled are described? yes = stated on the page.",
+      "instruction_slot": "items/core.content_data/instruction",
+      "criteria": [
+        {
+          "code": "yes",
+          "text": "stated on the page\n\nRules:\n1. Included: the page description items, each `yes` / `no` (yes = stated on the page). For the items marked as derived, `yes` and `no` are derived from the activity codes as stated, with no question.\n2. Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.\n3. One page question, asked on GenAI pages.\n4. Description items and the data item are also \"no\" where the verdict shows no GenAI.",
+          "definition_slot": "items/core.content_data/values/0/definition",
+          "rule_slots": [
+            "items/core.content_data/rules/0",
+            "items/core.content_data/rules/1",
+            "items/core.content_data/rules/2",
+            "items/core.content_data/rules/3"
+          ]
+        },
+        {
+          "code": "no",
+          "text": "not stated on the page\n\nRules:\n1. Included: the page description items, each `yes` / `no` (yes = stated on the page). For the items marked as derived, `yes` and `no` are derived from the activity codes as stated, with no question.\n2. Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.\n3. One page question, asked on GenAI pages.\n4. Description items and the data item are also \"no\" where the verdict shows no GenAI.",
+          "definition_slot": "items/core.content_data/values/1/definition",
+          "rule_slots": [
+            "items/core.content_data/rules/0",
+            "items/core.content_data/rules/1",
+            "items/core.content_data/rules/2",
+            "items/core.content_data/rules/3"
+          ]
+        }
+      ],
+      "part_prompt_answer": {
+        "label": "not covered by this part",
+        "label_slot": "shared/part_prompt/temporary_answer/label",
+        "meaning": "This part of the page does not deal with the question; another part of the page may.",
+        "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
+      },
+      "jev_type": "Choice"
+    },
+    {
+      "question_id": "core.disclosure_scope",
+      "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.disclosure_scope`",
+      "item_id": "core.disclosure_scope",
+      "item_hash": "089514643eaca8c94b06d0d617c2082f6604ef19a8f6c3680be56860fe8143b2",
+      "column": "disclosure_scope",
+      "pass": 1,
+      "round": 3,
+      "gate": {
+        "item": "core.disclosure_form",
+        "values": [
+          "register_cross_institution",
+          "register_single_institution",
+          "mandated_report"
+        ],
+        "source": "X02"
+      },
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "CX-01.3:CX-20..CX-25",
+      "instructions": "How many institutions does the listing or document this page belongs to cover?",
+      "instruction_slot": "items/core.disclosure_scope/instruction",
+      "criteria": [
+        {
+          "code": "whole_of_government",
+          "text": "The listing or document the page belongs to covers institutions across the government (all central agencies, or all units of a level).\n\nRules:\n1. Yes, as below.\n2. Pages whose `disclosure_form` is `register_cross_institution`, `register_single_institution` or `mandated_report`. On other pages the field is not asked and stores the reserved \"not asked\" label.\n3. Coverage cannot be determined from the page.",
+          "definition_slot": "items/core.disclosure_scope/values/0/definition",
+          "rule_slots": [
+            "items/core.disclosure_scope/rules/0",
+            "items/core.disclosure_scope/rules/1",
+            "items/core.disclosure_scope/rules/2"
+          ]
+        },
+        {
+          "code": "multi_institution",
+          "text": "It covers several institutions, but not government-wide (a sector, a region, a group of agencies).\n\nRules:\n1. Yes, as below.\n2. Pages whose `disclosure_form` is `register_cross_institution`, `register_single_institution` or `mandated_report`. On other pages the field is not asked and stores the reserved \"not asked\" label.\n3. Coverage cannot be determined from the page.",
+          "definition_slot": "items/core.disclosure_scope/values/1/definition",
+          "rule_slots": [
+            "items/core.disclosure_scope/rules/0",
+            "items/core.disclosure_scope/rules/1",
+            "items/core.disclosure_scope/rules/2"
+          ]
+        },
+        {
+          "code": "single_institution",
+          "text": "It covers one institution only.\n\nRules:\n1. Yes, as below.\n2. Pages whose `disclosure_form` is `register_cross_institution`, `register_single_institution` or `mandated_report`. On other pages the field is not asked and stores the reserved \"not asked\" label.\n3. Coverage cannot be determined from the page.",
+          "definition_slot": "items/core.disclosure_scope/values/2/definition",
+          "rule_slots": [
+            "items/core.disclosure_scope/rules/0",
+            "items/core.disclosure_scope/rules/1",
+            "items/core.disclosure_scope/rules/2"
+          ]
+        }
+      ],
+      "part_prompt_answer": {
+        "label": "not covered by this part",
+        "label_slot": "shared/part_prompt/temporary_answer/label",
+        "meaning": "This part of the page does not deal with the question; another part of the page may.",
+        "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
+      },
+      "jev_type": "Choice"
+    }
+  ],
+  "excluded": [
+    {
+      "question_id": "core.support_entailment",
+      "reason": "pass none: the X35 quote check run between rounds by T-024 (RC-D-002 row 45); not a pass-1, pass-2 or Stage 6 question, and T-024 is not a T-011 consumer"
+    }
+  ]
+}
