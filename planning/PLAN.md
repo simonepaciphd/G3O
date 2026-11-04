@@ -5,6 +5,7 @@ Current ruling overlay (2026-11-04, RC-D-015, APPROVED 2026-11-04 chat "I approv
 - T-003 paid run done ($0.13); "strongly" bar met for Latin and CJK on expected score (R1 b); OR gold kept (R2 a); per-script cutoffs to be tuned (R3 b).
 - T-040 labels confirmed at most-likely 4+ (R4 a); low ones relabelled and re-scored (R5 a).
 - RC-D-016 (APPROVED 2026-11-04, chat "approve delta"): cutoffs 0.80 Latin and CJK, Thai default 0.80 (".8 for both is fine"); the Alberta fixture keeps its v2 label with no further re-score ("no need to rescore again"). Calendar conversion built in this plan as new task T-064 ("let's go with a for multilingual"); card to follow; T-063 heads-up not sent while multilingual is frozen.
+- RC-D-017 (APPROVED 2026-11-04, chat "1 yes"; rulings chat "1a, 2a, 3 200 (put in prompt as cap too) 4 a 5 a 6 change this, show answer -- confirmatory test & biased, it's fine) 7 b 8 a 9aiii biii ciii dii eii 10a ; accept all"): T-003 matcher token_set_ratio, one threshold 93, display cap 200 (also an extraction-prompt cap; reverses the X19 drop), chrome matching untested; T-022 loses C22/C23 to T-032; quote step sees the chosen answer (reverses r2#18); r12 adds the year-owner phrase, year_announced conversion and the quote-step rule; T-064 card ruled (fiscal-year labels only, both years, form-keyed, all three items, no fixtures); F1 nearness = character distance; T-002 verified. Follow-ups "5a" (cap covers quotes, link passages, field support) and "1 yes, 2 whole, 3 a 4 yes 5 b 6 a" (over-cap kept whole; one-year fiscal label = that year; r12 wording approved; F4 adds a letter-share cut, value open; droplet bytes check authorized). Text `planning/deltas/RC-D-017.md`.
 - T-014 complete (PR #145, follow-ups PR #157: `<base href>` honoured, mailto split, pre-change cache gaps accepted).
 - T-020 code merged (PR #156).
 - Thai word fix merged (PR #155).
@@ -247,10 +248,10 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | Task | Lane | Waves | Status | Requires | Soft | Enables | Resources | Delivers | Write claim | Researcher gates | Acceptance IDs |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | T-001 | eng-b | W1 | verified | none | none | T-029, T-072 | RS-004, RS-006, RS-007, RS-025, RS-036 | none | spikes folder (`count-backfill.json`, `SPIKE-T001*`); droplet `~/reclass-spike-*/` | PI authorises read-only droplet SSH | A-015 |
-| T-002 | eng-c | W2 | in-progress | T-010, T-013 | none | T-003, T-021, T-025 | RS-004, RS-008, RS-009, RS-012, RS-015, RS-024, RS-031 | none | spikes folder, files prefixed `SPIKE-T002*` | PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28) | A-004, A-021 |
-| T-003 | eng-c | W3 | pending | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c); calibration labels per RC-D-014 (jev 4+ or the 80% rule); the jev scoring run is paid and run by Simone via `!` | A-002 |
-| T-010 | integrator | W1 | complete | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items in one batch signature (CX-01.3†, RC-D-004); PI signs the codebook hash (A-001); push gate | A-001 |
-| T-011 | eng-a | W3 | pending | T-010, T-013, T-016 | none | T-015, T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
+| T-002 | eng-c | W2 | verified | T-010, T-013 | none | T-003, T-021, T-025 | RS-004, RS-008, RS-009, RS-012, RS-015, RS-024, RS-031 | none | spikes folder, files prefixed `SPIKE-T002*` | PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28) | A-004, A-021 |
+| T-003 | eng-c | W3 | verified | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c); calibration labels per RC-D-014 (jev 4+ or the 80% rule); the jev scoring run is paid and run by Simone via `!` | A-002 |
+| T-010 | integrator | W1 | complete | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-064, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items in one batch signature (CX-01.3†, RC-D-004); PI signs the codebook hash (A-001); push gate | A-001 |
+| T-011 | eng-a | W3 | pending | T-010, T-013, T-016 | T-064 | T-015, T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
 | T-012 | eng-b | W2 | verified (proposed local verification; not complete) | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; inventory; Q2a writer/tests; instrument/storage modules, fixtures and narrow integrity compatibility; import/telemetry/reproducibility tests (RC-D-009); `g3o/report/health.py`, `g3o/report/outcomes.py`, `g3o/common/institution_report.py`, `g3o/persist/__init__.py` and their tests; `tests/test_contract.py`, `tests/test_consolidated_contract.py`, `tests/test_adversarial_llm_outputs.py`, `tests/test_genai_definition_adherence.py`, `tests/test_uid_stamping.py`; the v2.5-column hunk of `g3o/codebook/checks.py` (line 889 at `a5b1d30`, repointed at the frozen v2.5 list) (RC-D-008) | T-050A approved; local fixtures only; push gate | A-011, A-013 |
 | T-013 | eng-b | W1 | verified | none | T-010 | T-002, T-011, T-012, T-016, T-022, T-032 | RS-010, RS-013, RS-039 | none | `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml` | PI approves the item template and generator checks (r2#59); push of the branch | A-001 |
 | T-014 | eng-a | W2 | pending | none | none | T-022, T-025 | RS-016 | none | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests; `g3o/scrape/render.py` (optional `RenderedPage` fields) and the record-building hunks of `g3o/scrape/fetcher.py` (HTML path, unlocker path, page cache) (RC-D-006, PI 6a) | push of the branch | none |
@@ -261,7 +262,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-022 | eng-c | W3 | pending | T-010, T-012, T-013, T-014, T-020 | none | T-015, T-023, T-024, T-025, T-032 | RS-015 | none | the listed extract files; install of the generated `g3o/extract/prompts/system_prompt.md` and `g3o/extract/prompts/output_contract.md` (RC-D-008) | PI approves the nano prompt text; push gate | A-003, A-021 |
 | T-023 | eng-a | W5 | pending | T-011, T-020, T-021, T-022, T-027 | none | T-026, T-032 | RS-012 | none | the new modules and tests | none beyond push | A-003 |
 | T-032 | eng-c | W6 | pending | T-013, T-022, T-023 | none | T-024, T-030 | RS-015 | none | `g3o/extract/pass2_support.py`† and its tests | PI approves the pass-2 nano prompt text; push gate | A-003, A-021 |
-| T-024 | eng-c | W7 | pending | T-003, T-012, T-022, T-032 | none | T-026, T-028, T-041 | none | none | `g3o/common/support_check.py`† and its tests | push of the branch | A-002, A-016 |
+| T-024 | eng-c | W7 | pending | T-003, T-012, T-022, T-032, T-064 | none | T-026, T-028, T-041 | none | none | `g3o/common/support_check.py`† and its tests | push of the branch | A-002, A-016 |
 | T-025 | eng-b | W5 | pending | T-002, T-014, T-021, T-022 | none | T-029, T-030 | RS-016 | none | new modules `g3o/scrape/follow.py`†, `g3o/run/presweep/stage_follow.py`† and their tests | URL cap = 10 per institution (PI, RC-D-014 S4); push of the branch | A-004, A-014 |
 | T-026 | eng-a | W8 | pending | T-011, T-012, T-015, T-023, T-024, T-027 | none | T-028 | RS-011, RS-014 | none | the listed Stage 6 files and tests; retirement of the OpenAI Stage 6 path: the import hunk of `g3o/validate/stage_validate.py`, `g3o/validate/{client,qc,salvage}.py`, `tests/test_validate.py`, `tests/test_validate_salvage.py` (archived, PI A a), `scripts/verify_jev_validate_live.py`; install of the generated `g3o/validate/prompts/system_prompt.md` and `g3o/validate/prompts/output_contract.md` (RC-D-008) | push of the branch | A-010 |
 | T-027 | eng-b | W3 | verified (local library; downstream acceptance retained) | T-012 | none | T-015, T-021, T-023, T-026, T-028, T-050 | RS-012, RS-013, RS-014 | none | new module `g3o/common/jev_record.py`† and its tests | push of the branch | A-013 |
@@ -283,6 +284,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-061 | integrator | W2 | in-progress | T-010 | none | T-071 | RS-033 | none | `planning/handoffs/validation-notice.md`†; GitHub issue `simonepaciphd/g3o_validation#3` plus Simone's e-mail (DP-063; RC-D-006) | PI approves the notice text | none |
 | T-062 | integrator | W18 | pending | T-071 | none | none | RS-038 | D-009 | `planning/handoffs/D-009-ai-text-delta.md`† | PI approves delta text; sending is external | none |
 | T-063 | integrator | W2 | in-progress | T-010 | none | none | RS-040 | D-010 | `planning/handoffs/D-010-multilingual-heads-up.md`† | PI approves the text; sending is external | none |
+| T-064 | eng-c | W3 | pending | T-010 | none | T-024 | RS-008, RS-009 | none | `g3o/extract/years.py`†, `tests/test_years_v27.py`†, spikes folder `SPIKE-T064*` | push of the branch | none |
 | T-071 | eng-a | W17 | blocked | T-031, T-041, T-055, T-060, T-061 | none | T-062, T-070 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
 | T-070 | eng-a | W18 | blocked | T-071 | none | T-072 | RS-026, RS-030 | none | freeze folder† | PI confirms the freeze date | none |
 | T-072 | eng-a | W19 | blocked | T-001, T-070 | none | T-073 | none | none | smoke run dir; smoke folder† | paid run — the agent prepares the exact command and cost estimate and Simone runs it via `! <command>` (red line 4, 2026-10-28); SSH authorisation; PI reviews the smoke report | none |
@@ -411,6 +413,7 @@ Runtime over 2 hours → split by run.
 RC-D-014 (2026-11-04; rulings by Simone, approved): PI S5 a ("yes -- let's just switch to haiku 5.5") closes the PI 3 b question: the Haiku extraction legs stay (the extractor has been Claude Haiku 5.5 since RC-D-001). S4 set the URL cap at 10 without fan-out data, so the fan-out hand-off in the done condition no longer gates T-025. Status stays `in-progress`: the `SPIKE-T002.md` report named in the outputs is not yet written.
 
 Status: in-progress
+Progress (2026-11-04, integrator; RC-D-017 P6): integrator spot-check passed (hashes, per-leg table, 5 request ids): `agent-workspace/2026-11-05-v27-orch/SPIKE-T002-spotcheck.md`. Status proposed `verified`.
 Note (2026-10-31, integrator, RC-D-006): run 2026-10-31 by Simone (`!`): 50 pages, $0.3663 against a $0.78 central estimate and a $6 cap. Both Batch rounds ended with every request succeeded (170 s and 124 s round trips). Haiku accepted `effort="medium"` on all 161 calls. jev refused one page's 4 parts as too long at 29.6k-50.1k estimated tokens; one halving fixed each (largest accepted request 26.1k estimated tokens). Code and aggregates: PR #147 (`reclass/t002-spike`); raw answers in the spikes folder. Measured: cost, latency, Batch round trips, the token estimator. Not measured: link fan-out (only 3 of 50 pages had activities; page links are stored only after T-014). PI 3 b: whether the Haiku legs stay is decided after an offline Haiku-vs-jev agreement check (P4, free; done 2026-10-31, `SPIKE-T002-agreement.md`, awaiting the PI's decision).
 Type: spike
 Priority: critical-path
@@ -506,6 +509,7 @@ RC-D-014 (2026-11-04; rulings by Simone, approved): Match rule (S1 a, confirmed)
 Input-recovery update (2026-11-02): PI-requested delegated search found no approved calibration within22 local worktrees/named Drive evidence/targeted Git history. Recovered331 unlabeled quote candidates,718 empty results and50 source pages with9readback checks; no gold labels/split chosen. Missing exact chunk reconstruction, language labels, real chrome pairs, PI independent30-pair review and metric/threshold/display-cap approvals. Input recovery does not complete T-003 or unblock T-024. Evidence: Drive agent-workspace/2026-11-02-safe-review/t003-recovery/HANDOFF.txt.
 
 Status: pending
+Progress (2026-11-04, integrator; RC-D-017): PI set metric `token_set_ratio` (normalized), one pooled threshold 93, rapidfuzz ==3.14.3, website display cap 200 characters (also an extraction-prompt cap); chrome-text matching untested ("4 a"). Report `spikes/SPIKE-T003.md`; code PR #163 (merged, 4d98568). Done condition met; proposed `verified`.
 Type: spike
 Priority: critical-path
 Spec refs: R-042, R-043, A-002
@@ -1341,6 +1345,7 @@ More than 1 week → split CX fields from the verdict.
 RC-D-014 (2026-11-04; rulings by Simone, approved): S3 b: the pass-1 prompt text is approved later, in the single wording packet before the T-030 merge (see T-011). P5 a: span offsets count from the start of the whole page (DP-008).
 
 Status: pending
+Progress (2026-11-04, integrator; RC-D-017): C22/C23 move to T-032 ("5 a"); quote tasks show the chosen answer ("6"; reverses r2#18); 200-character cap in the prompt for quotes, link passages and field support, over-cap kept whole and flagged ("3", "5a", "2 whole"). Slice on `orch1105/b-t022` `241aa03` (unpushed); P-1 slot `agent-workspace/2026-11-05-v27-orch/lane-b/v27-wording-packet-P-1.*`. Remaining: `stage_extract.py` wiring, T-030 packaging, packet approval, T-031.
 Type: build
 Priority: critical-path
 Spec refs: R-001, R-003, R-006, R-020, R-021, R-023, R-030, R-031, R-040, R-041, R-044, C-001
@@ -1612,7 +1617,7 @@ RC-D-002 row 45 adds: X35 entailment per (code, quote) with the chosen-answer pr
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-c/`†, feature branch from `origin/main` `375f1ff` (never the shared checkout `C:/Users/spaci/repos/G3O`)
 
 #### Dependencies
-- Requires: T-003, T-012, T-022, T-032
+- Requires: T-003, T-012, T-022, T-032, T-064 (RC-D-017)
 - Enables: T-026, T-028, T-041
 - Can run with: none (W7)
 - Researcher gates: push of the branch
@@ -1659,6 +1664,7 @@ none
 RC-D-014 (2026-11-04; rulings by Simone, approved): S4 a: the per-institution followed-URL cap is 10. The cap gate is met; the build sets 10 as the configured value.
 
 Status: pending
+Progress (2026-11-04, integrator; RC-D-017 item 10): R-032 nearness is character distance in the stored page text between the link and the nearest supporting quote; ties to page order ("10a").
 Type: build
 Priority: required
 Spec refs: R-030, R-031, R-032, R-033, R-034, R-035, R-036, N-004, SC-03
@@ -3240,6 +3246,74 @@ PI-approved heads-up delivered; reply recorded.
 
 #### Chunking trigger
 none
+
+### T-064 — Build the calendar and fiscal-year conversion for year candidates (RC-D-015 Q3 b, RC-D-016)
+
+Status: pending
+Type: build
+Priority: critical-path
+Spec refs: C16 year method (r2#50); D-010 (owner superseded by RC-D-016)
+Decision refs: RC-D-015 Q3 b, RC-D-016, RC-D-017 (9a-e); reverses the RC-D-012 deferral
+
+#### Objective
+A deterministic module that turns year expressions written in another calendar, or as a fiscal year, into candidate Gregorian years for the year items, so the signed candidate-then-classifier method has the right candidates on non-Gregorian and fiscal-year pages. Scope as ruled (RC-D-017): fiscal-year labels only (no other calendars); a fiscal-year label naming two calendar years yields both as candidates, a label naming one year yields that year ("3 a"); the rule is keyed on the written form alone; all three year items, including `year_announced`. The literal four-digit 2015–2030 rule, the no-publication-year-fallback rule and the earliest-year rule across chunks are unchanged.
+
+#### Inputs
+| Input | Location/producer | Required state/version | Missing-input behavior |
+|---|---|---|---|
+| Year items and signed rules | codebook r11 (r12 once signed) | signed | stop |
+| PI rulings DP-064a-e | RC-D-017 | ruled 2026-11-04 | — |
+| Real pages with fiscal-year labels | RS-008, RS-009 (read-only); T-040 fixture pool | — | report gap; synthetic tests only |
+
+#### Outputs
+| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
+|---|---|---|---|
+| Conversion module | `g3o/extract/years.py`† (new), on branch `reclass/t064-calendar`† | T-024 (deterministic year extraction), T-011 (dynamic year choice sets) | pure function: text → list of (Gregorian year, source span, source form, rule id); deterministic; no network; every candidate keeps its verbatim source text |
+| Tests | `tests/test_years_v27.py`† | CI | one positive and one negative case per fiscal-year form; range and tie behaviour |
+| Coverage note | `.../spikes/SPIKE-T064.md`† | PI, T-041 report | fiscal-year forms handled; counts found on RS-008/RS-009 pages; other-calendar years seen but out of scope (counted, not converted) |
+
+#### Execution resources
+- Persona/role: engineer (lane eng-c)
+- Tools/connectors: Python, pytest (no paid calls)
+- Working directory/environment: lane worktree from `origin/main` (never the shared checkout)
+
+#### Dependencies
+- Requires: T-010 (signed year rules; r12 carries the amended year-rule text)
+- Enables: T-024, T-011 (year choice sets)
+- Can run with: T-003, T-022, T-025
+- Researcher gates: push gate
+
+#### Ownership and collision control
+- Read scope: codebook, RS-008/RS-009, T-040 fixtures
+- Write claim: `g3o/extract/years.py`, `tests/test_years_v27.py`, `SPIKE-T064*`
+- Shared surfaces: T-024 calls the module read-only
+
+#### Procedure boundary
+- Included: detection of fiscal-year labels and conversion into candidate years
+- Excluded: choosing among candidates (the jev classifier, T-023); the multilingual subproject (frozen, PI 2026-11-04); any change to the literal-year rule
+- Fixed decisions: no publication-year fallback; earliest chosen year across chunks
+
+#### Spec-change reporting
+- Report to: integrator. Report when: a fiscal-year form cannot be mapped to calendar years from the written form alone
+- Forbidden: editing `SPEC.md`, `RESOURCES.md`, `PLAN.md`, `CHANGELOG.md`
+
+#### Verification and review
+- Self-check: tests above; a run over RS-008/RS-009 page text listing every converted candidate with its source span
+- Independent review: T-031
+- Acceptance tests: none added (DP-064e: no fixtures); the F6 c "calendar years untested" line in the T-041 report stays
+
+#### Decision points (ruled, RC-D-017, chat 2026-11-04)
+- DP-064a: forms in scope. Ruled "9aiii": fiscal-year labels only
+- DP-064b: two-year fiscal years. Ruled "biii": both calendar years are candidates when the label names two years; a one-year label (e.g. "FY2025") gives that year only ("3 a")
+- DP-064c: rule key. Ruled "ciii": the written form alone
+- DP-064d: items. Ruled "dii": all three year items
+- DP-064e: fixtures. Ruled "eii": none; F6 c stands
+
+#### Return report
+Changed files; verification results; failures; blockers; unresolved decisions; proposed status. Sent to the integrator, who alone marks `complete`.
+
+#### Done condition
+Tests pass; coverage note written; PI rulings implemented as ruled.
 
 ### T-071 — Deploy v2.7 pipeline to the droplet
 
