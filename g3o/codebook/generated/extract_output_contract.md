@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extract_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d -->
+<!-- codebook release: 2.7 | codebook sha256: 3692c06a77056c43285b2696fa9d1aea1e733290fbd977976f40c6426803859a -->
 
 # G3O output contract (extract), generated from the codebook
 
-Codebook release `2.7`, sha256 `f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d`. 99 items.
+Codebook release `2.7`, sha256 `3692c06a77056c43285b2696fa9d1aea1e733290fbd977976f40c6426803859a`. 99 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: 53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44 -->
@@ -3697,11 +3697,11 @@ A tool the page calls an "AI chatbot" or "AI assistant" counts as generative AI,
 Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.
 
 ## `core.year_announced`
-<!-- item: core.year_announced sha256: 70545adcdfadf5991e81f6119f52148d28b81a52722e7a5a97740e8b51415b0e -->
+<!-- item: core.year_announced sha256: d0c859753c014abb165ae711bff020f68456ee8972156bcacceddfea6f15c966 -->
 
 | Field | Value |
 |---|---|
-| item hash | `70545adcdfadf5991e81f6119f52148d28b81a52722e7a5a97740e8b51415b0e` |
+| item hash | `d0c859753c014abb165ae711bff020f68456ee8972156bcacceddfea6f15c966` |
 | family | `dates` |
 | name | `year_announced` |
 | level | `activity` |
@@ -3739,22 +3739,22 @@ year it was first announced
 
 1. `items/core.year_announced/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_announced/rules/1`
 
-Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
+Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
 
 3. `items/core.year_announced/rules/2`
 
 not_documented: the page is silent.
 
 ## `core.year_pilot_start`
-<!-- item: core.year_pilot_start sha256: a1866c316cd97d1d3558cb9d83b04dd362b7edc0876b5214463e3c3ec1619ac9 -->
+<!-- item: core.year_pilot_start sha256: 688573dba5ad8db0f142a80c14392acded5617aafa38625bea6ae3b5c3c62fee -->
 
 | Field | Value |
 |---|---|
-| item hash | `a1866c316cd97d1d3558cb9d83b04dd362b7edc0876b5214463e3c3ec1619ac9` |
+| item hash | `688573dba5ad8db0f142a80c14392acded5617aafa38625bea6ae3b5c3c62fee` |
 | family | `dates` |
 | name | `year_pilot_start` |
 | level | `activity` |
@@ -3792,11 +3792,11 @@ year its pilot or trial began
 
 1. `items/core.year_pilot_start/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_pilot_start/rules/1`
 
-Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
+Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
 
 3. `items/core.year_pilot_start/rules/2`
 
@@ -3807,11 +3807,11 @@ Two columns, each stated-only.
 not_documented: the page is silent.
 
 ## `core.year_production_start`
-<!-- item: core.year_production_start sha256: 1149b8097fc10f3964d32b6b7f7f6b3cf8753cfc0b779252b9e060d31e4a90b3 -->
+<!-- item: core.year_production_start sha256: aa0f1bddef30ada01cf7cda7649deab2b40a84699022e3608f2e736e60477a77 -->
 
 | Field | Value |
 |---|---|
-| item hash | `1149b8097fc10f3964d32b6b7f7f6b3cf8753cfc0b779252b9e060d31e4a90b3` |
+| item hash | `aa0f1bddef30ada01cf7cda7649deab2b40a84699022e3608f2e736e60477a77` |
 | family | `dates` |
 | name | `year_production_start` |
 | level | `activity` |
@@ -3849,11 +3849,11 @@ year it went into full operation
 
 1. `items/core.year_production_start/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_production_start/rules/1`
 
-Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
+Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
 
 3. `items/core.year_production_start/rules/2`
 
@@ -4286,11 +4286,11 @@ One per-activity question per safeguard with the four answers; the page-level an
 not_documented: the page is silent.
 
 ## `core.outcome_kind`
-<!-- item: core.outcome_kind sha256: 4c8e83ed8ecfe9f8697ff1af3e5a98136d92a93a16f62244314f85417af3b105 -->
+<!-- item: core.outcome_kind sha256: 7215b6b2576b8a967c86362ed2a3d4dbcb740b84a4f23d2de05a4ef817091e12 -->
 
 | Field | Value |
 |---|---|
-| item hash | `4c8e83ed8ecfe9f8697ff1af3e5a98136d92a93a16f62244314f85417af3b105` |
+| item hash | `7215b6b2576b8a967c86362ed2a3d4dbcb740b84a4f23d2de05a4ef817091e12` |
 | family | `outcomes` |
 | name | `outcome_kind` |
 | level | `activity` |
@@ -4298,7 +4298,7 @@ not_documented: the page is silent.
 | linkage | `jev_choice` |
 | coder | `classifier` |
 | pass | `2` |
-| round | `3` |
+| round | `4` |
 | answer_type | `single` |
 | order_tie_rule | `first_in_order` |
 | support_required | `True` |
@@ -4349,11 +4349,11 @@ Entailment label: none reported
 Asked about this activity only, once for results and once for incidents. The answer says both whether the page reports one and what kind; the text of the result or incident is extracted only when the answer is not `none_reported`. The incident question also offers `discontinuation_uncertain`.
 
 ## `core.incident_kind`
-<!-- item: core.incident_kind sha256: 86e86970bf31247adafccf0da05b86c1f8ec5cdcb59c2a0bf906e091710526ad -->
+<!-- item: core.incident_kind sha256: 9d7ab9101539f801ee5098e8df2c46e9f0b6fcc27fdf679eaf88cf502f395d32 -->
 
 | Field | Value |
 |---|---|
-| item hash | `86e86970bf31247adafccf0da05b86c1f8ec5cdcb59c2a0bf906e091710526ad` |
+| item hash | `9d7ab9101539f801ee5098e8df2c46e9f0b6fcc27fdf679eaf88cf502f395d32` |
 | family | `outcomes` |
 | name | `incident_kind` |
 | level | `activity` |
@@ -4361,7 +4361,7 @@ Asked about this activity only, once for results and once for incidents. The ans
 | linkage | `jev_choice` |
 | coder | `classifier` |
 | pass | `2` |
-| round | `3` |
+| round | `4` |
 | answer_type | `single` |
 | order_tie_rule | `first_in_order` |
 | support_required | `True` |
@@ -4508,11 +4508,11 @@ Documented errors, failures, or controversies. Only record if explicitly stated.
 Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothing found" spellings to `none_reported`. The mapping table is published with the code.
 
 ## `core.evaluation_documented`
-<!-- item: core.evaluation_documented sha256: 821b1906675ae2202acb97e41245ca25ebec5a5e26518edc7a8d22a1d3b0097c -->
+<!-- item: core.evaluation_documented sha256: 8d878b747de11b7e8f8888b27a5c568da0cbb4c47c235026f47bf282eb59dd0b -->
 
 | Field | Value |
 |---|---|
-| item hash | `821b1906675ae2202acb97e41245ca25ebec5a5e26518edc7a8d22a1d3b0097c` |
+| item hash | `8d878b747de11b7e8f8888b27a5c568da0cbb4c47c235026f47bf282eb59dd0b` |
 | family | `evaluation` |
 | name | `evaluation_documented` |
 | level | `activity`, `page` |
@@ -4520,7 +4520,7 @@ Deterministic step (no API), for rows coded before CX-01.3 only: map all "nothin
 | linkage | `jev_choice` |
 | coder | `classifier` |
 | pass | `2` |
-| round | `3` |
+| round | `4` |
 | answer_type | `single` |
 | order_tie_rule | `first_in_order` |
 | support_required | `True` |
@@ -4617,11 +4617,11 @@ The page states that an evaluation is required (by a rule) or planned, with no e
 The page has no evaluation statement about this activity.
 
 ## `core.evaluation_type_pre_deployment_testing`
-<!-- item: core.evaluation_type_pre_deployment_testing sha256: 0528b068190b671ec6b3c712016999d5a3946bd38a3e2594b5ee84d183f430ff -->
+<!-- item: core.evaluation_type_pre_deployment_testing sha256: 1a10522c420a29a7d32380d7cd01a05b93f079ad16a86ab5363abf1b00bd57b5 -->
 
 | Field | Value |
 |---|---|
-| item hash | `0528b068190b671ec6b3c712016999d5a3946bd38a3e2594b5ee84d183f430ff` |
+| item hash | `1a10522c420a29a7d32380d7cd01a05b93f079ad16a86ab5363abf1b00bd57b5` |
 | family | `evaluation` |
 | name | `evaluation_type_pre_deployment_testing` |
 | level | `activity`, `page` |
@@ -4629,7 +4629,7 @@ The page has no evaluation statement about this activity.
 | linkage | `jev_choice` |
 | coder | `classifier` |
 | pass | `2` |
-| round | `4` |
+| round | `5` |
 | answer_type | `yes_no` |
 | order_tie_rule | `first_in_order` |
 | support_required | `True` |
@@ -4674,11 +4674,11 @@ Entailment label: does not include testing before deployment
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_pilot_evaluation`
-<!-- item: core.evaluation_type_pilot_evaluation sha256: 918cedd8b8b4237ec7ab0b65c062af84d1d452dbb8ce318786b61b98f2a3094b -->
+<!-- item: core.evaluation_type_pilot_evaluation sha256: f001133a064ea6b3506d862a263b2209ae2ccc92e432aa96016b22bba68ed7d9 -->
 
 | Field | Value |
 |---|---|
-| item hash | `918cedd8b8b4237ec7ab0b65c062af84d1d452dbb8ce318786b61b98f2a3094b` |
+| item hash | `f001133a064ea6b3506d862a263b2209ae2ccc92e432aa96016b22bba68ed7d9` |
 | family | `evaluation` |
 | name | `evaluation_type_pilot_evaluation` |
 | level | `activity`, `page` |
@@ -4686,7 +4686,7 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 | linkage | `jev_choice` |
 | coder | `classifier` |
 | pass | `2` |
-| round | `4` |
+| round | `5` |
 | answer_type | `yes_no` |
 | order_tie_rule | `first_in_order` |
 | support_required | `True` |
@@ -4731,11 +4731,11 @@ Entailment label: does not include evaluation of a pilot or trial
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_independent_audit`
-<!-- item: core.evaluation_type_independent_audit sha256: c249cc7b5fb312a743eac34632fae82d275079fcd20db7c7928972eddc0fe8d7 -->
+<!-- item: core.evaluation_type_independent_audit sha256: a57820efa0471b8418a1e189d36436db00daec4a7addd6ce7ebd197933157cdc -->
 
 | Field | Value |
 |---|---|
-| item hash | `c249cc7b5fb312a743eac34632fae82d275079fcd20db7c7928972eddc0fe8d7` |
+| item hash | `a57820efa0471b8418a1e189d36436db00daec4a7addd6ce7ebd197933157cdc` |
 | family | `evaluation` |
 | name | `evaluation_type_independent_audit` |
 | level | `activity`, `page` |
@@ -4743,7 +4743,7 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 | linkage | `jev_choice` |
 | coder | `classifier` |
 | pass | `2` |
-| round | `4` |
+| round | `5` |
 | answer_type | `yes_no` |
 | order_tie_rule | `first_in_order` |
 | support_required | `True` |
@@ -4788,11 +4788,11 @@ Entailment label: does not include an audit or evaluation by an independent body
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_ongoing_monitoring`
-<!-- item: core.evaluation_type_ongoing_monitoring sha256: 6478e6bc28b9f774bd10a2e94d19d3390d9c0c230f0e0ad6e98568339cdc9bc1 -->
+<!-- item: core.evaluation_type_ongoing_monitoring sha256: 864d35832b2dc6bea2f69a060359f1ef12cee317ed7a7fc24d0b531a46400d72 -->
 
 | Field | Value |
 |---|---|
-| item hash | `6478e6bc28b9f774bd10a2e94d19d3390d9c0c230f0e0ad6e98568339cdc9bc1` |
+| item hash | `864d35832b2dc6bea2f69a060359f1ef12cee317ed7a7fc24d0b531a46400d72` |
 | family | `evaluation` |
 | name | `evaluation_type_ongoing_monitoring` |
 | level | `activity`, `page` |
@@ -4800,7 +4800,7 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 | linkage | `jev_choice` |
 | coder | `classifier` |
 | pass | `2` |
-| round | `4` |
+| round | `5` |
 | answer_type | `yes_no` |
 | order_tie_rule | `first_in_order` |
 | support_required | `True` |
@@ -4845,11 +4845,11 @@ Entailment label: does not include ongoing monitoring of the tool in use
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_user_feedback`
-<!-- item: core.evaluation_type_user_feedback sha256: b71826e593f8adaeb2f92918403fc768807c62e7051582862336589932e902f5 -->
+<!-- item: core.evaluation_type_user_feedback sha256: 9628c4f69ed51033eddcdb1434bc8f26d0acc10af1d764282cc8aff9748ddd6f -->
 
 | Field | Value |
 |---|---|
-| item hash | `b71826e593f8adaeb2f92918403fc768807c62e7051582862336589932e902f5` |
+| item hash | `9628c4f69ed51033eddcdb1434bc8f26d0acc10af1d764282cc8aff9748ddd6f` |
 | family | `evaluation` |
 | name | `evaluation_type_user_feedback` |
 | level | `activity`, `page` |
@@ -4857,7 +4857,7 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 | linkage | `jev_choice` |
 | coder | `classifier` |
 | pass | `2` |
-| round | `4` |
+| round | `5` |
 | answer_type | `yes_no` |
 | order_tie_rule | `first_in_order` |
 | support_required | `True` |
@@ -4902,11 +4902,11 @@ Entailment label: does not include user feedback or satisfaction surveys
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_bias_or_safety_testing`
-<!-- item: core.evaluation_type_bias_or_safety_testing sha256: e29aa95f78c13cb7270cb9dc368b7a0dfa3aea2bc835e11f892a35b6a196d1aa -->
+<!-- item: core.evaluation_type_bias_or_safety_testing sha256: 705995787c3a7371a35e78397796bc50ee46fd60ad7d73609bd62bbdc5d8c35f -->
 
 | Field | Value |
 |---|---|
-| item hash | `e29aa95f78c13cb7270cb9dc368b7a0dfa3aea2bc835e11f892a35b6a196d1aa` |
+| item hash | `705995787c3a7371a35e78397796bc50ee46fd60ad7d73609bd62bbdc5d8c35f` |
 | family | `evaluation` |
 | name | `evaluation_type_bias_or_safety_testing` |
 | level | `activity`, `page` |
@@ -4914,7 +4914,7 @@ Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `cond
 | linkage | `jev_choice` |
 | coder | `classifier` |
 | pass | `2` |
-| round | `4` |
+| round | `5` |
 | answer_type | `yes_no` |
 | order_tie_rule | `first_in_order` |
 | support_required | `True` |
@@ -5281,11 +5281,11 @@ Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_con
 A second reason item
 
 ## `core.supporting_text`
-<!-- item: core.supporting_text sha256: 07b6262cefe97510c6c521d3c7a46503b8fa75d67c9fb7e490fecbb39d24017c -->
+<!-- item: core.supporting_text sha256: 1fb914e4b8a9334e05516a8f1293086df70305fbbcc74541716eab3e0012c3b2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `07b6262cefe97510c6c521d3c7a46503b8fa75d67c9fb7e490fecbb39d24017c` |
+| item hash | `1fb914e4b8a9334e05516a8f1293086df70305fbbcc74541716eab3e0012c3b2` |
 | family | `support` |
 | name | `supporting_text` |
 | level | `row` |
@@ -5313,7 +5313,7 @@ A second reason item
 
 1. `items/core.supporting_text/rules/0`
 
-For every jev code on a page or activity, the extractor (C-001; the quote step) extracts the verbatim supporting text from the page. RC-D-002 row 15 replaces "after jev has coded": the quote step never sees the answer for the field it quotes, but may see that a gate is not `none`. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". A01 and CX-61 get quotes relevant to the field. The scale number is copied verbatim by the quote step and the classifier picks the unit; the publication date is coded by the quote step under the R-042 check. X35 adds an entailment check per (code, quote) with a chosen-answer probability bar.
+For every jev code on a page or activity, the extractor (C-001; the quote step) extracts the verbatim supporting text from the page. RC-D-002 row 15 replaces "after jev has coded"; RC-D-017 replaces its blind rule: the quote step sees the chosen answer for the field it quotes and copies the text that supports it, so it is a confirmatory step. It may also see that a gate is not `none`. Each supporting text (a quote, a link passage or a field's supporting text) is at most 200 characters; a longer one is kept whole and flagged. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". A01 and CX-61 get quotes relevant to the field. The scale number is copied verbatim by the quote step and the classifier picks the unit; the publication date is coded by the quote step under the R-042 check. X35 adds an entailment check per (code, quote) with a chosen-answer probability bar.
 
 2. `items/core.supporting_text/rules/1`
 
@@ -5321,7 +5321,7 @@ Supporting text is checked against the stored page text by fuzzy match; a quote 
 
 3. `items/core.supporting_text/rules/2`
 
-Supporting text is published with the code it supports. The API carries the full text; the website shows it up to a display cap, with a marker and access to the full text.
+Supporting text is published with the code it supports. The API carries the full text; the website shows it up to 200 characters, with a marker and access to the full text.
 
 4. `items/core.supporting_text/rules/3`
 

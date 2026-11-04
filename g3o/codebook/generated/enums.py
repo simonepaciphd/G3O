@@ -1,13 +1,13 @@
 # GENERATED FILE - do not edit. Built from codebook/codebook.yaml by
 # g3o.codebook.generators.enums.
-# codebook release: 2.7 | codebook sha256: f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d
+# codebook release: 2.7 | codebook sha256: 3692c06a77056c43285b2696fa9d1aea1e733290fbd977976f40c6426803859a
 # Intended target: T-012 enum constants (g3o/common/contract.py or a module T-012 names).
 """Codebook value lists as constants; each carries its item id and item hash."""
 
 from __future__ import annotations
 
 CODEBOOK_RELEASE = '2.7'
-CODEBOOK_SHA256 = 'f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d'
+CODEBOOK_SHA256 = '3692c06a77056c43285b2696fa9d1aea1e733290fbd977976f40c6426803859a'
 
 #: item id -> (item hash, value codes in codebook order)
 ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -48,15 +48,15 @@ ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
     'core.has_transparency_notice': ('bcefdc276e698be877c13588df80ffcddac8e3542453155ea2e770133a865883', ('yes', 'no', 'unclear',)),
     'core.has_data_classification': ('ba98b2d241f40f7137c626e7e7c0ad41c0b87581fc538d6f4caf1813bcd3cd59', ('yes', 'no', 'unclear',)),
     'core.has_risk_assessment': ('4b340b3af9416bb9713e92e6558919763d64617c523fb4bbc5e633f149358ea4', ('yes', 'no', 'unclear',)),
-    'core.outcome_kind': ('4c8e83ed8ecfe9f8697ff1af3e5a98136d92a93a16f62244314f85417af3b105', ('quantified', 'qualitative', 'none_reported',)),
-    'core.incident_kind': ('86e86970bf31247adafccf0da05b86c1f8ec5cdcb59c2a0bf906e091710526ad', ('quantified', 'qualitative', 'none_reported', 'discontinuation_uncertain',)),
-    'core.evaluation_documented': ('821b1906675ae2202acb97e41245ca25ebec5a5e26518edc7a8d22a1d3b0097c', ('results_reported', 'conducted_no_results', 'required_or_planned', 'unclear',)),
-    'core.evaluation_type_pre_deployment_testing': ('0528b068190b671ec6b3c712016999d5a3946bd38a3e2594b5ee84d183f430ff', ('yes', 'no',)),
-    'core.evaluation_type_pilot_evaluation': ('918cedd8b8b4237ec7ab0b65c062af84d1d452dbb8ce318786b61b98f2a3094b', ('yes', 'no',)),
-    'core.evaluation_type_independent_audit': ('c249cc7b5fb312a743eac34632fae82d275079fcd20db7c7928972eddc0fe8d7', ('yes', 'no',)),
-    'core.evaluation_type_ongoing_monitoring': ('6478e6bc28b9f774bd10a2e94d19d3390d9c0c230f0e0ad6e98568339cdc9bc1', ('yes', 'no',)),
-    'core.evaluation_type_user_feedback': ('b71826e593f8adaeb2f92918403fc768807c62e7051582862336589932e902f5', ('yes', 'no',)),
-    'core.evaluation_type_bias_or_safety_testing': ('e29aa95f78c13cb7270cb9dc368b7a0dfa3aea2bc835e11f892a35b6a196d1aa', ('yes', 'no',)),
+    'core.outcome_kind': ('7215b6b2576b8a967c86362ed2a3d4dbcb740b84a4f23d2de05a4ef817091e12', ('quantified', 'qualitative', 'none_reported',)),
+    'core.incident_kind': ('9d7ab9101539f801ee5098e8df2c46e9f0b6fcc27fdf679eaf88cf502f395d32', ('quantified', 'qualitative', 'none_reported', 'discontinuation_uncertain',)),
+    'core.evaluation_documented': ('8d878b747de11b7e8f8888b27a5c568da0cbb4c47c235026f47bf282eb59dd0b', ('results_reported', 'conducted_no_results', 'required_or_planned', 'unclear',)),
+    'core.evaluation_type_pre_deployment_testing': ('1a10522c420a29a7d32380d7cd01a05b93f079ad16a86ab5363abf1b00bd57b5', ('yes', 'no',)),
+    'core.evaluation_type_pilot_evaluation': ('f001133a064ea6b3506d862a263b2209ae2ccc92e432aa96016b22bba68ed7d9', ('yes', 'no',)),
+    'core.evaluation_type_independent_audit': ('a57820efa0471b8418a1e189d36436db00daec4a7addd6ce7ebd197933157cdc', ('yes', 'no',)),
+    'core.evaluation_type_ongoing_monitoring': ('864d35832b2dc6bea2f69a060359f1ef12cee317ed7a7fc24d0b531a46400d72', ('yes', 'no',)),
+    'core.evaluation_type_user_feedback': ('9628c4f69ed51033eddcdb1434bc8f26d0acc10af1d764282cc8aff9748ddd6f', ('yes', 'no',)),
+    'core.evaluation_type_bias_or_safety_testing': ('705995787c3a7371a35e78397796bc50ee46fd60ad7d73609bd62bbdc5d8c35f', ('yes', 'no',)),
     'core.support_entailment': ('6156631ceb19770919ed6792092f3169bb7442317702b6fb1fbfe76d26a6b172', ('true', 'false',)),
     'core.activity_relation_cross_page': ('ace0da2bc93b3c6a70f0a97873b123abea5906bba93b238f926feff086ed6e5c', ('same_activity', 'component_of_program', 'has_component', 'shared_participation', 'governs', 'governed_by', 'distinct_action', 'unresolved',)),
     'core.observed_actor_role': ('47c6b173d8d672bffc766f9603b797b24a136c418aebb5be2c4a0a0c236d93fc', ('institutional_actor', 'issuer', 'participant', 'external_speaker', 'service_provider', 'event_host',)),

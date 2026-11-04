@@ -5,7 +5,7 @@
   "do_not_edit": true,
   "build_command": "python -m g3o.classify.questions.v27 build",
   "codebook_release": "2.7",
-  "codebook_sha256": "f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d",
+  "codebook_sha256": "3692c06a77056c43285b2696fa9d1aea1e733290fbd977976f40c6426803859a",
   "source": "g3o.codebook.generators.gen_jev_questions (regenerated from the codebook)",
   "pass": 2,
   "unit": "page x activity, with the activity's span marked (DEC-010 a)",
@@ -2284,7 +2284,7 @@
       "question_id": "core.year_announced",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.year_announced`",
       "item_id": "core.year_announced",
-      "item_hash": "70545adcdfadf5991e81f6119f52148d28b81a52722e7a5a97740e8b51415b0e",
+      "item_hash": "d0c859753c014abb165ae711bff020f68456ee8972156bcacceddfea6f15c966",
       "column": "year_announced",
       "pass": 2,
       "round": 3,
@@ -2323,7 +2323,7 @@
         {
           "code": "not_documented",
           "missing_label": true,
-          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. not_documented: the page is silent.",
+          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. not_documented: the page is silent.",
           "definition_slot": "items/core.year_announced/rules/2",
           "rule_slots": [
             "items/core.year_announced/rules/0",
@@ -2342,7 +2342,7 @@
       "candidates_not_offered": [
         "unknown"
       ],
-      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. not_documented: the page is silent.",
+      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. not_documented: the page is silent.",
       "rule_slots": [
         "items/core.year_announced/rules/0",
         "items/core.year_announced/rules/1",
@@ -2355,7 +2355,7 @@
       "question_id": "core.year_pilot_start",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.year_pilot_start`",
       "item_id": "core.year_pilot_start",
-      "item_hash": "a1866c316cd97d1d3558cb9d83b04dd362b7edc0876b5214463e3c3ec1619ac9",
+      "item_hash": "688573dba5ad8db0f142a80c14392acded5617aafa38625bea6ae3b5c3c62fee",
       "column": "year_pilot_start",
       "pass": 2,
       "round": 3,
@@ -2396,7 +2396,7 @@
         {
           "code": "not_documented",
           "missing_label": true,
-          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
+          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
           "definition_slot": "items/core.year_pilot_start/rules/3",
           "rule_slots": [
             "items/core.year_pilot_start/rules/0",
@@ -2416,7 +2416,7 @@
       "candidates_not_offered": [
         "unknown"
       ],
-      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
+      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
       "rule_slots": [
         "items/core.year_pilot_start/rules/0",
         "items/core.year_pilot_start/rules/1",
@@ -2430,7 +2430,7 @@
       "question_id": "core.year_production_start",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.year_production_start`",
       "item_id": "core.year_production_start",
-      "item_hash": "1149b8097fc10f3964d32b6b7f7f6b3cf8753cfc0b779252b9e060d31e4a90b3",
+      "item_hash": "aa0f1bddef30ada01cf7cda7649deab2b40a84699022e3608f2e736e60477a77",
       "column": "year_production_start",
       "pass": 2,
       "round": 3,
@@ -2471,7 +2471,7 @@
         {
           "code": "not_documented",
           "missing_label": true,
-          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
+          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
           "definition_slot": "items/core.year_production_start/rules/3",
           "rule_slots": [
             "items/core.year_production_start/rules/0",
@@ -2491,7 +2491,7 @@
       "candidates_not_offered": [
         "unknown"
       ],
-      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
+      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
       "rule_slots": [
         "items/core.year_production_start/rules/0",
         "items/core.year_production_start/rules/1",
@@ -2878,13 +2878,102 @@
       "jev_type": "Choice"
     },
     {
+      "question_id": "core.deployment_scale_unit",
+      "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.deployment_scale_unit`",
+      "item_id": "core.deployment_scale_unit",
+      "item_hash": "c4359e7dd8e604b19a00b999b3d14d2407d5b6c8f398a8f759a417693852e7eb",
+      "column": "deployment_scale_unit",
+      "pass": 2,
+      "round": 4,
+      "gate": {
+        "item": "core.deployment_scale_number",
+        "values": "any",
+        "as_ruled": "any stated"
+      },
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "What does the stated number for this activity count?",
+      "instruction_slot": "items/core.deployment_scale_unit/instruction",
+      "criteria": [
+        {
+          "code": "licences_or_seats",
+          "text": "The number counts licences, seats or accounts bought or issued.\n\nRules:\n1. The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n2. not_documented: the page is silent.",
+          "definition_slot": "items/core.deployment_scale_unit/values/0/definition",
+          "rule_slots": [
+            "items/core.deployment_scale_unit/rules/0",
+            "items/core.deployment_scale_unit/rules/1"
+          ]
+        },
+        {
+          "code": "users",
+          "text": "The number counts people who use the tool.\n\nRules:\n1. The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n2. not_documented: the page is silent.",
+          "definition_slot": "items/core.deployment_scale_unit/values/1/definition",
+          "rule_slots": [
+            "items/core.deployment_scale_unit/rules/0",
+            "items/core.deployment_scale_unit/rules/1"
+          ]
+        },
+        {
+          "code": "interactions",
+          "text": "The number counts uses of the tool, such as questions answered, conversations held or documents handled.\n\nRules:\n1. The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n2. not_documented: the page is silent.",
+          "definition_slot": "items/core.deployment_scale_unit/values/2/definition",
+          "rule_slots": [
+            "items/core.deployment_scale_unit/rules/0",
+            "items/core.deployment_scale_unit/rules/1"
+          ]
+        },
+        {
+          "code": "units_or_departments",
+          "text": "The number counts offices, departments, schools or other units that use the tool.\n\nRules:\n1. The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n2. not_documented: the page is silent.",
+          "definition_slot": "items/core.deployment_scale_unit/values/3/definition",
+          "rule_slots": [
+            "items/core.deployment_scale_unit/rules/0",
+            "items/core.deployment_scale_unit/rules/1"
+          ]
+        },
+        {
+          "code": "none",
+          "text": "A number is stated, but it counts none of these units.\n\nRules:\n1. The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n2. not_documented: the page is silent.",
+          "definition_slot": "items/core.deployment_scale_unit/values/4/definition",
+          "rule_slots": [
+            "items/core.deployment_scale_unit/rules/0",
+            "items/core.deployment_scale_unit/rules/1"
+          ]
+        },
+        {
+          "code": "not_documented",
+          "missing_label": true,
+          "text": "not_documented: the page is silent.\n\nRules:\n1. The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n2. not_documented: the page is silent.",
+          "definition_slot": "items/core.deployment_scale_unit/rules/1",
+          "rule_slots": [
+            "items/core.deployment_scale_unit/rules/0",
+            "items/core.deployment_scale_unit/rules/1"
+          ]
+        }
+      ],
+      "shows_value_of": [
+        "core.deployment_scale_number"
+      ],
+      "part_prompt_answer": {
+        "label": "not covered by this part",
+        "label_slot": "shared/part_prompt/temporary_answer/label",
+        "meaning": "This part of the page does not deal with the question; another part of the page may.",
+        "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
+      },
+      "jev_type": "Choice"
+    },
+    {
       "question_id": "core.outcome_kind",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.outcome_kind`",
       "item_id": "core.outcome_kind",
-      "item_hash": "4c8e83ed8ecfe9f8697ff1af3e5a98136d92a93a16f62244314f85417af3b105",
+      "item_hash": "7215b6b2576b8a967c86362ed2a3d4dbcb740b84a4f23d2de05a4ef817091e12",
       "column": "outcome_kind",
       "pass": 2,
-      "round": 3,
+      "round": 4,
       "gate": {
         "item": "core.activity_type",
         "values": [
@@ -2956,10 +3045,10 @@
       "question_id": "core.incident_kind",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.incident_kind`",
       "item_id": "core.incident_kind",
-      "item_hash": "86e86970bf31247adafccf0da05b86c1f8ec5cdcb59c2a0bf906e091710526ad",
+      "item_hash": "9d7ab9101539f801ee5098e8df2c46e9f0b6fcc27fdf679eaf88cf502f395d32",
       "column": "incident_kind",
       "pass": 2,
-      "round": 3,
+      "round": 4,
       "gate": {
         "item": "core.activity_type",
         "values": [
@@ -3051,10 +3140,10 @@
       "question_id": "core.evaluation_documented",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.evaluation_documented`",
       "item_id": "core.evaluation_documented",
-      "item_hash": "821b1906675ae2202acb97e41245ca25ebec5a5e26518edc7a8d22a1d3b0097c",
+      "item_hash": "8d878b747de11b7e8f8888b27a5c568da0cbb4c47c235026f47bf282eb59dd0b",
       "column": "evaluation_documented",
       "pass": 2,
-      "round": 3,
+      "round": 4,
       "gate": {
         "item": "core.activity_type",
         "values": [
@@ -3188,102 +3277,13 @@
       "jev_type": "Choice"
     },
     {
-      "question_id": "core.deployment_scale_unit",
-      "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.deployment_scale_unit`",
-      "item_id": "core.deployment_scale_unit",
-      "item_hash": "c4359e7dd8e604b19a00b999b3d14d2407d5b6c8f398a8f759a417693852e7eb",
-      "column": "deployment_scale_unit",
-      "pass": 2,
-      "round": 4,
-      "gate": {
-        "item": "core.deployment_scale_number",
-        "values": "any",
-        "as_ruled": "any stated"
-      },
-      "answer_type": "single",
-      "threshold": {
-        "metric": "chosen_answer_probability",
-        "bar": 0.8
-      },
-      "frozen_signature": "none",
-      "instructions": "What does the stated number for this activity count?",
-      "instruction_slot": "items/core.deployment_scale_unit/instruction",
-      "criteria": [
-        {
-          "code": "licences_or_seats",
-          "text": "The number counts licences, seats or accounts bought or issued.\n\nRules:\n1. The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n2. not_documented: the page is silent.",
-          "definition_slot": "items/core.deployment_scale_unit/values/0/definition",
-          "rule_slots": [
-            "items/core.deployment_scale_unit/rules/0",
-            "items/core.deployment_scale_unit/rules/1"
-          ]
-        },
-        {
-          "code": "users",
-          "text": "The number counts people who use the tool.\n\nRules:\n1. The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n2. not_documented: the page is silent.",
-          "definition_slot": "items/core.deployment_scale_unit/values/1/definition",
-          "rule_slots": [
-            "items/core.deployment_scale_unit/rules/0",
-            "items/core.deployment_scale_unit/rules/1"
-          ]
-        },
-        {
-          "code": "interactions",
-          "text": "The number counts uses of the tool, such as questions answered, conversations held or documents handled.\n\nRules:\n1. The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n2. not_documented: the page is silent.",
-          "definition_slot": "items/core.deployment_scale_unit/values/2/definition",
-          "rule_slots": [
-            "items/core.deployment_scale_unit/rules/0",
-            "items/core.deployment_scale_unit/rules/1"
-          ]
-        },
-        {
-          "code": "units_or_departments",
-          "text": "The number counts offices, departments, schools or other units that use the tool.\n\nRules:\n1. The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n2. not_documented: the page is silent.",
-          "definition_slot": "items/core.deployment_scale_unit/values/3/definition",
-          "rule_slots": [
-            "items/core.deployment_scale_unit/rules/0",
-            "items/core.deployment_scale_unit/rules/1"
-          ]
-        },
-        {
-          "code": "none",
-          "text": "A number is stated, but it counts none of these units.\n\nRules:\n1. The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n2. not_documented: the page is silent.",
-          "definition_slot": "items/core.deployment_scale_unit/values/4/definition",
-          "rule_slots": [
-            "items/core.deployment_scale_unit/rules/0",
-            "items/core.deployment_scale_unit/rules/1"
-          ]
-        },
-        {
-          "code": "not_documented",
-          "missing_label": true,
-          "text": "not_documented: the page is silent.\n\nRules:\n1. The extractor returns the verbatim number span. jev Choice gives the unit: licences_or_seats / users / interactions / units_or_departments / none.\n2. not_documented: the page is silent.",
-          "definition_slot": "items/core.deployment_scale_unit/rules/1",
-          "rule_slots": [
-            "items/core.deployment_scale_unit/rules/0",
-            "items/core.deployment_scale_unit/rules/1"
-          ]
-        }
-      ],
-      "shows_value_of": [
-        "core.deployment_scale_number"
-      ],
-      "part_prompt_answer": {
-        "label": "not covered by this part",
-        "label_slot": "shared/part_prompt/temporary_answer/label",
-        "meaning": "This part of the page does not deal with the question; another part of the page may.",
-        "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
-      },
-      "jev_type": "Choice"
-    },
-    {
       "question_id": "core.evaluation_type_pre_deployment_testing",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.evaluation_type_pre_deployment_testing`",
       "item_id": "core.evaluation_type_pre_deployment_testing",
-      "item_hash": "0528b068190b671ec6b3c712016999d5a3946bd38a3e2594b5ee84d183f430ff",
+      "item_hash": "1a10522c420a29a7d32380d7cd01a05b93f079ad16a86ab5363abf1b00bd57b5",
       "column": "evaluation_type_pre_deployment_testing",
       "pass": 2,
-      "round": 4,
+      "round": 5,
       "gate": {
         "item": "core.evaluation_documented",
         "values": [
@@ -3331,10 +3331,10 @@
       "question_id": "core.evaluation_type_pilot_evaluation",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.evaluation_type_pilot_evaluation`",
       "item_id": "core.evaluation_type_pilot_evaluation",
-      "item_hash": "918cedd8b8b4237ec7ab0b65c062af84d1d452dbb8ce318786b61b98f2a3094b",
+      "item_hash": "f001133a064ea6b3506d862a263b2209ae2ccc92e432aa96016b22bba68ed7d9",
       "column": "evaluation_type_pilot_evaluation",
       "pass": 2,
-      "round": 4,
+      "round": 5,
       "gate": {
         "item": "core.evaluation_documented",
         "values": [
@@ -3382,10 +3382,10 @@
       "question_id": "core.evaluation_type_independent_audit",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.evaluation_type_independent_audit`",
       "item_id": "core.evaluation_type_independent_audit",
-      "item_hash": "c249cc7b5fb312a743eac34632fae82d275079fcd20db7c7928972eddc0fe8d7",
+      "item_hash": "a57820efa0471b8418a1e189d36436db00daec4a7addd6ce7ebd197933157cdc",
       "column": "evaluation_type_independent_audit",
       "pass": 2,
-      "round": 4,
+      "round": 5,
       "gate": {
         "item": "core.evaluation_documented",
         "values": [
@@ -3433,10 +3433,10 @@
       "question_id": "core.evaluation_type_ongoing_monitoring",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.evaluation_type_ongoing_monitoring`",
       "item_id": "core.evaluation_type_ongoing_monitoring",
-      "item_hash": "6478e6bc28b9f774bd10a2e94d19d3390d9c0c230f0e0ad6e98568339cdc9bc1",
+      "item_hash": "864d35832b2dc6bea2f69a060359f1ef12cee317ed7a7fc24d0b531a46400d72",
       "column": "evaluation_type_ongoing_monitoring",
       "pass": 2,
-      "round": 4,
+      "round": 5,
       "gate": {
         "item": "core.evaluation_documented",
         "values": [
@@ -3484,10 +3484,10 @@
       "question_id": "core.evaluation_type_user_feedback",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.evaluation_type_user_feedback`",
       "item_id": "core.evaluation_type_user_feedback",
-      "item_hash": "b71826e593f8adaeb2f92918403fc768807c62e7051582862336589932e902f5",
+      "item_hash": "9628c4f69ed51033eddcdb1434bc8f26d0acc10af1d764282cc8aff9748ddd6f",
       "column": "evaluation_type_user_feedback",
       "pass": 2,
-      "round": 4,
+      "round": 5,
       "gate": {
         "item": "core.evaluation_documented",
         "values": [
@@ -3535,10 +3535,10 @@
       "question_id": "core.evaluation_type_bias_or_safety_testing",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.evaluation_type_bias_or_safety_testing`",
       "item_id": "core.evaluation_type_bias_or_safety_testing",
-      "item_hash": "e29aa95f78c13cb7270cb9dc368b7a0dfa3aea2bc835e11f892a35b6a196d1aa",
+      "item_hash": "705995787c3a7371a35e78397796bc50ee46fd60ad7d73609bd62bbdc5d8c35f",
       "column": "evaluation_type_bias_or_safety_testing",
       "pass": 2,
-      "round": 4,
+      "round": 5,
       "gate": {
         "item": "core.evaluation_documented",
         "values": [
