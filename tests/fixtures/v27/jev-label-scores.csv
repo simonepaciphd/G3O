@@ -33,3 +33,4 @@ v27-real-29#0,v27-real-29,core.page_verdict,event_only,5,4.8,3.8,0.84,"{""1"": 0
 v27-real-30#0,v27-real-30,core.page_verdict,event_only,5,4.63,3.63,0.7,"{""1"": 0.05, ""2"": 0.02, ""3"": 0.01, ""4"": 0.08, ""5"": 0.84}",4,jev-1.13.0,req_01a1a7ab5fc871629c0c5fa82c0938ab
 v27-real-31#0,v27-real-31,core.page_verdict,confirms_activity,5,3.83,2.83,0.04,"{""1"": 0.16, ""2"": 0.1, ""3"": 0.02, ""4"": 0.17, ""5"": 0.55}",3,jev-1.13.0,req_01a1a7ab601c75139cb64cab1ed3a46c
 v27-real-31#1,v27-real-31,core.governance_direction,prohibits,5,4.82,3.82,0.84,"{""1"": 0.01, ""2"": 0.01, ""3"": 0.01, ""4"": 0.1, ""5"": 0.87}",4,jev-1.13.0,req_01a1a7ab605d7727b574e547083fc255
+v27-real-12#0@v2,v27-real-12,core.page_verdict,ambiguous_genai,1,2.66,1.66,0.0,"{""1"": 0.42, ""2"": 0.14, ""3"": 0.04, ""4"": 0.19, ""5"": 0.21}",,jev-1.13.0,req_01a1a7c414117d2ea761174d490ad2d0

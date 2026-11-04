@@ -638,7 +638,7 @@ F.append(
             exp(
                 "provenance",
                 {"p1": "p0", "p2": "p0"},
-                "SPEC R-034 provenance chain; p2 is reached first from p0 (breadth-first order assumed)",
+                "SPEC R-034 provenance chain; RC-D-015 F2 a (approved 2026-11-04): the recorded parent is the page that first queued the URL, in traversal order. p0 is the root and queues p1 and p2 before p1 is fetched, so p2 <- p0 in any traversal",
                 scope="institution",
                 judgement_call="JC-S5",
             ),

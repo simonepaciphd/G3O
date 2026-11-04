@@ -658,16 +658,14 @@ for n, (cs, r) in enumerate(sorted(pick.items()), start=1):
                     "item": "correction_layer.owner_uid",
                     "scope": "transfer",
                     "value": r["candidate_owner_uid"],
-                    "rule": "SPEC R-077 / A-022: each transfer appears under its verified owner (candidate_owner_uid of the RQ-003 list)",
+                    "rule": "SPEC R-077 / A-022; RC-D-015 F3 a (approved 2026-11-04): candidate_owner_uid in activity-review-prepared.csv (RQ-003) is the verified owner",
                     "judgement_call": "JC-T1",
                 },
                 {
                     "item": "correction_layer.ws10_disposition",
                     "scope": "transfer",
-                    "value": None,
-                    "rule": "SPEC A-022: with WS10 disposition; the list's reviewer_adoption_construct_verdict is PENDING for all 114 (correction_set "
-                    + cs
-                    + ")",
+                    "value": cs,
+                    "rule": "SPEC A-022; RC-D-015 F3 a (approved 2026-11-04): correction_set is the WS10 disposition",
                     "judgement_call": "JC-T2",
                 },
                 {

@@ -163,3 +163,34 @@ def test_jev_label_scores_join_and_readings():
         top = max(probs, key=lambda k: (probs[k], -k))
         assert int(s["jev_argmax_1_5"]) == top
         assert abs(float(s["jev_expected_1_5"]) - (float(s["level_raw"]) + 1)) < 1e-6
+
+
+def test_real_pages_resolve_and_quotes_occur():
+    """Drive-backed: skipped when G3O_DRIVE_ROOT is unset (CI); hash-checks every real page and quote."""
+    import importlib.util
+    import os
+    import re
+
+    if not os.environ.get("G3O_DRIVE_ROOT"):
+        pytest.skip("G3O_DRIVE_ROOT not set: real-page stores are not available")
+    spec = importlib.util.spec_from_file_location("fixture_text", FIX / "fixture_text.py")
+    ft = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ft)
+    drive = ft.drive_root()
+
+    def norm(s):
+        return re.sub(r"\s+", " ", s).strip()
+
+    real = json.loads((FIX / "real.json").read_text(encoding="utf-8"))["fixtures"]
+    cache = {}
+    for f in real:
+        refs = [f["page_ref"]] if "page_ref" in f else f["page_refs"]
+        texts = []
+        for r in refs:
+            k = r["text_sha256"]
+            if k not in cache:
+                cache[k] = norm(ft.load_real_text(r, drive))
+            texts.append(cache[k])
+        for e in f["expected"]:
+            q = e.get("evidence_quote")
+            assert not q or any(norm(q) in t for t in texts), (f["fixture_id"], q)
