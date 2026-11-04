@@ -211,6 +211,22 @@ def dry_run(args):
     return s
 
 
+def score_fields(probabilities, score) -> dict:
+    """Both readings of a jev Score answer on the 1-5 scale.
+
+    jev's ``score`` is the probability-weighted expected level on 0-4, not the most likely level, so it is never
+    truncated: ``jev_expected_1_5`` = score + 1 (unrounded); ``jev_argmax_1_5`` = most likely level + 1 (ties go to
+    the lower level, as in T-003 jev_fidelity.py); ``level_raw`` = jev's score as returned.
+    """
+    probs = {int(k): v for k, v in (probabilities or {}).items()}
+    argmax = max(probs, key=lambda k: (probs[k], -k)) if probs else None
+    return {
+        "level_raw": score,
+        "jev_argmax_1_5": None if argmax is None else argmax + 1,
+        "jev_expected_1_5": None if score is None else score + 1,
+    }
+
+
 def score(items, ask, log_path: Path, cap, question):
     done, spent = set(), 0.0
     if log_path.exists():
@@ -249,8 +265,7 @@ def score(items, ask, log_path: Path, cap, question):
                     {
                         "key": x["item_id"],
                         "ok": True,
-                        "level": a.score,
-                        "jev_score_1_5": None if a.score is None else int(a.score) + 1,
+                        **score_fields(a.probabilities, a.score),
                         "probabilities": a.probabilities,
                         "confidence": a.confidence,
                         "response_model": res.response_model,
