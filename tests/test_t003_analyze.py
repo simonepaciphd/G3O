@@ -123,3 +123,14 @@ def test_rulings_and_ruled_bar(tmp_path):
     assert res["meta"]["rulings"]["R1"].startswith("v27-results-1104 R1 b")
     assert res["bar_ruled"]["latin"]["verdict"] == "n/a (n < 30)"
     assert set(res["cutoffs"]["tuning"]) == {"latin", "cjk"}
+
+
+def test_chosen_cutoffs_recorded(tmp_path):
+    assert an.CHOSEN_CUTOFFS == {"latin": 0.8, "cjk": 0.8, "thai": 0.8}
+    assert ".8 for both is fine" in an.RULINGS["R3_values"]
+    lane = _fixture(tmp_path)
+    an.main(["--lane-dir", str(lane)])
+    res = json.loads((lane / "SPIKE-T003-analysis.json").read_text(encoding="utf-8"))
+    ch = res["chosen_cutoffs"]["latin"]
+    assert ch["cutoff"] == 0.8 and ch["tuning"]["candidates_false_match"] == 0
+    assert ch["holdout"]["candidates_n"] == 1 and "note" in res["chosen_cutoffs"]["thai"]

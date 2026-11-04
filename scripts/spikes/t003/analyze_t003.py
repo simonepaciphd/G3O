@@ -34,9 +34,12 @@ RULINGS = {
           "331 mapped candidates plus controls",
     "R2": "v27-results-1104 R2 a \"Keep 'or'\": gold = jev 4+ OR rule_80",
     "R3": "v27-results-1104 R3 b 'Per-script cutoffs': Latin and CJK tuned separately; Thai keeps the default",
+    "R3_values": "PI chat 2026-11-04: \".8 for both is fine\" -> Latin 0.80, CJK 0.80; Thai keeps the default 0.80 "
+                 "(not tunable)",
     "source": "decision pages v27-gates-1104 (saved 2026-11-04T16:23:45Z), v27-results-1104 (2026-11-04T17:54:45Z)",
 }
 BAR_SET, BAR_FIELD = "candidates_331_plus_controls", "rho_expected"   # R1 b
+CHOSEN_CUTOFFS = {"latin": 0.80, "cjk": 0.80, "thai": 0.80}            # R3 values, PI 2026-11-04
 
 
 # ---- statistics ------------------------------------------------------------------------------------
@@ -223,6 +226,9 @@ def analyze(rows: list[dict]) -> dict:
                                "verdict": "n/a (n < 30)" if b["n"] < BAR_N else
                                ("met" if rho is not None and rho >= BAR_RHO else "not met")}
     out["cutoffs"] = {p: {s: cutoff_table(rows, s, p) for s in TUNABLE_SCRIPTS} for p in ("tuning", "holdout")}
+    out["chosen_cutoffs"] = {s: {"cutoff": c, **{p: cutoff_table(rows, s, p, (c,))[0] for p in ("tuning", "holdout")}}
+                             for s, c in CHOSEN_CUTOFFS.items()}
+    out["chosen_cutoffs"]["thai"]["note"] = "not tunable (tuning n = 1); default kept; held-out errors not estimable"
     return out
 
 
@@ -349,6 +355,20 @@ def render_md(res: dict, meta: dict) -> str:
                   for r in t]
             L.append("")
     L += ["Thai: not tunable (tuning n = 1); keeps the default (R3 b). Held-out Thai errors are not estimable.", "",
+          "## Chosen cutoffs (PI, 2026-11-04 chat: \".8 for both is fine\")", "",
+          "Latin 0.80, CJK 0.80; Thai keeps the default 0.80 (not tunable). Errors at the chosen cutoff "
+          "(candidates FM / FR; offpage controls FM / FR; scrambled onpage controls accepted with jev < 4):", "",
+          "| Script | Partition | cand n | cand FM | cand FR | offpage n | offpage FM | offpage FR | onpage n | "
+          "scrambled accepted |", "|---|---|---|---|---|---|---|---|---|---|"]
+    for s, ch in res["chosen_cutoffs"].items():
+        for p in ("tuning", "holdout"):
+            r = ch[p]
+            L.append(f"| {s} | {p} | {r['candidates_n']} | {r['candidates_false_match']} | "
+                     f"{r['candidates_false_reject']} | {r['offpage_n']} | {r['offpage_false_match']} | "
+                     f"{r['offpage_false_reject']} | {r['onpage_n']} | {r['onpage_scrambled_accepted']} |")
+    L += ["", "Caveat: the OR gold contains the 0.80 rule itself, so at the chosen 0.80 cutoff false matches are zero "
+          "by construction and the error counts can only show false rejects (jev 4+ below 0.80 presence). Leniency "
+          "above 0.80 shows only in the scrambled-control column. Thai held-out errors are not estimable.", "",
           "RC-D-014 S2 b says per-script cutoffs \"where held-out errors require\" them. At the 0.80 rule the "
           "held-out candidates show 0 errors in Latin and CJK, so the held-out evidence does not by itself require "
           "a per-script cutoff (held-out offpage controls show 2 false rejects per script at 0.80: jev 4+ on quotes "
