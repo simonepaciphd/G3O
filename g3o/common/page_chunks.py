@@ -1,45 +1,33 @@
-"""Calibrated UTF-8 token estimation and lossless page chunking (T-020).
+"""Local T-020 chunking preparation; no provider calls or answer combination.
 
-Mechanically extracted from reviewed calibration ffb5be2. Answer combination
-remains owned by the accepted T-027 implementation in jev_record.py.
-The selected DP-007 margin is not installed here: complete serialized-request
-overhead and runtime verification remain required before production use.
+The DP-007 uniform 90% margin is selected, but actual provider accounting and
+runtime/instrument binding remain separate gates. `chunk_page` and `split_pool`
+are text-only primitives: use `prepare_page_requests` for full serialized request
+budgeting. The serializer must include every request field; this module cannot
+infer omitted provider framing or validate a caller's request builder.
 """
 from __future__ import annotations
 
 import math
 import re
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Generic, TypeVar
 
-#: jev state limit per request (C-004: "32k tokens"). Whether jev counts 32k
-#: as 32,000 or 32,768 is not stated in SPEC; 32,000 is the lower reading.
-#: Configurable per call.
+APPROVED_SAFETY_MARGIN = {"latin": 0.9, "cjk": 0.9, "thai": 0.9}
+
 JEV_STATE_TOKEN_LIMIT = 32_000
 
-#: Approved T-002 medians, tokens per UTF-8 byte (RC-D-006, PI 2 a).
-#: Latin: 64 requests; CJK: 10; Thai: 3 (thin evidence, no stronger claim).
-#: These ratios are calibrated; the DP-007 safety margin remains unresolved.
+
 CALIBRATED_TOKENS_PER_BYTE: Mapping[str, float] = {
     "latin": 0.305,
     "cjk": 0.341,
     "thai": 0.334,
 }
 
-#: PLACEHOLDER — DP-007 is open: the safety margin below the 32k limit is not
-#: chosen here. Card default (not applied): a margin equal to the largest
-#: estimator error T-002 observes for the page's script. Expressed as a
-#: relative inflation of the estimate (0.10 = +10 %). 0.0 means "no margin
-#: yet", not a decision.
-PLACEHOLDER_SAFETY_MARGIN: Mapping[str, float] = {
-    "latin": 0.0,  # PLACEHOLDER (DP-007 / T-002)
-    "cjk": 0.0,  # PLACEHOLDER (DP-007 / T-002)
-    "thai": 0.0,  # PLACEHOLDER (DP-007 / T-002)
-}
 
-#: Halve-and-retry depth (RS-004 ``byte_chunks`` ×3; RS-014 ``MAX_SPLIT_DEPTH=3``).
 DEFAULT_MAX_SPLIT_DEPTH = 3
+
 
 _CJK_RANGES: tuple[tuple[int, int], ...] = (
     (0x1100, 0x11FF),  # Hangul Jamo
@@ -57,6 +45,8 @@ _CJK_RANGES: tuple[tuple[int, int], ...] = (
     (0xFF00, 0xFFEF),  # half/full-width forms
     (0x20000, 0x3FFFF),  # CJK ext. B onwards
 )
+
+
 _THAI_RANGE = (0x0E00, 0x0E7F)
 
 
@@ -77,28 +67,28 @@ def script_of(ch: str) -> str:
 
 @dataclass(frozen=True)
 class TokenEstimator:
-    """Additive token estimate using UTF-8 byte counts in each script bucket.
+    """UTF-8 per-script estimator with PI-selected DP-007 margins.
 
-    ``tokens_per_byte`` defaults to the approved T-002 ratios. DP-007 remains
-    unresolved: ``safety_margin=None`` uses zero placeholders for offline
-    estimates only, and :meth:`assert_calibrated` refuses that configuration.
-    Production callers must supply every script's margin and explicitly clear
-    ``placeholder`` after the separate approval gate. Explicit configuration
-    does not itself establish PI approval or full T-020 acceptance.
+    Custom configurations are available for offline testing; callers must retain
+    the approved bases and margins for approved local preparation. Passing None,
+    incomplete margins, or placeholder=True cannot pass assert_calibrated.
+    This configuration check is not provider/runtime verification.
     """
 
     tokens_per_byte: Mapping[str, float] = field(
         default_factory=lambda: dict(CALIBRATED_TOKENS_PER_BYTE)
     )
-    safety_margin: Mapping[str, float] | None = None
-    placeholder: bool = True
+    safety_margin: Mapping[str, float] | None = field(
+        default_factory=lambda: dict(APPROVED_SAFETY_MARGIN)
+    )
+    placeholder: bool = False
 
     def __post_init__(self) -> None:
         for script in ("latin", "cjk", "thai"):
             tpb = self.tokens_per_byte.get(script)
             if tpb is None or not math.isfinite(tpb) or tpb <= 0:
                 raise ValueError(f"tokens_per_byte[{script!r}] must be finite and > 0, got {tpb!r}")
-            m = (self.safety_margin or PLACEHOLDER_SAFETY_MARGIN).get(script, 0.0)
+            m = (self.safety_margin or {}).get(script, 0.0)
             if not math.isfinite(m) or m < 0:
                 raise ValueError(f"safety_margin[{script!r}] must be finite and >= 0, got {m!r}")
 
@@ -107,12 +97,19 @@ class TokenEstimator:
             "latin", "cjk", "thai"
         }.issubset(self.safety_margin):
             raise RuntimeError(
-                "DP-007 safety margin remains PLACEHOLDER; explicit complete margin "
+                "DP-007 margin is incomplete or PLACEHOLDER; explicit complete margin "
                 "configuration and approval are required before a production run"
             )
 
+    def assert_approved(self) -> None:
+        """Require the selected bases/margins; this is not runtime verification."""
+        self.assert_calibrated()
+        if (dict(self.tokens_per_byte) != dict(CALIBRATED_TOKENS_PER_BYTE)
+                or dict(self.safety_margin or {}) != APPROVED_SAFETY_MARGIN):
+            raise RuntimeError("full-request preparation requires the PI-approved DP-007 configuration")
+
     def _weight(self, script: str) -> float:
-        margin = (self.safety_margin or PLACEHOLDER_SAFETY_MARGIN).get(script, 0.0)
+        margin = (self.safety_margin or {}).get(script, 0.0)
         return self.tokens_per_byte[script] * (1.0 + margin)
 
     def raw(self, text: str) -> float:
@@ -126,13 +123,6 @@ class TokenEstimator:
         return math.ceil(self.raw(text) - 1e-9)
 
 
-# ---------------------------------------------------------------------------
-# Page chunking
-# ---------------------------------------------------------------------------
-
-# Boundaries, coarsest first. Each regex matches the separator; the split
-# point is the separator's end, so separators stay with the preceding text
-# and concatenating the segments gives the input back.
 _BOUNDARIES: tuple[re.Pattern[str], ...] = (
     re.compile(r"\n[ \t]*\n\s*"),  # paragraph
     re.compile(r"\n"),  # line
@@ -229,6 +219,10 @@ def chunk_page(
     Deterministic: same inputs, same parts.
     """
     est = estimator or TokenEstimator()
+    if type(limit_tokens) is not int or type(overhead_tokens) is not int:
+        raise ValueError("token limit and overhead must be integers")
+    if overhead_tokens < 0:
+        raise ValueError("overhead_tokens must be nonnegative")
     budget = limit_tokens - overhead_tokens
     if budget <= 0:
         raise ValueError(
@@ -300,6 +294,8 @@ def halve_chunk(
 
 
 T = TypeVar("T")
+
+
 R = TypeVar("R")
 
 
@@ -349,3 +345,267 @@ def run_with_halving(
     for p in parts:
         go(p, 0)
     return HalvingOutcome(results, stats["halvings"], stats["depth"])
+
+
+@dataclass(frozen=True)
+class PoolEntry:
+    """One piece of pooled evidence (e.g. a quote with its source)."""
+
+    entry_id: str
+    text: str
+    source_date: str | None  # ISO-8601 (YYYY, YYYY-MM or YYYY-MM-DD)
+    page_order: int
+
+
+@dataclass(frozen=True)
+class PoolPart:
+    part_id: str
+    index: int  # 1-based, the part order for first-section rules
+    entries: tuple[PoolEntry, ...]  # pinned entries first, then members in pool order
+    estimated_tokens: int
+    depth: int = 0
+
+
+def _pool_order(entries: Iterable[PoolEntry], undated: str) -> list[PoolEntry]:
+    entries = list(entries)
+    if undated not in ("error", "first", "last"):
+        raise ValueError(f"undated must be 'error', 'first' or 'last', got {undated!r}")
+    if undated == "error":
+        missing = [e.entry_id for e in entries if not e.source_date]
+        if missing:
+            raise ValueError(
+                f"pool entries without source_date: {missing}; all-06 a orders by source "
+                "date and does not say where undated evidence goes — pass undated='first'/'last'"
+            )
+    flag = 1 if undated == "last" else -1
+
+    def key(e: PoolEntry) -> tuple[int, str, int, str]:
+        return (
+            (0, e.source_date, e.page_order, e.entry_id)
+            if e.source_date
+            else (flag, "", e.page_order, e.entry_id)
+        )
+
+    return sorted(entries, key=key)
+
+
+def split_pool(
+    pool_id: str,
+    entries: Iterable[PoolEntry],
+    *,
+    estimator: TokenEstimator | None = None,
+    limit_tokens: int = JEV_STATE_TOKEN_LIMIT,
+    overhead_tokens: int = 0,
+    pinned: Sequence[PoolEntry] = (),
+    undated: str = "error",
+) -> list[PoolPart]:
+    """Split pooled evidence into parts under the state limit (C-004, r2#6).
+
+    Entries are ordered by source date, then page order (all-06 a), and
+    packed greedily; ``pinned`` entries go into every part (e.g. both
+    activities of a cross-page pair, ``core.activity_relation_cross_page``
+    split rule "every part sees both activities"). An entry is never cut: one
+    that cannot fit with the pinned entries raises ``ValueError``.
+    """
+    est = estimator or TokenEstimator()
+    budget = limit_tokens - overhead_tokens
+    if type(limit_tokens) is not int or type(overhead_tokens) is not int:
+        raise ValueError("token limit and overhead must be integers")
+    if overhead_tokens < 0 or budget <= 0:
+        raise ValueError("no positive token budget remains after overhead")
+    pinned_raw = sum(est.raw(p.text) for p in pinned)
+    if math.ceil(pinned_raw - 1e-9) > budget:
+        raise ValueError("pinned pool entries exceed the token budget")
+
+    def fits(raw: float) -> bool:
+        return math.ceil(pinned_raw + raw - 1e-9) <= budget
+
+    ordered = _pool_order(entries, undated)
+    groups: list[list[PoolEntry]] = []
+    cur: list[PoolEntry] = []
+    cur_raw = 0.0
+    for e in ordered:
+        r = est.raw(e.text)
+        if not fits(r):
+            raise ValueError(f"pool entry {e.entry_id} does not fit the token budget on its own")
+        if cur and fits(cur_raw + r):
+            cur.append(e)
+            cur_raw += r
+        else:
+            if cur:
+                groups.append(cur)
+            cur, cur_raw = [e], r
+    if cur or not groups:
+        groups.append(cur)
+    return [
+        PoolPart(
+            part_id=f"{pool_id}#p{i:03d}",
+            index=i,
+            entries=tuple(pinned) + tuple(g),
+            estimated_tokens=math.ceil(pinned_raw + sum(est.raw(e.text) for e in g) - 1e-9),
+        )
+        for i, g in enumerate(groups, start=1)
+    ]
+
+
+def halve_pool_part(
+    part: PoolPart, *, n_pinned: int = 0, estimator: TokenEstimator | None = None
+) -> tuple[PoolPart, PoolPart] | None:
+    """Halve a pool part's members (pinned entries stay in both); ``None`` if one member."""
+    est = estimator or TokenEstimator()
+    pinned, members = part.entries[:n_pinned], part.entries[n_pinned:]
+    if len(members) < 2:
+        return None
+    mid = len(members) // 2
+
+    def mk(suffix: str, ms: tuple[PoolEntry, ...]) -> PoolPart:
+        es = pinned + ms
+        return replace(
+            part,
+            part_id=f"{part.part_id}.{suffix}",
+            entries=es,
+            estimated_tokens=est.tokens("".join(e.text for e in es)),
+            depth=part.depth + 1,
+        )
+
+    return mk("1", members[:mid]), mk("2", members[mid:])
+
+
+@dataclass(frozen=True)
+class PreparedPageRequest:
+    """An exact UTF-8 payload and the chunk it was measured against.
+
+    `estimated_request_tokens` includes the whole serialized payload, not just
+    page text. `reserved_tokens` is an explicit allowance for known overhead
+    absent from the payload (for example an output budget where applicable).
+    Actual provider usage is not represented by this estimate.
+    """
+
+    chunk: Chunk
+    payload: bytes
+    estimated_request_tokens: int
+    reserved_tokens: int
+
+
+def prepare_page_requests(
+    page_id: str,
+    text: str,
+    *,
+    serialize_request: Callable[[Chunk], str | bytes],
+    estimator: TokenEstimator | None = None,
+    limit_tokens: int = JEV_STATE_TOKEN_LIMIT,
+    reserved_tokens: int,
+) -> list[PreparedPageRequest]:
+    """Prepare lossless parts, checking the exact full payload for each part.
+
+    Required serializer: the same complete request builder/serializer the caller
+    will send, including state, questions, instructions, metadata, schema,
+    options and framing. Do not pass page text or a partial state serializer.
+    An unknown serializer/reserve fails closed; zero reserve must be explicit.
+    The 32k default conservatively bounds the full request, rather than claiming
+    that provider state and full-request limits have identical semantics.
+
+    Oversized parts are split at preferred boundaries until they fit; the
+    returned byte payloads are the measured ones. Rebuilding or modifying them
+    before sending invalidates this check. Provider rejection still requires the
+    separately bounded `run_with_halving` retry path.
+    """
+    if not callable(serialize_request):
+        raise TypeError("a complete request serializer is required")
+    if type(limit_tokens) is not int or limit_tokens <= 0:
+        raise ValueError("limit_tokens must be a positive integer")
+    if type(reserved_tokens) is not int or not 0 <= reserved_tokens < limit_tokens:
+        raise ValueError("reserved_tokens must be a known nonnegative integer below limit")
+    est = estimator or TokenEstimator()
+    est.assert_approved()
+    budget = limit_tokens - reserved_tokens
+
+    def encode(chunk: Chunk) -> tuple[bytes, int]:
+        payload = serialize_request(chunk)
+        if isinstance(payload, str):
+            payload = payload.encode("utf-8")
+        if not isinstance(payload, bytes) or not payload:
+            raise TypeError("serializer must return a nonempty complete UTF-8 payload")
+        return payload, est.tokens(payload.decode("utf-8", errors="strict"))
+
+    initial = chunk_page(page_id, text, estimator=est, limit_tokens=budget)
+    pending = list(reversed(initial))
+    prepared = []
+    while pending:
+        chunk = pending.pop()
+        payload, estimate = encode(chunk)
+        if estimate <= budget:
+            prepared.append(PreparedPageRequest(chunk, payload, estimate, reserved_tokens))
+            continue
+        # Refuse impossible fixed overhead before repeatedly subdividing text.
+        _, empty_estimate = encode(replace(chunk, text="", end=chunk.start))
+        if empty_estimate >= budget:
+            raise ValueError("serialized request overhead leaves no page-text budget")
+        halves = halve_chunk(chunk, estimator=est)
+        if halves is None:
+            raise ValueError("serialized request cannot fit even at one character")
+        pending.extend(reversed(halves))
+    return prepared
+
+
+@dataclass(frozen=True)
+class PreparedPoolRequest:
+    """A pooled part with the exact measured UTF-8 request payload."""
+
+    part: PoolPart
+    payload: bytes
+    estimated_request_tokens: int
+    reserved_tokens: int
+
+
+def prepare_pool_requests(
+    pool_id: str,
+    entries: Iterable[PoolEntry],
+    *,
+    serialize_request: Callable[[PoolPart], str | bytes],
+    estimator: TokenEstimator | None = None,
+    limit_tokens: int = JEV_STATE_TOKEN_LIMIT,
+    reserved_tokens: int,
+    pinned: Sequence[PoolEntry] = (),
+    undated: str = "error",
+) -> list[PreparedPoolRequest]:
+    """Prepare complete pooled request payloads without changing evidence order.
+
+    The full serializer/reserve contract is the same as prepare_page_requests.
+    Every final part repeats all pinned entries. Members remain indivisible and
+    retain the existing source-date/page-order sort. Fixed overhead or a single
+    member that cannot fit raises; evidence is never silently dropped.
+    Final indexes are 1..N and assigned before serialization; unique IDs retain
+    the initial group/split lineage. Actual T-026 builder and provider/runtime
+    verification remain separate from this generic offline adapter.
+    """
+    if not callable(serialize_request):
+        raise TypeError("a complete request serializer is required")
+    if type(limit_tokens) is not int or limit_tokens <= 0:
+        raise ValueError("limit_tokens must be a positive integer")
+    if type(reserved_tokens) is not int or not 0 <= reserved_tokens < limit_tokens:
+        raise ValueError("reserved_tokens must be a known nonnegative integer below limit")
+    est = estimator or TokenEstimator()
+    est.assert_approved()
+    budget = limit_tokens - reserved_tokens
+    pins = tuple(pinned)
+    initial = split_pool(pool_id, entries, estimator=est, limit_tokens=budget,
+                         pinned=pins, undated=undated)
+    pending = list(reversed(initial))
+    prepared = []
+    while pending:
+        part = replace(pending.pop(), index=len(prepared) + 1)
+        payload = serialize_request(part)
+        if isinstance(payload, str):
+            payload = payload.encode("utf-8")
+        if not isinstance(payload, bytes) or not payload:
+            raise TypeError("serializer must return a nonempty complete UTF-8 payload")
+        estimate = est.tokens(payload.decode("utf-8", errors="strict"))
+        if estimate <= budget:
+            prepared.append(PreparedPoolRequest(part, payload, estimate, reserved_tokens))
+            continue
+        halves = halve_pool_part(part, n_pinned=len(pins), estimator=est)
+        if halves is None:
+            raise ValueError("serialized pooled request cannot fit indivisible member or pinned-only overhead")
+        pending.extend(reversed(halves))
+    return prepared
