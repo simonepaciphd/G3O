@@ -1,11 +1,13 @@
 # PLAN: G3O pipeline reclassification
 
+Current ruling overlay (2026-11-04, RC-D-014; rulings by Simone on decision page a1c28a08 and in chat, application proposed, text `planning/deltas/RC-D-014.md`): quote match = 80% original-language word presence; calibration labels = jev 4+ or the 80% rule, revisited if they do not correlate strongly; per-script thresholds where needed; wording approval later, one packet before the T-030 merge; URL cap 10; Haiku legs kept; T-016 closed without re-test; real-page fixtures labelled by agent + jev, not the PI; new wave window after 2027-01-01, dates decided at the 2026-12-01 check; DP-003/004/008/009/031/060/061/062/064/068 ruled per their recommendations. Open: CJK/Thai counting unit, tuning/held-out split, blind 30-pair PI check, window dates, the bar for "strongly".
+
 Current bounded-phase ruling (2026-11-02, RC-D-012): Simone accepts the separate corrected T-016 probability summary as the reporting record, retaining original records and approved wording; remaining closure provenance is still required. Calendar conversion is deferred and no longer blocks the signed literal-year method. Preserve literal four-digit 2015–2030 activity/context years, no publication-year fallback and earliest chosen year across chunks. D-010 remains unsent and Simone-owned. Other prerequisites remain; no task status is promoted. Exact replies: archive/records/Safe-review-PI-rulings.json.
 
 Current execution overlay (2026-11-02, RC-D-011; integrator 20261102-codex-v2-53c1342c65a05a30): bounded T-012 email normalization is independently VERIFIED locally at 36d88bc7e20b3347b92f72e749d12f43a36ccc27; 326 engineer regressions, 22 independent conformance tests and 192 independent regressions pass. Whole-address lowercase and per-actual-page case deduplication, internal full normalized addresses, public domain/count pairs, distinct plus/aliases and verbatim quotes are verified for local fixtures. Renewed T-050B local email conformance is accepted; full T-050B remains incomplete. Source checkout retains r8; exact r11/LABELS assembly, T-024/T-028 actual integration, T-030/T-035 runtime binding, PI send/Colin A-019 and T-031 stay gated. T-027 acceptance, prior T-012 Windows-I/O qualification and six strict T-035 exceptions are preserved. SPEC v001.15 / RESOURCES v001.3 unchanged; task IDs, dependencies and waves unchanged. Evidence: handoffs/RC-D-011-local-verification.json; next gates: handoffs/RC-D-011-next-stage.md. Earlier pending implementation statements in signed/adoption records describe their original source snapshot, not current execution status.
 
 Status: READY-WITH-BLOCKS
-Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.15 (v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, v001.10 mechanical, 2026-10-30; v001.11 mechanical, 2026-10-31); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.3 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
+Spec: `C:/Users/spaci/repos/G3O/planning/SPEC.md` v001.16 (v001.16 by RC-D-014, 2026-11-04, application proposed; v001.4 APPROVED 2026-10-28; v001.5 by RC-D-001, v001.6 by RC-D-002, 2026-10-29; v001.7 by RC-D-003, v001.8 by RC-D-004, v001.9 by RC-D-005, v001.10 mechanical, 2026-10-30; v001.11 mechanical, 2026-10-31); resources: `C:/Users/spaci/repos/G3O/planning/RESOURCES.md` v001.3 (v001 APPROVED 2026-10-27; v001.1 by RC-D-001; v001.2 by RC-D-002)
 Baseline lock: 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock")
 Deadline: none
 Source draft plan/review: `C:/Users/spaci/repos/G3O/planning/Plan-Draft.md` (v001-draft1), `C:/Users/spaci/repos/G3O/planning/Plan-Review.md` (27 findings); rulings `C:/Users/spaci/repos/G3O/planning/Stage5-Rulings.md`
@@ -233,21 +235,21 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | T-001 | eng-b | W1 | verified | none | none | T-029, T-072 | RS-004, RS-006, RS-007, RS-025, RS-036 | none | spikes folder (`count-backfill.json`, `SPIKE-T001*`); droplet `~/reclass-spike-*/` | PI authorises read-only droplet SSH | A-015 |
 | T-002 | eng-c | W2 | in-progress | T-010, T-013 | none | T-003, T-021, T-025 | RS-004, RS-008, RS-009, RS-012, RS-015, RS-024, RS-031 | none | spikes folder, files prefixed `SPIKE-T002*` | PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28) | A-004, A-021 |
-| T-003 | eng-c | W3 | pending | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c) | A-002 |
+| T-003 | eng-c | W3 | pending | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c); calibration labels per RC-D-014 (jev 4+ or the 80% rule); the jev scoring run is paid and run by Simone via `!` | A-002 |
 | T-010 | integrator | W1 | complete | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items in one batch signature (CX-01.3†, RC-D-004); PI signs the codebook hash (A-001); push gate | A-001 |
 | T-011 | eng-a | W3 | pending | T-010, T-013, T-016 | none | T-015, T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
 | T-012 | eng-b | W2 | verified (proposed local verification; not complete) | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; inventory; Q2a writer/tests; instrument/storage modules, fixtures and narrow integrity compatibility; import/telemetry/reproducibility tests (RC-D-009); `g3o/report/health.py`, `g3o/report/outcomes.py`, `g3o/common/institution_report.py`, `g3o/persist/__init__.py` and their tests; `tests/test_contract.py`, `tests/test_consolidated_contract.py`, `tests/test_adversarial_llm_outputs.py`, `tests/test_genai_definition_adherence.py`, `tests/test_uid_stamping.py`; the v2.5-column hunk of `g3o/codebook/checks.py` (line 889 at `a5b1d30`, repointed at the frozen v2.5 list) (RC-D-008) | T-050A approved; local fixtures only; push gate | A-011, A-013 |
 | T-013 | eng-b | W1 | verified | none | T-010 | T-002, T-011, T-012, T-016, T-022, T-032 | RS-010, RS-013, RS-039 | none | `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml` | PI approves the item template and generator checks (r2#59); push of the branch | A-001 |
 | T-014 | eng-a | W2 | pending | none | none | T-022, T-025 | RS-016 | none | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests; `g3o/scrape/render.py` (optional `RenderedPage` fields) and the record-building hunks of `g3o/scrape/fetcher.py` (HTML path, unlocker path, page cache) (RC-D-006, PI 6a) | push of the branch | none |
 | T-015 | eng-a | W4 | pending | T-011, T-012, T-022, T-027 | none | T-026, T-028 | RS-012 | none | `g3o/common/source_fields.py`† and its tests | push of the branch | none |
-| T-016 | integrator | W2 | in-progress | T-010, T-013 | none | T-011 | RS-004, RS-005, RS-008, RS-009, RS-024, RS-031 | none | re-pilot folder `agent-workspace/2026-10-27-reclass-plan/repilot-v27/`† | PI approves the cost estimate; Simone runs the paid command via `! <command>` (red line 4); PI rules on the results | none |
+| T-016 | integrator | W2 | complete | T-010, T-013 | none | T-011 | RS-004, RS-005, RS-008, RS-009, RS-024, RS-031 | none | re-pilot folder `agent-workspace/2026-10-27-reclass-plan/repilot-v27/`† | PI approves the cost estimate; Simone runs the paid command via `! <command>` (red line 4); PI rules on the results | none |
 | T-020 | eng-a | W1 | blocked | none | T-002 | T-021, T-022, T-023 | RS-004, RS-014, RS-024 | none | the two new files | none beyond push | A-021 |
 | T-021 | eng-a | W4 | pending | T-002, T-011, T-012, T-020, T-027 | none | T-023, T-025, T-030 | RS-012, RS-019 | none | the new modules and tests | none beyond push | A-011, A-013 |
 | T-022 | eng-c | W3 | pending | T-010, T-012, T-013, T-014, T-020 | none | T-015, T-023, T-024, T-025, T-032 | RS-015 | none | the listed extract files; install of the generated `g3o/extract/prompts/system_prompt.md` and `g3o/extract/prompts/output_contract.md` (RC-D-008) | PI approves the nano prompt text; push gate | A-003, A-021 |
 | T-023 | eng-a | W5 | pending | T-011, T-020, T-021, T-022, T-027 | none | T-026, T-032 | RS-012 | none | the new modules and tests | none beyond push | A-003 |
 | T-032 | eng-c | W6 | pending | T-013, T-022, T-023 | none | T-024, T-030 | RS-015 | none | `g3o/extract/pass2_support.py`† and its tests | PI approves the pass-2 nano prompt text; push gate | A-003, A-021 |
 | T-024 | eng-c | W7 | pending | T-003, T-012, T-022, T-032 | none | T-026, T-028, T-041 | none | none | `g3o/common/support_check.py`† and its tests | push of the branch | A-002, A-016 |
-| T-025 | eng-b | W5 | pending | T-002, T-014, T-021, T-022 | none | T-029, T-030 | RS-016 | none | new modules `g3o/scrape/follow.py`†, `g3o/run/presweep/stage_follow.py`† and their tests | PI sets the per-institution URL cap value after T-002; push of the branch | A-004, A-014 |
+| T-025 | eng-b | W5 | pending | T-002, T-014, T-021, T-022 | none | T-029, T-030 | RS-016 | none | new modules `g3o/scrape/follow.py`†, `g3o/run/presweep/stage_follow.py`† and their tests | URL cap = 10 per institution (PI, RC-D-014 S4); push of the branch | A-004, A-014 |
 | T-026 | eng-a | W8 | pending | T-011, T-012, T-015, T-023, T-024, T-027 | none | T-028 | RS-011, RS-014 | none | the listed Stage 6 files and tests; retirement of the OpenAI Stage 6 path: the import hunk of `g3o/validate/stage_validate.py`, `g3o/validate/{client,qc,salvage}.py`, `tests/test_validate.py`, `tests/test_validate_salvage.py` (archived, PI A a), `scripts/verify_jev_validate_live.py`; install of the generated `g3o/validate/prompts/system_prompt.md` and `g3o/validate/prompts/output_contract.md` (RC-D-008) | push of the branch | A-010 |
 | T-027 | eng-b | W3 | verified (local library; downstream acceptance retained) | T-012 | none | T-015, T-021, T-023, T-026, T-028, T-050 | RS-012, RS-013, RS-014 | none | new module `g3o/common/jev_record.py`† and its tests | push of the branch | A-013 |
 | T-028 | eng-a | W9 | pending | T-012, T-015, T-024, T-026, T-027, T-050 | none | T-030, T-052, T-090 | RS-018 | none | `g3o/persist/writer.py` and its tests; `g3o/persist/integrity.py`, `tests/test_integrity.py` (RC-D-008) | push of the branch | A-007, A-017 |
@@ -256,7 +258,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-034 | eng-a | W12 | pending | T-029 | none | T-035 | RS-026 | none | `g3o/run/backfill/transfers.py`† and its tests | push of the branch | A-022 |
 | T-035 | eng-b | W13 | pending | T-029, T-034 | none | T-031, T-041 | none | D-002 | `g3o/cli.py` hunks, the two pin files, e2e test additions; merges of T-029 and T-034 into `reclass/v2.7`†; `g3o/common/contract_pin.py`, `tests/fixtures/run_contract/{FIELDS.md,manifest.json}`, the contract H1 template line of the T-013 generator (version token for `parse_version()`) (RC-D-008) | push of the integration branch | none |
 | T-031 | berivox | W14 | pending | T-035 | none | T-071 | none | none | the review file only | none | none |
-| T-040 | integrator | W2 | pending | T-010 | none | T-041 | RS-005, RS-008, RS-009, RS-011, RS-024 | none | `tests/fixtures/v27/`† and the label sheet | PI labels and approves expected values for real-page fixtures | A-003, A-004, A-010, A-011, A-012, A-020, A-021 |
+| T-040 | integrator | W2 | pending | T-010 | none | T-041 | RS-005, RS-008, RS-009, RS-011, RS-024 | none | `tests/fixtures/v27/`† and the label sheet | an agent labels expected values for real-page fixtures and jev scores them (RC-D-014 P4; replaces PI labelling) | A-003, A-004, A-010, A-011, A-012, A-020, A-021 |
 | T-041 | eng-b | W14 | blocked | T-024, T-035, T-040 | none | T-054, T-060, T-071 | RS-031 | none | the fixture-run folder | PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures | A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, A-022 |
 | T-050 | integrator | W4 | in-progress | T-010, T-012, T-027 | none | T-028, T-051 | RS-020, RS-023 | D-007 | `C:/Users/spaci/repos/G3O/planning/handoffs/D-007-interface-spec.md`† | A approved; B implementation conformance and Colin acceptance; PI authorizes send; posting the GitHub issues is an external message | none |
 | T-051 | colin | W5 | pending | T-050 | none | T-052, T-054 | RS-020 | none | `sql/021*`†, `sql/down/021*`†, `scripts/load_corrections.py`† | PI authorises creation of and writes to the disposable branch used by this card's self-check; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; live apply is the T-055 gate; push on Colin's branch | none |
@@ -393,6 +395,8 @@ Runtime over 2 hours → split by run.
 
 ### T-002 — Measure jev two-pass cost, latency and fan-out on a small set
 
+RC-D-014 (2026-11-04; rulings by Simone, application proposed): PI S5 a ("yes -- let's just switch to haiku 5.5") closes the PI 3 b question: the Haiku extraction legs stay (the extractor has been Claude Haiku 5.5 since RC-D-001). S4 set the URL cap at 10 without fan-out data, so the fan-out hand-off in the done condition no longer gates T-025. Status stays `in-progress`: the `SPIKE-T002.md` report named in the outputs is not yet written.
+
 Status: in-progress
 Note (2026-10-31, integrator, RC-D-006): run 2026-10-31 by Simone (`!`): 50 pages, $0.3663 against a $0.78 central estimate and a $6 cap. Both Batch rounds ended with every request succeeded (170 s and 124 s round trips). Haiku accepted `effort="medium"` on all 161 calls. jev refused one page's 4 parts as too long at 29.6k-50.1k estimated tokens; one halving fixed each (largest accepted request 26.1k estimated tokens). Code and aggregates: PR #147 (`reclass/t002-spike`); raw answers in the spikes folder. Measured: cost, latency, Batch round trips, the token estimator. Not measured: link fan-out (only 3 of 50 pages had activities; page links are stored only after T-014). PI 3 b: whether the Haiku legs stay is decided after an offline Haiku-vs-jev agreement check (P4, free; done 2026-10-31, `SPIKE-T002-agreement.md`, awaiting the PI's decision).
 Type: spike
@@ -484,6 +488,8 @@ More than 50 pages requested → new paid gate.
 
 ### T-003 — Calibrate the fuzzy quote matcher (Q-020 b)
 
+RC-D-014 (2026-11-04; rulings by Simone, application proposed): Match rule (S1 a, confirmed): a quote matches when at least 80% of its original-language words are present in the source text; text may only be removed for conciseness or reformulated for clarity. Labels (P1 a + follow-up): a pair is a true match if jev scores it 4+ on a 1-5 fidelity scale ("how accurately does the quote represent the source") or if the 80% rule holds; if the 80% rule does not correlate strongly with jev, the PI revisits the rule (no numeric bar set; report the agreement table and a rank correlation). A light offline script computes the 80% rule (word and character variants for CJK/Thai). The jev scoring run is paid: dry-run estimate, $1 cap, Simone's `!` line. Open: CJK/Thai counting unit (S1 b), tuning/held-out split (S1 c; not approved as of 2026-11-02), whether the blind 30-pair PI check still runs.
+
 Input-recovery update (2026-11-02): PI-requested delegated search found no approved calibration within22 local worktrees/named Drive evidence/targeted Git history. Recovered331 unlabeled quote candidates,718 empty results and50 source pages with9readback checks; no gold labels/split chosen. Missing exact chunk reconstruction, language labels, real chrome pairs, PI independent30-pair review and metric/threshold/display-cap approvals. Input recovery does not complete T-003 or unblock T-024. Evidence: Drive agent-workspace/2026-11-02-safe-review/t003-recovery/HANDOFF.txt.
 
 Status: pending
@@ -547,10 +553,10 @@ Using pinned `rapidfuzz` (DEC-007 a), choose a metric and threshold for matching
 
 #### Decision points
 - DP-003: A single threshold or one per script
-  - Default: a single threshold
+  - Default: ruled by the PI (RC-D-014, 2026-11-04): per-script thresholds only where the hold-out error table shows a single one fails (PI S2 b). Original default: a single threshold
   - Recommendation: per-script thresholds only where the hold-out error table shows a single one fails — keeps the rule simple unless the evidence forces otherwise
 - DP-004: Rule for the proposed website display cap
-  - Default: propose the length that covers 90% of quotes
+  - Default: ruled by the PI (RC-D-014, 2026-11-04): show the quote-length distribution and the share each candidate cap would truncate; the PI sets the value (PI P2 b). Original default: propose the length that covers 90% of quotes
   - Recommendation: propose from the observed distribution and show what share of quotes each candidate cap would truncate — the PI sets the value
 
 #### Return report
@@ -658,6 +664,8 @@ Codebook and the three generated files on the branch, §4.3 included, checklist 
 More than 2 review rounds → split extract contract from validate contract.
 
 ### T-011 — Build the v2.7 jev question sets (pass 1, pass 2, Stage 6)
+
+RC-D-014 (2026-11-04; rulings by Simone, application proposed): S3 b: question wording that is not verbatim codebook/contract text is approved later. The build proceeds and stops before merge. The integrator puts one approval packet (T-011 questions, T-022 pass-1 prompt, T-032 pass-2 prompt) to the PI before the T-030 integration merge.
 
 RC-D-012 disposition (2026-11-02): calendar conversion deferred by explicit PI reply; proceed with the signed literal-year method when other inputs are satisfied. This supersedes earlier calendar-blocking statements below. T-016 corrected reporting is accepted, but full T-016 closure remains open.
 
@@ -1074,11 +1082,13 @@ Split `source_type` from the date and flag fields.
 
 ### T-016 — Re-pilot the re-signed questionnaire items (paid, small; RC-D-002 N28)
 
+RC-D-014 (2026-11-04; rulings by Simone, application proposed): S6 a ("skip re-test"): no re-test; T-016 closes without the exact executed r10 command. The saved $0.23 estimate and the $0.2155 recomputed cost are recorded as not invoice evidence. With RC-D-012's accepted corrected summary, the done condition is met; status `complete` (integrator).
+
 RC-D-012 disposition (2026-11-02): PI accepts the separate corrected chosen-answer probability summary as the reporting record. This resolves the reporting decision in the historical preparation note below. Original records and signed wording remain; reconcile remaining command/estimate/actual-cost evidence before full closure. No paid rerun.
 
 Preparation update (2026-11-02): later repilot-r9/r10 evidence and accepted RC-D-007/r11 wording supersede the old note that the delta is in preparation. Saved r10 has315result envelopes and321nested response parts/unique request IDs; all5question aggregates,5ID spot checks,5,131,342tokens and historical-rate USD0.2155 reproduce offline. Its reported chosen-probability summaries use saved confidence instead of distribution lookup; corrected summaries are independently verified in Drive agent-workspace/2026-11-02-preparation/integrator/T016-OFFLINE-RECONCILIATION.json. Original records/approved wording unchanged. Full task closure and corrected-summary disposition remain; no paid rerun authorized or inferred.
 
-Status: in-progress
+Status: complete
 Note (2026-10-31, integrator, RC-D-006): T-016 run 2026-10-31 by Simone (`!`) on her word, though the PLAN listed it unauthorized; 2,730 requests, 0 errors, 66.1M input tokens, $2.78 against a $4.14 central estimate and an $8 cap. Code and aggregate results: PR #146 (`reclass/t016-repilot`); raw answers stay in the re-pilot folder. PI ruled 2026-10-31 (1 a + c): weak questions are reworded and a not-applicable option is added to forced-choice activity items where coherent with the codebook; a subagent drafts and the PI approves; the change is a codebook delta with a new signature. Rewording and choices C1-C10 ruled 2026-10-31 (drafts `agent-workspace/2026-10-27-reclass-plan/t016-rewording/`); Simone approved a small paid rerun of the reworded items ("3 ok rerun"); codebook delta RC-D-007 in preparation.
 Scope (RC-D-005, E9): T-016 re-pilots every jev question generated from the re-signed codebook (52 questions, incl. the role part): the re-signed CX items and the non-CX items its card already lists, plus every item whose question is new in RC-D-005 (W05-W43, W10), the year questions without `unknown` (12 a), and the part-prompt sentence and temporary answer (W01-W03) on the long pages of the RS-008/RS-009 set, each run under the shared system prompt (W04, Stage 6 variant for the cross-page relation); per question: answer distribution, chosen-answer probability and comparison with the prior wording where it exists. The agent prepares the command and cost estimate; Simone runs it; the PI rules on the results before T-011.
 Type: spike
@@ -1313,6 +1323,8 @@ More than 1 week → split CX fields from the verdict.
 
 ### T-022 — Rework the nano extraction call (spans, pass-1 quotes, links, residual free text)
 
+RC-D-014 (2026-11-04; rulings by Simone, application proposed): S3 b: the pass-1 prompt text is approved later, in the single wording packet before the T-030 merge (see T-011). P5 a: span offsets count from the start of the whole page (DP-008).
+
 Status: pending
 Type: build
 Priority: critical-path
@@ -1387,7 +1399,7 @@ The 60,000-character head+tail cap (`g3o/extract/batch.py:49` `DEFAULT_TEXT_CAP_
 
 #### Decision points
 - DP-008: Coordinate base for the character spans on chunked pages
-  - Default: offsets into the full page text
+  - Default: ruled by the PI (RC-D-014, 2026-11-04): offsets count from the start of the whole page (PI P5 a). Original default: offsets into the full page text
   - Recommendation: full-page offsets — they stay stable whatever the chunker does, and T-023 marks spans on the full page
 
 #### Return report
@@ -1475,6 +1487,8 @@ Split the CX finding fields from Group D.
 
 ### T-032 — Build the pass-2 supporting-text call
 
+RC-D-014 (2026-11-04; rulings by Simone, application proposed): S3 b: the pass-2 prompt text is approved later, in the single wording packet before the T-030 merge (see T-011). P6 a: one request per page (DP-009).
+
 Status: pending
 Type: build
 Priority: critical-path
@@ -1533,7 +1547,7 @@ After jev pass 2, nano extracts verbatim supporting text for every positive or s
 
 #### Decision points
 - DP-009: One nano request per (page × activity) or one per page covering all its activities
-  - Default: one request per page covering all activity spans
+  - Default: ruled by the PI (RC-D-014, 2026-11-04): one request per page covering all its activities (PI P6 a). Original default: one request per page covering all activity spans
   - Recommendation: one per page — fewer Batch requests; switch only if T-002 shows per-page requests exceed size limits
 
 #### Return report
@@ -1546,6 +1560,8 @@ Tests pass; pass-2 prompt approved by the PI.
 none
 
 ### T-024 — Build support check, downgrade and deterministic extraction
+
+RC-D-014 (2026-11-04; rulings by Simone, application proposed): The support check applies the RC-D-014 match rule (SPEC R-042) with the metric and threshold(s) T-003 calibrates on jev/80% labels; per-script thresholds only where needed (S2 b).
 
 RC-D-011 execution update (2026-11-02): Consume the verified RC-D-011 local normalizer under existing input gates. Actual main/header/footer extraction and contact-gate runtime remain unverified; no task launch.
 
@@ -1624,6 +1640,8 @@ Tests pass on branch `reclass/t024-support`†, return report filed with the int
 none
 
 ### T-025 — Build link following (3 hops, URL cap, once per URL, provenance)
+
+RC-D-014 (2026-11-04; rulings by Simone, application proposed): S4 a: the per-institution followed-URL cap is 10. The cap gate is met; the build sets 10 as the configured value.
 
 Status: pending
 Type: build
@@ -2300,6 +2318,8 @@ Split pipeline review from contract review.
 
 ### T-040 — Build the v2.7 fixture set
 
+RC-D-014 (2026-11-04; rulings by Simone, application proposed): P4 a ("skip") + follow-up ("replace with agent + jev"): the PI does not label real-page fixtures. An agent labels expected values and jev scores them. P3 b: at least 3 fixtures per A-ID plus one per page-verdict value (DP-031).
+
 Status: pending
 Type: build
 Priority: required
@@ -2337,7 +2357,7 @@ Real ones are labelled by the agent, then by the PI.
 - Requires: T-010
 - Enables: T-041
 - Can run with: T-002, T-012, T-014, T-016, T-061, T-063 (W2)
-- Researcher gates: PI labels and approves expected values for real-page fixtures
+- Researcher gates: none for labels (RC-D-014 P4: an agent labels expected values for real-page fixtures and jev scores them)
 
 #### Ownership and collision control
 - Read scope: RS-005, RS-008, RS-009, RS-011, RS-024, T-010
@@ -2365,19 +2385,21 @@ Real ones are labelled by the agent, then by the PI.
 
 #### Decision points
 - DP-031: How many fixtures per acceptance ID
-  - Default: at least 3 per A-ID, as in the draft card
+  - Default: ruled by the PI (RC-D-014, 2026-11-04): at least 3 per A-ID, plus one per page-verdict value for A-011 (PI P3 b). Original default: at least 3 per A-ID, as in the draft card
   - Recommendation: at least 3 per A-ID, more for A-011 (one per page-verdict value) — keeps PI labelling time bounded while covering every value
 
 #### Return report
 Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
 
 #### Done condition
-Fixture set committed on its branch, with PI-approved labels for every real-page fixture.
+Fixture set committed on its branch, with an agent label and a jev score for every real-page fixture (RC-D-014 P4).
 
 #### Chunking trigger
 Split per A-ID.
 
 ### T-041 — Run the fixtures on the integrated pipeline (paid, small)
+
+RC-D-014 (2026-11-04; rulings by Simone, application proposed): Fixture expected values come from agent labels plus jev scores (RC-D-014 P4). The PI still approves the cost estimate, runs the paid run via `!` and rules on fixture failures.
 
 Status: blocked
 Type: verify
@@ -2521,7 +2543,7 @@ An accepted interface specification giving Colin the exact fields, types, versio
 
 #### Decision points
 - DP-060: Deliver the spec to Colin as one GitHub issue per downstream card, or one umbrella issue per repo
-  - Default: one issue per downstream card (T-051, T-052 on g3o-api; T-053 on g3o-website), each linking the spec
+  - Default: ruled by the PI (RC-D-014, 2026-11-04): one GitHub issue per downstream card (PI P7 a); sending still needs the PI's separate instruction. Original default: one issue per downstream card (T-051, T-052 on g3o-api; T-053 on g3o-website), each linking the spec
   - Recommendation: one issue per card — each card's acceptance and review stays separately traceable
 
 #### Return report
@@ -2598,7 +2620,7 @@ Reviewed forward and down migrations implementing T-050: new correction tables l
 
 #### Decision points
 - DP-061: Implement the most-recent projection as a plain view or a materialized view
-  - Default: plain view
+  - Default: ruled by the PI (RC-D-014, 2026-11-04): plain (live) view (PI P8 a). Original default: plain view
   - Recommendation: plain view first, materialize only if T-054 timings show API latency problems — avoids adding another refresh dependency (PF-007)
 
 #### Return report
@@ -2676,7 +2698,7 @@ Ingest reads T-028 CSVs; the API serves v2.7 fields, version label, most-recent 
 
 #### Decision points
 - DP-062: Expose older rows as a query parameter on existing endpoints or as a separate history endpoint
-  - Default: query parameter on existing institution endpoints
+  - Default: ruled by the PI (RC-D-014, 2026-11-04): query parameter on existing endpoints (PI P9 a). Original default: query parameter on existing institution endpoints
   - Recommendation: query parameter — one contract surface, fewer endpoints to document and test
 
 #### Return report
@@ -3556,7 +3578,7 @@ After a pre-load snapshot of the live branch (PF-004), with migration 021 alread
 
 #### Decision points
 - DP-064: Take the pre-load snapshot as a Neon branch of live or as a pg_dump
-  - Default: Neon branch of live named `pre-reclass-<date>` just before load
+  - Default: ruled by the PI (RC-D-014, 2026-11-04): Neon branch of live, named for the date (PI P10 a). Original default: Neon branch of live named `pre-reclass-<date>` just before load
   - Recommendation: Neon branch — instant and restorable; Neon PITR was not verified by the review
 
 #### Return report
@@ -4070,6 +4092,8 @@ none
 
 ### T-097 — Standing integration: deltas, CHANGELOG, claims
 
+RC-D-014 (2026-11-04; rulings by Simone, application proposed): S7 a ("yes") + follow-up ("4 open"): a new wave window will be opened for runs after 2027-01-01; dates are not set. They are decided at the 2026-12-01 check (P11 a, DP-068), recorded as a startup pin.
+
 Status: pending
 Type: integrate
 Priority: required
@@ -4129,7 +4153,7 @@ The integrator receives card reports, prepares deltas for the PI, keeps CHANGELO
 
 #### Decision points
 - DP-068: When to check and remind about the wave window beyond w001 (expires 2027-01-01)
-  - Default: check on 2026-12-01 and remind Simone then
+  - Default: ruled by the PI (RC-D-014, 2026-11-04): check the live window and remind Simone on 2026-12-01 (PI P11 a; startup pin, not a scheduler). Original default: check on 2026-12-01 and remind Simone then
   - Recommendation: 2026-12-01 — a month's margin before new runs would silently disappear from the site
 
 #### Return report
