@@ -33,6 +33,9 @@ dependencies = [
     # Upper bound is deliberate; see the note in requirements.txt. openai 3.x
     # swapped httpx for httpx2 and is untested against this pipeline.
     "openai>=1.30,<3",
+    # v2.7 extractor client (g3o.extract.anthropic_client; RC-D-001 A, T-022).
+    # Pinned exactly to the version the shared venv was tested with.
+    "anthropic==2.3.0",
     "pydantic>=2.5",
     "pyyaml>=6.0",
     "playwright>=1.40",
