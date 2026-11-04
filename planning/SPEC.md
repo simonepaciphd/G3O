@@ -1,8 +1,8 @@
 # SPEC: G3O pipeline reclassification
 
 Status: LOCKED
-Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); v001.5 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.6 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.7 by delta RC-D-003, approved 2026-10-30 (Simone Paci, chat "all accepted"); v001.8 by delta RC-D-004, approved 2026-10-30 (Simone Paci, chat "approved"); v001.9 by delta RC-D-005, approved 2026-10-30 (Simone Paci, chat "approved! go forth"); v001.10 mechanical (R-041 marker → pointer to the signed codebook), 2026-10-30 (Simone Paci, chat "clean up items on #4"); v001.11 mechanical (15 wording markers → pointers to the signed codebook), 2026-10-31 (Simone Paci, chat "you do 7"; approved "7 ok", PR #142); v001.16 by delta RC-D-014, rulings 2026-11-04 (Simone Paci, decision page a1c28a08 and chat), approved 2026-11-04 (chat "1 approve")
-Version: v001.16
+Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); v001.5 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.6 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.7 by delta RC-D-003, approved 2026-10-30 (Simone Paci, chat "all accepted"); v001.8 by delta RC-D-004, approved 2026-10-30 (Simone Paci, chat "approved"); v001.9 by delta RC-D-005, approved 2026-10-30 (Simone Paci, chat "approved! go forth"); v001.10 mechanical (R-041 marker → pointer to the signed codebook), 2026-10-30 (Simone Paci, chat "clean up items on #4"); v001.11 mechanical (15 wording markers → pointers to the signed codebook), 2026-10-31 (Simone Paci, chat "you do 7"; approved "7 ok", PR #142); v001.16 by delta RC-D-014, rulings 2026-11-04 (Simone Paci, decision page a1c28a08 and chat), approved 2026-11-04 (chat "1 approve"); v001.17 by delta RC-D-015, rulings 2026-11-04 (Simone Paci, decision pages 95487980 and 840f841f), approved 2026-11-04 (chat "I approve delta")
+Version: v001.17
 Supersedes: v001.15 through RC-D-014 deploy-blocker rulings of 2026-11-04 ; v001.14 through RC-D-011 whole-address lowercase email counting; original baseline RC-BL-001 retained.
 Owner: Simone Paci (sole substantive approver)
 Mode: revision (changes the production G3O pipeline and its published outputs)
@@ -322,3 +322,16 @@ D-007 approved storage contract (RC-D-009 S1a/S2a/P1a/P2): handoffs/D-007-interf
 R-026/R-041/R-081/A-013: when a classifier returns a code without its chosen-answer probability, retain the code and missing probability in provenance, apply the existing downgrade rules to the affected code, and record that the probability was unavailable. The special page-verdict rule retains the verdict with a downgrade tag. Do not fabricate probabilities, use generic confidence, or downgrade mechanical/rule-set typed-not-applicable records as provider omissions. Exact ruling: archive/records/T-027-probability-ruling.json. Signed r11 and the 0.8 bar are unchanged.
 
 RC-D-011 sign-off: Simone Paci, 2026-11-02, chat: "wait I actually changed my mind about the defect: let's have emails de-capitalized and counted as one in those cases." Applied as the approved R-058/D-007 policy replacement; implementation acceptance remains pending.
+
+## RC-D-015 — orchestrator gate rulings (2026-11-04; APPROVED, chat "I approve delta")
+
+Full text and verbatim choices: `deltas/RC-D-015.md`. Rules recorded here:
+- R-042 (A3 a): "jev 4+" in the calibration label means the most probable jev level is 4 or 5. Near-miss controls are same-page and off-page word swaps (A2 a).
+- R-042 (R1 b, R2 a, R3 b): the "strongly" bar is computed on jev expected score over all candidates plus controls (met for Latin 0.528 and CJK 0.575); gold stays jev 4+ OR the rule; cutoffs are per script for Latin and CJK, Thai default.
+- R-032 (F1 b): when more than 10 links are eligible, those closest to a supporting quote are followed first; ties go to page order. The nearness metric is pinned in T-025.
+- R-034 (F2 a): a URL linked from several fetched pages records as parent the page that first queued it.
+- R-077 / A-022 (F3 a): the RQ-003 `candidate_owner_uid` is the verified owner and `correction_set` is the WS10 disposition ("verified" = listed by RQ-003).
+- R-015 (F4 c): unreadable binary page text is re-extracted from stored bytes where they exist; if it is still unreadable, it is `not_assessable` with a readability failure reason.
+- A-020 (F5 b): the T-016 re-pilot tests the reworded items; fixtures cover C2-C4, evaluation and safeguards. F6 c: the RC-D-002 row 50 extras are reported as untested.
+- Calendar conversion (Q3 b): built before release; this reverses the RC-D-012 deferral. Signed year rule unchanged.
+- Codebook (Q1 b, Q2 a, P1 a): one combined re-sign (r12). The question-set state is pinned in the versioned set files plus the wording-packet approval, and the finding items move one round later.
