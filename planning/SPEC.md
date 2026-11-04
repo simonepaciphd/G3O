@@ -327,6 +327,7 @@ RC-D-011 sign-off: Simone Paci, 2026-11-02, chat: "wait I actually changed my mi
 
 Full text and verbatim choices: `deltas/RC-D-015.md`. Rules recorded here:
 - R-042 (A3 a): "jev 4+" in the calibration label means the most probable jev level is 4 or 5. Near-miss controls are same-page and off-page word swaps (A2 a).
+- R-042 (R1 b, R2 a, R3 b): the "strongly" bar is computed on jev expected score over all candidates plus controls (met for Latin 0.528 and CJK 0.575); gold stays jev 4+ OR the rule; cutoffs are per script for Latin and CJK, Thai default.
 - R-032 (F1 b): when more than 10 links are eligible, those closest to a supporting quote are followed first; ties go to page order. The nearness metric is pinned in T-025.
 - R-034 (F2 a): a URL linked from several fetched pages records as parent the page that first queued it.
 - R-077 / A-022 (F3 a): the RQ-003 `candidate_owner_uid` is the verified owner and `correction_set` is the WS10 disposition ("verified" = listed by RQ-003).
