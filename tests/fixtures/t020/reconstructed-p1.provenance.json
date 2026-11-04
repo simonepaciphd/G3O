@@ -1,0 +1,45 @@
+{
+  "kind": "offline_reconstruction_not_wire_capture",
+  "page_id": "RS-008:r20260830T114940Z-32ea:INST-0005154:177fbdbc2a434e6813582d389489d2ca",
+  "source_url": "https://www.waroona.wa.gov.au/council-meetings/ordinary-council-meeting/ordinary-council-meeting/119/documents/public-agenda-ocm-march-2024.pdf",
+  "original_part": "1 of 2",
+  "original_chunk_utf8_bytes": 47621,
+  "original_chunk_sha256": "6c221e379b93fc9ac67b67c23655dcbf0ec0851406f1210c1bc83cce9c8bd9a8",
+  "historical_state_bytes_verified": 48745,
+  "observed_response_model": "jev-1.13.0",
+  "historical_request_id": "req_01a1927fd39974318911a3c49bf71572",
+  "source_commit": "2d743b35bbae7a35e7fa40dd15bc142aefa161b4",
+  "serialized_sha256": "6f200fff080768accf911259b986007e226dad5370ca4e0ba287545354907890",
+  "sources": [
+    {
+      "path": "G3O repo: scripts/spikes/t002/spike_t002.py",
+      "sha256": "28d17311652f974a868d1beeef03b099dac3a98539ab8b3d3ec6aebeb2a31d12"
+    },
+    {
+      "path": "G3O repo: scripts/spikes/t002/t002_core.py",
+      "sha256": "42bbe6a9e283068f1b67c7945d22d4136063c3e09077d809065f0031783618e3"
+    },
+    {
+      "path": "G3O repo: scripts/spikes/t002/proxy_questions.py",
+      "sha256": "d80be47768d3ff19bef140bb33ead1382e358117e872bba2557ea82ba06ce902"
+    },
+    {
+      "path": "G3O Drive project: agent-workspace/2026-11-02-safe-review/t003-recovery/SOURCE-PAGES.jsonl",
+      "sha256": "ed3535096e0b6b15441ebd874801677cabe110f98e1b481c3b8cc574db32956d"
+    },
+    {
+      "path": "G3O Drive project: agent-workspace/2026-10-27-reclass-plan/spikes/SPIKE-T002-dryrun.json",
+      "sha256": "d192bc30ac3ecc3978f4a4e7a77eff69a3e5aeb5f341ab5f8873636a8de24e3b"
+    },
+    {
+      "path": "G3O Drive project: agent-workspace/2026-10-27-reclass-plan/spikes/SPIKE-T002-answers.jsonl",
+      "sha256": "dc4836be0a037008f6dbc330ce06b4b63dc89b7caa6af241218da37774f92003"
+    }
+  ],
+  "limitations": [
+    "Historical request model/options and exact SDK wire bytes were not saved; reconstruction uses observed response model and explicit JSON serializer.",
+    "Original questions are T002 proxy text, not approved r11 runtime prompts.",
+    "Provider tokenizer/server framing and actual billable token accounting are not verified.",
+    "This real-input reconstruction is an offline regression fixture, not completion of the actual saved-wire/runtime gate."
+  ]
+}
