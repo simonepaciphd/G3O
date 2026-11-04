@@ -1,13 +1,13 @@
 # GENERATED FILE - do not edit. Built from codebook/codebook.yaml by
 # g3o.codebook.generators.enums.
-# codebook release: 2.7 | codebook sha256: 3692c06a77056c43285b2696fa9d1aea1e733290fbd977976f40c6426803859a
+# codebook release: 2.7 | codebook sha256: 9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53
 # Intended target: T-012 enum constants (g3o/common/contract.py or a module T-012 names).
 """Codebook value lists as constants; each carries its item id and item hash."""
 
 from __future__ import annotations
 
 CODEBOOK_RELEASE = '2.7'
-CODEBOOK_SHA256 = '3692c06a77056c43285b2696fa9d1aea1e733290fbd977976f40c6426803859a'
+CODEBOOK_SHA256 = '9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53'
 
 #: item id -> (item hash, value codes in codebook order)
 ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -51,12 +51,12 @@ ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
     'core.outcome_kind': ('7215b6b2576b8a967c86362ed2a3d4dbcb740b84a4f23d2de05a4ef817091e12', ('quantified', 'qualitative', 'none_reported',)),
     'core.incident_kind': ('9d7ab9101539f801ee5098e8df2c46e9f0b6fcc27fdf679eaf88cf502f395d32', ('quantified', 'qualitative', 'none_reported', 'discontinuation_uncertain',)),
     'core.evaluation_documented': ('8d878b747de11b7e8f8888b27a5c568da0cbb4c47c235026f47bf282eb59dd0b', ('results_reported', 'conducted_no_results', 'required_or_planned', 'unclear',)),
-    'core.evaluation_type_pre_deployment_testing': ('1a10522c420a29a7d32380d7cd01a05b93f079ad16a86ab5363abf1b00bd57b5', ('yes', 'no',)),
-    'core.evaluation_type_pilot_evaluation': ('f001133a064ea6b3506d862a263b2209ae2ccc92e432aa96016b22bba68ed7d9', ('yes', 'no',)),
-    'core.evaluation_type_independent_audit': ('a57820efa0471b8418a1e189d36436db00daec4a7addd6ce7ebd197933157cdc', ('yes', 'no',)),
-    'core.evaluation_type_ongoing_monitoring': ('864d35832b2dc6bea2f69a060359f1ef12cee317ed7a7fc24d0b531a46400d72', ('yes', 'no',)),
-    'core.evaluation_type_user_feedback': ('9628c4f69ed51033eddcdb1434bc8f26d0acc10af1d764282cc8aff9748ddd6f', ('yes', 'no',)),
-    'core.evaluation_type_bias_or_safety_testing': ('705995787c3a7371a35e78397796bc50ee46fd60ad7d73609bd62bbdc5d8c35f', ('yes', 'no',)),
+    'core.evaluation_type_pre_deployment_testing': ('83fe066236badf19503226e47cfee3450cbf0f9ea98bab20181cf402c9bd14c1', ('yes', 'no',)),
+    'core.evaluation_type_pilot_evaluation': ('b9cb25ae00b051454b71beb3432e939a4bcd4e43afb84ab0a6ec5527ae2d4888', ('yes', 'no',)),
+    'core.evaluation_type_independent_audit': ('bc119729ff3f2dd1d7c6bff2fc113863860f1fdf2c8f6d337f53b518644cb864', ('yes', 'no',)),
+    'core.evaluation_type_ongoing_monitoring': ('e7866831b2329fc016fb0018765cf5e4d16e3b44f872f693a0993f6e09e6c0cf', ('yes', 'no',)),
+    'core.evaluation_type_user_feedback': ('036e7caa5b9aab26435a359d33ecaa4a209693b802f4541772cf7122b3c5a65a', ('yes', 'no',)),
+    'core.evaluation_type_bias_or_safety_testing': ('21268a987d8ea93b84d5bd166774219636358e77538014241ebf4aac7f679e70', ('yes', 'no',)),
     'core.support_entailment': ('6156631ceb19770919ed6792092f3169bb7442317702b6fb1fbfe76d26a6b172', ('true', 'false',)),
     'core.activity_relation_cross_page': ('ace0da2bc93b3c6a70f0a97873b123abea5906bba93b238f926feff086ed6e5c', ('same_activity', 'component_of_program', 'has_component', 'shared_participation', 'governs', 'governed_by', 'distinct_action', 'unresolved',)),
     'core.observed_actor_role': ('47c6b173d8d672bffc766f9603b797b24a136c418aebb5be2c4a0a0c236d93fc', ('institutional_actor', 'issuer', 'participant', 'external_speaker', 'service_provider', 'event_host',)),

@@ -117,6 +117,25 @@
   ],
   "provenance_fields": "each changed slot: origin replaced; origin_before_r12 and text_before_r12 added; folds.r12 added",
   "line_endings": "CRLF, preserved from r11 (codebook/.gitattributes: codebook.yaml -text)",
-  "r12_sha256_candidate": "3692c06a77056c43285b2696fa9d1aea1e733290fbd977976f40c6426803859a",
-  "status": "UNSIGNED candidate; signed only when planning/t010/signoff-record.md holds this sha256"
+  "status": "UNSIGNED INTERIM candidate; year rules 1-2 may change again; signed only when planning/t010/signoff-record.md holds the final sha256",
+  "path_strip": {
+    "ruling": "PI 2026-11-04 chat \"5a\" (lane C question 6)",
+    "lines": [
+      9207,
+      9299,
+      9392,
+      9486,
+      9580,
+      9674
+    ],
+    "before_prefix": "<local Drive project root>/archive/ (machine-specific prefix, not recorded)",
+    "after_prefix": "archive/",
+    "fields": "source of the six core.evaluation_type_* instructions"
+  },
+  "header_comment": {
+    "ruling": "PI 2026-11-04 chat \"accept all\" (P5)",
+    "before": "# G3O codebook release 2.7 — RC-D-007 candidate, sign-off build (T-010). Built by planning/t010/build_skeleton.py --build r10-signoff.",
+    "after": "# G3O codebook release 2.7, revision r12 — UNSIGNED candidate (RC-D-015 / RC-D-017), sign-off build (T-010). Byte edits to the signed r11 file, recorded in planning/t010/r12-provenance.json."
+  },
+  "r12_sha256_interim": "9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53"
 }

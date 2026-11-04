@@ -37,7 +37,7 @@ JEV_QUESTION_SET_VERSION = "g3o.classify.questions.v27.jev.1"
 
 #: Codebook r12 candidate (RC-D-015 / RC-D-017; signed only when planning/t010/signoff-record.md
 #: holds this sha256). A different codebook is refused.
-SIGNED_CODEBOOK_SHA256 = "3692c06a77056c43285b2696fa9d1aea1e733290fbd977976f40c6426803859a"
+SIGNED_CODEBOOK_SHA256 = "9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53"
 
 SET_DIR = Path(__file__).resolve().parent
 SET_FILES = {"page": "page.json", "activity": "activity.json", "institution": "institution.json"}
@@ -93,9 +93,12 @@ ACTIVITY_STATE = {
     "scale_number_field": None,       # W-06: how core.deployment_scale_unit is shown the number
     "signed_constraints": [
         "DEC-010 a: jev pass 2 sees the page with the activity's span marked",
+        # W-05-style declaration (wording packet, pending approval): summary of codebook r12
+        # core.rule.cx_grain slot 2, sentence 3.
         "codebook core.rule.cx_grain slot 2: finding-field state = page text plus the finding's "
-        "activity_name, activity_type, adoption_stage and tool_name; the state is part of the "
-        "frozen instrument and any change counts as a wording change",
+        "activity_name, activity_type, adoption_stage and tool_name; the state is pinned in the "
+        "versioned question-set files and approved with the wording packet, and any change "
+        "counts as a wording change",
         "combining convention activity_level: every part holding a linked passage votes",
     ],
 }
@@ -103,8 +106,9 @@ ACTIVITY_STATE = {
 DYNAMIC_YEAR_CHOICES = {
     "packet_items": ["W-05"],
     "approval": PENDING,
-    "candidates": "four-digit years 2015-2030 in the activity span and its context (signed rule 1)",
-    "calendar_conversion": "none (deferred by the PI, RC-D-012)",
+    # W-05 (wording packet, pending approval): pointer to the candidate rule, forms not enumerated.
+    "candidates": "candidate years under codebook r12 rule 1, from the activity span and its context",
+    "calendar_conversion": "fiscal-year candidates under codebook r12 rule 1, built by T-064",
     "order": "candidates ascending, then the item's offered missing label(s)",
     "candidate_code": "the year as written",
     "candidate_text": None,           # W-05: year only (T-016 form) / year + rules / PI sentence

@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extract_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: 3692c06a77056c43285b2696fa9d1aea1e733290fbd977976f40c6426803859a -->
+<!-- codebook release: 2.7 | codebook sha256: 9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53 -->
 
 # G3O output contract (extract), generated from the codebook
 
-Codebook release `2.7`, sha256 `3692c06a77056c43285b2696fa9d1aea1e733290fbd977976f40c6426803859a`. 99 items.
+Codebook release `2.7`, sha256 `9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53`. 99 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: 53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44 -->
@@ -4617,11 +4617,11 @@ The page states that an evaluation is required (by a rule) or planned, with no e
 The page has no evaluation statement about this activity.
 
 ## `core.evaluation_type_pre_deployment_testing`
-<!-- item: core.evaluation_type_pre_deployment_testing sha256: 1a10522c420a29a7d32380d7cd01a05b93f079ad16a86ab5363abf1b00bd57b5 -->
+<!-- item: core.evaluation_type_pre_deployment_testing sha256: 83fe066236badf19503226e47cfee3450cbf0f9ea98bab20181cf402c9bd14c1 -->
 
 | Field | Value |
 |---|---|
-| item hash | `1a10522c420a29a7d32380d7cd01a05b93f079ad16a86ab5363abf1b00bd57b5` |
+| item hash | `83fe066236badf19503226e47cfee3450cbf0f9ea98bab20181cf402c9bd14c1` |
 | family | `evaluation` |
 | name | `evaluation_type_pre_deployment_testing` |
 | level | `activity`, `page` |
@@ -4674,11 +4674,11 @@ Entailment label: does not include testing before deployment
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_pilot_evaluation`
-<!-- item: core.evaluation_type_pilot_evaluation sha256: f001133a064ea6b3506d862a263b2209ae2ccc92e432aa96016b22bba68ed7d9 -->
+<!-- item: core.evaluation_type_pilot_evaluation sha256: b9cb25ae00b051454b71beb3432e939a4bcd4e43afb84ab0a6ec5527ae2d4888 -->
 
 | Field | Value |
 |---|---|
-| item hash | `f001133a064ea6b3506d862a263b2209ae2ccc92e432aa96016b22bba68ed7d9` |
+| item hash | `b9cb25ae00b051454b71beb3432e939a4bcd4e43afb84ab0a6ec5527ae2d4888` |
 | family | `evaluation` |
 | name | `evaluation_type_pilot_evaluation` |
 | level | `activity`, `page` |
@@ -4731,11 +4731,11 @@ Entailment label: does not include evaluation of a pilot or trial
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_independent_audit`
-<!-- item: core.evaluation_type_independent_audit sha256: a57820efa0471b8418a1e189d36436db00daec4a7addd6ce7ebd197933157cdc -->
+<!-- item: core.evaluation_type_independent_audit sha256: bc119729ff3f2dd1d7c6bff2fc113863860f1fdf2c8f6d337f53b518644cb864 -->
 
 | Field | Value |
 |---|---|
-| item hash | `a57820efa0471b8418a1e189d36436db00daec4a7addd6ce7ebd197933157cdc` |
+| item hash | `bc119729ff3f2dd1d7c6bff2fc113863860f1fdf2c8f6d337f53b518644cb864` |
 | family | `evaluation` |
 | name | `evaluation_type_independent_audit` |
 | level | `activity`, `page` |
@@ -4788,11 +4788,11 @@ Entailment label: does not include an audit or evaluation by an independent body
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_ongoing_monitoring`
-<!-- item: core.evaluation_type_ongoing_monitoring sha256: 864d35832b2dc6bea2f69a060359f1ef12cee317ed7a7fc24d0b531a46400d72 -->
+<!-- item: core.evaluation_type_ongoing_monitoring sha256: e7866831b2329fc016fb0018765cf5e4d16e3b44f872f693a0993f6e09e6c0cf -->
 
 | Field | Value |
 |---|---|
-| item hash | `864d35832b2dc6bea2f69a060359f1ef12cee317ed7a7fc24d0b531a46400d72` |
+| item hash | `e7866831b2329fc016fb0018765cf5e4d16e3b44f872f693a0993f6e09e6c0cf` |
 | family | `evaluation` |
 | name | `evaluation_type_ongoing_monitoring` |
 | level | `activity`, `page` |
@@ -4845,11 +4845,11 @@ Entailment label: does not include ongoing monitoring of the tool in use
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_user_feedback`
-<!-- item: core.evaluation_type_user_feedback sha256: 9628c4f69ed51033eddcdb1434bc8f26d0acc10af1d764282cc8aff9748ddd6f -->
+<!-- item: core.evaluation_type_user_feedback sha256: 036e7caa5b9aab26435a359d33ecaa4a209693b802f4541772cf7122b3c5a65a -->
 
 | Field | Value |
 |---|---|
-| item hash | `9628c4f69ed51033eddcdb1434bc8f26d0acc10af1d764282cc8aff9748ddd6f` |
+| item hash | `036e7caa5b9aab26435a359d33ecaa4a209693b802f4541772cf7122b3c5a65a` |
 | family | `evaluation` |
 | name | `evaluation_type_user_feedback` |
 | level | `activity`, `page` |
@@ -4902,11 +4902,11 @@ Entailment label: does not include user feedback or satisfaction surveys
 Included. Asked only when `evaluation_documented` ∈ {`results_reported`, `conducted_no_results`, `required_or_planned`}; six yes/no items: `pre_deployment_testing`, `pilot_evaluation`, `independent_audit`, `ongoing_monitoring`, `user_feedback`, `bias_or_safety_testing`.
 
 ## `core.evaluation_type_bias_or_safety_testing`
-<!-- item: core.evaluation_type_bias_or_safety_testing sha256: 705995787c3a7371a35e78397796bc50ee46fd60ad7d73609bd62bbdc5d8c35f -->
+<!-- item: core.evaluation_type_bias_or_safety_testing sha256: 21268a987d8ea93b84d5bd166774219636358e77538014241ebf4aac7f679e70 -->
 
 | Field | Value |
 |---|---|
-| item hash | `705995787c3a7371a35e78397796bc50ee46fd60ad7d73609bd62bbdc5d8c35f` |
+| item hash | `21268a987d8ea93b84d5bd166774219636358e77538014241ebf4aac7f679e70` |
 | family | `evaluation` |
 | name | `evaluation_type_bias_or_safety_testing` |
 | level | `activity`, `page` |

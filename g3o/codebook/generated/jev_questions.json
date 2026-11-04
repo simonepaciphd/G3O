@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.jev_questions",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "3692c06a77056c43285b2696fa9d1aea1e733290fbd977976f40c6426803859a",
+  "codebook_sha256": "9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53",
   "intended_target": "T-011 jev question and choice sets (path chosen by T-011)",
   "part_prompt": {
     "sentence": "The text below is only one part of a longer page; the rest of the page is read separately. Answer from this part only.",
@@ -3673,7 +3673,7 @@
     {
       "question_id": "core.evaluation_type_pre_deployment_testing",
       "item_id": "core.evaluation_type_pre_deployment_testing",
-      "item_hash": "1a10522c420a29a7d32380d7cd01a05b93f079ad16a86ab5363abf1b00bd57b5",
+      "item_hash": "83fe066236badf19503226e47cfee3450cbf0f9ea98bab20181cf402c9bd14c1",
       "column": "evaluation_type_pre_deployment_testing",
       "pass": 2,
       "round": 5,
@@ -3722,7 +3722,7 @@
     {
       "question_id": "core.evaluation_type_pilot_evaluation",
       "item_id": "core.evaluation_type_pilot_evaluation",
-      "item_hash": "f001133a064ea6b3506d862a263b2209ae2ccc92e432aa96016b22bba68ed7d9",
+      "item_hash": "b9cb25ae00b051454b71beb3432e939a4bcd4e43afb84ab0a6ec5527ae2d4888",
       "column": "evaluation_type_pilot_evaluation",
       "pass": 2,
       "round": 5,
@@ -3771,7 +3771,7 @@
     {
       "question_id": "core.evaluation_type_independent_audit",
       "item_id": "core.evaluation_type_independent_audit",
-      "item_hash": "a57820efa0471b8418a1e189d36436db00daec4a7addd6ce7ebd197933157cdc",
+      "item_hash": "bc119729ff3f2dd1d7c6bff2fc113863860f1fdf2c8f6d337f53b518644cb864",
       "column": "evaluation_type_independent_audit",
       "pass": 2,
       "round": 5,
@@ -3820,7 +3820,7 @@
     {
       "question_id": "core.evaluation_type_ongoing_monitoring",
       "item_id": "core.evaluation_type_ongoing_monitoring",
-      "item_hash": "864d35832b2dc6bea2f69a060359f1ef12cee317ed7a7fc24d0b531a46400d72",
+      "item_hash": "e7866831b2329fc016fb0018765cf5e4d16e3b44f872f693a0993f6e09e6c0cf",
       "column": "evaluation_type_ongoing_monitoring",
       "pass": 2,
       "round": 5,
@@ -3869,7 +3869,7 @@
     {
       "question_id": "core.evaluation_type_user_feedback",
       "item_id": "core.evaluation_type_user_feedback",
-      "item_hash": "9628c4f69ed51033eddcdb1434bc8f26d0acc10af1d764282cc8aff9748ddd6f",
+      "item_hash": "036e7caa5b9aab26435a359d33ecaa4a209693b802f4541772cf7122b3c5a65a",
       "column": "evaluation_type_user_feedback",
       "pass": 2,
       "round": 5,
@@ -3918,7 +3918,7 @@
     {
       "question_id": "core.evaluation_type_bias_or_safety_testing",
       "item_id": "core.evaluation_type_bias_or_safety_testing",
-      "item_hash": "705995787c3a7371a35e78397796bc50ee46fd60ad7d73609bd62bbdc5d8c35f",
+      "item_hash": "21268a987d8ea93b84d5bd166774219636358e77538014241ebf4aac7f679e70",
       "column": "evaluation_type_bias_or_safety_testing",
       "pass": 2,
       "round": 5,
