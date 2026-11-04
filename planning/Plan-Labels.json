@@ -1,14 +1,14 @@
 {
   "format": "plan-labels-v1",
   "written_by": {
-    "harness": "codex-cli",
-    "model": "gpt-6-astra"
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
   },
-  "date": "2026-11-02",
+  "date": "2026-11-04",
   "sources": {
-    "SPEC.md": "3b2d38d1d4003b71339211842b0f7932d8537e1c3b08f42114760e1e978941b0",
+    "SPEC.md": "fcd1654c255e3aec21cf24dbe7fad7e16d49006c9332b65655a88f59a157073b",
     "RESOURCES.md": "6edc4da670229dd0cedbeb6cb8809ca7430f9791ddc0633492395d6c4720abbe",
-    "PLAN.md": "589cbe365545de35b565584e80cb4a1feae3ac8f1fe553d11520462bd5c09747"
+    "PLAN.md": "e48f45253d5d251bca7de11a91cb1a2374b1565325e1dc180d4de86bf3eaad3f"
   },
   "labels": {
     "T-001": {
@@ -17,11 +17,11 @@
     },
     "T-002": {
       "label": "Measure cost and runtime",
-      "plain": "Measure classifier and extractor calls, token use, runtime and link growth on a small sample. The results inform the paid-run budget and operating limits."
+      "plain": "Measure classifier and extractor calls, token use and runtime on a small sample, keeping the Haiku extraction steps. The link cap was set without its fan-out figures, so the written report is the remaining step."
     },
     "T-003": {
       "label": "Calibrate supporting quote checks",
-      "plain": "Test how well the quote matcher accepts genuine matches and rejects false ones across languages. Simone approves its settings and the website quote display limit."
+      "plain": "Tune the quote matcher on pairs labelled by a paid jev fidelity score or the 80% word-presence rule, with separate cutoffs per script only where needed. If the 80% rule tracks jev poorly, Simone revisits it; she also sets the website quote display limit."
     },
     "T-010": {
       "label": "Sign the shared codebook",
@@ -29,7 +29,7 @@
     },
     "T-011": {
       "label": "Generate classifier question sets",
-      "plain": "Build versioned page, activity and consolidation questions from the signed codebook. Preserve the approved wording and the order of questions and conditions."
+      "plain": "Build versioned page, activity and consolidation questions from the signed codebook. Wording that is not verbatim goes to Simone in one approval packet before the integration merge."
     },
     "T-012": {
       "label": "Update schemas and constants",
@@ -49,7 +49,7 @@
     },
     "T-016": {
       "label": "Recheck revised questionnaire items",
-      "plain": "Run a small paid pilot of the revised questions before relying on their wording. Simone runs the command and rules on the results."
+      "plain": "A small paid pilot tested the revised questions before their wording was relied on. It is complete: Simone accepted the results and ruled out a re-test."
     },
     "T-020": {
       "label": "Split and combine pages",
@@ -61,7 +61,7 @@
     },
     "T-022": {
       "label": "Extract page quotes and spans",
-      "plain": "Extract verbatim support, activity spans and permitted text fields from source pages, and select follow-up links. Quote extraction follows the codebook's rules for keeping answers hidden."
+      "plain": "Extract verbatim support, activity spans and permitted text fields from source pages, and select follow-up links. Span positions count from the start of the whole page, and the prompt wording joins the single approval packet."
     },
     "T-023": {
       "label": "Classify activities within pages",
@@ -69,15 +69,15 @@
     },
     "T-032": {
       "label": "Extract activity supporting text",
-      "plain": "Extract verbatim support for positive or substantive activity codes. Keep each quote tied to the page chunk that produced the code."
+      "plain": "Extract verbatim support for positive or substantive activity codes, in one request per page. Keep each quote tied to the page chunk that produced the code; the prompt wording joins the single approval packet."
     },
     "T-024": {
       "label": "Check support and confidence",
-      "plain": "Check quotes against their source text and test whether they support the coded value. Apply the approved confidence and downgrade rules between coding rounds."
+      "plain": "Check quotes against their source text with the 80% word-presence rule and the calibrated cutoffs, and test whether they support the coded value. Apply the approved confidence and downgrade rules between coding rounds."
     },
     "T-025": {
       "label": "Follow missing evidence links",
-      "plain": "Fetch selected links from incomplete pages within the hop and URL limits. Record how each source was found and when a limit or failure prevents further fetching."
+      "plain": "Fetch selected links from incomplete pages, up to three hops and ten followed links per institution. Record how each source was found and when a limit or failure stops further fetching."
     },
     "T-026": {
       "label": "Consolidate evidence and verdicts",
@@ -113,7 +113,7 @@
     },
     "T-040": {
       "label": "Build labelled test cases",
-      "plain": "Create synthetic cases for pipeline mechanics and real-page cases for coding rules and verdicts. Simone labels and approves the real-page expectations."
+      "plain": "Create synthetic cases for pipeline mechanics and real-page cases for coding rules and verdicts, at least three per check. An agent labels the real-page expectations and jev scores them."
     },
     "T-041": {
       "label": "Run paid integration checks",
@@ -209,7 +209,7 @@
     },
     "T-097": {
       "label": "Maintain the governed plan",
-      "plain": "Receive task reports, prepare changes for Simone and maintain approved plan updates and completion records. Check the next publication window before the current one expires."
+      "plain": "Receive task reports, prepare changes for Simone and maintain approved plan updates and completion records. On 2026-12-01, check the publication window and remind Simone to set dates for the next one."
     },
     "D-001": {
       "label": "Shared signed codebook release",

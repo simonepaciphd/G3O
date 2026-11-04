@@ -1,0 +1,173 @@
+{
+  "format": "decision-page-reply-v1",
+  "page_id": "g3o-deploy-blockers-2026-11-04",
+  "page_title": "Open rulings before the new pipeline can deploy",
+  "page_sha256": "a1c28a0849f9e64cbdd8a9de05307ea26cbaccb56943ddc2bab7faba725d93c9",
+  "project": "g3o (origin/main 50809aa; next-stage prep e4e47ab, unmerged)",
+  "saved_at": "2026-11-04T12:54:36.541Z",
+  "answers": [
+    {
+      "id": "S1",
+      "title": "How should the quote-matching examples be split into tuning and held-out sets?",
+      "kind": "substantive",
+      "choice": "a",
+      "choice_label": "State my ruling",
+      "recommended": null,
+      "comments": "80% original-language words must be present in the original text, at most there can be text removed for conciseness or reformulated for clarity"
+    },
+    {
+      "id": "S2",
+      "title": "One quote-match cutoff for all writing systems, or one per writing system?",
+      "kind": "substantive",
+      "choice": "b",
+      "choice_label": "Per-script cutoffs where needed",
+      "recommended": null,
+      "comments": ""
+    },
+    {
+      "id": "S3",
+      "title": "Who prepares the question and prompt wording for your approval, and when?",
+      "kind": "substantive",
+      "choice": "b",
+      "choice_label": "Approve later",
+      "recommended": null,
+      "comments": ""
+    },
+    {
+      "id": "S4",
+      "title": "What cap on followed links per institution?",
+      "kind": "substantive",
+      "choice": "a",
+      "choice_label": "State my ruling",
+      "recommended": null,
+      "comments": "10"
+    },
+    {
+      "id": "S5",
+      "title": "Do the extraction steps run by the cheaper model stay in the pipeline?",
+      "kind": "substantive",
+      "choice": "a",
+      "choice_label": "State my ruling",
+      "recommended": null,
+      "comments": "yes -- let's just switch to haiku 5.5 (it's way better that gpt 5 nano anyways)"
+    },
+    {
+      "id": "S6",
+      "title": "How should the missing record of the round-10 wording re-test be treated?",
+      "kind": "substantive",
+      "choice": "a",
+      "choice_label": "State my ruling",
+      "recommended": null,
+      "comments": "skip re-test"
+    },
+    {
+      "id": "S7",
+      "title": "Open a new display window for runs after 1 January 2027?",
+      "kind": "substantive",
+      "choice": "a",
+      "choice_label": "State my ruling",
+      "recommended": null,
+      "comments": "yes"
+    },
+    {
+      "id": "P1",
+      "title": "When will the quote-matching examples be labelled, and by whom?",
+      "kind": "procedural",
+      "choice": "a",
+      "choice_label": "State the schedule",
+      "recommended": null,
+      "comments": "now by jev calls (ask how accurately quote represents the source 1-5 slider) + let's make a small light NLP script for thr 80% rule above"
+    },
+    {
+      "id": "P2",
+      "title": "How should candidate lengths for the website quote cap be proposed?",
+      "kind": "procedural",
+      "choice": "b",
+      "choice_label": "Show the trade-off table",
+      "recommended": "b",
+      "comments": ""
+    },
+    {
+      "id": "P3",
+      "title": "How many test pages per acceptance check?",
+      "kind": "procedural",
+      "choice": "b",
+      "choice_label": "3 each, plus every verdict",
+      "recommended": "b",
+      "comments": ""
+    },
+    {
+      "id": "P4",
+      "title": "When will you label the real test pages?",
+      "kind": "procedural",
+      "choice": "a",
+      "choice_label": "State the schedule",
+      "recommended": null,
+      "comments": "skip"
+    },
+    {
+      "id": "P5",
+      "title": "Where do text positions count from on long pages that are split?",
+      "kind": "procedural",
+      "choice": "a",
+      "choice_label": "From the start of the whole page",
+      "recommended": "a",
+      "comments": ""
+    },
+    {
+      "id": "P6",
+      "title": "One supporting-text request per page, or one per activity?",
+      "kind": "procedural",
+      "choice": "a",
+      "choice_label": "One per page",
+      "recommended": "a",
+      "comments": ""
+    },
+    {
+      "id": "P7",
+      "title": "Deliver the database and website spec as one issue per task, or one per repository?",
+      "kind": "procedural",
+      "choice": "a",
+      "choice_label": "One per task",
+      "recommended": "a",
+      "comments": ""
+    },
+    {
+      "id": "P8",
+      "title": "Is the 'latest row' table a live view or a stored copy?",
+      "kind": "procedural",
+      "choice": "a",
+      "choice_label": "Live view",
+      "recommended": "a",
+      "comments": ""
+    },
+    {
+      "id": "P9",
+      "title": "How does the API expose older rows?",
+      "kind": "procedural",
+      "choice": "a",
+      "choice_label": "Option on existing endpoints",
+      "recommended": "a",
+      "comments": ""
+    },
+    {
+      "id": "P10",
+      "title": "Before loading corrections, snapshot the live database how?",
+      "kind": "procedural",
+      "choice": "a",
+      "choice_label": "Database branch",
+      "recommended": "a",
+      "comments": ""
+    },
+    {
+      "id": "P11",
+      "title": "When should the agent check and remind you about the display window?",
+      "kind": "procedural",
+      "choice": "a",
+      "choice_label": "1 December 2026",
+      "recommended": "a",
+      "comments": ""
+    }
+  ],
+  "overall": ""
+}
