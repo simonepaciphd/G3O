@@ -1,7 +1,7 @@
 # SPEC: G3O pipeline reclassification
 
 Status: LOCKED
-Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); v001.5 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.6 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.7 by delta RC-D-003, approved 2026-10-30 (Simone Paci, chat "all accepted"); v001.8 by delta RC-D-004, approved 2026-10-30 (Simone Paci, chat "approved"); v001.9 by delta RC-D-005, approved 2026-10-30 (Simone Paci, chat "approved! go forth"); v001.10 mechanical (R-041 marker → pointer to the signed codebook), 2026-10-30 (Simone Paci, chat "clean up items on #4"); v001.11 mechanical (15 wording markers → pointers to the signed codebook), 2026-10-31 (Simone Paci, chat "you do 7"; approved "7 ok", PR #142); v001.16 by delta RC-D-014, rulings 2026-11-04 (Simone Paci, decision page a1c28a08 and chat), approved 2026-11-04 (chat "1 approve"); v001.17 by delta RC-D-015, rulings 2026-11-04 (Simone Paci, decision pages 95487980 and 840f841f), PROPOSED until "approve delta"
+Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); v001.5 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.6 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.7 by delta RC-D-003, approved 2026-10-30 (Simone Paci, chat "all accepted"); v001.8 by delta RC-D-004, approved 2026-10-30 (Simone Paci, chat "approved"); v001.9 by delta RC-D-005, approved 2026-10-30 (Simone Paci, chat "approved! go forth"); v001.10 mechanical (R-041 marker → pointer to the signed codebook), 2026-10-30 (Simone Paci, chat "clean up items on #4"); v001.11 mechanical (15 wording markers → pointers to the signed codebook), 2026-10-31 (Simone Paci, chat "you do 7"; approved "7 ok", PR #142); v001.16 by delta RC-D-014, rulings 2026-11-04 (Simone Paci, decision page a1c28a08 and chat), approved 2026-11-04 (chat "1 approve"); v001.17 by delta RC-D-015, rulings 2026-11-04 (Simone Paci, decision pages 95487980 and 840f841f), approved 2026-11-04 (chat "I approve delta")
 Version: v001.17
 Supersedes: v001.15 through RC-D-014 deploy-blocker rulings of 2026-11-04 ; v001.14 through RC-D-011 whole-address lowercase email counting; original baseline RC-BL-001 retained.
 Owner: Simone Paci (sole substantive approver)
@@ -323,7 +323,7 @@ R-026/R-041/R-081/A-013: when a classifier returns a code without its chosen-ans
 
 RC-D-011 sign-off: Simone Paci, 2026-11-02, chat: "wait I actually changed my mind about the defect: let's have emails de-capitalized and counted as one in those cases." Applied as the approved R-058/D-007 policy replacement; implementation acceptance remains pending.
 
-## RC-D-015 — orchestrator gate rulings (2026-11-04; PROPOSED)
+## RC-D-015 — orchestrator gate rulings (2026-11-04; APPROVED, chat "I approve delta")
 
 Full text and verbatim choices: `deltas/RC-D-015.md`. Rules recorded here:
 - R-042 (A3 a): "jev 4+" in the calibration label means the most probable jev level is 4 or 5. Near-miss controls are same-page and off-page word swaps (A2 a).
