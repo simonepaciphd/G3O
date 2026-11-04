@@ -1,8 +1,8 @@
 # SPEC: G3O pipeline reclassification
 
 Status: LOCKED
-Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); v001.5 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.6 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.7 by delta RC-D-003, approved 2026-10-30 (Simone Paci, chat "all accepted"); v001.8 by delta RC-D-004, approved 2026-10-30 (Simone Paci, chat "approved"); v001.9 by delta RC-D-005, approved 2026-10-30 (Simone Paci, chat "approved! go forth"); v001.10 mechanical (R-041 marker → pointer to the signed codebook), 2026-10-30 (Simone Paci, chat "clean up items on #4"); v001.11 mechanical (15 wording markers → pointers to the signed codebook), 2026-10-31 (Simone Paci, chat "you do 7"; approved "7 ok", PR #142); v001.16 by delta RC-D-014, rulings 2026-11-04 (Simone Paci, decision page a1c28a08 and chat), approved 2026-11-04 (chat "1 approve"); v001.17 by delta RC-D-015, rulings 2026-11-04 (Simone Paci, decision pages 95487980 and 840f841f), approved 2026-11-04 (chat "I approve delta"); v001.18 by delta RC-D-016 (chat rulings 2026-11-04), approved 2026-11-04 (chat "approve delta")
-Version: v001.18
+Approved: v001.4, 2026-10-28 (Simone Paci); locked 2026-10-28T09:50-07:00 by Simone Paci (RC-BL-001, chat "lock"); v001.5 by delta RC-D-001, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.6 by delta RC-D-002, approved 2026-10-29 (Simone Paci, chat "approve delta"); v001.7 by delta RC-D-003, approved 2026-10-30 (Simone Paci, chat "all accepted"); v001.8 by delta RC-D-004, approved 2026-10-30 (Simone Paci, chat "approved"); v001.9 by delta RC-D-005, approved 2026-10-30 (Simone Paci, chat "approved! go forth"); v001.10 mechanical (R-041 marker → pointer to the signed codebook), 2026-10-30 (Simone Paci, chat "clean up items on #4"); v001.11 mechanical (15 wording markers → pointers to the signed codebook), 2026-10-31 (Simone Paci, chat "you do 7"; approved "7 ok", PR #142); v001.16 by delta RC-D-014, rulings 2026-11-04 (Simone Paci, decision page a1c28a08 and chat), approved 2026-11-04 (chat "1 approve"); v001.17 by delta RC-D-015, rulings 2026-11-04 (Simone Paci, decision pages 95487980 and 840f841f), approved 2026-11-04 (chat "I approve delta"); v001.18 by delta RC-D-016 (chat rulings 2026-11-04), approved 2026-11-04 (chat "approve delta"); v001.19 by delta RC-D-017 (chat rulings 2026-11-04), approved 2026-11-04 (chat "1 yes")
+Version: v001.19
 Supersedes: v001.15 through RC-D-014 deploy-blocker rulings of 2026-11-04 ; v001.14 through RC-D-011 whole-address lowercase email counting; original baseline RC-BL-001 retained.
 Owner: Simone Paci (sole substantive approver)
 Mode: revision (changes the production G3O pipeline and its published outputs)
@@ -339,3 +339,15 @@ Full text and verbatim choices: `deltas/RC-D-015.md`. Rules recorded here:
 ## RC-D-016 — T-003 cutoffs (2026-11-04; APPROVED, chat "approve delta")
 
 R-042 (R3 b values, chat ".8 for both is fine"): the word-presence cutoff is 0.80 for Latin and CJK; Thai keeps the default 0.80. Text: `deltas/RC-D-016.md`.
+
+## RC-D-017 — matcher, cap, quote input, year conversion scope (2026-11-04; APPROVED, chat "1 yes")
+
+Full text and verbatim choices: `deltas/RC-D-017.md`. Rules recorded here:
+- R-042 (1a, 2a): the support check uses rapidfuzz `token_set_ratio` on normalized text, rapidfuzz ==3.14.3, one pooled threshold 93. Chrome-text matching is untested (4 a).
+- R-043 (3): website display cap 200 characters; the API keeps full text.
+- R-052, D-007 (3, 5a, 2 whole): the X19 drop is reversed. The extraction prompts ask for supporting text (quotes, link passages, field support) of at most 200 characters; longer text is kept whole and flagged `quote_over_cap`.
+- R-040, R-001, R-016 (6): the quote step sees the chosen answer for the field it quotes (reverses r2#18); C-001 unchanged, the extractor output carries no code.
+- R-032 (10a): nearness is character distance in the stored page text; ties to page order.
+- R-015 (5 b, 6 a): the readability check adds a letter-share cut (value open); a read-only droplet check of stored bytes is authorized.
+- Year items (8 a, 9a-e, 3 a): fiscal-year labels only, by written form; a label naming two years gives both, one year gives that year; all three year items; no fixtures. Built as T-064; signed text amended in r12.
+- Codebook r12 (7 b, 4 yes): wording W-R12-1..5 approved; one combined re-sign with RC-D-015 Q1 b, Q2 a.
