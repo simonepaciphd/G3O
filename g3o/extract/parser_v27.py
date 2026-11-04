@@ -19,6 +19,9 @@ Rules applied:
   locating the extractor's verbatim start and end anchors in the page text.
   An anchor that cannot be found leaves the span unresolved; no offset is
   guessed.
+- **Quote length** (PI 2026-11-04, display cap 200, also stated in the prompt):
+  a quote, link passage or supporting text longer than ``QUOTE_MAX_CHARS`` is
+  kept whole and flagged ``quote_over_cap``; code never truncates it.
 - **Every free-text value has supporting text** (R-006, R-040). A value
   without it is not emitted as a value; it goes to ``rejected`` with its
   reason, so nothing the extractor said is lost.
@@ -34,6 +37,7 @@ from typing import Any
 from g3o.extract.anthropic_client import ExtractorResult
 from g3o.extract.request_v27 import (
     DATE_ITEM,
+    QUOTE_MAX_CHARS,
     Pass1Page,
     RequestPlan,
     field_name,
@@ -58,6 +62,7 @@ class QuoteSupport:
     chunk_id: str  # the part the quote was copied from (the producing part, or chrome)
     quote: str | None
     status: str  # "quoted" | "empty" | "no_entry" | "wrong_part"
+    flags: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -66,6 +71,7 @@ class SelectedLink:
     url: str
     chunk_id: str
     quote: str
+    flags: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -74,6 +80,7 @@ class FieldValue:
     value: str
     chunk_id: str
     supporting_text: str
+    flags: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -129,6 +136,13 @@ def _text_or_none(v: Any) -> str | None:
     if not isinstance(v, str):
         raise ExtractContractError("text fields must be strings or null")
     return v if v.strip() else None
+
+
+OVER_CAP_FLAG = "quote_over_cap"
+
+
+def _flags(text: str | None) -> tuple[str, ...]:
+    return (OVER_CAP_FLAG,) if text is not None and len(text) > QUOTE_MAX_CHARS else ()
 
 
 def _ws_index(text: str) -> tuple[str, list[int]]:
@@ -215,7 +229,7 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
         got[task.task_id] = QuoteSupport(
             task.task_id, task.item_id,
             raw["part_id"] if quote is not None else task.chunk_id,
-            quote, "quoted" if quote is not None else "empty",
+            quote, "quoted" if quote is not None else "empty", _flags(quote),
         )
     quotes = tuple(
         got.get(t.task_id) or QuoteSupport(t.task_id, t.item_id, t.chunk_id, None, "no_entry")
@@ -243,7 +257,7 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
             rejected.append(Rejected("link", "unknown_part", raw))
         else:
             seen_links.add(ln.link_id)
-            links.append(SelectedLink(ln.link_id, ln.url, raw["part_id"], quote))
+            links.append(SelectedLink(ln.link_id, ln.url, raw["part_id"], quote, _flags(quote)))
 
     # -- activities --------------------------------------------------------
     wanted = {field_name(i): i for i in plan.activity_fields}
@@ -276,7 +290,7 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
                 rejected.append(Rejected("field", "unknown_part", fraw))
             else:
                 seen_fields.add(item_id)
-                values.append(FieldValue(item_id, value, fraw["part_id"], support))
+                values.append(FieldValue(item_id, value, fraw["part_id"], support, _flags(support)))
         activities.append(ActivitySpan(
             activity_id=f"{page.page_id}#a{len(activities) + 1:03d}",
             chunk_id=raw["part_id"], start=start, end=end, status=status,
@@ -298,7 +312,7 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
         elif draw["part_id"] not in part_ids:
             rejected.append(Rejected("publication_date", "unknown_part", draw))
         else:
-            date = FieldValue(DATE_ITEM, value, draw["part_id"], support)
+            date = FieldValue(DATE_ITEM, value, draw["part_id"], support, _flags(support))
 
     return Pass1Extraction(
         page_id=page.page_id,
@@ -320,6 +334,7 @@ __all__ = [
     "ActivitySpan",
     "ExtractContractError",
     "FieldValue",
+    "OVER_CAP_FLAG",
     "Pass1Extraction",
     "QuoteSupport",
     "Rejected",

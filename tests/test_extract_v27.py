@@ -165,13 +165,57 @@ def test_positive_verdict_and_yes_answers_get_quotes_per_part():
     assert not plan.link_task
 
 
-def test_quote_task_is_blind_to_the_answer():
+def test_quote_task_shows_the_chosen_answer():
+    """RC-D-017 (PI 2026-11-04): the quote task shows jev's chosen answer (input only)."""
     page = make_page(verdict="background_only", codes=[
         PageCode("core.disclosure_form", "P1#p001", "register_single_institution")])
     plan = select_requests(page)
-    msg = build_user_message(page, plan)
-    assert "register_single_institution" not in msg
-    assert plan.quote_tasks[0].question == load_codebook().instruction("core.disclosure_form").text
+    (task,) = plan.quote_tasks
+    assert task.answer == "register_single_institution"
+    assert task.question == load_codebook().instruction("core.disclosure_form").text
+    tasks = json.loads(build_user_message(page, plan).split("TASKS:\n", 1)[1])
+    assert tasks["quote_tasks"][0]["answer"] == "register_single_institution"
+    assert tasks["quote_tasks"][0]["part_id"] == "P1#p001"
+
+
+def test_shown_answer_never_comes_back_as_a_code():
+    """C-001 still holds with the answer shown: a code-like key in the output is refused."""
+    page = make_page(verdict="background_only", codes=[
+        PageCode("core.disclosure_form", "P1#p001", "register_single_institution")])
+    plan = select_requests(page)
+    for raw in ({"task_id": "q001", "part_id": "P1#p001", "quote": "x",
+                 "answer": "register_single_institution"},
+                {"task_id": "q001", "part_id": "P1#p001", "quote": "x",
+                 "disclosure_form": "register_single_institution"}):
+        with pytest.raises(ExtractContractError):
+            parse_pass1_result(ok(empty_answer(quotes=[raw])), page, plan)
+    out = parse_pass1_result(ok(empty_answer(quotes=[
+        {"task_id": "q001", "part_id": "P1#p001", "quote": "The council launched"}])), page, plan)
+    assert not any("register_single_institution" in repr(v) for v in out.quotes)
+
+
+def test_quote_cap_in_prompt_and_over_cap_flagged_not_truncated():
+    assert request_v27.QUOTE_MAX_CHARS == 200
+    system = build_system_prompt()
+    assert "at most 200 characters" in system
+    page = _activity_page()
+    plan = select_requests(page)
+    long_quote = "The council launched the CivicBot chatbot " * 6  # > 200 chars
+    assert len(long_quote) > 200
+    out = parse_pass1_result(ok(empty_answer(
+        quotes=[{"task_id": "q001", "part_id": "P1#p001", "quote": long_quote},
+                {"task_id": "q002", "part_id": "P1#p001", "quote": "Read more"}],
+        links=[{"link_id": "L001", "part_id": "P1#p001", "quote": long_quote}],
+        activities=[{"part_id": "P1#p001", "start_text": "The council", "end_text": "first month.",
+                     "fields": [{"field": "activity_name", "value": "CivicBot", "part_id": "P1#p001",
+                                 "supporting_text": long_quote}]}],
+    )), page, plan)
+    q1, q2 = out.quotes
+    assert q1.quote == long_quote and q1.flags == (parser_v27.OVER_CAP_FLAG,)
+    assert q2.flags == ()
+    assert out.links[0].quote == long_quote and out.links[0].flags == ("quote_over_cap",)
+    f = out.activities[0].fields[0]
+    assert f.supporting_text == long_quote and f.flags == ("quote_over_cap",)
 
 
 def test_incomplete_page_without_stored_links_records_why():

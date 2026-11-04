@@ -19,9 +19,16 @@ One extractor request per page after jev pass 1 (T-021), scoped per item
    :data:`DEFERRED_FIELDS`).
 5. **Publication date** (X26) when the page carries no deterministic date.
 
-A page with no task gets no request. The quote step is blind to the answer
-for the field it quotes (r2#18): a quote task carries the item's question,
-never the code jev chose. No task asks the extractor for a code (C-001).
+A page with no task gets no request. A quote task carries the item's signed
+question AND the answer jev chose for it in that part (PI 2026-11-04, "show
+answer -- confirmatory test & biased, it's fine"; reverses r2#18's blindness
+rule, RC-D-017). The answer is input only: no task asks the extractor for a
+code and its output schema has no code field (C-001).
+
+Each supporting quote is to be at most :data:`QUOTE_MAX_CHARS` characters
+(PI 2026-11-04, "200 (put in prompt as cap too)"; reverses X19 / r2#17). The
+cap is an instruction in the prompt; the parser flags a longer quote and never
+truncates it.
 
 Nothing here truncates page text: the v2.5 60,000-character head+tail cap
 (``g3o.extract.batch.DEFAULT_TEXT_CAP_CHARS``) does not apply on this path.
@@ -44,7 +51,10 @@ from g3o.codebook.loader import Codebook, load_codebook
 from g3o.common.page_chunks import Chunk
 from g3o.extract.anthropic_client import ExtractorJob, build_params, make_custom_id
 
-PROMPT_VERSION = "extract_v27-draft-1"
+PROMPT_VERSION = "extract_v27-draft-2"
+
+#: Prompt-side length cap for every supporting quote (display cap, PI 2026-11-04).
+QUOTE_MAX_CHARS = 200
 
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
 EXTRACT_V27_PROMPT_PATH = _PROMPTS_DIR / "extract_v27.md"
@@ -60,10 +70,9 @@ R003_VERDICTS = (
     "event_only",
 )
 
-#: Codebook items that are activity-level quote-step fields but whose gate is
-#: a pass-2 classifier answer (not the applicability table, which the quote
-#: step ignores under R-040). Asking for them here would need that answer
-#: first; they are held pending a ruling (see the T-022 return report).
+#: Activity-level quote-step fields whose gate is a pass-2 classifier answer
+#: (CX-61: outcome_kind / incident_kind not none_reported). Moved to the
+#: pass-2 quote job, T-032 (RC-D-017; PI 2026-11-04 "5 a"); not asked here.
 DEFERRED_FIELDS = ("core.reported_outcomes", "core.reported_incidents")
 
 #: Shared codebook rules shown with the activity task.
@@ -199,6 +208,7 @@ class QuoteTask:
     item_id: str
     chunk_id: str
     question: str
+    answer: str  # jev's chosen pass-1 answer in this part (input only; RC-D-017)
     allow_chrome: bool
 
 
@@ -258,6 +268,7 @@ def select_requests(page: Pass1Page, rules: Pass1Rules | None = None) -> Request
             item_id=code.item_id,
             chunk_id=code.chunk_id,
             question=rules.questions[code.item_id],
+            answer=code.value,
             allow_chrome=code.item_id in rules.chrome_items and bool(page.chrome_text),
         ))
 
@@ -332,7 +343,8 @@ def build_system_prompt(cb: Codebook | None = None, rules: Pass1Rules | None = N
     )
     body = (template
             .replace("{{ACTIVITY_RULES}}", activity_rules)
-            .replace("{{FIELD_SECTIONS}}", "\n".join(sections[i] for i in wanted).rstrip()))
+            .replace("{{FIELD_SECTIONS}}", "\n".join(sections[i] for i in wanted).rstrip())
+            .replace("{{QUOTE_MAX_CHARS}}", str(QUOTE_MAX_CHARS)))
     if "{{" in body:
         raise ValueError("unfilled placeholder in extract_v27.md")
     return f"{shared.text}\n\n---\n\n{body}"
@@ -387,7 +399,7 @@ def build_user_message(page: Pass1Page, plan: RequestPlan) -> str:
     tasks: dict[str, Any] = {
         "quote_tasks": [
             {"task_id": t.task_id, "part_id": t.chunk_id, "question": t.question,
-             "chrome_allowed": t.allow_chrome}
+             "answer": t.answer, "chrome_allowed": t.allow_chrome}
             for t in plan.quote_tasks
         ],
         "link_task": plan.link_task,
@@ -435,6 +447,7 @@ __all__ = [
     "DATE_ITEM",
     "DEFERRED_FIELDS",
     "PROMPT_VERSION",
+    "QUOTE_MAX_CHARS",
     "R003_VERDICTS",
     "PageCode",
     "Pass1Page",
