@@ -145,3 +145,18 @@ def test_no_pilot_v1_input():
         if p.is_file() and p.suffix in {".json", ".csv", ".py"}:
             t = p.read_text(encoding="utf-8")
             assert "pilot_v1" not in t and "g3o_full_database_v1" not in t, p
+
+
+def test_jev_label_scores_join_and_readings():
+    scores = list(csv.DictReader((FIX / "jev-label-scores.csv").open(encoding="utf-8")))
+    sheet = list(csv.DictReader((FIX / "label-sheet.csv").open(encoding="utf-8")))
+    assert (
+        len({s["key"] for s in scores})
+        == len(scores)
+        == sum(1 for r in sheet if r["jev_argmax_1_5"])
+    )
+    for s in scores:
+        probs = {int(k): v for k, v in json.loads(s["probabilities_1_5"]).items()}
+        top = max(probs, key=lambda k: (probs[k], -k))
+        assert int(s["jev_argmax_1_5"]) == top
+        assert abs(float(s["jev_expected_1_5"]) - (float(s["level_raw"]) + 1)) < 1e-6

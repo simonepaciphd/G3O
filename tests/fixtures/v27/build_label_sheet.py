@@ -1,7 +1,9 @@
 """Build tests/fixtures/v27/label-sheet.csv: one row per expected value across synthetic, real and transfer fixtures.
 
 Run after build_synthetic.py and build_real.py: python -I -X utf8 tests/fixtures/v27/build_label_sheet.py
-Columns jev_score / jev_model / jev_request_id stay blank until the paid jev scoring of real-page labels (T-040, Simone-run).
+The jev columns are joined from jev-label-scores.csv (derived from the paid run of 2026-11-04, Simone-run; key =
+<fixture_id>#<index in expected>). Both readings are kept: jev_argmax_1_5 (most likely level + 1) and
+jev_expected_1_5 (probability-weighted level + 1). Which reading gates a label is not ruled. Blank = not scored.
 """
 
 import csv
@@ -23,18 +25,25 @@ COLS = [
     "labeller",
     "label_date",
     "judgement_call",
-    "jev_score",
+    "jev_argmax_1_5",
+    "jev_expected_1_5",
+    "jev_confidence",
     "jev_model",
     "jev_request_id",
 ]
 
 
 def main():
+    scores = {}
+    sp = HERE / "jev-label-scores.csv"
+    if sp.exists():
+        scores = {r["key"]: r for r in csv.DictReader(sp.open(encoding="utf-8"))}
     rows = []
     for name in ("synthetic.json", "real.json", "transfers.json"):
         for f in json.loads((HERE / name).read_text(encoding="utf-8"))["fixtures"]:
-            for e in f["expected"]:
+            for k, e in enumerate(f["expected"]):
                 v = e["value"]
+                js = scores.get(f"{f['fixture_id']}#{k}", {})
                 rows.append(
                     {
                         "fixture_id": f["fixture_id"],
@@ -52,9 +61,11 @@ def main():
                         "labeller": e.get("labeller", "agent (synthetic: by construction)"),
                         "label_date": e.get("label_date", "2026-11-04"),
                         "judgement_call": e.get("judgement_call", ""),
-                        "jev_score": "",
-                        "jev_model": "",
-                        "jev_request_id": "",
+                        "jev_argmax_1_5": js.get("jev_argmax_1_5", ""),
+                        "jev_expected_1_5": js.get("jev_expected_1_5", ""),
+                        "jev_confidence": js.get("confidence", ""),
+                        "jev_model": js.get("response_model", ""),
+                        "jev_request_id": js.get("request_id", ""),
                     }
                 )
     with (HERE / "label-sheet.csv").open("w", encoding="utf-8", newline="") as fo:
