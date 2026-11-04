@@ -45,7 +45,28 @@ from pathlib import Path
 
 THRESHOLD = 0.80
 NON_SPACED_SCRIPTS = frozenset({"cjk", "thai"})
-_WORD = re.compile(r"[^\W_]+(?:['’][^\W_]+)*")
+
+
+def _mark_class() -> str:
+    """Regex class body for every combining mark (Unicode Mn, Mc). Python `re` has no \\p{M} and `\\w` excludes
+    marks, so Thai words used to split at each vowel or tone mark (U+0E31, U+0E34, U+0E4C ...), and at SARA AM,
+    which NFKC decomposes into NIKHAHIT (Mn) + SARA AA."""
+    ranges, start, prev = [], None, None
+    for cp in range(sys.maxunicode + 1):
+        if unicodedata.category(chr(cp)) in ("Mn", "Mc"):
+            if start is None:
+                start = cp
+            elif cp != prev + 1:
+                ranges.append((start, prev))
+                start = cp
+            prev = cp
+    ranges.append((start, prev))
+    return "".join(f"\\U{a:08x}-\\U{b:08x}" if a != b else f"\\U{a:08x}" for a, b in ranges)
+
+
+_MARKS = _mark_class()
+# A word starts with a letter or digit, then letters, digits or combining marks; apostrophe-joined parts allowed.
+_WORD = re.compile(rf"[^\W_](?:[^\W_]|[{_MARKS}])*(?:['’][^\W_](?:[^\W_]|[{_MARKS}])*)*")
 
 
 def normalize(text: str) -> str:
