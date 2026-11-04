@@ -37,3 +37,11 @@ Reading: delta approved; the 80% rule counts words in every script; no blind 30-
 Integrator picks under that delegation (session 20261104-claude-v2-c0d8af698f4f13de, claude-opus-5-5), open to PI override:
 - 3: 20% of institutions held out, stratified by dominant script, seed 20261104, institutions with 100+ candidates kept in tuning (38 institutions: 30 tuning, 8 held out; held-out candidates Latin 27, CJK 33, Thai 5; Thai tuning n=1, so Thai cutoffs are not tunable and Thai held-out errors are flagged not estimable). Implemented in `scripts/spikes/t003/word_presence.py` (`assign_partitions`).
 - 5: Spearman rank correlation of 80%-rule word presence with jev 1-5 scores of at least 0.5, per script with n of at least 30 (Latin, CJK), computed with near-miss controls included; below 0.5 the rule is revisited. Cohen's kappa on the binary decisions is reported, not used as the bar, because about 99% of candidates pass the rule.
+
+## Third round (same day)
+
+Simone's reply, verbatim:
+
+> 2 one orchestrator 4 lanes, orchestrator handles messages/decisions back and forth bw me and subagents, 3 and 4 ok
+
+Reading: the PI confirms the integrator's split and Spearman 0.5 bar (item 3) and T-016 `complete` (item 4). Cards 16-19 run under one orchestrator session that relays messages and decisions between Simone and the subagents (item 2; card `coord/launch/2026-11-04/20-g3o-v27-orchestrator.txt`).
