@@ -1,5 +1,7 @@
 # PLAN: G3O pipeline reclassification
 
+Current ruling overlay (2026-11-05, RC-D-021, APPROVED 2026-11-05 chats "w1a w2a w3a w4a w5a w6a w7a w8a p1a p2a p2b a p2c a r1a r2a r3b r4a r5a r6a , d1a, d2a, d3a -- procedural accepted" and "w4a w6a p2c draft ok"; text `planning/deltas/RC-D-021.md`): wording packet ruled (W-01..W-08 a; W-04 marks `[[Ak]]`/`[[/Ak]]`; W-06 field `stated_number`; P-1, P-2, P-2b a; P-2c a with `linked_activity`, one quote task per pair); R-2 a, R-3 b (1900-2099 bound per range end), R-4 a; T-012 test caveat dropped (R-5 a); T-041 names two match limits (R-6 a); readability reason in the support record, unreadable pages `reviewed` (D-1 a, D-2 a); support check once after pass 1 (D-3 a; SPEC v001.24). Every card reference to merging into or working on `reclass/v2.7` now reads: a feature branch landed on `main` by PR through the landing script (that branch is merged into `main`).
+
 Current ruling overlay (2026-11-05, RC-D-020, APPROVED 2026-11-05 chat "3 b"; text `planning/deltas/RC-D-020.md`): T-063 superseded; the calendar-conversion heads-up is not sent; D-010 superseded by T-064 (SPEC v001.23).
 
 Current ruling overlay (2026-11-05, RC-D-019, APPROVED 2026-11-05 chat "I approve the delta"; text `planning/deltas/RC-D-019.md`): six more answer values exempt from supporting text, global by value (r13); quote matches if the matcher or the 80% rule passes; entailment window quote + 200 characters each side; contact with no address = `not_documented`; year label = converted CE year; one-year labels and era years in 1900-2099; two-digit pivot (current year mod 100) + 25; era years named in r13; R-015 markers = F4 spike set. Codebook parts take effect with r13 once signed.
@@ -257,7 +259,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-003 | eng-c | W3 | verified | T-002 | none | T-024 | RS-009, RS-011, RS-025 | none | spikes folder, files prefixed `SPIKE-T003*` | PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c); calibration labels per RC-D-014 (jev 4+ or the 80% rule); the jev scoring run is paid and run by Simone via `!` | A-002 |
 | T-010 | integrator | W1 | complete | none | T-013 | T-002, T-011, T-012, T-016, T-022, T-040, T-050, T-060, T-061, T-063, T-064, T-090 | RS-004, RS-010, RS-011, RS-024, RS-026, RS-039 | D-001 | `codebook/codebook.yaml`† and the three (generated) contract files | PI writes or line-edits every coding rule; PI approves the item template (r2#59) and signs the CX items in one batch signature (CX-01.3†, RC-D-004); PI signs the codebook hash (A-001); push gate | A-001 |
 | T-011 | eng-a | W3 | pending | T-010, T-013, T-016 | T-064 | T-015, T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
-| T-012 | eng-b | W2 | verified (proposed local verification; not complete) | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; inventory; Q2a writer/tests; instrument/storage modules, fixtures and narrow integrity compatibility; import/telemetry/reproducibility tests (RC-D-009); `g3o/report/health.py`, `g3o/report/outcomes.py`, `g3o/common/institution_report.py`, `g3o/persist/__init__.py` and their tests; `tests/test_contract.py`, `tests/test_consolidated_contract.py`, `tests/test_adversarial_llm_outputs.py`, `tests/test_genai_definition_adherence.py`, `tests/test_uid_stamping.py`; the v2.5-column hunk of `g3o/codebook/checks.py` (line 889 at `a5b1d30`, repointed at the frozen v2.5 list) (RC-D-008) | T-050A approved; local fixtures only; push gate | A-011, A-013 |
+| T-012 | eng-b | W2 | verified (local verification; not complete) | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; inventory; Q2a writer/tests; instrument/storage modules, fixtures and narrow integrity compatibility; import/telemetry/reproducibility tests (RC-D-009); `g3o/report/health.py`, `g3o/report/outcomes.py`, `g3o/common/institution_report.py`, `g3o/persist/__init__.py` and their tests; `tests/test_contract.py`, `tests/test_consolidated_contract.py`, `tests/test_adversarial_llm_outputs.py`, `tests/test_genai_definition_adherence.py`, `tests/test_uid_stamping.py`; the v2.5-column hunk of `g3o/codebook/checks.py` (line 889 at `a5b1d30`, repointed at the frozen v2.5 list) (RC-D-008) | T-050A approved; local fixtures only; push gate | A-011, A-013 |
 | T-013 | eng-b | W1 | verified | none | T-010 | T-002, T-011, T-012, T-016, T-022, T-032 | RS-010, RS-013, RS-039 | none | `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml` | PI approves the item template and generator checks (r2#59); push of the branch | A-001 |
 | T-014 | eng-a | W2 | complete | none | none | T-022, T-025, T-065 | RS-016 | none | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests; `g3o/scrape/render.py` (optional `RenderedPage` fields) and the record-building hunks of `g3o/scrape/fetcher.py` (HTML path, unlocker path, page cache) (RC-D-006, PI 6a) | push of the branch | none |
 | T-015 | eng-a | W4 | pending | T-011, T-012, T-022, T-027 | none | T-026, T-028 | RS-012 | none | `g3o/common/source_fields.py`† and its tests | push of the branch | none |
@@ -272,7 +274,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-026 | eng-a | W8 | pending | T-011, T-012, T-015, T-023, T-024, T-027 | none | T-028 | RS-011, RS-014 | none | the listed Stage 6 files and tests; retirement of the OpenAI Stage 6 path: the import hunk of `g3o/validate/stage_validate.py`, `g3o/validate/{client,qc,salvage}.py`, `tests/test_validate.py`, `tests/test_validate_salvage.py` (archived, PI A a), `scripts/verify_jev_validate_live.py`; install of the generated `g3o/validate/prompts/system_prompt.md` and `g3o/validate/prompts/output_contract.md` (RC-D-008) | push of the branch | A-010 |
 | T-027 | eng-b | W3 | verified (local library; downstream acceptance retained) | T-012 | none | T-015, T-021, T-023, T-026, T-028, T-050 | RS-012, RS-013, RS-014 | none | new module `g3o/common/jev_record.py`† and its tests | push of the branch | A-013 |
 | T-028 | eng-a | W9 | pending | T-012, T-015, T-024, T-026, T-027, T-050 | none | T-030, T-052, T-090 | RS-018 | none | `g3o/persist/writer.py` and its tests; `g3o/persist/integrity.py`, `tests/test_integrity.py` (RC-D-008) | push of the branch | A-007, A-017 |
-| T-030 | eng-b | W10 | pending | T-021, T-025, T-028, T-032 | none | T-029 | none | none | instrument-binding hunks of presweep/planning.py and run manifest; the listed orchestrator, config, telemetry and e2e files; merges of the new-run card branches into `reclass/v2.7`† | push of the integration branch | none |
+| T-030 | eng-b | W10 | pending | T-021, T-025, T-028, T-032 | none | T-029 | none | none | instrument-binding hunks of presweep/planning.py and run manifest; the listed orchestrator, config, telemetry and e2e files; `g3o/common/credentials.py` and `g3o/common/cost_monitor.py` hunks (RC-D-021); merges of the new-run card branches into `reclass/v2.7`† | push of the integration branch | none |
 | T-029 | eng-a | W11 | pending | T-001, T-025, T-030 | none | T-034, T-035 | RS-017 | none | new package `g3o/run/backfill/`† and its tests | push of the branch | A-005, A-015 |
 | T-034 | eng-a | W12 | pending | T-029 | none | T-035 | RS-026 | none | `g3o/run/backfill/transfers.py`† and its tests | push of the branch | A-022 |
 | T-035 | eng-b | W13 | pending | T-029, T-034 | none | T-031, T-041 | none | D-002 | `g3o/cli.py` hunks, the two pin files, e2e test additions; merges of T-029 and T-034 into `reclass/v2.7`†; `g3o/common/contract_pin.py`, `tests/fixtures/run_contract/{FIELDS.md,manifest.json}`, the contract H1 template line of the T-013 generator (version token for `parse_version()`) (RC-D-008) | push of the integration branch | none |
@@ -696,6 +698,7 @@ RC-D-012 disposition (2026-11-02): calendar conversion deferred by explicit PI r
 Preparation update (2026-11-02): signed r11/LABELS sources assembled and independently verified at 2812ca22253adfa1f70f81d08f377fa15a8619f9; source artifacts are not installed runtime question sets. Later r9/r10 rulings and the r11 signature are preserved. T-016 corrected-probability disposition and the existing calendar/fiscal gate remain; do not infer a paid rerun. Preserve four-digit2015–2030 activity/context years, no publication-year fallback, earliest chosen year across chunks; Simone owns D-010 contact. See handoffs/Preparation-next-stage.md.
 
 Status: pending
+Progress (2026-11-05, integrator; RC-D-021): wording packet ruled: W-01..W-08 a; W-04 marks `[[Ak]]`/`[[/Ak]]`, no explaining sentence; W-05 year alone, rules after "not documented"; W-06 field `stated_number`; W-05-P2 declarations refreshed. Entered into `g3o/classify/questions/v27/build.py` by a wording lane (branch `orch1107/w-wording`).
 Progress (2026-11-05, integrator; RC-D-019): year-choice declaration aligned with T-064, codes are the converted CE year (C1 a), merged PR #171 (af5292f). W-05 DRAFT with option (d) and the year-context width (E4: proposed 200 characters each side of the activity span) goes into the wording packet: `agent-workspace/2026-11-06-v27-orch/lane-c-W05-draft.md`.
 Type: build
 Priority: critical-path
@@ -782,7 +785,8 @@ Split per pass.
 
 RC-D-011 execution update (2026-11-02): Bounded email slice independently verified at 36d88bc7; full-address internal normalization, domain counts, map provenance and roundtrips pass. Preserve other qualified local evidence; this is not runtime acceptance. See handoffs/RC-D-011-local-verification.json.
 
-Status: verified (proposed local verification; not complete; test invocation qualification)
+Status: verified (local verification; not complete)
+Progress (2026-11-05, integrator; RC-D-021): R-5 a: the full-suite CI run on Linux on `main` counts as the full run, and the test-invocation qualification is dropped. The 11-01 Windows `run_state.py` failure has no owner. Inventory addendum §11 (grep re-run on `4e956ad`) merged as PR #183. `test_contract_version_pin` stays `xfail(strict=True)` for T-035.
 Type: build
 Priority: critical-path
 Spec refs: R-015, R-020, R-021, R-022, R-023, R-024, R-050, C-007
@@ -1353,6 +1357,7 @@ More than 1 week → split CX fields from the verdict.
 RC-D-014 (2026-11-04; rulings by Simone, approved): S3 b: the pass-1 prompt text is approved later, in the single wording packet before the T-030 merge (see T-011). P5 a: span offsets count from the start of the whole page (DP-008).
 
 Status: pending
+Progress (2026-11-05, integrator; RC-D-021): the pass-1 prompt is approved (P-1 a, wording packet; RC-D-014 S3 b met). Review fixes F2 (usage of billed-but-failed responses; failed pages not reported as skipped), F3 (empty anchors stay unresolved) and F6 (one bad code no longer stops the stage) go on branch `orch1107/g-pass2`.
 Progress (2026-11-05, integrator; RC-D-019): remainder built and merged PR #172 (43c8e7e): `_run_extract_v27` in `g3o/run/presweep/stage_extract.py` (orchestrator call site left to T-030), `anthropic==2.3.0` in `requirements.txt`. Generated prompt install stays at the T-030 merge (RC-D-017 P5). Open: PI prompt approval (packet), T-031.
 Progress (2026-11-04, integrator; RC-D-017): C22/C23 move to T-032 ("5 a"); quote tasks show the chosen answer ("6"; reverses r2#18); 200-character cap in the prompt for quotes, link passages and field support, over-cap kept whole and flagged ("3", "5a", "2 whole"). Slice on `orch1105/b-t022` `241aa03` (unpushed); P-1 slot `agent-workspace/2026-11-05-v27-orch/lane-b/v27-wording-packet-P-1.*`. Remaining: `stage_extract.py` wiring, T-030 packaging, packet approval, T-031.
 Type: build
@@ -1443,6 +1448,7 @@ Split links from quotes if the parser work exceeds 1 week.
 ### T-023 — Build the jev pass-2 activity coder
 
 Status: pending
+Progress (2026-11-05, integrator; RC-D-021): P-2c a: the T-023 activity record carries, for each `activity_segment` pair, the other activity of the pair; the pass-2 quote task is one per pair, with field `linked_activity` and the approved question (RC-D-021).
 Type: build
 Priority: critical-path
 Spec refs: R-001, R-003, R-004, R-006, R-008, R-017, R-022, R-026
@@ -1596,6 +1602,7 @@ RC-D-014 (2026-11-04; rulings by Simone, approved): The support check applies th
 RC-D-011 execution update (2026-11-02): Consume the verified RC-D-011 local normalizer under existing input gates. Actual main/header/footer extraction and contact-gate runtime remain unverified; no task launch.
 
 Status: pending
+Progress (2026-11-05, integrator; RC-D-021): D-3 a amends "It runs between rounds (r2#41)" and O4 below: the extractor makes one call per page after all pass-1 rounds, and the support check runs once, after them (SPEC R-008 v001.24). P-2 a and P-2b a approved; F1, F4, F5 fixes on branches `orch1107/g-pass2` and `orch1107/f-years`; E3 (b) context window for quotes with missing words on `orch1107/f-years`.
 Progress (2026-11-05, integrator; RC-D-019): library built on `orch1106/e-t024` (808338c): `g3o/common/support_check.py`. Match rule E1 c (matcher OR 80% rule), entailment window E3 (quote + 200 characters each side, producing part), contact no-address = `not_documented` (E2 a), follow-up on `orch1106/e2-t024`. Still blocked: T-032/T-022 prompt approval, T-012 completion, r13 signature (re-pin of `SIGNED_CODEBOOK_SHA256`).
 Type: build
 Priority: critical-path
@@ -1981,6 +1988,7 @@ none
 Preparation update (2026-11-02): source-only r11/LABELS assembly is available at 2812ca22253adfa1f70f81d08f377fa15a8619f9; this closes the r8-source preparation gap only. Actual upstream stage assembly, executed configuration and immutable instrument binding remain gated. Separate T-020 branch is not part of this source candidate. T-035 final pins/six exceptions and T-031 integrated-candidate requirement remain unchanged.
 
 Status: pending
+Progress (2026-11-05, integrator; RC-D-021): item (1) wheel packaging merged (PR #184). D-1 a: T-030 sets `not_assessable` from the readability check and writes the reason as `support_status = set_by_rule`, `support_rule_name = readability_failure:<reason>`; D-2 a: such pages get `page_review_state = reviewed`. The extractor is called once per run, after T-025. Follow-up URL cap already ruled at 10 (RC-D-014). Write claim widened to `g3o/common/credentials.py` (Anthropic key slot) and `g3o/common/cost_monitor.py` (partial cost of an interrupted v2.7 run). `claude-haiku-5-5` price row: fix branch `orch1107/h-price`. The wording packet is ruled (RC-D-014 S3 b gate met).
 Progress (2026-11-05, integrator; RC-D-019): items carried here: (1) wheel packaging — the v2.7 path reads `codebook/codebook.yaml` and `g3o/codebook/generated/*.md`, neither ships in the wheel (lane D, D3 accepted); (2) record the R-015 readability failure reason when writing `not_assessable` (`g3o/scrape/readability.readability_failure`; with T-035).
 Type: integrate
 Priority: critical-path
@@ -2016,7 +2024,7 @@ Integrate the new-run path only: wire the new stages (T-021 to T-028, T-032) int
 
 #### Ownership and collision control
 - Read scope: all card branches
-- Write claim: actual configuration-to-instrument binding in g3o/run/presweep/planning.py and run-manifest fields with tests (P1a); the listed orchestrator, config, telemetry and e2e files; merges of the new-run card branches into `reclass/v2.7`†
+- Write claim: actual configuration-to-instrument binding in g3o/run/presweep/planning.py and run-manifest fields with tests (P1a); the listed orchestrator, config, telemetry and e2e files; `g3o/common/credentials.py` and `g3o/common/cost_monitor.py` hunks (RC-D-021); merges of the new-run card branches into `reclass/v2.7`†
 - Shared surfaces: orchestrator and the `reclass/v2.7`† branch — owner eng-b (T-030, then T-035); pins and `cli.py` hunks are T-035's
 
 #### Procedure boundary
@@ -2200,6 +2208,7 @@ none
 ### T-035 — Integrate the back-fill and transfer paths
 
 Status: pending
+Progress (2026-11-05, integrator; RC-D-021): with T-030, sets the readability verdict and reason (D-1 a, D-2 a) on the pages stored before T-065 (about 287) during back-fill.
 Progress (2026-11-05, integrator; RC-D-019): records the R-015 readability failure reason (storage name and home) with T-030; see T-030 note.
 Type: integrate
 Priority: critical-path
@@ -2436,6 +2445,7 @@ Split per A-ID.
 RC-D-014 (2026-11-04; rulings by Simone, approved): Fixture expected values come from agent labels plus jev scores (RC-D-014 P4). The PI still approves the cost estimate, runs the paid run via `!` and rules on fixture failures.
 
 Status: blocked
+Progress (2026-11-05, integrator; RC-D-021): R-6 a: the report names two known limits of the calibrated quote match: a curly apostrophe on the page against a straight one in the quote, and a quote cut inside an unspaced CJK/Thai run (RC-D-017 1a).
 Type: verify
 Priority: critical-path
 Spec refs: A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, A-022, R-084
@@ -3043,6 +3053,7 @@ none
 ### T-061 — Notify the G3O validation plan of the contract change
 
 Status: in-progress
+Progress (2026-11-05, integrator; RC-D-021): reply to Ludovico Marini's questions posted by Simone as a comment on `simonepaciphd/g3o_validation#3`. It commits two PI-sent notices on that issue: when the generated contract is installed (T-022) and before the first v2.7 run.
 Note (2026-10-30, integrator): draft ready in `planning/handoffs/` (not sent); the recipient and channel choice (DP-063) is carried to the successor launch card `coord/launch/2026-10-31/5-g3o-reclass-cost-packet.txt`. Sending is gated on the PI.
 Note (2026-10-31, integrator): DP-063 ruled by the PI in chat: recipient Ludovico Marini (validation integrator, minimal system); "agents should work through git issues/PRs, humans email", so the notice goes as a GitHub issue on `simonepaciphd/g3o_validation` plus Simone's email, in place of the mailbox file; ask = acknowledgement plus whether a locked input breaks (2 b). Draft updated to the re-signed hash `f0b1348c…`. Still not sent; sending gated on the PI. ~~The outputs column's "one mailbox file" is to be corrected in the next delta.~~ Done by RC-D-006.
 Note (2026-10-31, integrator): notice sent by Simone 2026-10-31 as issue simonepaciphd/g3o_validation#3 (assigned to Ludovico Marini; body = the notice text of `planning/handoffs/validation-notice.md`, PR #141) and by Simone's email to Ludovico (Simone, chat: "email sent to ludovico"). Status stays in-progress until his reply (acknowledgement plus locked-input statement, 2 b).
@@ -3264,6 +3275,7 @@ none
 ### T-064 — Build the calendar and fiscal-year conversion for year candidates (RC-D-015 Q3 b, RC-D-016)
 
 Status: complete
+Progress (2026-11-05, integrator; RC-D-021): R-2 a ("2010-15" gives no range); R-3 b (the 1900-2099 bound applies to each range end on its own); R-4 a ("FY 2014/15-2019/20" gives 2014, 2015, 2019, 2020). Fixes, with C-1, C-3, C-4 and W-05-P3, on branch `orch1107/f-years`.
 Progress (2026-11-05, integrator): done condition met — tests pass (PRs #167, #173, #177), coverage note `spikes/SPIKE-T064.md` written from the full local run (integrator review appended), rulings implemented. Marked complete by the integrator. Follow-up: two-digit end years follow the signed r13 pivot (r13-Q2 a) on `orch1106/b3-t064`. PI 2026-11-05 "b3-1 a b3-2 b": a two-digit end year that comes out before its start is kept ("FY 2024-06" gives 2024 and 2006); the pivot sentence reads CE two-digit years only, so a two-digit Buddhist Era end year keeps its start year's BE century ("B.E. 2566/67" gives 2023, 2024). No codebook change. Independent review T-031 still due.
 Progress (2026-11-05, integrator; RC-D-019): C2 b (one-year labels and single era years in 1900-2099) and rule ids on sources merged via PR #173 (fbd3189); B1 c two-digit pivot (from (current year mod 100) + 25 through 99 read 19xx, reference year recorded) on `orch1106/b2-t064`. Coverage scan ran locally (PI "1a"; peak 326 MB): rerun on the C2 b code feeds `SPIKE-T064.md`.
 Progress (2026-11-05, integrator): `g3o/extract/years.py` and `tests/test_years_v27.py` merged in PR #167 (cda6df1); RC-D-018 D1-D9 implemented. Open: the coverage note `SPIKE-T064.md` (run over RS-008/RS-009 page text); it needs more memory than the laptop has, so it runs on a GCP VM (PI 2026-11-05).
