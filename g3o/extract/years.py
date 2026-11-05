@@ -2,7 +2,8 @@
 
 Rulings: RC-D-017 9a-e and "3 a"; PI chat 2026-11-04 "7", "8 a"; PI 2026-11-05 items 1-4 (ranges give both
 ends, table A fiscal markers count like "FY", table B calendars, Unicode digits) and D1-D9 ("all as rec"; RC-D-018).
-The 2026-11-05 range ruling reverses the "lower year only" rule of commit fd2ca89.
+The 2026-11-05 range ruling reverses the "lower year only" rule of commit fd2ca89. PI 2026-11-05 "C2b": one-year fiscal
+labels and single calendar-era years are lifted like range ends (only the literal standalone rule keeps 2015-2030).
 
 Single candidate source for `core.year_announced`, `core.year_pilot_start` and `core.year_production_start`.
 Pure and deterministic: text in, candidates out; no network, no state, no country or language input.
@@ -11,16 +12,19 @@ Digits. Every Unicode decimal digit (category Nd: ASCII, Arabic-Indic, Persian, 
 is read by its decimal value. Matching runs on a copy of the text where each such digit is replaced one-for-one by
 its ASCII digit, so offsets are offsets into the original text and `YearSource.text` is the verbatim original.
 
-Window. A year counts when it is in 2015-2030 (YEAR_MIN..YEAR_MAX), except the ends of a range (an unmarked range,
-a two-year fiscal label, a marked Buddhist Era range), which count anywhere in LIFT_MIN..LIFT_MAX (1900-2099, D1: a
-guard so that codes and other calendars' years are not read as ranges). Two-digit fiscal ends are lifted like
-four-digit ones (D2; a two-digit start expands to 20xx).
+Window. A literal standalone year counts when it is in 2015-2030 (YEAR_MIN..YEAR_MAX). Every year from a label counts
+anywhere in LIFT_MIN..LIFT_MAX (1900-2099, D1: a guard so that codes and other calendars' years are not read as years):
+range ends, both years of a two-year fiscal label, a one-year fiscal label, and a Japanese era, Buddhist Era or ROC
+year ("C2b"). Exception: the ends of an unmarked range after a numbering word keep 2015-2030. Two-digit fiscal years
+are lifted like four-digit ones (D2; a two-digit start expands to 20xx, so "FY98" -> 2098).
+
+Rule ids (YearSource.rule, T-064 follow-up F4): the pattern that produced the source, one of RULES.
 
 Forms (YearSource.form):
   literal         a four-digit year 2015-2030 not adjacent to another digit (the signed literal rule).
   fiscal_one      a fiscal-year label naming one year: English "FY2025", "FY 25", "FY'25", "fiscal year 2025",
                   "fiscal 2025", "financial year 2025", "2025 fiscal year" ("8 a": FY25 -> 2025), or a table A
-                  marker (below) with one year. Window 2015-2030.
+                  marker (below) with one year. Lifted window ("C2b").
   fiscal_lower    the first year of a fiscal-year label naming two years ("FY2024/25", "FY2024-26",
   fiscal_upper    "FY 2022-2026", "Haushaltsjahr 2025/2026", "2024-25年度"): both years, consecutive or not,
                   window lifted (D2). A two-digit end takes the first year's century ("FY2030/31" -> 2030, 2031;
@@ -33,11 +37,11 @@ Forms (YearSource.form):
                   end ("2024-25" -> 2024 only, as a literal). A range lying wholly inside a fiscal or calendar
                   label is left to that label; one that only starts inside it ("FY 2010 to 2020") is kept.
   era_jp          Japanese era with its name: 令和N年 (Reiwa N = 2018 + N, 令和元年 = 2019), 平成N年 (Heisei N =
-                  1988 + N); ASCII, full-width or kanji numerals; also matches inside 令和6年度. Window 2015-2030.
+                  1988 + N); ASCII, full-width or kanji numerals; also matches inside 令和6年度. Lifted window.
   buddhist_era    Buddhist Era with an explicit marker, พ.ศ. or B.E., before or after the year (D6: "พ.ศ. 2567",
-                  "2567 B.E.", "2567 พ.ศ."): CE = BE - 543, window 2015-2030. A marked BE range
+                  "2567 B.E.", "2567 พ.ศ."): CE = BE - 543, lifted window. A marked BE range
                   ("พ.ศ. 2566-2567") converts both years, lifted like other range ends.
-  roc             ROC / Minguo with 民國 or 民国: 民國N年, CE = 1911 + N.
+  roc             ROC / Minguo with 民國 or 民国: 民國N年, CE = 1911 + N. Lifted window.
 
 Table A fiscal markers (count exactly like "FY": one year -> that year, two years -> both; no month arithmetic):
   before the year: Haushaltsjahr, Geschäftsjahr, Rechnungsjahr, Wirtschaftsjahr, Doppelhaushalt; exercice
@@ -88,6 +92,17 @@ FISCAL_TWO = "fiscal_two"
 RANGE = "range"
 LABEL_KINDS = (FISCAL_ONE, FISCAL_TWO, RANGE, ERA_JP, BUDDHIST_ERA, ROC)
 
+# Rule ids (YearSource.rule): which pattern produced a source.
+R_LITERAL = "literal"
+R_FY_EN_PREFIX, R_FY_EN_POSTFIX = "fy_en_prefix", "fy_en_postfix"
+R_FY_A_PREFIX, R_FY_A_POSTFIX, R_FY_A_THAI = "fy_table_a_prefix", "fy_table_a_postfix", "fy_table_a_thai"
+R_ERA_JP = "era_jp_named"
+R_BE_PREFIX, R_BE_POSTFIX = "be_marker_prefix", "be_marker_postfix"
+R_ROC = "roc_minguo"
+R_RANGE_SEP, R_RANGE_WORD = "range_separator", "range_word"
+RULES = (R_LITERAL, R_FY_EN_PREFIX, R_FY_EN_POSTFIX, R_FY_A_PREFIX, R_FY_A_POSTFIX, R_FY_A_THAI, R_ERA_JP,
+         R_BE_PREFIX, R_BE_POSTFIX, R_ROC, R_RANGE_SEP, R_RANGE_WORD)
+
 
 @dataclass(frozen=True, order=True)
 class YearSource:
@@ -95,6 +110,7 @@ class YearSource:
     end: int  # exclusive
     text: str  # verbatim text[start:end]
     form: str  # one of FORMS
+    rule: str = ""  # one of RULES: the pattern that produced it
 
 
 @dataclass(frozen=True)
@@ -119,23 +135,20 @@ class YearLabel:
     four_digit: tuple[bool, ...]  # per year: written with four digits (recorded only; D2 lifts two-digit ends too)
     marker: str = ""  # the marker matched (FY, a table A marker, era name ...), "" for ranges
     numbered: bool = False  # RANGE only: a numbering word stands just before it
+    rule: str = ""  # one of RULES
 
     def sources(self) -> list[tuple[int, YearSource]]:
         """(year, source) pairs this label contributes, windows applied."""
+        if self.kind == FISCAL_TWO:
+            forms: tuple[str, ...] = (FISCAL_LOWER, FISCAL_UPPER)
+        elif self.kind == RANGE:
+            forms = (RANGE_LOWER, RANGE_UPPER)
+        else:  # a one-year label, or a marked Buddhist Era range (both years keep the kind as form)
+            forms = (self.kind,) * len(self.years)
         out = []
-        if self.kind in (FISCAL_TWO, RANGE):
-            forms = (FISCAL_LOWER, FISCAL_UPPER) if self.kind == FISCAL_TWO else (RANGE_LOWER, RANGE_UPPER)
-            for y, form in zip(self.years, forms, strict=False):
-                if in_range(y) or (not self.numbered and LIFT_MIN <= y <= LIFT_MAX):
-                    out.append((y, YearSource(self.start, self.end, self.text, form)))
-        elif len(self.years) == 2:  # marked Buddhist Era range: both years, lifted like range ends
-            for y in self.years:
-                if in_range(y) or LIFT_MIN <= y <= LIFT_MAX:
-                    out.append((y, YearSource(self.start, self.end, self.text, self.kind)))
-        else:
-            y = self.years[0]
-            if in_range(y):
-                out.append((y, YearSource(self.start, self.end, self.text, self.kind)))
+        for y, form in zip(self.years, forms, strict=True):
+            if in_range(y) or (not self.numbered and LIFT_MIN <= y <= LIFT_MAX):  # lifted window ("C2b")
+                out.append((y, YearSource(self.start, self.end, self.text, form, self.rule)))
         return out
 
 
@@ -231,6 +244,7 @@ _RANGE_WORD = r" (?i:to|through|until) "
 _RANGE_RX = re.compile(
     rf"(?<![0-9])(?<![0-9]{_DASH})(?<![0-9]{_SP}{_DASH})(?P<y1>{_Y4})(?:{_SEP}|{_RANGE_WORD})(?P<y2>{_Y4}){_END}"
 )
+_RANGE_WORD_RX = re.compile(_RANGE_WORD)
 _NUMBERING = re.compile(r"(?:\bpp?\.|\bpage|\bID|\bNo\.|#|\bart\.|" + chr(0xA7) + rf"){_SP}*$", re.IGNORECASE)
 
 
@@ -275,28 +289,29 @@ def _kanji_number(s: str) -> int:
     return int("".join(str(_KANJI_DIGITS[ch]) for ch in s))
 
 
-def _two_year_label(text: str, m: re.Match, marker: str, be: bool = False) -> YearLabel:
+def _two_year_label(text: str, m: re.Match, marker: str, rule: str, be: bool = False) -> YearLabel:
     y1s, y2s = m.group("y1"), m.group("y2")
     y1 = _full_year(y1s)
     conv = BE_OFFSET if be and y1 >= BE_THRESHOLD else 0
     span = text[m.start():m.end()]
     if y2s is None:
-        return YearLabel(m.start(), m.end(), span, FISCAL_ONE, (y1 - conv,), (len(y1s) == 4,), marker)
+        return YearLabel(m.start(), m.end(), span, FISCAL_ONE, (y1 - conv,), (len(y1s) == 4,), marker, rule=rule)
     y2 = _full_year(y2s, base=y1)
     return YearLabel(m.start(), m.end(), span, FISCAL_TWO, (y1 - conv, y2 - conv),
-                     (len(y1s) == 4, len(y2s) == 4), marker)
+                     (len(y1s) == 4, len(y2s) == 4), marker, rule=rule)
 
 
 def fiscal_labels(text: str, _norm: str | None = None) -> list[YearLabel]:
     """Every marked fiscal-year label (English or table A) in `text`, in text order."""
     norm = normalize_digits(text) if _norm is None else _norm
     found: list[YearLabel] = []
-    for rx in (_EN_PREFIX, _EN_POSTFIX, _A_PREFIX, _A_POSTFIX):
+    for rx, rule in ((_EN_PREFIX, R_FY_EN_PREFIX), (_EN_POSTFIX, R_FY_EN_POSTFIX), (_A_PREFIX, R_FY_A_PREFIX),
+                     (_A_POSTFIX, R_FY_A_POSTFIX)):
         for m in rx.finditer(norm):
             marker = next((g for g in (m.groupdict().get(k) for k in ("m", "w", "k")) if g), "")
-            found.append(_two_year_label(text, m, marker))
+            found.append(_two_year_label(text, m, marker, rule))
     for m in _A_THAI.finditer(norm):
-        found.append(_two_year_label(text, m, m.group("m"), be=True))
+        found.append(_two_year_label(text, m, m.group("m"), R_FY_A_THAI, be=True))
     found.sort(key=lambda f: (f.start, -(f.end - f.start)))
     out: list[YearLabel] = []
     for f in found:
@@ -305,7 +320,7 @@ def fiscal_labels(text: str, _norm: str | None = None) -> list[YearLabel]:
             # the same label read from both sides ("FY 2024-25 fiscal year"): one label, widest span
             if f.end > prev.end:
                 out[-1] = YearLabel(prev.start, f.end, text[prev.start:f.end], f.kind, f.years, f.four_digit,
-                                    prev.marker)
+                                    prev.marker, rule=prev.rule)
             continue
         out.append(f)  # overlapping labels naming different years are both kept
     return out
@@ -317,14 +332,16 @@ def calendar_labels(text: str, _norm: str | None = None) -> list[YearLabel]:
     out: list[YearLabel] = []
     for m in _ERA.finditer(norm):
         y = _kanji_number(m.group("n")) + (REIWA_OFFSET if m.group("era") == _REIWA else HEISEI_OFFSET)
-        out.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], ERA_JP, (y,), (False,), m.group("era")))
+        out.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], ERA_JP, (y,), (False,), m.group("era"),
+                             rule=R_ERA_JP))
     be: list[YearLabel] = []
-    for rx in (_BE_PREFIX, _BE_POSTFIX):
+    for rx, rule in ((_BE_PREFIX, R_BE_PREFIX), (_BE_POSTFIX, R_BE_POSTFIX)):
         for m in rx.finditer(norm):
             y1 = int(m.group("y1"))
             ys = (y1,) if m.group("y2") is None else (y1, _full_year(m.group("y2"), base=y1))
             be.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], BUDDHIST_ERA,
-                                tuple(y - BE_OFFSET for y in ys), tuple(True for _ in ys), m.group("era")))
+                                tuple(y - BE_OFFSET for y in ys), tuple(True for _ in ys), m.group("era"),
+                                rule=rule))
     be.sort(key=lambda f: (f.start, -(f.end - f.start)))
     kept: list[YearLabel] = []
     for f in be:  # the same year read with a marker on both sides: keep one
@@ -334,7 +351,8 @@ def calendar_labels(text: str, _norm: str | None = None) -> list[YearLabel]:
     out.extend(kept)
     for m in _ROC_RX.finditer(norm):
         y = _kanji_number(m.group("n")) + ROC_OFFSET
-        out.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], ROC, (y,), (False,), m.group("era")))
+        out.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], ROC, (y,), (False,), m.group("era"),
+                             rule=R_ROC))
     return sorted(out, key=lambda f: (f.start, f.end))
 
 
@@ -352,7 +370,9 @@ def year_ranges(text: str, labels: list[YearLabel] | None = None, _norm: str | N
         if any(a <= m.start() and m.end() <= b for a, b in spans):
             continue
         numbered = bool(_NUMBERING.search(norm[max(0, m.start() - 12):m.start()]))
-        out.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], RANGE, (y1, y2), (True, True), "", numbered))
+        rule = R_RANGE_WORD if _RANGE_WORD_RX.fullmatch(norm, m.end("y1"), m.start("y2")) else R_RANGE_SEP
+        out.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], RANGE, (y1, y2), (True, True), "", numbered,
+                             rule))
     return out
 
 
@@ -370,7 +390,7 @@ def year_sources(text: str) -> list[tuple[int, YearSource]]:
     for m in _LITERAL.finditer(norm):
         y = int(m.group(1))
         if in_range(y):
-            pairs.add((y, YearSource(m.start(1), m.end(1), text[m.start(1):m.end(1)], LITERAL)))
+            pairs.add((y, YearSource(m.start(1), m.end(1), text[m.start(1):m.end(1)], LITERAL, R_LITERAL)))
     labels = fiscal_labels(text, norm) + calendar_labels(text, norm)
     for lab in labels + year_ranges(text, labels, norm):
         pairs.update(lab.sources())

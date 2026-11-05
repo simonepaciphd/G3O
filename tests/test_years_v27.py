@@ -120,10 +120,25 @@ def test_fiscal_one_negative(text):
     assert all(f.kind != FISCAL_ONE for f in fiscal_labels(text))
 
 
-@pytest.mark.parametrize("text,expected", [("FY14", []), ("FY15", [2015]), ("FY30", [2030]), ("FY31", []),
-                                           ("FY 2014", [])])
-def test_fiscal_one_keeps_window(text, expected):
+@pytest.mark.parametrize("text,expected", [("FY14", [2014]), ("FY15", [2015]), ("FY30", [2030]), ("FY31", [2031]),
+                                           ("FY 2014", [2014]), ("FY2012", [2012]), ("FY 1900", [1900]),
+                                           ("fiscal year 2099", [2099]), ("FY98", [2098])])
+def test_fiscal_one_lifted_window_c2b(text, expected):
+    # PI 2026-11-05 "C2b": one-year labels are lifted to 1900-2099 like two-year labels. A two-digit year expands to
+    # 20xx (D2), so "FY98" is 2098.
     assert years(text) == expected
+    assert FISCAL_ONE in forms_of(text, expected[0])
+
+
+@pytest.mark.parametrize("text", ["FY 1899", "fiscal year 2100", "Rechnungsjahr 1850", "1899年度"])
+def test_fiscal_one_outside_guard_dropped(text):
+    assert years(text) == []
+    assert [f.kind for f in fiscal_labels(text)] == [FISCAL_ONE]
+
+
+def test_c2b_leaves_literal_window_unchanged():
+    assert years("In 2012 and 2031, then FY2012.") == [2012]
+    assert forms_of("In 2012 and 2031, then FY2012.", 2012) == {FISCAL_ONE}
 
 
 @pytest.mark.parametrize("label", ["FY2024/25", "FY 2024-25", "FY2024-2025", "FY 2024/2025", "FY24/25",
@@ -219,7 +234,7 @@ def test_numbering_word_applies_to_word_ranges(text):
 
 
 def test_word_range_starting_inside_a_fiscal_label():
-    # "FY 2010" is a one-year label (window kept); the range "2010 to 2020" starts inside it and is still a range.
+    # "FY 2010" is a one-year label (lifted, C2b); the range "2010 to 2020" starts inside it and is still a range.
     assert years("FY 2010 to 2020") == [2010, 2020]
 
 
@@ -263,7 +278,7 @@ def test_not_ranges(text, expected):
 @pytest.mark.parametrize("text,expected", [
     ("Haushaltsjahr 2025/2026", [2025, 2026]),
     ("Geschäftsjahr 2024/25", [2024, 2025]),
-    ("Rechnungsjahr 2014", []),
+    ("Rechnungsjahr 2014", [2014]),   # C2b: lifted
     ("Rechnungsjahr 2024", [2024]),
     ("Wirtschaftsjahr 2023/24", [2023, 2024]),
     ("Doppelhaushalt 2025/26", [2025, 2026]),
@@ -315,7 +330,8 @@ def test_table_a_negative_spellings_not_markers(text):
     ("ปีงบประมาณ พ.ศ. 2567-2568", [2024, 2025]),
     ("ปีงบประมาณ ๒๕๖๘", [2025]),
     ("ปีงบประมาณ 2025", [2025]),
-    ("ปีงบประมาณ 2557", []),
+    ("ปีงบประมาณ 2557", [2014]),    # C2b: lifted
+    ("ปีงบประมาณ 2442", []),        # BE 2442 = 1899: below the guard
 ])
 def test_table_a_thai_fiscal(text, expected):
     assert years(text) == expected
@@ -329,11 +345,11 @@ def test_table_a_thai_fiscal(text, expected):
     ("令和６年度", [2024]),
     ("令和六年", [2024]),
     ("令和十二年", [2030]),
-    ("令和13年", []),
+    ("令和13年", [2031]),      # C2b: lifted
     ("平成27年", [2015]),
     ("平成31年", [2019]),
-    ("平成二十六年", []),
-    ("平成元年", []),
+    ("平成二十六年", [2014]),
+    ("平成元年", [1989]),
 ])
 def test_table_b_japanese_era(text, expected):
     assert years(text) == expected
@@ -346,7 +362,8 @@ def test_table_b_japanese_era(text, expected):
     ("พ.ศ.2558", [2015]),
     ("พ.ศ. ๒๕๖๗", [2024]),
     ("B.E. 2573", [2030]),
-    ("B.E. 2557", []),
+    ("B.E. 2557", [2014]),     # C2b: lifted
+    ("B.E. 2442", []),        # 1899: below the guard
     ("BE 2567", []),          # bare BE is not a marker
     ("2567", []),             # unmarked: outside the window, no conversion
     ("2567 B.E.", [2024]),    # D6: marker after the year
@@ -368,7 +385,9 @@ def test_table_b_buddhist_era(text, expected):
     ("民国104年", [2015]),
     ("中華民國一百一十三年", [2024]),
     ("民國一一三年", [2024]),
-    ("民國103年", []),
+    ("民國103年", [2014]),     # C2b: lifted
+    ("民國1年", [1912]),
+    ("民國189年", []),        # 2100: above the guard
     ("113年", []),
 ])
 def test_table_b_roc(text, expected):
@@ -426,3 +445,34 @@ def test_candidates_ascending_and_deterministic():
 
 def test_empty_text():
     assert extract_year_candidates("") == []
+
+
+# ---- rule ids (T-064 follow-up F4) ----------------------------------------------------------------------
+
+@pytest.mark.parametrize("text,year,rule", [
+    ("2025", 2025, Y.R_LITERAL),
+    ("FY2025", 2025, Y.R_FY_EN_PREFIX),
+    ("2025 fiscal year", 2025, Y.R_FY_EN_POSTFIX),
+    ("Haushaltsjahr 2025", 2025, Y.R_FY_A_PREFIX),
+    ("2024年度", 2024, Y.R_FY_A_POSTFIX),
+    ("ปีงบประมาณ 2568", 2025, Y.R_FY_A_THAI),
+    ("令和6年", 2024, Y.R_ERA_JP),
+    ("พ.ศ. 2567", 2024, Y.R_BE_PREFIX),
+    ("2567 B.E.", 2024, Y.R_BE_POSTFIX),
+    ("民國113年", 2024, Y.R_ROC),
+    ("1998-2002", 1998, Y.R_RANGE_SEP),
+    ("1998 to 2002", 1998, Y.R_RANGE_WORD),
+])
+def test_rule_id_positive(text, year, rule):
+    srcs = [s for c in extract_year_candidates(text) if c.year == year for s in c.sources]
+    assert rule in {s.rule for s in srcs}
+    assert all(s.rule in Y.RULES for c in extract_year_candidates(text) for s in c.sources)
+
+
+def test_rule_id_negative_every_source_has_one():
+    text = "FY 2024-25, 2019 to 2021, 1998 - 2002, 令和元年 and 2026."
+    srcs = [s for c in extract_year_candidates(text) for s in c.sources]
+    assert srcs and all(s.rule in Y.RULES for s in srcs)
+    assert {s.rule for s in srcs if s.text == "2019 to 2021"} == {Y.R_RANGE_WORD}
+    assert {s.rule for s in srcs if s.text == "1998 - 2002"} == {Y.R_RANGE_SEP}
+    assert Y.R_RANGE_WORD not in {s.rule for s in srcs if s.text == "FY 2024-25"}

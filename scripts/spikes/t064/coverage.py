@@ -5,7 +5,8 @@ spike does: RS-008 from --rs008-dir / G3O_RS008_DIR, RS-009 under the Drive root
 and reports:
   - per module label kind (`Y.all_labels`: fiscal_one, fiscal_two, range, era_jp, buddhist_era, roc): labels found,
     pages, unique texts, and how often a label contributes a year the plain literal rule finds nowhere on that page;
-  - range ends lifted outside 2015-2030 (kept only because of the 1900-2099 lift) with examples, numbered ranges, and
+  - label years outside 2015-2030 kept only by the 1900-2099 lift (every label kind since PI "C2b"; range examples),
+    numbered ranges, and
     the word just before each range, tallied, so numbering words the module misses are visible (HANDOFF 2026-11-05);
   - unmarked year ranges (no fiscal marker; module forms range_lower/range_upper, both four-digit ends, PI 2026-11-05): counted by shape;
   - years written in other calendars or non-ASCII digits, and non-English fiscal markers: heuristic counts (a cross-check
@@ -210,7 +211,7 @@ def main(argv=None) -> int:
     with open(csv_path, "w", encoding="utf-8", newline="") as fh:
         w = csv.writer(fh)
         w.writerow(["source", "page_id", "url", "text_sha256", "duplicate_of_earlier", "start", "end", "label_text",
-                    "form", "years_named", "years_kept_2015_2030", "years_dropped_out_of_range",
+                    "form", "years_named", "years_kept", "years_dropped_out_of_window",
                     "years_not_found_by_literal_rule_on_page", "numbered", "word_before"])
         for source, pid, rec in readability.iter_sources(drive, rs):
             if source == "__missing__":
@@ -306,8 +307,9 @@ def render(counts: dict, examples: dict, unmarked_examples: dict, lifted_example
     L = ["# SPIKE-T064 — year labels and out-of-scope calendar years on RS-008/RS-009 page texts", "",
          f"Generated {counts['meta']['generated_utc']} by `scripts/spikes/t064/coverage.py` over `g3o/extract/years.py`. "
          "Free, local, read-only. Missing sources: " + (", ".join(counts["meta"]["missing_sources"]) or "none") + ".", "",
-         "Unit: unique page texts (sha256 of stored `text`) unless a row says pages. Converted years outside "
-         "2015-2030 are dropped exactly like literal ones, except range ends (lifted to 1900-2099 unless numbered).", "",
+         "Unit: unique page texts (sha256 of stored `text`) unless a row says pages. Years from labels count in "
+         "1900-2099 (PI \"C2b\"); only literal standalone years and range ends after a numbering word keep "
+         "2015-2030.", "",
          "| measure | " + " | ".join(cols) + " |", "|---|" + "---|" * len(cols)]
 
     def row(label, src, key):
@@ -319,17 +321,18 @@ def render(counts: dict, examples: dict, unmarked_examples: dict, lifted_example
         row(f"`{k}` labels", U, "labels_" + k)
         row(f"texts with `{k}`", U, "texts_with_" + k)
         row(f"`{k}` labels adding a year the literal rule finds nowhere on the page", U, "labels_adding_year_" + k)
-        row(f"`{k}` labels with every candidate year outside 2015-2030 (dropped)", U, "labels_" + k + "_all_out_of_range")
+        row(f"`{k}` labels with every candidate year outside its window (dropped)", U, "labels_" + k + "_all_out_of_range")
     row("texts where a label adds a year not found by the literal rule", U, "texts_with_added_year")
     row("pages where a label adds a year (incl. duplicates)", P, "pages_with_added_year")
-    L += ["", "## Range ends lifted outside 2015-2030 and numbering words (module `range` labels)", "",
+    L += ["", "## Label years kept only by the 1900-2099 lift, and numbering words before ranges", "",
           "| measure | " + " | ".join(cols) + " |", "|---|" + "---|" * len(cols)]
     row("`range` labels after a numbering word (window kept at 2015-2030)", U, "range_numbered")
     row("`range` labels with at least one end kept only by the lift", U, "range_with_lifted_end")
     row("`range` labels with both ends outside 2015-2030 (both kept by the lift)", U, "range_both_ends_lifted")
     row("range ends kept only by the lift", U, "range_lifted_ends")
-    row("`fiscal_two` ends kept only by the lift", U, "range_fiscal_two_lifted_ends")
-    row("`buddhist_era` range ends kept only by the lift", U, "range_buddhist_era_lifted_ends")
+    for k in LABEL_KINDS:
+        if k != Y.RANGE:
+            row(f"`{k}` years kept only by the lift", U, f"range_{k}_lifted_ends")
     pre = counts.get("range_word_before_unique_texts", {})
     allp, lift = pre.get("all_unnumbered", {}), pre.get("with_lifted_end", {})
     L += ["", f"Word just before an unnumbered range (unique texts; top {N_PRE_TOP} by ranges with a lifted end; "
