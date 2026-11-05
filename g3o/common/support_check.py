@@ -6,7 +6,7 @@ probabilities, the quotes copied by the quote step (pass 1, T-022; pass 2,
 T-032; joined on ``task_id`` by the caller or the two join helpers below) and
 the stored page text.
 
-Rules applied, each as SPEC v001.20 / codebook r12 states it:
+Rules applied, each as SPEC v001.20 / codebook r13 states it:
 
 - **Quote presence (R-042; RC-D-017 1a, 2a; RC-D-019 E1 c).** A quote matches
   when EITHER rule passes: rapidfuzz ``token_set_ratio`` of the normalized
@@ -56,7 +56,7 @@ Rules applied, each as SPEC v001.20 / codebook r12 states it:
 - **X35 state window (RC-D-019 E3).** The entailment check sees the quote plus
   ``ENTAILMENT_WINDOW_CHARS`` (200) characters on each side, clipped to the
   text the quote came from (the producing part, or chrome). :func:`entailment_window`.
-- **Year candidates (codebook r12 year rules 1-2; T-064).** Candidates from
+- **Year candidates (codebook r13 year rules 1-2; T-064).** Candidates from
   the activity span and ``YEAR_CONTEXT_CHARS`` (200, RC-D-019 E4; pending
   wording-packet W-05 approval) characters each side, via
   :mod:`g3o.extract.years`; the classifier chooses (T-023).
@@ -77,14 +77,14 @@ import re
 import sys
 import unicodedata
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from typing import Any
 
 from g3o.codebook.loader import Codebook, load_codebook
 
-#: Codebook r12, PI-signed 2026-11-05 (planning/t010/signoff-record.md). Another file is refused.
-SIGNED_CODEBOOK_SHA256 = "93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712"
+#: Codebook r13, PI-signed 2026-11-05 (planning/t010/signoff-record.md). Another file is refused.
+SIGNED_CODEBOOK_SHA256 = "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527"
 
 PINNED_RAPIDFUZZ = "3.14.3"  # DEC-007 a; RC-D-017 1a. Change only with a re-calibration (T-003).
 MATCH_METRIC = "token_set_ratio_norm"  # RC-D-017 1a
@@ -237,7 +237,7 @@ class SupportRules:
 
 def rules_from_codebook(cb: Codebook) -> SupportRules:
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
-        raise ValueError(f"codebook sha256 {cb.sha256} is not the signed r12 release")
+        raise ValueError(f"codebook sha256 {cb.sha256} is not the signed r13 release")
     from g3o.codebook.generators import gen_jev_questions
 
     status = cb.vocabularies["support_status"]
@@ -591,20 +591,26 @@ def extract_contact_emails(content_contact: str, main_text: str, *, header_text:
 
 
 def activity_year_candidates(page_text: str, start: int, end: int, *,
-                             context_chars: int = YEAR_CONTEXT_CHARS) -> list[Any]:
-    """Year candidates (T-064) from the activity span and its context (codebook r12 year rule 1).
+                             context_chars: int = YEAR_CONTEXT_CHARS,
+                             reference_year: int | None = None) -> list[Any]:
+    """Year candidates (T-064) from the activity span and its context (codebook r13 year rule 1).
 
     Context: ``YEAR_CONTEXT_CHARS`` (200) characters each side (RC-D-019 E4), clipped to the page.
     PENDING: the width is proposed in wording-packet item W-05 and awaits that packet's approval.
-    Returns :class:`g3o.extract.years.YearCandidate` values whose offsets are page offsets.
+    ``reference_year`` sets the two-digit pivot (B1 c); omitted, it is
+    :func:`g3o.extract.years.default_reference_year` at call time. It is passed explicitly to
+    :func:`g3o.extract.years.extract_year_candidates`, so every source records the value used.
+    Returns :class:`g3o.extract.years.YearCandidate` values whose offsets are page offsets; every other
+    source field (form, rule, reference year) is kept as returned.
     """
-    from g3o.extract.years import YearCandidate, YearSource, extract_year_candidates
+    from g3o.extract.years import YearCandidate, default_reference_year, extract_year_candidates
 
     if not (0 <= start < end <= len(page_text)) or context_chars < 0:
         raise ValueError("span must lie on the page and context must be non-negative")
+    ref = default_reference_year() if reference_year is None else int(reference_year)
     lo, hi = max(0, start - context_chars), min(len(page_text), end + context_chars)
-    return [YearCandidate(c.year, tuple(YearSource(s.start + lo, s.end + lo, s.text, s.form) for s in c.sources))
-            for c in extract_year_candidates(page_text[lo:hi])]
+    return [YearCandidate(c.year, tuple(replace(s, start=s.start + lo, end=s.end + lo) for s in c.sources))
+            for c in extract_year_candidates(page_text[lo:hi], reference_year=ref)]
 
 
 __all__ = [

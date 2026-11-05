@@ -1,6 +1,6 @@
 """T-024 self-checks: support check, downgrade and deterministic extraction.
 
-Synthetic pages only; no provider call. Rules as SPEC v001.20 / codebook r12 state them
+Synthetic pages only; no provider call. Rules as SPEC v001.20 / codebook r13 state them
 (R-041, R-042, R-043, R-044, R-081; RC-D-010, RC-D-011, RC-D-014 S1, RC-D-017).
 """
 
@@ -63,7 +63,8 @@ def test_signed_codebook_and_pins():
     assert rapidfuzz.__version__ == sc.PINNED_RAPIDFUZZ
     rules = sc.default_rules()
     assert rules.bar("core.activity_type") == 0.8 and rules.entailment_bar == 0.8
-    assert rules.not_required_values == {"not_documented", "unknown", "no"}
+    assert rules.not_required_values == {"not_documented", "unknown", "no", "none_reported", "none_documented",
+                                         "none", "unclear", "unresolved", "not_an_activity"}
     assert rules.rule_values == {"not_asked", "_NA_"}
     assert rules.negative_verdicts == {"confirms_absence", "no_genai", "background_only", "event_only",
                                        "other_body"}
@@ -72,7 +73,7 @@ def test_signed_codebook_and_pins():
 def test_other_codebook_refused():
     cb = load_codebook()
     cb.sha256 = "0" * 64
-    with pytest.raises(ValueError, match="not the signed r12"):
+    with pytest.raises(ValueError, match="not the signed r13"):
         sc.rules_from_codebook(cb)
 
 
@@ -454,3 +455,28 @@ def test_year_candidates_context_default_200_pending_w05():
     assert [c.year for c in got] == [2024, 2025]
     assert all(text[s.start:s.end] == s.text for c in got for s in c.sources)
     assert [c.year for c in sc.activity_year_candidates(text, start, start + 90, context_chars=0)] == [2024]
+
+
+def test_year_candidates_reference_year_passed_through():
+    """B1 c: the two-digit pivot follows an explicit reference year; sources keep rule and reference year."""
+    from dataclasses import fields
+
+    from g3o.extract.years import YearSource, default_reference_year, extract_year_candidates
+
+    text = "Budget FY60. " + TEXT
+    start = text.index("The council")
+    got_2026 = sc.activity_year_candidates(text, start, start + 90, context_chars=30, reference_year=2026)
+    assert [c.year for c in got_2026] == [1960, 2024]  # 60 >= 26 + 25 -> 19xx
+    got_2040 = sc.activity_year_candidates(text, start, start + 90, context_chars=30, reference_year=2040)
+    assert [c.year for c in got_2040] == [2024, 2060]  # 60 < 40 + 25 -> 20xx
+    assert {s.reference_year for c in got_2040 for s in c.sources} == {2040}
+    assert all(s.rule for c in got_2040 for s in c.sources)
+    assert all(text[s.start:s.end] == s.text for c in got_2040 for s in c.sources)
+    # every field but the offsets matches a direct call on the same window
+    lo = start - 30
+    direct = extract_year_candidates(text[lo:start + 120], reference_year=2040)
+    keep = [f.name for f in fields(YearSource) if f.name not in ("start", "end")]
+    assert [[tuple(getattr(s, k) for k in keep) for s in c.sources] for c in got_2040] == \
+        [[tuple(getattr(s, k) for k in keep) for s in c.sources] for c in direct]
+    default = sc.activity_year_candidates(text, start, start + 90, context_chars=30)
+    assert {s.reference_year for c in default for s in c.sources} == {default_reference_year()}

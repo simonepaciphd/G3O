@@ -1,13 +1,13 @@
 # GENERATED FILE - do not edit. Built from codebook/codebook.yaml by
 # g3o.codebook.generators.enums.
-# codebook release: 2.7 | codebook sha256: 93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712
+# codebook release: 2.7 | codebook sha256: 07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527
 # Intended target: T-012 enum constants (g3o/common/contract.py or a module T-012 names).
 """Codebook value lists as constants; each carries its item id and item hash."""
 
 from __future__ import annotations
 
 CODEBOOK_RELEASE = '2.7'
-CODEBOOK_SHA256 = '93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712'
+CODEBOOK_SHA256 = '07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527'
 
 #: item id -> (item hash, value codes in codebook order)
 ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -57,7 +57,7 @@ ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
     'core.evaluation_type_ongoing_monitoring': ('e7866831b2329fc016fb0018765cf5e4d16e3b44f872f693a0993f6e09e6c0cf', ('yes', 'no',)),
     'core.evaluation_type_user_feedback': ('036e7caa5b9aab26435a359d33ecaa4a209693b802f4541772cf7122b3c5a65a', ('yes', 'no',)),
     'core.evaluation_type_bias_or_safety_testing': ('21268a987d8ea93b84d5bd166774219636358e77538014241ebf4aac7f679e70', ('yes', 'no',)),
-    'core.support_entailment': ('6156631ceb19770919ed6792092f3169bb7442317702b6fb1fbfe76d26a6b172', ('true', 'false',)),
+    'core.support_entailment': ('c5b4622acfca3d8d78dffb98f55c0693dc122be59dbe75e77cfaafa7b186af8b', ('true', 'false',)),
     'core.activity_relation_cross_page': ('ace0da2bc93b3c6a70f0a97873b123abea5906bba93b238f926feff086ed6e5c', ('same_activity', 'component_of_program', 'has_component', 'shared_participation', 'governs', 'governed_by', 'distinct_action', 'unresolved',)),
     'core.observed_actor_role': ('47c6b173d8d672bffc766f9603b797b24a136c418aebb5be2c4a0a0c236d93fc', ('institutional_actor', 'issuer', 'participant', 'external_speaker', 'service_provider', 'event_host',)),
     'core.support_status_second_reason': ('15278c373296fcd2164444cc29b816e0d773a02d940a21b28f78a49c701fc90d', ('downgraded_no_quote', 'downgraded_low_confidence', 'downgraded_quote_not_stating_value',)),

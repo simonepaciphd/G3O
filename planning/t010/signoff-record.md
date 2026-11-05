@@ -1,6 +1,23 @@
-# T-010 signature record: release 2.7, r12 (RC-D-015 / RC-D-017 / RC-D-018)
+# T-010 signature record: release 2.7, r13 (RC-D-019)
 
 ## Current signature authorization
+
+| | |
+|---|---|
+| sha256 | `07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527` |
+| File | `codebook/codebook.yaml` |
+| Branch, commit | `orch1106/f-r13`, `afc593e` (committed blob; CRLF, `codebook/.gitattributes` `-text`; 12,032 lines) |
+| Release | `2.7` |
+| Approver | Simone Paci |
+| Date | 2026-11-05, in chat |
+| Recorder | v2.7 orchestrator lane F (Claude Code, claude-opus-5-5), on the orchestrator's relay of the PI's reply; the plan integrator confirms it (DEC-012 a) |
+
+- **Words, verbatim:** "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527", the entire reply, given after the orchestrator wrote "If you pick (a), sign by replying with the hash". This record takes that reply as the signature and as choice (a) on the r13 questions (Q2 a: the two-digit pivot covers every two-digit year, end years included; Q1 a: `release.r4_dropped` kept as history; Q3 a: no R-042 change); it does not quote "I sign".
+- **What was put to her:** the unsigned r13 candidate above and the sentence list `agent-workspace/2026-11-06-v27-orch/lane-f-r13-sentences.md` (every changed signed sentence, old and new), after checks 1-16 (all pass except 4, this record) and the codebook, question-set, storage, fixture-set and extract tests.
+- **What r13 changes from r12:** RC-D-019 D1 b / F1 a (`none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` take `not_required`, by value on every item; the R-041 and FX09 list sentences in their four current copies), C1 a (X35 year value label: converted CE year), B2 a / B1 c (year rule 1: Japanese era, Buddhist Era and ROC years; two-digit pivot (current year mod 100) + 25), E2 a (`content_contact_emails`: no address found gives `not_documented`), r13 header. Provenance: `planning/t010/r13-provenance.json`.
+- Frozen CX items remain covered by the existing batch-signature form (RC-D-004); the list below is unchanged.
+
+## Superseded signature authorization (r12, `93d77b1b…`)
 
 | | |
 |---|---|

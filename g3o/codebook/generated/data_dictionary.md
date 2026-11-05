@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.data_dictionary. -->
-<!-- codebook release: 2.7 | codebook sha256: 93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712 -->
+<!-- codebook release: 2.7 | codebook sha256: 07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527 -->
 
 # G3O codebook data dictionary
 
-Codebook release `2.7`, sha256 `93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712`. 109 items.
+Codebook release `2.7`, sha256 `07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527`. 109 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: 53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44 -->
@@ -610,11 +610,11 @@ Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (p
 Items: `content_purpose` (what the tool is used for), `content_tool_or_model` (product or model named), `content_vendor` (supplier named), `content_data` (data inputs or data handled described), `content_users` (who uses it or who is affected), `content_status_date` (deployment status or date stated), `content_contact` = yes if either sub-item is yes: `content_contact_named` (a named person, office or unit given as responsible for the activity or for questions about it; a named official with no contact details counts) and `content_contact_details` (contact details anywhere on the page: email address, phone number, postal address or contact form, including press or vendor contacts and site footers). `content_purpose`, `content_tool_or_model`, `content_vendor`, `content_users` and `content_status_date` are derived, not asked: each is yes when any activity on the page has a value stated on the page in its matching activity field (purpose: the activity's function items; tool or model: tool or model name; vendor: model developer, stated or looked up, or contracting party; users: `target_users` or `governed_population`; status or date: `adoption_stage` or a year field), otherwise no. `content_data` is asked about any GenAI activity on the page. The five derived items and `content_data` apply only on pages whose page verdict is one of the five GenAI-bearing values; on other pages they are `no`.
 
 ## `core.content_contact_emails`
-<!-- item: core.content_contact_emails sha256: 2effc2799f78ed142a3ba7ff624be69a3ece86e461907a3a18f880ed4798233a -->
+<!-- item: core.content_contact_emails sha256: e229c2d67499a6832570cedd2b87e320234d274d524be292ae5eb6def04c7e5d -->
 
 | Field | Value |
 |---|---|
-| item hash | `2effc2799f78ed142a3ba7ff624be69a3ece86e461907a3a18f880ed4798233a` |
+| item hash | `e229c2d67499a6832570cedd2b87e320234d274d524be292ae5eb6def04c7e5d` |
 | family | `disclosure` |
 | name | `content_contact_emails` |
 | level | `page` |
@@ -647,6 +647,10 @@ When `content_contact` = yes, extract the contact with a deterministic `@` searc
 2. `items/core.content_contact_emails/rules/1`
 
 Published supporting quotes stay verbatim, with no masking. Contact e-mails are stored in full internally, and only the domain and a count are published.
+
+3. `items/core.content_contact_emails/rules/2`
+
+When `content_contact` = yes and the search finds no address, the value is `not_documented`.
 
 ## `core.content_purpose`
 <!-- item: core.content_purpose sha256: 39119986021b5530c0fac7b8f267ad8c4471d1bd7ac85b00882d6a078e42226f -->
@@ -3697,11 +3701,11 @@ A tool the page calls an "AI chatbot" or "AI assistant" counts as generative AI,
 Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.
 
 ## `core.year_announced`
-<!-- item: core.year_announced sha256: ca012150cd030742c02a036c5c3792fba7662696592fffbad97e7890b1a928d1 -->
+<!-- item: core.year_announced sha256: 18ae4c635eb3fba036a5216a023d3c7f4c0b0d03946e4c9ff845414d5ee7e6ee -->
 
 | Field | Value |
 |---|---|
-| item hash | `ca012150cd030742c02a036c5c3792fba7662696592fffbad97e7890b1a928d1` |
+| item hash | `18ae4c635eb3fba036a5216a023d3c7f4c0b0d03946e4c9ff845414d5ee7e6ee` |
 | family | `dates` |
 | name | `year_announced` |
 | level | `activity` |
@@ -3739,7 +3743,7 @@ year it was first announced
 
 1. `items/core.year_announced/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there and the years written in the Japanese era (with the era name), the Buddhist Era (with its marker) or the ROC calendar (民國), converted to CE; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. A two-digit year is read as 20xx, except that those from (current year mod 100) + 25 through 99 are read as 19xx. No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_announced/rules/1`
 
@@ -3750,11 +3754,11 @@ Pilot and production years use the same candidate-then-classifier method. Fiscal
 not_documented: the page is silent.
 
 ## `core.year_pilot_start`
-<!-- item: core.year_pilot_start sha256: 2099c0b8d0db8d4bfc0d408e4e9668d9bf7ff5b9284c567f2b8134b8ceb3f7bd -->
+<!-- item: core.year_pilot_start sha256: aa7f390fc73ea6d7539f44677f4d0e88ce6fe439deddf70947b1bafc5720707f -->
 
 | Field | Value |
 |---|---|
-| item hash | `2099c0b8d0db8d4bfc0d408e4e9668d9bf7ff5b9284c567f2b8134b8ceb3f7bd` |
+| item hash | `aa7f390fc73ea6d7539f44677f4d0e88ce6fe439deddf70947b1bafc5720707f` |
 | family | `dates` |
 | name | `year_pilot_start` |
 | level | `activity` |
@@ -3792,7 +3796,7 @@ year its pilot or trial began
 
 1. `items/core.year_pilot_start/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there and the years written in the Japanese era (with the era name), the Buddhist Era (with its marker) or the ROC calendar (民國), converted to CE; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. A two-digit year is read as 20xx, except that those from (current year mod 100) + 25 through 99 are read as 19xx. No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_pilot_start/rules/1`
 
@@ -3807,11 +3811,11 @@ Two columns, each stated-only.
 not_documented: the page is silent.
 
 ## `core.year_production_start`
-<!-- item: core.year_production_start sha256: 7faf3d95f3b70426afdcedd33795badaf462055eeaa4ba74d9a381ffb24ea2f5 -->
+<!-- item: core.year_production_start sha256: cf8da9ff7b94d785f5ad1ca8477d4542784013e4c56844fbbbe4e38824f6cc2f -->
 
 | Field | Value |
 |---|---|
-| item hash | `7faf3d95f3b70426afdcedd33795badaf462055eeaa4ba74d9a381ffb24ea2f5` |
+| item hash | `cf8da9ff7b94d785f5ad1ca8477d4542784013e4c56844fbbbe4e38824f6cc2f` |
 | family | `dates` |
 | name | `year_production_start` |
 | level | `activity` |
@@ -3849,7 +3853,7 @@ year it went into full operation
 
 1. `items/core.year_production_start/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there and the years written in the Japanese era (with the era name), the Buddhist Era (with its marker) or the ROC calendar (民國), converted to CE; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. A two-digit year is read as 20xx, except that those from (current year mod 100) + 25 through 99 are read as 19xx. No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_production_start/rules/1`
 
@@ -5181,11 +5185,11 @@ Retire flags that just mirror a column; keep 'identity unresolved' and 'stage am
 AI-text flags fold into the main list, the language-barrier flag is dropped everywhere, and language coverage is carried by the multilingual subproject's item.
 
 ## `core.support_entailment`
-<!-- item: core.support_entailment sha256: 6156631ceb19770919ed6792092f3169bb7442317702b6fb1fbfe76d26a6b172 -->
+<!-- item: core.support_entailment sha256: c5b4622acfca3d8d78dffb98f55c0693dc122be59dbe75e77cfaafa7b186af8b -->
 
 | Field | Value |
 |---|---|
-| item hash | `6156631ceb19770919ed6792092f3169bb7442317702b6fb1fbfe76d26a6b172` |
+| item hash | `c5b4622acfca3d8d78dffb98f55c0693dc122be59dbe75e77cfaafa7b186af8b` |
 | family | `support` |
 | name | `support_entailment` |
 | level | `row` |
@@ -5219,7 +5223,7 @@ Does this text state or clearly show that the <field label> of the page is "<val
 
 ### Label rules
 
-The field label is the checked item's `entailment_label` and the value label its value's `entailment_label` (for the role part of `observed_actor_relationship`, `values.part_entailment_labels` and the role values' labels). For the three year items the value label is the year as written, for example "2024". Items coded per page or per source (`content_contact_details`, `content_contact_named`, `content_data`, `disclosure_form`, `disclosure_scope`, `page_complete`, `page_verdict`, `source_type`) use the page form `instruction_page`; every other item uses the activity form, naming the activity (for a two-record relation, the first record's activity).
+The field label is the checked item's `entailment_label` and the value label its value's `entailment_label` (for the role part of `observed_actor_relationship`, `values.part_entailment_labels` and the role values' labels). For the three year items the value label is the calendar (CE) year in four ASCII digits after conversion, for example "2024" for "FY24". Items coded per page or per source (`content_contact_details`, `content_contact_named`, `content_data`, `disclosure_form`, `disclosure_scope`, `page_complete`, `page_verdict`, `source_type`) use the page form `instruction_page`; every other item uses the activity form, naming the activity (for a two-record relation, the first record's activity).
 
 ### Values
 
@@ -5238,11 +5242,11 @@ The quoted text does not state or clearly show that the field has the given valu
 State = quote (plus a short window); question: 'Does this text state or clearly show that the <field label> of the activity "<activity name>" is "<value label>"?' true/false; false or confidence < threshold -> downgrade `no_support`.
 
 ## `core.support_status`
-<!-- item: core.support_status sha256: 0e544e6520cdfc980b214e82ff69ed6e43ef344b9bbb50096122c39d77df6e28 -->
+<!-- item: core.support_status sha256: 924b5b6df5f13ea2157170229426c40bc4776b48f93c0769a06cac33c29ab4d2 -->
 
 | Field | Value |
 |---|---|
-| item hash | `0e544e6520cdfc980b214e82ff69ed6e43ef344b9bbb50096122c39d77df6e28` |
+| item hash | `924b5b6df5f13ea2157170229426c40bc4776b48f93c0769a06cac33c29ab4d2` |
 | family | `support` |
 | name | `support_status` |
 | level | `row` |
@@ -5270,11 +5274,11 @@ State = quote (plus a short window); question: 'Does this text state or clearly 
 
 1. `items/core.support_status/rules/0`
 
-Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including "not asked" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no` and negative page verdicts.
+Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including "not asked" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.
 
 2. `items/core.support_status/rules/1`
 
-`not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no` and negative page verdicts.
+`not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.
 
 3. `items/core.support_status/rules/2`
 

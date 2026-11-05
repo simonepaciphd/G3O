@@ -35,9 +35,9 @@ from g3o.codebook.loader import REPO_ROOT, Codebook, load_codebook
 #: Version stamp for the three sets (pinned in goldens and stored with answers).
 JEV_QUESTION_SET_VERSION = "g3o.classify.questions.v27.jev.1"
 
-#: Codebook r12, PI-signed 2026-11-05 (planning/t010/signoff-record.md holds this sha256).
+#: Codebook r13 (RC-D-019), PI-signed 2026-11-05 (planning/t010/signoff-record.md holds this sha256).
 #: A different codebook is refused.
-SIGNED_CODEBOOK_SHA256 = "93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712"
+SIGNED_CODEBOOK_SHA256 = "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527"
 
 SET_DIR = Path(__file__).resolve().parent
 SET_FILES = {"page": "page.json", "activity": "activity.json", "institution": "institution.json"}
@@ -108,8 +108,8 @@ DYNAMIC_YEAR_CHOICES = {
     "approval": PENDING,
     # W-05 (wording packet, pending approval; RC-D-018 "2 a"): pointers to the signed rules and to the
     # T-064 module that implements them; the forms themselves are not enumerated here.
-    "candidates": "candidate years under codebook r12 rule 1, from the activity span and its context",
-    "calendar_conversion": "candidate years by written form under codebook r12 rule 2, conversion table T-064",
+    "candidates": "candidate years under codebook r13 rule 1, from the activity span and its context",
+    "calendar_conversion": "candidate years by written form under codebook r13 rule 2, conversion table T-064",
     "candidate_source": "g3o.extract.years.extract_year_candidates (T-064), one candidate per distinct year",
     "range_end_bound": "the ends of a year range, a two-year fiscal label or a marked Buddhist Era range "
                        "count outside 2015-2030 only within 1900-2099 (RC-D-018 D1; not in the signed rule 1 text)",
@@ -146,7 +146,7 @@ POOLED_STATE = {
 # --------------------------------------------------------------------------- build
 def _require_signed(cb: Codebook) -> None:
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
-        raise ValueError(f"codebook sha256 {cb.sha256} is not the pinned r12 {SIGNED_CODEBOOK_SHA256}")
+        raise ValueError(f"codebook sha256 {cb.sha256} is not the pinned r13 {SIGNED_CODEBOOK_SHA256}")
 
 
 def _contract_section(q: dict[str, Any]) -> str:
@@ -288,7 +288,7 @@ def check_sets(cb: Codebook | None = None, set_dir: Path = SET_DIR) -> list[str]
     cb = cb or load_codebook()
     errors: list[str] = []
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
-        return [f"codebook sha256 {cb.sha256} is not the pinned r12"]
+        return [f"codebook sha256 {cb.sha256} is not the pinned r13"]
     gen = json.loads(gen_jev_questions(cb).content)
     signed = {q["question_id"]: q for q in gen["questions"]}
 

@@ -1,0 +1,96 @@
+{
+  "r12_sha256": "93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712",
+  "r12_signature_record": "planning/t010/signoff-record.md",
+  "basis": "RC-D-019: PI 2026-11-05 chat \"Aa,D1b add all of them, I approve the delta D2c C1a C2b; proced all accept\" and \"F1a, B1c (but current-year+25-99), B2a; [recedural ok; E1c E2a E3 you rule, I accept default, E4 you rule I ccept default;\"",
+  "wording_source": "agent-workspace/2026-11-06-v27-orch/lane-f-r13-sentences.md (r13 agent drafts; approved only by the hash signature)",
+  "text_changes": [
+    {
+      "id": "D1-R041 vocabularies.support_status.text",
+      "r12_lines": [
+        237
+      ],
+      "copies": 1,
+      "before": "Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including \"not asked\" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no` and negative page verdicts.",
+      "after": "Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including \"not asked\" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.",
+      "origin_before": "PI 2026-10-30 \"approved!\"; fixes-r4 FX13",
+      "origin_after": "PI 2026-11-05 chat \"D1b add all of them\" and \"F1a\" (RC-D-019 D1 b, F1 a; list wording accepted as procedural); r13"
+    },
+    {
+      "id": "D1-R041 items.core.support_status.rules/0",
+      "r12_lines": [
+        10111
+      ],
+      "copies": 1,
+      "before": "Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including \"not asked\" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no` and negative page verdicts.",
+      "after": "Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including \"not asked\" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.",
+      "origin_before": "PI 2026-10-30 \"approved!\"; fixes-r4 FX13",
+      "origin_after": "PI 2026-11-05 chat \"D1b add all of them\" and \"F1a\" (RC-D-019 D1 b, F1 a; list wording accepted as procedural); r13"
+    },
+    {
+      "id": "D1-FX09 (vocabularies.support_status.rules; items.core.support_status.rules/1)",
+      "r12_lines": [
+        258,
+        10120
+      ],
+      "copies": 2,
+      "before": "`not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no` and negative page verdicts.",
+      "after": "`not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.",
+      "origin_before": "PI 2026-10-30 \"approved!\"; fixes-r4 FX09",
+      "origin_after": "PI 2026-11-05 chat \"D1b add all of them\" and \"F1a\" (RC-D-019 D1 b, F1 a; list wording accepted as procedural); r13"
+    },
+    {
+      "id": "B2a/B1c year rule 1 (year_announced, year_pilot_start, year_production_start rules/0)",
+      "r12_lines": [
+        7293,
+        7415,
+        7555
+      ],
+      "copies": 3,
+      "before": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.",
+      "after": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there and the years written in the Japanese era (with the era name), the Buddhist Era (with its marker) or the ROC calendar (民國), converted to CE; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. A two-digit year is read as 20xx, except that those from (current year mod 100) + 25 through 99 are read as 19xx. No fallback to publication year. Across chunks: earliest chosen year.",
+      "origin_before": "PI 2026-11-05 chat \"yes\"; W-R12-2b (supersedes W-R12-2, PI 2026-11-04 \"4 yes\", RC-D-017)",
+      "origin_after": "PI 2026-11-05 chat \"B1c (but current-year+25-99), B2a\" (RC-D-019 B1 c as amended, B2 a); r13 agent draft"
+    },
+    {
+      "id": "C1a items.core.support_entailment.label_rules",
+      "r12_lines": [
+        10089
+      ],
+      "copies": 1,
+      "before": "The field label is the checked item's `entailment_label` and the value label its value's `entailment_label` (for the role part of `observed_actor_relationship`, `values.part_entailment_labels` and the role values' labels). For the three year items the value label is the year as written, for example \"2024\". Items coded per page or per source (`content_contact_details`, `content_contact_named`, `content_data`, `disclosure_form`, `disclosure_scope`, `page_complete`, `page_verdict`, `source_type`) use the page form `instruction_page`; every other item uses the activity form, naming the activity (for a two-record relation, the first record's activity).",
+      "after": "The field label is the checked item's `entailment_label` and the value label its value's `entailment_label` (for the role part of `observed_actor_relationship`, `values.part_entailment_labels` and the role values' labels). For the three year items the value label is the calendar (CE) year in four ASCII digits after conversion, for example \"2024\" for \"FY24\". Items coded per page or per source (`content_contact_details`, `content_contact_named`, `content_data`, `disclosure_form`, `disclosure_scope`, `page_complete`, `page_verdict`, `source_type`) use the page form `instruction_page`; every other item uses the activity form, naming the activity (for a two-record relation, the first record's activity).",
+      "origin_before": "PI 2026-10-31 \"c7 a\"; RC-D-007 draft",
+      "origin_after": "PI 2026-11-05 chat \"C1a\" (RC-D-019 C1 a); r13 agent draft"
+    }
+  ],
+  "status_by_answer_keys_added": [
+    "none_reported",
+    "none_documented",
+    "none",
+    "unclear",
+    "unresolved",
+    "not_an_activity"
+  ],
+  "status_by_answer_scope": "global by value (F1 a): `unresolved` is also exempt on core.observed_actor_relationship and core.activity_relation_cross_page",
+  "new_rule": {
+    "slot": "items/core.content_contact_emails/rules/2",
+    "r12_insert_after_line": 1860,
+    "text": "When `content_contact` = yes and the search finds no address, the value is `not_documented`.",
+    "origin": "PI 2026-11-05 chat \"E2a\" (RC-D-019 E2 a); r13 agent draft"
+  },
+  "not_changed": {
+    "release.r4_dropped (r12 lines 63, 70)": "records of the slots dropped in r4 (FX08), with the text they had then; not current slots, kept as history",
+    "text_before_r4 / omitted_by copies (r12 lines 242, 264, 10116, 10126)": "history fields",
+    "items/core.supporting_text/rules/1 (R-042 fuzzy match)": "verbatim copy of SPEC R-042; integrator decision (E1 c)",
+    "items/core.support_entailment/rules/0 (\"plus a short window\")": "does not size the window; E3 needs no change"
+  },
+  "header_comment": {
+    "before": "# G3O codebook release 2.7, revision r12 — UNSIGNED candidate (RC-D-015 / RC-D-017), sign-off build (T-010). Byte edits to the signed r11 file, recorded in planning/t010/r12-provenance.json.",
+    "after": "# G3O codebook release 2.7, revision r13 — UNSIGNED candidate (RC-D-019), sign-off build (T-010). Byte edits to the signed r12 file, recorded in planning/t010/r13-provenance.json."
+  },
+  "folds_r13": "r13: |-\r\n      RC-D-019 (PI 2026-11-05 chat \"Aa,D1b add all of them, I approve the delta D2c C1a C2b; proced all accept\" and \"F1a, B1c (but current-year+25-99), B2a; [recedural ok; E1c E2a ...\"): D1 b / F1 a six answer values take `not_required` (status_by_answer keys and the four current copies of the list); C1 a year value label (label_rules); B2 a / B1 c rule 1 of the three year items; E2 a new rule of content_contact_emails; provenance planning/t010/r13-provenance.json",
+  "provenance_fields": "each changed slot: origin replaced; origin_before_r13 and text_before_r13 added just after origin; the new rule carries origin, source and role",
+  "line_endings": "CRLF, preserved from r12 (codebook/.gitattributes: codebook.yaml -text)",
+  "status": "UNSIGNED candidate; signed only when planning/t010/signoff-record.md holds this sha256",
+  "r13_sha256_candidate": "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527"
+}
