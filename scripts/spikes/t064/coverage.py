@@ -3,9 +3,9 @@
 Runs `g3o.extract.years` over every stored page text of RS-008 and RS-009 (located exactly as the F4 readability
 spike does: RS-008 from --rs008-dir / G3O_RS008_DIR, RS-009 under the Drive root from --drive / G3O_DRIVE_ROOT)
 and reports:
-  - per fiscal form (fiscal_one, fiscal_two, fiscal_range): labels found, pages, unique texts, and how often a
+  - per fiscal label kind (fiscal_one, fiscal_two; English and table A markers): labels found, pages, unique texts, and how often a
     label contributes a year the plain literal rule finds nowhere on that page;
-  - unmarked year ranges (no fiscal marker; module form range_lower, lower year only): counted by shape;
+  - unmarked year ranges (no fiscal marker; module forms range_lower/range_upper, both four-digit ends, PI 2026-11-05): counted by shape;
   - years written in other calendars or non-ASCII digits, and non-English fiscal markers: counted, not converted
     (RC-D-017 9a "fiscal-year labels only"; the counting patterns here are heuristics for sizing, not rules).
 Counts run over unique texts (sha256 of `text`); page totals include duplicates. Examples (10 per form, unique
@@ -44,7 +44,7 @@ REL_OUT = "agent-workspace/2026-10-27-reclass-plan/spikes"
 SOURCES = ("RS-008", "RS-009")
 N_EXAMPLES = 10
 CTX = 60
-FISCAL_KINDS = Y.FISCAL_KINDS
+FISCAL_KINDS = (Y.FISCAL_ONE, Y.FISCAL_TWO)
 
 
 def _digits(s: str) -> int | None:
@@ -94,14 +94,14 @@ def snippet(text: str, start: int, end: int) -> str:
 
 def analyse(text: str) -> dict:
     """Per-text tallies plus the fiscal labels (for the CSV)."""
-    literal = {int(m.group(1)) for m in Y._LITERAL.finditer(text) if Y.in_range(int(m.group(1)))}
+    literal = {int(m.group(1)) for m in Y._LITERAL.finditer(Y.normalize_digits(text)) if Y.in_range(int(m.group(1)))}
     labels = Y.fiscal_labels(text)
     res: dict = {"labels": [], "kind": Counter(), "adds": Counter(), "adds_any": False, "other": Counter(),
                  "non_en": Counter(), "unmarked": Counter(), "letter_adj": 0, "examples": defaultdict(list)}
     spans = [(f.start, f.end) for f in labels]
     for f in labels:
-        kept = [y for y in f.candidate_years if Y.in_range(y)]
-        dropped = [y for y in f.candidate_years if not Y.in_range(y)]
+        kept = sorted({y for y, _ in f.sources()})
+        dropped = [y for y in f.years if y not in kept]
         new = [y for y in kept if y not in literal]
         res["kind"][f.kind] += 1
         if not kept:
@@ -270,13 +270,13 @@ def render(counts: dict, examples: dict, unmarked_examples: dict) -> str:
         row(f"`{k}` labels with every candidate year outside 2015-2030 (dropped)", U, "labels_" + k + "_all_out_of_range")
     row("texts where a fiscal label adds a year not found by the literal rule", U, "texts_with_added_year")
     row("pages where a fiscal label adds a year (incl. duplicates)", P, "pages_with_added_year")
-    L += ["", "## Unmarked year ranges (no fiscal marker; module gives the lower year only, PI 6 a / 1b)", "",
+    L += ["", "## Unmarked year ranges (no fiscal marker; module gives both four-digit ends, window lifted, PI 2026-11-05)", "",
           "| form | " + " | ".join(cols) + " |", "|---|" + "---|" * len(cols)]
     for k in ("consecutive_two_digit", "consecutive_four_digit", "nonconsecutive_two_digit", "nonconsecutive_four_digit"):
         row(f"`{k}` occurrences", U, "unmarked_" + k)
         row(f"texts with `{k}`", U, "texts_unmarked_" + k)
     L += ["", "Counting shape for sizing: first year 2014-2030; second year after the first and at most 15 years later "
-          "(the module itself has no span limit). Under PI 1b the written upper four-digit year is dropped.", ""]
+          "(the module itself uses a 1900-2099 guard, no span limit). An unmarked two-digit end is not a range end.", ""]
     for k, v in sorted(unmarked_examples.items()):
         if k.startswith("unmarked_"):
             L.append(f"- `{k}`: " + " / ".join(f"`{s}`" for s in v))
