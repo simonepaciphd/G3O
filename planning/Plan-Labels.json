@@ -6,9 +6,9 @@
   },
   "date": "2026-11-05",
   "sources": {
-    "SPEC.md": "98eeb3eeed684b28beabb26626865f1c1a69ac3d003dc9b4c72771e5f1704517",
+    "SPEC.md": "6b2a521e6d1034da9aaa053bb342c877079211a5369fa1cea0c4842322d7427c",
     "RESOURCES.md": "6edc4da670229dd0cedbeb6cb8809ca7430f9791ddc0633492395d6c4720abbe",
-    "PLAN.md": "accb6fdcf12a3c6c1c2669cc216f483f5c569ceefeeb92133b7ba534c0c43027"
+    "PLAN.md": "b0c7c4bed079d5dc84668cae2b69bf216b3da6289657c12eeda6961f0db6d9d0"
   },
   "labels": {
     "T-001": {
@@ -73,7 +73,7 @@
     },
     "T-024": {
       "label": "Check support and confidence",
-      "plain": "Check quotes against their source text with the 80% word-presence rule and the calibrated cutoffs, and test whether they support the coded value. Apply the approved confidence and downgrade rules between coding rounds."
+      "plain": "Check each quote against its source text: it passes if the calibrated matcher or the 80% word-presence rule accepts it, then test whether it supports the coded value. Apply the approved confidence and downgrade rules between coding rounds."
     },
     "T-025": {
       "label": "Follow missing evidence links",
@@ -161,7 +161,7 @@
     },
     "T-064": {
       "label": "Convert calendar and fiscal years",
-      "plain": "Turn fiscal-year labels, other calendars (Japanese era, Buddhist Era, ROC) and year ranges into candidate calendar years for the year items. The code is merged; a coverage count on stored pages remains."
+      "plain": "Turn fiscal-year labels, other calendars (Japanese era, Buddhist Era, ROC) and year ranges into candidate calendar years for the year items, with two-digit years read by a sliding pivot. The code is merged; the coverage note remains."
     },
     "T-065": {
       "label": "Route PDF and Word files",
