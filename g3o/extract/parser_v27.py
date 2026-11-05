@@ -17,8 +17,9 @@ Rules applied:
   names a link id, the address is taken from the page's stored links.
 - **Spans are full-page character offsets** (DP-008, PI P5 a), found by
   locating the extractor's verbatim start and end anchors in the page text.
-  An anchor that cannot be found leaves the span unresolved; no offset is
-  guessed.
+  An anchor that cannot be found, or is empty or whitespace only, leaves the
+  span unresolved; no offset is guessed. An anchor or id of the wrong JSON
+  type is a contract error, never a ``TypeError``.
 - **Quote length** (PI 2026-11-04, display cap 200, also stated in the prompt):
   a quote, link passage or supporting text longer than ``QUOTE_MAX_CHARS`` is
   kept whole and flagged ``quote_over_cap``; code never truncates it.
@@ -138,6 +139,20 @@ def _text_or_none(v: Any) -> str | None:
     return v if v.strip() else None
 
 
+def _id_or_none(v: Any, where: str) -> str | None:
+    """An id field (task, part, link, field name): a string or null, else a contract error
+    (an unhashable value would otherwise raise ``TypeError`` on lookup)."""
+    if v is None or isinstance(v, str):
+        return v
+    raise ExtractContractError(f"{where} must be a string or null")
+
+
+def _anchor(v: Any) -> str:
+    if not isinstance(v, str):
+        raise ExtractContractError("span anchors must be strings")
+    return v
+
+
 OVER_CAP_FLAG = "quote_over_cap"
 
 
@@ -187,11 +202,13 @@ def resolve_span(page: Pass1Page, chunk_id: str, start_text: str, end_text: str
                  ) -> tuple[int | None, int | None, str]:
     """Full-page offsets for a span whose start anchor lies in ``chunk_id``."""
     chunk = page.chunk(chunk_id)
-    s = _find(page.text, start_text, chunk.start, chunk.end)
+    # An empty or whitespace anchor names no place on the page: unresolved, never offset 0
+    # or the first space (lane B F3).
+    s = _find(page.text, start_text, chunk.start, chunk.end) if start_text.strip() else None
     if s is None:
         return None, None, "unresolved_start"
-    e = _find(page.text, end_text, s[0])
-    if e is None:
+    e = _find(page.text, end_text, s[0]) if end_text.strip() else None
+    if e is None or e[1] <= s[0]:
         return None, None, "unresolved_end"
     return s[0], e[1], "resolved"
 
@@ -213,7 +230,8 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
     got: dict[str, QuoteSupport] = {}
     for raw in payload["quotes"] or []:
         _check_keys(raw, _QUOTE_KEYS, "quote")
-        task = tasks.get(raw["task_id"])
+        _id_or_none(raw["part_id"], "quote part_id")
+        task = tasks.get(_id_or_none(raw["task_id"], "quote task_id"))
         if task is None:
             rejected.append(Rejected("quote", "unknown_task", raw))
             continue
@@ -242,6 +260,8 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
     seen_links: set[str] = set()
     for raw in payload["links"] or []:
         _check_keys(raw, _LINK_KEYS, "link")
+        _id_or_none(raw["link_id"], "link_id")
+        _id_or_none(raw["part_id"], "link part_id")
         if not plan.link_task:
             rejected.append(Rejected("link", "not_requested", raw))
             continue
@@ -264,6 +284,9 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
     activities: list[ActivitySpan] = []
     for raw in payload["activities"] or []:
         _check_keys(raw, _ACTIVITY_KEYS, "activity")
+        _id_or_none(raw["part_id"], "activity part_id")
+        _anchor(raw["start_text"])
+        _anchor(raw["end_text"])
         if not plan.activity_task:
             rejected.append(Rejected("activity", "not_requested", raw))
             continue
@@ -275,7 +298,8 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
         seen_fields: set[str] = set()
         for fraw in raw["fields"] or []:
             _check_keys(fraw, _FIELD_KEYS, "field")
-            item_id = wanted.get(fraw["field"])
+            _id_or_none(fraw["part_id"], "field part_id")
+            item_id = wanted.get(_id_or_none(fraw["field"], "field name"))
             value = _text_or_none(fraw["value"])
             support = _text_or_none(fraw["supporting_text"])
             if item_id is None:
@@ -302,6 +326,7 @@ def parse_pass1_result(result: ExtractorResult, page: Pass1Page, plan: RequestPl
     draw = payload["publication_date"]
     if draw is not None:
         _check_keys(draw, _DATE_KEYS, "publication_date")
+        _id_or_none(draw["part_id"], "publication_date part_id")
         value, support = _text_or_none(draw["value"]), _text_or_none(draw["supporting_text"])
         if not plan.date_task:
             rejected.append(Rejected("publication_date", "not_requested", draw))

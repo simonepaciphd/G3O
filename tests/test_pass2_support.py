@@ -158,18 +158,35 @@ def test_page_with_nothing_to_support_needs_no_request():
     assert jobs == [] and not plans["P1"].needs_request
 
 
-def test_unknown_item_value_or_span_fails_closed():
-    with pytest.raises(ValueError, match="not a pass-2 item"):
-        select_requests(two_activity_page(extra1=(ActivityCode("core.page_verdict", "P1#p001",
-                                                               "confirms_activity"),)))
-    with pytest.raises(ValueError, match="not in the codebook"):
-        select_requests(two_activity_page(extra1=(ActivityCode("core.activity_type", "P1#p001",
-                                                               "chatbot"),)))
-    with pytest.raises(ValueError, match="not on the page"):
-        Pass2Page(base_page(), (Pass2Activity("a", 5, 10_000, ()),))
-    with pytest.raises(ValueError, match="unknown part"):
-        Pass2Page(base_page(), (Pass2Activity("a", 0, 5, (ActivityCode(
-            "core.activity_type", "P1#p009", "pilot_experiment"),)),))
+def test_unknown_item_value_or_part_is_skipped_and_recorded():
+    # Lane B F6: a bad code is left out with its reason; the other codes keep their tasks.
+    plan = select_requests(two_activity_page(extra1=(
+        ActivityCode("core.page_verdict", "P1#p001", "confirms_activity"),
+        ActivityCode("core.activity_type", "P1#p001", "chatbot"),
+        ActivityCode("core.activity_type", "P1#p009", "pilot_experiment"),
+    )))
+    assert [(c.activity_id, c.item_id, c.value, c.reason) for c in plan.skipped_codes] == [
+        ("P1#a001", "core.page_verdict", "confirms_activity", "not_a_support_item"),
+        ("P1#a001", "core.activity_type", "chatbot", "value_not_in_codebook"),
+        ("P1#a001", "core.activity_type", "pilot_experiment", "unknown_part"),
+    ]
+    assert plan.quote_tasks == select_requests(two_activity_page()).quote_tasks
+
+
+@pytest.mark.parametrize("span", [(5, 10_000), (7, 7), (9, 3), (None, None), (-1, 4)])
+def test_activity_with_unusable_span_is_left_out_not_the_page(span):
+    # Lane B F3: a zero-length, reversed, unresolved or off-page span no longer stops the page.
+    page = Pass2Page(base_page(), (
+        Pass2Activity("bad", *span, codes=(ActivityCode("core.activity_type", "P1#p001",
+                                                        "public_facing_service"),)),
+        Pass2Activity("P1#a001", *A1, codes=(ActivityCode("core.adoption_stage", "P1#p001",
+                                                          "production"),)),
+    ))
+    plan = select_requests(page)
+    assert plan.skipped_activities == ("bad",) and plan.labels == {"P1#a001": "A1"}
+    assert [(t.label, t.item_id) for t in plan.quote_tasks] == [("A1", "core.adoption_stage")]
+    user = build_user_message(page, plan)
+    assert "ACTIVITIES: A1\n" in user and user.count("[[A1]]") == 1 and "[[A2]]" not in user
 
 
 # ---------------------------------------------------------------------------
@@ -273,6 +290,55 @@ def test_marks_removed_from_quotes_and_flagged():
     q1, q2 = out.quotes[:2]
     assert q1.quote == "The council launched the CivicBot" and p2.MARKS_REMOVED_FLAG in q1.flags
     assert (q2.quote, q2.status) == (None, "empty")
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("[A1] The council launched", "The council launched"),
+    ("[[ A1 ]]The council", "The council"),
+    ("The council launched[[/A1", "The council launched"),
+    ("[/A1]The council", "The council"),
+    ("[[A2]The council", "The council"),
+])
+def test_near_variant_marks_removed_and_flagged(raw, expected):
+    # Lane B F5: variants of the marks are removed (was: kept, no flag).
+    page = two_activity_page()
+    plan = select_requests(page)
+    out = parse_pass2_result(ok({"quotes": [{"task_id": "q001", "part_id": "P1#p001",
+                                             "quote": raw}], "fields": []}), page, plan)
+    assert out.quotes[0].quote == expected and p2.MARKS_REMOVED_FLAG in out.quotes[0].flags
+
+
+def test_ordinary_bracketed_page_text_is_kept():
+    text = "Annex [A1] lists the tools. See [1] and [A7]. The council launched CivicBot [A2] in 2024."
+    page = Pass2Page(base_page(text=text), (
+        Pass2Activity("P1#a001", 0, 30, (ActivityCode("core.activity_type", "P1#p001",
+                                                      "public_facing_service"),)),
+        Pass2Activity("P1#a002", 40, len(text), (ActivityCode("core.adoption_stage", "P1#p001",
+                                                              "production"),)),
+    ))
+    plan = select_requests(page)
+    for raw in ("Annex [A1] lists the tools", "See [1] and [A7].", "launched CivicBot [A2] in 2024"):
+        out = parse_pass2_result(ok({"quotes": [{"task_id": "q001", "part_id": "P1#p001",
+                                                 "quote": raw}], "fields": []}), page, plan)
+        assert out.quotes[0].quote == raw and p2.MARKS_REMOVED_FLAG not in out.quotes[0].flags
+    # A label this request did not mark ([A7] here is not on the page) is not a mark either.
+    out = parse_pass2_result(ok({"quotes": [{"task_id": "q001", "part_id": "P1#p001",
+                                             "quote": "the tools [A9]"}], "fields": []}), page, plan)
+    assert out.quotes[0].quote == "the tools [A9]" and not out.quotes[0].flags
+
+
+def test_unhashable_or_non_string_ids_are_contract_errors():
+    # Lane B F3: a list task id raised TypeError before.
+    page = two_activity_page()
+    plan = select_requests(page)
+    for payload in (
+        {"quotes": [{"task_id": ["q001"], "part_id": "P1#p001", "quote": "x"}], "fields": []},
+        {"quotes": [{"task_id": "q001", "part_id": ["P1#p001"], "quote": "x"}], "fields": []},
+        {"quotes": [], "fields": [{"task_id": {"f": 1}, "value": "x", "part_id": "P1#p001",
+                                   "supporting_text": "x"}]},
+    ):
+        with pytest.raises(ExtractContractError):
+            parse_pass2_result(ok(payload), page, plan)
 
 
 def test_over_cap_quote_kept_whole_and_flagged():
@@ -467,3 +533,92 @@ def test_override_does_not_edit_the_codebook_and_unknown_override_fails():
     assert plain.overridden == frozenset()
     with pytest.raises(ValueError, match="not pass-2 quote items"):
         p2.rules_from_codebook(cb, overrides={"core.page_verdict": "x"})
+
+
+# ---------------------------------------------------------------------------
+# Lane B F1: parts and year items
+# ---------------------------------------------------------------------------
+
+OAR = "core.observed_actor_relationship"
+
+
+def _activity_questions() -> dict[str, dict]:
+    from pathlib import Path
+
+    import g3o.classify.questions.v27 as qv27
+
+    doc = json.loads((Path(qv27.__file__).parent / "activity.json").read_text(encoding="utf-8"))
+    return {q["question_id"]: q for q in doc["questions"]}
+
+
+def test_parts_item_task_shows_the_signed_part_question_as_t011_asks_it():
+    rules = p2.default_rules()
+    cb = load_codebook()
+    t011 = _activity_questions()
+    assert rules.parts[OAR] == ("relationship", "searched_institution_role")
+    for (item, part), question in rules.part_questions.items():
+        qid = item if part == rules.parts[item][0] else f"{item}#{part}"
+        assert t011[qid]["instructions"] == question and t011[qid].get("part") == part
+    assert rules.part_questions[(OAR, "searched_institution_role")] == \
+        cb.part_instruction(OAR, 1).text
+    page = Pass2Page(base_page(), (Pass2Activity("P1#a001", *A1, codes=(
+        ActivityCode(OAR, "P1#p001", "joint_participant", part="relationship"),
+        ActivityCode(OAR, "P1#p001", "joint", part="searched_institution_role"),
+    )),))
+    plan = select_requests(page)
+    (rel, role) = plan.quote_tasks
+    assert (rel.part, rel.answer, rel.question) == (
+        "relationship", "joint_participant", cb.instruction(OAR).text)
+    assert (role.part, role.answer, role.question) == (
+        "searched_institution_role", "joint", cb.part_instruction(OAR, 1).text)
+    user = build_user_message(page, plan)
+    questions = json.loads(user.split("QUESTIONS:\n", 1)[1].split("\n\nTASKS:", 1)[0])
+    assert questions == {"observed_actor_relationship": rel.question,
+                         "observed_actor_relationship#searched_institution_role": role.question}
+    tasks = json.loads(user.split("TASKS:\n", 1)[1])["quote_tasks"]
+    assert [t["question"] for t in tasks] == ["observed_actor_relationship",
+                                              "observed_actor_relationship#searched_institution_role"]
+    # The X35 check judges the same (item, part, value) the quote was asked for.
+    from g3o.common.support_check import entailment_question
+    for t in plan.quote_tasks:
+        entailment_question(t.item_id, t.answer, part=t.part, activity_name="CivicBot")
+    out = parse_pass2_result(ok({"quotes": [
+        {"task_id": "q002", "part_id": "P1#p001", "quote": "The council launched"}],
+        "fields": []}), page, plan)
+    assert [q.part for q in out.quotes] == ["relationship", "searched_institution_role"]
+
+
+def test_parts_item_values_are_checked_per_part():
+    page = Pass2Page(base_page(), (Pass2Activity("P1#a001", *A1, codes=(
+        ActivityCode(OAR, "P1#p001", "nonsense_value", part="searched_institution_role"),
+        ActivityCode(OAR, "P1#p001", "joint", part="relationship"),       # a role value
+        ActivityCode(OAR, "P1#p001", "joint"),                            # part not named
+        ActivityCode(OAR, "P1#p001", "joint", part="role"),               # no such part
+        ActivityCode("core.activity_type", "P1#p001", "public_facing_service", part="x"),
+        ActivityCode(OAR, "P1#p001", "not_documented", part="searched_institution_role"),
+        ActivityCode(OAR, "P1#p001", "contracting_authority", part="searched_institution_role"),
+    )),))
+    plan = select_requests(page)
+    assert [c.reason for c in plan.skipped_codes] == [
+        "value_not_in_codebook", "value_not_in_codebook", "part_not_named", "unknown_item_part",
+        "not_a_parts_item"]
+    assert [(t.part, t.answer) for t in plan.quote_tasks] == [
+        ("searched_institution_role", "contracting_authority")]
+
+
+def test_year_values_are_ascii_ce_years_or_offered_missing_labels():
+    rules = p2.default_rules()
+    t011 = _activity_questions()
+    years = {"core.year_announced", "core.year_pilot_start", "core.year_production_start"}
+    assert set(rules.year_items) == years
+    for item in years:  # the missing labels jev is offered beside the years (T-011 criteria)
+        assert rules.year_items[item] == {c["code"] for c in t011[item]["criteria"]}
+    good = ("2024", "1999", "not_documented", "unknown")
+    bad = ("nonsense_value", "\uff12\uff10\uff12\uff14", "\u0e52\u0e50\u0e52\u0e54", "24", "20245",
+           "0999", " 2024", "FY24")
+    page = Pass2Page(base_page(), (Pass2Activity("P1#a001", *A1, codes=tuple(
+        ActivityCode("core.year_announced", "P1#p001", v) for v in good + bad)),))
+    plan = select_requests(page)
+    assert [c.value for c in plan.skipped_codes] == list(bad)
+    assert {c.reason for c in plan.skipped_codes} == {"value_not_in_codebook"}
+    assert [t.answer for t in plan.quote_tasks] == ["2024", "1999"]
