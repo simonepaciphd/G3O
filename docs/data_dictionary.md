@@ -275,7 +275,7 @@ For controlled vocabularies, edge cases, and the "policy vs pilot" /
 ## D-007 normalized additions (local contract, 2026-11-01)
 
 The table counts above include the approved Q2a additions. Existing definitions
-remain unchanged; the signed r11 generated dictionary owns questionnaire meanings.
+remain unchanged; the signed r13 generated dictionary owns questionnaire meanings.
 Version 2.7 uses the D-007 storage envelope and a validated immutable instrument;
 historical missing additions are empty with explicit storage reasons. This does
 not authorize the old API loader to ingest 2.7. T-090 owns broader documentation.
