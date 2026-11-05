@@ -1,4 +1,4 @@
-"""Mechanical projection of the PI-approved D-007 map and r12 candidate schemas (hash pins bumped mechanically, RC-D-015/RC-D-017).
+"""Mechanical projection of the PI-approved D-007 map and r13 signed schemas (hash pins bumped mechanically, RC-D-015/RC-D-017).
 Definitions remain in the signed codebook; no questionnaire decisions live here.
 """
 
