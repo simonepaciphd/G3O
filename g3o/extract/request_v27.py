@@ -223,6 +223,7 @@ class SkippedCode:
     reason: str  # "not_a_support_item" | "value_not_in_codebook" | "unknown_part" | ...
     activity_id: str | None = None  # pass 2 only
     part: str | None = None  # pass 2 parts item only
+    linked_activity: str | None = None  # pass 2 pair item only (the code's linked activity)
 
 
 @dataclass(frozen=True)
