@@ -163,12 +163,12 @@ def test_fiscal_two_nonconsecutive_gives_both():
 @pytest.mark.parametrize("text,expected", [
     ("FY2014/15", [2014, 2015]),    # four-digit end lifted
     ("FY2010-2020", [2010, 2020]),
-    ("FY2030/31", [2030, 2031]),    # D2: two-digit end lifted too
+    ("FY2030/31", [2030, 2031]),    # two-digit end lifted too
     ("FY13/14", [2013, 2014]),      # D2: two-digit start expands to 20xx, lifted
     ("FY 1899-1900", [1900]),       # D1 guard
-    ("FY2099/00", [2099]),          # 2100 outside the guard
-    ("FY1999/00", [1999, 2000]),    # two-digit end rolls into the next century
-    ("FY 2024-06", [2024]),         # lower two-digit end -> 2106, outside the guard
+    ("FY2099/00", [2000, 2099]),    # r13: "00" is 2000 by the pivot, no carry-over
+    ("FY1999/00", [1999, 2000]),
+    ("FY 2024-06", [2006, 2024]),   # r13: "06" is 2006 (before the start year; both kept)
 ])
 def test_fiscal_two_windows(text, expected):
     assert years(text) == expected
@@ -372,7 +372,7 @@ def test_table_b_japanese_era(text, expected):
     ("2567 พ.ศ.", [2024]),
     ("พ.ศ. 2566-2567", [2023, 2024]),   # D6: marked BE range, both years
     ("2566-2567 พ.ศ.", [2023, 2024]),
-    ("B.E. 2566/67", [2023, 2024]),
+    ("B.E. 2566/67", [2023, 2024]),     # "b3-2 b": BE end keeps the start's BE century
     ("พ.ศ. 2450-2460", [1907, 1917]),   # range ends lifted within the guard
     ("พ.ศ. 2567 B.E.", [2024]),
 ])
@@ -500,7 +500,7 @@ def test_two_digit_pivot(text, ref, expected):
 @pytest.mark.parametrize("text,ref,expected", [
     ("FY98/99", 2026, [1998, 1999]),
     ("FY99/00", 2026, [1999, 2000]),     # end takes the start's century and rolls over
-    ("FY50/51", 2026, [2050, 2051]),     # end follows the start, not the pivot
+    ("FY50/51", 2026, [1951, 2050]),     # r13: the end is pivoted on its own
     ("FY 51-52", 2026, [1951, 1952]),
     ("FY13/14", 2026, [2013, 2014]),
 ])
@@ -531,3 +531,55 @@ def test_default_reference_year_is_call_time_year():
 def test_two_digit_year_helper():
     assert Y.PIVOT_OFFSET == 25
     assert [Y.two_digit_year(yy, 2026) for yy in (0, 50, 51, 99)] == [2000, 2050, 1951, 1999]
+
+
+# ---- r13 year rule 1: every two-digit year by the pivot, ends included (r13-Q2 a) -----------------------
+
+@pytest.mark.parametrize("text,ref,expected", [
+    ("FY1949/50", 2026, (1949, 2050)),
+    ("FY98/99", 2026, (1998, 1999)),
+    ("FY99/00", 2026, (1999, 2000)),
+    ("FY50/51", 2026, (2050, 1951)),
+    ("FY2050/51", 2026, (2050, 1951)),
+    ("FY1954/55", 2030, (1954, 1955)),
+    ("FY1953/54", 2030, (1953, 2054)),
+    ("2024-25年度", 2026, (2024, 2025)),
+    ("Haushaltsjahr 1998/99", 2026, (1998, 1999)),
+])
+def test_r13_end_year_pivot(text, ref, expected):
+    (lab,) = fiscal_labels(text, reference_year=ref)
+    assert lab.kind == FISCAL_TWO and lab.years == expected  # written order kept
+    assert [c.year for c in extract_year_candidates(text, reference_year=ref)] == sorted(expected)
+
+
+def test_r13_end_before_start_keeps_positional_forms():
+    text = "FY50/51"
+    assert forms_of_ref(text, 2050, 2026) == {FISCAL_LOWER}
+    assert forms_of_ref(text, 1951, 2026) == {FISCAL_UPPER}
+
+
+@pytest.mark.parametrize("text,ref,expected", [
+    ("B.E. 2566/67", 2026, (2023, 2024)),
+    ("พ.ศ. 2566-67", 2030, (2023, 2024)),
+    ("2599/00 B.E.", 2026, (2056, 2057)),    # BE end rolls into the next BE century
+    ("ปีงบประมาณ 2567-68", 2026, (2024, 2025)),
+    ("ปีงบประมาณ 2567-68", 2075, (2024, 2025)),  # reference year irrelevant for BE
+])
+def test_b3_2b_be_two_digit_end_keeps_be_century(text, ref, expected):
+    (lab,) = [f for f in all_labels(text, reference_year=ref) if f.kind != RANGE]
+    assert lab.years == expected
+    assert [c.year for c in extract_year_candidates(text, reference_year=ref)] == sorted(expected)
+
+
+def test_b3_2b_ce_start_in_thai_fiscal_label_still_pivots():
+    # A Thai fiscal label with a CE start (< 2400) is not BE: its two-digit end follows the r13 pivot.
+    assert [c.year for c in extract_year_candidates("ปีงบประมาณ 2024-25", reference_year=REF)] == [2024, 2025]
+    assert [c.year for c in extract_year_candidates("ปีงบประมาณ 1998-99", reference_year=REF)] == [1998, 1999]
+
+
+def test_r13_thai_four_digit_end():
+    assert [c.year for c in extract_year_candidates("ปีงบประมาณ 2567-2568", reference_year=REF)] == [2024, 2025]
+
+
+def forms_of_ref(text: str, year: int, ref: int) -> set[str]:
+    return {s.form for c in extract_year_candidates(text, reference_year=ref) if c.year == year for s in c.sources}

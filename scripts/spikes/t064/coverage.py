@@ -101,6 +101,14 @@ UNMARKED = re.compile(r"(?<![0-9])(20[1-3][0-9])[  ]?[-/‐-―][  ]?([0-9]{4}
 LETTER_ADJ_LITERAL = re.compile(r"(?<=[A-Za-z])(20(?:1[5-9]|2[0-9]|30))(?![0-9])")
 
 
+def _shape_end(digits: str, base: int) -> int:
+    """Sizing heuristic for unmarked ranges only: a two-digit end in the start's century (not a module rule)."""
+    if len(digits) == 4:
+        return int(digits)
+    y = (base // 100) * 100 + int(digits)
+    return y + 100 if y < base else y
+
+
 def snippet(text: str, start: int, end: int) -> str:
     a, b = max(0, start - CTX), min(len(text), end + CTX)
     s = text[a:start] + "[[" + text[start:end] + "]]" + text[end:b]
@@ -170,7 +178,7 @@ def analyse(text: str) -> dict:
         if any(a <= m.start() < b for a, b in spans):
             continue
         y1 = int(m.group(1))
-        y2 = Y._full_year(m.group(2), base=y1)
+        y2 = _shape_end(m.group(2), y1)
         if y2 == y1 + 1:
             key = "consecutive_two_digit" if len(m.group(2)) == 2 else "consecutive_four_digit"
         elif y1 < y2 <= y1 + 15:
