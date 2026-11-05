@@ -30,8 +30,12 @@ from g3o.scrape import egress
 
 logger = logging.getLogger(__name__)
 
-ContentType = Literal["html", "pdf", "render", "unknown"]
-FetchMethod = Literal["html", "pdf", "render", "unlocker", "unlocker_pdf"]
+# "docx" / "unlocker_docx" (T-065): a DOCX body sniffed by its OOXML signature.
+# The record's fields are unchanged; only the value lists grow.
+ContentType = Literal["html", "pdf", "docx", "render", "unknown"]
+FetchMethod = Literal[
+    "html", "pdf", "docx", "render", "unlocker", "unlocker_pdf", "unlocker_docx"
+]
 
 
 def utc_today_iso() -> str:

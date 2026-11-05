@@ -4,9 +4,11 @@ Stage 4 of the seven-stage pipeline (see [`docs/architecture.md`](../../docs/arc
 
 ## Modules
 
-- `fetcher.py` — `scrape_url(url)` is the single entrypoint. Downloads once, routes to `html`/`pdf`/`render`, caches on disk under `config.CACHE_DIR`.
+- `fetcher.py` — `scrape_url(url)` is the single entrypoint. Downloads once, sniffs the body (`%PDF-`, OOXML DOCX) before trusting headers, routes to `html`/`pdf`/`docx`/`render`, caches on disk under `config.CACHE_DIR`.
 - `html.py` — text + link extraction with structural-noise stripping, plus `check_keyword_proximity()` used as a relevance filter.
 - `pdf.py` — pdfplumber-backed text and link extraction (annotation URIs and regex-recovered URLs).
+- `docx.py` — standard-library (`zipfile` + XML) DOCX text extraction from `word/document.xml` (T-065).
+- `readability.py` — the R-015 readability check (binary markers, letters < 10%) on extracted or stored text; returns a failure reason, sets nothing.
 - `render.py` — Playwright-backed headless adapter for JS-shell pages where `requests` returns near-empty text. Triggered by the fetcher when the static HTML pass yields below a configurable text threshold.
 
 ## Inputs and outputs

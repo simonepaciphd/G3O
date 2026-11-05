@@ -1,8 +1,8 @@
 """HTTP fetch + content-type routing.
 
 Single entrypoint ``scrape_url()`` that downloads a URL once, decides whether
-the response is HTML or PDF, and delegates extraction to the corresponding
-sibling module. When the deterministic path returns no text and the caller
+the response is HTML, PDF or DOCX (content sniffing first, T-065), and
+delegates extraction to the corresponding sibling module. When the deterministic path returns no text and the caller
 opts in (default), dispatches to ``g3o.scrape.render.render_url`` for a
 headless render.
 
@@ -34,7 +34,8 @@ from tenacity import (
 )
 
 from g3o.common import config
-from g3o.scrape import egress
+from g3o.scrape import docx as docx_mod
+from g3o.scrape import egress, readability
 from g3o.scrape import html as html_mod
 from g3o.scrape import pdf as pdf_mod
 from g3o.scrape import unlocker as unlocker_mod
@@ -663,6 +664,51 @@ def _html_part_fields(parts: html_mod.HtmlParts | None) -> dict[str, Any]:
     }
 
 
+def _sniff_document(content: bytes) -> str | None:
+    """Content sniffing (T-065): ``"pdf"``, ``"docx"`` or None, from the bytes alone.
+
+    PDF: ``%PDF-`` within the first 1024 bytes with no ``<`` before it (so an
+    HTML page that merely mentions the string is not taken for a PDF).
+    DOCX: a ZIP package (``PK\\x03\\x04``) holding ``word/document.xml``.
+    Runs before HTML parsing on both the deterministic and the unlocker path,
+    so a PDF or DOCX served as ``text/html`` or under a non-document URL is
+    still routed to its extractor.
+    """
+    head = content[:1024]
+    idx = head.find(b"%PDF-")
+    if idx >= 0 and b"<" not in head[:idx]:
+        return "pdf"
+    if docx_mod.is_docx(content):
+        return "docx"
+    return None
+
+
+def _route(content: bytes, *, ctype: str, url: str) -> str:
+    """``"pdf"``, ``"docx"`` or ``"html"`` for one response body.
+
+    The sniffed kind wins; with no signature the pre-T-065 rules apply
+    unchanged (``pdf`` in the Content-Type or a ``.pdf`` URL suffix, else HTML).
+    """
+    sniffed = _sniff_document(content)
+    if sniffed is not None:
+        return sniffed
+    if "pdf" in ctype or url.lower().endswith(".pdf"):
+        return "pdf"
+    return "html"
+
+
+def _note_readability(url: str, text: str) -> None:
+    """Log the R-015 readability failure of freshly extracted text, if any.
+
+    The verdict and its failure reason are set downstream from the stored text
+    (``g3o.scrape.readability.readability_failure``), which covers pages stored
+    before T-065 too; the page record carries no field for it (shape unchanged).
+    """
+    reason = readability.readability_failure(text)
+    if reason is not None:
+        logger.warning("Stage 4 unreadable text for %s (%s)", url, reason)
+
+
 def _unlocker_page(
     url: str, uresult: unlocker_mod.UnlockerResult, *, cache_floor: int
 ) -> RenderedPage:
@@ -672,16 +718,23 @@ def _unlocker_page(
     (which misroutes e.g. ``…/pdf-forms.html`` into ``pdf_mod.extract_text``).
     The deterministic path's content-type half (``"pdf" in ctype``) is
     unavailable with ``format=raw``: the unlocker returns the body as-is
-    without a content-type header, so URL suffix is the only signal.
+    without a content-type header, so URL suffix is the only header-free signal
+    besides content sniffing (T-065), which runs first.
     """
     ucontent = uresult.content
-    # T-014 (RC-D-002 F): measured on the HTML branch only; None on PDF.
+    # T-014 (RC-D-002 F): measured on the HTML branch only; None on PDF/DOCX.
     uparts: html_mod.HtmlParts | None = None
-    if url.lower().endswith(".pdf"):
+    ukind = _route(ucontent, ctype="", url=url)
+    if ukind == "pdf":
         utext = pdf_mod.extract_text(ucontent)
         utitle = _extract_pdf_title(ucontent)
         umethod = "unlocker_pdf"
         uctype = "pdf"
+    elif ukind == "docx":
+        utext = docx_mod.extract_text(ucontent)
+        utitle = docx_mod.extract_title(ucontent)
+        umethod = "unlocker_docx"
+        uctype = "docx"
     else:
         usoup = BeautifulSoup(ucontent, "html.parser")
         utitle = _extract_html_title(usoup)
@@ -689,6 +742,7 @@ def _unlocker_page(
         utext = uparts.text
         umethod = "unlocker"
         uctype = "html"
+    _note_readability(url, utext)
     upage = RenderedPage(
         url=url, text=utext, title=utitle,
         content_type=uctype,  # type: ignore[arg-type]
@@ -911,13 +965,20 @@ def scrape_url(
 
     # T-014 (RC-D-002 F): chrome text and links are measured on the HTML
     # branch only; PDF pages (and any render/unlocker page returned below
-    # instead) leave them None.
+    # instead) leave them None. T-065: content sniffing runs first, so a PDF or
+    # DOCX body served as text/html reaches its extractor, not the HTML parser.
     parts: html_mod.HtmlParts | None = None
-    if "pdf" in ctype or url.lower().endswith(".pdf"):
+    kind = _route(content, ctype=ctype, url=url)
+    if kind == "pdf":
         text = pdf_mod.extract_text(content)
         title = _extract_pdf_title(content)
         method = "pdf"
         content_type = "pdf"
+    elif kind == "docx":
+        text = docx_mod.extract_text(content)
+        title = docx_mod.extract_title(content)
+        method = "docx"
+        content_type = "docx"
     else:
         soup = BeautifulSoup(content, "html.parser")
         title = _extract_html_title(soup)
@@ -987,6 +1048,7 @@ def scrape_url(
             _save(page, min_chars=cache_floor)
             return page
 
+    _note_readability(url, text)
     page = RenderedPage(
         url=url,
         text=text,
