@@ -49,8 +49,10 @@
     "approval": "pending",
     "candidates": "candidate years under codebook r12 rule 1, from the activity span and its context",
     "calendar_conversion": "candidate years by written form under codebook r12 rule 2, conversion table T-064",
+    "candidate_source": "g3o.extract.years.extract_year_candidates (T-064), one candidate per distinct year",
+    "range_end_bound": "the ends of a year range, a two-year fiscal label or a marked Buddhist Era range count outside 2015-2030 only within 1900-2099 (RC-D-018 D1; not in the signed rule 1 text)",
     "order": "candidates ascending, then the item's offered missing label(s)",
-    "candidate_code": "the year as written",
+    "candidate_code": "the candidate's calendar (CE) year in four ASCII digits, e.g. \"2024\" for \"FY24\" or \"2567 B.E.\" (YearCandidate.year)",
     "candidate_text": null,
     "rules_text_placement": null
   },

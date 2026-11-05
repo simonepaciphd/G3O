@@ -35,8 +35,8 @@ from g3o.codebook.loader import REPO_ROOT, Codebook, load_codebook
 #: Version stamp for the three sets (pinned in goldens and stored with answers).
 JEV_QUESTION_SET_VERSION = "g3o.classify.questions.v27.jev.1"
 
-#: Codebook r12 candidate (RC-D-015 / RC-D-017; signed only when planning/t010/signoff-record.md
-#: holds this sha256). A different codebook is refused.
+#: Codebook r12, PI-signed 2026-11-05 (planning/t010/signoff-record.md holds this sha256).
+#: A different codebook is refused.
 SIGNED_CODEBOOK_SHA256 = "93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712"
 
 SET_DIR = Path(__file__).resolve().parent
@@ -93,8 +93,8 @@ ACTIVITY_STATE = {
     "scale_number_field": None,       # W-06: how core.deployment_scale_unit is shown the number
     "signed_constraints": [
         "DEC-010 a: jev pass 2 sees the page with the activity's span marked",
-        # W-05-style declaration (wording packet, pending approval): summary of codebook r12
-        # core.rule.cx_grain slot 2, sentence 3.
+        # W-05 declaration (wording packet, pending approval; RC-D-018 "3a"): summary of codebook
+        # r12 core.rule.cx_grain slot 2, sentences 2 and 3.
         "codebook core.rule.cx_grain slot 2: finding-field state = page text plus the finding's "
         "activity_name, activity_type, adoption_stage and tool_name; the state is pinned in the "
         "versioned question-set files and approved with the wording packet, and any change "
@@ -106,12 +106,17 @@ ACTIVITY_STATE = {
 DYNAMIC_YEAR_CHOICES = {
     "packet_items": ["W-05"],
     "approval": PENDING,
-    # W-05 (wording packet, pending approval): pointer to the candidate rule, forms not enumerated.
+    # W-05 (wording packet, pending approval; RC-D-018 "2 a"): pointers to the signed rules and to the
+    # T-064 module that implements them; the forms themselves are not enumerated here.
     "candidates": "candidate years under codebook r12 rule 1, from the activity span and its context",
     "calendar_conversion": "candidate years by written form under codebook r12 rule 2, conversion table T-064",
+    "candidate_source": "g3o.extract.years.extract_year_candidates (T-064), one candidate per distinct year",
+    "range_end_bound": "the ends of a year range, a two-year fiscal label or a marked Buddhist Era range "
+                       "count outside 2015-2030 only within 1900-2099 (RC-D-018 D1; not in the signed rule 1 text)",
     "order": "candidates ascending, then the item's offered missing label(s)",
-    "candidate_code": "the year as written",
-    "candidate_text": None,           # W-05: year only (T-016 form) / year + rules / PI sentence
+    "candidate_code": "the candidate's calendar (CE) year in four ASCII digits, e.g. \"2024\" for \"FY24\" "
+                      "or \"2567 B.E.\" (YearCandidate.year)",
+    "candidate_text": None,           # W-05: year only (T-016 form) / year + rules / PI sentence / year + written form
     "rules_text_placement": None,     # W-05: where the item's rules_text goes
 }
 
