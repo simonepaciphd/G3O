@@ -125,7 +125,7 @@ class YearLabel:
         out = []
         if self.kind in (FISCAL_TWO, RANGE):
             forms = (FISCAL_LOWER, FISCAL_UPPER) if self.kind == FISCAL_TWO else (RANGE_LOWER, RANGE_UPPER)
-            for y, form in zip(self.years, forms):
+            for y, form in zip(self.years, forms, strict=False):
                 if in_range(y) or (not self.numbered and LIFT_MIN <= y <= LIFT_MAX):
                     out.append((y, YearSource(self.start, self.end, self.text, form)))
         elif len(self.years) == 2:  # marked Buddhist Era range: both years, lifted like range ends

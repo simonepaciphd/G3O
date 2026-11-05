@@ -224,7 +224,7 @@ def main(argv=None) -> int:
             src_seen.add((source, sha))
             if not dup:
                 shown: set[str] = set()  # one example per form per unique text
-                for f, kept, dropped, new in res["labels"]:
+                for f, kept, _dropped, _new in res["labels"]:
                     if len(examples[f.kind]) < N_EXAMPLES and f.kind not in shown:
                         shown.add(f.kind)
                         examples[f.kind].append(f"`{pid}` {sorted(set(kept)) or '-'} :: {snippet(text, f.start, f.end)}")
