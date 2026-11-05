@@ -146,8 +146,12 @@ def test_fiscal_two_nonconsecutive_gives_both():
 @pytest.mark.parametrize("text,expected", [
     ("FY2014/15", [2014, 2015]),    # four-digit end lifted
     ("FY2010-2020", [2010, 2020]),
-    ("FY2030/31", [2030]),          # two-digit end keeps the window
-    ("FY13/14", []),                # two-digit first year keeps the window
+    ("FY2030/31", [2030, 2031]),    # D2: two-digit end lifted too
+    ("FY13/14", [2013, 2014]),      # D2: two-digit start expands to 20xx, lifted
+    ("FY 1899-1900", [1900]),       # D1 guard
+    ("FY2099/00", [2099]),          # 2100 outside the guard
+    ("FY1999/00", [1999, 2000]),    # two-digit end rolls into the next century
+    ("FY 2024-06", [2024]),         # lower two-digit end -> 2106, outside the guard
 ])
 def test_fiscal_two_windows(text, expected):
     assert years(text) == expected
@@ -171,6 +175,52 @@ def test_fiscal_two_negative():
 ])
 def test_range_both_ends_lifted(text, expected):
     assert years(text) == expected
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("1899-2020", [2020]),       # D1: start below the guard, not a range
+    ("2020-2100", [2020]),       # end above the guard
+    ("1900-2099", [1900, 2099]),
+])
+def test_range_guard(text, expected):
+    assert years(text) == expected
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("2010 to 2020", [2010, 2020]),
+    ("2014 through 2020", [2014, 2020]),
+    ("2014 until 2020", [2014, 2020]),
+    ("2014 TO 2020", [2014, 2020]),
+    ("2014 Through 2020", [2014, 2020]),
+    ("2020 to 2022", [2020, 2022]),
+])
+def test_range_words_d9(text, expected):
+    assert years(text) == expected
+    (r,) = year_ranges(text)
+    assert r.kind == RANGE
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("2010  to 2020", [2020]),       # single spaces only
+    ("2010 to  2020", [2020]),
+    ("2010 into 2020", [2020]),      # whole words only
+    ("2010 top 2020", [2020]),
+    ("2010 till 2020", [2020]),      # not in the list
+    ("2010 and 2020", [2020]),
+])
+def test_range_words_negative(text, expected):
+    assert year_ranges(text) == []
+    assert years(text) == expected
+
+
+@pytest.mark.parametrize("text", ["pp. 1998 to 2020", "No. 1998 through 2020", "page 1998 until 2020"])
+def test_numbering_word_applies_to_word_ranges(text):
+    assert years(text) == [2020]
+
+
+def test_word_range_starting_inside_a_fiscal_label():
+    # "FY 2010" is a one-year label (window kept); the range "2010 to 2020" starts inside it and is still a range.
+    assert years("FY 2010 to 2020") == [2010, 2020]
 
 
 def test_range_forms_mark_the_end():
@@ -197,8 +247,6 @@ def test_numbering_word_needs_to_be_just_before():
 @pytest.mark.parametrize("text,expected", [
     ("2024-25", [2024]),                      # unmarked two-digit end is not a range end
     ("2014-25", []),
-    ("2020 to 2022", [2020, 2022]),            # words are not separators: literals, window only
-    ("2010 to 2020", [2020]),
     ("2019-2020-2021", [2019, 2020, 2021]),    # chains are not ranges
     ("2024-06-30", [2024]),                    # ISO date
     ("2025-2019", [2019, 2025]),               # descending
@@ -301,6 +349,13 @@ def test_table_b_japanese_era(text, expected):
     ("B.E. 2557", []),
     ("BE 2567", []),          # bare BE is not a marker
     ("2567", []),             # unmarked: outside the window, no conversion
+    ("2567 B.E.", [2024]),    # D6: marker after the year
+    ("2567 พ.ศ.", [2024]),
+    ("พ.ศ. 2566-2567", [2023, 2024]),   # D6: marked BE range, both years
+    ("2566-2567 พ.ศ.", [2023, 2024]),
+    ("B.E. 2566/67", [2023, 2024]),
+    ("พ.ศ. 2450-2460", [1907, 1917]),   # range ends lifted within the guard
+    ("พ.ศ. 2567 B.E.", [2024]),
 ])
 def test_table_b_buddhist_era(text, expected):
     assert years(text) == expected
