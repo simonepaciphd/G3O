@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.validate_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: 9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53 -->
+<!-- codebook release: 2.7 | codebook sha256: 733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe -->
 
 # G3O output contract (validate, Stage 6), generated from the codebook
 
-Codebook release `2.7`, sha256 `9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53`. 14 items.
+Codebook release `2.7`, sha256 `733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe`. 14 items.
 
 ## `core.has_genai_activity`
 <!-- item: core.has_genai_activity sha256: 8594c479a9e5bfc1e0a97fddf8c820cf9561fc185ccc14cea22ac7e23054237a -->

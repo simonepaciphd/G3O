@@ -117,7 +117,7 @@
   ],
   "provenance_fields": "each changed slot: origin replaced; origin_before_r12 and text_before_r12 added; folds.r12 added",
   "line_endings": "CRLF, preserved from r11 (codebook/.gitattributes: codebook.yaml -text)",
-  "status": "UNSIGNED INTERIM candidate; year rules 1-2 may change again; signed only when planning/t010/signoff-record.md holds the final sha256",
+  "status": "UNSIGNED final candidate; signed only when planning/t010/signoff-record.md holds this sha256",
   "path_strip": {
     "ruling": "PI 2026-11-04 chat \"5a\" (lane C question 6)",
     "lines": [
@@ -137,5 +137,23 @@
     "before": "# G3O codebook release 2.7 — RC-D-007 candidate, sign-off build (T-010). Built by planning/t010/build_skeleton.py --build r10-signoff.",
     "after": "# G3O codebook release 2.7, revision r12 — UNSIGNED candidate (RC-D-015 / RC-D-017), sign-off build (T-010). Byte edits to the signed r11 file, recorded in planning/t010/r12-provenance.json."
   },
-  "r12_sha256_interim": "9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53"
+  "r12_sha256_interim": "9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53",
+  "year_rules_r12b": {
+    "ruling": "PI 2026-11-05 chat \"yes\" (W-R12-2b, W-R12-3b)",
+    "items": [
+      "core.year_announced",
+      "core.year_pilot_start",
+      "core.year_production_start"
+    ],
+    "rule1": {
+      "interim_text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.",
+      "final_text": "Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year."
+    },
+    "rule2": {
+      "interim_text": "Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.",
+      "final_text": "Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it."
+    },
+    "note": "interim r12 texts replaced in place; text_before_r12 still holds the r11 text; origin updated"
+  },
+  "r12_sha256_final_candidate": "733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe"
 }

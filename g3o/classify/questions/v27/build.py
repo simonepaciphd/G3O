@@ -37,7 +37,7 @@ JEV_QUESTION_SET_VERSION = "g3o.classify.questions.v27.jev.1"
 
 #: Codebook r12 candidate (RC-D-015 / RC-D-017; signed only when planning/t010/signoff-record.md
 #: holds this sha256). A different codebook is refused.
-SIGNED_CODEBOOK_SHA256 = "9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53"
+SIGNED_CODEBOOK_SHA256 = "733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe"
 
 SET_DIR = Path(__file__).resolve().parent
 SET_FILES = {"page": "page.json", "activity": "activity.json", "institution": "institution.json"}
@@ -108,7 +108,7 @@ DYNAMIC_YEAR_CHOICES = {
     "approval": PENDING,
     # W-05 (wording packet, pending approval): pointer to the candidate rule, forms not enumerated.
     "candidates": "candidate years under codebook r12 rule 1, from the activity span and its context",
-    "calendar_conversion": "fiscal-year candidates under codebook r12 rule 1, built by T-064",
+    "calendar_conversion": "candidate years by written form under codebook r12 rule 2, conversion table T-064",
     "order": "candidates ascending, then the item's offered missing label(s)",
     "candidate_code": "the year as written",
     "candidate_text": None,           # W-05: year only (T-016 form) / year + rules / PI sentence

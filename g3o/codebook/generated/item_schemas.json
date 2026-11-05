@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.item_schemas",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53",
+  "codebook_sha256": "733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe",
   "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)",
   "$defs": {
     "page_verdict": {
@@ -718,19 +718,19 @@
     },
     "year_announced": {
       "x-item-id": "core.year_announced",
-      "x-item-hash": "d0c859753c014abb165ae711bff020f68456ee8972156bcacceddfea6f15c966",
+      "x-item-hash": "e34921e51a8f002ddcd832a20348beee74b3ae184bcc717987002321a55acbe7",
       "x-answer-type": "single",
       "type": "string"
     },
     "year_pilot_start": {
       "x-item-id": "core.year_pilot_start",
-      "x-item-hash": "688573dba5ad8db0f142a80c14392acded5617aafa38625bea6ae3b5c3c62fee",
+      "x-item-hash": "8ebd4513e07090697dd5983262a2874c773b24548f7c78e0f4942dd3ccf3e6da",
       "x-answer-type": "single",
       "type": "string"
     },
     "year_production_start": {
       "x-item-id": "core.year_production_start",
-      "x-item-hash": "aa0f1bddef30ada01cf7cda7649deab2b40a84699022e3608f2e736e60477a77",
+      "x-item-hash": "ea8b8d591901173302e0c32f637976447008e50787ff28cd3d77fe7d7a2df7e1",
       "x-answer-type": "single",
       "type": "string"
     },

@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.data_dictionary. -->
-<!-- codebook release: 2.7 | codebook sha256: 9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53 -->
+<!-- codebook release: 2.7 | codebook sha256: 733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe -->
 
 # G3O codebook data dictionary
 
-Codebook release `2.7`, sha256 `9b581163d6861640d4d011c2bc2ad2b9b6dabf5a1e915e044cf8983c93f59a53`. 109 items.
+Codebook release `2.7`, sha256 `733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe`. 109 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: 53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44 -->
@@ -3697,11 +3697,11 @@ A tool the page calls an "AI chatbot" or "AI assistant" counts as generative AI,
 Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.
 
 ## `core.year_announced`
-<!-- item: core.year_announced sha256: d0c859753c014abb165ae711bff020f68456ee8972156bcacceddfea6f15c966 -->
+<!-- item: core.year_announced sha256: e34921e51a8f002ddcd832a20348beee74b3ae184bcc717987002321a55acbe7 -->
 
 | Field | Value |
 |---|---|
-| item hash | `d0c859753c014abb165ae711bff020f68456ee8972156bcacceddfea6f15c966` |
+| item hash | `e34921e51a8f002ddcd832a20348beee74b3ae184bcc717987002321a55acbe7` |
 | family | `dates` |
 | name | `year_announced` |
 | level | `activity` |
@@ -3739,22 +3739,22 @@ year it was first announced
 
 1. `items/core.year_announced/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_announced/rules/1`
 
-Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
+Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
 
 3. `items/core.year_announced/rules/2`
 
 not_documented: the page is silent.
 
 ## `core.year_pilot_start`
-<!-- item: core.year_pilot_start sha256: 688573dba5ad8db0f142a80c14392acded5617aafa38625bea6ae3b5c3c62fee -->
+<!-- item: core.year_pilot_start sha256: 8ebd4513e07090697dd5983262a2874c773b24548f7c78e0f4942dd3ccf3e6da -->
 
 | Field | Value |
 |---|---|
-| item hash | `688573dba5ad8db0f142a80c14392acded5617aafa38625bea6ae3b5c3c62fee` |
+| item hash | `8ebd4513e07090697dd5983262a2874c773b24548f7c78e0f4942dd3ccf3e6da` |
 | family | `dates` |
 | name | `year_pilot_start` |
 | level | `activity` |
@@ -3792,11 +3792,11 @@ year its pilot or trial began
 
 1. `items/core.year_pilot_start/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_pilot_start/rules/1`
 
-Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
+Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
 
 3. `items/core.year_pilot_start/rules/2`
 
@@ -3807,11 +3807,11 @@ Two columns, each stated-only.
 not_documented: the page is silent.
 
 ## `core.year_production_start`
-<!-- item: core.year_production_start sha256: aa0f1bddef30ada01cf7cda7649deab2b40a84699022e3608f2e736e60477a77 -->
+<!-- item: core.year_production_start sha256: ea8b8d591901173302e0c32f637976447008e50787ff28cd3d77fe7d7a2df7e1 -->
 
 | Field | Value |
 |---|---|
-| item hash | `aa0f1bddef30ada01cf7cda7649deab2b40a84699022e3608f2e736e60477a77` |
+| item hash | `ea8b8d591901173302e0c32f637976447008e50787ff28cd3d77fe7d7a2df7e1` |
 | family | `dates` |
 | name | `year_production_start` |
 | level | `activity` |
@@ -3849,11 +3849,11 @@ year it went into full operation
 
 1. `items/core.year_production_start/rules/0`
 
-Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. No fallback to publication year. Across chunks: earliest chosen year.
+Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.
 
 2. `items/core.year_production_start/rules/1`
 
-Pilot and production years use the same candidate-then-classifier method. A fiscal-year label becomes candidate years by its written form alone; years written in other calendars are not converted. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
+Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
 
 3. `items/core.year_production_start/rules/2`
 
