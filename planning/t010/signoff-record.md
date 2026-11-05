@@ -17,6 +17,12 @@
 - **What r12 changes from r11:** W-R12-1 (`cx_grain` question-set state), W-R12-2b (year rule 1: fiscal-year labels; ranges give both end years), W-R12-3c (year rule 2: fiscal labels in any language, Japanese era, Buddhist Era, ROC and other digits by written form alone, never the country), W-R12-4/5 (quote step sees the chosen answer; 200-character cap), Q2 a round moves, local `source` paths stripped (RC-D-018 "5a"), r12 header (P5). Wording approvals: "4 yes", "5a" (RC-D-017); "yes", "all as rec" (RC-D-018). Provenance: `planning/t010/r12-provenance.json`.
 - Frozen CX items remain covered by the existing batch-signature form (RC-D-004); the list below is unchanged.
 
+## Unsigned candidate r13 (RC-D-019): not a signature
+
+- Candidate sha256 (committed blob): `07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527`, `codebook/codebook.yaml` on branch `orch1106/f-r13`, commit `afc593e` (CRLF, `-text`).
+- Status: UNSIGNED. The r12 signature above stays current until the PI signs this hash and the integrator records it here.
+- Changes from r12: D1 b / F1 a (six answer values take `not_required`), C1 a (year value label), B2 a / B1 c (year rule 1), E2 a (contact e-mails); record `planning/t010/r13-provenance.json`.
+
 ## Superseded signature authorization (r11, `f948fe0b…`)
 
 | | |
