@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.jev_questions",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d",
+  "codebook_sha256": "93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712",
   "intended_target": "T-011 jev question and choice sets (path chosen by T-011)",
   "part_prompt": {
     "sentence": "The text below is only one part of a longer page; the rest of the page is read separately. Answer from this part only.",
@@ -2702,7 +2702,7 @@
     {
       "question_id": "core.year_announced",
       "item_id": "core.year_announced",
-      "item_hash": "70545adcdfadf5991e81f6119f52148d28b81a52722e7a5a97740e8b51415b0e",
+      "item_hash": "ca012150cd030742c02a036c5c3792fba7662696592fffbad97e7890b1a928d1",
       "column": "year_announced",
       "pass": 2,
       "round": 3,
@@ -2741,7 +2741,7 @@
         {
           "code": "not_documented",
           "missing_label": true,
-          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. not_documented: the page is silent.",
+          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. not_documented: the page is silent.",
           "definition_slot": "items/core.year_announced/rules/2",
           "rule_slots": [
             "items/core.year_announced/rules/0",
@@ -2760,7 +2760,7 @@
       "candidates_not_offered": [
         "unknown"
       ],
-      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. not_documented: the page is silent.",
+      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. not_documented: the page is silent.",
       "rule_slots": [
         "items/core.year_announced/rules/0",
         "items/core.year_announced/rules/1",
@@ -2770,7 +2770,7 @@
     {
       "question_id": "core.year_pilot_start",
       "item_id": "core.year_pilot_start",
-      "item_hash": "a1866c316cd97d1d3558cb9d83b04dd362b7edc0876b5214463e3c3ec1619ac9",
+      "item_hash": "2099c0b8d0db8d4bfc0d408e4e9668d9bf7ff5b9284c567f2b8134b8ceb3f7bd",
       "column": "year_pilot_start",
       "pass": 2,
       "round": 3,
@@ -2811,7 +2811,7 @@
         {
           "code": "not_documented",
           "missing_label": true,
-          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
+          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
           "definition_slot": "items/core.year_pilot_start/rules/3",
           "rule_slots": [
             "items/core.year_pilot_start/rules/0",
@@ -2831,7 +2831,7 @@
       "candidates_not_offered": [
         "unknown"
       ],
-      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
+      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
       "rule_slots": [
         "items/core.year_pilot_start/rules/0",
         "items/core.year_pilot_start/rules/1",
@@ -2842,7 +2842,7 @@
     {
       "question_id": "core.year_production_start",
       "item_id": "core.year_production_start",
-      "item_hash": "1149b8097fc10f3964d32b6b7f7f6b3cf8753cfc0b779252b9e060d31e4a90b3",
+      "item_hash": "7faf3d95f3b70426afdcedd33795badaf462055eeaa4ba74d9a381ffb24ea2f5",
       "column": "year_production_start",
       "pass": 2,
       "round": 3,
@@ -2883,7 +2883,7 @@
         {
           "code": "not_documented",
           "missing_label": true,
-          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
+          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
           "definition_slot": "items/core.year_production_start/rules/3",
           "rule_slots": [
             "items/core.year_production_start/rules/0",
@@ -2903,7 +2903,7 @@
       "candidates_not_offered": [
         "unknown"
       ],
-      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
+      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
       "rule_slots": [
         "items/core.year_production_start/rules/0",
         "items/core.year_production_start/rules/1",
@@ -3369,10 +3369,10 @@
     {
       "question_id": "core.outcome_kind",
       "item_id": "core.outcome_kind",
-      "item_hash": "4c8e83ed8ecfe9f8697ff1af3e5a98136d92a93a16f62244314f85417af3b105",
+      "item_hash": "7215b6b2576b8a967c86362ed2a3d4dbcb740b84a4f23d2de05a4ef817091e12",
       "column": "outcome_kind",
       "pass": 2,
-      "round": 3,
+      "round": 4,
       "gate": {
         "item": "core.activity_type",
         "values": [
@@ -3442,10 +3442,10 @@
     {
       "question_id": "core.incident_kind",
       "item_id": "core.incident_kind",
-      "item_hash": "86e86970bf31247adafccf0da05b86c1f8ec5cdcb59c2a0bf906e091710526ad",
+      "item_hash": "9d7ab9101539f801ee5098e8df2c46e9f0b6fcc27fdf679eaf88cf502f395d32",
       "column": "incident_kind",
       "pass": 2,
-      "round": 3,
+      "round": 4,
       "gate": {
         "item": "core.activity_type",
         "values": [
@@ -3535,10 +3535,10 @@
     {
       "question_id": "core.evaluation_documented",
       "item_id": "core.evaluation_documented",
-      "item_hash": "821b1906675ae2202acb97e41245ca25ebec5a5e26518edc7a8d22a1d3b0097c",
+      "item_hash": "8d878b747de11b7e8f8888b27a5c568da0cbb4c47c235026f47bf282eb59dd0b",
       "column": "evaluation_documented",
       "pass": 2,
-      "round": 3,
+      "round": 4,
       "gate": {
         "item": "core.activity_type",
         "values": [
@@ -3673,10 +3673,10 @@
     {
       "question_id": "core.evaluation_type_pre_deployment_testing",
       "item_id": "core.evaluation_type_pre_deployment_testing",
-      "item_hash": "0528b068190b671ec6b3c712016999d5a3946bd38a3e2594b5ee84d183f430ff",
+      "item_hash": "83fe066236badf19503226e47cfee3450cbf0f9ea98bab20181cf402c9bd14c1",
       "column": "evaluation_type_pre_deployment_testing",
       "pass": 2,
-      "round": 4,
+      "round": 5,
       "gate": {
         "item": "core.evaluation_documented",
         "values": [
@@ -3722,10 +3722,10 @@
     {
       "question_id": "core.evaluation_type_pilot_evaluation",
       "item_id": "core.evaluation_type_pilot_evaluation",
-      "item_hash": "918cedd8b8b4237ec7ab0b65c062af84d1d452dbb8ce318786b61b98f2a3094b",
+      "item_hash": "b9cb25ae00b051454b71beb3432e939a4bcd4e43afb84ab0a6ec5527ae2d4888",
       "column": "evaluation_type_pilot_evaluation",
       "pass": 2,
-      "round": 4,
+      "round": 5,
       "gate": {
         "item": "core.evaluation_documented",
         "values": [
@@ -3771,10 +3771,10 @@
     {
       "question_id": "core.evaluation_type_independent_audit",
       "item_id": "core.evaluation_type_independent_audit",
-      "item_hash": "c249cc7b5fb312a743eac34632fae82d275079fcd20db7c7928972eddc0fe8d7",
+      "item_hash": "bc119729ff3f2dd1d7c6bff2fc113863860f1fdf2c8f6d337f53b518644cb864",
       "column": "evaluation_type_independent_audit",
       "pass": 2,
-      "round": 4,
+      "round": 5,
       "gate": {
         "item": "core.evaluation_documented",
         "values": [
@@ -3820,10 +3820,10 @@
     {
       "question_id": "core.evaluation_type_ongoing_monitoring",
       "item_id": "core.evaluation_type_ongoing_monitoring",
-      "item_hash": "6478e6bc28b9f774bd10a2e94d19d3390d9c0c230f0e0ad6e98568339cdc9bc1",
+      "item_hash": "e7866831b2329fc016fb0018765cf5e4d16e3b44f872f693a0993f6e09e6c0cf",
       "column": "evaluation_type_ongoing_monitoring",
       "pass": 2,
-      "round": 4,
+      "round": 5,
       "gate": {
         "item": "core.evaluation_documented",
         "values": [
@@ -3869,10 +3869,10 @@
     {
       "question_id": "core.evaluation_type_user_feedback",
       "item_id": "core.evaluation_type_user_feedback",
-      "item_hash": "b71826e593f8adaeb2f92918403fc768807c62e7051582862336589932e902f5",
+      "item_hash": "036e7caa5b9aab26435a359d33ecaa4a209693b802f4541772cf7122b3c5a65a",
       "column": "evaluation_type_user_feedback",
       "pass": 2,
-      "round": 4,
+      "round": 5,
       "gate": {
         "item": "core.evaluation_documented",
         "values": [
@@ -3918,10 +3918,10 @@
     {
       "question_id": "core.evaluation_type_bias_or_safety_testing",
       "item_id": "core.evaluation_type_bias_or_safety_testing",
-      "item_hash": "e29aa95f78c13cb7270cb9dc368b7a0dfa3aea2bc835e11f892a35b6a196d1aa",
+      "item_hash": "21268a987d8ea93b84d5bd166774219636358e77538014241ebf4aac7f679e70",
       "column": "evaluation_type_bias_or_safety_testing",
       "pass": 2,
-      "round": 4,
+      "round": 5,
       "gate": {
         "item": "core.evaluation_documented",
         "values": [

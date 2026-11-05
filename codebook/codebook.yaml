@@ -1,4 +1,4 @@
-# G3O codebook release 2.7 — RC-D-007 candidate, sign-off build (T-010). Built by planning/t010/build_skeleton.py --build r10-signoff.
+# G3O codebook release 2.7, revision r12 — UNSIGNED candidate (RC-D-015 / RC-D-017), sign-off build (T-010). Byte edits to the signed r11 file, recorded in planning/t010/r12-provenance.json.
 # Every slot text is copied verbatim from its `source`; `origin` records who approved it.
 # Signed only if planning/t010/signoff-record.md holds this file's sha256 (A-001).
 release:
@@ -32,6 +32,8 @@ release:
       planning/t010/drafts/fixes-r9.json (RC-D-007: T-016 rewording; PI 2026-10-31 "edits reviewed and accepted" and C1 a, C2 a, C3 a, C4 a, C5 a, C6 a and (i), C7 c and b, C7 a labels, C8 a, C9 a, C10 a); clean copy planning/t010/RC-D-007-clean-copy.md
     r10: |-
       planning/t010/drafts/fixes-r10.json (RC-D-007 rerun revisions: target_users, deployment_mode and the three year items; PI 2026-10-31 "1b 2a"); clean copy planning/t010/RC-D-007-clean-copy.md
+    r12: |-
+      RC-D-015 Q1 b, Q2 a, P1 a and RC-D-017 3, 5a, 6, 7 b, 8 a, 9d: wording W-R12-1..W-R12-5 as drafted (agent-workspace/2026-11-05-v27-orch/r12-wording-draft.md; PI 2026-11-04 chat "4 yes"); rounds moved (Q2 a): evaluation_documented, outcome_kind, incident_kind 3 -> 4, the six evaluation_type_* items 4 -> 5; provenance planning/t010/r12-provenance.json; year rules 1-2 replaced by W-R12-2b / W-R12-3b (PI 2026-11-05 chat "yes"); rule 2 replaced by W-R12-3c (PI 2026-11-05 chat "all as rec" C2)
   r4_dropped:
   - card: activity-1 O1
     slot: items/core.observed_actor_relationship/rules/6
@@ -449,14 +451,17 @@ shared_rules:
     frozen_source: codebook-extension-proposal.md:20 CX-01
     approved_r4: 'PI 2026-10-30 "approve all" (round 4): page shared card I16 slot 1'
   - text: |-
-      **Finding fields** (`evaluation_documented`, optional `evaluation_type_*`, and the outcome and incident items of CX-61) are coded per (finding × page). The state given to jev is the page text plus that finding's `activity_name`, `activity_type`, `adoption_stage` and `tool_name`. The state of each question set (its fields, their order and the chunk marker) is pinned in the codebook and is part of the frozen instrument; any change to it counts as a wording change.
-    origin: agent-draft
+      **Finding fields** (`evaluation_documented`, optional `evaluation_type_*`, and the outcome and incident items of CX-61) are coded per (finding × page). The state given to jev is the page text plus that finding's `activity_name`, `activity_type`, `adoption_stage` and `tool_name`. The state of each question set (its fields, their order and the chunk marker) is pinned in the versioned question-set files and approved with the wording packet; any change to it counts as a wording change.
+    origin: PI 2026-11-04 chat "4 yes" (RC-D-017); W-R12-1 (RC-D-015 Q1 b, RC-D-017 7 b)
     source: cx-01.3-draft.json CX-02; ruling activity-25
     draft_action: edit
     frozen_text: |-
       **Finding fields** (`evaluation_documented`, optional `evaluation_type_*`) are coded per (finding × page). The state given to jev is the page text plus that finding's `activity_name`, `activity_type`, `adoption_stage` and `tool_name`.
     frozen_source: codebook-extension-proposal.md:21 CX-02
     approved_r4: 'PI 2026-10-30 "approve all" (round 4): page shared card I16 slot 2'
+    origin_before_r12: agent-draft
+    text_before_r12: |-
+      **Finding fields** (`evaluation_documented`, optional `evaluation_type_*`, and the outcome and incident items of CX-61) are coded per (finding × page). The state given to jev is the page text plus that finding's `activity_name`, `activity_type`, `adoption_stage` and `tool_name`. The state of each question set (its fields, their order and the chunk marker) is pinned in the codebook and is part of the frozen instrument; any change to it counts as a wording change.
   - text: |-
       Code what the page says. Never use outside knowledge of the institution, the country's laws or the register system.
     origin: agent-draft
@@ -7285,9 +7290,8 @@ items:
           RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"
     rules:
     - text: |-
-        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.
-      origin: |-
-        PI 2026-10-31 "1b 2a"; rerun revision (1b): rule 1 reverted to the r8 text, less the repeated question
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.
+      origin: PI 2026-11-05 chat "yes"; W-R12-2b (supersedes W-R12-2, PI 2026-11-04 "4 yes", RC-D-017)
       source: codebook-rulings-round1.json C16.mechanism
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I15 slot 2'
       text_before_r8: |-
@@ -7300,9 +7304,13 @@ items:
       origin_before_r10: PI 2026-10-31 "edits reviewed and accepted"; agent draft T16-36-year_announced (T-016 rewording)
       text_before_r10: |-
         The choices are the four-digit years from 2015 to 2030 written in the activity's passage and its context. Choose the year the page gives for this event; the year the page was published is not a fallback. On a long page, the earliest chosen year is kept.
+      origin_before_r12: |-
+        PI 2026-10-31 "1b 2a"; rerun revision (1b): rule 1 reverted to the r8 text, less the repeated question
+      text_before_r12: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.
     - text: |-
-        Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
-      origin: PI 2026-10-31 "edits reviewed and accepted"; agent draft T16-37-year_announced (T-016 rewording)
+        Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
+      origin: PI 2026-11-05 chat "all as rec" C2; W-R12-3c (supersedes W-R12-3b)
       source: codebook-rulings-round2.json n=50
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I15 slot 3'
       text_before_r4: |-
@@ -7312,6 +7320,9 @@ items:
       origin_before_r9: PI 2026-10-30 "approved!"; fixes-r4 FX12
       text_before_r9: |-
         Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
+      origin_before_r12: PI 2026-10-31 "edits reviewed and accepted"; agent draft T16-37-year_announced (T-016 rewording)
+      text_before_r12: |-
+        Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
     - text: 'not_documented: the page is silent.'
       origin: |-
         agent-draft (resolver); re-use of the signed text at items/core.has_human_oversight/rules/2 (round 2)
@@ -7401,9 +7412,8 @@ items:
           RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"
     rules:
     - text: |-
-        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.
-      origin: |-
-        PI 2026-10-31 "1b 2a"; rerun revision (1b): rule 1 reverted to the r8 text, less the repeated question
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.
+      origin: PI 2026-11-05 chat "yes"; W-R12-2b (supersedes W-R12-2, PI 2026-11-04 "4 yes", RC-D-017)
       source: |-
         drafts/rc-d-005-wording.json W44 (items/core.year_pilot_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I16 slot 1'
@@ -7419,9 +7429,13 @@ items:
       origin_before_r10: PI 2026-10-31 "edits reviewed and accepted"; agent draft T16-36-year_pilot_start (T-016 rewording)
       text_before_r10: |-
         The choices are the four-digit years from 2015 to 2030 written in the activity's passage and its context. Choose the year the page gives for this event; the year the page was published is not a fallback. On a long page, the earliest chosen year is kept.
+      origin_before_r12: |-
+        PI 2026-10-31 "1b 2a"; rerun revision (1b): rule 1 reverted to the r8 text, less the repeated question
+      text_before_r12: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.
     - text: |-
-        Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
-      origin: PI 2026-10-31 "edits reviewed and accepted"; agent draft T16-37-year_pilot_start (T-016 rewording)
+        Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
+      origin: PI 2026-11-05 chat "all as rec" C2; W-R12-3c (supersedes W-R12-3b)
       source: codebook-rulings-round2.json n=50
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I16 slot 2'
       text_before_r4: |-
@@ -7431,6 +7445,9 @@ items:
       origin_before_r9: PI 2026-10-30 "approved!"; fixes-r4 FX12
       text_before_r9: |-
         Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
+      origin_before_r12: PI 2026-10-31 "edits reviewed and accepted"; agent draft T16-37-year_pilot_start (T-016 rewording)
+      text_before_r12: |-
+        Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
     - text: Two columns, each stated-only.
       origin: r1
       source: codebook-rulings-round1.json C17.mechanism
@@ -7535,9 +7552,8 @@ items:
           RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"
     rules:
     - text: |-
-        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.
-      origin: |-
-        PI 2026-10-31 "1b 2a"; rerun revision (1b): rule 1 reverted to the r8 text, less the repeated question
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.
+      origin: PI 2026-11-05 chat "yes"; W-R12-2b (supersedes W-R12-2, PI 2026-11-04 "4 yes", RC-D-017)
       source: |-
         drafts/rc-d-005-wording.json W45 (items/core.year_production_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I17 slot 1'
@@ -7554,10 +7570,13 @@ items:
         PI 2026-10-31 "edits reviewed and accepted"; agent draft T16-36-year_production_start (T-016 rewording)
       text_before_r10: |-
         The choices are the four-digit years from 2015 to 2030 written in the activity's passage and its context. Choose the year the page gives for this event; the year the page was published is not a fallback. On a long page, the earliest chosen year is kept.
+      origin_before_r12: |-
+        PI 2026-10-31 "1b 2a"; rerun revision (1b): rule 1 reverted to the r8 text, less the repeated question
+      text_before_r12: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context. No fallback to publication year. Across chunks: earliest chosen year.
     - text: |-
-        Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
-      origin: |-
-        PI 2026-10-31 "edits reviewed and accepted"; agent draft T16-37-year_production_start (T-016 rewording)
+        Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
+      origin: PI 2026-11-05 chat "all as rec" C2; W-R12-3c (supersedes W-R12-3b)
       source: codebook-rulings-round2.json n=50
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I17 slot 2'
       text_before_r4: |-
@@ -7567,6 +7586,10 @@ items:
       origin_before_r9: PI 2026-10-30 "approved!"; fixes-r4 FX12
       text_before_r9: |-
         Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year and marks pilot and production years not applicable.
+      origin_before_r12: |-
+        PI 2026-10-31 "edits reviewed and accepted"; agent draft T16-37-year_production_start (T-016 rewording)
+      text_before_r12: |-
+        Pilot and production years use the same candidate-then-classifier method, with candidates converted from other calendars and fiscal years under a multilingual-subproject rule. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
     - text: Two columns, each stated-only.
       origin: r1
       source: codebook-rulings-round1.json C17.mechanism
@@ -8432,7 +8455,7 @@ items:
     linkage: jev_choice
     coder: classifier
     pass: 2
-    round: 3
+    round: 4
     gate:
       item: core.activity_type
       values:
@@ -8584,7 +8607,7 @@ items:
     linkage: jev_choice
     coder: classifier
     pass: 2
-    round: 3
+    round: 4
     gate:
       item: core.activity_type
       values:
@@ -8903,7 +8926,7 @@ items:
     linkage: jev_choice
     coder: classifier
     pass: 2
-    round: 3
+    round: 4
     gate:
       item: core.activity_type
       values:
@@ -9167,7 +9190,7 @@ items:
     linkage: jev_choice
     coder: classifier
     pass: 2
-    round: 4
+    round: 5
     gate:
       item: core.evaluation_documented
       values:
@@ -9181,7 +9204,7 @@ items:
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: testing before deployment? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
       origin: PI 2026-10-31 "c5a"; agent draft (CX-01.3 IDs stripped); drafted tail of proposals.md C5 (a)
       source: |-
-        drafts/rc-d-005-wording.json W36 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
+        drafts/rc-d-005-wording.json W36 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
       origin_before_r9: PI 2026-10-30 "drafts ok"; agent draft W36; EVAL_EMPHASIS (E1)
       text_before_r9: |-
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: testing before deployment? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
@@ -9259,7 +9282,7 @@ items:
     linkage: jev_choice
     coder: classifier
     pass: 2
-    round: 4
+    round: 5
     gate:
       item: core.evaluation_documented
       values:
@@ -9273,7 +9296,7 @@ items:
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: evaluation of a pilot or trial? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
       origin: PI 2026-10-31 "c5a"; agent draft (CX-01.3 IDs stripped); drafted tail of proposals.md C5 (a)
       source: |-
-        drafts/rc-d-005-wording.json W37 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
+        drafts/rc-d-005-wording.json W37 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
       origin_before_r9: PI 2026-10-30 "drafts ok"; agent draft W37; EVAL_EMPHASIS (E1)
       text_before_r9: |-
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: evaluation of a pilot or trial? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
@@ -9352,7 +9375,7 @@ items:
     linkage: jev_choice
     coder: classifier
     pass: 2
-    round: 4
+    round: 5
     gate:
       item: core.evaluation_documented
       values:
@@ -9366,7 +9389,7 @@ items:
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: an audit or evaluation by an independent body? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
       origin: PI 2026-10-31 "c5a"; agent draft (CX-01.3 IDs stripped); drafted tail of proposals.md C5 (a)
       source: |-
-        drafts/rc-d-005-wording.json W38 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
+        drafts/rc-d-005-wording.json W38 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
       origin_before_r9: PI 2026-10-30 "drafts ok"; agent draft W38; EVAL_EMPHASIS (E1)
       text_before_r9: |-
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: an audit or evaluation by an independent body? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
@@ -9446,7 +9469,7 @@ items:
     linkage: jev_choice
     coder: classifier
     pass: 2
-    round: 4
+    round: 5
     gate:
       item: core.evaluation_documented
       values:
@@ -9460,7 +9483,7 @@ items:
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: ongoing monitoring of the tool in use? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
       origin: PI 2026-10-31 "c5a"; agent draft (CX-01.3 IDs stripped); drafted tail of proposals.md C5 (a)
       source: |-
-        drafts/rc-d-005-wording.json W39 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
+        drafts/rc-d-005-wording.json W39 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
       origin_before_r9: PI 2026-10-30 "drafts ok"; agent draft W39; EVAL_EMPHASIS (E1)
       text_before_r9: |-
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: ongoing monitoring of the tool in use? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
@@ -9540,7 +9563,7 @@ items:
     linkage: jev_choice
     coder: classifier
     pass: 2
-    round: 4
+    round: 5
     gate:
       item: core.evaluation_documented
       values:
@@ -9554,7 +9577,7 @@ items:
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: user feedback or satisfaction surveys? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
       origin: PI 2026-10-31 "c5a"; agent draft (CX-01.3 IDs stripped); drafted tail of proposals.md C5 (a)
       source: |-
-        drafts/rc-d-005-wording.json W40 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
+        drafts/rc-d-005-wording.json W40 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
       origin_before_r9: PI 2026-10-30 "drafts ok"; agent draft W40; EVAL_EMPHASIS (E1)
       text_before_r9: |-
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: user feedback or satisfaction surveys? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
@@ -9634,7 +9657,7 @@ items:
     linkage: jev_choice
     coder: classifier
     pass: 2
-    round: 4
+    round: 5
     gate:
       item: core.evaluation_documented
       values:
@@ -9648,7 +9671,7 @@ items:
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: bias, fairness or safety testing? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count. A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator. Starting or announcing a pilot is not an evaluation. A risk or impact assessment is not an evaluation unless it reports testing or measured performance. A performance figure counts only if the page describes the evaluation behind it.
       origin: PI 2026-10-31 "c5a"; agent draft (CX-01.3 IDs stripped); drafted tail of proposals.md C5 (a)
       source: |-
-        drafts/rc-d-005-wording.json W41 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + H:/My Drive/Research/G3O/archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
+        drafts/rc-d-005-wording.json W41 (planning/t010/drafts/cx-01.3-draft.json row "pilot.py L210 type_questions instructions" (frozen CX-01.2 template), with {v} = the type phrase from the item's `yes` definition; "the named GenAI activity" changed to "this GenAI activity" to match the signed evaluation question) + archive/planning-drive-copy-superseded-2026-10-26/launch-analysis-pr/index-design/pilot/pilot.py L181-187 EVAL_EMPHASIS (frozen CX-01.2 wording, byte for byte; E1)
       origin_before_r9: PI 2026-10-30 "drafts ok"; agent draft W41; EVAL_EMPHASIS (E1)
       text_before_r9: |-
         The page documents an evaluation of this GenAI activity, or a requirement or plan for one. Does it document an evaluation of this type: bias, fairness or safety testing? Rules: consider only evaluation of THIS activity and its own tool; an evaluation of a different tool or activity does not count (CX-02). A trial run or reported by a vendor counts only if the institution or an independent body is named as the evaluator (CX-38). Starting or announcing a pilot is not an evaluation (CX-39). A risk or impact assessment is not an evaluation unless it reports testing or measured performance (CX-37, CX-32b). A performance figure counts only if the page describes the evaluation behind it (CX-36).
@@ -10157,24 +10180,30 @@ items:
     values: none
     rules:
     - text: |-
-        For every jev code on a page or activity, the extractor (C-001; the quote step) extracts the verbatim supporting text from the page. RC-D-002 row 15 replaces "after jev has coded": the quote step never sees the answer for the field it quotes, but may see that a gate is not `none`. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". A01 and CX-61 get quotes relevant to the field. The scale number is copied verbatim by the quote step and the classifier picks the unit; the publication date is coded by the quote step under the R-042 check. X35 adds an entailment check per (code, quote) with a chosen-answer probability bar.
-      origin: PI 2026-10-30 "approved!"; fixes-r4 FX13
+        For every jev code on a page or activity, the extractor (C-001; the quote step) extracts the verbatim supporting text from the page. RC-D-002 row 15 replaces "after jev has coded"; RC-D-017 replaces its blind rule: the quote step sees the chosen answer for the field it quotes and copies the text that supports it, so it is a confirmatory step. It may also see that a gate is not `none`. Each supporting text (a quote, a link passage or a field's supporting text) is at most 200 characters; a longer one is kept whole and flagged. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". A01 and CX-61 get quotes relevant to the field. The scale number is copied verbatim by the quote step and the classifier picks the unit; the publication date is coded by the quote step under the R-042 check. X35 adds an entailment check per (code, quote) with a chosen-answer probability bar.
+      origin: PI 2026-11-04 chat "4 yes" (RC-D-017); W-R12-4 (RC-D-017 6, 3, "5a")
       source: SPEC.md:107 R-040
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page record card I03 slot 1'
       text_before_r4: |-
         For every jev code on a page or activity, the extractor (C-001; the quote step) extracts the verbatim supporting text from the page. RC-D-002 row 15 replaces "after jev has coded": the quote step never sees the answer for the field it quotes, but may see that a gate is not `none` (r2#18). The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked" (activity-07 b). A01 and CX-61 get quotes relevant to the field. The scale number (A09) is copied verbatim by the quote step and the classifier picks the unit (C4 a); the publication date (X26) is coded by the quote step under the R-042 check. X35 adds an entailment check per (code, quote) with a chosen-answer probability bar (r2#26).
       origin_before_r4: spec
       r4_fixes: FX13
+      origin_before_r12: PI 2026-10-30 "approved!"; fixes-r4 FX13
+      text_before_r12: |-
+        For every jev code on a page or activity, the extractor (C-001; the quote step) extracts the verbatim supporting text from the page. RC-D-002 row 15 replaces "after jev has coded": the quote step never sees the answer for the field it quotes, but may see that a gate is not `none`. The quote step runs for every activity, including items the applicability table skips; those copies are kept internally, and the item is published as "not asked". A01 and CX-61 get quotes relevant to the field. The scale number is copied verbatim by the quote step and the classifier picks the unit; the publication date is coded by the quote step under the R-042 check. X35 adds an entailment check per (code, quote) with a chosen-answer probability bar.
     - text: |-
         Supporting text is checked against the stored page text by fuzzy match; a quote below the match threshold counts as no supporting text.
       origin: spec
       source: SPEC.md:109 R-042
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page record card I03 slot 2'
     - text: |-
-        Supporting text is published with the code it supports. The API carries the full text; the website shows it up to a display cap, with a marker and access to the full text.
-      origin: spec
+        Supporting text is published with the code it supports. The API carries the full text; the website shows it up to 200 characters, with a marker and access to the full text.
+      origin: PI 2026-11-04 chat "4 yes" (RC-D-017); W-R12-5 (RC-D-017 3)
       source: SPEC.md:111 R-043
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page record card I03 slot 3'
+      origin_before_r12: spec
+      text_before_r12: |-
+        Supporting text is published with the code it supports. The API carries the full text; the website shows it up to a display cap, with a marker and access to the full text.
     - text: Published supporting quotes stay verbatim, with no masking.
       origin: spec
       source: SPEC.md:124 R-058

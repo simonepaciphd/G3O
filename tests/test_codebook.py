@@ -28,7 +28,7 @@ from g3o.codebook.cli import main as cli_main
 from g3o.codebook.generators import GENERATED_DIR, generate_all
 from g3o.codebook.loader import REPO_ROOT, Codebook, load_codebook
 
-SIGNED_SHA256 = "f948fe0b2a36448db57b70b195567ffc39fb024efb986f9b0025581cee181e0d"  # r11, RC-D-007/009
+SIGNED_SHA256 = "93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712"  # r12 candidate, RC-D-015/017 (unsigned until signoff-record.md holds it)
 
 
 @pytest.fixture(scope="module")
@@ -718,7 +718,7 @@ def test_labels_absent_leave_the_question_unchanged() -> None:
 
 #: The RC-D-007 candidate lives outside the repo until signature; set this
 #: variable to its path to run the candidate case, e.g.
-#: C:/Users/spaci/worktrees/G3O-rcd007/planning/t010/candidate-r9/codebook-r9-signoff.yaml
+#: <worktree>/planning/t010/candidate-r9/codebook-r9-signoff.yaml
 CANDIDATE_ENV = "G3O_CODEBOOK_CANDIDATE"
 
 

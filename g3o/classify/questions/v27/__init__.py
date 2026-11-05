@@ -1,0 +1,59 @@
+"""v2.7 jev question sets (T-011): pass 1 (page), pass 2 (activity), Stage 6 (institution).
+
+The sets are JSON files beside this module, built from the signed codebook by
+``python -m g3o.classify.questions.v27 build`` and checked by ``... check``.
+Strings the codebook does not hold (state fields, span marker, dynamic year
+choice text, Stage 6 record fields) are declared ``approval: "pending"`` until
+the PI approves the wording packet (RC-D-014 S3 b); do not merge before then.
+"""
+
+from __future__ import annotations
+
+import json
+from functools import cache
+from typing import Any
+
+from g3o.classify.questions.v27.build import (
+    JEV_QUESTION_SET_VERSION,
+    SET_DIR,
+    SET_FILES,
+    SIGNED_CODEBOOK_SHA256,
+)
+
+
+@cache
+def load_set(name: str) -> dict[str, Any]:
+    """One set document (``page``, ``activity`` or ``institution``)."""
+    doc = json.loads((SET_DIR / SET_FILES[name]).read_text(encoding="utf-8"))
+    if doc["question_set_version"] != JEV_QUESTION_SET_VERSION:
+        raise ValueError(f"{name}: question-set version {doc['question_set_version']!r}")
+    if doc["codebook_sha256"] != SIGNED_CODEBOOK_SHA256:
+        raise ValueError(f"{name}: codebook hash {doc['codebook_sha256']!r}")
+    return doc
+
+
+def choice_request(question: dict[str, Any], *, part: bool = False,
+                   years: list[str] | None = None) -> dict[str, Any]:
+    """``{instructions, criteria}`` for one jev Choice, in the T-016 re-pilot form.
+
+    ``criteria`` maps each code to its signed text, in codebook order. With
+    ``part`` (a long page's part) the temporary answer "not covered by this
+    part" is added last. For a dynamic-year question, ``years`` are offered
+    first, ascending, before the offered missing label(s); their text is the
+    year itself until the PI rules on packet item W-05.
+    """
+    criteria: dict[str, str] = {}
+    if question.get("dynamic_choices") == "year":
+        if years is None:
+            raise ValueError(f"{question['question_id']}: year candidates required")
+        criteria.update({y: y for y in sorted(set(years))})
+    elif years is not None:
+        raise ValueError(f"{question['question_id']}: not a dynamic-year question")
+    criteria.update({c["code"]: c["text"] for c in question["criteria"]})
+    if part:
+        pa = question["part_prompt_answer"]
+        criteria[pa["label"]] = pa["meaning"]
+    return {"instructions": question["instructions"], "criteria": criteria}
+
+
+__all__ = ["JEV_QUESTION_SET_VERSION", "SIGNED_CODEBOOK_SHA256", "choice_request", "load_set"]

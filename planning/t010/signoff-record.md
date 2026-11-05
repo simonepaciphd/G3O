@@ -1,6 +1,23 @@
-# T-010 signature record: release 2.7, r11 (RC-D-007 / RC-D-009)
+# T-010 signature record: release 2.7, r12 (RC-D-015 / RC-D-017 / RC-D-018)
 
 ## Current signature authorization
+
+| | |
+|---|---|
+| sha256 | `93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712` |
+| File | `codebook/codebook.yaml` |
+| Branch, commit | `orch1105/c-r12`, `5318d73` (committed blob; CRLF, `codebook/.gitattributes` `-text`; 11,995 lines) |
+| Release | `2.7` |
+| Approver | Simone Paci |
+| Date | 2026-11-05, in chat |
+| Recorder | researcher plan integrator, session `20261104-claude-v2-b18c125048383d63` (Claude Code, claude-opus-5-5; DEC-012 a) |
+
+- **Words, verbatim:** "93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712", sent alone in reply to the integrator's request "To sign, reply with the hash in the same message, for example: \"sign r12 93d77b1b…df3e712\"". This record takes that reply as the signature; it does not quote "I sign".
+- **What was put to her:** the final unsigned r12 candidate above, after verification by the integrator (blob hash, CRLF, UTF-8, rule 2 text in all three year items, no local paths, codebook and question-set tests 55 passed / 1 skipped / 2 expected unsigned failures).
+- **What r12 changes from r11:** W-R12-1 (`cx_grain` question-set state), W-R12-2b (year rule 1: fiscal-year labels; ranges give both end years), W-R12-3c (year rule 2: fiscal labels in any language, Japanese era, Buddhist Era, ROC and other digits by written form alone, never the country), W-R12-4/5 (quote step sees the chosen answer; 200-character cap), Q2 a round moves, local `source` paths stripped (RC-D-018 "5a"), r12 header (P5). Wording approvals: "4 yes", "5a" (RC-D-017); "yes", "all as rec" (RC-D-018). Provenance: `planning/t010/r12-provenance.json`.
+- Frozen CX items remain covered by the existing batch-signature form (RC-D-004); the list below is unchanged.
+
+## Superseded signature authorization (r11, `f948fe0b…`)
 
 | | |
 |---|---|
