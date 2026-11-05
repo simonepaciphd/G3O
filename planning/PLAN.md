@@ -6,7 +6,7 @@ Current ruling overlay (2026-11-04, RC-D-015, APPROVED 2026-11-04 chat "I approv
 - T-040 labels confirmed at most-likely 4+ (R4 a); low ones relabelled and re-scored (R5 a).
 - RC-D-016 (APPROVED 2026-11-04, chat "approve delta"): cutoffs 0.80 Latin and CJK, Thai default 0.80 (".8 for both is fine"); the Alberta fixture keeps its v2 label with no further re-score ("no need to rescore again"). Calendar conversion built in this plan as new task T-064 ("let's go with a for multilingual"); card to follow; T-063 heads-up not sent while multilingual is frozen.
 - RC-D-017 (APPROVED 2026-11-04, chat "1 yes"; rulings chat "1a, 2a, 3 200 (put in prompt as cap too) 4 a 5 a 6 change this, show answer -- confirmatory test & biased, it's fine) 7 b 8 a 9aiii biii ciii dii eii 10a ; accept all"): T-003 matcher token_set_ratio, one threshold 93, display cap 200 (also an extraction-prompt cap; reverses the X19 drop), chrome matching untested; T-022 loses C22/C23 to T-032; quote step sees the chosen answer (reverses r2#18); r12 adds the year-owner phrase, year_announced conversion and the quote-step rule; T-064 card ruled (fiscal-year labels only, both years, form-keyed, all three items, no fixtures); F1 nearness = character distance; T-002 verified. Follow-ups "5a" (cap covers quotes, link passages, field support) and "1 yes, 2 whole, 3 a 4 yes 5 b 6 a" (over-cap kept whole; one-year fiscal label = that year; r12 wording approved; F4 adds a letter-share cut, value open; droplet bytes check authorized). Text `planning/deltas/RC-D-017.md`.
-- RC-D-018 (PROPOSED 2026-11-04; chat "1 c, 2 a, 3a 4 a 5a 6 a just give the lower year 7 lower year 8 a 9 b (reverse ruling, have subagent work out common conversions); accept all"): F4 letter cut < 10%; r12 strips local paths and updates the builder declarations; T-040 stays r11; ranges give the lower year; T-064 adds per-language fiscal markers (reverses 9aiii/ciii), conversion table drafted for approval. Text `planning/deltas/RC-D-018.md`.
+- RC-D-018 (APPROVED 2026-11-05; chats "1 c, 2 a, 3a 4 a 5a 6 a just give the lower year 7 lower year 8 a 9 b …; accept all", "1b, 2b", "ii is good, 4-10 all as rec", "yes", "all as rec"): F4 letter cut < 10%; r12 strips local paths and updates the builder declarations; T-040 stays r11; ranges give both end years (window lifted to 1900–2099 for range ends; reverses the lower-year rulings); T-064 converts per-language fiscal markers, Japanese era, Buddhist Era, ROC and Unicode digits by written form alone; T-065 carded (stdlib DOCX, no re-fetch); r12 rules 1–2 W-R12-2b/3c. Text `planning/deltas/RC-D-018.md`.
 - T-014 complete (PR #145, follow-ups PR #157: `<base href>` honoured, mailto split, pre-change cache gaps accepted).
 - T-020 code merged (PR #156).
 - Thai word fix merged (PR #155).
@@ -3257,7 +3257,7 @@ Spec refs: C16 year method (r2#50); D-010 (owner superseded by RC-D-016)
 Decision refs: RC-D-015 Q3 b, RC-D-016, RC-D-017 (9a-e); reverses the RC-D-012 deferral
 
 #### Objective
-A deterministic module that turns year expressions written in another calendar, or as a fiscal year, into candidate Gregorian years for the year items, so the signed candidate-then-classifier method has the right candidates on non-Gregorian and fiscal-year pages. Scope as ruled (RC-D-017): fiscal-year labels only (no other calendars); a fiscal-year label naming two calendar years yields both as candidates, a label naming one year yields that year ("3 a"); the rule is keyed on the written form alone; all three year items, including `year_announced`. The literal four-digit 2015–2030 rule, the no-publication-year-fallback rule and the earliest-year rule across chunks are unchanged.
+A deterministic module that turns year expressions written in another calendar, or as a fiscal year, into candidate Gregorian years for the year items, so the signed candidate-then-classifier method has the right candidates on non-Gregorian and fiscal-year pages. Scope as ruled (RC-D-017, widened by RC-D-018): fiscal-year labels in any language (table A markers count like "FY"), the Japanese era written with the era name, the Buddhist Era with its marker (CE = BE − 543) and the ROC calendar (民國), and years in any Unicode decimal digits; a label naming two calendar years yields both, a one-year label yields that year ("3 a"); a year range yields both written end years with the window lifted to 1900–2099 for range ends, unless a numbering word comes just before it; English "to", "through", "until" join a range; keyed on the written form alone, never the country; all three year items, including `year_announced`. Not converted: era abbreviations (R6, H30), Hijri, Solar Hijri. The literal four-digit 2015–2030 rule for standalone years, the no-publication-year-fallback rule and the earliest-year rule across chunks are unchanged.
 
 #### Inputs
 | Input | Location/producer | Required state/version | Missing-input behavior |
@@ -3271,7 +3271,7 @@ A deterministic module that turns year expressions written in another calendar, 
 |---|---|---|---|
 | Conversion module | `g3o/extract/years.py`† (new), on branch `reclass/t064-calendar`† | T-024 (deterministic year extraction), T-011 (dynamic year choice sets) | pure function: text → list of (Gregorian year, source span, source form, rule id); deterministic; no network; every candidate keeps its verbatim source text |
 | Tests | `tests/test_years_v27.py`† | CI | one positive and one negative case per fiscal-year form; range and tie behaviour |
-| Coverage note | `.../spikes/SPIKE-T064.md`† | PI, T-041 report | fiscal-year forms handled; counts found on RS-008/RS-009 pages; other-calendar years seen but out of scope (counted, not converted) |
+| Coverage note | `.../spikes/SPIKE-T064.md`† | PI, T-041 report | fiscal-year forms handled; counts found on RS-008/RS-009 pages; years in calendars still out of scope (counted, not converted) |
 
 #### Execution resources
 - Persona/role: engineer (lane eng-c)
@@ -3290,7 +3290,7 @@ A deterministic module that turns year expressions written in another calendar, 
 - Shared surfaces: T-024 calls the module read-only
 
 #### Procedure boundary
-- Included: detection of fiscal-year labels and conversion into candidate years
+- Included: detection of fiscal-year labels, the listed calendars, Unicode digits and year ranges, and conversion into candidate years
 - Excluded: choosing among candidates (the jev classifier, T-023); the multilingual subproject (frozen, PI 2026-11-04); any change to the literal-year rule
 - Fixed decisions: no publication-year fallback; earliest chosen year across chunks
 
@@ -3304,7 +3304,7 @@ A deterministic module that turns year expressions written in another calendar, 
 - Acceptance tests: none added (DP-064e: no fixtures); the F6 c "calendar years untested" line in the T-041 report stays
 
 #### Decision points (ruled, RC-D-017, chat 2026-11-04)
-- DP-064a: forms in scope. Ruled "9aiii": fiscal-year labels only
+- DP-064a: forms in scope. Ruled "9aiii": fiscal-year labels only; **reversed** by RC-D-018 "9 b", "2b" and "4-10 all as rec" (see Objective)
 - DP-064b: two-year fiscal years. Ruled "biii": both calendar years are candidates when the label names two years; a one-year label (e.g. "FY2025") gives that year only ("3 a")
 - DP-064c: rule key. Ruled "ciii": the written form alone
 - DP-064d: items. Ruled "dii": all three year items
