@@ -17,5 +17,8 @@ playwright>=1.40  # Stage 4 headless render adapter (g3o.scrape.render)
 # the pipeline was built and measured against. Lift it deliberately, with a
 # live smoke, not by letting a resolver decide.
 openai>=1.30,<3
+# v2.7 extractor client (g3o.extract.anthropic_client; RC-D-001 A). Exact pin,
+# as in pyproject.toml (RC-D-006 P5).
+anthropic==2.3.0
 pydantic>=2.5
 pyyaml>=6.0
