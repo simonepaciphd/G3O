@@ -1,4 +1,4 @@
-# G3O codebook release 2.7, revision r12 — UNSIGNED candidate (RC-D-015 / RC-D-017), sign-off build (T-010). Byte edits to the signed r11 file, recorded in planning/t010/r12-provenance.json.
+# G3O codebook release 2.7, revision r13 — UNSIGNED candidate (RC-D-019), sign-off build (T-010). Byte edits to the signed r12 file, recorded in planning/t010/r13-provenance.json.
 # Every slot text is copied verbatim from its `source`; `origin` records who approved it.
 # Signed only if planning/t010/signoff-record.md holds this file's sha256 (A-001).
 release:
@@ -34,6 +34,8 @@ release:
       planning/t010/drafts/fixes-r10.json (RC-D-007 rerun revisions: target_users, deployment_mode and the three year items; PI 2026-10-31 "1b 2a"); clean copy planning/t010/RC-D-007-clean-copy.md
     r12: |-
       RC-D-015 Q1 b, Q2 a, P1 a and RC-D-017 3, 5a, 6, 7 b, 8 a, 9d: wording W-R12-1..W-R12-5 as drafted (agent-workspace/2026-11-05-v27-orch/r12-wording-draft.md; PI 2026-11-04 chat "4 yes"); rounds moved (Q2 a): evaluation_documented, outcome_kind, incident_kind 3 -> 4, the six evaluation_type_* items 4 -> 5; provenance planning/t010/r12-provenance.json; year rules 1-2 replaced by W-R12-2b / W-R12-3b (PI 2026-11-05 chat "yes"); rule 2 replaced by W-R12-3c (PI 2026-11-05 chat "all as rec" C2)
+    r13: |-
+      RC-D-019 (PI 2026-11-05 chat "Aa,D1b add all of them, I approve the delta D2c C1a C2b; proced all accept" and "F1a, B1c (but current-year+25-99), B2a; [recedural ok; E1c E2a ..."): D1 b / F1 a six answer values take `not_required` (status_by_answer keys and the four current copies of the list); C1 a year value label (label_rules); B2 a / B1 c rule 1 of the three year items; E2 a new rule of content_contact_emails; provenance planning/t010/r13-provenance.json
   r4_dropped:
   - card: activity-1 O1
     slot: items/core.observed_actor_relationship/rules/6
@@ -234,8 +236,11 @@ vocabularies:
     - not_required
     text:
       text: |-
+        Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including "not asked" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.
+      origin: PI 2026-11-05 chat "D1b add all of them" and "F1a" (RC-D-019 D1 b, F1 a; list wording accepted as procedural); r13
+      origin_before_r13: PI 2026-10-30 "approved!"; fixes-r4 FX13
+      text_before_r13: |-
         Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including "not asked" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no` and negative page verdicts.
-      origin: PI 2026-10-30 "approved!"; fixes-r4 FX13
       source: SPEC.md:108 R-041
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page shared card I03 slot 1'
       text_before_r4: |-
@@ -255,8 +260,11 @@ vocabularies:
       source: codebook-rulings-round3.json record-02 (choice a); option text questions-r3.json record-02.a.label
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page shared card I03 slot 3'
     - text: |-
+        `not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.
+      origin: PI 2026-11-05 chat "D1b add all of them" and "F1a" (RC-D-019 D1 b, F1 a; list wording accepted as procedural); r13
+      origin_before_r13: PI 2026-10-30 "approved!"; fixes-r4 FX09
+      text_before_r13: |-
         `not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no` and negative page verdicts.
-      origin: PI 2026-10-30 "approved!"; fixes-r4 FX09
       source: |-
         codebook-rulings-round3.json record-02 (choice a); option text questions-r3.json record-02.a.mechanism
       omitted_tail: ' only for answers that need no quote by their nature (not documented, unknown).'
@@ -274,6 +282,12 @@ vocabularies:
       not_documented: not_required
       unknown: not_required
       'no': not_required
+      none_reported: not_required
+      none_documented: not_required
+      none: not_required
+      unclear: not_required
+      unresolved: not_required
+      not_an_activity: not_required
       negative page verdicts (R-041): not_required
       not_asked: set_by_rule
       _NA_: set_by_rule
@@ -1858,6 +1872,11 @@ items:
       origin: spec
       source: SPEC.md:124 R-058
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page page card I08 slot 2'
+    - text: |-
+        When `content_contact` = yes and the search finds no address, the value is `not_documented`.
+      origin: PI 2026-11-05 chat "E2a" (RC-D-019 E2 a); r13 agent draft
+      source: PI 2026-11-05 chat E2 a (RC-D-019)
+      role: 'missing label not_documented: when it is stored for this item'
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -7290,8 +7309,11 @@ items:
           RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"
     rules:
     - text: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there and the years written in the Japanese era (with the era name), the Buddhist Era (with its marker) or the ROC calendar (民國), converted to CE; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. A two-digit year is read as 20xx, except that those from (current year mod 100) + 25 through 99 are read as 19xx. No fallback to publication year. Across chunks: earliest chosen year.
+      origin: PI 2026-11-05 chat "B1c (but current-year+25-99), B2a" (RC-D-019 B1 c as amended, B2 a); r13 agent draft
+      origin_before_r13: PI 2026-11-05 chat "yes"; W-R12-2b (supersedes W-R12-2, PI 2026-11-04 "4 yes", RC-D-017)
+      text_before_r13: |-
         Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.
-      origin: PI 2026-11-05 chat "yes"; W-R12-2b (supersedes W-R12-2, PI 2026-11-04 "4 yes", RC-D-017)
       source: codebook-rulings-round1.json C16.mechanism
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I15 slot 2'
       text_before_r8: |-
@@ -7412,8 +7434,11 @@ items:
           RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"
     rules:
     - text: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there and the years written in the Japanese era (with the era name), the Buddhist Era (with its marker) or the ROC calendar (民國), converted to CE; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. A two-digit year is read as 20xx, except that those from (current year mod 100) + 25 through 99 are read as 19xx. No fallback to publication year. Across chunks: earliest chosen year.
+      origin: PI 2026-11-05 chat "B1c (but current-year+25-99), B2a" (RC-D-019 B1 c as amended, B2 a); r13 agent draft
+      origin_before_r13: PI 2026-11-05 chat "yes"; W-R12-2b (supersedes W-R12-2, PI 2026-11-04 "4 yes", RC-D-017)
+      text_before_r13: |-
         Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.
-      origin: PI 2026-11-05 chat "yes"; W-R12-2b (supersedes W-R12-2, PI 2026-11-04 "4 yes", RC-D-017)
       source: |-
         drafts/rc-d-005-wording.json W44 (items/core.year_pilot_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I16 slot 1'
@@ -7552,8 +7577,11 @@ items:
           RC-D-005 12 a (PI 2026-10-30 "12 a"; option as asked: "a, offer `not_documented` (per-item missing-label rule), `unknown` stays mechanical") is later than C16 alt-1 (round 1, 2026-10-29) and overrides its `plus unknown` choice; R2C04 (r2#16, PI 2026-10-29): "Reserved labels: 'not asked' ..., 'not documented' (page silent) and 'unknown' (stated but undeterminable, or downgraded). New and non-frozen fields adopt them"
     rules:
     - text: |-
+        Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there and the years written in the Japanese era (with the era name), the Buddhist Era (with its marker) or the ROC calendar (民國), converted to CE; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. A two-digit year is read as 20xx, except that those from (current year mod 100) + 25 through 99 are read as 19xx. No fallback to publication year. Across chunks: earliest chosen year.
+      origin: PI 2026-11-05 chat "B1c (but current-year+25-99), B2a" (RC-D-019 B1 c as amended, B2 a); r13 agent draft
+      origin_before_r13: PI 2026-11-05 chat "yes"; W-R12-2b (supersedes W-R12-2, PI 2026-11-04 "4 yes", RC-D-017)
+      text_before_r13: |-
         Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as "p.", "No." or "§" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.
-      origin: PI 2026-11-05 chat "yes"; W-R12-2b (supersedes W-R12-2, PI 2026-11-04 "4 yes", RC-D-017)
       source: |-
         drafts/rc-d-005-wording.json W45 (items/core.year_production_start/rules/0/text (signed text), question swapped for the draft in the item's own entry)
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-2 card I17 slot 1'
@@ -10086,8 +10114,11 @@ items:
       origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
     label_rules:
       text: |-
+        The field label is the checked item's `entailment_label` and the value label its value's `entailment_label` (for the role part of `observed_actor_relationship`, `values.part_entailment_labels` and the role values' labels). For the three year items the value label is the calendar (CE) year in four ASCII digits after conversion, for example "2024" for "FY24". Items coded per page or per source (`content_contact_details`, `content_contact_named`, `content_data`, `disclosure_form`, `disclosure_scope`, `page_complete`, `page_verdict`, `source_type`) use the page form `instruction_page`; every other item uses the activity form, naming the activity (for a two-record relation, the first record's activity).
+      origin: PI 2026-11-05 chat "C1a" (RC-D-019 C1 a); r13 agent draft
+      origin_before_r13: PI 2026-10-31 "c7 a"; RC-D-007 draft
+      text_before_r13: |-
         The field label is the checked item's `entailment_label` and the value label its value's `entailment_label` (for the role part of `observed_actor_relationship`, `values.part_entailment_labels` and the role values' labels). For the three year items the value label is the year as written, for example "2024". Items coded per page or per source (`content_contact_details`, `content_contact_named`, `content_data`, `disclosure_form`, `disclosure_scope`, `page_complete`, `page_verdict`, `source_type`) use the page form `instruction_page`; every other item uses the activity form, naming the activity (for a two-record relation, the first record's activity).
-      origin: PI 2026-10-31 "c7 a"; RC-D-007 draft
   core.support_status:
     id: core.support_status
     family: support
@@ -10108,8 +10139,11 @@ items:
     values: none
     rules:
     - text: |-
+        Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including "not asked" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.
+      origin: PI 2026-11-05 chat "D1b add all of them" and "F1a" (RC-D-019 D1 b, F1 a; list wording accepted as procedural); r13
+      origin_before_r13: PI 2026-10-30 "approved!"; fixes-r4 FX13
+      text_before_r13: |-
         Support-status values: `supported` / `downgraded_no_quote` / `downgraded_low_confidence` / `downgraded_quote_not_stating_value` / `set_by_rule`, for every value a rule fixed, including "not asked" and `_NA_` (exempt from the no-quote downgrade; record-02 a; O12) / `not_required`, for `not_documented`, `unknown`, `no` and negative page verdicts.
-      origin: PI 2026-10-30 "approved!"; fixes-r4 FX13
       source: SPEC.md:108 R-041
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page record card I02 slot 1'
       text_before_r4: |-
@@ -10117,8 +10151,11 @@ items:
       origin_before_r4: spec
       r4_fixes: FX13
     - text: |-
+        `not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no`, `none_reported`, `none_documented`, `none`, `unclear`, `unresolved`, `not_an_activity` and negative page verdicts.
+      origin: PI 2026-11-05 chat "D1b add all of them" and "F1a" (RC-D-019 D1 b, F1 a; list wording accepted as procedural); r13
+      origin_before_r13: PI 2026-10-30 "approved!"; fixes-r4 FX09
+      text_before_r13: |-
         `not_required`: the answer needs no supporting quote by its nature. It is given to `not_documented`, `unknown`, `no` and negative page verdicts.
-      origin: PI 2026-10-30 "approved!"; fixes-r4 FX09
       source: |-
         codebook-rulings-round3.json record-02 (choice a); option text questions-r3.json record-02.a.mechanism
       omitted_tail: ' only for answers that need no quote by their nature (not documented, unknown).'

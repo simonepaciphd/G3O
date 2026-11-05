@@ -63,13 +63,13 @@ def validate_payload(payload: dict[str, Any]) -> None:
     if payload["schema_version"] != "g3o-instrument-v1":
         raise ValueError("unsupported instrument schema version")
     if payload["codebook_release"] != "2.7" or payload["codebook_sha256"] != CODEBOOK_SHA256:
-        raise ValueError("instrument is not bound to the pinned r12 release")
+        raise ValueError("instrument is not bound to the pinned r13 release")
     for name in ("codebook_item_hashes", "question_hashes", "prompt_hashes"):
         _hashes(payload[name], name)
     expected = {key: value["schema"]["x-item-hash"] for key, value in FIELDS.items()
                 if "x-item-hash" in value["schema"]}
     if payload["codebook_item_hashes"] != expected:
-        raise ValueError("instrument item hashes do not match pinned r12")
+        raise ValueError("instrument item hashes do not match pinned r13")
     if not isinstance(payload["extractor_prompt_sha256"], str) or not _HASH.fullmatch(payload["extractor_prompt_sha256"]):
         raise ValueError("invalid extractor prompt hash")
     if type(payload["token_budget"]) is not int or payload["token_budget"] <= 0:
