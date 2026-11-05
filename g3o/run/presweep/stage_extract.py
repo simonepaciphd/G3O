@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Callable, Iterator, Mapping
+import time
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -327,3 +329,187 @@ def _run_extract(
             credentials=credentials, telemetry=telemetry,
         )
     return _count_existing_extracts(run_dir, sample)
+
+
+# ---------------------------------------------------------------------------
+# v2.7 pass-1 extraction (T-022)
+# ---------------------------------------------------------------------------
+#
+# Beside the v2.5 runner above, which is unchanged until T-071 (RC-D-017 P4).
+# Not called by the orchestrator yet: the call site and the T-021 page artifact
+# are T-030's wiring. No head+tail page-text cap on this path (T-022): a request
+# over the size guard is refused whole and recorded, never cut.
+
+EXTRACT_V27_STAGE = "extract_v27"
+EXTRACT_V27_DIR = "extract_v27"
+
+
+def _v27_artifact_path(run_dir: Path, institution_id: str, url: str) -> Path:
+    from g3o.extract.batch import url_hash
+
+    return institution_dir(run_dir, institution_id) / EXTRACT_V27_DIR / f"{url_hash(url)}.json"
+
+
+def _v27_has_artifact(run_dir: Path, page: Any) -> bool:
+    p = _v27_artifact_path(run_dir, page.institution_id, page.url)
+    return p.exists() or p.with_name(p.name + ".gz").exists()
+
+
+def _v27_write(run_dir: Path, page: Any, payload: dict[str, Any]) -> None:
+    write_artifact(
+        _v27_artifact_path(run_dir, page.institution_id, page.url),
+        json.dumps(payload, ensure_ascii=False, sort_keys=True),
+    )
+
+
+def _write_v27_state(run_dir: Path, batches: list[dict[str, Any]]) -> None:
+    """Record submitted batches (id + custom ids), written after every submit."""
+    from g3o.common.run_state import _write_json_atomic, state_path
+
+    _write_json_atomic(state_path(run_dir, EXTRACT_V27_STAGE), {
+        "stage": EXTRACT_V27_STAGE, "provider": "anthropic", "batches": batches,
+    })
+
+
+def _run_extract_v27(
+    run_dir: Path,
+    pages: Sequence[Any],
+    *,
+    client: Any,
+    mode: str = "batch",
+    poll_interval: float = 60.0,
+    max_wait: float = 24 * 3600.0,
+    sleep: Callable[[float], None] = time.sleep,
+    cost_check_callback: Callable[[list[Any]], bool] | None = None,
+) -> dict[str, int]:
+    """Stage 5 (v2.7): pass-1 extraction for pages that have been through jev pass 1.
+
+    ``pages`` are :class:`g3o.extract.request_v27.Pass1Page` objects;
+    ``client`` is an :class:`g3o.extract.anthropic_client.AnthropicExtractorClient`
+    (tests inject a fake). ``mode`` is ``"sync"`` (testing legs: T-041, T-072)
+    or ``"batch"`` (full runs; RC-D-001 B).
+
+    Every page that is processed gets one artifact under
+    ``<inst>/extract_v27/<url_hash>.json``: ``status`` ``extracted`` (the parsed
+    :class:`~g3o.extract.parser_v27.Pass1Extraction` plus the request plan) or
+    ``no_request`` (the plan only, so an incomplete page whose links were not
+    measured still says so). A refused, failed or contract-breaking request
+    writes no artifact and is recorded in the attrition ledger.
+
+    Resume: pages that already have an artifact are skipped. In batch mode each
+    batch id and its custom ids are written to ``_state/extract_v27.json`` after
+    its submit; a re-run rejoins those batches, submits only the ones not yet
+    sent, and refuses if the recorded batches no longer match the input. ``cost_check_callback``
+    receives the jobs before anything is sent; ``False`` stops the stage.
+
+    Returns counts: ``pages``, ``skipped``, ``no_request``, ``refused``,
+    ``extracted``, ``failed``.
+    """
+    from g3o.extract.anthropic_client import split_for_batches
+    from g3o.extract.parser_v27 import parse_pass1_result
+    from g3o.extract.request_v27 import PROMPT_VERSION, build_jobs
+
+    if mode not in ("sync", "batch"):
+        raise ValueError(f"mode must be 'sync' or 'batch', not {mode!r}")
+    stage = EXTRACT_V27_STAGE
+    counts = dict.fromkeys(("pages", "skipped", "no_request", "refused", "extracted", "failed"), 0)
+    counts["pages"] = len(pages)
+    if is_done(run_dir, stage):
+        logger.info("Stage 5 (v2.7): .done marker present — skipping (resume from disk)")
+        counts["skipped"] = len(pages)
+        return counts
+
+    ids = [p.page_id for p in pages]
+    if len(set(ids)) != len(ids):
+        raise ValueError("duplicate page_id in Stage 5 (v2.7) input")
+    # Plans and batches are built over the whole input, so a resumed run splits
+    # them exactly as the first one did; pages already on disk are skipped below.
+    done_ids = {p.page_id for p in pages if _v27_has_artifact(run_dir, p)}
+    counts["skipped"] = len(done_ids)
+    jobs, plans = build_jobs(pages)
+    by_page = {p.page_id: p for p in pages}
+    for p in pages:
+        if p.page_id not in done_ids and not plans[p.page_id].needs_request:
+            _v27_write(run_dir, p, {"status": "no_request", "page_id": p.page_id,
+                                    "prompt_version": PROMPT_VERSION,
+                                    "plan": asdict(plans[p.page_id])})
+            counts["no_request"] += 1
+    by_cid: dict[str, Any] = {}
+    for job in jobs:
+        if job.custom_id in by_cid:
+            raise ValueError(f"two pages share custom_id {job.custom_id} (same institution and URL)")
+        by_cid[job.custom_id] = by_page[job.metadata["page_id"]]
+
+    batches, refused = split_for_batches(jobs)
+    for job in refused:
+        page = by_cid[job.custom_id]
+        if page.page_id in done_ids:
+            continue
+        attrition.record(run_dir, institution_id=page.institution_id, stage=stage,
+                         reason="v27_request_too_large", url=page.url,
+                         detail="refused whole; page text is never truncated")
+        counts["refused"] += 1
+    sendable = [j for b in batches for j in b if by_cid[j.custom_id].page_id not in done_ids]
+    submitted: list[dict[str, Any]] = []
+    if mode == "batch":
+        submitted = list((load_state(run_dir, stage) or {}).get("batches", []))
+        if len(submitted) > len(batches) or any(
+            rec["custom_ids"] != [j.custom_id for j in batches[n]]
+            for n, rec in enumerate(submitted)
+        ):
+            raise RuntimeError(
+                f"Stage 5 (v2.7): the batches in _state/{stage}.json do not match this input; "
+                "nothing resubmitted (inspect the state file before re-running)")
+        to_send = [j for b in batches[len(submitted):] for j in b]
+    else:
+        to_send = sendable
+    if to_send and cost_check_callback is not None and not cost_check_callback(to_send):
+        raise RuntimeError("Stage 5 (v2.7): cost check refused the submission; nothing sent")
+
+    def _persist(result: Any) -> None:
+        page = by_cid.get(result.custom_id)
+        if page is None:
+            logger.warning("Stage 5 (v2.7) result %s matches no request", result.custom_id)
+            return
+        if _v27_has_artifact(run_dir, page):
+            return
+        plan = plans[page.page_id]
+        try:
+            parsed = parse_pass1_result(result, page, plan)
+        except Exception as exc:  # recorded in the ledger, never silently dropped
+            reason = "v27_extract_failed" if not result.success else "v27_parse_failed"
+            attrition.record(run_dir, institution_id=page.institution_id, stage=stage,
+                             reason=reason, url=page.url, detail=str(exc))
+            counts["failed"] += 1
+            return
+        _v27_write(run_dir, page, {"status": "extracted", "page_id": page.page_id,
+                                   "prompt_version": PROMPT_VERSION, "plan": asdict(plan),
+                                   "extraction": asdict(parsed)})
+        counts["extracted"] += 1
+
+    if mode == "sync":
+        for job in sendable:
+            _persist(client.create(job))
+    elif sendable:
+        for batch in batches[len(submitted):]:
+            submitted.append({"batch_id": client.submit_batch(batch),
+                              "custom_ids": [j.custom_id for j in batch]})
+            _write_v27_state(run_dir, submitted)
+        batch_ids = [b["batch_id"] for b in submitted]
+        waited = 0.0
+        pending = list(batch_ids)
+        while True:
+            pending = [b for b in pending if client.batch_status(b) != "ended"]
+            if not pending:
+                break
+            if waited >= max_wait:
+                raise TimeoutError(f"Stage 5 (v2.7): batches {pending} still running after "
+                                   f"{max_wait}s; re-run to rejoin")
+            sleep(poll_interval)
+            waited += poll_interval
+        for batch_id in batch_ids:
+            for result in client.batch_results(batch_id):
+                _persist(result)
+    mark_done(run_dir, stage, no_batch=mode == "sync" or not sendable, n_jobs=len(sendable),
+              model=sendable[0].params["model"] if sendable else None)
+    return counts

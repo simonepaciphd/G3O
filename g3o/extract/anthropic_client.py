@@ -10,8 +10,8 @@ Design points:
 
 - **No import-time dependency on the SDK.** ``anthropic`` is imported lazily,
   only when no client is injected, so the test suite and CI run without it and
-  every test injects a fake. (The ``anthropic`` pin is T-020's note: it is
-  added to ``requirements.txt`` / ``pyproject.toml`` when this path is wired.)
+  every test injects a fake. ``anthropic`` is pinned ``==2.3.0`` in
+  ``pyproject.toml`` and ``requirements.txt`` (RC-D-006 P5).
 - **Request params are plain dicts** in the Messages API shape; the SDK's
   ``TypedDict`` params are dicts, so the same object goes to
   ``messages.create(**params)`` and into a batch ``Request``.
