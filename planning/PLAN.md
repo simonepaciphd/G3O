@@ -1,5 +1,7 @@
 # PLAN: G3O pipeline reclassification
 
+Current ruling overlay (2026-11-05, RC-D-019, APPROVED 2026-11-05 chat "I approve the delta"; text `planning/deltas/RC-D-019.md`): six more answer values exempt from supporting text, global by value (r13); quote matches if the matcher or the 80% rule passes; entailment window quote + 200 characters each side; contact with no address = `not_documented`; year label = converted CE year; one-year labels and era years in 1900-2099; two-digit pivot (current year mod 100) + 25; era years named in r13; R-015 markers = F4 spike set. Codebook parts take effect with r13 once signed.
+
 Current ruling overlay (2026-11-04, RC-D-015, APPROVED 2026-11-04 chat "I approve delta"; text `planning/deltas/RC-D-015.md`):
 - T-003 jev wording approved; controls both kinds; jev 4+ = most probable level.
 - T-003 paid run done ($0.13); "strongly" bar met for Latin and CJK on expected score (R1 b); OR gold kept (R2 a); per-script cutoffs to be tuned (R3 b).
@@ -286,7 +288,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-062 | integrator | W18 | pending | T-071 | none | none | RS-038 | D-009 | `planning/handoffs/D-009-ai-text-delta.md`† | PI approves delta text; sending is external | none |
 | T-063 | integrator | W2 | in-progress | T-010 | none | none | RS-040 | D-010 | `planning/handoffs/D-010-multilingual-heads-up.md`† | PI approves the text; sending is external | none |
 | T-064 | eng-c | W3 | in-progress | T-010 | none | T-024 | RS-008, RS-009 | none | `g3o/extract/years.py`†, `tests/test_years_v27.py`†, spikes folder `SPIKE-T064*` | push of the branch | none |
-| T-065 | eng-a | W3 | in-progress | T-014 | none | T-041 | none | none | `g3o/scrape/fetcher.py` (routing block only), `g3o/scrape/docx.py`†, `tests/test_scrape_binary_route.py`† | push of the branch (DP-065a/b ruled, RC-D-018) | none |
+| T-065 | eng-a | W3 | in-progress | T-014 | none | T-041 | none | none | `g3o/scrape/fetcher.py` (routing block only), `g3o/scrape/docx.py`†, `g3o/scrape/readability.py`†, `tests/test_scrape_binary_route.py`† | push of the branch (DP-065a/b ruled, RC-D-018) | none |
 | T-071 | eng-a | W17 | blocked | T-031, T-041, T-055, T-060, T-061 | none | T-062, T-070 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
 | T-070 | eng-a | W18 | blocked | T-071 | none | T-072 | RS-026, RS-030 | none | freeze folder† | PI confirms the freeze date | none |
 | T-072 | eng-a | W19 | blocked | T-001, T-070 | none | T-073 | none | none | smoke run dir; smoke folder† | paid run — the agent prepares the exact command and cost estimate and Simone runs it via `! <command>` (red line 4, 2026-10-28); SSH authorisation; PI reviews the smoke report | none |
@@ -686,11 +688,12 @@ More than 2 review rounds → split extract contract from validate contract.
 
 RC-D-014 (2026-11-04; rulings by Simone, approved): S3 b: question wording that is not verbatim codebook/contract text is approved later. The build proceeds and stops before merge. The integrator puts one approval packet (T-011 questions, T-022 pass-1 prompt, T-032 pass-2 prompt) to the PI before the T-030 integration merge.
 
-RC-D-012 disposition (2026-11-02): calendar conversion deferred by explicit PI reply; proceed with the signed literal-year method when other inputs are satisfied. This supersedes earlier calendar-blocking statements below. T-016 corrected reporting is accepted, but full T-016 closure remains open.
+RC-D-012 disposition (2026-11-02): calendar conversion deferred by explicit PI reply; proceed with the signed literal-year method when other inputs are satisfied. This supersedes earlier calendar-blocking statements below. T-016 corrected reporting is accepted, but full T-016 closure remains open. Superseded by RC-D-016 and RC-D-018: calendar conversion is built in-plan as T-064 (RC-D-019 F5).
 
 Preparation update (2026-11-02): signed r11/LABELS sources assembled and independently verified at 2812ca22253adfa1f70f81d08f377fa15a8619f9; source artifacts are not installed runtime question sets. Later r9/r10 rulings and the r11 signature are preserved. T-016 corrected-probability disposition and the existing calendar/fiscal gate remain; do not infer a paid rerun. Preserve four-digit2015–2030 activity/context years, no publication-year fallback, earliest chosen year across chunks; Simone owns D-010 contact. See handoffs/Preparation-next-stage.md.
 
 Status: pending
+Progress (2026-11-05, integrator; RC-D-019): year-choice declaration aligned with T-064, codes are the converted CE year (C1 a), merged PR #171 (af5292f). W-05 DRAFT with option (d) and the year-context width (E4: proposed 200 characters each side of the activity span) goes into the wording packet: `agent-workspace/2026-11-06-v27-orch/lane-c-W05-draft.md`.
 Type: build
 Priority: critical-path
 Spec refs: R-002, R-004, R-005, R-006, R-015, R-016, R-020, R-021, R-022, R-023, R-024, R-025, R-030, G-005
@@ -714,7 +717,7 @@ RC-D-002 row 39: CX wording is byte-identical to the re-signed version (CX-01.3�
 | Re-signed CX wording (CX-01.3†) | codebook, T-010 | signed | stop |
 | T-013 generators | branch `reclass/t013-codebook`† | merged | stop |
 | T-016 re-pilot results | re-pilot folder | PI-ruled | stop |
-| Calendar and fiscal-year conversion rule | multilingual subproject via T-063 (D-010) | deferred by PI, RC-D-012 | does not block current signed literal-year method; no conversion added; other inputs still required |
+| Calendar and fiscal-year conversion rule | multilingual subproject via T-063 (D-010) | built in-plan as T-064 (RC-D-016, RC-D-018; PRs #167, #173) | year choices take T-064 candidates (PR #171, RC-D-019 C1 a) |
 | RS-013 question-set pattern | G3O `origin/main` | `375f1ff` | follow the pattern |
 
 #### Outputs
@@ -1347,6 +1350,7 @@ More than 1 week → split CX fields from the verdict.
 RC-D-014 (2026-11-04; rulings by Simone, approved): S3 b: the pass-1 prompt text is approved later, in the single wording packet before the T-030 merge (see T-011). P5 a: span offsets count from the start of the whole page (DP-008).
 
 Status: pending
+Progress (2026-11-05, integrator; RC-D-019): remainder built and merged PR #172 (43c8e7e): `_run_extract_v27` in `g3o/run/presweep/stage_extract.py` (orchestrator call site left to T-030), `anthropic==2.3.0` in `requirements.txt`. Generated prompt install stays at the T-030 merge (RC-D-017 P5). Open: PI prompt approval (packet), T-031.
 Progress (2026-11-04, integrator; RC-D-017): C22/C23 move to T-032 ("5 a"); quote tasks show the chosen answer ("6"; reverses r2#18); 200-character cap in the prompt for quotes, link passages and field support, over-cap kept whole and flagged ("3", "5a", "2 whole"). Slice on `orch1105/b-t022` `241aa03` (unpushed); P-1 slot `agent-workspace/2026-11-05-v27-orch/lane-b/v27-wording-packet-P-1.*`. Remaining: `stage_extract.py` wiring, T-030 packaging, packet approval, T-031.
 Type: build
 Priority: critical-path
@@ -1512,6 +1516,7 @@ Split the CX finding fields from Group D.
 RC-D-014 (2026-11-04; rulings by Simone, approved): S3 b: the pass-2 prompt text is approved later, in the single wording packet before the T-030 merge (see T-011). P6 a: one request per page (DP-009).
 
 Status: pending
+Progress (2026-11-05, integrator; RC-D-019): pass-2 support call built: `g3o/extract/pass2_support.py`, prompt DRAFT `prompts/pass2_support_v27.md` (PR #172); exemptions read from the codebook only (D1 b); `core.activity_segment` quote-task question slot (D2 c, DRAFT 2) on `orch1106/d-t022` (34c2fcb). Drafts: `agent-workspace/2026-11-06-v27-orch/lane-d-pass2-prompt-draft.md`. Open: packet approval, T-031.
 Type: build
 Priority: critical-path
 Spec refs: R-040, R-044, C-001, A-003, A-021
@@ -1588,6 +1593,7 @@ RC-D-014 (2026-11-04; rulings by Simone, approved): The support check applies th
 RC-D-011 execution update (2026-11-02): Consume the verified RC-D-011 local normalizer under existing input gates. Actual main/header/footer extraction and contact-gate runtime remain unverified; no task launch.
 
 Status: pending
+Progress (2026-11-05, integrator; RC-D-019): library built on `orch1106/e-t024` (808338c): `g3o/common/support_check.py`. Match rule E1 c (matcher OR 80% rule), entailment window E3 (quote + 200 characters each side, producing part), contact no-address = `not_documented` (E2 a), follow-up on `orch1106/e2-t024`. Still blocked: T-032/T-022 prompt approval, T-012 completion, r13 signature (re-pin of `SIGNED_CODEBOOK_SHA256`).
 Type: build
 Priority: critical-path
 Spec refs: G-002, R-006, R-023 (CX-53), R-040, R-041, R-042, R-044, R-081
@@ -1972,6 +1978,7 @@ none
 Preparation update (2026-11-02): source-only r11/LABELS assembly is available at 2812ca22253adfa1f70f81d08f377fa15a8619f9; this closes the r8-source preparation gap only. Actual upstream stage assembly, executed configuration and immutable instrument binding remain gated. Separate T-020 branch is not part of this source candidate. T-035 final pins/six exceptions and T-031 integrated-candidate requirement remain unchanged.
 
 Status: pending
+Progress (2026-11-05, integrator; RC-D-019): items carried here: (1) wheel packaging — the v2.7 path reads `codebook/codebook.yaml` and `g3o/codebook/generated/*.md`, neither ships in the wheel (lane D, D3 accepted); (2) record the R-015 readability failure reason when writing `not_assessable` (`g3o/scrape/readability.readability_failure`; with T-035).
 Type: integrate
 Priority: critical-path
 Spec refs: D-002, R-050, C-007
@@ -2190,6 +2197,7 @@ none
 ### T-035 — Integrate the back-fill and transfer paths
 
 Status: pending
+Progress (2026-11-05, integrator; RC-D-019): records the R-015 readability failure reason (storage name and home) with T-030; see T-030 note.
 Type: integrate
 Priority: critical-path
 Spec refs: D-002, D-003, R-050, R-077, C-005, C-007
@@ -3252,6 +3260,7 @@ none
 ### T-064 — Build the calendar and fiscal-year conversion for year candidates (RC-D-015 Q3 b, RC-D-016)
 
 Status: in-progress
+Progress (2026-11-05, integrator; RC-D-019): C2 b (one-year labels and single era years in 1900-2099) and rule ids on sources merged via PR #173 (fbd3189); B1 c two-digit pivot (from (current year mod 100) + 25 through 99 read 19xx, reference year recorded) on `orch1106/b2-t064`. Coverage scan ran locally (PI "1a"; peak 326 MB): rerun on the C2 b code feeds `SPIKE-T064.md`.
 Progress (2026-11-05, integrator): `g3o/extract/years.py` and `tests/test_years_v27.py` merged in PR #167 (cda6df1); RC-D-018 D1-D9 implemented. Open: the coverage note `SPIKE-T064.md` (run over RS-008/RS-009 page text); it needs more memory than the laptop has, so it runs on a GCP VM (PI 2026-11-05).
 Type: build
 Priority: critical-path
@@ -3321,6 +3330,7 @@ Tests pass; coverage note written; PI rulings implemented as ruled.
 ### T-065 — Route binary documents fetched as HTML to a document extractor (F4 follow-up)
 
 Status: in-progress
+Progress (2026-11-05, integrator; RC-D-019): built and merged PR #170 (2ca5ec4); binary markers kept as the F4 spike set (A a). Write claim includes `g3o/scrape/readability.py` (procedural, accepted). Open: T-031 review.
 Progress (2026-11-05, integrator): card placed from the RC-D-018 appendix (approved 2026-11-05); build started on a lane branch from `origin/main` 9f6dd74.
 Type: build
 Priority: required
@@ -3357,7 +3367,7 @@ Stop storing PDF and DOCX files as garbled "HTML" text. Today the scraper routes
 - Researcher gates: DP-065a/b; push gate
 
 #### Ownership and collision control
-- Write claim: `g3o/scrape/fetcher.py` (routing block only), `g3o/scrape/docx.py`†, the tests
+- Write claim: `g3o/scrape/fetcher.py` (routing block only), `g3o/scrape/docx.py`†, `g3o/scrape/readability.py`†, the tests
 - Shared surfaces: `fetcher.py` is the scraper; T-014 is complete, no other open card writes it
 
 #### Procedure boundary
