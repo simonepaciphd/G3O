@@ -17,9 +17,10 @@ questions are byte-identical to the re-signed CX version (RC-D-002 row 39).
 What the codebook does not hold is declared, never filled in silently: the
 fields and order of each set's jev state, the activity-span marker, the text of
 the dynamic year choices, and the Stage 6 record and quote fields. Each such
-string is listed under ``non_verbatim`` with its wording-packet item id and
-``approval: "pending"`` (RC-D-014 S3 b: approved by the PI in one packet before
-the T-030 merge). Stage code (T-021, T-023, T-026) builds the states; this
+string is listed under ``non_verbatim`` with its wording-packet item id and its
+``approval`` (RC-D-014 S3 b: approved by the PI in one packet before the T-030
+merge): ``"approved"`` with the ruling record, or ``"pending"`` while a slot
+lists an ``open`` point the rulings do not settle. Stage code (T-021, T-023, T-026) builds the states; this
 module only declares them.
 """
 
@@ -59,15 +60,30 @@ POOLED_INSTRUCTION_SLOT = f"items/{POOLED_ITEM}/instruction"
 STAGE6_RELATION = "core.activity_relation_cross_page"
 
 PENDING = "pending"  # PI wording approval, RC-D-014 S3 b
+APPROVED = "approved"
+
+#: PI rulings on the wording packet (agent-workspace 2026-11-07-v27-orch WORDING-PACKET.md;
+#: verbatim replies in its RULINGS.md items 2 and 3). A slot is ``approved`` only when every
+#: value it declares is entered; a slot with an open point stays ``pending`` and lists it.
+PACKET_RULINGS = {
+    "W-01": 'PI 2026-11-05 chat "w1a" (W-01 a: keep the re-pilot page layout)',
+    "W-02": 'PI 2026-11-05 chat "w2a" (W-02 a: coder briefing and part sentence with the page material)',
+    "W-03": 'PI 2026-11-05 chat "w3a" (W-03 a: name, tool, earlier answers as plain-word labels)',
+    "W-04": 'PI 2026-11-05 chat "w4a" (W-04 a: markers only); strings [[Ak]]/[[/Ak]] (ruling 3 a)',
+    "W-05": 'PI 2026-11-05 chat "w5a" (W-05 a: the year alone); W-05-P2 refresh accepted as procedural',
+    "W-06": 'PI 2026-11-05 chat "w6a" (W-06 a: labelled field); label stated_number (ruling 3 a)',
+    "W-07": 'PI 2026-11-05 chat "w7a" (W-07 a: full record)',
+    "W-08": 'PI 2026-11-05 chat "w8a" (W-08 a: sentence as a field; quote, source type, date, address)',
+}
 
 # --------------------------------------------------------------------------- state declarations
 # Field names, order and markers the codebook does not pin (packet items W-01..W-08).
-# Where the T-016 re-pilot (PI-ruled run, 2026-10-30) used a form, that form is declared;
-# elsewhere the value is None until the PI rules.
+# Where the T-016 re-pilot (PI-ruled run, 2026-10-30) used a form, that form is declared and
+# kept (W-01 a). A value still None is a point the PI rulings do not settle (see "open").
 
 PAGE_STATE = {
     "packet_items": ["W-01", "W-02"],
-    "approval": PENDING,
+    "approval": APPROVED,
     "form_source": "T-016 re-pilot state (scripts/spikes/t016/repilot_v27.py page_units)",
     "fields": [
         {"name": "coder_instructions", "value": "signed slot shared/system_prompt, verbatim"},
@@ -85,16 +101,31 @@ PAGE_STATE = {
 ACTIVITY_STATE = {
     "packet_items": ["W-01", "W-02", "W-03", "W-04", "W-06"],
     "approval": PENDING,
+    "open": [
+        "W-03: the field label of an earlier-round answer (codebook item name, or the item's entailment_label)",
+        "W-03: how an earlier-round missing answer (not_documented, unknown, not_asked, _NA_) is shown; "
+        "missing tokens have no signed entailment_label",
+    ],
     "extends": "page state",
-    "activity_fields": None,          # W-03: which extracted / earlier-round fields, by round
-    "prior_answers_form": None,       # W-03: codes or plain-word labels
-    "span_marker": None,              # W-04: open / close strings around each linked passage
-    "span_note": None,                # W-04: whether a sentence explains the marker
-    "scale_number_field": None,       # W-06: how core.deployment_scale_unit is shown the number
+    "activity_fields": [               # W-03 a
+        {"name": "activity_name", "value": "the extracted activity name", "rounds": "every round"},
+        {"name": "tool_name", "value": "the extracted tool name", "rounds": "every round"},
+        {"name": None, "value": "each answer to this activity from an earlier pass-2 round",
+         "rounds": "every round after the answer's round"},
+    ],
+    "prior_answers_form": "plain-word labels: each earlier-round answer as its value's entailment_label "
+                          "(the labels signed for the quote check, codebook X35 label_rules), not its code",
+    "prior_missing_answer_form": None,  # W-03: open, see "open"
+    "span_marker": {"open": "[[Ak]]", "close": "[[/Ak]]",
+                    "k": "the activity id, e.g. [[A1]] ... [[/A1]] (as the P-2 extractor marks)",
+                    "placement": "around each linked passage of the activity"},  # W-04 a, ruling 3 a
+    "span_note": "none: no sentence explains the markers",                     # W-04 a
+    "scale_number_field": {"name": "stated_number",
+                           "value": "the extractor's exact number words"},     # W-06 a, ruling 3 a
     "signed_constraints": [
         "DEC-010 a: jev pass 2 sees the page with the activity's span marked",
-        # W-05 declaration (wording packet, pending approval; RC-D-018 "3a"): summary of codebook
-        # r12 core.rule.cx_grain slot 2, sentences 2 and 3.
+        # W-05 declaration (RC-D-018 "3a"): summary of codebook r13 core.rule.cx_grain slot 2,
+        # sentences 2 and 3 (unchanged since r12).
         "codebook core.rule.cx_grain slot 2: finding-field state = page text plus the finding's "
         "activity_name, activity_type, adoption_stage and tool_name; the state is pinned in the "
         "versioned question-set files and approved with the wording packet, and any change "
@@ -105,41 +136,75 @@ ACTIVITY_STATE = {
 
 DYNAMIC_YEAR_CHOICES = {
     "packet_items": ["W-05"],
-    "approval": PENDING,
-    # W-05 (wording packet, pending approval; RC-D-018 "2 a"): pointers to the signed rules and to the
-    # T-064 module that implements them; the forms themselves are not enumerated here.
+    "approval": APPROVED,
+    # W-05 a (RC-D-018 "2 a"); strings refreshed per W-05-P2 (lane E fact check on codebook r13),
+    # with R-3 b. Pointers to the signed rules and to the T-064 module that implements them; the
+    # forms themselves are not enumerated here.
     "candidates": "candidate years under codebook r13 rule 1, from the activity span and its context",
-    "calendar_conversion": "candidate years by written form under codebook r13 rule 2, conversion table T-064",
+    "calendar_conversion": "candidate years by written form under codebook r13 rules 1 and 2, conversion table T-064",
     "candidate_source": "g3o.extract.years.extract_year_candidates (T-064), one candidate per distinct year",
-    "range_end_bound": "the ends of a year range, a two-year fiscal label or a marked Buddhist Era range "
-                       "count outside 2015-2030 only within 1900-2099 (RC-D-018 D1; not in the signed rule 1 text)",
+    "range_end_bound": "years read from a label (both ends of a year range, the years of a fiscal-year label, "
+                       "Japanese era, Buddhist Era and ROC years) count outside 2015-2030 only within 1900-2099; "
+                       "the ends of a range after a numbering word keep 2015-2030 (RC-D-018 D1, RC-D-019 C2 b; "
+                       "not in the signed rule 1 text); the bound applies to each range end on its own (R-3 b)",
+    "reference_year": "the calendar year of the run, recorded on every source (r13 rule 1 two-digit sentence; B1 c)",
     "order": "candidates ascending, then the item's offered missing label(s)",
     "candidate_code": "the candidate's calendar (CE) year in four ASCII digits, e.g. \"2024\" for \"FY24\" "
                       "or \"2567 B.E.\" (YearCandidate.year)",
-    "candidate_text": None,           # W-05: year only (T-016 form) / year + rules / PI sentence / year + written form
-    "rules_text_placement": None,     # W-05: where the item's rules_text goes
+    "candidate_text": "the calendar year alone, e.g. \"2024\", with no further text (T-016 form)",  # W-05 a
+    "rules_text_placement": "after the not_documented answer, as built: the item's rules follow "
+                            "the not_documented criterion text",                  # W-05 a
 }
 
 PAIR_STATE = {
     "packet_items": ["W-02", "W-07"],
     "approval": PENDING,
+    "open": [
+        "W-07: the field name of a record's supporting quotes",
+        "W-07: how a record's coded fields are named and shown (codebook item names and codes, as declared, "
+        "or plain-word labels as in W-03 a)",
+    ],
     "fields": [
         {"name": "coder_instructions", "value": "signed slot shared/system_prompt_stage6, verbatim"},
         {"name": "institution", "value": "institution name"},
         {"name": "country", "value": "country"},
-        {"name": "first_record", "value": None},   # W-07: record fields
-        {"name": "second_record", "value": None},  # W-07: record fields
+        {"name": "first_record", "value": "the first activity's full record (record_fields)"},    # W-07 a
+        {"name": "second_record", "value": "the second activity's full record (record_fields)"},  # W-07 a
     ],
+    "record_fields": [                 # W-07 a, in the ruled order
+        {"name": "activity_name", "value": "name"},
+        {"name": "activity_type", "value": "type"},
+        {"name": "action_type", "value": "action"},
+        {"name": "tool_name", "value": "tool"},
+        {"name": "contracting_party", "value": "contracting party"},
+        {"name": "developer", "value": "developer"},
+        {"name": "year_announced", "value": "year announced"},
+        {"name": "page_url", "value": "page address"},
+        {"name": "source_type", "value": "source type"},
+        {"name": None, "value": "supporting quotes"},
+    ],
+    "record_value_form": None,         # W-07: open, see "open"
 }
 
 POOLED_STATE = {
     "packet_items": ["W-02", "W-08"],
     "approval": PENDING,
+    "open": [
+        "W-08: the field name of the signed pool sentence",
+        "W-08: the field names of a quote's text and date, and of the split-pool marker "
+        "(source_type and page_url reuse the codebook item name and the W-01 page field)",
+    ],
     "instruction_slot": POOLED_INSTRUCTION_SLOT,
-    "instruction_placement": None,    # W-08: state field or prefix to each question
-    "quote_fields": None,             # W-08: per-quote fields (signed: source type and date)
+    "instruction_placement": "a state field with the pooled material; questions stay exactly as signed",  # W-08 a
+    "instruction_field": None,         # W-08: open, see "open"
+    "quote_fields": [                  # W-08 a
+        {"name": None, "value": "quote text"},
+        {"name": "source_type", "value": "source type"},
+        {"name": None, "value": "date"},
+        {"name": "page_url", "value": "page address"},
+    ],
     "pool_order": "source date, then position on the page (combining convention first_part)",
-    "split_marker": None,             # W-08: marker when the pool is split into parts
+    "split_marker": {"name": None, "value": "marker '{i} of {n}', as for page parts"},  # W-08 a
 }
 
 
@@ -181,16 +246,28 @@ def _header(cb: Codebook, name: str) -> dict[str, Any]:
 
 
 def _non_verbatim(*specs: dict[str, Any]) -> list[dict[str, Any]]:
+    """One entry per packet item: approved when ruled and no slot here lists an open point for it."""
+    items = sorted({item for s in specs for item in s["packet_items"]})
+    open_points = [p for s in specs for p in s.get("open", [])]
     out = []
-    for s in specs:
-        for item in s["packet_items"]:
-            out.append({"packet_item": item, "approval": s["approval"]})
-    seen, uniq = set(), []
-    for x in out:
-        if x["packet_item"] not in seen:
-            seen.add(x["packet_item"])
-            uniq.append(x)
-    return sorted(uniq, key=lambda x: x["packet_item"])
+    for item in items:
+        ruled = item in PACKET_RULINGS
+        is_open = any(p.startswith(f"{item}:") for p in open_points)
+        e: dict[str, Any] = {"packet_item": item, "approval": APPROVED if ruled and not is_open else PENDING}
+        if ruled:
+            e["approval_record"] = PACKET_RULINGS[item]
+        out.append(e)
+    return out
+
+
+def _nones(x: Any) -> bool:
+    if x is None:
+        return True
+    if isinstance(x, dict):
+        return any(_nones(v) for v in x.values())
+    if isinstance(x, list):
+        return any(_nones(v) for v in x)
+    return False
 
 
 def build_sets(cb: Codebook | None = None) -> dict[str, dict[str, Any]]:
@@ -359,8 +436,18 @@ def check_sets(cb: Codebook | None = None, set_dir: Path = SET_DIR) -> list[str]
                 errors.append(f"{name}/{qid}: gate item {g['item']} is not in an earlier round")
         # 7. every non-verbatim declaration is pending or recorded as approved
         for nv in doc.get("non_verbatim", []):
-            if nv.get("approval") not in (PENDING, "approved"):
+            if nv.get("approval") not in (PENDING, APPROVED):
                 errors.append(f"{name}: non_verbatim {nv} has no approval state")
+            if nv.get("approval") == APPROVED and not nv.get("approval_record"):
+                errors.append(f"{name}: non_verbatim {nv['packet_item']} approved without a ruling record")
+        # 7b. an approved slot declares every value and no open point; a pending one says why
+        slots = [doc.get("state"), doc.get("dynamic_year_choices"),
+                 doc.get("relation", {}).get("state"), doc.get("pooled", {}).get("state")]
+        for slot in (s for s in slots if s):
+            if slot.get("approval") == APPROVED and (_nones(slot) or slot.get("open")):
+                errors.append(f"{name}: slot {slot['packet_items']} approved with an undeclared value")
+            if slot.get("approval") == PENDING and _nones(slot) and not slot.get("open"):
+                errors.append(f"{name}: slot {slot['packet_items']} has an undeclared value and no open point")
     # 8. every generated question is in exactly one set or excluded with a reason
     expected = set(signed) - set(EXCLUDED)
     if sorted(seen) != sorted(expected):

@@ -30,12 +30,41 @@
       "W-06"
     ],
     "approval": "pending",
+    "open": [
+      "W-03: the field label of an earlier-round answer (codebook item name, or the item's entailment_label)",
+      "W-03: how an earlier-round missing answer (not_documented, unknown, not_asked, _NA_) is shown; missing tokens have no signed entailment_label"
+    ],
     "extends": "page state",
-    "activity_fields": null,
-    "prior_answers_form": null,
-    "span_marker": null,
-    "span_note": null,
-    "scale_number_field": null,
+    "activity_fields": [
+      {
+        "name": "activity_name",
+        "value": "the extracted activity name",
+        "rounds": "every round"
+      },
+      {
+        "name": "tool_name",
+        "value": "the extracted tool name",
+        "rounds": "every round"
+      },
+      {
+        "name": null,
+        "value": "each answer to this activity from an earlier pass-2 round",
+        "rounds": "every round after the answer's round"
+      }
+    ],
+    "prior_answers_form": "plain-word labels: each earlier-round answer as its value's entailment_label (the labels signed for the quote check, codebook X35 label_rules), not its code",
+    "prior_missing_answer_form": null,
+    "span_marker": {
+      "open": "[[Ak]]",
+      "close": "[[/Ak]]",
+      "k": "the activity id, e.g. [[A1]] ... [[/A1]] (as the P-2 extractor marks)",
+      "placement": "around each linked passage of the activity"
+    },
+    "span_note": "none: no sentence explains the markers",
+    "scale_number_field": {
+      "name": "stated_number",
+      "value": "the extractor's exact number words"
+    },
     "signed_constraints": [
       "DEC-010 a: jev pass 2 sees the page with the activity's span marked",
       "codebook core.rule.cx_grain slot 2: finding-field state = page text plus the finding's activity_name, activity_type, adoption_stage and tool_name; the state is pinned in the versioned question-set files and approved with the wording packet, and any change counts as a wording change",
@@ -46,40 +75,47 @@
     "packet_items": [
       "W-05"
     ],
-    "approval": "pending",
+    "approval": "approved",
     "candidates": "candidate years under codebook r13 rule 1, from the activity span and its context",
-    "calendar_conversion": "candidate years by written form under codebook r13 rule 2, conversion table T-064",
+    "calendar_conversion": "candidate years by written form under codebook r13 rules 1 and 2, conversion table T-064",
     "candidate_source": "g3o.extract.years.extract_year_candidates (T-064), one candidate per distinct year",
-    "range_end_bound": "the ends of a year range, a two-year fiscal label or a marked Buddhist Era range count outside 2015-2030 only within 1900-2099 (RC-D-018 D1; not in the signed rule 1 text)",
+    "range_end_bound": "years read from a label (both ends of a year range, the years of a fiscal-year label, Japanese era, Buddhist Era and ROC years) count outside 2015-2030 only within 1900-2099; the ends of a range after a numbering word keep 2015-2030 (RC-D-018 D1, RC-D-019 C2 b; not in the signed rule 1 text); the bound applies to each range end on its own (R-3 b)",
+    "reference_year": "the calendar year of the run, recorded on every source (r13 rule 1 two-digit sentence; B1 c)",
     "order": "candidates ascending, then the item's offered missing label(s)",
     "candidate_code": "the candidate's calendar (CE) year in four ASCII digits, e.g. \"2024\" for \"FY24\" or \"2567 B.E.\" (YearCandidate.year)",
-    "candidate_text": null,
-    "rules_text_placement": null
+    "candidate_text": "the calendar year alone, e.g. \"2024\", with no further text (T-016 form)",
+    "rules_text_placement": "after the not_documented answer, as built: the item's rules follow the not_documented criterion text"
   },
   "non_verbatim": [
     {
       "packet_item": "W-01",
-      "approval": "pending"
+      "approval": "approved",
+      "approval_record": "PI 2026-11-05 chat \"w1a\" (W-01 a: keep the re-pilot page layout)"
     },
     {
       "packet_item": "W-02",
-      "approval": "pending"
+      "approval": "approved",
+      "approval_record": "PI 2026-11-05 chat \"w2a\" (W-02 a: coder briefing and part sentence with the page material)"
     },
     {
       "packet_item": "W-03",
-      "approval": "pending"
+      "approval": "pending",
+      "approval_record": "PI 2026-11-05 chat \"w3a\" (W-03 a: name, tool, earlier answers as plain-word labels)"
     },
     {
       "packet_item": "W-04",
-      "approval": "pending"
+      "approval": "approved",
+      "approval_record": "PI 2026-11-05 chat \"w4a\" (W-04 a: markers only); strings [[Ak]]/[[/Ak]] (ruling 3 a)"
     },
     {
       "packet_item": "W-05",
-      "approval": "pending"
+      "approval": "approved",
+      "approval_record": "PI 2026-11-05 chat \"w5a\" (W-05 a: the year alone); W-05-P2 refresh accepted as procedural"
     },
     {
       "packet_item": "W-06",
-      "approval": "pending"
+      "approval": "approved",
+      "approval_record": "PI 2026-11-05 chat \"w6a\" (W-06 a: labelled field); label stated_number (ruling 3 a)"
     }
   ],
   "questions": [

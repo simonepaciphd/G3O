@@ -26,7 +26,7 @@
       "W-01",
       "W-02"
     ],
-    "approval": "pending",
+    "approval": "approved",
     "form_source": "T-016 re-pilot state (scripts/spikes/t016/repilot_v27.py page_units)",
     "fields": [
       {
@@ -70,11 +70,13 @@
   "non_verbatim": [
     {
       "packet_item": "W-01",
-      "approval": "pending"
+      "approval": "approved",
+      "approval_record": "PI 2026-11-05 chat \"w1a\" (W-01 a: keep the re-pilot page layout)"
     },
     {
       "packet_item": "W-02",
-      "approval": "pending"
+      "approval": "approved",
+      "approval_record": "PI 2026-11-05 chat \"w2a\" (W-02 a: coder briefing and part sentence with the page material)"
     }
   ],
   "questions": [
