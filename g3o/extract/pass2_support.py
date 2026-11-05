@@ -22,7 +22,8 @@ characters (RC-D-017 "3", "5a"); a longer one is kept whole and flagged
 The activity passages reach the extractor as character spans only (DEC-010 a):
 the page text is sent with ``[[A1]]`` / ``[[/A1]]`` marks at the span offsets
 (full-page offsets, DP-008). The marks are not page text; the parser removes
-any the extractor copies and flags the quote ``marks_removed``.
+any the extractor copies (and near-variants such as ``[A1]``
+that are not page text) and flags the quote ``marks_removed``.
 
 The T-023 activity record is not built yet; :class:`Pass2Page` is the mocked
 shape this module needs (card T-032 Inputs). The extractor client and the
@@ -49,11 +50,18 @@ from g3o.extract.anthropic_client import (
     build_params,
     make_custom_id,
 )
-from g3o.extract.parser_v27 import ExtractContractError, _check_keys, _flags, _text_or_none
+from g3o.extract.parser_v27 import (
+    ExtractContractError,
+    _check_keys,
+    _flags,
+    _id_or_none,
+    _text_or_none,
+)
 from g3o.extract.request_v27 import (
     DEFERRED_FIELDS,
     QUOTE_MAX_CHARS,
     Pass1Page,
+    SkippedCode,
     _generated_sections,
     field_name,
 )
@@ -78,6 +86,12 @@ QUESTION_OVERRIDES: dict[str, str] = {
 #: Flag on a quote from which activity marks were removed.
 MARKS_REMOVED_FLAG = "marks_removed"
 _MARK_RE = re.compile(r"\[\[/?A\d+\]\]")
+#: Near-variants of a mark as an extractor may copy them (lane B F5): one or two opening
+#: brackets, optional spaces and slash, the label, then up to two closing brackets
+#: (``[A1]``, ``[[ A1 ]]``, unclosed ``[[/A1``). Removed only when the label is one this
+#: request marked and the matched string is not on the page (so page text such as an annex
+#: reference "[A1]" is kept).
+_MARK_VARIANT_RE = re.compile(r"\[\[?\s*/?\s*A(\d+)(?!\d)\s*\]?\]?")
 
 
 # ---------------------------------------------------------------------------
@@ -95,6 +109,15 @@ class Pass2Rules:
     gated_fields: dict[str, tuple[str, frozenset[str]]]
     #: items whose quote-task question comes from QUESTION_OVERRIDES (provenance)
     overridden: frozenset[str] = frozenset()
+    #: parts items (amendment A6): item -> part names in codebook order
+    parts: dict[str, tuple[str, ...]] = field(default_factory=dict)
+    #: (item, part) -> the part's signed question (part 0: the item's instruction; later parts:
+    #: ``values.part_instructions.<part>``), as the T-011 question ``<item>#<part>`` asks it
+    part_questions: dict[tuple[str, str], str] = field(default_factory=dict)
+    #: (item, part) -> the part's value codes
+    part_codes: dict[tuple[str, str], frozenset[str]] = field(default_factory=dict)
+    #: computed-year items (amendment A2) -> the missing labels jev is offered beside the years
+    year_items: dict[str, frozenset[str]] = field(default_factory=dict)
 
     def needs_quote(self, value: str) -> bool:
         return value not in self.no_support_values and value != self.temporary_answer
@@ -124,6 +147,22 @@ def rules_from_codebook(cb: Codebook,
     if unknown:
         raise ValueError(f"question override for items that are not pass-2 quote items: {unknown}")
     questions.update(overrides)
+    parts: dict[str, tuple[str, ...]] = {}
+    part_questions: dict[tuple[str, str], str] = {}
+    part_codes: dict[tuple[str, str], frozenset[str]] = {}
+    year_items: dict[str, frozenset[str]] = {}
+    for k in support:
+        item_parts = cb.parts(k)
+        if item_parts is not None:
+            parts[k] = tuple(name for name, _ in item_parts)
+            for n, (name, values) in enumerate(item_parts):
+                slot = cb.part_instruction(k, n)
+                if slot is None:
+                    raise ValueError(f"pass-2 item {k} part {name} has no question text")
+                part_questions[(k, name)] = questions[k] if n == 0 else slot.text
+                part_codes[(k, name)] = frozenset(str(v["code"]) for v in values)
+        elif cb.computed_values(k) is not None:
+            year_items[k] = frozenset(code for code, _ in cb.missing_choices(k))
     gated: dict[str, tuple[str, frozenset[str]]] = {}
     for k in DEFERRED_FIELDS:
         gate = items[k].get("gate")
@@ -133,7 +172,8 @@ def rules_from_codebook(cb: Codebook,
             raise ValueError(f"{k}: gate item {gate['item']} is not a pass-2 classifier item")
         gated[k] = (gate["item"], frozenset(gate["values"]))
     temp = cb.data["shared"]["part_prompt"]["temporary_answer"]["label"]["text"]
-    return Pass2Rules(support, no_support, temp, questions, gated, frozenset(overrides))
+    return Pass2Rules(support, no_support, temp, questions, gated, frozenset(overrides),
+                      parts, part_questions, part_codes, year_items)
 
 
 @lru_cache(maxsize=1)
@@ -148,18 +188,23 @@ def default_rules() -> Pass2Rules:
 
 @dataclass(frozen=True)
 class ActivityCode:
-    """One pass-2 answer for one activity from one part (one per selected value)."""
+    """One pass-2 answer for one activity from one part (one per selected value).
+
+    ``part`` names the item part for a parts item (e.g. ``relationship`` or
+    ``searched_institution_role`` of ``core.observed_actor_relationship``; T-011 asks each as
+    its own question) and is None for every other item, as in the support check's evidence."""
 
     item_id: str
     chunk_id: str
     value: str
+    part: str | None = None
 
 
 @dataclass(frozen=True)
 class Pass2Activity:
     activity_id: str
-    start: int  # full-page offsets (DP-008)
-    end: int
+    start: int | None  # full-page offsets (DP-008); None when pass 1 left the span unresolved
+    end: int | None
     codes: tuple[ActivityCode, ...]
 
 
@@ -169,17 +214,16 @@ class Pass2Page:
     activities: tuple[Pass2Activity, ...]
 
     def __post_init__(self) -> None:
+        # A span off the page (or empty, or unresolved) and a code from an unknown part are
+        # left out by select_requests and recorded there, so they do not stop the page (lane B
+        # F3, F6); duplicate ids make the labels ambiguous and still raise.
         ids = [a.activity_id for a in self.activities]
         if len(set(ids)) != len(ids):
             raise ValueError("duplicate activity_id")
-        parts = {c.chunk_id for c in self.page.chunks}
-        n = len(self.page.text)
-        for a in self.activities:
-            if not (0 <= a.start < a.end <= n):
-                raise ValueError(f"activity {a.activity_id}: span {a.start}..{a.end} is not on the page")
-            for code in a.codes:
-                if code.chunk_id not in parts:
-                    raise ValueError(f"activity {a.activity_id}: unknown part {code.chunk_id}")
+
+    def span_ok(self, act: Pass2Activity) -> bool:
+        return (isinstance(act.start, int) and isinstance(act.end, int)
+                and 0 <= act.start < act.end <= len(self.page.text))
 
     @property
     def page_id(self) -> str:
@@ -200,6 +244,7 @@ class ActivityQuoteTask:
     chunk_id: str
     question: str
     answer: str  # jev's chosen answer (input only; RC-D-017)
+    part: str | None = None  # the item part, for a parts item (T-011 question <item>#<part>)
 
 
 @dataclass(frozen=True)
@@ -214,41 +259,99 @@ class ActivityFieldTask:
 @dataclass(frozen=True)
 class Pass2Plan:
     page_id: str
-    labels: dict[str, str]  # activity_id -> label
+    labels: dict[str, str]  # activity_id -> label (activities with a usable span only)
     quote_tasks: tuple[ActivityQuoteTask, ...] = ()
     field_tasks: tuple[ActivityFieldTask, ...] = ()
     notes: tuple[str, ...] = field(default_factory=tuple)
+    #: codes left out of the request, with the reason (lane B F6); the runner records them
+    skipped_codes: tuple[SkippedCode, ...] = ()
+    #: activities left out because their span is missing, empty or not on the page (lane B F3)
+    skipped_activities: tuple[str, ...] = ()
 
     @property
     def needs_request(self) -> bool:
         return bool(self.quote_tasks) or bool(self.field_tasks)
 
 
-def _check_value(item: dict[str, Any], item_id: str, value: str, rules: Pass2Rules) -> None:
+_YEAR_RE = re.compile(r"[0-9]{4}")  # ASCII digits only (``\d`` would take any script's digits)
+
+
+def _value_problem(item: dict[str, Any], code: ActivityCode, rules: Pass2Rules) -> str | None:
+    """Why ``code`` cannot be used, or None. Mirrors pass 1 (``request_v27.select_requests``):
+    a value must be one the item offers, an exempt value or the temporary part answer. The
+    offered values are the value list; for a parts item, the named part's values; for a year
+    item, a calendar year in four ASCII digits (T-011 ``candidate_code``) or one of the item's
+    offered missing labels."""
+    item_parts = rules.parts.get(code.item_id)
+    if item_parts is not None:
+        if code.part is None:
+            return "part_not_named"
+        if code.part not in item_parts:
+            return "unknown_item_part"
+    elif code.part is not None:
+        return "not_a_parts_item"
+    value = code.value
     if value in rules.no_support_values or value == rules.temporary_answer:
-        return
+        return None
     values = item.get("values")
-    if isinstance(values, list):
-        if value not in {v["code"] for v in values}:
-            raise ValueError(f"{item_id}: value {value!r} is not in the codebook")
-    elif not value.strip():
-        raise ValueError(f"{item_id}: empty value")
+    if item_parts is not None:
+        offered: set[str] | frozenset[str] = rules.part_codes[(code.item_id, code.part)]
+    elif code.item_id in rules.year_items:
+        if isinstance(value, str) and _YEAR_RE.fullmatch(value) and int(value) >= 1000:
+            return None
+        offered = rules.year_items[code.item_id]
+    elif isinstance(values, list):
+        offered = {v["code"] for v in values}
+    else:
+        offered = set()
+    return None if value in offered else "value_not_in_codebook"
+
+
+def _question_key(item_id: str, part: str | None, rules: Pass2Rules) -> str:
+    """Key of the question under QUESTIONS: the field name, and for a later part of a parts
+    item ``<field>#<part>``, as T-011 names its question (``<item>#<part>``)."""
+    name = field_name(item_id)
+    item_parts = rules.parts.get(item_id)
+    if part is None or item_parts is None or part == item_parts[0]:
+        return name
+    return f"{name}#{part}"
+
+
+def _part_index(item_id: str, part: str | None, rules: Pass2Rules) -> int:
+    item_parts = rules.parts.get(item_id)
+    return 0 if part is None or item_parts is None else item_parts.index(part)
 
 
 def select_requests(page: Pass2Page, rules: Pass2Rules | None = None) -> Pass2Plan:
-    """Decide which pass-2 support tasks a page needs (pure; no I/O)."""
+    """Decide which pass-2 support tasks a page needs (pure; no I/O).
+
+    A code that cannot be used (item without pass-2 support, value or part the codebook does
+    not offer, unknown page part) is left out and recorded in ``skipped_codes``; an activity
+    whose span is missing, empty or off the page is left out (unlabelled, unmarked) and
+    recorded in ``skipped_activities``. The rest of the page goes on (lane B F3, F6)."""
     rules = rules or default_rules()
-    labels = {a.activity_id: f"A{n}" for n, a in enumerate(page.activities, start=1)}
+    usable = [a for a in page.activities if page.span_ok(a)]
+    labels = {a.activity_id: f"A{n}" for n, a in enumerate(usable, start=1)}
+    skipped_acts = tuple(a.activity_id for a in page.activities if a.activity_id not in labels)
+    page_parts = {c.chunk_id for c in page.page.chunks}
     quotes: list[ActivityQuoteTask] = []
     fields: list[ActivityFieldTask] = []
-    for act in page.activities:
-        seen: set[tuple[str, str, str]] = set()
+    skipped: list[SkippedCode] = []
+    for act in usable:
+        seen: set[tuple[str, str | None, str, str]] = set()
         gate_parts: dict[str, list[str]] = {}
         for code in act.codes:
             item = rules.support_items.get(code.item_id)
             if item is None:
-                raise ValueError(f"{code.item_id} is not a pass-2 item that needs support")
-            _check_value(item, code.item_id, code.value, rules)
+                reason: str | None = "not_a_support_item"
+            elif code.chunk_id not in page_parts:
+                reason = "unknown_part"
+            else:
+                reason = _value_problem(item, code, rules)
+            if reason is not None:
+                skipped.append(SkippedCode(code.item_id, code.chunk_id, code.value, reason,
+                                           act.activity_id, code.part))
+                continue
             for fid, (gate_item, open_values) in rules.gated_fields.items():
                 if code.item_id == gate_item and code.value in open_values:
                     parts = gate_parts.setdefault(fid, [])
@@ -256,14 +359,16 @@ def select_requests(page: Pass2Page, rules: Pass2Rules | None = None) -> Pass2Pl
                         parts.append(code.chunk_id)
             if not rules.needs_quote(code.value):
                 continue
-            key = (code.item_id, code.chunk_id, code.value)
+            key = (code.item_id, code.part, code.chunk_id, code.value)
             if key in seen:
                 continue
             seen.add(key)
+            question = (rules.part_questions[(code.item_id, code.part)] if code.part is not None
+                        else rules.questions[code.item_id])
             quotes.append(ActivityQuoteTask(
                 task_id=f"q{len(quotes) + 1:03d}", activity_id=act.activity_id,
                 label=labels[act.activity_id], item_id=code.item_id, chunk_id=code.chunk_id,
-                question=rules.questions[code.item_id], answer=code.value,
+                question=question, answer=code.value, part=code.part,
             ))
         for fid in rules.gated_fields:  # codebook order, stable
             if fid in gate_parts:
@@ -272,7 +377,8 @@ def select_requests(page: Pass2Page, rules: Pass2Rules | None = None) -> Pass2Pl
                     label=labels[act.activity_id], item_id=fid,
                     chunk_ids=tuple(gate_parts[fid]),
                 ))
-    return Pass2Plan(page.page_id, labels, tuple(quotes), tuple(fields))
+    return Pass2Plan(page.page_id, labels, tuple(quotes), tuple(fields),
+                     skipped_codes=tuple(skipped), skipped_activities=skipped_acts)
 
 
 # ---------------------------------------------------------------------------
@@ -322,7 +428,9 @@ def marked_part_text(page: Pass2Page, plan: Pass2Plan, chunk_id: str) -> str:
     chunk = page.page.chunk(chunk_id)
     marks: list[tuple[int, int, str]] = []  # (offset, order, mark); ends sort before starts
     for act in page.activities:
-        label = plan.labels[act.activity_id]
+        label = plan.labels.get(act.activity_id)
+        if label is None:  # left out by select_requests: no usable span
+            continue
         if chunk.start <= act.start < chunk.end:
             marks.append((act.start, 1, f"[[{label}]]"))
         if chunk.start < act.end <= chunk.end:
@@ -344,16 +452,18 @@ def build_user_message(page: Pass2Page, plan: Pass2Plan, rules: Pass2Rules | Non
         f"PAGE ADDRESS: {p.url}",
         f"PAGE TITLE: {p.title or ''}",
         f"PAGE PARTS: {len(p.chunks)}",
-        f"ACTIVITIES: {', '.join(plan.labels[a.activity_id] for a in page.activities)}",
+        f"ACTIVITIES: {', '.join(plan.labels.values())}",
         "",
     ]
     for c in p.chunks:
         out += [f'<part id="{c.chunk_id}">', marked_part_text(page, plan, c.chunk_id), "</part>"]
-    asked = sorted({t.item_id for t in plan.quote_tasks})
-    questions = {field_name(i): rules.questions[i] for i in asked}
+    asked = sorted({(t.item_id, _part_index(t.item_id, t.part, rules), t.part, t.question)
+                    for t in plan.quote_tasks})
+    questions = {_question_key(i, part, rules): q for i, _n, part, q in asked}
     tasks = {
         "quote_tasks": [
-            {"task_id": t.task_id, "activity": t.label, "question": field_name(t.item_id),
+            {"task_id": t.task_id, "activity": t.label,
+             "question": _question_key(t.item_id, t.part, rules),
              "answer": t.answer, "part_id": t.chunk_id}
             for t in plan.quote_tasks
         ],
@@ -423,6 +533,7 @@ class ActivityQuote:
     quote: str | None
     status: str  # "quoted" | "empty" | "no_entry" | "wrong_part"
     flags: tuple[str, ...] = ()
+    part: str | None = None  # the item part of a parts item (for the X35 question, T-024)
 
 
 @dataclass(frozen=True)
@@ -458,11 +569,23 @@ class Pass2Support:
     usage: dict[str, Any] | None = None
 
 
-def _unmark(text: str | None) -> tuple[str | None, tuple[str, ...]]:
-    if text is None or not _MARK_RE.search(text):
+def _unmark(text: str | None, labels: frozenset[str] = frozenset(),
+            page_text: str = "") -> tuple[str | None, tuple[str, ...]]:
+    """Remove the activity marks the extractor copied: the exact marks always, and their
+    near-variants (lane B F5) when the label is one of ``labels`` (the numbers this request
+    marked) and the variant does not occur in ``page_text`` (so it cannot be page text)."""
+    if text is None:
         return text, ()
     cleaned = _MARK_RE.sub("", text)
-    return (cleaned if cleaned.strip() else None), (MARKS_REMOVED_FLAG,)
+
+    def variant(m: re.Match[str]) -> str:
+        return "" if m.group(1) in labels and m.group(0) not in page_text else m.group(0)
+
+    cleaned = _MARK_VARIANT_RE.sub(variant, cleaned)
+    if cleaned == text:
+        return text, ()
+    cleaned = cleaned.strip()
+    return (cleaned or None), (MARKS_REMOVED_FLAG,)
 
 
 def parse_pass2_result(result: ExtractorResult, page: Pass2Page, plan: Pass2Plan) -> Pass2Support:
@@ -474,29 +597,35 @@ def parse_pass2_result(result: ExtractorResult, page: Pass2Page, plan: Pass2Plan
         raise ExtractContractError(f"answer is not JSON: {exc}") from exc
     _check_keys(payload, _TOP_KEYS, "answer")
     rejected: list[Rejected] = []
+    marked = frozenset(label[1:] for label in plan.labels.values())  # "A3" -> "3"
+
+    def unmark(text: str | None) -> tuple[str | None, tuple[str, ...]]:
+        return _unmark(text, marked, page.page.text)
 
     qtasks = {t.task_id: t for t in plan.quote_tasks}
     got_q: dict[str, ActivityQuote] = {}
     for raw in payload["quotes"] or []:
         _check_keys(raw, _QUOTE_KEYS, "quote")
-        task = qtasks.get(raw["task_id"])
+        _id_or_none(raw["part_id"], "quote part_id")
+        task = qtasks.get(_id_or_none(raw["task_id"], "quote task_id"))
         if task is None:
             rejected.append(Rejected("quote", "unknown_task", raw))
             continue
         if task.task_id in got_q:
             rejected.append(Rejected("quote", "duplicate_task", raw))
             continue
-        quote, mflags = _unmark(_text_or_none(raw["quote"]))
+        quote, mflags = unmark(_text_or_none(raw["quote"]))
         base = (task.task_id, task.activity_id, task.item_id, task.chunk_id)
         if quote is not None and raw["part_id"] != task.chunk_id:
             rejected.append(Rejected("quote", "wrong_part", raw))
-            got_q[task.task_id] = ActivityQuote(*base, None, "wrong_part")
+            got_q[task.task_id] = ActivityQuote(*base, None, "wrong_part", part=task.part)
             continue
         got_q[task.task_id] = ActivityQuote(
-            *base, quote, "quoted" if quote is not None else "empty", _flags(quote) + mflags)
+            *base, quote, "quoted" if quote is not None else "empty", _flags(quote) + mflags,
+            part=task.part)
     quotes = tuple(
         got_q.get(t.task_id) or ActivityQuote(t.task_id, t.activity_id, t.item_id, t.chunk_id,
-                                              None, "no_entry")
+                                              None, "no_entry", part=t.part)
         for t in plan.quote_tasks
     )
 
@@ -504,15 +633,16 @@ def parse_pass2_result(result: ExtractorResult, page: Pass2Page, plan: Pass2Plan
     got_f: dict[str, ActivityField] = {}
     for raw in payload["fields"] or []:
         _check_keys(raw, _FIELD_KEYS, "field")
-        task = ftasks.get(raw["task_id"])
+        _id_or_none(raw["part_id"], "field part_id")
+        task = ftasks.get(_id_or_none(raw["task_id"], "field task_id"))
         if task is None:
             rejected.append(Rejected("field", "unknown_task", raw))
             continue
         if task.task_id in got_f:
             rejected.append(Rejected("field", "duplicate_task", raw))
             continue
-        value, vflags = _unmark(_text_or_none(raw["value"]))
-        support, sflags = _unmark(_text_or_none(raw["supporting_text"]))
+        value, vflags = unmark(_text_or_none(raw["value"]))
+        support, sflags = unmark(_text_or_none(raw["supporting_text"]))
         base = (task.task_id, task.activity_id, task.item_id)
         if value is None:
             got_f[task.task_id] = ActivityField(*base, None, None, None, "not_stated")

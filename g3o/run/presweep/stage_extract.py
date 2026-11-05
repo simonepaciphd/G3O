@@ -362,13 +362,20 @@ def _v27_write(run_dir: Path, page: Any, payload: dict[str, Any]) -> None:
     )
 
 
-def _write_v27_state(run_dir: Path, batches: list[dict[str, Any]]) -> None:
+def _write_v27_state(run_dir: Path, batches: list[dict[str, Any]], **extra: Any) -> None:
     """Record submitted batches (id + custom ids), written after every submit."""
     from g3o.common.run_state import _write_json_atomic, state_path
 
     _write_json_atomic(state_path(run_dir, EXTRACT_V27_STAGE), {
-        "stage": EXTRACT_V27_STAGE, "provider": "anthropic", "batches": batches,
+        "stage": EXTRACT_V27_STAGE, "provider": "anthropic", "batches": batches, **extra,
     })
+
+
+def _add_usage(total: dict[str, int], usage: Mapping[str, Any] | None) -> None:
+    """Sum the integer counters of one response ``usage`` (Anthropic keys, as returned)."""
+    for key, value in (usage or {}).items():
+        if isinstance(value, int) and not isinstance(value, bool):
+            total[key] = total.get(key, 0) + value
 
 
 def _run_extract_v27(
@@ -396,6 +403,15 @@ def _run_extract_v27(
     measured still says so). A refused, failed or contract-breaking request
     writes no artifact and is recorded in the attrition ledger.
 
+    Failed pages (lane B F2): a failed or contract-breaking response is recorded in the
+    attrition ledger with its response ``usage`` (it was billed), and the ``usage`` of every
+    response, failed or not, is summed into the stage marker as ``response_usage`` (raw
+    Anthropic counters, kept for the cost report; reading them is T-030's). A failed page is not retried: the
+    stage is marked done and a re-run reports the page under ``failed``, not ``skipped``. This
+    follows the v2.5 Stage 5 runner above (``_run_extract``: ``parse_failed`` to the ledger,
+    stage marked done, no re-send). One bad code (or a page whose plan cannot be built) is
+    recorded (``v27_code_skipped`` / ``v27_plan_failed``) and the rest go on (lane B F6).
+
     Resume: pages that already have an artifact are skipped. In batch mode each
     batch id and its custom ids are written to ``_state/extract_v27.json`` after
     its submit; a re-run rejoins those batches, submits only the ones not yet
@@ -416,7 +432,17 @@ def _run_extract_v27(
     counts["pages"] = len(pages)
     if is_done(run_dir, stage):
         logger.info("Stage 5 (v2.7): .done marker present — skipping (resume from disk)")
-        counts["skipped"] = len(pages)
+        from g3o.common.run_state import done_path
+
+        marker = json.loads(done_path(run_dir, stage).read_text(encoding="utf-8"))
+        refused_ids = set(marker.get("refused_pages", ()))
+        for p in pages:
+            if _v27_has_artifact(run_dir, p):
+                counts["skipped"] += 1
+            elif p.page_id in refused_ids:
+                counts["refused"] += 1
+            else:  # failed when the stage ran (no artifact); never reported as skipped
+                counts["failed"] += 1
         return counts
 
     ids = [p.page_id for p in pages]
@@ -426,10 +452,30 @@ def _run_extract_v27(
     # them exactly as the first one did; pages already on disk are skipped below.
     done_ids = {p.page_id for p in pages if _v27_has_artifact(run_dir, p)}
     counts["skipped"] = len(done_ids)
-    jobs, plans = build_jobs(pages)
+    plan_errors: dict[str, str] = {}
+    jobs, plans = build_jobs(pages, errors=plan_errors)
     by_page = {p.page_id: p for p in pages}
+    failed_pages: list[str] = []
+    refused_pages: list[str] = []
+    response_usage: dict[str, int] = {}
+    n_responses = 0
     for p in pages:
-        if p.page_id not in done_ids and not plans[p.page_id].needs_request:
+        if p.page_id in done_ids:
+            continue
+        if p.page_id in plan_errors:
+            attrition.record(run_dir, institution_id=p.institution_id, stage=stage,
+                             reason="v27_plan_failed", url=p.url, detail=plan_errors[p.page_id])
+            counts["failed"] += 1
+            failed_pages.append(p.page_id)
+            continue
+        if plans[p.page_id].skipped_codes:
+            skipped = [asdict(c) for c in plans[p.page_id].skipped_codes]
+            attrition.record(run_dir, institution_id=p.institution_id, stage=stage,
+                             reason="v27_code_skipped", url=p.url,
+                             detail="; ".join(f"{c['item_id']}={c['value']!r} in {c['chunk_id']}: "
+                                              f"{c['reason']}" for c in skipped),
+                             codes=skipped)
+        if not plans[p.page_id].needs_request:
             _v27_write(run_dir, p, {"status": "no_request", "page_id": p.page_id,
                                     "prompt_version": PROMPT_VERSION,
                                     "plan": asdict(plans[p.page_id])})
@@ -449,6 +495,7 @@ def _run_extract_v27(
                          reason="v27_request_too_large", url=page.url,
                          detail="refused whole; page text is never truncated")
         counts["refused"] += 1
+        refused_pages.append(page.page_id)
     sendable = [j for b in batches for j in b if by_cid[j.custom_id].page_id not in done_ids]
     submitted: list[dict[str, Any]] = []
     if mode == "batch":
@@ -467,10 +514,15 @@ def _run_extract_v27(
         raise RuntimeError("Stage 5 (v2.7): cost check refused the submission; nothing sent")
 
     def _persist(result: Any) -> None:
+        nonlocal n_responses
         page = by_cid.get(result.custom_id)
         if page is None:
             logger.warning("Stage 5 (v2.7) result %s matches no request", result.custom_id)
             return
+        # Billed whether or not it parses, and whether or not an earlier session of this
+        # (not yet done) stage already wrote the page's artifact from it.
+        n_responses += 1
+        _add_usage(response_usage, result.usage)
         if _v27_has_artifact(run_dir, page):
             return
         plan = plans[page.page_id]
@@ -479,8 +531,9 @@ def _run_extract_v27(
         except Exception as exc:  # recorded in the ledger, never silently dropped
             reason = "v27_extract_failed" if not result.success else "v27_parse_failed"
             attrition.record(run_dir, institution_id=page.institution_id, stage=stage,
-                             reason=reason, url=page.url, detail=str(exc))
+                             reason=reason, url=page.url, detail=str(exc), usage=result.usage)
             counts["failed"] += 1
+            failed_pages.append(page.page_id)
             return
         _v27_write(run_dir, page, {"status": "extracted", "page_id": page.page_id,
                                    "prompt_version": PROMPT_VERSION, "plan": asdict(plan),
@@ -510,6 +563,10 @@ def _run_extract_v27(
         for batch_id in batch_ids:
             for result in client.batch_results(batch_id):
                 _persist(result)
-    mark_done(run_dir, stage, no_batch=mode == "sync" or not sendable, n_jobs=len(sendable),
+    no_batch = mode == "sync" or not sendable
+    _write_v27_state(run_dir, submitted, no_batch=no_batch, n_jobs=len(sendable),
+                     n_responses=n_responses, response_usage=response_usage,
+                     failed_pages=failed_pages, refused_pages=refused_pages)
+    mark_done(run_dir, stage, no_batch=no_batch, n_jobs=len(sendable),
               model=sendable[0].params["model"] if sendable else None)
     return counts

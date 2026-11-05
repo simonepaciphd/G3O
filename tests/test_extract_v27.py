@@ -243,11 +243,29 @@ def test_date_task_only_without_metadata_date_and_only_on_requested_pages():
     assert not select_requests(make_page(verdict="no_genai")).date_task
 
 
-def test_unknown_item_or_value_fails_closed():
+def test_unknown_item_or_value_is_skipped_and_recorded():
+    # Lane B F6: one bad code leaves out that code only, with its reason; the page goes on.
+    good = PageCode("core.page_verdict", "P1#p001", "confirms_activity")
+    plan = select_requests(make_page(codes=[
+        PageCode("core.activity_type", "P1#p001", "pilot_experiment"),
+        PageCode("core.disclosure_form", "P1#p001", "made_up"),
+        good,
+    ]))
+    assert [(c.item_id, c.value, c.reason) for c in plan.skipped_codes] == [
+        ("core.activity_type", "pilot_experiment", "not_a_support_item"),
+        ("core.disclosure_form", "made_up", "value_not_in_codebook"),
+    ]
+    assert [(t.item_id, t.answer) for t in plan.quote_tasks] == [("core.page_verdict",
+                                                                 "confirms_activity")]
+    # An unknown page verdict still refuses the page; build_jobs can collect it instead.
     with pytest.raises(ValueError):
-        select_requests(make_page(codes=[PageCode("core.activity_type", "P1#p001", "pilot_experiment")]))
+        select_requests(make_page(verdict="made_up"))
+    bad = make_page(page_id="P2", verdict="made_up")
     with pytest.raises(ValueError):
-        select_requests(make_page(codes=[PageCode("core.disclosure_form", "P1#p001", "made_up")]))
+        build_jobs([bad])
+    errors: dict[str, str] = {}
+    jobs, plans = build_jobs([make_page(codes=[good]), bad], errors=errors)
+    assert set(plans) == {"P1"} and len(jobs) == 1 and "made_up" in errors["P2"]
 
 
 def test_no_head_tail_truncation_on_v27_path():
@@ -413,6 +431,47 @@ def test_span_whitespace_insensitive_and_unresolved():
     s, e, status = parser_v27.resolve_span(page, "P1#p001", "Read more   about\nCivicBot", "project page.")
     assert status == "resolved" and TEXT[s:e] == "Read more about CivicBot on the project page."
     assert parser_v27.resolve_span(page, "P1#p001", "not on the page", "x")[2] == "unresolved_start"
+
+
+@pytest.mark.parametrize("start,end,status", [
+    ("", "", "unresolved_start"), (" ", " ", "unresolved_start"), ("\n\t", "page.", "unresolved_start"),
+    ("Read more", "", "unresolved_end"), ("Read more", "   ", "unresolved_end"),
+])
+def test_empty_or_whitespace_anchor_leaves_span_unresolved(start, end, status):
+    # Lane B F3: no offset is guessed for an anchor that names no place (was (0, 0) / (4, 5)).
+    assert parser_v27.resolve_span(make_page(codes=[]), "P1#p001", start, end) == (None, None, status)
+
+
+def test_malformed_anchors_and_ids_are_contract_errors_not_type_errors():
+    page = _activity_page()
+    plan = select_requests(page)
+    for bad in (
+        empty_answer(activities=[{"part_id": "P1#p001", "start_text": None, "end_text": "2024.",
+                                  "fields": []}]),
+        empty_answer(activities=[{"part_id": "P1#p001", "start_text": "The", "end_text": ["x"],
+                                  "fields": []}]),
+        empty_answer(activities=[{"part_id": ["P1#p001"], "start_text": "The", "end_text": "2024.",
+                                  "fields": []}]),
+        empty_answer(quotes=[{"task_id": ["q001"], "part_id": "P1#p001", "quote": "council"}]),
+        empty_answer(quotes=[{"task_id": "q001", "part_id": {"p": 1}, "quote": "council"}]),
+        empty_answer(links=[{"link_id": ["L001"], "part_id": "P1#p001", "quote": "x"}]),
+        empty_answer(activities=[{"part_id": "P1#p001", "start_text": "The", "end_text": "2024.",
+                                  "fields": [{"field": ["activity_name"], "value": "x",
+                                              "part_id": "P1#p001", "supporting_text": "x"}]}]),
+    ):
+        with pytest.raises(ExtractContractError):
+            parse_pass1_result(ok(bad), page, plan)
+
+
+def test_empty_anchor_activity_is_kept_unresolved_and_the_page_parses():
+    page = _activity_page()
+    out = parse_pass1_result(ok(empty_answer(activities=[
+        {"part_id": "P1#p001", "start_text": "", "end_text": "", "fields": []},
+        {"part_id": "P1#p001", "start_text": "The council launched", "end_text": "March 2024.",
+         "fields": []},
+    ])), page, select_requests(page))
+    assert [(a.start is None, a.status) for a in out.activities] == [
+        (True, "unresolved_start"), (False, "resolved")]
 
 
 def test_parser_rejects_code_fields():

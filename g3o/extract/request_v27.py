@@ -213,6 +213,19 @@ class QuoteTask:
 
 
 @dataclass(frozen=True)
+class SkippedCode:
+    """A code the plan could not use (lane B F6): recorded and left out of the request, so one
+    bad code does not stop the page or the stage. The runner writes it to the attrition ledger."""
+
+    item_id: str
+    chunk_id: str
+    value: str
+    reason: str  # "not_a_support_item" | "value_not_in_codebook" | "unknown_part" | ...
+    activity_id: str | None = None  # pass 2 only
+    part: str | None = None  # pass 2 parts item only
+
+
+@dataclass(frozen=True)
 class StoredLink:
     link_id: str
     url: str
@@ -233,6 +246,7 @@ class RequestPlan:
     #: fields absent, C2 a) or "no_stored_links". None otherwise.
     link_status: str | None = None
     notes: tuple[str, ...] = field(default_factory=tuple)
+    skipped_codes: tuple[SkippedCode, ...] = ()
 
     @property
     def needs_request(self) -> bool:
@@ -240,7 +254,11 @@ class RequestPlan:
 
 
 def select_requests(page: Pass1Page, rules: Pass1Rules | None = None) -> RequestPlan:
-    """Decide which extraction tasks a page needs (pure; no I/O)."""
+    """Decide which extraction tasks a page needs (pure; no I/O).
+
+    A code for an item that needs no pass-1 support or with a value outside the codebook is left
+    out and recorded in ``skipped_codes`` (lane B F6); an unknown
+    page verdict still raises ``ValueError`` (the whole page's plan depends on it)."""
     rules = rules or default_rules()
     verdicts = rules.support_items["core.page_verdict"]
     allowed_verdicts = {v["code"] for v in verdicts["values"]} | {"not_assessable"}
@@ -248,15 +266,21 @@ def select_requests(page: Pass1Page, rules: Pass1Rules | None = None) -> Request
         raise ValueError(f"unknown page verdict {page.verdict!r}")
 
     quote_tasks: list[QuoteTask] = []
+    skipped: list[SkippedCode] = []
     seen: set[tuple[str, str]] = set()
     for code in page.codes:
         item = rules.support_items.get(code.item_id)
+        reason = None
         if item is None:
-            raise ValueError(f"{code.item_id} is not a pass-1 item that needs support")
-        offered = {v["code"] for v in item["values"]} if isinstance(item["values"], list) else set()
-        if code.value not in offered and code.value not in rules.no_support_values \
-                and code.value != rules.temporary_answer:
-            raise ValueError(f"{code.item_id}: value {code.value!r} is not in the codebook")
+            reason = "not_a_support_item"
+        else:
+            offered = {v["code"] for v in item["values"]} if isinstance(item["values"], list) else set()
+            if code.value not in offered and code.value not in rules.no_support_values \
+                    and code.value != rules.temporary_answer:
+                reason = "value_not_in_codebook"
+        if reason is not None:
+            skipped.append(SkippedCode(code.item_id, code.chunk_id, code.value, reason))
+            continue
         if not rules.needs_quote(code.item_id, code.value):
             continue
         key = (code.item_id, code.chunk_id)
@@ -297,6 +321,7 @@ def select_requests(page: Pass1Page, rules: Pass1Rules | None = None) -> Request
         activity_fields=rules.activity_fields if activity_task else (),
         activity_task=activity_task,
         link_status=link_status,
+        skipped_codes=tuple(skipped),
     )
     if plan.needs_request and not page.has_metadata_date:
         plan = RequestPlan(**{**plan.__dict__, "date_task": True})
@@ -427,15 +452,26 @@ def build_job(page: Pass1Page, plan: RequestPlan, *, system: str,
 
 
 def build_jobs(pages: Sequence[Pass1Page], rules: Pass1Rules | None = None,
-               cb: Codebook | None = None) -> tuple[list[ExtractorJob], dict[str, RequestPlan]]:
-    """Plans for every page and jobs for the pages that need one."""
+               cb: Codebook | None = None, *, errors: dict[str, str] | None = None
+               ) -> tuple[list[ExtractorJob], dict[str, RequestPlan]]:
+    """Plans for every page and jobs for the pages that need one.
+
+    With ``errors`` (a dict), a page whose plan cannot be built (``ValueError``, e.g. an
+    unknown verdict) gets no plan and no job; its page id and the reason are put in
+    ``errors`` and the other pages go on (lane B F6). Without it the error is raised."""
     rules = rules or default_rules()
     system = build_system_prompt(cb, rules)
     schema = output_schema(rules)
     plans: dict[str, RequestPlan] = {}
     jobs: list[ExtractorJob] = []
     for page in pages:
-        plan = select_requests(page, rules)
+        try:
+            plan = select_requests(page, rules)
+        except ValueError as exc:
+            if errors is None:
+                raise
+            errors[page.page_id] = str(exc)
+            continue
         plans[page.page_id] = plan
         if plan.needs_request:
             jobs.append(build_job(page, plan, system=system, schema=schema))
@@ -454,6 +490,7 @@ __all__ = [
     "Pass1Rules",
     "QuoteTask",
     "RequestPlan",
+    "SkippedCode",
     "StoredLink",
     "build_job",
     "build_jobs",

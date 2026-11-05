@@ -216,3 +216,63 @@ def test_bad_mode_and_duplicate_pages_fail_closed(tmp_path):
         _run_extract_v27(tmp_path, [page("P1")], client=FakeExtractor({}), mode="stream")
     with pytest.raises(ValueError, match="duplicate page_id"):
         _run_extract_v27(tmp_path, [page("P1"), page("P1")], client=FakeExtractor({}), mode="sync")
+
+
+# ---------------------------------------------------------------------------
+# Lane B F2, F6
+# ---------------------------------------------------------------------------
+
+
+def test_billed_failed_response_keeps_usage_and_rerun_reports_failed(tmp_path):
+    # F2: a paid response that breaks the contract keeps its usage; the page is not retried
+    # (v2.5 Stage 5 precedent) and a re-run reports it as failed, not skipped.
+    pages = [page("P1"), page("P2")]
+    answers = _answers(pages)
+    cid_p1, cid_p2 = list(answers)
+
+    class Billed(FakeExtractor):
+        def _result(self, cid):
+            if cid == cid_p2:
+                return ExtractorResult(cid, True, '{"quotes": [], "oops": 1}', None,
+                                       response_model="claude-haiku-5-5",
+                                       usage={"input_tokens": 50_000, "output_tokens": 3_000})
+            return super()._result(cid)
+
+    counts = _run_extract_v27(tmp_path, pages, client=Billed(answers), mode="sync")
+    assert (counts["extracted"], counts["failed"]) == (1, 1)
+    (rec,) = [r for r in attrition.read_records(tmp_path) if r["reason"] == "v27_parse_failed"]
+    assert rec["usage"] == {"input_tokens": 50_000, "output_tokens": 3_000}
+    marker = json.loads(done_path(tmp_path, "extract_v27").read_text(encoding="utf-8"))
+    assert marker["response_usage"] == {"input_tokens": 50_001, "output_tokens": 3_001}
+    assert marker["n_responses"] == 2 and marker["failed_pages"] == ["P2"]
+    again = FakeExtractor(answers)
+    counts = _run_extract_v27(tmp_path, pages, client=again, mode="sync")
+    assert (counts["skipped"], counts["failed"], again.created) == (1, 1, [])
+
+
+def test_batch_failed_response_usage_in_marker(tmp_path):
+    pages = [page("P1"), page("P2")]
+    answers = _answers(pages)
+    del answers[list(answers)[0]]  # errored result: no usage
+    counts = _run_extract_v27(tmp_path, pages, client=FakeExtractor(answers), mode="batch",
+                              sleep=lambda s: None)
+    assert (counts["extracted"], counts["failed"]) == (1, 1)
+    marker = json.loads(done_path(tmp_path, "extract_v27").read_text(encoding="utf-8"))
+    assert marker["response_usage"] == {"input_tokens": 1, "output_tokens": 1}
+    assert len(marker["batches"]) == 1 and marker["failed_pages"] == ["P1"]
+
+
+def test_bad_code_or_bad_page_does_not_stop_the_stage(tmp_path):
+    # F6: a bad code is recorded and left out; a page whose plan cannot be built fails alone.
+    p1 = page("P1", codes=[PageCode("core.page_verdict", "P1#p001", "confirms_activity"),
+                           PageCode("core.activity_type", "P1#p001", "pilot_experiment")])
+    p2 = page("P2", verdict="made_up")
+    p3 = page("P3")
+    answers = _answers([p1, p3])
+    counts = _run_extract_v27(tmp_path, [p1, p2, p3], client=FakeExtractor(answers), mode="sync")
+    assert (counts["extracted"], counts["failed"]) == (2, 1)
+    recs = {r["reason"]: r for r in attrition.read_records(tmp_path)}
+    assert set(recs) == {"v27_code_skipped", "v27_plan_failed"}
+    assert recs["v27_code_skipped"]["codes"][0]["reason"] == "not_a_support_item"
+    assert "made_up" in recs["v27_plan_failed"]["detail"]
+    assert _load(tmp_path, p1)["plan"]["skipped_codes"][0]["item_id"] == "core.activity_type"
