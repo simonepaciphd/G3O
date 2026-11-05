@@ -155,5 +155,16 @@
     },
     "note": "interim r12 texts replaced in place; text_before_r12 still holds the r11 text; origin updated"
   },
-  "r12_sha256_final_candidate": "733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe"
+  "year_rule2_r12c": {
+    "ruling": "PI 2026-11-05 chat \"all as rec\" C2 (W-R12-3c); rule 1 unchanged (C1)",
+    "items": [
+      "core.year_announced",
+      "core.year_pilot_start",
+      "core.year_production_start"
+    ],
+    "superseded_text_W-R12-3b": "Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.",
+    "final_text": "Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it."
+  },
+  "r12_sha256_final_candidate_superseded_767f4bf": "733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe",
+  "r12_sha256_final_candidate": "93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712"
 }

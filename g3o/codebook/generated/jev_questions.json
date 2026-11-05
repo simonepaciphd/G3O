@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.jev_questions",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe",
+  "codebook_sha256": "93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712",
   "intended_target": "T-011 jev question and choice sets (path chosen by T-011)",
   "part_prompt": {
     "sentence": "The text below is only one part of a longer page; the rest of the page is read separately. Answer from this part only.",
@@ -2702,7 +2702,7 @@
     {
       "question_id": "core.year_announced",
       "item_id": "core.year_announced",
-      "item_hash": "e34921e51a8f002ddcd832a20348beee74b3ae184bcc717987002321a55acbe7",
+      "item_hash": "ca012150cd030742c02a036c5c3792fba7662696592fffbad97e7890b1a928d1",
       "column": "year_announced",
       "pass": 2,
       "round": 3,
@@ -2741,7 +2741,7 @@
         {
           "code": "not_documented",
           "missing_label": true,
-          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. not_documented: the page is silent.",
+          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. not_documented: the page is silent.",
           "definition_slot": "items/core.year_announced/rules/2",
           "rule_slots": [
             "items/core.year_announced/rules/0",
@@ -2760,7 +2760,7 @@
       "candidates_not_offered": [
         "unknown"
       ],
-      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. not_documented: the page is silent.",
+      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. not_documented: the page is silent.",
       "rule_slots": [
         "items/core.year_announced/rules/0",
         "items/core.year_announced/rules/1",
@@ -2770,7 +2770,7 @@
     {
       "question_id": "core.year_pilot_start",
       "item_id": "core.year_pilot_start",
-      "item_hash": "8ebd4513e07090697dd5983262a2874c773b24548f7c78e0f4942dd3ccf3e6da",
+      "item_hash": "2099c0b8d0db8d4bfc0d408e4e9668d9bf7ff5b9284c567f2b8134b8ceb3f7bd",
       "column": "year_pilot_start",
       "pass": 2,
       "round": 3,
@@ -2811,7 +2811,7 @@
         {
           "code": "not_documented",
           "missing_label": true,
-          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
+          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
           "definition_slot": "items/core.year_pilot_start/rules/3",
           "rule_slots": [
             "items/core.year_pilot_start/rules/0",
@@ -2831,7 +2831,7 @@
       "candidates_not_offered": [
         "unknown"
       ],
-      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
+      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
       "rule_slots": [
         "items/core.year_pilot_start/rules/0",
         "items/core.year_pilot_start/rules/1",
@@ -2842,7 +2842,7 @@
     {
       "question_id": "core.year_production_start",
       "item_id": "core.year_production_start",
-      "item_hash": "ea8b8d591901173302e0c32f637976447008e50787ff28cd3d77fe7d7a2df7e1",
+      "item_hash": "7faf3d95f3b70426afdcedd33795badaf462055eeaa4ba74d9a381ffb24ea2f5",
       "column": "year_production_start",
       "pass": 2,
       "round": 3,
@@ -2883,7 +2883,7 @@
         {
           "code": "not_documented",
           "missing_label": true,
-          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
+          "text": "not_documented: the page is silent.\n\nRules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
           "definition_slot": "items/core.year_production_start/rules/3",
           "rule_slots": [
             "items/core.year_production_start/rules/0",
@@ -2903,7 +2903,7 @@
       "candidates_not_offered": [
         "unknown"
       ],
-      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
+      "rules_text": "Rules:\n1. Deterministic: extract all four-digit years 2015-2030 from the activity span and its context, plus the calendar years named by any fiscal-year label there; a label spanning two calendar years gives both. A year range gives both its end years, even outside 2015-2030, unless a numbering word such as \"p.\", \"No.\" or \"§\" comes just before it; a two-digit end year counts only in a fiscal-year label. No fallback to publication year. Across chunks: earliest chosen year.\n2. Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.\n3. Two columns, each stated-only.\n4. not_documented: the page is silent.",
       "rule_slots": [
         "items/core.year_production_start/rules/0",
         "items/core.year_production_start/rules/1",

@@ -37,7 +37,7 @@ JEV_QUESTION_SET_VERSION = "g3o.classify.questions.v27.jev.1"
 
 #: Codebook r12 candidate (RC-D-015 / RC-D-017; signed only when planning/t010/signoff-record.md
 #: holds this sha256). A different codebook is refused.
-SIGNED_CODEBOOK_SHA256 = "733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe"
+SIGNED_CODEBOOK_SHA256 = "93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712"
 
 SET_DIR = Path(__file__).resolve().parent
 SET_FILES = {"page": "page.json", "activity": "activity.json", "institution": "institution.json"}

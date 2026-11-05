@@ -5,7 +5,7 @@
   "do_not_edit": true,
   "build_command": "python -m g3o.classify.questions.v27 build",
   "codebook_release": "2.7",
-  "codebook_sha256": "733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe",
+  "codebook_sha256": "93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712",
   "source": "g3o.codebook.generators.gen_jev_questions (regenerated from the codebook)",
   "pass": "stage6",
   "unit": "institution: activity pairs (X30) and pooled evidence per merged activity (X31)",

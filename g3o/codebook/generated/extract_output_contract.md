@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extract_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: 733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe -->
+<!-- codebook release: 2.7 | codebook sha256: 93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712 -->
 
 # G3O output contract (extract), generated from the codebook
 
-Codebook release `2.7`, sha256 `733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe`. 99 items.
+Codebook release `2.7`, sha256 `93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712`. 99 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: 53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44 -->
@@ -3697,11 +3697,11 @@ A tool the page calls an "AI chatbot" or "AI assistant" counts as generative AI,
 Translation counts as generative AI only when the page ties it to a named generative product or says a language model produces it.
 
 ## `core.year_announced`
-<!-- item: core.year_announced sha256: e34921e51a8f002ddcd832a20348beee74b3ae184bcc717987002321a55acbe7 -->
+<!-- item: core.year_announced sha256: ca012150cd030742c02a036c5c3792fba7662696592fffbad97e7890b1a928d1 -->
 
 | Field | Value |
 |---|---|
-| item hash | `e34921e51a8f002ddcd832a20348beee74b3ae184bcc717987002321a55acbe7` |
+| item hash | `ca012150cd030742c02a036c5c3792fba7662696592fffbad97e7890b1a928d1` |
 | family | `dates` |
 | name | `year_announced` |
 | level | `activity` |
@@ -3743,18 +3743,18 @@ Deterministic: extract all four-digit years 2015-2030 from the activity span and
 
 2. `items/core.year_announced/rules/1`
 
-Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
+Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
 
 3. `items/core.year_announced/rules/2`
 
 not_documented: the page is silent.
 
 ## `core.year_pilot_start`
-<!-- item: core.year_pilot_start sha256: 8ebd4513e07090697dd5983262a2874c773b24548f7c78e0f4942dd3ccf3e6da -->
+<!-- item: core.year_pilot_start sha256: 2099c0b8d0db8d4bfc0d408e4e9668d9bf7ff5b9284c567f2b8134b8ceb3f7bd -->
 
 | Field | Value |
 |---|---|
-| item hash | `8ebd4513e07090697dd5983262a2874c773b24548f7c78e0f4942dd3ccf3e6da` |
+| item hash | `2099c0b8d0db8d4bfc0d408e4e9668d9bf7ff5b9284c567f2b8134b8ceb3f7bd` |
 | family | `dates` |
 | name | `year_pilot_start` |
 | level | `activity` |
@@ -3796,7 +3796,7 @@ Deterministic: extract all four-digit years 2015-2030 from the activity span and
 
 2. `items/core.year_pilot_start/rules/1`
 
-Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
+Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
 
 3. `items/core.year_pilot_start/rules/2`
 
@@ -3807,11 +3807,11 @@ Two columns, each stated-only.
 not_documented: the page is silent.
 
 ## `core.year_production_start`
-<!-- item: core.year_production_start sha256: ea8b8d591901173302e0c32f637976447008e50787ff28cd3d77fe7d7a2df7e1 -->
+<!-- item: core.year_production_start sha256: 7faf3d95f3b70426afdcedd33795badaf462055eeaa4ba74d9a381ffb24ea2f5 -->
 
 | Field | Value |
 |---|---|
-| item hash | `ea8b8d591901173302e0c32f637976447008e50787ff28cd3d77fe7d7a2df7e1` |
+| item hash | `7faf3d95f3b70426afdcedd33795badaf462055eeaa4ba74d9a381ffb24ea2f5` |
 | family | `dates` |
 | name | `year_production_start` |
 | level | `activity` |
@@ -3853,7 +3853,7 @@ Deterministic: extract all four-digit years 2015-2030 from the activity span and
 
 2. `items/core.year_production_start/rules/1`
 
-Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the listed other calendars and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
+Pilot and production years use the same candidate-then-classifier method. Fiscal-year labels in any language, years in the Japanese era (written with the era name), the Buddhist Era (with its marker) and the ROC calendar (民國), and years written in other digits become candidate years by their written form alone, under the approved conversion table (T-064); the country is never used. Governance uses the announcement year as its adoption year; pilot and production years are not asked for it.
 
 3. `items/core.year_production_start/rules/2`
 

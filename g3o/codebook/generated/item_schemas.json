@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.item_schemas",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "733cf1f04d17ac315ef7a5062938c2739f58cc9432171ccade743082b7051fbe",
+  "codebook_sha256": "93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712",
   "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)",
   "$defs": {
     "page_verdict": {
@@ -718,19 +718,19 @@
     },
     "year_announced": {
       "x-item-id": "core.year_announced",
-      "x-item-hash": "e34921e51a8f002ddcd832a20348beee74b3ae184bcc717987002321a55acbe7",
+      "x-item-hash": "ca012150cd030742c02a036c5c3792fba7662696592fffbad97e7890b1a928d1",
       "x-answer-type": "single",
       "type": "string"
     },
     "year_pilot_start": {
       "x-item-id": "core.year_pilot_start",
-      "x-item-hash": "8ebd4513e07090697dd5983262a2874c773b24548f7c78e0f4942dd3ccf3e6da",
+      "x-item-hash": "2099c0b8d0db8d4bfc0d408e4e9668d9bf7ff5b9284c567f2b8134b8ceb3f7bd",
       "x-answer-type": "single",
       "type": "string"
     },
     "year_production_start": {
       "x-item-id": "core.year_production_start",
-      "x-item-hash": "ea8b8d591901173302e0c32f637976447008e50787ff28cd3d77fe7d7a2df7e1",
+      "x-item-hash": "7faf3d95f3b70426afdcedd33795badaf462055eeaa4ba74d9a381ffb24ea2f5",
       "x-answer-type": "single",
       "type": "string"
     },
