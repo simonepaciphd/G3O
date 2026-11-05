@@ -163,11 +163,43 @@ def test_entailment_window_200_each_side_clipped_to_part():
     assert located and win == "a" * 200 + QUOTE + "b" * 200
     win, located = sc.entailment_window(QUOTE, "x" * 50 + QUOTE + "y" * 10)
     assert located and win == "x" * 50 + QUOTE + "y" * 10
-    # case/whitespace variants are located; an unlocatable (trimmed) quote is the state alone
+    # case/whitespace variants are located; a quote none of whose words is in the text is the state alone
     win, located = sc.entailment_window("the  COUNCIL launched", TEXT)
     assert located and "Town of Example" in win
-    assert sc.entailment_window("council CivicBot", TEXT) == ("council CivicBot", False)
+    assert sc.entailment_window("mayor robot", TEXT) == ("mayor robot", False)
     assert sc.ENTAILMENT_WINDOW_CHARS == 200
+
+
+def test_entailment_window_quote_with_words_left_out():
+    """E3 ruling (b): passage from the first to the last matched quote word, widened 200 each side."""
+    pre, post = "a" * 300 + " ", " " + "b" * 300
+    passage = "The council launched the CivicBot chatbot pilot for residents"
+    text = pre + passage + post
+    trimmed = "The council launched the CivicBot pilot for residents"  # "chatbot" left out
+    assert text.find(trimmed) == -1 and sc.match_quote(trimmed, text).matched
+    win, located = sc.entailment_window(trimmed, text)
+    lo = text.index(passage)
+    assert located and win == text[lo - 200:lo + len(passage) + 200]
+    # punctuation dropped by the extractor (lane B probe p04 D)
+    page = "x" * 250 + " The council, after review, launched CivicBot in 2024. " + "y" * 250
+    win, located = sc.entailment_window("The council after review launched CivicBot in 2024", page)
+    s, e = page.index("The council"), page.index("2024.") + 4
+    assert located and win == page[s - 200:e + 200]
+    # clipped to the source text
+    win, located = sc.entailment_window("council CivicBot", TEXT)
+    assert located and win == TEXT[:TEXT.index("CivicBot") + len("CivicBot") + 200]
+
+
+def test_entailment_window_word_alignment_prefers_most_words_then_shortest():
+    filler = " ".join(["filler"] * 60)
+    text = ("the pilot started. " + filler + " The council launched CivicBot widely, the pilot. "
+            + filler + " council pilot")
+    s = text.index("council launched")
+    e = text.index("pilot.", s) + len("pilot")
+    assert sc._locate_by_words("council launched CivicBot the pilot", text) == (s, e)
+    # one shared word: the earliest occurrence, the shortest passage
+    assert sc._locate_by_words("pilot", text) == (4, 9)
+    assert sc._locate_by_words("no such words", text) is None
 
 
 def test_entailment_window_uses_the_producing_part_or_chrome():
@@ -400,6 +432,10 @@ def test_entailment_question_forms():
     assert q.startswith("Does this text state or clearly show that the generative-AI content of the page is")
     q = sc.entailment_question("core.year_pilot_start", "2024", activity_name="CivicBot")
     assert q.endswith('is "2024"?')
+    # codebook r13: four ASCII digits after conversion (lane B F4)
+    for bad in ("\uff12\uff10\uff12\uff14", "\u0e52\u0e50\u0e52\u0e54", "FY24", "24", "\u0662\u0660\u0662\u0664"):
+        with pytest.raises(ValueError, match="four ASCII digits"):
+            sc.entailment_question("core.year_pilot_start", bad, activity_name="CivicBot")
     role = sc.entailment_question("core.observed_actor_relationship", "beneficiary",
                                   part="searched_institution_role", activity_name="CivicBot")
     assert "named institution's part" in role
@@ -441,7 +477,7 @@ def test_contact_emails_gate_open_none_found_is_not_documented():
 
 
 def test_year_candidates_context_default_200_pending_w05():
-    """RC-D-019 E4: 200 characters each side by default (pending packet W-05)."""
+    """RC-D-019 E4: 200 characters each side by default (W-05-P1: keep 200)."""
     assert sc.YEAR_CONTEXT_CHARS == 200
     far = "In 2019 the town was founded. " + "x" * 250 + " " + TEXT
     s0 = far.index("The council")
@@ -455,6 +491,29 @@ def test_year_candidates_context_default_200_pending_w05():
     assert [c.year for c in got] == [2024, 2025]
     assert all(text[s.start:s.end] == s.text for c in got for s in c.sources)
     assert [c.year for c in sc.activity_year_candidates(text, start, start + 90, context_chars=0)] == [2024]
+
+
+def test_year_candidates_read_on_whole_part_not_the_cut_slice():
+    """W-05-P3: years are read on the whole part; sources overlapping the window are kept."""
+    act = " The council launched CivicBot. "
+    # a cut cannot create a year: "Ref 12024" with the window starting at the "2"
+    text = "Ref 12024" + " " * 200 + act
+    s = text.index("The council")
+    lo = text.index("2024")
+    got = sc.activity_year_candidates(text, s, s + 29, context_chars=s - lo)
+    assert got == []
+    # a cut cannot lose a year: "2010 to 2012" with the window starting at " to 2012"
+    text = "Plan 2010 to 2012" + act
+    s = text.index("The council")
+    cut = text.index(" to 2012")
+    got = sc.activity_year_candidates(text, s, s + 29, context_chars=s - cut)
+    assert [c.year for c in got] == [2010, 2012]
+    assert all(text[x.start:x.end] == x.text for c in got for x in c.sources)
+    # a source wholly outside the window is not kept, even when the year also occurs inside it
+    text = "In 2024 x" + "x" * 300 + act + "Launched 2024."
+    s = text.index("The council")
+    (c,) = sc.activity_year_candidates(text, s, s + 29)
+    assert [x.start for x in c.sources] == [text.rindex("2024")]
 
 
 def test_year_candidates_reference_year_passed_through():

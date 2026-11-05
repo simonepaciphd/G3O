@@ -268,6 +268,62 @@ def test_docx_extractor_defensive_failures():
     assert not docx_mod.is_docx(b"<html></html>")
 
 
+def _docx_bytes(repeat: int = 1) -> bytearray:
+    """A DOCX with word/document.xml as its first entry and an intact central directory (is_docx is True)."""
+    body = (f'<w:document xmlns:w="{_W_NS}"><w:body>'
+            + "<w:p><w:r><w:t>Generative AI pilot 2024</w:t></w:r></w:p>" * repeat + "</w:body></w:document>")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("word/document.xml", body)
+        zf.writestr("docProps/core.xml", _CORE)
+    return bytearray(buf.getvalue())
+
+
+def _corrupt_deflate() -> bytes:
+    b = _docx_bytes(repeat=50)
+    off = 30 + len("word/document.xml")  # first local header + name, no extra field
+    for i in range(off + 5, off + 40):
+        b[i] ^= 0xFF
+    return bytes(b)
+
+
+def _patch_all_headers(b: bytearray, *, flag_bit: int = 0, method: int | None = None) -> bytes:
+    """Set a general-purpose flag bit or the compression method in every local and central header."""
+    for sig, flag_at, method_at in ((b"PK\x03\x04", 6, 8), (b"PK\x01\x02", 8, 10)):
+        pos = b.find(sig)
+        while pos != -1:
+            if flag_bit:
+                b[pos + flag_at] |= flag_bit
+            if method is not None:
+                b[pos + method_at:pos + method_at + 2] = method.to_bytes(2, "little")
+            pos = b.find(sig, pos + 4)
+    return bytes(b)
+
+
+@pytest.mark.parametrize(
+    "label, make, title_part_bad",
+    [
+        ("corrupt deflate (zlib.error)", _corrupt_deflate, False),  # only document.xml is corrupted
+        ("encrypted entry (RuntimeError)", lambda: _patch_all_headers(_docx_bytes(), flag_bit=1), True),
+        ("deflate64 (NotImplementedError)", lambda: _patch_all_headers(_docx_bytes(), method=9), True),
+    ],
+)
+def test_docx_unreadable_part_returns_empty_with_warning(label, make, title_part_bad, caplog):
+    """Lane A C-1: these escaped and dropped the URL as scrape_failed; now "" plus a warning, like the PDF path."""
+    data = make()
+    assert docx_mod.is_docx(data), label
+    with caplog.at_level(logging.WARNING, logger=docx_mod.__name__):
+        assert docx_mod.extract_text(data) == "", label
+        title = docx_mod.extract_title(data)
+    msgs = [r.getMessage() for r in caplog.records]
+    assert any(m.startswith("DOCX extraction error") for m in msgs), (label, msgs)
+    if title_part_bad:
+        assert title == "", label
+        assert any(m.startswith("DOCX title extraction error") for m in msgs), (label, msgs)
+    else:
+        assert title == DOCX_TITLE, label
+
+
 def test_docx_part_size_cap(monkeypatch):
     monkeypatch.setattr(docx_mod, "MAX_XML_BYTES", 100)
     assert docx_mod.extract_text(_make_docx()) == ""

@@ -55,11 +55,15 @@ Rules applied, each as SPEC v001.20 / codebook r13 states it:
   Gate open, no address found: ``not_documented`` (RC-D-019 E2 a).
 - **X35 state window (RC-D-019 E3).** The entailment check sees the quote plus
   ``ENTAILMENT_WINDOW_CHARS`` (200) characters on each side, clipped to the
-  text the quote came from (the producing part, or chrome). :func:`entailment_window`.
-- **Year candidates (codebook r13 year rules 1-2; T-064).** Candidates from
-  the activity span and ``YEAR_CONTEXT_CHARS`` (200, RC-D-019 E4; pending
-  wording-packet W-05 approval) characters each side, via
-  :mod:`g3o.extract.years`; the classifier chooses (T-023).
+  text the quote came from (the producing part, or chrome). A quote the
+  extractor shortened by leaving words out (no verbatim match) is located from
+  its first to its last matched word, then widened the same way (E3 ruling b).
+  :func:`entailment_window`.
+- **Year candidates (codebook r13 year rules 1-2; T-064).** Years are read on
+  the whole part text and the candidate sources whose spans overlap the activity
+  span plus ``YEAR_CONTEXT_CHARS`` (200, RC-D-019 E4; W-05-P1 keep 200)
+  characters each side are kept (W-05-P3), via :mod:`g3o.extract.years`; the
+  classifier chooses (T-023).
 
 The X35 jev call itself is a stub that raises :class:`SupportGateError`
 (binding T-030/T-035).
@@ -77,7 +81,7 @@ import re
 import sys
 import unicodedata
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Any
 
@@ -96,7 +100,7 @@ MATCHER = "matcher"
 WORD_RULE = "word_rule"
 BOTH = "both"
 ENTAILMENT_WINDOW_CHARS = 200  # RC-D-019 E3: each side of the quote, clipped to its source text
-YEAR_CONTEXT_CHARS = 200  # RC-D-019 E4: each side of the activity span; PENDING wording-packet W-05 approval
+YEAR_CONTEXT_CHARS = 200  # RC-D-019 E4: each side of the activity span; W-05-P1 (PI-accepted default): keep 200
 WINDOW_UNLOCATED = "entailment_window_unlocated"
 
 QUOTE_MAX_CHARS = 200  # RC-D-017 3: extraction-prompt cap and website display cap
@@ -476,8 +480,9 @@ def entailment_question(item_id: str, value: str, *, part: str | None = None,
     """The signed X35 question for one (item, value), filled from the generated label map.
 
     Page-form items use ``instruction_page``; others the activity form, naming the activity.
-    Year items take the year as written. A missing label is an interface defect: raised, never
-    filled with a raw code (T-024 label interface).
+    Year items take the calendar (CE) year in four ASCII digits after conversion (codebook r13,
+    RC-D-019 C1 a), e.g. "2024" for "FY24"; other digits are refused. A missing label is an interface
+    defect: raised, never filled with a raw code (T-024 label interface).
     """
     rules = rules or default_rules()
     lab = rules.entailment_labels.get(item_id)
@@ -490,8 +495,9 @@ def entailment_question(item_id: str, value: str, *, part: str | None = None,
     else:
         field_label, values = lab["field"], lab["values"]
     if lab.get("value_label") == "year":
-        if not re.fullmatch(r"\d{4}", value):
-            raise ValueError(f"{item_id}: year value must be the year as written")
+        if not re.fullmatch(r"[0-9]{4}", value):
+            raise ValueError(
+                f"{item_id}: year value must be the calendar (CE) year in four ASCII digits after conversion")
         value_label = value
     elif value in values:
         value_label = values[value]["text"]
@@ -518,15 +524,58 @@ def _locate(quote: str, text: str) -> tuple[int, int] | None:
     return (m.start(), m.end()) if m else None
 
 
+def _locate_by_words(quote: str, text: str) -> tuple[int, int] | None:
+    """Offsets of the passage from the first to the last matched quote word (E3 ruling b).
+
+    For a quote with words left out (RC-D-014 S1). Words are the R-042 tokens (NFKC, casefold). The
+    alignment keeps the quote's word order and takes the most matched words, then the shortest passage,
+    then the earliest. None when no quote word is in ``text``.
+    """
+    q = word_tokens(quote)
+    qset = set(q)
+    hits = []  # (token, start, end) of source words that are quote words, in text order
+    for m in _WORD.finditer(text):
+        tok = unicodedata.normalize("NFKC", m.group()).casefold()
+        if tok in qset:
+            hits.append((tok, m.start(), m.end()))
+    if not hits:
+        return None
+    positions: dict[str, list[int]] = {}
+    for j, tok in enumerate(q):
+        positions.setdefault(tok, []).append(j)
+    # dp[j]: best alignment of q[:j] (words may be skipped) with the hits seen so far, as
+    # (matched words, index of its first hit): more words first, then the latest first hit, which
+    # gives the shortest passage once extended to a later hit.
+    dp: list[tuple[int, int]] = [(0, -1)] * (len(q) + 1)
+    best: tuple[int, int, int] | None = None  # (count, -length, -start) over alignments ending at a hit
+    span: tuple[int, int] | None = None
+    for h, (tok, _, end) in enumerate(hits):
+        for j in reversed(positions[tok]):
+            count, first_hit = dp[j]
+            cand = (count + 1, first_hit if count else h)
+            if cand > dp[j + 1]:
+                dp[j + 1] = cand
+            first = hits[cand[1]][1]
+            key = (cand[0], first - end, -first)
+            if best is None or key > best:
+                best, span = key, (first, end)
+        for j in range(1, len(dp)):
+            if dp[j - 1] > dp[j]:
+                dp[j] = dp[j - 1]
+    return span
+
+
 def entailment_window(quote: str, source_text: str, chars: int = ENTAILMENT_WINDOW_CHARS) -> tuple[str, bool]:
     """X35 state text (RC-D-019 E3): the quote plus ``chars`` characters each side, clipped to the
     source text (the producing part, or chrome). Returns (text, located).
 
-    A quote that passed R-042 without being found verbatim (trimmed or reworded, RC-D-014 S1) has no
-    position to widen around; the state is then the quote alone and ``located`` is False (callers
-    record ``WINDOW_UNLOCATED``).
+    A quote found verbatim (or up to case and whitespace) is widened around itself. A quote with words
+    left out (RC-D-014 S1) is located from its first to its last matched word, and that passage is
+    widened the same way (E3 ruling b, integrator under PI delegation). Only a quote none of whose
+    words is in the source gives the quote alone with ``located`` False (callers record
+    ``WINDOW_UNLOCATED``).
     """
-    span = _locate(quote, source_text)
+    span = _locate(quote, source_text) or _locate_by_words(quote, source_text)
     if span is None:
         return quote, False
     lo, hi = max(0, span[0] - chars), min(len(source_text), span[1] + chars)
@@ -595,13 +644,16 @@ def activity_year_candidates(page_text: str, start: int, end: int, *,
                              reference_year: int | None = None) -> list[Any]:
     """Year candidates (T-064) from the activity span and its context (codebook r13 year rule 1).
 
-    Context: ``YEAR_CONTEXT_CHARS`` (200) characters each side (RC-D-019 E4), clipped to the page.
-    PENDING: the width is proposed in wording-packet item W-05 and awaits that packet's approval.
-    ``reference_year`` sets the two-digit pivot (B1 c); omitted, it is
+    ``page_text`` is the whole text the span offsets index: the producing part's text (W-05-P3).
+    Years are read on all of it, and a candidate keeps the sources whose spans overlap the window:
+    the activity span plus ``YEAR_CONTEXT_CHARS`` (200; RC-D-019 E4, W-05-P1) characters each side.
+    So a cut at the window edge neither creates a year ("Ref 12024" cut at "2" gives none) nor loses
+    one ("2010 to 2012" overlapping the window keeps both ends). A candidate with no overlapping source
+    is dropped. ``reference_year`` sets the two-digit pivot (B1 c); omitted, it is
     :func:`g3o.extract.years.default_reference_year` at call time. It is passed explicitly to
     :func:`g3o.extract.years.extract_year_candidates`, so every source records the value used.
-    Returns :class:`g3o.extract.years.YearCandidate` values whose offsets are page offsets; every other
-    source field (form, rule, reference year) is kept as returned.
+    Returns :class:`g3o.extract.years.YearCandidate` values with offsets into ``page_text``, sources
+    as returned by the years module.
     """
     from g3o.extract.years import YearCandidate, default_reference_year, extract_year_candidates
 
@@ -609,8 +661,12 @@ def activity_year_candidates(page_text: str, start: int, end: int, *,
         raise ValueError("span must lie on the page and context must be non-negative")
     ref = default_reference_year() if reference_year is None else int(reference_year)
     lo, hi = max(0, start - context_chars), min(len(page_text), end + context_chars)
-    return [YearCandidate(c.year, tuple(replace(s, start=s.start + lo, end=s.end + lo) for s in c.sources))
-            for c in extract_year_candidates(page_text[lo:hi], reference_year=ref)]
+    out = []
+    for c in extract_year_candidates(page_text, reference_year=ref):
+        kept = tuple(s for s in c.sources if s.start < hi and s.end > lo)
+        if kept:
+            out.append(YearCandidate(c.year, kept))
+    return out
 
 
 __all__ = [

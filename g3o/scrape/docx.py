@@ -23,6 +23,7 @@ import io
 import logging
 import xml.etree.ElementTree as ET
 import zipfile
+import zlib
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +38,16 @@ MAX_XML_BYTES = 64 * 1024 * 1024
 _W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 _MC = "{http://schemas.openxmlformats.org/markup-compatibility/2006}"
 _DC_TITLE ="{http://purl.org/dc/elements/1.1/}title"
+
+#: Every failure the stdlib readers raise on a package whose central directory
+#: is intact but whose part cannot be read: a corrupt deflate stream
+#: (``zlib.error``), a truncated one (``EOFError``), an encrypted entry
+#: (``RuntimeError``), an unsupported compression method such as deflate64
+#: (``NotImplementedError``, a ``RuntimeError``), deep nesting
+#: (``RecursionError``, a ``RuntimeError``), plus the ZIP and XML errors.
+_READ_ERRORS = (
+    zipfile.BadZipFile, KeyError, ValueError, OSError, EOFError, zlib.error, RuntimeError, ET.ParseError,
+)
 
 
 def is_docx(content: bytes) -> bool:
@@ -108,10 +119,8 @@ def extract_text(content: bytes) -> str:
             return ""
         lines: list[str] = []
         _collect(ET.fromstring(data), lines, None)
-    except (
-        zipfile.BadZipFile, KeyError, ValueError, OSError, ET.ParseError, RecursionError,
-    ) as exc:
-        logger.warning("DOCX extraction error: %s", exc)
+    except _READ_ERRORS as exc:
+        logger.warning("DOCX extraction error: %s: %s", type(exc).__name__, exc)
         return ""
     return "\n".join(lines).strip()
 
@@ -126,6 +135,7 @@ def extract_title(content: bytes) -> str:
         if data is None:
             return ""
         el = ET.fromstring(data).find(_DC_TITLE)
-    except (zipfile.BadZipFile, KeyError, ValueError, OSError, ET.ParseError):
+    except _READ_ERRORS as exc:
+        logger.warning("DOCX title extraction error: %s: %s", type(exc).__name__, exc)
         return ""
     return (el.text or "").strip() if el is not None else ""

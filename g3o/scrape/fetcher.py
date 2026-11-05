@@ -700,9 +700,10 @@ def _route(content: bytes, *, ctype: str, url: str) -> str:
 def _note_readability(url: str, text: str) -> None:
     """Log the R-015 readability failure of freshly extracted text, if any.
 
-    The verdict and its failure reason are set downstream from the stored text
-    (``g3o.scrape.readability.readability_failure``), which covers pages stored
-    before T-065 too; the page record carries no field for it (shape unchanged).
+    This is a log line only. Setting the R-015 verdict and recording its failure
+    reason from the stored text (``g3o.scrape.readability.readability_failure``),
+    including the pages stored before T-065, belongs to T-030/T-035 and is not
+    yet in code; the page record carries no field for it (shape unchanged).
     """
     reason = readability.readability_failure(text)
     if reason is not None:
