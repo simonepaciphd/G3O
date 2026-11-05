@@ -16,7 +16,14 @@ Window. A literal standalone year counts when it is in 2015-2030 (YEAR_MIN..YEAR
 anywhere in LIFT_MIN..LIFT_MAX (1900-2099, D1: a guard so that codes and other calendars' years are not read as years):
 range ends, both years of a two-year fiscal label, a one-year fiscal label, and a Japanese era, Buddhist Era or ROC
 year ("C2b"). Exception: the ends of an unmarked range after a numbering word keep 2015-2030. Two-digit fiscal years
-are lifted like four-digit ones (D2; a two-digit start expands to 20xx, so "FY98" -> 2098).
+are lifted like four-digit ones (D2).
+
+Two-digit years (PI 2026-11-05 "B1c (but current-year+25-99)"). A two-digit year that starts a label ("FY25", "FY98/99")
+is read with a pivot on the reference year R: yy from (R mod 100) + PIVOT_OFFSET through 99 is 19yy, every other yy
+is 20yy (R = 2026: 51-99 -> 1951-1999, 00-50 -> 2000-2050). A two-digit end year takes the first year's century and
+rolls into the next one when lower ("FY1999/00" -> 1999, 2000), as before. R is the `reference_year` argument of the
+public functions; when omitted it is the current calendar year at call time (`default_reference_year()`), so callers
+that need reproducible output pass it. Every YearLabel and YearSource records the R its call used.
 
 Rule ids (YearSource.rule, T-064 follow-up F4): the pattern that produced the source, one of RULES.
 
@@ -65,6 +72,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import date
 
 YEAR_MIN = 2015
 YEAR_MAX = 2030
@@ -73,6 +81,7 @@ LIFT_MAX = 2099
 BE_OFFSET = 543
 BE_THRESHOLD = 2400  # Thai fiscal-year labels: a written year >= this is Buddhist Era
 ROC_OFFSET = 1911
+PIVOT_OFFSET = 25  # two-digit yy >= (reference_year mod 100) + 25 reads as 19yy (PI 2026-11-05 "B1c")
 REIWA_OFFSET = 2018
 HEISEI_OFFSET = 1988
 
@@ -111,6 +120,7 @@ class YearSource:
     text: str  # verbatim text[start:end]
     form: str  # one of FORMS
     rule: str = ""  # one of RULES: the pattern that produced it
+    reference_year: int = 0  # the reference year of the call (two-digit pivot); 0 = not recorded
 
 
 @dataclass(frozen=True)
@@ -136,6 +146,7 @@ class YearLabel:
     marker: str = ""  # the marker matched (FY, a table A marker, era name ...), "" for ranges
     numbered: bool = False  # RANGE only: a numbering word stands just before it
     rule: str = ""  # one of RULES
+    reference_year: int = 0  # the reference year of the call (two-digit pivot); 0 = not recorded
 
     def sources(self) -> list[tuple[int, YearSource]]:
         """(year, source) pairs this label contributes, windows applied."""
@@ -148,7 +159,7 @@ class YearLabel:
         out = []
         for y, form in zip(self.years, forms, strict=True):
             if in_range(y) or (not self.numbered and LIFT_MIN <= y <= LIFT_MAX):  # lifted window ("C2b")
-                out.append((y, YearSource(self.start, self.end, self.text, form, self.rule)))
+                out.append((y, YearSource(self.start, self.end, self.text, form, self.rule, self.reference_year)))
         return out
 
 
@@ -261,12 +272,26 @@ def normalize_digits(text: str) -> str:
     return "".join(str(int(ch)) if (not ch.isascii() and ch.isdecimal()) else ch for ch in text)
 
 
-def _full_year(digits: str, base: int | None = None) -> int:
+def default_reference_year() -> int:
+    """The reference year used when a caller passes none: the current calendar year (local date) at call time."""
+    return date.today().year
+
+
+def _ref(reference_year: int | None) -> int:
+    return default_reference_year() if reference_year is None else int(reference_year)
+
+
+def two_digit_year(yy: int, reference_year: int) -> int:
+    """A two-digit year that starts a label: 19yy from (reference_year mod 100) + PIVOT_OFFSET through 99, else 20yy."""
+    return 1900 + yy if yy >= reference_year % 100 + PIVOT_OFFSET else 2000 + yy
+
+
+def _full_year(digits: str, base: int | None = None, reference_year: int | None = None) -> int:
     if len(digits) == 4:
         return int(digits)
     yy = int(digits)
     if base is None:
-        return 2000 + yy
+        return two_digit_year(yy, _ref(reference_year))
     y = (base // 100) * 100 + yy
     return y + 100 if y < base else y  # "FY1999/00" -> 2000; a lower two-digit end rolls into the next century
 
@@ -289,29 +314,31 @@ def _kanji_number(s: str) -> int:
     return int("".join(str(_KANJI_DIGITS[ch]) for ch in s))
 
 
-def _two_year_label(text: str, m: re.Match, marker: str, rule: str, be: bool = False) -> YearLabel:
+def _two_year_label(text: str, m: re.Match, marker: str, rule: str, ref: int, be: bool = False) -> YearLabel:
     y1s, y2s = m.group("y1"), m.group("y2")
-    y1 = _full_year(y1s)
+    y1 = _full_year(y1s, reference_year=ref)
     conv = BE_OFFSET if be and y1 >= BE_THRESHOLD else 0
     span = text[m.start():m.end()]
     if y2s is None:
-        return YearLabel(m.start(), m.end(), span, FISCAL_ONE, (y1 - conv,), (len(y1s) == 4,), marker, rule=rule)
+        return YearLabel(m.start(), m.end(), span, FISCAL_ONE, (y1 - conv,), (len(y1s) == 4,), marker, rule=rule,
+                         reference_year=ref)
     y2 = _full_year(y2s, base=y1)
     return YearLabel(m.start(), m.end(), span, FISCAL_TWO, (y1 - conv, y2 - conv),
-                     (len(y1s) == 4, len(y2s) == 4), marker, rule=rule)
+                     (len(y1s) == 4, len(y2s) == 4), marker, rule=rule, reference_year=ref)
 
 
-def fiscal_labels(text: str, _norm: str | None = None) -> list[YearLabel]:
+def fiscal_labels(text: str, _norm: str | None = None, reference_year: int | None = None) -> list[YearLabel]:
     """Every marked fiscal-year label (English or table A) in `text`, in text order."""
     norm = normalize_digits(text) if _norm is None else _norm
+    ref = _ref(reference_year)
     found: list[YearLabel] = []
     for rx, rule in ((_EN_PREFIX, R_FY_EN_PREFIX), (_EN_POSTFIX, R_FY_EN_POSTFIX), (_A_PREFIX, R_FY_A_PREFIX),
                      (_A_POSTFIX, R_FY_A_POSTFIX)):
         for m in rx.finditer(norm):
             marker = next((g for g in (m.groupdict().get(k) for k in ("m", "w", "k")) if g), "")
-            found.append(_two_year_label(text, m, marker, rule))
+            found.append(_two_year_label(text, m, marker, rule, ref))
     for m in _A_THAI.finditer(norm):
-        found.append(_two_year_label(text, m, m.group("m"), R_FY_A_THAI, be=True))
+        found.append(_two_year_label(text, m, m.group("m"), R_FY_A_THAI, ref, be=True))
     found.sort(key=lambda f: (f.start, -(f.end - f.start)))
     out: list[YearLabel] = []
     for f in found:
@@ -320,20 +347,21 @@ def fiscal_labels(text: str, _norm: str | None = None) -> list[YearLabel]:
             # the same label read from both sides ("FY 2024-25 fiscal year"): one label, widest span
             if f.end > prev.end:
                 out[-1] = YearLabel(prev.start, f.end, text[prev.start:f.end], f.kind, f.years, f.four_digit,
-                                    prev.marker, rule=prev.rule)
+                                    prev.marker, rule=prev.rule, reference_year=ref)
             continue
         out.append(f)  # overlapping labels naming different years are both kept
     return out
 
 
-def calendar_labels(text: str, _norm: str | None = None) -> list[YearLabel]:
+def calendar_labels(text: str, _norm: str | None = None, reference_year: int | None = None) -> list[YearLabel]:
     """Japanese era, Buddhist Era and ROC expressions, in text order (table B, one year each)."""
     norm = normalize_digits(text) if _norm is None else _norm
+    ref = _ref(reference_year)
     out: list[YearLabel] = []
     for m in _ERA.finditer(norm):
         y = _kanji_number(m.group("n")) + (REIWA_OFFSET if m.group("era") == _REIWA else HEISEI_OFFSET)
         out.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], ERA_JP, (y,), (False,), m.group("era"),
-                             rule=R_ERA_JP))
+                             rule=R_ERA_JP, reference_year=ref))
     be: list[YearLabel] = []
     for rx, rule in ((_BE_PREFIX, R_BE_PREFIX), (_BE_POSTFIX, R_BE_POSTFIX)):
         for m in rx.finditer(norm):
@@ -341,7 +369,7 @@ def calendar_labels(text: str, _norm: str | None = None) -> list[YearLabel]:
             ys = (y1,) if m.group("y2") is None else (y1, _full_year(m.group("y2"), base=y1))
             be.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], BUDDHIST_ERA,
                                 tuple(y - BE_OFFSET for y in ys), tuple(True for _ in ys), m.group("era"),
-                                rule=rule))
+                                rule=rule, reference_year=ref))
     be.sort(key=lambda f: (f.start, -(f.end - f.start)))
     kept: list[YearLabel] = []
     for f in be:  # the same year read with a marker on both sides: keep one
@@ -352,15 +380,17 @@ def calendar_labels(text: str, _norm: str | None = None) -> list[YearLabel]:
     for m in _ROC_RX.finditer(norm):
         y = _kanji_number(m.group("n")) + ROC_OFFSET
         out.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], ROC, (y,), (False,), m.group("era"),
-                             rule=R_ROC))
+                             rule=R_ROC, reference_year=ref))
     return sorted(out, key=lambda f: (f.start, f.end))
 
 
-def year_ranges(text: str, labels: list[YearLabel] | None = None, _norm: str | None = None) -> list[YearLabel]:
+def year_ranges(text: str, labels: list[YearLabel] | None = None, _norm: str | None = None,
+                reference_year: int | None = None) -> list[YearLabel]:
     """Unmarked ranges of two four-digit years (kind RANGE) not wholly inside another label, in text order."""
     norm = normalize_digits(text) if _norm is None else _norm
+    ref = _ref(reference_year)
     if labels is None:
-        labels = fiscal_labels(text, norm) + calendar_labels(text, norm)
+        labels = fiscal_labels(text, norm, ref) + calendar_labels(text, norm, ref)
     spans = [(f.start, f.end) for f in labels]
     out: list[YearLabel] = []
     for m in _RANGE_RX.finditer(norm):
@@ -372,34 +402,39 @@ def year_ranges(text: str, labels: list[YearLabel] | None = None, _norm: str | N
         numbered = bool(_NUMBERING.search(norm[max(0, m.start() - 12):m.start()]))
         rule = R_RANGE_WORD if _RANGE_WORD_RX.fullmatch(norm, m.end("y1"), m.start("y2")) else R_RANGE_SEP
         out.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], RANGE, (y1, y2), (True, True), "", numbered,
-                             rule))
+                             rule, ref))
     return out
 
 
-def all_labels(text: str) -> list[YearLabel]:
+def all_labels(text: str, reference_year: int | None = None) -> list[YearLabel]:
     """Every fiscal label, calendar expression and unmarked range, in text order."""
     norm = normalize_digits(text)
-    labels = fiscal_labels(text, norm) + calendar_labels(text, norm)
-    return sorted(labels + year_ranges(text, labels, norm), key=lambda f: (f.start, f.end))
+    ref = _ref(reference_year)
+    labels = fiscal_labels(text, norm, ref) + calendar_labels(text, norm, ref)
+    return sorted(labels + year_ranges(text, labels, norm, ref), key=lambda f: (f.start, f.end))
 
 
-def year_sources(text: str) -> list[tuple[int, YearSource]]:
+def year_sources(text: str, reference_year: int | None = None) -> list[tuple[int, YearSource]]:
     """Every (year, span, form) pair before de-duplication, windows applied."""
     norm = normalize_digits(text)
+    ref = _ref(reference_year)
     pairs: set[tuple[int, YearSource]] = set()
     for m in _LITERAL.finditer(norm):
         y = int(m.group(1))
         if in_range(y):
-            pairs.add((y, YearSource(m.start(1), m.end(1), text[m.start(1):m.end(1)], LITERAL, R_LITERAL)))
-    labels = fiscal_labels(text, norm) + calendar_labels(text, norm)
-    for lab in labels + year_ranges(text, labels, norm):
+            pairs.add((y, YearSource(m.start(1), m.end(1), text[m.start(1):m.end(1)], LITERAL, R_LITERAL, ref)))
+    labels = fiscal_labels(text, norm, ref) + calendar_labels(text, norm, ref)
+    for lab in labels + year_ranges(text, labels, norm, ref):
         pairs.update(lab.sources())
     return sorted(pairs)
 
 
-def extract_year_candidates(text: str) -> list[YearCandidate]:
-    """Year candidates for `text`, one per distinct year (ascending), each with every source span."""
+def extract_year_candidates(text: str, reference_year: int | None = None) -> list[YearCandidate]:
+    """Year candidates for `text`, one per distinct year (ascending), each with every source span.
+
+    `reference_year` sets the two-digit pivot (see the module docstring); omitted, it is the current calendar year at
+    call time. Pass it explicitly for reproducible output; every source records the value used."""
     by_year: dict[int, list[YearSource]] = {}
-    for y, src in year_sources(text):
+    for y, src in year_sources(text, reference_year):
         by_year.setdefault(y, []).append(src)
     return [YearCandidate(y, tuple(sorted(by_year[y]))) for y in sorted(by_year)]

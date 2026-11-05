@@ -55,6 +55,7 @@ REL_OUT = "agent-workspace/2026-10-27-reclass-plan/spikes"
 SOURCES = ("RS-008", "RS-009")
 N_EXAMPLES = 10
 CTX = 60
+REFERENCE_YEAR = Y.default_reference_year()  # one two-digit pivot for the whole run, recorded in the outputs
 LABEL_KINDS = Y.LABEL_KINDS  # fiscal_one, fiscal_two, range, era_jp, buddhist_era, roc
 N_LIFT_EXAMPLES = 25
 N_PRE_TOP = 30
@@ -109,7 +110,7 @@ def snippet(text: str, start: int, end: int) -> str:
 def analyse(text: str) -> dict:
     """Per-text tallies plus the fiscal labels (for the CSV)."""
     literal = {int(m.group(1)) for m in Y._LITERAL.finditer(Y.normalize_digits(text)) if Y.in_range(int(m.group(1)))}
-    labels = Y.all_labels(text)
+    labels = Y.all_labels(text, reference_year=REFERENCE_YEAR)
     res: dict = {"labels": [], "kind": Counter(), "adds": Counter(), "adds_any": False, "other": Counter(),
                  "non_en": Counter(), "unmarked": Counter(), "letter_adj": 0, "examples": defaultdict(list),
                  "range": Counter(), "pre": Counter(), "pre_lifted": Counter(), "lifted_examples": [],
@@ -288,7 +289,7 @@ def main(argv=None) -> int:
 
     meta = {"generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "module": "g3o/extract/years.py", "missing_sources": missing,
-            "year_range": [Y.YEAR_MIN, Y.YEAR_MAX]}
+            "year_range": [Y.YEAR_MIN, Y.YEAR_MAX], "reference_year": REFERENCE_YEAR}
     counts = {"meta": meta, "pages": {k: dict(v) for k, v in tot.items()},
               "unique_texts": {k: dict(v) for k, v in uniq.items()},
               "range_word_before_unique_texts": {"all_unnumbered": dict(pre_all.most_common()),
@@ -306,6 +307,7 @@ def render(counts: dict, examples: dict, unmarked_examples: dict, lifted_example
     cols = list(SOURCES) + ["all"]
     L = ["# SPIKE-T064 — year labels and out-of-scope calendar years on RS-008/RS-009 page texts", "",
          f"Generated {counts['meta']['generated_utc']} by `scripts/spikes/t064/coverage.py` over `g3o/extract/years.py`. "
+         f"Two-digit pivot reference year {counts['meta'].get('reference_year')}. "
          "Free, local, read-only. Missing sources: " + (", ".join(counts["meta"]["missing_sources"]) or "none") + ".", "",
          "Unit: unique page texts (sha256 of stored `text`) unless a row says pages. Years from labels count in "
          "1900-2099 (PI \"C2b\"); only literal standalone years and range ends after a numbering word keep "
