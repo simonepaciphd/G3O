@@ -131,14 +131,55 @@ def test_quote_with_no_words_does_not_match():
 def test_threshold_is_inclusive_at_93(monkeypatch):
     for score, expected in ((93, True), (92.99, False)):
         monkeypatch.setattr(sc, "_token_set_ratio", lambda s=score: lambda a, b: s)
-        assert match_quote("anything", TEXT).matched is expected
+        m = match_quote("anything", TEXT)  # word rule fails: only the matcher can decide
+        assert m.matcher_pass is expected and m.matched is expected
 
 
-def test_match_decision_is_the_matcher_and_word_rule_is_recorded(monkeypatch):
-    assert sc.MATCH_DECISION == "matcher"
+def test_either_rule_matches_and_the_deciding_rule_is_recorded(monkeypatch):
+    """RC-D-019 E1 c: matcher OR 80% word rule; both results kept."""
+    assert sc.MATCH_DECISION == "either"
+    assert match_quote(QUOTE, TEXT).decided_by == sc.BOTH
     monkeypatch.setattr(sc, "_token_set_ratio", lambda: lambda a, b: 95)
     m = match_quote("words that are absent entirely", TEXT)
-    assert m.matched and m.rule_80 is False
+    assert (m.matched, m.matcher_pass, m.rule_80, m.decided_by) == (True, True, False, sc.MATCHER)
+    monkeypatch.setattr(sc, "_token_set_ratio", lambda: lambda a, b: 50)
+    m = match_quote("CivicBot answered questions council", TEXT)
+    assert (m.matched, m.matcher_pass, m.rule_80, m.decided_by) == (True, False, True, sc.WORD_RULE)
+    m = match_quote("The ministry deployed a translation model", TEXT)
+    assert (m.matched, m.decided_by) == (False, None)
+
+
+def test_word_rule_alone_supports_a_code(monkeypatch):
+    monkeypatch.setattr(sc, "_token_set_ratio", lambda: lambda a, b: 10)
+    r = check_code(ev(quote="CivicBot answered questions council pilot"), SRC)
+    assert r.support_status == SUPPORTED and r.match.decided_by == sc.WORD_RULE
+
+
+def test_entailment_window_200_each_side_clipped_to_part():
+    pre, post = "a" * 300, "b" * 300
+    text = pre + QUOTE + post
+    win, located = sc.entailment_window(QUOTE, text)
+    assert located and win == "a" * 200 + QUOTE + "b" * 200
+    win, located = sc.entailment_window(QUOTE, "x" * 50 + QUOTE + "y" * 10)
+    assert located and win == "x" * 50 + QUOTE + "y" * 10
+    # case/whitespace variants are located; an unlocatable (trimmed) quote is the state alone
+    win, located = sc.entailment_window("the  COUNCIL launched", TEXT)
+    assert located and "Town of Example" in win
+    assert sc.entailment_window("council CivicBot", TEXT) == ("council CivicBot", False)
+    assert sc.ENTAILMENT_WINDOW_CHARS == 200
+
+
+def test_entailment_window_uses_the_producing_part_or_chrome():
+    src, chunks = chunked()
+    last = chunks[-1].chunk_id
+    q = "the council launched the CivicBot chatbot pilot"
+    win, located = sc.entailment_window_for(ev(quote=q, chunk_id=last), src)
+    assert located and win in chunks[-1].text
+    win, _ = sc.entailment_window_for(ev(item="core.content_contact_named", value="yes",
+                                         quote="Digital Office", quote_chunk_id="P1#chrome"), SRC)
+    assert win == SRC.chrome_text
+    with pytest.raises(ValueError, match="may not supply"):
+        sc.entailment_window_for(ev(quote=q, quote_chunk_id="P1#chrome"), SRC)
 
 
 def test_over_cap_quote_kept_whole_and_flagged():
@@ -370,7 +411,7 @@ def test_entailment_question_forms():
 
 
 def test_entailment_call_is_gated():
-    with pytest.raises(SupportGateError, match="window"):
+    with pytest.raises(SupportGateError, match="jev binding"):
         sc.run_entailment()
 
 
@@ -393,14 +434,20 @@ def test_contact_emails_all_surfaces_rcd011():
     assert email_domain_counts(emails) == [{"domain": "example.gov", "count": 3}]
 
 
-def test_contact_emails_gate_open_none_found_is_gated():
-    with pytest.raises(SupportGateError, match="no defined value"):
-        sc.extract_contact_emails("yes", "Call 555-0100.")
+def test_contact_emails_gate_open_none_found_is_not_documented():
+    """RC-D-019 E2 a."""
+    assert sc.extract_contact_emails("yes", "Call 555-0100.") == "not_documented"
 
 
-def test_year_candidates_need_a_pinned_context():
-    with pytest.raises(SupportGateError, match="context"):
-        sc.activity_year_candidates(TEXT, 0, 10)
+def test_year_candidates_context_default_200_pending_w05():
+    """RC-D-019 E4: 200 characters each side by default (pending packet W-05)."""
+    assert sc.YEAR_CONTEXT_CHARS == 200
+    far = "In 2019 the town was founded. " + "x" * 250 + " " + TEXT
+    s0 = far.index("The council")
+    assert [c.year for c in sc.activity_year_candidates(far, s0, s0 + 90)] == [2024]
+    near = "In 2019 the town was founded. " + TEXT
+    s1 = near.index("The council")
+    assert [c.year for c in sc.activity_year_candidates(near, s1, s1 + 90)] == [2019, 2024]
     text = "Budget FY2024/25. " + TEXT
     start = text.index("The council")
     got = sc.activity_year_candidates(text, start, start + 90, context_chars=30)

@@ -8,19 +8,16 @@ the stored page text.
 
 Rules applied, each as SPEC v001.20 / codebook r12 states it:
 
-- **Quote presence (R-042; RC-D-017 1a, 2a).** A quote matches when rapidfuzz
-  ``token_set_ratio`` of the normalized quote against the normalized source
-  text is at least ``MATCH_THRESHOLD`` (93, one pooled threshold), rapidfuzz
-  pinned ``==3.14.3`` (DEC-007 a). Normalization is the T-003 calibration's:
-  NFKC, casefold, punctuation dropped, word runs joined by one space. A quote
-  below the threshold counts as no supporting text. Presence only, not
+- **Quote presence (R-042; RC-D-017 1a, 2a; RC-D-019 E1 c).** A quote matches
+  when EITHER rule passes: rapidfuzz ``token_set_ratio`` of the normalized
+  quote against the normalized source text is at least ``MATCH_THRESHOLD`` (93,
+  one pooled threshold; rapidfuzz pinned ``==3.14.3``, DEC-007 a), OR at least
+  80% of the quote's original-language words are present in the source text
+  (RC-D-014 S1, cutoff 0.80, RC-D-016). Both results are recorded, with which
+  rule decided (``QuoteMatch.decided_by``). Normalization is the T-003
+  calibration's: NFKC, casefold, punctuation dropped, word runs joined by one
+  space. A quote failing both counts as no supporting text. Presence only, not
   entailment.
-- **80% word rule (R-042; RC-D-014 S1, RC-D-016).** The share of the quote's
-  original-language words present in the source text is computed for every
-  check and recorded with the 0.80 cutoff (``QuoteMatch.rule_80``). It is the
-  rule the matcher was calibrated to (labels jev 4+ OR the rule); the decision
-  is the matcher's (RC-D-017 "the support check uses rapidfuzz"). See
-  ``MATCH_DECISION``.
 - **Source surface (R-044, r2#48, RC-D-017 P3).** A quote is matched in the
   part that produced the code; for ``main_plus_chrome`` items it may instead
   come from the page's chrome text (``<page>#chrome``). A quote from any other
@@ -55,13 +52,22 @@ Rules applied, each as SPEC v001.20 / codebook r12 states it:
   header and footer text and the page's e-mail links; whole addresses
   lowercased and de-duplicated per page (``storage.normalize_contact_emails``).
   Stored in full, published as domain + count (``storage.email_domain_counts``).
+  Gate open, no address found: ``not_documented`` (RC-D-019 E2 a).
+- **X35 state window (RC-D-019 E3).** The entailment check sees the quote plus
+  ``ENTAILMENT_WINDOW_CHARS`` (200) characters on each side, clipped to the
+  text the quote came from (the producing part, or chrome). :func:`entailment_window`.
 - **Year candidates (codebook r12 year rules 1-2; T-064).** Candidates from
-  the activity span and its context via :mod:`g3o.extract.years`; the
-  classifier chooses (T-023).
+  the activity span and ``YEAR_CONTEXT_CHARS`` (200, RC-D-019 E4; pending
+  wording-packet W-05 approval) characters each side, via
+  :mod:`g3o.extract.years`; the classifier chooses (T-023).
 
-Gated pieces are stubs that raise :class:`SupportGateError` naming the gate:
-the X35 entailment call itself, the year context window, and the value of
-``content_contact_emails`` when the gate is open but no address is found.
+The X35 jev call itself is a stub that raises :class:`SupportGateError`
+(binding T-030/T-035).
+
+Re-pin: the codebook is pinned by the single constant ``SIGNED_CODEBOOK_SHA256``.
+The support vocabulary (``status_by_answer``) is read from the codebook, not
+listed here, so a re-signed release that adds exempt values (r13) needs only
+that constant changed (plus the pin test's expected value sets).
 """
 
 from __future__ import annotations
@@ -84,9 +90,14 @@ PINNED_RAPIDFUZZ = "3.14.3"  # DEC-007 a; RC-D-017 1a. Change only with a re-cal
 MATCH_METRIC = "token_set_ratio_norm"  # RC-D-017 1a
 MATCH_THRESHOLD = 93  # RC-D-017 2a: one pooled threshold, accept when score >= 93
 WORD_RULE_CUTOFF = 0.80  # RC-D-014 S1; RC-D-016 (Latin, CJK; Thai default)
-#: Which rule decides a match. RC-D-017 1a: "the support check uses rapidfuzz token_set_ratio".
-#: The 80% word rule is recorded beside it (QuoteMatch.rule_80), not combined with it.
-MATCH_DECISION = "matcher"
+#: How the two R-042 rules combine. RC-D-019 E1 c (PI 2026-11-05 "E1c"): a quote matches if either passes.
+MATCH_DECISION = "either"
+MATCHER = "matcher"
+WORD_RULE = "word_rule"
+BOTH = "both"
+ENTAILMENT_WINDOW_CHARS = 200  # RC-D-019 E3: each side of the quote, clipped to its source text
+YEAR_CONTEXT_CHARS = 200  # RC-D-019 E4: each side of the activity span; PENDING wording-packet W-05 approval
+WINDOW_UNLOCATED = "entailment_window_unlocated"
 
 QUOTE_MAX_CHARS = 200  # RC-D-017 3: extraction-prompt cap and website display cap
 OVER_CAP_FLAG = "quote_over_cap"  # RC-D-017 "2 whole"
@@ -172,21 +183,27 @@ def _token_set_ratio():
 class QuoteMatch:
     score: float  # token_set_ratio of the normalized texts, 0-100
     threshold: int
-    matched: bool  # the R-042 decision (MATCH_DECISION)
+    matcher_pass: bool  # token_set_ratio >= threshold
     presence_word: float | None  # 80% rule input; None when the quote has no words
     rule_80: bool | None
+    matched: bool  # the R-042 decision: matcher_pass or rule_80 (RC-D-019 E1 c)
+    decided_by: str | None  # "matcher" | "word_rule" | "both"; None when neither passed
     over_cap: bool
 
 
 def match_quote(quote: str, source: str) -> QuoteMatch:
-    """R-042 presence check of one quote against the text it came from."""
+    """R-042 presence check of one quote against the text it came from (either rule, RC-D-019 E1 c)."""
     q = norm_text(quote)
     presence = word_presence(quote, source)
     score = round(float(_token_set_ratio()(q, norm_text(source))), 2) if q else 0.0
+    m_pass = bool(q) and score >= MATCH_THRESHOLD
+    w_pass = presence is not None and presence >= WORD_RULE_CUTOFF
+    decided = BOTH if m_pass and w_pass else MATCHER if m_pass else WORD_RULE if w_pass else None
     return QuoteMatch(
-        score=score, threshold=MATCH_THRESHOLD, matched=bool(q) and score >= MATCH_THRESHOLD,
+        score=score, threshold=MATCH_THRESHOLD, matcher_pass=m_pass,
         presence_word=None if presence is None else round(presence, 4),
-        rule_80=None if presence is None else presence >= WORD_RULE_CUTOFF,
+        rule_80=None if presence is None else w_pass,
+        matched=decided is not None, decided_by=decided,
         over_cap=len(quote) > QUOTE_MAX_CHARS,
     )
 
@@ -489,11 +506,50 @@ def entailment_question(item_id: str, value: str, *, part: str | None = None,
             .replace("<activity name>", activity_name).replace("<value label>", value_label))
 
 
+def _locate(quote: str, text: str) -> tuple[int, int] | None:
+    """Offsets of ``quote`` in ``text``: exact, else case- and whitespace-insensitive."""
+    i = text.find(quote)
+    if i != -1:
+        return i, i + len(quote)
+    words = quote.split()
+    if not words:
+        return None
+    m = re.search(r"\s+".join(re.escape(w) for w in words), text, re.IGNORECASE)
+    return (m.start(), m.end()) if m else None
+
+
+def entailment_window(quote: str, source_text: str, chars: int = ENTAILMENT_WINDOW_CHARS) -> tuple[str, bool]:
+    """X35 state text (RC-D-019 E3): the quote plus ``chars`` characters each side, clipped to the
+    source text (the producing part, or chrome). Returns (text, located).
+
+    A quote that passed R-042 without being found verbatim (trimmed or reworded, RC-D-014 S1) has no
+    position to widen around; the state is then the quote alone and ``located`` is False (callers
+    record ``WINDOW_UNLOCATED``).
+    """
+    span = _locate(quote, source_text)
+    if span is None:
+        return quote, False
+    lo, hi = max(0, span[0] - chars), min(len(source_text), span[1] + chars)
+    return source_text[lo:hi], True
+
+
+def entailment_window_for(ev: CodeEvidence, sources: PageSources,
+                          rules: SupportRules | None = None) -> tuple[str, bool]:
+    """:func:`entailment_window` over the text ``ev``'s quote is matched against."""
+    rules = rules or default_rules()
+    if ev.quote is None or not ev.quote.strip():
+        raise ValueError(f"{ev.item_id}: no quote to build an X35 state from")
+    src = _quote_source(ev, rules.items[ev.item_id], sources)
+    if src is None:
+        raise ValueError(f"{ev.item_id}: the quote's part may not supply it")
+    return entailment_window(ev.quote, src)
+
+
 def run_entailment(*_: Any, **__: Any) -> Entailment:
-    # TODO(gate: X35 call wiring): the jev call needs (1) the "short window" around the quote that the
-    # signed state "quote (plus a short window)" names but does not size, and (2) the jev client
-    # binding of T-021/T-023 (runtime instrument T-030/T-035). Until both, callers pass Entailment in.
-    raise SupportGateError("X35 entailment call not wired: window size unpinned; jev binding T-030/T-035")
+    # TODO(gate: X35 call wiring): the state is entailment_window_for() (RC-D-019 E3) and the question
+    # entailment_question(); the jev client binding is T-021/T-023's, the runtime instrument T-030/T-035.
+    # Until then, callers pass Entailment in.
+    raise SupportGateError("X35 entailment call not wired: jev binding T-030/T-035")
 
 
 # ---------------------------------------------------------------------------
@@ -530,22 +586,18 @@ def extract_contact_emails(content_contact: str, main_text: str, *, header_text:
             found.extend(EMAIL_RE.findall(text))
     found.extend(_mailto_addresses(email_links))
     if not found:
-        # TODO(gate: no-evidence value): the signed CX-53 rule does not say which value the item takes when
-        # content_contact = yes and no address is found (PLAN T-024 "Report when: a field has no defined
-        # no-evidence value"; stop boundary: this field). Reported to the integrator.
-        raise SupportGateError("content_contact_emails: no defined value for gate open, no address found")
+        return "not_documented"  # RC-D-019 E2 a (PI 2026-11-05 "E2a")
     return normalize_contact_emails(found)
 
 
-def activity_year_candidates(page_text: str, start: int, end: int, *, context_chars: int | None = None) -> list[Any]:
+def activity_year_candidates(page_text: str, start: int, end: int, *,
+                             context_chars: int = YEAR_CONTEXT_CHARS) -> list[Any]:
     """Year candidates (T-064) from the activity span and its context (codebook r12 year rule 1).
 
+    Context: ``YEAR_CONTEXT_CHARS`` (200) characters each side (RC-D-019 E4), clipped to the page.
+    PENDING: the width is proposed in wording-packet item W-05 and awaits that packet's approval.
     Returns :class:`g3o.extract.years.YearCandidate` values whose offsets are page offsets.
     """
-    if context_chars is None:
-        # TODO(gate: year context): r12 rule 1 says "the activity span and its context" without sizing the
-        # context; T-011's DYNAMIC_YEAR_CHOICES (W-05, pending PI wording approval) points at the same rule.
-        raise SupportGateError("year candidate context window is not pinned (r12 rule 1, W-05)")
     from g3o.extract.years import YearCandidate, YearSource, extract_year_candidates
 
     if not (0 <= start < end <= len(page_text)) or context_chars < 0:
@@ -581,6 +633,8 @@ __all__ = [
     "default_rules",
     "display_cap",
     "entailment_question",
+    "entailment_window",
+    "entailment_window_for",
     "extract_contact_emails",
     "match_quote",
     "norm_text",
