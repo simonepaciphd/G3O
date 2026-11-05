@@ -94,6 +94,28 @@ def test_choice_request_forms() -> None:
         choice_request(act["core.activity_type"], years=["2020"])
 
 
+def test_year_choices_take_t064_candidates() -> None:
+    """Codes are CE years in four ASCII digits, whatever form T-064 read them from."""
+    from g3o.extract.years import extract_year_candidates
+
+    act = {q["question_id"]: q for q in load_set("activity")["questions"]}
+    arabic_2025 = "".join(chr(0x0660 + int(d)) for d in "2025")
+    text = f"Piloted in FY24, extended 2019 - 2021, live {arabic_2025}."
+    years = [c.year for c in extract_year_candidates(text)]
+    assert years == [2019, 2021, 2024, 2025]
+    y = choice_request(act["core.year_pilot_start"], years=years)
+    assert list(y["criteria"]) == ["2019", "2021", "2024", "2025", "not_documented"]
+    assert y["criteria"]["2024"] == "2024"
+    fullwidth_2024 = "".join(chr(0xFF10 + int(d)) for d in "2024")
+    mixed = choice_request(act["core.year_pilot_start"], years=["2024", 2024, fullwidth_2024])
+    assert list(mixed["criteria"]) == ["2024", "not_documented"]
+    with pytest.raises(ValueError):
+        choice_request(act["core.year_pilot_start"], years=[24])
+    decl = load_set("activity")["dynamic_year_choices"]
+    assert decl["approval"] == "pending" and decl["candidate_text"] is None
+    assert "g3o.extract.years.extract_year_candidates" in decl["candidate_source"]
+
+
 @pytest.mark.parametrize("fault", ["text", "cx", "order", "version", "hash", "drop"])
 def test_seeded_faults_are_caught(tmp_path: Path, cb: Codebook, fault: str) -> None:
     d = _copy_sets(tmp_path)

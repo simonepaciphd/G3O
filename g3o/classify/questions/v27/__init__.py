@@ -10,6 +10,7 @@ the PI approves the wording packet (RC-D-014 S3 b); do not merge before then.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from functools import cache
 from typing import Any
 
@@ -33,20 +34,25 @@ def load_set(name: str) -> dict[str, Any]:
 
 
 def choice_request(question: dict[str, Any], *, part: bool = False,
-                   years: list[str] | None = None) -> dict[str, Any]:
+                   years: Iterable[int | str] | None = None) -> dict[str, Any]:
     """``{instructions, criteria}`` for one jev Choice, in the T-016 re-pilot form.
 
     ``criteria`` maps each code to its signed text, in codebook order. With
     ``part`` (a long page's part) the temporary answer "not covered by this
     part" is added last. For a dynamic-year question, ``years`` are offered
-    first, ascending, before the offered missing label(s); their text is the
-    year itself until the PI rules on packet item W-05.
+    first, ascending, before the offered missing label(s). A year may be given as
+    an int (``g3o.extract.years.YearCandidate.year``) or a digit string; its code
+    is the year in four ASCII digits (declared ``candidate_code``). Its text is
+    the year itself until the PI rules on packet item W-05.
     """
     criteria: dict[str, str] = {}
     if question.get("dynamic_choices") == "year":
         if years is None:
             raise ValueError(f"{question['question_id']}: year candidates required")
-        criteria.update({y: y for y in sorted(set(years))})
+        codes = sorted({int(y) for y in years})  # int() also reads non-ASCII decimal digits
+        if any(not 1000 <= y <= 9999 for y in codes):
+            raise ValueError(f"{question['question_id']}: year candidates must be four-digit years")
+        criteria.update({str(y): str(y) for y in codes})
     elif years is not None:
         raise ValueError(f"{question['question_id']}: not a dynamic-year question")
     criteria.update({c["code"]: c["text"] for c in question["criteria"]})
