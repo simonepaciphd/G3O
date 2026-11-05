@@ -87,3 +87,88 @@ def test_prompt_packages_importable() -> None:
     validate_client = importlib.import_module("g3o.validate.client")
     assert extract_client.SYSTEM_MESSAGE
     assert validate_client.SYSTEM_MESSAGE
+
+
+# ---------------------------------------------------------------------------
+# Codebook in the wheel (RC-D-019 D3, carried to T-030)
+# ---------------------------------------------------------------------------
+#
+# The v2.7 path reads ``codebook/codebook.yaml`` (outside the package) and
+# ``g3o/codebook/generated/*.{md,json}`` at run time. ``setup.py`` copies the
+# former into the build as ``g3o/codebook/data/codebook.yaml``; package-data
+# ships the latter. The test below builds the wheel, unpacks it and loads the
+# codebook through the installed-package path, outside the checkout.
+
+SIGNED_CODEBOOK = REPO_ROOT / "codebook" / "codebook.yaml"
+
+
+def test_codebook_generated_declared_in_package_data() -> None:
+    assert '"g3o.codebook.generated"' in _package_data_block()
+
+
+def test_checkout_resolves_the_checkout_codebook() -> None:
+    from g3o.codebook import loader
+
+    assert loader.default_codebook_path() == SIGNED_CODEBOOK.resolve()
+    assert not loader.PACKAGED_CODEBOOK.exists(), (
+        "g3o/codebook/data/codebook.yaml is a build output and must not sit in the checkout"
+    )
+
+
+_WHEEL_PROBE = r"""
+import hashlib, json, sys
+sys.path.insert(0, sys.argv[1])
+import g3o
+from g3o.codebook import loader
+from g3o.extract import pass2_support, request_v27
+cb = loader.load_codebook()
+request_v27.build_system_prompt(cb)
+pass2_support.build_system_prompt(cb)
+print(json.dumps({
+    "g3o": g3o.__file__,
+    "path": str(loader.default_codebook_path()),
+    "sha256": cb.sha256,
+    "sections": len(request_v27._generated_sections()),
+}))
+"""
+
+
+def test_wheel_ships_codebook_and_generated(tmp_path: Path) -> None:
+    import json
+    import subprocess
+    import sys
+    import zipfile
+
+    pytest.importorskip("setuptools")
+    from g3o.classify.questions.v27.build import SIGNED_CODEBOOK_SHA256
+
+    out = tmp_path / "dist"
+    build = subprocess.run(
+        [sys.executable, "-m", "pip", "wheel", ".", "--no-deps", "--no-build-isolation",
+         "--no-index", "-q", "-w", str(out)],
+        cwd=REPO_ROOT, capture_output=True, text=True,
+    )
+    assert build.returncode == 0, build.stderr[-2000:]
+    (wheel,) = out.glob("g3o-*.whl")
+    site = tmp_path / "site"
+    with zipfile.ZipFile(wheel) as z:
+        names = set(z.namelist())
+        assert z.read("g3o/codebook/data/codebook.yaml") == SIGNED_CODEBOOK.read_bytes()
+        for gen in (REPO_ROOT / "g3o" / "codebook" / "generated").iterdir():
+            if gen.suffix in (".md", ".json"):
+                name = f"g3o/codebook/generated/{gen.name}"
+                assert name in names, f"{name} missing from the wheel"
+                assert z.read(name) == gen.read_bytes()
+        z.extractall(site)
+
+    # Run outside the checkout so it cannot mask missing wheel contents.
+    probe = subprocess.run(
+        [sys.executable, "-c", _WHEEL_PROBE, str(site)],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert probe.returncode == 0, probe.stderr[-2000:]
+    got = json.loads(probe.stdout.strip().splitlines()[-1])
+    assert Path(got["g3o"]).resolve().is_relative_to(site.resolve())
+    assert Path(got["path"]).resolve() == (site / "g3o/codebook/data/codebook.yaml").resolve()
+    assert got["sha256"] == SIGNED_CODEBOOK_SHA256
+    assert got["sections"] > 0

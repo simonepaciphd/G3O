@@ -79,6 +79,10 @@ include = ["g3o*"]
 [tool.setuptools.package-data]
 "g3o.extract.prompts" = ["*.md"]
 "g3o.validate.prompts" = ["*.md"]
+# T-013 generated codebook outputs read at run time by the v2.7 path (extractor
+# prompt sections, jev questions, item schemas; RC-D-019 D3). The signed
+# codebook itself sits outside the package; setup.py copies it into the build.
+"g3o.codebook.generated" = ["*.md", "*.json"]
 # Signed language policies. Without this the mapping ships in the repo but not
 # in the wheel, and a config naming a policy id would fail on the droplet with
 # UnknownPolicyError while passing every test on the laptop.

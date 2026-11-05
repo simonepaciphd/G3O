@@ -25,7 +25,24 @@ from typing import Any
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CODEBOOK = REPO_ROOT / "codebook" / "codebook.yaml"
+#: The codebook of record in a checkout (and in an editable install).
+CHECKOUT_CODEBOOK = REPO_ROOT / "codebook" / "codebook.yaml"
+#: The byte copy a non-editable wheel carries (``setup.py`` build step; RC-D-019 D3).
+PACKAGED_CODEBOOK = Path(__file__).resolve().parent / "data" / "codebook.yaml"
+
+
+def default_codebook_path() -> Path:
+    """The checkout file when present, else the copy shipped in the wheel.
+
+    Both are the same bytes; callers that need the signed release still check
+    :attr:`Codebook.sha256` against their pin.
+    """
+    if CHECKOUT_CODEBOOK.is_file() or not PACKAGED_CODEBOOK.is_file():
+        return CHECKOUT_CODEBOOK
+    return PACKAGED_CODEBOOK
+
+
+DEFAULT_CODEBOOK = default_codebook_path()
 
 #: The template's explicit "does not apply" value (item-template §2).
 NONE = "none"
@@ -291,5 +308,5 @@ class Codebook:
 
 def load_codebook(path: Path | str | None = None) -> Codebook:
     """Read and parse the codebook file (bytes as stored; no newline conversion)."""
-    p = Path(path) if path is not None else DEFAULT_CODEBOOK
+    p = Path(path) if path is not None else default_codebook_path()
     return Codebook(p.read_bytes(), p)
