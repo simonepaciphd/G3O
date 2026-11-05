@@ -129,3 +129,5 @@ T-024 handoff: consume generated support_entailment labels, instruction_page and
 Acceptance record: P2 APPROVED; S1a/S2a/P1a APPROVED (reply above); independent draft review ready for PI review with all 12 findings addressed (Drive engineer-review/review.json SHA256 96ae98990998c3c92c3f3db14fcb8ccbf406bd75166db102cc246b4dd649cf33); local implementation IN PROGRESS; Colin A-019 PENDING; send approval PENDING.
 
 Current acceptance (2026-11-02): revised policy APPROVED; T-014 case behavior aligned; T-012 storage counter and provenance pin need implementation and renewed local email conformance. Prior S2a results are historical. T-027 acceptance unaffected. Colin A-019 and send approval PENDING.
+
+> r12 note (integrator, 2026-11-05, RC-D-018 P2): codebook r12 is signed, SHA256 93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712 (`planning/t010/signoff-record.md`). The r11 hash above is historical for this handoff; r12 changes the year rules (W-R12-2b/3c), the quote-step rule and round moves.

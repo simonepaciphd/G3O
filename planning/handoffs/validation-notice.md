@@ -91,3 +91,5 @@ Simone
 3. **What to ask for: ruled 2 b** (acknowledgement plus whether the change breaks a locked input).
 4. **Date of sending.** Filled in when Simone says "send".
 5. Card inputs name the validation plan's BL-001 / SPEC builder-v004.3 / PLAN plan-v001. The current lock is BL-002 (2026-10-29, a format-only restructure: SPEC builder-v004.4). The SRC-12 / RS-016 pin was checked in the current files.
+
+> r12 note (integrator, 2026-11-05, RC-D-018 P2): codebook r12 is signed, SHA256 93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712 (`planning/t010/signoff-record.md`). The r11 hash above is historical for this handoff; r12 changes the year rules (W-R12-2b/3c), the quote-step rule and round moves.

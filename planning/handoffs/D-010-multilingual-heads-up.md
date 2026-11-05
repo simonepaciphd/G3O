@@ -79,3 +79,5 @@ Reply: people by email to Simone; agents by a comment on the GitHub issue or pul
 - `core.language_coverage` lists pipelines `procurement` and `ai_text` only, not the main pipeline. The heads-up states this as it stands.
 - The subproject's `CLAUDE.md` still points its skills library at the retired Dropbox AI OS path. Not raised in the heads-up; outside this card.
 - The card names `C:/Users/spaci/repos/G3O/planning/handoffs/`; this draft is in the integrator worktree.
+
+> r12 note (integrator, 2026-11-05, RC-D-018 P2): codebook r12 is signed, SHA256 93d77b1b2daf5cc7d287b5a3b6136a1a9fd13dacc9b6f0ea91133fd22df3e712 (`planning/t010/signoff-record.md`). The r11 hash above is historical for this handoff; r12 changes the year rules (W-R12-2b/3c), the quote-step rule and round moves.
