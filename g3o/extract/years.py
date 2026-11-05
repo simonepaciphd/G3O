@@ -19,12 +19,14 @@ year ("C2b"). Exception: the ends of an unmarked range after a numbering word ke
 are lifted like four-digit ones (D2).
 
 Two-digit years (codebook r13 year rule 1, r13-Q2 a): "A two-digit year is read as 20xx, except that those from
-(current year mod 100) + 25 through 99 are read as 19xx." Every two-digit year is read this way on its own, the start
-and the end of a label alike; there is no carry-over from the start year's century (this replaces the D2 carry-over).
+(current year mod 100) + 25 through 99 are read as 19xx." The pivot applies to Christian-era (CE) two-digit years:
+each is read this way on its own, the start and the end of a label alike, with no carry-over from the start year's
+century (this replaces the D2 carry-over for CE years).
 With R the reference year: yy from (R mod 100) + PIVOT_OFFSET through 99 is 19yy, every other yy is 20yy (R = 2026:
 51-99 -> 1951-1999, 00-50 -> 2000-2050). So "FY1949/50" -> 1949, 2050; "FY99/00" -> 1999, 2000; "FY50/51" -> 2050,
-1951 (the end year may come before the start year; both are kept). Buddhist Era labels: a two-digit end is read
-the same way and then converted with the start ("B.E. 2566/67" -> 2067 - 543, outside the guard, dropped).
+1951 (the end year may come before the start year; both are kept). Buddhist Era (BE) labels are outside the pivot
+(PI 2026-11-05 "b3-2 b"): a two-digit BE end year takes the start's BE century, rolling into the next one when lower,
+and both are then converted ("B.E. 2566/67" -> 2023, 2024; Thai "ปีงบประมาณ 2567-68" -> 2024, 2025).
 R is the `reference_year` argument of the public functions; when omitted it is the current calendar year at call
 time (`default_reference_year()`), so callers that need reproducible output pass it. Every YearLabel and YearSource
 records the R its call used.
@@ -316,6 +318,14 @@ def _kanji_number(s: str) -> int:
     return int("".join(str(_KANJI_DIGITS[ch]) for ch in s))
 
 
+def _be_end_year(digits: str, start: int) -> int:
+    """A BE end year: four digits as written; two digits in the BE start's century, rolling over ("b3-2 b")."""
+    if len(digits) == 4:
+        return int(digits)
+    y = (start // 100) * 100 + int(digits)
+    return y + 100 if y < start else y
+
+
 def _two_year_label(text: str, m: re.Match, marker: str, rule: str, ref: int, be: bool = False) -> YearLabel:
     y1s, y2s = m.group("y1"), m.group("y2")
     y1 = _full_year(y1s, reference_year=ref)
@@ -324,7 +334,7 @@ def _two_year_label(text: str, m: re.Match, marker: str, rule: str, ref: int, be
     if y2s is None:
         return YearLabel(m.start(), m.end(), span, FISCAL_ONE, (y1 - conv,), (len(y1s) == 4,), marker, rule=rule,
                          reference_year=ref)
-    y2 = _full_year(y2s, reference_year=ref)
+    y2 = _be_end_year(y2s, y1) if conv else _full_year(y2s, reference_year=ref)  # BE: no CE pivot ("b3-2 b")
     return YearLabel(m.start(), m.end(), span, FISCAL_TWO, (y1 - conv, y2 - conv),
                      (len(y1s) == 4, len(y2s) == 4), marker, rule=rule, reference_year=ref)
 
@@ -368,7 +378,7 @@ def calendar_labels(text: str, _norm: str | None = None, reference_year: int | N
     for rx, rule in ((_BE_PREFIX, R_BE_PREFIX), (_BE_POSTFIX, R_BE_POSTFIX)):
         for m in rx.finditer(norm):
             y1 = int(m.group("y1"))
-            ys = (y1,) if m.group("y2") is None else (y1, _full_year(m.group("y2"), reference_year=ref))
+            ys = (y1,) if m.group("y2") is None else (y1, _be_end_year(m.group("y2"), y1))
             be.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], BUDDHIST_ERA,
                                 tuple(y - BE_OFFSET for y in ys), tuple(True for _ in ys), m.group("era"),
                                 rule=rule, reference_year=ref))

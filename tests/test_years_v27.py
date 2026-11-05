@@ -372,7 +372,7 @@ def test_table_b_japanese_era(text, expected):
     ("2567 พ.ศ.", [2024]),
     ("พ.ศ. 2566-2567", [2023, 2024]),   # D6: marked BE range, both years
     ("2566-2567 พ.ศ.", [2023, 2024]),
-    ("B.E. 2566/67", [2023]),           # r13: "67" -> 2067 by the pivot, - 543 = 1524, outside the guard
+    ("B.E. 2566/67", [2023, 2024]),     # "b3-2 b": BE end keeps the start's BE century
     ("พ.ศ. 2450-2460", [1907, 1917]),   # range ends lifted within the guard
     ("พ.ศ. 2567 B.E.", [2024]),
 ])
@@ -558,9 +558,26 @@ def test_r13_end_before_start_keeps_positional_forms():
     assert forms_of_ref(text, 1951, 2026) == {FISCAL_UPPER}
 
 
-def test_r13_thai_two_digit_end_is_dropped():
-    # Buddhist Era start, two-digit end: "68" -> 1968 by the pivot, - 543 = 1425, outside the guard.
-    assert [c.year for c in extract_year_candidates("ปีงบประมาณ 2567-68", reference_year=REF)] == [2024]
+@pytest.mark.parametrize("text,ref,expected", [
+    ("B.E. 2566/67", 2026, (2023, 2024)),
+    ("พ.ศ. 2566-67", 2030, (2023, 2024)),
+    ("2599/00 B.E.", 2026, (2056, 2057)),    # BE end rolls into the next BE century
+    ("ปีงบประมาณ 2567-68", 2026, (2024, 2025)),
+    ("ปีงบประมาณ 2567-68", 2075, (2024, 2025)),  # reference year irrelevant for BE
+])
+def test_b3_2b_be_two_digit_end_keeps_be_century(text, ref, expected):
+    (lab,) = [f for f in all_labels(text, reference_year=ref) if f.kind != RANGE]
+    assert lab.years == expected
+    assert [c.year for c in extract_year_candidates(text, reference_year=ref)] == sorted(expected)
+
+
+def test_b3_2b_ce_start_in_thai_fiscal_label_still_pivots():
+    # A Thai fiscal label with a CE start (< 2400) is not BE: its two-digit end follows the r13 pivot.
+    assert [c.year for c in extract_year_candidates("ปีงบประมาณ 2024-25", reference_year=REF)] == [2024, 2025]
+    assert [c.year for c in extract_year_candidates("ปีงบประมาณ 1998-99", reference_year=REF)] == [1998, 1999]
+
+
+def test_r13_thai_four_digit_end():
     assert [c.year for c in extract_year_candidates("ปีงบประมาณ 2567-2568", reference_year=REF)] == [2024, 2025]
 
 
