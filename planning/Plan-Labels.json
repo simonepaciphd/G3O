@@ -4,11 +4,11 @@
     "harness": "claude-code",
     "model": "claude-opus-5-5"
   },
-  "date": "2026-11-04",
+  "date": "2026-11-05",
   "sources": {
-    "SPEC.md": "fcd1654c255e3aec21cf24dbe7fad7e16d49006c9332b65655a88f59a157073b",
+    "SPEC.md": "98eeb3eeed684b28beabb26626865f1c1a69ac3d003dc9b4c72771e5f1704517",
     "RESOURCES.md": "6edc4da670229dd0cedbeb6cb8809ca7430f9791ddc0633492395d6c4720abbe",
-    "PLAN.md": "e48f45253d5d251bca7de11a91cb1a2374b1565325e1dc180d4de86bf3eaad3f"
+    "PLAN.md": "accb6fdcf12a3c6c1c2669cc216f483f5c569ceefeeb92133b7ba534c0c43027"
   },
   "labels": {
     "T-001": {
@@ -21,7 +21,7 @@
     },
     "T-003": {
       "label": "Calibrate supporting quote checks",
-      "plain": "Tune the quote matcher on pairs labelled by a paid jev fidelity score or the 80% word-presence rule, with separate cutoffs per script only where needed. If the 80% rule tracks jev poorly, Simone revisits it; she also sets the website quote display limit."
+      "plain": "Tune the quote matcher on pairs labelled by a paid jev fidelity score or the 80% word-presence rule. Simone set one pooled threshold (93, normalized token-set ratio) and a 200-character website quote display limit."
     },
     "T-010": {
       "label": "Sign the shared codebook",
@@ -158,6 +158,14 @@
     "T-063": {
       "label": "Request calendar conversion rules",
       "plain": "Prepare a request to the multilingual subproject for calendar and fiscal-year conversion rules and shared language coverage. Simone approves the message before it is sent."
+    },
+    "T-064": {
+      "label": "Convert calendar and fiscal years",
+      "plain": "Turn fiscal-year labels, other calendars (Japanese era, Buddhist Era, ROC) and year ranges into candidate calendar years for the year items. The code is merged; a coverage count on stored pages remains."
+    },
+    "T-065": {
+      "label": "Route PDF and Word files",
+      "plain": "Recognise PDF and Word files served as web pages and send them to a text extractor instead of storing garbled text. Already-stored garbled pages stay not assessable."
     },
     "T-071": {
       "label": "Deploy the revised pipeline",

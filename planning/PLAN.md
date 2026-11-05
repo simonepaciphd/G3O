@@ -255,7 +255,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-011 | eng-a | W3 | pending | T-010, T-013, T-016 | T-064 | T-015, T-021, T-023, T-026 | RS-013, RS-024 | none | `g3o/classify/questions/v27/`† | PI approves question wording that is not verbatim contract or CX text; push gate | A-011, A-012 |
 | T-012 | eng-b | W2 | verified (proposed local verification; not complete) | T-010, T-013 | none | T-015, T-021, T-022, T-024, T-026, T-027, T-028, T-050, T-060, T-090 | RS-010 | none | `contract.py`, `schema.py`, enum modules, schema test; inventory; Q2a writer/tests; instrument/storage modules, fixtures and narrow integrity compatibility; import/telemetry/reproducibility tests (RC-D-009); `g3o/report/health.py`, `g3o/report/outcomes.py`, `g3o/common/institution_report.py`, `g3o/persist/__init__.py` and their tests; `tests/test_contract.py`, `tests/test_consolidated_contract.py`, `tests/test_adversarial_llm_outputs.py`, `tests/test_genai_definition_adherence.py`, `tests/test_uid_stamping.py`; the v2.5-column hunk of `g3o/codebook/checks.py` (line 889 at `a5b1d30`, repointed at the frozen v2.5 list) (RC-D-008) | T-050A approved; local fixtures only; push gate | A-011, A-013 |
 | T-013 | eng-b | W1 | verified | none | T-010 | T-002, T-011, T-012, T-016, T-022, T-032 | RS-010, RS-013, RS-039 | none | `g3o/codebook/`†, `codebook/schema.json`†, `tests/test_codebook*.py`†, the codebook step in `.github/workflows/ci.yml` | PI approves the item template and generator checks (r2#59); push of the branch | A-001 |
-| T-014 | eng-a | W2 | pending | none | none | T-022, T-025 | RS-016 | none | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests; `g3o/scrape/render.py` (optional `RenderedPage` fields) and the record-building hunks of `g3o/scrape/fetcher.py` (HTML path, unlocker path, page cache) (RC-D-006, PI 6a) | push of the branch | none |
+| T-014 | eng-a | W2 | complete | none | none | T-022, T-025, T-065 | RS-016 | none | `g3o/scrape/html.py`, the stored-record hunk of `g3o/run/presweep/stage_scrape.py`, their tests; `g3o/scrape/render.py` (optional `RenderedPage` fields) and the record-building hunks of `g3o/scrape/fetcher.py` (HTML path, unlocker path, page cache) (RC-D-006, PI 6a) | push of the branch | none |
 | T-015 | eng-a | W4 | pending | T-011, T-012, T-022, T-027 | none | T-026, T-028 | RS-012 | none | `g3o/common/source_fields.py`† and its tests | push of the branch | none |
 | T-016 | integrator | W2 | complete | T-010, T-013 | none | T-011 | RS-004, RS-005, RS-008, RS-009, RS-024, RS-031 | none | re-pilot folder `agent-workspace/2026-10-27-reclass-plan/repilot-v27/`† | PI approves the cost estimate; Simone runs the paid command via `! <command>` (red line 4); PI rules on the results | none |
 | T-020 | eng-a | W1 | blocked | none | T-002 | T-021, T-022, T-023 | RS-004, RS-014, RS-024 | none | the two new files | none beyond push | A-021 |
@@ -274,7 +274,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-035 | eng-b | W13 | pending | T-029, T-034 | none | T-031, T-041 | none | D-002 | `g3o/cli.py` hunks, the two pin files, e2e test additions; merges of T-029 and T-034 into `reclass/v2.7`†; `g3o/common/contract_pin.py`, `tests/fixtures/run_contract/{FIELDS.md,manifest.json}`, the contract H1 template line of the T-013 generator (version token for `parse_version()`) (RC-D-008) | push of the integration branch | none |
 | T-031 | berivox | W14 | pending | T-035 | none | T-071 | none | none | the review file only | none | none |
 | T-040 | integrator | W2 | pending | T-010 | none | T-041 | RS-005, RS-008, RS-009, RS-011, RS-024 | none | `tests/fixtures/v27/`† and the label sheet | an agent labels expected values for real-page fixtures and jev scores them (RC-D-014 P4; replaces PI labelling) | A-003, A-004, A-010, A-011, A-012, A-020, A-021 |
-| T-041 | eng-b | W14 | blocked | T-024, T-035, T-040 | none | T-054, T-060, T-071 | RS-031 | none | the fixture-run folder | PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures | A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, A-022 |
+| T-041 | eng-b | W14 | blocked | T-024, T-035, T-040, T-065 | none | T-054, T-060, T-071 | RS-031 | none | the fixture-run folder | PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures | A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, A-022 |
 | T-050 | integrator | W4 | in-progress | T-010, T-012, T-027 | none | T-028, T-051 | RS-020, RS-023 | D-007 | `C:/Users/spaci/repos/G3O/planning/handoffs/D-007-interface-spec.md`† | A approved; B implementation conformance and Colin acceptance; PI authorizes send; posting the GitHub issues is an external message | none |
 | T-051 | colin | W5 | pending | T-050 | none | T-052, T-054 | RS-020 | none | `sql/021*`†, `sql/down/021*`†, `scripts/load_corrections.py`† | PI authorises creation of and writes to the disposable branch used by this card's self-check; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; live apply is the T-055 gate; push on Colin's branch | none |
 | T-052 | colin | W10 | pending | T-028, T-051 | none | T-053, T-054, T-055, T-074 | RS-023 | none | Colin's files listed in Outputs | deploy to staging only (production deploy is T-055); push on Colin's branch | none |
@@ -285,7 +285,8 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-061 | integrator | W2 | in-progress | T-010 | none | T-071 | RS-033 | none | `planning/handoffs/validation-notice.md`†; GitHub issue `simonepaciphd/g3o_validation#3` plus Simone's e-mail (DP-063; RC-D-006) | PI approves the notice text | none |
 | T-062 | integrator | W18 | pending | T-071 | none | none | RS-038 | D-009 | `planning/handoffs/D-009-ai-text-delta.md`† | PI approves delta text; sending is external | none |
 | T-063 | integrator | W2 | in-progress | T-010 | none | none | RS-040 | D-010 | `planning/handoffs/D-010-multilingual-heads-up.md`† | PI approves the text; sending is external | none |
-| T-064 | eng-c | W3 | pending | T-010 | none | T-024 | RS-008, RS-009 | none | `g3o/extract/years.py`†, `tests/test_years_v27.py`†, spikes folder `SPIKE-T064*` | push of the branch | none |
+| T-064 | eng-c | W3 | in-progress | T-010 | none | T-024 | RS-008, RS-009 | none | `g3o/extract/years.py`†, `tests/test_years_v27.py`†, spikes folder `SPIKE-T064*` | push of the branch | none |
+| T-065 | eng-a | W3 | in-progress | T-014 | none | T-041 | none | none | `g3o/scrape/fetcher.py` (routing block only), `g3o/scrape/docx.py`†, `tests/test_scrape_binary_route.py`† | push of the branch (DP-065a/b ruled, RC-D-018) | none |
 | T-071 | eng-a | W17 | blocked | T-031, T-041, T-055, T-060, T-061 | none | T-062, T-070 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
 | T-070 | eng-a | W18 | blocked | T-071 | none | T-072 | RS-026, RS-030 | none | freeze folder† | PI confirms the freeze date | none |
 | T-072 | eng-a | W19 | blocked | T-001, T-070 | none | T-073 | none | none | smoke run dir; smoke folder† | paid run — the agent prepares the exact command and cost estimate and Simone runs it via `! <command>` (red line 4, 2026-10-28); SSH authorisation; PI reviews the smoke report | none |
@@ -413,7 +414,7 @@ Runtime over 2 hours → split by run.
 
 RC-D-014 (2026-11-04; rulings by Simone, approved): PI S5 a ("yes -- let's just switch to haiku 5.5") closes the PI 3 b question: the Haiku extraction legs stay (the extractor has been Claude Haiku 5.5 since RC-D-001). S4 set the URL cap at 10 without fan-out data, so the fan-out hand-off in the done condition no longer gates T-025. Status stays `in-progress`: the `SPIKE-T002.md` report named in the outputs is not yet written.
 
-Status: in-progress
+Status: verified
 Progress (2026-11-04, integrator; RC-D-017 P6): integrator spot-check passed (hashes, per-leg table, 5 request ids): `agent-workspace/2026-11-05-v27-orch/SPIKE-T002-spotcheck.md`. Status proposed `verified`.
 Note (2026-10-31, integrator, RC-D-006): run 2026-10-31 by Simone (`!`): 50 pages, $0.3663 against a $0.78 central estimate and a $6 cap. Both Batch rounds ended with every request succeeded (170 s and 124 s round trips). Haiku accepted `effort="medium"` on all 161 calls. jev refused one page's 4 parts as too long at 29.6k-50.1k estimated tokens; one halving fixed each (largest accepted request 26.1k estimated tokens). Code and aggregates: PR #147 (`reclass/t002-spike`); raw answers in the spikes folder. Measured: cost, latency, Batch round trips, the token estimator. Not measured: link fan-out (only 3 of 50 pages had activities; page links are stored only after T-014). PI 3 b: whether the Haiku legs stay is decided after an offline Haiku-vs-jev agreement check (P4, free; done 2026-10-31, `SPIKE-T002-agreement.md`, awaiting the PI's decision).
 Type: spike
@@ -509,7 +510,7 @@ RC-D-014 (2026-11-04; rulings by Simone, approved): Match rule (S1 a, confirmed)
 
 Input-recovery update (2026-11-02): PI-requested delegated search found no approved calibration within22 local worktrees/named Drive evidence/targeted Git history. Recovered331 unlabeled quote candidates,718 empty results and50 source pages with9readback checks; no gold labels/split chosen. Missing exact chunk reconstruction, language labels, real chrome pairs, PI independent30-pair review and metric/threshold/display-cap approvals. Input recovery does not complete T-003 or unblock T-024. Evidence: Drive agent-workspace/2026-11-02-safe-review/t003-recovery/HANDOFF.txt.
 
-Status: pending
+Status: verified
 Progress (2026-11-04, integrator; RC-D-017): PI set metric `token_set_ratio` (normalized), one pooled threshold 93, rapidfuzz ==3.14.3, website display cap 200 characters (also an extraction-prompt cap); chrome-text matching untested ("4 a"). Report `spikes/SPIKE-T003.md`; code PR #163 (merged, 4d98568). Done condition met; proposed `verified`.
 Type: spike
 Priority: critical-path
@@ -977,7 +978,7 @@ RC-D-006 (PI 7a-10a): fields `chrome_text` and `links` (7a). `links` holds web l
 
 #### Dependencies
 - Requires: none
-- Enables: T-022, T-025
+- Enables: T-022, T-025, T-065
 - Can run with: T-002, T-012, T-016, T-040, T-061, T-063 (W2)
 - Researcher gates: push of the branch
 
@@ -2454,7 +2455,7 @@ A real jev/nano run of the T-040 fixtures through `reclass/v2.7`†, via the new
 - Working directory/environment: lane worktree `C:/Users/spaci/worktrees/G3O-eng-b/`†, branch `reclass/v2.7`† (never the shared checkout `C:/Users/spaci/repos/G3O`)
 
 #### Dependencies
-- Requires: T-024, T-035, T-040
+- Requires: T-024, T-035, T-040, T-065
 - Enables: T-054, T-060, T-071
 - Can run with: T-031 (W14)
 - Researcher gates: PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures
@@ -3250,7 +3251,8 @@ none
 
 ### T-064 — Build the calendar and fiscal-year conversion for year candidates (RC-D-015 Q3 b, RC-D-016)
 
-Status: pending
+Status: in-progress
+Progress (2026-11-05, integrator): `g3o/extract/years.py` and `tests/test_years_v27.py` merged in PR #167 (cda6df1); RC-D-018 D1-D9 implemented. Open: the coverage note `SPIKE-T064.md` (run over RS-008/RS-009 page text); it needs more memory than the laptop has, so it runs on a GCP VM (PI 2026-11-05).
 Type: build
 Priority: critical-path
 Spec refs: C16 year method (r2#50); D-010 (owner superseded by RC-D-016)
@@ -3315,6 +3317,68 @@ Changed files; verification results; failures; blockers; unresolved decisions; p
 
 #### Done condition
 Tests pass; coverage note written; PI rulings implemented as ruled.
+
+### T-065 — Route binary documents fetched as HTML to a document extractor (F4 follow-up)
+
+Status: in-progress
+Progress (2026-11-05, integrator): card placed from the RC-D-018 appendix (approved 2026-11-05); build started on a lane branch from `origin/main` 9f6dd74.
+Type: build
+Priority: required
+Spec refs: R-015 (F4 c), R-035
+Decision refs: RC-D-015 F4 c; RC-D-017 "5 b", "6 a"; RC-D-018 "1 c" and the droplet bytes finding
+
+#### Objective
+Stop storing PDF and DOCX files as garbled "HTML" text. Today the scraper routes a response to the PDF extractor only when the URL ends in `.pdf` or the Content-Type header contains `pdf` (`g3o/scrape/fetcher.py` `scrape_url`, deterministic path); the unlocker path checks the URL suffix only. There is no content sniffing and no DOCX extractor. On the stored corpus about 287 unique texts are raw PDF/DOCX bytes decoded as text (`agent-workspace/2026-11-05-v27-orch/lane-a/SPIKE-F4-readability.md`), and the fetched bytes are not kept anywhere (droplet check, RC-D-018), so these pages can only become `not_assessable`. The fix makes future fetches extract their text.
+
+#### Inputs
+| Input | Location/producer | Required state/version | Missing-input behavior |
+|---|---|---|---|
+| Scraper | `g3o/scrape/fetcher.py`, `g3o/scrape/pdf.py`, `g3o/scrape/render.py` on `origin/main` | current | stop |
+| F4 readability evidence | `lane-a/SPIKE-F4-readability.md`, `.csv` | 2026-11-04 | report |
+| R-015 readability rule | SPEC v001.19 + RC-D-018 | letter cut < 10% plus binary markers | stop |
+
+#### Outputs
+| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
+|---|---|---|---|
+| Content sniffing | `g3o/scrape/fetcher.py`† on branch `reclass/t065-binary-route`† | Stage 4 scrape, T-041 | magic-byte check (`%PDF-`, ZIP/OOXML `PK\x03\x04` + `word/`) before HTML parsing, on both the deterministic and unlocker paths; a sniffed PDF goes to `pdf_mod.extract_text` with `content_type = "pdf"` |
+| DOCX extraction | new `g3o/scrape/docx.py`† or DP-065a alternative | as above | text from `word/document.xml`; no network |
+| Readability check | the R-015 `not_assessable` check (binary markers or letters < 10%) | Stage 5, T-041 report | applied after extraction; failure reason recorded |
+| Tests | `tests/test_scrape_binary_route.py`† | CI | a PDF served as `text/html` without a `.pdf` suffix; a DOCX likewise; a real HTML page unaffected; cache record shape unchanged (`RenderedPage`, `extra="forbid"`) |
+
+#### Execution resources
+- Persona/role: engineer (lane eng-a)
+- Tools/connectors: Python, pytest (no paid calls, no fetching in tests: fixtures are synthetic bytes)
+- Working directory/environment: lane worktree from `origin/main`
+
+#### Dependencies
+- Requires: T-014 (complete)
+- Enables: T-041 (fewer `not_assessable` pages on new fetches)
+- Can run with: T-022, T-024, T-064
+- Researcher gates: DP-065a/b; push gate
+
+#### Ownership and collision control
+- Write claim: `g3o/scrape/fetcher.py` (routing block only), `g3o/scrape/docx.py`†, the tests
+- Shared surfaces: `fetcher.py` is the scraper; T-014 is complete, no other open card writes it
+
+#### Procedure boundary
+- Included: sniffing, routing, DOCX text, readability check placement
+- Excluded: re-fetching pages already stored (new fetch scope, DP-065b); any change to the page-cache record shape
+- Fixed decisions: R-015 as ruled (letters < 10% plus binary markers; no stored-bytes re-extraction exists)
+
+#### Decision points (ruled, RC-D-018 item 9 "as rec", chat 2026-11-05)
+- DP-065a: DOCX support — build a minimal standard-library extractor (`zipfile` + XML) or add a pinned dependency (e.g. `python-docx`). Ruled: a standard-library extractor (`zipfile` + XML), no new dependency
+- DP-065b: the ~287 already-stored binary-as-text pages — leave them `not_assessable`, or authorize a re-fetch of those URLs through the fixed path (a separate run with its own gate). Ruled: they stay `not_assessable`; a re-fetch needs its own later gate
+
+#### Verification and review
+- Self-check: the tests above; run the F4 readability scan's binary flags on the fixture outputs
+- Independent review: T-031
+- Failure/rollback: branch
+
+#### Return report
+Changed files; verification results; failures; blockers; unresolved decisions; proposed status. Sent to the integrator, who alone marks `complete`.
+
+#### Done condition
+Tests pass; DP-065a and DP-065b ruled.
 
 ### T-071 — Deploy v2.7 pipeline to the droplet
 
