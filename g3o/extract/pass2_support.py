@@ -58,8 +58,22 @@ from g3o.extract.request_v27 import (
     field_name,
 )
 
-PROMPT_VERSION = "pass2_support_v27-draft-1"
+PROMPT_VERSION = "pass2_support_v27-draft-2"
 PASS2_PROMPT_PATH = Path(__file__).parent / "prompts" / "pass2_support_v27.md"
+
+#: Builder-side question slot: wording shown in a pass-2 quote task in place of
+#: the item's codebook instruction, for items whose instruction is a method note
+#: rather than a question (PI 2026-11-05 "D2c"). Not a codebook edit: the signed
+#: instruction is unchanged and still drives jev. DRAFT 2 wording, approved only
+#: through the wording packet (RC-D-014 S3 b).
+QUESTION_OVERRIDES: dict[str, str] = {
+    "core.activity_segment": (
+        "How does this activity relate to the other activities marked on this page: is it "
+        "the same activity described again, part of a larger programme, a programme with "
+        "parts, a joint activity, a rule that governs another activity or one governed by it, "
+        "or a separate activity?"
+    ),
+}
 
 #: Flag on a quote from which activity marks were removed.
 MARKS_REMOVED_FLAG = "marks_removed"
@@ -79,12 +93,20 @@ class Pass2Rules:
     questions: dict[str, str]
     #: gated quote-step field -> (gate item, values that open it)
     gated_fields: dict[str, tuple[str, frozenset[str]]]
+    #: items whose quote-task question comes from QUESTION_OVERRIDES (provenance)
+    overridden: frozenset[str] = frozenset()
 
     def needs_quote(self, value: str) -> bool:
         return value not in self.no_support_values and value != self.temporary_answer
 
 
-def rules_from_codebook(cb: Codebook) -> Pass2Rules:
+def rules_from_codebook(cb: Codebook,
+                        overrides: dict[str, str] | None = None) -> Pass2Rules:
+    """Rules read from the codebook. ``no_support_values`` is the codebook's
+    ``support_status.status_by_answer`` keys, never a list kept here (so a
+    value the codebook exempts gets no quote task). ``overrides`` defaults to
+    :data:`QUESTION_OVERRIDES`."""
+    overrides = QUESTION_OVERRIDES if overrides is None else overrides
     items = cb.build_items()
     support = {
         k: v for k, v in items.items()
@@ -98,6 +120,10 @@ def rules_from_codebook(cb: Codebook) -> Pass2Rules:
         if slot is None:
             raise ValueError(f"pass-2 item {k} has no question text")
         questions[k] = slot.text
+    unknown = sorted(set(overrides) - set(support))
+    if unknown:
+        raise ValueError(f"question override for items that are not pass-2 quote items: {unknown}")
+    questions.update(overrides)
     gated: dict[str, tuple[str, frozenset[str]]] = {}
     for k in DEFERRED_FIELDS:
         gate = items[k].get("gate")
@@ -107,7 +133,7 @@ def rules_from_codebook(cb: Codebook) -> Pass2Rules:
             raise ValueError(f"{k}: gate item {gate['item']} is not a pass-2 classifier item")
         gated[k] = (gate["item"], frozenset(gate["values"]))
     temp = cb.data["shared"]["part_prompt"]["temporary_answer"]["label"]["text"]
-    return Pass2Rules(support, no_support, temp, questions, gated)
+    return Pass2Rules(support, no_support, temp, questions, gated, frozenset(overrides))
 
 
 @lru_cache(maxsize=1)
@@ -354,7 +380,9 @@ def build_job(page: Pass2Page, plan: Pass2Plan, *, system: str,
         params=params,
         metadata={"stage": "5b_pass2_support_v27", "page_id": p.page_id,
                   "institution_id": p.institution_id, "source_url": p.url,
-                  "prompt_version": PROMPT_VERSION},
+                  "prompt_version": PROMPT_VERSION,
+                  "question_overrides": sorted(
+                      {t.item_id for t in plan.quote_tasks} & (rules or default_rules()).overridden)},
     )
 
 

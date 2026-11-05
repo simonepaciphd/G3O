@@ -100,14 +100,17 @@ def test_rules_follow_codebook_pass_and_gate():
 
 def test_multi_activity_page_gets_one_plan_with_quotes_per_activity_code():
     plan = select_requests(two_activity_page())
-    assert [(t.label, t.item_id, t.answer) for t in plan.quote_tasks] == [
+    rules = p2.default_rules()
+    # none_reported needs a quote under r12 and none once RC-D-019 (r13) lands (PI "D1b");
+    # the expectation follows whichever codebook is installed.
+    assert [(t.label, t.item_id, t.answer) for t in plan.quote_tasks] == [x for x in [
         ("A1", "core.activity_type", "public_facing_service"),
         ("A1", "core.adoption_stage", "production"),
         ("A1", "core.outcome_kind", "quantified"),
         ("A1", "core.incident_kind", "none_reported"),
         ("A2", "core.action_type", "governance"),
         ("A2", "core.governance_form", "dedicated_genai_or_ai_policy_or_guideline"),
-    ]
+    ] if rules.needs_quote(x[2])]
     assert len({t.task_id for t in plan.quote_tasks}) == len(plan.quote_tasks)
 
 
@@ -146,7 +149,8 @@ def test_page_with_nothing_to_support_needs_no_request():
         ActivityCode("core.outcome_kind", "P1#p001", "none_reported"),
     )),))
     plan = select_requests(page)
-    assert [t.answer for t in plan.quote_tasks] == ["none_reported"]
+    expected = ["none_reported"] if p2.default_rules().needs_quote("none_reported") else []
+    assert [t.answer for t in plan.quote_tasks] == expected
     page = Pass2Page(base_page(), (Pass2Activity("P1#a001", *A1, codes=(
         ActivityCode("core.function_code", "P1#p001", "no"),)),))
     assert not select_requests(page).needs_request
@@ -365,5 +369,101 @@ def test_one_job_per_page_covering_all_activities():
     user = job.params["messages"][0]["content"]
     assert "ACTIVITIES: A1, A2" in user and "[[A2]]Separately" in user
     questions = json.loads(user.split("QUESTIONS:\n", 1)[1].split("\n\nTASKS:", 1)[0])
-    assert set(questions) == {"activity_type", "adoption_stage", "outcome_kind", "incident_kind",
-                              "action_type", "governance_form"}
+    expected = {"activity_type", "adoption_stage", "outcome_kind", "action_type", "governance_form"}
+    if p2.default_rules().needs_quote("none_reported"):
+        expected.add("incident_kind")
+    assert set(questions) == expected
+
+
+# ---------------------------------------------------------------------------
+# PI 2026-11-05 "D1b": exemptions come from the codebook only
+# ---------------------------------------------------------------------------
+
+D1B_VALUES = ("none_reported", "none_documented", "none", "unclear", "unresolved",
+              "not_an_activity")
+
+
+def synthetic_codebook(extra_exempt=D1B_VALUES):
+    """The installed codebook, parsed afresh, with values added to
+    ``support_status.status_by_answer`` (in memory only; the file is untouched)."""
+    cb = load_codebook()
+    sba = cb.data["vocabularies"]["support_status"]["status_by_answer"]
+    for v in extra_exempt:
+        sba[v] = "not_required"
+    return cb
+
+
+def test_value_added_to_status_by_answer_gets_no_quote_task():
+    rules = p2.rules_from_codebook(synthetic_codebook())
+    assert set(D1B_VALUES) <= rules.no_support_values
+    part = "P1#p001"
+    page = Pass2Page(base_page(), (
+        Pass2Activity("P1#a001", *A1, codes=(
+            ActivityCode("core.outcome_kind", part, "none_reported"),
+            ActivityCode("core.incident_kind", part, "none_reported"),
+            ActivityCode("core.procurement_status", part, "none_documented"),
+            ActivityCode("core.deployment_scale_unit", part, "none"),
+            ActivityCode("core.has_human_oversight", part, "unclear"),
+            ActivityCode("core.evaluation_documented", part, "unclear"),
+            ActivityCode("core.activity_segment", part, "unresolved"),
+            ActivityCode("core.adoption_stage", part, "pilot"),
+        )),
+        Pass2Activity("P1#a002", *A2, codes=(
+            ActivityCode("core.activity_segment", part, "not_an_activity"),)),
+    ))
+    plan = select_requests(page, rules)
+    assert [(t.item_id, t.answer) for t in plan.quote_tasks] == [("core.adoption_stage", "pilot")]
+    assert plan.field_tasks == ()  # none_reported never opens the CX-61 gate
+    # Pass 1 reads the same codebook key (request_v27.rules_from_codebook).
+    from g3o.extract import request_v27
+    assert set(D1B_VALUES) <= request_v27.rules_from_codebook(synthetic_codebook()).no_support_values
+
+
+def test_exemptions_are_not_hard_coded_in_the_selection_modules():
+    for mod in (p2, __import__("g3o.extract.request_v27", fromlist=["x"])):
+        tree = ast.parse(inspect.getsource(mod))
+        literals = {n.value for n in ast.walk(tree)
+                    if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+        # "none" is excluded: request_v27 compares the codebook gate token ``gate == "none"``,
+        # which is not an answer exemption.
+        assert not literals & (set(D1B_VALUES) - {"none"}), mod.__name__
+
+
+# ---------------------------------------------------------------------------
+# PI 2026-11-05 "D2c": builder-side question slot for core.activity_segment
+# ---------------------------------------------------------------------------
+
+
+def test_activity_segment_quote_task_shows_override_not_method_note():
+    cb = load_codebook()
+    note = cb.instruction("core.activity_segment").text
+    rules = p2.default_rules()
+    assert rules.questions["core.activity_segment"] == p2.QUESTION_OVERRIDES["core.activity_segment"]
+    assert rules.questions["core.activity_segment"] != note
+    assert rules.overridden == {"core.activity_segment"}
+    # every other question is the signed instruction
+    for k, q in rules.questions.items():
+        if k != "core.activity_segment":
+            assert q == cb.instruction(k).text
+    page = Pass2Page(base_page(), (Pass2Activity("P1#a001", *A1, codes=(
+        ActivityCode("core.activity_segment", "P1#p001", "component_of_program"),)),))
+    plan = select_requests(page)
+    job = p2.build_job(page, plan, system="s")
+    user = job.params["messages"][0]["content"]
+    questions = json.loads(user.split("QUESTIONS:\n", 1)[1].split("\n\nTASKS:", 1)[0])
+    assert questions == {"activity_segment": p2.QUESTION_OVERRIDES["core.activity_segment"]}
+    assert note not in user
+    assert job.metadata["question_overrides"] == ["core.activity_segment"]
+    assert job.metadata["prompt_version"] == "pass2_support_v27-draft-2"
+
+
+def test_override_does_not_edit_the_codebook_and_unknown_override_fails():
+    cb = load_codebook()
+    before = cb.sha256
+    p2.rules_from_codebook(cb)
+    assert cb.sha256 == before == load_codebook().sha256
+    plain = p2.rules_from_codebook(cb, overrides={})
+    assert plain.questions["core.activity_segment"] == cb.instruction("core.activity_segment").text
+    assert plain.overridden == frozenset()
+    with pytest.raises(ValueError, match="not pass-2 quote items"):
+        p2.rules_from_codebook(cb, overrides={"core.page_verdict": "x"})
