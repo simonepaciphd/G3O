@@ -1,5 +1,7 @@
 # PLAN: G3O pipeline reclassification
 
+Current ruling overlay (2026-11-05, RC-D-020, APPROVED 2026-11-05 chat "3 b"; text `planning/deltas/RC-D-020.md`): T-063 superseded; the calendar-conversion heads-up is not sent; D-010 superseded by T-064 (SPEC v001.23).
+
 Current ruling overlay (2026-11-05, RC-D-019, APPROVED 2026-11-05 chat "I approve the delta"; text `planning/deltas/RC-D-019.md`): six more answer values exempt from supporting text, global by value (r13); quote matches if the matcher or the 80% rule passes; entailment window quote + 200 characters each side; contact with no address = `not_documented`; year label = converted CE year; one-year labels and era years in 1900-2099; two-digit pivot (current year mod 100) + 25; era years named in r13; R-015 markers = F4 spike set. Codebook parts take effect with r13 once signed.
 
 Current ruling overlay (2026-11-04, RC-D-015, APPROVED 2026-11-04 chat "I approve delta"; text `planning/deltas/RC-D-015.md`):
@@ -141,7 +143,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | D-007 | T-050 | Colin acceptance (A-019) | mapped |
 | D-008 | T-060 | procurement integrator (A-018) | mapped |
 | D-009 | T-062 | AI-text-detection owner acceptance | mapped (RC-D-002 N35) |
-| D-010 | T-063 | multilingual subproject reply | mapped (RC-D-002 L) |
+| D-010 | T-063 | multilingual subproject reply | superseded by T-064 (RC-D-020) |
 | R-001 | T-021, T-023, T-026 | T-031 (no nano output read as a code) | mapped |
 | R-002 | T-011, T-021, T-010 (`content_data` stays a page question, RC-D-003) | T-041 (A-011) | mapped |
 | R-003 | T-022 (spans), T-023, T-024 (`no` on non-GenAI pages, RC-D-003) | T-041 (A-003) | mapped |
@@ -286,7 +288,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-060 | integrator | W15 | pending | T-010, T-012, T-041 | none | T-071 | RS-029 | D-008 | `planning/handoffs/D-008-procurement-delta.md`† | PI approves delta text; posting and email are external | none |
 | T-061 | integrator | W2 | in-progress | T-010 | none | T-071 | RS-033 | none | `planning/handoffs/validation-notice.md`†; GitHub issue `simonepaciphd/g3o_validation#3` plus Simone's e-mail (DP-063; RC-D-006) | PI approves the notice text | none |
 | T-062 | integrator | W18 | pending | T-071 | none | none | RS-038 | D-009 | `planning/handoffs/D-009-ai-text-delta.md`† | PI approves delta text; sending is external | none |
-| T-063 | integrator | W2 | in-progress | T-010 | none | none | RS-040 | D-010 | `planning/handoffs/D-010-multilingual-heads-up.md`† | PI approves the text; sending is external | none |
+| T-063 | integrator | W2 | superseded | T-010 | none | none | RS-040 | D-010 | `planning/handoffs/D-010-multilingual-heads-up.md`† | PI approves the text; sending is external | none |
 | T-064 | eng-c | W3 | complete | T-010 | none | T-024 | RS-008, RS-009 | none | `g3o/extract/years.py`†, `tests/test_years_v27.py`†, spikes folder `SPIKE-T064*` | push of the branch | none |
 | T-065 | eng-a | W3 | in-progress | T-014 | none | T-041 | none | none | `g3o/scrape/fetcher.py` (routing block only), `g3o/scrape/docx.py`†, `g3o/scrape/readability.py`†, `tests/test_scrape_binary_route.py`† | push of the branch (DP-065a/b ruled, RC-D-018) | none |
 | T-071 | eng-a | W17 | blocked | T-031, T-041, T-055, T-060, T-061 | none | T-062, T-070 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
@@ -3187,7 +3189,8 @@ none
 
 ### T-063 — Send the calendar-conversion heads-up to the multilingual subproject (RC-D-002 L, N23)
 
-Status: in-progress
+Status: superseded
+Note (2026-11-05, integrator): superseded by RC-D-020 (PI chat "3 b"): the heads-up is not sent; T-064 built the conversion rule in-plan and the subproject is frozen. The draft stays as history.
 Note (2026-10-30, integrator): draft ready in `planning/handoffs/` (not sent); the recipient and channel choice (DP-063) is carried to the successor launch card `coord/launch/2026-10-31/5-g3o-reclass-cost-packet.txt`. Sending is gated on the PI.
 Note (2026-10-31, integrator): PI ruling in chat: Simone reviews the subproject and contacts Litong herself by email ("agents should work through git issues/PRs, humans email"); scoping questions listed (5 a); request kept to the three year items (7 a); target date left to Simone. Draft updated to the re-signed hash `f0b1348c…`. Held with Simone; not sent.
 Progress (2026-10-30, integrator): draft at `planning/handoffs/D-010-multilingual-heads-up.md` (not sent); waiting for PI approval of the text and the recipient/channel choice.
@@ -4391,8 +4394,8 @@ Gate list (researcher gates; none passes by lock alone):
 | SSH / droplet | T-001, T-071, T-072, T-073, T-081 (page pull), T-096 |
 | DB writes (Neon branches / snapshots free; PI gate still required) | T-051 (disposable self-check), T-054 (disposable branch), T-055 (live schema), T-074 (live load) |
 | Push / merge / deploy | every build card push; T-030 / T-035 integration branch; T-071; T-052 staging; T-055 production ingest; T-053 / T-095 deploy |
-| External messages | T-050 (GitHub issues to Colin), T-060 (procurement email via Simone + #134; heads-up draft first), T-061 (validation-plan notice), T-062 (D-009, after deploy), T-063 (D-010 heads-up) |
-| External wait | T-071 (wave 5 published); T-011 year-candidate questions (calendar rule via T-063); T-010 §4.3 wait closed by RC-D-002 row 38 |
+| External messages | T-050 (GitHub issues to Colin), T-060 (procurement email via Simone + #134; heads-up draft first), T-061 (validation-plan notice), T-062 (D-009, after deploy), ~~T-063 (D-010 heads-up)~~ superseded, RC-D-020 |
+| External wait | T-071 (wave 5 published); ~~T-011 year-candidate questions (calendar rule via T-063)~~ closed: rule built by T-064 (RC-D-020); T-010 §4.3 wait closed by RC-D-002 row 38 |
 | Public wording | T-053 copy, T-090 prose |
 | Release | T-083, T-095 |
 
