@@ -21,6 +21,7 @@ from g3o.classify.questions.v27 import (
 )
 from g3o.classify.questions.v27.build import (
     EXCLUDED,
+    PACKET_RULINGS,
     SET_DIR,
     SET_FILES,
     build_sets,
@@ -62,12 +63,33 @@ def test_sets_cover_every_question_once(signed: dict) -> None:
     assert (len(load_set("page")["questions"]), len(load_set("activity")["questions"])) == (8, 42)
 
 
-def test_version_stamp_and_pending_wording() -> None:
+def test_version_stamp_and_packet_wording() -> None:
+    """Ruled packet items carry their PI record; items with open points stay pending."""
+    states = {}
     for name in SET_FILES:
         doc = load_set(name)
         assert doc["question_set_version"] == JEV_QUESTION_SET_VERSION
         assert doc["non_verbatim"], name
-        assert all(nv["approval"] == "pending" for nv in doc["non_verbatim"])
+        for nv in doc["non_verbatim"]:
+            assert nv["approval"] in ("pending", "approved")
+            assert nv["approval_record"] == PACKET_RULINGS[nv["packet_item"]]
+        states[name] = {nv["packet_item"]: nv["approval"] for nv in doc["non_verbatim"]}
+    assert states["page"] == {"W-01": "approved", "W-02": "approved"}
+    assert states["activity"] == {"W-01": "approved", "W-02": "approved", "W-03": "pending",
+                                  "W-04": "approved", "W-05": "approved", "W-06": "approved"}
+    assert states["institution"] == {"W-02": "approved", "W-07": "pending", "W-08": "pending"}
+    act = load_set("activity")["state"]
+    assert (act["span_marker"]["open"], act["span_marker"]["close"]) == ("[[Ak]]", "[[/Ak]]")
+    assert act["scale_number_field"]["name"] == "stated_number"
+
+
+def test_approved_slot_with_undeclared_value_is_caught(tmp_path: Path, cb: Codebook) -> None:
+    d = _copy_sets(tmp_path)
+    doc = json.loads((d / "activity.json").read_text(encoding="utf-8"))
+    doc["dynamic_year_choices"]["candidate_text"] = None
+    (d / "activity.json").write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n",
+                                     encoding="utf-8")
+    assert any("approved with an undeclared value" in e for e in check_sets(cb, d))
 
 
 def test_cx_questions_byte_identical(cb: Codebook) -> None:
@@ -112,7 +134,7 @@ def test_year_choices_take_t064_candidates() -> None:
     with pytest.raises(ValueError):
         choice_request(act["core.year_pilot_start"], years=[24])
     decl = load_set("activity")["dynamic_year_choices"]
-    assert decl["approval"] == "pending" and decl["candidate_text"] is None
+    assert decl["approval"] == "approved" and decl["candidate_text"].startswith("the calendar year alone")
     assert "g3o.extract.years.extract_year_candidates" in decl["candidate_source"]
 
 

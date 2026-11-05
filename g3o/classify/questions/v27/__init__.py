@@ -3,8 +3,9 @@
 The sets are JSON files beside this module, built from the signed codebook by
 ``python -m g3o.classify.questions.v27 build`` and checked by ``... check``.
 Strings the codebook does not hold (state fields, span marker, dynamic year
-choice text, Stage 6 record fields) are declared ``approval: "pending"`` until
-the PI approves the wording packet (RC-D-014 S3 b); do not merge before then.
+choice text, Stage 6 record fields) are declared with the PI's wording-packet
+ruling (RC-D-014 S3 b), or ``approval: "pending"`` with the slot's open points;
+do not merge while any is pending.
 """
 
 from __future__ import annotations
@@ -43,7 +44,7 @@ def choice_request(question: dict[str, Any], *, part: bool = False,
     first, ascending, before the offered missing label(s). A year may be given as
     an int (``g3o.extract.years.YearCandidate.year``) or a digit string; its code
     is the year in four ASCII digits (declared ``candidate_code``). Its text is
-    the year itself until the PI rules on packet item W-05.
+    the year alone (declared ``candidate_text``; PI W-05 a).
     """
     criteria: dict[str, str] = {}
     if question.get("dynamic_choices") == "year":

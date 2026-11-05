@@ -28,6 +28,10 @@
         "W-07"
       ],
       "approval": "pending",
+      "open": [
+        "W-07: the field name of a record's supporting quotes",
+        "W-07: how a record's coded fields are named and shown (codebook item names and codes, as declared, or plain-word labels as in W-03 a)"
+      ],
       "fields": [
         {
           "name": "coder_instructions",
@@ -43,13 +47,56 @@
         },
         {
           "name": "first_record",
-          "value": null
+          "value": "the first activity's full record (record_fields)"
         },
         {
           "name": "second_record",
-          "value": null
+          "value": "the second activity's full record (record_fields)"
         }
-      ]
+      ],
+      "record_fields": [
+        {
+          "name": "activity_name",
+          "value": "name"
+        },
+        {
+          "name": "activity_type",
+          "value": "type"
+        },
+        {
+          "name": "action_type",
+          "value": "action"
+        },
+        {
+          "name": "tool_name",
+          "value": "tool"
+        },
+        {
+          "name": "contracting_party",
+          "value": "contracting party"
+        },
+        {
+          "name": "developer",
+          "value": "developer"
+        },
+        {
+          "name": "year_announced",
+          "value": "year announced"
+        },
+        {
+          "name": "page_url",
+          "value": "page address"
+        },
+        {
+          "name": "source_type",
+          "value": "source type"
+        },
+        {
+          "name": null,
+          "value": "supporting quotes"
+        }
+      ],
+      "record_value_form": null
     },
     "questions": [
       {
@@ -243,25 +290,53 @@
         "W-08"
       ],
       "approval": "pending",
+      "open": [
+        "W-08: the field name of the signed pool sentence",
+        "W-08: the field names of a quote's text and date, and of the split-pool marker (source_type and page_url reuse the codebook item name and the W-01 page field)"
+      ],
       "instruction_slot": "items/core.pooled_activity_fields/instruction",
-      "instruction_placement": null,
-      "quote_fields": null,
+      "instruction_placement": "a state field with the pooled material; questions stay exactly as signed",
+      "instruction_field": null,
+      "quote_fields": [
+        {
+          "name": null,
+          "value": "quote text"
+        },
+        {
+          "name": "source_type",
+          "value": "source type"
+        },
+        {
+          "name": null,
+          "value": "date"
+        },
+        {
+          "name": "page_url",
+          "value": "page address"
+        }
+      ],
       "pool_order": "source date, then position on the page (combining convention first_part)",
-      "split_marker": null
+      "split_marker": {
+        "name": null,
+        "value": "marker '{i} of {n}', as for page parts"
+      }
     }
   },
   "non_verbatim": [
     {
       "packet_item": "W-02",
-      "approval": "pending"
+      "approval": "approved",
+      "approval_record": "PI 2026-11-05 chat \"w2a\" (W-02 a: coder briefing and part sentence with the page material)"
     },
     {
       "packet_item": "W-07",
-      "approval": "pending"
+      "approval": "pending",
+      "approval_record": "PI 2026-11-05 chat \"w7a\" (W-07 a: full record)"
     },
     {
       "packet_item": "W-08",
-      "approval": "pending"
+      "approval": "pending",
+      "approval_record": "PI 2026-11-05 chat \"w8a\" (W-08 a: sentence as a field; quote, source type, date, address)"
     }
   ]
 }
