@@ -195,12 +195,31 @@ def test_range_both_ends_lifted(text, expected):
 
 
 @pytest.mark.parametrize("text,expected", [
-    ("1899-2020", [2020]),       # D1: start below the guard, not a range
-    ("2020-2100", [2020]),       # end above the guard
+    ("1899-2020", [2020]),       # D1 bound per end (PI R-3 b): 1899 dropped, 2020 kept
+    ("2020-2100", [2020]),       # 2100 dropped
     ("1900-2099", [1900, 2099]),
+    ("1850-2010", [2010]),       # PI R-3 b: the in-bound end is lifted on its own
+    ("1899-1905", [1905]),
+    ("2095-2100", [2095]),
+    ("1850-1899", []),           # neither end in the bound: no range
 ])
 def test_range_guard(text, expected):
     assert years(text) == expected
+
+
+@pytest.mark.parametrize("text,form", [("1850-2010", RANGE_UPPER), ("1899-1905", RANGE_UPPER),
+                                       ("2095-2100", RANGE_LOWER)])
+def test_range_guard_each_end_keeps_its_form(text, form):
+    (c,) = extract_year_candidates(text, reference_year=REF)
+    assert [s.form for s in c.sources] == [form]
+    assert c.sources[0].text == text
+
+
+@pytest.mark.parametrize("text", ["Strategy 2010-15", "Plan 2014-20", "2010-15"])
+def test_unmarked_two_digit_end_gives_no_range(text):
+    """PI R-2 a: a four-digit start with an unmarked two-digit end is no range; outside 2015-2030 nothing counts."""
+    assert year_ranges(text, reference_year=REF) == []
+    assert years(text) == []
 
 
 @pytest.mark.parametrize("text,expected", [
@@ -210,6 +229,10 @@ def test_range_guard(text, expected):
     ("2014 TO 2020", [2014, 2020]),
     ("2014 Through 2020", [2014, 2020]),
     ("2020 to 2022", [2020, 2022]),
+    ("2010  to 2020", [2010, 2020]),         # lane A C-3: doubled spaces
+    ("2010 to  2020", [2010, 2020]),
+    ("2014\u00a0to 2020", [2014, 2020]),     # no-break space
+    ("2014 through\u00a0\u00a02020", [2014, 2020]),
 ])
 def test_range_words_d9(text, expected):
     assert years(text) == expected
@@ -218,8 +241,7 @@ def test_range_words_d9(text, expected):
 
 
 @pytest.mark.parametrize("text,expected", [
-    ("2010  to 2020", [2020]),       # single spaces only
-    ("2010 to  2020", [2020]),
+    ("2010to2020", [2020]),          # a space or no-break space is required each side
     ("2010 into 2020", [2020]),      # whole words only
     ("2010 top 2020", [2020]),
     ("2010 till 2020", [2020]),      # not in the list
@@ -427,9 +449,28 @@ def test_bare_trailing_fy_is_not_a_marker():
     assert fiscal_labels("Budget 2025 FY", reference_year=REF) == []
 
 
-@pytest.mark.parametrize("text", ["Audit FY 06/30/2024", "FY 2024-06-30 close", "FY24/25/26"])
+@pytest.mark.parametrize("text", ["Audit FY 06/30/2024", "FY 2024-06-30 close", "FY24/25/26", "FY 2024/06/30",
+                                  "FY 2014-2019/20", "FY 2014/15-2019/20-2024/25"])
 def test_date_like_runs_are_not_labels(text):
     assert fiscal_labels(text, reference_year=REF) == []
+
+
+@pytest.mark.parametrize("text", ["FY 2014/15-2019/20", "FY 2014/15\u20132019/20", "FY2014/15-2019/20",
+                                  "FY2014/15-FY2019/20", "Haushaltsjahr 2014/15-2019/20"])
+def test_chained_fiscal_label_gives_two_labels(text):
+    """PI R-4 a (lane A C-2): "FY 2014/15-2019/20" reads as two labels: 2014, 2015, 2019, 2020."""
+    labels = fiscal_labels(text, reference_year=REF)
+    assert [(f.kind, f.years) for f in labels] == [(FISCAL_TWO, (2014, 2015)), (FISCAL_TWO, (2019, 2020))]
+    assert labels[1].text.lstrip("FY") == "2019/20"
+    assert all(text[f.start:f.end] == f.text for f in labels)
+    assert years(text) == [2014, 2015, 2019, 2020]
+    assert forms_of(text, 2014) == {FISCAL_LOWER}
+    assert forms_of(text, 2020) == {FISCAL_UPPER}
+
+
+def test_chained_thai_fiscal_label_converts_both_spans():
+    text = "\u0e1b\u0e35\u0e07\u0e1a\u0e1b\u0e23\u0e30\u0e21\u0e32\u0e13 2557/58-2562/63"  # pi ngop praman
+    assert [f.years for f in fiscal_labels(text, reference_year=REF)] == [(2014, 2015), (2019, 2020)]
 
 
 def test_plural_fiscal_years_is_not_a_label_but_range_counts():

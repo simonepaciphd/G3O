@@ -15,7 +15,8 @@ its ASCII digit, so offsets are offsets into the original text and `YearSource.t
 Window. A literal standalone year counts when it is in 2015-2030 (YEAR_MIN..YEAR_MAX). Every year from a label counts
 anywhere in LIFT_MIN..LIFT_MAX (1900-2099, D1: a guard so that codes and other calendars' years are not read as years):
 range ends, both years of a two-year fiscal label, a one-year fiscal label, and a Japanese era, Buddhist Era or ROC
-year ("C2b"). Exception: the ends of an unmarked range after a numbering word keep 2015-2030. Two-digit fiscal years
+year ("C2b"). The bound applies to each year on its own (PI R-3 b, amending how D1 is applied): a range with one end
+outside 1900-2099 still lifts the other ("1850-2010" -> 2010, "2095-2100" -> 2095). Exception: the ends of an unmarked range after a numbering word keep 2015-2030. Two-digit fiscal years
 are lifted like four-digit ones (D2).
 
 Two-digit years (codebook r13 year rule 1, r13-Q2 a): "A two-digit year is read as 20xx, except that those from
@@ -43,12 +44,18 @@ Forms (YearSource.form):
                   not, window lifted. A two-digit year follows the r13 pivot above ("FY2030/31" -> 2030, 2031;
                   "FY13/14" -> 2013, 2014). The names are positional: since r13 the second-written year can be the
                   earlier one ("FY50/51" at R = 2026: fiscal_lower 2050, fiscal_upper 1951).
-  range_lower     the ends of an unmarked range of two four-digit years 1900-2099, the second greater than the
-  range_upper     first ("2014-2020", "2019 - 2021", "2020/2022", en or em dash), or joined by the whole word
-                  "to", "through" or "until" with single spaces, case-insensitive (D9: "2010 to 2020"). Lifted
-                  window. When a numbering word stands just before the range (p., pp., page, ID, No., #, art., §;
+                  A marked two-year label (FY or a table A prefix marker, four-digit start) followed by a dash and a
+                  second unmarked two-year span reads as two labels (PI R-4 a): "FY 2014/15-2019/20" (also with an
+                  en dash, or "FY2014/15-2019/20") -> 2014, 2015 and 2019, 2020. A label that runs on into any other
+                  "/digits" or "-digits" is still no label (dates: "FY 06/30/2024").
+  range_lower     the ends of an unmarked range of two four-digit years, the second greater than the first
+  range_upper     ("2014-2020", "2019 - 2021", "2020/2022", en or em dash), or joined by the whole word "to",
+                  "through" or "until" with one or more spaces or no-break spaces each side, case-insensitive (D9:
+                  "2010 to 2020", "2010 to  2020"). Lifted window, each end on its own when in 1900-2099 (PI R-3 b:
+                  "1899-1905" -> 1905; "1850-2010" -> 2010). When a numbering word stands just before the range (p., pp., page, ID, No., #, art., §;
                   case-insensitive), the ends keep the 2015-2030 window. An unmarked two-digit end is not a range
-                  end ("2024-25" -> 2024 only, as a literal). A range lying wholly inside a fiscal or calendar
+                  end and the range gives nothing beyond the literal rule ("2024-25" -> 2024 only, as a literal;
+                  PI R-2 a: "2010-15" -> nothing). A range lying wholly inside a fiscal or calendar
                   label is left to that label; one that only starts inside it ("FY 2010 to 2020") is kept.
   era_jp          Japanese era with its name: 令和N年 (Reiwa N = 2018 + N, 令和元年 = 2019), 平成N年 (Heisei N =
                   1988 + N); ASCII, full-width or kanji numerals; also matches inside 令和6年度. Lifted window.
@@ -133,7 +140,7 @@ class YearSource:
 @dataclass(frozen=True)
 class YearCandidate:
     year: int
-    sources: tuple[YearSource, ...]  # sorted by (start, end, text, form)
+    sources: tuple[YearSource, ...]  # sorted in YearSource field order (start, end, text, form, rule, ref. year)
 
     @property
     def forms(self) -> tuple[str, ...]:
@@ -188,6 +195,11 @@ _Y2 = r"[0-9]{2}"
 # A label must not run on into a further "/digits" or "-digits" (dates such as "FY 06/30/2024").
 _END = rf"(?![0-9])(?!{_SEP}[0-9])"
 _TWO = rf"(?P<y1>{_Y4})(?![0-9])(?:{_SEP}(?P<y2>{_Y4}|{_Y2}))?{_END}"
+# Fiscal labels only (PI R-4 a): a two-year label may be followed by a second unmarked two-year span, read as a
+# second label ("FY 2014/15-2019/20" -> 2014/15 and 2019/20). Anything else that runs on is refused by _END.
+_CHAIN = rf"{_SEP}(?P<z1>{_Y4})(?![0-9]){_SEP}(?P<z2>{_Y4}|{_Y2}){_END}"
+_FY_TAIL = rf"(?:{_SEP}(?P<y2>{_Y4}|{_Y2})(?:{_CHAIN}|{_END})|{_END})"
+_TWO_FY = rf"(?P<y1>{_Y4})(?![0-9]){_FY_TAIL}"
 
 _LITERAL = re.compile(r"(?<![0-9])([0-9]{4})(?![0-9])")
 
@@ -197,7 +209,7 @@ _YEARWORD = rf"\b(?:fiscal|financial){_SP}+year(?![A-Za-z])"
 _WORD = rf"{_YEARWORD}|\bfiscal(?={_SP}+[0-9]{{4}}(?![0-9]))"
 _EN_PREFIX = re.compile(
     rf"(?:(?P<m>{_FY})[ {_NBSP}\-]?['{_RSQUO}]?|(?P<w>{_WORD}){_SP}+)"
-    rf"(?P<y1>{_Y4}|{_Y2})(?![0-9])(?:{_SEP}(?P<y2>{_Y4}|{_Y2}))?{_END}",
+    rf"(?P<y1>{_Y4}|{_Y2})(?![0-9]){_FY_TAIL}",
     re.IGNORECASE,
 )
 _EN_POSTFIX = re.compile(
@@ -230,7 +242,7 @@ def _alt(words) -> str:
 
 
 _A_PREFIX = re.compile(
-    rf"(?:\b(?P<m>{_alt(_LATIN_PREFIX)})(?![^\W\d_]){_SP}+|(?P<k>{_KO_HOEGYE}){_CJKSP}*){_TWO}",
+    rf"(?:\b(?P<m>{_alt(_LATIN_PREFIX)})(?![^\W\d_]){_SP}+|(?P<k>{_KO_HOEGYE}){_CJKSP}*){_TWO_FY}",
     re.IGNORECASE,
 )
 _A_POSTFIX = re.compile(
@@ -238,7 +250,7 @@ _A_POSTFIX = re.compile(
 )
 _TH_FISCAL = _u(0x0E1B, 0x0E35, 0x0E07, 0x0E1A, 0x0E1B, 0x0E23, 0x0E30, 0x0E21, 0x0E32, 0x0E13)  # pi ngop praman
 _TH_BE = _u(0x0E1E) + r"\." + f"{_SP}?" + _u(0x0E28) + r"\."  # pho so (Buddhist Era)
-_A_THAI = re.compile(rf"(?P<m>{_TH_FISCAL}){_SP}*(?:{_TH_BE}{_SP}*)?{_TWO}")
+_A_THAI = re.compile(rf"(?P<m>{_TH_FISCAL}){_SP}*(?:{_TH_BE}{_SP}*)?{_TWO_FY}")
 
 # Table B calendars.
 _KANJI_DIGITS = {_u(0x3007): 0, _u(0x96F6): 0, _u(0x4E00): 1, _u(0x4E8C): 2, _u(0x4E09): 3, _u(0x56DB): 4,
@@ -258,7 +270,7 @@ _BE_POSTFIX = re.compile(
     rf"(?<![0-9])(?P<y1>{_Y4})(?:{_SEP}(?P<y2>{_Y4}|{_Y2}))?(?![0-9]){_SP}?(?P<era>{_BE_MARK})"
 )
 
-_RANGE_WORD = r" (?i:to|through|until) "
+_RANGE_WORD = rf"{_SP}+(?i:to|through|until){_SP}+"
 _RANGE_RX = re.compile(
     rf"(?<![0-9])(?<![0-9]{_DASH})(?<![0-9]{_SP}{_DASH})(?P<y1>{_Y4})(?:{_SEP}|{_RANGE_WORD})(?P<y2>{_Y4}){_END}"
 )
@@ -289,7 +301,7 @@ def _ref(reference_year: int | None) -> int:
 
 
 def two_digit_year(yy: int, reference_year: int) -> int:
-    """A two-digit year that starts a label: 19yy from (reference_year mod 100) + PIVOT_OFFSET through 99, else 20yy."""
+    """A two-digit CE year, start or end of a label (r13-Q2 a): 19yy from (R mod 100) + PIVOT_OFFSET through 99, else 20yy."""
     return 1900 + yy if yy >= reference_year % 100 + PIVOT_OFFSET else 2000 + yy
 
 
@@ -326,16 +338,21 @@ def _be_end_year(digits: str, start: int) -> int:
     return y + 100 if y < start else y
 
 
-def _two_year_label(text: str, m: re.Match, marker: str, rule: str, ref: int, be: bool = False) -> YearLabel:
-    y1s, y2s = m.group("y1"), m.group("y2")
+def _two_year_label(text: str, m: re.Match, marker: str, rule: str, ref: int, be: bool = False,
+                    chained: bool = False) -> YearLabel:
+    """The label of match `m`; `chained`: its second span ("2019/20" of "FY 2014/15-2019/20", PI R-4 a)."""
+    g1, g2 = ("z1", "z2") if chained else ("y1", "y2")
+    y1s, y2s = m.group(g1), m.group(g2)
     y1 = _full_year(y1s, reference_year=ref)
     conv = BE_OFFSET if be and y1 >= BE_THRESHOLD else 0
-    span = text[m.start():m.end()]
+    start = m.start(g1) if chained else m.start()
+    end = m.end(g2) if chained or m.groupdict().get("z1") is not None else m.end()
+    span = text[start:end]
     if y2s is None:
-        return YearLabel(m.start(), m.end(), span, FISCAL_ONE, (y1 - conv,), (len(y1s) == 4,), marker, rule=rule,
+        return YearLabel(start, end, span, FISCAL_ONE, (y1 - conv,), (len(y1s) == 4,), marker, rule=rule,
                          reference_year=ref)
     y2 = _be_end_year(y2s, y1) if conv else _full_year(y2s, reference_year=ref)  # BE: no CE pivot ("b3-2 b")
-    return YearLabel(m.start(), m.end(), span, FISCAL_TWO, (y1 - conv, y2 - conv),
+    return YearLabel(start, end, span, FISCAL_TWO, (y1 - conv, y2 - conv),
                      (len(y1s) == 4, len(y2s) == 4), marker, rule=rule, reference_year=ref)
 
 
@@ -349,8 +366,12 @@ def fiscal_labels(text: str, _norm: str | None = None, reference_year: int | Non
         for m in rx.finditer(norm):
             marker = next((g for g in (m.groupdict().get(k) for k in ("m", "w", "k")) if g), "")
             found.append(_two_year_label(text, m, marker, rule, ref))
+            if m.groupdict().get("z1") is not None:  # chained label (PI R-4 a)
+                found.append(_two_year_label(text, m, marker, rule, ref, chained=True))
     for m in _A_THAI.finditer(norm):
         found.append(_two_year_label(text, m, m.group("m"), R_FY_A_THAI, ref, be=True))
+        if m.group("z1") is not None:
+            found.append(_two_year_label(text, m, m.group("m"), R_FY_A_THAI, ref, be=True, chained=True))
     found.sort(key=lambda f: (f.start, -(f.end - f.start)))
     out: list[YearLabel] = []
     for f in found:
@@ -407,8 +428,8 @@ def year_ranges(text: str, labels: list[YearLabel] | None = None, _norm: str | N
     out: list[YearLabel] = []
     for m in _RANGE_RX.finditer(norm):
         y1, y2 = int(m.group("y1")), int(m.group("y2"))
-        if not (LIFT_MIN <= y1 < y2 <= LIFT_MAX):
-            continue
+        if y1 >= y2 or not (LIFT_MIN <= y1 <= LIFT_MAX or LIFT_MIN <= y2 <= LIFT_MAX):
+            continue  # each end is bounded on its own (PI R-3 b); YearLabel.sources drops an out-of-bound end
         if any(a <= m.start() and m.end() <= b for a, b in spans):
             continue
         numbered = bool(_NUMBERING.search(norm[max(0, m.start() - 12):m.start()]))
