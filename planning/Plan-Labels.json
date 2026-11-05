@@ -6,9 +6,9 @@
   },
   "date": "2026-11-05",
   "sources": {
-    "SPEC.md": "c31d95f2d5190be3c4f5466879ebbbf9f37822e925e483d77dc9eb8db3f1321b",
+    "SPEC.md": "e8c8aacaf85aa7b9a2aed6b1d42fc4a6e883852a8ec9631b2971ac787435d3ba",
     "RESOURCES.md": "6edc4da670229dd0cedbeb6cb8809ca7430f9791ddc0633492395d6c4720abbe",
-    "PLAN.md": "359736a7e51852cc5e2e1d85d3890ac17028102b82a2e4ddadb2ac509fdbed97"
+    "PLAN.md": "23146b3cf71cfc371b508041b6da199ddc0bbcacf1ba21086354229a9b9b2b4d"
   },
   "labels": {
     "T-001": {
@@ -157,7 +157,7 @@
     },
     "T-063": {
       "label": "Request calendar conversion rules",
-      "plain": "Prepare a request to the multilingual subproject for calendar and fiscal-year conversion rules and shared language coverage. Simone approves the message before it is sent."
+      "plain": "Superseded (RC-D-020): the request to the multilingual subproject is not sent, because the calendar and fiscal-year conversion rule was built in this plan (T-064)."
     },
     "T-064": {
       "label": "Convert calendar and fiscal years",
