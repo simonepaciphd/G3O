@@ -287,7 +287,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-061 | integrator | W2 | in-progress | T-010 | none | T-071 | RS-033 | none | `planning/handoffs/validation-notice.md`†; GitHub issue `simonepaciphd/g3o_validation#3` plus Simone's e-mail (DP-063; RC-D-006) | PI approves the notice text | none |
 | T-062 | integrator | W18 | pending | T-071 | none | none | RS-038 | D-009 | `planning/handoffs/D-009-ai-text-delta.md`† | PI approves delta text; sending is external | none |
 | T-063 | integrator | W2 | in-progress | T-010 | none | none | RS-040 | D-010 | `planning/handoffs/D-010-multilingual-heads-up.md`† | PI approves the text; sending is external | none |
-| T-064 | eng-c | W3 | in-progress | T-010 | none | T-024 | RS-008, RS-009 | none | `g3o/extract/years.py`†, `tests/test_years_v27.py`†, spikes folder `SPIKE-T064*` | push of the branch | none |
+| T-064 | eng-c | W3 | complete | T-010 | none | T-024 | RS-008, RS-009 | none | `g3o/extract/years.py`†, `tests/test_years_v27.py`†, spikes folder `SPIKE-T064*` | push of the branch | none |
 | T-065 | eng-a | W3 | in-progress | T-014 | none | T-041 | none | none | `g3o/scrape/fetcher.py` (routing block only), `g3o/scrape/docx.py`†, `g3o/scrape/readability.py`†, `tests/test_scrape_binary_route.py`† | push of the branch (DP-065a/b ruled, RC-D-018) | none |
 | T-071 | eng-a | W17 | blocked | T-031, T-041, T-055, T-060, T-061 | none | T-062, T-070 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
 | T-070 | eng-a | W18 | blocked | T-071 | none | T-072 | RS-026, RS-030 | none | freeze folder† | PI confirms the freeze date | none |
@@ -592,6 +592,7 @@ More than 1 day of labelling → split labelling from calibration.
 ### T-010 — Draft Output Contract v2.7 and the validate-contract v1.5 bump
 
 Status: complete
+Progress (2026-11-05, integrator; RC-D-019): codebook r13 signed by the PI, SHA256 07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527 (chat 2026-11-05, the hash sent as the signature); candidate and pins on `orch1106/f-r13`; SPEC pins v001.22.
 Progress (2026-10-30, integrator): item template approved with RC-D-003 (27 fields, generator checks 1-16); codebook skeleton built by `planning/t010/build_skeleton.py` from SPEC v001.7 (120 items, sha256 `23cb4857…`, reproducible, untracked until sign-off, P4); codebook review round 3 done and RC-D-003 applied (SPEC v001.7). Wording review done (round 4: 546 slots, fixes FX01-FX13, translation table). **Codebook release 2.7 and CX-01.3 signed** 2026-10-30 by the PI (one batch signature, RC-D-004): sha256 `d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764`, `reclass/t010-contract` `cb13571`; record `planning/t010/signoff-record.md`. T-013 checks (2026-10-30): 7 of 16 fail on the signed file, so A-001 is not met; a codebook delta and re-signature are needed before T-010 can be verified. Left for done: generated contract docs and generator checks 1-16 (T-013), checklist regenerated against the signed hash. RC-D-005 (approved 2026-10-30): the codebook is re-signed at sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f` (record `planning/t010/signoff-record.md`; `d24bbc7c…` superseded). Done when T-013's generated contract docs are committed and checks 1-16 pass on the re-signed file; then `verified`, and the PI is asked for `complete`. Verified 2026-10-30 (integrator): checks 1-16 pass on `f0b1348c…` (12 N/A) and the generated contract docs are committed on `reclass/t013-codebook` `45f6d88`; checklist regenerated against the new hash (`reclass/rc-d-005-codebook` `7c76315`, mapping unchanged). Awaiting PI `complete`. Complete 2026-10-30 (PI, chat "1 yes").
 Type: build
 Priority: critical-path
@@ -3259,7 +3260,8 @@ none
 
 ### T-064 — Build the calendar and fiscal-year conversion for year candidates (RC-D-015 Q3 b, RC-D-016)
 
-Status: in-progress
+Status: complete
+Progress (2026-11-05, integrator): done condition met — tests pass (PRs #167, #173, #177), coverage note `spikes/SPIKE-T064.md` written from the full local run (integrator review appended), rulings implemented. Marked complete by the integrator. Follow-up: two-digit end years follow the signed r13 pivot (r13-Q2 a) on `orch1106/b3-t064`. PI 2026-11-05 "b3-1 a b3-2 b": a two-digit end year that comes out before its start is kept ("FY 2024-06" gives 2024 and 2006); the pivot sentence reads CE two-digit years only, so a two-digit Buddhist Era end year keeps its start year's BE century ("B.E. 2566/67" gives 2023, 2024). No codebook change. Independent review T-031 still due.
 Progress (2026-11-05, integrator; RC-D-019): C2 b (one-year labels and single era years in 1900-2099) and rule ids on sources merged via PR #173 (fbd3189); B1 c two-digit pivot (from (current year mod 100) + 25 through 99 read 19xx, reference year recorded) on `orch1106/b2-t064`. Coverage scan ran locally (PI "1a"; peak 326 MB): rerun on the C2 b code feeds `SPIKE-T064.md`.
 Progress (2026-11-05, integrator): `g3o/extract/years.py` and `tests/test_years_v27.py` merged in PR #167 (cda6df1); RC-D-018 D1-D9 implemented. Open: the coverage note `SPIKE-T064.md` (run over RS-008/RS-009 page text); it needs more memory than the laptop has, so it runs on a GCP VM (PI 2026-11-05).
 Type: build

@@ -6,9 +6,9 @@
   },
   "date": "2026-11-05",
   "sources": {
-    "SPEC.md": "6b2a521e6d1034da9aaa053bb342c877079211a5369fa1cea0c4842322d7427c",
+    "SPEC.md": "c31d95f2d5190be3c4f5466879ebbbf9f37822e925e483d77dc9eb8db3f1321b",
     "RESOURCES.md": "6edc4da670229dd0cedbeb6cb8809ca7430f9791ddc0633492395d6c4720abbe",
-    "PLAN.md": "b0c7c4bed079d5dc84668cae2b69bf216b3da6289657c12eeda6961f0db6d9d0"
+    "PLAN.md": "359736a7e51852cc5e2e1d85d3890ac17028102b82a2e4ddadb2ac509fdbed97"
   },
   "labels": {
     "T-001": {
@@ -161,7 +161,7 @@
     },
     "T-064": {
       "label": "Convert calendar and fiscal years",
-      "plain": "Turn fiscal-year labels, other calendars (Japanese era, Buddhist Era, ROC) and year ranges into candidate calendar years for the year items, with two-digit years read by a sliding pivot. The code is merged; the coverage note remains."
+      "plain": "Turn fiscal-year labels, other calendars (Japanese era, Buddhist Era, ROC) and year ranges into candidate calendar years for the year items, with two-digit years read by a sliding pivot. Built, tested and measured on the stored pages."
     },
     "T-065": {
       "label": "Route PDF and Word files",
