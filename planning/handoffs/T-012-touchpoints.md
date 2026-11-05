@@ -273,3 +273,27 @@ These are enum or contract touchpoints that no card's write claim covers:
 - Procurement pins `CONTRACT_VERSION = "2.0"` against its v2.0 snapshot; G3O is at v2.5. In procurement, `genai_evidence` is the matched-terms snippet, and the enum lives in `genai_evidence_type`. Same name, different meaning from G3O's column.
 - The website's `vocabulary.js` and g3o-api's synthetic generators carry their own 4-value copies, including the retired `ambiguous`.
 - In G3O itself there is only one Python copy of the 4-value enum (§3.1). The card's "both enum copies (including the NoNA variants)" matches the Stage 5 activity enums plus their NoNA mirrors, not two page-verdict copies.
+
+## 11. Addendum 2026-11-05: re-run of the §1 G3O patterns on `origin/main` `4e956ad`
+
+Prepared by: orchestrator lane C (Claude Code, model claude-opus-5-5), for the T-012 self-check ("`git grep` over all enum touchpoints matches the inventory"). Facts only; owner assignment stays with the integrator.
+
+Method: the union of the §1 G3O patterns A-I, `git grep -l -E` over `. ':!planning'`, at `a5b1d30` and at `4e956ad`.
+
+- At `a5b1d30` the union reproduces the §2 count exactly: 80 files.
+- At `4e956ad` it matches 120 files. No file in the 80 dropped out. The 40 new matches are below, with the card whose commit added the file (or, for the two pre-existing files, the matching text). Each was added by a plan card's commit; whether each file lies in that card's write claim was not checked here.
+
+| Adding card (commit) | Files |
+|---|---|
+| T-011 (`3bde2ed`) | `g3o/classify/questions/v27/{activity,institution,page}.json`, `g3o/classify/questions/v27/build.py`, `tests/test_questions_v27.py` |
+| T-012 (`6cbd551`) | `g3o/common/{instrument,storage,storage_fields}.py`, `tests/_storage_fixture.py`, `tests/test_instrument.py`, `tests/test_storage.py`, `tests/fixtures/storage_contract/{legacy,page_two_activities,combined_activity}/{activities,sources,summary}.csv` (9 files) |
+| T-014 (`adc05ba`, text added to an existing file) | `g3o/scrape/html.py` (CX-53 docstring reference) |
+| T-020 (`dd2e6d4`) | `tests/fixtures/t020/reconstructed-p1.json` |
+| T-022 (`68cbc48`) | `g3o/extract/request_v27.py`, `tests/test_extract_v27.py` |
+| T-022 / T-032 (`43c8e7e`) | `g3o/extract/pass2_support.py`, `tests/test_pass2_support.py`, `tests/test_stage_extract_v27.py` |
+| T-024 (`808338c`) | `g3o/common/support_check.py`, `tests/test_support_check.py` |
+| T-027 (`1fb571b`) | `g3o/common/jev_record.py`, `tests/test_jev_record.py` |
+| T-040 (`c6431cd`, `46ca2c9`) | `tests/fixtures/v27/{build_real.py,build_synthetic.py,jev-label-scores.csv,judgement-calls.csv,label-sheet.csv,real.json,synthetic.json}`, `tests/test_v27_fixture_set.py` |
+| T-065 (`2ca5ec4`, text added to an existing file) | `g3o/scrape/readability.py` (`not_assessable` docstring) |
+
+External repos (§4-§6) were not re-grepped in this addendum.
