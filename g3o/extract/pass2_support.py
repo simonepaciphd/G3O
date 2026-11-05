@@ -5,7 +5,9 @@ activities (DP-009, PI P6 a) asks for:
 
 1. **Quotes** for every positive / substantive activity-level code (R-040,
    R-041; Q-010 a), one task per (activity, item, part, answer), each from the
-   part that produced the code (R-044, PF-001). As in pass 1, the task shows
+   part that produced the code (R-044, PF-001). A ``core.activity_segment`` code is
+   coded per pair of passages, so it names the other activity of its pair and gets
+   one task per pair; the task names that activity (PI 2026-11-05 "p2c a"). As in pass 1, the task shows
    the item's signed question and the answer jev chose (RC-D-017 "6"; reverses
    r2#18). The answer is input only (C-001).
 2. **The two CX-61-gated free-text fields** moved here from pass 1 (RC-D-017,
@@ -66,22 +68,28 @@ from g3o.extract.request_v27 import (
     field_name,
 )
 
-PROMPT_VERSION = "pass2_support_v27-draft-2"
+PROMPT_VERSION = "pass2_support_v27-p2c-approved"
 PASS2_PROMPT_PATH = Path(__file__).parent / "prompts" / "pass2_support_v27.md"
 
 #: Builder-side question slot: wording shown in a pass-2 quote task in place of
 #: the item's codebook instruction, for items whose instruction is a method note
 #: rather than a question (PI 2026-11-05 "D2c"). Not a codebook edit: the signed
-#: instruction is unchanged and still drives jev. DRAFT 2 wording, approved only
-#: through the wording packet (RC-D-014 S3 b).
+#: instruction is unchanged and still drives jev. Wording approved by the PI through the
+#: wording packet (RC-D-014 S3 b; PI 2026-11-05 "p2c draft ok").
 QUESTION_OVERRIDES: dict[str, str] = {
     "core.activity_segment": (
-        "How does this activity relate to the other activities marked on this page: is it "
-        "the same activity described again, part of a larger programme, a programme with "
-        "parts, a joint activity, a rule that governs another activity or one governed by it, "
-        "or a separate activity?"
+        "How does this activity relate to the linked activity named in this task: is it the "
+        "same activity described again, part of the linked programme, a programme the linked "
+        "activity is part of, a joint activity with it, a rule that governs it or one governed "
+        "by it, or a separate activity?"
     ),
 }
+
+#: Items coded per pair of passages (codebook ``core.activity_segment`` "Each pair of passages
+#: gets a link."; storage lhs/rhs observation ids). Each code names the other activity of its
+#: pair (``ActivityCode.linked_activity``); the code's activity is the first passage (lhs),
+#: the linked activity the second (rhs), as the codebook value definitions read.
+PAIR_ITEMS: frozenset[str] = frozenset({"core.activity_segment"})
 
 #: Flag on a quote from which activity marks were removed.
 MARKS_REMOVED_FLAG = "marks_removed"
@@ -192,12 +200,17 @@ class ActivityCode:
 
     ``part`` names the item part for a parts item (e.g. ``relationship`` or
     ``searched_institution_role`` of ``core.observed_actor_relationship``; T-011 asks each as
-    its own question) and is None for every other item, as in the support check's evidence."""
+    its own question) and is None for every other item, as in the support check's evidence.
+
+    ``linked_activity`` is the ``activity_id`` of the other activity of the pair for a pair
+    item (:data:`PAIR_ITEMS`): required there, refused on every other item. It must be another
+    activity of the same page request."""
 
     item_id: str
     chunk_id: str
     value: str
     part: str | None = None
+    linked_activity: str | None = None
 
 
 @dataclass(frozen=True)
@@ -245,6 +258,8 @@ class ActivityQuoteTask:
     question: str
     answer: str  # jev's chosen answer (input only; RC-D-017)
     part: str | None = None  # the item part, for a parts item (T-011 question <item>#<part>)
+    linked_activity: str | None = None  # pair item: the other activity's activity_id
+    linked_label: str | None = None  # ... and its label in the message (e.g. A2)
 
 
 @dataclass(frozen=True)
@@ -307,6 +322,25 @@ def _value_problem(item: dict[str, Any], code: ActivityCode, rules: Pass2Rules) 
     return None if value in offered else "value_not_in_codebook"
 
 
+def _link_problem(act: Pass2Activity, code: ActivityCode, page_ids: set[str],
+                  labels: dict[str, str]) -> str | None:
+    """Why the code's linked activity cannot be used, or None (p2c a). A pair item needs the
+    other activity of its pair: another activity of this page request with a marked span;
+    any other item takes none."""
+    linked = code.linked_activity
+    if code.item_id not in PAIR_ITEMS:
+        return None if linked is None else "linked_activity_not_allowed"
+    if linked is None:
+        return "linked_activity_missing"
+    if linked == act.activity_id:
+        return "self_linked_activity"
+    if linked not in page_ids:
+        return "unknown_linked_activity"
+    if linked not in labels:  # on the page but left out (no usable span): nothing to name
+        return "linked_activity_unmarked"
+    return None
+
+
 def _question_key(item_id: str, part: str | None, rules: Pass2Rules) -> str:
     """Key of the question under QUESTIONS: the field name, and for a later part of a parts
     item ``<field>#<part>``, as T-011 names its question (``<item>#<part>``)."""
@@ -337,8 +371,9 @@ def select_requests(page: Pass2Page, rules: Pass2Rules | None = None) -> Pass2Pl
     quotes: list[ActivityQuoteTask] = []
     fields: list[ActivityFieldTask] = []
     skipped: list[SkippedCode] = []
+    all_ids = {a.activity_id for a in page.activities}
     for act in usable:
-        seen: set[tuple[str, str | None, str, str]] = set()
+        seen: set[tuple[str, str | None, str, str, str | None]] = set()
         gate_parts: dict[str, list[str]] = {}
         for code in act.codes:
             item = rules.support_items.get(code.item_id)
@@ -347,10 +382,11 @@ def select_requests(page: Pass2Page, rules: Pass2Rules | None = None) -> Pass2Pl
             elif code.chunk_id not in page_parts:
                 reason = "unknown_part"
             else:
-                reason = _value_problem(item, code, rules)
+                reason = (_link_problem(act, code, all_ids, labels)
+                          or _value_problem(item, code, rules))
             if reason is not None:
                 skipped.append(SkippedCode(code.item_id, code.chunk_id, code.value, reason,
-                                           act.activity_id, code.part))
+                                           act.activity_id, code.part, code.linked_activity))
                 continue
             for fid, (gate_item, open_values) in rules.gated_fields.items():
                 if code.item_id == gate_item and code.value in open_values:
@@ -359,7 +395,7 @@ def select_requests(page: Pass2Page, rules: Pass2Rules | None = None) -> Pass2Pl
                         parts.append(code.chunk_id)
             if not rules.needs_quote(code.value):
                 continue
-            key = (code.item_id, code.part, code.chunk_id, code.value)
+            key = (code.item_id, code.part, code.chunk_id, code.value, code.linked_activity)
             if key in seen:
                 continue
             seen.add(key)
@@ -369,6 +405,8 @@ def select_requests(page: Pass2Page, rules: Pass2Rules | None = None) -> Pass2Pl
                 task_id=f"q{len(quotes) + 1:03d}", activity_id=act.activity_id,
                 label=labels[act.activity_id], item_id=code.item_id, chunk_id=code.chunk_id,
                 question=question, answer=code.value, part=code.part,
+                linked_activity=code.linked_activity,
+                linked_label=labels.get(code.linked_activity) if code.linked_activity else None,
             ))
         for fid in rules.gated_fields:  # codebook order, stable
             if fid in gate_parts:
@@ -444,6 +482,15 @@ def marked_part_text(page: Pass2Page, plan: Pass2Plan, chunk_id: str) -> str:
     return "".join(out)
 
 
+def _quote_task_entry(t: ActivityQuoteTask, rules: Pass2Rules) -> dict[str, str]:
+    entry = {"task_id": t.task_id, "activity": t.label}
+    if t.linked_label is not None:  # pair item only (p2c a)
+        entry["linked_activity"] = t.linked_label
+    entry.update({"question": _question_key(t.item_id, t.part, rules),
+                  "answer": t.answer, "part_id": t.chunk_id})
+    return entry
+
+
 def build_user_message(page: Pass2Page, plan: Pass2Plan, rules: Pass2Rules | None = None) -> str:
     rules = rules or default_rules()
     p = page.page
@@ -461,12 +508,7 @@ def build_user_message(page: Pass2Page, plan: Pass2Plan, rules: Pass2Rules | Non
                     for t in plan.quote_tasks})
     questions = {_question_key(i, part, rules): q for i, _n, part, q in asked}
     tasks = {
-        "quote_tasks": [
-            {"task_id": t.task_id, "activity": t.label,
-             "question": _question_key(t.item_id, t.part, rules),
-             "answer": t.answer, "part_id": t.chunk_id}
-            for t in plan.quote_tasks
-        ],
+        "quote_tasks": [_quote_task_entry(t, rules) for t in plan.quote_tasks],
         "field_tasks": [
             {"task_id": t.task_id, "activity": t.label, "field": field_name(t.item_id),
              "part_ids": list(t.chunk_ids)}
@@ -534,6 +576,8 @@ class ActivityQuote:
     status: str  # "quoted" | "empty" | "no_entry" | "wrong_part"
     flags: tuple[str, ...] = ()
     part: str | None = None  # the item part of a parts item (for the X35 question, T-024)
+    #: pair item: the other activity of the pair (lhs = ``activity_id``, rhs = this; p2c a)
+    linked_activity: str | None = None
 
 
 @dataclass(frozen=True)
@@ -618,14 +662,16 @@ def parse_pass2_result(result: ExtractorResult, page: Pass2Page, plan: Pass2Plan
         base = (task.task_id, task.activity_id, task.item_id, task.chunk_id)
         if quote is not None and raw["part_id"] != task.chunk_id:
             rejected.append(Rejected("quote", "wrong_part", raw))
-            got_q[task.task_id] = ActivityQuote(*base, None, "wrong_part", part=task.part)
+            got_q[task.task_id] = ActivityQuote(*base, None, "wrong_part", part=task.part,
+                                                linked_activity=task.linked_activity)
             continue
         got_q[task.task_id] = ActivityQuote(
             *base, quote, "quoted" if quote is not None else "empty", _flags(quote) + mflags,
-            part=task.part)
+            part=task.part, linked_activity=task.linked_activity)
     quotes = tuple(
         got_q.get(t.task_id) or ActivityQuote(t.task_id, t.activity_id, t.item_id, t.chunk_id,
-                                              None, "no_entry", part=t.part)
+                                              None, "no_entry", part=t.part,
+                                              linked_activity=t.linked_activity)
         for t in plan.quote_tasks
     )
 
@@ -670,7 +716,9 @@ def parse_pass2_result(result: ExtractorResult, page: Pass2Page, plan: Pass2Plan
 
 __all__ = [
     "MARKS_REMOVED_FLAG",
+    "PAIR_ITEMS",
     "PROMPT_VERSION",
+    "QUESTION_OVERRIDES",
     "ActivityCode",
     "ActivityField",
     "ActivityFieldTask",

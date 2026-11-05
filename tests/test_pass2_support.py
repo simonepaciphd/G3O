@@ -471,15 +471,17 @@ def test_value_added_to_status_by_answer_gets_no_quote_task():
             ActivityCode("core.deployment_scale_unit", part, "none"),
             ActivityCode("core.has_human_oversight", part, "unclear"),
             ActivityCode("core.evaluation_documented", part, "unclear"),
-            ActivityCode("core.activity_segment", part, "unresolved"),
+            ActivityCode("core.activity_segment", part, "unresolved", linked_activity="P1#a002"),
             ActivityCode("core.adoption_stage", part, "pilot"),
         )),
         Pass2Activity("P1#a002", *A2, codes=(
-            ActivityCode("core.activity_segment", part, "not_an_activity"),)),
+            ActivityCode("core.activity_segment", part, "not_an_activity",
+                         linked_activity="P1#a001"),)),
     ))
     plan = select_requests(page, rules)
     assert [(t.item_id, t.answer) for t in plan.quote_tasks] == [("core.adoption_stage", "pilot")]
     assert plan.field_tasks == ()  # none_reported never opens the CX-61 gate
+    assert plan.skipped_codes == ()
     # Pass 1 reads the same codebook key (request_v27.rules_from_codebook).
     from g3o.extract import request_v27
     assert set(D1B_VALUES) <= request_v27.rules_from_codebook(synthetic_codebook()).no_support_values
@@ -511,8 +513,12 @@ def test_activity_segment_quote_task_shows_override_not_method_note():
     for k, q in rules.questions.items():
         if k != "core.activity_segment":
             assert q == cb.instruction(k).text
-    page = Pass2Page(base_page(), (Pass2Activity("P1#a001", *A1, codes=(
-        ActivityCode("core.activity_segment", "P1#p001", "component_of_program"),)),))
+    page = Pass2Page(base_page(), (
+        Pass2Activity("P1#a001", *A1, codes=(
+            ActivityCode("core.activity_segment", "P1#p001", "component_of_program",
+                         linked_activity="P1#a002"),)),
+        Pass2Activity("P1#a002", *A2, codes=()),
+    ))
     plan = select_requests(page)
     job = p2.build_job(page, plan, system="s")
     user = job.params["messages"][0]["content"]
@@ -520,7 +526,7 @@ def test_activity_segment_quote_task_shows_override_not_method_note():
     assert questions == {"activity_segment": p2.QUESTION_OVERRIDES["core.activity_segment"]}
     assert note not in user
     assert job.metadata["question_overrides"] == ["core.activity_segment"]
-    assert job.metadata["prompt_version"] == "pass2_support_v27-draft-2"
+    assert job.metadata["prompt_version"] == "pass2_support_v27-p2c-approved"
 
 
 def test_override_does_not_edit_the_codebook_and_unknown_override_fails():
@@ -533,6 +539,121 @@ def test_override_does_not_edit_the_codebook_and_unknown_override_fails():
     assert plain.overridden == frozenset()
     with pytest.raises(ValueError, match="not pass-2 quote items"):
         p2.rules_from_codebook(cb, overrides={"core.page_verdict": "x"})
+
+
+# ---------------------------------------------------------------------------
+# PI 2026-11-05 "p2c a": activity_segment quote task names the linked activity
+# ---------------------------------------------------------------------------
+
+P2C_QUESTION = (
+    "How does this activity relate to the linked activity named in this task: is it the same "
+    "activity described again, part of the linked programme, a programme the linked activity "
+    "is part of, a joint activity with it, a rule that governs it or one governed by it, or a "
+    "separate activity?"
+)
+
+
+def seg(value, linked, part="P1#p001"):
+    return ActivityCode("core.activity_segment", part, value, linked_activity=linked)
+
+
+def three_activity_page(codes1=(), codes2=(), codes3=(), span3=(0, A1[0])) -> Pass2Page:
+    return Pass2Page(base_page(), (
+        Pass2Activity("P1#a001", *A1, codes=tuple(codes1)),
+        Pass2Activity("P1#a002", *A2, codes=tuple(codes2)),
+        Pass2Activity("P1#a003", *span3, codes=tuple(codes3)),
+    ))
+
+
+def test_p2c_question_is_the_approved_text():
+    assert p2.QUESTION_OVERRIDES["core.activity_segment"] == P2C_QUESTION
+    assert p2.PROMPT_VERSION == "pass2_support_v27-p2c-approved"
+
+
+def test_pair_task_names_the_linked_activity():
+    page = three_activity_page(codes1=(seg("governs", "P1#a002"),))
+    plan = select_requests(page)
+    (t,) = plan.quote_tasks
+    assert (t.activity_id, t.label, t.linked_activity, t.linked_label) == (
+        "P1#a001", "A1", "P1#a002", "A2")
+    tasks = json.loads(build_user_message(page, plan).split("TASKS:\n", 1)[1])
+    assert tasks["quote_tasks"] == [{
+        "task_id": "q001", "activity": "A1", "linked_activity": "A2",
+        "question": "activity_segment", "answer": "governs", "part_id": "P1#p001"}]
+
+
+def test_non_pair_tasks_carry_no_linked_activity_key():
+    page = two_activity_page()
+    plan = select_requests(page)
+    tasks = json.loads(build_user_message(page, plan).split("TASKS:\n", 1)[1])
+    assert all("linked_activity" not in t for t in tasks["quote_tasks"])
+    assert all(t.linked_activity is None for t in plan.quote_tasks)
+
+
+def test_two_pairs_with_the_same_relation_in_one_part_get_one_task_each():
+    page = three_activity_page(codes1=(seg("distinct_action", "P1#a002"),
+                                       seg("distinct_action", "P1#a003"),
+                                       seg("distinct_action", "P1#a002")))  # repeat: one task
+    plan = select_requests(page)
+    assert [(t.label, t.linked_label, t.answer) for t in plan.quote_tasks] == [
+        ("A1", "A2", "distinct_action"), ("A1", "A3", "distinct_action")]
+    assert len({t.task_id for t in plan.quote_tasks}) == 2
+
+
+def test_each_direction_of_a_pair_is_its_own_code_and_task():
+    # The code's activity is the first passage (lhs), the linked activity the second (rhs):
+    # A1 component_of_program A2 and A2 has_component A1 are two codes on two activities.
+    page = three_activity_page(codes1=(seg("component_of_program", "P1#a002"),),
+                               codes2=(seg("has_component", "P1#a001"),))
+    plan = select_requests(page)
+    assert [(t.label, t.linked_label, t.answer) for t in plan.quote_tasks] == [
+        ("A1", "A2", "component_of_program"), ("A2", "A1", "has_component")]
+
+
+@pytest.mark.parametrize("code, reason", [
+    (seg("governs", None), "linked_activity_missing"),
+    (seg("governs", "P1#a001"), "self_linked_activity"),
+    (seg("governs", "P9#a001"), "unknown_linked_activity"),
+    (seg("governs", "A2"), "unknown_linked_activity"),  # a label is not an activity id
+    (seg("governs", "P1#a003"), "linked_activity_unmarked"),
+    (ActivityCode("core.adoption_stage", "P1#p001", "pilot", linked_activity="P1#a002"),
+     "linked_activity_not_allowed"),
+])
+def test_bad_link_is_skipped_with_reason(code, reason):
+    page = three_activity_page(codes1=(code, ActivityCode("core.adoption_stage", "P1#p001",
+                                                          "production")),
+                               span3=(None, None))
+    plan = select_requests(page)
+    assert [(t.item_id, t.answer) for t in plan.quote_tasks] == [
+        ("core.adoption_stage", "production")]
+    (s,) = plan.skipped_codes
+    assert (s.item_id, s.value, s.reason, s.activity_id, s.linked_activity) == (
+        code.item_id, code.value, reason, "P1#a001", code.linked_activity)
+
+
+def test_exempt_pair_value_still_needs_a_valid_link():
+    page = three_activity_page(codes1=(seg("unresolved", None),))
+    plan = select_requests(page)
+    assert plan.quote_tasks == ()
+    assert [c.reason for c in plan.skipped_codes] == ["linked_activity_missing"]
+
+
+def test_parsed_pair_quote_maps_back_to_its_pair():
+    page = three_activity_page(codes1=(seg("distinct_action", "P1#a002"),
+                                       seg("distinct_action", "P1#a003")))
+    plan = select_requests(page)
+    res = parse_pass2_result(ok({"quotes": [
+        {"task_id": "q002", "part_id": "P1#p001", "quote": "Town of Example."},
+        {"task_id": "q001", "part_id": "P1#p001", "quote": "Separately, the council adopted"},
+    ], "fields": []}), page, plan)
+    got = {(q.activity_id, q.linked_activity): (q.task_id, q.status, q.quote) for q in res.quotes}
+    assert got == {
+        ("P1#a001", "P1#a002"): ("q001", "quoted", "Separately, the council adopted"),
+        ("P1#a001", "P1#a003"): ("q002", "quoted", "Town of Example."),
+    }
+    empty = parse_pass2_result(ok({"quotes": [], "fields": []}), page, plan)
+    assert [(q.linked_activity, q.status) for q in empty.quotes] == [
+        ("P1#a002", "no_entry"), ("P1#a003", "no_entry")]
 
 
 # ---------------------------------------------------------------------------
