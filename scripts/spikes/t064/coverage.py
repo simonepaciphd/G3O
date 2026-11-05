@@ -1,13 +1,16 @@
-"""T-064 coverage scan: fiscal-year labels and out-of-scope calendar years on stored page texts. Free, local, read-only.
+"""T-064 coverage scan: year labels of the committed module and out-of-scope forms on stored page texts. Free, read-only.
 
 Runs `g3o.extract.years` over every stored page text of RS-008 and RS-009 (located exactly as the F4 readability
 spike does: RS-008 from --rs008-dir / G3O_RS008_DIR, RS-009 under the Drive root from --drive / G3O_DRIVE_ROOT)
 and reports:
-  - per fiscal label kind (fiscal_one, fiscal_two; English and table A markers): labels found, pages, unique texts, and how often a
-    label contributes a year the plain literal rule finds nowhere on that page;
+  - per module label kind (`Y.all_labels`: fiscal_one, fiscal_two, range, era_jp, buddhist_era, roc): labels found,
+    pages, unique texts, and how often a label contributes a year the plain literal rule finds nowhere on that page;
+  - range ends lifted outside 2015-2030 (kept only because of the 1900-2099 lift) with examples, numbered ranges, and
+    the word just before each range, tallied, so numbering words the module misses are visible (HANDOFF 2026-11-05);
   - unmarked year ranges (no fiscal marker; module forms range_lower/range_upper, both four-digit ends, PI 2026-11-05): counted by shape;
-  - years written in other calendars or non-ASCII digits, and non-English fiscal markers: counted, not converted
-    (RC-D-017 9a "fiscal-year labels only"; the counting patterns here are heuristics for sizing, not rules).
+  - years written in other calendars or non-ASCII digits, and non-English fiscal markers: heuristic counts (a cross-check
+    on the module for the converted forms; sizing only for the out-of-scope ones; heuristics, not rules).
+Standard library only: `years.py` and the F4 reader are loaded by file path, so no package install is needed.
 Counts run over unique texts (sha256 of `text`); page totals include duplicates. Examples (10 per form, unique
 texts) go to the Drive output only, never to the repo.
 
@@ -33,18 +36,28 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
-sys.path.insert(0, str(REPO))
-from g3o.extract import years as Y  # noqa: E402
 
-_spec = importlib.util.spec_from_file_location("f4_readability", REPO / "scripts/spikes/f4/readability.py")
-readability = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(readability)  # type: ignore[union-attr]
+
+def _load(name: str, rel: str):
+    """Load one stdlib-only module by path (importing `g3o.extract` would pull in the LLM client dependencies)."""
+    spec = importlib.util.spec_from_file_location(name, REPO / rel)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[name] = mod  # dataclasses resolve annotations through sys.modules
+    spec.loader.exec_module(mod)  # type: ignore[union-attr]
+    return mod
+
+
+Y = _load("t064_years", "g3o/extract/years.py")
+readability = _load("f4_readability", "scripts/spikes/f4/readability.py")
 
 REL_OUT = "agent-workspace/2026-10-27-reclass-plan/spikes"
 SOURCES = ("RS-008", "RS-009")
 N_EXAMPLES = 10
 CTX = 60
-FISCAL_KINDS = (Y.FISCAL_ONE, Y.FISCAL_TWO)
+LABEL_KINDS = Y.LABEL_KINDS  # fiscal_one, fiscal_two, range, era_jp, buddhist_era, roc
+N_LIFT_EXAMPLES = 25
+N_PRE_TOP = 30
+_PRE_WORD = re.compile(r"([^\W\d_]+\.?|[#§])[^\w#§]*$")
 
 
 def _digits(s: str) -> int | None:
@@ -95,10 +108,12 @@ def snippet(text: str, start: int, end: int) -> str:
 def analyse(text: str) -> dict:
     """Per-text tallies plus the fiscal labels (for the CSV)."""
     literal = {int(m.group(1)) for m in Y._LITERAL.finditer(Y.normalize_digits(text)) if Y.in_range(int(m.group(1)))}
-    labels = Y.fiscal_labels(text)
+    labels = Y.all_labels(text)
     res: dict = {"labels": [], "kind": Counter(), "adds": Counter(), "adds_any": False, "other": Counter(),
-                 "non_en": Counter(), "unmarked": Counter(), "letter_adj": 0, "examples": defaultdict(list)}
-    spans = [(f.start, f.end) for f in labels]
+                 "non_en": Counter(), "unmarked": Counter(), "letter_adj": 0, "examples": defaultdict(list),
+                 "range": Counter(), "pre": Counter(), "pre_lifted": Counter(), "lifted_examples": [],
+                 "pre_examples": defaultdict(list)}
+    spans = [(f.start, f.end) for f in labels if f.kind != Y.RANGE]
     for f in labels:
         kept = sorted({y for y, _ in f.sources()})
         dropped = [y for y in f.years if y not in kept]
@@ -109,7 +124,26 @@ def analyse(text: str) -> dict:
         if new:
             res["adds"][f.kind] += 1
             res["adds_any"] = True
-        res["labels"].append((f, kept, dropped, new))
+        lifted = [y for y in kept if not Y.in_range(y)]
+        pre = ""
+        if f.kind == Y.RANGE:
+            pm = _PRE_WORD.search(text[max(0, f.start - 20):f.start])
+            pre = pm.group(1).lower() if pm else ""
+            res["range"]["numbered"] += int(f.numbered)
+            res["range"]["with_lifted_end"] += int(bool(lifted))
+            res["range"]["lifted_ends"] += len(lifted)
+            res["range"]["both_ends_lifted"] += int(len(lifted) == 2)
+            if not f.numbered:
+                res["pre"][pre or "(none)"] += 1
+                if lifted:
+                    res["pre_lifted"][pre or "(none)"] += 1
+                if len(res["pre_examples"][pre or "(none)"]) < 1:
+                    res["pre_examples"][pre or "(none)"].append(snippet(text, f.start, f.end))
+            if lifted and len(res["lifted_examples"]) < 2:
+                res["lifted_examples"].append(f"{kept} :: {snippet(text, f.start, f.end)}")
+        elif lifted:
+            res["range"][f.kind + "_lifted_ends"] += len(lifted)
+        res["labels"].append((f, kept, dropped, new, pre))
     for name, rx in OTHER.items():
         ms = list(rx.finditer(text))
         res["other"][name] = len(ms)
@@ -165,6 +199,9 @@ def main(argv=None) -> int:
     tot = {s: Counter() for s in SOURCES + ("all",)}
     uniq = {s: Counter() for s in SOURCES + ("all",)}
     examples: dict[str, list[str]] = defaultdict(list)
+    pre_all, pre_lifted = Counter(), Counter()
+    pre_examples: dict[str, list[str]] = defaultdict(list)
+    lifted_examples: list[str] = []
     unmarked_examples: dict[str, list[str]] = defaultdict(list)
     seen: dict[str, dict] = {}
     src_seen: set[tuple[str, str]] = set()
@@ -174,7 +211,7 @@ def main(argv=None) -> int:
         w = csv.writer(fh)
         w.writerow(["source", "page_id", "url", "text_sha256", "duplicate_of_earlier", "start", "end", "label_text",
                     "form", "years_named", "years_kept_2015_2030", "years_dropped_out_of_range",
-                    "years_not_found_by_literal_rule_on_page"])
+                    "years_not_found_by_literal_rule_on_page", "numbered", "word_before"])
         for source, pid, rec in readability.iter_sources(drive, rs):
             if source == "__missing__":
                 if pid.startswith(("RS-008", "RS-009")):
@@ -187,8 +224,10 @@ def main(argv=None) -> int:
             dup = sha in seen
             res = seen[sha] if dup else analyse(text)
             if not dup:
-                seen[sha] = {k: v for k, v in res.items() if k not in ("examples",)}
-                seen[sha]["labels"] = [(f.start, f.end, f.text, f.kind, f.years, k, d, n) for f, k, d, n in res["labels"]]
+                seen[sha] = {k: v for k, v in res.items()
+                             if k not in ("examples", "pre", "pre_lifted", "lifted_examples", "pre_examples")}
+                seen[sha]["labels"] = [(f.start, f.end, f.text, f.kind, f.years, k, d, n, int(f.numbered), pre)
+                                       for f, k, d, n, pre in res["labels"]]
             r = seen[sha]
             for bucket in (source, "all"):
                 c = tot[bucket]
@@ -221,10 +260,19 @@ def main(argv=None) -> int:
                     c["unmarked_" + k] += v
                     c["texts_unmarked_" + k] += int(v > 0)
                 c["literal_letter_adjacent"] += r["letter_adj"]
+                for k, v in r["range"].items():
+                    c["range_" + k] += v
             src_seen.add((source, sha))
             if not dup:
                 shown: set[str] = set()  # one example per form per unique text
-                for f, kept, _dropped, _new in res["labels"]:
+                pre_all.update(res["pre"])
+                pre_lifted.update(res["pre_lifted"])
+                for k, v in res["pre_examples"].items():
+                    if len(pre_examples[k]) < 3:
+                        pre_examples[k].extend(v[: 3 - len(pre_examples[k])])
+                if len(lifted_examples) < N_LIFT_EXAMPLES:
+                    lifted_examples.extend(f"`{pid}` {e}" for e in res["lifted_examples"][:1])
+                for f, kept, _dropped, _new, _pre in res["labels"]:
                     if len(examples[f.kind]) < N_EXAMPLES and f.kind not in shown:
                         shown.add(f.kind)
                         examples[f.kind].append(f"`{pid}` {sorted(set(kept)) or '-'} :: {snippet(text, f.start, f.end)}")
@@ -232,30 +280,34 @@ def main(argv=None) -> int:
                     cap = 3 if k.startswith("unmarked_") else 8
                     if len(unmarked_examples[k]) < cap:
                         unmarked_examples[k].extend(v[: cap - len(unmarked_examples[k])])
-            for s0, e0, ltext, kind, named, kept, dropped, new in r["labels"]:
+            for s0, e0, ltext, kind, named, kept, dropped, new, numbered, pre in r["labels"]:
                 w.writerow([source, pid, rec.get("url", ""), sha, int(dup), s0, e0, ltext, kind,
                             ";".join(map(str, named)), ";".join(map(str, kept)), ";".join(map(str, dropped)),
-                            ";".join(map(str, new))])
+                            ";".join(map(str, new)), numbered, pre])
 
     meta = {"generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "module": "g3o/extract/years.py", "missing_sources": missing,
             "year_range": [Y.YEAR_MIN, Y.YEAR_MAX]}
     counts = {"meta": meta, "pages": {k: dict(v) for k, v in tot.items()},
-              "unique_texts": {k: dict(v) for k, v in uniq.items()}}
+              "unique_texts": {k: dict(v) for k, v in uniq.items()},
+              "range_word_before_unique_texts": {"all_unnumbered": dict(pre_all.most_common()),
+                                                 "with_lifted_end": dict(pre_lifted.most_common())}}
     (out / "SPIKE-T064-counts.json").write_text(json.dumps(counts, indent=2, sort_keys=True), encoding="utf-8")
-    (out / "SPIKE-T064.md").write_text(render(counts, examples, unmarked_examples), encoding="utf-8")
+    (out / "SPIKE-T064.md").write_text(render(counts, examples, unmarked_examples, lifted_examples, pre_examples),
+                                       encoding="utf-8")
     print(json.dumps(counts["unique_texts"]["all"], indent=1, sort_keys=True))
     return 0
 
 
-def render(counts: dict, examples: dict, unmarked_examples: dict) -> str:
+def render(counts: dict, examples: dict, unmarked_examples: dict, lifted_examples: list | None = None,
+           pre_examples: dict | None = None) -> str:
     P, U = counts["pages"], counts["unique_texts"]
     cols = list(SOURCES) + ["all"]
-    L = ["# SPIKE-T064 — fiscal-year labels and out-of-scope calendar years on RS-008/RS-009 page texts", "",
+    L = ["# SPIKE-T064 — year labels and out-of-scope calendar years on RS-008/RS-009 page texts", "",
          f"Generated {counts['meta']['generated_utc']} by `scripts/spikes/t064/coverage.py` over `g3o/extract/years.py`. "
          "Free, local, read-only. Missing sources: " + (", ".join(counts["meta"]["missing_sources"]) or "none") + ".", "",
          "Unit: unique page texts (sha256 of stored `text`) unless a row says pages. Converted years outside "
-         "2015-2030 are dropped exactly like literal ones.", "",
+         "2015-2030 are dropped exactly like literal ones, except range ends (lifted to 1900-2099 unless numbered).", "",
          "| measure | " + " | ".join(cols) + " |", "|---|" + "---|" * len(cols)]
 
     def row(label, src, key):
@@ -263,13 +315,31 @@ def render(counts: dict, examples: dict, unmarked_examples: dict) -> str:
 
     row("pages (incl. duplicates)", P, "pages")
     row("unique texts", U, "texts")
-    for k in FISCAL_KINDS:
+    for k in LABEL_KINDS:
         row(f"`{k}` labels", U, "labels_" + k)
         row(f"texts with `{k}`", U, "texts_with_" + k)
         row(f"`{k}` labels adding a year the literal rule finds nowhere on the page", U, "labels_adding_year_" + k)
         row(f"`{k}` labels with every candidate year outside 2015-2030 (dropped)", U, "labels_" + k + "_all_out_of_range")
-    row("texts where a fiscal label adds a year not found by the literal rule", U, "texts_with_added_year")
-    row("pages where a fiscal label adds a year (incl. duplicates)", P, "pages_with_added_year")
+    row("texts where a label adds a year not found by the literal rule", U, "texts_with_added_year")
+    row("pages where a label adds a year (incl. duplicates)", P, "pages_with_added_year")
+    L += ["", "## Range ends lifted outside 2015-2030 and numbering words (module `range` labels)", "",
+          "| measure | " + " | ".join(cols) + " |", "|---|" + "---|" * len(cols)]
+    row("`range` labels after a numbering word (window kept at 2015-2030)", U, "range_numbered")
+    row("`range` labels with at least one end kept only by the lift", U, "range_with_lifted_end")
+    row("`range` labels with both ends outside 2015-2030 (both kept by the lift)", U, "range_both_ends_lifted")
+    row("range ends kept only by the lift", U, "range_lifted_ends")
+    row("`fiscal_two` ends kept only by the lift", U, "range_fiscal_two_lifted_ends")
+    row("`buddhist_era` range ends kept only by the lift", U, "range_buddhist_era_lifted_ends")
+    pre = counts.get("range_word_before_unique_texts", {})
+    allp, lift = pre.get("all_unnumbered", {}), pre.get("with_lifted_end", {})
+    L += ["", f"Word just before an unnumbered range (unique texts; top {N_PRE_TOP} by ranges with a lifted end; "
+          "a numbering word here is a candidate miss; one example each, `[[...]]` is the range):", "",
+          "| word before | ranges | with a lifted end | example |", "|---|---|---|---|"]
+    for k in sorted(lift, key=lambda x: (-lift[x], x))[:N_PRE_TOP]:
+        ex = (pre_examples or {}).get(k, [""])[0]
+        L.append(f"| `{k}` | {allp.get(k, 0)} | {lift[k]} | `{ex}` |")
+    L += ["", f"Lifted-end examples (first {N_LIFT_EXAMPLES} unique texts, one range each; list = years kept):", ""]
+    L += [f"{i}. {e}" for i, e in enumerate(lifted_examples or [], 1)] or ["(none found)"]
     L += ["", "## Unmarked year ranges (no fiscal marker; module gives both four-digit ends, window lifted, PI 2026-11-05)", "",
           "| form | " + " | ".join(cols) + " |", "|---|" + "---|" * len(cols)]
     for k in ("consecutive_two_digit", "consecutive_four_digit", "nonconsecutive_two_digit", "nonconsecutive_four_digit"):
@@ -280,27 +350,30 @@ def render(counts: dict, examples: dict, unmarked_examples: dict) -> str:
     for k, v in sorted(unmarked_examples.items()):
         if k.startswith("unmarked_"):
             L.append(f"- `{k}`: " + " / ".join(f"`{s}`" for s in v))
-    L += ["", "## Out of scope: other calendars, non-ASCII digits (counted, not converted; heuristic patterns)", "",
+    L += ["", "## Other calendars and non-ASCII digits (heuristic patterns; `buddhist_era`, `roc` and `era_jp` with the "
+          "era name are converted by the module above, so those rows are a cross-check; the rest are out of scope)", "",
           "| pattern | occurrences (all) | texts (all) | RS-008 texts | RS-009 texts |", "|---|---|---|---|---|"]
     for k in sorted({x[len("other_"):] for x in U["all"] if x.startswith("other_")}):
         L.append(f"| `{k}` | {U['all'].get('other_' + k, 0)} | {U['all'].get('texts_other_' + k, 0)} | "
                  f"{U['RS-008'].get('texts_other_' + k, 0)} | {U['RS-009'].get('texts_other_' + k, 0)} |")
     L.append(f"| literal year preceded by an ASCII letter (e.g. `H2020`, `FY2025`) | "
              f"{U['all'].get('literal_letter_adjacent', 0)} | | | |")
-    L += ["", "## Non-English fiscal-year markers near a number (counted, not converted; needs a lexicon ruling)", "",
+    L += ["", "## Non-English fiscal-year markers near a number (heuristic cross-check; table A markers are converted "
+          "by the module as `fiscal_one`/`fiscal_two`)", "",
           "| marker | occurrences (all) | texts (all) |", "|---|---|---|"]
     for k in sorted(NON_EN_FISCAL):
         L.append(f"| `{k}` | {U['all'].get('nonen_' + k, 0)} | {U['all'].get('texts_nonen_' + k, 0)} |")
-    L += ["", "## Out-of-scope examples (first 8 unique texts per pattern; for the T-064 conversions proposal)", ""]
+    L += ["", "## Heuristic-pattern examples (first 8 unique texts per pattern)", ""]
     for k, v in sorted(unmarked_examples.items()):
         if not k.startswith("unmarked_"):
             L.append(f"- `{k}`: " + " / ".join(f"`{s}`" for s in v))
     L += ["", "## Examples (first 10 unique texts per form, one label each; `[[...]]` is the label; list = years kept)", ""]
-    for k in FISCAL_KINDS:
+    for k in LABEL_KINDS:
         L.append(f"### `{k}`")
         L += [f"{i}. {e}" for i, e in enumerate(examples.get(k, []), 1)] or ["(none found)"]
         L.append("")
-    L.append("Every label on every page, with span offsets and kept/dropped years: `SPIKE-T064-candidates.csv`.")
+    L.append("Every label on every page, with span offsets, kept/dropped years, the numbered flag and the word before "
+             "a range: `SPIKE-T064-candidates.csv`.")
     return "\n".join(L) + "\n"
 
 
