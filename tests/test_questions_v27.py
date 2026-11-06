@@ -60,7 +60,7 @@ def test_sets_cover_every_question_once(signed: dict) -> None:
     ids += [q["question_id"] for q in load_set("institution")["relation"]["questions"]]
     assert len(ids) == len(set(ids))
     assert set(ids) | set(EXCLUDED) == {q["question_id"] for q in signed["questions"]}
-    assert (len(load_set("page")["questions"]), len(load_set("activity")["questions"])) == (8, 42)
+    assert (len(load_set("page")["questions"]), len(load_set("activity")["questions"])) == (7, 42)
 
 
 def test_version_stamp_and_packet_wording() -> None:
@@ -74,36 +74,54 @@ def test_version_stamp_and_packet_wording() -> None:
             assert nv["approval"] in ("pending", "approved")
             assert nv["approval_record"] == PACKET_RULINGS[nv["packet_item"]]
         states[name] = {nv["packet_item"]: nv["approval"] for nv in doc["non_verbatim"]}
-    assert states["page"] == {"W-01": "approved", "W-02": "approved"}
-    assert states["activity"] == {"W-01": "approved", "W-02": "approved", "W-03": "pending",
+    assert states["page"] == {"W-01": "approved", "W-02": "approved", "B-Q4": "pending"}
+    assert states["activity"] == {"W-01": "approved", "W-02": "approved", "W-03": "approved",
                                   "W-04": "approved", "W-05": "approved", "W-06": "approved"}
-    assert states["institution"] == {"W-02": "approved", "W-07": "pending", "W-08": "pending"}
+    assert states["institution"] == {"W-02": "approved", "W-07": "approved", "W-08": "approved"}
     act = load_set("activity")["state"]
     assert (act["span_marker"]["open"], act["span_marker"]["close"]) == ("[[Ak]]", "[[/Ak]]")
     assert act["scale_number_field"]["name"] == "stated_number"
 
 
 def test_ruling_4_names_entered() -> None:
-    """PI ruling 4 (W3-1 a, W3-2 a, W7 (i) a / (ii) b / (iii) a, W8 (i)-(iv) a); the open points left are listed."""
+    """PI ruling 4 (W3-1 a, W3-2 a, W7 (i) a / (ii) b / (iii) a, W8 (i)-(iv) a) and 2026-11-08 item 2 (lane A 1-6 a)."""
     act = load_set("activity")["state"]
     prior = act["activity_fields"][2]
     assert prior["name"].startswith("the codebook item name") and "activity_type" in prior["name"]
     assert act["prior_missing_answer_form"].startswith("left out")
     assert all(tok in act["prior_missing_answer_form"] for tok in ("not_documented", "unknown", "not_asked", "_NA_"))
-    assert all(p.startswith("W-03:") for p in act["open"]) and len(act["open"]) == 3
+    assert act["approval"] == "approved" and "open" not in act
+    assert act["prior_answer_role_part_name"].startswith("searched_institution_role")
+    assert "codebook value order" in act["prior_multi_answer_form"]
+    assert act["prior_answer_order"] == "the activity.json question order"
     inst = load_set("institution")
     pair = inst["relation"]["state"]
     assert [f["name"] for f in pair["record_fields"]] == [
         "activity_name", "activity_type", "action_type", "tool_name", "contracting_party", "developer",
         "year_announced", "page_url", "source_type", "supporting_quotes"]
     assert "entailment_label" in pair["record_value_form"]
-    assert all(p.startswith("W-07:") for p in pair["open"]) and len(pair["open"]) == 1
+    assert pair["approval"] == "approved" and "open" not in pair
+    assert pair["record_missing_value_form"].startswith("left out")
     pooled = inst["pooled"]["state"]
     assert pooled["instruction_field"] == "pool_note"
     assert [f["name"] for f in pooled["quote_fields"]] == [
         "quote_text", "source_type", "source_publication_date", "page_url"]
     assert pooled["split_marker"]["name"] == "page_part"
-    assert all(p.startswith("W-08:") for p in pooled["open"]) and len(pooled["open"]) == 2
+    assert pooled["approval"] == "approved" and "open" not in pooled
+    assert "entailment_label" in pooled["quote_source_type_form"]
+    assert pooled["quote_missing_date_form"].startswith("left out")
+
+
+def test_source_type_left_to_t015_and_chrome_field_pending() -> None:
+    """2026-11-08 item 2.2 (lane B Q3 a) and 2.3 (lane B Q4 b)."""
+    page = load_set("page")
+    assert "core.source_type" not in [q["question_id"] for q in page["questions"]]
+    assert "core.source_type" in [e["question_id"] for e in page["excluded"]]
+    state = page["state"]
+    assert state["approval"] == "pending" and [p[:5] for p in state["open"]] == ["B-Q4:"]
+    chrome = state["fields"][-1]
+    assert chrome["name"] is None and chrome["shown_text"] is None
+    assert "content_contact_named" in chrome["value"] and "content_contact_details" in chrome["value"]
 
 
 def test_approved_slot_with_undeclared_value_is_caught(tmp_path: Path, cb: Codebook) -> None:

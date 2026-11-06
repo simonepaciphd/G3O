@@ -29,13 +29,8 @@
       "W-04",
       "W-06"
     ],
-    "approval": "pending",
-    "open": [
-      "W-03: the field name of the second part of core.observed_actor_relationship (searched_institution_role); W3-1 a names a field by its codebook item name, and both parts share the item name observed_actor_relationship",
-      "W-03: how a multi-answer item (core.governance_form, core.service_domain) shows several plain-word labels in one field",
-      "W-03: the order of the earlier-round answer fields"
-    ],
-    "extends": "page state",
+    "approval": "approved",
+    "extends": "page state (its chrome field is not part of pass 2)",
     "activity_fields": [
       {
         "name": "activity_name",
@@ -55,9 +50,9 @@
     ],
     "prior_answers_form": "plain-word labels: each earlier-round answer as its value's entailment_label (the labels signed for the quote check, codebook X35 label_rules; slots items/<item>/values/<n>/entailment_label, generated in jev_questions.json core.support_entailment labels), not its code; a year item's answer as the calendar (CE) year in four ASCII digits (X35 label_rules)",
     "prior_missing_answer_form": "left out: an earlier-round answer not_documented, unknown, not_asked or _NA_ gives no field, so the coder is not shown it",
-    "prior_answer_order": null,
-    "prior_answer_role_part_name": null,
-    "prior_multi_answer_form": null,
+    "prior_answer_order": "the activity.json question order",
+    "prior_answer_role_part_name": "searched_institution_role: the field of the second part of core.observed_actor_relationship (its codebook part name); the first part keeps observed_actor_relationship",
+    "prior_multi_answer_form": "a list of the chosen values' entailment_labels, in codebook value order (core.governance_form, core.service_domain)",
     "span_marker": {
       "open": "[[Ak]]",
       "close": "[[/Ak]]",
@@ -103,8 +98,8 @@
     },
     {
       "packet_item": "W-03",
-      "approval": "pending",
-      "approval_record": "PI 2026-11-05 chat \"w3a\" (W-03 a: name, tool, earlier answers as plain-word labels); PI chat \"all recs accepted\" (RULINGS.md item 4, to be recorded as RC-D-022): W3-1 a (field = codebook item name), W3-2 a (a missing earlier answer is left out)"
+      "approval": "approved",
+      "approval_record": "PI 2026-11-05 chat \"w3a\" (W-03 a: name, tool, earlier answers as plain-word labels); PI chat \"all recs accepted\" (RULINGS.md item 4, to be recorded as RC-D-022): W3-1 a (field = codebook item name), W3-2 a (a missing earlier answer is left out); PI 2026-11-08 chat \"accept all\" (2026-11-08 RULINGS.md item 2.15): lane A 1 a role part searched_institution_role, 2 a multi-answer list of labels, 3 a activity.json question order"
     },
     {
       "packet_item": "W-04",
