@@ -1,6 +1,8 @@
 # PLAN: G3O pipeline reclassification
 
-Current ruling overlay (2026-11-08, RC-D-022, PROPOSED; rulings of 2026-11-05, chat "all recs accepted; plan is good, give me card and close"; text `planning/deltas/RC-D-022.md`): W3-1 a, W3-2 a, W7 (i a, ii b, iii a) and W8 (i-iv a) fix the field names and forms that W-03 a, W-07 a and W-08 a left open (earlier answers labelled by codebook item name, missing answers left out; `page_url`, `supporting_quotes`, `pool_note`, `quote_text`, `source_publication_date`, `page_part`); F-1 b year forms ("2014-15 to 2019-20" gives 2014, 2015, 2019, 2020; a chain gives every year); P-3 a P-2 prompt unchanged. Status sync of the same date (integrator, evidence on `main` `3f077de`): T-022, T-024, T-032, T-065 complete; T-011 in-progress.
+Current ruling overlay (2026-11-08, RC-D-023, APPROVED 2026-11-08 chats "make recs for each based on my earlier choices" and "accept all"; text `planning/deltas/RC-D-023.md`; SPEC v001.25): pass-1 parts combined on the 0.8 bar for gates, then re-combined and re-gated after the support check (B-Q2 b); one shared `g3o/common/part_combine.py` takes over T-020's combination half (B-Q1 b); `source_type` asked by T-015, not pass 1 (B-Q3 a); contact items get a chrome field, name pending PI approval (B-Q4 b); extractor once per page before following, each followed page its own call (C-1 a, replaces RC-D-021 "once per run, after T-025"); same URL = discovery dedup key; nearness = gap to nearest T-024-supported quote from the located link passage, unlocated last; every URL tried counts against the cap (C-Q1 b, C-Q2 a, C-Q3 b (i), C-Q4 a, C-Q5 b); wording A-1..A-6 a.
+
+Current ruling overlay (2026-11-08, RC-D-022, APPROVED 2026-11-08 chat "accept all"; rulings of 2026-11-05, chat "all recs accepted; plan is good, give me card and close"; text `planning/deltas/RC-D-022.md`): W3-1 a, W3-2 a, W7 (i a, ii b, iii a) and W8 (i-iv a) fix the field names and forms that W-03 a, W-07 a and W-08 a left open (earlier answers labelled by codebook item name, missing answers left out; `page_url`, `supporting_quotes`, `pool_note`, `quote_text`, `source_publication_date`, `page_part`); F-1 b year forms ("2014-15 to 2019-20" gives 2014, 2015, 2019, 2020; a chain gives every year); P-3 a P-2 prompt unchanged. Status sync of the same date (integrator, evidence on `main` `3f077de`): T-022, T-024, T-032, T-065 complete; T-011 in-progress.
 
 Current ruling overlay (2026-11-05, RC-D-021, APPROVED 2026-11-05 chats "w1a w2a w3a w4a w5a w6a w7a w8a p1a p2a p2b a p2c a r1a r2a r3b r4a r5a r6a , d1a, d2a, d3a -- procedural accepted" and "w4a w6a p2c draft ok"; text `planning/deltas/RC-D-021.md`): wording packet ruled (W-01..W-08 a; W-04 marks `[[Ak]]`/`[[/Ak]]`; W-06 field `stated_number`; P-1, P-2, P-2b a; P-2c a with `linked_activity`, one quote task per pair); R-2 a, R-3 b (1900-2099 bound per range end), R-4 a; T-012 test caveat dropped (R-5 a); T-041 names two match limits (R-6 a); readability reason in the support record, unreadable pages `reviewed` (D-1 a, D-2 a); support check once after pass 1 (D-3 a; SPEC v001.24). Every card reference to merging into or working on `reclass/v2.7` now reads: a feature branch landed on `main` by PR through the landing script (that branch is merged into `main`).
 
@@ -700,6 +702,7 @@ RC-D-012 disposition (2026-11-02): calendar conversion deferred by explicit PI r
 Preparation update (2026-11-02): signed r11/LABELS sources assembled and independently verified at 2812ca22253adfa1f70f81d08f377fa15a8619f9; source artifacts are not installed runtime question sets. Later r9/r10 rulings and the r11 signature are preserved. T-016 corrected-probability disposition and the existing calendar/fiscal gate remain; do not infer a paid rerun. Preserve four-digit2015–2030 activity/context years, no publication-year fallback, earliest chosen year across chunks; Simone owns D-010 contact. See handoffs/Preparation-next-stage.md.
 
 Status: in-progress
+Progress (2026-11-08, integrator; RC-D-023): A-1..A-6 a (role part `searched_institution_role`; multi-answer label lists in codebook order; earlier answers in question order; missing pair-record values and missing quote dates left out; pooled `source_type` as signed label); `source_type` leaves the page set (B-Q3 a); contact chrome field added, name pending PI approval (B-Q4 b). Branch `orch1108/a-wording`.
 Progress (2026-11-08, integrator; RC-D-022): W3-1 a, W3-2 a, W7 (i a, ii b, iii a), W8 (i-iv a) fix the W-03, W-07 and W-08 field names and forms; entered on wording lane branch `orch1108/a-wording`. Status in-progress: the page set is built and merged (PRs #171, #188); `activity.json` and `institution.json` still carry `approval: pending` for W-03, W-07 and W-08 until that branch lands.
 Progress (2026-11-05, integrator; RC-D-021): wording packet ruled: W-01..W-08 a; W-04 marks `[[Ak]]`/`[[/Ak]]`, no explaining sentence; W-05 year alone, rules after "not documented"; W-06 field `stated_number`; W-05-P2 declarations refreshed. Entered into `g3o/classify/questions/v27/build.py` by a wording lane (branch `orch1107/w-wording`).
 Progress (2026-11-05, integrator; RC-D-019): year-choice declaration aligned with T-064, codes are the converted CE year (C1 a), merged PR #171 (af5292f). W-05 DRAFT with option (d) and the year-context width (E4: proposed 200 characters each side of the activity span) goes into the wording packet: `agent-workspace/2026-11-06-v27-orch/lane-c-W05-draft.md`.
@@ -1035,6 +1038,7 @@ none
 ### T-015 — Build the source-level field coder (RC-D-002 H Q3, N25)
 
 Status: pending
+Progress (2026-11-08, integrator; RC-D-023 B-Q3 a): T-015 asks the residual `source_type` question in its own request (one per page not typed automatically); pass 1 does not ask it.
 Type: build
 Priority: required
 Spec refs: R-002, R-026, R-040, R-045, R-090
@@ -1201,6 +1205,7 @@ Current PI disposition (2026-11-02, RC-D-013): DP-007 is resolved as uniform 90%
 Preparation update (2026-11-02): approved UTF8 tokens/byte Latin0.305/CJK0.341/Thai0.334 implemented and independently verified on separate ffb5be23fe8b25cdf12ee4315002e8c8d88c7bce;66engineer tests plus independent byte/mixed/lossless/guard assertions pass. Thai n3 remains thin. Default/partial margin configurations cannot pass assert_calibrated; no DP-007 margin chosen. Status stays blocked. Unchanged legacy combination code predates RC-D-010/T-027 and is not imported or recertified by this calibration. WholeT020/runtime acceptance remains pending.
 
 Status: blocked
+Progress (2026-11-08, integrator; RC-D-023 B-Q1 b): the answer-combination half of T-020 (R-044 rule types and mapping steps) moves to the shared `g3o/common/part_combine.py`, built in the T-021 lane (`orch1108/b-t021`); T-020 keeps chunking.
 Progress (2026-11-04, integrator, RC-D-015): the e4e47ab prep was ported byte-identically and merged in PR #156 (35a03ae): 90% margin default, pooled split, local paths stripped from the public fixture (C5 b). It is still blocked on runtime/provider token accounting, the T-026 pooled builder, T-027 call-site composition and the T-031 review.
 Note (2026-10-31, integrator, RC-D-006): token estimator constants (PI 2 a): tokens per byte, the T-002 medians: Latin 0.305 (64 requests), CJK 0.341 (10), Thai 0.334 (3, a thin sample). The provisional single constant 0.3947 erred by -32% to +84% on Latin. DP-007 is still required. When the extractor code lands, T-020 pins `anthropic==2.3.0` in `requirements.txt` / `pyproject.toml` (now installed only in the shared venv) (P5). Flag: jev refused requests estimated at 29.6k tokens and accepted one at 26.1k (T-002), below C-004's 32k; size chunks below the observed refusal until settled.
 Progress (2026-10-30, integrator): code and 52 tests on `reclass/t020-chunks` `45309d2` (local, not pushed; integrator re-ran the 52 tests, pass). Blocked on: T-002 estimator constants and the DP-007 margin (done condition); five stopped fields needing PI rulings, one of them a signed-codebook gap (`core.activity_relation_cross_page` priority order lacks `has_component` and `governed_by`, so a codebook delta and re-signature are needed); return report items listed for the PI 2026-10-30. RC-D-005 (approved 2026-10-30): the five stopped fields are ruled (7 a, 8 b, 9 a, 10 a, 11 a) and the ten readings settled (SPEC v001.9 R-044, C-004); still waits for T-002 and DP-007.
@@ -1279,6 +1284,7 @@ none
 ### T-021 — Build the jev pass-1 page coder stage
 
 Status: pending
+Progress (2026-11-08, integrator; RC-D-023): readiness check done (lane B). Build on `orch1108/b-t021`: shared `part_combine.py` (B-Q1 b); provisional 0.8-bar combination for gates, re-combine and re-gate after the support check as a pure function for T-030 (B-Q2 b); no `source_type` (B-Q3 a); chrome text for the two contact questions (B-Q4 b); missing request id = failed part (B-Q5); one part layout per page across rounds (B-Q6).
 Type: build
 Priority: critical-path
 Spec refs: R-001, R-002, R-008, R-015, R-020, R-021, R-023, R-026, R-030, R-081
@@ -1360,6 +1366,7 @@ More than 1 week → split CX fields from the verdict.
 RC-D-014 (2026-11-04; rulings by Simone, approved): S3 b: the pass-1 prompt text is approved later, in the single wording packet before the T-030 merge (see T-011). P5 a: span offsets count from the start of the whole page (DP-008).
 
 Status: complete
+Progress (2026-11-08, integrator; RC-D-023 C-1 a): the extractor is called once per page after its pass 1 and before following; each followed page gets its own call (replaces RC-D-021 "once per run, after T-025").
 Progress (2026-11-08, integrator; status sync): complete. Done condition met on `main` `3f077de`: tests pass (`test_extract_v27` 52, `test_stage_extract_v27` 13; CI green) and the pass-1 prompt is PI-approved (P-1 a, RC-D-021). The generated prompt install stays at the T-030 merge; T-031 review open.
 Progress (2026-11-05, integrator; RC-D-021): the pass-1 prompt is approved (P-1 a, wording packet; RC-D-014 S3 b met). Review fixes F2 (usage of billed-but-failed responses; failed pages not reported as skipped), F3 (empty anchors stay unresolved) and F6 (one bad code no longer stops the stage) go on branch `orch1107/g-pass2`.
 Progress (2026-11-05, integrator; RC-D-019): remainder built and merged PR #172 (43c8e7e): `_run_extract_v27` in `g3o/run/presweep/stage_extract.py` (orchestrator call site left to T-030), `anthropic==2.3.0` in `requirements.txt`. Generated prompt install stays at the T-030 merge (RC-D-017 P5). Open: PI prompt approval (packet), T-031.
@@ -1452,6 +1459,7 @@ Split links from quotes if the parser work exceeds 1 week.
 ### T-023 — Build the jev pass-2 activity coder
 
 Status: pending
+Progress (2026-11-08, integrator; RC-D-023): T-023 combines parts through the shared `g3o/common/part_combine.py` (mocked until the T-021 lane lands it) and applies the same re-combine and re-gate after the support check (B-Q2 b); missing request id = failed part (B-Q5).
 Progress (2026-11-05, integrator; RC-D-021): P-2c a: the T-023 activity record carries, for each `activity_segment` pair, the other activity of the pair; the pass-2 quote task is one per pair, with field `linked_activity` and the approved question (RC-D-021).
 Type: build
 Priority: critical-path
@@ -1688,6 +1696,7 @@ none
 RC-D-014 (2026-11-04; rulings by Simone, approved): S4 a: the per-institution followed-URL cap is 10. The cap gate is met; the build sets 10 as the configured value.
 
 Status: pending
+Progress (2026-11-08, integrator; RC-D-023): built on `orch1108/c-t025` `d721dac` with open rules injected; rulings C-1 a, C-Q1 b, C-Q2 a, C-Q3 b (i), C-Q4 a, C-Q5 b, readings 1-5 and Q6 to be bound in the same lane.
 Progress (2026-11-04, integrator; RC-D-017 item 10): R-032 nearness is character distance in the stored page text between the link and the nearest supporting quote; ties to page order ("10a").
 Type: build
 Priority: required
@@ -1994,6 +2003,7 @@ none
 Preparation update (2026-11-02): source-only r11/LABELS assembly is available at 2812ca22253adfa1f70f81d08f377fa15a8619f9; this closes the r8-source preparation gap only. Actual upstream stage assembly, executed configuration and immutable instrument binding remain gated. Separate T-020 branch is not part of this source candidate. T-035 final pins/six exceptions and T-031 integrated-candidate requirement remain unchanged.
 
 Status: pending
+Progress (2026-11-08, integrator; RC-D-023): T-030 calls the extractor per page before each follow round (C-1 a), calls the T-021 re-combine and re-gate after the support check (B-Q2 b), sets `release_id` for followed pages, and maps unfollowed links and `discovery_path` tokens to rows with T-028 (C-Q7).
 Progress (2026-11-05, integrator; RC-D-021): item (1) wheel packaging merged (PR #184). D-1 a: T-030 sets `not_assessable` from the readability check and writes the reason as `support_status = set_by_rule`, `support_rule_name = readability_failure:<reason>`; D-2 a: such pages get `page_review_state = reviewed`. The extractor is called once per run, after T-025. Follow-up URL cap already ruled at 10 (RC-D-014). Write claim widened to `g3o/common/credentials.py` (Anthropic key slot) and `g3o/common/cost_monitor.py` (partial cost of an interrupted v2.7 run). `claude-haiku-5-5` price row: fix branch `orch1107/h-price`. The wording packet is ruled (RC-D-014 S3 b gate met).
 Progress (2026-11-05, integrator; RC-D-019): items carried here: (1) wheel packaging — the v2.7 path reads `codebook/codebook.yaml` and `g3o/codebook/generated/*.md`, neither ships in the wheel (lane D, D3 accepted); (2) record the R-015 readability failure reason when writing `not_assessable` (`g3o/scrape/readability.readability_failure`; with T-035).
 Type: integrate
