@@ -83,6 +83,29 @@ def test_version_stamp_and_packet_wording() -> None:
     assert act["scale_number_field"]["name"] == "stated_number"
 
 
+def test_ruling_4_names_entered() -> None:
+    """PI ruling 4 (W3-1 a, W3-2 a, W7 (i) a / (ii) b / (iii) a, W8 (i)-(iv) a); the open points left are listed."""
+    act = load_set("activity")["state"]
+    prior = act["activity_fields"][2]
+    assert prior["name"].startswith("the codebook item name") and "activity_type" in prior["name"]
+    assert act["prior_missing_answer_form"].startswith("left out")
+    assert all(tok in act["prior_missing_answer_form"] for tok in ("not_documented", "unknown", "not_asked", "_NA_"))
+    assert all(p.startswith("W-03:") for p in act["open"]) and len(act["open"]) == 3
+    inst = load_set("institution")
+    pair = inst["relation"]["state"]
+    assert [f["name"] for f in pair["record_fields"]] == [
+        "activity_name", "activity_type", "action_type", "tool_name", "contracting_party", "developer",
+        "year_announced", "page_url", "source_type", "supporting_quotes"]
+    assert "entailment_label" in pair["record_value_form"]
+    assert all(p.startswith("W-07:") for p in pair["open"]) and len(pair["open"]) == 1
+    pooled = inst["pooled"]["state"]
+    assert pooled["instruction_field"] == "pool_note"
+    assert [f["name"] for f in pooled["quote_fields"]] == [
+        "quote_text", "source_type", "source_publication_date", "page_url"]
+    assert pooled["split_marker"]["name"] == "page_part"
+    assert all(p.startswith("W-08:") for p in pooled["open"]) and len(pooled["open"]) == 2
+
+
 def test_approved_slot_with_undeclared_value_is_caught(tmp_path: Path, cb: Codebook) -> None:
     d = _copy_sets(tmp_path)
     doc = json.loads((d / "activity.json").read_text(encoding="utf-8"))

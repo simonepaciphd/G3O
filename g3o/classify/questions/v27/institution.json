@@ -29,8 +29,7 @@
       ],
       "approval": "pending",
       "open": [
-        "W-07: the field name of a record's supporting quotes",
-        "W-07: how a record's coded fields are named and shown (codebook item names and codes, as declared, or plain-word labels as in W-03 a)"
+        "W-07: how a record field with a missing value (not_documented, unknown, not_asked, _NA_) is shown; missing tokens have no signed entailment_label (W3-2 a covers earlier-round answers in pass 2 only)"
       ],
       "fields": [
         {
@@ -92,11 +91,12 @@
           "value": "source type"
         },
         {
-          "name": null,
+          "name": "supporting_quotes",
           "value": "supporting quotes"
         }
       ],
-      "record_value_form": null
+      "record_value_form": "plain-word labels (W7 (ii) b, as W-03 a): activity_type, action_type and source_type as their value's entailment_label (codebook X35 label_rules), not the code; year_announced as the calendar (CE) year in four ASCII digits (X35 label_rules); activity_name, tool_name, contracting_party, developer, page_url and the quotes as stored (not coded values)",
+      "record_missing_value_form": null
     },
     "questions": [
       {
@@ -291,15 +291,15 @@
       ],
       "approval": "pending",
       "open": [
-        "W-08: the field name of the signed pool sentence",
-        "W-08: the field names of a quote's text and date, and of the split-pool marker (source_type and page_url reuse the codebook item name and the W-01 page field)"
+        "W-08: how a quote's source_type value is shown (its code, or its entailment_label as in W7 (ii) b); W7 (ii) b rules the pair records only",
+        "W-08: how a quote with no source_publication_date (missing value) is shown"
       ],
       "instruction_slot": "items/core.pooled_activity_fields/instruction",
       "instruction_placement": "a state field with the pooled material; questions stay exactly as signed",
-      "instruction_field": null,
+      "instruction_field": "pool_note",
       "quote_fields": [
         {
-          "name": null,
+          "name": "quote_text",
           "value": "quote text"
         },
         {
@@ -307,17 +307,19 @@
           "value": "source type"
         },
         {
-          "name": null,
-          "value": "date"
+          "name": "source_publication_date",
+          "value": "date: the date the source was published"
         },
         {
           "name": "page_url",
           "value": "page address"
         }
       ],
+      "quote_source_type_form": null,
+      "quote_missing_date_form": null,
       "pool_order": "source date, then position on the page (combining convention first_part)",
       "split_marker": {
-        "name": null,
+        "name": "page_part",
         "value": "marker '{i} of {n}', as for page parts"
       }
     }
@@ -331,12 +333,12 @@
     {
       "packet_item": "W-07",
       "approval": "pending",
-      "approval_record": "PI 2026-11-05 chat \"w7a\" (W-07 a: full record)"
+      "approval_record": "PI 2026-11-05 chat \"w7a\" (W-07 a: full record); PI chat \"all recs accepted\" (RULINGS.md item 4, to be recorded as RC-D-022): W7 (i) a item names plus page_url, (ii) b plain-word labels, (iii) a supporting_quotes"
     },
     {
       "packet_item": "W-08",
       "approval": "pending",
-      "approval_record": "PI 2026-11-05 chat \"w8a\" (W-08 a: sentence as a field; quote, source type, date, address)"
+      "approval_record": "PI 2026-11-05 chat \"w8a\" (W-08 a: sentence as a field; quote, source type, date, address); PI chat \"all recs accepted\" (RULINGS.md item 4, to be recorded as RC-D-022): W8 (i)-(iv) a pool_note, quote_text, source_publication_date, page_part"
     }
   ]
 }

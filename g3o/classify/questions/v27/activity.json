@@ -31,8 +31,9 @@
     ],
     "approval": "pending",
     "open": [
-      "W-03: the field label of an earlier-round answer (codebook item name, or the item's entailment_label)",
-      "W-03: how an earlier-round missing answer (not_documented, unknown, not_asked, _NA_) is shown; missing tokens have no signed entailment_label"
+      "W-03: the field name of the second part of core.observed_actor_relationship (searched_institution_role); W3-1 a names a field by its codebook item name, and both parts share the item name observed_actor_relationship",
+      "W-03: how a multi-answer item (core.governance_form, core.service_domain) shows several plain-word labels in one field",
+      "W-03: the order of the earlier-round answer fields"
     ],
     "extends": "page state",
     "activity_fields": [
@@ -47,13 +48,16 @@
         "rounds": "every round"
       },
       {
-        "name": null,
+        "name": "the codebook item name of the answer's item (the question's column, e.g. activity_type)",
         "value": "each answer to this activity from an earlier pass-2 round",
         "rounds": "every round after the answer's round"
       }
     ],
-    "prior_answers_form": "plain-word labels: each earlier-round answer as its value's entailment_label (the labels signed for the quote check, codebook X35 label_rules), not its code",
-    "prior_missing_answer_form": null,
+    "prior_answers_form": "plain-word labels: each earlier-round answer as its value's entailment_label (the labels signed for the quote check, codebook X35 label_rules; slots items/<item>/values/<n>/entailment_label, generated in jev_questions.json core.support_entailment labels), not its code; a year item's answer as the calendar (CE) year in four ASCII digits (X35 label_rules)",
+    "prior_missing_answer_form": "left out: an earlier-round answer not_documented, unknown, not_asked or _NA_ gives no field, so the coder is not shown it",
+    "prior_answer_order": null,
+    "prior_answer_role_part_name": null,
+    "prior_multi_answer_form": null,
     "span_marker": {
       "open": "[[Ak]]",
       "close": "[[/Ak]]",
@@ -100,7 +104,7 @@
     {
       "packet_item": "W-03",
       "approval": "pending",
-      "approval_record": "PI 2026-11-05 chat \"w3a\" (W-03 a: name, tool, earlier answers as plain-word labels)"
+      "approval_record": "PI 2026-11-05 chat \"w3a\" (W-03 a: name, tool, earlier answers as plain-word labels); PI chat \"all recs accepted\" (RULINGS.md item 4, to be recorded as RC-D-022): W3-1 a (field = codebook item name), W3-2 a (a missing earlier answer is left out)"
     },
     {
       "packet_item": "W-04",

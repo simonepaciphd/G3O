@@ -63,17 +63,20 @@ PENDING = "pending"  # PI wording approval, RC-D-014 S3 b
 APPROVED = "approved"
 
 #: PI rulings on the wording packet (agent-workspace 2026-11-07-v27-orch WORDING-PACKET.md;
-#: verbatim replies in its RULINGS.md items 2 and 3). A slot is ``approved`` only when every
+#: verbatim replies in its RULINGS.md items 2-4). A slot is ``approved`` only when every
 #: value it declares is entered; a slot with an open point stays ``pending`` and lists it.
 PACKET_RULINGS = {
     "W-01": 'PI 2026-11-05 chat "w1a" (W-01 a: keep the re-pilot page layout)',
     "W-02": 'PI 2026-11-05 chat "w2a" (W-02 a: coder briefing and part sentence with the page material)',
-    "W-03": 'PI 2026-11-05 chat "w3a" (W-03 a: name, tool, earlier answers as plain-word labels)',
+    "W-03": 'PI 2026-11-05 chat "w3a" (W-03 a: name, tool, earlier answers as plain-word labels); '
+            'PI chat "all recs accepted" (RULINGS.md item 4, to be recorded as RC-D-022): W3-1 a (field = codebook item name), W3-2 a (a missing earlier answer is left out)',
     "W-04": 'PI 2026-11-05 chat "w4a" (W-04 a: markers only); strings [[Ak]]/[[/Ak]] (ruling 3 a)',
     "W-05": 'PI 2026-11-05 chat "w5a" (W-05 a: the year alone); W-05-P2 refresh accepted as procedural',
     "W-06": 'PI 2026-11-05 chat "w6a" (W-06 a: labelled field); label stated_number (ruling 3 a)',
-    "W-07": 'PI 2026-11-05 chat "w7a" (W-07 a: full record)',
-    "W-08": 'PI 2026-11-05 chat "w8a" (W-08 a: sentence as a field; quote, source type, date, address)',
+    "W-07": 'PI 2026-11-05 chat "w7a" (W-07 a: full record); '
+            'PI chat "all recs accepted" (RULINGS.md item 4, to be recorded as RC-D-022): W7 (i) a item names plus page_url, (ii) b plain-word labels, (iii) a supporting_quotes',
+    "W-08": 'PI 2026-11-05 chat "w8a" (W-08 a: sentence as a field; quote, source type, date, address); '
+            'PI chat "all recs accepted" (RULINGS.md item 4, to be recorded as RC-D-022): W8 (i)-(iv) a pool_note, quote_text, source_publication_date, page_part',
 }
 
 # --------------------------------------------------------------------------- state declarations
@@ -102,20 +105,31 @@ ACTIVITY_STATE = {
     "packet_items": ["W-01", "W-02", "W-03", "W-04", "W-06"],
     "approval": PENDING,
     "open": [
-        "W-03: the field label of an earlier-round answer (codebook item name, or the item's entailment_label)",
-        "W-03: how an earlier-round missing answer (not_documented, unknown, not_asked, _NA_) is shown; "
-        "missing tokens have no signed entailment_label",
+        "W-03: the field name of the second part of core.observed_actor_relationship (searched_institution_role); "
+        "W3-1 a names a field by its codebook item name, and both parts share the item name "
+        "observed_actor_relationship",
+        "W-03: how a multi-answer item (core.governance_form, core.service_domain) shows several plain-word "
+        "labels in one field",
+        "W-03: the order of the earlier-round answer fields",
     ],
     "extends": "page state",
     "activity_fields": [               # W-03 a
         {"name": "activity_name", "value": "the extracted activity name", "rounds": "every round"},
         {"name": "tool_name", "value": "the extracted tool name", "rounds": "every round"},
-        {"name": None, "value": "each answer to this activity from an earlier pass-2 round",
-         "rounds": "every round after the answer's round"},
+        {"name": "the codebook item name of the answer's item (the question's column, e.g. activity_type)",
+         "value": "each answer to this activity from an earlier pass-2 round",
+         "rounds": "every round after the answer's round"},                     # W3-1 a
     ],
     "prior_answers_form": "plain-word labels: each earlier-round answer as its value's entailment_label "
-                          "(the labels signed for the quote check, codebook X35 label_rules), not its code",
-    "prior_missing_answer_form": None,  # W-03: open, see "open"
+                          "(the labels signed for the quote check, codebook X35 label_rules; slots "
+                          "items/<item>/values/<n>/entailment_label, generated in jev_questions.json "
+                          "core.support_entailment labels), not its code; a year item's answer as the "
+                          "calendar (CE) year in four ASCII digits (X35 label_rules)",
+    "prior_missing_answer_form": "left out: an earlier-round answer not_documented, unknown, not_asked or _NA_ "
+                                 "gives no field, so the coder is not shown it",  # W3-2 a
+    "prior_answer_order": None,        # W-03: open, see "open"
+    "prior_answer_role_part_name": None,  # W-03: open, see "open"
+    "prior_multi_answer_form": None,   # W-03: open, see "open"
     "span_marker": {"open": "[[Ak]]", "close": "[[/Ak]]",
                     "k": "the activity id, e.g. [[A1]] ... [[/A1]] (as the P-2 extractor marks)",
                     "placement": "around each linked passage of the activity"},  # W-04 a, ruling 3 a
@@ -160,9 +174,8 @@ PAIR_STATE = {
     "packet_items": ["W-02", "W-07"],
     "approval": PENDING,
     "open": [
-        "W-07: the field name of a record's supporting quotes",
-        "W-07: how a record's coded fields are named and shown (codebook item names and codes, as declared, "
-        "or plain-word labels as in W-03 a)",
+        "W-07: how a record field with a missing value (not_documented, unknown, not_asked, _NA_) is shown; "
+        "missing tokens have no signed entailment_label (W3-2 a covers earlier-round answers in pass 2 only)",
     ],
     "fields": [
         {"name": "coder_instructions", "value": "signed slot shared/system_prompt_stage6, verbatim"},
@@ -171,7 +184,7 @@ PAIR_STATE = {
         {"name": "first_record", "value": "the first activity's full record (record_fields)"},    # W-07 a
         {"name": "second_record", "value": "the second activity's full record (record_fields)"},  # W-07 a
     ],
-    "record_fields": [                 # W-07 a, in the ruled order
+    "record_fields": [                 # W-07 a, in the ruled order; names W7 (i) a, (iii) a
         {"name": "activity_name", "value": "name"},
         {"name": "activity_type", "value": "type"},
         {"name": "action_type", "value": "action"},
@@ -181,30 +194,37 @@ PAIR_STATE = {
         {"name": "year_announced", "value": "year announced"},
         {"name": "page_url", "value": "page address"},
         {"name": "source_type", "value": "source type"},
-        {"name": None, "value": "supporting quotes"},
+        {"name": "supporting_quotes", "value": "supporting quotes"},
     ],
-    "record_value_form": None,         # W-07: open, see "open"
+    "record_value_form": "plain-word labels (W7 (ii) b, as W-03 a): activity_type, action_type and source_type "
+                         "as their value's entailment_label (codebook X35 label_rules), not the code; "
+                         "year_announced as the calendar (CE) year in four ASCII digits (X35 label_rules); "
+                         "activity_name, tool_name, contracting_party, developer, page_url and the quotes "
+                         "as stored (not coded values)",
+    "record_missing_value_form": None,  # W-07: open, see "open"
 }
 
 POOLED_STATE = {
     "packet_items": ["W-02", "W-08"],
     "approval": PENDING,
     "open": [
-        "W-08: the field name of the signed pool sentence",
-        "W-08: the field names of a quote's text and date, and of the split-pool marker "
-        "(source_type and page_url reuse the codebook item name and the W-01 page field)",
+        "W-08: how a quote's source_type value is shown (its code, or its entailment_label as in W7 (ii) b); "
+        "W7 (ii) b rules the pair records only",
+        "W-08: how a quote with no source_publication_date (missing value) is shown",
     ],
     "instruction_slot": POOLED_INSTRUCTION_SLOT,
     "instruction_placement": "a state field with the pooled material; questions stay exactly as signed",  # W-08 a
-    "instruction_field": None,         # W-08: open, see "open"
-    "quote_fields": [                  # W-08 a
-        {"name": None, "value": "quote text"},
+    "instruction_field": "pool_note",  # W8 (i) a
+    "quote_fields": [                  # W-08 a; names W8 (ii) a, (iii) a, source_type and page_url kept
+        {"name": "quote_text", "value": "quote text"},
         {"name": "source_type", "value": "source type"},
-        {"name": None, "value": "date"},
+        {"name": "source_publication_date", "value": "date: the date the source was published"},
         {"name": "page_url", "value": "page address"},
     ],
+    "quote_source_type_form": None,    # W-08: open, see "open"
+    "quote_missing_date_form": None,   # W-08: open, see "open"
     "pool_order": "source date, then position on the page (combining convention first_part)",
-    "split_marker": {"name": None, "value": "marker '{i} of {n}', as for page parts"},  # W-08 a
+    "split_marker": {"name": "page_part", "value": "marker '{i} of {n}', as for page parts"},  # W-08 a, W8 (iv) a
 }
 
 
