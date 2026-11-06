@@ -194,3 +194,47 @@ def test_real_pages_resolve_and_quotes_occur():
         for e in f["expected"]:
             q = e.get("evidence_quote")
             assert not q or any(norm(q) in t for t in texts), (f["fixture_id"], q)
+
+
+def _injected_answers(o):
+    if isinstance(o, dict):
+        if "value" in o and "support" in o:
+            yield o
+        else:
+            for v in o.values():
+                yield from _injected_answers(v)
+    elif isinstance(o, list):
+        for v in o:
+            yield from _injected_answers(v)
+
+
+def test_injected_support_follows_codebook_status_by_answer(fixtures):
+    """An injected value the signed vocabulary maps to not_required is never `supported` (r13).
+
+    It is `not_required`, or downgraded when it misses the 0.8 bar (R-081).
+    """
+    cb = yaml.safe_load(CODEBOOK.read_text(encoding="utf-8"))
+    by_answer = cb["vocabularies"]["support_status"]["status_by_answer"]
+    exempt = {k for k, v in by_answer.items() if v == "not_required"}
+    assert {"no", "unresolved", "unclear", "none"} <= exempt
+    bad = [
+        (f["fixture_id"], a["value"], a["support"])
+        for f in fixtures
+        for a in _injected_answers(f.get("injected") or {})
+        if str(a["value"]) in exempt and a["support"] == "supported"
+    ]
+    assert not bad, bad
+
+
+def test_cap_fixture_follows_page_order_when_no_link_is_located(fixtures):
+    """v27-syn-A004-02: RC-D-017 10a + RC-D-023 C-Q4 a fix which 10 of 13 links are followed (JC-S4 closed)."""
+    f = next(x for x in fixtures if x["fixture_id"] == "v27-syn-A004-02")
+    exp = {e["item"]: e["value"] for e in f["expected"]}
+    links = [lk["url"].rsplit("/", 1)[1] for lk in f["pages"][0]["links"]]
+    assert exp["n_followed"] == 10 and exp["cap_reached"] is True
+    assert exp["which_followed"] == links[:10]
+    assert exp["not_followed"] == links[10:]
+    jc = {
+        r["jc_id"]: r for r in csv.DictReader((FIX / "judgement-calls.csv").open(encoding="utf-8"))
+    }
+    assert jc["JC-S4"]["status"].startswith("closed")

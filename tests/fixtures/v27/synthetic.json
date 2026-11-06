@@ -1238,7 +1238,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1250,7 +1250,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1262,7 +1262,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1274,7 +1274,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1286,7 +1286,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1298,7 +1298,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1310,7 +1310,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1322,7 +1322,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1334,7 +1334,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1346,7 +1346,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1358,7 +1358,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1370,7 +1370,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1382,7 +1382,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -1424,9 +1424,32 @@
     {
      "item": "which_followed",
      "scope": "institution",
-     "value": "unspecified",
-     "rule": "SPEC R-032 does not fix which 10 of 13 eligible links are followed",
-     "judgement_call": "JC-S4"
+     "value": [
+      "l01",
+      "l02",
+      "l03",
+      "l04",
+      "l05",
+      "l06",
+      "l07",
+      "l08",
+      "l09",
+      "l10"
+     ],
+     "rule": "SPEC R-032 (RC-D-015 F1 b; RC-D-017 10a): links nearest a supporting quote first, ties to page order; RC-D-023 C-Q4 a: links with no located position rank after located ones, in page order. No link passage is located here, so the first 10 in page order are followed",
+     "judgement_call": "JC-S4",
+     "label_date": "2026-11-06"
+    },
+    {
+     "item": "not_followed",
+     "scope": "institution",
+     "value": [
+      "l11",
+      "l12",
+      "l13"
+     ],
+     "rule": "SPEC R-032 cap of 10 (RC-D-014 S4); RC-D-023 C-Q4 a page order: the last three eligible links are not followed, reason cap reached",
+     "label_date": "2026-11-06"
     }
    ]
   },
@@ -1510,7 +1533,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      }
     },
     "link_selection": {
@@ -1582,7 +1605,7 @@
      "core.page_complete": {
       "value": "no",
       "p": 0.95,
-      "support": "supported"
+      "support": "not_required"
      },
      "core.page_verdict": {
       "value": "confirms_activity",
@@ -2253,7 +2276,7 @@
       "core.activity_relation_cross_page": {
        "value": "unresolved",
        "p": 0.7,
-       "support": "supported"
+       "support": "not_required"
       }
      }
     ]
