@@ -1,7 +1,8 @@
 """T-025 link-following rules (g3o.scrape.follow): hops, once per URL, cap, ranking, provenance.
 
-The nearness and URL-identity rules are OPEN (lane report QUESTION block); these tests pass
-explicit test stand-ins, which are fixtures, not proposals.
+Most tests pass explicit stand-ins (nearness carried in the link passage, exact-string URLs) to
+isolate one rule each; the RC-D-023 defaults are tested at the end of the module. The default URL
+key imports ``g3o.run.presweep``, so this module runs on the shared venv.
 """
 
 from __future__ import annotations
@@ -47,7 +48,7 @@ def extraction(p: Pass1Page, selected: list[str] | None = None,
                            activities=(), publication_date=None, link_status=None)
 
 
-def stand_in_nearness(_page, _extraction, link) -> float:
+def stand_in_nearness(_page, link, _supported) -> float:
     # test fixture: the nearness value is carried in the link passage
     return float(link.quote)
 
@@ -65,7 +66,7 @@ def state(**kw) -> InstitutionFollow:
 
 def follow_all(s: InstitutionFollow, pairs, outcome=FETCHED):
     taken = []
-    for c in s.candidates(pairs):
+    for c in s.candidates(pairs, supported={}):
         if s.take(c):
             s.record(c, outcome, "2026-11-05" if outcome == FETCHED else None)
             taken.append(c)
@@ -88,14 +89,14 @@ def test_complete_page_gives_no_candidates():
     s = state()
     p = page("https://a/0", ["https://a/1"], complete="no")
     s.register_original(p.url)
-    assert s.candidates([(p, extraction(p))]) == []
+    assert s.candidates([(p, extraction(p))], supported={}) == []
 
 
 def test_only_quote_step_selected_links_are_candidates():
     s = state()
     p = page("https://a/0", ["https://a/1", "https://a/2"])
     s.register_original(p.url)
-    cands = s.candidates([(p, extraction(p, selected=["https://a/2"]))])
+    cands = s.candidates([(p, extraction(p, selected=["https://a/2"]))], supported={})
     assert [c.url for c in cands] == ["https://a/2"]
     assert cands[0].link_order == 2
 
@@ -125,7 +126,7 @@ def test_once_per_url_loops_and_originals():
     s.register_original(a)
     assert [c.url for c in follow_all(s, [(pa, extraction(pa))])] == [b]
     pb = page(b, [a, b])  # loop back to the original and to itself
-    assert s.candidates([(pb, extraction(pb))]) == []
+    assert s.candidates([(pb, extraction(pb))], supported={}) == []
     assert len(s.records) == 1
 
 
@@ -137,7 +138,7 @@ def test_same_url_on_two_pages_parent_is_first_queued():
     for p in (p1, p2):
         s.register_original(p.url)
     cands = s.candidates([(p1, extraction(p1, nearness={x: 50})),
-                          (p2, extraction(p2, nearness={x: 5}))])
+                          (p2, extraction(p2, nearness={x: 5}))], supported={})
     assert [(c.url, c.parent_url) for c in cands] == [(x, p2.url)]  # F2 a, rank order
 
 
@@ -145,7 +146,7 @@ def test_url_key_defines_identity():
     s = state(url_key=lambda u: u.rstrip("/"))
     p = page("https://a/0", ["https://a/1", "https://a/1/"])
     s.register_original(p.url)
-    assert [c.url for c in s.candidates([(p, extraction(p))])] == ["https://a/1"]
+    assert [c.url for c in s.candidates([(p, extraction(p))], supported={})] == ["https://a/1"]
 
 
 def test_ranking_nearest_first_ties_page_order():
@@ -203,14 +204,14 @@ def test_unfetched_counting_is_a_rule_input(count_unfetched, followed):
     assert s.followed == followed
     assert [r.fetch_date for r in s.records] == [None, None]
     # a failed URL is not tried again (R-034)
-    assert s.candidates([(p, extraction(p))]) == []
+    assert s.candidates([(p, extraction(p))], supported={}) == []
 
 
 def test_provenance_fields():
     s = InstitutionFollow(INST, "rel-9", rules(), backfill=True)
     p = page("https://a/0", ["https://a/1"])
     s.register_original(p.url)
-    (c,) = s.candidates([(p, extraction(p))])
+    (c,) = s.candidates([(p, extraction(p))], supported={})
     rec = s.record(c, FETCHED, "2026-11-05")
     assert (rec.parent_page_id, rec.parent_url, rec.hop, rec.fetch_date, rec.release_id,
             rec.backfill, rec.counted, rec.link_id) == (
@@ -224,13 +225,121 @@ def test_guards():
     s = state()
     p = page("https://a/0", ["https://a/1"])
     with pytest.raises(KeyError):
-        s.candidates([(p, extraction(p))])  # page never fetched for this institution
+        s.candidates([(p, extraction(p))], supported={})  # page never fetched for this institution
     s.register_original(p.url)
     other = page("https://b/0", [], inst="inst-2")
     with pytest.raises(ValueError, match="not inst-1"):
-        s.candidates([(other, extraction(other))])
-    (c,) = s.candidates([(p, extraction(p))])
+        s.candidates([(other, extraction(other))], supported={})
+    (c,) = s.candidates([(p, extraction(p))], supported={})
     with pytest.raises(ValueError, match="fetch date"):
         s.record(c, FETCHED, None)
     with pytest.raises(ValueError, match="unknown outcome"):
         s.record(c, "bogus", None)
+
+
+# -- RC-D-023 defaults ("accept all", 2026-11-08) ---------------------------------------------
+
+from g3o.scrape.follow import (  # noqa: E402
+    UNLOCATED,
+    locate,
+    quote_nearness,
+    same_url_key,
+    span_gap,
+)
+
+
+def test_default_rules_are_rc_d_023():
+    r = FollowRules()
+    assert (r.url_key, r.nearness, r.count_unfetched, r.url_cap, r.max_hops) == (
+        same_url_key, quote_nearness, True, 10, 3)
+    assert InstitutionFollow(INST, "rel").rules == r
+
+
+def test_q1b_same_url_is_discovery_dedup_key():
+    from g3o.run.presweep.records import _dedupe_key
+    for u in ("https://WWW.A.gov/x/", "https://a.gov/x#s2", "https://a.gov/x?q=1"):
+        assert same_url_key(u) == _dedupe_key(u)
+    assert same_url_key("https://WWW.A.gov/x/") == same_url_key("https://a.gov/x#s2")
+    assert same_url_key("https://a.gov/x?q=1") != same_url_key("https://a.gov/x")
+    s = InstitutionFollow(INST, "rel")
+    p = page("https://a.gov/0", ["https://a.gov/1", "https://www.a.gov/1/#top", "https://a.gov/0#x"])
+    s.register_original(p.url)
+    assert [c.url for c in s.candidates([(p, extraction(p))], supported={})] == ["https://a.gov/1"]
+
+
+def test_q2a_link_located_exact_then_by_words():
+    text = "Intro. The council published the full AI pilot report here. End."
+    assert locate("the full AI pilot report", text) == (29, 53)
+    assert locate("THE  FULL ai pilot", text) == (29, 46)  # case and whitespace
+    lo, hi = locate("full pilot report", text)  # words left out: first to last matched word
+    assert text[lo:hi] == "full AI pilot report"
+    assert locate("nothing matches", text) is None
+    assert locate("  ", text) is None
+
+
+def test_q3b_gap_between_spans():
+    assert span_gap((0, 10), (15, 20)) == 5
+    assert span_gap((15, 20), (0, 10)) == 5
+    assert span_gap((0, 10), (5, 20)) == 0  # overlap
+    assert span_gap((0, 10), (10, 20)) == 0  # touching
+
+
+def link_with(quote: str) -> SelectedLink:
+    return SelectedLink("L001", "https://a/1", "c1", quote)
+
+
+def test_q3b_nearest_supported_quote_only():
+    text = "AAAA link passage here. " + "x" * 50 + " supported quote one. " + "y" * 10 + " q two."
+    p = page("https://a/0", ["https://a/1"], text=text)
+    ln = link_with("link passage here")
+    end_link = text.index("link passage here") + len("link passage here")
+    d1 = text.index("supported quote one") - end_link
+    assert quote_nearness(p, ln, ["supported quote one"]) == d1
+    assert quote_nearness(p, ln, ["supported quote one", "AAAA link"]) == 0  # overlap
+    # only the supported quotes the caller passes count (T-024 results)
+    assert quote_nearness(p, ln, []) == UNLOCATED
+
+
+def test_q4a_unlocated_rank_after_located_in_page_order():
+    text = "alpha link one. beta quote. gamma link two. delta."
+    links = ["https://a/1", "https://a/2", "https://a/3", "https://a/4"]
+    p = page("https://a/0", links, text=text)
+    sel = (SelectedLink("L001", links[0], "c1", "zzz not on page"),
+           SelectedLink("L002", links[1], "c1", "gamma link two"),
+           SelectedLink("L003", links[2], "c1", "qqq absent"),
+           SelectedLink("L004", links[3], "c1", "alpha link one"))
+    ex = Pass1Extraction(page_id=p.page_id, custom_id="x", quotes=(), links=sel, activities=(),
+                         publication_date=None, link_status=None)
+    s = InstitutionFollow(INST, "rel")
+    s.register_original(p.url)
+    ranked = s.candidates([(p, ex)], supported={p.page_id: ["beta quote"]})
+    assert [c.url for c in ranked] == [links[1], links[3], links[0], links[2]]
+    assert [c.nearness for c in ranked][2:] == [UNLOCATED, UNLOCATED]
+    # a page with no located supported quote: all its links unlocated, in page order
+    s2 = InstitutionFollow(INST, "rel")
+    s2.register_original(p.url)
+    assert [c.url for c in s2.candidates([(p, ex)], supported={})] == links
+
+
+def test_q4a_unlocated_still_followed_if_cap_allows():
+    s = InstitutionFollow(INST, "rel")
+    p = page("https://a/0", ["https://a/1"])
+    s.register_original(p.url)
+    taken = follow_all(s, [(p, extraction(p))])  # stand-in passage "0.0" is not on the page
+    assert [c.url for c in taken] == ["https://a/1"]
+
+
+def test_q5b_every_url_tried_counts():
+    s = InstitutionFollow(INST, "rel")
+    links = [f"https://a/{i}" for i in range(1, 13)]
+    p = page("https://a/0", links)
+    s.register_original(p.url)
+    cands = s.candidates([(p, extraction(p))], supported={})
+    outcomes = [FETCH_FAILED, "robots_disallowed"] + [FETCHED] * 10
+    for c, o in zip(cands, outcomes, strict=True):
+        if s.take(c):
+            s.record(c, o, "2026-11-08" if o == FETCHED else None)
+    cap = s.cap_record()
+    assert (cap.followed, cap.cap_reached, cap.not_followed_cap) == (10, True, 2)
+    assert [r.outcome for r in s.records[:2]] == [FETCH_FAILED, "robots_disallowed"]
+    assert all(r.counted for r in s.records)

@@ -29,7 +29,13 @@ from typing import Any
 from g3o.common import attrition
 from g3o.common.artifact_io import write_artifact
 from g3o.common.paths import institution_dir
-from g3o.scrape.follow import FETCH_FAILED, FETCHED, FollowRecord, InstitutionFollow
+from g3o.scrape.follow import (
+    FETCH_FAILED,
+    FETCHED,
+    FollowRecord,
+    InstitutionFollow,
+    SupportedQuotes,
+)
 from g3o.scrape.render import RenderedPage
 
 STAGE = "follow"
@@ -85,12 +91,16 @@ def run_follow_round(
     pages: Sequence[tuple[Any, Any]],
     *,
     fetch: Callable[[str], FetchResult],
+    supported: SupportedQuotes,
 ) -> list[FollowedPage]:
     """Run one follow round over ``pages`` (``(Pass1Page, Pass1Extraction)`` pairs).
 
     Every institution with a page must have a state in ``states`` (its original pages registered
     with :meth:`InstitutionFollow.register_original`). Institutions are handled in sorted id order
     and pages in input order, so the round is deterministic for a given input.
+
+    ``supported`` maps each page id to its quotes that passed the T-024 support check; T-030
+    supplies it (RC-D-023 Q3 b). Every URL tried counts against the cap (RC-D-023 Q5 b).
     """
     from g3o.extract.batch import url_hash
 
@@ -105,7 +115,7 @@ def run_follow_round(
         state = states[inst_id]
         follow_dir = institution_dir(run_dir, inst_id) / "follow"
         n_before = len(state.not_followed)
-        for cand in state.candidates(by_inst[inst_id]):
+        for cand in state.candidates(by_inst[inst_id], supported=supported):
             if not state.take(cand):
                 continue
             result = fetch(cand.url)

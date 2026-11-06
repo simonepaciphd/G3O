@@ -11,7 +11,7 @@ from g3o.common.artifact_io import read_artifact
 from g3o.common.paths import institution_dir
 from g3o.run.presweep import stage_follow
 from g3o.run.presweep.stage_follow import FetchResult, polite_fetch, run_follow_round
-from g3o.scrape.follow import FETCH_FAILED, FETCHED, InstitutionFollow
+from g3o.scrape.follow import FETCH_FAILED, FETCHED, FollowRules, InstitutionFollow
 from g3o.scrape.render import FetchMetadata, RenderedPage
 from tests.test_follow import INST, extraction, page, rules
 
@@ -44,7 +44,7 @@ def test_round_fetches_writes_and_records(tmp_path):
     p0 = page("https://a/0", ["https://a/1", "https://a/2", "https://a/3"])
     st.register_original(p0.url)
     fetch = FakeFetch(fail={"https://a/2"})
-    out = run_follow_round(tmp_path, {INST: st}, [(p0, extraction(p0))], fetch=fetch)
+    out = run_follow_round(tmp_path, {INST: st}, [(p0, extraction(p0))], fetch=fetch, supported={})
     assert fetch.calls == ["https://a/1", "https://a/2", "https://a/3"]
     assert [f.page.url for f in out] == ["https://a/1", "https://a/3"]
     assert json.loads(read_artifact(out[0].artifact))["url"] == "https://a/1"
@@ -64,7 +64,7 @@ def test_rounds_chain_until_hop_limit(tmp_path):
     fetch = FakeFetch()
     current = [(p0, extraction(p0))]
     for i in range(1, 6):
-        out = run_follow_round(tmp_path, {INST: st}, current, fetch=fetch)
+        out = run_follow_round(tmp_path, {INST: st}, current, fetch=fetch, supported={})
         current = []
         for f in out:  # next pass-1 round on the fetched page (mocked T-021 output)
             nxt = page(f.page.url, [f"https://a/{i + 1}"])
@@ -77,7 +77,7 @@ def test_rounds_chain_until_hop_limit(tmp_path):
 def test_unknown_institution_raises(tmp_path):
     p0 = page("https://a/0", ["https://a/1"])
     with pytest.raises(KeyError):
-        run_follow_round(tmp_path, {}, [(p0, extraction(p0))], fetch=FakeFetch())
+        run_follow_round(tmp_path, {}, [(p0, extraction(p0))], fetch=FakeFetch(), supported={})
 
 
 def test_polite_fetch_robots_throttle_and_failure(monkeypatch):
@@ -110,3 +110,25 @@ def test_polite_fetch_robots_throttle_and_failure(monkeypatch):
     ok = fetch("https://a/ok")
     assert ok.outcome == FETCHED and ok.page.url == "https://a/ok"
     assert th.waits == [("https://a/dead", 2.0), ("https://a/ok", 2.0)]
+
+
+def test_default_rules_supported_quotes_and_failed_counts(tmp_path):
+    # RC-D-023 defaults: nearness from the supported quotes the caller passes; failures count (Q5 b)
+    from g3o.extract.parser_v27 import Pass1Extraction, SelectedLink
+
+    text = "first link passage. far away text " + "x" * 80 + " the supported quote. second link."
+    links = ["https://a/1", "https://a/2", "https://a/3"]
+    p0 = page("https://a/0", links, text=text)
+    ex = Pass1Extraction(
+        page_id=p0.page_id, custom_id="x", quotes=(), activities=(), publication_date=None,
+        link_status=None, links=(SelectedLink("L001", links[0], "c1", "first link passage"),
+                                 SelectedLink("L002", links[1], "c1", "second link"),
+                                 SelectedLink("L003", links[2], "c1", "not on page")))
+    st = InstitutionFollow(INST, "rel-1", FollowRules(url_cap=2))
+    st.register_original(p0.url)
+    fetch = FakeFetch(fail={links[1]})
+    out = run_follow_round(tmp_path, {INST: st}, [(p0, ex)], fetch=fetch,
+                           supported={p0.page_id: ["the supported quote"]})
+    assert fetch.calls == [links[1], links[0]]  # nearest first; the failure counted
+    assert [f.page.url for f in out] == [links[0]]
+    assert st.cap_record().not_followed_cap == 1
