@@ -286,7 +286,6 @@ def test_numbering_word_needs_to_be_just_before():
 @pytest.mark.parametrize("text,expected", [
     ("2024-25", [2024]),                      # unmarked two-digit end is not a range end
     ("2014-25", []),
-    ("2019-2020-2021", [2019, 2020, 2021]),    # chains are not ranges
     ("2024-06-30", [2024]),                    # ISO date
     ("2025-2019", [2019, 2025]),               # descending
     ("2566-2567", []),                         # outside the 1900-2099 guard (unmarked BE)
@@ -624,3 +623,82 @@ def test_r13_thai_four_digit_end():
 
 def forms_of_ref(text: str, year: int, ref: int) -> set[str]:
     return {s.form for c in extract_year_candidates(text, reference_year=ref) if c.year == year for s in c.sources}
+
+
+# ---- PI F-1 b: unruled year forms read like R-4 a ------------------------------------------------------
+
+@pytest.mark.parametrize("text", ["FY 2014-15 to 2019-20", "FY2014-15 to 2019-20", "FY 2014/15 through 2019/20",
+                                  "FY 2014-15 to 2019-20", "Haushaltsjahr 2014/15 to 2019/20"])
+def test_fiscal_spans_joined_by_a_range_word_give_two_labels(text):
+    labels = fiscal_labels(text, reference_year=REF)
+    assert [(f.kind, f.years) for f in labels] == [(FISCAL_TWO, (2014, 2015)), (FISCAL_TWO, (2019, 2020))]
+    assert all(text[f.start:f.end] == f.text for f in labels)
+    assert years(text) == [2014, 2015, 2019, 2020]
+    assert forms_of(text, 2020) == {FISCAL_UPPER}
+    assert year_ranges(text, reference_year=REF) == []  # left to the fiscal labels: no second reading
+
+
+@pytest.mark.parametrize("text", ["2014-15 to 2019-20", "2014/15 to 2019/20", "2014-15 until 2019-20",
+                                  "Plan 2014-15 to 2019-20."])
+def test_unmarked_spans_joined_by_a_range_word_give_two_labels(text):
+    labels = year_ranges(text, reference_year=REF)
+    assert [(f.kind, f.years, f.rule) for f in labels] == [(RANGE, (2014, 2015), Y.R_RANGE_SPAN_PAIR),
+                                                           (RANGE, (2019, 2020), Y.R_RANGE_SPAN_PAIR)]
+    assert [f.text.replace("/", "-") for f in labels] == ["2014-15", "2019-20"]
+    assert years(text) == [2014, 2015, 2019, 2020]
+    assert forms_of(text, 2014) == {RANGE_LOWER}
+    assert forms_of(text, 2020) == {RANGE_UPPER}
+
+
+def test_span_pair_mixed_four_digit_end_no_double_reading():
+    text = "2014-15 to 2019-2020"
+    labels = year_ranges(text, reference_year=REF)
+    assert [(f.years, f.rule) for f in labels] == [((2014, 2015), Y.R_RANGE_SPAN_PAIR),
+                                                   ((2019, 2020), Y.R_RANGE_SEP)]
+    assert years(text) == [2014, 2015, 2019, 2020]
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("pp. 2014-15 to 2019-20", [2015, 2019, 2020]),  # numbering word: unmarked ends keep 2015-2030
+    ("2019-20 to 2014-15", [2019]),                  # runs backward: no span pair, literal 2019 only
+    ("2014-15 and 2019-20", [2019]),                 # not a range word
+    ("2014-2015 to 2019-2020", [2014, 2015, 2019, 2020]),  # four-digit spans: two plain ranges, as before
+])
+def test_span_pair_limits(text, expected):
+    assert years(text) == expected
+
+
+@pytest.mark.parametrize("text", ["Strategy 2010-15", "Plan 2014-20", "2010-15"])
+def test_r2a_still_holds_beside_span_pairs(text):
+    assert year_ranges(text, reference_year=REF) == [] and years(text) == []
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("2010-2012-2014", [2010, 2012, 2014]),
+    ("2010 - 2012 - 2014", [2010, 2012, 2014]),
+    ("2010/2012/2014/2016", [2010, 2012, 2014, 2016]),
+    ("2019-2020-2021", [2019, 2020, 2021]),
+    ("1850-1870-2010", [2010]),       # each year bounded on its own (R-3 b)
+])
+def test_year_chain_gives_every_year(text, expected):
+    assert years(text) == expected
+    labels = year_ranges(text, reference_year=REF)
+    assert labels and all(f.kind == RANGE and f.rule == Y.R_RANGE_CHAIN for f in labels)
+    assert all(text[f.start:f.end] == f.text for f in labels)
+
+
+def test_year_chain_sources_are_consecutive_pairs():
+    labels = year_ranges("2010-2012-2014", reference_year=REF)
+    assert [(f.text, f.years) for f in labels] == [("2010-2012", (2010, 2012)), ("2012-2014", (2012, 2014))]
+    assert forms_of("2010-2012-2014", 2012) == {RANGE_LOWER, RANGE_UPPER}
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("2014-2012-2010", []),           # does not run forward: no chain
+    ("2010-2012-2012", []),
+    ("pp. 2010-2012-2014", []),       # numbering word keeps 2015-2030
+    ("2010-12-14", []),               # date, not four-digit years
+    ("2024-06-30", [2024]),
+])
+def test_year_chain_limits(text, expected):
+    assert years(text) == expected
