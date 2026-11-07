@@ -257,7 +257,7 @@ class PageActivityResult:
             "codebook_sha256": self.codebook_sha256, "coder_version": self.coder_version,
             "activities": [{
                 "activity_id": a.activity_id, "label": a.label, "start": a.start, "end": a.end,
-                "chunk_ids": list(a.chunk_ids),
+                "chunk_ids": list(a.chunk_ids), "part_indices": list(a.part_indices),
                 "outcomes": {k: _jsonable(asdict(o)) for k, o in a.outcomes.items()},
                 "records": [r.to_dict() for r in a.records],
                 "record_links": {str(k): v for k, v in a.record_links.items()},
@@ -271,6 +271,60 @@ class PageActivityResult:
             "notes": list(self.notes),
         }
 
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> PageActivityResult:
+        """Restore a durable checkpoint without inventing omitted part indices.
+
+        Older v1 artifacts omitted activity part_indices and cannot safely
+        resume. Refuse those artifacts explicitly; do not guess page positions.
+        """
+        if data.get("format") != "g3o-activity-code-v1":
+            raise ValueError("unsupported activity-code artifact format")
+
+        def outcome(raw: Mapping[str, Any]) -> ItemOutcome:
+            def tuples(value: Any) -> Any:
+                return tuple(tuples(v) for v in value) if isinstance(value, list) else value
+            return ItemOutcome(**{**raw, "value": tuples(raw["value"])})
+
+        def parts(raw: Mapping[str, Any]) -> tuple[tuple[str, ...], tuple[int, ...]]:
+            if "part_indices" not in raw:
+                raise ValueError("activity checkpoint lacks original part_indices; cannot resume")
+            chunks, indices = tuple(raw["chunk_ids"]), tuple(raw["part_indices"])
+            if (len(chunks) != len(indices) or len(set(chunks)) != len(chunks)
+                    or any(type(i) is not int or i < 1 for i in indices)
+                    or list(indices) != sorted(set(indices))):
+                raise ValueError("invalid original activity part indices")
+            return chunks, indices
+
+        activities = []
+        for raw in data["activities"]:
+            chunks, indices = parts(raw)
+            records = tuple(CoderRecord.from_dict(r) for r in raw["records"])
+            links = {int(k): v for k, v in raw["record_links"].items()}
+            if any(not 0 <= k < len(records) for k in links):
+                raise ValueError("activity checkpoint has invalid pair record index")
+            activities.append(ActivityResult(
+                raw["activity_id"], raw["label"], raw["start"], raw["end"], chunks, indices,
+                {k: outcome(v) for k, v in raw["outcomes"].items()}, records, links))
+        pairs = []
+        for raw in data["pairs"]:
+            chunks, indices = parts(raw)
+            pairs.append(PairResult(raw["activity_id"], raw["linked_activity"], chunks, indices,
+                                    outcome(raw["outcome"]),
+                                    tuple(CoderRecord.from_dict(r) for r in raw["records"])))
+        return cls(
+            page_id=data["page_id"], institution_id=data["institution_id"], activities=tuple(activities),
+            skipped_activities=tuple(tuple(s) for s in data["skipped_activities"]),
+            failures=tuple(PartFailure(**{**f, "question_ids": tuple(f["question_ids"])})
+                           for f in data["failures"]),
+            notes=tuple(data["notes"]), question_set_version=data["question_set_version"],
+            codebook_sha256=data["codebook_sha256"], coder_version=data["coder_version"], pairs=tuple(pairs),
+        )
+
+    @classmethod
+    def from_json(cls, text: str) -> PageActivityResult:
+        return cls.from_dict(json.loads(text))
 
 def _jsonable(v: Any) -> Any:
     if isinstance(v, tuple):
@@ -876,9 +930,13 @@ def finalize_activities(result: PageActivityResult, support: Sequence[Any], conf
                     down = st.startswith("downgraded_")
                     votes.append(_vote(rec, index[rec.chunk_id], failed=bar or down,
                                        cause=rec.downgrade_cause if bar else (st if down else None)))
+                # Retain the failure history, but a resumed answer replaces its
+                # failed vote. Each current part contributes at most one vote.
+                seen = {vote.part_id for vote in votes}
                 for f in fails:
-                    if qid in f.question_ids:
+                    if qid in f.question_ids and f.chunk_id not in seen:
                         votes.append(PartVote(f.chunk_id, index[f.chunk_id], UNKNOWN, None, True, f.reason))
+                        seen.add(f.chunk_id)
                 final[qid] = _combine(q, votes, config.combiner, final, s.by_id)
             for q in rq:
                 if _gate_kind(q, s.by_id) == "part" and final.get(q["question_id"], None) is not None \
