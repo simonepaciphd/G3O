@@ -358,7 +358,6 @@ def test_ranking_fixture_with_production_follow(fixtures):
 def test_target_page_fixture_with_production_follow(fixtures, tmp_path):
     follow = pytest.importorskip("g3o.scrape.follow", reason="requires T-025 integration")
     from g3o.run.presweep.stage_follow import FetchResult, run_follow_round
-
     from g3o.scrape.render import FetchMetadata, RenderedPage
 
     f = next(f for f in fixtures if f["fixture_id"] == "v27-syn-A004-09")
