@@ -57,6 +57,12 @@ Forms (YearSource.form):
                   end and the range gives nothing beyond the literal rule ("2024-25" -> 2024 only, as a literal;
                   PI R-2 a: "2010-15" -> nothing). A range lying wholly inside a fiscal or calendar
                   label is left to that label; one that only starts inside it ("FY 2010 to 2020") is kept.
+                  PI F-1 b: two two-year spans joined by a range word read as two labels, one range per span
+                  (unmarked "2014-15 to 2019-20" -> 2014, 2015, 2019, 2020, rule range_span_pair; each span and
+                  the pair must run forward; marked "FY 2014-15 to 2019-20" is read as two fiscal labels, as
+                  R-4 a). A chain of three or more four-digit years joined by dashes or slashes gives every year,
+                  one range per consecutive pair ("2010-2012-2014" -> 2010, 2012, 2014, rule range_chain; the
+                  years must run forward). Both keep the numbering-word and per-end bound rules above.
   era_jp          Japanese era with its name: 令和N年 (Reiwa N = 2018 + N, 令和元年 = 2019), 平成N年 (Heisei N =
                   1988 + N); ASCII, full-width or kanji numerals; also matches inside 令和6年度. Lifted window.
   buddhist_era    Buddhist Era with an explicit marker, พ.ศ. or B.E., before or after the year (D6: "พ.ศ. 2567",
@@ -123,8 +129,9 @@ R_ERA_JP = "era_jp_named"
 R_BE_PREFIX, R_BE_POSTFIX = "be_marker_prefix", "be_marker_postfix"
 R_ROC = "roc_minguo"
 R_RANGE_SEP, R_RANGE_WORD = "range_separator", "range_word"
+R_RANGE_SPAN_PAIR, R_RANGE_CHAIN = "range_span_pair", "range_chain"  # PI F-1 b
 RULES = (R_LITERAL, R_FY_EN_PREFIX, R_FY_EN_POSTFIX, R_FY_A_PREFIX, R_FY_A_POSTFIX, R_FY_A_THAI, R_ERA_JP,
-         R_BE_PREFIX, R_BE_POSTFIX, R_ROC, R_RANGE_SEP, R_RANGE_WORD)
+         R_BE_PREFIX, R_BE_POSTFIX, R_ROC, R_RANGE_SEP, R_RANGE_WORD, R_RANGE_SPAN_PAIR, R_RANGE_CHAIN)
 
 
 @dataclass(frozen=True, order=True)
@@ -195,9 +202,11 @@ _Y2 = r"[0-9]{2}"
 # A label must not run on into a further "/digits" or "-digits" (dates such as "FY 06/30/2024").
 _END = rf"(?![0-9])(?!{_SEP}[0-9])"
 _TWO = rf"(?P<y1>{_Y4})(?![0-9])(?:{_SEP}(?P<y2>{_Y4}|{_Y2}))?{_END}"
+_RANGE_WORD = rf"{_SP}+(?i:to|through|until){_SP}+"
 # Fiscal labels only (PI R-4 a): a two-year label may be followed by a second unmarked two-year span, read as a
-# second label ("FY 2014/15-2019/20" -> 2014/15 and 2019/20). Anything else that runs on is refused by _END.
-_CHAIN = rf"{_SEP}(?P<z1>{_Y4})(?![0-9]){_SEP}(?P<z2>{_Y4}|{_Y2}){_END}"
+# second label ("FY 2014/15-2019/20" -> 2014/15 and 2019/20); also when the spans are joined by a range word
+# (PI F-1 b: "FY 2014-15 to 2019-20"). Anything else that runs on is refused by _END.
+_CHAIN = rf"(?:{_SEP}|{_RANGE_WORD})(?P<z1>{_Y4})(?![0-9]){_SEP}(?P<z2>{_Y4}|{_Y2}){_END}"
 _FY_TAIL = rf"(?:{_SEP}(?P<y2>{_Y4}|{_Y2})(?:{_CHAIN}|{_END})|{_END})"
 _TWO_FY = rf"(?P<y1>{_Y4})(?![0-9]){_FY_TAIL}"
 
@@ -270,10 +279,16 @@ _BE_POSTFIX = re.compile(
     rf"(?<![0-9])(?P<y1>{_Y4})(?:{_SEP}(?P<y2>{_Y4}|{_Y2}))?(?![0-9]){_SP}?(?P<era>{_BE_MARK})"
 )
 
-_RANGE_WORD = rf"{_SP}+(?i:to|through|until){_SP}+"
-_RANGE_RX = re.compile(
-    rf"(?<![0-9])(?<![0-9]{_DASH})(?<![0-9]{_SP}{_DASH})(?P<y1>{_Y4})(?:{_SEP}|{_RANGE_WORD})(?P<y2>{_Y4}){_END}"
+_RANGE_START = rf"(?<![0-9])(?<![0-9]{_DASH})(?<![0-9]{_SP}{_DASH})"
+_RANGE_RX = re.compile(rf"{_RANGE_START}(?P<y1>{_Y4})(?:{_SEP}|{_RANGE_WORD})(?P<y2>{_Y4}){_END}")
+# PI F-1 b: two unmarked two-year spans joined by a range word ("2014-15 to 2019-20") read as two labels, and a
+# chain of three or more four-digit years ("2010-2012-2014") gives every year in it.
+_SPAN_PAIR_RX = re.compile(
+    rf"{_RANGE_START}(?P<y1>{_Y4})(?![0-9]){_SEP}(?P<y2>{_Y4}|{_Y2})(?![0-9]){_RANGE_WORD}"
+    rf"(?P<z1>{_Y4})(?![0-9]){_SEP}(?P<z2>{_Y4}|{_Y2}){_END}"
 )
+_CHAIN_RX = re.compile(rf"{_RANGE_START}{_Y4}(?:{_SEP}{_Y4}(?![0-9])){{2,}}{_END}")
+_Y4_RX = re.compile(_Y4)
 _RANGE_WORD_RX = re.compile(_RANGE_WORD)
 _NUMBERING = re.compile(r"(?:\bpp?\.|\bpage|\bID|\bNo\.|#|\bart\.|" + chr(0xA7) + rf"){_SP}*$", re.IGNORECASE)
 
@@ -417,26 +432,63 @@ def calendar_labels(text: str, _norm: str | None = None, reference_year: int | N
     return sorted(out, key=lambda f: (f.start, f.end))
 
 
+def _range_label(text: str, norm: str, start: int, end: int, y1: int, y2: int, four: tuple[bool, bool],
+                 rule: str, ref: int, at: int | None = None) -> YearLabel | None:
+    """A RANGE label over text[start:end]; None when y1 >= y2 or neither end is in 1900-2099.
+    `at`: where the numbering-word look-back starts (default `start`)."""
+    if y1 >= y2 or not (LIFT_MIN <= y1 <= LIFT_MAX or LIFT_MIN <= y2 <= LIFT_MAX):
+        return None  # each end is bounded on its own (PI R-3 b); YearLabel.sources drops an out-of-bound end
+    at = start if at is None else at
+    numbered = bool(_NUMBERING.search(norm[max(0, at - 12):at]))
+    return YearLabel(start, end, text[start:end], RANGE, (y1, y2), four, "", numbered, rule, ref)
+
+
 def year_ranges(text: str, labels: list[YearLabel] | None = None, _norm: str | None = None,
                 reference_year: int | None = None) -> list[YearLabel]:
-    """Unmarked ranges of two four-digit years (kind RANGE) not wholly inside another label, in text order."""
+    """Unmarked ranges (kind RANGE) not wholly inside another label, in text order: two four-digit years; two
+    two-year spans joined by a range word, one label per span ("2014-15 to 2019-20"); and a chain of three or more
+    four-digit years, one label per consecutive pair ("2010-2012-2014"; PI F-1 b)."""
     norm = normalize_digits(text) if _norm is None else _norm
     ref = _ref(reference_year)
     if labels is None:
         labels = fiscal_labels(text, norm, ref) + calendar_labels(text, norm, ref)
     spans = [(f.start, f.end) for f in labels]
     out: list[YearLabel] = []
-    for m in _RANGE_RX.finditer(norm):
-        y1, y2 = int(m.group("y1")), int(m.group("y2"))
-        if y1 >= y2 or not (LIFT_MIN <= y1 <= LIFT_MAX or LIFT_MIN <= y2 <= LIFT_MAX):
-            continue  # each end is bounded on its own (PI R-3 b); YearLabel.sources drops an out-of-bound end
+    chains: list[tuple[int, int]] = []
+    for m in _CHAIN_RX.finditer(norm):
         if any(a <= m.start() and m.end() <= b for a, b in spans):
             continue
-        numbered = bool(_NUMBERING.search(norm[max(0, m.start() - 12):m.start()]))
+        ys = [(int(y.group()), m.start() + y.start(), m.start() + y.end()) for y in _Y4_RX.finditer(m.group())]
+        if any(a[0] >= b[0] for a, b in zip(ys, ys[1:], strict=False)):
+            continue  # a chain counts only when its years run forward
+        chains.append((m.start(), m.end()))
+        for (y1, s1, _), (y2, _, e2) in zip(ys, ys[1:], strict=False):
+            lab = _range_label(text, norm, s1, e2, y1, y2, (True, True), R_RANGE_CHAIN, ref, at=m.start())
+            if lab:
+                out.append(lab)
+    for m in _RANGE_RX.finditer(norm):
+        if any(a <= m.start() and m.end() <= b for a, b in spans + chains):
+            continue  # inside a label, or a pair of a chain already read ("2010 - 2012 - 2014")
         rule = R_RANGE_WORD if _RANGE_WORD_RX.fullmatch(norm, m.end("y1"), m.start("y2")) else R_RANGE_SEP
-        out.append(YearLabel(m.start(), m.end(), text[m.start():m.end()], RANGE, (y1, y2), (True, True), "", numbered,
-                             rule, ref))
-    return out
+        lab = _range_label(text, norm, m.start(), m.end(), int(m.group("y1")), int(m.group("y2")), (True, True),
+                           rule, ref)
+        if lab:
+            out.append(lab)
+    for m in _SPAN_PAIR_RX.finditer(norm):
+        # two four-digit spans are already two ranges above; a pair overlapping a label is left to the label
+        # ("FY 2014-15 to 2019-20" is read by the fiscal chain)
+        if len(m.group("y2")) == 4 and len(m.group("z2")) == 4:
+            continue
+        if any(m.start() < b and a < m.end() for a, b in spans):
+            continue
+        pair = [_range_label(text, norm, m.start(g1), m.end(g2), int(m.group(g1)),
+                             _full_year(m.group(g2), reference_year=ref), (True, len(m.group(g2)) == 4),
+                             R_RANGE_SPAN_PAIR, ref, at=m.start())
+                for g1, g2 in (("y1", "y2"), ("z1", "z2"))]
+        if pair[0] and pair[1] and pair[0].years[1] <= pair[1].years[0]:  # each span and the pair run forward
+            seen = {(f.start, f.end) for f in out}
+            out.extend(f for f in pair if (f.start, f.end) not in seen)  # a four-digit span is already a range
+    return sorted(out, key=lambda f: (f.start, f.end))
 
 
 def all_labels(text: str, reference_year: int | None = None) -> list[YearLabel]:

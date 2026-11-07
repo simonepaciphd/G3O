@@ -24,9 +24,13 @@
   "state": {
     "packet_items": [
       "W-01",
-      "W-02"
+      "W-02",
+      "B-Q4"
     ],
-    "approval": "approved",
+    "approval": "pending",
+    "open": [
+      "B-Q4: the chrome field's name and the text it shows (which chrome parts, from which stored field); new instrument text, drafted for PI approval"
+    ],
     "form_source": "T-016 re-pilot state (scripts/spikes/t016/repilot_v27.py page_units)",
     "fields": [
       {
@@ -64,10 +68,20 @@
       {
         "name": "page_text",
         "value": "the part's main text"
+      },
+      {
+        "name": null,
+        "value": "the page's chrome text, in the requests of core.content_contact_named and core.content_contact_details only (codebook input_text main_plus_chrome; r2#48)",
+        "shown_text": null
       }
     ]
   },
   "non_verbatim": [
+    {
+      "packet_item": "B-Q4",
+      "approval": "pending",
+      "approval_record": "PI 2026-11-08 chat \"accept all\" (2026-11-08 RULINGS.md item 2.3, lane B Q4 b): a chrome field for content_contact_named and content_contact_details; name and shown text drafted for PI approval"
+    },
     {
       "packet_item": "W-01",
       "approval": "approved",
@@ -365,124 +379,6 @@
       "jev_type": "Choice"
     },
     {
-      "question_id": "core.source_type",
-      "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.source_type`",
-      "item_id": "core.source_type",
-      "item_hash": "eeec6e92b28743e0e64973fc7847010727a12a4b47d0cefcb38ab7ada9a7e5c0",
-      "column": "source_type",
-      "pass": 1,
-      "round": 2,
-      "gate": "none",
-      "answer_type": "single",
-      "threshold": {
-        "metric": "chosen_answer_probability",
-        "bar": 0.8
-      },
-      "frozen_signature": "none",
-      "instructions": "What kind of source is this page?",
-      "instruction_slot": "items/core.source_type/instruction",
-      "criteria": [
-        {
-          "code": "news_major",
-          "text": "Major national/international news outlet (Reuters, BBC, NYT, Le Monde, NHK, etc.)\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
-          "definition_slot": "items/core.source_type/values/0/definition",
-          "rule_slots": [
-            "items/core.source_type/rules/0",
-            "items/core.source_type/rules/1",
-            "items/core.source_type/rules/2"
-          ]
-        },
-        {
-          "code": "news_trade",
-          "text": "Technology or government trade press (GovTech, FedScoop, PublicTechnology, etc.)\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
-          "definition_slot": "items/core.source_type/values/1/definition",
-          "rule_slots": [
-            "items/core.source_type/rules/0",
-            "items/core.source_type/rules/1",
-            "items/core.source_type/rules/2"
-          ]
-        },
-        {
-          "code": "vendor",
-          "text": "Vendor website, case study, blog post, or press release\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
-          "definition_slot": "items/core.source_type/values/2/definition",
-          "rule_slots": [
-            "items/core.source_type/rules/0",
-            "items/core.source_type/rules/1",
-            "items/core.source_type/rules/2"
-          ]
-        },
-        {
-          "code": "academic",
-          "text": "Peer-reviewed paper, working paper, university report\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
-          "definition_slot": "items/core.source_type/values/3/definition",
-          "rule_slots": [
-            "items/core.source_type/rules/0",
-            "items/core.source_type/rules/1",
-            "items/core.source_type/rules/2"
-          ]
-        },
-        {
-          "code": "policy_org",
-          "text": "Think tank, intergovernmental organisation or other policy organisation (OECD, World Bank, ITU, Brookings, etc.); not a government body's own page.\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
-          "definition_slot": "items/core.source_type/values/4/definition",
-          "rule_slots": [
-            "items/core.source_type/rules/0",
-            "items/core.source_type/rules/1",
-            "items/core.source_type/rules/2"
-          ]
-        },
-        {
-          "code": "social_media",
-          "text": "Official social media accounts (Twitter/X, LinkedIn from institutional accounts)\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
-          "definition_slot": "items/core.source_type/values/5/definition",
-          "rule_slots": [
-            "items/core.source_type/rules/0",
-            "items/core.source_type/rules/1",
-            "items/core.source_type/rules/2"
-          ]
-        },
-        {
-          "code": "procurement_tender",
-          "text": "Tender notice, RFP, contract award, vendor selection document\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
-          "definition_slot": "items/core.source_type/values/6/definition",
-          "rule_slots": [
-            "items/core.source_type/rules/0",
-            "items/core.source_type/rules/1",
-            "items/core.source_type/rules/2"
-          ]
-        },
-        {
-          "code": "other",
-          "text": "None of the above, including a government body's own page.\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
-          "definition_slot": "items/core.source_type/values/7/definition",
-          "rule_slots": [
-            "items/core.source_type/rules/0",
-            "items/core.source_type/rules/1",
-            "items/core.source_type/rules/2"
-          ]
-        },
-        {
-          "code": "not_documented",
-          "missing_label": true,
-          "text": "not_documented: the page is silent.\n\nRules:\n1. Whether the page is official is taken from its web domain, and whether it is an archive copy from its address; pages typed that way are not asked. This question sorts the other pages by kind of source.\n2. The same question is used in every pipeline where it applies.\n3. not_documented: the page is silent.",
-          "definition_slot": "items/core.source_type/rules/2",
-          "rule_slots": [
-            "items/core.source_type/rules/0",
-            "items/core.source_type/rules/1",
-            "items/core.source_type/rules/2"
-          ]
-        }
-      ],
-      "part_prompt_answer": {
-        "label": "not covered by this part",
-        "label_slot": "shared/part_prompt/temporary_answer/label",
-        "meaning": "This part of the page does not deal with the question; another part of the page may.",
-        "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
-      },
-      "jev_type": "Choice"
-    },
-    {
       "question_id": "core.content_contact_named",
       "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.content_contact_named`",
       "item_id": "core.content_contact_named",
@@ -732,6 +628,10 @@
     {
       "question_id": "core.support_entailment",
       "reason": "pass none: the X35 quote check run between rounds by T-024 (RC-D-002 row 45); not a pass-1, pass-2 or Stage 6 question, and T-024 is not a T-011 consumer"
+    },
+    {
+      "question_id": "core.source_type",
+      "reason": "residual source_type is asked by T-015 (RC-D-002 O2), not by the v27 page set; PI 2026-11-08 chat \"accept all\" (2026-11-08 RULINGS.md item 2.2, lane B Q3 a; SPEC R-002 amended by the integrator)"
     }
   ]
 }
