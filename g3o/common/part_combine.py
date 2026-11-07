@@ -170,6 +170,9 @@ def _normalise_order(item_id: str, order: Sequence[str]) -> tuple[str, ...]:
     present = [v for v in order if v in MISSING_RANK]
     if present != [v for v in MISSING_RANK if v in present]:
         raise CombineError(item_id, "unknown ranked before not_documented (all-04 b)")
+    # The signed cross-page order deliberately omits not_documented.
+    if item_id == "core.activity_relation_cross_page":
+        return order
     return tuple(v for v in order if v not in MISSING_RANK) + MISSING_RANK
 
 

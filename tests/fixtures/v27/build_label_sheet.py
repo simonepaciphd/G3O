@@ -25,6 +25,7 @@ COLS = [
     "scope",
     "expected_value",
     "rule",
+    "codebook_rev",
     "evidence_quote",
     "labeller",
     "label_date",
@@ -63,6 +64,7 @@ def main():
                         if isinstance(v, str)
                         else json.dumps(v, ensure_ascii=False),
                         "rule": e["rule"],
+                        "codebook_rev": e.get("codebook_rev", "r11"),
                         "evidence_quote": e.get("evidence_quote") or "",
                         "labeller": e.get("labeller", "agent (synthetic: by construction)"),
                         "label_date": e.get("label_date", "2026-11-04"),

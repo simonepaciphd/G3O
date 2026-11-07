@@ -109,7 +109,8 @@ def span(aid, start, end, name="Chatbot", tool="ChatGPT", number=None):
 
 
 def config(combiner=None):
-    return jac.ActivityCoderConfig(RULES, SETUP, "jev-configured", combiner or FakeCombiner(), 2026)
+    return jac.ActivityCoderConfig(RULES, SETUP, "jev-configured", combiner or FakeCombiner(), 2026,
+                                   question_set={**QSET, "pair_questions": []})
 
 
 TEXT = ("Intro text. The city launched a chatbot pilot in 2024 for residents. "
@@ -325,7 +326,8 @@ def test_finalize_flags_gate_opened():
                                 config())[0]
     assert f.outcomes["core.activity_type"].value == "unknown"
     assert "core.model_origin" in f.gate_opened
-    assert f.outcomes["core.model_origin"].state == "gated_out"
+    assert f.outcomes["core.model_origin"].state == "pending"
+    assert f.outcomes["core.model_origin"].value is None
 
 
 def test_finalize_requires_support_for_every_code():
@@ -356,3 +358,128 @@ def test_result_serialises():
     res = jac.code_page(inp, FakeJev(BASE), config())
     d = json.loads(json.dumps(res.to_dict()))
     assert d["activities"][0]["label"] == "A1" and d["question_set_version"] == QSET["question_set_version"]
+
+
+def test_pair_direction_follows_span_not_input_label():
+    inp = make_page(TEXT, spans=[span("later", *A2), span("earlier", *A1)])
+    pairs, ties = jac.plan_pairs(inp)
+    assert not ties and len(pairs) == 1
+    pair = pairs[0]
+    assert (pair.lhs.activity_id, pair.rhs.activity_id) == ("earlier", "later")
+    assert (pair.lhs_label, pair.rhs_label) == ("A2", "A1")
+    marked = jac.marked_pair_text(inp.page, inp.page.chunks[0], pair)
+    assert marked.index("[[A2]]") < marked.index("[[A1]]")
+    for mark in ("[[A1]]", "[[/A1]]", "[[A2]]", "[[/A2]]"):
+        assert marked.count(mark) == 1
+        marked = marked.replace(mark, "")
+    assert marked == TEXT
+
+
+def test_pair_parts_union_without_duplicates():
+    cuts = [A1[1], A2[0], len(TEXT)]
+    inp = make_page(TEXT, cuts=cuts, spans=[span("one", *A1), span("two", *A2)])
+    pairs, _ = jac.plan_pairs(inp)
+    assert [i for i, _ in pairs[0].parts] == [1, 3]
+    first, last = (jac.marked_pair_text(inp.page, c, pairs[0]) for _, c in pairs[0].parts)
+    assert "[[A1]]" in first and "[[A2]]" not in first
+    assert "[[A2]]" in last and "[[A1]]" not in last
+
+
+def test_pair_same_start_is_unresolved_and_other_pairs_continue():
+    inp = make_page(TEXT, spans=[span("one", *A1), span("two", A1[0], A1[1]-1), span("three", *A2)])
+    pairs, ties = jac.plan_pairs(inp)
+    assert ties == (("one", "two"),)
+    assert {(p.lhs.activity_id, p.rhs.activity_id) for p in pairs} == {("one", "three"), ("two", "three")}
+
+
+def pair_config():
+    return replace(config(), question_set=QSET)
+
+
+def test_three_pair_records_keep_identity_through_support_adapter_and_finalizer():
+    from types import SimpleNamespace as NS
+    text = TEXT + " A third activity starts here."
+    inp = make_page(text, spans=[span("later", *A2), span("earlier", *A1),
+                                span("third", len(TEXT)+1, len(text))])
+    fake = FakeJev({**BASE, "core.activity_segment": "distinct_action"})
+    res = jac.code_page(inp, fake, pair_config())
+    assert {(p.activity_id, p.linked_activity) for p in res.pairs} == {
+        ("earlier", "later"), ("earlier", "third"), ("later", "third")}
+    requests = [(s, q) for s, q in fake.requests if "core.activity_segment" in q]
+    assert len(requests) == 3
+    assert requests[0][0]["activity"] == "A2" and requests[0][0]["linked_activity"] == "A1"
+    p2 = jac.to_pass2_page(res, inp)
+    pairs = [(a.activity_id, c.linked_activity) for a in p2.activities for c in a.codes
+             if c.item_id == "core.activity_segment"]
+    assert set(pairs) == {(p.activity_id, p.linked_activity) for p in res.pairs}
+    assert len(pairs) == 3
+    plan = select_requests(p2)
+    assert len([t for t in plan.quote_tasks if t.item_id == "core.activity_segment"]) == 3
+    assert not [t for t in plan.skipped_codes if t.item_id == "core.activity_segment"]
+    assert "core.activity_segment" in fake.requests[0][1]  # round 1 before round 2
+    support = [NS(item_id=r.item_id, activity_id=p.activity_id, linked_activity=p.linked_activity,
+                  chunk_id=r.chunk_id, support_status=("downgraded_no_quote" if
+                  (p.activity_id, p.linked_activity) == ("earlier", "third") else "supported"))
+               for p in res.pairs for r in p.records]
+    final = jac.finalize_pairs(res, support, pair_config())
+    assert {(p.activity_id, p.linked_activity): p.outcome.value for p in final} == {
+        ("earlier", "later"): "distinct_action", ("earlier", "third"): "unknown",
+        ("later", "third"): "distinct_action"}
+    support[0].linked_activity = None
+    with pytest.raises(ValueError, match="lacks linked_activity"):
+        jac.finalize_pairs(res, support, pair_config())
+
+
+def test_pair_failure_and_tie_remain_local():
+    inp = make_page(TEXT, spans=[span("one", *A1), span("same_start", A1[0], A1[1]-1), span("two", *A2)])
+    fake = FakeJev(BASE)
+    def ask(state, questions):
+        if "core.activity_segment" in questions:
+            return JevResult({}, "jev", None, 1, 1)
+        return fake(state, questions)
+    res = jac.code_page(inp, ask, pair_config())
+    assert jac.PAIR_DIRECTION_TIE + ":one:same_start" in res.notes
+    assert len(res.pairs) == 2
+    assert all(p.outcome.failed for p in res.pairs)
+    assert all(f.linked_activity == "two" for f in res.failures)
+    assert all(a.outcomes["core.activity_type"].state == "combined" for a in res.activities)
+
+
+def test_pair_record_serialization_preserves_request_and_link_identity():
+    from g3o.common.jev_record import CoderRecord
+    inp = make_page(TEXT, spans=[span("one", *A1), span("two", *A2)])
+    result = jac.code_page(inp, FakeJev({**BASE, "core.activity_segment": "governs"}), pair_config())
+    doc = json.loads(json.dumps(result.to_dict()))
+    pair, = doc["pairs"]
+    assert (pair["activity_id"], pair["linked_activity"]) == ("one", "two")
+    raw, = pair["records"]
+    rec = CoderRecord.from_dict(raw)
+    assert rec.request_id and rec.question_id == "core.activity_segment" and rec.chosen_value == "governs"
+    act = doc["activities"][0]
+    idx, = act["record_links"]
+    assert act["record_links"][idx] == "two"
+    assert act["records"][int(idx)] == raw
+
+
+def test_unapproved_pair_instrument_is_refused_before_provider_call():
+    qset = {**QSET, "pair_questions": [{**QSET["pair_questions"][0], "approval": "pending"}]}
+    fake = FakeJev(BASE)
+    inp = make_page(TEXT, spans=[span("one", *A1), span("two", *A2)])
+    with pytest.raises(ValueError, match="wording approval"):
+        jac.code_page(inp, fake, replace(pair_config(), question_set=qset))
+    assert fake.requests == []
+
+
+def test_pending_gate_cannot_publish_a_transitive_gated_out_value():
+    import copy
+    qset = copy.deepcopy(QSET)
+    qset["pair_questions"] = []
+    dependent = next(q for q in qset["questions"] if q["question_id"] == "core.deployment_scale_unit")
+    dependent["gate"] = {"item": "core.model_origin", "values": ["open_source"], "gated_out_value": "not_asked"}
+    cfg = replace(config(), question_set=qset)
+    inp = make_page(TEXT, spans=[span("one", *A1)])
+    result = jac.code_page(inp, FakeJev({**BASE, "core.activity_type": "policy_guidance"}), cfg)
+    final, = jac.finalize_activities(result, _support(result, {"core.activity_type": "downgraded_no_quote"}), cfg)
+    assert final.outcomes["core.model_origin"].state == "pending"
+    assert final.outcomes["core.deployment_scale_unit"].state == "stopped"
+    assert final.outcomes["core.deployment_scale_unit"].value is None

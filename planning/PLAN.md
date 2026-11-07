@@ -1,5 +1,7 @@
 # PLAN: G3O pipeline reclassification
 
+RC-D-024 recovery overlay (2026-11-07): approved chat rulings in deltas/RC-D-024.md; SPEC v001.26-candidate. T-011 contact field approved; exact P-2c pair question approved. T-021 restores signed order and tolerates fewer than75% failed verdict-request parts by count, with timing. T-023 uses earlier span start for pair lhs and preserves linked_activity through T-024; same-start direction remains unresolved. T-030 must ask newly eligible questions after support re-gating before publishing final answers. T-040 known-limit expectations match ruled behavior; existing labels r11, new r13; optional fixtures included including the approved A021-16 newly-opened-gate scenario. T-011/021/023/040 stay in-progress; T-030/T-031 integration and validation remain open. No completion or landing inferred from local implementation. Joint re-lock pending verification.
+
 Current ruling overlay (2026-11-08, RC-D-023, APPROVED 2026-11-08 chats "make recs for each based on my earlier choices" and "accept all"; text `planning/deltas/RC-D-023.md`; SPEC v001.25): pass-1 parts combined on the 0.8 bar for gates, then re-combined and re-gated after the support check (B-Q2 b); one shared `g3o/common/part_combine.py` takes over T-020's combination half (B-Q1 b); `source_type` asked by T-015, not pass 1 (B-Q3 a); contact items get a chrome field, name pending PI approval (B-Q4 b); extractor once per page before following, each followed page its own call (C-1 a, replaces RC-D-021 "once per run, after T-025"); same URL = discovery dedup key; nearness = gap to nearest T-024-supported quote from the located link passage, unlocated last; every URL tried counts against the cap (C-Q1 b, C-Q2 a, C-Q3 b (i), C-Q4 a, C-Q5 b); wording A-1..A-6 a.
 
 Current ruling overlay (2026-11-08, RC-D-022, APPROVED 2026-11-08 chat "accept all"; rulings of 2026-11-05, chat "all recs accepted; plan is good, give me card and close"; text `planning/deltas/RC-D-022.md`): W3-1 a, W3-2 a, W7 (i a, ii b, iii a) and W8 (i-iv a) fix the field names and forms that W-03 a, W-07 a and W-08 a left open (earlier answers labelled by codebook item name, missing answers left out; `page_url`, `supporting_quotes`, `pool_note`, `quote_text`, `source_publication_date`, `page_part`); F-1 b year forms ("2014-15 to 2019-20" gives 2014, 2015, 2019, 2020; a chain gives every year); P-3 a P-2 prompt unchanged. Status sync of the same date (integrator, evidence on `main` `3f077de`): T-022, T-024, T-032, T-065 complete; T-011 in-progress.
@@ -269,9 +271,9 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-015 | eng-a | W4 | pending | T-011, T-012, T-022, T-027 | none | T-026, T-028 | RS-012 | none | `g3o/common/source_fields.py`† and its tests | push of the branch | none |
 | T-016 | integrator | W2 | complete | T-010, T-013 | none | T-011 | RS-004, RS-005, RS-008, RS-009, RS-024, RS-031 | none | re-pilot folder `agent-workspace/2026-10-27-reclass-plan/repilot-v27/`† | PI approves the cost estimate; Simone runs the paid command via `! <command>` (red line 4); PI rules on the results | none |
 | T-020 | eng-a | W1 | blocked | none | T-002 | T-021, T-022, T-023 | RS-004, RS-014, RS-024 | none | the two new files | none beyond push | A-021 |
-| T-021 | eng-a | W4 | pending | T-002, T-011, T-012, T-020, T-027 | none | T-023, T-025, T-030 | RS-012, RS-019 | none | the new modules and tests | none beyond push | A-011, A-013 |
+| T-021 | eng-a | W4 | in-progress | T-002, T-011, T-012, T-020, T-027 | none | T-023, T-025, T-030 | RS-012, RS-019 | none | the new modules and tests | none beyond push | A-011, A-013 |
 | T-022 | eng-c | W3 | complete | T-010, T-012, T-013, T-014, T-020 | none | T-015, T-023, T-024, T-025, T-032 | RS-015 | none | the listed extract files; install of the generated `g3o/extract/prompts/system_prompt.md` and `g3o/extract/prompts/output_contract.md` (RC-D-008) | PI approves the nano prompt text; push gate | A-003, A-021 |
-| T-023 | eng-a | W5 | pending | T-011, T-020, T-021, T-022, T-027 | none | T-026, T-032 | RS-012 | none | the new modules and tests | none beyond push | A-003 |
+| T-023 | eng-a | W5 | in-progress | T-011, T-020, T-021, T-022, T-027 | none | T-026, T-032 | RS-012 | none | the new modules and tests | none beyond push | A-003 |
 | T-032 | eng-c | W6 | complete | T-013, T-022, T-023 | none | T-024, T-030 | RS-015 | none | `g3o/extract/pass2_support.py`† and its tests | PI approves the pass-2 nano prompt text; push gate | A-003, A-021 |
 | T-024 | eng-c | W7 | complete | T-003, T-012, T-022, T-032, T-064 | none | T-026, T-028, T-041 | none | none | `g3o/common/support_check.py`† and its tests | push of the branch | A-002, A-016 |
 | T-025 | eng-b | W5 | pending | T-002, T-014, T-021, T-022 | none | T-029, T-030 | RS-016 | none | new modules `g3o/scrape/follow.py`†, `g3o/run/presweep/stage_follow.py`† and their tests | URL cap = 10 per institution (PI, RC-D-014 S4); push of the branch | A-004, A-014 |
@@ -283,7 +285,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-034 | eng-a | W12 | pending | T-029 | none | T-035 | RS-026 | none | `g3o/run/backfill/transfers.py`† and its tests | push of the branch | A-022 |
 | T-035 | eng-b | W13 | pending | T-029, T-034 | none | T-031, T-041 | none | D-002 | `g3o/cli.py` hunks, the two pin files, e2e test additions; merges of T-029 and T-034 into `reclass/v2.7`†; `g3o/common/contract_pin.py`, `tests/fixtures/run_contract/{FIELDS.md,manifest.json}`, the contract H1 template line of the T-013 generator (version token for `parse_version()`) (RC-D-008) | push of the integration branch | none |
 | T-031 | berivox | W14 | pending | T-035 | none | T-071 | none | none | the review file only | none | none |
-| T-040 | integrator | W2 | pending | T-010 | none | T-041 | RS-005, RS-008, RS-009, RS-011, RS-024 | none | `tests/fixtures/v27/`† and the label sheet | an agent labels expected values for real-page fixtures and jev scores them (RC-D-014 P4; replaces PI labelling) | A-003, A-004, A-010, A-011, A-012, A-020, A-021 |
+| T-040 | integrator | W2 | in-progress | T-010 | none | T-041 | RS-005, RS-008, RS-009, RS-011, RS-024 | none | `tests/fixtures/v27/`† and the label sheet | an agent labels expected values for real-page fixtures and jev scores them (RC-D-014 P4; replaces PI labelling) | A-003, A-004, A-010, A-011, A-012, A-020, A-021 |
 | T-041 | eng-b | W14 | blocked | T-024, T-035, T-040, T-065 | none | T-054, T-060, T-071 | RS-031 | none | the fixture-run folder | PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures | A-003, A-004, A-010, A-011, A-012, A-013, A-020, A-021, A-022 |
 | T-050 | integrator | W4 | in-progress | T-010, T-012, T-027 | none | T-028, T-051 | RS-020, RS-023 | D-007 | `C:/Users/spaci/repos/G3O/planning/handoffs/D-007-interface-spec.md`† | A approved; B implementation conformance and Colin acceptance; PI authorizes send; posting the GitHub issues is an external message | none |
 | T-051 | colin | W5 | pending | T-050 | none | T-052, T-054 | RS-020 | none | `sql/021*`†, `sql/down/021*`†, `scripts/load_corrections.py`† | PI authorises creation of and writes to the disposable branch used by this card's self-check; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; live apply is the T-055 gate; push on Colin's branch | none |
@@ -694,6 +696,8 @@ Codebook and the three generated files on the branch, §4.3 included, checklist 
 More than 2 review rounds → split extract contract from validate contract.
 
 ### T-011 — Build the v2.7 jev question sets (pass 1, pass 2, Stage 6)
+
+RC-D-024 recovery update (2026-11-07; supersedes conflicting older progress notes): Contact field chrome_text and exact reused P-2c classifier question approved. Earlier notes saying chrome name or pair wording pending are superseded. Pair questions are a separate activity-set group; pooled Stage6 membership is unchanged. Source and integrated checks remain due before completion.
 
 RC-D-014 (2026-11-04; rulings by Simone, approved): S3 b: question wording that is not verbatim codebook/contract text is approved later. The build proceeds and stops before merge. The integrator puts one approval packet (T-011 questions, T-022 pass-1 prompt, T-032 pass-2 prompt) to the PI before the T-030 integration merge.
 
@@ -1283,7 +1287,9 @@ none
 
 ### T-021 — Build the jev pass-1 page coder stage
 
-Status: pending
+RC-D-024 recovery update (2026-11-07; supersedes conflicting older progress notes): Local recovery implements >=75% failed verdict-request parts by current leaf COUNT, successful votes below threshold, full chrome then emails, signed priority restoration and per-institution timing. Reopened gates and descendants are pending until T030 executes their new rounds. Source_type stays T015. Local tests do not establish runtime integration.
+
+Status: in-progress
 Progress (2026-11-08, integrator; RC-D-023): readiness check done (lane B). Build on `orch1108/b-t021`: shared `part_combine.py` (B-Q1 b); provisional 0.8-bar combination for gates, re-combine and re-gate after the support check as a pure function for T-030 (B-Q2 b); no `source_type` (B-Q3 a); chrome text for the two contact questions (B-Q4 b); missing request id = failed part (B-Q5); one part layout per page across rounds (B-Q6).
 Type: build
 Priority: critical-path
@@ -1458,7 +1464,9 @@ Split links from quotes if the parser work exceeds 1 week.
 
 ### T-023 — Build the jev pass-2 activity coder
 
-Status: pending
+RC-D-024 recovery update (2026-11-07; supersedes conflicting older progress notes): Exact approved P-2c question codes each activity pair; earlier span start is lhs. Equal starts remain an explicit unresolved pair. linked_activity propagates through quote/support/finalization keys, including3+activities. Reopened gates are pending for T030. Local verification does not establish runtime completion.
+
+Status: in-progress
 Progress (2026-11-08, integrator; RC-D-023): T-023 combines parts through the shared `g3o/common/part_combine.py` (mocked until the T-021 lane lands it) and applies the same re-combine and re-gate after the support check (B-Q2 b); missing request id = failed part (B-Q5).
 Progress (2026-11-05, integrator; RC-D-021): P-2c a: the T-023 activity record carries, for each `activity_segment` pair, the other activity of the pair; the pass-2 quote task is one per pair, with field `linked_activity` and the approved question (RC-D-021).
 Type: build
@@ -1609,6 +1617,8 @@ Tests pass; pass-2 prompt approved by the PI.
 none
 
 ### T-024 — Build support check, downgrade and deterministic extraction
+
+RC-D-024 recovery update (2026-11-07; supersedes conflicting older progress notes): Recovery extension preserves linked_activity in CodeEvidence and SupportResult and in pair quote keys; ordinary non-pair key shape retained. Pair finalization must refuse absent identity instead of mixing different pair votes. Combined regression verification remains due.
 
 RC-D-014 (2026-11-04; rulings by Simone, approved): The support check applies the RC-D-014 match rule (SPEC R-042) with the metric and threshold(s) T-003 calibrates on jev/80% labels; per-script thresholds only where needed (S2 b).
 
@@ -2000,6 +2010,8 @@ none
 
 ### T-030 — Integrate the v2.7 new-run path (code integrator task)
 
+RC-D-024 recovery update (2026-11-07; supersedes conflicting older progress notes): Required new integration: populate PageInput.email_links from rendered page; consume separate pair_questions and linked_activity-qualified support keys; after support re-gating, ask newly eligible questions and obtain/check their support before finalization. Pending values and descendants must never be published as final negatives. The local B/D libraries only expose this obligation; extra-round runtime execution is not implemented. Cost estimate/owner-run paid command and remaining T031/runtime gates remain.
+
 Preparation update (2026-11-02): source-only r11/LABELS assembly is available at 2812ca22253adfa1f70f81d08f377fa15a8619f9; this closes the r8-source preparation gap only. Actual upstream stage assembly, executed configuration and immutable instrument binding remain gated. Separate T-020 branch is not part of this source candidate. T-035 final pins/six exceptions and T-031 integrated-candidate requirement remain unchanged.
 
 Status: pending
@@ -2377,9 +2389,11 @@ Split pipeline review from contract review.
 
 ### T-040 — Build the v2.7 fixture set
 
+RC-D-024 recovery update (2026-11-07; supersedes conflicting older progress notes): 13 recovery cases added:3readability,3known-limit match,2re-gating,1contact-email,4follow cases. Existing labels retain r11; new labels carry r13; known-limit expected behavior counts as pass. A02116 explicitly tests newly-opened gate and extra round. Integrated T041 and fixture payload verification remain open.
+
 RC-D-014 (2026-11-04; rulings by Simone, approved): P4 a ("skip") + follow-up ("replace with agent + jev"): the PI does not label real-page fixtures. An agent labels expected values and jev scores them. P3 b: at least 3 fixtures per A-ID plus one per page-verdict value (DP-031).
 
-Status: pending
+Status: in-progress
 Type: build
 Priority: required
 Spec refs: A-003, A-004, A-010, A-011, A-012, A-020, A-021, A-022, R-084, C-006
@@ -4467,3 +4481,6 @@ Overall: READY-WITH-BLOCKS (W1 blocks: SSH and paid-spike gates; external waits 
 ## User authorization to execute
 
 2026-10-29 (Simone, chat "5 all but we go sequentially, first contract"; recorded in RC-D-001 E): W1 lanes T-010, T-002, T-020, T-001 are authorized, one at a time in that order, each under its own card gates. Nothing else is authorized. RC-D-002 (D) keeps that order and adds that T-002 waits for T-013; T-013 and the other new cards (T-014, T-015, T-016, T-062, T-063) are not authorized. 2026-10-30 (Simone, chat "Aa, B a, Ca, Da -- accept all", on orchestrator card `coord/launch/2026-10-31/4-g3o-reclass-orchestrator.txt` questions A-D and P1-P3): A a, T-013 is authorized; B a, T-020 runs in parallel with T-013, departing from the RC-D-001 E sequential rule, recorded by this quoted chat ruling (sub-option a1, no delta); C a, T-001 is authorized with read-only droplet SSH (`id_ed25519_g3o` only) for this session; D a, T-061 and T-063 are authorized as drafts only (PI approves the text; sending stays gated); P1 the T-010 checklist is regenerated against the signed hash; P2 `reclass/v2.7` created from `origin/main` `2b43661`; P3 one PR per card into `reclass/v2.7`, merged only on Simone's word. T-014, T-015, T-016, T-040 and T-062 remain not authorized; T-002 still waits for T-013. Original text: None. Mode PLAN_ONLY. Execution needs (1) the Stage 6 baseline lock of SPEC v001.4 + RESOURCES v001 + this PLAN, and (2) Simone's separate authorization per lane; the lock alone grants no implementation, push, spend, SSH, DB write, deployment or external message.
+
+
+Joint re-lock applied 2026-11-07: Simone Paci explicitly replied "lock" to SPEC v001.26, RESOURCES and PLAN together. RC-D-024 rulings are locked; earlier candidate/re-lock-pending annotations above are historical. Implementation/runtime and publication gates remain unchanged.

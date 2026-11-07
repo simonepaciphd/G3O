@@ -551,7 +551,7 @@ F.append(
             "p0": {"core.page_complete": ia("yes"), "core.page_verdict": ia("confirms_activity")},
             **{
                 f"l{j:02d}": {
-                    "core.page_complete": ia("no"),
+                    "core.page_complete": ia("no", support="not_required"),
                     "core.page_verdict": ia("confirms_activity"),
                 }
                 for j in range(1, 14)
@@ -568,10 +568,22 @@ F.append(
             ),
             exp(
                 "which_followed",
-                "unspecified",
-                "SPEC R-032 does not fix which 10 of 13 eligible links are followed",
+                [f"l{j:02d}" for j in range(1, 11)],
+                "SPEC R-032 (RC-D-015 F1 b; RC-D-017 10a): links nearest a supporting quote first, "
+                "ties to page order; RC-D-023 C-Q4 a: links with no located position rank after "
+                "located ones, in page order. No link passage is located here, so the first 10 in "
+                "page order are followed",
                 scope="institution",
                 judgement_call="JC-S4",
+                label_date="2026-11-06",
+            ),
+            exp(
+                "not_followed",
+                ["l11", "l12", "l13"],
+                "SPEC R-032 cap of 10 (RC-D-014 S4); RC-D-023 C-Q4 a page order: the last three "
+                "eligible links are not followed, reason cap reached",
+                scope="institution",
+                label_date="2026-11-06",
             ),
         ],
     }
@@ -625,7 +637,7 @@ F.append(
         "injected": {
             "p0": {"core.page_complete": ia("yes")},
             "p1": {"core.page_complete": ia("yes")},
-            "p2": {"core.page_complete": ia("no")},
+            "p2": {"core.page_complete": ia("no", support="not_required")},
             "link_selection": {"p0": ["p1", "p2"], "p1": ["p0", "p2"]},
         },
         "expected": [
@@ -662,7 +674,10 @@ F.append(
             )
         ],
         "injected": {
-            "p0": {"core.page_complete": ia("no"), "core.page_verdict": ia("confirms_activity")}
+            "p0": {
+                "core.page_complete": ia("no", support="not_required"),
+                "core.page_verdict": ia("confirms_activity"),
+            }
         },
         "expected": [
             exp(
@@ -908,7 +923,7 @@ s6(
         "relations": [
             {
                 "pair": ["p0:AI chatbot", "p1:AI chatbot"],
-                "core.activity_relation_cross_page": ia("unresolved", 0.7),
+                "core.activity_relation_cross_page": ia("unresolved", 0.7, "not_required"),
             }
         ],
     },
@@ -1249,6 +1264,127 @@ parts(
     f"{CB} core.source_publication_date long_page_rule first_section; SPEC R-044 (all-06 a): first part with a supported real answer, skipping silent or failed parts",
 )
 
+
+# ------------------------------------------------ PI recovery rulings, 2026-11-07 (E Q1a/Q2a/Q3 include)
+# New expectations use r13; earlier expected values retain their r11 baseline.
+_OLD_IDS = {f["fixture_id"] for f in F}
+RECOVERY_RULE = "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13"
+for number, reason, text in (
+    (10, "low_letter_share", "1234567890 " * 40),
+    (11, "binary_marker:pdf_header", "%PDF-1.7 binary payload"),
+    (12, "binary_marker:pdf_objects", "1 0 obj stream endstream endobj"),
+):
+    F.append({
+        "fixture_id": f"v27-syn-A011-{number:02d}", "kind": "synthetic", "mode": "injected",
+        "a_ids": ["A-011", "A-010"], "purpose": f"stored unreadable text: {reason}",
+        "institution": inst(100 + number, "Recovery Council"),
+        "pages": [page("p0", "https://synthetic.example/unreadable", text),
+                  page("p1", "https://synthetic.example/reviewed", "Council meeting agenda.")],
+        "injected": {"p0": {"readability_failure": reason},
+                     "p1": {"core.page_verdict": ia("no_genai", support="not_required"),
+                            "review": "reviewed"}},
+        "expected": [exp("core.page_verdict", "not_assessable", RECOVERY_RULE, asked=False),
+                     exp("support_status", "set_by_rule", RECOVERY_RULE),
+                     exp("page_review_state", "reviewed", RECOVERY_RULE),
+                     exp("readability_failure", reason, RECOVERY_RULE),
+                     exp("core.has_genai_activity", "no", "RC-D-021 C1a: reviewed unreadable page does not block no beside reviewed no_genai", scope="institution")],
+    })
+
+# Synthetic reproductions of R-6a failure classes, not the unrecovered historical probe strings.
+KNOWN_LIMIT_CASES = [
+    (12, "typographic apostrophes", "Council's staff's tool's pilot's AI",
+     "Council\u2019s staff\u2019s tool\u2019s pilot\u2019s AI", "core.has_human_oversight", "yes", "unknown"),
+    (13, "Japanese shortened quote", "市役所は生成AIを職員業務に導入しました。",
+     "市役所は生成AIを導入しました。", "core.page_verdict", "confirms_activity", "confirms_activity"),
+    (14, "Thai shortened quote", "เทศบาลเริ่มใช้ปัญญาประดิษฐ์เพื่อช่วยเจ้าหน้าที่ตอบคำถามประชาชน",
+     "เทศบาลใช้ปัญญาประดิษฐ์ตอบคำถาม", "core.page_verdict", "confirms_activity", "confirms_activity"),
+]
+for number, purpose, text, quote, item, value, expected in KNOWN_LIMIT_CASES:
+    F.append({
+        "fixture_id": f"v27-syn-A021-{number}", "kind": "synthetic", "mode": "injected",
+        "a_ids": ["A-021"], "purpose": purpose, "tags": ["known_limit", "R-6a"],
+        "institution": inst(120 + number, "Recovery Council"),
+        "pages": [page("p0", "https://synthetic.example/quote", text)],
+        "injected": {"p0": {"item": item, "answer": ia(value, quote=quote)}},
+        "expected": [exp(item, expected, "RC-D-021 R-6a; PI E-Q1a; R-041 downgrade target"),
+                     exp("support_status", "downgraded_no_quote", "R-042 either match rule fails; PI E-Q1a")],
+    })
+parts("v27-syn-A021-15", "support recombination closes the evaluation gate", 145,
+      "core.evaluation_documented",
+      [ia("results_reported", support="downgraded_no_quote"),
+       ia("not_documented", support="not_required"), NC],
+      "not_documented", "RC-D-023 B-Q2b: support check then recombine and reapply gates",
+      extra=[exp("core.evaluation_type_user_feedback", "not_asked", "r13 evaluation_documented gate closes after recombination"),
+             exp("dependent_support_status", "set_by_rule", "RC-D-023 B-Q2b")])
+# PI explicitly approved this scenario in recovery chat ("Use this scenario").
+F.append({
+    "fixture_id": "v27-syn-A021-16", "kind": "synthetic", "mode": "injected",
+    "a_ids": ["A-021"], "purpose": "support downgrade opens a previously closed gate; extra round before finalization",
+    "institution": inst(146, "Recovery Council"),
+    "pages": [page("p0", "https://synthetic.example/opened-gate", "Council information page.")],
+    "injected": {"p0": {
+        "provisional": {"core.activity_type": ia("policy_guidance"),
+                        "core.model_origin": {"value": "not_asked", "support": "set_by_rule"}},
+        "support_results": {"core.activity_type": "downgraded_no_quote"},
+        "extra_round_answers": {"core.model_origin": ia("not_documented", support="not_required")},
+    }},
+    "expected": [
+        exp("core.activity_type", "unknown", "R-041: policy_guidance loses quote support", scope="activity:a0"),
+        exp("gate_opened", ["core.model_origin"], "r13 applicability: model_origin excluded for policy_guidance, asked for unknown", scope="activity:a0"),
+        exp("extra_round_questions", ["core.model_origin"], "PI recovery 2026-11-07 item4b and A021-16 scenario approval", scope="activity:a0"),
+        exp("core.model_origin", "not_documented", "PI 4b: use the new answer, never publish stale gated-out value", scope="activity:a0"),
+        exp("event_order", ["support_check", "recombine", "extra_round", "finalize"], "PI 4b: extra round before finalization", scope="activity:a0"),
+    ],
+})
+F.append({
+    "fixture_id": "v27-syn-A021-17", "kind": "synthetic", "mode": "injected",
+    "a_ids": ["A-021"], "purpose": "contact gate open, no email address present",
+    "institution": inst(147, "Recovery Council"),
+    "pages": [page("p0", "https://synthetic.example/contact", "Contact the digital team by telephone.")],
+    "injected": {"p0": {"core.content_contact": ia("yes"), "email_links": []}},
+    "expected": [exp("core.content_contact_emails", "not_documented", "RC-D-019 E2a")],
+})
+
+FOLLOW_RULE = "RC-D-023 C-Q1b/C-Q2a/C-Q3b(i)/C-Q4a/C-Q5b/C-1a"
+def follow_fixture(number, purpose, links, injected, expected, *, text=POS, additional_pages=()):
+    F.append({"fixture_id": f"v27-syn-A004-{number:02d}", "kind": "synthetic", "mode": "injected",
+              "a_ids": ["A-004"], "purpose": purpose, "institution": inst(150 + number, "Recovery Council"),
+              "pages": [page("p0", "https://synthetic.example/follow", text, links=links), *additional_pages],
+              "injected": injected, "expected": [exp(k, v, FOLLOW_RULE, scope="institution") for k, v in expected.items()]})
+follow_fixture(6, "URL dedup keeps query but drops fragment and normalizes host/slash",
+               [{"url": u, "anchor": "details"} for u in ["https://www.synthetic.example/info/", "https://synthetic.example/info#top", "https://synthetic.example/info?lang=en"]],
+               {"p0": {"core.page_complete": ia("yes"), "core.page_verdict": ia("confirms_activity")}},
+               {"n_followed": 2, "dedup_keys": ["https://synthetic.example/info", "https://synthetic.example/info?lang=en"]})
+RANK_TEXT = "unsupported quote. far link passage. " + "padding " * 20 + "supported quote here. near link passage."
+def rank_span(passage):
+    start = RANK_TEXT.index(passage)
+    return [start, start + len(passage)]
+
+follow_fixture(7, "rank located links by supported quote span gap, then unlocated in input order",
+               [{"url": f"https://synthetic.example/{k}", "anchor": k} for k in ["far", "near", "unlocated1", "unlocated2"]],
+               {"p0": {"core.page_complete": ia("yes"), "core.page_verdict": ia("confirms_activity"),
+                        "supported_quote_spans": [rank_span("supported quote here")],
+                        "link_spans": {"far": rank_span("far link passage"), "near": rank_span("near link passage")},
+                        "unsupported_quote_spans": [rank_span("unsupported quote")]}},
+               {"follow_order": ["near", "far", "unlocated1", "unlocated2"]}, text=RANK_TEXT)
+follow_fixture(8, "every attempted URL counts against cap including refused and failed fetches",
+               [{"url": f"https://synthetic.example/l{k}", "anchor": "details"} for k in range(1, 12)],
+               {"p0": {"core.page_complete": ia("yes"), "core.page_verdict": ia("confirms_activity")},
+                "fetch_results": {"l1": "robots_refused", "l2": "failed_http_503"}},
+               {"attempted_urls": [f"l{k}" for k in range(1, 11)], "not_followed": ["l11"], "cap_reached": True})
+follow_fixture(9, "extract once per page after pass1 before following",
+               [{"url": "https://synthetic.example/p1", "anchor": "details"}],
+               {"p0": {"core.page_complete": ia("yes"), "core.page_verdict": ia("confirms_activity")},
+                "p1": {"core.page_complete": ia("no", support="not_required"), "core.page_verdict": ia("confirms_activity")}},
+               {"extractor_calls": {"p0": 1, "p1": 1}, "event_order": ["pass1:p0", "extract:p0", "follow:p1", "pass1:p1", "extract:p1"]},
+               additional_pages=[page("p1", "https://synthetic.example/p1", "The council deployed its generative AI pilot. This page contains the full account.")])
+
+for fixture in F:
+    revision = "r11" if fixture["fixture_id"] in _OLD_IDS else "r13"
+    for expected in fixture["expected"]:
+        expected["codebook_rev"] = revision
+        if revision == "r13":
+            expected["label_date"] = "2026-11-07"
 
 # ---------------------------------------------------------------- output
 def counts(fixtures):

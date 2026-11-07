@@ -37,18 +37,20 @@ per (page x activity) with the v2.7 activity question set (T-011 ``activity.json
    0.8 downgrade rule. A reply without a request id is a failed part request
    (``jev_missing_request_id``, PI 2026-11-08 2.17); no placeholder id is recorded.
    A failed part enters combining as a failed answer.
-6. **Pairs (p2c a).** ``core.activity_segment`` codes carry ``linked_activity``, one
-   code per pair of activities. The v27 ``activity.json`` asks no
-   ``core.activity_segment`` question yet; until it does, no pair is coded and the
-   page records :data:`PAIR_QUESTION_MISSING` (reported to the integrator).
+6. **Pairs (PI 2026-11-07 7b/8b).** The separately approved ``pair_questions``
+   instrument codes each pair at round 1, before ordinary activity rounds. The
+   earlier page span is lhs; equal starts stop only that pair. Every part holding
+   either span votes. Raw records name ``linked_activity``; pair support joins
+   retain both activity identities. :func:`finalize_pairs` checks pair support.
 """
 
 from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from functools import lru_cache
+from itertools import combinations
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -75,6 +77,7 @@ REQUEST_FAILED = "jev_request_failed"
 ANSWER_MISSING = "jev_answer_missing"
 SPAN_UNRESOLVED = "activity_span_unresolved"
 PAIR_QUESTION_MISSING = "pair_question_missing"
+PAIR_DIRECTION_TIE = "pair_direction_tie"
 
 #: Extracted (nano) values the signed state names: state field -> T-022 field item.
 NANO_STATE_FIELDS: Mapping[str, str] = {
@@ -206,6 +209,7 @@ class PartFailure:
     round: int
     question_ids: tuple[str, ...]
     detail: str | None = None
+    linked_activity: str | None = None
 
 
 @dataclass(frozen=True)
@@ -223,6 +227,16 @@ class ActivityResult:
 
 
 @dataclass(frozen=True)
+class PairResult:
+    activity_id: str
+    linked_activity: str
+    chunk_ids: tuple[str, ...]
+    part_indices: tuple[int, ...]
+    outcome: ItemOutcome
+    records: tuple[CoderRecord, ...]
+
+
+@dataclass(frozen=True)
 class PageActivityResult:
     page_id: str
     institution_id: str
@@ -233,6 +247,7 @@ class PageActivityResult:
     question_set_version: str
     codebook_sha256: str
     coder_version: str = CODER_VERSION
+    pairs: tuple[PairResult, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -248,6 +263,10 @@ class PageActivityResult:
                 "record_links": {str(k): v for k, v in a.record_links.items()},
             } for a in self.activities],
             "skipped_activities": [list(s) for s in self.skipped_activities],
+            "pairs": [{"activity_id": p.activity_id, "linked_activity": p.linked_activity,
+                       "chunk_ids": list(p.chunk_ids), "part_indices": list(p.part_indices),
+                       "outcome": asdict(p.outcome), "records": [r.to_dict() for r in p.records]}
+                      for p in self.pairs],
             "failures": [asdict(f) for f in self.failures],
             "notes": list(self.notes),
         }
@@ -332,7 +351,7 @@ def gate_open(q: Mapping[str, Any], outcomes: Mapping[str, ItemOutcome],
         return bool(nano.get(gate["item"]))
     key = _first_part_id(q, by_id) if kind == "part" else gate["item"]
     g = outcomes.get(key)
-    if g is None or g.state == "stopped":
+    if g is None or g.state in ("stopped", "pending"):
         return None
     if kind == "part":
         return g.value not in gate["not_asked_when_relationship"]
@@ -352,6 +371,52 @@ def span_ok(page: Pass1Page, s: ActivitySpan) -> bool:
 def parts_holding(page: Pass1Page, start: int, end: int) -> list[tuple[int, Chunk]]:
     """(1-based part index, chunk) of every part overlapping ``[start, end)``."""
     return [(i, c) for i, c in enumerate(page.chunks, start=1) if c.start < end and start < c.end]
+
+
+@dataclass(frozen=True)
+class ActivityPair:
+    """Direction is page-span order; labels retain their existing input order."""
+
+    lhs: ActivitySpan
+    rhs: ActivitySpan
+    lhs_label: str
+    rhs_label: str
+    parts: tuple[tuple[int, Chunk], ...]
+
+
+def plan_pairs(inp: ActivityPageInput) -> tuple[tuple[ActivityPair, ...], tuple[tuple[str, str], ...]]:
+    """Plan unique pairs; equal starts are explicitly unresolved, never tie-broken."""
+    usable = [sp for sp in inp.spans if span_ok(inp.page, sp)]
+    if len({sp.activity_id for sp in inp.spans}) != len(inp.spans):
+        raise ValueError("duplicate activity_id")
+    labels = {sp.activity_id: f"A{i}" for i, sp in enumerate(usable, start=1)}
+    pairs, ties = [], []
+    for first, second in combinations(usable, 2):
+        if first.start == second.start:
+            ties.append((first.activity_id, second.activity_id))
+            continue
+        lhs, rhs = sorted((first, second), key=lambda sp: sp.start)
+        parts = tuple((i, c) for i, c in enumerate(inp.page.chunks, start=1)
+                      if (c.start < lhs.end and lhs.start < c.end)
+                      or (c.start < rhs.end and rhs.start < c.end))
+        pairs.append(ActivityPair(lhs, rhs, labels[lhs.activity_id], labels[rhs.activity_id], parts))
+    return tuple(pairs), tuple(ties)
+
+
+def marked_pair_text(page: Pass1Page, chunk: Chunk, pair: ActivityPair) -> str:
+    """Insert both labels at original offsets; never insert into already marked text."""
+    marks: list[tuple[int, int, str]] = []
+    for sp, label in ((pair.lhs, pair.lhs_label), (pair.rhs, pair.rhs_label)):
+        if chunk.start <= sp.start < chunk.end:
+            marks.append((sp.start, 1, f"[[{label}]]"))
+        if chunk.start < sp.end <= chunk.end:
+            marks.append((sp.end, 0, f"[[/{label}]]"))
+    out, cursor = [], chunk.start
+    for pos, _, marker in sorted(marks):
+        out.extend((page.text[cursor:pos], marker))
+        cursor = pos
+    out.append(page.text[cursor:chunk.end])
+    return "".join(out)
 
 
 def marked_part_text(page: Pass1Page, chunk: Chunk, start: int, end: int, label: str) -> str:
@@ -542,10 +607,22 @@ def code_page(inp: ActivityPageInput, ask_fn: AskFn, config: ActivityCoderConfig
     if len({sp.activity_id for sp in inp.spans}) != len(inp.spans):
         raise ValueError("duplicate activity_id")
     notes: list[str] = []
-    if len(usable) > 1 and not any(q["item_id"] in PAIR_ITEMS for q in s.qset["questions"]):
+    if len(usable) > 1 and not s.qset.get("pair_questions"):
         notes.append(PAIR_QUESTION_MISSING)
     failures: list[PartFailure] = []
     results: list[ActivityResult] = []
+    pair_results = []
+    pair_questions = list(s.qset.get("pair_questions", []))
+    if pair_questions:
+        if len(pair_questions) != 1 or pair_questions[0].get("approval") != "approved":
+            raise ValueError("activity pair question requires explicit wording approval")
+        pq = pair_questions[0]
+        planned, ties = plan_pairs(inp)
+        notes.extend(f"{PAIR_DIRECTION_TIE}:{a}:{b}" for a, b in ties)
+        for pair in planned:
+            pr, pf = _code_pair(inp, pair, pq, ask_fn, config, s)
+            pair_results.append(pr)
+            failures.extend(pf)
     for n, sp in enumerate(usable, start=1):
         label = f"A{n}"
         parts = parts_holding(page, sp.start, sp.end)
@@ -623,9 +700,99 @@ def code_page(inp: ActivityPageInput, ask_fn: AskFn, config: ActivityCoderConfig
         results.append(ActivityResult(sp.activity_id, label, sp.start, sp.end,
                                       tuple(c.chunk_id for _, c in parts), tuple(i for i, _ in parts),
                                       outcomes, tuple(records)))
+    for pr in pair_results:
+        pos = next(i for i, a in enumerate(results) if a.activity_id == pr.activity_id)
+        act = results[pos]
+        links = dict(act.record_links)
+        links.update({len(act.records) + i: pr.linked_activity for i in range(len(pr.records))})
+        results[pos] = replace(act, records=act.records + pr.records, record_links=links)
     return PageActivityResult(page.page_id, page.institution_id, tuple(results), skipped,
                               tuple(failures), tuple(notes), qsv, s.qset["codebook_sha256"],
-                              config.coder_version)
+                              config.coder_version, tuple(pair_results))
+
+
+def _code_pair(inp: ActivityPageInput, pair: ActivityPair, q: dict[str, Any], ask_fn: AskFn,
+               config: ActivityCoderConfig, setup: _Setup) -> tuple[PairResult, list[PartFailure]]:
+    qid, iid = q["question_id"], q["item_id"]
+    if (iid, None) not in config.rules:
+        raise ValueError(f"{iid}: no signed classifier rule")
+    records, votes, failures = [], [], []
+    for index, chunk in pair.parts:
+        state = build_state(inp, chunk, index, pair.lhs, pair.lhs_label, nano_values(pair.lhs), {},
+                            setup.qset, show_number=False)
+        state["page_text"] = marked_pair_text(inp.page, chunk, pair)
+        state["activity"] = pair.lhs_label
+        state["linked_activity"] = pair.rhs_label
+        reason, detail, result = None, None, None
+        try:
+            result = ask_fn(state, build_questions([q], part=len(inp.page.chunks) > 1))
+        except JevAccountError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - a request failure is a failed part vote
+            reason, detail = REQUEST_FAILED, f"{type(exc).__name__}: {exc}"
+        if result is not None:
+            if not isinstance(result.request_id, str) or not result.request_id.strip():
+                reason = MISSING_REQUEST_ID
+            elif qid not in result.answers:
+                reason = ANSWER_MISSING
+        if reason is not None or result is None:
+            reason = reason or REQUEST_FAILED
+            failures.append(PartFailure(reason, pair.lhs.activity_id, chunk.chunk_id, q["round"],
+                                        (qid,), detail, pair.rhs.activity_id))
+            votes.append(PartVote(chunk.chunk_id, index, UNKNOWN, None, True, reason))
+            continue
+        rec = CoderRecord.from_jev(
+            result, question_id=qid, item_id=iid, item_part=None, support_id=None,
+            observation_id=None, chunk_id=chunk.chunk_id, coder_version=config.coder_version,
+            configured_model=config.configured_model,
+            question_set_version=setup.qset["question_set_version"], setup_pointer=config.setup_pointer,
+            classifier_rule=config.rules[(iid, None)])
+        records.append(rec)
+        votes.append(_vote(rec, index))
+    outcome = _combine(q, votes, config.combiner, {}, {qid: q})
+    return PairResult(pair.lhs.activity_id, pair.rhs.activity_id,
+                      tuple(c.chunk_id for _, c in pair.parts), tuple(i for i, _ in pair.parts),
+                      outcome, tuple(records)), failures
+
+
+def finalize_pairs(result: PageActivityResult, support: Sequence[Any],
+                   config: ActivityCoderConfig) -> tuple[PairResult, ...]:
+    """Re-combine pair records after support checks, joining on BOTH activity identities."""
+    questions = {q["question_id"]: q for q in _setup(config).qset.get("pair_questions", [])}
+    statuses = {}
+    for sr in support:
+        if sr.item_id not in PAIR_ITEMS:
+            continue
+        linked = getattr(sr, "linked_activity", None)
+        if not linked:
+            raise ValueError("pair support result lacks linked_activity")
+        key = (sr.activity_id, linked, sr.item_id, sr.chunk_id)
+        if key in statuses:
+            raise ValueError(f"duplicate pair support result: {key}")
+        statuses[key] = sr.support_status
+    final = []
+    for pair in result.pairs:
+        q = questions[pair.outcome.question_id]
+        indices = dict(zip(pair.chunk_ids, pair.part_indices, strict=True))
+        votes = []
+        for rec in pair.records:
+            if rec.chosen_value == NOT_COVERED:
+                votes.append(_vote(rec, indices[rec.chunk_id]))
+                continue
+            key = (pair.activity_id, pair.linked_activity, rec.item_id, rec.chunk_id)
+            if key not in statuses:
+                raise ValueError(f"no support result for pair {key}")
+            status = statuses[key]
+            down = status.startswith("downgraded_")
+            votes.append(_vote(rec, indices[rec.chunk_id], failed=bool(rec.downgraded) or down,
+                               cause=rec.downgrade_cause if rec.downgraded else (status if down else None)))
+        for failure in result.failures:
+            if (failure.activity_id == pair.activity_id and failure.linked_activity == pair.linked_activity
+                    and q["question_id"] in failure.question_ids):
+                votes.append(PartVote(failure.chunk_id, indices[failure.chunk_id], UNKNOWN, None,
+                                      True, failure.reason))
+        final.append(replace(pair, outcome=_combine(q, votes, config.combiner, {}, {q["question_id"]: q})))
+    return tuple(final)
 
 
 # ---------------------------------------------------------------------------
@@ -637,7 +804,7 @@ def code_page(inp: ActivityPageInput, ask_fn: AskFn, config: ActivityCoderConfig
 class FinalActivity:
     """``regated``: asked on the provisional gate, final gate closed (signed gated-out value;
     raw answers stay in the records, unpublished). ``gate_opened``: not asked because the
-    provisional gate was closed, final gate open; kept gated out and flagged."""
+    provisional gate was closed, final gate open; pending a T-030 extra round."""
 
     activity_id: str
     outcomes: Mapping[str, ItemOutcome]
@@ -677,8 +844,14 @@ def finalize_activities(result: PageActivityResult, support: Sequence[Any], conf
                 kind = _gate_kind(q, s.by_id)
                 open_ = gate_open(q, final, act_nano, s.by_id) if kind in ("item", "nano") else True
                 if prov is None or prov.state != "combined":
+                    if prov is not None and prov.state == "gated_out" and open_ is None:
+                        final[qid] = _stopped(q, "gate item is pending or stopped after support check")
+                        continue
                     if prov is not None and prov.state == "gated_out" and kind != "part" and open_:
                         opened.append(qid)
+                        final[qid] = ItemOutcome(qid, q["item_id"], q.get("part"), "pending", None,
+                                                 note="requires T-030 extra round after support check")
+                        continue
                     if prov is not None:
                         final[qid] = prov
                     continue
@@ -749,9 +922,9 @@ def to_pass2_page(result: PageActivityResult, inp: ActivityPageInput) -> Pass2Pa
 
 __all__ = [
     "ANSWER_MISSING", "CODER_VERSION", "MISSING_REQUEST_ID", "NANO_STATE_FIELDS",
-    "PAIR_QUESTION_MISSING", "REQUEST_FAILED", "SPAN_UNRESOLVED", "ActivityCoderConfig",
-    "ActivityPageInput", "ActivityResult", "Combined", "FinalActivity", "ItemOutcome",
+    "PAIR_DIRECTION_TIE", "PAIR_QUESTION_MISSING", "REQUEST_FAILED", "SPAN_UNRESOLVED", "ActivityCoderConfig",
+    "ActivityPageInput", "ActivityPair", "ActivityResult", "PairResult", "Combined", "FinalActivity", "ItemOutcome",
     "PageActivityResult", "PartCombiner", "PartFailure", "PartVote", "build_questions",
-    "build_state", "code_page", "finalize_activities", "gate_open", "marked_part_text",
+    "build_state", "code_page", "finalize_activities", "finalize_pairs", "plan_pairs", "marked_pair_text", "gate_open", "marked_part_text",
     "part_combine_adapter", "to_pass2_page", "year_candidates",
 ]

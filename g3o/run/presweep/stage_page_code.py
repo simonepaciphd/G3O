@@ -23,9 +23,11 @@ from __future__ import annotations
 import json
 import logging
 import threading
+import time
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +43,7 @@ from g3o.common.artifact_io import artifact_exists, write_artifact
 from g3o.common.cost_monitor import BudgetExceededError
 from g3o.common.jev_client import JevAccountError, JevResult
 from g3o.common.paths import institution_dir
+from g3o.common.timing import record_stage_timing
 from g3o.extract.batch import url_hash
 
 logger = logging.getLogger(__name__)
@@ -137,17 +140,51 @@ def run_page_code_stage(
             else:
                 metrics.n_coded += 1
 
-    with ThreadPoolExecutor(max_workers=max(1, concurrency)) as ex:
-        futures = [ex.submit(work, p) for p in pages]
-        error: BaseException | None = None
-        for f in futures:
-            try:
-                f.result()
-            except (JevAccountError, BudgetExceededError, StageStopped) as exc:
-                stop.set()
-                metrics.stopped_early = True
-                if error is None:
-                    error = exc
+    windows: dict[str, list[tuple[float, float, str, str, str | None]]] = {}
+
+    def timed_work(page: PageInput) -> None:
+        if stop.is_set() or artifact_exists(artifact_path(run_dir, page.institution_id, page.url)):
+            work(page)
+            return  # resume must preserve the original timing
+        start = time.monotonic()
+        start_time = datetime.now(timezone.utc).isoformat()
+        failure = None
+        try:
+            work(page)
+            if not artifact_exists(artifact_path(run_dir, page.institution_id, page.url)):
+                failure = "page coding did not produce an artifact"
+        except BaseException as exc:
+            failure = str(exc)
+            raise
+        finally:
+            entry = (start, time.monotonic(), start_time,
+                     datetime.now(timezone.utc).isoformat(), failure)
+            with lock:
+                windows.setdefault(page.institution_id, []).append(entry)
+
+    error: BaseException | None = None
+    try:
+        with ThreadPoolExecutor(max_workers=max(1, concurrency)) as ex:
+            futures = [ex.submit(timed_work, p) for p in pages]
+            for f in futures:
+                try:
+                    f.result()
+                except (JevAccountError, BudgetExceededError, StageStopped) as exc:
+                    stop.set()
+                    metrics.stopped_early = True
+                    if error is None:
+                        error = exc
+    finally:
+        # One write per institution: parallel pages cannot overwrite each other.
+        for institution_id, entries in windows.items():
+            first = min(entries, key=lambda e: e[0])
+            last = max(entries, key=lambda e: e[1])
+            failures = [e[4] for e in entries if e[4] is not None]
+            record_stage_timing(
+                run_dir, institution_id, STAGE, start_time=first[2], end_time=last[3],
+                duration_seconds=last[1] - first[0], timing_type="per_institution",
+                status="failed" if failures else "completed",
+                error="; ".join(failures) if failures else None)
     if isinstance(error, (JevAccountError, BudgetExceededError)):
         raise error
     if metrics.stopped_early:

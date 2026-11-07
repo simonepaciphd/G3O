@@ -107,7 +107,7 @@ def test_single_part_state_rounds_and_chrome(rules):
         else:
             assert not set(qs) & set(CONTACT)
     asked = {qid for _, qs in fake.calls for qid in qs}
-    assert "core.source_type" not in asked and "core.source_type" in res.skipped_questions
+    assert "core.source_type" not in asked and res.skipped_questions == {}
     assert asked == set(DEFAULTS)
     assert res.chrome_status == "sent"
     assert res.verdict.value == GENAI and res.items["core.disclosure_scope"].value == "single_institution"
@@ -337,3 +337,124 @@ def test_finalize_requires_every_support_result(rules):
     res = jpc.code_page(page(), FakeJev(dict(DEFAULTS)), c)
     with pytest.raises(ValueError):
         jpc.finalize_page(res, _support(res)[1:], c)
+
+
+def _fixed_layout(monkeypatch, texts):
+    from g3o.common.page_chunks import Chunk
+    chunks = []
+    start = 0
+    for i, text in enumerate(texts, 1):
+        chunks.append(Chunk(f"inst1:u1#p{i:03d}", "inst1:u1", start, start + len(text), text, 20))
+        start += len(text)
+    monkeypatch.setattr(jpc, "plan_layout", lambda *args: list(chunks))
+    return chunks
+
+
+@pytest.mark.parametrize("failed,n,should_fail", [(2, 4, False), (3, 4, True), (1, 1, True), (2, 3, False)])
+def test_verdict_failure_threshold_counts_parts(monkeypatch, rules, failed, n, should_fail):
+    # Unequal lengths deliberately separate count-based from text-coverage thresholds.
+    texts = [("FAIL " + "text " * 200 if i < failed else "OK text.") for i in range(n)]
+    _fixed_layout(monkeypatch, texts)
+    fake = FakeJev(dict(DEFAULTS), fail=lambda s, q: RuntimeError("broken")
+                   if jpc.VERDICT in q and s["page_text"].startswith("FAIL") else None)
+    config = cfg(rules)
+    if should_fail:
+        with pytest.raises(jpc.PageFailed, match="at least 75%"):
+            jpc.code_page(page(text="".join(texts)), fake, config)
+    else:
+        result = jpc.code_page(page(text="".join(texts)), fake, config)
+        assert result.verdict.value == GENAI
+        assert len([f for f in result.failures if jpc.VERDICT in f["question_ids"]]) == failed
+        assert jpc.finalize_page(result, _support(result), config).items[jpc.VERDICT].value == GENAI
+        assert jpc.PageCodeResult.from_json(result.to_json()).failures == result.failures
+
+
+@pytest.mark.parametrize("kind", ["request_id", "answer"])
+def test_missing_verdict_provenance_below_threshold(monkeypatch, rules, kind):
+    texts = ["BAD text", "GOOD text"]
+    _fixed_layout(monkeypatch, texts)
+    fake = FakeJev(dict(DEFAULTS))
+    def ask(state, questions):
+        response = fake(state, questions)
+        if jpc.VERDICT in questions and state["page_text"].startswith("BAD"):
+            return JevResult({} if kind == "answer" else response.answers, response.response_model,
+                             response.request_id if kind == "answer" else None, 10, 1)
+        return response
+    result = jpc.code_page(page(text="".join(texts)), ask, cfg(rules))
+    assert result.verdict.value == GENAI
+    assert result.failures[0]["reason"] == (jpc.ANSWER_MISSING if kind == "answer" else jpc.MISSING_REQUEST_ID)
+
+
+def test_low_confidence_is_not_a_request_failure(monkeypatch, rules):
+    _fixed_layout(monkeypatch, ["First text", "Second text"])
+    result = jpc.code_page(page(), FakeJev({**DEFAULTS, jpc.VERDICT: (GENAI, 0.5)}), cfg(rules))
+    assert result.status == "coded" and result.verdict.failed
+    assert result.failures == ()
+
+
+def test_exhausted_part_below_threshold_keeps_successful_verdict(monkeypatch, rules):
+    _fixed_layout(monkeypatch, ["BAD text", "GOOD text"])
+    fake = FakeJev(dict(DEFAULTS), fail=lambda s, q: OverLimit("max_tokens_exceeded")
+                   if s["page_text"].startswith("BAD") else None)
+    result = jpc.code_page(page(), fake, cfg(rules, max_split_depth=0))
+    assert result.verdict.value == GENAI
+    assert any(f["reason"] == jpc.OVER_LIMIT for f in result.failures)
+
+
+def test_chrome_keeps_verbatim_text_then_stored_emails(rules):
+    fake = FakeJev(dict(DEFAULTS))
+    chrome = "  Header and footer\nwith spacing  "
+    inp = page(chrome=chrome, email_links=("a@example.org", "b@example.org"))
+    result = jpc.code_page(inp, fake, cfg(rules))
+    assert jpc.to_pass1_page(result, inp).chrome_text == chrome + "\na@example.org\nb@example.org"
+    states = [s for s, q in fake.calls if set(q) & set(CONTACT)]
+    assert states and all(s["chrome_text"] == chrome + "\na@example.org\nb@example.org" for s in states)
+    assert all("email_links" not in s and "page_chrome_text" not in s for s, _ in fake.calls)
+
+
+def test_final_open_gate_is_pending_extra_round(monkeypatch, rules):
+    _fixed_layout(monkeypatch, ["FIRST text", "SECOND text"])
+    fake = FakeJev({**DEFAULTS, "core.disclosure_form": ("informal_official", 0.9)},
+                   by_marker={"SECOND": {"core.disclosure_form": ("mandated_report", 0.9)}})
+    config = cfg(rules)
+    result = jpc.code_page(page(), fake, config)
+    first = result.chunks[0].chunk_id
+    final = jpc.finalize_page(result, _support(result, {("core.disclosure_form", first)}), config)
+    assert "core.disclosure_scope" in final.gate_opened
+    pending = final.items["core.disclosure_scope"]
+    assert pending.state == "pending" and pending.value is None
+
+
+def test_failed_leaf_count_after_halving(monkeypatch, rules):
+    _fixed_layout(monkeypatch, ["FIRST text. " * 10, "SECOND text."])
+    fake = FakeJev(dict(DEFAULTS))
+    def ask(state, questions):
+        if jpc.VERDICT in questions and state["page_text"].startswith("FIRST"):
+            if len(state["page_text"]) > 90:
+                raise OverLimit("max_tokens_exceeded")
+            if state["page_part"].startswith("1 "):
+                raise RuntimeError("one failed leaf")
+        return fake(state, questions)
+    result = jpc.code_page(page(), ask, cfg(rules))
+    assert len(result.chunks) == 3
+    assert result.verdict.value == GENAI
+    assert len([f for f in result.failures if jpc.VERDICT in f["question_ids"]]) == 1
+
+
+def test_pending_gate_propagates_to_its_descendants(monkeypatch, rules):
+    from copy import deepcopy
+    question_set = deepcopy(load_set("page"))
+    child = next(q for q in question_set["questions"] if q["item_id"] == "core.content_data")
+    child["round"] = 4
+    child["gate"] = {"item": "core.disclosure_scope", "values": ["single_institution"], "gated_out_value": "no"}
+    _fixed_layout(monkeypatch, ["FIRST text", "SECOND text"])
+    fake = FakeJev({**DEFAULTS, "core.disclosure_form": ("informal_official", 0.9)},
+                   by_marker={"SECOND": {"core.disclosure_form": ("mandated_report", 0.9)}})
+    config = cfg(rules, question_set=question_set)
+    result = jpc.code_page(page(), fake, config)
+    assert result.items["core.content_data"].value == "no"
+    final = jpc.finalize_page(result, _support(result, {("core.disclosure_form", result.chunks[0].chunk_id)}), config)
+    assert final.items["core.disclosure_scope"].state == "pending"
+    assert final.items["core.content_data"].state == "pending"
+    assert final.items["core.content_data"].value is None
+    assert final.gate_opened == ("core.disclosure_scope",)

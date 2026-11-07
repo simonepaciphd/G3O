@@ -45,9 +45,13 @@ def test_page_item_rules_read_from_codebook(rules):
     assert rules["core.content_data"].order == ("yes", "no", "not_documented", "unknown")
 
 
-def test_missing_rank_appended_in_order(rules):
-    # signed order lists only `unknown`; not_documented must still rank above it (all-04 b)
-    assert rules["core.activity_relation_cross_page"].order[-2:] == ("not_documented", "unknown")
+def test_cross_page_priority_preserves_signed_order(rules):
+    item = "core.activity_relation_cross_page"
+    signed = tuple(load_codebook().items[item]["long_page_rule"]["order"])
+    assert rules[item].order == signed
+    assert "not_documented" not in rules[item].order
+    with pytest.raises(CombineError):
+        combine(rules[item], [pa(1, "not_documented")])
 
 
 def test_order_with_missing_before_real_refused():

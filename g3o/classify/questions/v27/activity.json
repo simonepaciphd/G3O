@@ -3619,5 +3619,155 @@
       },
       "jev_type": "Choice"
     }
-  ]
+  ],
+  "pair_questions": [
+    {
+      "question_id": "core.activity_segment",
+      "contract_section": "g3o/codebook/generated/extract_output_contract.md ## `core.activity_segment`",
+      "item_id": "core.activity_segment",
+      "item_hash": "e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759",
+      "column": "activity_relation_within_page",
+      "pass": 2,
+      "round": 1,
+      "gate": "none",
+      "answer_type": "single",
+      "threshold": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      },
+      "frozen_signature": "none",
+      "instructions": "How does this activity relate to the linked activity named in this task: is it the same activity described again, part of the linked programme, a programme the linked activity is part of, a joint activity with it, a rule that governs it or one governed by it, or a separate activity?",
+      "instruction_slot": "builder/activity_pair/P-2c",
+      "criteria": [
+        {
+          "code": "same_activity",
+          "text": "The two passages describe the same activity: the same action by the same actor on the same tool or instrument.\n\nRules:\n1. One activity = one action (deployment, governance instrument, staff training) by one actor concerning one tool or instrument. A named program is one activity; each named component is its own activity, linked to the program as a component of it. Repeated transactions for the same product by the same unit are one activity. A policy and the tools it approves are separate activities, linked by a \"governs\" relation.\n2. One shared relation list serves within-page and cross-page links: same activity, component of program, has component, shared participation, governs, governed by, distinct (`distinct_action`), unresolved, plus not-an-activity within a page.\n3. Add \"has component\" and \"governed by\".\n4. Components stay separate activities; a governing policy is recorded as governing.\n5. Each pair of passages gets a link.",
+          "definition_slot": "items/core.activity_segment/values/0/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.activity_unit/0",
+            "items/core.activity_segment/rules/1",
+            "items/core.activity_segment/rules/2",
+            "items/core.activity_segment/rules/3",
+            "items/core.activity_segment/rules/4"
+          ]
+        },
+        {
+          "code": "component_of_program",
+          "text": "The first passage's activity is a named component of the program described in the second. Both stay separate activities, linked.\n\nRules:\n1. One activity = one action (deployment, governance instrument, staff training) by one actor concerning one tool or instrument. A named program is one activity; each named component is its own activity, linked to the program as a component of it. Repeated transactions for the same product by the same unit are one activity. A policy and the tools it approves are separate activities, linked by a \"governs\" relation.\n2. One shared relation list serves within-page and cross-page links: same activity, component of program, has component, shared participation, governs, governed by, distinct (`distinct_action`), unresolved, plus not-an-activity within a page.\n3. Add \"has component\" and \"governed by\".\n4. Components stay separate activities; a governing policy is recorded as governing.\n5. Each pair of passages gets a link.",
+          "definition_slot": "items/core.activity_segment/values/1/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.activity_unit/0",
+            "items/core.activity_segment/rules/1",
+            "items/core.activity_segment/rules/2",
+            "items/core.activity_segment/rules/3",
+            "items/core.activity_segment/rules/4"
+          ]
+        },
+        {
+          "code": "has_component",
+          "text": "The first passage describes a program, and the second passage's activity is one of its named components. Both stay separate activities, linked.\n\nRules:\n1. One activity = one action (deployment, governance instrument, staff training) by one actor concerning one tool or instrument. A named program is one activity; each named component is its own activity, linked to the program as a component of it. Repeated transactions for the same product by the same unit are one activity. A policy and the tools it approves are separate activities, linked by a \"governs\" relation.\n2. One shared relation list serves within-page and cross-page links: same activity, component of program, has component, shared participation, governs, governed by, distinct (`distinct_action`), unresolved, plus not-an-activity within a page.\n3. Add \"has component\" and \"governed by\".\n4. Components stay separate activities; a governing policy is recorded as governing.\n5. Each pair of passages gets a link.",
+          "definition_slot": "items/core.activity_segment/values/2/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.activity_unit/0",
+            "items/core.activity_segment/rules/1",
+            "items/core.activity_segment/rules/2",
+            "items/core.activity_segment/rules/3",
+            "items/core.activity_segment/rules/4"
+          ]
+        },
+        {
+          "code": "shared_participation",
+          "text": "The two passages describe one joint action in which several bodies take part. They are one activity: the two passages are merged. The link needs at least two bodies, each named on the page as taking part, with a quote.\n\nRules:\n1. One activity = one action (deployment, governance instrument, staff training) by one actor concerning one tool or instrument. A named program is one activity; each named component is its own activity, linked to the program as a component of it. Repeated transactions for the same product by the same unit are one activity. A policy and the tools it approves are separate activities, linked by a \"governs\" relation.\n2. One shared relation list serves within-page and cross-page links: same activity, component of program, has component, shared participation, governs, governed by, distinct (`distinct_action`), unresolved, plus not-an-activity within a page.\n3. Add \"has component\" and \"governed by\".\n4. Components stay separate activities; a governing policy is recorded as governing.\n5. Each pair of passages gets a link.",
+          "definition_slot": "items/core.activity_segment/values/3/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.activity_unit/0",
+            "items/core.activity_segment/rules/1",
+            "items/core.activity_segment/rules/2",
+            "items/core.activity_segment/rules/3",
+            "items/core.activity_segment/rules/4"
+          ]
+        },
+        {
+          "code": "governs",
+          "text": "The first passage's activity is a policy or other governance instrument that sets rules for the activity in the second (for example a policy and a tool it approves). When a pair fits both this link and a component link, this link is used.\n\nRules:\n1. One activity = one action (deployment, governance instrument, staff training) by one actor concerning one tool or instrument. A named program is one activity; each named component is its own activity, linked to the program as a component of it. Repeated transactions for the same product by the same unit are one activity. A policy and the tools it approves are separate activities, linked by a \"governs\" relation.\n2. One shared relation list serves within-page and cross-page links: same activity, component of program, has component, shared participation, governs, governed by, distinct (`distinct_action`), unresolved, plus not-an-activity within a page.\n3. Add \"has component\" and \"governed by\".\n4. Components stay separate activities; a governing policy is recorded as governing.\n5. Each pair of passages gets a link.",
+          "definition_slot": "items/core.activity_segment/values/4/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.activity_unit/0",
+            "items/core.activity_segment/rules/1",
+            "items/core.activity_segment/rules/2",
+            "items/core.activity_segment/rules/3",
+            "items/core.activity_segment/rules/4"
+          ]
+        },
+        {
+          "code": "governed_by",
+          "text": "The second passage's activity is a policy or other governance instrument that sets rules for the activity in the first. When a pair fits both this link and a component link, this link is used.\n\nRules:\n1. One activity = one action (deployment, governance instrument, staff training) by one actor concerning one tool or instrument. A named program is one activity; each named component is its own activity, linked to the program as a component of it. Repeated transactions for the same product by the same unit are one activity. A policy and the tools it approves are separate activities, linked by a \"governs\" relation.\n2. One shared relation list serves within-page and cross-page links: same activity, component of program, has component, shared participation, governs, governed by, distinct (`distinct_action`), unresolved, plus not-an-activity within a page.\n3. Add \"has component\" and \"governed by\".\n4. Components stay separate activities; a governing policy is recorded as governing.\n5. Each pair of passages gets a link.",
+          "definition_slot": "items/core.activity_segment/values/5/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.activity_unit/0",
+            "items/core.activity_segment/rules/1",
+            "items/core.activity_segment/rules/2",
+            "items/core.activity_segment/rules/3",
+            "items/core.activity_segment/rules/4"
+          ]
+        },
+        {
+          "code": "distinct_action",
+          "text": "The two passages describe different activities, and none of the other links applies.\n\nRules:\n1. One activity = one action (deployment, governance instrument, staff training) by one actor concerning one tool or instrument. A named program is one activity; each named component is its own activity, linked to the program as a component of it. Repeated transactions for the same product by the same unit are one activity. A policy and the tools it approves are separate activities, linked by a \"governs\" relation.\n2. One shared relation list serves within-page and cross-page links: same activity, component of program, has component, shared participation, governs, governed by, distinct (`distinct_action`), unresolved, plus not-an-activity within a page.\n3. Add \"has component\" and \"governed by\".\n4. Components stay separate activities; a governing policy is recorded as governing.\n5. Each pair of passages gets a link.",
+          "definition_slot": "items/core.activity_segment/values/6/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.activity_unit/0",
+            "items/core.activity_segment/rules/1",
+            "items/core.activity_segment/rules/2",
+            "items/core.activity_segment/rules/3",
+            "items/core.activity_segment/rules/4"
+          ]
+        },
+        {
+          "code": "unresolved",
+          "text": "The page does not settle whether the two passages describe the same activity or different ones. They are kept separate.\n\nRules:\n1. One activity = one action (deployment, governance instrument, staff training) by one actor concerning one tool or instrument. A named program is one activity; each named component is its own activity, linked to the program as a component of it. Repeated transactions for the same product by the same unit are one activity. A policy and the tools it approves are separate activities, linked by a \"governs\" relation.\n2. One shared relation list serves within-page and cross-page links: same activity, component of program, has component, shared participation, governs, governed by, distinct (`distinct_action`), unresolved, plus not-an-activity within a page.\n3. Add \"has component\" and \"governed by\".\n4. Components stay separate activities; a governing policy is recorded as governing.\n5. Each pair of passages gets a link.",
+          "definition_slot": "items/core.activity_segment/values/7/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.activity_unit/0",
+            "items/core.activity_segment/rules/1",
+            "items/core.activity_segment/rules/2",
+            "items/core.activity_segment/rules/3",
+            "items/core.activity_segment/rules/4"
+          ]
+        },
+        {
+          "code": "not_an_activity",
+          "text": "The passage does not describe an activity as the activity rule defines one. In a pair of passages, it is used when either passage is not an activity; no other link is coded for that pair.\n\nRules:\n1. One activity = one action (deployment, governance instrument, staff training) by one actor concerning one tool or instrument. A named program is one activity; each named component is its own activity, linked to the program as a component of it. Repeated transactions for the same product by the same unit are one activity. A policy and the tools it approves are separate activities, linked by a \"governs\" relation.\n2. One shared relation list serves within-page and cross-page links: same activity, component of program, has component, shared participation, governs, governed by, distinct (`distinct_action`), unresolved, plus not-an-activity within a page.\n3. Add \"has component\" and \"governed by\".\n4. Components stay separate activities; a governing policy is recorded as governing.\n5. Each pair of passages gets a link.",
+          "definition_slot": "items/core.activity_segment/values/8/definition",
+          "rule_slots": [
+            "shared_rules/core.rule.activity_unit/0",
+            "items/core.activity_segment/rules/1",
+            "items/core.activity_segment/rules/2",
+            "items/core.activity_segment/rules/3",
+            "items/core.activity_segment/rules/4"
+          ]
+        }
+      ],
+      "part_prompt_answer": {
+        "label": "not covered by this part",
+        "label_slot": "shared/part_prompt/temporary_answer/label",
+        "meaning": "This part of the page does not deal with the question; another part of the page may.",
+        "meaning_slot": "shared/part_prompt/temporary_answer/meaning"
+      },
+      "approval": "approved",
+      "approval_record": "PI 2026-11-07 \"Approve exact wording\"",
+      "unit": "unordered pair of resolved page activity spans; lhs starts earlier",
+      "state_fields": {
+        "activity": "lhs activity label",
+        "linked_activity": "rhs activity label"
+      },
+      "same_start": "stop affected pair: pair_direction_tie",
+      "jev_type": "Choice"
+    }
+  ],
+  "pair_wording": {
+    "approval": "approved",
+    "approval_record": "PI 2026-11-07 \"Approve exact wording\"",
+    "source": "P-2c quote question reused verbatim; decision 7b"
+  }
 }

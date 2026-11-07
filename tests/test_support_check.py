@@ -539,3 +539,22 @@ def test_year_candidates_reference_year_passed_through():
         [[tuple(getattr(s, k) for k in keep) for s in c.sources] for c in direct]
     default = sc.activity_year_candidates(text, start, start + 90, context_chars=30)
     assert {s.reference_year for c in default for s in c.sources} == {default_reference_year()}
+
+
+def test_support_result_preserves_pair_identity():
+    result = check_code(ev(item="core.activity_segment", value="unresolved", quote=None,
+                           activity_id="lhs", linked_activity="rhs"), SRC)
+    assert result.activity_id == "lhs" and result.linked_activity == "rhs"
+    assert result.support_status == NOT_REQUIRED
+
+
+def test_pair_quote_join_keeps_distinct_linked_activities():
+    from types import SimpleNamespace as NS
+    tasks = [NS(task_id=str(i), activity_id="lhs", item_id="core.activity_segment",
+                chunk_id=P, answer="unresolved", linked_activity=rhs)
+             for i, rhs in enumerate(("one", "two"))]
+    quotes = [NS(task_id=str(i)) for i in range(2)]
+    joined = sc.pass2_quotes(NS(quote_tasks=tasks), NS(quotes=quotes))
+    assert len(joined) == 2
+    assert joined[("lhs", "core.activity_segment", P, "unresolved", "one")] is quotes[0]
+    assert joined[("lhs", "core.activity_segment", P, "unresolved", "two")] is quotes[1]

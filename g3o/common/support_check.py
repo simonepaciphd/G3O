@@ -311,6 +311,7 @@ class CodeEvidence:
     rule_name: str | None = None  # set when a rule fixed the value (status set_by_rule)
     entailment: Entailment | None = None  # X35 answer; required for a matched quote on a labelled item
     activity_id: str | None = None
+    linked_activity: str | None = None  # pair identity, preserved through T-024
 
 
 @dataclass(frozen=True)
@@ -330,6 +331,7 @@ class SupportResult:
     chosen_answer_probability: float | None
     entailment: Entailment | None
     flags: tuple[str, ...] = field(default_factory=tuple)
+    linked_activity: str | None = None
 
     @property
     def downgraded(self) -> bool:
@@ -389,7 +391,7 @@ def check_code(ev: CodeEvidence, sources: PageSources, rules: SupportRules | Non
             support_status_second_reason=second, support_rule_name=rule_name,
             supporting_text=quote, quote_chunk_id=(ev.quote_chunk_id or ev.chunk_id) if quote else None,
             match=match, chosen_answer_probability=ev.probability, entailment=ev.entailment,
-            flags=tuple(dict.fromkeys(flags)),
+            flags=tuple(dict.fromkeys(flags)), linked_activity=ev.linked_activity,
         )
 
     if ev.rule_name is not None:
@@ -460,13 +462,25 @@ def pass1_quotes(plan: Any, extraction: Any) -> dict[tuple[str, str], Any]:
     return out
 
 
-def pass2_quotes(plan: Any, support: Any) -> dict[tuple[str, str, str, str], Any]:
-    """Pass-2 quotes keyed (activity_id, item_id, chunk_id, answer), joined on ``task_id`` (T-032)."""
+def pass2_quotes(plan: Any, support: Any) -> dict[tuple[str, ...], Any]:
+    """Pass-2 quote join. Pair keys append linked_activity to the four-field ordinary key.
+
+    Ordinary key: (activity_id, item_id, chunk_id, answer). A pair has a fifth
+    component so equal answers for different linked activities never overwrite.
+    """
     tasks = {t.task_id: t for t in plan.quote_tasks}
     out = {}
     for q in support.quotes:
         t = tasks[q.task_id]
-        out[(t.activity_id, t.item_id, t.chunk_id, t.answer)] = q
+        key = (t.activity_id, t.item_id, t.chunk_id, t.answer)
+        if t.item_id == "core.activity_segment":
+            linked = getattr(t, "linked_activity", None)
+            if not linked:
+                raise ValueError("pair quote task lacks linked_activity")
+            key += (linked,)
+        if key in out:
+            raise ValueError(f"duplicate pass-2 quote key: {key}")
+        out[key] = q
     return out
 
 

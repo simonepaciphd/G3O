@@ -94,3 +94,36 @@ def test_jev_ask_adapter_builds_choices():
     with pytest.raises(RuntimeError):
         ask({"a": 1}, {"q1": {"instructions": "i", "criteria": {"x": "y"}}})
     assert seen["q"]["q1"].model_dump()["criteria"] == {"x": "y"}
+
+
+def test_stage_timing_written_and_resume_preserves_it(tmp_path, rules):  # noqa: F811
+    from g3o.common.timing import read_timing
+    spc.run_page_code_stage(tmp_path, pages(1), ask_fn=FakeJev(dict(DEFAULTS)), config=cfg(rules))
+    before = read_timing(tmp_path, "i0")
+    assert before["stages"][spc.STAGE]["status"] == "completed"
+    assert before["stages"][spc.STAGE]["duration_seconds"] >= 0
+    spc.run_page_code_stage(tmp_path, pages(1), ask_fn=FakeJev(dict(DEFAULTS)), config=cfg(rules))
+    assert read_timing(tmp_path, "i0") == before
+
+
+def test_stage_timing_records_failed_pages_and_account_errors(tmp_path, rules):  # noqa: F811
+    from g3o.common.timing import read_timing
+    spc.run_page_code_stage(tmp_path, pages(1), ask_fn=FakeJev(dict(DEFAULTS), request_id=None), config=cfg(rules))
+    assert read_timing(tmp_path, "i0")["stages"][spc.STAGE]["status"] == "failed"
+    with pytest.raises(JevAccountError):
+        spc.run_page_code_stage(tmp_path, pages(1), config=cfg(rules),
+                                ask_fn=FakeJev(dict(DEFAULTS), fail=lambda s, q: JevAccountError("402")))
+    assert read_timing(tmp_path, "i0")["stages"][spc.STAGE]["error"] == "402"
+
+
+def test_parallel_pages_of_one_institution_have_one_timing_window(tmp_path, rules):  # noqa: F811
+    from dataclasses import replace
+
+    from g3o.common.timing import read_timing
+    inp = pages(1)
+    inp.append(replace(inp[0], page_id="other", url="https://c0.example/second"))
+    result = spc.run_page_code_stage(tmp_path, inp, ask_fn=FakeJev(dict(DEFAULTS)), config=cfg(rules), concurrency=2)
+    assert result.n_coded == 2
+    timing = read_timing(tmp_path, "i0")
+    assert list(timing["stages"]) == [spc.STAGE]
+    assert timing["stages"][spc.STAGE]["status"] == "completed"

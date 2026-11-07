@@ -28,18 +28,19 @@ page question set (T-011) in round and gate order (R-008):
 
 Ruled specifics:
 - ``core.source_type`` is not asked here (T-015 asks it; RC-D-002 O2, PI
-  2026-11-08 Q3 a). It is skipped by id until the page set drops it.
+  2026-11-08 Q3 a). The approved page set omits it.
 - The two contact items read main + chrome text (codebook ``main_plus_chrome``,
   r2#48; PI Q4 b). jev shares one state across a request's questions, so they go
   in their own request per part whose state adds the chrome text under
-  :data:`CHROME_STATE_FIELD` -- a PLACEHOLDER name pending PI approval. When the
+  :data:`CHROME_STATE_FIELD` (PI 2026-11-07 item 1a). When the
   page's chrome was not measured or is empty, they join the main request
   (``chrome_status`` says which).
 - A part request with no request id is a failed part request
   (``jev_missing_request_id``; PI Q5); no placeholder id is ever recorded.
 - A failed part request enters combining as a failed answer (``unknown``,
-  all-03 a). The page verdict has no value to keep, so a failed verdict request
-  on any part fails the page (no verdict is made up); the stage records it.
+  all-03 a). Failed verdict requests have no vote: successful parts combine.
+  At least 75% failed verdict parts, counted on the current leaf layout, fail
+  the page (PI 2026-11-07 item 5). Low-confidence answers remain tag-only votes.
 """
 
 from __future__ import annotations
@@ -71,13 +72,10 @@ VERDICT = "core.page_verdict"
 COMPLETE = "core.page_complete"
 
 #: Questions of the page set this stage does not ask, with the reason.
-SKIPPED_QUESTIONS: Mapping[str, str] = {
-    "core.source_type": "asked by T-015 (RC-D-002 O2; PI 2026-11-08 Q3 a); "
-                        "skipped by id until the page question set drops it",
-}
+SKIPPED_QUESTIONS: Mapping[str, str] = {}
 
-#: PLACEHOLDER state-field name for the chrome text (PI Q4 b; name pending PI approval).
-CHROME_STATE_FIELD = "page_chrome_text"
+#: PI 2026-11-07 item 1a: stored chrome verbatim, followed by stored email links.
+CHROME_STATE_FIELD = "chrome_text"
 CHROME_INPUT = "main_plus_chrome"
 GROUP_MAIN = "main"
 GROUP_CHROME = "chrome"
@@ -111,6 +109,7 @@ class PageInput:
     chrome_text: str | None = None  # T-014 RenderedPage.chrome_text; None = not measured
     links: tuple[dict[str, Any], ...] | None = None  # passed to T-022 unchanged
     has_metadata_date: bool = False  # passed to T-022 unchanged
+    email_links: tuple[str, ...] | None = None  # T-014 addresses, already normalized
 
 
 @dataclass(frozen=True)
@@ -184,7 +183,7 @@ def build_state(page: PageInput, chunk: Chunk, index: int, n_parts: int, qset: M
         state["part_note"] = qset["part_prompt"]["sentence"]
     state["page_text"] = chunk.text
     if chrome:
-        state[CHROME_STATE_FIELD] = page.chrome_text
+        state[CHROME_STATE_FIELD] = contact_text(page)
     return state
 
 
@@ -197,8 +196,17 @@ def serialize_request(state: Mapping[str, Any], questions: Mapping[str, Any]) ->
     return json.dumps({"state": state, "questions": questions}, ensure_ascii=False)
 
 
+def contact_text(page: PageInput) -> str | None:
+    """Preserve stored chrome exactly; append T-014 addresses in their stored order."""
+    if page.chrome_text is None:
+        return None  # pre-T-014 page: omit the field, per the existing ruling
+    emails = "\n".join(page.email_links or ())
+    return page.chrome_text + ("\n" + emails if emails else "")
+
+
 def _chrome_sent(page: PageInput) -> bool:
-    return bool(page.chrome_text and page.chrome_text.strip())
+    text = contact_text(page)
+    return bool(text and text.strip())
 
 
 def _groups(questions: Sequence[dict[str, Any]], s: _Setup, page: PageInput) -> list[tuple[str, list[dict[str, Any]]]]:
@@ -384,7 +392,7 @@ def gate_open(question: Mapping[str, Any], items: Mapping[str, ItemOutcome]) -> 
     if not isinstance(gate, Mapping):
         return True
     g = items[gate["item"]]
-    if g.state == "stopped":
+    if g.state in ("stopped", "pending"):
         return None
     return g.value in gate["values"]
 
@@ -430,6 +438,7 @@ def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
     layout = plan_layout(page, config, s)
     cache: dict[tuple[str, int, str], dict[str, Any]] = {}
     requests: list[dict[str, Any]] = []
+    exhausted: set[str] = set()
 
     def send(chunk: Chunk, index: int, n: int, rnd: int, group: str,
              qs: list[dict[str, Any]]) -> dict[str, Any]:
@@ -443,6 +452,12 @@ def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
         payload = serialize_request(state, questions)
         log = {"chunk_id": chunk.chunk_id, "round": rnd, "group": group, "page_part": state["page_part"],
                "question_ids": list(qids), "estimated_tokens": config.estimator.tokens(payload)}
+        if chunk.chunk_id in exhausted:
+            entry = {"qids": qids, "records": {}, "failure": {
+                "reason": OVER_LIMIT, "detail": "part cannot be halved further"}}
+            cache[key] = entry
+            requests.append({**log, "outcome": OVER_LIMIT})
+            return entry
         if log["estimated_tokens"] > config.limit_tokens - config.reserved_tokens:
             raise _OverLimit(chunk)
         entry: dict[str, Any] = {"qids": qids, "records": {}, "failure": None}
@@ -489,8 +504,9 @@ def code_page(page: PageInput, ask_fn: AskFn, config: PageCoderConfig, *,
             pos = next(i for i, c in enumerate(layout) if c.chunk_id == ol.chunk.chunk_id)
             halves = halve_chunk(ol.chunk, estimator=config.estimator)
             if halves is None or ol.chunk.depth >= config.max_split_depth:
-                raise PageFailed(OVER_LIMIT, f"part {ol.chunk.chunk_id} over the limit and cannot be halved further") from None
-            layout[pos:pos + 1] = list(halves)
+                exhausted.add(ol.chunk.chunk_id)
+            else:
+                layout[pos:pos + 1] = list(halves)
 
     live = {c.chunk_id for c in layout}
     records: list[CoderRecord] = []
@@ -538,6 +554,7 @@ def _rounds(layout: list[Chunk], s: _Setup, page: PageInput, config: PageCoderCo
         if not asked:
             continue
         answers: dict[str, list[pc.PartAnswer]] = {q["item_id"]: [] for q in asked}
+        verdict_failures: list[tuple[str, str]] = []
         for index, chunk in enumerate(layout, start=1):
             for group, qs in _groups(asked, s, page):
                 entry = send(chunk, index, n, rnd, group, qs)
@@ -549,9 +566,13 @@ def _rounds(layout: list[Chunk], s: _Setup, page: PageInput, config: PageCoderCo
                         continue
                     cause = (entry["failure"] or rec or {}).get("reason", REQUEST_FAILED)
                     if q["item_id"] == VERDICT:
-                        raise PageFailed(cause, f"no verdict for part {chunk.chunk_id}")
+                        verdict_failures.append((chunk.chunk_id, cause))
+                        continue
                     answers[q["item_id"]].append(pc.PartAnswer(chunk.chunk_id, index, pc.UNKNOWN, None,
                                                                failed=True, cause=cause))
+        if 4 * len(verdict_failures) >= 3 * n:
+            raise PageFailed(verdict_failures[0][1],
+                             f"{len(verdict_failures)}/{n} verdict parts failed (at least 75%)")
         for q in asked:
             items[q["item_id"]] = _combine(s.combine_rules[q["item_id"]], answers[q["item_id"]])
     return items, used
@@ -584,8 +605,8 @@ class FinalPage:
     ``regated``: items asked on the provisional gate whose final gate is closed;
     they take their signed gated-out value and jev's raw answers stay in the
     records, unpublished. ``gate_opened``: items not asked because the provisional
-    gate was closed, whose final gate is open; they keep their gated-out value
-    (no question was asked; flagged for the integrator).
+    gate was closed, whose final gate is open. These items are pending the
+    extra round required in T-030 (PI 2026-11-07 item 4b), not final negatives.
     """
 
     items: Mapping[str, ItemOutcome]
@@ -626,9 +647,17 @@ def finalize_page(result: PageCodeResult, support: Sequence[Any], config: PageCo
             iid = q["item_id"]
             prov = provisional[iid]
             open_ = gate_open(q, final)
+            gate = q.get("gate")
+            if isinstance(gate, Mapping) and final[gate["item"]].state == "pending":
+                final[iid] = ItemOutcome(iid, "pending", None,
+                                         note="gate awaits extra round after support check")
+                continue
             if prov.state != "combined":
                 if prov.state == "gated_out" and open_:
                     opened.append(iid)
+                    final[iid] = ItemOutcome(iid, "pending", None,
+                                             note="requires extra round after support check")
+                    continue
                 final[iid] = prov
                 continue
             if open_ is None:
@@ -656,6 +685,8 @@ def finalize_page(result: PageCodeResult, support: Sequence[Any], config: PageCo
                                            cause=rec.downgrade_cause if bar_failed else
                                            (st if _DOWNGRADED.match(st) else None)))
             for f in result.failures:
+                if iid == VERDICT:
+                    continue  # request failure is not a tag-only verdict vote
                 if f["chunk_id"] in index and f["chunk_id"] not in seen and iid in f["question_ids"]:
                     answers.append(pc.PartAnswer(f["chunk_id"], index[f["chunk_id"]], pc.UNKNOWN, None,
                                                  failed=True, cause=f["reason"]))
@@ -681,7 +712,7 @@ def to_pass1_page(result: PageCodeResult, page: PageInput) -> Any:
         url=page.url, title=page.title, text=page.text, chunks=tuple(result.chunks), codes=codes,
         verdict=result.verdict.value,
         page_complete=complete.value if complete is not None and complete.state == "combined" else None,
-        chrome_text=page.chrome_text, links=page.links, has_metadata_date=page.has_metadata_date)
+        chrome_text=contact_text(page), links=page.links, has_metadata_date=page.has_metadata_date)
 
 
 __all__ = [

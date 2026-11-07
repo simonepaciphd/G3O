@@ -194,3 +194,194 @@ def test_real_pages_resolve_and_quotes_occur():
         for e in f["expected"]:
             q = e.get("evidence_quote")
             assert not q or any(norm(q) in t for t in texts), (f["fixture_id"], q)
+
+
+def _injected_answers(o):
+    if isinstance(o, dict):
+        if "value" in o and "support" in o:
+            yield o
+        else:
+            for v in o.values():
+                yield from _injected_answers(v)
+    elif isinstance(o, list):
+        for v in o:
+            yield from _injected_answers(v)
+
+
+def test_injected_support_follows_codebook_status_by_answer(fixtures):
+    """An injected value the signed vocabulary maps to not_required is never `supported` (r13).
+
+    It is `not_required`, or downgraded when it misses the 0.8 bar (R-081).
+    """
+    cb = yaml.safe_load(CODEBOOK.read_text(encoding="utf-8"))
+    by_answer = cb["vocabularies"]["support_status"]["status_by_answer"]
+    exempt = {k for k, v in by_answer.items() if v == "not_required"}
+    assert {"no", "unresolved", "unclear", "none"} <= exempt
+    bad = [
+        (f["fixture_id"], a["value"], a["support"])
+        for f in fixtures
+        for a in _injected_answers(f.get("injected") or {})
+        if str(a["value"]) in exempt and a["support"] == "supported"
+    ]
+    assert not bad, bad
+
+
+def test_cap_fixture_follows_page_order_when_no_link_is_located(fixtures):
+    """v27-syn-A004-02: RC-D-017 10a + RC-D-023 C-Q4 a fix which 10 of 13 links are followed (JC-S4 closed)."""
+    f = next(x for x in fixtures if x["fixture_id"] == "v27-syn-A004-02")
+    exp = {e["item"]: e["value"] for e in f["expected"]}
+    links = [lk["url"].rsplit("/", 1)[1] for lk in f["pages"][0]["links"]]
+    assert exp["n_followed"] == 10 and exp["cap_reached"] is True
+    assert exp["which_followed"] == links[:10]
+    assert exp["not_followed"] == links[10:]
+    jc = {
+        r["jc_id"]: r for r in csv.DictReader((FIX / "judgement-calls.csv").open(encoding="utf-8"))
+    }
+    assert jc["JC-S4"]["status"].startswith("closed")
+
+
+def test_recovery_fixture_revisions_and_known_limits(fixtures):
+    """PI E-Q1a/Q2a: new labels r13, known limits are expected behavior, no paid scoring."""
+    new_ids = {f"v27-syn-A011-{n}" for n in (10, 11, 12)}
+    new_ids |= {f"v27-syn-A021-{n}" for n in (12, 13, 14, 15, 16, 17)}
+    new_ids |= {f"v27-syn-A004-{n:02d}" for n in (6, 7, 8, 9)}
+    by = {f["fixture_id"]: f for f in fixtures}
+    assert new_ids <= by.keys()
+    for fid in new_ids:
+        assert all(e["codebook_rev"] == "r13" for e in by[fid]["expected"])
+    for f in fixtures:
+        if f["kind"] == "synthetic" and f["fixture_id"] not in new_ids:
+            assert all(e["codebook_rev"] == "r11" for e in f["expected"])
+    for n in (12, 13, 14):
+        f = by[f"v27-syn-A021-{n}"]
+        assert "known_limit" in f["tags"]
+        assert {e["item"]: e["value"] for e in f["expected"]}["support_status"] == "downgraded_no_quote"
+
+
+def test_recovery_readability_fixtures_match_production(fixtures):
+    from g3o.scrape.readability import readability_failure
+
+    by = {f["fixture_id"]: f for f in fixtures}
+    for n in (10, 11, 12):
+        f = by[f"v27-syn-A011-{n}"]
+        expected = {e["item"]: e["value"] for e in f["expected"]}
+        assert readability_failure(f["pages"][0]["text"]) == expected["readability_failure"]
+        assert expected["core.page_verdict"] == "not_assessable"
+        assert expected["page_review_state"] == "reviewed"
+
+
+def test_recovery_matcher_and_contact_fixtures_match_production(fixtures):
+    from g3o.common.support_check import extract_contact_emails, match_quote
+
+    by = {f["fixture_id"]: f for f in fixtures}
+    for n in (12, 13, 14):
+        f = by[f"v27-syn-A021-{n}"]
+        answer = f["injected"]["p0"]["answer"]
+        result = match_quote(answer["quote"], f["pages"][0]["text"])
+        assert not result.matched, (f["fixture_id"], result)
+    f = by["v27-syn-A021-17"]
+    assert extract_contact_emails("yes", f["pages"][0]["text"]) == "not_documented"
+
+
+def test_opened_gate_fixture_requires_extra_round_before_finalization(fixtures):
+    from g3o.classify.questions.v27 import load_set
+
+    fixture = next(f for f in fixtures if f["fixture_id"] == "v27-syn-A021-16")
+    expected = {e["item"]: e["value"] for e in fixture["expected"]}
+    question = next(q for q in load_set("activity")["questions"] if q["item_id"] == "core.model_origin")
+    values = question["gate"]["values"]
+    provisional = fixture["injected"]["p0"]["provisional"]
+    assert provisional["core.activity_type"]["value"] not in values
+    assert expected["core.activity_type"] in values
+    assert expected["extra_round_questions"] == expected["gate_opened"] == ["core.model_origin"]
+    assert expected["core.model_origin"] != provisional["core.model_origin"]["value"]
+    order = expected["event_order"]
+    assert order.index("support_check") < order.index("extra_round") < order.index("finalize")
+
+
+def test_follow_recovery_fixture_sources_are_complete(fixtures):
+    by = {f["fixture_id"]: f for f in fixtures}
+    ranking = by["v27-syn-A004-07"]
+    text = ranking["pages"][0]["text"]
+    injected = ranking["injected"]["p0"]
+    spans = injected["supported_quote_spans"] + injected["unsupported_quote_spans"]
+    spans += list(injected["link_spans"].values())
+    assert all(0 <= lo < hi <= len(text) for lo, hi in spans)
+    assert text[slice(*injected["link_spans"]["far"])] == "far link passage"
+    assert text[slice(*injected["link_spans"]["near"])] == "near link passage"
+    fetching = by["v27-syn-A004-09"]
+    pages = {p["page_key"]: p for p in fetching["pages"]}
+    assert set(fetching["injected"]) <= pages.keys()
+    targets = {p["url"] for p in pages.values()}
+    assert all(link["url"] in targets for p in pages.values() for link in p["links"])
+    assert all(p["text"] and p["fetch_status"] == "ok" for p in pages.values())
+
+
+def _follow_fixture_page(fixture, raw):
+    from g3o.common.page_chunks import Chunk
+    from g3o.extract.request_v27 import Pass1Page
+
+    fields = fixture["injected"][raw["page_key"]]
+    return Pass1Page(
+        page_id=raw["page_key"], institution_id=fixture["institution"]["institution_id"],
+        institution_name=fixture["institution"]["name"], url=raw["url"], title=raw["title"],
+        text=raw["text"], chunks=(Chunk("c1", raw["page_key"], 0, len(raw["text"]), raw["text"], 1),),
+        codes=(), verdict=fields["core.page_verdict"]["value"],
+        page_complete=fields["core.page_complete"]["value"], links=tuple(raw["links"]))
+
+
+def _follow_fixture_extraction(page, passages):
+    from g3o.extract.parser_v27 import Pass1Extraction, SelectedLink
+
+    links = tuple(SelectedLink(f"L{i:03d}", link["url"], "c1", passages[i - 1])
+                  for i, link in enumerate(page.links, 1))
+    return Pass1Extraction(page_id=page.page_id, custom_id="fixture", quotes=(), links=links,
+                          activities=(), publication_date=None, link_status=None)
+
+
+def test_ranking_fixture_with_production_follow(fixtures):
+    follow = pytest.importorskip("g3o.scrape.follow", reason="requires T-025 integration")
+    f = next(f for f in fixtures if f["fixture_id"] == "v27-syn-A004-07")
+    p = _follow_fixture_page(f, f["pages"][0])
+    injected = f["injected"]["p0"]
+    passages = [p.text[slice(*injected["link_spans"][key])] if key in injected["link_spans"]
+                else "absent " + key for key in ("far", "near", "unlocated1", "unlocated2")]
+    ex = _follow_fixture_extraction(p, passages)
+    supported = [p.text[slice(*span)] for span in injected["supported_quote_spans"]]
+    state = follow.InstitutionFollow(p.institution_id, "fixture")
+    state.register_original(p.url)
+    ranked = state.candidates([(p, ex)], supported={p.page_id: supported})
+    expected = next(e["value"] for e in f["expected"] if e["item"] == "follow_order")
+    assert [c.url.rsplit("/", 1)[1] for c in ranked] == expected
+
+
+def test_target_page_fixture_with_production_follow(fixtures, tmp_path):
+    follow = pytest.importorskip("g3o.scrape.follow", reason="requires T-025 integration")
+    from g3o.run.presweep.stage_follow import FetchResult, run_follow_round
+
+    from g3o.scrape.render import FetchMetadata, RenderedPage
+
+    f = next(f for f in fixtures if f["fixture_id"] == "v27-syn-A004-09")
+    pages = {p["url"]: p for p in f["pages"]}
+    p0 = _follow_fixture_page(f, f["pages"][0])
+    state = follow.InstitutionFollow(p0.institution_id, "fixture")
+    state.register_original(p0.url)
+    events = ["pass1:p0", "extract:p0"]
+    ex = _follow_fixture_extraction(p0, [link["anchor"] for link in p0.links])
+
+    def fetch(url):
+        raw = pages[url]
+        events.append("follow:" + raw["page_key"])
+        return FetchResult(follow.FETCHED, RenderedPage(
+            url=url, text=raw["text"], title=raw["title"], content_type="html",
+            fetch_metadata=FetchMetadata(access_date="2026-11-07", fetch_method="html")))
+
+    fetched = run_follow_round(tmp_path, {p0.institution_id: state}, [(p0, ex)], fetch=fetch, supported={})
+    assert len(fetched) == 1 and fetched[0].page.text == pages[fetched[0].page.url]["text"]
+    p1 = _follow_fixture_page(f, pages[fetched[0].page.url])
+    events += ["pass1:p1", "extract:p1"]
+    assert run_follow_round(tmp_path, {p0.institution_id: state},
+                            [(p1, _follow_fixture_extraction(p1, []))], fetch=fetch, supported={}) == []
+    expected = {e["item"]: e["value"] for e in f["expected"]}
+    assert events == expected["event_order"]
+    assert {k: events.count("extract:" + k) for k in ("p0", "p1")} == expected["extractor_calls"]
