@@ -31,7 +31,8 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "confirms_activity",
-     "rule": "codebook 2.7 core.page_verdict confirms_activity: own GenAI deployment, named generative product (Copilot)"
+     "rule": "codebook 2.7 core.page_verdict confirms_activity: own GenAI deployment, named generative product (Copilot)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -65,7 +66,8 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "ambiguous_genai",
-     "rule": "codebook 2.7 core.page_verdict ambiguous_genai: generic 'AI strategy' / 'AI tools' (example in the definition); SPEC R-016"
+     "rule": "codebook 2.7 core.page_verdict ambiguous_genai: generic 'AI strategy' / 'AI tools' (example in the definition); SPEC R-016",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -99,7 +101,8 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "ambiguous_attribution",
-     "rule": "codebook 2.7 core.page_verdict ambiguous_attribution: country-wide GenAI initiative without confirmation this institution takes part"
+     "rule": "codebook 2.7 core.page_verdict ambiguous_attribution: country-wide GenAI initiative without confirmation this institution takes part",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -133,7 +136,8 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "other_body",
-     "rule": "codebook 2.7 core.page_verdict other_body: GenAI activity of a parent/higher-level body (county) when the named institution is a ward"
+     "rule": "codebook 2.7 core.page_verdict other_body: GenAI activity of a parent/higher-level body (county) when the named institution is a ward",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -167,7 +171,8 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "event_only",
-     "rule": "codebook 2.7 core.page_verdict event_only: only GenAI content is a public-facing workshop; no adoption by the institution"
+     "rule": "codebook 2.7 core.page_verdict event_only: only GenAI content is a public-facing workshop; no adoption by the institution",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -201,7 +206,8 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "background_only",
-     "rule": "codebook 2.7 core.page_verdict background_only: only general context (national AI strategy, news about GenAI in general)"
+     "rule": "codebook 2.7 core.page_verdict background_only: only general context (national AI strategy, news about GenAI in general)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -235,7 +241,8 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "confirms_absence",
-     "rule": "codebook 2.7 core.page_verdict confirms_absence: page states this institution has no GenAI activity (C01 commits_to, SPEC A-011)"
+     "rule": "codebook 2.7 core.page_verdict confirms_absence: page states this institution has no GenAI activity (C01 commits_to, SPEC A-011)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -269,7 +276,8 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "no_genai",
-     "rule": "codebook 2.7 core.page_verdict no_genai: no GenAI content relevant to this institution"
+     "rule": "codebook 2.7 core.page_verdict no_genai: no GenAI content relevant to this institution",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -311,13 +319,15 @@
      "scope": "page:p0",
      "value": "not_assessable",
      "rule": "codebook 2.7 core.page_verdict not_assessable (jev_choice false) + rule 'not one of the answers: set when a page was not reviewed'; SPEC R-015 (C1 a)",
-     "asked": false
+     "asked": false,
+     "codebook_rev": "r11"
     },
     {
      "item": "core.has_genai_activity",
      "scope": "institution",
      "value": "unclear",
-     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: a failed fetch blocks `no`; no supported confirms_activity page gives no `yes`"
+     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: a failed fetch blocks `no`; no supported confirms_activity page gives no `yes`",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -351,13 +361,15 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "confirms_activity",
-     "rule": "codebook 2.7 core.rule.genai_boundary: a tool the page calls an 'AI chatbot' counts as GenAI; SPEC R-016"
+     "rule": "codebook 2.7 core.rule.genai_boundary: a tool the page calls an 'AI chatbot' counts as GenAI; SPEC R-016",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.genai_mechanism_basis",
      "scope": "activity:Ask Ellie",
      "value": "ai_chatbot_or_assistant_label_only",
-     "rule": "codebook 2.7 core.genai_mechanism_basis value ai_chatbot_or_assistant_label_only (A01 basis)"
+     "rule": "codebook 2.7 core.genai_mechanism_basis value ai_chatbot_or_assistant_label_only (A01 basis)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -392,7 +404,8 @@
      "scope": "page:p0",
      "value": "no_genai",
      "rule": "codebook 2.7 core.page_verdict confirms_activity exclusion (automation without generative capability or a GenAI/AI-chatbot label); no AI mentioned, so not ambiguous_genai; SPEC R-016 (contract L12 rule-based exclusion)",
-     "judgement_call": "JC-S1"
+     "judgement_call": "JC-S1",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -426,7 +439,8 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "ambiguous_genai",
-     "rule": "codebook 2.7 core.page_verdict ambiguous_genai (generic 'AI strategy', 'AI tools'); SPEC R-016 (contract §4.1 stays unclear)"
+     "rule": "codebook 2.7 core.page_verdict ambiguous_genai (generic 'AI strategy', 'AI tools'); SPEC R-016 (contract §4.1 stays unclear)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -461,7 +475,8 @@
      "scope": "page:p0",
      "value": "no_genai",
      "rule": "codebook 2.7 core.rule.genai_boundary translation clause: translation counts only when tied to a named generative product or a language model; no AI mentioned",
-     "judgement_call": "JC-S1"
+     "judgement_call": "JC-S1",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -495,19 +510,22 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "confirms_activity",
-     "rule": "codebook 2.7 core.rule.genai_boundary translation clause (named generative product); SPEC R-016 S1 a"
+     "rule": "codebook 2.7 core.rule.genai_boundary translation clause (named generative product); SPEC R-016 S1 a",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.genai_mechanism_basis",
      "scope": "activity:ChatGPT notice translation",
      "value": "named_genai_product_or_model",
-     "rule": "codebook 2.7 core.genai_mechanism_basis named_genai_product_or_model"
+     "rule": "codebook 2.7 core.genai_mechanism_basis named_genai_product_or_model",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.function_translation",
      "scope": "activity:ChatGPT notice translation",
      "value": "yes",
-     "rule": "codebook 2.7 core.function_translation"
+     "rule": "codebook 2.7 core.function_translation",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -541,19 +559,22 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "confirms_activity",
-     "rule": "codebook 2.7 core.page_verdict confirms_activity (explicitly generative AI, own pilot)"
+     "rule": "codebook 2.7 core.page_verdict confirms_activity (explicitly generative AI, own pilot)",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.genai_mechanism_basis",
      "scope": "activity:case-note GenAI pilot",
      "value": "explicit_genai_label",
-     "rule": "codebook 2.7 core.genai_mechanism_basis explicit_genai_label"
+     "rule": "codebook 2.7 core.genai_mechanism_basis explicit_genai_label",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.adoption_stage",
      "scope": "activity:case-note GenAI pilot",
      "value": "pilot",
-     "rule": "codebook 2.7 core.adoption_stage pilot"
+     "rule": "codebook 2.7 core.adoption_stage pilot",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -587,19 +608,22 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "confirms_activity",
-     "rule": "codebook 2.7 core.page_verdict confirms_activity: page says the tool generates text"
+     "rule": "codebook 2.7 core.page_verdict confirms_activity: page says the tool generates text",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.genai_mechanism_basis",
      "scope": "activity:email reply drafting",
      "value": "generative_capability_described",
-     "rule": "codebook 2.7 core.genai_mechanism_basis generative_capability_described"
+     "rule": "codebook 2.7 core.genai_mechanism_basis generative_capability_described",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.has_human_oversight",
      "scope": "activity:email reply drafting",
      "value": "yes",
-     "rule": "codebook 2.7 core.has_human_oversight yes (staff edit before sending)"
+     "rule": "codebook 2.7 core.has_human_oversight yes (staff edit before sending)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -634,26 +658,30 @@
      "scope": "page:p0",
      "value": 3,
      "rule": "SPEC R-017: a named program is one activity; each named component is its own activity",
-     "value_kind": "n_activities"
+     "value_kind": "n_activities",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.activity_segment",
      "scope": "pair:Ask Kira|Smart Kingsford AI Programme",
      "value": "component_of_program",
-     "rule": "codebook 2.7 relation vocabulary; SPEC R-017 (components linked, never merged)"
+     "rule": "codebook 2.7 relation vocabulary; SPEC R-017 (components linked, never merged)",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.activity_segment",
      "scope": "pair:Smart Kingsford AI Programme|Copilot finance pilot",
      "value": "has_component",
-     "rule": "codebook 2.7 relation has_component (reverse link, RC-D-003 activity-16 b)"
+     "rule": "codebook 2.7 relation has_component (reverse link, RC-D-003 activity-16 b)",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.activity_segment",
      "scope": "pair:Ask Kira|Copilot finance pilot",
      "value": "distinct_action",
      "rule": "SPEC R-017 shared relation list; two components of one programme are not the same activity",
-     "judgement_call": "JC-S2"
+     "judgement_call": "JC-S2",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -688,26 +716,30 @@
      "scope": "page:p0",
      "value": 2,
      "rule": "SPEC R-017: a policy and the tools it approves are separate activities",
-     "value_kind": "n_activities"
+     "value_kind": "n_activities",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.activity_segment",
      "scope": "pair:GenAI Acceptable Use Policy|Copilot drafting",
      "value": "governs",
-     "rule": "codebook 2.7 relation governs; SPEC R-017"
+     "rule": "codebook 2.7 relation governs; SPEC R-017",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.activity_segment",
      "scope": "pair:Copilot drafting|GenAI Acceptable Use Policy",
      "value": "governed_by",
-     "rule": "codebook 2.7 relation governed_by (reverse link)"
+     "rule": "codebook 2.7 relation governed_by (reverse link)",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.governance_direction",
      "scope": "activity:GenAI Acceptable Use Policy",
      "value": "restricts_with_conditions",
      "rule": "codebook 2.7 core.governance_direction: permits one tool, other tools not approved",
-     "judgement_call": "JC-S3"
+     "judgement_call": "JC-S3",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -741,7 +773,8 @@
      "item": "core.activity_segment",
      "scope": "pair:AI Use Policy|Digital Futures programme",
      "value": "governs",
-     "rule": "SPEC R-017: when two links fit one pair (component_of_program and governs), governs wins (activity-17 a)"
+     "rule": "SPEC R-017: when two links fit one pair (component_of_program and governs), governs wins (activity-17 a)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -776,13 +809,15 @@
      "scope": "page:p0",
      "value": 1,
      "rule": "SPEC R-017: repeated transactions for the same product by the same unit are one activity",
-     "value_kind": "n_activities"
+     "value_kind": "n_activities",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.procurement_status",
      "scope": "activity:ChatGPT Team subscription",
      "value": "payment_or_subscription",
-     "rule": "codebook 2.7 core.procurement_status payment_or_subscription"
+     "rule": "codebook 2.7 core.procurement_status payment_or_subscription",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -816,13 +851,15 @@
      "item": "core.activity_segment",
      "scope": "pair:parking AI assistant|AI for beginners talk",
      "value": "distinct_action",
-     "rule": "codebook 2.7 relation distinct_action; SPEC R-017"
+     "rule": "codebook 2.7 relation distinct_action; SPEC R-017",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "confirms_activity",
-     "rule": "codebook 2.7 core.page_verdict order rule (first fitting value): the AI assistant is the institution's own GenAI tool (R-016)"
+     "rule": "codebook 2.7 core.page_verdict order rule (first fitting value): the AI assistant is the institution's own GenAI tool (R-016)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -1004,7 +1041,8 @@
       "p2",
       "p3"
      ],
-     "rule": "SPEC R-032: links followed only up to 3 hops from the originally scraped page; codebook core.page_complete `yes` means incomplete"
+     "rule": "SPEC R-032: links followed only up to 3 hops from the originally scraped page; codebook core.page_complete `yes` means incomplete",
+     "codebook_rev": "r11"
     },
     {
      "item": "not_followed",
@@ -1012,7 +1050,8 @@
      "value": [
       "p4"
      ],
-     "rule": "SPEC R-032 hop limit"
+     "rule": "SPEC R-032 hop limit",
+     "codebook_rev": "r11"
     },
     {
      "item": "provenance",
@@ -1022,7 +1061,8 @@
       "p2": "p1",
       "p3": "p2"
      },
-     "rule": "SPEC R-034: every followed link records the page it came from"
+     "rule": "SPEC R-034: every followed link records the page it came from",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -1413,13 +1453,15 @@
      "item": "n_followed",
      "scope": "institution",
      "value": 10,
-     "rule": "SPEC R-032 cap value 10 (RC-D-014 S4)"
+     "rule": "SPEC R-032 cap value 10 (RC-D-014 S4)",
+     "codebook_rev": "r11"
     },
     {
      "item": "cap_reached",
      "scope": "institution",
      "value": true,
-     "rule": "SPEC R-032: when the cap is reached, following stops and 'cap reached' is recorded"
+     "rule": "SPEC R-032: when the cap is reached, following stops and 'cap reached' is recorded",
+     "codebook_rev": "r11"
     },
     {
      "item": "which_followed",
@@ -1438,7 +1480,8 @@
      ],
      "rule": "SPEC R-032 (RC-D-015 F1 b; RC-D-017 10a): links nearest a supporting quote first, ties to page order; RC-D-023 C-Q4 a: links with no located position rank after located ones, in page order. No link passage is located here, so the first 10 in page order are followed",
      "judgement_call": "JC-S4",
-     "label_date": "2026-11-06"
+     "label_date": "2026-11-06",
+     "codebook_rev": "r11"
     },
     {
      "item": "not_followed",
@@ -1449,7 +1492,8 @@
       "l13"
      ],
      "rule": "SPEC R-032 cap of 10 (RC-D-014 S4); RC-D-023 C-Q4 a page order: the last three eligible links are not followed, reason cap reached",
-     "label_date": "2026-11-06"
+     "label_date": "2026-11-06",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -1556,7 +1600,8 @@
       "p1": 1,
       "p2": 1
      },
-     "rule": "SPEC R-034: each URL fetched at most once per institution per run (prevents loops under R-032)"
+     "rule": "SPEC R-034: each URL fetched at most once per institution per run (prevents loops under R-032)",
+     "codebook_rev": "r11"
     },
     {
      "item": "provenance",
@@ -1566,7 +1611,8 @@
       "p2": "p0"
      },
      "rule": "SPEC R-034 provenance chain; RC-D-015 F2 a (approved 2026-11-04): the recorded parent is the page that first queued the URL, in traversal order. p0 is the root and queues p1 and p2 before p1 is fetched, so p2 <- p0 in any traversal",
-     "judgement_call": "JC-S5"
+     "judgement_call": "JC-S5",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -1619,7 +1665,8 @@
      "item": "followed_urls",
      "scope": "institution",
      "value": [],
-     "rule": "codebook 2.7 core.page_complete `no` (complete; `yes` means the page refers onward); SPEC R-031 follows only incomplete pages"
+     "rule": "codebook 2.7 core.page_complete `no` (complete; `yes` means the page refers onward); SPEC R-031 follows only incomplete pages",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -1671,19 +1718,22 @@
       "p1"
      ],
      "rule": "SPEC R-031/R-033 (any cited link eligible)",
-     "judgement_call": "JC-S6"
+     "judgement_call": "JC-S6",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.page_verdict",
      "scope": "page:p1",
      "value": "not_assessable",
-     "rule": "codebook 2.7 core.page_verdict not_assessable (page not reviewed)"
+     "rule": "codebook 2.7 core.page_verdict not_assessable (page not reviewed)",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.has_genai_activity",
      "scope": "institution",
      "value": "unclear",
-     "rule": "SPEC R-005 (failed fetch blocks `no`, A-010 N18)"
+     "rule": "SPEC R-005 (failed fetch blocks `no`, A-010 N18)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -1742,7 +1792,8 @@
      "item": "core.has_genai_activity",
      "scope": "institution",
      "value": "no",
-     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: every attempted page negative at >= 0.8, none ambiguous/failed"
+     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: every attempted page negative at >= 0.8, none ambiguous/failed",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -1801,7 +1852,8 @@
      "item": "core.has_genai_activity",
      "scope": "institution",
      "value": "no",
-     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table; SPEC R-005 RC-D-002 row 6: background_only pages may sit in the institution `no` set (S2 b, the PI variant)"
+     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table; SPEC R-005 RC-D-002 row 6: background_only pages may sit in the institution `no` set (S2 b, the PI variant)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -1860,7 +1912,8 @@
      "item": "core.has_genai_activity",
      "scope": "institution",
      "value": "unclear",
-     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: any downgraded page counts as unresolved (r2#40); bar is chosen-answer p >= 0.8 (SPEC R-081)"
+     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: any downgraded page counts as unresolved (r2#40); bar is chosen-answer p >= 0.8 (SPEC R-081)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -1908,7 +1961,8 @@
      "scope": "institution",
      "value": "unclear",
      "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: `no` needs every attempted page incl. failed fetches and unfollowed links negative (A-010 N18)",
-     "judgement_call": "JC-S7"
+     "judgement_call": "JC-S7",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -1953,14 +2007,16 @@
      "item": "core.has_genai_activity",
      "scope": "institution",
      "value": "yes",
-     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: any supported GenAI purchase record can give `yes` (C5 a); evidence tier still shows commitment"
+     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: any supported GenAI purchase record can give `yes` (C5 a); evidence tier still shows commitment",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.evidence_tier",
      "scope": "institution",
      "value": "documented_commitment",
      "rule": "SPEC R-005 (C5 a); codebook core.evidence_tier rule: commitment = announced, or a tender, contract or payment",
-     "judgement_call": "JC-S8"
+     "judgement_call": "JC-S8",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2004,7 +2060,8 @@
      "item": "core.has_genai_activity",
      "scope": "institution",
      "value": "unclear",
-     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: `no` from web pages only (r2#44)"
+     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: `no` from web pages only (r2#44)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2064,7 +2121,8 @@
      "scope": "institution",
      "value": "no",
      "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: not_assessable is set mechanically and does not block `no` (C1 a); left out of the rate base",
-     "judgement_call": "JC-S9"
+     "judgement_call": "JC-S9",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2125,7 +2183,8 @@
      "scope": "institution",
      "value": "no",
      "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: AI-text results never count (r2#15)",
-     "judgement_call": "JC-S10"
+     "judgement_call": "JC-S10",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2191,7 +2250,8 @@
      "item": "core.has_genai_activity",
      "scope": "institution",
      "value": "yes",
-     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: `yes` if >= 1 supported confirms_activity page with a supported activity"
+     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table: `yes` if >= 1 supported confirms_activity page with a supported activity",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2286,13 +2346,15 @@
      "item": "core.has_genai_activity",
      "scope": "institution",
      "value": "yes",
-     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table"
+     "rule": "SPEC R-005 / codebook core.has_genai_activity truth table",
+     "codebook_rev": "r11"
     },
     {
      "item": "n_institution_activities",
      "scope": "institution",
      "value": 2,
-     "rule": "SPEC R-005: distinct/unresolved relations never merge; explicit relations before merging (X30)"
+     "rule": "SPEC R-005: distinct/unresolved relations never merge; explicit relations before merging (X30)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2326,7 +2388,8 @@
      "item": "core.evaluation_documented",
      "scope": "activity:AI guidance",
      "value": "required_or_planned",
-     "rule": "codebook 2.7 core.evaluation_documented rule: a required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as required_or_planned (CX-01.2 C2 a)"
+     "rule": "codebook 2.7 core.evaluation_documented rule: a required pre-use review that mixes fitness-for-purpose with security or compliance checks counts as required_or_planned (CX-01.2 C2 a)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2360,7 +2423,8 @@
      "item": "core.evaluation_documented",
      "scope": "activity:Generative AI Policy",
      "value": "not_documented",
-     "rule": "codebook 2.7 core.evaluation_documented rule (r11): a clause requiring periodic review of the GenAI policy itself is not_documented unless it requires testing, monitoring or evaluation of GenAI tools or their outputs"
+     "rule": "codebook 2.7 core.evaluation_documented rule (r11): a clause requiring periodic review of the GenAI policy itself is not_documented unless it requires testing, monitoring or evaluation of GenAI tools or their outputs",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2394,7 +2458,8 @@
      "item": "core.evaluation_documented",
      "scope": "activity:Generative AI Policy",
      "value": "required_or_planned",
-     "rule": "codebook 2.7 core.evaluation_documented rule (r11): review clause requiring testing of GenAI tools counts as required_or_planned"
+     "rule": "codebook 2.7 core.evaluation_documented rule (r11): review clause requiring testing of GenAI tools counts as required_or_planned",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2428,7 +2493,8 @@
      "item": "core.evaluation_documented",
      "scope": "activity:Copilot letter drafting",
      "value": "not_documented",
-     "rule": "codebook 2.7 core.evaluation_documented value unclear definition: an evaluation clearly of a different tool or activity is not_documented, not unclear (CX-01.2 C4 a)"
+     "rule": "codebook 2.7 core.evaluation_documented value unclear definition: an evaluation clearly of a different tool or activity is not_documented, not unclear (CX-01.2 C4 a)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2462,14 +2528,16 @@
      "item": "core.evaluation_documented",
      "scope": "activity:housing AI assistant trial",
      "value": "results_reported",
-     "rule": "codebook 2.7 core.evaluation_documented worked example (1)"
+     "rule": "codebook 2.7 core.evaluation_documented worked example (1)",
+     "codebook_rev": "r11"
     },
     {
      "item": "core.evaluation_type_user_feedback",
      "scope": "activity:housing AI assistant trial",
      "value": "yes",
      "rule": "codebook 2.7 core.evaluation_type_user_feedback (survey of staff)",
-     "judgement_call": "JC-S11"
+     "judgement_call": "JC-S11",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2503,7 +2571,8 @@
      "item": "core.evaluation_documented",
      "scope": "activity:AI chatbot",
      "value": "not_documented",
-     "rule": "codebook 2.7 core.evaluation_documented worked example (4): a usage count with no evaluation described"
+     "rule": "codebook 2.7 core.evaluation_documented worked example (4): a usage count with no evaluation described",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2552,13 +2621,15 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "confirms_activity",
-     "rule": "SPEC R-044 S3 a verdict order (confirms_activity first); codebook core.page_verdict long_page_rule priority_order"
+     "rule": "SPEC R-044 S3 a verdict order (confirms_activity first); codebook core.page_verdict long_page_rule priority_order",
+     "codebook_rev": "r11"
     },
     {
      "item": "quote_part",
      "scope": "page:p0",
      "value": "last",
-     "rule": "SPEC R-044: the supporting quote comes from the chunk that produced the code"
+     "rule": "SPEC R-044: the supporting quote comes from the chunk that produced the code",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2607,7 +2678,8 @@
      "item": "core.target_users",
      "scope": "activity:Ask Lakeside",
      "value": "both",
-     "rule": "codebook 2.7 core.target_users long_page_rule combined_list map internal_staff + public -> both (activity-22 b)"
+     "rule": "codebook 2.7 core.target_users long_page_rule combined_list map internal_staff + public -> both (activity-22 b)",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2656,7 +2728,8 @@
      "item": "core.governance_direction",
      "scope": "activity:Lakeside Council AI policy",
      "value": "restricts_with_conditions",
-     "rule": "SPEC R-044 (RC-D-005 T-020 readings): a ban in one part and a permission in another give restricts_with_conditions; codebook priority order"
+     "rule": "SPEC R-044 (RC-D-005 T-020 readings): a ban in one part and a permission in another give restricts_with_conditions; codebook priority order",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2706,7 +2779,8 @@
      "scope": "activity:AI chatbot",
      "value": 2023,
      "rule": "codebook 2.7 core.year_announced long_page_rule earliest_year",
-     "judgement_call": "JC-S12"
+     "judgement_call": "JC-S12",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2755,7 +2829,8 @@
      "item": "core.function_summarization",
      "scope": "activity:generative AI tool",
      "value": "yes",
-     "rule": "codebook 2.7 core.function_summarization long_page_rule any_yes"
+     "rule": "codebook 2.7 core.function_summarization long_page_rule any_yes",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2810,13 +2885,15 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "ambiguous_genai",
-     "rule": "SPEC R-044 (page-02 b): supported verdicts in the S3 a order, then failed verdicts; a verdict is never rewritten (R-041)"
+     "rule": "SPEC R-044 (page-02 b): supported verdicts in the S3 a order, then failed verdicts; a verdict is never rewritten (R-041)",
+     "codebook_rev": "r11"
     },
     {
      "item": "support_status",
      "scope": "page:p0",
      "value": "supported",
-     "rule": "codebook 2.7 core.support_status"
+     "rule": "codebook 2.7 core.support_status",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2866,7 +2943,8 @@
      "item": "core.evaluation_documented",
      "scope": "page:p0",
      "value": "not_documented",
-     "rule": "SPEC R-044 (all-03 a): if every part gives the temporary answer, the page's answer is not documented"
+     "rule": "SPEC R-044 (all-03 a): if every part gives the temporary answer, the page's answer is not documented",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2916,7 +2994,8 @@
      "item": "core.page_verdict",
      "scope": "page:p0",
      "value": "not_assessable",
-     "rule": "SPEC R-044 (RC-D-005 9 a): for the page verdict it is not_assessable"
+     "rule": "SPEC R-044 (RC-D-005 9 a): for the page verdict it is not_assessable",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -2972,19 +3051,22 @@
      "item": "core.adoption_stage",
      "scope": "page:p0",
      "value": "pilot",
-     "rule": "SPEC R-044 (all-05 a): among parts giving the winning answer, quote and certainty come from the highest-certainty part; ties go to the earliest part"
+     "rule": "SPEC R-044 (all-05 a): among parts giving the winning answer, quote and certainty come from the highest-certainty part; ties go to the earliest part",
+     "codebook_rev": "r11"
     },
     {
      "item": "supporting_text",
      "scope": "activity:pilot",
      "value": "the pilot is running in two teams",
-     "rule": "SPEC R-044 all-05 a"
+     "rule": "SPEC R-044 all-05 a",
+     "codebook_rev": "r11"
     },
     {
      "item": "confidence",
      "scope": "activity:pilot",
      "value": 0.93,
-     "rule": "SPEC R-044 all-05 a"
+     "rule": "SPEC R-044 all-05 a",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -3038,7 +3120,8 @@
      "item": "core.has_human_oversight",
      "scope": "page:p0",
      "value": "not_documented",
-     "rule": "SPEC R-044 (all-04 b): real answers first, then not_documented, then unknown; codebook priority order [yes,no,unclear,not_documented,unknown]"
+     "rule": "SPEC R-044 (all-04 b): real answers first, then not_documented, then unknown; codebook priority order [yes,no,unclear,not_documented,unknown]",
+     "codebook_rev": "r11"
     }
    ]
   },
@@ -3094,7 +3177,1070 @@
      "item": "core.source_publication_date",
      "scope": "page:p0",
      "value": "2025-04-10",
-     "rule": "codebook 2.7 core.source_publication_date long_page_rule first_section; SPEC R-044 (all-06 a): first part with a supported real answer, skipping silent or failed parts"
+     "rule": "codebook 2.7 core.source_publication_date long_page_rule first_section; SPEC R-044 (all-06 a): first part with a supported real answer, skipping silent or failed parts",
+     "codebook_rev": "r11"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A011-10",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-011",
+    "A-010"
+   ],
+   "purpose": "stored unreadable text: low_letter_share",
+   "institution": {
+    "institution_id": "SYN-0110",
+    "name": "Recovery Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/unreadable",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 1234567890 "
+    },
+    {
+     "page_key": "p1",
+     "url": "https://synthetic.example/reviewed",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Council meeting agenda."
+    }
+   ],
+   "injected": {
+    "p0": {
+     "readability_failure": "low_letter_share"
+    },
+    "p1": {
+     "core.page_verdict": {
+      "value": "no_genai",
+      "p": 0.95,
+      "support": "not_required"
+     },
+     "review": "reviewed"
+    }
+   },
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "not_assessable",
+     "rule": "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13",
+     "asked": false,
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "support_status",
+     "scope": "page:p0",
+     "value": "set_by_rule",
+     "rule": "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "page_review_state",
+     "scope": "page:p0",
+     "value": "reviewed",
+     "rule": "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "readability_failure",
+     "scope": "page:p0",
+     "value": "low_letter_share",
+     "rule": "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "core.has_genai_activity",
+     "scope": "institution",
+     "value": "no",
+     "rule": "RC-D-021 C1a: reviewed unreadable page does not block no beside reviewed no_genai",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A011-11",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-011",
+    "A-010"
+   ],
+   "purpose": "stored unreadable text: binary_marker:pdf_header",
+   "institution": {
+    "institution_id": "SYN-0111",
+    "name": "Recovery Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/unreadable",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "%PDF-1.7 binary payload"
+    },
+    {
+     "page_key": "p1",
+     "url": "https://synthetic.example/reviewed",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Council meeting agenda."
+    }
+   ],
+   "injected": {
+    "p0": {
+     "readability_failure": "binary_marker:pdf_header"
+    },
+    "p1": {
+     "core.page_verdict": {
+      "value": "no_genai",
+      "p": 0.95,
+      "support": "not_required"
+     },
+     "review": "reviewed"
+    }
+   },
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "not_assessable",
+     "rule": "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13",
+     "asked": false,
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "support_status",
+     "scope": "page:p0",
+     "value": "set_by_rule",
+     "rule": "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "page_review_state",
+     "scope": "page:p0",
+     "value": "reviewed",
+     "rule": "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "readability_failure",
+     "scope": "page:p0",
+     "value": "binary_marker:pdf_header",
+     "rule": "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "core.has_genai_activity",
+     "scope": "institution",
+     "value": "no",
+     "rule": "RC-D-021 C1a: reviewed unreadable page does not block no beside reviewed no_genai",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A011-12",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-011",
+    "A-010"
+   ],
+   "purpose": "stored unreadable text: binary_marker:pdf_objects",
+   "institution": {
+    "institution_id": "SYN-0112",
+    "name": "Recovery Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/unreadable",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "1 0 obj stream endstream endobj"
+    },
+    {
+     "page_key": "p1",
+     "url": "https://synthetic.example/reviewed",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Council meeting agenda."
+    }
+   ],
+   "injected": {
+    "p0": {
+     "readability_failure": "binary_marker:pdf_objects"
+    },
+    "p1": {
+     "core.page_verdict": {
+      "value": "no_genai",
+      "p": 0.95,
+      "support": "not_required"
+     },
+     "review": "reviewed"
+    }
+   },
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "not_assessable",
+     "rule": "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13",
+     "asked": false,
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "support_status",
+     "scope": "page:p0",
+     "value": "set_by_rule",
+     "rule": "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "page_review_state",
+     "scope": "page:p0",
+     "value": "reviewed",
+     "rule": "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "readability_failure",
+     "scope": "page:p0",
+     "value": "binary_marker:pdf_objects",
+     "rule": "PI recovery 2026-11-07; RC-D-021 D-1a/D-2a; r13",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "core.has_genai_activity",
+     "scope": "institution",
+     "value": "no",
+     "rule": "RC-D-021 C1a: reviewed unreadable page does not block no beside reviewed no_genai",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A021-12",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-021"
+   ],
+   "purpose": "typographic apostrophes",
+   "tags": [
+    "known_limit",
+    "R-6a"
+   ],
+   "institution": {
+    "institution_id": "SYN-0132",
+    "name": "Recovery Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/quote",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Council's staff's tool's pilot's AI"
+    }
+   ],
+   "injected": {
+    "p0": {
+     "item": "core.has_human_oversight",
+     "answer": {
+      "value": "yes",
+      "p": 0.95,
+      "support": "supported",
+      "quote": "Council’s staff’s tool’s pilot’s AI"
+     }
+    }
+   },
+   "expected": [
+    {
+     "item": "core.has_human_oversight",
+     "scope": "page:p0",
+     "value": "unknown",
+     "rule": "RC-D-021 R-6a; PI E-Q1a; R-041 downgrade target",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "support_status",
+     "scope": "page:p0",
+     "value": "downgraded_no_quote",
+     "rule": "R-042 either match rule fails; PI E-Q1a",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A021-13",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-021"
+   ],
+   "purpose": "Japanese shortened quote",
+   "tags": [
+    "known_limit",
+    "R-6a"
+   ],
+   "institution": {
+    "institution_id": "SYN-0133",
+    "name": "Recovery Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/quote",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "市役所は生成AIを職員業務に導入しました。"
+    }
+   ],
+   "injected": {
+    "p0": {
+     "item": "core.page_verdict",
+     "answer": {
+      "value": "confirms_activity",
+      "p": 0.95,
+      "support": "supported",
+      "quote": "市役所は生成AIを導入しました。"
+     }
+    }
+   },
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "confirms_activity",
+     "rule": "RC-D-021 R-6a; PI E-Q1a; R-041 downgrade target",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "support_status",
+     "scope": "page:p0",
+     "value": "downgraded_no_quote",
+     "rule": "R-042 either match rule fails; PI E-Q1a",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A021-14",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-021"
+   ],
+   "purpose": "Thai shortened quote",
+   "tags": [
+    "known_limit",
+    "R-6a"
+   ],
+   "institution": {
+    "institution_id": "SYN-0134",
+    "name": "Recovery Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/quote",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "เทศบาลเริ่มใช้ปัญญาประดิษฐ์เพื่อช่วยเจ้าหน้าที่ตอบคำถามประชาชน"
+    }
+   ],
+   "injected": {
+    "p0": {
+     "item": "core.page_verdict",
+     "answer": {
+      "value": "confirms_activity",
+      "p": 0.95,
+      "support": "supported",
+      "quote": "เทศบาลใช้ปัญญาประดิษฐ์ตอบคำถาม"
+     }
+    }
+   },
+   "expected": [
+    {
+     "item": "core.page_verdict",
+     "scope": "page:p0",
+     "value": "confirms_activity",
+     "rule": "RC-D-021 R-6a; PI E-Q1a; R-041 downgrade target",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "support_status",
+     "scope": "page:p0",
+     "value": "downgraded_no_quote",
+     "rule": "R-042 either match rule fails; PI E-Q1a",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A021-15",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-021"
+   ],
+   "purpose": "support recombination closes the evaluation gate",
+   "institution": {
+    "institution_id": "SYN-0145",
+    "name": "Lakeside Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/syn-0145/p0",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "(injected; 3 parts)"
+    }
+   ],
+   "injected": {
+    "p0": {
+     "parts": [
+      {
+       "value": "results_reported",
+       "p": 0.95,
+       "support": "downgraded_no_quote"
+      },
+      {
+       "value": "not_documented",
+       "p": 0.95,
+       "support": "not_required"
+      },
+      {
+       "value": "not covered by this part"
+      }
+     ],
+     "item": "core.evaluation_documented"
+    }
+   },
+   "expected": [
+    {
+     "item": "core.evaluation_documented",
+     "scope": "page:p0",
+     "value": "not_documented",
+     "rule": "RC-D-023 B-Q2b: support check then recombine and reapply gates",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "core.evaluation_type_user_feedback",
+     "scope": "page:p0",
+     "value": "not_asked",
+     "rule": "r13 evaluation_documented gate closes after recombination",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "dependent_support_status",
+     "scope": "page:p0",
+     "value": "set_by_rule",
+     "rule": "RC-D-023 B-Q2b",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A021-16",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-021"
+   ],
+   "purpose": "support downgrade opens a previously closed gate; extra round before finalization",
+   "institution": {
+    "institution_id": "SYN-0146",
+    "name": "Recovery Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/opened-gate",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Council information page."
+    }
+   ],
+   "injected": {
+    "p0": {
+     "provisional": {
+      "core.activity_type": {
+       "value": "policy_guidance",
+       "p": 0.95,
+       "support": "supported"
+      },
+      "core.model_origin": {
+       "value": "not_asked",
+       "support": "set_by_rule"
+      }
+     },
+     "support_results": {
+      "core.activity_type": "downgraded_no_quote"
+     },
+     "extra_round_answers": {
+      "core.model_origin": {
+       "value": "not_documented",
+       "p": 0.95,
+       "support": "not_required"
+      }
+     }
+    }
+   },
+   "expected": [
+    {
+     "item": "core.activity_type",
+     "scope": "activity:a0",
+     "value": "unknown",
+     "rule": "R-041: policy_guidance loses quote support",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "gate_opened",
+     "scope": "activity:a0",
+     "value": [
+      "core.model_origin"
+     ],
+     "rule": "r13 applicability: model_origin excluded for policy_guidance, asked for unknown",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "extra_round_questions",
+     "scope": "activity:a0",
+     "value": [
+      "core.model_origin"
+     ],
+     "rule": "PI recovery 2026-11-07 item4b and A021-16 scenario approval",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "core.model_origin",
+     "scope": "activity:a0",
+     "value": "not_documented",
+     "rule": "PI 4b: use the new answer, never publish stale gated-out value",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "event_order",
+     "scope": "activity:a0",
+     "value": [
+      "support_check",
+      "recombine",
+      "extra_round",
+      "finalize"
+     ],
+     "rule": "PI 4b: extra round before finalization",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A021-17",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-021"
+   ],
+   "purpose": "contact gate open, no email address present",
+   "institution": {
+    "institution_id": "SYN-0147",
+    "name": "Recovery Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/contact",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "Contact the digital team by telephone."
+    }
+   ],
+   "injected": {
+    "p0": {
+     "core.content_contact": {
+      "value": "yes",
+      "p": 0.95,
+      "support": "supported"
+     },
+     "email_links": []
+    }
+   },
+   "expected": [
+    {
+     "item": "core.content_contact_emails",
+     "scope": "page:p0",
+     "value": "not_documented",
+     "rule": "RC-D-019 E2a",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A004-06",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-004"
+   ],
+   "purpose": "URL dedup keeps query but drops fragment and normalizes host/slash",
+   "institution": {
+    "institution_id": "SYN-0156",
+    "name": "Recovery Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/follow",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [
+      {
+       "url": "https://www.synthetic.example/info/",
+       "anchor": "details"
+      },
+      {
+       "url": "https://synthetic.example/info#top",
+       "anchor": "details"
+      },
+      {
+       "url": "https://synthetic.example/info?lang=en",
+       "anchor": "details"
+      }
+     ],
+     "text": "The council's generative AI pilot is described on this page; see the linked page for more details."
+    }
+   ],
+   "injected": {
+    "p0": {
+     "core.page_complete": {
+      "value": "yes",
+      "p": 0.95,
+      "support": "supported"
+     },
+     "core.page_verdict": {
+      "value": "confirms_activity",
+      "p": 0.95,
+      "support": "supported"
+     }
+    }
+   },
+   "expected": [
+    {
+     "item": "n_followed",
+     "scope": "institution",
+     "value": 2,
+     "rule": "RC-D-023 C-Q1b/C-Q2a/C-Q3b(i)/C-Q4a/C-Q5b/C-1a",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "dedup_keys",
+     "scope": "institution",
+     "value": [
+      "https://synthetic.example/info",
+      "https://synthetic.example/info?lang=en"
+     ],
+     "rule": "RC-D-023 C-Q1b/C-Q2a/C-Q3b(i)/C-Q4a/C-Q5b/C-1a",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A004-07",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-004"
+   ],
+   "purpose": "rank located links by supported quote span gap, then unlocated in input order",
+   "institution": {
+    "institution_id": "SYN-0157",
+    "name": "Recovery Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/follow",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [
+      {
+       "url": "https://synthetic.example/far",
+       "anchor": "far"
+      },
+      {
+       "url": "https://synthetic.example/near",
+       "anchor": "near"
+      },
+      {
+       "url": "https://synthetic.example/unlocated1",
+       "anchor": "unlocated1"
+      },
+      {
+       "url": "https://synthetic.example/unlocated2",
+       "anchor": "unlocated2"
+      }
+     ],
+     "text": "unsupported quote. far link passage. padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding padding supported quote here. near link passage."
+    }
+   ],
+   "injected": {
+    "p0": {
+     "core.page_complete": {
+      "value": "yes",
+      "p": 0.95,
+      "support": "supported"
+     },
+     "core.page_verdict": {
+      "value": "confirms_activity",
+      "p": 0.95,
+      "support": "supported"
+     },
+     "supported_quote_spans": [
+      [
+       197,
+       217
+      ]
+     ],
+     "link_spans": {
+      "far": [
+       19,
+       35
+      ],
+      "near": [
+       219,
+       236
+      ]
+     },
+     "unsupported_quote_spans": [
+      [
+       0,
+       17
+      ]
+     ]
+    }
+   },
+   "expected": [
+    {
+     "item": "follow_order",
+     "scope": "institution",
+     "value": [
+      "near",
+      "far",
+      "unlocated1",
+      "unlocated2"
+     ],
+     "rule": "RC-D-023 C-Q1b/C-Q2a/C-Q3b(i)/C-Q4a/C-Q5b/C-1a",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A004-08",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-004"
+   ],
+   "purpose": "every attempted URL counts against cap including refused and failed fetches",
+   "institution": {
+    "institution_id": "SYN-0158",
+    "name": "Recovery Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/follow",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [
+      {
+       "url": "https://synthetic.example/l1",
+       "anchor": "details"
+      },
+      {
+       "url": "https://synthetic.example/l2",
+       "anchor": "details"
+      },
+      {
+       "url": "https://synthetic.example/l3",
+       "anchor": "details"
+      },
+      {
+       "url": "https://synthetic.example/l4",
+       "anchor": "details"
+      },
+      {
+       "url": "https://synthetic.example/l5",
+       "anchor": "details"
+      },
+      {
+       "url": "https://synthetic.example/l6",
+       "anchor": "details"
+      },
+      {
+       "url": "https://synthetic.example/l7",
+       "anchor": "details"
+      },
+      {
+       "url": "https://synthetic.example/l8",
+       "anchor": "details"
+      },
+      {
+       "url": "https://synthetic.example/l9",
+       "anchor": "details"
+      },
+      {
+       "url": "https://synthetic.example/l10",
+       "anchor": "details"
+      },
+      {
+       "url": "https://synthetic.example/l11",
+       "anchor": "details"
+      }
+     ],
+     "text": "The council's generative AI pilot is described on this page; see the linked page for more details."
+    }
+   ],
+   "injected": {
+    "p0": {
+     "core.page_complete": {
+      "value": "yes",
+      "p": 0.95,
+      "support": "supported"
+     },
+     "core.page_verdict": {
+      "value": "confirms_activity",
+      "p": 0.95,
+      "support": "supported"
+     }
+    },
+    "fetch_results": {
+     "l1": "robots_refused",
+     "l2": "failed_http_503"
+    }
+   },
+   "expected": [
+    {
+     "item": "attempted_urls",
+     "scope": "institution",
+     "value": [
+      "l1",
+      "l2",
+      "l3",
+      "l4",
+      "l5",
+      "l6",
+      "l7",
+      "l8",
+      "l9",
+      "l10"
+     ],
+     "rule": "RC-D-023 C-Q1b/C-Q2a/C-Q3b(i)/C-Q4a/C-Q5b/C-1a",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "not_followed",
+     "scope": "institution",
+     "value": [
+      "l11"
+     ],
+     "rule": "RC-D-023 C-Q1b/C-Q2a/C-Q3b(i)/C-Q4a/C-Q5b/C-1a",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "cap_reached",
+     "scope": "institution",
+     "value": true,
+     "rule": "RC-D-023 C-Q1b/C-Q2a/C-Q3b(i)/C-Q4a/C-Q5b/C-1a",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    }
+   ]
+  },
+  {
+   "fixture_id": "v27-syn-A004-09",
+   "kind": "synthetic",
+   "mode": "injected",
+   "a_ids": [
+    "A-004"
+   ],
+   "purpose": "extract once per page after pass1 before following",
+   "institution": {
+    "institution_id": "SYN-0159",
+    "name": "Recovery Council",
+    "country": "United Kingdom",
+    "level": "local"
+   },
+   "pages": [
+    {
+     "page_key": "p0",
+     "url": "https://synthetic.example/follow",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [
+      {
+       "url": "https://synthetic.example/p1",
+       "anchor": "details"
+      }
+     ],
+     "text": "The council's generative AI pilot is described on this page; see the linked page for more details."
+    },
+    {
+     "page_key": "p1",
+     "url": "https://synthetic.example/p1",
+     "title": "",
+     "fetch_status": "ok",
+     "chrome_text": "",
+     "links": [],
+     "text": "The council deployed its generative AI pilot. This page contains the full account."
+    }
+   ],
+   "injected": {
+    "p0": {
+     "core.page_complete": {
+      "value": "yes",
+      "p": 0.95,
+      "support": "supported"
+     },
+     "core.page_verdict": {
+      "value": "confirms_activity",
+      "p": 0.95,
+      "support": "supported"
+     }
+    },
+    "p1": {
+     "core.page_complete": {
+      "value": "no",
+      "p": 0.95,
+      "support": "not_required"
+     },
+     "core.page_verdict": {
+      "value": "confirms_activity",
+      "p": 0.95,
+      "support": "supported"
+     }
+    }
+   },
+   "expected": [
+    {
+     "item": "extractor_calls",
+     "scope": "institution",
+     "value": {
+      "p0": 1,
+      "p1": 1
+     },
+     "rule": "RC-D-023 C-Q1b/C-Q2a/C-Q3b(i)/C-Q4a/C-Q5b/C-1a",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
+    },
+    {
+     "item": "event_order",
+     "scope": "institution",
+     "value": [
+      "pass1:p0",
+      "extract:p0",
+      "follow:p1",
+      "pass1:p1",
+      "extract:p1"
+     ],
+     "rule": "RC-D-023 C-Q1b/C-Q2a/C-Q3b(i)/C-Q4a/C-Q5b/C-1a",
+     "codebook_rev": "r13",
+     "label_date": "2026-11-07"
     }
    ]
   }

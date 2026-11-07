@@ -30,7 +30,13 @@ import json
 from pathlib import Path
 from typing import Any
 
-from g3o.codebook.generators import GENERATED_DIR, gen_jev_questions
+from g3o.codebook.generators import (
+    GENERATED_DIR,
+    _criterion,
+    _part_prompt,
+    _question,
+    gen_jev_questions,
+)
 from g3o.codebook.loader import REPO_ROOT, Codebook, load_codebook
 
 #: Version stamp for the three sets (pinned in goldens and stored with answers).
@@ -84,7 +90,7 @@ PACKET_RULINGS = {
     "W-08": 'PI 2026-11-05 chat "w8a" (W-08 a: sentence as a field; quote, source type, date, address); '
             'PI chat "all recs accepted" (RULINGS.md item 4, to be recorded as RC-D-022): W8 (i)-(iv) a pool_note, quote_text, source_publication_date, page_part; '
             'PI 2026-11-08 chat "accept all" (2026-11-08 RULINGS.md item 2.11-12): lane A 5 a source_type as its signed label, 6 a no date = field left out',
-    "B-Q4": 'PI 2026-11-08 chat "accept all" (2026-11-08 RULINGS.md item 2.3, lane B Q4 b): a chrome field for content_contact_named and content_contact_details; name and shown text drafted for PI approval',
+    "B-Q4": 'PI 2026-11-07 recovery reply "1a": chrome_text verbatim then emails in the same chrome_text field; full chrome, not footer-only',
 }
 
 # --------------------------------------------------------------------------- state declarations
@@ -94,11 +100,8 @@ PACKET_RULINGS = {
 
 PAGE_STATE = {
     "packet_items": ["W-01", "W-02", "B-Q4"],
-    "approval": PENDING,
-    "open": [
-        "B-Q4: the chrome field's name and the text it shows (which chrome parts, from which stored field); "
-        "new instrument text, drafted for PI approval",
-    ],
+    "approval": APPROVED,
+    "open": [],
     "form_source": "T-016 re-pilot state (scripts/spikes/t016/repilot_v27.py page_units)",
     "fields": [
         {"name": "coder_instructions", "value": "signed slot shared/system_prompt, verbatim"},
@@ -110,10 +113,11 @@ PAGE_STATE = {
         {"name": "page_part", "value": "chunk marker '{i} of {n}' (always present)"},
         {"name": "part_note", "value": "signed slot shared/part_prompt/sentence, only when n > 1"},
         {"name": "page_text", "value": "the part's main text"},
-        {"name": None,                                                        # B-Q4: open, see "open"
+        {"name": "chrome_text",                                               # PI recovery item 1a
          "value": "the page's chrome text, in the requests of core.content_contact_named and "
                   "core.content_contact_details only (codebook input_text main_plus_chrome; r2#48)",
-         "shown_text": None},
+         "shown_text": "stored chrome_text verbatim, followed by extracted emails; "
+                       "the same full page chrome accompanies every part; omitted if not measured"},
     ],
 }
 
@@ -294,6 +298,31 @@ def _nones(x: Any) -> bool:
     return False
 
 
+ACTIVITY_PAIR_TEXT = (
+    "How does this activity relate to the linked activity named in this task: is it the "
+    "same activity described again, part of the linked programme, a programme the linked "
+    "activity is part of, a joint activity with it, a rule that governs it or one governed "
+    "by it, or a separate activity?"
+)
+
+
+def activity_pair_question(cb: Codebook) -> dict[str, Any]:
+    """Approved P-2c adaptation; definitions and rules remain the signed codebook's."""
+    iid = "core.activity_segment"
+    used: list[tuple[str, str]] = []
+    rules = cb.rule_texts(iid)
+    criteria = [_criterion(v["code"], cb.definition(iid, i), rules, used)
+                for i, v in enumerate(cb.value_list(iid)) if v.get("jev_choice", True)]
+    q = _question(cb, iid, cb.items[iid], iid, cb.instruction(iid), criteria,
+                  "none", None, _part_prompt(cb, used))
+    q.update(instructions=ACTIVITY_PAIR_TEXT, instruction_slot="builder/activity_pair/P-2c",
+             approval="approved", approval_record='PI 2026-11-07 "Approve exact wording"',
+             unit="unordered pair of resolved page activity spans; lhs starts earlier",
+             state_fields={"activity": "lhs activity label", "linked_activity": "rhs activity label"},
+             same_start="stop affected pair: pair_direction_tie")
+    return _entry(q)
+
+
 def build_sets(cb: Codebook | None = None) -> dict[str, dict[str, Any]]:
     """The three set documents, built from the signed codebook."""
     cb = cb or load_codebook()
@@ -334,6 +363,10 @@ def build_sets(cb: Codebook | None = None) -> dict[str, dict[str, Any]]:
             "dynamic_year_choices": DYNAMIC_YEAR_CHOICES,
             "non_verbatim": _non_verbatim(ACTIVITY_STATE, DYNAMIC_YEAR_CHOICES),
             "questions": [_entry(q) for q in activity],
+            "pair_questions": [activity_pair_question(cb)],
+            "pair_wording": {"approval": "approved",
+                             "approval_record": 'PI 2026-11-07 "Approve exact wording"',
+                             "source": "P-2c quote question reused verbatim; decision 7b"},
         },
         "institution": {
             **_header(cb, "institution"),
@@ -472,6 +505,9 @@ def check_sets(cb: Codebook | None = None, set_dir: Path = SET_DIR) -> list[str]
                 errors.append(f"{name}: slot {slot['packet_items']} approved with an undeclared value")
             if slot.get("approval") == PENDING and _nones(slot) and not slot.get("open"):
                 errors.append(f"{name}: slot {slot['packet_items']} has an undeclared value and no open point")
+    # Pair adapter is a separately approved instrument, not a generated jev_choice item.
+    if docs["activity"].get("pair_questions") != [activity_pair_question(cb)]:
+        errors.append("activity: pair question differs from approved wording or signed criteria")
     # 8. every generated question is in exactly one set or excluded with a reason
     expected = set(signed) - set(EXCLUDED)
     if sorted(seen) != sorted(expected):

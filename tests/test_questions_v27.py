@@ -74,7 +74,7 @@ def test_version_stamp_and_packet_wording() -> None:
             assert nv["approval"] in ("pending", "approved")
             assert nv["approval_record"] == PACKET_RULINGS[nv["packet_item"]]
         states[name] = {nv["packet_item"]: nv["approval"] for nv in doc["non_verbatim"]}
-    assert states["page"] == {"W-01": "approved", "W-02": "approved", "B-Q4": "pending"}
+    assert states["page"] == {"W-01": "approved", "W-02": "approved", "B-Q4": "approved"}
     assert states["activity"] == {"W-01": "approved", "W-02": "approved", "W-03": "approved",
                                   "W-04": "approved", "W-05": "approved", "W-06": "approved"}
     assert states["institution"] == {"W-02": "approved", "W-07": "approved", "W-08": "approved"}
@@ -112,15 +112,15 @@ def test_ruling_4_names_entered() -> None:
     assert pooled["quote_missing_date_form"].startswith("left out")
 
 
-def test_source_type_left_to_t015_and_chrome_field_pending() -> None:
+def test_source_type_left_to_t015_and_chrome_field_approved() -> None:
     """2026-11-08 item 2.2 (lane B Q3 a) and 2.3 (lane B Q4 b)."""
     page = load_set("page")
     assert "core.source_type" not in [q["question_id"] for q in page["questions"]]
     assert "core.source_type" in [e["question_id"] for e in page["excluded"]]
     state = page["state"]
-    assert state["approval"] == "pending" and [p[:5] for p in state["open"]] == ["B-Q4:"]
+    assert state["approval"] == "approved" and state["open"] == []
     chrome = state["fields"][-1]
-    assert chrome["name"] is None and chrome["shown_text"] is None
+    assert chrome["name"] == "chrome_text" and "verbatim" in chrome["shown_text"]
     assert "content_contact_named" in chrome["value"] and "content_contact_details" in chrome["value"]
 
 
@@ -205,3 +205,16 @@ def test_seeded_faults_are_caught(tmp_path: Path, cb: Codebook, fault: str) -> N
 
 def test_build_is_deterministic(cb: Codebook) -> None:
     assert build_sets(cb) == build_sets(cb)
+
+
+def test_approved_activity_pair_instrument_is_separate_from_pooled_questions():
+    from g3o.classify.questions.v27.build import ACTIVITY_PAIR_TEXT
+    doc = load_set("activity")
+    pair, = doc["pair_questions"]
+    assert pair["question_id"] == "core.activity_segment"
+    assert pair["instructions"] == ACTIVITY_PAIR_TEXT
+    assert pair["approval"] == "approved"
+    assert pair["same_start"] == "stop affected pair: pair_direction_tie"
+    assert len(pair["criteria"]) == 9
+    assert {v["code"] for v in pair["criteria"]} >= {"governs", "governed_by", "has_component"}
+    assert pair["question_id"] not in load_set("institution")["pooled"]["question_ids"]

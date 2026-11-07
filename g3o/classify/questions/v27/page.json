@@ -27,10 +27,8 @@
       "W-02",
       "B-Q4"
     ],
-    "approval": "pending",
-    "open": [
-      "B-Q4: the chrome field's name and the text it shows (which chrome parts, from which stored field); new instrument text, drafted for PI approval"
-    ],
+    "approval": "approved",
+    "open": [],
     "form_source": "T-016 re-pilot state (scripts/spikes/t016/repilot_v27.py page_units)",
     "fields": [
       {
@@ -70,17 +68,17 @@
         "value": "the part's main text"
       },
       {
-        "name": null,
+        "name": "chrome_text",
         "value": "the page's chrome text, in the requests of core.content_contact_named and core.content_contact_details only (codebook input_text main_plus_chrome; r2#48)",
-        "shown_text": null
+        "shown_text": "stored chrome_text verbatim, followed by extracted emails; the same full page chrome accompanies every part; omitted if not measured"
       }
     ]
   },
   "non_verbatim": [
     {
       "packet_item": "B-Q4",
-      "approval": "pending",
-      "approval_record": "PI 2026-11-08 chat \"accept all\" (2026-11-08 RULINGS.md item 2.3, lane B Q4 b): a chrome field for content_contact_named and content_contact_details; name and shown text drafted for PI approval"
+      "approval": "approved",
+      "approval_record": "PI 2026-11-07 recovery reply \"1a\": chrome_text verbatim then emails in the same chrome_text field; full chrome, not footer-only"
     },
     {
       "packet_item": "W-01",

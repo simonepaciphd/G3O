@@ -1,14 +1,14 @@
 {
   "format": "plan-labels-v1",
   "written_by": {
-    "harness": "claude-code",
-    "model": "claude-opus-5-5"
+    "harness": "codex-cli",
+    "model": "gpt-6-astra"
   },
-  "date": "2026-11-08",
+  "date": "2026-11-07",
   "sources": {
-    "SPEC.md": "8713fc3ac5876400fed118e02bda03a3a77a5ae877eea6b2f53b2dea7b1e99a7",
-    "RESOURCES.md": "6edc4da670229dd0cedbeb6cb8809ca7430f9791ddc0633492395d6c4720abbe",
-    "PLAN.md": "89a7ccd3f93bfe5fae06e5086f0ed33902804485817643c64c83f152a26ed7ba"
+    "SPEC.md": "24e9a3fcfb43dd87e20c0bcdc7c435f4bb9c0c6a0bfed0522e1c5e4faa96f370",
+    "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
+    "PLAN.md": "accba4c7b011b01cb96e5a97339b85bf8b73cb128f95429ada77a2fc32d2ef8c"
   },
   "labels": {
     "T-001": {

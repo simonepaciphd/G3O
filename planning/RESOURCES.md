@@ -149,3 +149,11 @@ S1a/S2a/P1a/P2 approved on page d9ca34714331. RS-010/018 now consumes handoffs/D
 ## 2026-11-01 verified local continuation
 
 T-012 local writer/instrument and nine storage fixtures: G3O-eng-b-t012 at clean unpushed 6cbd55126bb1d1d6097156546133fcd464a356ee; handoffs/T-012-Q2a-verification.json. RS-012 optional probability fields and RS-013 zero fallback reviewed; T-027 must apply approved RC-D-010 and must not copy that fallback. Signed r11 has 52 classifier questions, all using chosen-answer-probability thresholds. T-027 planned isolated base is exact T-012 commit, not old origin/main. No additional external resource or paid call authorized.
+
+
+## RC-D-024 recovery resource implications (2026-11-07)
+
+No new provider or access resource. RS-031 supplies the extra classifier round required when support re-gating opens questions; actual frequency and dollar cost are not estimated and must be costed before any paid run. Local synthetic fixtures use no provider. T-024 preserves pair identity for T-023; T-030 runtime integration remains external to these local lane builds. Joint re-lock pending verification.
+
+
+Joint re-lock applied 2026-11-07: Simone Paci explicitly replied "lock" to SPEC v001.26, RESOURCES and PLAN together. RC-D-024 rulings are locked; earlier candidate/re-lock-pending annotations above are historical. Implementation/runtime and publication gates remain unchanged.

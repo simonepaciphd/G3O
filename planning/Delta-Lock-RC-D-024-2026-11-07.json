@@ -1,0 +1,30 @@
+{
+  "format": "g3o-approved-delta-application-v1",
+  "delta": "RC-D-024",
+  "approval": "Simone Paci, 2026-11-07 chat: lock",
+  "recorded_at": "2026-11-07T15:29:30.623838+00:00",
+  "baseline": "RC-BL-001 retained",
+  "SPEC_version": "v001.26",
+  "RESOURCES_version": "v001.3 with RC-D-024 resource addendum",
+  "preimages": "archive/recovery-2026-11-07",
+  "artifacts": {
+    "SPEC.md": "24e9a3fcfb43dd87e20c0bcdc7c435f4bb9c0c6a0bfed0522e1c5e4faa96f370",
+    "PLAN.md": "accba4c7b011b01cb96e5a97339b85bf8b73cb128f95429ada77a2fc32d2ef8c",
+    "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
+    "CHANGELOG.md": "852e42f20a451001ed955e837a1d214d82c49bb30adf6fec225bb90ac6b3458a",
+    "Plan-Labels.json": "36e077d155a598e70e9ac69edd6449f9312f0895f676091cb0e3a60c81a60934",
+    "page/Plan-Visual.html": "4ad75b1211ba61fb81997a54df7e62923c3add1e813e5a76e15e4ff5b2215065",
+    "deltas/RC-D-024.md": "31da0ef07671ca0bc672acd877cb471a7557cd92fa6d772a61f53716bd7113e7"
+  },
+  "checks": {
+    "reviewed_source_manifest": "58 matching hashes before lock",
+    "combined_tests": "196 passed,1Drive skip; source bytes unchanged",
+    "plan_viewer": "0errors,10existing untyped warnings",
+    "signed_codebook": "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527 unchanged"
+  },
+  "pending": [
+    "Reclassification T030 extra-round runtime and pair finalizer/resume integration",
+    "T031 integrated acceptance",
+    "Owner-run publication; no paid calls/push/merge by agent"
+  ]
+}
