@@ -551,7 +551,7 @@ F.append(
             "p0": {"core.page_complete": ia("yes"), "core.page_verdict": ia("confirms_activity")},
             **{
                 f"l{j:02d}": {
-                    "core.page_complete": ia("no"),
+                    "core.page_complete": ia("no", support="not_required"),
                     "core.page_verdict": ia("confirms_activity"),
                 }
                 for j in range(1, 14)
@@ -568,10 +568,22 @@ F.append(
             ),
             exp(
                 "which_followed",
-                "unspecified",
-                "SPEC R-032 does not fix which 10 of 13 eligible links are followed",
+                [f"l{j:02d}" for j in range(1, 11)],
+                "SPEC R-032 (RC-D-015 F1 b; RC-D-017 10a): links nearest a supporting quote first, "
+                "ties to page order; RC-D-023 C-Q4 a: links with no located position rank after "
+                "located ones, in page order. No link passage is located here, so the first 10 in "
+                "page order are followed",
                 scope="institution",
                 judgement_call="JC-S4",
+                label_date="2026-11-06",
+            ),
+            exp(
+                "not_followed",
+                ["l11", "l12", "l13"],
+                "SPEC R-032 cap of 10 (RC-D-014 S4); RC-D-023 C-Q4 a page order: the last three "
+                "eligible links are not followed, reason cap reached",
+                scope="institution",
+                label_date="2026-11-06",
             ),
         ],
     }
@@ -625,7 +637,7 @@ F.append(
         "injected": {
             "p0": {"core.page_complete": ia("yes")},
             "p1": {"core.page_complete": ia("yes")},
-            "p2": {"core.page_complete": ia("no")},
+            "p2": {"core.page_complete": ia("no", support="not_required")},
             "link_selection": {"p0": ["p1", "p2"], "p1": ["p0", "p2"]},
         },
         "expected": [
@@ -662,7 +674,10 @@ F.append(
             )
         ],
         "injected": {
-            "p0": {"core.page_complete": ia("no"), "core.page_verdict": ia("confirms_activity")}
+            "p0": {
+                "core.page_complete": ia("no", support="not_required"),
+                "core.page_verdict": ia("confirms_activity"),
+            }
         },
         "expected": [
             exp(
@@ -908,7 +923,7 @@ s6(
         "relations": [
             {
                 "pair": ["p0:AI chatbot", "p1:AI chatbot"],
-                "core.activity_relation_cross_page": ia("unresolved", 0.7),
+                "core.activity_relation_cross_page": ia("unresolved", 0.7, "not_required"),
             }
         ],
     },
