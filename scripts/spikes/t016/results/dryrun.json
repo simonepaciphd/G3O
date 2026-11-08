@@ -1,0 +1,24 @@
+{
+ "requests": {
+  "page": 2280,
+  "entailment": 300,
+  "stage6_pair": 150
+ },
+ "est_tokens": {
+  "page": 97725911,
+  "entailment": 182806,
+  "stage6_pair": 732234
+ },
+ "chunks": 1140,
+ "pages_truncated_at_20": 4,
+ "questions_asked": 51,
+ "question_asks": 56310,
+ "est_usd_central": 4.14,
+ "est_usd_range": [
+  3.15,
+  4.72
+ ],
+ "cap_usd": 8.0,
+ "tokens_per_byte": 0.3947,
+ "note": "range scales tokens/byte 0.30-0.45"
+}
