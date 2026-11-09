@@ -301,6 +301,26 @@ sources:
     registry (secondary source, not verified on ANAC's site): data Jan 2020
     to Sep 2025, with full and per-year files. Still open: whether the API
     needs a WSO2 subscription key; actual rate limits.
+    Evidence (added 2026-11-09; files in Drive
+    procurement-pipeline/italy-source-check/, browser screenshots dated
+    2026-11-04). Terms: 2026-11-04-anac-ocds-portal-page_1.png (licence,
+    monthly update, EUR 40,000 threshold; field table continues in
+    2026-11-04-anac-ocds-portal-page_2.png); copyright: URL above, no file.
+    Robots: no file; URLs https://www.anticorruzione.it/robots.txt,
+    https://api.anticorruzione.it/robots.txt and
+    https://dati.anticorruzione.it/robots.txt, read 2026-10-26
+    (interaction-log row of that date). Blocking: no file; URLs
+    https://dati.anticorruzione.it/robots.txt and
+    https://dati.anticorruzione.it/opendata/ocds (the fetch tool got the
+    firewall rejection page, 269 bytes), both rejected 2026-10-26 (same log
+    row); handling is open (Q-023). Swagger:
+    2026-11-04-anac-swagger-endpoints.png and
+    2026-11-04-anac-swagger-get-releases.png; URLs
+    https://dati.anticorruzione.it/opendata/ocds/api/ui and
+    https://dati.anticorruzione.it/opendata/ocds/api/spec/swagger.json
+    (searched for "security" in a browser on 2026-10-26 by Asenat Mantovani,
+    no match; no file). Bulk:
+    2026-11-04-ocp-publication-117-access-data.png.
   tracker_row: 15
 - source_id: kaz_goszakup_unified_public_procurement_web_portal
   country_iso3: KAZ
