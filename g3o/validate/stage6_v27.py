@@ -22,9 +22,11 @@ Rules, as the signed codebook r15 and SPEC v001.28 state them:
   T-024 :func:`~g3o.common.support_check.check_code`. A quote counts only when
   it was copied from an input supporting quote shown in that request part, and
   it is matched on that input's stored page part (R-044; the storage pooled
-  passage, T-028). The Stage 6 quote step itself has no producer on this branch
-  (no card builds it): with ``quote_fn=None`` every check that needs a quote
-  stays PENDING, and pending work is never published (PI question, report).
+  passage, T-028). The Stage 6 quote step (RC-D-028 1 a) is injected as
+  ``quote_fn``; :mod:`g3o.validate.stage6_quote` builds it (the C-001
+  extractor copies from the input quotes shown, then the X35 check). With
+  ``quote_fn=None`` every check that needs a quote stays PENDING; a failed
+  quote request holds that answer. Pending work is never published.
 - **Merging (R-005).** Only explicit, supported ``same_activity`` /
   ``shared_participation`` relations at >= 0.8 merge
   (:func:`~g3o.validate.consolidate_v27.relation_plan`). A pending relation is
@@ -37,7 +39,13 @@ Rules, as the signed codebook r15 and SPEC v001.28 state them:
   answers of earlier rounds (R-008; round-5 gates "after downgrades").
   Too-long pools are split by T-020
   :func:`~g3o.common.page_chunks.prepare_pool_requests` and combined by each
-  item's own rule (RC-D-005 10 a).
+  item's own rule (RC-D-005 10 a). RC-D-028 2 a: the ``deployment_scale_unit``
+  gate (``any stated``) is open when any pooled observation states a number,
+  and the request whose question shows it carries ``stated_number`` (the
+  RC-D-021 W-06 field); several different stated numbers hold that question
+  (the field's form for them is not ruled). RC-D-028 3 a: a quote whose source
+  type has no signed label (automatically typed official / archive, missing
+  type) has no ``source_type`` field, as for missing values.
 - **Source confidence (RC-D-025 A1, C7 a, P10-P12).** Which support records
   belong to a source claim is T-026's call (P12):
   :func:`source_claim_records` - the page-level records of the source's page
@@ -85,6 +93,7 @@ from g3o.common.support_check import (
     CodeEvidence,
     Entailment,
     PageSources,
+    SupportGateError,
     SupportResult,
     check_code,
 )
@@ -106,6 +115,7 @@ PREFILTER_RULE = "relation_prefilter:different_activity_type_and_tool"
 
 # Hold reasons (pending work; never published, never turned into a value).
 QUOTE_STEP_ABSENT = "stage6_quote_step_absent"
+QUOTE_STEP_FAILED = "stage6_quote_step_failed"
 RELATION_OVER_BUDGET = "relation_request_over_budget_split_marker_unapproved"
 POOLED_NANO_GATE = "pooled_nano_gate_unruled"
 POOLED_STATED_NUMBERS_DIFFER = "pooled_stated_numbers_differ_form_unruled"
@@ -191,8 +201,14 @@ class Stage6QuoteRequest:
     part_id: str
     question_id: str
     item_id: str
-    value: str
+    value: str  # the chosen answer (the quote step sees it; RC-D-017 6)
     candidates: tuple[InputQuote, ...]  # the input quotes shown in this request part
+    part: str | None = None  # item part of a parts item (X35 label)
+    question_text: str | None = None  # the signed question as asked
+    #: X35 activity form: relation -> the first record's name; pooled -> the first pooled
+    #: observation's name (provisional reading, reported to the integrator)
+    activity_name: str | None = None
+    first_observation_id: str | None = None  # relation: which candidates are the first record's
 
 
 @dataclass(frozen=True)
@@ -202,6 +218,11 @@ class Stage6Quote:
     quote: str | None
     input_support_id: str | None
     entailment: Entailment | None = None
+    provenance: Mapping[str, Any] | None = None  # extractor / X35 call metadata (kept internally)
+
+
+class Stage6QuoteNotApproved(RuntimeError):
+    """The quote-step instruction still carries its DRAFT marker: no paid call is made."""
 
 
 QuoteFn = Callable[[Stage6QuoteRequest], Stage6Quote]
@@ -323,7 +344,8 @@ def _request(ask_fn: AskFn, state: dict[str, Any], questions: dict[str, dict[str
 
 def _support(kind: str, key: str, part_id: str, q: Mapping[str, Any], rec: CoderRecord,
              candidates: Sequence[InputQuote], quote_fn: QuoteFn | None, *,
-             activity_id: str | None, linked: str | None) -> SupportResult | Held:
+             activity_id: str | None, linked: str | None, activity_name: str | None = None,
+             first_observation_id: str | None = None) -> SupportResult | Held:
     """T-024 check of one Stage 6 answer; the quote must come from a candidate of this part."""
     value = str(rec.chosen_value)
     placeholder = PageSources(part_id, {part_id: ""})
@@ -334,10 +356,18 @@ def _support(kind: str, key: str, part_id: str, q: Mapping[str, Any], rec: Coder
         return probe  # no quote needed (exempt value): the check is complete without the quote step
     if not candidates:
         return probe  # nothing shown in this part to copy from: no supporting text
+    hold_key = f"{kind}:{key}:{part_id}:{q['question_id']}"
     if quote_fn is None:
-        return Held(QUOTE_STEP_ABSENT, f"{kind}:{key}:{part_id}:{q['question_id']}")
-    answer = quote_fn(Stage6QuoteRequest(kind, key, part_id, q["question_id"], q["item_id"], value,
-                                         tuple(candidates)))
+        return Held(QUOTE_STEP_ABSENT, hold_key)
+    request = Stage6QuoteRequest(kind, key, part_id, q["question_id"], q["item_id"], value, tuple(candidates),
+                                 part=q.get("part"), question_text=q.get("instructions"),
+                                 activity_name=activity_name, first_observation_id=first_observation_id)
+    try:
+        answer = quote_fn(request)
+    except (JevAccountError, Stage6QuoteNotApproved, SupportGateError):
+        raise
+    except Exception as exc:  # noqa: BLE001 - a failed quote request holds this answer only
+        return Held(QUOTE_STEP_FAILED, hold_key, f"{type(exc).__name__}: {exc}")
     if answer.quote is None or not answer.quote.strip():
         return probe  # the quote step found no supporting text: downgraded_no_quote
     source = next((c for c in candidates if c.support_id == answer.input_support_id), None)
@@ -409,8 +439,10 @@ def code_relation(first: ObservationRecord, second: ObservationRecord, ask_fn: A
     rec = _record(result, q, part_id, config, qsv, first.observation_id)
     if rec.chosen_value == NOT_COVERED:
         raise ConsolidationError("a single-part relation request returned the temporary part answer")
+    name = first.values.get("core.activity_name")
     checked = _support("relation", key, part_id, q, rec, (*first.quotes, *second.quotes), quote_fn,
-                       activity_id=first.observation_id, linked=second.observation_id)
+                       activity_id=first.observation_id, linked=second.observation_id,
+                       activity_name=name if _real(name) else None, first_observation_id=first.observation_id)
     if isinstance(checked, Held):
         return RelationOutcome(first.observation_id, second.observation_id, None, (rec,), (), (checked,))
     vote = PartVote(part_id, 1, rec.chosen_value, rec.chosen_answer_probability,
@@ -516,6 +548,8 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
     if len({q.support_id for q in selected}) != len(selected):
         raise ConsolidationError("duplicate pooled support identity")
     numbers = stated_numbers(eligible, obs)
+    name = next((obs[k].fields.get("core.activity_name") for k in eligible
+                 if _real(obs[k].fields.get("core.activity_name"))), None)
     shown_number = numbers[0] if len(numbers) == 1 else None
     by_entry = {q.support_id: q for q in selected}
     entries = [PoolEntry(q.support_id, json.dumps(_quote_row(q), ensure_ascii=False, sort_keys=True),
@@ -587,7 +621,7 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
         n = len(prepared)
         parts_by_round[rnd] = tuple(p.part.part_id for p in prepared)
         votes: dict[str, list[PartVote]] = {q["question_id"]: [] for q in asked}
-        pending: set[str] = set()
+        pending: dict[str, str] = {}
         for prep in prepared:
             part = prep.part
             text = " ".join(by_entry[e.entry_id].quote_text for e in part.entries)
@@ -611,10 +645,10 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
                                                rec.chosen_answer_probability))
                     continue
                 checked = _support("pooled", pool_id, part.part_id, q, rec, shown, quote_fn,
-                                   activity_id=pool_id, linked=None)
+                                   activity_id=pool_id, linked=None, activity_name=name)
                 if isinstance(checked, Held):
                     held.append(checked)
-                    pending.add(qid)
+                    pending.setdefault(qid, checked.reason)
                     continue
                 support.append(checked)
                 part_status[(qid, part.part_id)] = checked.support_status
@@ -626,7 +660,7 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
             qid = q["question_id"]
             if qid in pending:
                 final[qid] = ItemOutcome(qid, q["item_id"], q.get("part"), "pending", None,
-                                         note=QUOTE_STEP_ABSENT)
+                                         note=pending[qid])
                 continue
             try:
                 c = config.combiner.combine(q["item_id"], votes[qid])
@@ -868,9 +902,9 @@ def consolidated_response(*, institution: Mapping[str, Any], metadata: Mapping[s
 __all__ = [
     "CODER_VERSION", "ContractGapError", "NUMBER_ITEM", "POOLED_NANO_GATE", "POOLED_STATED_NUMBERS_DIFFER",
     "PREFILTER_RULE",
-    "QUOTE_STEP_ABSENT", "RELATION_ITEM", "RELATION_OVER_BUDGET", "Held", "InputQuote",
+    "QUOTE_STEP_ABSENT", "QUOTE_STEP_FAILED", "RELATION_ITEM", "RELATION_OVER_BUDGET", "Held", "InputQuote",
     "ObservationRecord", "PooledActivity", "QuoteFn", "RelationOutcome", "Stage6Config", "Stage6Quote",
-    "Stage6QuoteRequest", "Stage6Result", "code_relation", "consolidated_response", "permanent_pilot_override", "cross_page_pairs", "pool_activity",
+    "Stage6QuoteNotApproved", "Stage6QuoteRequest", "Stage6Result", "code_relation", "consolidated_response", "permanent_pilot_override", "cross_page_pairs", "pool_activity",
     "pooled_state", "prefilter_distinct", "record_state", "relation_state", "run_stage6", "stated_numbers",
     "source_claim_confidence", "source_claim_records",
 ]
