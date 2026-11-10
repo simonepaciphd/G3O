@@ -1,0 +1,227 @@
+{
+  "r13_sha256": "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527",
+  "r13_signature_record": "planning/t010/signoff-record.md",
+  "basis": "RC-D-025 A1, A2: PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); B2 a, B3: PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2)",
+  "wording_source": "agent-workspace/2026-11-10-build/RC-D-025-draft.md (Part A rows A1/A2, Part B rows B2/B3, PI rulings) and agent-workspace/2026-11-07-t030-rulings/DECISION-AND-PROPOSAL.json; B3 approved verbatim (\"3 wording ok\"); the B2 a combining sentence is an r14 agent draft of the ruling, approved only by the hash signature",
+  "text_changes": [
+    {
+      "id": "A1 items.core.confidence.rules/1 (new)",
+      "r13_insert_after_line": 10747,
+      "copies": 1,
+      "before": null,
+      "after": "When all applicable evidence checks completed and none failed, source confidence = `source_credibility` (high/medium/low). Any `downgraded_no_quote`, `downgraded_quote_not_stating_value` or `downgraded_low_confidence` on an associated substantive original code makes it `low`. `not_required` / `set_by_rule` neutral. Pending/unperformed checks leave it unfinished (not scored); unavailable credibility stays unknown unless a failed check sets low. Original failures survive the final-value downgrade.",
+      "origin": "PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); r14",
+      "note": "copied verbatim from RC-D-025 Part A row A1 ruling text; its closing 'Activity aggregation unchanged.' is honoured by leaving rules/0 as it is"
+    },
+    {
+      "id": "A2/B3 items.core.permanent_pilot.instruction",
+      "r13_lines": [
+        9869
+      ],
+      "copies": 1,
+      "before": "none",
+      "after": "Does the page describe this activity as a pilot that has run for more than 12 months and serves its full intended user base?",
+      "origin_before": "none (derived item)",
+      "origin_after": "PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); agent draft B3 as written"
+    },
+    {
+      "id": "A2/B3 items.core.permanent_pilot.values",
+      "r13_lines": [
+        9870
+      ],
+      "copies": 1,
+      "before": "none",
+      "after": {
+        "yes": "The same passage describes it as a pilot, running for more than 12 months, and serving the full intended user base.",
+        "no": "The page gives evidence that the activity is not such a pilot (for example a pilot under 12 months old, or limited to part of its intended users)."
+      },
+      "origin_before": "none (derived item)",
+      "origin_after": "PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); agent draft B3 as written"
+    },
+    {
+      "id": "B2a items.core.permanent_pilot.rules/0 (new combining rule)",
+      "r13_lines": [
+        9873
+      ],
+      "copies": 1,
+      "before": "slot held the r2 n=28 rule, moved to release.r14_dropped (see superseded)",
+      "after": "A supported `yes` sets the final `adoption_stage` to `production` only when the stage answer is `pilot` or `production`; for any other stage the classifier's stage answer is kept and this flag is kept as coded.",
+      "origin_after": "PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); r14 agent draft of the B2 a ruling"
+    },
+    {
+      "id": "B3 items.core.permanent_pilot.rules/1 (missing label unknown)",
+      "r13_lines": [],
+      "copies": 1,
+      "before": null,
+      "after": "The page does not let this be settled.",
+      "origin_after": "PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); agent draft B3 as written",
+      "role": "missing label unknown: meaning for this item"
+    }
+  ],
+  "field_changes": [
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "linkage",
+      "before": "deterministic",
+      "after": "jev_choice"
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "coder",
+      "before": "derived",
+      "after": "classifier"
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "pass",
+      "before": "none",
+      "after": 2
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "round",
+      "before": "none",
+      "after": 3
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "gate",
+      "before": "none",
+      "after": "same mapping as core.adoption_stage.gate (source line names RC-D-025 A2)"
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "order_tie_rule",
+      "before": "none",
+      "after": "first_in_order"
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "long_page_rule",
+      "before": "none",
+      "after": "any_yes"
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "support_required",
+      "before": false,
+      "after": true
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "downgrade_target",
+      "before": "none",
+      "after": "unknown"
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "threshold",
+      "before": "none",
+      "after": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      }
+    },
+    {
+      "item": "core.permanent_pilot",
+      "field": "jev_missing_choice",
+      "before": null,
+      "after": {
+        "offered": [],
+        "rule": "none",
+        "why": "its `unknown` rule (\"The page does not let this be settled.\") covers the case the page does not settle; `unknown` stays mechanical (RC-D-005 12 a)",
+        "resolution": "RC-D-025 A2 / B3: not offered",
+        "grounds": "B3 `unknown` text, PI 2026-11-10 \"3 wording ok\": \"The page does not let this be settled.\""
+      }
+    },
+    {
+      "item": "core.permanent_pilot",
+      "field": "refs",
+      "before": [
+        "r2#28"
+      ],
+      "after": [
+        "r2#28",
+        "RC-D-025 A2",
+        "RC-D-025 B2 a",
+        "RC-D-025 B3"
+      ]
+    },
+    {
+      "item": "core.permanent_pilot",
+      "field": "changed_r14",
+      "before": null,
+      "after": "new: before-values of the changed fields and the approval"
+    }
+  ],
+  "superseded": {
+    "slot": "items/core.permanent_pilot/rules/0 (r13 line 9873)",
+    "moved_to": "release.r14_dropped[0] (kind superseded; text, origin, source and approved_r4 kept; by = approvals)",
+    "text": "Each item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.",
+    "why": "RC-D-025 A2 reverses the 'derived flag' part for core.permanent_pilot; kept out of the rules so it does not reach the jev question text"
+  },
+  "annotated_not_changed": {
+    "slot": "items/core.vendor_claim_only/rules/0 (r13 line 9912, same r2 n=28 text)",
+    "added_field": "superseded_in_part_r14",
+    "value": "'Permanent pilot' becomes a derived flag: superseded by RC-D-025 A2 (core.permanent_pilot is a classifier item from r14; see release.r14_dropped). The vendor-claim part stands.",
+    "why": "verbatim ruling text kept; its vendor-claim part still applies"
+  },
+  "not_changed": {
+    "items/core.adoption_stage/rules/2 (Permanent pilot rule, v25)": "unchanged; still names retired `scope_notes`",
+    "items/core.adoption_stage/long_page_rule/permanent_pilot_across_parts": "within_part_only known limit unchanged (A2)",
+    "items/core.confidence/rules/0": "activity aggregation unchanged (A1)",
+    "vocabularies.support_status.status_by_answer": "`no` -> not_required globally (F1 a), also for permanent_pilot"
+  },
+  "open": {
+    "entailment_label": "core.permanent_pilot has support_required true and a value set, so check 6 requires an item entailment_label and one per value (X35 support check wording); the record gives none. Left out; check 6 fails until the PI gives the three labels. Adding them changes this sha256."
+  },
+  "header_comment": {
+    "before": "# G3O codebook release 2.7, revision r13 — UNSIGNED candidate (RC-D-019), sign-off build (T-010). Byte edits to the signed r12 file, recorded in planning/t010/r13-provenance.json.",
+    "after": "# G3O codebook release 2.7, revision r14 — UNSIGNED candidate (RC-D-025), sign-off build (T-010). Byte edits to the signed r13 file, recorded in planning/t010/r14-provenance.json."
+  },
+  "folds_r14": "RC-D-025 A1 / A2 (PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2)) and B2 a / B3 (PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2)): A1 source-level confidence rule added to core.confidence (activity aggregation rule unchanged); A2 core.permanent_pilot derived -> classifier (jev_choice, pass 2, round 3, adoption_stage gate, support-checked; B3 instruction and values as drafted; B2 a combining rule); its r2 'derived flag' rule moved to r14_dropped; provenance planning/t010/r14-provenance.json",
+  "provenance_fields": "new slots carry origin and source (and role where it names a function); the superseded rule is kept whole in release.r14_dropped; changed structural fields keep their r13 values in items/core.permanent_pilot/changed_r14 and in field_changes here",
+  "line_endings": "CRLF, preserved from r13 (codebook/.gitattributes: codebook.yaml -text)",
+  "status": "UNSIGNED candidate, INCOMPLETE (see open); signed only when planning/t010/signoff-record.md holds this sha256",
+  "r14_sha256_candidate": "cdb9bd763e419c60714e88519a71b0bcecaaddda787b6140652b1942ce4fba29"
+}

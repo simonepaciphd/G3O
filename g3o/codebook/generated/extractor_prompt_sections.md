@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extractor_prompt_sections. -->
-<!-- codebook release: 2.7 | codebook sha256: 07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527 -->
+<!-- codebook release: 2.7 | codebook sha256: cdb9bd763e419c60714e88519a71b0bcecaaddda787b6140652b1942ce4fba29 -->
 
 # Extractor prompt sections
 
-Codebook release `2.7`, sha256 `07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
+Codebook release `2.7`, sha256 `cdb9bd763e419c60714e88519a71b0bcecaaddda787b6140652b1942ce4fba29`. Intended target: T-022 / T-032 extractor prompt sections (path chosen there).
 
 ## `core.source_publication_date`
 <!-- item: core.source_publication_date sha256: 8183c96a145464289b2baa6ecf2653b7b944cae281dd7624397a13387aaa7320 -->

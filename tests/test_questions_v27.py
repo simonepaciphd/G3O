@@ -47,7 +47,7 @@ def _copy_sets(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_codebook_is_pinned_r13(cb: Codebook) -> None:
+def test_codebook_is_pinned_r14(cb: Codebook) -> None:
     assert cb.sha256 == SIGNED_CODEBOOK_SHA256
 
 
@@ -60,7 +60,7 @@ def test_sets_cover_every_question_once(signed: dict) -> None:
     ids += [q["question_id"] for q in load_set("institution")["relation"]["questions"]]
     assert len(ids) == len(set(ids))
     assert set(ids) | set(EXCLUDED) == {q["question_id"] for q in signed["questions"]}
-    assert (len(load_set("page")["questions"]), len(load_set("activity")["questions"])) == (7, 42)
+    assert (len(load_set("page")["questions"]), len(load_set("activity")["questions"])) == (7, 43)  # r14: + core.permanent_pilot (RC-D-025 A2)
 
 
 def test_version_stamp_and_packet_wording() -> None:

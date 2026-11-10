@@ -1,4 +1,4 @@
-# G3O codebook release 2.7, revision r13 — UNSIGNED candidate (RC-D-019), sign-off build (T-010). Byte edits to the signed r12 file, recorded in planning/t010/r13-provenance.json.
+# G3O codebook release 2.7, revision r14 — UNSIGNED candidate (RC-D-025), sign-off build (T-010). Byte edits to the signed r13 file, recorded in planning/t010/r14-provenance.json.
 # Every slot text is copied verbatim from its `source`; `origin` records who approved it.
 # Signed only if planning/t010/signoff-record.md holds this file's sha256 (A-001).
 release:
@@ -36,6 +36,8 @@ release:
       RC-D-015 Q1 b, Q2 a, P1 a and RC-D-017 3, 5a, 6, 7 b, 8 a, 9d: wording W-R12-1..W-R12-5 as drafted (agent-workspace/2026-11-05-v27-orch/r12-wording-draft.md; PI 2026-11-04 chat "4 yes"); rounds moved (Q2 a): evaluation_documented, outcome_kind, incident_kind 3 -> 4, the six evaluation_type_* items 4 -> 5; provenance planning/t010/r12-provenance.json; year rules 1-2 replaced by W-R12-2b / W-R12-3b (PI 2026-11-05 chat "yes"); rule 2 replaced by W-R12-3c (PI 2026-11-05 chat "all as rec" C2)
     r13: |-
       RC-D-019 (PI 2026-11-05 chat "Aa,D1b add all of them, I approve the delta D2c C1a C2b; proced all accept" and "F1a, B1c (but current-year+25-99), B2a; [recedural ok; E1c E2a ..."): D1 b / F1 a six answer values take `not_required` (status_by_answer keys and the four current copies of the list); C1 a year value label (label_rules); B2 a / B1 c rule 1 of the three year items; E2 a new rule of content_contact_emails; provenance planning/t010/r13-provenance.json
+    r14: |-
+      RC-D-025 A1 / A2 (PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2)) and B2 a / B3 (PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2)): A1 source-level confidence rule added to core.confidence (activity aggregation rule unchanged); A2 core.permanent_pilot derived -> classifier (jev_choice, pass 2, round 3, adoption_stage gate, support-checked; B3 instruction and values as drafted; B2 a combining rule); its r2 'derived flag' rule moved to r14_dropped; provenance planning/t010/r14-provenance.json
   r4_dropped:
   - card: activity-1 O1
     slot: items/core.observed_actor_relationship/rules/6
@@ -71,6 +73,19 @@ release:
     text: |-
       `not_required`, for `not_documented`, `unknown`, `no` and negative page verdicts; `_NA_` takes `set_by_rule`
     by: PI 2026-10-30 "approved!"; fixes-r4 FX08
+  r14_dropped:
+  - slot: items/core.permanent_pilot/rules/0
+    kind: superseded
+    kept: items/core.vendor_claim_only/rules/0
+    replaced_by:
+    - items/core.permanent_pilot/instruction
+    - items/core.permanent_pilot/rules/0
+    text: |-
+      Each item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.
+    origin: r2
+    source: codebook-rulings-round2.json n=28
+    approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I19 slot 1'
+    by: PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2); PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2); r14
   status_note: release candidate; signed only if the signature record holds this file's sha256
 vocabularies:
   missing:
@@ -9860,25 +9875,66 @@ items:
     level:
     - activity
     pipelines: *id001
-    linkage: deterministic
-    coder: derived
-    pass: none
-    round: none
-    gate: none
+    linkage: jev_choice
+    coder: classifier
+    pass: 2
+    round: 3
+    gate:
+      item: core.activity_type
+      values:
+      - policy_guidance
+      - pilot_experiment
+      - program_initiative
+      - internal_operational
+      - public_facing_service
+      - unknown
+      table: applicability keyed on activity_type (r2#8)
+      rule: core.rule.applicability_table
+      cells:
+        policy_guidance: ask
+        pilot_experiment: ask
+        program_initiative: ask
+        internal_operational: ask
+        public_facing_service: ask
+        unknown: ask
+      inferred_cells: []
+      source: |-
+        same gate as core.adoption_stage (RC-D-025 A2): applicability.json cells[item=core.adoption_stage]; ruling activity-01 (approve), activity-03 a, e, activity-04 a, activity-05 a
     answer_type: yes_no
-    instruction: none
-    values: none
+    instruction:
+      text: |-
+        Does the page describe this activity as a pilot that has run for more than 12 months and serves its full intended user base?
+      origin: PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2); agent draft B3 as written
+      source: agent-workspace/2026-11-10-build/RC-D-025-draft.md Part B row B3 (instruction)
+    values:
+    - code: 'yes'
+      definition:
+        text: |-
+          The same passage describes it as a pilot, running for more than 12 months, and serving the full intended user base.
+        origin: PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2); agent draft B3 as written
+        source: agent-workspace/2026-11-10-build/RC-D-025-draft.md Part B row B3 (`yes`)
+    - code: 'no'
+      definition:
+        text: |-
+          The page gives evidence that the activity is not such a pilot (for example a pilot under 12 months old, or limited to part of its intended users).
+        origin: PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2); agent draft B3 as written
+        source: agent-workspace/2026-11-10-build/RC-D-025-draft.md Part B row B3 (`no`)
     rules:
     - text: |-
-        Each item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.
-      origin: r2
-      source: codebook-rulings-round2.json n=28
-      approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I19 slot 1'
-    order_tie_rule: none
-    long_page_rule: none
-    support_required: false
-    downgrade_target: none
-    threshold: none
+        A supported `yes` sets the final `adoption_stage` to `production` only when the stage answer is `pilot` or `production`; for any other stage the classifier's stage answer is kept and this flag is kept as coded.
+      origin: PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2); r14 agent draft of the B2 a ruling
+      source: agent-workspace/2026-11-10-build/RC-D-025-draft.md PI rulings B2 a ("permanent_pilot override applies only when stage is `pilot` or `production`; other stages keep the classifier's answer, flag kept as coded") and Part A row A2 ("Supported `yes` -> final `adoption_stage` = `production`")
+      role: combining with core.adoption_stage
+    - text: |-
+        The page does not let this be settled.
+      origin: PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2); agent draft B3 as written
+      source: agent-workspace/2026-11-10-build/RC-D-025-draft.md Part B row B3 (`unknown`, missing label)
+      role: 'missing label unknown: meaning for this item'
+    order_tie_rule: first_in_order
+    long_page_rule: any_yes
+    support_required: true
+    downgrade_target: unknown
+    threshold: *id002
     missing_tokens:
     - not_asked
     - not_documented
@@ -9891,7 +9947,33 @@ items:
     translation_v25: new
     refs:
     - r2#28
+    - RC-D-025 A2
+    - RC-D-025 B2 a
+    - RC-D-025 B3
     status: signed
+    jev_missing_choice:
+      offered: []
+      rule: none
+      why: |-
+        its `unknown` rule ("The page does not let this be settled.") covers the case the page does not settle; `unknown` stays mechanical (RC-D-005 12 a)
+      resolution: 'RC-D-025 A2 / B3: not offered'
+      grounds: 'B3 `unknown` text, PI 2026-11-10 "3 wording ok": "The page does not let this be settled."'
+    changed_r14:
+      before:
+        linkage: deterministic
+        coder: derived
+        pass: none
+        round: none
+        gate: none
+        instruction: none
+        values: none
+        order_tie_rule: none
+        long_page_rule: none
+        support_required: false
+        downgrade_target: none
+        threshold: none
+      rules_before: release.r14_dropped[0] (the r2 n=28 rule, moved)
+      by: PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2); PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2); r14
   core.vendor_claim_only:
     id: core.vendor_claim_only
     family: quality
@@ -9913,6 +9995,8 @@ items:
       origin: r2
       source: codebook-rulings-round2.json n=28
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page activity-3 card I20 slot 1'
+      superseded_in_part_r14: |-
+        'Permanent pilot' becomes a derived flag: superseded by RC-D-025 A2 (core.permanent_pilot is a classifier item from r14; see release.r14_dropped). The vendor-claim part stands.
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -10745,6 +10829,11 @@ items:
       origin: r2
       source: codebook-rulings-round2.json n=27
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page source card I14 slot 1'
+    - text: |-
+        When all applicable evidence checks completed and none failed, source confidence = `source_credibility` (high/medium/low). Any `downgraded_no_quote`, `downgraded_quote_not_stating_value` or `downgraded_low_confidence` on an associated substantive original code makes it `low`. `not_required` / `set_by_rule` neutral. Pending/unperformed checks leave it unfinished (not scored); unavailable credibility stays unknown unless a failed check sets low. Original failures survive the final-value downgrade.
+      origin: PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2); PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2); r14
+      source: agent-workspace/2026-11-10-build/RC-D-025-draft.md Part A row A1 (ruling text; its closing 'Activity aggregation unchanged.' is rule 1 left as it is)
+      role: source-level confidence (one source/activity evidence claim)
     order_tie_rule: none
     long_page_rule: none
     support_required: false
