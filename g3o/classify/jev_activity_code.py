@@ -42,6 +42,11 @@ per (page x activity) with the v2.7 activity question set (T-011 ``activity.json
    earlier page span is lhs; equal starts stop only that pair. Every part holding
    either span votes. Raw records name ``linked_activity``; pair support joins
    retain both activity identities. :func:`finalize_pairs` checks pair support.
+7. **Permanent pilot (RC-D-025 B2 a; codebook r15 ``core.permanent_pilot`` rules/0).**
+   After the support-checked re-combine, a supported combined ``yes`` sets the final
+   ``adoption_stage`` from ``pilot`` to ``production`` (rule
+   :data:`PERMANENT_PILOT_RULE`); ``production`` stays; any other stage and the flag
+   itself are kept as coded. Provisional outcomes never carry it.
 """
 
 from __future__ import annotations
@@ -78,6 +83,16 @@ ANSWER_MISSING = "jev_answer_missing"
 SPAN_UNRESOLVED = "activity_span_unresolved"
 PAIR_QUESTION_MISSING = "pair_question_missing"
 PAIR_DIRECTION_TIE = "pair_direction_tie"
+
+#: RC-D-025 B2 a (codebook r15 ``core.permanent_pilot`` rules/0, role "combining with
+#: core.adoption_stage"): applied by :func:`finalize_activities` after the support check.
+PERMANENT_PILOT_ITEM = "core.permanent_pilot"
+ADOPTION_STAGE_ITEM = "core.adoption_stage"
+PERMANENT_PILOT_RULE = "permanent_pilot_override:" + PERMANENT_PILOT_ITEM
+#: Combined stage answers the override applies to; any other stage is kept (B2 a).
+PERMANENT_PILOT_STAGES = frozenset({"pilot", "production"})
+PERMANENT_PILOT_TARGET = "production"
+SUPPORTED = "supported"
 
 #: Extracted (nano) values the signed state names: state field -> T-022 field item.
 NANO_STATE_FIELDS: Mapping[str, str] = {
@@ -947,8 +962,45 @@ def finalize_activities(result: PageActivityResult, support: Sequence[Any], conf
                     elif not open_:
                         final[q["question_id"]] = _gated(q, "gate closed after the support check (PI Q2 b)")
                         regated.append(q["question_id"])
+            # Before later rounds read the stage (no gate does today; kept in order anyway).
+            _permanent_pilot_override(final, s.by_id, act.activity_id, status)
         out.append(FinalActivity(act.activity_id, final, tuple(regated), tuple(opened)))
     return tuple(out)
+
+
+def _permanent_pilot_override(final: dict[str, ItemOutcome], by_id: Mapping[str, dict[str, Any]],
+                              activity_id: str,
+                              status: Mapping[tuple[str, str, str | None, str], str]) -> None:
+    """RC-D-025 B2 a, in place, on the final (support-checked, combined) outcomes.
+
+    Codebook r15 ``core.permanent_pilot`` rules/0: "A supported `yes` sets the final
+    `adoption_stage` to `production` only when the stage answer is `pilot` or
+    `production`; for any other stage the classifier's stage answer is kept and this
+    flag is kept as coded." Both answers are the combined (R-044) ones. "Supported" is
+    the T-024 result of the part that produced the combined ``yes`` (``supported``), on
+    top of the re-combine, which already enters failed parts as ``unknown``. The flag
+    is never changed. The stage outcome records the rule only when its value changes
+    (``pilot`` -> ``production``); a ``production`` stage is already the target.
+    """
+    pp = next((final.get(qid) for qid, q in by_id.items()
+               if q["item_id"] == PERMANENT_PILOT_ITEM and q.get("part") is None), None)
+    stage_qid = next((qid for qid, q in by_id.items()
+                      if q["item_id"] == ADOPTION_STAGE_ITEM and q.get("part") is None), None)
+    stage = final.get(stage_qid) if stage_qid is not None else None
+    if pp is None or stage is None:
+        return
+    if pp.state != "combined" or pp.value != "yes" or pp.failed or pp.part_id is None:
+        return
+    if status.get((activity_id, PERMANENT_PILOT_ITEM, None, pp.part_id)) != SUPPORTED:
+        return
+    if stage.state != "combined" or stage.failed or stage.value not in PERMANENT_PILOT_STAGES:
+        return
+    if stage.value == PERMANENT_PILOT_TARGET:
+        return
+    final[stage_qid] = replace(
+        stage, value=PERMANENT_PILOT_TARGET, rule_reference=PERMANENT_PILOT_RULE,
+        note=(f"RC-D-025 B2 a: combined stage {stage.value!r} -> {PERMANENT_PILOT_TARGET!r} by a "
+              f"supported permanent_pilot 'yes' (part {pp.part_id}); codebook core.permanent_pilot rules/0"))
 
 
 # ---------------------------------------------------------------------------
@@ -980,7 +1032,7 @@ def to_pass2_page(result: PageActivityResult, inp: ActivityPageInput) -> Pass2Pa
 
 __all__ = [
     "ANSWER_MISSING", "CODER_VERSION", "MISSING_REQUEST_ID", "NANO_STATE_FIELDS",
-    "PAIR_DIRECTION_TIE", "PAIR_QUESTION_MISSING", "REQUEST_FAILED", "SPAN_UNRESOLVED", "ActivityCoderConfig",
+    "PAIR_DIRECTION_TIE", "PAIR_QUESTION_MISSING", "PERMANENT_PILOT_RULE", "REQUEST_FAILED", "SPAN_UNRESOLVED", "ActivityCoderConfig",
     "ActivityPageInput", "ActivityPair", "ActivityResult", "PairResult", "Combined", "FinalActivity", "ItemOutcome",
     "PageActivityResult", "PartCombiner", "PartFailure", "PartVote", "build_questions",
     "build_state", "code_page", "finalize_activities", "finalize_pairs", "plan_pairs", "marked_pair_text", "gate_open", "marked_part_text",
