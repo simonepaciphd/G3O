@@ -1,5 +1,7 @@
 # PLAN: G3O pipeline reclassification
 
+Current ruling overlay (2026-11-10, RC-D-025, APPROVED 2026-11-10 chats "1a 2a 3 wording ok 4b, accept all" and "5bp; go ahead!"; 11-07 rulings "sounds good, whats next"; 11-09 rulings in `agent-workspace/2026-11-09-plan/DECISIONS.md`; text `planning/deltas/RC-D-025.md`; SPEC v001.27): source confidence and `permanent_pilot` (classifier, support-checked; override only from pilot/production) go into codebook r14 (pending PI signature); new cards T-066 (unlocker cap, before T-071), T-075/T-076 (waves 6/7 right after T-071, before T-070/T-072; cost gate from own smoke inside the $3,500 envelope); waves after W17 renumbered +2 (W18 T-075 + T-062, W19 T-076, W20 T-070 ...); T-028 claim widened; quote-match provenance internal.
+
 RC-D-024 recovery overlay (2026-11-07): approved chat rulings in deltas/RC-D-024.md; SPEC v001.26-candidate. T-011 contact field approved; exact P-2c pair question approved. T-021 restores signed order and tolerates fewer than75% failed verdict-request parts by count, with timing. T-023 uses earlier span start for pair lhs and preserves linked_activity through T-024; same-start direction remains unresolved. T-030 must ask newly eligible questions after support re-gating before publishing final answers. T-040 known-limit expectations match ruled behavior; existing labels r11, new r13; optional fixtures included including the approved A021-16 newly-opened-gate scenario. T-011/021/023/040 stay in-progress; T-030/T-031 integration and validation remain open. No completion or landing inferred from local implementation. Joint re-lock pending verification.
 
 Current ruling overlay (2026-11-08, RC-D-023, APPROVED 2026-11-08 chats "make recs for each based on my earlier choices" and "accept all"; text `planning/deltas/RC-D-023.md`; SPEC v001.25): pass-1 parts combined on the 0.8 bar for gates, then re-combined and re-gated after the support check (B-Q2 b); one shared `g3o/common/part_combine.py` takes over T-020's combination half (B-Q1 b); `source_type` asked by T-015, not pass 1 (B-Q3 a); contact items get a chrome field, name pending PI approval (B-Q4 b); extractor once per page before following, each followed page its own call (C-1 a, replaces RC-D-021 "once per run, after T-025"); same URL = discovery dedup key; nearness = gap to nearest T-024-supported quote from the located link passage, unlocated last; every URL tried counts against the cap (C-Q1 b, C-Q2 a, C-Q3 b (i), C-Q4 a, C-Q5 b); wording A-1..A-6 a.
@@ -279,7 +281,7 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-025 | eng-b | W5 | pending | T-002, T-014, T-021, T-022 | none | T-029, T-030 | RS-016 | none | new modules `g3o/scrape/follow.py`†, `g3o/run/presweep/stage_follow.py`† and their tests | URL cap = 10 per institution (PI, RC-D-014 S4); push of the branch | A-004, A-014 |
 | T-026 | eng-a | W8 | pending | T-011, T-012, T-015, T-023, T-024, T-027 | none | T-028 | RS-011, RS-014 | none | the listed Stage 6 files and tests; retirement of the OpenAI Stage 6 path: the import hunk of `g3o/validate/stage_validate.py`, `g3o/validate/{client,qc,salvage}.py`, `tests/test_validate.py`, `tests/test_validate_salvage.py` (archived, PI A a), `scripts/verify_jev_validate_live.py`; install of the generated `g3o/validate/prompts/system_prompt.md` and `g3o/validate/prompts/output_contract.md` (RC-D-008) | push of the branch | A-010 |
 | T-027 | eng-b | W3 | verified (local library; downstream acceptance retained) | T-012 | none | T-015, T-021, T-023, T-026, T-028, T-050 | RS-012, RS-013, RS-014 | none | new module `g3o/common/jev_record.py`† and its tests | push of the branch | A-013 |
-| T-028 | eng-a | W9 | pending | T-012, T-015, T-024, T-026, T-027, T-050 | none | T-030, T-052, T-090 | RS-018 | none | `g3o/persist/writer.py` and its tests; `g3o/persist/integrity.py`, `tests/test_integrity.py` (RC-D-008) | push of the branch | A-007, A-017 |
+| T-028 | eng-a | W9 | pending | T-012, T-015, T-024, T-026, T-027, T-050 | none | T-030, T-052, T-090 | RS-018 | none | `g3o/persist/writer.py` and its tests; `g3o/persist/integrity.py`, `tests/test_integrity.py` (RC-D-008); RC-D-025 P6/P7: `g3o/common/storage.py` quote-check hunks, the mechanical-final hunk of `g3o/common/jev_record.py`, new `g3o/persist/stage6_adapters.py` and its tests; internal `6_support_provenance.json` (B5 b) | push of the branch | A-007, A-017 |
 | T-030 | eng-b | W10 | pending | T-021, T-025, T-028, T-032 | none | T-029 | none | none | instrument-binding hunks of presweep/planning.py and run manifest; the listed orchestrator, config, telemetry and e2e files; `g3o/common/credentials.py` and `g3o/common/cost_monitor.py` hunks (RC-D-021); merges of the new-run card branches into `reclass/v2.7`† | push of the integration branch | none |
 | T-029 | eng-a | W11 | pending | T-001, T-025, T-030 | none | T-034, T-035 | RS-017 | none | new package `g3o/run/backfill/`† and its tests | push of the branch | A-005, A-015 |
 | T-034 | eng-a | W12 | pending | T-029 | none | T-035 | RS-026 | none | `g3o/run/backfill/transfers.py`† and its tests | push of the branch | A-022 |
@@ -299,19 +301,22 @@ Preserved strengths (Plan-Review): per-card stop/continue and spec-delta rules; 
 | T-063 | integrator | W2 | superseded | T-010 | none | none | RS-040 | D-010 | `planning/handoffs/D-010-multilingual-heads-up.md`† | PI approves the text; sending is external | none |
 | T-064 | eng-c | W3 | complete | T-010 | none | T-024 | RS-008, RS-009 | none | `g3o/extract/years.py`†, `tests/test_years_v27.py`†, spikes folder `SPIKE-T064*` | push of the branch | none |
 | T-065 | eng-a | W3 | complete | T-014 | none | T-041 | none | none | `g3o/scrape/fetcher.py` (routing block only), `g3o/scrape/docx.py`†, `g3o/scrape/readability.py`†, `tests/test_scrape_binary_route.py`† | push of the branch (DP-065a/b ruled, RC-D-018) | none |
-| T-071 | eng-a | W17 | blocked | T-031, T-041, T-055, T-060, T-061 | none | T-062, T-070 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
-| T-070 | eng-a | W18 | blocked | T-071 | none | T-072 | RS-026, RS-030 | none | freeze folder† | PI confirms the freeze date | none |
-| T-072 | eng-a | W19 | blocked | T-001, T-070 | none | T-073 | none | none | smoke run dir; smoke folder† | paid run — the agent prepares the exact command and cost estimate and Simone runs it via `! <command>` (red line 4, 2026-10-28); SSH authorisation; PI reviews the smoke report | none |
-| T-073 | eng-a | W20 | blocked | T-072 | none | T-074 | none | none | back-fill run dir | paid run — the agent prepares the exact command and a cost estimate from the T-072 projection, and Simone runs it via `! <command>` (red line 4); SSH authorisation | none |
-| T-074 | eng-a | W21 | blocked | T-052, T-054, T-055, T-073 | none | T-080, T-082, T-095 | none | D-003 | live DB under the release id; reconciliation folder† | PI approves live writes (snapshot + load); Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed | none |
-| T-080 | eng-b | W22 | pending | T-074 | none | T-081 | none | none | quality sample files† | none | none |
-| T-081 | quality | W23 | blocked | T-080 | none | T-082 | none | none | `quality/reads/`† | PI approves the read prompt and authorises the swarm launch (see DP-065); SSH authorisation for the page pull | none |
-| T-082 | integrator | W24 | pending | T-074, T-081 | none | T-083 | none | D-005 | `quality/QUALITY-PACKET.md`† | none | none |
-| T-083 | researcher | W25 | pending | T-082 | none | T-095 | none | none | `quality/PI-AUDIT.md`† | this card is the gate | none |
+| T-066 | eng-a | W16 | in-progress | none | none | T-071 | RS-016 | none | `g3o/scrape/unlocker.py`, `tests/test_unlocker.py`, the mock hunk of `tests/test_spend_all_apis.py` | push of the branch | none |
+| T-071 | eng-a | W17 | blocked | T-031, T-041, T-055, T-060, T-061, T-066 | none | T-062, T-070, T-075 | none | none | droplet checkout; deploy folder† | PI approves merge and deploy; SSH authorisation; external gate — wave 5 published | none |
+| T-075 | eng-a | W18 | blocked | T-071 | none | T-076 | RS-026, RS-030 | none | wave-6 frame, run dir and archive; re-pinned wave scripts† | PI approves the cost estimate (own 20-institution smoke projected to 92k, inside the $3,500 envelope; wave-5 resume spend recorded first) and runs the paid command via `! <command>` (red line 4); SSH authorisation; Serper balance; T-097 confirms an open wave window | none |
+| T-076 | eng-a | W19 | blocked | T-075 | none | T-070 | RS-026, RS-030 | none | wave-7 frame, run dir and archive† | as T-075; the T-072 per-92k figure gates T-076 if T-072 has run, else T-075 actuals; stop at the $3,500 envelope | none |
+| T-070 | eng-a | W20 | blocked | T-071, T-076 | none | T-072 | RS-026, RS-030 | none | freeze folder† | PI confirms the freeze date | none |
+| T-072 | eng-a | W21 | blocked | T-001, T-070 | none | T-073 | none | none | smoke run dir; smoke folder† | paid run — the agent prepares the exact command and cost estimate and Simone runs it via `! <command>` (red line 4, 2026-10-28); SSH authorisation; PI reviews the smoke report | none |
+| T-073 | eng-a | W22 | blocked | T-072 | none | T-074 | none | none | back-fill run dir | paid run — the agent prepares the exact command and a cost estimate from the T-072 projection, and Simone runs it via `! <command>` (red line 4); SSH authorisation | none |
+| T-074 | eng-a | W23 | blocked | T-052, T-054, T-055, T-073 | none | T-080, T-082, T-095 | none | D-003 | live DB under the release id; reconciliation folder† | PI approves live writes (snapshot + load); Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed | none |
+| T-080 | eng-b | W24 | pending | T-074 | none | T-081 | none | none | quality sample files† | none | none |
+| T-081 | quality | W25 | blocked | T-080 | none | T-082 | none | none | `quality/reads/`† | PI approves the read prompt and authorises the swarm launch (see DP-065); SSH authorisation for the page pull | none |
+| T-082 | integrator | W26 | pending | T-074, T-081 | none | T-083 | none | D-005 | `quality/QUALITY-PACKET.md`† | none | none |
+| T-083 | researcher | W27 | pending | T-082 | none | T-095 | none | none | `quality/PI-AUDIT.md`† | this card is the gate | none |
 | T-090 | integrator | W10 | pending | T-010, T-012, T-028 | none | T-095 | none | D-006 | the docs files in the G3O repo listed in Outputs (and the #175 README text only, not its file in another repo); also `docs/replication.md`, `docs/architecture.md`, `CONTRIBUTING.md`, `data/README.md`, `g3o/extract/README.md`, `g3o/validate/README.md`, `g3o/persist/README.md`, and the `g3o/extract/__init__.py` and `g3o/validate/__init__.py` docstrings (RC-D-008) | PI approves public prose; push | none |
-| T-095 | colin | W26 | blocked | T-053, T-074, T-083, T-090 | none | T-096 | none | D-004 | release flag; deploys; release folder† | PI release sign-off; deploy; live DB write (release flag) | none |
-| T-096 | reviewer | W27 | pending | T-095 | none | none | none | none | `planning/reviews/TRACE.md`† | paid rerun — the agent prepares the command and cost estimate and Simone runs it via `! <command>` (red line 4); SSH authorisation; PI approves the agreement criterion | none |
-| T-097 | integrator | W1-W27 | pending | none | none | none | none | none | SPEC.md, RESOURCES.md, PLAN.md, CHANGELOG.md (sole writer after lock) | PI approves every delta | none |
+| T-095 | colin | W28 | blocked | T-053, T-074, T-083, T-090 | none | T-096 | none | D-004 | release flag; deploys; release folder† | PI release sign-off; deploy; live DB write (release flag) | none |
+| T-096 | reviewer | W29 | pending | T-095 | none | none | none | none | `planning/reviews/TRACE.md`† | paid rerun — the agent prepares the command and cost estimate and Simone runs it via `! <command>` (red line 4); SSH authorisation; PI approves the agreement criterion | none |
+| T-097 | integrator | W1-W29 | pending | none | none | none | none | none | SPEC.md, RESOURCES.md, PLAN.md, CHANGELOG.md (sole writer after lock) | PI approves every delta | none |
 
 Approved milestone expansion: T-050A (satisfied artifact) -> T-012 -> T-027 -> T-050B -> T-028. T-050A is not a new task or lane. Graph T-050 denotes B; remaining waves retain their meaning. Verification: archive/records/D-007-remap-check.json.
 
@@ -319,7 +324,7 @@ Approved milestone expansion: T-050A (satisfied artifact) -> T-012 -> T-027 -> T
 
 | Wave | Target | Ready condition | Lanes/tasks | Collision result | Integration/review gate |
 |---|---|---|---|---|---|
-| W1 | after lock | lock + per-card gates | eng-b: T-001, integrator: T-010, eng-b: T-013, eng-a: T-020, T-097 (standing W1-W27) | disjoint claims (one writer per path) | T-001: PI authorises read-only droplet SSH; T-010: PI writes or line-edits every coding rule; PI approves the item template and signs the CX items in one batch signature (RC-D-004); PI signs the codebook hash (A-001); push gate; T-013: PI approves the item template and generator checks (r2#59); push of the branch; T-020: none beyond push (RC-D-002 N34: T-002 moved to W2, T-013 added) |
+| W1 | after lock | lock + per-card gates | eng-b: T-001, integrator: T-010, eng-b: T-013, eng-a: T-020, T-097 (standing W1-W29) | disjoint claims (one writer per path) | T-001: PI authorises read-only droplet SSH; T-010: PI writes or line-edits every coding rule; PI approves the item template and signs the CX items in one batch signature (RC-D-004); PI signs the codebook hash (A-001); push gate; T-013: PI approves the item template and generator checks (r2#59); push of the branch; T-020: none beyond push (RC-D-002 N34: T-002 moved to W2, T-013 added) |
 | W2 | after W1 | verified: T-010, T-013 | eng-c: T-002, eng-b: T-012, tbd: T-014, tbd: T-016, integrator: T-040, integrator: T-061, integrator: T-063 | disjoint claims (one writer per path) | T-002: PI approves the paid spike budget; Simone runs the paid command (red line 4, ruling 2026-10-28); T-012: approved T-050A, local implementation only, push gate; T-014: push of the branch; T-016: PI approves the cost estimate; Simone runs the paid command; PI rules on the results; T-040: PI labels and approves expected values for real-page fixtures; T-061: PI approves the notice text; T-063: PI approves the text; sending is external |
 | W3 | after W2 | verified: T-002, T-010, T-012, T-013, T-014, T-016, T-020 | eng-c: T-003, eng-a: T-011, eng-c: T-022, eng-b: T-027 | disjoint claims (one writer per path) | T-003: PI approves metric and threshold (Q-020 b) and sets the website display cap (DEC-016 c); T-011: PI approves question wording that is not verbatim contract or CX text; push gate; T-022: PI approves the nano prompt text; push gate; T-027: push of the branch |
 | W4 | after W3 | verified: T-002, T-010, T-011, T-012, T-020, T-022, T-027 | eng-a: T-021, integrator: T-050B, tbd: T-015 | disjoint claims (one writer per path) | T-021: none beyond push; T-050B: implementation conformance, PI send and Colin acceptance; posting the GitHub issues is an external message; T-015: push of the branch |
@@ -334,18 +339,20 @@ Approved milestone expansion: T-050A (satisfied artifact) -> T-012 -> T-027 -> T
 | W13 | after W12 | verified: T-029, T-034 | eng-b: T-035 | disjoint claims (one writer per path) | T-035: push of the integration branch |
 | W14 | after W13 | verified: T-024, T-035, T-040 | berivox: T-031, eng-b: T-041 | disjoint claims (one writer per path) | T-031: none; T-041: PI approves the cost estimate and runs the paid fixture run and the real-id subset via `! <command>`; SSH to read the subset's stored pages needs PI authorisation; PI rules on fixture failures |
 | W15 | after W14 | verified: T-010, T-012, T-041, T-051, T-052 | eng-b: T-054, integrator: T-060 | disjoint claims (one writer per path) | T-054: PI authorises creation of and writes to the disposable branch; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; T-060: PI approves delta text; posting and email are external |
-| W16 | after W15 | verified: T-052, T-054 | colin: T-055 | disjoint claims (one writer per path) | T-055: PI authorises the live DB write (snapshot + apply) and the production deploy; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed |
-| W17 | after W16 | verified: T-031, T-041, T-055, T-060, T-061 | eng-a: T-071 | disjoint claims (one writer per path) | T-071: PI approves merge and deploy; SSH authorisation; external gate — wave 5 published |
-| W18 | after W17 | verified: T-071 | eng-a: T-070, integrator: T-062 | disjoint claims (one writer per path) | T-070: PI confirms the freeze date; T-062: PI approves delta text; sending is external |
-| W19 | after W18 | verified: T-001, T-070 | eng-a: T-072 | disjoint claims (one writer per path) | T-072: paid run — the agent prepares the exact command and cost estimate and Simone runs it via `! <command>` (red line 4, 2026-10-28); SSH authorisation; PI reviews the smoke report |
-| W20 | after W19 | verified: T-072 | eng-a: T-073 | disjoint claims (one writer per path) | T-073: paid run — the agent prepares the exact command and a cost estimate from the T-072 projection, and Simone runs it via `! <command>` (red line 4); SSH authorisation |
-| W21 | after W20 | verified: T-052, T-054, T-055, T-073 | eng-a: T-074 | disjoint claims (one writer per path) | T-074: PI approves live writes (snapshot + load); Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed |
-| W22 | after W21 | verified: T-074 | eng-b: T-080 | disjoint claims (one writer per path) | T-080: none |
-| W23 | after W22 | verified: T-080 | quality: T-081 | disjoint claims (one writer per path) | T-081: PI approves the read prompt and authorises the swarm launch (see DP-065); SSH authorisation for the page pull |
-| W24 | after W23 | verified: T-074, T-081 | integrator: T-082 | disjoint claims (one writer per path) | T-082: none |
-| W25 | after W24 | verified: T-082 | researcher: T-083 | disjoint claims (one writer per path) | T-083: this card is the gate |
-| W26 | after W25 | verified: T-053, T-074, T-083, T-090 | colin: T-095 | disjoint claims (one writer per path) | T-095: PI release sign-off; deploy; live DB write (release flag) |
-| W27 | after W26 | verified: T-095 | reviewer: T-096 | disjoint claims (one writer per path) | T-096: paid rerun — the agent prepares the command and cost estimate and Simone runs it via `! <command>` (red line 4); SSH authorisation; PI approves the agreement criterion |
+| W16 | after W15 | verified: T-052, T-054 | colin: T-055, eng-a: T-066 | disjoint claims (one writer per path) | T-055: PI authorises the live DB write (snapshot + apply) and the production deploy; Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed; T-066: push of the branch |
+| W17 | after W16 | verified: T-031, T-041, T-055, T-060, T-061, T-066 | eng-a: T-071 | disjoint claims (one writer per path) | T-071: PI approves merge and deploy; SSH authorisation; external gate — wave 5 published |
+| W18 | after W17 | verified: T-071 | eng-a: T-075, integrator: T-062 | disjoint claims (one writer per path) | T-075: PI approves the cost estimate and runs the paid command via `! <command>`; SSH authorisation; wave window open (T-097); T-062: PI approves delta text; sending is external |
+| W19 | after W18 | verified: T-075 | eng-a: T-076 | disjoint claims (one writer per path) | T-076: PI approves the cost estimate and runs the paid command via `! <command>`; SSH authorisation; stop at the $3,500 envelope |
+| W20 | after W19 | verified: T-071, T-076 | eng-a: T-070 | disjoint claims (one writer per path) | T-070: PI confirms the freeze date |
+| W21 | after W20 | verified: T-001, T-070 | eng-a: T-072 | disjoint claims (one writer per path) | T-072: paid run — the agent prepares the exact command and cost estimate and Simone runs it via `! <command>` (red line 4, 2026-10-28); SSH authorisation; PI reviews the smoke report |
+| W22 | after W21 | verified: T-072 | eng-a: T-073 | disjoint claims (one writer per path) | T-073: paid run — the agent prepares the exact command and a cost estimate from the T-072 projection, and Simone runs it via `! <command>` (red line 4); SSH authorisation |
+| W23 | after W22 | verified: T-052, T-054, T-055, T-073 | eng-a: T-074 | disjoint claims (one writer per path) | T-074: PI approves live writes (snapshot + load); Neon branch creation, snapshots and writes each need a named PI gate; Neon branches and snapshots are free (Simone, 2026-10-28), so the agent runs these commands itself once the PI gate has passed |
+| W24 | after W23 | verified: T-074 | eng-b: T-080 | disjoint claims (one writer per path) | T-080: none |
+| W25 | after W24 | verified: T-080 | quality: T-081 | disjoint claims (one writer per path) | T-081: PI approves the read prompt and authorises the swarm launch (see DP-065); SSH authorisation for the page pull |
+| W26 | after W25 | verified: T-074, T-081 | integrator: T-082 | disjoint claims (one writer per path) | T-082: none |
+| W27 | after W26 | verified: T-082 | researcher: T-083 | disjoint claims (one writer per path) | T-083: this card is the gate |
+| W28 | after W27 | verified: T-053, T-074, T-083, T-090 | colin: T-095 | disjoint claims (one writer per path) | T-095: PI release sign-off; deploy; live DB write (release flag) |
+| W29 | after W28 | verified: T-095 | reviewer: T-096 | disjoint claims (one writer per path) | T-096: paid rerun — the agent prepares the command and cost estimate and Simone runs it via `! <command>` (red line 4); SSH authorisation; PI approves the agreement criterion |
 
 ## Task cards
 
@@ -602,6 +609,7 @@ More than 1 day of labelling → split labelling from calibration.
 ### T-010 — Draft Output Contract v2.7 and the validate-contract v1.5 bump
 
 Status: complete
+RC-D-025 A1/A2/P2: codebook r14 (integrator) from r13 with only the source-confidence rule (`core.confidence`) and `core.permanent_pilot` as a support-checked classifier item (B2 a, B3 wording); signed by the PI sending the r14 SHA256 in chat. Until then r13 stays the signed release.
 Progress (2026-11-05, integrator; RC-D-019): codebook r13 signed by the PI, SHA256 07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527 (chat 2026-11-05, the hash sent as the signature); candidate and pins on `orch1106/f-r13`; SPEC pins v001.22.
 Progress (2026-10-30, integrator): item template approved with RC-D-003 (27 fields, generator checks 1-16); codebook skeleton built by `planning/t010/build_skeleton.py` from SPEC v001.7 (120 items, sha256 `23cb4857…`, reproducible, untracked until sign-off, P4); codebook review round 3 done and RC-D-003 applied (SPEC v001.7). Wording review done (round 4: 546 slots, fixes FX01-FX13, translation table). **Codebook release 2.7 and CX-01.3 signed** 2026-10-30 by the PI (one batch signature, RC-D-004): sha256 `d24bbc7c8ad7f5b9165977d86ca33094a0e6a979944f8fcf6515e78570d20764`, `reclass/t010-contract` `cb13571`; record `planning/t010/signoff-record.md`. T-013 checks (2026-10-30): 7 of 16 fail on the signed file, so A-001 is not met; a codebook delta and re-signature are needed before T-010 can be verified. Left for done: generated contract docs and generator checks 1-16 (T-013), checklist regenerated against the signed hash. RC-D-005 (approved 2026-10-30): the codebook is re-signed at sha256 `f0b1348cddbbe1ab0de8e16b80dae64a3e3400fe71788a6673f5cfc52348c72f` (record `planning/t010/signoff-record.md`; `d24bbc7c…` superseded). Done when T-013's generated contract docs are committed and checks 1-16 pass on the re-signed file; then `verified`, and the PI is asked for `complete`. Verified 2026-10-30 (integrator): checks 1-16 pass on `f0b1348c…` (12 N/A) and the generated contract docs are committed on `reclass/t013-codebook` `45f6d88`; checklist regenerated against the new hash (`reclass/rc-d-005-codebook` `7c76315`, mapping unchanged). Awaiting PI `complete`. Complete 2026-10-30 (PI, chat "1 yes").
 Type: build
@@ -697,6 +705,7 @@ More than 2 review rounds → split extract contract from validate contract.
 
 ### T-011 — Build the v2.7 jev question sets (pass 1, pass 2, Stage 6)
 
+RC-D-025 A2: after r14 signature, regenerate `activity.json` with `permanent_pilot` asked alongside `adoption_stage` (pass 2, round 3, same gate).
 RC-D-024 recovery update (2026-11-07; supersedes conflicting older progress notes): Contact field chrome_text and exact reused P-2c classifier question approved. Earlier notes saying chrome name or pair wording pending are superseded. Pair questions are a separate activity-set group; pooled Stage6 membership is unchanged. Source and integrated checks remain due before completion.
 
 RC-D-014 (2026-11-04; rulings by Simone, approved): S3 b: question wording that is not verbatim codebook/contract text is approved later. The build proceeds and stops before merge. The integrator puts one approval packet (T-011 questions, T-022 pass-1 prompt, T-032 pass-2 prompt) to the PI before the T-030 integration merge.
@@ -793,6 +802,7 @@ Split per pass.
 
 ### T-012 — Update enums, schema and contract constants in code
 
+RC-D-025 P9: fix the legacy `ConsolidatedInstitutionResponse` check that requires every source on a `no` institution to be `confirms_absence` (conflicts with v2.7 negatives such as `no_genai`, `background_only`).
 RC-D-011 execution update (2026-11-02): Bounded email slice independently verified at 36d88bc7; full-address internal normalization, domain counts, map provenance and roundtrips pass. Preserve other qualified local evidence; this is not runtime acceptance. See handoffs/RC-D-011-local-verification.json.
 
 Status: verified (local verification; not complete)
@@ -879,6 +889,7 @@ Sequential chunks: chunk 1 inventory → integrator assignment → chunk 2 code.
 
 ### T-013 — Build the codebook schema, loader, generators and CI check (RC-D-002 A)
 
+RC-D-025 P2: generator checks run on the r14 candidate; signed-hash pin moves only on the PI signature.
 Preparation update (2026-11-02): explicit r11/LABELS source assembly on accepted email/T-027 base at 2812ca22253adfa1f70f81d08f377fa15a8619f9; all9outputs exact,16source checks pass, DATA_COLUMNS_V25 compatibility retained. Independent92assertions and205focused regressions pass (1optional fixture skipped). Actual stage consumers and T-030/T-035 execution binding remain separate; no full pipeline acceptance.
 
 Status: verified
@@ -1042,6 +1053,7 @@ none
 ### T-015 — Build the source-level field coder (RC-D-002 H Q3, N25)
 
 Status: pending
+RC-D-025 A1: source confidence per the approved rule (credibility retained when all applicable checks passed; any associated original downgrade -> low; exemptions neutral; pending -> unfinished, not scored; unavailable credibility stays unknown unless a failure sets low). Local work on `reclass/t015-source-fields-20261110`.
 Progress (2026-11-08, integrator; RC-D-023 B-Q3 a): T-015 asks the residual `source_type` question in its own request (one per page not typed automatically); pass 1 does not ask it.
 Type: build
 Priority: required
@@ -1464,6 +1476,7 @@ Split links from quotes if the parser work exceeds 1 week.
 
 ### T-023 — Build the jev pass-2 activity coder
 
+RC-D-025 A2/B2 a: `permanent_pilot` is a classifier answer in the activity request; a supported `yes` sets final `adoption_stage` = `production` only when the stage answer is `pilot` or `production`; other stages keep the classifier answer and the flag is kept as coded.
 RC-D-024 recovery update (2026-11-07; supersedes conflicting older progress notes): Exact approved P-2c question codes each activity pair; earlier span start is lhs. Equal starts remain an explicit unresolved pair. linked_activity propagates through quote/support/finalization keys, including3+activities. Reopened gates are pending for T030. Local verification does not establish runtime completion.
 
 Status: in-progress
@@ -1618,6 +1631,7 @@ none
 
 ### T-024 — Build support check, downgrade and deterministic extraction
 
+RC-D-025 A2: `permanent_pilot` is support-checked (support_required, downgrade to unknown) like other substantive activity codes.
 RC-D-024 recovery update (2026-11-07; supersedes conflicting older progress notes): Recovery extension preserves linked_activity in CodeEvidence and SupportResult and in pair quote keys; ordinary non-pair key shape retained. Pair finalization must refuse absent identity instead of mixing different pair votes. Combined regression verification remains due.
 
 RC-D-014 (2026-11-04; rulings by Simone, approved): The support check applies the RC-D-014 match rule (SPEC R-042) with the metric and threshold(s) T-003 calibrates on jev/80% labels; per-script thresholds only where needed (S2 b).
@@ -1783,6 +1797,7 @@ Split back-fill tagging into its own chunk.
 ### T-026 — Rewrite v2.6 consolidation against jev Stage 6
 
 Status: pending
+RC-D-025 A1: consumes T-015 source confidence; activity aggregation unchanged.
 Type: build
 Priority: critical-path
 Spec refs: R-005, R-012, R-014, R-015, R-017, R-081, A-010
@@ -1932,6 +1947,7 @@ none
 
 ### T-028 — Update the Stage 7 writer for v2.7 rows
 
+RC-D-025 P6/P7/B5 b/P8/P9: write claim widened to `g3o/common/storage.py` (quote check via T-024 `match_quote`) and the mechanical-final hunk of `g3o/common/jev_record.py`; new `g3o/persist/stage6_adapters.py` (local 609dedd); quote-match provenance in internal `6_support_provenance.json`, D-007 contract unchanged; empty second-reason/rule-name stored as `not_asked`; the legacy `confirms_absence`-only check on `no` institutions is a T-012 implementation defect.
 RC-D-011 execution update (2026-11-02): Renewed local T-012/T-050B email conformance is available; integrated upstream outputs, full companion/support composition and T-050B external acceptance remain required. No task launch.
 
 Status: pending
@@ -2010,6 +2026,7 @@ none
 
 ### T-030 — Integrate the v2.7 new-run path (code integrator task)
 
+RC-D-025: runtime consumes r14 instruments once signed; permanent_pilot override (B2 a) and source confidence (A1) carried to final CSVs.
 RC-D-024 recovery update (2026-11-07; supersedes conflicting older progress notes): Required new integration: populate PageInput.email_links from rendered page; consume separate pair_questions and linked_activity-qualified support keys; after support re-gating, ask newly eligible questions and obtain/check their support before finalization. Pending values and descendants must never be published as final negatives. The local B/D libraries only expose this obligation; extra-round runtime execution is not implemented. Cost estimate/owner-run paid command and remaining T031/runtime gates remain.
 
 Preparation update (2026-11-02): source-only r11/LABELS assembly is available at 2812ca22253adfa1f70f81d08f377fa15a8619f9; this closes the r8-source preparation gap only. Actual upstream stage assembly, executed configuration and immutable instrument binding remain gated. Separate T-020 branch is not part of this source candidate. T-035 final pins/six exceptions and T-031 integrated-candidate requirement remain unchanged.
@@ -3190,7 +3207,7 @@ Sibling of T-060 for the AI-text-detection lane. After v2.7 deploys (C6 b), the 
 #### Dependencies
 - Requires: T-071
 - Enables: none
-- Can run with: T-070 (W18)
+- Can run with: T-075 (W18)
 - Researcher gates: PI approves delta text; sending is external
 
 #### Ownership and collision control
@@ -3439,9 +3456,82 @@ Changed files; verification results; failures; blockers; unresolved decisions; p
 #### Done condition
 Tests pass; DP-065a and DP-065b ruled.
 
+### T-066 — Cap Web Unlocker response bodies (streamed, 32 MB)
+
+Status: in-progress (local commit 841830c on `reclass/unlocker-cap-20261110`, worktree `C:/Users/spaci/worktrees/G3O-b1110-unlocker`; B4 b billable-bytes change pending)
+RC-D-025 (approved 2026-11-10; text `planning/deltas/RC-D-025.md`): new card.
+Type: build
+Priority: critical-path
+Spec refs: R-074, D-002; RC-D-025 A5, B4
+Decision refs: RC-D-025
+
+#### Objective
+Unlocker responses are read streamed and refused above `fetcher.MAX_RESPONSE_BYTES` (32 MB), as direct fetches are, before T-071. Candidate cause of the wave-5 out-of-memory crash (`r20261023T134656Z-be8a`, 2026-10-24); unproven. Over-cap billable bytes = the advertised Content-Length when present, else bytes read (B4 b).
+
+#### Inputs
+| Input | Location/producer | Required state/version | Missing-input behavior |
+|---|---|---|---|
+| Unlocker client | `g3o/scrape/unlocker.py` | main | stop |
+
+#### Outputs
+| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
+|---|---|---|---|
+| Capped unlocker | `g3o/scrape/unlocker.py` (`_read_capped`, `RESPONSE_TOO_LARGE_ERROR`) | T-071, T-075, T-076 | stream=True; stop on first chunk over cap; response closed; under-cap gate unchanged |
+| Tests | `tests/test_unlocker.py`, mock hunk of `tests/test_spend_all_apis.py` | CI | under/at/over cap, Content-Length refusal, brd error precedence, close |
+
+#### Execution resources
+- Persona/role: eng-a
+- Tools/connectors: local only
+- Skills/protocols: task-engineering-protocol
+- Working directory/environment: `C:/Users/spaci/worktrees/G3O-b1110-unlocker`
+
+#### Dependencies
+- Requires: none
+- Enables: T-071
+- Can run with: none
+- Researcher gates: push of the branch
+
+#### Ownership and collision control
+- Read scope: repo `main`; droplet where named
+- Write claim: `g3o/scrape/unlocker.py`, `tests/test_unlocker.py`, the mock hunk of `tests/test_spend_all_apis.py`
+- Shared surfaces: `main` — merge by integrator under PI approval
+
+#### Procedure boundary
+- Included: streamed cap, over-cap result, billable bytes per B4 b, tests
+- Excluded: other fetch paths; memory profiling (T-075 smoke)
+- Fixed decisions: RC-D-025 rulings (A3, A4, A5, B1 a, B4 b)
+
+#### Spec-change reporting
+- Spec version: SPEC.md v001.27
+- Report to: integrator (coord mailbox `g3o-reclass-integrator`)
+- Report when: the cap needs a value other than the direct-fetch constant; billing semantics conflict with the spend monitor
+- Stop boundary: this card's outputs
+- Safe continuation: none
+- Forbidden: editing `SPEC.md` or `CHANGELOG.md` directly
+
+#### Verification and review
+- Self-check: scrape/unlocker/fetcher tests pass (`-m "not network"`)
+- Self-check: ruff clean
+- Self-check: over-cap billable bytes follow B4 b
+- Independent review: integrator
+- Failure/rollback: stop the run or revert the branch; archive by the preserving route
+
+#### Decision points
+none
+
+#### Return report
+Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
+
+#### Done condition
+Tests pass on the branch; B4 b applied; merged before T-071.
+
+#### Chunking trigger
+none
+
 ### T-071 — Deploy v2.7 pipeline to the droplet
 
 Status: blocked (gate: deploy)
+RC-D-025: also requires T-066 (unlocker cap); enables T-075 (wave 6), which runs before T-070.
 Type: operate
 Priority: critical-path
 Spec refs: D-002, R-070 (freeze = deploy date)
@@ -3459,6 +3549,7 @@ Decision refs: DEC-020, DEC-021
 | Procurement acceptance | T-060 | accepted | stop |
 | Validation notice | T-061 | delivered | stop |
 | Wave-5 publication | site / API | published | wait |
+| Unlocker cap | T-066 | merged | stop |
 
 #### Outputs
 | Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
@@ -3473,8 +3564,8 @@ Decision refs: DEC-020, DEC-021
 - Working directory/environment: droplet; merge prepared from `C:/Users/spaci/worktrees/G3O-eng-a/`†, never the shared checkout
 
 #### Dependencies
-- Requires: T-031, T-041, T-055, T-060, T-061
-- Enables: T-062, T-070
+- Requires: T-031, T-041, T-055, T-060, T-061, T-066
+- Enables: T-062, T-070, T-075
 - Can run with: none
 - Researcher gates: PI approves merge and deploy; SSH authorisation; external gate — wave 5 published
 
@@ -3515,9 +3606,157 @@ Sha verified on the droplet; config and disk checks recorded.
 #### Chunking trigger
 none
 
+### T-075 — Run first-sweep wave 6 under v2.7
+
+Status: blocked (BLOCKED-INPUT: T-071)
+RC-D-025 (approved 2026-11-10; text `planning/deltas/RC-D-025.md`): new card.
+Type: operate
+Priority: critical-path
+Spec refs: R-055, R-056, R-070; RC-D-001 C; RC-D-025 A3, A4, B1
+Decision refs: RC-D-025
+
+#### Objective
+Wave 6 of the first sweep runs as an ordinary v2.7 run right after T-071 and before T-070/T-072 (RC-D-025 A3, option 1). Cost gate per B1 a: project per-92k-wave cost from this card's own 20-institution smoke and check it against the remaining $3,500 final-push envelope, after the wave-5 resume spend is recorded; stop when the envelope is reached (A4).
+
+#### Inputs
+| Input | Location/producer | Required state/version | Missing-input behavior |
+|---|---|---|---|
+| Deployed v2.7 | T-071 | sha verified on the droplet | stop |
+| Never-run pool | sweeps + attempts + every run manifest + prior frames (memory previously-sampled-needs-manifests) | complete union | stop |
+| Wave-5 resume spend | Simone (owed) | recorded | stop before the cost gate |
+| Wave window | T-097 | open for the start date | wait |
+
+#### Outputs
+| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
+|---|---|---|---|
+| Wave-6 frame | droplet frame registered in `g3o.frames` (memory new-master-build-needs-frame) | run | frame id recorded |
+| Smoke + projection | run dir; projection note in the deploy folder† | PI cost gate | 20 institutions, e2e GREEN, per-92k projection (Serper, TypeSafe, Anthropic Batch, unlocker, wall time, peak memory) |
+| Main run + verify | run dir; `verify-wave.sh` output | site, T-076 | zero `jev_request_failed`, spend recomputed, memory peak vs 6.5 GB swap stop |
+| Archive | preserving route | T-096 | archived |
+
+#### Execution resources
+- Persona/role: eng-a
+- Tools/connectors: SSH (`id_ed25519_g3o`, PI authorisation)
+- Skills/protocols: memories g3o-prod-checkout-drifts-silently, g3o-wave-window-gates-visibility, previously-sampled-needs-manifests, serper-count-live-queries-not-persisted
+- Working directory/environment: droplet; scripts `agent-workspace/2026-10-17-final-push/{prep,submit,verify,resume}-wave.sh` re-pinned to the T-071 merge sha
+
+#### Dependencies
+- Requires: T-071
+- Enables: T-076
+- Can run with: none
+- Researcher gates: PI approves the cost estimate and runs the paid command via `! <command>` (red line 4); SSH authorisation; Serper balance check; T-097 wave-window check
+
+#### Ownership and collision control
+- Read scope: repo `main`; droplet where named
+- Write claim: wave-6 frame, run dir and archive; re-pinned wave scripts†
+- Shared surfaces: `main` — merge by integrator under PI approval
+
+#### Procedure boundary
+- Included: frame rebuild, script re-pin, smoke, cost gate, main run, verify, archive
+- Excluded: back-fill (T-070..T-074); wave 7 (T-076)
+- Fixed decisions: RC-D-025 rulings (A3, A4, A5, B1 a, B4 b)
+
+#### Spec-change reporting
+- Spec version: SPEC.md v001.27
+- Report to: integrator (coord mailbox `g3o-reclass-integrator`)
+- Report when: projection exceeds the remaining envelope; memory peak near the swap stop; e2e not GREEN
+- Stop boundary: this card's outputs
+- Safe continuation: none
+- Forbidden: editing `SPEC.md` or `CHANGELOG.md` directly
+
+#### Verification and review
+- Self-check: scripts pinned to the T-071 merge sha
+- Self-check: smoke e2e GREEN and projection recorded before the main run
+- Self-check: verify-wave.sh clean; memory peak recorded
+- Independent review: integrator
+- Failure/rollback: stop the run or revert the branch; archive by the preserving route
+
+#### Decision points
+none
+
+#### Return report
+Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
+
+#### Done condition
+Wave 6 verified, spend recorded against the envelope, archived.
+
+#### Chunking trigger
+none
+
+### T-076 — Run first-sweep wave 7 under v2.7
+
+Status: blocked (BLOCKED-INPUT: T-075)
+RC-D-025 (approved 2026-11-10; text `planning/deltas/RC-D-025.md`): new card.
+Type: operate
+Priority: critical-path
+Spec refs: R-055, R-056, R-070; RC-D-001 C; RC-D-025 A3, A4, B1
+Decision refs: RC-D-025
+
+#### Objective
+Wave 7 runs after wave 6, before T-070/T-072. Cost gate: the T-072 per-92k figure if T-072 has run, otherwise T-075 actuals, against the remaining $3,500 envelope; stop when reached (A4, B1 a).
+
+#### Inputs
+| Input | Location/producer | Required state/version | Missing-input behavior |
+|---|---|---|---|
+| Wave 6 | T-075 | verified, spend recorded | stop |
+| Never-run pool | as T-075, plus the wave-6 manifest | complete union | stop |
+| Wave window | T-097 | open for the start date | wait |
+
+#### Outputs
+| Output | Exact path/interface/artifact | Consumer(s) | Contract / required properties |
+|---|---|---|---|
+| Wave-7 frame, run, verify, archive | as T-075 | site, T-070 | as T-075 |
+
+#### Execution resources
+- Persona/role: eng-a
+- Tools/connectors: SSH (`id_ed25519_g3o`, PI authorisation)
+- Skills/protocols: as T-075
+- Working directory/environment: droplet; re-pinned wave scripts
+
+#### Dependencies
+- Requires: T-075
+- Enables: T-070
+- Can run with: none
+- Researcher gates: PI approves the cost estimate and runs the paid command via `! <command>` (red line 4); SSH authorisation; Serper balance check; T-097 wave-window check
+
+#### Ownership and collision control
+- Read scope: repo `main`; droplet where named
+- Write claim: wave-7 frame, run dir and archive†
+- Shared surfaces: `main` — merge by integrator under PI approval
+
+#### Procedure boundary
+- Included: as T-075 for wave 7
+- Excluded: back-fill (T-070..T-074)
+- Fixed decisions: RC-D-025 rulings (A3, A4, A5, B1 a, B4 b)
+
+#### Spec-change reporting
+- Spec version: SPEC.md v001.27
+- Report to: integrator (coord mailbox `g3o-reclass-integrator`)
+- Report when: remaining envelope below the projection; as T-075
+- Stop boundary: this card's outputs
+- Safe continuation: none
+- Forbidden: editing `SPEC.md` or `CHANGELOG.md` directly
+
+#### Verification and review
+- Self-check: as T-075
+- Independent review: integrator
+- Failure/rollback: stop the run or revert the branch; archive by the preserving route
+
+#### Decision points
+none
+
+#### Return report
+Changed files; verification results (each check above, with evidence); failures; blockers; unresolved decisions; proposed status (`verified` or `blocked`). Sent to the plan integrator, who alone marks `complete`.
+
+#### Done condition
+Wave 7 verified, spend recorded against the envelope, archived.
+
+#### Chunking trigger
+none
+
 ### T-070 — Freeze and draw the back-fill set
 
-Status: blocked (BLOCKED-INPUT: wave 5 published; v2.7 deployed)
+Status: blocked (BLOCKED-INPUT: wave 5 published; v2.7 deployed; waves 6/7 run, RC-D-025 A3)
 Type: operate
 Priority: critical-path
 Spec refs: R-070, R-071, R-076, R-077, N-001
@@ -3545,9 +3784,9 @@ A PI-confirmed fixed back-fill list: every institution published as documented o
 - Working directory/environment: agent-workspace freeze folder†; any code from `C:/Users/spaci/worktrees/G3O-eng-a/`†, never the shared checkout
 
 #### Dependencies
-- Requires: T-071
+- Requires: T-071, T-076
 - Enables: T-072
-- Can run with: T-062 (W18)
+- Can run with: none
 - Researcher gates: PI confirms the freeze date
 
 #### Ownership and collision control
@@ -3589,6 +3828,7 @@ none
 ### T-072 — Back-fill smoke run (small sample)
 
 Status: blocked (gate: paid run)
+RC-D-025 A4/P3: the full-set projection also reports a per-92k-ordinary-wave figure (Serper, TypeSafe, Anthropic Batch, unlocker, wall time, peak memory); it gates T-076 if available. Memory peak checked against the 6.5 GB swap stop.
 RC-D-005: size the back-fill on every stored page (R-076 as amended) and the amended R-074 (re-scrape under 200 characters of stored text): about 40.2k re-scrapes, before followed links (T-001 counts).
 Type: verify
 Priority: critical-path
@@ -4305,6 +4545,7 @@ none
 
 ### T-097 — Standing integration: deltas, CHANGELOG, claims
 
+RC-D-025 P4/P5: check the wave window for T-075/T-076 start dates; blocker row: wave-5 resume spend owed by Simone before the T-075 cost gate.
 RC-D-014 (2026-11-04; rulings by Simone, approved): S7 a ("yes") + follow-up ("4 open"): a new wave window will be opened for runs after 2027-01-01; dates are not set. They are decided at the 2026-12-01 check (P11 a, DP-068), recorded as a startup pin.
 
 Status: pending

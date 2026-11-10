@@ -1,14 +1,14 @@
 {
   "format": "plan-labels-v1",
   "written_by": {
-    "harness": "codex-cli",
-    "model": "gpt-6-astra"
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
   },
-  "date": "2026-11-07",
+  "date": "2026-11-10",
   "sources": {
-    "SPEC.md": "24e9a3fcfb43dd87e20c0bcdc7c435f4bb9c0c6a0bfed0522e1c5e4faa96f370",
+    "SPEC.md": "077545d3751b5afc844b30335461fff8c754aaaec179bb212766e780fbb8b679",
     "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
-    "PLAN.md": "accba4c7b011b01cb96e5a97339b85bf8b73cb128f95429ada77a2fc32d2ef8c"
+    "PLAN.md": "aacc00baae5b7159e10290675630d1e932f8b3567f3be398ecfa1900f11aa282"
   },
   "labels": {
     "T-001": {
@@ -418,6 +418,18 @@
     "RS-040": {
       "label": "Multilingual pipeline ownership",
       "plain": "The multilingual subproject owns the shared calendar-conversion rule and language coverage. The handoff requests the rules needed by the year method."
+    },
+    "T-066": {
+      "label": "Cap unlocker downloads",
+      "plain": "Stop reading a page fetched through the unlocker once it passes 32 MB, the same limit direct fetches use, so one huge page cannot exhaust the server memory."
+    },
+    "T-075": {
+      "label": "Run wave 6",
+      "plain": "Run the sixth batch of the first sweep on the revised pipeline right after it is deployed, after a 20-institution smoke run and a cost check against the remaining budget."
+    },
+    "T-076": {
+      "label": "Run wave 7",
+      "plain": "Run the seventh and last batch of the first sweep after wave 6, with its own cost check, stopping if the $3,500 budget is reached."
     }
   }
 }
