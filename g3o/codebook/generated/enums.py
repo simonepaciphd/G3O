@@ -1,13 +1,13 @@
 # GENERATED FILE - do not edit. Built from codebook/codebook.yaml by
 # g3o.codebook.generators.enums.
-# codebook release: 2.7 | codebook sha256: 07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527
+# codebook release: 2.7 | codebook sha256: ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a
 # Intended target: T-012 enum constants (g3o/common/contract.py or a module T-012 names).
 """Codebook value lists as constants; each carries its item id and item hash."""
 
 from __future__ import annotations
 
 CODEBOOK_RELEASE = '2.7'
-CODEBOOK_SHA256 = '07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527'
+CODEBOOK_SHA256 = 'ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a'
 
 #: item id -> (item hash, value codes in codebook order)
 ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -23,7 +23,7 @@ ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
     'core.observed_actor_relationship': ('eb128ea7cd4da3523104479bb645e543c69c729fa6164d14f6cce3607ed271b7', ('this_institution', 'unit_of_institution', 'joint_participant', 'other', 'unresolved',)),
     'core.activity_type': ('5c28210b54b5c1510bff389b9e4949d8b009be0e4ad6623263f248c567d424db', ('policy_guidance', 'pilot_experiment', 'program_initiative', 'internal_operational', 'public_facing_service',)),
     'core.action_type': ('bfe28f4947f246600468c1a6587f739518ef7a5e6771733389a6fbbcfb5b81ce', ('deployment', 'governance', 'staff_training', 'program',)),
-    'core.adoption_stage': ('3c9a80bba2641f0192a3812d0281bb44469e5efffe698f13b8f7117dc6939c6f', ('proposed', 'announced', 'pilot', 'production', 'discontinued',)),
+    'core.adoption_stage': ('4aa4962b9e5b24a8ae88c84a0603d337d835b5e894cda596ef242a4c7b97e4e6', ('proposed', 'announced', 'pilot', 'production', 'discontinued',)),
     'core.procurement_status': ('069cac4eae165dba976c259f3d778a07c2a07fe9ff5d88f60f780c501519af39', ('none_documented', 'tender_or_rfp', 'award_or_contract', 'payment_or_subscription',)),
     'core.model_origin': ('604814a8eeb44403f59c7eb1c3dd321e8618344ef2c7492918e0dfb91e38084f', ('commercial', 'open_weight', 'government_developed',)),
     'core.build_arrangement': ('26747e9b192f65d107fefbb46c7423d785b554a37936e2dd775eee596ecfc205', ('off_the_shelf_product', 'custom_application_on_external_model', 'model_trained_or_fine_tuned_by_institution',)),
@@ -57,6 +57,7 @@ ITEM_ENUMS: dict[str, tuple[str, tuple[str, ...]]] = {
     'core.evaluation_type_ongoing_monitoring': ('e7866831b2329fc016fb0018765cf5e4d16e3b44f872f693a0993f6e09e6c0cf', ('yes', 'no',)),
     'core.evaluation_type_user_feedback': ('036e7caa5b9aab26435a359d33ecaa4a209693b802f4541772cf7122b3c5a65a', ('yes', 'no',)),
     'core.evaluation_type_bias_or_safety_testing': ('21268a987d8ea93b84d5bd166774219636358e77538014241ebf4aac7f679e70', ('yes', 'no',)),
+    'core.permanent_pilot': ('152bbabb24b057f88773d735097cc0341ee6e95603be4597682f789458beedb2', ('yes', 'no',)),
     'core.support_entailment': ('c5b4622acfca3d8d78dffb98f55c0693dc122be59dbe75e77cfaafa7b186af8b', ('true', 'false',)),
     'core.activity_relation_cross_page': ('ace0da2bc93b3c6a70f0a97873b123abea5906bba93b238f926feff086ed6e5c', ('same_activity', 'component_of_program', 'has_component', 'shared_participation', 'governs', 'governed_by', 'distinct_action', 'unresolved',)),
     'core.observed_actor_role': ('47c6b173d8d672bffc766f9603b797b24a136c418aebb5be2c4a0a0c236d93fc', ('institutional_actor', 'issuer', 'participant', 'external_speaker', 'service_provider', 'event_host',)),
@@ -115,6 +116,7 @@ EVALUATION_TYPE_INDEPENDENT_AUDIT = ITEM_ENUMS['core.evaluation_type_independent
 EVALUATION_TYPE_ONGOING_MONITORING = ITEM_ENUMS['core.evaluation_type_ongoing_monitoring'][1]  # core.evaluation_type_ongoing_monitoring
 EVALUATION_TYPE_USER_FEEDBACK = ITEM_ENUMS['core.evaluation_type_user_feedback'][1]  # core.evaluation_type_user_feedback
 EVALUATION_TYPE_BIAS_OR_SAFETY_TESTING = ITEM_ENUMS['core.evaluation_type_bias_or_safety_testing'][1]  # core.evaluation_type_bias_or_safety_testing
+PERMANENT_PILOT = ITEM_ENUMS['core.permanent_pilot'][1]  # core.permanent_pilot
 SUPPORT_ENTAILMENT = ITEM_ENUMS['core.support_entailment'][1]  # core.support_entailment
 ACTIVITY_RELATION = ITEM_ENUMS['core.activity_relation_cross_page'][1]  # core.activity_relation_cross_page
 OBSERVED_ACTOR_ROLE = ITEM_ENUMS['core.observed_actor_role'][1]  # core.observed_actor_role

@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.manifest",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527",
+  "codebook_sha256": "ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a",
   "build_scope": [
     "core"
   ],
@@ -183,7 +183,7 @@
     },
     {
       "item_id": "core.source_credibility",
-      "item_hash": "787c52481878e073a52393208c9c9b56aa66be14783486d1bc95367b043e8978",
+      "item_hash": "c912c76f4ecb296c07dde7ed38e2e81a3512c1cda34dfc1f36315af16e8b1ffa",
       "frozen_signature": "none",
       "in_build_scope": true
     },
@@ -225,7 +225,7 @@
     },
     {
       "item_id": "core.adoption_stage",
-      "item_hash": "3c9a80bba2641f0192a3812d0281bb44469e5efffe698f13b8f7117dc6939c6f",
+      "item_hash": "4aa4962b9e5b24a8ae88c84a0603d337d835b5e894cda596ef242a4c7b97e4e6",
       "frozen_signature": "none",
       "in_build_scope": true
     },
@@ -507,13 +507,13 @@
     },
     {
       "item_id": "core.permanent_pilot",
-      "item_hash": "300a332733fec4ee2d42e5288bc95dc722d2cc159d9ffcae19e7c98b26ec5452",
+      "item_hash": "152bbabb24b057f88773d735097cc0341ee6e95603be4597682f789458beedb2",
       "frozen_signature": "none",
       "in_build_scope": true
     },
     {
       "item_id": "core.vendor_claim_only",
-      "item_hash": "9dda40ba9ac691c619a8447340735430e6a657f4b40f3a80650f1801830249f7",
+      "item_hash": "8d2d3e7b7d9864d230056eeab9d9c44d5cf51f4633e7aa5f1ebb7e571c372553",
       "frozen_signature": "none",
       "in_build_scope": true
     },
@@ -585,7 +585,7 @@
     },
     {
       "item_id": "core.confidence",
-      "item_hash": "be718eed17df646c03fff6a7f335f7ea2b267c926236030d9bf91cb932dbd698",
+      "item_hash": "e7c3cc4a6ef4f3d0aa4ab7e63a6e700f56f971175415070e02d4fcb3c9e8707b",
       "frozen_signature": "none",
       "in_build_scope": true
     },
@@ -731,42 +731,42 @@
   "generated_files": [
     {
       "path": "g3o/codebook/generated/jev_questions.json",
-      "sha256": "f403f35cc19658d9013e7d32a6a4bb2eb2d3fb99462c4854ea4075020a5c8b1d",
+      "sha256": "2222b088a927cf013b7b59dca6733dd53e13d0456766f044bdd2235dc6e307bd",
       "intended_target": "T-011 jev question and choice sets (path chosen by T-011)"
     },
     {
       "path": "g3o/codebook/generated/extractor_prompt_sections.md",
-      "sha256": "cb0fbcab8cd5514d2869db905af12a5a94bace6d7460a512e33726fe36bb6da4",
+      "sha256": "7620c4b76ec48fd651ea91c2be5c553645a614b226ecd9a5ee32dd1d93834b9f",
       "intended_target": "T-022 / T-032 extractor prompt sections (path chosen there)"
     },
     {
       "path": "g3o/codebook/generated/enums.py",
-      "sha256": "c21cb19474df83af59095c978daee49ddcfe8f6a5414b5965bd90fff2d4a5505",
+      "sha256": "00b4a3a9d8c85b7d7d947c1ad97b58bf6367b8dfcf574e699b3807032e198949",
       "intended_target": "T-012 enum constants (g3o/common/contract.py or a module T-012 names)"
     },
     {
       "path": "g3o/codebook/generated/item_schemas.json",
-      "sha256": "2cdb56cb9d996548cf976969c03bebbc7ca6b6142632b024a4f0c4166dfc0a15",
+      "sha256": "1b6096e6385794e5d59ca04bf564a3db0d3c515766c9303ddec9be0802e0565e",
       "intended_target": "T-012 JSON schema (g3o/common/contract.py response schema)"
     },
     {
       "path": "g3o/codebook/generated/data_dictionary.md",
-      "sha256": "d777d241e96f56f7be6fba33e8dbd49548b21b24de0909f9b439c79e1f439215",
+      "sha256": "79e5f7cdf2027573a81dd0254f41471dedef226304c13d3f0cb825a3d66a52f0",
       "intended_target": "T-090 data dictionary (docs/data_dictionary.md)"
     },
     {
       "path": "g3o/codebook/generated/extract_output_contract.md",
-      "sha256": "d2edfc640e277dfe6097a7ce50de37c869b616fb89496c1a30126879d747aa80",
+      "sha256": "83609aa24466bde0065a6ec55f7a08753503e20415ee3af8075b72e336e83f72",
       "intended_target": "T-010 g3o/extract/prompts/output_contract.md"
     },
     {
       "path": "g3o/codebook/generated/validate_output_contract.md",
-      "sha256": "5f841cf8d9293a288c3c26d68d74904e547bafb7de497a207eb92f3967b2168d",
+      "sha256": "74ace25d08b125e39f031c014766e5b866c46cd2654c4a013d8b4860d5fec389",
       "intended_target": "T-010 g3o/validate/prompts/output_contract.md"
     },
     {
       "path": "g3o/codebook/generated/system_prompt.md",
-      "sha256": "61a537a1abe852b4449c4c028e82fb14668bc79314deb480b1570bb9a5537e03",
+      "sha256": "05a5e809119ddff6ac0892356adb9b0b5d0a7f1df2b12a0639b12be4f165e541",
       "intended_target": "T-022 / T-032 g3o/extract/prompts/system_prompt.md (and the Stage 6 prompts)"
     }
   ],

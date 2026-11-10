@@ -1,6 +1,40 @@
-# T-010 signature record: release 2.7, r13 (RC-D-019)
+# T-010 signature record: release 2.7, r15 (RC-D-026)
 
 ## Current signature authorization
+
+| | |
+|---|---|
+| sha256 | `ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a` |
+| File | `codebook/codebook.yaml` |
+| Branch, commit | `codebook/r15-20261110`, `3acf01a` (committed blob; CRLF, `codebook/.gitattributes` `-text`; 12,226 lines) |
+| Release | `2.7` |
+| Approver | Simone Paci |
+| Date | 2026-11-10, in chat |
+| Recorder | G3O BUILD lane, plan integrator `20261110-claude-v2-43cab3e7a582d021` (Claude Code, claude-opus-5-5) (DEC-012 a) |
+
+- **Words, verbatim:** "signed & lock", the entire reply, given immediately after the integrator presented this exact sha256 and asked (1) for the signature of r15 and (2) for "lock" for RC-D-026. The hash itself was not pasted back (same practice as r14); this record takes the reply as the signature of the presented hash.
+- **What was put to her:** the r15 candidate above, its check results (checks 1-16 pass except 4, this record; check 12 N/A), and the one changed sentence (`core.source_credibility` rules/1 adds "or `not_asked` on an unreadable page" to the missing-type `low` list; `credibility_map` gains `not_asked: low`), traced to the PI quote in `planning/t010/r15-provenance.json`.
+- **What r15 changes from r14:** RC-D-026 10 a (PI 2026-11-10 chat "9a 10 a"): `core.source_credibility` credibility map missing keys gain `not_asked` -> `low`, and the rules/1 map sentence names it; record `planning/t010/r15-provenance.json`.
+- Frozen CX items remain covered by the existing batch-signature form (RC-D-004); the list below is unchanged.
+
+## Superseded signature authorization (r14, `7972b8c1…`)
+
+| | |
+|---|---|
+| sha256 | `7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b` |
+| File | `codebook/codebook.yaml` |
+| Branch, commit | `codebook/r14-20261110`, `a03ad72` (committed blob; CRLF, `codebook/.gitattributes` `-text`; 12,216 lines) |
+| Release | `2.7` |
+| Approver | Simone Paci |
+| Date | 2026-11-10, in chat |
+| Recorder | G3O BUILD lane, plan integrator `20261110-claude-v2-0da6eb1353858ba3` (Claude Code, claude-opus-5-5) (DEC-012 a) |
+
+- **Words, verbatim:** "Signed and approved!", the entire reply, given immediately after the integrator presented this exact sha256 with the instruction "send the SHA256 above in chat to sign r14". The hash itself was not pasted back; this record takes the reply as the signature of the presented hash and states that difference from the r13 practice.
+- **What was put to her:** the r14 candidate above, its check results (checks 1-16 pass except 4, this record; check 12 N/A), and the four agent- or integrator-drafted sentences quoted in full in chat (permanent_pilot same-part limit; credibility map sentence; C7 a phrase in `core.confidence` rules/1; C8 b `core.confidence` rules/2), with every other change traced to a PI quote in `planning/t010/r14-provenance.json`.
+- **What r14 changes from r13:** RC-D-025 A1 (source-confidence rule), A2 / B2 a / B3 / C1 / C2 (`core.permanent_pilot` support-checked classifier with labels and pilot/production-only override), C4 c (v25 permanent-pilot rule and its across-parts note retired from `core.adoption_stage`), C5 / C6 a (X22 credibility map; undated = low), C7 a, C8 b; record `planning/t010/r14-provenance.json`.
+- Frozen CX items remain covered by the existing batch-signature form (RC-D-004); the list below is unchanged.
+
+## Superseded signature authorization (r13, `07610cc9…`)
 
 | | |
 |---|---|
