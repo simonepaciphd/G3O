@@ -10919,8 +10919,10 @@ items:
       source_c7: |-
         agent-workspace/2026-11-10-build/RC-D-025-draft.md PI rulings, second batch C7 a (a failed check on a non-substantive original code counts as a failure: source confidence `low`)
     - text: |-
+        At consolidation, when an activity's confidence is aggregated from its sources, a source whose confidence is `unknown` counts as `low`.
+      origin: PI 2026-11-10 chat "1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all" (RC-D-025 C8 b); r14; integrator clarification of its own draft wording, 2026-11-10
+      text_before_clarification: |-
         In this aggregation a source whose confidence is `unknown` counts as `low`.
-      origin: PI 2026-11-10 chat "1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all" (RC-D-025 C8 b); r14
       source: |-
         agent-workspace/2026-11-10-build/RC-D-025-draft.md PI rulings, second batch C8 b (an `unknown` source confidence enters activity aggregation as `low`)
       role: aggregation of unknown

@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.extract_output_contract. -->
-<!-- codebook release: 2.7 | codebook sha256: fc29dbd96b50ab6f09c9a6958da0f0e6593ec77913f6d822cd744d3fa140fb66 -->
+<!-- codebook release: 2.7 | codebook sha256: 7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b -->
 
 # G3O output contract (extract), generated from the codebook
 
-Codebook release `2.7`, sha256 `fc29dbd96b50ab6f09c9a6958da0f0e6593ec77913f6d822cd744d3fa140fb66`. 99 items.
+Codebook release `2.7`, sha256 `7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b`. 99 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: 53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44 -->
@@ -5358,11 +5358,11 @@ Supporting text is published with the code it supports. The API carries the full
 Published supporting quotes stay verbatim, with no masking.
 
 ## `core.confidence`
-<!-- item: core.confidence sha256: 2e974eb1156a714f548b41a62c3a096d2543c3e5295627cfd05d38c2caa82f40 -->
+<!-- item: core.confidence sha256: e7c3cc4a6ef4f3d0aa4ab7e63a6e700f56f971175415070e02d4fcb3c9e8707b -->
 
 | Field | Value |
 |---|---|
-| item hash | `2e974eb1156a714f548b41a62c3a096d2543c3e5295627cfd05d38c2caa82f40` |
+| item hash | `e7c3cc4a6ef4f3d0aa4ab7e63a6e700f56f971175415070e02d4fcb3c9e8707b` |
 | family | `quality` |
 | name | `confidence` |
 | level | `source`, `activity` |
@@ -5398,7 +5398,7 @@ When all applicable evidence checks completed and none failed, source confidence
 
 3. `items/core.confidence/rules/2`
 
-In this aggregation a source whose confidence is `unknown` counts as `low`.
+At consolidation, when an activity's confidence is aggregated from its sources, a source whose confidence is `unknown` counts as `low`.
 
 ## `core.codebook_release`
 <!-- item: core.codebook_release sha256: d19547278ff8587cfdd0f00fb38382c63b2b746d5a1671b44af5f14b0cf9edbc -->

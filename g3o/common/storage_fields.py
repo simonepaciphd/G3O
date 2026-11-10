@@ -3,7 +3,7 @@ Definitions remain in the signed codebook; no questionnaire decisions live here.
 """
 
 MAP_SOURCE_SHA256 = '5dfb8dc5d4cb0bdc9e14dc9cf0216cfd8cd47281bf648cafff8cc70c70ee2465'
-CODEBOOK_SHA256 = 'fc29dbd96b50ab6f09c9a6958da0f0e6593ec77913f6d822cd744d3fa140fb66'
+CODEBOOK_SHA256 = '7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b'
 FIELDS = {'core.page_verdict': {'name': 'page_verdict',
                        'storage_targets': ['sources'],
                        'column_or_member': 'page_verdict',
@@ -1746,7 +1746,7 @@ FIELDS = {'core.page_verdict': {'name': 'page_verdict',
                      'state': 'approved',
                      'coder': 'derived',
                      'schema': {'x-item-id': 'core.confidence',
-                                'x-item-hash': '2e974eb1156a714f548b41a62c3a096d2543c3e5295627cfd05d38c2caa82f40',
+                                'x-item-hash': 'e7c3cc4a6ef4f3d0aa4ab7e63a6e700f56f971175415070e02d4fcb3c9e8707b',
                                 'x-answer-type': 'single',
                                 'type': 'string'},
                      'codes': []},
