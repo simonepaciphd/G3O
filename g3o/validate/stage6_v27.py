@@ -59,7 +59,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import combinations
 from pathlib import Path
 from typing import Any
@@ -360,7 +360,7 @@ def _support(kind: str, key: str, part_id: str, q: Mapping[str, Any], rec: Coder
     """T-024 check of one Stage 6 answer; the quote must come from a candidate of this part."""
     value = str(rec.chosen_value)
     placeholder = PageSources(part_id, {part_id: ""})
-    base = dict(item_id=q["item_id"], value=value, probability=rec.chosen_answer_probability,
+    base = dict(item_id=q["item_id"], value=value, part=q.get("part"), probability=rec.chosen_answer_probability,
                 activity_id=activity_id, linked_activity=linked)
     probe = check_code(CodeEvidence(chunk_id=part_id, **base), placeholder)
     if probe.support_status != NO_QUOTE:
@@ -488,6 +488,8 @@ class PooledActivity:
     parts: Mapping[int, tuple[str, ...]]  # round -> part ids
     held: tuple[Held, ...] = ()
     question_set_version: str = ""
+    #: request part id -> the input support ids shown in it (pool order); T-030 storage nodes
+    part_inputs: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
 
     @property
     def finished(self) -> bool:
@@ -682,7 +684,8 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
                                      c.cause, c.part_id, c.probability)
     permanent_pilot_override(final, by_id, part_status)
     return PooledActivity(pool_id, eligible, final, tuple(records), tuple(support), parts_by_round,
-                          tuple(held), qsv)
+                          tuple(held), qsv,
+                          {p.part.part_id: tuple(e.entry_id for e in p.part.entries) for p in prepared})
 
 
 def permanent_pilot_override(final: dict[str, ItemOutcome], by_id: Mapping[str, Mapping[str, Any]],

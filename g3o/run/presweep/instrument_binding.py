@@ -79,6 +79,15 @@ class BoundRuntime:
         )
         return replace(job, params=params, metadata={**job.metadata, "setup_pointer": self.instrument_id})
 
+    def stage6_config(self) -> Any:
+        """The T-026 Stage 6 configuration bound to this same instrument and settings."""
+        from g3o.validate.stage6_v27 import Stage6Config
+
+        a = self.activity_config
+        return Stage6Config(rules=a.rules, setup_pointer=self.instrument_id, configured_model=a.configured_model,
+                            combiner=a.combiner, reference_year=a.reference_year,
+                            reserved_tokens=self.settings.reserved_tokens, estimator=self.page_config.estimator)
+
     def pass1_job(self, page: request_v27.Pass1Page, plan: request_v27.RequestPlan) -> ExtractorJob:
         return self._configure(request_v27.build_job(page, plan, system=self.pass1_system), self.pass1_system)
 

@@ -234,6 +234,109 @@ def support_nodes(result: SupportResult, sources: PageSources, artifact: PageArt
     return SupportNodes(original, final, provenance)
 
 
+@dataclass(frozen=True)
+class InputSupport:
+    """One stored per-page support a Stage 6 request showed as an input quote (T-026 ``InputQuote``).
+
+    ``support_id`` is the stored node of that quote (an observation's per-page
+    support); ``artifact`` is the page artifact of its source claim, whose
+    segment layout must reproduce ``sources``.
+    """
+
+    support_id: str
+    source_id: str
+    sources: PageSources
+    artifact: PageArtifact
+
+
+def combined_support_nodes(result: SupportResult, *, run_id: str, institution_uid: str, chunk_id: str,
+                           shown: Sequence[InputSupport], observation_id: str | None,
+                           uncertainty_flags: Sequence[str] | None, instrument: dict[str, Any]) -> SupportNodes:
+    """Support nodes for a Stage 6 answer (pooled X31 or cross-page relation X30).
+
+    Such a node has no source claim of its own: its evidence is the stored input
+    supports it names (``input_support_ids``). With a quote, the quote was copied
+    from one shown input; the node names that input's source claim
+    (``quote_source_id``) and the segment of that input's page artifact, and the
+    T-024 matcher is re-run there (R-042, R-044). Without a quote, the node names
+    every input shown in the request part (pooled) or, when ``observation_id`` is
+    given (an exempt or rule-set relation), only that observation.
+    ``chunk_id`` is the request part the classifier answered (the coder record's
+    part); it is not a page part. A quote the matcher locates in no shown input
+    (copied from outside the request part: R-044 "no supporting text") is kept
+    only in the provenance companion as ``rejected_quote``; the stored node has
+    no supporting text, as T-024 decided.
+    """
+    if uncertainty_flags is None:
+        raise MissingUpstreamError(UNCERTAINTY_FLAGS_PRODUCER, [f"{result.item_id}/{result.part}"])
+    _instrument_matcher(instrument)
+    if len({s.support_id for s in shown}) != len(shown):
+        raise ValueError("duplicate shown input support")
+    for s in shown:
+        if s.artifact.source_id != s.source_id:
+            raise ValueError("input page artifact belongs to another source claim")
+        s.artifact.verify(s.sources)
+    quote, rejected = result.supporting_text, None
+    segment = span = match = copied = None
+    if quote is not None:
+        segment = result.quote_chunk_id
+        copied = next((s for s in shown if segment in s.sources.parts
+                       or (segment == s.sources.chrome_id and s.sources.chrome_text is not None)), None)
+        if copied is None:
+            if result.support_status == "supported":
+                raise ValueError("a supported Stage 6 quote names no shown input segment")
+            quote, rejected, segment = None, result.supporting_text, None
+        else:
+            span = copied.artifact.span(segment)
+            if result.match is not None:
+                match = match_quote(quote, copied.artifact.segment_text(segment))
+                if match != result.match:
+                    raise ValueError("T-024 match result is not reproduced on the stored input artifact")
+    if result.support_status == "supported" and (match is None or not match.matched):
+        raise ValueError("supported value lacks a reproduced R-042 match")
+    if copied is not None:
+        inputs = [copied.support_id]
+    elif observation_id is not None:
+        inputs = []
+    else:
+        inputs = sorted(s.support_id for s in shown)
+        if not inputs:
+            raise ValueError("a pooled support needs its shown inputs")
+    second = result.support_status_second_reason or EMPTY_COMPANION
+    rule = result.support_rule_name if result.support_status == SET_BY_RULE else EMPTY_COMPANION
+    base = {"item_id": result.item_id, "item_part": result.part, "observation_id": observation_id,
+            "source_id": None, "chunk_id": chunk_id, "support_rule_name": rule,
+            "support_status_second_reason": second, "uncertainty_flags": list(uncertainty_flags),
+            "page_content_sha256": None}
+    original = {**base, "value_json": result.original_value, "supporting_text": quote or "",
+                "support_status": result.support_status, "input_support_ids": inputs,
+                "support_text_sha256": sha256_text(quote or ""),
+                "passage": {"quote_source_id": None if copied is None else copied.source_id,
+                            QUOTE_SEGMENT: segment, "segment_span": None if span is None else list(span)}}
+    original["support_id"] = support_id(run_id, institution_uid, original)
+    final = None
+    if result.value != result.original_value:
+        final = {**base, "value_json": result.value, "supporting_text": "",
+                 "support_status": result.support_status, "input_support_ids": [original["support_id"]],
+                 "support_text_sha256": sha256_text(""), "passage": {"downgrade_of": original["support_id"]}}
+        final["support_id"] = support_id(run_id, institution_uid, final)
+    provenance = {
+        "format": PROVENANCE_FORMAT, "support_id": original["support_id"], "quote_segment": segment,
+        "quote_source_id": None if copied is None else copied.source_id,
+        "channel": None if copied is None else "chrome" if segment == copied.sources.chrome_id else "main",
+        "segment_span": None if span is None else list(span),
+        "match": None if match is None else asdict(match),
+        "matcher": {"library": MATCHER_LIBRARY, "version": PINNED_RAPIDFUZZ, "metric": MATCH_METRIC,
+                    "threshold": MATCH_THRESHOLD, "word_rule_cutoff": WORD_RULE_CUTOFF,
+                    "decision": MATCH_DECISION},
+        "check_flags": list(result.flags),
+        "chosen_answer_probability": result.chosen_answer_probability,
+        "final_support_id": None if final is None else final["support_id"],
+        "rejected_quote": rejected,
+    }
+    return SupportNodes(original, final, provenance)
+
+
 def downgrade_rule_reference(final: dict[str, Any]) -> str:
     return f"T-024 support_check: {final['support_status']} -> downgrade_target {final['value_json']}"
 
