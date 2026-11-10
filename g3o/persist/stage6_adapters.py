@@ -51,7 +51,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from g3o.common.contract import ConsolidatedInstitutionResponse
+from g3o.common.contract import ConsolidatedInstitutionResponse, refuse_support_status
 from g3o.common.instrument import canonical_json, sha256_text, validate_instrument
 from g3o.common.jev_record import CoderRecord
 from g3o.common.response_v27 import ConsolidatedInstitutionResponseV27, check_storage_binding
@@ -520,6 +520,8 @@ def write_stage6_artifacts(inst_dir: Path, envelope: StorageEnvelope,
     model = type(response)
     if model not in (ConsolidatedInstitutionResponse, ConsolidatedInstitutionResponseV27):
         raise TypeError(f"unsupported 6_validate.json response model {model.__name__}")
+    if isinstance(response, ConsolidatedInstitutionResponse):
+        refuse_support_status(response)  # RC-D-029 O1 b, Q2: never dropped silently
     response = model.model_validate(response.model_dump(mode="json"))
     data = envelope.data
     if isinstance(response, ConsolidatedInstitutionResponseV27):

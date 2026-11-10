@@ -359,6 +359,30 @@ def test_written_artifacts_reload_bound_to_each_other(tmp_path):
         write_stage6_artifacts(tmp_path / "inst2", envelope, other, [nodes.provenance])
 
 
+def _with_support_status(response, status="supported"):
+    """A legacy response with one source's support_status set (only reachable by mutation:
+    the legacy model refuses it at validation, RC-D-029 Q1 a)."""
+    sources = [s.model_copy(update={"support_status": status}) if i == 0 else s
+               for i, s in enumerate(response.sources)]
+    return response.model_copy(update={"sources": sources})
+
+
+def test_legacy_writer_refuses_a_set_support_status(tmp_path):
+    # RC-D-029 O1 b, Q2: refused, never dropped silently; nothing is written.
+    from g3o.validate.consolidate import write_consolidated_output
+
+    envelope, response, _, nodes = _written(tmp_path)
+    bad = _with_support_status(response)
+    with pytest.raises(ValueError, match="cannot carry SourceRecord.support_status"):
+        write_stage6_artifacts(tmp_path / "inst", envelope, bad, [nodes.provenance])
+    assert not (tmp_path / "inst").exists()
+    (tmp_path / "run").mkdir()
+    with pytest.raises(ValueError, match="cannot carry SourceRecord.support_status"):
+        write_consolidated_output(tmp_path / "run", "INST-0001", bad)
+    assert not list((tmp_path / "run").rglob("6_validate.json"))
+    write_consolidated_output(tmp_path / "run", "INST-0001", response)  # unset: written as before
+
+
 def test_support_provenance_file_reloads_and_is_bound_to_storage(tmp_path):
     envelope, response, _, nodes = _written(tmp_path)
     _, storage_path, provenance_path = write_stage6_artifacts(tmp_path / "inst", envelope, response,

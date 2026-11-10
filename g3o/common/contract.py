@@ -1062,6 +1062,21 @@ class ConsolidatedInstitutionResponse(BaseModel):
                 )
         return self
 
+def refuse_support_status(response: ConsolidatedInstitutionResponse) -> None:
+    """Refuse a legacy response any of whose sources has ``support_status`` set.
+
+    PI 2026-11-10 (RC-D-029 O1 b, Q2): the legacy ``6_validate.json`` has no
+    place for ``support_status`` (it is excluded from ``model_dump``), so a
+    legacy writer refuses such a payload instead of dropping the status silently.
+    """
+    offenders = [(s.source_id, s.support_status) for s in response.sources if s.support_status is not None]
+    if offenders:
+        raise ValueError(
+            "legacy 6_validate.json cannot carry SourceRecord.support_status "
+            f"(it would be dropped); offenders: {offenders}"
+        )
+
+
 class ValidationProvenance(BaseModel):
     """Run-level metadata attached at Stage 6/7 CSV write time.
 
@@ -1175,6 +1190,7 @@ __all__ = [
     "NO_PERMITTED_EVIDENCE",
     "V27_CONTEXT",
     "is_v27_context",
+    "refuse_support_status",
     "SOURCE_SUPPORT_STATUS",
     "DOWNGRADED_SUPPORT_STATUS",
     "EvidenceChannel",
