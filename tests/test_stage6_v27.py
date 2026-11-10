@@ -45,9 +45,12 @@ def page(pid, verdict="confirms_activity", status="supported", prob=.95, pipelin
                         ({"fake": "coder"},), ({"fake": "support"},))
 
 
-def observation(oid, pid, supported=True):
+def observation(oid, pid, supported=True, number=None):
     o = ItemOutcome("core.action_type", "core.action_type", None, "combined", "deployment")
-    return ActivityObservation(oid, pid, {o.question_id: o}, {}, supported, ({"fake": "coder"},),
+    fields = {"core.activity_name": "Copilot pilot"}
+    if number is not None:
+        fields[s6.NUMBER_ITEM] = number
+    return ActivityObservation(oid, pid, {o.question_id: o}, fields, supported, ({"fake": "coder"},),
                                ({"fake": "support"},))
 
 
@@ -254,21 +257,74 @@ def test_pooled_gates_use_support_checked_pooled_answers():
     assert all(s.support_status in ("supported", "not_required", "set_by_rule") for s in pooled.support)
 
 
-def test_pooled_nano_gate_is_held_not_guessed():
+UNIT_Q = "core.deployment_scale_unit"
+
+
+def _unit_states(jev):
+    return [c[0] for c in jev.calls if UNIT_Q in c[1]]
+
+
+def test_pooled_scale_unit_gated_out_when_no_merged_observation_states_a_number():
+    # RC-D-028 2 a: the `any stated` gate reads the merged observations' stated numbers
     pages, obs, recs, quotes, jev = merged()
     result = run(pages, obs, recs, quotes, jev, FakeQuotes())
     pooled = result.pooled[("o1", "o2")]
-    assert s6.POOLED_NANO_GATE in {h.reason for h in pooled.held}
-    assert pooled.outcomes["core.deployment_scale_unit"].state == "pending"
-    assert not pooled.finished and not result.ready
+    unit = pooled.outcomes[UNIT_Q]
+    assert unit.state == "gated_out" and unit.rule_reference == "gated_out:" + s6.NUMBER_ITEM
+    assert not _unit_states(jev) and all("stated_number" not in c[0] for c in jev.calls)
+    assert pooled.finished and result.ready
 
 
-def test_pooled_quote_without_signed_source_type_label_is_held():
+def test_pooled_scale_unit_asked_with_stated_number_when_any_observation_states_one():
     pages, obs, recs, quotes, jev = merged()
-    quotes = [replace(quotes[0], source_type_label=None), quotes[1]]
+    obs = [obs[0], observation("o2", "p2", number="1,200")]  # one page states it: gate open
+    result = run(pages, obs, recs, quotes, jev, FakeQuotes())
+    states = _unit_states(jev)
+    assert len(states) == 1 and states[0]["stated_number"] == "1,200"
+    assert list(states[0])[-1] == "stated_number"
+    # shown only in the request whose question shows it (as the per-page state, W-06 a)
+    assert all("stated_number" not in c[0] for c in jev.calls if UNIT_Q not in c[1])
+    assert result.pooled[("o1", "o2")].outcomes[UNIT_Q].state == "combined"
+    # the same number words on two pages: one value
+    obs = [observation("o1", "p1", number="1,200"), observation("o2", "p2", number="1,200")]
+    jev2 = merged()[4]
+    run(pages, obs, recs, quotes, jev2, FakeQuotes())
+    assert [s["stated_number"] for s in _unit_states(jev2)] == ["1,200"]
+
+
+def test_pooled_different_stated_numbers_hold_the_unit_question():
+    pages, obs, recs, quotes, jev = merged()
+    obs = [observation("o1", "p1", number="1,200"), observation("o2", "p2", number="300")]
+    result = run(pages, obs, recs, quotes, jev, FakeQuotes())
+    pooled = result.pooled[("o1", "o2")]
+    assert [h.reason for h in pooled.held] == [s6.POOLED_STATED_NUMBERS_DIFFER]
+    assert pooled.outcomes[UNIT_Q].state == "pending" and not _unit_states(jev)
+    assert not result.ready
+
+
+def test_pooled_stated_number_of_unconfirmed_observation_is_not_used():
+    pages, obs, recs, quotes, jev = merged()
+    pages = [pages[0], page("p2", "ambiguous_attribution", "not_required")]
+    obs = [obs[0], observation("o2", "p2", supported=False, number="1,200")]
+    result = run(pages, obs, recs, quotes, jev, FakeQuotes())
+    pooled = result.pooled[("o1", "o2")]
+    assert pooled.observation_ids == ("o1",)  # relations only (r2#51)
+    assert pooled.outcomes[UNIT_Q].state == "gated_out"
+
+
+@pytest.mark.parametrize("label", [None, ""])
+def test_pooled_quote_without_signed_source_type_label_leaves_the_field_out(label):
+    # RC-D-028 3 a: an auto-typed official / archive page, or no type: left out, as a missing value
+    pages, obs, recs, quotes, jev = merged()
+    quotes = [replace(quotes[0], source_type_label=label), quotes[1]]
     recs = [replace(recs[0], quotes=(quotes[0],)), recs[1]]
     result = run(pages, obs, recs, quotes, jev, FakeQuotes())
-    assert [h.reason for h in result.pooled[("o1", "o2")].held] == [s6.POOLED_SOURCE_TYPE_UNLABELLED]
+    rows = [c[0]["supporting_quotes"] for c in jev.calls if REL_Q not in c[1]]
+    assert rows and all("source_type" not in r[0] and r[1]["source_type"] == "a news report" for r in rows)
+    assert all(list(r[0]) == ["quote_text", "source_publication_date", "page_url"] for r in rows)
+    # the merge involving the official page is no longer blocked
+    pooled = result.pooled[("o1", "o2")]
+    assert not pooled.held and pooled.finished and result.ready
 
 
 def test_pooled_positive_answer_without_quote_step_is_pending():

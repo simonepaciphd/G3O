@@ -56,6 +56,7 @@ from itertools import combinations
 from typing import Any
 
 from g3o.classify.jev_activity_code import (
+    GATE_RULE,
     NOT_COVERED,
     UNKNOWN,
     ItemOutcome,
@@ -107,10 +108,13 @@ PREFILTER_RULE = "relation_prefilter:different_activity_type_and_tool"
 QUOTE_STEP_ABSENT = "stage6_quote_step_absent"
 RELATION_OVER_BUDGET = "relation_request_over_budget_split_marker_unapproved"
 POOLED_NANO_GATE = "pooled_nano_gate_unruled"
-POOLED_SOURCE_TYPE_UNLABELLED = "pooled_quote_source_type_has_no_signed_label"
+POOLED_STATED_NUMBERS_DIFFER = "pooled_stated_numbers_differ_form_unruled"
 REQUEST_FAILED = "jev_request_failed"
 MISSING_REQUEST_ID = "jev_missing_request_id"
 ANSWER_MISSING = "jev_answer_missing"
+
+#: The extracted number the ``deployment_scale_unit`` gate reads (``any stated``).
+NUMBER_ITEM = "core.deployment_scale_number"
 
 #: Part count used when measuring a pooled payload (upper bound on the marker width).
 MEASURE_PARTS = 999_999
@@ -448,7 +452,11 @@ class PooledActivity:
 
 
 def _quote_row(q: InputQuote) -> dict[str, Any]:
-    row: dict[str, Any] = {"quote_text": q.quote_text, "source_type": q.source_type_label}
+    """One pooled quote row; a missing value (an undated source, or a source type with no
+    signed label: automatically typed official / archive, or no type) is left out (RC-D-028 3 a)."""
+    row: dict[str, Any] = {"quote_text": q.quote_text}
+    if q.source_type_label:
+        row["source_type"] = q.source_type_label
     if q.source_publication_date is not None:
         row["source_publication_date"] = q.source_publication_date
     row["page_url"] = q.page_url
@@ -456,8 +464,9 @@ def _quote_row(q: InputQuote) -> dict[str, Any]:
 
 
 def pooled_state(part: PoolPart, n_parts: int, by_entry: Mapping[str, InputQuote],
-                 qset: Mapping[str, Any]) -> dict[str, Any]:
-    """``pooled.state``: pool_note, supporting quotes (pool order), page_part marker."""
+                 qset: Mapping[str, Any], *, stated_number: str | None = None) -> dict[str, Any]:
+    """``pooled.state``: pool_note, supporting quotes (pool order), page_part marker, then
+    ``stated_number`` (RC-D-028 2 a; RC-D-021 W-06 name) when a question of the request shows it."""
     st = qset["pooled"]["state"]
     if [f["name"] for f in st["quote_fields"]] != ["quote_text", "source_type", "source_publication_date",
                                                    "page_url"]:
@@ -468,7 +477,23 @@ def pooled_state(part: PoolPart, n_parts: int, by_entry: Mapping[str, InputQuote
                              st["split_marker"]["name"]: f"{part.index} of {n_parts}"}
     if n_parts > 1:
         state["part_note"] = qset["part_prompt"]["sentence"]
+    if stated_number is not None:
+        state["stated_number"] = stated_number
     return state
+
+
+def stated_numbers(eligible: Sequence[str], observations: Mapping[str, ActivityObservation]) -> tuple[str, ...]:
+    """The extractor's number words of the pooled (confirmed) observations, distinct, group order.
+
+    Read from each observation's extracted fields (``core.deployment_scale_number``, the
+    T-022 field the per-page state shows as ``stated_number``); missing values left out.
+    """
+    out: list[str] = []
+    for k in eligible:
+        v = observations[k].fields.get(NUMBER_ITEM)
+        if _real(v) and v not in out:
+            out.append(v)
+    return tuple(out)
 
 
 def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[ActivityObservation],
@@ -490,10 +515,8 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
         raise ConsolidationError("eligible pooled observation has no actual support quote")
     if len({q.support_id for q in selected}) != len(selected):
         raise ConsolidationError("duplicate pooled support identity")
-    unlabelled = [q.support_id for q in selected if not q.source_type_label]
-    if unlabelled:
-        return PooledActivity(pool_id, eligible, {}, (), (), {},
-                              (Held(POOLED_SOURCE_TYPE_UNLABELLED, pool_id, ", ".join(unlabelled)),), qsv)
+    numbers = stated_numbers(eligible, obs)
+    shown_number = numbers[0] if len(numbers) == 1 else None
     by_entry = {q.support_id: q for q in selected}
     entries = [PoolEntry(q.support_id, json.dumps(_quote_row(q), ensure_ascii=False, sort_keys=True),
                          q.pool_date, q.page_order * 100_000 + q.passage_order) for q in selected]
@@ -511,8 +534,9 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
     # ("i of n", part note only when n > 1) is never larger. The activity-set
     # questions are not in the measure: round 3 alone estimates above 32k.
 
-    def serialize(part: PoolPart) -> str:
-        return json.dumps(pooled_state(part, MEASURE_PARTS, by_entry, qset), ensure_ascii=False, sort_keys=True)
+    def serialize(part: PoolPart) -> str:  # with the stated number when one exists (upper bound)
+        return json.dumps(pooled_state(part, MEASURE_PARTS, by_entry, qset, stated_number=shown_number),
+                          ensure_ascii=False, sort_keys=True)
 
     prepared = prepare_pool_requests(pool_id, entries, serialize_request=serialize,
                                      estimator=config.estimator, limit_tokens=config.limit_tokens,
@@ -521,11 +545,26 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
         asked = []
         for q in (q for q in questions if q["round"] == rnd):
             kind = _gate_kind(q, by_id)
-            if kind == "nano":
+            if kind == "nano" and q["gate"]["item"] != NUMBER_ITEM:
                 held.append(Held(POOLED_NANO_GATE, f"{pool_id}:{q['question_id']}"))
                 final[q["question_id"]] = ItemOutcome(q["question_id"], q["item_id"], q.get("part"), "pending",
                                                       None, note=POOLED_NANO_GATE)
                 continue
+            if kind == "nano":  # RC-D-028 2 a: open when any merged observation states a number
+                if not numbers:
+                    value = gated_out_value(q)
+                    final[q["question_id"]] = ItemOutcome(q["question_id"], q["item_id"], q.get("part"),
+                                                          "gated_out", value, rule_reference=GATE_RULE + NUMBER_ITEM)
+                    records.append(_mechanical(q["item_id"], q["question_id"], value, GATE_RULE + NUMBER_ITEM,
+                                               config, qsv))
+                    continue
+                if NUMBER_ITEM in (q.get("shows_value_of") or ()) and shown_number is None:
+                    # several different stated numbers: the form of stated_number is not ruled (report)
+                    held.append(Held(POOLED_STATED_NUMBERS_DIFFER, f"{pool_id}:{q['question_id']}",
+                                     " | ".join(numbers)))
+                    final[q["question_id"]] = ItemOutcome(q["question_id"], q["item_id"], q.get("part"), "pending",
+                                                          None, note=POOLED_STATED_NUMBERS_DIFFER)
+                    continue
             if kind == "item":
                 open_ = gate_open(q, final, {}, by_id)
                 if open_ is None:
@@ -536,14 +575,15 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
                     value = gated_out_value(q)
                     final[q["question_id"]] = ItemOutcome(q["question_id"], q["item_id"], q.get("part"),
                                                           "gated_out", value,
-                                                          rule_reference="gated_out:" + q["gate"]["item"])
+                                                          rule_reference=GATE_RULE + q["gate"]["item"])
                     records.append(_mechanical(q["item_id"], q["question_id"], value,
-                                               "gated_out:" + q["gate"]["item"], config, qsv))
+                                               GATE_RULE + q["gate"]["item"], config, qsv))
                     continue
             asked.append(q)
         if not asked:
             continue
         years = any(q.get("dynamic_choices") == "year" for q in asked)
+        show_number = any(NUMBER_ITEM in (q.get("shows_value_of") or ()) for q in asked)
         n = len(prepared)
         parts_by_round[rnd] = tuple(p.part.part_id for p in prepared)
         votes: dict[str, list[PartVote]] = {q["question_id"]: [] for q in asked}
@@ -555,7 +595,7 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
             qs = {q["question_id"]: choice_request(q, part=n > 1, years=cands
                                                    if q.get("dynamic_choices") == "year" else None)
                   for q in asked}
-            state = pooled_state(part, n, by_entry, qset)
+            state = pooled_state(part, n, by_entry, qset, stated_number=shown_number if show_number else None)
             result, reason, detail = _request(ask_fn, state, qs)
             shown = tuple(by_entry[e.entry_id] for e in part.entries)
             for q in asked:
@@ -826,10 +866,11 @@ def consolidated_response(*, institution: Mapping[str, Any], metadata: Mapping[s
 
 
 __all__ = [
-    "CODER_VERSION", "ContractGapError", "POOLED_NANO_GATE", "POOLED_SOURCE_TYPE_UNLABELLED", "PREFILTER_RULE",
+    "CODER_VERSION", "ContractGapError", "NUMBER_ITEM", "POOLED_NANO_GATE", "POOLED_STATED_NUMBERS_DIFFER",
+    "PREFILTER_RULE",
     "QUOTE_STEP_ABSENT", "RELATION_ITEM", "RELATION_OVER_BUDGET", "Held", "InputQuote",
     "ObservationRecord", "PooledActivity", "QuoteFn", "RelationOutcome", "Stage6Config", "Stage6Quote",
     "Stage6QuoteRequest", "Stage6Result", "code_relation", "consolidated_response", "permanent_pilot_override", "cross_page_pairs", "pool_activity",
-    "pooled_state", "prefilter_distinct", "record_state", "relation_state", "run_stage6",
+    "pooled_state", "prefilter_distinct", "record_state", "relation_state", "run_stage6", "stated_numbers",
     "source_claim_confidence", "source_claim_records",
 ]
