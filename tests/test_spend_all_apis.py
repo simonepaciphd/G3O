@@ -11,6 +11,7 @@ visible.
 
 from __future__ import annotations
 
+import io
 import json
 from pathlib import Path
 from typing import Any
@@ -178,7 +179,8 @@ def test_serper_mock_path_is_not_metered(monkeypatch):
 def _unlocker_response(status: int, body: bytes, headers: dict[str, str]):
     resp = requests.Response()
     resp.status_code = status
-    resp._content = body
+    # A real streamed body: fetch() reads with stream=True via iter_content.
+    resp.raw = io.BytesIO(body)
     resp.headers.update(headers)
     return resp
 
