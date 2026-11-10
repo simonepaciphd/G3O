@@ -80,7 +80,210 @@ def _mock_response(
     resp.status_code = status_code
     resp.content = content
     resp.headers = headers or {}
+    # fetch() streams the body (stream=True) rather than reading .content.
+    resp.iter_content = lambda chunk_size=1: iter([content] if content else [])
     return resp
+
+
+# ---------------------------------------------------------------------------
+# Streamed size cap (PI-approved 2026-11-09)
+# ---------------------------------------------------------------------------
+
+
+class _ChunkStream:
+    """An iter_content stand-in that counts how many chunks were pulled."""
+
+    def __init__(self, chunks: list[bytes]) -> None:
+        self._chunks = list(chunks)
+        self.pulled = 0
+
+    def __iter__(self) -> _ChunkStream:
+        return self
+
+    def __next__(self) -> bytes:
+        if self.pulled >= len(self._chunks):
+            raise StopIteration
+        chunk = self._chunks[self.pulled]
+        self.pulled += 1
+        return chunk
+
+    @property
+    def exhausted(self) -> bool:
+        return self.pulled >= len(self._chunks)
+
+
+def _streamed_response(
+    chunks: list[bytes], *, headers: dict[str, str] | None = None,
+) -> tuple[MagicMock, _ChunkStream]:
+    stream = _ChunkStream(chunks)
+    resp = MagicMock(spec=requests.Response)
+    resp.status_code = 200
+    resp.headers = headers if headers is not None else {"x-brd-status-code": "200"}
+    resp.iter_content = MagicMock(return_value=stream)
+    # Reading .content would buffer the whole body; fail loudly if it happens.
+    type(resp).content = property(
+        lambda self: pytest.fail("unlocker read resp.content (unbounded)")
+    )
+    return resp, stream
+
+
+@pytest.fixture
+def small_cap(monkeypatch: pytest.MonkeyPatch) -> int:
+    cap = 100
+    monkeypatch.setattr(fetcher, "MAX_RESPONSE_BYTES", cap)
+    return cap
+
+
+def _capture_post(
+    monkeypatch: pytest.MonkeyPatch, resp: MagicMock
+) -> dict[str, Any]:
+    seen: dict[str, Any] = {}
+
+    def _post(*a: Any, **kw: Any) -> MagicMock:
+        seen.update(kw)
+        return resp
+
+    monkeypatch.setattr(unlocker.requests, "post", _post)
+    return seen
+
+
+def test_fetch_streams_under_cap_body_unchanged(
+    unlocker_configured: None, small_cap: int, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    resp, stream = _streamed_response([b"<html>", b"ok", b"</html>"])
+    seen = _capture_post(monkeypatch, resp)
+    result = unlocker.fetch("https://example.com")
+    assert seen["stream"] is True
+    assert result.success is True
+    assert result.content == b"<html>ok</html>"
+    assert result.billable_bytes == len(b"<html>ok</html>")
+    assert result.error is None
+    assert stream.exhausted
+    resp.close.assert_called_once()
+
+
+def test_fetch_body_exactly_at_cap_is_accepted(
+    unlocker_configured: None, small_cap: int, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    body = b"x" * small_cap
+    resp, _ = _streamed_response([body[:60], body[60:]])
+    _capture_post(monkeypatch, resp)
+    result = unlocker.fetch("https://example.com")
+    assert result.success is True
+    assert result.content == body
+    assert result.billable_bytes == small_cap
+    resp.close.assert_called_once()
+
+
+def test_fetch_over_cap_stops_reading_and_fails(
+    unlocker_configured: None, small_cap: int, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # 60 + 60 crosses the 100-byte cap on the second chunk; the third and
+    # fourth chunks must never be pulled.
+    resp, stream = _streamed_response([b"a" * 60, b"b" * 60, b"c" * 60, b"d" * 60])
+    _capture_post(monkeypatch, resp)
+    result = unlocker.fetch("https://example.com")
+    assert result.success is False
+    assert result.content == b""
+    assert result.inner_status == 200
+    assert result.error is not None
+    assert result.error.startswith(unlocker.RESPONSE_TOO_LARGE_ERROR)
+    assert result.error_code is None
+    assert stream.pulled == 2
+    assert not stream.exhausted
+    # No Content-Length: billable = bytes actually read (RC-D-025 B4 b).
+    assert result.billable_bytes == 120
+    resp.close.assert_called_once()
+
+
+def test_fetch_over_cap_by_advertised_length_reads_nothing(
+    unlocker_configured: None, small_cap: int, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    resp, stream = _streamed_response(
+        [b"a" * 60],
+        headers={"x-brd-status-code": "200", "content-length": str(small_cap + 1)},
+    )
+    _capture_post(monkeypatch, resp)
+    result = unlocker.fetch("https://example.com")
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.startswith(unlocker.RESPONSE_TOO_LARGE_ERROR)
+    assert stream.pulled == 0
+    # RC-D-025 B4 b: billed at the advertised Content-Length.
+    assert result.billable_bytes == small_cap + 1
+    resp.close.assert_called_once()
+
+
+def test_fetch_over_cap_streamed_bills_advertised_length_when_present(
+    unlocker_configured: None, small_cap: int, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Advertised length under the cap (e.g. compressed on the wire), decoded
+    # body over it: RC-D-025 B4 b bills the advertised length, not bytes read.
+    resp, stream = _streamed_response(
+        [b"a" * 60, b"b" * 60, b"c" * 60],
+        headers={"x-brd-status-code": "200", "content-length": "90"},
+    )
+    _capture_post(monkeypatch, resp)
+    result = unlocker.fetch("https://example.com")
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.startswith(unlocker.RESPONSE_TOO_LARGE_ERROR)
+    assert stream.pulled == 2
+    assert result.billable_bytes == 90
+    resp.close.assert_called_once()
+
+
+def test_fetch_over_cap_unparseable_length_bills_bytes_read(
+    unlocker_configured: None, small_cap: int, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    resp, _ = _streamed_response(
+        [b"a" * 60, b"b" * 60, b"c" * 60],
+        headers={"x-brd-status-code": "200", "content-length": "abc"},
+    )
+    _capture_post(monkeypatch, resp)
+    result = unlocker.fetch("https://example.com")
+    assert result.success is False
+    assert result.billable_bytes == 120
+    resp.close.assert_called_once()
+
+
+def test_fetch_over_cap_with_brd_error_keeps_provider_error(
+    unlocker_configured: None, small_cap: int, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Header errors win over the cap: the provider's error text is kept.
+    resp, _ = _streamed_response(
+        [b"a" * 200], headers={"x-brd-error": "policy_20000"},
+    )
+    _capture_post(monkeypatch, resp)
+    result = unlocker.fetch("https://example.com")
+    assert result.success is False
+    assert result.error == "policy_20000"
+    assert result.billable_bytes == 0
+    resp.close.assert_called_once()
+
+
+def test_fetch_closes_and_redacts_on_mid_stream_failure(
+    unlocker_configured: None, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _boom(chunk_size: int = 1) -> Any:
+        yield b"partial"
+        raise requests.exceptions.ChunkedEncodingError(f"broken {TOKEN}")
+
+    resp = MagicMock(spec=requests.Response)
+    resp.status_code = 200
+    resp.headers = {"x-brd-status-code": "200"}
+    resp.iter_content = _boom
+    _capture_post(monkeypatch, resp)
+    with pytest.raises(requests.RequestException) as excinfo:
+        unlocker.fetch("https://example.com")
+    assert TOKEN not in str(excinfo.value)
+    resp.close.assert_called_once()
+
+
+def test_unlocker_cap_is_the_fetcher_cap() -> None:
+    # One ceiling for both egress paths; unlocker reads fetcher's constant.
+    assert fetcher.MAX_RESPONSE_BYTES == 32 * 1024 * 1024
+    assert not hasattr(unlocker, "MAX_RESPONSE_BYTES")
 
 
 def test_fetch_success_gate_all_three_conditions(
