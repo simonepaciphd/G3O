@@ -5,7 +5,7 @@
   "do_not_edit": true,
   "build_command": "python -m g3o.classify.questions.v27 build",
   "codebook_release": "2.7",
-  "codebook_sha256": "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527",
+  "codebook_sha256": "7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b",
   "source": "g3o.codebook.generators.gen_jev_questions (regenerated from the codebook)",
   "pass": 1,
   "unit": "page (or one part of a long page)",

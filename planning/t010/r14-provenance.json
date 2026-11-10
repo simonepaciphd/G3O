@@ -1,0 +1,438 @@
+{
+  "r13_sha256": "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527",
+  "r13_signature_record": "planning/t010/signoff-record.md",
+  "basis": "RC-D-025 A1, A2: PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); B2 a, B3: PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); C1, C2, C3 a, C4 c, C6 a: PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\" (RC-D-025 PI rulings, second batch); credibility map: PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\" (RC-D-025 PI rulings, credibility map)",
+  "wording_source": "agent-workspace/2026-11-10-build/RC-D-025-draft.md (Part A rows A1/A2, Part B rows B2/B3, PI rulings) and agent-workspace/2026-11-07-t030-rulings/DECISION-AND-PROPOSAL.json; B3 approved verbatim (\"3 wording ok\"); the B2 a combining sentence (r14 agent draft of the ruling) approved verbatim by C2; C1 labels approved as drafted; the permanent_pilot same-part limit sentence (C4 c) and the credibility rule sentence are r14 agent drafts approved only by the hash signature",
+  "text_changes": [
+    {
+      "id": "A1 items.core.confidence.rules/1 (new)",
+      "r13_insert_after_line": 10747,
+      "copies": 1,
+      "before": null,
+      "after": "When all applicable evidence checks completed and none failed, source confidence = `source_credibility` (high/medium/low). Any `downgraded_no_quote`, `downgraded_quote_not_stating_value` or `downgraded_low_confidence` on an associated substantive original code makes it `low`. `not_required` / `set_by_rule` neutral. Pending/unperformed checks leave it unfinished (not scored); unavailable credibility stays unknown unless a failed check sets low. Original failures survive the final-value downgrade.",
+      "origin": "PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); r14",
+      "note": "copied verbatim from RC-D-025 Part A row A1 ruling text; its closing 'Activity aggregation unchanged.' is honoured by leaving rules/0 as it is"
+    },
+    {
+      "id": "A2/B3 items.core.permanent_pilot.instruction",
+      "r13_lines": [
+        9869
+      ],
+      "copies": 1,
+      "before": "none",
+      "after": "Does the page describe this activity as a pilot that has run for more than 12 months and serves its full intended user base?",
+      "origin_before": "none (derived item)",
+      "origin_after": "PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); agent draft B3 as written"
+    },
+    {
+      "id": "A2/B3 items.core.permanent_pilot.values",
+      "r13_lines": [
+        9870
+      ],
+      "copies": 1,
+      "before": "none",
+      "after": {
+        "yes": "The same passage describes it as a pilot, running for more than 12 months, and serving the full intended user base.",
+        "no": "The page gives evidence that the activity is not such a pilot (for example a pilot under 12 months old, or limited to part of its intended users)."
+      },
+      "origin_before": "none (derived item)",
+      "origin_after": "PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); agent draft B3 as written"
+    },
+    {
+      "id": "B2a items.core.permanent_pilot.rules/0 (new combining rule)",
+      "r13_lines": [
+        9873
+      ],
+      "copies": 1,
+      "before": "slot held the r2 n=28 rule, moved to release.r14_dropped (see superseded)",
+      "after": "A supported `yes` sets the final `adoption_stage` to `production` only when the stage answer is `pilot` or `production`; for any other stage the classifier's stage answer is kept and this flag is kept as coded.",
+      "origin_after": "PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); r14 agent draft of the B2 a ruling, approved verbatim by PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\" (RC-D-025 C2)"
+    },
+    {
+      "id": "B3 items.core.permanent_pilot.rules/1 (missing label unknown)",
+      "r13_lines": [],
+      "copies": 1,
+      "before": null,
+      "after": "The page does not let this be settled.",
+      "origin_after": "PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); agent draft B3 as written",
+      "role": "missing label unknown: meaning for this item"
+    }
+  ],
+  "field_changes": [
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "linkage",
+      "before": "deterministic",
+      "after": "jev_choice"
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "coder",
+      "before": "derived",
+      "after": "classifier"
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "pass",
+      "before": "none",
+      "after": 2
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "round",
+      "before": "none",
+      "after": 3
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "gate",
+      "before": "none",
+      "after": "same mapping as core.adoption_stage.gate (source line names RC-D-025 A2)"
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "order_tie_rule",
+      "before": "none",
+      "after": "first_in_order"
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "long_page_rule",
+      "before": "none",
+      "after": "any_yes"
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "support_required",
+      "before": false,
+      "after": true
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "downgrade_target",
+      "before": "none",
+      "after": "unknown"
+    },
+    {
+      "item": "core.permanent_pilot",
+      "r13_lines": [
+        9856,
+        9894
+      ],
+      "field": "threshold",
+      "before": "none",
+      "after": {
+        "metric": "chosen_answer_probability",
+        "bar": 0.8
+      }
+    },
+    {
+      "item": "core.permanent_pilot",
+      "field": "jev_missing_choice",
+      "before": null,
+      "after": {
+        "offered": [],
+        "rule": "none",
+        "why": "its `unknown` rule (\"The page does not let this be settled.\") covers the case the page does not settle; `unknown` stays mechanical (RC-D-005 12 a)",
+        "resolution": "RC-D-025 A2 / B3: not offered",
+        "grounds": "B3 `unknown` text, PI 2026-11-10 \"3 wording ok\": \"The page does not let this be settled.\""
+      }
+    },
+    {
+      "item": "core.permanent_pilot",
+      "field": "refs",
+      "before": [
+        "r2#28"
+      ],
+      "after": [
+        "r2#28",
+        "RC-D-025 A2",
+        "RC-D-025 B2 a",
+        "RC-D-025 B3"
+      ]
+    },
+    {
+      "item": "core.permanent_pilot",
+      "field": "changed_r14",
+      "before": null,
+      "after": "new: before-values of the changed fields and the approval"
+    }
+  ],
+  "superseded": {
+    "slot": "items/core.permanent_pilot/rules/0 (r13 line 9873)",
+    "moved_to": "release.r14_dropped[0] (kind superseded; text, origin, source and approved_r4 kept; by = approvals)",
+    "text": "Each item states its coder (classifier, mechanical, quote step or derived), and the approved plan's field list becomes a pointer to the codebook. 'Permanent pilot' becomes a derived flag, and 'vendor claim only' is read from the source being a vendor; one build task's scope changes.",
+    "why": "RC-D-025 A2 reverses the 'derived flag' part for core.permanent_pilot; kept out of the rules so it does not reach the jev question text"
+  },
+  "annotated_not_changed": {
+    "slot": "items/core.vendor_claim_only/rules/0 (r13 line 9912, same r2 n=28 text)",
+    "added_field": "superseded_in_part_r14",
+    "value": "'Permanent pilot' becomes a derived flag: superseded by RC-D-025 A2 (core.permanent_pilot is a classifier item from r14; see release.r14_dropped). The vendor-claim part stands.",
+    "why": "verbatim ruling text kept; its vendor-claim part still applies"
+  },
+  "not_changed": {
+    "items/core.confidence/rules/0": "activity aggregation text unchanged (A1); C8 b adds rules/2",
+    "vocabularies.support_status.status_by_answer": "`no` -> not_required globally (F1 a), also for permanent_pilot; kept by C3 a"
+  },
+  "header_comment": {
+    "before": "# G3O codebook release 2.7, revision r13 — UNSIGNED candidate (RC-D-019), sign-off build (T-010). Byte edits to the signed r12 file, recorded in planning/t010/r13-provenance.json.",
+    "after": "# G3O codebook release 2.7, revision r14 — UNSIGNED candidate (RC-D-025), sign-off build (T-010). Byte edits to the signed r13 file, recorded in planning/t010/r14-provenance.json."
+  },
+  "folds_r14": "RC-D-025 A1 / A2 (PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2)) and B2 a / B3 (PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2)): A1 source-level confidence rule added to core.confidence (activity aggregation rule unchanged); A2 core.permanent_pilot derived -> classifier (jev_choice, pass 2, round 3, adoption_stage gate, support-checked; B3 instruction and values as drafted; B2 a combining rule, approved verbatim C2); its r2 'derived flag' rule moved to r14_dropped; C1 entailment labels on core.permanent_pilot and C4 c v25 'Permanent pilot' rule and F01 across-parts note moved from core.adoption_stage to r14_dropped, same-part limit stated on core.permanent_pilot (PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\"); core.source_credibility X22 map cells and C6 a undated override (PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\"; five cells integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature); core.confidence C7 a (rules/1: any associated original code) and C8 b (new rules/2: `unknown` source counts as `low` in aggregation) (PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\"); provenance planning/t010/r14-provenance.json",
+  "provenance_fields": "new slots carry origin and source (and role where it names a function); the superseded rule is kept whole in release.r14_dropped; changed structural fields keep their r13 values in items/core.permanent_pilot/changed_r14 and in field_changes here",
+  "line_endings": "CRLF, preserved from r13 (codebook/.gitattributes: codebook.yaml -text)",
+  "status": "UNSIGNED candidate; signed only when planning/t010/signoff-record.md holds this sha256",
+  "r14_sha256_candidate": "7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b",
+  "second_batch": {
+    "basis": "PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\"; PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\"",
+    "record": "agent-workspace/2026-11-10-build/RC-D-025-draft.md sections 'PI rulings, second batch' and 'PI rulings, credibility map'",
+    "line_base": "lines refer to the 84d564a candidate (sha256 cdb9bd763e419c60714e88519a71b0bcecaaddda787b6140652b1942ce4fba29)",
+    "changes": [
+      {
+        "id": "C1 items.core.permanent_pilot.entailment_label (new)",
+        "candidate_84d564a_lines": [
+          9960
+        ],
+        "before": null,
+        "after": "status as a long-running pilot",
+        "origin": "PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\" (RC-D-025 C1); agent draft C1 as written"
+      },
+      {
+        "id": "C1 items.core.permanent_pilot.values/0,1.entailment_label (new)",
+        "candidate_84d564a_lines": [
+          9915,
+          9921
+        ],
+        "before": null,
+        "after": {
+          "yes": "a pilot running over 12 months for its full intended user base",
+          "no": "not such a long-running, full-scale pilot"
+        },
+        "origin": "PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\" (RC-D-025 C1); agent draft C1 as written"
+      },
+      {
+        "id": "C2 items.core.permanent_pilot.rules/0 origin",
+        "candidate_84d564a_lines": [
+          9925
+        ],
+        "text_unchanged": "A supported `yes` sets the final `adoption_stage` to `production` only when the stage answer is `pilot` or `production`; for any other stage the classifier's stage answer is kept and this flag is kept as coded.",
+        "origin_before": "PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); r14 agent draft of the B2 a ruling",
+        "origin_after": "PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); r14 agent draft of the B2 a ruling, approved verbatim by PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\" (RC-D-025 C2)"
+      },
+      {
+        "id": "C4 c items.core.adoption_stage.rules/2 (removed; moved to release.r14_dropped[1])",
+        "candidate_84d564a_lines": [
+          4145,
+          4149
+        ],
+        "before": "**\"Permanent pilot\" rule:** If described as \"pilot\" but running >12 months AND serving the full intended user base, code `production`. Note in `scope_notes`: \"Described as pilot but operational >12 months with full user base.\"",
+        "after": null,
+        "note": "adoption_stage rules/3 (`unknown` meaning) is now rules/2; text unchanged"
+      },
+      {
+        "id": "C4 c items.core.adoption_stage.long_page_rule.permanent_pilot_across_parts (removed; moved to release.r14_dropped[2])",
+        "candidate_84d564a_lines": [
+          4177,
+          4185
+        ],
+        "before": "The stage question applies the permanent-pilot rule inside each part. If the facts (over 12 months; full user base) sit in different parts, no part reaches production and the combined stage stays pilot. The codebook states this case.",
+        "after": null
+      },
+      {
+        "id": "C4 c items.core.permanent_pilot.long_page_rule (any_yes -> mapping with the same-part limit)",
+        "candidate_84d564a_lines": [
+          9934
+        ],
+        "before": "any_yes",
+        "after": {
+          "rule": "any_yes",
+          "permanent_pilot_across_parts": {
+            "rule": "within_part_only",
+            "known_limit": true,
+            "text": "If the facts (pilot; over 12 months; full user base) sit in different parts, no part answers `yes` and the combined answer is not `yes`."
+          }
+        },
+        "origin": "PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\" (RC-D-025 C4 c); r14 agent draft (moves the F01 same-part limit from core.adoption_stage)",
+        "note": "combining rule unchanged (any_yes); the note key is one part_combine already reads (_NOTE_KEYS)"
+      },
+      {
+        "id": "C6 a items.core.source_credibility.rules/0",
+        "candidate_84d564a_lines": [
+          3170
+        ],
+        "before": "`source_credibility` = fixed map from `source_type` plus `low` when `source_publication_date` = unknown; drop the translation clause.",
+        "after": "`source_credibility` = fixed map from `source_type` plus `low` when `source_publication_date` = unknown or not_documented; drop the translation clause.",
+        "origin_before": "PI 2026-10-30 \"approved!\"; fixes-r4 FX13",
+        "origin_after": "PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\" (RC-D-025 C6 a); r14"
+      },
+      {
+        "id": "C5 items.core.source_credibility.rules/1 (new, map rule text)",
+        "candidate_84d564a_insert_after_line": 3177,
+        "before": null,
+        "after": "Credibility by `source_type`: official domain (typed from the web domain) `high`; `procurement_tender` `high`; `news_major` `medium`; `news_trade` `medium`; `policy_org` `medium`; `vendor` `medium`; `academic` `high`; `social_media` `low`; `other` `medium`; archive address (typed from the address) `medium`; `source_type` missing (`not_documented`, `unknown`) `low`.",
+        "origin": "PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\"; integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature (official_domain, procurement_tender, news_major, news_trade, policy_org); r14"
+      },
+      {
+        "id": "C5 items.core.source_credibility.credibility_map (new, structured X22 cells)",
+        "candidate_84d564a_insert_after_line": 3177,
+        "before": null,
+        "after": {
+          "official_domain": "high",
+          "procurement_tender": "high",
+          "news_major": "medium",
+          "news_trade": "medium",
+          "policy_org": "medium",
+          "vendor": "medium",
+          "academic": "high",
+          "social_media": "low",
+          "other": "medium",
+          "archive_address": "medium",
+          "not_documented": "low",
+          "unknown": "low"
+        },
+        "origin_by_cell": {
+          "official_domain": "integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature",
+          "procurement_tender": "integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature",
+          "news_major": "integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature",
+          "news_trade": "integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature",
+          "policy_org": "integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature",
+          "vendor": "PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\"",
+          "academic": "PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\"",
+          "social_media": "PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\"",
+          "other": "PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\"",
+          "archive_address": "PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\"",
+          "not_documented": "PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\" (5f)",
+          "unknown": "PI 2026-11-10 chat \"vendor medium, academic high, social media low, other medium, archive medium, 5f low\" (5f)"
+        },
+        "note": "official_domain and archive_address are auto-typed keys, not source_type answer codes (core.source_type rules/0)"
+      },
+      {
+        "id": "items.core.source_credibility.refs",
+        "before": [
+          "X22",
+          "R-090"
+        ],
+        "after": [
+          "X22",
+          "R-090",
+          "RC-D-025 C5",
+          "RC-D-025 C6 a"
+        ]
+      },
+      {
+        "id": "C3 a",
+        "change": "none: the global no-quote exemption for `no` stays (vocabularies.support_status.status_by_answer); permanent_pilot `no` is not quote-checked"
+      },
+      {
+        "id": "C7 a items.core.confidence.rules/1 (wording)",
+        "line_base": "cc2e2d9 candidate (sha256 3d6ce44a189d6ae5b533d97da503b56b3a3ec112c42a6e725dc346c0cd5d8ec1), line 10912",
+        "before": "When all applicable evidence checks completed and none failed, source confidence = `source_credibility` (high/medium/low). Any `downgraded_no_quote`, `downgraded_quote_not_stating_value` or `downgraded_low_confidence` on an associated substantive original code makes it `low`. `not_required` / `set_by_rule` neutral. Pending/unperformed checks leave it unfinished (not scored); unavailable credibility stays unknown unless a failed check sets low. Original failures survive the final-value downgrade.",
+        "after": "When all applicable evidence checks completed and none failed, source confidence = `source_credibility` (high/medium/low). Any `downgraded_no_quote`, `downgraded_quote_not_stating_value` or `downgraded_low_confidence` on any associated original code, including a `no` or negative value downgraded below the 0.8 bar, makes it `low`. `not_required` / `set_by_rule` neutral. Pending/unperformed checks leave it unfinished (not scored); unavailable credibility stays unknown unless a failed check sets low. Original failures survive the final-value downgrade.",
+        "origin_before": "PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); r14",
+        "origin_after": "PI 2026-11-07 chat \"sounds good, whats next\" (RC-D-025 A1/A2); PI 2026-11-10 chat \"1a 2a 3 wording ok 4b, accept all\" (RC-D-025 B2 a, B3; P2); r14; PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\" (RC-D-025 C7 a)",
+        "phrase_before": "on an associated substantive original code makes it `low`",
+        "phrase_after": "on any associated original code, including a `no` or negative value downgraded below the 0.8 bar, makes it `low`"
+      },
+      {
+        "id": "C8 b items.core.confidence.rules/2 (new)",
+        "line_base": "cc2e2d9 candidate (sha256 3d6ce44a189d6ae5b533d97da503b56b3a3ec112c42a6e725dc346c0cd5d8ec1), inserted after line 10915",
+        "before": null,
+        "after": "At consolidation, when an activity's confidence is aggregated from its sources, a source whose confidence is `unknown` counts as `low`.",
+        "origin": "PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\" (RC-D-025 C8 b); r14; integrator clarification of its own draft wording, 2026-11-10",
+        "role": "aggregation of unknown",
+        "clarification": {
+          "line_base": "56c494a candidate (sha256 fc29dbd96b50ab6f09c9a6958da0f0e6593ec77913f6d822cd744d3fa140fb66)",
+          "before": "In this aggregation a source whose confidence is `unknown` counts as `low`.",
+          "after": "At consolidation, when an activity's confidence is aggregated from its sources, a source whose confidence is `unknown` counts as `low`.",
+          "why": "avoid ambiguity: the rule followed the source-level rule, not the aggregation rule (rules/0)"
+        }
+      },
+      {
+        "id": "items.core.confidence.refs",
+        "before": [
+          "r2#27",
+          "X23"
+        ],
+        "after": [
+          "r2#27",
+          "X23",
+          "RC-D-025 A1",
+          "RC-D-025 C7 a",
+          "RC-D-025 C8 b"
+        ]
+      }
+    ],
+    "dropped_added": [
+      {
+        "slot": "items/core.adoption_stage/rules/2",
+        "kind": "superseded",
+        "replaced_by": [
+          "items/core.permanent_pilot/instruction",
+          "items/core.permanent_pilot/values/0/definition",
+          "items/core.permanent_pilot/rules/0"
+        ],
+        "text": "**\"Permanent pilot\" rule:** If described as \"pilot\" but running >12 months AND serving the full intended user base, code `production`. Note in `scope_notes`: \"Described as pilot but operational >12 months with full user base.\"",
+        "origin": "v25",
+        "source": "output_contract.md:176",
+        "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I07 slot 10",
+        "by": "PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\" (RC-D-025 C4 c); r14"
+      },
+      {
+        "slot": "items/core.adoption_stage/long_page_rule/permanent_pilot_across_parts",
+        "kind": "superseded",
+        "replaced_by": [
+          "items/core.permanent_pilot/long_page_rule/permanent_pilot_across_parts"
+        ],
+        "rule": "within_part_only",
+        "known_limit": true,
+        "text": "The stage question applies the permanent-pilot rule inside each part. If the facts (over 12 months; full user base) sit in different parts, no part reaches production and the combined stage stays pilot. The codebook states this case.",
+        "origin": "PI 2026-10-30 \"all accepted\"; final-open F01",
+        "source": "final-open.json choices[F01] (pick a, confidence low).options[a].mechanism",
+        "approved_r4": "PI 2026-10-30 \"approve all\" (round 4): page activity-1 card I07 slot 11",
+        "why": "the stage question no longer applies the permanent-pilot rule (RC-D-025 C4 c); the same-part limit now sits on core.permanent_pilot",
+        "by": "PI 2026-11-10 chat \"1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all\" (RC-D-025 C4 c); r14"
+      }
+    ]
+  },
+  "superseded_candidate_sha256": [
+    "cdb9bd763e419c60714e88519a71b0bcecaaddda787b6140652b1942ce4fba29",
+    "3d6ce44a189d6ae5b533d97da503b56b3a3ec112c42a6e725dc346c0cd5d8ec1",
+    "fc29dbd96b50ab6f09c9a6958da0f0e6593ec77913f6d822cd744d3fa140fb66"
+  ]
+}
