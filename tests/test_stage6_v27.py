@@ -537,42 +537,55 @@ def _meta():
             "response_timestamp": "2026-11-10T12:00:00Z", "model_label": "fake-jev", "notes": "none"}
 
 
-def test_consolidated_response_refuses_values_the_legacy_contract_cannot_carry():
-    summary = {"core.has_genai_activity": "no", "core.institution_summary": "GenAI activity: no."}
-    source = {"core.source_url": "https://example.gov/p1", "core.source_title": "Page",
-              "core.source_publication_date": "2026-01", "core.source_access_date": "2026-11-01",
-              "core.source_type": "not_asked", "core.source_language": "en", "core.source_credibility": "high",
-              "core.source_snippet": "No GenAI here.", "core.page_verdict": "no_genai"}
-    with pytest.raises(s6.ContractGapError) as err:
-        s6.consolidated_response(institution=_identity(), metadata=_meta(), summary=summary, activities=[],
-                                 sources=[("S1", "_NA_", source)])
-    assert any("source_type" in g for g in err.value.gaps)
-    # legacy cross-row check: `no` with a no_genai source (RC-D-025 P9, T-012 fix pending) is refused, not altered
-    with pytest.raises(s6.ContractGapError, match="confirms_absence"):
-        s6.consolidated_response(institution=_identity(), metadata=_meta(), summary=summary, activities=[],
-                                 sources=[("S1", "_NA_", {**source, "core.source_type": "news_major"})])
-    ok = s6.consolidated_response(institution=_identity(), metadata=_meta(), summary=summary, activities=[],
-                                  sources=[("S1", "_NA_", {**source, "core.source_type": "news_major",
-                                                           "core.page_verdict": "confirms_absence"})])
-    assert ok.sources[0].genai_evidence == "confirms_absence" and ok.sources[0].source_type == "news_major"
+def test_consolidated_response_is_the_v27_model_with_keys_from_storage(tmp_path):
+    """RC-D-028 4 a: identity and row keys only; every value stays in 6_storage.json."""
+    from g3o.common.response_v27 import ConsolidatedInstitutionResponseV27, parse_validate_payload
+    from tests._storage_fixture import fixture_bundle
+
+    data, _, _, envelope = fixture_bundle(tmp_path)
+    master_row = {**_identity(), "has_genai_activity": "yes", "tool_name": "Copilot"}  # non-identity: not read
+    response = s6.consolidated_response(institution=master_row, metadata=_meta(), storage=envelope)
+    assert isinstance(response, ConsolidatedInstitutionResponseV27)
+    payload = response.model_dump(mode="json")
+    assert payload["institution"] == _identity()
+    assert payload["activities"] == [{"activity_id": "A1"}, {"activity_id": "A2"}]
+    assert payload["sources"] == [{"source_id": "S1", "activity_id": "A1"}, {"source_id": "S2", "activity_id": "A2"}]
+    assert s6.consolidated_response(institution=_identity(), metadata=_meta(), storage=data) == response
+    keyed = s6.consolidated_response(institution=_identity(), metadata=_meta(), activity_ids=["A1", "A2"],
+                                     sources=[("S1", "A1"), ("S2", "A2")])
+    assert keyed == response
+    with pytest.raises(ValueError, match="not both"):
+        s6.consolidated_response(institution=_identity(), metadata=_meta(), storage=envelope,
+                                 activity_ids=["A1", "A2"], sources=[("S1", "A1"), ("S2", "A2")])
+    with pytest.raises(ValueError, match="are required"):
+        s6.consolidated_response(institution=_identity(), metadata=_meta(), activity_ids=["A1"])
+
+    paths = s6.write_stage6_outputs(tmp_path / "inst", envelope=envelope, institution=_identity(),
+                                    metadata=_meta(), provenance=[])
+    written = json.loads(paths[0].read_text(encoding="utf-8"))
+    assert parse_validate_payload(written) == response
+    for value_field in ("has_genai_activity", "tool_name", "genai_evidence", "source_url", "values"):
+        assert value_field not in json.dumps(written)
+    assert json.loads(paths[1].read_text(encoding="utf-8"))["activities"].keys() == data["activities"].keys()
 
 
-def test_consolidated_response_never_fills_retired_columns_without_a_signed_fill():
-    values = {"core.activity_name": "Copilot pilot", "core.activity_type": "internal_operational",
-              "core.adoption_stage": "pilot", "core.tool_name": ["Copilot"], "core.deployment_mode": "integrated",
-              "core.target_users": "internal_staff", "core.year_announced": "2025",
-              "core.year_pilot_start": "2025", "core.year_production_start": "unknown",
-              "core.has_human_oversight": "yes", "core.has_transparency_notice": "no",
-              "core.has_data_classification": "no", "core.has_risk_assessment": "no",
-              "core.reported_outcomes": "none_reported", "core.reported_incidents": "none_reported",
-              "core.n_sources": 1, "core.confidence": "high", "core.uncertainty_flags": "none"}
-    with pytest.raises(s6.ContractGapError) as err:
+def test_consolidated_response_is_bound_to_its_storage(tmp_path):
+    from tests._storage_fixture import fixture_bundle
+
+    data, _, _, envelope = fixture_bundle(tmp_path)
+    relinked = s6.consolidated_response(institution=_identity(), metadata=_meta(), activity_ids=["A1", "A2"],
+                                        sources=[("S1", "A2"), ("S2", "A1")])
+    with pytest.raises(ValueError, match="activity link differs"):
+        s6.write_stage6_artifacts(tmp_path / "inst", envelope, relinked, [])
+    with pytest.raises(ValueError, match="different institutions"):
         s6.consolidated_response(institution=_identity(), metadata=_meta(),
-                                 summary={"core.has_genai_activity": "yes", "core.institution_summary": "x"},
-                                 activities=[("A1", values)], sources=[])
-    gaps = " ".join(err.value.gaps)
-    assert "access_type: no v2.7 value" in gaps and "vendor: no v2.7 value" in gaps
-    assert "year_deployed:" not in gaps  # signed translation: earlier start year
+                                 storage={**data, "institution_id": "INST-0002"})
+    with pytest.raises(ValueError, match="non-2.7 storage"):
+        s6.consolidated_response(institution=_identity(), metadata=_meta(),
+                                 storage={**data, "codebook_release": "2.6"})
+    with pytest.raises(KeyError):  # an identity column is required, never defaulted
+        s6.consolidated_response(institution={k: v for k, v in _identity().items() if k != "country"},
+                                 metadata=_meta(), storage=envelope)
 
 
 # --- RC-D-028 5a-5f (confirmed by the PI; pinned) ------------------------------------

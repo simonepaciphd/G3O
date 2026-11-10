@@ -61,6 +61,7 @@ import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from itertools import combinations
+from pathlib import Path
 from typing import Any
 
 from g3o.classify.jev_activity_code import (
@@ -86,7 +87,15 @@ from g3o.common.page_chunks import (
     TokenEstimator,
     prepare_pool_requests,
 )
+from g3o.common.response_v27 import (
+    ConsolidatedInstitutionResponseV27,
+    InstitutionIdentityV27,
+    build_response_v27,
+    check_storage_binding,
+    response_from_storage,
+)
 from g3o.common.source_fields import PendingCheck, SourceConfidence, source_confidence_rule
+from g3o.common.storage import StorageEnvelope
 from g3o.common.support_check import (
     NO_QUOTE,
     SET_BY_RULE,
@@ -98,6 +107,7 @@ from g3o.common.support_check import (
     check_code,
 )
 from g3o.extract.years import extract_year_candidates
+from g3o.persist.stage6_adapters import write_stage6_artifacts
 from g3o.validate.consolidate_v27 import (
     MISSING,
     ActivityObservation,
@@ -807,104 +817,51 @@ def run_stage6(*, institution: str, country: str | None, pages: Sequence[Reviewe
 # ---------------------------------------------------------------------------
 
 
-class ContractGapError(ValueError):
-    """A v2.7 value the legacy ``ConsolidatedInstitutionResponse`` cannot carry; never filled."""
-
-    def __init__(self, gaps: Sequence[str]) -> None:
-        self.gaps = tuple(gaps)
-        super().__init__("6_validate.json cannot carry v2.7 values without a contract decision "
-                         "(T-012 contract / T-028 writer): " + "; ".join(self.gaps))
-
-
-def _year_deployed(values: Mapping[str, Any]) -> str:
-    """Signed translation (``core.year_pilot_start`` translation_v25, R-051): the earlier of
-    the two start years; if only one is a year, that year; if neither, unknown."""
-    years = [v for v in (values.get("core.year_pilot_start"), values.get("core.year_production_start"))
-             if isinstance(v, str) and len(v) == 4 and v.isdigit()]
-    return min(years) if years else "unknown"
-
-
-def _retired_fills() -> dict[str, Any]:
-    from g3o.codebook.loader import load_codebook
-
-    return {r["name"]: r.get("legacy_fill") for r in load_codebook().data["retired"] if "kind" not in r}
-
-
 def consolidated_response(*, institution: Mapping[str, Any], metadata: Mapping[str, Any],
-                          summary: Mapping[str, Any], activities: Sequence[tuple[str, Mapping[str, Any]]],
-                          sources: Sequence[tuple[str, str, Mapping[str, Any]]]) -> Any:
-    """Build and validate the ``ConsolidatedInstitutionResponse`` for one institution.
+                          storage: StorageEnvelope | Mapping[str, Any] | None = None,
+                          activity_ids: Sequence[str] | None = None,
+                          sources: Sequence[tuple[str, str]] | None = None) -> ConsolidatedInstitutionResponseV27:
+    """The v2.7 ``6_validate.json`` response for one institution (RC-D-028 4 a).
 
-    ``institution``: the master identity columns (id, name, country, branch,
-    level, search languages) - pipeline data, not codes. ``summary`` /
-    ``activities`` (``(activity_id, values)``) / ``sources`` (``(source_id,
-    activity_id, values)``) hold the final v2.7 values by item id, the same
-    values that go into ``6_storage.json``. Shared columns take the v2.7 value;
-    retired columns take only their signed ``legacy_fill`` (codebook
-    ``retired``) or signed translation (``year_deployed``). Everything the
-    legacy model cannot carry is collected and refused in one
-    :class:`ContractGapError`; no value is substituted.
+    Identity and row keys only; every value lives in ``6_storage.json``.
+    ``institution`` is read for the six master identity columns only (pipeline
+    data, not codes). With ``storage`` (the envelope or its data) the row keys
+    are those of the storage rows and the response is checked against it
+    (:func:`~g3o.common.response_v27.check_storage_binding`); without it the
+    caller passes ``activity_ids`` and ``sources`` (``(source_id,
+    activity_id)``) and the binding is checked when the artifacts are written.
+    Retired legacy columns are filled downstream only by
+    :func:`~g3o.common.response_v27.retired_legacy_cells`.
     """
-    from pydantic import ValidationError
+    identity = {name: institution[name] for name in InstitutionIdentityV27.model_fields}
+    if storage is not None:
+        if activity_ids is not None or sources is not None:
+            raise ValueError("row keys come from the storage envelope; pass storage or keys, not both")
+        data = storage.data if isinstance(storage, StorageEnvelope) else storage
+        response = response_from_storage(institution=identity, metadata=metadata, storage=data)
+        check_storage_binding(response, data)
+        return response
+    if activity_ids is None or sources is None:
+        raise ValueError("without a storage envelope, activity_ids and sources are required")
+    return build_response_v27(institution=identity, metadata=metadata, activity_ids=activity_ids,
+                              sources=sources)
 
-    from g3o.common.contract import (
-        ConsolidatedActivity,
-        ConsolidatedInstitution,
-        ConsolidatedInstitutionResponse,
-        SourceRecord,
-    )
-    from g3o.common.storage import table_fields
 
-    fills = _retired_fills()
-    gaps: list[str] = []
-
-    def project(model: Any, table: str, values: Mapping[str, Any], fixed: Mapping[str, Any], label: str
-                ) -> dict[str, Any]:
-        by_column = {f["column_or_member"]: k for k, f in table_fields(table).items()}
-        row: dict[str, Any] = dict(fixed)
-        for name in model.model_fields:
-            if name in row:
-                continue
-            if name in by_column and by_column[name] in values:
-                value = values[by_column[name]]
-                row[name] = "|".join(value) if isinstance(value, list) else value
-            elif name == "year_deployed":
-                row[name] = _year_deployed(values)
-            elif name == "genai_evidence" and "core.page_verdict" in values:
-                row[name] = values["core.page_verdict"]
-            elif name in fills and isinstance(fills[name], str):
-                row[name] = fills[name]
-            else:
-                gaps.append(f"{label}.{name}: no v2.7 value and no signed legacy fill")
-        try:
-            model.model_validate(row)
-        except ValidationError as exc:
-            for err in exc.errors():
-                loc = ".".join(str(x) for x in err["loc"]) or "-"
-                shown = f" (value {err['input']!r})" if err["loc"] else ""
-                gaps.append(f"{label}.{loc}: {err['msg'][:160]}{shown}")
-        return row
-
-    inst = project(ConsolidatedInstitution, "summary", summary, institution, "institution")
-    acts = [project(ConsolidatedActivity, "activities", v, {"activity_id": aid}, f"activities[{aid}]")
-            for aid, v in activities]
-    srcs = [project(SourceRecord, "sources", v, {"source_id": sid, "activity_id": aid}, f"sources[{sid}]")
-            for sid, aid, v in sources]
-    if gaps:
-        raise ContractGapError(gaps)
-    try:
-        return ConsolidatedInstitutionResponse.model_validate(
-            {"consolidation_metadata": dict(metadata), "institution": inst, "activities": acts, "sources": srcs})
-    except ValidationError as exc:  # cross-row legacy checks (e.g. RC-D-025 P9, being fixed under T-012)
-        raise ContractGapError([f"response: {e['msg'][:240]}" for e in exc.errors()]) from exc
+def write_stage6_outputs(inst_dir: Path, *, envelope: StorageEnvelope, institution: Mapping[str, Any],
+                         metadata: Mapping[str, Any], provenance: Sequence[Mapping[str, Any]] | None
+                         ) -> tuple[Path, Path, Path]:
+    """Build the v2.7 response from ``envelope`` and write the three Stage 6 artifacts."""
+    response = consolidated_response(institution=institution, metadata=metadata, storage=envelope)
+    return write_stage6_artifacts(inst_dir, envelope, response, provenance)
 
 
 __all__ = [
-    "CODER_VERSION", "ContractGapError", "NUMBER_ITEM", "POOLED_NANO_GATE", "POOLED_STATED_NUMBERS_DIFFER",
+    "CODER_VERSION", "NUMBER_ITEM", "POOLED_NANO_GATE", "POOLED_STATED_NUMBERS_DIFFER",
     "PREFILTER_RULE",
     "QUOTE_STEP_ABSENT", "QUOTE_STEP_FAILED", "RELATION_ITEM", "RELATION_OVER_BUDGET", "Held", "InputQuote",
     "ObservationRecord", "PooledActivity", "QuoteFn", "RelationOutcome", "Stage6Config", "Stage6Quote",
-    "Stage6QuoteNotApproved", "Stage6QuoteRequest", "Stage6Result", "code_relation", "consolidated_response", "permanent_pilot_override", "cross_page_pairs", "pool_activity",
+    "Stage6QuoteNotApproved", "Stage6QuoteRequest", "Stage6Result", "code_relation", "consolidated_response", "cross_page_pairs",
+    "permanent_pilot_override", "pool_activity",
     "pooled_state", "prefilter_distinct", "record_state", "relation_state", "run_stage6", "stated_numbers",
-    "source_claim_confidence", "source_claim_records",
+    "source_claim_confidence", "source_claim_records", "write_stage6_outputs",
 ]
