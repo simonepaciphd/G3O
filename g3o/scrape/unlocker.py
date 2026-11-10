@@ -112,10 +112,10 @@ class UnlockerResult:
     #: discards, because Bright Data's notion of a successful request is a
     #: delivered response, not our stricter gate. The conservative reading for a
     #: spend ceiling. Zero for errors, empty bodies and transport failures.
-    #: For a body abandoned past the size cap it is the bytes actually read
-    #: before abandoning (at most cap + one chunk; zero when an advertised
-    #: ``Content-Length`` refused it unread) -- a lower bound on what Bright
-    #: Data delivered, since bytes in flight when the stream closed are unseen.
+    #: For a body abandoned past the size cap (RC-D-025 B4 b, PI 2026-11-10)
+    #: it is the advertised ``Content-Length`` when that header is present and
+    #: parseable, otherwise the bytes actually read before abandoning (at most
+    #: cap + one chunk).
     billable_bytes: int = 0
 
 
@@ -136,6 +136,18 @@ def redact(text: str) -> str:
     if not token or not text or len(token) < 8:
         return text
     return text.replace(token, "<unlocker-token redacted>")
+
+
+def _advertised_length(headers) -> int | None:
+    """Parsed non-negative ``Content-Length``, or None when absent/unparseable."""
+    raw = headers.get("content-length")
+    if raw is None:
+        return None
+    try:
+        value = int(raw)
+    except (ValueError, TypeError):
+        return None
+    return value if value >= 0 else None
 
 
 def _read_capped(resp: requests.Response) -> tuple[bytes, int, str | None]:
@@ -226,6 +238,13 @@ def _parse_response(
             error=error, error_code=error_code, elapsed_ms=elapsed_ms,
         )
     if too_large is not None:
+        # RC-D-025 B4 b (PI 2026-11-10): an abandoned body is billed at the
+        # advertised Content-Length when the header is present and parseable,
+        # else at the bytes actually read. Same transport-200 / no-brd-error
+        # condition as any delivered body.
+        advertised = _advertised_length(headers)
+        if advertised is not None and resp.status_code == 200:
+            billable = advertised
         return UnlockerResult(
             success=False, content=b"", inner_status=inner_status,
             error=too_large, error_code=None, elapsed_ms=elapsed_ms,

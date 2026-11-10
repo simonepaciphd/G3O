@@ -191,7 +191,7 @@ def test_fetch_over_cap_stops_reading_and_fails(
     assert result.error_code is None
     assert stream.pulled == 2
     assert not stream.exhausted
-    # Billable = bytes actually read before abandoning.
+    # No Content-Length: billable = bytes actually read (RC-D-025 B4 b).
     assert result.billable_bytes == 120
     resp.close.assert_called_once()
 
@@ -209,7 +209,41 @@ def test_fetch_over_cap_by_advertised_length_reads_nothing(
     assert result.error is not None
     assert result.error.startswith(unlocker.RESPONSE_TOO_LARGE_ERROR)
     assert stream.pulled == 0
-    assert result.billable_bytes == 0
+    # RC-D-025 B4 b: billed at the advertised Content-Length.
+    assert result.billable_bytes == small_cap + 1
+    resp.close.assert_called_once()
+
+
+def test_fetch_over_cap_streamed_bills_advertised_length_when_present(
+    unlocker_configured: None, small_cap: int, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Advertised length under the cap (e.g. compressed on the wire), decoded
+    # body over it: RC-D-025 B4 b bills the advertised length, not bytes read.
+    resp, stream = _streamed_response(
+        [b"a" * 60, b"b" * 60, b"c" * 60],
+        headers={"x-brd-status-code": "200", "content-length": "90"},
+    )
+    _capture_post(monkeypatch, resp)
+    result = unlocker.fetch("https://example.com")
+    assert result.success is False
+    assert result.error is not None
+    assert result.error.startswith(unlocker.RESPONSE_TOO_LARGE_ERROR)
+    assert stream.pulled == 2
+    assert result.billable_bytes == 90
+    resp.close.assert_called_once()
+
+
+def test_fetch_over_cap_unparseable_length_bills_bytes_read(
+    unlocker_configured: None, small_cap: int, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    resp, _ = _streamed_response(
+        [b"a" * 60, b"b" * 60, b"c" * 60],
+        headers={"x-brd-status-code": "200", "content-length": "abc"},
+    )
+    _capture_post(monkeypatch, resp)
+    result = unlocker.fetch("https://example.com")
+    assert result.success is False
+    assert result.billable_bytes == 120
     resp.close.assert_called_once()
 
 
