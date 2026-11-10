@@ -3,7 +3,10 @@
 Walks ``runs/<run_id>/institutions/<shard>/<institution_id>/6_validate.json``
 for every institution in a run (storage layout v2 — see
 ``docs/storage-layout-v2.md``), validates each payload against
-``g3o.common.contract.ConsolidatedInstitutionResponse``, and writes three
+``g3o.common.contract.ConsolidatedInstitutionResponse`` (legacy v2.5/2.6) or,
+for a payload whose ``format`` names it, the v2.7 identity-and-keys model
+``g3o.common.response_v27.ConsolidatedInstitutionResponseV27`` (RC-D-028 4 a:
+every v2.7 value is read from ``6_storage.json``), and writes three
 canonical CSVs to ``runs/<run_id>/final/``:
 
 - ``g3o_activities_v{N}.csv``         (one row per ``(institution × activity)``)
@@ -34,15 +37,24 @@ from typing import Any
 from g3o.common import attrition
 from g3o.common.contract import (
     INSTITUTION_UID_PATTERN,
-    ConsolidatedInstitutionResponse,
     PersistedActivity,
     PersistedSource,
     ValidationProvenance,
 )
 from g3o.common.paths import institution_uid_map, iter_institution_dirs, require_layout
+from g3o.common.response_v27 import (
+    AnyValidateResponse,
+    ConsolidatedInstitutionResponseV27,
+    check_storage_binding,
+    list_members,
+    parse_validate_payload,
+    retired_legacy_cells,
+)
 from g3o.common.schema import (
     ACTIVITY_COLUMNS,
+    ACTIVITY_COLUMNS_V25,
     ACTIVITY_SOURCE_COLUMNS,
+    ACTIVITY_SOURCE_COLUMNS_V25,
     SUMMARY_COLUMNS,
     SUMMARY_COLUMNS_V25,
 )
@@ -110,7 +122,8 @@ class LoadedInstitution:
     """One institution's consolidated payload + the on-disk path it came from."""
 
     institution_id: str
-    response: ConsolidatedInstitutionResponse
+    #: Legacy response, or the v2.7 identity/keys response (values in ``storage``).
+    response: AnyValidateResponse
     source_path: Path
     #: The master's permanent key for this institution, off the run manifest.
     #: Not on ``response``: that object is parsed from Stage 6 model output.
@@ -161,7 +174,7 @@ def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], l
             continue
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
-            response = ConsolidatedInstitutionResponse.model_validate(payload)
+            response = parse_validate_payload(payload)
         except Exception as exc:
             logger.warning("Stage 7: %s failed to load: %s", inst_dir.name, exc)
             failures.append(inst_dir.name)
@@ -173,6 +186,11 @@ def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], l
             continue
         storage_path = inst_dir / "6_storage.json"
         storage = None
+        is_v27 = isinstance(response, ConsolidatedInstitutionResponseV27)
+        if is_v27 and declared_release not in (None, "2.7"):
+            raise ValueError(f"{institution_id}: v2.7 6_validate.json in a {declared_release} run")
+        if is_v27 and not storage_path.exists():
+            raise ValueError(f"{institution_id}: v2.7 6_validate.json lacks its 6_storage.json")
         if storage_path.exists():
             storage = StorageEnvelope.load(storage_path, run_dir / "final" / "instruments", artifact_root=run_dir)
             if declared_release is not None and declared_release != storage.data["codebook_release"]:
@@ -181,6 +199,8 @@ def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], l
                 raise ValueError("storage envelope is bound to another institution")
             if set(storage.data["activities"]) != {a.activity_id for a in response.activities} or set(storage.data["sources"]) != {v.source_id for v in response.sources}:
                 raise ValueError("storage row identifiers differ from consolidated rows")
+            if is_v27:
+                check_storage_binding(response, storage.data)
         elif declared_release == "2.7":
             raise ValueError(f"{institution_id}: 2.7 run lacks explicit 6_storage.json")
         loaded.append(
@@ -279,7 +299,7 @@ def _pipe_join(values: Iterable[str]) -> str:
 
 
 def build_activity_rows(
-    response: ConsolidatedInstitutionResponse,
+    response: AnyValidateResponse,
     *,
     run_id: str,
     run_model: str,
@@ -298,6 +318,21 @@ def build_activity_rows(
     sweep_uid = sweep_uid_for(institution_uid)
     rows: list[dict[str, Any]] = []
     institution = response.institution
+    if isinstance(response, ConsolidatedInstitutionResponseV27):
+        data = _v27_storage(response, storage)
+        inst_cells = _v27_institution_cells(response, data)
+        for activity in response.activities:
+            provenance = ValidationProvenance(
+                global_row_id=_activity_global_row_id(run_id, institution.institution_id, activity.activity_id),
+                run_id=run_id, run_model=run_model, run_tool=run_tool, run_date=run_date,
+                institution_uid=institution_uid, sweep_uid=sweep_uid,
+            )
+            values = data["activities"][activity.activity_id]["values"]
+            base = {**provenance.model_dump(), **inst_cells, "activity_id": activity.activity_id,
+                    **retired_legacy_cells(_V25_ONLY["activities"], values)}
+            rows.append(storage.row("activities", activity.activity_id, base, run_id=run_id,
+                                    institution_uid=institution_uid))
+        return rows
     for activity in response.activities:
         provenance = ValidationProvenance(
             global_row_id=_activity_global_row_id(
@@ -320,7 +355,7 @@ def build_activity_rows(
 
 
 def build_source_rows(
-    response: ConsolidatedInstitutionResponse,
+    response: AnyValidateResponse,
     *,
     run_id: str,
     run_model: str,
@@ -345,6 +380,24 @@ def build_source_rows(
     salvaged_by_source = salvaged_by_source or {}
     rows: list[dict[str, Any]] = []
     institution_id = response.institution.institution_id
+    if isinstance(response, ConsolidatedInstitutionResponseV27):
+        data = _v27_storage(response, storage)
+        for source in response.sources:
+            provenance = ValidationProvenance(
+                global_row_id=_source_global_row_id(run_id, institution_id, source.source_id),
+                run_id=run_id, run_model=run_model, run_tool=run_tool, run_date=run_date,
+                institution_uid=institution_uid, sweep_uid=sweep_uid,
+            )
+            values = data["sources"][source.source_id]["values"]
+            base = {**provenance.model_dump(), "institution_id": institution_id,
+                    "source_id": source.source_id, "activity_id": source.activity_id,
+                    "source_url": values["core.source_url"],
+                    "group_d_salvaged_fields": salvaged_by_source.get(
+                        (institution_id, values["core.source_url"]), ""),
+                    **retired_legacy_cells(_V25_ONLY["sources"], values)}
+            rows.append(storage.row("sources", source.source_id, base, run_id=run_id,
+                                    institution_uid=institution_uid))
+        return rows
     for source in response.sources:
         provenance = ValidationProvenance(
             global_row_id=_source_global_row_id(
@@ -372,7 +425,7 @@ def build_source_rows(
 
 
 def build_summary_row(
-    response: ConsolidatedInstitutionResponse,
+    response: AnyValidateResponse,
     *,
     run_id: str,
     institution_uid: str,
@@ -390,6 +443,9 @@ def build_summary_row(
     deterministic restatement of the uid.
     """
     run_date = run_date or _utc_today()
+    if isinstance(response, ConsolidatedInstitutionResponseV27):
+        return _v27_summary_row(response, storage, run_id=run_id, institution_uid=institution_uid,
+                                run_date=run_date)
     institution = response.institution
     activities = response.activities
     sources = response.sources
@@ -432,6 +488,86 @@ def build_summary_row(
         raise RuntimeError(f"summary row missing required columns: {missing}")
     return (storage.row("summary", None, row, run_id=run_id, institution_uid=institution_uid)
             if storage is not None else legacy_row("summary", row, storage_metadata))
+
+
+# ---------------------------------------------------------------------------
+# v2.7 rows: identity/keys from 6_validate.json, every value from 6_storage.json
+# ---------------------------------------------------------------------------
+
+_IDENTITY_COLUMNS = ("institution_id", "institution_name", "country", "branch_of_government",
+                     "level_of_government", "institution_search_languages")
+
+
+def _v25_only(table: str, legacy: list[str]) -> tuple[str, ...]:
+    from g3o.common.storage import table_fields
+
+    mapped = {f["column_or_member"] for f in table_fields(table).values()}
+    return tuple(c for c in legacy if c not in mapped)
+
+
+_V25_ONLY = {"activities": _v25_only("activities", ACTIVITY_COLUMNS_V25),
+             "sources": _v25_only("sources", ACTIVITY_SOURCE_COLUMNS_V25)}
+
+
+def _v27_storage(response: ConsolidatedInstitutionResponseV27, storage: StorageEnvelope | None) -> dict[str, Any]:
+    if storage is None:
+        raise ValueError(f"{response.institution.institution_id}: v2.7 rows are written only from 6_storage.json")
+    data = storage.data
+    check_storage_binding(response, data)
+    return data
+
+
+def _v27_institution_cells(response: ConsolidatedInstitutionResponseV27, data: dict[str, Any]) -> dict[str, Any]:
+    """Identity from the response; the institution values from storage ``summary``."""
+    summary = data["summary"]["values"]
+    return {**{c: getattr(response.institution, c) for c in _IDENTITY_COLUMNS},
+            "has_genai_activity": summary["core.has_genai_activity"],
+            "institution_summary": summary["core.institution_summary"]}
+
+
+def _v27_summary_row(response: ConsolidatedInstitutionResponseV27, storage: StorageEnvelope | None, *,
+                     run_id: str, institution_uid: str, run_date: str) -> dict[str, Any]:
+    """Legacy summary columns for a v2.7 institution, computed from storage values.
+
+    The counts and lists restate storage values by the legacy rules
+    (:func:`build_summary_row`); ``vendors_found`` stays empty because the
+    retired ``vendor`` has no v2.7 value and no signed fill.
+    """
+    data = _v27_storage(response, storage)
+    acts = [data["activities"][a.activity_id]["values"] for a in response.activities]
+    srcs = [data["sources"][s.source_id]["values"] for s in response.sources]
+    cred = {"high": 0, "medium": 0, "low": 0}
+    for s in srcs:
+        if s["core.source_credibility"] in cred:
+            cred[s["core.source_credibility"]] += 1
+    flags = sorted({f for a in acts for f in list_members(a["core.uncertainty_flags"]) if f != "none"})
+    best, rank = "_NA_", 0
+    for a in acts:
+        if _CONFIDENCE_ORDER.get(a["core.confidence"], 0) > rank:
+            best, rank = a["core.confidence"], _CONFIDENCE_ORDER[a["core.confidence"]]
+    row = {
+        "institution_uid": institution_uid,
+        **_v27_institution_cells(response, data),
+        "run_id": run_id,
+        "run_date": run_date,
+        "n_pages_extracted": response.consolidation_metadata.n_input_pages,
+        "n_activities": len(acts),
+        "n_sources": len(srcs),
+        "n_high_credibility_sources": cred["high"],
+        "n_medium_credibility_sources": cred["medium"],
+        "n_low_credibility_sources": cred["low"],
+        "activities_found": _pipe_join(a["core.activity_name"] for a in acts),
+        "tools_found": _pipe_join(sorted({t for a in acts for t in list_members(a["core.tool_name"])
+                                          if t != "unknown"})),
+        "vendors_found": None,
+        "best_confidence": best,
+        "consolidated_uncertainty_flags": ";".join(flags) if flags else "none",
+    }
+    missing = [c for c in SUMMARY_COLUMNS_V25 if c not in row]
+    if missing:
+        raise RuntimeError(f"summary row missing required columns: {missing}")
+    assert storage is not None
+    return storage.row("summary", None, row, run_id=run_id, institution_uid=institution_uid)
 
 
 # ---------------------------------------------------------------------------
