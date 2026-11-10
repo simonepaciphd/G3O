@@ -15,6 +15,7 @@ from typing import Any
 
 from g3o.common.instrument import canonical_json, load_instrument, sha256_text, validate_instrument
 from g3o.common.storage_fields import FIELDS
+from g3o.common.support_check import match_quote
 
 CHANNELS = ("web_extract", "procurement", "ai_text")
 COMMON_COLUMNS = ["codebook_release", "setup_pointer", "evidence_channel", "item_support_json",
@@ -155,6 +156,55 @@ def email_domain_counts(emails: list[str] | str) -> list[dict[str, Any]] | str:
         return normalized
     counts = Counter(email.rpartition("@")[2] for email in normalized)
     return [{"domain": domain, "count": counts[domain]} for domain in sorted(counts)]
+
+
+QUOTE_SEGMENT = "quote_segment"  # passage discriminator: the quote is checked by R-042 on a named segment
+QUOTE_SOURCE = "quote_source_id"  # pooled supports also name the input source claim the segment belongs to
+
+
+def _segment_text(record: dict[str, Any], page_text: str, *, pooled: bool) -> str | None:
+    """The page segment a segment-form passage names, or None when the record has no quote.
+
+    The segment is the producing part (``chunk_id``) or the page's chrome text
+    (``<page>#chrome``) for a ``main_plus_chrome`` item (R-042, R-044, r2#48);
+    its span locates it in the stored page artifact.
+    """
+    passage = record["passage"]
+    keys = {QUOTE_SEGMENT, "segment_span"} | ({QUOTE_SOURCE} if pooled else set())
+    if set(passage) != keys:
+        raise ValueError(f"segment passage requires exactly {sorted(keys)}")
+    if passage[QUOTE_SEGMENT] is None:
+        if passage["segment_span"] is not None or record["supporting_text"] or (pooled and passage[QUOTE_SOURCE] is not None):
+            raise ValueError("a support without a quote names no quote segment")
+        return None
+    _string(passage[QUOTE_SEGMENT], "quote segment")
+    if pooled:
+        _string(passage[QUOTE_SOURCE], "pooled quote source")
+    span = passage["segment_span"]
+    if (not isinstance(span, list) or len(span) != 2 or any(type(v) is not int for v in span)
+            or not 0 <= span[0] <= span[1] <= len(page_text)):
+        raise ValueError("invalid support quote segment span")
+    if not record["supporting_text"]:
+        raise ValueError("a quote segment without a quote")
+    return page_text[span[0]:span[1]]
+
+
+def _check_segment(record: dict[str, Any], producing_parts: set[str | None]) -> None:
+    segment = record["passage"][QUOTE_SEGMENT]
+    if segment in producing_parts:
+        return
+    if segment.endswith("#chrome"):
+        from g3o.common.support_check import default_rules
+
+        if default_rules().items[record["item_id"]].get("input_text") == "main_plus_chrome":
+            return
+    raise ValueError("support quote segment is neither the producing part nor allowed chrome")
+
+
+def _check_quote_match(record: dict[str, Any], segment_text: str) -> None:
+    """R-042 via the T-024 matcher (calibrated fuzzy match OR 80% word presence)."""
+    if not match_quote(record["supporting_text"], segment_text).matched:
+        raise ValueError("support quote fails the R-042 match on its named page segment")
 
 
 def support_id(run_id: str, institution_uid: str, record: dict[str, Any]) -> str:
@@ -410,9 +460,14 @@ class StorageEnvelope:
                 source = sources[sid]
                 if record["page_content_sha256"] != source["page_content_sha256"]:
                     raise ValueError("support is bound to a different page artifact")
-                if record["supporting_text"] and record["supporting_text"] not in source["_page_text"]:
-                    raise ValueError("support text is not verbatim in its actual page")
                 passage = record["passage"]
+                if QUOTE_SEGMENT in passage:
+                    segment_text = _segment_text(record, source["_page_text"], pooled=False)
+                    if segment_text is not None:
+                        _check_segment(record, {record["chunk_id"]})
+                        _check_quote_match(record, segment_text)
+                elif record["supporting_text"] and record["supporting_text"] not in source["_page_text"]:
+                    raise ValueError("support text is not verbatim in its actual page")
                 if "start" in passage or "end" in passage:
                     if set(passage) != {"start", "end"} or type(passage["start"]) is not int or type(passage["end"]) is not int or not 0 <= passage["start"] <= passage["end"] <= len(source["_page_text"]):
                         raise ValueError("invalid support passage span")
@@ -420,6 +475,30 @@ class StorageEnvelope:
                         raise ValueError("support passage span does not identify its quote")
             elif oid is not None and oid not in self.observation_sources:
                 raise ValueError("pooled support observation does not resolve")
+        all_rows = [self._data["summary"], *activities.values(), *sources.values()]
+        classifier_backed = {c["support_id"] for row in all_rows for c in row["coder_records"]
+                             if c["coder_type"] == "classifier"}
+
+        def downgrade_final(support: dict[str, Any]) -> bool:
+            """A mechanical FINAL node of a classifier downgrade (R-041, R-081).
+
+            Each input is the ORIGINAL classifier support of the same item, part
+            and context with the same ``downgraded_*`` status and the original
+            code; the original stays stored with its own classifier record.
+            """
+            inputs = support["input_support_ids"]
+            if not support["support_status"].startswith("downgraded_") or not inputs:
+                return False
+            if FIELDS[support["item_id"]]["coder"] != "classifier":
+                return False
+            context = ("item_id", "item_part", "observation_id", "source_id", "chunk_id", "support_status")
+            for prior in inputs:
+                original = self.supports[prior]
+                if (any(original[k] != support[k] for k in context) or original["input_support_ids"]
+                        or original["value_json"] == support["value_json"] or prior not in classifier_backed):
+                    return False
+            return True
+
         for table in ("activities", "sources", "summary"):
             rows = [self._data[table]] if table == "summary" else self._data[table].values()
             for row in rows:
@@ -429,7 +508,8 @@ class StorageEnvelope:
                     support = self.supports[coder["support_id"]]
                     if (coder["item_id"], coder["item_part"], coder["chosen_value"], coder["observation_id"], coder["chunk_id"]) != (support["item_id"], support["item_part"], support["value_json"], support["observation_id"], support["chunk_id"]):
                         raise ValueError("coder provenance does not match its support key")
-                    expected = "mechanical" if support["support_status"] == "set_by_rule" else FIELDS[support["item_id"]]["coder"]
+                    expected = ("mechanical" if support["support_status"] == "set_by_rule" or downgrade_final(support)
+                                else FIELDS[support["item_id"]]["coder"])
                     if coder["coder_type"] != expected:
                         raise ValueError("coder type does not match the actual rule/provider context")
                 for support in row["item_support"]:
@@ -448,7 +528,17 @@ class StorageEnvelope:
         # Traverse every record, including summary-only pooled provenance.
         for sid, support in self.supports.items():
             evidence = origins(sid)
-            if support["source_id"] is None and support["supporting_text"]:
+            if support["source_id"] is None and QUOTE_SEGMENT in support["passage"]:
+                quote_source = support["passage"].get(QUOTE_SOURCE)
+                named = isinstance(quote_source, str)
+                if named and quote_source not in {s for _, s in evidence}:
+                    raise ValueError("pooled quote source is not an input of this support")
+                page_text = sources[quote_source]["_page_text"] if named and quote_source in sources else ""
+                segment_text = _segment_text(support, page_text, pooled=True)
+                if segment_text is not None:
+                    _check_segment(support, self._input_parts(sid, quote_source))
+                    _check_quote_match(support, segment_text)
+            elif support["source_id"] is None and support["supporting_text"]:
                 if not any(source_id in sources and support["supporting_text"] in sources[source_id]["_page_text"] for _, source_id in evidence):
                     raise ValueError("pooled support quote is not verbatim in an input page")
         for table in ("activities", "sources"):
@@ -462,6 +552,21 @@ class StorageEnvelope:
                     if table == "activities" and any(oid not in row["observation_ids"] for oid, _ in evidence):
                         raise ValueError("activity borrowed another observation's pooled support")
         self._validate_review_depth()
+
+    def _input_parts(self, sid: str, source_id: str) -> set[str | None]:
+        """Producing parts of the source-bound supports a pooled support was built from."""
+        parts: set[str | None] = set()
+        pending, seen = list(self.supports[sid]["input_support_ids"]), set()
+        while pending:
+            prior = pending.pop()
+            if prior in seen:
+                continue
+            seen.add(prior)
+            record = self.supports[prior]
+            if record["source_id"] == source_id:
+                parts.add(record["chunk_id"])
+            pending.extend(record["input_support_ids"])
+        return parts
 
     def _validate_review_depth(self) -> None:
         depth = self._data["summary"]["values"]["core.review_depth"]

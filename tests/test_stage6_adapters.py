@@ -14,10 +14,10 @@ from dataclasses import replace
 import pytest
 
 from g3o.common.contract import ConsolidatedInstitutionResponse
-from g3o.common.instrument import build_instrument
+from g3o.common.instrument import build_instrument, canonical_json, sha256_text
 from g3o.common.jev_client import JevAnswer, JevResult
 from g3o.common.jev_record import ClassifierRule, CoderRecord
-from g3o.common.storage import StorageEnvelope
+from g3o.common.storage import StorageEnvelope, support_id
 from g3o.common.storage_fields import CODEBOOK_SHA256
 from g3o.common.support_check import CodeEvidence, Entailment, PageSources, check_code, match_quote
 from g3o.persist.stage6_adapters import (
@@ -27,6 +27,7 @@ from g3o.persist.stage6_adapters import (
     activity_confidence_value,
     assemble_storage,
     coder_nodes,
+    load_support_provenance,
     source_confidence,
     support_nodes,
     write_stage6_artifacts,
@@ -142,14 +143,60 @@ def test_rejected_quote_is_downgraded_and_retained_verbatim(tmp_path):
     assert nodes.final["supporting_text"] == ""  # no fabricated replacement quote
 
 
-@pytest.mark.xfail(strict=True, reason="blocked: g3o/common/storage.py (T-012 claim) still requires an exact "
-                   "substring and only lets mechanical coders back set_by_rule supports")
 @pytest.mark.parametrize("quote", [FUZZY, WORDS])
 def test_matcher_accepted_quote_is_stored(tmp_path, quote):
     data, instrument, _, sources, artifact, ctx = _setup(tmp_path)
     nodes = support_nodes(_check(sources, quote), sources, artifact, ctx, instrument)
     original, _, _ = coder_nodes(_coder(nodes, instrument), nodes, instrument)
-    _envelope(tmp_path, data, instrument, nodes, [original])
+    stored = _envelope(tmp_path, data, instrument, nodes, [original])
+    assert stored.supports[nodes.original["support_id"]]["supporting_text"] == quote
+
+
+def _reseal(support, run_id="R1", uid=None):
+    support["support_text_sha256"] = sha256_text(support["supporting_text"])
+    support["support_id"] = support_id(run_id, uid, support)
+    return support
+
+
+def _restored(tmp_path, data, instrument, nodes, coders, mutate):
+    """Envelope with the original node mutated (identity resealed, coder rebound)."""
+    original = deepcopy(nodes.original)
+    mutate(original)
+    _reseal(original, uid=data["institution_uid"])
+    coders = [dict(c, support_id=original["support_id"]) if c["support_id"] == nodes.original["support_id"] else c
+              for c in coders]
+    return _envelope(tmp_path, data, instrument, replace(nodes, original=original), coders)
+
+
+def test_storage_rejects_quote_failing_both_rules_on_named_segment(tmp_path):
+    data, instrument, _, sources, artifact, ctx = _setup(tmp_path)
+    nodes = support_nodes(_check(sources, EXACT), sources, artifact, ctx, instrument)
+    original, _, _ = coder_nodes(_coder(nodes, instrument), nodes, instrument)
+    fabricated = "The ministry cancelled every budget line for translation services."
+    with pytest.raises(ValueError, match="fails the R-042 match"):
+        _restored(tmp_path, data, instrument, nodes, [original], lambda s: s.update(supporting_text=fabricated))
+    # The same quote, located on a segment span that does not contain it, also fails.
+    start = artifact.text.index(EXACT)
+    with pytest.raises(ValueError, match="fails the R-042 match"):
+        _restored(tmp_path, data, instrument, nodes, [original],
+                  lambda s: s["passage"].update(segment_span=[0, start]))
+    with pytest.raises(ValueError, match="segment span"):
+        _restored(tmp_path, data, instrument, nodes, [original],
+                  lambda s: s["passage"].update(segment_span=[0, len(artifact.text) + 1]))
+
+
+def test_storage_rejects_quote_segment_outside_producing_part_or_chrome(tmp_path):
+    data, instrument, _, sources, artifact, ctx = _setup(tmp_path)
+    nodes = support_nodes(_check(sources, EXACT), sources, artifact, ctx, instrument)
+    original, _, _ = coder_nodes(_coder(nodes, instrument), nodes, instrument)
+    with pytest.raises(ValueError, match="neither the producing part nor allowed chrome"):
+        _restored(tmp_path, data, instrument, nodes, [original], lambda s: s["passage"].update(quote_segment="C9"))
+    # core.evaluation_documented reads main text only: its chrome is not an allowed surface.
+    with pytest.raises(ValueError, match="neither the producing part nor allowed chrome"):
+        _restored(tmp_path, data, instrument, nodes, [original],
+                  lambda s: s["passage"].update(quote_segment="P1#chrome"))
+    with pytest.raises(ValueError, match="segment passage requires"):
+        _restored(tmp_path, data, instrument, nodes, [original], lambda s: s["passage"].update(extra=1))
 
 
 # --- original vs final after a downgrade ----------------------------------------
@@ -177,13 +224,47 @@ def test_low_confidence_downgrade_keeps_original_and_links_mechanical_final(tmp_
     assert record.chosen_value == "results_reported"  # original never overwritten
 
 
-@pytest.mark.xfail(strict=True, reason="blocked: storage.py/jev_record.py accept a mechanical coder only for "
-                   "set_by_rule; a downgraded final value needs a linked mechanical node")
 def test_downgraded_final_node_is_stored(tmp_path):
     data, instrument, _, sources, artifact, ctx = _setup(tmp_path)
     nodes = support_nodes(_check(sources, EXACT, probability=0.5), sources, artifact, ctx, instrument)
     original, final, _ = coder_nodes(_coder(nodes, instrument, dist={"results_reported": 0.5}), nodes, instrument)
-    _envelope(tmp_path, data, instrument, nodes, [original, final])
+    stored = _envelope(tmp_path, data, instrument, nodes, [original, final])
+    row = stored.data["sources"]["S1"]
+    assert row["values"][ITEM] == "unknown"
+    by_support = {c["support_id"]: c for c in row["coder_records"]}
+    assert by_support[nodes.original["support_id"]]["coder_type"] == "classifier"
+    assert by_support[nodes.original["support_id"]]["chosen_value"] == "results_reported"
+    assert by_support[nodes.final["support_id"]]["coder_type"] == "mechanical"
+
+
+def test_mechanical_final_requires_a_linked_original_classifier_support(tmp_path):
+    data, instrument, _, sources, artifact, ctx = _setup(tmp_path)
+    nodes = support_nodes(_check(sources, EXACT, probability=0.5), sources, artifact, ctx, instrument)
+    record = _coder(nodes, instrument, dist={"results_reported": 0.5})
+    original, final, companion = coder_nodes(record, nodes, instrument)
+    # A classifier record cannot back the final value: it was set by the downgrade rule.
+    classifier_final = dict(original, support_id=final["support_id"], chosen_value="unknown")
+    with pytest.raises(ValueError, match="coder type does not match"):
+        _envelope(tmp_path, data, instrument, nodes, [original, classifier_final])
+    # Without the original's classifier record the final node is not a classifier downgrade.
+    with pytest.raises(ValueError, match="coder type does not match|missing per-code coder"):
+        _envelope(tmp_path, data, instrument, nodes, [final])
+    # A final node whose status differs from its original is not the linked final node.
+    other = dict(nodes.final, support_status="downgraded_no_quote")
+    other["support_id"] = support_id_for(data, other)
+    with pytest.raises(ValueError, match="coder type does not match"):
+        _envelope(tmp_path, data, instrument, replace(nodes, final=other),
+                  [original, dict(final, support_id=other["support_id"])])
+    # The projection refuses the same mismatches.
+    with pytest.raises(ValueError, match="actual mechanical rule"):
+        companion.storage_projection(support=nodes.final, instrument=instrument)
+    with pytest.raises(ValueError, match="actual mechanical rule"):
+        replace(companion, support_id=other["support_id"]).storage_projection(
+            support=other, instrument=instrument, linked_supports=[nodes.original])
+
+
+def support_id_for(data, record):
+    return support_id("R1", data["institution_uid"], record)
 
 
 def test_page_verdict_downgrade_is_tag_only_without_final_node(tmp_path):
@@ -246,7 +327,9 @@ def test_missing_upstream_inputs_refuse_explicitly(tmp_path):
     envelope = assemble_storage(activities=data["activities"], sources=data["sources"],
                                 summary=data["summary"], **common)
     with pytest.raises(MissingUpstreamError, match="6_validate.json"):
-        write_stage6_artifacts(tmp_path / "inst", envelope, None)
+        write_stage6_artifacts(tmp_path / "inst", envelope, None, [])
+    with pytest.raises(MissingUpstreamError, match="6_support_provenance.json"):
+        write_stage6_artifacts(tmp_path / "inst", envelope, response, None)
     with pytest.raises(MissingUpstreamError, match="T-015 source-level confidence"):
         source_confidence("S1", None)
     with pytest.raises(MissingUpstreamError):
@@ -254,17 +337,130 @@ def test_missing_upstream_inputs_refuse_explicitly(tmp_path):
     assert activity_confidence_value(["S1", "S2"], {"S1": "medium", "S2": "medium"}, {"S1": "g1", "S2": "g2"}) == "high"
 
 
+def _written(tmp_path, *, probability=0.5):
+    data, instrument, response, sources, artifact, ctx = _setup(tmp_path)
+    nodes = support_nodes(_check(sources, FUZZY, probability=probability), sources, artifact, ctx, instrument)
+    record = _coder(nodes, instrument, dist={"results_reported": probability})
+    original, final, _ = coder_nodes(record, nodes, instrument)
+    envelope = _envelope(tmp_path, data, instrument, nodes, [original, final])
+    return envelope, response, instrument, nodes
+
+
 def test_written_artifacts_reload_bound_to_each_other(tmp_path):
-    data, instrument, response, *_ = _setup(tmp_path)
-    envelope = assemble_storage(run_id="R1", institution_uid=data["institution_uid"], institution_id="INST-0001",
-                                instrument=instrument, evidence_channel="web_extract",
-                                activities=data["activities"], sources=data["sources"],
-                                summary=data["summary"], artifact_root=tmp_path)
-    validate_path, storage_path = write_stage6_artifacts(tmp_path / "inst", envelope, response)
+    envelope, response, instrument, nodes = _written(tmp_path)
+    validate_path, storage_path, provenance_path = write_stage6_artifacts(
+        tmp_path / "inst", envelope, response, [nodes.provenance])
     stored = json.loads(storage_path.read_text(encoding="utf-8"))
     assert "_page_text" not in stored["sources"]["S1"]
     assert StorageEnvelope(stored, instrument, artifact_root=tmp_path).data["setup_pointer"] == instrument["instrument_id"]
     ConsolidatedInstitutionResponse.model_validate(json.loads(validate_path.read_text(encoding="utf-8")))
     other = response.model_copy(update={"sources": response.sources[:1]})
     with pytest.raises(ValueError):
-        write_stage6_artifacts(tmp_path / "inst2", envelope, other)
+        write_stage6_artifacts(tmp_path / "inst2", envelope, other, [nodes.provenance])
+
+
+def test_support_provenance_file_reloads_and_is_bound_to_storage(tmp_path):
+    envelope, response, _, nodes = _written(tmp_path)
+    _, storage_path, provenance_path = write_stage6_artifacts(tmp_path / "inst", envelope, response,
+                                                              [nodes.provenance])
+    assert provenance_path.name == "6_support_provenance.json"
+    raw = provenance_path.read_bytes()
+    assert raw == canonical_json(json.loads(raw)).encode("utf-8")  # canonical JSON
+    records = load_support_provenance(provenance_path, storage_path)
+    assert records == [json.loads(canonical_json(nodes.provenance))]
+    record = records[0]
+    assert record["channel"] == "main" and record["quote_segment"] == "C1"
+    assert record["match"]["matcher_pass"] is True and record["matcher"]["threshold"] == 93
+    assert record["final_support_id"] == nodes.final["support_id"]
+    # Internal only: neither the D-007 storage record nor the Stage 6 response carries it.
+    stored_text = storage_path.read_text(encoding="utf-8")
+    validate_text = (tmp_path / "inst" / "6_validate.json").read_text(encoding="utf-8")
+    for public in (stored_text, validate_text):
+        assert '"matcher_pass"' not in public and '"decided_by"' not in public
+    # Binding: another storage file, another run or another institution is refused.
+    document = json.loads(raw)
+    other_storage = tmp_path / "other_storage.json"
+    other_storage.write_bytes(storage_path.read_bytes() + b" ")
+    with pytest.raises(ValueError, match="different 6_storage.json"):
+        load_support_provenance(provenance_path, other_storage)
+    for key, value in (("run_id", "R2"), ("institution_uid", "other"), ("institution_id", "INST-0002")):
+        forged = tmp_path / f"forged_{key}.json"
+        forged.write_text(canonical_json({**document, key: value}), encoding="utf-8")
+        with pytest.raises(ValueError, match="binding mismatch"):
+            load_support_provenance(forged, storage_path)
+
+
+def test_support_provenance_must_cover_and_match_stored_supports(tmp_path):
+    envelope, response, _, nodes = _written(tmp_path)
+    with pytest.raises(ValueError, match="no matcher provenance"):
+        write_stage6_artifacts(tmp_path / "a", envelope, response, [])
+    with pytest.raises(ValueError, match="not stored"):
+        write_stage6_artifacts(tmp_path / "b", envelope, response,
+                               [nodes.provenance, {**nodes.provenance, "support_id": "0" * 64}])
+    with pytest.raises(ValueError, match="segment differs"):
+        write_stage6_artifacts(tmp_path / "c", envelope, response, [{**nodes.provenance, "segment_span": [0, 1]}])
+    with pytest.raises(ValueError, match="final node"):
+        write_stage6_artifacts(tmp_path / "d", envelope, response, [{**nodes.provenance, "final_support_id": "x"}])
+    with pytest.raises(ValueError, match="duplicate"):
+        write_stage6_artifacts(tmp_path / "e", envelope, response, [nodes.provenance, nodes.provenance])
+    assert not any((tmp_path / d).exists() for d in "abcde")  # refused before anything is written
+
+
+# --- P8: empty companions ----------------------------------------------------------
+
+
+def test_empty_companion_items_are_stored_as_not_asked(tmp_path):
+    data, instrument, _, sources, artifact, ctx = _setup(tmp_path)
+    # One failure: no second reason, no rule name.
+    nodes = support_nodes(_check(sources, EXACT, probability=0.5), sources, artifact, ctx, instrument)
+    for node in (nodes.original, nodes.final):
+        assert node["support_status_second_reason"] == "not_asked"
+        assert node["support_rule_name"] == "not_asked"
+    original, final, _ = coder_nodes(_coder(nodes, instrument, dist={"results_reported": 0.5}), nodes, instrument)
+    stored = _envelope(tmp_path, data, instrument, nodes, [original, final])
+    assert stored.supports[nodes.final["support_id"]]["support_status_second_reason"] == "not_asked"
+    # Two failures: the second reason is filled, the rule name still not_asked.
+    two = support_nodes(_check(sources, "The ministry cancelled every budget line.", probability=0.5),
+                        sources, artifact, ctx, instrument)
+    assert (two.original["support_status"], two.original["support_status_second_reason"]) == (
+        "downgraded_no_quote", "downgraded_low_confidence")
+    assert two.original["support_rule_name"] == "not_asked"
+    # A rule-set value names its rule; its second reason is not_asked.
+    rule = check_code(CodeEvidence(ITEM, "not_asked", "C1", rule_name="fixture-gate-rule"), sources)
+    ruled = support_nodes(rule, sources, artifact, ctx, instrument)
+    assert ruled.original["support_rule_name"] == "fixture-gate-rule"
+    assert ruled.original["support_status_second_reason"] == "not_asked"
+
+
+# --- pooled supports name their input source and segment --------------------------
+
+
+def _pooled(tmp_path, quote, passage):
+    data, record, _, _ = fixture_bundle(tmp_path, merged=True)
+    row = data["activities"]["A1"]
+    original = row["item_support"][0]
+    pooled = deepcopy(original)
+    pooled.update(observation_id=None, source_id=None, chunk_id=None, page_content_sha256=None,
+                  input_support_ids=[original["support_id"]], passage=passage, supporting_text=quote)
+    _reseal(pooled, uid=data["institution_uid"])
+    row["item_support"].append(pooled)
+    coder = deepcopy(row["coder_records"][0])
+    coder.update(support_id=pooled["support_id"], observation_id=None, chunk_id=None)
+    row["coder_records"].append(coder)
+    return StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_pooled_quote_is_matched_on_its_named_input_segment(tmp_path):
+    fixture_bundle(tmp_path, merged=True)
+    text = (tmp_path / "page.txt").read_bytes().decode("utf-8")
+    span = [0, len(text)]
+    stored = _pooled(tmp_path, FUZZY, {"quote_source_id": "S1", "quote_segment": "C1", "segment_span": span})
+    assert any(s["supporting_text"] == FUZZY for s in stored.supports.values())
+    with pytest.raises(ValueError, match="fails the R-042 match"):
+        _pooled(tmp_path, "Fabricated quote", {"quote_source_id": "S1", "quote_segment": "C1", "segment_span": span})
+    with pytest.raises(ValueError, match="not an input of this support"):
+        _pooled(tmp_path, FUZZY, {"quote_source_id": "S2", "quote_segment": "C1", "segment_span": span})
+    with pytest.raises(ValueError, match="neither the producing part"):
+        _pooled(tmp_path, FUZZY, {"quote_source_id": "S1", "quote_segment": "C2", "segment_span": span})
+    with pytest.raises(ValueError, match="segment passage requires"):
+        _pooled(tmp_path, FUZZY, {"quote_segment": "C1", "segment_span": span})

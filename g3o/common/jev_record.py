@@ -21,6 +21,7 @@ import hashlib
 import json
 import math
 import re
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, fields
 from typing import Any
 
@@ -307,12 +308,18 @@ class CoderRecord:
     def from_json(cls, text: str) -> CoderRecord:
         return cls.from_dict(json.loads(text, object_pairs_hook=_object))
 
-    def storage_projection(self, *, support: dict[str, Any], instrument: dict[str, Any]) -> dict[str, Any]:
+    def storage_projection(self, *, support: dict[str, Any], instrument: dict[str, Any],
+                           linked_supports: Sequence[dict[str, Any]] = ()) -> dict[str, Any]:
         """Project ORIGINAL-code provenance into unchanged Q2a CoderRecord.
 
         Requires an actual matching support and the immutable instrument record.
         The return is not a substitute for this complete record's JSON. Do not
         manufacture original-code support to use this adapter after a downgrade.
+
+        A mechanical record may instead back the linked FINAL node of a
+        downgrade (RC-D-025 P6): ``support`` is that node and ``linked_supports``
+        holds every ORIGINAL support its ``input_support_ids`` name (same item,
+        part and context, same ``downgraded_*`` status, the original code).
         """
         from g3o.common.instrument import validate_instrument
 
@@ -332,7 +339,9 @@ class CoderRecord:
                     "chunk_id": self.chunk_id, "value_json": self.chosen_value}
         if self.support_id is None or any(support.get(k) != v for k, v in expected.items()):
             raise ValueError("existing support must match the original code and context")
-        if self.coder_type in {"mechanical", "derived"}:
+        if self.coder_type == "mechanical" and _downgrade_final(support, linked_supports):
+            pass  # FINAL node of a classifier downgrade; rule_reference names the downgrade rule
+        elif self.coder_type in {"mechanical", "derived"}:
             if support.get("support_status") != "set_by_rule" or support.get("support_rule_name") != self.rule_reference:
                 raise ValueError("existing support must name the actual mechanical rule")
         if self.coder_type not in {"mechanical", "derived"}:
@@ -346,6 +355,22 @@ class CoderRecord:
         if self.coder_type in {"mechanical", "derived"}:
             result["field_availability"] = {k: NOT_APPLICABLE for k in (*_PROVIDER_FIELDS, "chosen_answer_probability", "probability_distribution")}
         return result
+
+
+def _downgrade_final(support: dict[str, Any], linked: Sequence[dict[str, Any]]) -> bool:
+    """Whether ``support`` is the FINAL node linked to its ORIGINAL downgraded supports."""
+    status = support.get("support_status")
+    inputs = support.get("input_support_ids")
+    if not isinstance(status, str) or not status.startswith("downgraded_") or not inputs:
+        return False
+    by_id = {s.get("support_id"): s for s in linked}
+    context = ("item_id", "item_part", "observation_id", "source_id", "chunk_id", "support_status")
+    for prior in inputs:
+        original = by_id.get(prior)
+        if (original is None or any(original.get(k) != support.get(k) for k in context)
+                or original.get("input_support_ids") or original.get("value_json") == support.get("value_json")):
+            return False
+    return True
 
 
 def records_to_json(records: list[CoderRecord]) -> str:

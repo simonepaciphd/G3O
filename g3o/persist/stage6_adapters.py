@@ -24,7 +24,9 @@ Rules (SPEC R-026, R-041, R-042, R-081; D-007 interface spec section 3):
   page's chrome text) and must reproduce the ``SupportResult`` exactly; any
   disagreement refuses. The passage records the segment and its span in the
   artifact; the full match result travels in a companion provenance record
-  (the D-007 support record has no member for it).
+  (the D-007 support record has no member for it), written to the internal
+  ``6_support_provenance.json`` (RC-D-025 B5 b). Storage re-checks the stored
+  quote with the same matcher on the named segment (RC-D-025 P6).
 - **Missing upstream.** Inputs whose producer is absent on this branch are
   explicit parameters; ``None`` raises :class:`MissingUpstreamError` naming the
   producer. Nothing is filled with a fixture default or a guessed value.
@@ -40,6 +42,7 @@ already-coded values only through ``consolidate_v27.activity_confidence``.
 """
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -47,8 +50,15 @@ from typing import Any
 
 from g3o.common.contract import ConsolidatedInstitutionResponse
 from g3o.common.instrument import canonical_json, sha256_text, validate_instrument
-from g3o.common.jev_record import _PROVIDER_FIELDS, _STORAGE_FIELDS, NOT_APPLICABLE, CoderRecord
-from g3o.common.storage import CHANNELS, METADATA_ITEMS, StorageEnvelope, support_id, table_fields
+from g3o.common.jev_record import CoderRecord
+from g3o.common.storage import (
+    CHANNELS,
+    METADATA_ITEMS,
+    QUOTE_SEGMENT,
+    StorageEnvelope,
+    support_id,
+    table_fields,
+)
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import (
     LOW_CONFIDENCE,
@@ -69,6 +79,11 @@ EMPTY_COMPANION = "not_asked"  # R-045: a rule skipped the companion item
 MATCHER_LIBRARY = "rapidfuzz"
 STORAGE_ARTIFACT = "6_storage.json"
 VALIDATE_ARTIFACT = "6_validate.json"
+PROVENANCE_ARTIFACT = "6_support_provenance.json"  # internal companion (RC-D-025 B5 b); never published
+PROVENANCE_FILE_FORMAT = "g3o-support-provenance-file-v1"
+PROVENANCE_FILE_KEYS = {"format", "run_id", "institution_uid", "institution_id",
+                        "storage_artifact", "storage_sha256", "records"}
+PROVENANCE_PRODUCER = "T-028 support_nodes (SupportNodes.provenance for every stored support node)"
 
 # Producers that do not exist on this branch (HANDOFF 2026-11-07; PLAN cards).
 UNCERTAINTY_FLAGS_PRODUCER = "T-024 derived-field producer (core.uncertainty_flags per observation/code)"
@@ -190,7 +205,7 @@ def support_nodes(result: SupportResult, sources: PageSources, artifact: PageArt
     original = {**base, "value_json": result.original_value, "supporting_text": quote or "",
                 "support_status": result.support_status, "input_support_ids": [],
                 "support_text_sha256": sha256_text(quote or ""),
-                "passage": {"quote_segment": segment, "segment_span": None if span is None else list(span)}}
+                "passage": {QUOTE_SEGMENT: segment, "segment_span": None if span is None else list(span)}}
     original["support_id"] = support_id(ctx.run_id, ctx.institution_uid, original)
     final = None
     if result.value != result.original_value:
@@ -247,10 +262,8 @@ def coder_nodes(record: CoderRecord, nodes: SupportNodes, instrument: dict[str, 
         question_set_version=payload["question_set_version"], setup_pointer=instrument["instrument_id"],
         answer_type="rule", chosen_value=final["value_json"], confidence=None,
         probability_distribution=None, rule_reference=downgrade_rule_reference(final))
-    final_projection = {k: getattr(companion, k) for k in _STORAGE_FIELDS}
-    final_projection.update(chosen_answer_probability=None, probability_distribution=None,
-                            field_availability={k: NOT_APPLICABLE for k in (
-                                *_PROVIDER_FIELDS, "chosen_answer_probability", "probability_distribution")})
+    final_projection = companion.storage_projection(support=final, instrument=instrument,
+                                                    linked_supports=[original])
     return projection, final_projection, companion
 
 
@@ -319,11 +332,69 @@ def assemble_storage(*, run_id: str, institution_uid: str, institution_id: str,
     return StorageEnvelope(data, instrument, artifact_root=artifact_root)
 
 
+def _support_records(data: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
+    rows = [data["summary"], *data["activities"].values(), *data["sources"].values()]
+    return {s["support_id"]: s for row in rows for s in row["item_support"]}
+
+
+def _bind_provenance(supports: Mapping[str, dict[str, Any]],
+                     provenance: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Check each companion record against the stored support it describes (RC-D-025 B5 b)."""
+    records = [dict(p) for p in provenance]
+    ids = [p.get("support_id") for p in records]
+    if len(set(ids)) != len(ids):
+        raise ValueError("duplicate support provenance record")
+    for record in records:
+        if record.get("format") != PROVENANCE_FORMAT:
+            raise ValueError("unsupported support provenance record format")
+        support = supports.get(record["support_id"])
+        if support is None:
+            raise ValueError("support provenance names a support that is not stored")
+        passage = support["passage"]
+        if (passage.get(QUOTE_SEGMENT), passage.get("segment_span")) != (record["quote_segment"], record["segment_span"]):
+            raise ValueError("support provenance segment differs from the stored passage")
+        final_id = record["final_support_id"]
+        if final_id is not None and (final_id not in supports
+                                     or supports[final_id]["input_support_ids"] != [record["support_id"]]):
+            raise ValueError("support provenance final node is not the stored linked final node")
+    covered = set(ids)
+    for sid, support in supports.items():
+        if QUOTE_SEGMENT in support["passage"] and support["supporting_text"] and sid not in covered:
+            raise ValueError(f"stored quote support {sid} has no matcher provenance")
+    return sorted(records, key=lambda r: r["support_id"])
+
+
+def load_support_provenance(path: Path, storage_path: Path) -> list[dict[str, Any]]:
+    """Reload ``6_support_provenance.json`` and verify it is bound to this ``6_storage.json``."""
+    document = json.loads(path.read_text(encoding="utf-8"))
+    storage_text = storage_path.read_bytes().decode("utf-8")
+    storage = json.loads(storage_text)
+    if not isinstance(document, dict) or set(document) != PROVENANCE_FILE_KEYS:
+        raise ValueError("unsupported support provenance file fields")
+    if document["format"] != PROVENANCE_FILE_FORMAT or document["storage_artifact"] != STORAGE_ARTIFACT:
+        raise ValueError("unsupported support provenance file format")
+    if document["storage_sha256"] != sha256_text(storage_text):
+        raise ValueError("support provenance is bound to a different 6_storage.json")
+    if any(document[k] != storage[k] for k in ("run_id", "institution_uid", "institution_id")):
+        raise ValueError("support provenance run/institution binding mismatch")
+    return _bind_provenance(_support_records(storage), document["records"])
+
+
 def write_stage6_artifacts(inst_dir: Path, envelope: StorageEnvelope,
-                           response: ConsolidatedInstitutionResponse | None) -> tuple[Path, Path]:
-    """Write ``6_validate.json`` and ``6_storage.json`` for one institution, bound to each other."""
+                           response: ConsolidatedInstitutionResponse | None,
+                           provenance: Sequence[Mapping[str, Any]] | None) -> tuple[Path, Path, Path]:
+    """Write ``6_validate.json``, ``6_storage.json`` and the internal ``6_support_provenance.json``.
+
+    The provenance file (RC-D-025 B5 b) holds the quote-match companion of each
+    support node: channel, segment span, full matcher result, matcher settings
+    and check flags. It is internal: the D-007 record and the Stage 7 writer do
+    not read it. It is bound to the storage file by run, institution and the
+    storage file's SHA256.
+    """
     if response is None:
         raise MissingUpstreamError(STAGE6_EXECUTOR, [VALIDATE_ARTIFACT])
+    if provenance is None:
+        raise MissingUpstreamError(PROVENANCE_PRODUCER, [PROVENANCE_ARTIFACT])
     response = ConsolidatedInstitutionResponse.model_validate(response.model_dump(mode="json"))
     data = envelope.data
     if response.institution.institution_id != data["institution_id"]:
@@ -336,8 +407,16 @@ def write_stage6_artifacts(inst_dir: Path, envelope: StorageEnvelope,
         for row in rows:
             for private in ("_page_text", "_page_path"):
                 row.pop(private, None)
+    records = _bind_provenance(_support_records(data), provenance)
+    storage_text = canonical_json(data)
+    document = {"format": PROVENANCE_FILE_FORMAT, "run_id": data["run_id"],
+                "institution_uid": data["institution_uid"], "institution_id": data["institution_id"],
+                "storage_artifact": STORAGE_ARTIFACT, "storage_sha256": sha256_text(storage_text),
+                "records": records}
     inst_dir.mkdir(parents=True, exist_ok=True)
     validate_path, storage_path = inst_dir / VALIDATE_ARTIFACT, inst_dir / STORAGE_ARTIFACT
+    provenance_path = inst_dir / PROVENANCE_ARTIFACT
     validate_path.write_bytes(canonical_json(response.model_dump(mode="json")).encode("utf-8"))
-    storage_path.write_bytes(canonical_json(data).encode("utf-8"))
-    return validate_path, storage_path
+    storage_path.write_bytes(storage_text.encode("utf-8"))
+    provenance_path.write_bytes(canonical_json(document).encode("utf-8"))
+    return validate_path, storage_path, provenance_path
