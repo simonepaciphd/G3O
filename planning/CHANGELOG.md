@@ -71,3 +71,7 @@ Sole writer: the plan integrator (DEC-012 a). Every entry after the baseline nee
 | 2026-11-10 | RC-D-025 joint lock | SPEC v001.27, RESOURCES, PLAN, labels/page and Delta-Lock-RC-D-025-2026-11-10.json | LOCKED; codebook r14 `7972b8c1…8123b` signed. Open items 9 (cross-institution official host) and 10 (unreadable-page credibility) remain for the PI. No runtime or release acceptance inferred. | Simone chat: "LOCK!" |
 
 | 2026-11-10 | RC-D-026 | `deltas/RC-D-026.md`; codebook r15 (pending signature); T-015 | 9 a: cross-institution official host stays `other_official`; 10 a: unreadable page (`source_type` not_asked) credibility `low`. r15 and re-lock pending. | Simone Paci, 2026-11-10 chat "9a 10 a" |
+
+| 2026-11-10 | RC-D-026 r15 signature (mechanical pins) | SPEC v001.28 (signed-release line; 14 row pins; version row); PLAN T-010 note; `deltas/RC-D-026.md`; `t010/signoff-record.md` (codebook branch, 6748fa0) | Codebook r15 `ca1bf616…73d3a` signed; SPEC pins moved from r14. | Simone Paci, 2026-11-10 chat "signed & lock" |
+
+| 2026-11-10 | RC-D-026 joint lock | SPEC v001.28, RESOURCES, PLAN, labels/page and Delta-Lock-RC-D-026-2026-11-10.json; archive `2026-11-10-before-rcd026/`; RC-D-025 lock to `archive/records/` | LOCKED; codebook r15 `ca1bf616…73d3a` signed. PI items 9 and 10 closed (RC-D-026). No runtime or release acceptance inferred. | Simone chat: "signed & lock" |
