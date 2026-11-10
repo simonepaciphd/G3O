@@ -260,7 +260,7 @@ def test_no_with_activity_rejected() -> None:
 
 
 def test_no_with_non_absence_source_rejected() -> None:
-    with pytest.raises(ValidationError, match="confirms_absence; offenders"):
+    with pytest.raises(ValidationError, match="negative page verdict or not_assessable"):
         ConsolidatedInstitutionResponse.model_validate(
             {
                 "consolidation_metadata": _meta(),
@@ -275,6 +275,69 @@ def test_no_with_non_absence_source_rejected() -> None:
                 ],
             }
         )
+
+
+def _no_response(*verdicts: str) -> dict[str, Any]:
+    return {
+        "consolidation_metadata": _meta(),
+        "institution": _institution(has_genai_activity="no"),
+        "activities": [],
+        "sources": [
+            _source(source_id=f"S{i + 1}", activity_id=NA, genai_evidence=v)
+            for i, v in enumerate(verdicts)
+        ],
+    }
+
+
+# RC-D-025 P9 (T-012): v2.7 `no` rests on any negative page verdict (R-041,
+# RC-D-005 8 b; background_only per R-005 S2 b) plus not_assessable (R-015 C1 a).
+@pytest.mark.parametrize(
+    "verdict",
+    ["confirms_absence", "no_genai", "background_only", "event_only", "other_body"],
+)
+def test_no_with_v27_negative_verdict_accepted(verdict: str) -> None:
+    r = ConsolidatedInstitutionResponse.model_validate(_no_response(verdict))
+    assert r.institution.has_genai_activity == "no"
+
+
+def test_no_with_mixed_negatives_and_not_assessable_accepted() -> None:
+    ConsolidatedInstitutionResponse.model_validate(
+        _no_response(
+            "no_genai", "confirms_absence", "background_only", "event_only",
+            "other_body", "not_assessable",
+        )
+    )
+
+
+def test_no_legacy_all_confirms_absence_still_accepted() -> None:
+    ConsolidatedInstitutionResponse.model_validate(
+        _no_response("confirms_absence", "confirms_absence")
+    )
+
+
+@pytest.mark.parametrize(
+    "verdict",
+    ["confirms_activity", "ambiguous_genai", "ambiguous_attribution", "ambiguous"],
+)
+def test_no_with_positive_or_ambiguous_source_rejected(verdict: str) -> None:
+    with pytest.raises(ValidationError, match="negative page verdict or not_assessable"):
+        ConsolidatedInstitutionResponse.model_validate(
+            _no_response("no_genai", verdict)
+        )
+
+
+def test_no_permitted_set_matches_codebook_vocabulary() -> None:
+    from g3o.common.contract import (
+        NEGATIVE_PAGE_VERDICTS,
+        NO_PERMITTED_EVIDENCE,
+        PAGE_VERDICT_V27,
+    )
+
+    assert NO_PERMITTED_EVIDENCE <= set(PAGE_VERDICT_V27)
+    assert set(PAGE_VERDICT_V27) - NO_PERMITTED_EVIDENCE == {
+        "confirms_activity", "ambiguous_genai", "ambiguous_attribution",
+    }
+    assert NO_PERMITTED_EVIDENCE - NEGATIVE_PAGE_VERDICTS == {"not_assessable"}
 
 
 def test_unclear_with_confirms_activity_rejected() -> None:

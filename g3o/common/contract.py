@@ -225,6 +225,17 @@ _PAGE_VERDICT_BY_VERSION: dict[str, tuple[str, ...]] = {
     CODEBOOK_RELEASE_V27: PAGE_VERDICT_V27,
 }
 
+#: Negative page verdicts (R-041, RC-D-005 8 b; ``background_only`` may sit in
+#: the institution ``no`` set, R-005 S2 b).
+NEGATIVE_PAGE_VERDICTS: frozenset[str] = frozenset(
+    {"confirms_absence", "no_genai", "background_only", "event_only", "other_body"}
+)
+#: Source verdicts a ``no`` institution may carry: the negatives plus
+#: ``not_assessable``, which never blocks ``no`` (R-005 / R-015, C1 a).
+#: ``confirms_activity``, ``ambiguous_genai``, ``ambiguous_attribution`` and the
+#: v2.5 ``ambiguous`` stay excluded (unresolved signal, R-005).
+NO_PERMITTED_EVIDENCE: frozenset[str] = NEGATIVE_PAGE_VERDICTS | {"not_assessable"}
+
 # Row provenance (``core.evidence_channel``), corrected by PI Q3a
 # (2026-11-01) to match the codebook pipeline list (candidate r11).
 EvidenceChannel = Literal["web_extract", "procurement", "ai_text"]
@@ -816,14 +827,23 @@ class ConsolidatedInstitutionResponse(BaseModel):
                 raise ValueError(
                     "has_genai_activity=no but activities is non-empty"
                 )
-            non_absence = [
-                s for s in self.sources if s.genai_evidence != "confirms_absence"
+            # RC-D-025 P9: v2.7 rule (R-005, R-015, R-041; codebook 2.7
+            # core.has_genai_activity). A `no` institution may rest on any
+            # negative page verdict plus `not_assessable`, which never blocks
+            # `no` (C1 a). The legacy rule (every source `confirms_absence`)
+            # is a subset of this, so previously valid payloads stay valid.
+            # TODO(T-012, PI open question): whether a `no` must carry at
+            # least one negative verdict (an all-`not_assessable` source list)
+            # is not enforced here; see the T-012 P9 handoff.
+            blocking = [
+                s for s in self.sources if s.genai_evidence not in NO_PERMITTED_EVIDENCE
             ]
-            if non_absence:
+            if blocking:
                 raise ValueError(
-                    f"has_genai_activity=no requires every source to be "
-                    f"confirms_absence; offenders: "
-                    f"{[s.source_id for s in non_absence]}"
+                    f"has_genai_activity=no requires every source to carry a "
+                    f"negative page verdict or not_assessable "
+                    f"({sorted(NO_PERMITTED_EVIDENCE)}); offenders: "
+                    f"{[(s.source_id, s.genai_evidence) for s in blocking]}"
                 )
         elif hga == "unclear":
             if self.activities:
@@ -1010,6 +1030,8 @@ __all__ = [
     "PAGE_VERDICT_V27",
     "CODEBOOK_RELEASE_V27",
     "CONTRACT_VERSION_V25",
+    "NEGATIVE_PAGE_VERDICTS",
+    "NO_PERMITTED_EVIDENCE",
     "EvidenceChannel",
     "page_verdict_vocabulary",
     "check_page_verdict",
