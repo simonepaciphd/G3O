@@ -37,7 +37,7 @@ release:
     r13: |-
       RC-D-019 (PI 2026-11-05 chat "Aa,D1b add all of them, I approve the delta D2c C1a C2b; proced all accept" and "F1a, B1c (but current-year+25-99), B2a; [recedural ok; E1c E2a ..."): D1 b / F1 a six answer values take `not_required` (status_by_answer keys and the four current copies of the list); C1 a year value label (label_rules); B2 a / B1 c rule 1 of the three year items; E2 a new rule of content_contact_emails; provenance planning/t010/r13-provenance.json
     r14: |-
-      RC-D-025 A1 / A2 (PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2)) and B2 a / B3 (PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2)): A1 source-level confidence rule added to core.confidence (activity aggregation rule unchanged); A2 core.permanent_pilot derived -> classifier (jev_choice, pass 2, round 3, adoption_stage gate, support-checked; B3 instruction and values as drafted; B2 a combining rule, approved verbatim C2); its r2 'derived flag' rule moved to r14_dropped; C1 entailment labels on core.permanent_pilot and C4 c v25 'Permanent pilot' rule and F01 across-parts note moved from core.adoption_stage to r14_dropped, same-part limit stated on core.permanent_pilot (PI 2026-11-10 chat "1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all"); core.source_credibility X22 map cells and C6 a undated override (PI 2026-11-10 chat "vendor medium, academic high, social media low, other medium, archive medium, 5f low"; five cells integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature); provenance planning/t010/r14-provenance.json
+      RC-D-025 A1 / A2 (PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2)) and B2 a / B3 (PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2)): A1 source-level confidence rule added to core.confidence (activity aggregation rule unchanged); A2 core.permanent_pilot derived -> classifier (jev_choice, pass 2, round 3, adoption_stage gate, support-checked; B3 instruction and values as drafted; B2 a combining rule, approved verbatim C2); its r2 'derived flag' rule moved to r14_dropped; C1 entailment labels on core.permanent_pilot and C4 c v25 'Permanent pilot' rule and F01 across-parts note moved from core.adoption_stage to r14_dropped, same-part limit stated on core.permanent_pilot (PI 2026-11-10 chat "1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all"); core.source_credibility X22 map cells and C6 a undated override (PI 2026-11-10 chat "vendor medium, academic high, social media low, other medium, archive medium, 5f low"; five cells integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature); core.confidence C7 a (rules/1: any associated original code) and C8 b (new rules/2: `unknown` source counts as `low` in aggregation) (PI 2026-11-10 chat "1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all"); provenance planning/t010/r14-provenance.json
   r4_dropped:
   - card: activity-1 O1
     slot: items/core.observed_actor_relationship/rules/6
@@ -10909,10 +10909,21 @@ items:
       source: codebook-rulings-round2.json n=27
       approved_r4: 'PI 2026-10-30 "approve all" (round 4): page source card I14 slot 1'
     - text: |-
-        When all applicable evidence checks completed and none failed, source confidence = `source_credibility` (high/medium/low). Any `downgraded_no_quote`, `downgraded_quote_not_stating_value` or `downgraded_low_confidence` on an associated substantive original code makes it `low`. `not_required` / `set_by_rule` neutral. Pending/unperformed checks leave it unfinished (not scored); unavailable credibility stays unknown unless a failed check sets low. Original failures survive the final-value downgrade.
-      origin: PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2); PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2); r14
+        When all applicable evidence checks completed and none failed, source confidence = `source_credibility` (high/medium/low). Any `downgraded_no_quote`, `downgraded_quote_not_stating_value` or `downgraded_low_confidence` on any associated original code, including a `no` or negative value downgraded below the 0.8 bar, makes it `low`. `not_required` / `set_by_rule` neutral. Pending/unperformed checks leave it unfinished (not scored); unavailable credibility stays unknown unless a failed check sets low. Original failures survive the final-value downgrade.
+      origin: PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2); PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2); r14; PI 2026-11-10 chat "1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all" (RC-D-025 C7 a)
       source: agent-workspace/2026-11-10-build/RC-D-025-draft.md Part A row A1 (ruling text; its closing 'Activity aggregation unchanged.' is rule 1 left as it is)
       role: source-level confidence (one source/activity evidence claim)
+      text_before_c7: |-
+        When all applicable evidence checks completed and none failed, source confidence = `source_credibility` (high/medium/low). Any `downgraded_no_quote`, `downgraded_quote_not_stating_value` or `downgraded_low_confidence` on an associated substantive original code makes it `low`. `not_required` / `set_by_rule` neutral. Pending/unperformed checks leave it unfinished (not scored); unavailable credibility stays unknown unless a failed check sets low. Original failures survive the final-value downgrade.
+      origin_before_c7: PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2); PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2); r14
+      source_c7: |-
+        agent-workspace/2026-11-10-build/RC-D-025-draft.md PI rulings, second batch C7 a (a failed check on a non-substantive original code counts as a failure: source confidence `low`)
+    - text: |-
+        In this aggregation a source whose confidence is `unknown` counts as `low`.
+      origin: PI 2026-11-10 chat "1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all" (RC-D-025 C8 b); r14
+      source: |-
+        agent-workspace/2026-11-10-build/RC-D-025-draft.md PI rulings, second batch C8 b (an `unknown` source confidence enters activity aggregation as `low`)
+      role: aggregation of unknown
     order_tie_rule: none
     long_page_rule: none
     support_required: false
@@ -10939,6 +10950,9 @@ items:
     refs:
     - r2#27
     - X23
+    - RC-D-025 A1
+    - RC-D-025 C7 a
+    - RC-D-025 C8 b
     status: signed
   core.n_sources:
     id: core.n_sources

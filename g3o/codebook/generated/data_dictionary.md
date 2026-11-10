@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.data_dictionary. -->
-<!-- codebook release: 2.7 | codebook sha256: 3d6ce44a189d6ae5b533d97da503b56b3a3ec112c42a6e725dc346c0cd5d8ec1 -->
+<!-- codebook release: 2.7 | codebook sha256: fc29dbd96b50ab6f09c9a6958da0f0e6593ec77913f6d822cd744d3fa140fb66 -->
 
 # G3O codebook data dictionary
 
-Codebook release `2.7`, sha256 `3d6ce44a189d6ae5b533d97da503b56b3a3ec112c42a6e725dc346c0cd5d8ec1`. 109 items.
+Codebook release `2.7`, sha256 `fc29dbd96b50ab6f09c9a6958da0f0e6593ec77913f6d822cd744d3fa140fb66`. 109 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: 53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44 -->
@@ -5668,11 +5668,11 @@ For a merged activity, jev answers each Group D question once over the union of 
 Pooled quotes are split into parts, and the existing combining rules apply (yes if any part says yes; ordered lists take the first value found). The page-splitting rule is extended.
 
 ## `core.confidence`
-<!-- item: core.confidence sha256: 2f702da4f30c837380e814282056f12dacb4a33984864dbcdf3bd9d6a9aa71ef -->
+<!-- item: core.confidence sha256: 2e974eb1156a714f548b41a62c3a096d2543c3e5295627cfd05d38c2caa82f40 -->
 
 | Field | Value |
 |---|---|
-| item hash | `2f702da4f30c837380e814282056f12dacb4a33984864dbcdf3bd9d6a9aa71ef` |
+| item hash | `2e974eb1156a714f548b41a62c3a096d2543c3e5295627cfd05d38c2caa82f40` |
 | family | `quality` |
 | name | `confidence` |
 | level | `source`, `activity` |
@@ -5704,7 +5704,11 @@ Each source's confidence uses only that source's credibility and quote support. 
 
 2. `items/core.confidence/rules/1`
 
-When all applicable evidence checks completed and none failed, source confidence = `source_credibility` (high/medium/low). Any `downgraded_no_quote`, `downgraded_quote_not_stating_value` or `downgraded_low_confidence` on an associated substantive original code makes it `low`. `not_required` / `set_by_rule` neutral. Pending/unperformed checks leave it unfinished (not scored); unavailable credibility stays unknown unless a failed check sets low. Original failures survive the final-value downgrade.
+When all applicable evidence checks completed and none failed, source confidence = `source_credibility` (high/medium/low). Any `downgraded_no_quote`, `downgraded_quote_not_stating_value` or `downgraded_low_confidence` on any associated original code, including a `no` or negative value downgraded below the 0.8 bar, makes it `low`. `not_required` / `set_by_rule` neutral. Pending/unperformed checks leave it unfinished (not scored); unavailable credibility stays unknown unless a failed check sets low. Original failures survive the final-value downgrade.
+
+3. `items/core.confidence/rules/2`
+
+In this aggregation a source whose confidence is `unknown` counts as `low`.
 
 ## `core.n_sources`
 <!-- item: core.n_sources sha256: ea16c31f1a1bb6ce87487f5e44204a5ab1a2afc0d3e12334d3a176c8556e7672 -->
