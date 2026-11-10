@@ -413,13 +413,39 @@ def test_unknown_support_status_rejected() -> None:
         )
 
 
-def test_downgraded_confirms_activity_unlinked_still_rejected_on_yes() -> None:
+# RC-D-027 follow-up O2 b (PI 2026-11-10, "1b"): `yes` needs a non-downgraded
+# confirms_activity; downgraded ones may go unlinked.
+def test_yes_with_supported_plus_downgraded_unlinked_accepted() -> None:
     payload = _yes_response()
+    payload["sources"][0]["support_status"] = "supported"
     payload["sources"].append(
         _source(source_id="S2", activity_id=NA, support_status="downgraded_no_quote")
     )
+    r = ConsolidatedInstitutionResponse.model_validate(payload)
+    assert r.sources[1].activity_id == NA
+
+
+@pytest.mark.parametrize(
+    "status",
+    ["downgraded_no_quote", "downgraded_low_confidence", "downgraded_quote_not_stating_value"],
+)
+def test_yes_with_only_downgraded_confirms_activity_rejected(status: str) -> None:
+    payload = _yes_response()
+    payload["sources"][0]["support_status"] = status
+    with pytest.raises(ValidationError, match="every confirms_activity source has a downgraded"):
+        ConsolidatedInstitutionResponse.model_validate(payload)
+
+
+@pytest.mark.parametrize("status", ["supported", "not_required", "set_by_rule", None])
+def test_undowngraded_confirms_activity_unlinked_still_rejected_on_yes(status: str | None) -> None:
+    payload = _yes_response()
+    payload["sources"].append(_source(source_id="S2", activity_id=NA, support_status=status))
     with pytest.raises(ValidationError, match="activity_id=_NA_ but genai_evidence=confirms_activity"):
         ConsolidatedInstitutionResponse.model_validate(payload)
+
+
+def test_yes_legacy_unchecked_sources_unchanged() -> None:
+    ConsolidatedInstitutionResponse.model_validate(_yes_response())
 
 
 def test_support_status_is_internal() -> None:

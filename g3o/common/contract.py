@@ -861,6 +861,17 @@ class ConsolidatedInstitutionResponse(BaseModel):
                     "has_genai_activity=yes but no source has "
                     "genai_evidence=confirms_activity"
                 )
+            # PI 2026-11-10 (RC-D-027 follow-up O2 b): a downgraded
+            # confirms_activity (failed its support check, R-041) does not
+            # carry `yes`; at least one must be non-downgraded (matches
+            # g3o.validate.consolidate_v27, which requires `supported`).
+            # Unchecked sources (support_status None, legacy) still count.
+            if all(s.support_status in DOWNGRADED_SUPPORT_STATUS for s in confirms):
+                raise ValueError(
+                    "has_genai_activity=yes but every confirms_activity source "
+                    "has a downgraded support_status; offenders: "
+                    f"{[(s.source_id, s.support_status) for s in confirms]}"
+                )
         elif hga == "no":
             if self.activities:
                 raise ValueError(
@@ -939,11 +950,12 @@ class ConsolidatedInstitutionResponse(BaseModel):
         valid_act_ids = {a.activity_id for a in self.activities}
         for s in self.sources:
             if s.activity_id == NA:
-                # PI 2026-11-10 (2 a): on an `unclear` institution (no
-                # activities) a downgraded confirms_activity source is unlinked.
-                if s.genai_evidence == "confirms_activity" and not (
-                    self.institution.has_genai_activity == "unclear"
-                    and s.support_status in DOWNGRADED_SUPPORT_STATUS
+                # PI 2026-11-10 (2 a; RC-D-027 follow-up O2 b): a downgraded
+                # confirms_activity source may go unlinked, on `unclear` (no
+                # activities) and on `yes` alike.
+                if (
+                    s.genai_evidence == "confirms_activity"
+                    and s.support_status not in DOWNGRADED_SUPPORT_STATUS
                 ):
                     raise ValueError(
                         f"source {s.source_id}: activity_id=_NA_ but "
