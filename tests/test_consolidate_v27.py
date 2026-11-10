@@ -205,6 +205,21 @@ def test_confidence_uses_genuine_source_values_and_independence_groups():
     assert activity_confidence({"a": "medium", "b": "medium"}, {"a": "one", "b": "one"}) == "medium"
     assert activity_confidence({"a": "high", "b": "low"}, {"a": "one", "b": "two"}) == "high"
     with pytest.raises(ConsolidationError, match="unruled"):
-        activity_confidence({"a": "unknown"}, {"a": "one"})
+        activity_confidence({"a": "certain"}, {"a": "one"})
     with pytest.raises(ConsolidationError, match="independence"):
         activity_confidence({"a": "medium"}, {})
+
+
+def test_unknown_source_confidence_counts_as_low_in_aggregation():
+    # codebook r15 items/core.confidence/rules/2 (RC-D-025 C8 b)
+    assert activity_confidence({"a": "unknown"}, {"a": "one"}) == "low"
+    assert activity_confidence({"a": "unknown", "b": "medium"}, {"a": "one", "b": "two"}) == "medium"
+    # an unknown source counts as low, so it is never the second agreeing medium
+    assert activity_confidence({"a": "unknown", "b": "medium", "c": "unknown"},
+                               {"a": "one", "b": "two", "c": "three"}) == "medium"
+    assert activity_confidence({"a": "unknown", "b": "high"}, {"a": "one", "b": "two"}) == "high"
+
+
+def test_unfinished_source_confidence_is_refused():
+    with pytest.raises(ConsolidationError, match="unfinished"):
+        activity_confidence({"a": "unfinished"}, {"a": "one"})

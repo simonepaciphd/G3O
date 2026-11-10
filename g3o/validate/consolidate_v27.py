@@ -16,6 +16,7 @@ from math import isfinite
 from typing import Any
 
 from g3o.classify.questions.v27 import load_set
+from g3o.common.source_fields import UnfinishedConfidenceError, aggregation_value
 from g3o.common.storage_fields import FIELDS
 
 VERDICTS = (
@@ -357,17 +358,33 @@ def summary_values(pages: Sequence[ReviewedPage], observations: Sequence[Activit
 def activity_confidence(source_confidences: Mapping[str, str], independence_groups: Mapping[str, str]) -> str:
     """Combine already-coded source confidence; do not invent the T-015 map.
 
+    ``items/core.confidence/rules/0`` (r2#27): an activity is ``high`` if one
+    source is high or two medium sources that are not copies of each other
+    agree; otherwise it takes the highest source value. ``rules/2`` (RC-D-025
+    C8 b): a source whose confidence is ``unknown`` counts as ``low`` here; the
+    mapping is T-015's :func:`g3o.common.source_fields.aggregation_value`, read
+    from the signed slot, never restated in this module. An unfinished source
+    (checks pending, RC-D-025 A1) is refused, never scored.
+
     Inputs must be supporting sources that agree for this activity. A duplicate
     or syndicated copy has the same independence-group identity as its source.
     """
     if not source_confidences or set(source_confidences) != set(independence_groups):
         raise ConsolidationError("confidence requires actual sources and their independence groups")
     rank = {"low": 0, "medium": 1, "high": 2}
-    if any(value not in rank for value in source_confidences.values()):
-        raise ConsolidationError("source confidence is absent or unruled")
+    counted: dict[str, str] = {}
+    for sid, value in source_confidences.items():
+        try:
+            counted[sid] = aggregation_value(value)
+        except UnfinishedConfidenceError as exc:
+            raise ConsolidationError(f"source {sid}: confidence unfinished (checks pending)") from exc
+        except ValueError as exc:
+            raise ConsolidationError(f"source {sid}: source confidence is absent or unruled") from exc
+        if counted[sid] not in rank:
+            raise ConsolidationError(f"source {sid}: source confidence is absent or unruled")
     for group in independence_groups.values():
         _identifier(group, "source independence group")
-    medium_groups = {independence_groups[sid] for sid, value in source_confidences.items() if value == "medium"}
-    if "high" in source_confidences.values() or len(medium_groups) >= 2:
+    medium_groups = {independence_groups[sid] for sid, value in counted.items() if value == "medium"}
+    if "high" in counted.values() or len(medium_groups) >= 2:
         return "high"
-    return max(source_confidences.values(), key=rank.__getitem__)
+    return max(counted.values(), key=rank.__getitem__)
