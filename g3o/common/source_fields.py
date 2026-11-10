@@ -1,7 +1,7 @@
 """Source-level field coder (T-015; RC-D-002 H Q3, N25, O2; RC-D-023 B-Q3 a).
 
-One producer per source-level item of the signed codebook (r13, sha256
-``07610cc9…9c527``): every item whose ``level`` includes ``source``. Values,
+One producer per source-level item of the signed codebook (r14, sha256
+``7972b8c1…658123b``, PI-signed 2026-11-10, ``planning/t010/signoff-record.md``): every item whose ``level`` includes ``source``. Values,
 codes, missing tokens, support statuses and the date-origin map are read from
 the codebook through :mod:`g3o.codebook`; nothing here restates an enum the
 loader provides. Where a signed slot states its codes only inside rule text
@@ -18,34 +18,41 @@ Producers and their signed rules:
   generated from the codebook, in the approved pass-1 page state (W-01 / W-02,
   T-011 page set), combined across parts by the item's ``first_section`` rule
   (T-021 machinery, :func:`g3o.classify.jev_page_code.code_page`).
-- ``core.source_credibility`` (X22): "fixed map from ``source_type`` plus
-  ``low`` when ``source_publication_date`` = unknown". The map's cells are NOT
-  in the signed codebook; :func:`signed_credibility_map` refuses until a signed
-  release holds them (see :class:`UnruledError`).
-- ``core.confidence`` at source level (X23, r2#27): :func:`source_confidence_rule`,
-  the PI rule of 2026-11-07 (below).
+- ``core.source_credibility`` (X22; RC-D-025 C5, C6 a): rules/0 "fixed map
+  from ``source_type`` plus ``low`` when ``source_publication_date`` = unknown
+  or not_documented"; rules/1 and the structured
+  ``items/core.source_credibility/credibility_map`` hold the cells, including
+  the automatic keys ``official_domain`` / ``archive_address`` and the missing
+  keys (``not_documented``, ``unknown`` -> ``low``, PI "5f low"). Read by
+  :func:`signed_credibility_map`; no copy of the cells lives here.
+- ``core.confidence`` at source level (X23, r2#27; RC-D-025 A1, C7 a):
+  :func:`source_confidence_rule`, ``items/core.confidence/rules/1``.
+  Aggregation of an ``unknown`` source (C8 b, ``items/core.confidence/rules/2``)
+  belongs to consolidation (T-026); :func:`aggregation_value` gives T-026 the
+  value to use.
 - ``core.source_publication_date`` (X26, r2#31) and ``core.date_upper_bound``:
   metadata first, then the quote step's date checked by T-024 (R-042), with
   the date origin and its provenance from ``vocabularies.provenance.date_origin_map``.
 - ``core.source_snippet`` (X25, r2#35): the page verdict's supporting quote,
-  verbatim, checked by T-024. Stored whole (R-043, RC-D-017 "2 whole");
+  verbatim, checked by T-024. Stored whole (R-043, RC-D-017 "2 whole"; RC-D-025 P14);
   :func:`g3o.common.support_check.display_cap` gives the displayed prefix.
 - ``core.source_url`` / ``core.source_title`` / ``core.source_access_date`` (X28).
 - ``core.source_on_official_domain`` (X37): URL host vs the master
-  official-site overlay, hosts compared with :func:`g3o.common.urlnorm.site_host`.
+  official-site overlay, hosts compared with :func:`g3o.common.urlnorm.site_host`,
+  exact host equality (RC-D-025 P13).
 - ``core.page_review_state`` (X39): the caller's fetch/follow state, checked
   against the signed codes.
 - ``core.source_language`` (X27), ``core.syndication_group`` (X38),
   ``core.discovery_path``, ``core.text_source``: no producer or no signed
-  spelling/parameter exists; each refuses explicitly.
+  spelling/parameter exists; each refuses explicitly (RC-D-025 P15). So do the
+  metadata/URL date producer and the archive-host list.
 
-Source confidence (PI rule 2026-11-07, selected under explicit PI delegation;
-record ``agent-workspace/2026-11-07-t030-rulings/DECISION-AND-PROPOSAL.json``,
-keys ``confidence.rule``, ``confidence.missing``, ``confidence.scope``; pending
-codebook r14, not yet signed). The whole rule lives in
-:func:`source_confidence_rule` so it can be re-pointed at the r14 text.
-Activity-level aggregation is ``consolidate_v27.activity_confidence`` and is
-not repeated here.
+Source confidence: the signed r14 rule ``items/core.confidence/rules/1``
+(RC-D-025 A1, from the PI rule of 2026-11-07, widened by C7 a), plus the
+PI-approved procedural points P10-P12 (2026-11-10 "approve all"). The whole
+rule lives in :func:`source_confidence_rule`. Activity-level aggregation is
+consolidation's (T-026, ``g3o/common/consolidate_v27.py``) and is not
+repeated here; C8 b is exposed to it only as :func:`aggregation_value`.
 
 Missing inputs raise :class:`MissingUpstreamError` naming the producer; open
 codebook questions raise :class:`UnruledError`. No value is ever filled from a
@@ -76,21 +83,22 @@ from g3o.common.support_check import (
 )
 from g3o.common.urlnorm import site_host
 
-#: Codebook r13, PI-signed 2026-11-05. Re-pin with the r14 release (and the rule below).
-SIGNED_CODEBOOK_SHA256 = "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527"
+#: Codebook r14, PI-signed 2026-11-10 (planning/t010/signoff-record.md).
+SIGNED_CODEBOOK_SHA256 = "7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b"
 if SIGNED_CODEBOOK_SHA256 != SUPPORT_CHECK_CODEBOOK_SHA256:  # pragma: no cover - pin drift guard
     raise ImportError("source_fields and support_check pin different codebook releases")
 
-CODER_VERSION = "g3o.common.source_fields.v1"
+CODER_VERSION = "g3o.common.source_fields.v2"
 #: The residual source_type request is not part of a T-011 set (EXCLUDED there); its
 #: own version names the composition: signed codebook question + approved page state.
 RESIDUAL_SET_VERSION = "g3o.common.source_fields.source_type_residual.v1"
 
 CONFIDENCE_DECISION = (
-    "PI 2026-11-07 (explicit delegation, 'you pick coherently with decisions so far'); "
-    "agent-workspace/2026-11-07-t030-rulings/DECISION-AND-PROPOSAL.json confidence.rule, "
-    "confidence.missing, confidence.scope; pending codebook r14"
+    "codebook r14 items/core.confidence/rules/1 (RC-D-025 A1, C7 a; PI-signed 2026-11-10); "
+    "procedural RC-D-025 P10-P12 (PI 2026-11-10 'approve all')"
 )
+#: The role of the C8 b slot in items/core.confidence/rules (r14).
+AGGREGATION_ROLE = "aggregation of unknown"
 
 SOURCE_TYPE = "core.source_type"
 CREDIBILITY = "core.source_credibility"
@@ -179,6 +187,8 @@ class SourceVocab:
     date_origin_map: Mapping[str, str]  # date origin -> provenance value
     official_values: tuple[str, ...]
     review_states: tuple[str, ...]
+    aggregation_rule: tuple[str, str]  # (path, text) of the C8 b slot of core.confidence
+    aggregation_map: Mapping[str, str]  # C8 b: source value -> value it counts as in aggregation
 
     def missing_tokens(self, item_id: str) -> tuple[str, ...]:
         return tuple(self.items[item_id].get("missing_tokens") or ())
@@ -192,9 +202,28 @@ def _rule_codes(cb: Codebook, item_id: str, index: int = 0) -> tuple[str, ...]:
     return tuple(dict.fromkeys(_BACKTICK.findall(text)))
 
 
+def _aggregation_rule(cb: Codebook) -> tuple[tuple[str, str], dict[str, str]]:
+    """The C8 b slot of ``core.confidence`` (role ``aggregation of unknown``) and its codes.
+
+    The text names two codes, "a source whose confidence is `unknown` counts as
+    `low`", read in order as (counted-from, counted-as).
+    """
+    rules = cb.items[CONFIDENCE].get("rules") or []
+    slots = [n for n, r in enumerate(rules) if isinstance(r, Mapping) and r.get("role") == AGGREGATION_ROLE]
+    if len(slots) != 1:
+        raise ValueError(f"codebook has {len(slots)} core.confidence rules with role {AGGREGATION_ROLE!r}")
+    path = f"items/{CONFIDENCE}/rules/{slots[0]}"
+    text = next(r.text for r in cb.rule_texts(CONFIDENCE) if r.path == path)
+    codes = tuple(dict.fromkeys(_BACKTICK.findall(text)))
+    if len(codes) != 2:
+        raise ValueError(f"{path}: expected two backticked codes, found {codes}")
+    return (path, text), {codes[0]: codes[1]}
+
+
 def vocab_from_codebook(cb: Codebook) -> SourceVocab:
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
-        raise ValueError(f"codebook sha256 {cb.sha256} is not the signed r13 release")
+        raise ValueError(f"codebook sha256 {cb.sha256} is not the signed r14 release")
+    agg_rule, agg_map = _aggregation_rule(cb)
     items = cb.build_items()
     status = cb.vocabularies["support_status"]
     by_answer = {k: v for k, v in status["status_by_answer"].items() if re.fullmatch(r"[A-Za-z_]+", k)}
@@ -219,6 +248,8 @@ def vocab_from_codebook(cb: Codebook) -> SourceVocab:
         date_origin_map={str(k): str(v) for k, v in origin_map.items()},
         official_values=_rule_codes(cb, OFFICIAL),
         review_states=_rule_codes(cb, REVIEW_STATE),
+        aggregation_rule=agg_rule,
+        aggregation_map=agg_map,
     )
 
 
@@ -316,9 +347,12 @@ def source_on_official_domain(url: str, institution_uid: str, overlay: OfficialS
     """``own_official`` / ``other_official`` / ``not_official`` from URL host vs the overlay.
 
     Hosts are compared with :func:`site_host` (lowercase, ``www.`` dropped, port
-    kept), exact equality. When the overlay holds no site for this institution
-    and the host matches no other institution, own vs not cannot be told:
-    ``unknown``.
+    kept), exact equality, no subdomain or suffix matching (RC-D-025 P13). When
+    the overlay holds no site for this institution and the host matches no
+    other institution, own vs not cannot be told: ``unknown`` (P13). A host that
+    matches another institution's site is ``other_official`` even when this
+    institution is not in the overlay (behaviour kept from v1; see the T-015
+    report, open question on P13).
     """
     v = vocab or default_vocab()
     own, other, not_official = v.official_values
@@ -597,6 +631,9 @@ def source_snippet(verdict_support: SupportResult | None, sources: PageSources |
                    vocab: SourceVocab | None = None) -> FieldValue:
     """The page verdict's supporting quote, verbatim and whole, checked by T-024.
 
+    Stored whole, never truncated (RC-D-025 P14; R-043); the display prefix is
+    :func:`g3o.common.support_check.display_cap`.
+
     No verdict quote, or one that fails the check: ``unknown`` with
     ``downgraded_no_quote`` (R-041; ``downgrade_target`` unknown).
     """
@@ -629,24 +666,40 @@ def source_snippet(verdict_support: SupportResult | None, sources: PageSources |
 
 @dataclass(frozen=True)
 class CredibilityMap:
-    """``source_type`` (or automatic basis) -> credibility. Only a signed release may supply it."""
+    """``source_type`` (or automatic basis, or missing token) -> credibility, from a signed release."""
 
     cells: Mapping[str, str]
     signed_by: str  # codebook path + sha256 of the release holding the cells
+    auto_keys: frozenset[str] = frozenset()  # keys for automatically typed pages (not answer codes)
+    missing_keys: frozenset[str] = frozenset()  # source_type missing tokens with a cell
 
 
 def signed_credibility_map(cb: Codebook | None = None) -> CredibilityMap:
-    """The X22 map cells from the signed codebook. r13 holds none: refused."""
+    """The X22 cells: ``items/core.source_credibility/credibility_map`` of the signed r14 release.
+
+    RC-D-025 C5 (PI 2026-11-10 "vendor medium, academic high, social media low,
+    other medium, archive medium, 5f low"; the five integrator-drafted cells are
+    covered by the r14 signature). Includes the automatic keys
+    (``auto_keys``: ``official_domain``, ``archive_address``) and the missing
+    keys (``missing_keys``: ``not_documented``, ``unknown``).
+    """
     cb = cb or default_codebook()
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
         raise ValueError(f"codebook sha256 {cb.sha256} is not the pinned signed release")
-    item = cb.items[CREDIBILITY]
-    cells = item.get("map") if isinstance(item.get("map"), Mapping) else None
-    if not cells:
-        raise UnruledError(CREDIBILITY, "the signed rule says 'fixed map from source_type' but r13 holds no "
-                                        "map cells (values: none; no map key); the cells, including the "
-                                        "automatically typed official/archive pages, need a signed release")
-    return CredibilityMap(dict(cells), f"codebook {cb.sha256} items/{CREDIBILITY}/map")
+    block = cb.items[CREDIBILITY].get("credibility_map")
+    cells = block.get("map") if isinstance(block, Mapping) else None
+    if not isinstance(cells, Mapping) or not cells:
+        raise ValueError(f"signed codebook has no items/{CREDIBILITY}/credibility_map/map")
+    auto = frozenset(str(k) for k in (block.get("auto_keys") or {}))
+    missing = frozenset(str(k) for k in (block.get("missing_keys") or ()))
+    if auto != {AUTO_OFFICIAL, AUTO_ARCHIVE}:
+        raise ValueError(f"credibility_map auto_keys {sorted(auto)} are not the source_type rules/0 bases")
+    codes = set(cb.codes(SOURCE_TYPE) or ())
+    expected = codes | auto | missing
+    if set(cells) != expected:
+        raise ValueError(f"credibility_map keys {sorted(cells)} != source_type codes + auto + missing keys")
+    return CredibilityMap({str(k): str(v) for k, v in cells.items()},
+                          f"codebook {cb.sha256} items/{CREDIBILITY}/credibility_map", auto, missing)
 
 
 def _low(v: SourceVocab) -> str:
@@ -656,23 +709,37 @@ def _low(v: SourceVocab) -> str:
     return "low"
 
 
-def source_credibility(typing: SourceTyping, date: FieldValue, credibility_map: CredibilityMap | None, *,
+#: Publication-date values that make credibility `low` (rules/0, C6 a: "unknown or not_documented").
+LOW_DATE_VALUES = ("unknown", "not_documented")
+
+
+def source_credibility(typing: SourceTyping, date: FieldValue, credibility_map: CredibilityMap | None = None, *,
                        vocab: SourceVocab | None = None) -> FieldValue:
-    """Fixed map from source_type, plus ``low`` when the publication date is ``unknown``."""
+    """Fixed map from source_type, plus ``low`` when the publication date is ``unknown`` or ``not_documented``.
+
+    Order: (1) date ``unknown`` / ``not_documented`` -> ``low`` whatever the
+    cell (rules/0, RC-D-025 C6 a); (2) automatically typed page -> its auto
+    key's cell; (3) otherwise the cell of the ``source_type`` value, a missing
+    value (``not_documented`` / ``unknown``) taking its missing-key cell
+    ``low`` (5f). A ``source_type`` of ``not_asked`` that was not typed
+    automatically (R-015 readability failure) has no signed cell: refused.
+    """
     v = vocab or default_vocab()
     if date.item_id != DATE:
         raise ValueError("source_credibility needs the core.source_publication_date value")
     if credibility_map is None:
         credibility_map = signed_credibility_map()
     low = _low(v)
-    if date.value == "unknown":
-        return _fv(CREDIBILITY, low, "items/core.source_credibility/rules/0: publication date unknown", v)
+    if date.value in LOW_DATE_VALUES:
+        return _fv(CREDIBILITY, low, f"items/core.source_credibility/rules/0: publication date {date.value}", v)
     if date.value in v.missing:
-        raise UnruledError(CREDIBILITY, f"publication date {date.value!r}: the rule names only `unknown`; "
-                                        "whether an undated page (not_documented) also takes low is open")
-    key = typing.typed_by if typing.typed_by in (AUTO_OFFICIAL, AUTO_ARCHIVE) else typing.field.value
+        raise UnruledError(CREDIBILITY, f"publication date {date.value!r}: rules/0 names only unknown and "
+                                        "not_documented")
+    key = typing.typed_by if typing.typed_by in credibility_map.auto_keys else typing.field.value
     if key not in credibility_map.cells:
-        raise UnruledError(CREDIBILITY, f"no map cell for source_type {key!r}")
+        raise UnruledError(CREDIBILITY, f"no signed map cell for source_type {key!r} (typed by "
+                                        f"{typing.typed_by}); the r14 missing keys are "
+                                        f"{sorted(credibility_map.missing_keys)}")
     value = credibility_map.cells[key]
     if value not in v.credibility_values:
         raise ValueError(f"credibility map cell {value!r} is not one of {v.credibility_values}")
@@ -707,6 +774,7 @@ class SourceConfidence:
 
 
 def _substantive(rec: SupportResult, v: SourceVocab) -> bool:
+    """A positive original code (used only to sanity-check ``not_required``)."""
     value = rec.original_value  # the ORIGINAL code, never the final (downgraded) value
     if value in v.not_required_values or value in v.rule_values:
         return False
@@ -716,29 +784,31 @@ def _substantive(rec: SupportResult, v: SourceVocab) -> bool:
 def source_confidence_rule(source_id: str, credibility: str | None,
                            records: Sequence[SupportResult | PendingCheck], *,
                            vocab: SourceVocab | None = None) -> SourceConfidence:
-    """Source confidence, PI rule 2026-11-07 (``CONFIDENCE_DECISION``). The only place it is applied.
+    """Source confidence, ``items/core.confidence/rules/1`` of r14 (``CONFIDENCE_DECISION``).
 
-    Scope (confidence.scope): one source's evidence claim; ``records`` are that
-    claim's associated support records only, as T-024 produced them (the
-    ORIGINAL code and its status), plus any applicable check not yet run.
+    The only place it is applied.
+
+    Scope: one source's evidence claim. ``records`` are that claim's associated
+    support records as T-024 produced them (the ORIGINAL code and its status),
+    plus any applicable check not yet run. Which records are associated is the
+    caller's (T-026) choice (RC-D-025 P12); this function scores what it is given.
+    A claim with no records is refused (P11).
 
     1. Any ``downgraded_no_quote`` / ``downgraded_quote_not_stating_value`` /
-       ``downgraded_low_confidence`` (main status or second reason) on an
-       associated substantive original code -> ``low`` (confidence.rule). A
-       final ``unknown`` does not erase it.
-    2. Otherwise any pending/unperformed check -> ``unfinished``: not scored
-       (confidence.missing).
-    3. Otherwise, credibility unavailable (None or ``unknown``) -> ``unknown``;
-       no grade is invented (confidence.missing).
+       ``downgraded_low_confidence`` (main status or second reason) on ANY
+       associated original code -> ``low``, "including a `no` or negative value
+       downgraded below the 0.8 bar" (C7 a). A final ``unknown`` does not erase
+       it ("Original failures survive the final-value downgrade"). A failure
+       with checks still pending is ``low`` too (P10).
+    2. Otherwise any pending/unperformed check -> ``unfinished``: not scored.
+    3. Otherwise, credibility unavailable (None or ``unknown``) -> ``unknown``
+       ("unavailable credibility stays unknown unless a failed check sets low").
     4. Otherwise (all applicable checks completed, none failed; ``not_required``
-       and ``set_by_rule`` are neutral) -> the credibility (high/medium/low).
-
-    A downgrade on a non-substantive original code (e.g. a ``no`` or a negative
-    verdict below the 0.8 bar) is not covered by the decision: refused.
+       and ``set_by_rule`` neutral) -> the credibility (high/medium/low).
     """
     v = vocab or default_vocab()
     if not records:
-        raise ValueError(f"{source_id}: an evidence claim with no support records cannot be scored")
+        raise ValueError(f"{source_id}: an evidence claim with no support records cannot be scored (P11)")
     if credibility is not None and credibility != "unknown" and credibility not in v.credibility_values:
         raise ValueError(f"{source_id}: credibility {credibility!r} is not a signed value")
     failures: list[str] = []
@@ -752,10 +822,6 @@ def source_confidence_rule(source_id: str, credibility: str | None,
             raise ValueError(f"{rec.item_id}: support status {status!r} is not signed")
         reasons = [s for s in (status, rec.support_status_second_reason) if s in v.downgrades]
         if reasons:
-            if not _substantive(rec, v):
-                raise UnruledError(CONFIDENCE, f"{rec.item_id}={rec.original_value!r} {reasons[0]}: a failed check "
-                                               "on a non-substantive original code is not covered by the "
-                                               "2026-11-07 rule")
             failures.append(f"{rec.item_id}={rec.original_value} {reasons[0]}")
         elif status == "not_required" and _substantive(rec, v):
             raise ValueError(f"{rec.item_id}={rec.original_value!r}: not_required on a substantive code")
@@ -763,13 +829,15 @@ def source_confidence_rule(source_id: str, credibility: str | None,
             raise ValueError(f"{rec.item_id}: set_by_rule without a rule name")
     low = _low(v)
     if failures:
-        return SourceConfidence(source_id, low, "confidence.rule: failed check on a substantive original code",
-                                tuple(failures), tuple(pending))
+        basis = "rules/1: failed check on an associated original code (C7 a)"
+        if pending:
+            basis += "; checks pending (P10)"
+        return SourceConfidence(source_id, low, basis, tuple(failures), tuple(pending))
     if pending:
-        return SourceConfidence(source_id, UNFINISHED, "confidence.missing: checks pending", (), tuple(pending))
+        return SourceConfidence(source_id, UNFINISHED, "rules/1: checks pending, not scored", (), tuple(pending))
     if credibility is None or credibility == "unknown":
-        return SourceConfidence(source_id, "unknown", "confidence.missing: credibility unavailable")
-    return SourceConfidence(source_id, credibility, "confidence.rule: all checks completed, none failed")
+        return SourceConfidence(source_id, "unknown", "rules/1: credibility unavailable")
+    return SourceConfidence(source_id, credibility, "rules/1: all checks completed, none failed")
 
 
 def confidence_field(conf: SourceConfidence, *, vocab: SourceVocab | None = None) -> FieldValue:
@@ -784,7 +852,11 @@ def confidence_field(conf: SourceConfidence, *, vocab: SourceVocab | None = None
 def confidence_seam(results: Sequence[SourceConfidence]) -> dict[str, str]:
     """``{source_id: confidence}`` for ``stage6_adapters.source_confidence`` (T-028).
 
-    Unfinished sources are refused, never passed on as a grade.
+    Values are the stored source grades: ``high`` / ``medium`` / ``low`` /
+    ``unknown``. An ``unknown`` is passed on as ``unknown`` (it is the stored
+    source value); counting it as ``low`` in activity aggregation is
+    consolidation's step (C8 b), see :func:`aggregation_value`. Unfinished
+    sources are refused, never passed on as a grade.
     """
     unfinished = [r.source_id for r in results if not r.finished]
     if unfinished:
@@ -795,6 +867,31 @@ def confidence_seam(results: Sequence[SourceConfidence]) -> dict[str, str]:
             raise ValueError(f"duplicate source id {r.source_id}")
         out[r.source_id] = r.value
     return out
+
+
+def aggregation_value(conf: SourceConfidence | str, *, vocab: SourceVocab | None = None) -> str:
+    """The value a source confidence counts as when T-026 aggregates an activity (C8 b).
+
+    ``items/core.confidence/rules/2`` (r14, RC-D-025 C8 b): "At consolidation,
+    when an activity's confidence is aggregated from its sources, a source whose
+    confidence is `unknown` counts as `low`." The codes are read from that slot
+    (``vocab.aggregation_map``). Other grades pass through unchanged. This is a
+    helper for the consolidation library (``g3o/common/consolidate_v27.py``,
+    T-026), which owns aggregation; this module does not aggregate. Unfinished
+    confidence is refused.
+    """
+    v = vocab or default_vocab()
+    if isinstance(conf, SourceConfidence):
+        if not conf.finished:
+            raise UnfinishedConfidenceError([conf.source_id])
+        value = conf.value
+    else:
+        value = conf
+    if value == UNFINISHED:
+        raise UnfinishedConfidenceError(["<value>"])
+    if value not in (*v.credibility_values, *v.aggregation_map):
+        raise ValueError(f"source confidence {value!r} is not a stored source grade")
+    return v.aggregation_map.get(value, value)
 
 
 # ---------------------------------------------------------------------------
@@ -823,9 +920,9 @@ def missing_source_items(fields: Sequence[FieldValue], *, vocab: SourceVocab | N
 
 
 __all__ = [
-    "CONFIDENCE_DECISION", "UNFINISHED", "CredibilityMap", "FieldValue", "MetadataDate", "MissingUpstreamError",
+    "AGGREGATION_ROLE", "CONFIDENCE_DECISION", "LOW_DATE_VALUES", "UNFINISHED", "CredibilityMap", "FieldValue", "MetadataDate", "MissingUpstreamError",
     "OfficialSiteOverlay", "PendingCheck", "SourceConfidence", "SourceTyping", "SourceVocab",
-    "UnfinishedConfidenceError", "UnruledError", "auto_source_type", "code_source_type", "confidence_field",
+    "UnfinishedConfidenceError", "UnruledError", "aggregation_value", "auto_source_type", "code_source_type", "confidence_field",
     "confidence_seam", "date_upper_bound", "default_vocab", "discovery_path", "missing_source_items",
     "page_review_state", "publication_date", "residual_question_set", "route_source_type", "signed_credibility_map",
     "source_access_date", "source_confidence_rule", "source_credibility", "source_language",

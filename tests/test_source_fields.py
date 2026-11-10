@@ -1,8 +1,11 @@
 """Tests for the T-015 source-level field coder.
 
-Expected values come from the signed codebook r13 rules and the PI source-confidence
-decision of 2026-11-07 (agent-workspace/2026-11-07-t030-rulings/DECISION-AND-PROPOSAL.json),
-not from the implementation. jev is mocked; no network.
+Expected values come from the signed codebook r14 rules (RC-D-025 A1, C5, C6 a, C7 a,
+C8 b; PI-signed 2026-11-10) and the PI-approved procedural points P10-P14, not from the
+implementation. Expected map cells are restated here from the PI's chat reply recorded in
+RC-D-025 ("vendor medium, academic high, social media low, other medium, archive medium,
+5f low") and the r14 rules/1 text, so a codebook drift fails the test. jev is mocked; no
+network.
 """
 
 from __future__ import annotations
@@ -45,7 +48,7 @@ def vocab():
 
 def test_every_source_level_item_is_named(vocab):
     cb = load_codebook()
-    assert cb.sha256 == "07610cc92c5c49f6fb80d22bfa128a1b4db7f6fb429a62f0ea8789943569c527"
+    assert cb.sha256 == "7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b"
     expected = {k for k, v in cb.items.items() if "source" in (v.get("level") or [])}
     assert set(vocab.source_items) == expected
     assert {"core.source_type", "core.source_credibility", "core.confidence", "core.source_publication_date",
@@ -352,9 +355,12 @@ def test_unproduced_items_refuse():
 # X22 credibility
 # ---------------------------------------------------------------------------
 
-#: NOT a signed map: a test stand-in to exercise the date clause and lookups only.
-TEST_MAP = sf.CredibilityMap({"vendor": "medium", sf.AUTO_OFFICIAL: "high", "news_major": "medium"},
-                             "test-only, unsigned")
+#: X22 cells as items/core.source_credibility/rules/1 (r14) states them in words.
+EXPECTED_CELLS = {
+    "official_domain": "high", "procurement_tender": "high", "news_major": "medium", "news_trade": "medium",
+    "policy_org": "medium", "vendor": "medium", "academic": "high", "social_media": "low", "other": "medium",
+    "archive_address": "medium", "not_documented": "low", "unknown": "low",
+}
 
 
 def _date(value):
@@ -365,37 +371,61 @@ def _typed(value):
     return sf.SourceTyping(sf.FieldValue(sf.SOURCE_TYPE, value, "classifier", "test"), typed_by="classifier")
 
 
-def test_signed_r13_has_no_credibility_map():
+def test_signed_map_is_read_from_r14():
+    m = sf.signed_credibility_map()
+    assert dict(m.cells) == EXPECTED_CELLS
+    assert m.auto_keys == {sf.AUTO_OFFICIAL, sf.AUTO_ARCHIVE}
+    assert m.missing_keys == {"not_documented", "unknown"}
+    assert "credibility_map" in m.signed_by and sf.SIGNED_CODEBOOK_SHA256 in m.signed_by
+
+
+@pytest.mark.parametrize("code", ["news_major", "news_trade", "vendor", "academic", "policy_org",
+                                  "social_media", "procurement_tender", "other"])
+def test_every_answer_code_cell(code):
+    fv = sf.source_credibility(_typed(code), _date("2024"))
+    assert fv.value == EXPECTED_CELLS[code] and fv.coder == "derived"
+
+
+@pytest.mark.parametrize(("basis", "expected"), [(sf.AUTO_OFFICIAL, "high"), (sf.AUTO_ARCHIVE, "medium")])
+def test_auto_key_cells(basis, expected):
+    assert sf.source_credibility(sf.auto_source_type(basis), _date("2024-03-12")).value == expected
+
+
+@pytest.mark.parametrize("missing", ["not_documented", "unknown"])
+def test_missing_source_type_is_low(missing):
+    # 5f: source_type missing (not_documented, unknown) -> low
+    assert sf.source_credibility(_typed(missing), _date("2024")).value == "low"
+
+
+@pytest.mark.parametrize("dv", ["unknown", "not_documented"])
+@pytest.mark.parametrize("basis", [sf.AUTO_OFFICIAL, "academic", "procurement_tender"])
+def test_unknown_or_undated_date_makes_credibility_low(dv, basis):
+    # rules/0 (C6 a): "plus `low` when `source_publication_date` = unknown or not_documented"
+    t = sf.auto_source_type(basis) if basis == sf.AUTO_OFFICIAL else _typed(basis)
+    fv = sf.source_credibility(t, _date(dv))
+    assert fv.value == "low" and dv in fv.basis
+
+
+def test_readability_not_asked_has_no_cell():
+    t = sf.SourceTyping(sf.FieldValue(sf.SOURCE_TYPE, "not_asked", "classifier", "test",
+                                      rule_name="readability_failure:binary"), typed_by="readability")
     with pytest.raises(sf.UnruledError):
-        sf.signed_credibility_map()
+        sf.source_credibility(t, _date("2024"))
+
+
+def test_other_date_missing_token_refused():
     with pytest.raises(sf.UnruledError):
-        sf.source_credibility(_typed("vendor"), _date("2024"), None)
+        sf.source_credibility(_typed("vendor"), _date("not_asked"))
 
 
-def test_credibility_map_lookup_and_auto_type():
-    assert sf.source_credibility(_typed("vendor"), _date("2024"), TEST_MAP).value == "medium"
-    assert sf.source_credibility(sf.auto_source_type(sf.AUTO_OFFICIAL), _date("2024"), TEST_MAP).value == "high"
-
-
-def test_unknown_date_makes_credibility_low():
-    # "plus `low` when `source_publication_date` = unknown", whatever the cell says
-    assert sf.source_credibility(sf.auto_source_type(sf.AUTO_OFFICIAL), _date("unknown"), TEST_MAP).value == "low"
-
-
-def test_not_documented_date_is_unruled():
-    with pytest.raises(sf.UnruledError):
-        sf.source_credibility(_typed("vendor"), _date("not_documented"), TEST_MAP)
-
-
-def test_missing_cell_is_unruled():
-    with pytest.raises(sf.UnruledError):
-        sf.source_credibility(_typed("academic"), _date("2024"), TEST_MAP)
-    with pytest.raises(sf.UnruledError):
-        sf.source_credibility(sf.auto_source_type(sf.AUTO_ARCHIVE), _date("2024"), TEST_MAP)
+def test_bad_cell_value_refused():
+    bad = sf.CredibilityMap({"vendor": "excellent"}, "test-only", frozenset(), frozenset())
+    with pytest.raises(ValueError):
+        sf.source_credibility(_typed("vendor"), _date("2024"), bad)
 
 
 # ---------------------------------------------------------------------------
-# Source confidence (PI rule 2026-11-07)
+# Source confidence (r14 items/core.confidence/rules/1; C7 a; P10-P12)
 # ---------------------------------------------------------------------------
 
 
@@ -468,8 +498,9 @@ def test_pending_check_is_unfinished_never_a_grade():
 
 
 def test_failure_with_pending_is_low():
+    # P10: failure + pending -> low
     c = sf.source_confidence_rule("S1", "high", [low_conf(), sf.PendingCheck("core.page_verdict", "x", "pending")])
-    assert c.value == "low"
+    assert c.value == "low" and c.finished and c.failures and c.pending and "P10" in c.basis
 
 
 @pytest.mark.parametrize("cred", [None, "unknown"])
@@ -501,11 +532,29 @@ def test_second_reason_is_a_failure_too():
     assert sf.source_confidence_rule("S1", "high", [r]).value == "low"
 
 
-def test_failure_on_non_substantive_original_is_unruled():
+def test_negative_verdict_downgraded_below_bar_is_low():
+    # C7 a: "on any associated original code, including a `no` or negative value
+    # downgraded below the 0.8 bar, makes it `low`"
     r = _check("core.page_verdict", "no_genai", prob=0.5, quote=None, ent=None)
     assert r.support_status == "downgraded_low_confidence"
-    with pytest.raises(sf.UnruledError):
-        sf.source_confidence_rule("S1", "high", [r])
+    c = sf.source_confidence_rule("S1", "high", [supported(), r])
+    assert c.value == "low" and c.failures == ("core.page_verdict=no_genai downgraded_low_confidence",)
+
+
+def test_no_value_downgraded_below_bar_is_low():
+    r = _check("core.permanent_pilot", "no", prob=0.5, quote=None, ent=None)
+    assert r.original_value == "no" and r.support_status == "downgraded_low_confidence"
+    assert sf.source_confidence_rule("S1", "medium", [r]).value == "low"
+
+
+def test_c7a_failure_with_missing_credibility_is_low():
+    r = _check("core.page_verdict", "no_genai", prob=0.5, quote=None, ent=None)
+    assert sf.source_confidence_rule("S1", None, [r]).value == "low"
+
+
+def test_no_records_refused_p11():
+    with pytest.raises(ValueError, match="P11"):
+        sf.source_confidence_rule("S1", "high", [])
 
 
 def test_illegitimate_neutral_records_refused():
@@ -527,7 +576,48 @@ def test_seam_mapping_and_field():
     b = sf.source_confidence_rule("S2", "medium", [supported(), no_quote()])
     assert sf.confidence_seam([a, b]) == {"S1": "high", "S2": "low"}
     f = sf.confidence_field(a)
-    assert f.item_id == "core.confidence" and f.coder == "derived" and "2026-11-07" in f.basis
+    assert f.item_id == "core.confidence" and f.coder == "derived" and "rules/1" in f.basis
+
+
+def test_seam_emits_unknown():
+    u = sf.source_confidence_rule("S3", "unknown", [supported()])
+    h = sf.source_confidence_rule("S4", "high", [supported()])
+    assert sf.confidence_seam([u, h]) == {"S3": "unknown", "S4": "high"}
+    assert sf.confidence_field(u).value == "unknown"
+
+
+# ---------------------------------------------------------------------------
+# C8 b aggregation value (helper for T-026)
+# ---------------------------------------------------------------------------
+
+
+def test_aggregation_rule_read_from_codebook(vocab):
+    path, text = vocab.aggregation_rule
+    assert path == "items/core.confidence/rules/2"
+    assert text == ("At consolidation, when an activity's confidence is aggregated from its sources, "
+                    "a source whose confidence is `unknown` counts as `low`.")
+    assert dict(vocab.aggregation_map) == {"unknown": "low"}
+
+
+@pytest.mark.parametrize(("value", "expected"), [("unknown", "low"), ("high", "high"), ("medium", "medium"),
+                                                 ("low", "low")])
+def test_aggregation_value(value, expected):
+    assert sf.aggregation_value(value) == expected
+
+
+def test_aggregation_value_of_scored_source():
+    u = sf.source_confidence_rule("S3", None, [supported()])
+    assert u.value == "unknown" and sf.aggregation_value(u) == "low"
+
+
+def test_aggregation_value_refuses_unfinished_and_junk():
+    c = sf.source_confidence_rule("S1", "high", [sf.PendingCheck("core.source_type", "vendor", "X35")])
+    with pytest.raises(sf.UnfinishedConfidenceError):
+        sf.aggregation_value(c)
+    with pytest.raises(sf.UnfinishedConfidenceError):
+        sf.aggregation_value(sf.UNFINISHED)
+    with pytest.raises(ValueError):
+        sf.aggregation_value("not_documented")
 
 
 # ---------------------------------------------------------------------------
