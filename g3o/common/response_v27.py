@@ -20,7 +20,11 @@ Legacy-only columns of the three CSVs (``g3o.common.schema`` v2.5 columns that
 no D-007 storage item maps to) are filled for v2.7 rows only by a signed rule
 (:func:`retired_legacy_cells`): the codebook ``retired`` ``legacy_fill`` or the
 signed ``year_deployed`` translation (R-051). A retired column without a signed
-fill (``access_type``, ``vendor``) is left empty, never filled.
+fill is left empty, never filled.
+
+Columns with no v2.7 value (PI 2026-11-10, RC-D-029 V1 a): ``access_type`` and
+``vendor`` (activities) and ``vendors_found`` (summary) are blank on every v2.7
+row (empty CSV cell, SQL NULL). Documented in ``docs/data_dictionary.md``.
 """
 from __future__ import annotations
 
