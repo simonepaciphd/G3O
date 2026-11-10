@@ -88,6 +88,40 @@ def test_no_requires_web_evidence_and_ai_text_does_not_change_verdict():
     assert summary_values([page(), ai], [], published_activity_values=[])["core.has_genai_activity"] == "no"
 
 
+# RC-D-029 Q1 a / RC-D-027 1 a, 2 a, O2 b: the v2.7 yes/no/unclear consistency lives here (V3 a).
+def test_no_needs_a_negative_verdict_not_assessable_alone_is_unclear():
+    unreadable = page("u", "not_assessable", chosen_probability=None, support_status="set_by_rule")
+    assert summary_values([unreadable, replace(unreadable, page_id="u2")], [],
+                          published_activity_values=[])["core.has_genai_activity"] == "unclear"
+
+
+@pytest.mark.parametrize("status", ["downgraded_no_quote", "downgraded_low_confidence",
+                                    "downgraded_quote_not_stating_value"])
+def test_downgraded_confirms_activity_alone_gives_unclear(status):
+    down = page("d", "confirms_activity", support_status=status)
+    assert summary_values([page(), down], [observation(page_id="d", supported=False)],
+                          published_activity_values=[])["core.has_genai_activity"] == "unclear"
+
+
+@pytest.mark.parametrize("status", ["supported", "not_required", "set_by_rule"])
+def test_undowngraded_confirms_activity_off_yes_is_refused(status):
+    # supported but below the 0.8 probability bar, or supported with no supported observation
+    for confirmed, obs in ((page("c", "confirms_activity", chosen_probability=.5, support_status=status),
+                            [observation(page_id="c")]),
+                           (page("c", "confirms_activity", support_status=status),
+                            [observation(page_id="c", supported=False)])):
+        with pytest.raises(ConsolidationError, match="did not fail their support check"):
+            summary_values([page(), confirmed], obs, published_activity_values=[])
+
+
+def test_yes_with_supported_plus_downgraded_confirms_activity():
+    supported = page("s", "confirms_activity", support_status="supported")
+    down = page("d", "confirms_activity", support_status="downgraded_no_quote")
+    result = summary_values([supported, down], [observation(page_id="s"), observation("b", "d", supported=False)],
+                            published_activity_values=[activity_values()])
+    assert result["core.has_genai_activity"] == "yes"
+
+
 def test_supported_purchase_positive_has_commitment_tier():
     purchase = page(verdict="confirms_activity", pipeline="procurement", support_status="supported")
     values = activity_values(**{"core.adoption_stage": "unknown", "core.procurement_status": "payment_or_subscription"})

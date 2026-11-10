@@ -316,6 +316,14 @@ def summary_values(pages: Sequence[ReviewedPage], observations: Sequence[Activit
                  and p.support_status in PASSED and _probability(p.chosen_probability))
                 for p in relevant)
     verdict = "yes" if positive else "no" if web_negative and clear else "unclear"
+    # PI 2026-11-10 (RC-D-027 2 a): off `yes`, a confirms_activity source must have
+    # failed its support check (R-041: verdict kept, status downgraded, r2#40). AI-text
+    # pages never enter the verdict and are not checked here.
+    open_positive = [p.page_id for p in relevant if p.page_verdict == "confirms_activity"
+                     and not p.support_status.startswith("downgraded_")]
+    if verdict != "yes" and open_positive:
+        raise ConsolidationError(f"has_genai_activity={verdict} but confirms_activity page(s) "
+                                 f"{open_positive} did not fail their support check")
     depth: dict[str, Any] = {}
     for channel in dict.fromkeys(p.pipeline for p in pages):
         current = [p for p in pages if p.pipeline == channel]

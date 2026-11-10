@@ -57,6 +57,7 @@ and are left to the caller.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Annotated, Any, Literal, get_args
 
@@ -66,6 +67,7 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
+    ValidationInfo,
     WithJsonSchema,
     field_validator,
     model_validator,
@@ -258,6 +260,26 @@ SOURCE_SUPPORT_STATUS: frozenset[str] = frozenset(
 DOWNGRADED_SUPPORT_STATUS: frozenset[str] = frozenset(
     s for s in SOURCE_SUPPORT_STATUS if s.startswith("downgraded_")
 )
+
+#: Validation context selecting the codebook-2.7 Stage 6 rules on the legacy
+#: :class:`ConsolidatedInstitutionResponse` (PI 2026-11-10, RC-D-029 Q1 a). The
+#: response carries no release label of its own, so the release is stated by
+#: the caller: ``ConsolidatedInstitutionResponse.model_validate(payload,
+#: context=V27_CONTEXT)``. Without it (every legacy v2.5/2.6 reader and
+#: builder) the payload validates exactly as at main 80a010a: ``no`` needs every
+#: source ``confirms_absence``, ``unclear`` carries no ``confirms_activity``,
+#: ``_NA_`` never holds a ``confirms_activity``, and ``support_status`` is unset.
+#: A v2.7 ``6_validate.json`` is :class:`g3o.common.response_v27.
+#: ConsolidatedInstitutionResponseV27` (keys only); v2.7 yes/no/unclear
+#: consistency is enforced in :mod:`g3o.validate.consolidate_v27` (V3 a).
+V27_CONTEXT: Mapping[str, str] = {"codebook_release": CODEBOOK_RELEASE_V27}
+
+
+def is_v27_context(info: ValidationInfo | None) -> bool:
+    """True when the validation context names codebook release 2.7."""
+    ctx = info.context if info is not None else None
+    return isinstance(ctx, Mapping) and ctx.get("codebook_release") == CODEBOOK_RELEASE_V27
+
 
 # Row provenance (``core.evidence_channel``), corrected by PI Q3a
 # (2026-11-01) to match the codebook pipeline list (candidate r11).
@@ -812,12 +834,17 @@ class SourceRecord(BaseModel):
     # SOURCE_SUPPORT_STATUS; ``None`` means "not checked". Kept out of the
     # Stage 6 JSON schema (the LLM never sets it) and out of ``model_dump``
     # (so the source CSV row is unchanged); storing it needs a D-007 field-map
-    # decision first.
+    # decision first. v2.7 only (RC-D-029 Q1 a): set only under V27_CONTEXT.
     support_status: SkipJsonSchema[str | None] = Field(default=None, exclude=True)
 
     @field_validator("support_status")
     @classmethod
-    def _check_support_status(cls, v: str | None) -> str | None:
+    def _check_support_status(cls, v: str | None, info: ValidationInfo) -> str | None:
+        if v is not None and not is_v27_context(info):
+            raise ValueError(
+                f"support_status={v!r} on a legacy (v2.5/2.6) source: support_status "
+                "is a codebook-2.7 field (validate with V27_CONTEXT)"
+            )
         if v is not None and v not in SOURCE_SUPPORT_STATUS:
             raise ValueError(
                 f"support_status={v!r} not in {sorted(SOURCE_SUPPORT_STATUS)}"
@@ -850,7 +877,9 @@ class ConsolidatedInstitutionResponse(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _validate_yes_no_unclear_invariants(self) -> ConsolidatedInstitutionResponse:
+    def _validate_yes_no_unclear_invariants(self, info: ValidationInfo) -> ConsolidatedInstitutionResponse:
+        if not is_v27_context(info):
+            return self._legacy_yes_no_unclear()
         hga = self.institution.has_genai_activity
         confirms = [s for s in self.sources if s.genai_evidence == "confirms_activity"]
         if hga == "yes":
@@ -925,6 +954,44 @@ class ConsolidatedInstitutionResponse(BaseModel):
                 )
         return self
 
+    def _legacy_yes_no_unclear(self) -> ConsolidatedInstitutionResponse:
+        """The v2.5/2.6 rule, verbatim from main 80a010a (RC-D-029 Q1 a: legacy unchanged)."""
+        hga = self.institution.has_genai_activity
+        confirms = [s for s in self.sources if s.genai_evidence == "confirms_activity"]
+        if hga == "yes":
+            if not self.activities:
+                raise ValueError("has_genai_activity=yes but activities is empty")
+            if not confirms:
+                raise ValueError(
+                    "has_genai_activity=yes but no source has "
+                    "genai_evidence=confirms_activity"
+                )
+        elif hga == "no":
+            if self.activities:
+                raise ValueError(
+                    "has_genai_activity=no but activities is non-empty"
+                )
+            non_absence = [
+                s for s in self.sources if s.genai_evidence != "confirms_absence"
+            ]
+            if non_absence:
+                raise ValueError(
+                    f"has_genai_activity=no requires every source to be "
+                    f"confirms_absence; offenders: "
+                    f"{[s.source_id for s in non_absence]}"
+                )
+        elif hga == "unclear":
+            if self.activities:
+                raise ValueError(
+                    "has_genai_activity=unclear but activities is non-empty"
+                )
+            if confirms:
+                raise ValueError(
+                    "has_genai_activity=unclear but a source has "
+                    "genai_evidence=confirms_activity"
+                )
+        return self
+
     @model_validator(mode="after")
     def _validate_activity_id_sequence(self) -> ConsolidatedInstitutionResponse:
         seen = [a.activity_id for a in self.activities]
@@ -946,16 +1013,16 @@ class ConsolidatedInstitutionResponse(BaseModel):
         return self
 
     @model_validator(mode="after")
-    def _validate_source_activity_links(self) -> ConsolidatedInstitutionResponse:
+    def _validate_source_activity_links(self, info: ValidationInfo) -> ConsolidatedInstitutionResponse:
         valid_act_ids = {a.activity_id for a in self.activities}
+        v27 = is_v27_context(info)
         for s in self.sources:
             if s.activity_id == NA:
-                # PI 2026-11-10 (2 a; RC-D-027 follow-up O2 b): a downgraded
-                # confirms_activity source may go unlinked, on `unclear` (no
-                # activities) and on `yes` alike.
-                if (
-                    s.genai_evidence == "confirms_activity"
-                    and s.support_status not in DOWNGRADED_SUPPORT_STATUS
+                # PI 2026-11-10 (2 a; RC-D-027 follow-up O2 b), v2.7 only (Q1 a):
+                # a downgraded confirms_activity source may go unlinked, on
+                # `unclear` (no activities) and on `yes` alike.
+                if s.genai_evidence == "confirms_activity" and not (
+                    v27 and s.support_status in DOWNGRADED_SUPPORT_STATUS
                 ):
                     raise ValueError(
                         f"source {s.source_id}: activity_id=_NA_ but "
@@ -1106,6 +1173,8 @@ __all__ = [
     "CONTRACT_VERSION_V25",
     "NEGATIVE_PAGE_VERDICTS",
     "NO_PERMITTED_EVIDENCE",
+    "V27_CONTEXT",
+    "is_v27_context",
     "SOURCE_SUPPORT_STATUS",
     "DOWNGRADED_SUPPORT_STATUS",
     "EvidenceChannel",
