@@ -1,7 +1,7 @@
 """Source-level field coder (T-015; RC-D-002 H Q3, N25, O2; RC-D-023 B-Q3 a).
 
-One producer per source-level item of the signed codebook (r14, sha256
-``7972b8c1…658123b``, PI-signed 2026-11-10, ``planning/t010/signoff-record.md``): every item whose ``level`` includes ``source``. Values,
+One producer per source-level item of the signed codebook (r15, sha256
+``ca1bf616…fc73d3a``, PI-signed 2026-11-10, ``planning/t010/signoff-record.md``): every item whose ``level`` includes ``source``. Values,
 codes, missing tokens, support statuses and the date-origin map are read from
 the codebook through :mod:`g3o.codebook`; nothing here restates an enum the
 loader provides. Where a signed slot states its codes only inside rule text
@@ -83,8 +83,8 @@ from g3o.common.support_check import (
 )
 from g3o.common.urlnorm import site_host
 
-#: Codebook r14, PI-signed 2026-11-10 (planning/t010/signoff-record.md).
-SIGNED_CODEBOOK_SHA256 = "7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b"
+#: Codebook r15, PI-signed 2026-11-10 (planning/t010/signoff-record.md).
+SIGNED_CODEBOOK_SHA256 = "ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a"
 if SIGNED_CODEBOOK_SHA256 != SUPPORT_CHECK_CODEBOOK_SHA256:  # pragma: no cover - pin drift guard
     raise ImportError("source_fields and support_check pin different codebook releases")
 
@@ -222,7 +222,7 @@ def _aggregation_rule(cb: Codebook) -> tuple[tuple[str, str], dict[str, str]]:
 
 def vocab_from_codebook(cb: Codebook) -> SourceVocab:
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
-        raise ValueError(f"codebook sha256 {cb.sha256} is not the signed r14 release")
+        raise ValueError(f"codebook sha256 {cb.sha256} is not the signed r15 release")
     agg_rule, agg_map = _aggregation_rule(cb)
     items = cb.build_items()
     status = cb.vocabularies["support_status"]
@@ -675,13 +675,14 @@ class CredibilityMap:
 
 
 def signed_credibility_map(cb: Codebook | None = None) -> CredibilityMap:
-    """The X22 cells: ``items/core.source_credibility/credibility_map`` of the signed r14 release.
+    """The X22 cells: ``items/core.source_credibility/credibility_map`` of the signed r15 release.
 
     RC-D-025 C5 (PI 2026-11-10 "vendor medium, academic high, social media low,
     other medium, archive medium, 5f low"; the five integrator-drafted cells are
     covered by the r14 signature). Includes the automatic keys
     (``auto_keys``: ``official_domain``, ``archive_address``) and the missing
-    keys (``missing_keys``: ``not_documented``, ``unknown``).
+    keys (``missing_keys``: ``not_documented``, ``unknown``, and from r15
+    ``not_asked``, RC-D-026 10 a).
     """
     cb = cb or default_codebook()
     if cb.sha256 != SIGNED_CODEBOOK_SHA256:
@@ -722,7 +723,8 @@ def source_credibility(typing: SourceTyping, date: FieldValue, credibility_map: 
     key's cell; (3) otherwise the cell of the ``source_type`` value, a missing
     value (``not_documented`` / ``unknown``) taking its missing-key cell
     ``low`` (5f). A ``source_type`` of ``not_asked`` that was not typed
-    automatically (R-015 readability failure) has no signed cell: refused.
+    automatically (R-015 readability failure) takes the r15 missing-key cell
+    ``not_asked`` -> ``low`` (RC-D-026 10 a).
     """
     v = vocab or default_vocab()
     if date.item_id != DATE:
@@ -738,7 +740,7 @@ def source_credibility(typing: SourceTyping, date: FieldValue, credibility_map: 
     key = typing.typed_by if typing.typed_by in credibility_map.auto_keys else typing.field.value
     if key not in credibility_map.cells:
         raise UnruledError(CREDIBILITY, f"no signed map cell for source_type {key!r} (typed by "
-                                        f"{typing.typed_by}); the r14 missing keys are "
+                                        f"{typing.typed_by}); the signed missing keys are "
                                         f"{sorted(credibility_map.missing_keys)}")
     value = credibility_map.cells[key]
     if value not in v.credibility_values:

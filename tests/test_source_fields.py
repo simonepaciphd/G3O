@@ -1,7 +1,7 @@
 """Tests for the T-015 source-level field coder.
 
-Expected values come from the signed codebook r14 rules (RC-D-025 A1, C5, C6 a, C7 a,
-C8 b; PI-signed 2026-11-10) and the PI-approved procedural points P10-P14, not from the
+Expected values come from the signed codebook r15 rules (RC-D-025 A1, C5, C6 a, C7 a,
+C8 b; RC-D-026 10 a; PI-signed 2026-11-10) and the PI-approved procedural points P10-P14, not from the
 implementation. Expected map cells are restated here from the PI's chat reply recorded in
 RC-D-025 ("vendor medium, academic high, social media low, other medium, archive medium,
 5f low") and the r14 rules/1 text, so a codebook drift fails the test. jev is mocked; no
@@ -48,7 +48,7 @@ def vocab():
 
 def test_every_source_level_item_is_named(vocab):
     cb = load_codebook()
-    assert cb.sha256 == "7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b"
+    assert cb.sha256 == "ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a"
     expected = {k for k, v in cb.items.items() if "source" in (v.get("level") or [])}
     assert set(vocab.source_items) == expected
     assert {"core.source_type", "core.source_credibility", "core.confidence", "core.source_publication_date",
@@ -355,11 +355,12 @@ def test_unproduced_items_refuse():
 # X22 credibility
 # ---------------------------------------------------------------------------
 
-#: X22 cells as items/core.source_credibility/rules/1 (r14) states them in words.
+#: X22 cells as items/core.source_credibility/rules/1 (r15) states them in words.
 EXPECTED_CELLS = {
     "official_domain": "high", "procurement_tender": "high", "news_major": "medium", "news_trade": "medium",
     "policy_org": "medium", "vendor": "medium", "academic": "high", "social_media": "low", "other": "medium",
     "archive_address": "medium", "not_documented": "low", "unknown": "low",
+    "not_asked": "low",  # r15, RC-D-026 10 a: not_asked on an unreadable page
 }
 
 
@@ -371,11 +372,11 @@ def _typed(value):
     return sf.SourceTyping(sf.FieldValue(sf.SOURCE_TYPE, value, "classifier", "test"), typed_by="classifier")
 
 
-def test_signed_map_is_read_from_r14():
+def test_signed_map_is_read_from_r15():
     m = sf.signed_credibility_map()
     assert dict(m.cells) == EXPECTED_CELLS
     assert m.auto_keys == {sf.AUTO_OFFICIAL, sf.AUTO_ARCHIVE}
-    assert m.missing_keys == {"not_documented", "unknown"}
+    assert m.missing_keys == {"not_documented", "unknown", "not_asked"}
     assert "credibility_map" in m.signed_by and sf.SIGNED_CODEBOOK_SHA256 in m.signed_by
 
 
@@ -406,11 +407,12 @@ def test_unknown_or_undated_date_makes_credibility_low(dv, basis):
     assert fv.value == "low" and dv in fv.basis
 
 
-def test_readability_not_asked_has_no_cell():
+def test_readability_not_asked_is_low_from_the_map():
+    # r15 rules/1 (RC-D-026 10 a): "`not_asked` on an unreadable page" -> low, from the map cell
     t = sf.SourceTyping(sf.FieldValue(sf.SOURCE_TYPE, "not_asked", "classifier", "test",
                                       rule_name="readability_failure:binary"), typed_by="readability")
-    with pytest.raises(sf.UnruledError):
-        sf.source_credibility(t, _date("2024"))
+    fv = sf.source_credibility(t, _date("2024"))
+    assert fv.value == "low" and "map cell 'not_asked'" in fv.basis
 
 
 def test_other_date_missing_token_refused():
