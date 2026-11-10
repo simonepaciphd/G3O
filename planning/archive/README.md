@@ -9,3 +9,5 @@ Original baseline archives remain immutable. 2026-11-01-before-d007-approval/ pr
 - 2026-11-02-before-email-policy/: exact pre-RC-D-011 governance/contract/page preimages. Superseded RC-D-010 application lock retained in records/; baseline unchanged.
 
 - 2026-11-10-before-rcd025/: exact main 80a010a preimages of SPEC v001.26, PLAN, RESOURCES and labels before RC-D-025.
+
+- records/Delta-Lock-RC-D-024-2026-11-07.json: superseded by Delta-Lock-RC-D-025-2026-11-10.json (2026-11-10).

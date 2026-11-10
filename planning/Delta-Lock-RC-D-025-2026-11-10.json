@@ -1,0 +1,30 @@
+{
+ "format": "g3o-approved-delta-application-v1",
+ "delta": "RC-D-025",
+ "approval": "Simone Paci, 2026-11-10 chat: LOCK!",
+ "recorded_at": "2026-11-10T19:03:43.411575+00:00",
+ "baseline": "RC-BL-001 retained",
+ "SPEC_version": "v001.27",
+ "RESOURCES_version": "unchanged by RC-D-025",
+ "preimages": "archive/2026-11-10-before-rcd025",
+ "superseded_lock": "archive/records/Delta-Lock-RC-D-024-2026-11-07.json",
+ "artifacts": {
+  "SPEC.md": "bfc00400021ea3041603e099f34f9376f8a1c1389d142092f0cca3becfdfbfe3",
+  "PLAN.md": "7d0d964a07d1f813ac944194f3dc26aaf2aff862fbc03933eb2d79391ce79073",
+  "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
+  "CHANGELOG.md": "aa81414dacd5541067874b50a4077121a79dee4e4c70935cefd88d8739d4f49e",
+  "Plan-Labels.json": "46641e8f3640aceb8cbb1d6b84599850df603c2fab2b2ed56a2e17b4d2a02ed3",
+  "page/Plan-Visual.html": "1d3daa7f5dcf1fbe122b3b94624f310d8dd9022258f7c7faddbf34c29ec0a66d",
+  "deltas/RC-D-025.md": "4ea441fa94880bc2ba78ae73afd557b0b252d00367d284d4e75275188393b5eb"
+ },
+ "checks": {
+  "plan_viewer": "0 errors; 10 existing untyped warnings",
+  "signed_codebook": "7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b (r14, branch codebook/r14-20261110 4fa3959; checks 15 pass, 12 N/A)"
+ },
+ "pending": [
+  "PI items 9 (cross-institution official host, P13) and 10 (unreadable-page credibility)",
+  "P16 D-007 field map permanent_pilot coder",
+  "T-026, T-030 runtime with mocked end-to-end run; T-031 review",
+  "Owner-run publication of branches; no push/merge/paid calls by agent"
+ ]
+}
