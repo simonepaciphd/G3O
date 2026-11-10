@@ -2,7 +2,7 @@
   "generated_by": "g3o.codebook.generators.jev_questions",
   "do_not_edit": true,
   "codebook_release": "2.7",
-  "codebook_sha256": "cdb9bd763e419c60714e88519a71b0bcecaaddda787b6140652b1942ce4fba29",
+  "codebook_sha256": "3d6ce44a189d6ae5b533d97da503b56b3a3ec112c42a6e725dc346c0cd5d8ec1",
   "intended_target": "T-011 jev question and choice sets (path chosen by T-011)",
   "part_prompt": {
     "sentence": "The text below is only one part of a longer page; the rest of the page is read separately. Answer from this part only.",
@@ -1052,7 +1052,7 @@
     {
       "question_id": "core.adoption_stage",
       "item_id": "core.adoption_stage",
-      "item_hash": "3c9a80bba2641f0192a3812d0281bb44469e5efffe698f13b8f7117dc6939c6f",
+      "item_hash": "4aa4962b9e5b24a8ae88c84a0603d337d835b5e894cda596ef242a4c7b97e4e6",
       "column": "adoption_stage",
       "pass": 2,
       "round": 3,
@@ -1090,57 +1090,52 @@
       "criteria": [
         {
           "code": "proposed",
-          "text": "Exploratory or hedged intent with no concrete commitment: \"considering,\" \"exploring,\" \"studying feasibility,\" early discussions, unfunded or undated ideas. The text must still be explicitly generative-AI and tied to this institution. No named tool tied to a timeline, no signed MoU or contract, no budget line, no adopted policy.\n\nRules:\n1. Purchase steps are coded in the purchase-status question, not here. A payment or subscription alone does not show use: such an activity's stage is unknown unless the page shows use (set by rule, not chosen).\n2. Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.\n3. **\"Permanent pilot\" rule:** If described as \"pilot\" but running >12 months AND serving the full intended user base, code `production`. Note in `scope_notes`: \"Described as pilot but operational >12 months with full user base.\"\n4. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.",
+          "text": "Exploratory or hedged intent with no concrete commitment: \"considering,\" \"exploring,\" \"studying feasibility,\" early discussions, unfunded or undated ideas. The text must still be explicitly generative-AI and tied to this institution. No named tool tied to a timeline, no signed MoU or contract, no budget line, no adopted policy.\n\nRules:\n1. Purchase steps are coded in the purchase-status question, not here. A payment or subscription alone does not show use: such an activity's stage is unknown unless the page shows use (set by rule, not chosen).\n2. Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.",
           "definition_slot": "items/core.adoption_stage/values/0/definition",
           "rule_slots": [
             "items/core.adoption_stage/rules/0",
             "shared_rules/core.rule.ws10_proposals/0",
-            "items/core.adoption_stage/rules/2",
-            "items/core.adoption_stage/rules/3"
+            "items/core.adoption_stage/rules/2"
           ]
         },
         {
           "code": "announced",
-          "text": "Publicly stated intent to deploy with a concrete, documented commitment but no evidence of actual use. Includes: MoUs, budget allocations without deployment, strategy timelines.\n\nRules:\n1. Purchase steps are coded in the purchase-status question, not here. A payment or subscription alone does not show use: such an activity's stage is unknown unless the page shows use (set by rule, not chosen).\n2. Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.\n3. **\"Permanent pilot\" rule:** If described as \"pilot\" but running >12 months AND serving the full intended user base, code `production`. Note in `scope_notes`: \"Described as pilot but operational >12 months with full user base.\"\n4. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.",
+          "text": "Publicly stated intent to deploy with a concrete, documented commitment but no evidence of actual use. Includes: MoUs, budget allocations without deployment, strategy timelines.\n\nRules:\n1. Purchase steps are coded in the purchase-status question, not here. A payment or subscription alone does not show use: such an activity's stage is unknown unless the page shows use (set by rule, not chosen).\n2. Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.",
           "definition_slot": "items/core.adoption_stage/values/1/definition",
           "rule_slots": [
             "items/core.adoption_stage/rules/0",
             "shared_rules/core.rule.ws10_proposals/0",
-            "items/core.adoption_stage/rules/2",
-            "items/core.adoption_stage/rules/3"
+            "items/core.adoption_stage/rules/2"
           ]
         },
         {
           "code": "pilot",
-          "text": "Limited deployment: subset of users/departments/use cases; described as trial/pilot/PoC/experiment; time-bounded.\n\nRules:\n1. Purchase steps are coded in the purchase-status question, not here. A payment or subscription alone does not show use: such an activity's stage is unknown unless the page shows use (set by rule, not chosen).\n2. Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.\n3. **\"Permanent pilot\" rule:** If described as \"pilot\" but running >12 months AND serving the full intended user base, code `production`. Note in `scope_notes`: \"Described as pilot but operational >12 months with full user base.\"\n4. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.",
+          "text": "Limited deployment: subset of users/departments/use cases; described as trial/pilot/PoC/experiment; time-bounded.\n\nRules:\n1. Purchase steps are coded in the purchase-status question, not here. A payment or subscription alone does not show use: such an activity's stage is unknown unless the page shows use (set by rule, not chosen).\n2. Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.",
           "definition_slot": "items/core.adoption_stage/values/2/definition",
           "rule_slots": [
             "items/core.adoption_stage/rules/0",
             "shared_rules/core.rule.ws10_proposals/0",
-            "items/core.adoption_stage/rules/2",
-            "items/core.adoption_stage/rules/3"
+            "items/core.adoption_stage/rules/2"
           ]
         },
         {
           "code": "production",
-          "text": "Fully operational: available to intended user base, no longer experimental, in routine operations.\n\nRules:\n1. Purchase steps are coded in the purchase-status question, not here. A payment or subscription alone does not show use: such an activity's stage is unknown unless the page shows use (set by rule, not chosen).\n2. Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.\n3. **\"Permanent pilot\" rule:** If described as \"pilot\" but running >12 months AND serving the full intended user base, code `production`. Note in `scope_notes`: \"Described as pilot but operational >12 months with full user base.\"\n4. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.",
+          "text": "Fully operational: available to intended user base, no longer experimental, in routine operations.\n\nRules:\n1. Purchase steps are coded in the purchase-status question, not here. A payment or subscription alone does not show use: such an activity's stage is unknown unless the page shows use (set by rule, not chosen).\n2. Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.",
           "definition_slot": "items/core.adoption_stage/values/3/definition",
           "rule_slots": [
             "items/core.adoption_stage/rules/0",
             "shared_rules/core.rule.ws10_proposals/0",
-            "items/core.adoption_stage/rules/2",
-            "items/core.adoption_stage/rules/3"
+            "items/core.adoption_stage/rules/2"
           ]
         },
         {
           "code": "discontinued",
-          "text": "Previously deployed but explicitly ended, cancelled, or suspended.\n\nRules:\n1. Purchase steps are coded in the purchase-status question, not here. A payment or subscription alone does not show use: such an activity's stage is unknown unless the page shows use (set by rule, not chosen).\n2. Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.\n3. **\"Permanent pilot\" rule:** If described as \"pilot\" but running >12 months AND serving the full intended user base, code `production`. Note in `scope_notes`: \"Described as pilot but operational >12 months with full user base.\"\n4. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.",
+          "text": "Previously deployed but explicitly ended, cancelled, or suspended.\n\nRules:\n1. Purchase steps are coded in the purchase-status question, not here. A payment or subscription alone does not show use: such an activity's stage is unknown unless the page shows use (set by rule, not chosen).\n2. Proposals specific to this institution and explicitly about GenAI remain a qualifying activity.\n3. `unknown` is not one of the answers: it is set when the chosen answer's certainty is below the bar. It means the page confirms the GenAI activity but does not let its stage be settled.",
           "definition_slot": "items/core.adoption_stage/values/4/definition",
           "rule_slots": [
             "items/core.adoption_stage/rules/0",
             "shared_rules/core.rule.ws10_proposals/0",
-            "items/core.adoption_stage/rules/2",
-            "items/core.adoption_stage/rules/3"
+            "items/core.adoption_stage/rules/2"
           ]
         }
       ],
@@ -3967,7 +3962,7 @@
     {
       "question_id": "core.permanent_pilot",
       "item_id": "core.permanent_pilot",
-      "item_hash": "5449deb075e825d347c165c1737ced53c51f16327ab41d6c779fdde861b312cb",
+      "item_hash": "152bbabb24b057f88773d735097cc0341ee6e95603be4597682f789458beedb2",
       "column": "permanent_pilot",
       "pass": 2,
       "round": 3,
@@ -5122,6 +5117,21 @@
             "no": {
               "text": "does not include bias, fairness or safety testing",
               "slot": "items/core.evaluation_type_bias_or_safety_testing/values/1/entailment_label"
+            }
+          }
+        },
+        "core.permanent_pilot": {
+          "frame": "activity",
+          "field": "status as a long-running pilot",
+          "field_slot": "items/core.permanent_pilot/entailment_label",
+          "values": {
+            "yes": {
+              "text": "a pilot running over 12 months for its full intended user base",
+              "slot": "items/core.permanent_pilot/values/0/entailment_label"
+            },
+            "no": {
+              "text": "not such a long-running, full-scale pilot",
+              "slot": "items/core.permanent_pilot/values/1/entailment_label"
             }
           }
         },
