@@ -26,7 +26,9 @@ VERDICTS = (
 NEGATIVE = frozenset({"other_body", "event_only", "background_only", "confirms_absence", "no_genai"})
 RELATIONS = frozenset({"same_activity", "shared_participation", "component_of_program",
                        "has_component", "governs", "governed_by", "distinct_action", "unresolved",
-                       "not_an_activity"})
+                       "not_an_activity",
+                       # downgrade_target of core.activity_relation_cross_page (R-041): never merges
+                       "unknown"})
 MERGES = frozenset({"same_activity", "shared_participation"})
 CHANNELS = frozenset({"web_extract", "procurement", "ai_text"})
 MISSING = frozenset({"not_documented", "not_asked", "unknown", "_NA_"})
