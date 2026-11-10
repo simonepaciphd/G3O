@@ -233,7 +233,7 @@ class Stage6Quote:
 
 
 class Stage6QuoteNotApproved(RuntimeError):
-    """The quote-step instruction still carries its DRAFT marker: no paid call is made."""
+    """The quote-step instruction is not the PI-approved, SHA256-pinned text: no paid call is made."""
 
 
 QuoteFn = Callable[[Stage6QuoteRequest], Stage6Quote]

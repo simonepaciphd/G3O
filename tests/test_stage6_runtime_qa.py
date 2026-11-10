@@ -233,10 +233,10 @@ def test_extractor_success_then_x35_failure_is_journaled_and_not_repaid_on_resum
     run_dir, bound, instrument = e._setup(tmp_path)
     insts = e._institutions(run_dir, bound, instrument)
     ext1, ent1 = FakeExtractor(), FlakyEntail(fail_at=1)
-    first = _run(run_dir, bound, instrument, insts[:1], bound.stage6_quote_fn(ext1, ent1, allow_draft=True))
+    first = _run(run_dir, bound, instrument, insts[:1], bound.stage6_quote_fn(ext1, ent1))
     assert first.held == [A] and len(ext1.jobs) == 1
     ext2, ent2 = FakeExtractor(), FakeEntail()
-    second = _run(run_dir, bound, instrument, insts[:1], bound.stage6_quote_fn(ext2, ent2, allow_draft=True))
+    second = _run(run_dir, bound, instrument, insts[:1], bound.stage6_quote_fn(ext2, ent2))
     assert second.written == [A]
     assert ext1.jobs[0].custom_id not in {j.custom_id for j in ext2.jobs}  # the paid copy was replayed
     usage = second.usage[A]
@@ -272,12 +272,11 @@ def test_stage6_quote_job_is_configured_by_the_bound_instrument(tmp_path):
     run_dir, bound, instrument = e._setup(tmp_path)
     payload = instrument["payload"]
     assert payload["prompt_hashes"]["stage6_quote"] == sha256_text(bound.stage6_quote_system)
-    with pytest.raises(s6.Stage6QuoteNotApproved):
-        bound.stage6_quote_fn(FakeExtractor(), FakeEntail())  # the DRAFT gate still holds
+    assert bound.stage6_quote_system == sq.build_system_prompt(sq.STAGE6_QUOTE_INSTRUCTION)  # the pinned text
     ext = FakeExtractor()
     insts = e._institutions(run_dir, bound, instrument)
     assert _run(run_dir, bound, instrument, insts[:1],
-                bound.stage6_quote_fn(ext, FakeEntail(), allow_draft=True)).written == [A]
+                bound.stage6_quote_fn(ext, FakeEntail())).written == [A]
     assert ext.jobs
     for job in ext.jobs:
         assert job.params["model"] == payload["extractor_model_id"] == e.SETTINGS.extractor_model

@@ -95,12 +95,12 @@ class BoundRuntime:
             raise ValueError("Stage 6 quote prompt differs from the one pinned in the instrument")
         return self._configure(job, self.stage6_quote_system)
 
-    def stage6_quote_fn(self, extract_fn: Any, entail_fn: Any, *, allow_draft: bool = False) -> Any:
-        """The Stage 6 ``quote_fn`` bound to this instrument. The DRAFT gate of
-        :func:`g3o.validate.stage6_quote.make_quote_fn` still applies (``allow_draft``: fakes only)."""
+    def stage6_quote_fn(self, extract_fn: Any, entail_fn: Any) -> Any:
+        """The Stage 6 ``quote_fn`` bound to this instrument, with the pinned approved instruction
+        (the SHA256 gate of :func:`g3o.validate.stage6_quote.make_quote_fn` applies)."""
         from g3o.validate import stage6_quote
 
-        return stage6_quote.make_quote_fn(extract_fn, entail_fn, allow_draft=allow_draft,
+        return stage6_quote.make_quote_fn(extract_fn, entail_fn,
                                           configure_job=self.stage6_quote_job)
 
     def pass1_job(self, page: request_v27.Pass1Page, plan: request_v27.RequestPlan) -> ExtractorJob:

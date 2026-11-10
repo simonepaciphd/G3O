@@ -13,15 +13,17 @@ Two seams, both injected; this module makes no call of its own:
 - ``entail_fn(question, text) -> Entailment`` - the X35 call (the jev binding is
   T-030/T-035; :func:`g3o.common.support_check.run_entailment` still refuses).
 
-The instruction text is substantive and owed to the PI (RC-D-028 1 a: "wording
-to be approved"). It sits in ONE constant, :data:`STAGE6_QUOTE_INSTRUCTION`,
-whose first line is :data:`STAGE6_QUOTE_DRAFT_MARKER`. While the marker is in
-the instruction, :func:`anthropic_quote_fn` (the paid path) and
-:func:`make_quote_fn` refuse with :class:`Stage6QuoteNotApproved` before any
-client exists; only ``allow_draft=True`` (fakes, in tests) gets past it.
+The instruction text is substantive (RC-D-028 1 a); the PI approved it under
+RC-D-029 (O3 b). It sits in ONE constant, :data:`STAGE6_QUOTE_INSTRUCTION`,
+pinned by :data:`STAGE6_QUOTE_SHA256` (RC-D-029 Q3 a). An instruction whose
+UTF-8 bytes hash to anything else is refused by :func:`anthropic_quote_fn`
+(the paid path) and :func:`make_quote_fn` with :class:`Stage6QuoteNotApproved`
+before any client exists; only ``allow_unpinned=True`` (fakes, in tests) gets
+past it. The pin approves wording only: it authorizes no paid run.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
@@ -46,13 +48,10 @@ from g3o.validate.stage6_v27 import (
     Stage6QuoteRequest,
 )
 
-STAGE6_QUOTE_DRAFT_MARKER = "DRAFT — NOT PI-APPROVED"
-
-#: The Stage 6 quote-step instruction (RC-D-028 1 a). DRAFT — NOT PI-APPROVED: the PI
-#: approves or rewrites this text; remove the marker line only on that approval.
-STAGE6_QUOTE_INSTRUCTION = STAGE6_QUOTE_DRAFT_MARKER + """
-
-# Stage 6 supporting text
+#: The Stage 6 quote-step instruction (RC-D-028 1 a), approved by the PI under RC-D-029
+#: (O3 b, 2026-11-10): the draft at 4e1558f minus its DRAFT marker line and the
+#: "leave out words inside a passage" bullet. Pinned by :data:`STAGE6_QUOTE_SHA256`.
+STAGE6_QUOTE_INSTRUCTION = """# Stage 6 supporting text
 
 You are the copying step of the G3O coding pipeline. Another model has already read quotes about an institution's activities, gathered from one or more pages, and answered a coding question about them. Your job is to copy exact words from those quotes so that the answer can be checked. You do not answer the coding question yourself, and nothing you write is taken as an answer.
 
@@ -60,7 +59,6 @@ You are the copying step of the G3O coding pipeline. Another model has already r
 
 - Copy text exactly as it appears in one of the quotes you are given: same language, same spelling, same punctuation. Do not translate, summarise, correct or reword.
 - Copy from one quote only, and give its `quote_id`. Do not join words from two quotes.
-- You may leave out words inside a passage to keep it short, but every word you write must appear in that quote.
 - Keep the copy to at most {{QUOTE_MAX_CHARS}} characters. Copy the words that matter most; do not pad it to reach the limit.
 - If no quote bears on the task, give `null` rather than a guess.
 
@@ -72,7 +70,11 @@ The message lists the quotes under `QUOTES`, each with its `quote_id`, and one t
 
 Return only the JSON object the output format describes."""
 
-PROMPT_VERSION = "stage6_quote_v27-draft"
+#: SHA256 (UTF-8, LF) of the approved :data:`STAGE6_QUOTE_INSTRUCTION` (RC-D-029 Q3 a).
+#: Any other instruction text is refused by :func:`require_approved`.
+STAGE6_QUOTE_SHA256 = "898194903d3a0c733bb4f59d9b420423388afda48eb740e666de578320f04483"
+
+PROMPT_VERSION = "stage6_quote_v27-approved"
 
 ExtractFn = Callable[[ExtractorJob], ExtractorResult]
 EntailFn = Callable[[str, str], Entailment]
@@ -84,11 +86,16 @@ class Stage6QuoteFailed(RuntimeError):
     """One quote request failed (no result, refusal, malformed answer); that answer is held."""
 
 
+def instruction_sha256(instruction: str) -> str:
+    return hashlib.sha256(instruction.encode("utf-8")).hexdigest()
+
+
 def require_approved(instruction: str) -> None:
-    if STAGE6_QUOTE_DRAFT_MARKER in instruction:
+    """Refuse any instruction whose UTF-8 bytes do not hash to the approved pin (RC-D-029 Q3 a)."""
+    if instruction_sha256(instruction) != STAGE6_QUOTE_SHA256:
         raise Stage6QuoteNotApproved(
-            "Stage 6 quote-step instruction is marked 'DRAFT — NOT PI-APPROVED' (RC-D-028 1 a): "
-            "no extractor call is made until the PI approves the wording")
+            "Stage 6 quote-step instruction differs from the PI-approved text (RC-D-029, SHA256 "
+            f"{STAGE6_QUOTE_SHA256}): no extractor call is made with unapproved wording")
 
 
 def build_system_prompt(instruction: str = STAGE6_QUOTE_INSTRUCTION, cb: Codebook | None = None) -> str:
@@ -228,19 +235,20 @@ class Stage6QuoteStep:
 
 
 def make_quote_fn(extract_fn: ExtractFn, entail_fn: EntailFn, *, instruction: str = STAGE6_QUOTE_INSTRUCTION,
-                  allow_draft: bool = False, cb: Codebook | None = None,
+                  allow_unpinned: bool = False, cb: Codebook | None = None,
                   rules: SupportRules | None = None,
                   configure_job: Callable[[ExtractorJob], ExtractorJob] | None = None) -> Stage6QuoteStep:
-    """The Stage 6 ``quote_fn``. Refuses a DRAFT instruction unless ``allow_draft`` (fakes only)."""
-    if not allow_draft:
+    """The Stage 6 ``quote_fn``. Refuses an instruction other than the pinned approved text
+    unless ``allow_unpinned`` (fakes only, in tests)."""
+    if not allow_unpinned:
         require_approved(instruction)
     return Stage6QuoteStep(extract_fn, entail_fn, build_system_prompt(instruction, cb), rules, configure_job)
 
 
 def anthropic_quote_fn(entail_fn: EntailFn, *, client: Any | None = None,
                        instruction: str = STAGE6_QUOTE_INSTRUCTION) -> QuoteFn:
-    """The paid path: the extractor over the Anthropic Messages API (sync). Refuses while the
-    instruction carries the DRAFT marker, before any client is created."""
+    """The paid path: the extractor over the Anthropic Messages API (sync). Refuses an
+    instruction other than the pinned approved text, before any client is created."""
     require_approved(instruction)
     from g3o.extract.anthropic_client import AnthropicExtractorClient
 
@@ -248,8 +256,8 @@ def anthropic_quote_fn(entail_fn: EntailFn, *, client: Any | None = None,
 
 
 __all__ = [
-    "PROMPT_VERSION", "STAGE6_QUOTE_DRAFT_MARKER", "STAGE6_QUOTE_INSTRUCTION", "EntailFn", "ExtractFn",
-    "Stage6QuoteFailed", "Stage6QuoteNotApproved", "Stage6QuoteStep", "anthropic_quote_fn", "build_job", "build_system_prompt",
-    "build_user_message", "entailment_for", "make_quote_fn", "output_schema", "parse_answer", "quote_ids",
-    "require_approved",
+    "PROMPT_VERSION", "STAGE6_QUOTE_INSTRUCTION", "STAGE6_QUOTE_SHA256", "EntailFn", "ExtractFn",
+    "Stage6QuoteFailed", "Stage6QuoteNotApproved", "Stage6QuoteStep", "anthropic_quote_fn", "build_job",
+    "build_system_prompt", "build_user_message", "entailment_for", "instruction_sha256", "make_quote_fn",
+    "output_schema", "parse_answer", "quote_ids", "require_approved",
 ]

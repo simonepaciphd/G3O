@@ -2,10 +2,11 @@
 
 Every extractor reply and X35 answer below is a declared fake; no client is
 built and no network is opened (run under ``.github/scripts/offline.py``). The
-instruction is DRAFT — NOT PI-APPROVED, so the paid path must refuse.
+instruction is pinned by SHA256 (RC-D-029 Q3 a): any other text must refuse.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 
@@ -51,15 +52,24 @@ class FakeEntail:
 
 
 def quote_fn(extractor=None, entail=None):
-    return sq.make_quote_fn(extractor or FakeExtractor(), entail or FakeEntail(), allow_draft=True)
+    return sq.make_quote_fn(extractor or FakeExtractor(), entail or FakeEntail())
 
 
-# --- the draft gate -------------------------------------------------------------
+# --- the approval pin (RC-D-029 O3 b, Q3 a) ------------------------------------------
+
+APPROVED_SHA256 = "898194903d3a0c733bb4f59d9b420423388afda48eb740e666de578320f04483"
+DELETED_BULLET = ("- You may leave out words inside a passage to keep it short, but every word you write "
+                  "must appear in that quote.")
 
 
-def test_instruction_is_one_constant_marked_draft():
-    assert sq.STAGE6_QUOTE_INSTRUCTION.startswith(sq.STAGE6_QUOTE_DRAFT_MARKER)
-    assert sq.STAGE6_QUOTE_DRAFT_MARKER == "DRAFT — NOT PI-APPROVED"
+def test_instruction_is_the_approved_text_pinned_by_sha256():
+    text = sq.STAGE6_QUOTE_INSTRUCTION
+    assert sq.STAGE6_QUOTE_SHA256 == APPROVED_SHA256
+    assert hashlib.sha256(text.encode("utf-8")).hexdigest() == APPROVED_SHA256
+    assert text.startswith("# Stage 6 supporting text\n") and "\r" not in text
+    assert "DRAFT" not in text and DELETED_BULLET not in text
+    assert not hasattr(sq, "STAGE6_QUOTE_DRAFT_MARKER")
+    sq.require_approved(text)
 
 
 class Untouchable:
@@ -67,14 +77,19 @@ class Untouchable:
         raise AssertionError(f"client used: {name}")
 
 
-def test_paid_path_refuses_while_the_draft_marker_is_present():
+@pytest.mark.parametrize("other", [
+    "DRAFT — NOT PI-APPROVED\n\n" + sq.STAGE6_QUOTE_INSTRUCTION,  # the draft marker back
+    sq.STAGE6_QUOTE_INSTRUCTION.replace("- Keep the copy", DELETED_BULLET + "\n- Keep the copy"),  # bullet back
+    sq.STAGE6_QUOTE_INSTRUCTION.replace("\n", "\r\n"),  # CRLF bytes
+    sq.STAGE6_QUOTE_INSTRUCTION + "\n",  # one byte more
+    "Approved text.",
+])
+def test_any_other_instruction_text_is_refused_before_a_client_exists(other):
     with pytest.raises(s6.Stage6QuoteNotApproved):
-        sq.anthropic_quote_fn(FakeEntail(), client=Untouchable())
+        sq.anthropic_quote_fn(FakeEntail(), client=Untouchable(), instruction=other)
     with pytest.raises(s6.Stage6QuoteNotApproved):
-        sq.make_quote_fn(FakeExtractor(), FakeEntail())  # no allow_draft: refused too
-    marked = "Approved text.\n" + sq.STAGE6_QUOTE_DRAFT_MARKER
-    with pytest.raises(s6.Stage6QuoteNotApproved):
-        sq.anthropic_quote_fn(FakeEntail(), client=Untouchable(), instruction=marked)
+        sq.make_quote_fn(FakeExtractor(), FakeEntail(), instruction=other)
+    sq.make_quote_fn(FakeExtractor(), FakeEntail(), instruction=other, allow_unpinned=True)  # fakes only
 
 
 class FakeMessages:
@@ -95,14 +110,13 @@ class FakeAnthropic:
 
 def test_paid_path_shape_with_an_approved_text_and_a_fake_client():
     client = FakeAnthropic()
-    approved = sq.STAGE6_QUOTE_INSTRUCTION.replace(sq.STAGE6_QUOTE_DRAFT_MARKER + "\n\n", "")
-    fn = sq.anthropic_quote_fn(FakeEntail(), client=client, instruction=approved)
+    fn = sq.anthropic_quote_fn(FakeEntail(), client=client)  # the approved text, a fake client
     pages, obs, recs, quotes = two_pages()
     result = run(pages, obs, recs, quotes, FakeJev(SAME), fn)
     assert result.groups == (("o1", "o2"),)
     params = client.messages.params[0]
     assert params["model"] == "claude-haiku-5-5" and params["output_config"]["effort"] == "medium"
-    assert sq.STAGE6_QUOTE_DRAFT_MARKER not in params["system"]
+    assert params["system"] == sq.build_system_prompt()
 
 
 # --- relation answers -------------------------------------------------------------
