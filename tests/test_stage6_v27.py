@@ -573,3 +573,71 @@ def test_consolidated_response_never_fills_retired_columns_without_a_signed_fill
     gaps = " ".join(err.value.gaps)
     assert "access_type: no v2.7 value" in gaps and "vendor: no v2.7 value" in gaps
     assert "year_deployed:" not in gaps  # signed translation: earlier start year
+
+
+# --- RC-D-028 5a-5f (confirmed by the PI; pinned) ------------------------------------
+
+
+def test_5a_missing_activity_type_means_the_pair_is_asked():
+    pages, obs, recs, quotes = two_pages(name_b="Translation service", activity_type="not_documented",
+                                         tools=("DeepL",))
+    jev = FakeJev()
+    run(pages, obs, recs, quotes, jev, None)
+    assert len(jev.calls) == 1
+
+
+def test_5c_oversize_relation_request_is_held_not_split():
+    pages, obs, recs, quotes = two_pages()
+    jev = FakeJev({("Copilot pilot", "Copilot pilot"): ("same_activity", .95)})
+    result = s6.run_stage6(institution="Example Council", country="AU", pages=pages, observations=obs,
+                           records=recs, within_page=[], quotes=quotes, ask_fn=jev, quote_fn=FakeQuotes(),
+                           config=replace(CONFIG, limit_tokens=50))
+    assert [h.reason for h in result.held] == [s6.RELATION_OVER_BUDGET] and not jev.calls
+    assert not result.ready
+
+
+def test_5d_pooled_year_candidates_read_from_the_whole_pooled_part():
+    pages, obs, recs, quotes, jev = merged()
+    quotes = [replace(quotes[0], quote_text="The council began using Copilot in 2023."),
+              replace(quotes[1], quote_text="Staff drafted letters with Copilot in 2024.")]
+    quotes = [replace(q, sources=PageSources(q.sources.page_id, {q.producing_chunk_id: q.quote_text}))
+              for q in quotes]
+    recs = [replace(recs[0], quotes=(quotes[0],)), replace(recs[1], quotes=(quotes[1],))]
+    run(pages, obs, recs, quotes, jev, FakeQuotes())
+    asked = [c[1]["core.year_announced"] for c in jev.calls if "core.year_announced" in c[1]]
+    assert len(asked) == 1 and {"2023", "2024"} <= set(asked[0]["criteria"])
+
+
+def test_5e_support_checked_per_round_before_the_next_rounds_gates():
+    pages, obs, recs, quotes = two_pages()
+    answers = {"core.action_type": "governance", "core.activity_type": "policy_guidance"}
+    jev = FakeJev({("Copilot pilot", "Copilot pilot"): ("same_activity", .95)}, answers)
+    # supported governance: the governance-gated round-3 questions are asked
+    pooled = s6.pool_activity("pool001", ("o1", "o2"), obs, pages, quotes, jev, FakeQuotes(), CONFIG)
+    assert pooled.outcomes["core.governance_form"].state != "gated_out"
+    # the same answer failing its quote check is downgraded before round 3: gate closed
+    jev = FakeJev({}, answers)
+    pooled = s6.pool_activity("pool001", ("o1", "o2"), obs, pages, quotes, jev,
+                              ItemQuotes({"core.action_type": ("sup-elsewhere", "no such quote")}), CONFIG)
+    assert pooled.outcomes["core.action_type"].value == "unknown"
+    assert pooled.outcomes["core.governance_form"].state == "gated_out"
+    assert all("core.governance_form" not in c[1] for c in jev.calls)
+
+
+def test_5f_budget_is_measured_on_the_request_state_not_the_questions():
+    from g3o.common.page_chunks import TokenEstimator
+
+    pages, obs, recs, quotes, jev = merged()
+    run(pages, obs, recs, quotes, jev, FakeQuotes())
+    est = TokenEstimator()
+    state, questions = max(((c[0], c[1]) for c in jev.calls if REL_Q not in c[1]),
+                           key=lambda c: len(json.dumps(c[1])))
+    # the measured form: multi-part, with the part note and a wide marker (never smaller than sent)
+    measured = {**state, "page_part": f"1 of {s6.MEASURE_PARTS}", "part_note": INST["part_prompt"]["sentence"]}
+    state_tokens = est.tokens(json.dumps(measured, ensure_ascii=False, sort_keys=True))
+    question_tokens = est.tokens(json.dumps(questions, ensure_ascii=False, sort_keys=True))
+    limit = state_tokens + 40
+    assert question_tokens > 40
+    pooled = s6.pool_activity("pool001", ("o1", "o2"), obs, pages, quotes, merged()[4], FakeQuotes(),
+                              replace(CONFIG, limit_tokens=limit))
+    assert all(len(p) == 1 for p in pooled.parts.values())  # state fits: one part, questions not counted
