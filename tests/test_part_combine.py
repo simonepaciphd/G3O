@@ -31,7 +31,7 @@ def pa(i, value, p=0.9, failed=False, **kw):
 
 def test_every_codebook_rule_parses_and_covers_all_types(rules):
     assert {r.rule for r in rules.values()} == RULE_TYPES
-    assert len(rules) == 59
+    assert len(rules) == 60  # r14 (signed 7972b8c1) added core.permanent_pilot; kept in signed r15
 
 
 def test_page_item_rules_read_from_codebook(rules):
