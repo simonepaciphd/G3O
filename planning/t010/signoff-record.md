@@ -17,6 +17,12 @@
 - **What r14 changes from r13:** RC-D-025 A1 (source-confidence rule), A2 / B2 a / B3 / C1 / C2 (`core.permanent_pilot` support-checked classifier with labels and pilot/production-only override), C4 c (v25 permanent-pilot rule and its across-parts note retired from `core.adoption_stage`), C5 / C6 a (X22 credibility map; undated = low), C7 a, C8 b; record `planning/t010/r14-provenance.json`.
 - Frozen CX items remain covered by the existing batch-signature form (RC-D-004); the list below is unchanged.
 
+## Unsigned candidate r15 (RC-D-026): not a signature
+
+- Candidate sha256 (committed blob): `ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a`, `codebook/codebook.yaml` on branch `codebook/r15-20261110`, commit `3acf01a` (CRLF, `-text`; 12,226 lines).
+- Status: UNSIGNED. The r14 signature above stays current until the PI signs this hash and the integrator records it here.
+- Changes from r14: RC-D-026 10 a (PI 2026-11-10 chat "9a 10 a"): `core.source_credibility` credibility map missing keys gain `not_asked` -> `low`, and the rules/1 map sentence names it; record `planning/t010/r15-provenance.json`.
+
 ## Superseded signature authorization (r13, `07610cc9…`)
 
 | | |
