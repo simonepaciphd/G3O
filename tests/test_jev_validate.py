@@ -794,6 +794,24 @@ class TestMergeChunkResponses:
         absent2 = [_row("https://m.gov/", evidence="confirms_absence", snippet="m")]
         assert self._merge([absent, absent2]).institution.has_genai_activity == "no"
 
+    def test_internal_support_status_survives_merge(self):
+        # PI 2026-11-10 (2 a): an `unclear` chunk carrying a downgraded
+        # confirms_activity source must still validate after the merge.
+        from g3o.validate.jev_validate import merge_chunk_responses
+
+        base = _response([_row("https://u.gov/", evidence="ambiguous", snippet="u")])
+        payload = base.model_dump()
+        down = {**payload["sources"][0], "source_id": "S2", "source_url": "https://d.gov/",
+                "genai_evidence": "confirms_activity", "support_status": "downgraded_no_quote"}
+        payload["sources"].append(down)
+        unclear = ConsolidatedInstitutionResponse.model_validate(payload)
+        other = _response([_row("https://n.gov/", evidence="ambiguous", snippet="n")])
+        merged = merge_chunk_responses(
+            [(unclear, 2), (other, 1)], n_input_pages=3, n_input_rows=3
+        )
+        assert merged.institution.has_genai_activity == "unclear"
+        assert [s.support_status for s in merged.sources] == [None, "downgraded_no_quote", None]
+
     def test_summary_choice_tie_breaks(self):
         no = [_row("https://n.gov/", evidence="confirms_absence", summary="none here")]
         yes_small = [_row("https://y1.gov/", name="A", summary="small yes")]

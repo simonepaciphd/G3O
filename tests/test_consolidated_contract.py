@@ -354,6 +354,101 @@ def test_unclear_with_confirms_activity_rejected() -> None:
         )
 
 
+# PI 2026-11-10 (1 a): a `no` needs at least one negative verdict;
+# not_assessable alone does not suffice (consolidate_v27 `web_negative`).
+def test_no_with_only_not_assessable_rejected() -> None:
+    with pytest.raises(ValidationError, match="at least one source with a negative page verdict"):
+        ConsolidatedInstitutionResponse.model_validate(
+            _no_response("not_assessable", "not_assessable")
+        )
+
+
+@pytest.mark.parametrize(
+    "verdict",
+    ["confirms_absence", "no_genai", "background_only", "event_only", "other_body"],
+)
+def test_no_with_one_negative_plus_not_assessable_accepted(verdict: str) -> None:
+    ConsolidatedInstitutionResponse.model_validate(
+        _no_response("not_assessable", verdict)
+    )
+
+
+# PI 2026-11-10 (2 a): `unclear` may carry confirms_activity only when that
+# source failed its support check (R-041; verdict kept, r2#40).
+def _unclear_with_confirms(**src: Any) -> dict[str, Any]:
+    return {
+        "consolidation_metadata": _meta(),
+        "institution": _institution(has_genai_activity="unclear"),
+        "activities": [],
+        "sources": [_source(source_id="S1", activity_id=NA, **src)],
+    }
+
+
+@pytest.mark.parametrize(
+    "status",
+    ["downgraded_no_quote", "downgraded_low_confidence", "downgraded_quote_not_stating_value"],
+)
+def test_unclear_with_downgraded_confirms_activity_accepted(status: str) -> None:
+    r = ConsolidatedInstitutionResponse.model_validate(
+        _unclear_with_confirms(support_status=status)
+    )
+    assert r.sources[0].genai_evidence == "confirms_activity"
+    assert r.sources[0].support_status == status
+
+
+@pytest.mark.parametrize("status", ["supported", "not_required", "set_by_rule", None])
+def test_unclear_with_undowngraded_confirms_activity_rejected(status: str | None) -> None:
+    with pytest.raises(
+        ValidationError, match="unclear but a source has genai_evidence=confirms_activity"
+    ):
+        ConsolidatedInstitutionResponse.model_validate(
+            _unclear_with_confirms(support_status=status)
+        )
+
+
+def test_unknown_support_status_rejected() -> None:
+    with pytest.raises(ValidationError, match="support_status='passed' not in"):
+        ConsolidatedInstitutionResponse.model_validate(
+            _unclear_with_confirms(support_status="passed")
+        )
+
+
+def test_downgraded_confirms_activity_unlinked_still_rejected_on_yes() -> None:
+    payload = _yes_response()
+    payload["sources"].append(
+        _source(source_id="S2", activity_id=NA, support_status="downgraded_no_quote")
+    )
+    with pytest.raises(ValidationError, match="activity_id=_NA_ but genai_evidence=confirms_activity"):
+        ConsolidatedInstitutionResponse.model_validate(payload)
+
+
+def test_support_status_is_internal() -> None:
+    from g3o.common.contract import SourceRecord
+
+    schema = ConsolidatedInstitutionResponse.model_json_schema()
+    assert "support_status" not in str(schema)
+    r = ConsolidatedInstitutionResponse.model_validate(
+        _unclear_with_confirms(support_status="downgraded_no_quote")
+    )
+    assert "support_status" not in r.sources[0].model_dump()
+    assert SourceRecord.model_validate(_source()).support_status is None
+
+
+def test_support_status_vocabulary_matches_codebook_and_storage() -> None:
+    from g3o.codebook.loader import load_codebook
+    from g3o.common.contract import DOWNGRADED_SUPPORT_STATUS, SOURCE_SUPPORT_STATUS
+    from g3o.common.storage import SUPPORT_STATES
+
+    assert SOURCE_SUPPORT_STATUS == SUPPORT_STATES
+    assert SOURCE_SUPPORT_STATUS == set(
+        load_codebook().vocabularies["support_status"]["values"]
+    )
+    assert DOWNGRADED_SUPPORT_STATUS == {
+        "downgraded_no_quote", "downgraded_low_confidence",
+        "downgraded_quote_not_stating_value",
+    }
+
+
 def test_yes_without_confirms_activity_source_rejected() -> None:
     # All sources are confirms_absence, but has_genai_activity=yes — invalid.
     with pytest.raises(
