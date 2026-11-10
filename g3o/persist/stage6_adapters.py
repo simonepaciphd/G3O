@@ -1,7 +1,9 @@
 """Producer adapters from v2.7 Stage 6 outputs to the Stage 7 artifacts (T-028).
 
 Builds the per-institution ``6_storage.json`` (a :class:`StorageEnvelope`) and
-``6_validate.json`` (a ``ConsolidatedInstitutionResponse``) that
+``6_validate.json`` (for v2.7 a ``ConsolidatedInstitutionResponseV27``: identity
+and row keys only, RC-D-028 4 a; legacy ``ConsolidatedInstitutionResponse``
+still accepted) that
 :mod:`g3o.persist.writer` consumes, from the outputs that exist on this branch:
 T-024 :class:`~g3o.common.support_check.SupportResult`, T-027
 :class:`~g3o.common.jev_record.CoderRecord` and the consolidate_v27 reductions.
@@ -51,6 +53,7 @@ from typing import Any
 from g3o.common.contract import ConsolidatedInstitutionResponse
 from g3o.common.instrument import canonical_json, sha256_text, validate_instrument
 from g3o.common.jev_record import CoderRecord
+from g3o.common.response_v27 import ConsolidatedInstitutionResponseV27, check_storage_binding
 from g3o.common.storage import (
     CHANNELS,
     METADATA_ITEMS,
@@ -381,7 +384,7 @@ def load_support_provenance(path: Path, storage_path: Path) -> list[dict[str, An
 
 
 def write_stage6_artifacts(inst_dir: Path, envelope: StorageEnvelope,
-                           response: ConsolidatedInstitutionResponse | None,
+                           response: ConsolidatedInstitutionResponse | ConsolidatedInstitutionResponseV27 | None,
                            provenance: Sequence[Mapping[str, Any]] | None) -> tuple[Path, Path, Path]:
     """Write ``6_validate.json``, ``6_storage.json`` and the internal ``6_support_provenance.json``.
 
@@ -395,8 +398,13 @@ def write_stage6_artifacts(inst_dir: Path, envelope: StorageEnvelope,
         raise MissingUpstreamError(STAGE6_EXECUTOR, [VALIDATE_ARTIFACT])
     if provenance is None:
         raise MissingUpstreamError(PROVENANCE_PRODUCER, [PROVENANCE_ARTIFACT])
-    response = ConsolidatedInstitutionResponse.model_validate(response.model_dump(mode="json"))
+    model = type(response)
+    if model not in (ConsolidatedInstitutionResponse, ConsolidatedInstitutionResponseV27):
+        raise TypeError(f"unsupported 6_validate.json response model {model.__name__}")
+    response = model.model_validate(response.model_dump(mode="json"))
     data = envelope.data
+    if isinstance(response, ConsolidatedInstitutionResponseV27):
+        check_storage_binding(response, data)  # values live only in 6_storage.json
     if response.institution.institution_id != data["institution_id"]:
         raise ValueError("Stage 6 response and storage envelope name different institutions")
     if (set(data["activities"]) != {a.activity_id for a in response.activities}

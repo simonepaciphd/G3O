@@ -70,6 +70,7 @@ from pydantic import (
     field_validator,
     model_validator,
 )
+from pydantic.json_schema import SkipJsonSchema
 
 # ---------------------------------------------------------------------------
 # Tokens, vocabularies, and regex patterns
@@ -224,6 +225,39 @@ _PAGE_VERDICT_BY_VERSION: dict[str, tuple[str, ...]] = {
     CONTRACT_VERSION_V25: PAGE_VERDICT_V25,
     CODEBOOK_RELEASE_V27: PAGE_VERDICT_V27,
 }
+
+#: Negative page verdicts (R-041, RC-D-005 8 b; ``background_only`` may sit in
+#: the institution ``no`` set, R-005 S2 b).
+NEGATIVE_PAGE_VERDICTS: frozenset[str] = frozenset(
+    {"confirms_absence", "no_genai", "background_only", "event_only", "other_body"}
+)
+#: Source verdicts a ``no`` institution may carry: the negatives plus
+#: ``not_assessable``, which never blocks ``no`` (R-005 / R-015, C1 a).
+#: ``confirms_activity``, ``ambiguous_genai``, ``ambiguous_attribution`` and the
+#: v2.5 ``ambiguous`` stay excluded (unresolved signal, R-005).
+NO_PERMITTED_EVIDENCE: frozenset[str] = NEGATIVE_PAGE_VERDICTS | {"not_assessable"}
+
+#: Source-level support status (R-041; codebook ``vocabularies.support_status``,
+#: the same six codes as ``g3o.common.storage.SUPPORT_STATES`` and the
+#: ``g3o.common.support_check`` constants). Deliberately a frozenset, not a
+#: ``Literal`` alias: the field it validates is internal to the model (not in
+#: the Stage 6 JSON schema or the source CSV row), so it must not join the
+#: pinned ``Literal`` enum surface either.
+SOURCE_SUPPORT_STATUS: frozenset[str] = frozenset(
+    {
+        "supported",
+        "downgraded_no_quote",
+        "downgraded_low_confidence",
+        "downgraded_quote_not_stating_value",
+        "set_by_rule",
+        "not_required",
+    }
+)
+#: Support statuses meaning the source failed its support check (R-041; the
+#: page verdict is kept and only the status says downgraded, r2#40).
+DOWNGRADED_SUPPORT_STATUS: frozenset[str] = frozenset(
+    s for s in SOURCE_SUPPORT_STATUS if s.startswith("downgraded_")
+)
 
 # Row provenance (``core.evidence_channel``), corrected by PI Q3a
 # (2026-11-01) to match the codebook pipeline list (candidate r11).
@@ -774,6 +808,22 @@ class SourceRecord(BaseModel):
     genai_evidence: GenAIEvidence
     source_snippet: Annotated[str, StringConstraints(max_length=300)]
 
+    # Internal (PI 2026-11-10, 2 a): the source's support-check outcome, one of
+    # SOURCE_SUPPORT_STATUS; ``None`` means "not checked". Kept out of the
+    # Stage 6 JSON schema (the LLM never sets it) and out of ``model_dump``
+    # (so the source CSV row is unchanged); storing it needs a D-007 field-map
+    # decision first.
+    support_status: SkipJsonSchema[str | None] = Field(default=None, exclude=True)
+
+    @field_validator("support_status")
+    @classmethod
+    def _check_support_status(cls, v: str | None) -> str | None:
+        if v is not None and v not in SOURCE_SUPPORT_STATUS:
+            raise ValueError(
+                f"support_status={v!r} not in {sorted(SOURCE_SUPPORT_STATUS)}"
+            )
+        return v
+
 
 class ConsolidatedInstitutionResponse(BaseModel):
     """Full Stage 6 response for one institution: metadata + institution + activities + sources."""
@@ -811,29 +861,67 @@ class ConsolidatedInstitutionResponse(BaseModel):
                     "has_genai_activity=yes but no source has "
                     "genai_evidence=confirms_activity"
                 )
+            # PI 2026-11-10 (RC-D-027 follow-up O2 b): a downgraded
+            # confirms_activity (failed its support check, R-041) does not
+            # carry `yes`; at least one must be non-downgraded (matches
+            # g3o.validate.consolidate_v27, which requires `supported`).
+            # Unchecked sources (support_status None, legacy) still count.
+            if all(s.support_status in DOWNGRADED_SUPPORT_STATUS for s in confirms):
+                raise ValueError(
+                    "has_genai_activity=yes but every confirms_activity source "
+                    "has a downgraded support_status; offenders: "
+                    f"{[(s.source_id, s.support_status) for s in confirms]}"
+                )
         elif hga == "no":
             if self.activities:
                 raise ValueError(
                     "has_genai_activity=no but activities is non-empty"
                 )
-            non_absence = [
-                s for s in self.sources if s.genai_evidence != "confirms_absence"
+            # RC-D-025 P9: v2.7 rule (R-005, R-015, R-041; codebook 2.7
+            # core.has_genai_activity). A `no` institution may rest on any
+            # negative page verdict plus `not_assessable`, which never blocks
+            # `no` (C1 a). The legacy rule (every source `confirms_absence`)
+            # is a subset of this, so previously valid payloads stay valid.
+            # PI 2026-11-10 (1 a): a `no` must also carry at least one
+            # negative verdict; `not_assessable` alone does not suffice
+            # (matches g3o.validate.consolidate_v27: `web_negative` non-empty).
+            blocking = [
+                s for s in self.sources if s.genai_evidence not in NO_PERMITTED_EVIDENCE
             ]
-            if non_absence:
+            if blocking:
                 raise ValueError(
-                    f"has_genai_activity=no requires every source to be "
-                    f"confirms_absence; offenders: "
-                    f"{[s.source_id for s in non_absence]}"
+                    f"has_genai_activity=no requires every source to carry a "
+                    f"negative page verdict or not_assessable "
+                    f"({sorted(NO_PERMITTED_EVIDENCE)}); offenders: "
+                    f"{[(s.source_id, s.genai_evidence) for s in blocking]}"
+                )
+            if not any(
+                s.genai_evidence in NEGATIVE_PAGE_VERDICTS for s in self.sources
+            ):
+                raise ValueError(
+                    f"has_genai_activity=no requires at least one source with a "
+                    f"negative page verdict ({sorted(NEGATIVE_PAGE_VERDICTS)}); "
+                    f"not_assessable alone does not suffice"
                 )
         elif hga == "unclear":
             if self.activities:
                 raise ValueError(
                     "has_genai_activity=unclear but activities is non-empty"
                 )
-            if confirms:
+            # PI 2026-11-10 (2 a): a confirms_activity source may sit on an
+            # `unclear` institution only when it failed its support check
+            # (R-041: unsupported positive downgraded, verdict kept, r2#40).
+            # No support_status (not checked) stays rejected, as before.
+            undowngraded = [
+                s for s in confirms
+                if s.support_status not in DOWNGRADED_SUPPORT_STATUS
+            ]
+            if undowngraded:
                 raise ValueError(
                     "has_genai_activity=unclear but a source has "
-                    "genai_evidence=confirms_activity"
+                    "genai_evidence=confirms_activity without a downgraded "
+                    f"support_status; offenders: "
+                    f"{[(s.source_id, s.support_status) for s in undowngraded]}"
                 )
         return self
 
@@ -862,7 +950,13 @@ class ConsolidatedInstitutionResponse(BaseModel):
         valid_act_ids = {a.activity_id for a in self.activities}
         for s in self.sources:
             if s.activity_id == NA:
-                if s.genai_evidence == "confirms_activity":
+                # PI 2026-11-10 (2 a; RC-D-027 follow-up O2 b): a downgraded
+                # confirms_activity source may go unlinked, on `unclear` (no
+                # activities) and on `yes` alike.
+                if (
+                    s.genai_evidence == "confirms_activity"
+                    and s.support_status not in DOWNGRADED_SUPPORT_STATUS
+                ):
                     raise ValueError(
                         f"source {s.source_id}: activity_id=_NA_ but "
                         f"genai_evidence=confirms_activity (must link to an activity)"
@@ -1010,6 +1104,10 @@ __all__ = [
     "PAGE_VERDICT_V27",
     "CODEBOOK_RELEASE_V27",
     "CONTRACT_VERSION_V25",
+    "NEGATIVE_PAGE_VERDICTS",
+    "NO_PERMITTED_EVIDENCE",
+    "SOURCE_SUPPORT_STATUS",
+    "DOWNGRADED_SUPPORT_STATUS",
     "EvidenceChannel",
     "page_verdict_vocabulary",
     "check_page_verdict",

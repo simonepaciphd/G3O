@@ -742,7 +742,7 @@ def merge_chunk_responses(
             if key in seen:
                 continue
             chunk_keys.add(key)
-            data = src.model_dump()
+            data = {**src.model_dump(), "support_status": src.support_status}
             data["source_id"] = f"S{len(sources) + 1}"
             if pos >= 0:
                 data["activity_id"] = f"A{pos + 1}"
@@ -794,7 +794,9 @@ def merge_chunk_responses(
             "consolidation_metadata": metadata.model_dump(),
             "institution": institution.model_dump(),
             "activities": [a.model_dump() for a in activities],
-            "sources": [s.model_dump() for s in sources],
+            # support_status is internal (excluded from dumps); keep it.
+            "sources": [{**s.model_dump(), "support_status": s.support_status}
+                        for s in sources],
         }
     )
 
