@@ -2735,7 +2735,7 @@
       ],
       "answer_type": "yes_no",
       "visibility": "public",
-      "coder": "derived",
+      "coder": "classifier",
       "storage_targets": [
         "activities"
       ],

@@ -1,4 +1,4 @@
-# G3O codebook release 2.7, revision r14 — UNSIGNED candidate (RC-D-025), sign-off build (T-010). Byte edits to the signed r13 file, recorded in planning/t010/r14-provenance.json.
+# G3O codebook release 2.7, revision r15 — UNSIGNED candidate (RC-D-026), sign-off build (T-010). Byte edits to the signed r14 file, recorded in planning/t010/r15-provenance.json.
 # Every slot text is copied verbatim from its `source`; `origin` records who approved it.
 # Signed only if planning/t010/signoff-record.md holds this file's sha256 (A-001).
 release:
@@ -38,6 +38,8 @@ release:
       RC-D-019 (PI 2026-11-05 chat "Aa,D1b add all of them, I approve the delta D2c C1a C2b; proced all accept" and "F1a, B1c (but current-year+25-99), B2a; [recedural ok; E1c E2a ..."): D1 b / F1 a six answer values take `not_required` (status_by_answer keys and the four current copies of the list); C1 a year value label (label_rules); B2 a / B1 c rule 1 of the three year items; E2 a new rule of content_contact_emails; provenance planning/t010/r13-provenance.json
     r14: |-
       RC-D-025 A1 / A2 (PI 2026-11-07 chat "sounds good, whats next" (RC-D-025 A1/A2)) and B2 a / B3 (PI 2026-11-10 chat "1a 2a 3 wording ok 4b, accept all" (RC-D-025 B2 a, B3; P2)): A1 source-level confidence rule added to core.confidence (activity aggregation rule unchanged); A2 core.permanent_pilot derived -> classifier (jev_choice, pass 2, round 3, adoption_stage gate, support-checked; B3 instruction and values as drafted; B2 a combining rule, approved verbatim C2); its r2 'derived flag' rule moved to r14_dropped; C1 entailment labels on core.permanent_pilot and C4 c v25 'Permanent pilot' rule and F01 across-parts note moved from core.adoption_stage to r14_dropped, same-part limit stated on core.permanent_pilot (PI 2026-11-10 chat "1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all"); core.source_credibility X22 map cells and C6 a undated override (PI 2026-11-10 chat "vendor medium, academic high, social media low, other medium, archive medium, 5f low"; five cells integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature); core.confidence C7 a (rules/1: any associated original code) and C8 b (new rules/2: `unknown` source counts as `low` in aggregation) (PI 2026-11-10 chat "1 look good, 2 approved, 3a 4c, 5good, 6a 7a 8b; approve all"); provenance planning/t010/r14-provenance.json
+    r15: |-
+      RC-D-026 item 10 a (PI 2026-11-10 chat "9a 10 a"): core.source_credibility credibility_map missing keys gain `not_asked` -> `low` (an unreadable page is never typed, so `source_type` = `not_asked`; treated as missing type); rules/1 map sentence names it; item 9 a needs no codebook change; provenance planning/t010/r15-provenance.json
   r4_dropped:
   - card: activity-1 O1
     slot: items/core.observed_actor_relationship/rules/6
@@ -3180,10 +3182,14 @@ items:
       origin_before_r4: r1
       r4_fixes: FX13
     - text: |-
-        Credibility by `source_type`: official domain (typed from the web domain) `high`; `procurement_tender` `high`; `news_major` `medium`; `news_trade` `medium`; `policy_org` `medium`; `vendor` `medium`; `academic` `high`; `social_media` `low`; `other` `medium`; archive address (typed from the address) `medium`; `source_type` missing (`not_documented`, `unknown`) `low`.
-      origin: PI 2026-11-10 chat "vendor medium, academic high, social media low, other medium, archive medium, 5f low"; integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature (official_domain, procurement_tender, news_major, news_trade, policy_org); r14
+        Credibility by `source_type`: official domain (typed from the web domain) `high`; `procurement_tender` `high`; `news_major` `medium`; `news_trade` `medium`; `policy_org` `medium`; `vendor` `medium`; `academic` `high`; `social_media` `low`; `other` `medium`; archive address (typed from the address) `medium`; `source_type` missing (`not_documented`, `unknown`, or `not_asked` on an unreadable page) `low`.
+      origin: PI 2026-11-10 chat "vendor medium, academic high, social media low, other medium, archive medium, 5f low"; integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature (official_domain, procurement_tender, news_major, news_trade, policy_org); r14; PI 2026-11-10 chat "9a 10 a" (RC-D-026 item 10 a); r15
       source: agent-workspace/2026-11-10-build/RC-D-025-draft.md PI rulings, credibility map; cells in credibility_map
       role: credibility map (X22 cells)
+      text_before_r15: |-
+        Credibility by `source_type`: official domain (typed from the web domain) `high`; `procurement_tender` `high`; `news_major` `medium`; `news_trade` `medium`; `policy_org` `medium`; `vendor` `medium`; `academic` `high`; `social_media` `low`; `other` `medium`; archive address (typed from the address) `medium`; `source_type` missing (`not_documented`, `unknown`) `low`.
+      origin_before_r15: PI 2026-11-10 chat "vendor medium, academic high, social media low, other medium, archive medium, 5f low"; integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature (official_domain, procurement_tender, news_major, news_trade, policy_org); r14
+      source_r15: planning/deltas/RC-D-026.md item 10 a (unreadable page, `source_type` = `not_asked`, never typed; treat as missing type, `low`)
     credibility_map:
       map:
         official_domain: high
@@ -3198,12 +3204,14 @@ items:
         archive_address: medium
         not_documented: low
         unknown: low
+        not_asked: low
       auto_keys:
         official_domain: typed from the web domain, not asked (core.source_type rules/0; core.source_on_official_domain)
         archive_address: typed from the address, not asked (core.source_type rules/0)
       missing_keys:
       - not_documented
       - unknown
+      - not_asked
       origin_by_cell:
         official_domain: 'integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature'
         procurement_tender: 'integrator draft from v2.5 §4.8, presented 2026-11-10, not objected to; covered by r14 signature'
@@ -3217,6 +3225,7 @@ items:
         archive_address: 'PI 2026-11-10 chat "vendor medium, academic high, social media low, other medium, archive medium, 5f low"'
         not_documented: 'PI 2026-11-10 chat "vendor medium, academic high, social media low, other medium, archive medium, 5f low" (5f)'
         unknown: 'PI 2026-11-10 chat "vendor medium, academic high, social media low, other medium, archive medium, 5f low" (5f)'
+        not_asked: 'PI 2026-11-10 chat "9a 10 a" (RC-D-026 item 10 a)'
       source: agent-workspace/2026-11-10-build/RC-D-025-draft.md PI rulings, credibility map (C5 approach, PI reply quoted in origin_by_cell)
       override: rules/0 (`low` when `source_publication_date` is `unknown` or `not_documented`; C6 a)
     order_tie_rule: none
@@ -3242,6 +3251,7 @@ items:
     - R-090
     - RC-D-025 C5
     - RC-D-025 C6 a
+    - RC-D-026 10 a
     status: signed
   core.activity_segment:
     id: core.activity_segment

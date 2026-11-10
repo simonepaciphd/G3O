@@ -17,7 +17,7 @@ from g3o.extract.parser_v27 import ActivitySpan, FieldValue
 from g3o.extract.pass2_support import select_requests
 from g3o.extract.request_v27 import Pass1Page
 
-SHA = "7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b"
+SHA = "ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a"
 SETUP = "a" * 64
 QSET = load_set("activity")
 RULES = load_classifier_rules(default_codebook_path().read_bytes(), expected_sha256=QSET["codebook_sha256"])
