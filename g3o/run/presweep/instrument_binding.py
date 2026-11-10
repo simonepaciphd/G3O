@@ -69,6 +69,7 @@ class BoundRuntime:
     activity_config: ActivityCoderConfig
     pass1_system: str
     pass2_system: str
+    stage6_quote_system: str = ""  # pinned as prompt_hashes["stage6_quote"]
 
     def _configure(self, job: ExtractorJob, system: str) -> ExtractorJob:
         params = build_params(
@@ -87,6 +88,20 @@ class BoundRuntime:
         return Stage6Config(rules=a.rules, setup_pointer=self.instrument_id, configured_model=a.configured_model,
                             combiner=a.combiner, reference_year=a.reference_year,
                             reserved_tokens=self.settings.reserved_tokens, estimator=self.page_config.estimator)
+
+    def stage6_quote_job(self, job: ExtractorJob) -> ExtractorJob:
+        """A Stage 6 quote-step job with this instrument's extractor settings and setup pointer."""
+        if not self.stage6_quote_system or job.params["system"] != self.stage6_quote_system:
+            raise ValueError("Stage 6 quote prompt differs from the one pinned in the instrument")
+        return self._configure(job, self.stage6_quote_system)
+
+    def stage6_quote_fn(self, extract_fn: Any, entail_fn: Any, *, allow_draft: bool = False) -> Any:
+        """The Stage 6 ``quote_fn`` bound to this instrument. The DRAFT gate of
+        :func:`g3o.validate.stage6_quote.make_quote_fn` still applies (``allow_draft``: fakes only)."""
+        from g3o.validate import stage6_quote
+
+        return stage6_quote.make_quote_fn(extract_fn, entail_fn, allow_draft=allow_draft,
+                                          configure_job=self.stage6_quote_job)
 
     def pass1_job(self, page: request_v27.Pass1Page, plan: request_v27.RequestPlan) -> ExtractorJob:
         return self._configure(request_v27.build_job(page, plan, system=self.pass1_system), self.pass1_system)
@@ -112,10 +127,14 @@ def bind_runtime(run_dir: Path, settings: RuntimeSettings) -> BoundRuntime:
     estimator.assert_approved()
     pass1_system = request_v27.build_system_prompt(cb)
     pass2_system = pass2_support.build_system_prompt(cb)
+    from g3o.validate import stage6_quote  # lazy: stage6_quote imports the Stage 6 executor
+
+    stage6_quote_system = stage6_quote.build_system_prompt(cb=cb)
     generated = Path(__file__).resolve().parents[2] / "codebook" / "generated"
     questions = {name: load_set(name) for name in ("page", "activity", "institution")}
     question_hashes = {name: sha256_text(canonical_json(doc)) for name, doc in questions.items()}
-    prompt_hashes = {"pass1": sha256_text(pass1_system), "pass2": sha256_text(pass2_system)}
+    prompt_hashes = {"pass1": sha256_text(pass1_system), "pass2": sha256_text(pass2_system),
+                     "stage6_quote": sha256_text(stage6_quote_system)}
     for name in ("extract_output_contract.md", "validate_output_contract.md", "jev_questions.json"):
         prompt_hashes[name] = _file_hash(generated / name)
     chunker_hash = _file_hash(Path(page_chunks.__file__))
@@ -162,7 +181,7 @@ def bind_runtime(run_dir: Path, settings: RuntimeSettings) -> BoundRuntime:
                         settings.reserved_tokens, estimator=estimator, codebook=cb),
         ActivityCoderConfig(rules, record["instrument_id"], settings.jev_model,
                             part_combine_adapter(cb), settings.reference_year),
-        pass1_system, pass2_system,
+        pass1_system, pass2_system, stage6_quote_system,
     )
     write_instrument(run_dir / "final" / "instruments", payload)
     try:

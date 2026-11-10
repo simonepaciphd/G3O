@@ -338,6 +338,8 @@ class RelationOutcome:
     records: tuple[CoderRecord, ...]
     support: tuple[SupportResult, ...]
     held: tuple[Held, ...] = ()
+    #: per ``support`` entry: the input support the quote step copied its quote from (or None)
+    support_inputs: tuple[str | None, ...] = ()
 
 
 def _request(ask_fn: AskFn, state: dict[str, Any], questions: dict[str, dict[str, Any]]
@@ -356,17 +358,21 @@ def _request(ask_fn: AskFn, state: dict[str, Any], questions: dict[str, dict[str
 def _support(kind: str, key: str, part_id: str, q: Mapping[str, Any], rec: CoderRecord,
              candidates: Sequence[InputQuote], quote_fn: QuoteFn | None, *,
              activity_id: str | None, linked: str | None, activity_name: str | None = None,
-             first_observation_id: str | None = None) -> SupportResult | Held:
-    """T-024 check of one Stage 6 answer; the quote must come from a candidate of this part."""
+             first_observation_id: str | None = None) -> tuple[SupportResult, str | None] | Held:
+    """T-024 check of one Stage 6 answer; the quote must come from a candidate of this part.
+
+    Returns the support result and the input support id the quote step copied
+    its quote from (``Stage6Quote.input_support_id``; None without a copied quote).
+    """
     value = str(rec.chosen_value)
     placeholder = PageSources(part_id, {part_id: ""})
     base = dict(item_id=q["item_id"], value=value, part=q.get("part"), probability=rec.chosen_answer_probability,
                 activity_id=activity_id, linked_activity=linked)
     probe = check_code(CodeEvidence(chunk_id=part_id, **base), placeholder)
     if probe.support_status != NO_QUOTE:
-        return probe  # no quote needed (exempt value): the check is complete without the quote step
+        return probe, None  # no quote needed (exempt value): the check is complete without the quote step
     if not candidates:
-        return probe  # nothing shown in this part to copy from: no supporting text
+        return probe, None  # nothing shown in this part to copy from: no supporting text
     hold_key = f"{kind}:{key}:{part_id}:{q['question_id']}"
     if quote_fn is None:
         return Held(QUOTE_STEP_ABSENT, hold_key)
@@ -380,14 +386,14 @@ def _support(kind: str, key: str, part_id: str, q: Mapping[str, Any], rec: Coder
     except Exception as exc:  # noqa: BLE001 - a failed quote request holds this answer only
         return Held(QUOTE_STEP_FAILED, hold_key, f"{type(exc).__name__}: {exc}")
     if answer.quote is None or not answer.quote.strip():
-        return probe  # the quote step found no supporting text: downgraded_no_quote
+        return probe, None  # the quote step found no supporting text: downgraded_no_quote
     source = next((c for c in candidates if c.support_id == answer.input_support_id), None)
     if source is None:  # copied from outside this part: no supporting text (R-044)
         return check_code(CodeEvidence(chunk_id=part_id, quote=answer.quote, quote_chunk_id=part_id + "#outside",
-                                       entailment=answer.entailment, **base), placeholder)
+                                       entailment=answer.entailment, **base), placeholder), None
     return check_code(CodeEvidence(chunk_id=source.producing_chunk_id, quote=answer.quote,
                                    quote_chunk_id=source.quote_chunk_id, entailment=answer.entailment, **base),
-                      source.sources)
+                      source.sources), source.support_id
 
 
 def _record(result: JevResult, q: Mapping[str, Any], part_id: str, config: Stage6Config, qsv: str,
@@ -401,9 +407,9 @@ def _record(result: JevResult, q: Mapping[str, Any], part_id: str, config: Stage
 
 
 def _mechanical(item_id: str, question_id: str | None, value: str, rule: str, config: Stage6Config,
-                qsv: str, observation_id: str | None = None) -> CoderRecord:
+                qsv: str, observation_id: str | None = None, *, part: str | None = None) -> CoderRecord:
     return CoderRecord(
-        item_id=item_id, item_part=None, question_id=question_id, support_id=None,
+        item_id=item_id, item_part=part, question_id=question_id, support_id=None,
         observation_id=observation_id, chunk_id=None, coder_type="mechanical",
         coder_version=config.coder_version, configured_model=None, actual_response_model=None,
         request_id=None, question_set_version=qsv, setup_pointer=config.setup_pointer,
@@ -456,6 +462,7 @@ def code_relation(first: ObservationRecord, second: ObservationRecord, ask_fn: A
                        activity_name=name if _real(name) else None, first_observation_id=first.observation_id)
     if isinstance(checked, Held):
         return RelationOutcome(first.observation_id, second.observation_id, None, (rec,), (), (checked,))
+    checked, copied = checked
     vote = PartVote(part_id, 1, rec.chosen_value, rec.chosen_answer_probability,
                     failed=bool(rec.downgraded) or checked.downgraded,
                     cause=rec.downgrade_cause or (checked.support_status if checked.downgraded else None))
@@ -465,7 +472,8 @@ def code_relation(first: ObservationRecord, second: ObservationRecord, ask_fn: A
                                 rec.chosen_answer_probability, checked.support_status, (rec,),
                                 (_support_key(checked),) if checked.support_status == "supported" else (),
                                 "cross_page")
-    return RelationOutcome(first.observation_id, second.observation_id, decision, (rec,), (checked,))
+    return RelationOutcome(first.observation_id, second.observation_id, decision, (rec,), (checked,),
+                           support_inputs=(copied,))
 
 
 def cross_page_pairs(records: Sequence[ObservationRecord]) -> tuple[tuple[ObservationRecord, ObservationRecord], ...]:
@@ -490,6 +498,8 @@ class PooledActivity:
     question_set_version: str = ""
     #: request part id -> the input support ids shown in it (pool order); T-030 storage nodes
     part_inputs: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    #: per ``support`` entry: the input support the quote step copied its quote from (or None)
+    support_inputs: tuple[str | None, ...] = ()
 
     @property
     def finished(self) -> bool:
@@ -572,6 +582,7 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
     final: dict[str, ItemOutcome] = {}
     records: list[CoderRecord] = []
     support: list[SupportResult] = []
+    support_inputs: list[str | None] = []
     held: list[Held] = []
     parts_by_round: dict[int, tuple[str, ...]] = {}
     part_status: dict[tuple[str, str], str] = {}
@@ -603,7 +614,7 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
                     final[q["question_id"]] = ItemOutcome(q["question_id"], q["item_id"], q.get("part"),
                                                           "gated_out", value, rule_reference=GATE_RULE + NUMBER_ITEM)
                     records.append(_mechanical(q["item_id"], q["question_id"], value, GATE_RULE + NUMBER_ITEM,
-                                               config, qsv))
+                                               config, qsv, part=q.get("part")))
                     continue
                 if NUMBER_ITEM in (q.get("shows_value_of") or ()) and shown_number is None:
                     # several different stated numbers: the form of stated_number is not ruled (report)
@@ -624,7 +635,7 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
                                                           "gated_out", value,
                                                           rule_reference=GATE_RULE + q["gate"]["item"])
                     records.append(_mechanical(q["item_id"], q["question_id"], value,
-                                               GATE_RULE + q["gate"]["item"], config, qsv))
+                                               GATE_RULE + q["gate"]["item"], config, qsv, part=q.get("part")))
                     continue
             asked.append(q)
         if not asked:
@@ -663,7 +674,9 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
                     held.append(checked)
                     pending.setdefault(qid, checked.reason)
                     continue
+                checked, copied = checked
                 support.append(checked)
+                support_inputs.append(copied)
                 part_status[(qid, part.part_id)] = checked.support_status
                 down = checked.downgraded
                 votes[qid].append(PartVote(part.part_id, part.index, rec.chosen_value,
@@ -685,7 +698,8 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
     permanent_pilot_override(final, by_id, part_status)
     return PooledActivity(pool_id, eligible, final, tuple(records), tuple(support), parts_by_round,
                           tuple(held), qsv,
-                          {p.part.part_id: tuple(e.entry_id for e in p.part.entries) for p in prepared})
+                          {p.part.part_id: tuple(e.entry_id for e in p.part.entries) for p in prepared},
+                          tuple(support_inputs))
 
 
 def permanent_pilot_override(final: dict[str, ItemOutcome], by_id: Mapping[str, Mapping[str, Any]],

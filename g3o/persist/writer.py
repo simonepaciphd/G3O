@@ -131,7 +131,11 @@ class LoadedInstitution:
     storage: StorageEnvelope | None = None
 
 
-def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], list[str]]:
+STORAGE_UNREADABLE = "stage7_storage_unreadable"
+
+
+def load_consolidated_outputs(run_dir: Path, *, held: list[str] | None = None
+                              ) -> tuple[list[LoadedInstitution], list[str]]:
     """Walk ``institutions/<shard>/<inst>/6_validate.json``; validate each.
 
     Institution discovery goes through :func:`g3o.common.paths.iter_institution_dirs`
@@ -150,7 +154,9 @@ def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], l
         (loaded, failures) where ``loaded`` is a list of ``LoadedInstitution``
         and ``failures`` is a list of institution_ids whose payload failed to
         parse / validate. Failures are logged at WARNING; the caller decides
-        whether to abort.
+        whether to abort. With ``held`` (a list), an institution whose
+        ``6_storage.json`` does not load is appended there and recorded in the
+        attrition ledger (``stage7_storage_unreadable``) instead of raising.
 
     Raises:
         RuntimeError: when the manifest carries no ``institution_uids`` block,
@@ -192,7 +198,18 @@ def load_consolidated_outputs(run_dir: Path) -> tuple[list[LoadedInstitution], l
         if is_v27 and not storage_path.exists():
             raise ValueError(f"{institution_id}: v2.7 6_validate.json lacks its 6_storage.json")
         if storage_path.exists():
-            storage = StorageEnvelope.load(storage_path, run_dir / "final" / "instruments", artifact_root=run_dir)
+            try:
+                storage = StorageEnvelope.load(storage_path, run_dir / "final" / "instruments",
+                                               artifact_root=run_dir)
+            except (ValueError, UnicodeDecodeError) as exc:
+                if held is None:
+                    raise
+                # One unreadable (e.g. truncated) storage file holds that institution only:
+                # recorded, never published, never a silent omission.
+                attrition.record(run_dir, institution_id=institution_id, stage="persist",
+                                 reason=STORAGE_UNREADABLE, detail=f"{type(exc).__name__}: {exc}")
+                held.append(institution_id)
+                continue
             if declared_release is not None and declared_release != storage.data["codebook_release"]:
                 raise ValueError("manifest/envelope codebook release mismatch")
             if storage.data["institution_uid"] != institution_uid or storage.data["institution_id"] != institution_id:
@@ -695,8 +712,10 @@ def write_run_csvs(
     storage_metadata = manifest.get("storage_contract", {})
     if storage_metadata and not isinstance(storage_metadata, dict):
         raise ValueError("storage_contract must be explicit metadata")
-    loaded, failures = load_consolidated_outputs(run_dir)
-    if failures and storage_metadata.get("codebook_release") == "2.7":
+    is_27 = storage_metadata.get("codebook_release") == "2.7"
+    held: list[str] | None = [] if is_27 else None  # 2.7: an unreadable storage holds that institution
+    loaded, failures = load_consolidated_outputs(run_dir, held=held)
+    if failures and is_27:
         raise ValueError("2.7 output cannot silently omit failed institution payloads")
     salvaged_by_source = salvaged_fields_by_source(run_dir)
 
@@ -767,6 +786,7 @@ def write_run_csvs(
         "n_institutions": len(loaded),
         "n_load_failures": len(failures),
         "load_failures": failures,
+        "held_institutions": held or [],
         "integrity": (
             {
                 "is_valid": integrity_report.is_valid,

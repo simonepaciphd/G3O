@@ -40,6 +40,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timezone
@@ -61,6 +62,7 @@ from g3o.common.support_check import (
     SupportResult,
     check_code,
 )
+from g3o.extract.anthropic_client import ExtractorResult
 from g3o.persist.stage6_adapters import (
     PROVENANCE_ARTIFACT,
     STORAGE_ARTIFACT,
@@ -73,6 +75,7 @@ from g3o.persist.stage6_adapters import (
     coder_nodes,
     combined_support_nodes,
     load_support_provenance,
+    write_atomic,
 )
 from g3o.validate.consolidate_v27 import (
     ActivityObservation,
@@ -101,7 +104,15 @@ STAGE = "validate"
 WORK_DIR = "stage6_v27"
 JOURNAL = "journal.jsonl"
 HELD_FILE = "held.json"
-HELD_REASON = "stage6_held"
+HELD_REASON = "stage6_held"  # attrition reason ``stage6_held:<hold reason>``, one record per hold reason
+HELD_RELEASED = "stage6_held_released"  # appended when a held institution is later published
+ENVELOPE_FAILED = "stage6_envelope_failed"  # the storage envelope / artifacts of one institution failed
+ARTIFACTS_UNREADABLE = "stage6_artifacts_unreadable"  # existing Stage 6 artifacts fail to reload
+MISSING_RELATION = "missing_relation_decision"
+CONFLICTING_GROUPS = "conflicting_relation_groups"
+POOLED_STOPPED = "pooled_question_stopped"  # combiner refused, or its gate item stopped
+POOLED_PENDING = "pooled_question_pending"  # e.g. its gate item is pending
+NOT_READY = "stage6_not_ready"  # defensive: not ready for no reason named above
 EVIDENCE_CHANNEL = "web_extract"
 ACTIVITY_ITEMS = frozenset(table_fields("activities"))
 
@@ -139,83 +150,189 @@ def _quote_from_json(doc: Mapping[str, Any]) -> Stage6Quote:
                        doc["provenance"])
 
 
-class RequestJournal:
-    """Append-only, fsynced record of Stage 6 provider responses for one institution."""
+#: Entry kinds replayed on resume (a completed provider answer).
+REPLAYED_KINDS = frozenset({"jev", "quote", "extract", "x35"})
+#: Entry kinds kept for accounting only: billed or attempted calls that did not complete.
+#: They are never replayed; the request is asked again (a failed request, PI 2026-11-08 2.17).
+ACCOUNTING_KINDS = frozenset({"jev_unidentified", "extract_failed", "x35_failed"})
 
-    def __init__(self, path: Path) -> None:
+
+def _tokens(usage: Mapping[str, Any] | None, name: str) -> int:
+    value = (usage or {}).get(name)
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def _elapsed_ms(start: float) -> int:
+    return max(0, round((time.monotonic() - start) * 1000))
+
+
+class RequestJournal:
+    """Append-only, fsynced record of Stage 6 provider responses for one institution.
+
+    Keys are the SHA256 of ``{"setup": setup, "request": request}``, so a response
+    recorded under another setup (setup pointer, configured model, coder or
+    quote-prompt version) is never replayed. Every entry carries the call's
+    ``elapsed_ms``. A record missing only its trailing newline is terminated, and
+    a torn final record is dropped, by an atomic rewrite before anything is appended.
+    """
+
+    def __init__(self, path: Path, setup: Mapping[str, Any] | None = None) -> None:
         self.path = path
+        self.setup = dict(setup or {})
         self._recorded: dict[tuple[str, str, int], dict[str, Any]] = {}
+        self._accounting: list[dict[str, Any]] = []
+        self._elapsed: list[int] = []
         self._seen: dict[tuple[str, str], int] = {}
         self.live = 0
         self.replayed = 0
         if path.exists():
-            lines = path.read_bytes().decode("utf-8").split("\n")
-            for n, line in enumerate(lines):
-                if not line.strip():
-                    continue
-                try:
-                    entry = json.loads(line)
-                except json.JSONDecodeError:
-                    if n == len(lines) - 1:  # torn final line: the write was interrupted
-                        break
-                    raise ValueError(f"corrupt Stage 6 journal line {n + 1}: {path}") from None
-                self._recorded[(entry["kind"], entry["key"], entry["n"])] = entry["response"]
-            if lines and lines[-1].strip():  # drop a torn tail so the next append starts a clean line
-                try:
-                    json.loads(lines[-1])
-                except json.JSONDecodeError:
-                    path.write_bytes("\n".join(lines[:-1]).encode("utf-8") + (b"\n" if len(lines) > 1 else b""))
+            self._load()
 
-    def _slot(self, kind: str, request: Any) -> tuple[str, str, int]:
-        key = hashlib.sha256(canonical_json(request).encode("utf-8")).hexdigest()
+    def _load(self) -> None:
+        raw = self.path.read_bytes()
+        lines = raw.split(b"\n")
+        complete = raw.endswith(b"\n") or not raw
+        keep: list[bytes] = []
+        for n, line in enumerate(lines):
+            if not line.strip():
+                continue
+            last = n == len(lines) - 1
+            try:
+                entry = json.loads(line.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                if last:  # torn final record: the write was interrupted; drop it
+                    break
+                raise ValueError(f"corrupt Stage 6 journal line {n + 1}: {self.path}") from None
+            keep.append(line)
+            self._elapsed.append(int(entry.get("elapsed_ms", 0)))
+            if entry["kind"] in ACCOUNTING_KINDS:
+                self._accounting.append(entry)
+            else:
+                self._recorded[(entry["kind"], entry["key"], entry["n"])] = entry["response"]
+        if not complete:  # unterminated or torn tail: repair before the next append
+            write_atomic(self.path, b"".join(line + b"\n" for line in keep))
+
+    def _slot(self, kind: str, request: Any, extra: Mapping[str, Any] | None = None) -> tuple[str, str, int]:
+        doc = {"setup": {**self.setup, **(extra or {})}, "request": request}
+        key = hashlib.sha256(canonical_json(doc).encode("utf-8")).hexdigest()
         n = self._seen.get((kind, key), 0)
         self._seen[(kind, key)] = n + 1
         return kind, key, n
 
-    def _append(self, slot: tuple[str, str, int], response: dict[str, Any]) -> None:
+    def _append(self, slot: tuple[str, str, int], response: dict[str, Any], elapsed_ms: int) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        line = json.dumps({"kind": slot[0], "key": slot[1], "n": slot[2], "response": response},
-                          ensure_ascii=False, sort_keys=True)
+        entry = {"kind": slot[0], "key": slot[1], "n": slot[2], "response": response, "elapsed_ms": elapsed_ms}
+        line = json.dumps(entry, ensure_ascii=False, sort_keys=True)
         with self.path.open("ab") as stream:
             stream.write(line.encode("utf-8") + b"\n")
             stream.flush()
             os.fsync(stream.fileno())
-        self._recorded[slot] = response
+        self._elapsed.append(elapsed_ms)
+        if slot[0] in ACCOUNTING_KINDS:
+            self._accounting.append(entry)
+        else:
+            self._recorded[slot] = response
 
     def ask(self, ask_fn: AskFn) -> AskFn:
         def wrapped(state: dict[str, Any], questions: dict[str, dict[str, Any]]) -> JevResult:
-            slot = self._slot("jev", {"state": state, "questions": questions})
+            request = {"state": state, "questions": questions}
+            slot = self._slot("jev", request)
             if slot in self._recorded:
                 self.replayed += 1
                 return _jev_from_json(self._recorded[slot])
+            start = time.monotonic()
             result = ask_fn(state, questions)  # an exception is not recorded: asked again on resume
             self.live += 1
             if isinstance(result.request_id, str) and result.request_id.strip():
-                self._append(slot, _jev_to_json(result))
+                self._append(slot, _jev_to_json(result), _elapsed_ms(start))
+            else:  # billed but unidentified: a failed request (asked again), still accounted
+                self._append(self._slot("jev_unidentified", request), _jev_to_json(result), _elapsed_ms(start))
             return result
+        return wrapped
+
+    def _extract(self, extract_fn: Any, prompt: Mapping[str, Any]) -> Any:
+        def wrapped(job: Any) -> ExtractorResult:
+            request = {"custom_id": job.custom_id, "params": job.params}
+            slot = self._slot("extract", request, prompt)
+            if slot in self._recorded:
+                self.replayed += 1
+                return ExtractorResult(**self._recorded[slot])
+            start = time.monotonic()
+            result = extract_fn(job)  # an exception is not recorded: asked again on resume
+            self.live += 1
+            if result.success:
+                self._append(slot, asdict(result), _elapsed_ms(start))
+            else:
+                self._append(self._slot("extract_failed", request, prompt), asdict(result), _elapsed_ms(start))
+            return result
+        return wrapped
+
+    def _entail(self, entail_fn: Any, prompt: Mapping[str, Any]) -> Any:
+        def wrapped(question: str, text: str) -> Entailment:
+            request = {"question": question, "text": text}
+            slot = self._slot("x35", request, prompt)
+            if slot in self._recorded:
+                self.replayed += 1
+                return Entailment(**self._recorded[slot])
+            start = time.monotonic()
+            try:
+                answer = entail_fn(question, text)
+            except Exception as exc:
+                self._append(self._slot("x35_failed", request, prompt), {"error": f"{type(exc).__name__}: {exc}"},
+                             _elapsed_ms(start))
+                raise
+            self.live += 1
+            self._append(slot, asdict(answer), _elapsed_ms(start))
+            return answer
         return wrapped
 
     def quote(self, quote_fn: QuoteFn | None) -> QuoteFn | None:
         if quote_fn is None:
             return None
+        prompt = {"quote_prompt_version": getattr(quote_fn, "prompt_version", None)}
+        inner = quote_fn
+        if hasattr(quote_fn, "with_seams"):  # the extractor and X35 calls are journaled on their own
+            inner = quote_fn.with_seams(lambda f: self._extract(f, prompt), lambda f: self._entail(f, prompt))
 
         def wrapped(request: Stage6QuoteRequest) -> Stage6Quote:
-            slot = self._slot("quote", asdict(request))
+            slot = self._slot("quote", asdict(request), prompt)
             if slot in self._recorded:
                 self.replayed += 1
                 return _quote_from_json(self._recorded[slot])
-            answer = quote_fn(request)
+            start = time.monotonic()
+            answer = inner(request)
             self.live += 1
-            self._append(slot, _quote_to_json(answer))
+            self._append(slot, _quote_to_json(answer), _elapsed_ms(start))
             return answer
         return wrapped
 
     def usage(self) -> dict[str, int]:
-        """Token totals of every recorded jev response (this and earlier, interrupted runs)."""
-        jev = [r for (kind, _, _), r in self._recorded.items() if kind == "jev"]
-        return {"jev_responses": len(jev), "quote_responses": len(self._recorded) - len(jev),
-                "input_tokens": sum(r["input_tokens"] for r in jev),
-                "output_tokens": sum(r["output_tokens"] for r in jev)}
+        """Totals of every journaled call (this and earlier, interrupted runs).
+
+        ``input_tokens`` / ``output_tokens`` are jev tokens (identified and
+        unidentified responses); ``extractor_*`` are the quote step's extractor
+        calls (successful and failed results); ``x35_calls`` / ``x35_failed``
+        count X35 calls (their client reports no tokens here); ``request_ms`` is
+        the summed call time. A quote step without seams is counted only as
+        ``quote_responses``.
+        """
+        def recorded(kind: str) -> list[dict[str, Any]]:
+            return [r for (k, _, _), r in self._recorded.items() if k == kind]
+
+        def accounted(kind: str) -> list[dict[str, Any]]:
+            return [e["response"] for e in self._accounting if e["kind"] == kind]
+
+        jev, unidentified = recorded("jev"), accounted("jev_unidentified")
+        extract = [*recorded("extract"), *accounted("extract_failed")]
+        return {"jev_responses": len(jev), "jev_unidentified": len(unidentified),
+                "quote_responses": len(recorded("quote")),
+                "input_tokens": sum(r["input_tokens"] for r in (*jev, *unidentified)),
+                "output_tokens": sum(r["output_tokens"] for r in (*jev, *unidentified)),
+                "extractor_calls": len(extract),
+                "extractor_input_tokens": sum(_tokens(r.get("usage"), "input_tokens") for r in extract),
+                "extractor_output_tokens": sum(_tokens(r.get("usage"), "output_tokens") for r in extract),
+                "x35_calls": len(recorded("x35")), "x35_failed": len(accounted("x35_failed")),
+                "request_ms": sum(self._elapsed)}
 
 
 # ---------------------------------------------------------------------------
@@ -266,6 +383,7 @@ class Stage6Metrics:
     written: list[str] = field(default_factory=list)
     held: list[str] = field(default_factory=list)
     skipped: list[str] = field(default_factory=list)
+    failed: list[str] = field(default_factory=list)  # envelope/artifact errors, recorded per institution
     live_requests: int = 0
     replayed_requests: int = 0
     usage: dict[str, dict[str, int]] = field(default_factory=dict)
@@ -319,11 +437,13 @@ def _pool_nodes(inst: Stage6Institution, aid: str, pooled: PooledActivity, quote
     answered = [r for r in pooled.records if r.coder_type == "classifier" and r.chosen_value != NOT_COVERED]
     if len(answered) != len(pooled.support):
         raise ConsolidationError("pooled answers and support checks do not pair one to one")
-    for rec, sr in zip(answered, pooled.support, strict=True):
+    if len(pooled.support_inputs) != len(pooled.support):
+        raise ConsolidationError("pooled support checks lack the quote step's copied inputs")
+    for rec, sr, copied in zip(answered, pooled.support, pooled.support_inputs, strict=True):
         nodes = combined_support_nodes(sr, run_id=inst.run_id, institution_uid=inst.institution_uid,
                                        chunk_id=rec.chunk_id, shown=shown(pooled.part_inputs[rec.chunk_id]),
                                        observation_id=None, uncertainty_flags=_flags(inst, sr),
-                                       instrument=instrument)
+                                       instrument=instrument, input_support_id=copied)
         out.add(aid, nodes, rec, instrument)
     mechanical = {r.question_id: r for r in pooled.records if r.coder_type == "mechanical"}
     for qid, outcome in pooled.outcomes.items():
@@ -350,15 +470,18 @@ def _relation_nodes(inst: Stage6Institution, result: Stage6Result, final_of: Map
         if outcome.decision is None or not (outcome.lhs in final_of and outcome.rhs in final_of):
             continue
         rec, sr = outcome.records[0], outcome.support[0]
+        copied = outcome.support_inputs[0] if outcome.support_inputs else None
         candidates = [*by_obs[outcome.lhs].quotes, *by_obs[outcome.rhs].quotes]
         shown = [InputSupport(q.support_id, q.source_id, q.sources, inst.artifacts[q.source_id]) for q in candidates]
         quoted = sr.supporting_text is not None
         nodes = combined_support_nodes(sr, run_id=inst.run_id, institution_uid=inst.institution_uid,
                                        chunk_id=rec.chunk_id, shown=shown,
                                        observation_id=None if quoted else outcome.lhs,
-                                       uncertainty_flags=_flags(inst, sr), instrument=instrument)
+                                       uncertainty_flags=_flags(inst, sr), instrument=instrument,
+                                       input_support_id=copied)
+        # The node lives with the record whose quote was copied (the quote step's own answer).
         inputs = nodes.original["input_support_ids"]
-        home = quotes[inputs[0]].observation_id if inputs else outcome.lhs
+        home = quotes[copied].observation_id if copied is not None and inputs == [copied] else outcome.lhs
         out.add(final_of[home], nodes, rec, instrument)
         ids[(outcome.lhs, outcome.rhs)] = [n["support_id"] for n in (nodes.original, nodes.final) if n is not None]
     return ids
@@ -450,11 +573,46 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
 
 
 def _done(inst_dir: Path) -> bool:
+    """True when the three artifacts are committed (6_validate.json, written last, exists)
+    and the provenance file is bound to the storage file; raises when they do not reload."""
     paths = [inst_dir / n for n in (VALIDATE_ARTIFACT, STORAGE_ARTIFACT, PROVENANCE_ARTIFACT)]
     if not all(p.exists() for p in paths):
         return False
     load_support_provenance(paths[2], paths[1])  # bound to this storage file, or it refuses
     return True
+
+
+def hold_reasons(result: Stage6Result) -> tuple[list[str], list[dict[str, Any]]]:
+    """Why a Stage 6 result is not ready: the hold reasons and the unfinished pooled questions."""
+    reasons = {h.reason for h in result.held}
+    if result.missing_pairs:
+        reasons.add(MISSING_RELATION)
+    if result.conflicting_groups:
+        reasons.add(CONFLICTING_GROUPS)
+    unfinished: list[dict[str, Any]] = []
+    for group, pooled in result.pooled.items():
+        for qid, o in pooled.outcomes.items():
+            if o.state in ("combined", "gated_out"):
+                continue
+            unfinished.append({"observation_ids": list(group), "pool_id": pooled.pool_id, "question_id": qid,
+                               "item_id": o.item_id, "part": o.part, "state": o.state, "note": o.note,
+                               "error": o.error})
+            if o.note not in {h.reason for h in pooled.held}:  # not already named by a hold
+                reasons.add(POOLED_STOPPED if o.state == "stopped" else POOLED_PENDING)
+    return sorted(reasons) or [NOT_READY], unfinished
+
+
+def _hold(run_dir: Path, inst_dir: Path, institution_id: str, reasons: Sequence[str],
+          doc: Mapping[str, Any], detail: Mapping[str, str] | None = None) -> None:
+    """Write ``stage6_v27/held.json`` and one attrition record per hold reason."""
+    path = inst_dir / WORK_DIR / HELD_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    write_atomic(path, canonical_json({"institution_id": institution_id, "reasons": list(reasons), **doc})
+                 .encode("utf-8"))
+    for reason in reasons:
+        code = reason if reason in (ENVELOPE_FAILED, ARTIFACTS_UNREADABLE) else f"{HELD_REASON}:{reason}"
+        attrition.record(run_dir, institution_id=institution_id, stage=STAGE, reason=code,
+                         detail=(detail or {}).get(reason))
 
 
 def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, ask_fn: AskFn,
@@ -464,18 +622,30 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 
     Provider exceptions that stop the stage (``JevAccountError``,
     ``Stage6QuoteNotApproved``, budget stops) propagate; what was recorded
-    before them is replayed by the next run.
+    before them is replayed by the next run. An error building or writing one
+    institution's artifacts, or existing artifacts that fail to reload, is
+    recorded for that institution (``held.json``, attrition, ``metrics.failed``)
+    and the stage continues with the next one.
     """
     if config.setup_pointer != instrument["instrument_id"]:
         raise ValueError("Stage 6 configuration is bound to a different instrument")
     clock = now or (lambda: datetime.now(timezone.utc))
     metrics = Stage6Metrics()
+    setup = {"setup_pointer": config.setup_pointer, "configured_model": config.configured_model,
+             "coder_version": config.coder_version}
     for inst in institutions:
         inst_dir = institution_dir(run_dir, inst.institution_id)
-        if _done(inst_dir):
+        try:
+            done = _done(inst_dir)
+        except (ValueError, UnicodeDecodeError) as exc:  # corrupt committed artifacts: never overwritten here
+            _hold(run_dir, inst_dir, inst.institution_id, [ARTIFACTS_UNREADABLE],
+                  {"error": f"{type(exc).__name__}: {exc}"}, {ARTIFACTS_UNREADABLE: f"{type(exc).__name__}: {exc}"})
+            metrics.failed.append(inst.institution_id)
+            continue
+        if done:
             metrics.skipped.append(inst.institution_id)
             continue
-        journal = RequestJournal(inst_dir / WORK_DIR / JOURNAL)
+        journal = RequestJournal(inst_dir / WORK_DIR / JOURNAL, setup)
         try:
             result = run_stage6(institution=str(inst.institution["institution_name"]), country=inst.country,
                                 pages=inst.pages, observations=inst.observations, records=inst.records,
@@ -487,32 +657,39 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
             metrics.usage[inst.institution_id] = journal.usage()
         held_path = inst_dir / WORK_DIR / HELD_FILE
         if not result.ready:
+            reasons, unfinished = hold_reasons(result)
             holds = [asdict(h) for h in result.held]
-            doc = {"institution_id": inst.institution_id, "held": holds,
+            doc = {"held": holds, "unfinished": unfinished,
                    "missing_pairs": [list(p) for p in result.missing_pairs],
                    "conflicting_groups": [list(g) for g in result.conflicting_groups]}
-            held_path.parent.mkdir(parents=True, exist_ok=True)
-            held_path.write_bytes(canonical_json(doc).encode("utf-8"))
-            reasons = sorted({h["reason"] for h in holds} | ({"missing_relation_decision"} if result.missing_pairs
-                                                              else set()))
-            attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_REASON,
-                             detail=", ".join(reasons) or "conflicting relation groups")
+            detail = {r: ", ".join(sorted({h["key"] for h in holds if h["reason"] == r})) for r in reasons}
+            _hold(run_dir, inst_dir, inst.institution_id, reasons, doc, {r: d for r, d in detail.items() if d})
             metrics.held.append(inst.institution_id)
             continue
-        envelope, provenance = build_envelope(inst, result, config, instrument, run_dir)
-        metadata = {"institution_id": inst.institution_id, "n_input_pages": len(inst.pages),
-                    "n_input_rows": len(inst.observations),
-                    "response_timestamp": clock().strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "model_label": config.configured_model, "notes": "v2.7 Stage 6 (T-026 executor)"}
-        write_stage6_outputs(inst_dir, envelope=envelope, institution=inst.institution, metadata=metadata,
-                             provenance=provenance)
+        try:
+            envelope, provenance = build_envelope(inst, result, config, instrument, run_dir)
+            metadata = {"institution_id": inst.institution_id, "n_input_pages": len(inst.pages),
+                        "n_input_rows": len(inst.observations),
+                        "response_timestamp": clock().strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "model_label": config.configured_model, "notes": "v2.7 Stage 6 (T-026 executor)"}
+            write_stage6_outputs(inst_dir, envelope=envelope, institution=inst.institution, metadata=metadata,
+                                 provenance=provenance)
+        except Exception as exc:  # noqa: BLE001 - one institution's envelope error stops that institution only
+            error = f"{type(exc).__name__}: {exc}"
+            _hold(run_dir, inst_dir, inst.institution_id, [ENVELOPE_FAILED], {"error": error},
+                  {ENVELOPE_FAILED: error})
+            metrics.failed.append(inst.institution_id)
+            continue
         if held_path.exists():
+            previous = json.loads(held_path.read_text(encoding="utf-8")).get("reasons", [])
+            attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_RELEASED,
+                             detail=", ".join(previous))
             held_path.unlink()
         metrics.written.append(inst.institution_id)
     return metrics
 
 
 __all__ = [
-    "HELD_REASON", "ObservationInput", "RequestJournal", "Stage6Institution", "Stage6Metrics", "build_envelope",
-    "run_stage6_v27",
+    "ENVELOPE_FAILED", "HELD_REASON", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
+    "Stage6Metrics", "build_envelope", "hold_reasons", "run_stage6_v27",
 ]

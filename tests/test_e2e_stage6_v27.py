@@ -312,7 +312,8 @@ def test_e2e_missing_quote_step_holds_then_resume_publishes(tmp_path):
     assert {h["reason"] for h in held["held"]} == {s6.QUOTE_STEP_ABSENT}
     assert not (inst_dir / "6_storage.json").exists()  # pending work is never published
     ledger = [r for r in attrition.read_records(run_dir) if r["institution_id"] == "INST-0000001"]
-    assert [r["reason"] for r in ledger] == [rt.HELD_REASON]
+    assert [r["reason"] for r in ledger] == [f"{rt.HELD_REASON}:{rt.MISSING_RELATION}",
+                                             f"{rt.HELD_REASON}:{s6.QUOTE_STEP_ABSENT}"]
     jev, metrics = _run(run_dir, bound, instrument, insts[:1], FakeQuotes())
     assert metrics.written == ["INST-0000001"] and not (inst_dir / rt.WORK_DIR / rt.HELD_FILE).exists()
     assert not any(s6.RELATION_ITEM in q for q in jev.calls)  # the relation answer was replayed, not re-asked

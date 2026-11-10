@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass, replace
 from typing import Any
 
 from g3o.codebook.loader import Codebook, load_codebook
@@ -151,7 +152,9 @@ def parse_answer(result: ExtractorResult, ids: Mapping[str, InputQuote]) -> tupl
         payload = json.loads(result.text)
     except json.JSONDecodeError as exc:
         raise Stage6QuoteFailed(f"quote request {result.custom_id!r}: answer is not JSON") from exc
-    if not isinstance(payload, dict) or set(payload) != _KEYS:
+    if not isinstance(payload, dict):
+        raise Stage6QuoteFailed(f"quote request {result.custom_id!r}: answer is not a JSON object")
+    if set(payload) != _KEYS:
         raise Stage6QuoteFailed(f"quote request {result.custom_id!r}: answer keys {sorted(payload)!r}")
     quote, qid = payload["quote"], payload["quote_id"]
     if quote is not None and not isinstance(quote, str) or qid is not None and not isinstance(qid, str):
@@ -186,30 +189,52 @@ def entailment_for(req: Stage6QuoteRequest, quote: str, source: InputQuote, enta
     return entail_fn(question, window), {"x35_question": question, "x35_window_located": located}
 
 
-def make_quote_fn(extract_fn: ExtractFn, entail_fn: EntailFn, *, instruction: str = STAGE6_QUOTE_INSTRUCTION,
-                  allow_draft: bool = False, cb: Codebook | None = None,
-                  rules: SupportRules | None = None) -> QuoteFn:
-    """The Stage 6 ``quote_fn``. Refuses a DRAFT instruction unless ``allow_draft`` (fakes only)."""
-    if not allow_draft:
-        require_approved(instruction)
-    system = build_system_prompt(instruction, cb)
+@dataclass(frozen=True)
+class Stage6QuoteStep:
+    """The Stage 6 ``quote_fn``: extractor copy, then X35, through two replaceable seams.
 
-    def quote_fn(req: Stage6QuoteRequest) -> Stage6Quote:
+    :meth:`with_seams` lets the T-030 request journal record each paid call on its
+    own (an extractor answer survives an X35 failure); ``configure_job`` lets the
+    bound runtime set the extractor model/effort/max tokens and ``setup_pointer``.
+    """
+
+    extract_fn: ExtractFn
+    entail_fn: EntailFn
+    system: str
+    rules: SupportRules | None = None
+    configure_job: Callable[[ExtractorJob], ExtractorJob] | None = None
+    prompt_version: str = PROMPT_VERSION
+
+    def with_seams(self, wrap_extract: Callable[[ExtractFn], ExtractFn],
+                   wrap_entail: Callable[[EntailFn], EntailFn]) -> Stage6QuoteStep:
+        return replace(self, extract_fn=wrap_extract(self.extract_fn), entail_fn=wrap_entail(self.entail_fn))
+
+    def __call__(self, req: Stage6QuoteRequest) -> Stage6Quote:
         ids = quote_ids(req)
-        job = build_job(req, system=system)
-        result = extract_fn(job)
+        job = build_job(req, system=self.system)
+        if self.configure_job is not None:
+            job = self.configure_job(job)
+        result = self.extract_fn(job)
         quote, source = parse_answer(result, ids)
-        prov: dict[str, Any] = {"custom_id": job.custom_id, "prompt_version": PROMPT_VERSION,
+        prov: dict[str, Any] = {"custom_id": job.custom_id, "prompt_version": self.prompt_version,
                                 "response_model": result.response_model, "message_id": result.message_id,
                                 "request_id": result.request_id, "usage": result.usage}
         if quote is None:
             return Stage6Quote(None, None, None, prov)
         if source is None:
             return Stage6Quote(quote, None, None, prov)
-        ent, x35 = entailment_for(req, quote, source, entail_fn, rules)
+        ent, x35 = entailment_for(req, quote, source, self.entail_fn, self.rules)
         return Stage6Quote(quote, source.support_id, ent, {**prov, **x35})
 
-    return quote_fn
+
+def make_quote_fn(extract_fn: ExtractFn, entail_fn: EntailFn, *, instruction: str = STAGE6_QUOTE_INSTRUCTION,
+                  allow_draft: bool = False, cb: Codebook | None = None,
+                  rules: SupportRules | None = None,
+                  configure_job: Callable[[ExtractorJob], ExtractorJob] | None = None) -> Stage6QuoteStep:
+    """The Stage 6 ``quote_fn``. Refuses a DRAFT instruction unless ``allow_draft`` (fakes only)."""
+    if not allow_draft:
+        require_approved(instruction)
+    return Stage6QuoteStep(extract_fn, entail_fn, build_system_prompt(instruction, cb), rules, configure_job)
 
 
 def anthropic_quote_fn(entail_fn: EntailFn, *, client: Any | None = None,
@@ -224,7 +249,7 @@ def anthropic_quote_fn(entail_fn: EntailFn, *, client: Any | None = None,
 
 __all__ = [
     "PROMPT_VERSION", "STAGE6_QUOTE_DRAFT_MARKER", "STAGE6_QUOTE_INSTRUCTION", "EntailFn", "ExtractFn",
-    "Stage6QuoteFailed", "Stage6QuoteNotApproved", "anthropic_quote_fn", "build_job", "build_system_prompt",
+    "Stage6QuoteFailed", "Stage6QuoteNotApproved", "Stage6QuoteStep", "anthropic_quote_fn", "build_job", "build_system_prompt",
     "build_user_message", "entailment_for", "make_quote_fn", "output_schema", "parse_answer", "quote_ids",
     "require_approved",
 ]

@@ -45,6 +45,7 @@ already-coded values only through ``consolidate_v27.activity_confidence``.
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -251,7 +252,8 @@ class InputSupport:
 
 def combined_support_nodes(result: SupportResult, *, run_id: str, institution_uid: str, chunk_id: str,
                            shown: Sequence[InputSupport], observation_id: str | None,
-                           uncertainty_flags: Sequence[str] | None, instrument: dict[str, Any]) -> SupportNodes:
+                           uncertainty_flags: Sequence[str] | None, instrument: dict[str, Any],
+                           input_support_id: str | None = None) -> SupportNodes:
     """Support nodes for a Stage 6 answer (pooled X31 or cross-page relation X30).
 
     Such a node has no source claim of its own: its evidence is the stored input
@@ -266,6 +268,11 @@ def combined_support_nodes(result: SupportResult, *, run_id: str, institution_ui
     (copied from outside the request part: R-044 "no supporting text") is kept
     only in the provenance companion as ``rejected_quote``; the stored node has
     no supporting text, as T-024 decided.
+
+    ``input_support_id`` is the shown input the quote step says it copied from
+    (``Stage6Quote.input_support_id``). It decides which input the node names;
+    without it the segment must belong to exactly one shown input (two inputs
+    on the same stored page part are ambiguous and refused).
     """
     if uncertainty_flags is None:
         raise MissingUpstreamError(UNCERTAINTY_FLAGS_PRODUCER, [f"{result.item_id}/{result.part}"])
@@ -280,8 +287,17 @@ def combined_support_nodes(result: SupportResult, *, run_id: str, institution_ui
     segment = span = match = copied = None
     if quote is not None:
         segment = result.quote_chunk_id
-        copied = next((s for s in shown if segment in s.sources.parts
-                       or (segment == s.sources.chrome_id and s.sources.chrome_text is not None)), None)
+        holders = [s for s in shown if segment in s.sources.parts
+                   or (segment == s.sources.chrome_id and s.sources.chrome_text is not None)]
+        if input_support_id is not None:
+            named = next((s for s in shown if s.support_id == input_support_id), None)
+            if named is None:
+                raise ValueError(f"quote step names input {input_support_id!r}, which was not shown")
+            copied = named if named in holders else None
+        elif len(holders) > 1:
+            raise ValueError("quote segment is held by several shown inputs: ambiguous without the copied input id")
+        else:
+            copied = holders[0] if holders else None
         if copied is None:
             if result.support_status == "supported":
                 raise ValueError("a supported Stage 6 quote names no shown input segment")
@@ -527,7 +543,24 @@ def write_stage6_artifacts(inst_dir: Path, envelope: StorageEnvelope,
     inst_dir.mkdir(parents=True, exist_ok=True)
     validate_path, storage_path = inst_dir / VALIDATE_ARTIFACT, inst_dir / STORAGE_ARTIFACT
     provenance_path = inst_dir / PROVENANCE_ARTIFACT
-    validate_path.write_bytes(canonical_json(response.model_dump(mode="json")).encode("utf-8"))
-    storage_path.write_bytes(storage_text.encode("utf-8"))
-    provenance_path.write_bytes(canonical_json(document).encode("utf-8"))
+    # Each file is replaced whole (never seen half-written). 6_validate.json is the
+    # file Stage 7 discovers an institution by, so it is the commit marker and goes
+    # last: storage is never published before its provenance companion exists.
+    write_atomic(provenance_path, canonical_json(document).encode("utf-8"))
+    write_atomic(storage_path, storage_text.encode("utf-8"))
+    write_atomic(validate_path, canonical_json(response.model_dump(mode="json")).encode("utf-8"))
     return validate_path, storage_path, provenance_path
+
+
+def write_atomic(path: Path, data: bytes) -> None:
+    """Write ``data`` to ``path`` through a fsynced sibling temp file and ``os.replace``."""
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        with tmp.open("wb") as stream:
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            tmp.unlink()
