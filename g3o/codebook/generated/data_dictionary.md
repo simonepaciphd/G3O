@@ -1,9 +1,9 @@
 <!-- GENERATED FILE - do not edit. Built from codebook/codebook.yaml by g3o.codebook.generators.data_dictionary. -->
-<!-- codebook release: 2.7 | codebook sha256: 7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b -->
+<!-- codebook release: 2.7 | codebook sha256: ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a -->
 
 # G3O codebook data dictionary
 
-Codebook release `2.7`, sha256 `7972b8c1989af5e182c19d9d73c4ab20cb2440b06c7be33dff1701071658123b`. 109 items.
+Codebook release `2.7`, sha256 `ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a`. 109 items.
 
 ## `core.page_verdict`
 <!-- item: core.page_verdict sha256: 53d840f9ce15ea57ca95baa99302d6b50708cb6c2de77d7971881030f2747b44 -->
@@ -1491,11 +1491,11 @@ Define `source_snippet` on v2.7 rows as the verbatim supporting text of the page
 Snippets are verbatim in every pipeline, no translations are stored, and procurement's rule is amended.
 
 ## `core.source_credibility`
-<!-- item: core.source_credibility sha256: a82ef7f6f05bc053376e8bd4964d5e9b443140139afecefc1ce777e2cf7619d1 -->
+<!-- item: core.source_credibility sha256: c912c76f4ecb296c07dde7ed38e2e81a3512c1cda34dfc1f36315af16e8b1ffa -->
 
 | Field | Value |
 |---|---|
-| item hash | `a82ef7f6f05bc053376e8bd4964d5e9b443140139afecefc1ce777e2cf7619d1` |
+| item hash | `c912c76f4ecb296c07dde7ed38e2e81a3512c1cda34dfc1f36315af16e8b1ffa` |
 | family | `source` |
 | name | `source_credibility` |
 | level | `source` |
@@ -1527,7 +1527,7 @@ Snippets are verbatim in every pipeline, no translations are stored, and procure
 
 2. `items/core.source_credibility/rules/1`
 
-Credibility by `source_type`: official domain (typed from the web domain) `high`; `procurement_tender` `high`; `news_major` `medium`; `news_trade` `medium`; `policy_org` `medium`; `vendor` `medium`; `academic` `high`; `social_media` `low`; `other` `medium`; archive address (typed from the address) `medium`; `source_type` missing (`not_documented`, `unknown`) `low`.
+Credibility by `source_type`: official domain (typed from the web domain) `high`; `procurement_tender` `high`; `news_major` `medium`; `news_trade` `medium`; `policy_org` `medium`; `vendor` `medium`; `academic` `high`; `social_media` `low`; `other` `medium`; archive address (typed from the address) `medium`; `source_type` missing (`not_documented`, `unknown`, or `not_asked` on an unreadable page) `low`.
 
 ## `core.activity_segment`
 <!-- item: core.activity_segment sha256: e985ba404a1c1c70fd6b505b35736fde02c737251ea40e83dda2ec3fb7cd3759 -->

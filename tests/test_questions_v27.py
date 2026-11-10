@@ -47,7 +47,7 @@ def _copy_sets(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_codebook_is_pinned_r14(cb: Codebook) -> None:
+def test_codebook_is_pinned_r15(cb: Codebook) -> None:
     assert cb.sha256 == SIGNED_CODEBOOK_SHA256
 
 
