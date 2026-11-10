@@ -11,8 +11,7 @@ from __future__ import annotations
 import pytest
 
 from g3o.classify import jev_activity_code as jac
-from tests.test_jev_activity_code import (A1, BASE, TEXT, FakeJev, _support, config, make_page,
-                                          span)
+from tests.test_jev_activity_code import A1, BASE, TEXT, FakeJev, _support, config, make_page, span
 
 PP = "core.permanent_pilot"
 STAGE = "core.adoption_stage"
@@ -118,3 +117,12 @@ def test_multi_part_unsupported_yes_part_does_not_override():
     f = jac.finalize_activities(res, sup, cfg)[0]
     assert f.outcomes[PP].value == "no"
     assert (f.outcomes[STAGE].value, f.outcomes[STAGE].rule_reference) == ("pilot", None)
+
+
+def test_t023_and_t026_share_one_override_helper():
+    from g3o.classify import permanent_pilot
+    from g3o.validate import stage6_v27
+
+    assert jac.PERMANENT_PILOT_RULE is permanent_pilot.PERMANENT_PILOT_RULE is stage6_v27.PERMANENT_PILOT_RULE
+    assert jac.apply_permanent_pilot_override is stage6_v27.apply_permanent_pilot_override
+    assert not hasattr(jac, "_permanent_pilot_override")

@@ -59,7 +59,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
 from typing import Any
@@ -77,6 +77,7 @@ from g3o.classify.jev_activity_code import (
     gated_out_value,
     value_label,
 )
+from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE, apply_permanent_pilot_override
 from g3o.classify.questions.v27 import choice_request, load_set
 from g3o.common.jev_client import JevAccountError, JevResult
 from g3o.common.jev_record import ClassifierRule, CoderRecord
@@ -684,46 +685,13 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
                           tuple(held), qsv)
 
 
-# RC-D-025 B2 a / PI 2026-11-10 item 6 a: the T-023 override, re-applied after the
-# cross-page (pooled) combination. Same constants and logic as T-023
-# (reclass/t023-ppilot-20261110 53e6b02, ``_permanent_pilot_override``); reconcile
-# to one shared helper when both branches land.
-PERMANENT_PILOT_ITEM = "core.permanent_pilot"
-ADOPTION_STAGE_ITEM = "core.adoption_stage"
-PERMANENT_PILOT_RULE = "permanent_pilot_override:" + PERMANENT_PILOT_ITEM
-PERMANENT_PILOT_STAGES = frozenset({"pilot", "production"})
-PERMANENT_PILOT_TARGET = "production"
-
-
 def permanent_pilot_override(final: dict[str, ItemOutcome], by_id: Mapping[str, Mapping[str, Any]],
                              part_status: Mapping[tuple[str, str], str]) -> None:
-    """In place, on the final pooled outcomes (codebook r15 ``core.permanent_pilot`` rules/0).
-
-    A SUPPORTED combined ``yes`` (the T-024 status of the pooled part that produced
-    it) sets ``adoption_stage`` to ``production`` only when the combined stage is
-    ``pilot``; ``production`` stays; every other stage and the flag are unchanged.
-    The rule is recorded only when the value changes (item 4 a); the stage keeps its
-    original part and probability (item 5 a).
-    """
-    pp_qid = next((q for q, d in by_id.items() if d["item_id"] == PERMANENT_PILOT_ITEM and d.get("part") is None),
-                  None)
-    st_qid = next((q for q, d in by_id.items() if d["item_id"] == ADOPTION_STAGE_ITEM and d.get("part") is None),
-                  None)
-    pp, stage = final.get(pp_qid), final.get(st_qid)
-    if pp is None or stage is None:
-        return
-    if pp.state != "combined" or pp.value != "yes" or pp.failed or pp.part_id is None:
-        return
-    if part_status.get((pp_qid, pp.part_id)) != "supported":
-        return
-    if stage.state != "combined" or stage.failed or stage.value not in PERMANENT_PILOT_STAGES:
-        return
-    if stage.value == PERMANENT_PILOT_TARGET:
-        return
-    final[st_qid] = replace(
-        stage, value=PERMANENT_PILOT_TARGET, rule_reference=PERMANENT_PILOT_RULE,
-        note=(f"RC-D-025 B2 a: pooled stage {stage.value!r} -> {PERMANENT_PILOT_TARGET!r} by a supported "
-              f"permanent_pilot 'yes' (part {pp.part_id}); codebook core.permanent_pilot rules/0"))
+    """RC-D-025 B2 a / PI 2026-11-10 item 6 a: the T-023 override, re-applied in place
+    after the cross-page (pooled) combination; ``part_status`` is keyed
+    ``(question_id, part_id)``. One helper for both stages:
+    :func:`g3o.classify.permanent_pilot.apply_permanent_pilot_override`."""
+    apply_permanent_pilot_override(final, by_id, lambda qid, part: part_status.get((qid, part)), scope="pooled")
 
 
 # ---------------------------------------------------------------------------
@@ -856,7 +824,7 @@ def write_stage6_outputs(inst_dir: Path, *, envelope: StorageEnvelope, instituti
 
 
 __all__ = [
-    "CODER_VERSION", "NUMBER_ITEM", "POOLED_NANO_GATE", "POOLED_STATED_NUMBERS_DIFFER",
+    "CODER_VERSION", "NUMBER_ITEM", "PERMANENT_PILOT_RULE", "POOLED_NANO_GATE", "POOLED_STATED_NUMBERS_DIFFER",
     "PREFILTER_RULE",
     "QUOTE_STEP_ABSENT", "QUOTE_STEP_FAILED", "RELATION_ITEM", "RELATION_OVER_BUDGET", "Held", "InputQuote",
     "ObservationRecord", "PooledActivity", "QuoteFn", "RelationOutcome", "Stage6Config", "Stage6Quote",
