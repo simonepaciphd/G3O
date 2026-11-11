@@ -149,25 +149,63 @@ def test_v27_refuses_a_v25_only_stop_after(tmp_path, stop_after):
     assert _v27_config(tmp_path, stop_after="scrape").stop_after == "scrape"
 
 
-@pytest.mark.parametrize("setting", [{"budget_usd": 5.0}, {"projection_safety_factor": 1.5},
-                                     {"preflight_stage_estimates": {"extract": 1.0}},
-                                     {"preflight_estimate_usd": 2.0}, {"cost_monitor_dry_run": True}])
-def test_v27_refuses_budget_settings(tmp_path, setting):
-    """QA4 M1: no v2.7 stage pricing exists, so a setting implying budget enforcement is refused."""
+@pytest.mark.parametrize("setting", [{"budget_usd": 5.0}, {"budget_usd": 5.0, "projection_safety_factor": 1.5},
+                                     {"preflight_estimate_usd": 2.0}, {"cost_monitor_dry_run": True},
+                                     {"preflight_stage_estimates": {"classify_official_site": 1.0,
+                                                                    "classify_triage": 1.0}}])
+def test_v27_keeps_the_stage_1_to_4_budget_settings(tmp_path, setting):
+    """PI ruling 1 a (2026-11-11): budget settings acting on Stages 1-4 stay valid on v2.7."""
+    config = _v27_config(tmp_path, **setting)
+    for name, value in setting.items():
+        assert getattr(config, name) == value
+
+
+@pytest.mark.parametrize("stage", ["extract", "validate", orch.V27_PERPAGE_SPAN, orch.V27_STAGE6_SPAN])
+def test_v27_refuses_a_stage_estimate_outside_stages_1_to_4(tmp_path, stage):
+    """Ruling 1 a: only the v2.7-stage budget figures are refused, until v2.7 stage pricing exists."""
+    setting = {"preflight_stage_estimates": {"classify_triage": 1.0, stage: 1.0}}
     with pytest.raises(ValueError, match="v2.7 has no stage pricing yet") as err:
         _v27_config(tmp_path, **setting)
-    assert next(iter(setting)) in str(err.value) and "RC-D-021" in str(err.value)
-    # The same settings stay valid on v2.5.
+    assert f"preflight_stage_estimates for {stage}:" in str(err.value) and "RC-D-021" in str(err.value)
+    # The same estimates stay valid on v2.5.
     PresweepConfig(run_id="r", runs_dir=tmp_path, master_csv=tmp_path / "m.csv", **setting)
 
 
-def test_run_presweep_rechecks_budget_settings_set_after_construction(tmp_path):
-    config = _v27_config(tmp_path)
-    config.preflight_estimate_usd = 3.0  # as the CLI sets it, after construction
+def test_run_presweep_rechecks_stage_estimates_set_after_construction(tmp_path):
+    config = _v27_config(tmp_path, budget_usd=5.0)
+    config.preflight_estimate_usd = 3.0  # as the CLI sets it, after construction: still valid
+    config.preflight_stage_estimates = {"classify_triage": 1.0, "extract": 2.0}
     with pytest.raises(ValueError, match="v2.7 has no stage pricing yet"):
         orch.run_presweep(config, v27=orch.V27Dispatch(SETTINGS, FakeJev(), lambda j: None, FakeEntail(),
                                                    lambda *a: []))
     assert not (tmp_path / "runs").exists()
+
+
+def test_v27_preflight_prices_stages_2_and_3_only(tmp_path):
+    """Ruling 1 a: the v2.7 preflight (and the ceiling compared with it) covers Stages 1-4; its stage
+    estimates are exactly the ones the v2.7 config accepts, so the CLI can thread them in."""
+    from g3o.run.preflight import run_preflight
+
+    master = _write_master(tmp_path / "master.csv")
+    creds = Credentials(openai_api_key="sk-test", serper_api_key="s", typesafe_api_key="t")
+    v25 = run_preflight(PresweepConfig(run_id="r", runs_dir=tmp_path / "runs", master_csv=master, sample_size=1),
+                        cost_ceiling_usd=10.0, credentials=creds)
+    v27 = run_preflight(_v27_config(tmp_path, master_csv=master, sample_size=1, budget_usd=10.0),
+                        cost_ceiling_usd=10.0, credentials=creds)
+    p25, p27 = v25["cost_preview"], v27["cost_preview"]
+    assert set(p27["stage_estimates"]) == {"classify_official_site", "classify_triage"}
+    assert {k: p27["stage_estimates"][k] for k in p27["stage_estimates"]} ==         {k: p25["stage_estimates"][k] for k in p27["stage_estimates"]}
+    assert p27["v27_unpriced_stages"] == [orch.V27_PERPAGE_SPAN, orch.V27_STAGE6_SPAN]
+    assert "v27_unpriced_stages" not in p25 and "ruling 1 a" not in p25["note"]
+    assert p27["est_total_usd"] < p25["est_total_usd"] and p27["est_input_tokens"] < p25["est_input_tokens"]
+    assert p27["est_by_api"]["serper"] == p25["est_by_api"]["serper"]
+    assert v27["cost_ceiling_exceeded"] is False
+    # What the CLI threads into the config after the preflight is accepted.
+    config = _v27_config(tmp_path, budget_usd=10.0)
+    config.preflight_estimate_usd = p27["est_total_usd"]
+    config.preflight_stage_estimates = p27["stage_estimates"]
+    from g3o.run.presweep.config import refuse_v27_budget_settings
+    refuse_v27_budget_settings(config)
 
 
 def test_resume_across_run_modes_is_refused(tmp_path):
@@ -541,3 +579,59 @@ def test_run_presweep_v25_default_never_reaches_the_v27_dispatch(tmp_path, monke
     assert "pipeline_version" not in manifest["config"]
     report = json.loads((tmp_path / "runs" / "v25" / "_cost_report.json").read_text(encoding="utf-8"))
     assert orch.V27_USAGE_KEY not in report and orch.V27_USAGE_KEY not in summary
+
+
+def _v27_presweep_config(tmp_path, **kw):
+    return _v27_config(tmp_path, master_csv=_write_master(tmp_path / "master.csv"), sample_size=1,
+                       dry_run=False, poll_interval=0, max_wait_per_stage=10,
+                       scrape_respect_robots=False, scrape_host_delay_seconds=0, **kw)
+
+
+def test_run_presweep_v27_enforces_the_budget_on_stages_1_to_4(tmp_path, monkeypatch):
+    """Ruling 1 a: budget_usd still aborts a v2.7 run on Stage 1-4 spend, before any v2.7 stage."""
+    from g3o.common import spend_meter
+    from g3o.common.cost_monitor import BudgetExceededError
+
+    _refuse_clients(monkeypatch)
+    monkeypatch.setattr(serper_client, "_live_mode", False, raising=False)
+    seen = {}
+    _stub_stages_1_to_4(monkeypatch, seen)
+    stub_scrape = orch._run_scrape
+
+    def costly_scrape(*a, **kw):
+        spend_meter.record(spend_meter.UNLOCKER, billable_bytes=1_000_000_000, success=True)  # $8
+        return stub_scrape(*a, **kw)
+
+    monkeypatch.setattr(orch, "_run_scrape", costly_scrape)
+    config = _v27_presweep_config(tmp_path, budget_usd=1.0)
+    run_dir = config.runs_dir / config.run_id
+    _, _, _, world, _ = _world(run_dir.parent, config.run_id)
+    inputs = WorldInputs(world)
+    with pytest.raises(BudgetExceededError):
+        orch.run_presweep(
+            config, credentials=Credentials(openai_api_key="sk-test", serper_api_key="s", typesafe_api_key="t"),
+            v27=_dispatch(world, inputs=inputs))
+    assert inputs.calls == []  # no v2.7 stage ran
+    report = json.loads((run_dir / "_cost_report.json").read_text(encoding="utf-8"))
+    assert report["budget_usd"] == 1.0 and report["budget_exceeded"] is True
+    assert report[orch.V27_BUDGET_SCOPE_KEY] == orch.V27_BUDGET_SCOPE and report[orch.V27_USAGE_KEY] is None
+    assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in INSTS)
+
+
+def test_run_presweep_v27_budget_leaves_the_unpriced_v27_stages_outside_it(tmp_path, monkeypatch, caplog):
+    _refuse_clients(monkeypatch)
+    monkeypatch.setattr(serper_client, "_live_mode", False, raising=False)
+    _stub_stages_1_to_4(monkeypatch, {})
+    config = _v27_presweep_config(tmp_path, budget_usd=5.0)
+    run_dir = config.runs_dir / config.run_id
+    _, _, _, world, _ = _world(run_dir.parent, config.run_id)
+    with caplog.at_level("WARNING"):
+        summary = orch.run_presweep(
+            config, credentials=Credentials(openai_api_key="sk-test", serper_api_key="s", typesafe_api_key="t"),
+            v27=_dispatch(world, inputs=WorldInputs(world)))
+    assert summary["n_stage6_written"] == 3
+    assert any("enforced on Stages 1-4 only" in r.getMessage() for r in caplog.records)
+    report = json.loads((run_dir / "_cost_report.json").read_text(encoding="utf-8"))
+    assert report["budget_usd"] == 5.0 and report["budget_exceeded"] is False
+    assert report[orch.V27_BUDGET_SCOPE_KEY] == orch.V27_BUDGET_SCOPE
+    assert report[orch.V27_USAGE_KEY][orch.V27_PERPAGE_SPAN]["input_tokens"] > 0  # used, and not in total_usd

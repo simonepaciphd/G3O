@@ -374,6 +374,9 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
 
 #: Summary / cost-report key of the v2.7 stages' raw usage (T-030 QA4 M1).
 V27_USAGE_KEY = "v27_unpriced_usage"
+#: Cost-report key and value stating what a v2.7 run's budget covers (PI ruling 1 a).
+V27_BUDGET_SCOPE_KEY = "budget_scope"
+V27_BUDGET_SCOPE = "stages_1_4"
 
 
 def _usage_totals(metrics: Any) -> dict[str, int]:
@@ -408,7 +411,9 @@ def run_v27_dispatch(
     stage (``SupportGateError``, ``MissingUpstreamError`` in the per-page stage,
     ``JevAccountError``, ...) propagate unchanged. Within-stage budget checks are
     not wired here (no ``cost_check_callback``): the cost monitor has no v2.7
-    stage pricing yet, so the config refuses every budget setting on a v2.7 run.
+    stage pricing yet, so a v2.7 run's ``budget_usd`` covers Stages 1-4 only
+    (PI ruling 1 a, 2026-11-11) and the config refuses preflight estimates for
+    any other stage.
     The two stages' raw token and call counts go under :data:`V27_USAGE_KEY`
     (``{"perpage_v27": ..., "stage6_v27": ...}``), unpriced; a stage that stops
     records none there (its journals on disk keep them).
@@ -506,6 +511,12 @@ def run_presweep(
     if config.pipeline_version == PIPELINE_V27:
         refuse_v27_budget_settings(config)
         v27 = _require_v27_dispatch(v27)
+        if config.budget_usd is not None:
+            logger.warning(
+                "pipeline_version='v2.7': budget_usd $%.4f is enforced on Stages 1-4 only; "
+                "the v2.7 per-page stage and v2.7 Stage 6 are unpriced (their raw usage is "
+                "reported under %s, outside total_usd)", config.budget_usd, V27_USAGE_KEY,
+            )
     elif v27 is not None:
         raise ValueError("v27 dispatch inputs were supplied but pipeline_version is "
                          f"{config.pipeline_version!r}")
@@ -1139,6 +1150,9 @@ def run_presweep(
                 # They are NOT in total_usd / llm_total_usd (no v2.7 stage
                 # pricing yet); None when no v2.7 stage finished.
                 cost_report[V27_USAGE_KEY] = summary.get(V27_USAGE_KEY)
+                # PI ruling 1 a: budget_usd, budget_exceeded and total_usd cover
+                # Stages 1-4 only on a v2.7 run.
+                cost_report[V27_BUDGET_SCOPE_KEY] = V27_BUDGET_SCOPE
             # Include preflight vs actual comparison if preflight was run
             if config.preflight_estimate_usd is not None and cost_report["total_usd"] is not None:
                 actual_usd = cost_report["total_usd"]
