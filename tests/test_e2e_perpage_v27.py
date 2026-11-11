@@ -205,7 +205,8 @@ class World:
         a_vals, s_vals, codes = {}, {}, {}
         for aid, name, tool, first, _ in page.activities:
             av = {k: v for k, v in _values("activities").items()
-                  if k in pp.ACTIVITY_ITEMS and FIELDS[k]["coder"] != "classifier"}
+                  if k in pp.ACTIVITY_ITEMS and FIELDS[k]["coder"] != "classifier"
+                  and k != "core.uncertainty_flags"}  # produced per page (A6)
             av.update({"core.activity_name": name, "core.tool_name": [tool], "core.reported_outcomes": [],
                        "core.deployment_scale_number": "not_documented"})
             sv = {k: v for k, v in _values("sources").items()
@@ -240,7 +241,7 @@ class World:
         identity = {"institution_id": inst, "institution_name": f"Council {inst}", "country": "Australia",
                     "branch_of_government": "executive", "level_of_government": "local",
                     "institution_search_languages": "en"}
-        up = pp.InstitutionUpstream(OwnGroup(), merged, lambda sr: [])
+        up = pp.InstitutionUpstream(OwnGroup(), merged)
         return pp.PerPageInstitution(RUN_ID, uid_for(inst), identity, "AU",
                                      [pp.PageSpec(p.input, self.upstream(p.pid)) for p in pages], up)
 
