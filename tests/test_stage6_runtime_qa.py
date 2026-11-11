@@ -463,3 +463,27 @@ def test_absent_independence_groups_or_uncertainty_flags_refuse(tmp_path, field,
     held = _held(run_dir)
     assert held["reasons"] == [rt.ENVELOPE_FAILED] and "MissingUpstreamError" in held["error"]
     assert match in held["error"].lower()
+
+
+# --- RC-D-030 Z1 b: a failed pooled request part holds the question; the next run retries ----------
+
+
+def test_z1_failed_pooled_request_holds_institution_then_retry_publishes(tmp_path):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    inner = e.FakeJev(e.RELATIONS, e._pooled_answers())
+
+    def failing(state, questions):
+        if s6.RELATION_ITEM not in questions and "core.action_type" in questions:
+            raise RuntimeError("simulated pooled request failure")
+        return inner(state, questions)
+    metrics = _run(run_dir, bound, instrument, [a], e.FakeQuotes(), jev=failing)
+    assert metrics.held == [A] and not metrics.written
+    held = _held(run_dir)
+    assert s6.POOLED_REQUEST_FAILED in held["reasons"]
+    assert any(h["reason"] == s6.POOLED_REQUEST_FAILED for h in held["held"])
+    assert f"{rt.HELD_REASON}:{s6.POOLED_REQUEST_FAILED}" in _ledger(run_dir)
+    assert not (institution_dir(run_dir, A) / "6_storage.json").exists()  # never published
+    metrics = _run(run_dir, bound, instrument, [a], e.FakeQuotes())
+    assert metrics.written == [A]
+    assert rt.HELD_RELEASED in _ledger(run_dir)

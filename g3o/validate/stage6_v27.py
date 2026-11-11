@@ -39,7 +39,11 @@ Rules, as the signed codebook r15 and SPEC v001.28 state them:
   answers of earlier rounds (R-008; round-5 gates "after downgrades").
   Too-long pools are split by T-020
   :func:`~g3o.common.page_chunks.prepare_pool_requests` and combined by each
-  item's own rule (RC-D-005 10 a). RC-D-028 2 a: the ``deployment_scale_unit``
+  item's own rule (RC-D-005 10 a). RC-D-030 Z1 b (R-044): a question any of
+  whose pooled request parts failed (no answer returned: request error, no
+  request id, answer missing) is held (``pooled_request_part_failed``), not
+  combined; it is asked again on the next run and never published. Answers
+  returned but failing their checks still combine as ``unknown``. RC-D-028 2 a: the ``deployment_scale_unit``
   gate (``any stated``) is open when any pooled observation states a number,
   and the request whose question shows it carries ``stated_number`` (the
   RC-D-021 W-06 field); several different stated numbers hold that question
@@ -135,6 +139,8 @@ POOLED_NANO_GATE = "pooled_nano_gate_unruled"
 REQUEST_FAILED = "jev_request_failed"
 MISSING_REQUEST_ID = "jev_missing_request_id"
 ANSWER_MISSING = "jev_answer_missing"
+#: RC-D-030 Z1 b: a pooled question with a request part that returned no answer (held, retried next run).
+POOLED_REQUEST_FAILED = "pooled_request_part_failed"
 
 #: The extracted number the ``deployment_scale_unit`` gate reads (``any stated``).
 NUMBER_ITEM = "core.deployment_scale_number"
@@ -681,8 +687,12 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
             for q in asked:
                 qid = q["question_id"]
                 if result is None or qid not in result.answers:
-                    votes[qid].append(PartVote(part.part_id, part.index, UNKNOWN, None, True,
-                                               reason or ANSWER_MISSING))
+                    # RC-D-030 Z1 b (R-044): a question any of whose pooled request parts returned
+                    # no answer is held, not combined; the failed request is asked again next run.
+                    why = reason or ANSWER_MISSING
+                    held.append(Held(POOLED_REQUEST_FAILED, f"{pool_id}:{part.part_id}:{qid}",
+                                     why if detail is None else f"{why}: {detail}"))
+                    pending.setdefault(qid, POOLED_REQUEST_FAILED)
                     continue
                 rec = _record(result, q, part.part_id, config, qsv, None)
                 records.append(rec)
@@ -864,7 +874,7 @@ def write_stage6_outputs(inst_dir: Path, *, envelope: StorageEnvelope, instituti
 
 __all__ = [
     "CODER_VERSION", "NUMBER_ITEM", "dedupe_pooled_quotes", "PERMANENT_PILOT_RULE", "POOLED_NANO_GATE",
-    "PREFILTER_RULE",
+    "POOLED_REQUEST_FAILED", "PREFILTER_RULE",
     "QUOTE_STEP_ABSENT", "QUOTE_STEP_FAILED", "RELATION_ITEM", "RELATION_OVER_BUDGET", "Held", "InputQuote",
     "ObservationRecord", "PooledActivity", "QuoteFn", "RelationOutcome", "Stage6Config", "Stage6Quote",
     "Stage6QuoteNotApproved", "Stage6QuoteRequest", "Stage6Result", "code_relation", "consolidated_response", "cross_page_pairs",

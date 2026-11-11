@@ -703,3 +703,27 @@ def test_y4_pooled_quotes_of_identical_text_are_shown_once_per_observation():
     state = next(c[0] for c in jev.calls if REL_Q not in c[1])
     texts = [r["quote_text"] for r in state["supporting_quotes"]]
     assert texts.count(quotes[0].quote_text) == 2
+
+
+def test_z1_pooled_question_with_a_failed_request_part_is_held_not_combined():
+    pages, obs, recs, quotes, jev = merged()
+
+    def failing(state, questions):
+        if REL_Q not in questions and "core.action_type" in questions:
+            raise RuntimeError("simulated pooled request failure")
+        return jev(state, questions)
+    pooled = s6.pool_activity("pool001", ("o1", "o2"), obs, pages, quotes, failing, FakeQuotes(), CONFIG)
+    o = pooled.outcomes["core.action_type"]
+    assert o.state == "pending" and o.note == s6.POOLED_REQUEST_FAILED and o.value is None
+    holds = [h for h in pooled.held if h.reason == s6.POOLED_REQUEST_FAILED]
+    assert any(h.key.endswith(":core.action_type") and "RuntimeError" in h.detail for h in holds)
+    assert not pooled.finished
+
+
+def test_z1_returned_answer_failing_checks_still_combines_as_unknown():
+    pages, obs, recs, quotes, jev = merged()
+    low = FakeJev(answers={"core.action_type": "deployment"}, prob=.5)
+    pooled = s6.pool_activity("pool001", ("o1", "o2"), obs, pages, quotes, low, FakeQuotes(), CONFIG)
+    o = pooled.outcomes["core.action_type"]
+    assert o.state == "combined" and o.value == "unknown" and o.failed
+    assert s6.POOLED_REQUEST_FAILED not in {h.reason for h in pooled.held}
