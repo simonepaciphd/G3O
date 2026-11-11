@@ -99,7 +99,8 @@ def _dispatch(world, *, extract=None, entail=None, jev=None, inputs=None, **over
 
 def _world_run(tmp_path):
     run_dir, bound, instrument, world, _ = _world(tmp_path)
-    write_manifest(run_dir, {"run_id": "R-T030-PP", "institutions": list(INSTS)})
+    write_manifest(run_dir, {"run_id": "R-T030-PP", "institutions": list(INSTS),
+                             "config": {"pipeline_version": PIPELINE_V27}})
     return run_dir, bound, instrument, world
 
 
@@ -285,6 +286,29 @@ def test_a_refusal_at_provider_build_leaves_no_run_pipeline_block(tmp_path, monk
         orch.run_v27_dispatch(run_dir, [], None, _dispatch(world))
     manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
     assert planning.RUN_PIPELINE_KEY not in manifest and "storage_contract" not in manifest
+
+
+@pytest.mark.parametrize("config", [{}, {"config": {}}, {"config": {"pipeline_version": PIPELINE_V25}}])
+def test_record_run_pipeline_is_refused_on_a_v25_run_directory(tmp_path, config):
+    """QA4 L2: a direct call on a run directory whose manifest config is not v2.7 is refused and
+    leaves the manifest as it was."""
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    write_manifest(run_dir, {"run_id": "r", "institutions": [], **config})
+    before = (run_dir / "manifest.json").read_bytes()
+    with pytest.raises(ValueError, match="recorded only on a v2.7 run"):
+        planning.record_run_pipeline(run_dir, pipeline_version=PIPELINE_V27, instrument_id="0" * 64)
+    assert (run_dir / "manifest.json").read_bytes() == before
+
+
+def test_record_run_pipeline_is_refused_for_another_mode_on_a_v27_run(tmp_path):
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    write_manifest(run_dir, {"run_id": "r", "institutions": [], "config": {"pipeline_version": PIPELINE_V27}})
+    with pytest.raises(ValueError, match="recorded only on a v2.7 run"):
+        planning.record_run_pipeline(run_dir, pipeline_version=PIPELINE_V25, instrument_id="0" * 64)
+    block = planning.record_run_pipeline(run_dir, pipeline_version=PIPELINE_V27, instrument_id="0" * 64)
+    assert block == {"pipeline_version": PIPELINE_V27, "instrument_id": "0" * 64}
 
 
 def test_v27_inputs_on_a_v25_run_are_refused(tmp_path):

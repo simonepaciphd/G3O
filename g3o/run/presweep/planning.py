@@ -20,7 +20,7 @@ from g3o.discovery.query_builder import (
     evidence_terms_roster_hash,
     genai_terms_roster_hash,
 )
-from g3o.run.presweep.config import PIPELINE_V25, STAGES, PresweepConfig
+from g3o.run.presweep.config import PIPELINE_V25, PIPELINE_V27, STAGES, PresweepConfig
 from g3o.run.presweep.official_sites import apply_to_rows, load_bypass_map
 from g3o.run.presweep.records import (
     _read_master,
@@ -263,8 +263,10 @@ RUN_PIPELINE_KEY = "run_pipeline"
 def record_run_pipeline(run_dir: Path, *, pipeline_version: str, instrument_id: str) -> dict[str, Any]:
     """Record a v2.7 run's mode and bound instrument id in ``manifest.json``.
 
-    Written after :func:`g3o.run.presweep.instrument_binding.bind_runtime`, the
-    first point the instrument id is known, and before any v2.7 stage runs.
+    Written after :func:`g3o.run.presweep.instrument_binding.bind_runtime` (the
+    first point the instrument id is known) and the per-page provider build, and
+    before any v2.7 stage runs. Refused unless the manifest's own config records
+    ``pipeline_version="v2.7"``, so a v2.5 run directory never gets a 2.7 block.
     Also sets the existing ``storage_contract.codebook_release`` to ``"2.7"``,
     which is what :func:`g3o.persist.writer.write_run_csvs` reads to treat the
     run's Stage 6 outputs as 2.7 storage. A manifest that already records a
@@ -272,6 +274,12 @@ def record_run_pipeline(run_dir: Path, *, pipeline_version: str, instrument_id: 
     """
     path = run_dir / "manifest.json"
     manifest = json.loads(path.read_text(encoding="utf-8"))
+    recorded_mode = (manifest.get("config") or {}).get("pipeline_version")
+    if recorded_mode != PIPELINE_V27 or pipeline_version != PIPELINE_V27:
+        raise ValueError(
+            f"{RUN_PIPELINE_KEY} is recorded only on a v2.7 run: the manifest's config records "
+            f"pipeline_version={recorded_mode!r}, the caller {pipeline_version!r}"
+        )
     block = {"pipeline_version": pipeline_version, "instrument_id": instrument_id}
     previous = manifest.get(RUN_PIPELINE_KEY)
     if previous is not None and previous != block:
