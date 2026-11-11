@@ -33,7 +33,7 @@ from tenacity import (
     wait_exponential,
 )
 
-from g3o.common import config
+from g3o.common import config, date_signals
 from g3o.scrape import docx as docx_mod
 from g3o.scrape import egress, readability
 from g3o.scrape import html as html_mod
@@ -481,19 +481,32 @@ def _extract_html_title(soup: BeautifulSoup) -> str:
     return ""
 
 
-def _extract_pdf_title(content: bytes) -> str:
-    """Best-effort PDF title from document metadata; empty if pdfplumber missing."""
+def _pdf_title_and_dates(content: bytes) -> tuple[str, list[dict[str, Any]] | None]:
+    """PDF title and P15 A1 ``CreationDate`` candidates from one read of the document info.
+
+    Title: best effort, empty if pdfplumber is missing or the read fails.
+    Dates: ``None`` (not measured) in those two cases; ``[]`` when the info
+    dictionary has no ``CreationDate``.
+    """
     if not pdf_mod.PDF_SUPPORT:
-        return ""
+        return "", None
     try:
         import io
 
         import pdfplumber  # type: ignore[import-untyped]
 
         with pdfplumber.open(io.BytesIO(content)) as pdf:
-            return (pdf.metadata.get("Title") or "").strip()
+            meta = pdf.metadata or {}
+            title = meta.get("Title") or ""
+            title = title.strip() if isinstance(title, str) else ""
+            return title, date_signals.pdf_date_candidates(meta)
     except Exception:
-        return ""
+        return "", None
+
+
+def _extract_pdf_title(content: bytes) -> str:
+    """Best-effort PDF title from document metadata; empty if pdfplumber missing."""
+    return _pdf_title_and_dates(content)[0]
 
 
 def _notify_render_attempt(
@@ -661,6 +674,7 @@ def _html_part_fields(parts: html_mod.HtmlParts | None) -> dict[str, Any]:
         "chrome_text": parts.chrome_text,
         "links": parts.links,
         "email_links": parts.email_links,
+        "metadata_dates": parts.metadata_dates,
     }
 
 
@@ -725,10 +739,14 @@ def _unlocker_page(
     ucontent = uresult.content
     # T-014 (RC-D-002 F): measured on the HTML branch only; None on PDF/DOCX.
     uparts: html_mod.HtmlParts | None = None
+    # P15 A1: PDF CreationDate (the HTML candidates ride on uparts).
+    udates: dict[str, Any] = {}
     ukind = _route(ucontent, ctype="", url=url)
     if ukind == "pdf":
         utext = pdf_mod.extract_text(ucontent)
-        utitle = _extract_pdf_title(ucontent)
+        utitle, updf_dates = _pdf_title_and_dates(ucontent)
+        if updf_dates is not None:
+            udates["metadata_dates"] = updf_dates
         umethod = "unlocker_pdf"
         uctype = "pdf"
     elif ukind == "docx":
@@ -748,6 +766,7 @@ def _unlocker_page(
         url=url, text=utext, title=utitle,
         content_type=uctype,  # type: ignore[arg-type]
         **_html_part_fields(uparts),
+        **udates,
         fetch_metadata=FetchMetadata(
             access_date=utc_today_iso(),
             http_status=uresult.inner_status,
@@ -969,10 +988,14 @@ def scrape_url(
     # instead) leave them None. T-065: content sniffing runs first, so a PDF or
     # DOCX body served as text/html reaches its extractor, not the HTML parser.
     parts: html_mod.HtmlParts | None = None
+    # P15 A1: PDF CreationDate (the HTML candidates ride on parts).
+    pdf_dates: dict[str, Any] = {}
     kind = _route(content, ctype=ctype, url=url)
     if kind == "pdf":
         text = pdf_mod.extract_text(content)
-        title = _extract_pdf_title(content)
+        title, measured_dates = _pdf_title_and_dates(content)
+        if measured_dates is not None:
+            pdf_dates["metadata_dates"] = measured_dates
         method = "pdf"
         content_type = "pdf"
     elif kind == "docx":
@@ -1056,6 +1079,7 @@ def scrape_url(
         title=title,
         content_type=content_type,  # type: ignore[arg-type]
         **_html_part_fields(parts),
+        **pdf_dates,
         fetch_metadata=FetchMetadata(
             access_date=utc_today_iso(),
             http_status=status,

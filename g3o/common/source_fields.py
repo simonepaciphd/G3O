@@ -33,6 +33,8 @@ Producers and their signed rules:
 - ``core.source_publication_date`` (X26, r2#31) and ``core.date_upper_bound``:
   metadata first, then the quote step's date checked by T-024 (R-042), with
   the date origin and its provenance from ``vocabularies.provenance.date_origin_map``.
+  The metadata/URL candidates come from :mod:`g3o.common.date_signals` (P15 A1,
+  PI 2026-11-11 A1.1 a, A1.2 a signed tag order, A1.3 a not-measured pages).
 - ``core.source_snippet`` (X25, r2#35): the page verdict's supporting quote,
   verbatim, checked by T-024. Stored whole (R-043, RC-D-017 "2 whole"; RC-D-025 P14);
   :func:`g3o.common.support_check.display_cap` gives the displayed prefix.
@@ -44,8 +46,8 @@ Producers and their signed rules:
   against the signed codes.
 - ``core.source_language`` (X27), ``core.syndication_group`` (X38),
   ``core.discovery_path``, ``core.text_source``: no producer or no signed
-  spelling/parameter exists; each refuses explicitly (RC-D-025 P15). So do the
-  metadata/URL date producer and the archive-host list.
+  spelling/parameter exists; each refuses explicitly (RC-D-025 P15). So does
+  the archive-host list.
 
 Source confidence: the signed r14 rule ``items/core.confidence/rules/1``
 (RC-D-025 A1, from the PI rule of 2026-11-07, widened by C7 a), plus the
@@ -69,6 +71,7 @@ from functools import lru_cache
 from typing import Any
 
 from g3o.codebook.loader import Codebook, load_codebook
+from g3o.common import date_signals
 from g3o.common.support_check import (
     PAGE_VERDICT,
     SET_BY_RULE,
@@ -550,11 +553,17 @@ def source_type_label(typing: SourceTyping, *, vocab: SourceVocab | None = None)
 @dataclass(frozen=True)
 class MetadataDate:
     """A deterministic date candidate: ``origin`` ``metadata`` (HTML metadata, PDF
-    properties) or ``web_address`` (URL pattern). Producer: not yet built."""
+    properties) or ``web_address`` (URL pattern). Producer:
+    :func:`g3o.common.date_signals.page_date_inputs` (P15 A1).
+
+    ``tag`` (metadata only, required there): the A1.1 a signal, one of
+    :data:`g3o.common.date_signals.TAG_ORDER`.
+    """
 
     value: str
     origin: str
     detail: str
+    tag: str | None = None
 
 
 def _date_value(value: str) -> str:
@@ -563,36 +572,86 @@ def _date_value(value: str) -> str:
     return value
 
 
+def select_deterministic_date(metadata_dates: Sequence[MetadataDate]
+                              ) -> tuple[MetadataDate | None, dict[str, Any]]:
+    """The signed A1.2 a selection (PI 2026-11-11, "tag order signed").
+
+    Metadata: the highest tag in :data:`~g3o.common.date_signals.TAG_ORDER`
+    that has a candidate decides. One distinct value: used. Several distinct
+    values: "treated as absent" -- metadata gives no date and no lower tag is
+    consulted (a lower tag is not a "higher tag settling it"); fall through
+    to the URL step. URL: one distinct value used; several distinct: treated
+    as absent (quote step). Distinct means distinct normalised strings
+    (``2024-03`` and ``2024-03-12`` disagree).
+    Returns the chosen entry (None = neither step gave a date) and a detail
+    mapping recording any disagreement.
+    """
+    detail: dict[str, Any] = {}
+    by_tag: dict[str, list[MetadataDate]] = {}
+    web: list[MetadataDate] = []
+    for m in metadata_dates:
+        if m.origin == "metadata":
+            if m.tag not in date_signals.TAG_ORDER:
+                raise ValueError(f"metadata date tag {m.tag!r} is not a signed A1.1 a signal")
+            _date_value(m.value)
+            by_tag.setdefault(m.tag, []).append(m)
+        elif m.origin == "web_address":
+            _date_value(m.value)
+            web.append(m)
+        else:
+            raise ValueError(f"metadata date origin {m.origin!r} is not metadata or web_address")
+    for tag in date_signals.TAG_ORDER:
+        entries = by_tag.get(tag)
+        if not entries:
+            continue
+        values = sorted({m.value for m in entries})
+        if len(values) == 1:
+            return entries[0], detail
+        detail["metadata_disagreed"] = {"tag": tag, "values": values}
+        break
+    values = sorted({m.value for m in web})
+    if len(values) == 1:
+        return web[0], detail
+    if len(values) > 1:
+        detail["web_address_disagreed"] = values
+    return None, detail
+
+
+def has_deterministic_date(metadata_dates: Sequence[MetadataDate] | None) -> bool:
+    """``PageInput.has_metadata_date``: True when the A1.2 a selection gives a date."""
+    return metadata_dates is not None and select_deterministic_date(metadata_dates)[0] is not None
+
+
 def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: Any, sources: PageSources | None,
-                     *, vocab: SourceVocab | None = None) -> FieldValue:
+                     *, metadata_measured: bool = True, vocab: SourceVocab | None = None) -> FieldValue:
     """Metadata first, then the quote step's date checked under R-042 (items/core.source_publication_date/rules/0).
 
-    ``metadata_dates``: None = the deterministic producer did not run (refused);
-    empty = it ran and found none. ``quote_date``: the T-022
+    ``metadata_dates``: None = neither the metadata measurement nor the URL
+    test ran (refused); empty = they ran and found none. Disagreeing candidates
+    follow the signed A1.2 a rule (:func:`select_deterministic_date`).
+    ``metadata_measured`` False (A1.3 a): a stored page whose metadata was not
+    measured; ``metadata_dates`` then holds URL entries only and the result's
+    ``detail`` records ``metadata: not_measured``. ``quote_date``: the T-022
     ``Pass1Extraction.publication_date`` (a ``FieldValue`` with ``value``,
     ``chunk_id``, ``supporting_text``) or None. A quote-step date that fails
     the check takes ``unknown`` (``downgrade_target``). Neither: ``not_documented``.
     """
     v = vocab or default_vocab()
     if metadata_dates is None:
-        raise MissingUpstreamError("deterministic metadata/URL date producer (none built)", [DATE])
-    by_origin: dict[str, set[str]] = {}
-    for m in metadata_dates:
-        if m.origin not in ("metadata", "web_address"):
-            raise ValueError(f"metadata date origin {m.origin!r} is not metadata or web_address")
-        by_origin.setdefault(m.origin, set()).add(_date_value(m.value))
-    for origin in ("metadata", "web_address"):  # the rule's order: metadata / PDF properties, then URL
-        found = by_origin.get(origin)
-        if not found:
-            continue
-        if len(found) > 1:
-            raise UnruledError(DATE, f"{origin} candidates disagree {sorted(found)}; no signed tie rule")
-        (value,) = found
-        return _fv(DATE, value, f"deterministic {origin} date", v,
-                   provenance=v.date_origin_map[origin], date_origin=origin)
+        raise MissingUpstreamError("deterministic metadata/URL date producer (neither step ran)", [DATE])
+    if not metadata_measured and any(m.origin == "metadata" for m in metadata_dates):
+        raise ValueError("metadata dates given for a page whose metadata was not measured")
+    chosen, detail = select_deterministic_date(metadata_dates)
+    detail = {"date_producer": date_signals.PRODUCER_VERSION,
+              "metadata": "measured" if metadata_measured else date_signals.NOT_MEASURED, **detail}
+    if chosen is not None:
+        origin = chosen.origin
+        label = f"{origin} {chosen.tag}" if chosen.tag else origin
+        return _fv(DATE, chosen.value, f"deterministic {label} date ({chosen.detail})", v,
+                   provenance=v.date_origin_map[origin], date_origin=origin, detail=detail)
     if quote_date is None:
         return _fv(DATE, "not_documented", "no metadata date and no quote-step date", v,
-                   date_origin="unknown")
+                   date_origin="unknown", detail=detail)
     if sources is None:
         raise MissingUpstreamError("stored page texts (PageSources) for the R-042 check", [DATE])
     ev = CodeEvidence(item_id=DATE, value=_date_value(quote_date.value), chunk_id=quote_date.chunk_id,
@@ -600,9 +659,32 @@ def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: 
     res = check_code(ev, sources)
     if res.value != res.original_value:
         return _fv(DATE, res.value, "quote-step date failed the R-042 check", v, date_origin="unknown",
-                   support=res)
+                   support=res, detail=detail)
     return _fv(DATE, res.value, "quote-step date, supported", v,
-               provenance=v.date_origin_map["page_text_quote"], date_origin="page_text_quote", support=res)
+               provenance=v.date_origin_map["page_text_quote"], date_origin="page_text_quote", support=res,
+               detail=detail)
+
+
+def page_has_metadata_date(metadata_candidates: Sequence[Mapping[str, Any]] | None, url: str | None) -> bool:
+    """``PageInput.has_metadata_date`` for one stored page (``RenderedPage.metadata_dates``, ``url``).
+
+    True when the signed selection gives a metadata or URL date, so the
+    T-022 request plan asks no quote-step date task for the page.
+    """
+    return has_deterministic_date(date_signals.page_date_inputs(metadata_candidates, url).metadata_dates)
+
+
+def page_publication_date(metadata_candidates: Sequence[Mapping[str, Any]] | None, url: str | None,
+                          quote_date: Any, sources: PageSources | None, *,
+                          vocab: SourceVocab | None = None) -> FieldValue:
+    """:func:`publication_date` for one stored page: its ``metadata_dates`` and supplied URL.
+
+    A page stored before the capture (``metadata_dates`` None) runs the URL
+    test only and records ``metadata: not_measured`` (A1.3 a).
+    """
+    inputs = date_signals.page_date_inputs(metadata_candidates, url)
+    return publication_date(inputs.metadata_dates, quote_date, sources,
+                            metadata_measured=inputs.metadata_measured, vocab=vocab)
 
 
 def date_upper_bound(date: FieldValue, *, vocab: SourceVocab | None = None) -> FieldValue:
@@ -926,7 +1008,8 @@ __all__ = [
     "OfficialSiteOverlay", "PendingCheck", "SourceConfidence", "SourceTyping", "SourceVocab",
     "UnfinishedConfidenceError", "UnruledError", "aggregation_value", "auto_source_type", "code_source_type", "confidence_field",
     "confidence_seam", "date_upper_bound", "default_vocab", "discovery_path", "missing_source_items",
-    "page_review_state", "publication_date", "residual_question_set", "route_source_type", "signed_credibility_map",
+    "has_deterministic_date", "page_has_metadata_date", "page_publication_date", "page_review_state",
+    "publication_date", "residual_question_set", "select_deterministic_date", "route_source_type", "signed_credibility_map",
     "source_access_date", "source_confidence_rule", "source_credibility", "source_language",
     "source_on_official_domain", "source_snippet", "source_title", "source_type_evidence", "source_type_label",
     "source_url", "source_values", "syndication_group", "text_source", "vocab_from_codebook",

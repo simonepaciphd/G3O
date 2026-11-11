@@ -110,6 +110,17 @@ class RenderedPage(BaseModel):
         description="E-mail addresses from mailto: hrefs, lowercased, "
         "deduped in page order.",
     )
+    # P15 A1 (PI 2026-11-11 A1.1 a): published-date metadata candidates, same
+    # convention as the T-014 fields. Measured on the HTML and unlocker-HTML
+    # paths (meta / JSON-LD / microdata) and the PDF paths (CreationDate).
+    # ``None`` = not measured: render and DOCX pages, a PDF read without
+    # pdfplumber, and every record stored before the change (A1.3 a, no
+    # re-fetch). ``[]`` = measured, none on the page.
+    metadata_dates: list[dict[str, Any]] | None = Field(
+        default=None,
+        description="Published-date candidates {tag, found_as, raw, value} "
+        "(g3o.common.date_signals); value None = raw not an accepted date form.",
+    )
 
     @model_serializer(mode="wrap")
     def _omit_unmeasured(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -126,7 +137,7 @@ class RenderedPage(BaseModel):
         return data
 
 
-_OPTIONAL_PAGE_FIELDS = ("chrome_text", "links", "email_links")
+_OPTIONAL_PAGE_FIELDS = ("chrome_text", "links", "email_links", "metadata_dates")
 
 
 def _import_sync_playwright():
