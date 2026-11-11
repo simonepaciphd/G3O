@@ -242,7 +242,8 @@ def _pooled_answers():
 def _run(run_dir, bound, instrument, insts, quote_fn, jev=None):
     jev = jev or FakeJev(RELATIONS, _pooled_answers())
     return jev, rt.run_stage6_v27(run_dir, insts, ask_fn=jev, quote_fn=quote_fn, config=bound.stage6_config(),
-                                  instrument=instrument, now=CLOCK)
+                                  instrument=instrument, now=CLOCK,
+                                  test_only_unbound_quote_fn=not getattr(quote_fn, "bound_instrument_id", None))
 
 
 def _csvs(run_dir, insts):

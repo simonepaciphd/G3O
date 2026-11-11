@@ -213,6 +213,11 @@ class Stage6QuoteStep:
     rules: SupportRules | None = None
     configure_job: Callable[[ExtractorJob], ExtractorJob] | None = None
     prompt_version: str = PROMPT_VERSION
+    #: the model the X35 entailment calls run on (the request journal keys X35 answers on it)
+    x35_model: str | None = None
+    #: set only by :meth:`g3o.run.presweep.instrument_binding.BoundRuntime.stage6_quote_fn`;
+    #: ``run_stage6_v27`` refuses a quote step not bound to its instrument
+    bound_instrument_id: str | None = None
 
     def with_seams(self, wrap_extract: Callable[[ExtractFn], ExtractFn],
                    wrap_entail: Callable[[EntailFn], EntailFn]) -> Stage6QuoteStep:

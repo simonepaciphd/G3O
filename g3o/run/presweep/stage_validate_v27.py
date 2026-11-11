@@ -107,6 +107,7 @@ from g3o.validate.consolidate_v27 import (
     outcome_values,
     summary_values,
 )
+from g3o.validate.stage6_quote import Stage6QuoteStep
 from g3o.validate.stage6_v27 import (
     AskFn,
     InputQuote,
@@ -346,7 +347,8 @@ class RequestJournal:
     def quote(self, quote_fn: QuoteFn | None) -> QuoteFn | None:
         if quote_fn is None:
             return None
-        prompt = {"quote_prompt_version": getattr(quote_fn, "prompt_version", None)}
+        prompt = {"quote_prompt_version": getattr(quote_fn, "prompt_version", None),
+                  "x35_model": getattr(quote_fn, "x35_model", None)}
         inner = quote_fn
         if hasattr(quote_fn, "with_seams"):  # the extractor and X35 calls are journaled on their own
             inner = quote_fn.with_seams(lambda f: self._extract(f, prompt), lambda f: self._entail(f, prompt))
@@ -730,7 +732,8 @@ def _hold(run_dir: Path, inst_dir: Path, institution_id: str, reasons: Sequence[
 
 def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, ask_fn: AskFn,
                    quote_fn: QuoteFn | None, config: Stage6Config, instrument: dict[str, Any],
-                   now: Callable[[], datetime] | None = None) -> Stage6Metrics:
+                   now: Callable[[], datetime] | None = None,
+                   test_only_unbound_quote_fn: bool = False) -> Stage6Metrics:
     """Run v2.7 Stage 6 for each institution; write artifacts for the ready ones only.
 
     Provider exceptions that stop the stage (``JevAccountError``,
@@ -740,9 +743,18 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     artifacts, or existing artifacts that fail to reload, is recorded for that
     institution (``held.json``, attrition, ``metrics.failed``) and the stage
     continues with the next one.
+
+    ``quote_fn`` must come from :meth:`~g3o.run.presweep.instrument_binding.BoundRuntime.stage6_quote_fn`
+    for this instrument (or be ``None``: every answer needing a quote is held);
+    ``test_only_unbound_quote_fn`` lifts that check for offline fakes in tests only.
     """
     if config.setup_pointer != instrument["instrument_id"]:
         raise ValueError("Stage 6 configuration is bound to a different instrument")
+    if quote_fn is not None and not test_only_unbound_quote_fn and not (
+            isinstance(quote_fn, Stage6QuoteStep) and quote_fn.bound_instrument_id == instrument["instrument_id"]
+            and quote_fn.x35_model):
+        raise ValueError("Stage 6 quote step is not bound to this instrument: build it with "
+                         "BoundRuntime.stage6_quote_fn")
     clock = now or (lambda: datetime.now(timezone.utc))
     metrics = Stage6Metrics()
     setup = {"setup_pointer": config.setup_pointer, "configured_model": config.configured_model,

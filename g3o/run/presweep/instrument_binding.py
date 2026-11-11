@@ -95,13 +95,19 @@ class BoundRuntime:
             raise ValueError("Stage 6 quote prompt differs from the one pinned in the instrument")
         return self._configure(job, self.stage6_quote_system)
 
-    def stage6_quote_fn(self, extract_fn: Any, entail_fn: Any) -> Any:
+    def stage6_quote_fn(self, extract_fn: Any, entail_fn: Any, *, x35_model: str) -> Any:
         """The Stage 6 ``quote_fn`` bound to this instrument, with the pinned approved instruction
-        (the SHA256 gate of :func:`g3o.validate.stage6_quote.make_quote_fn` applies)."""
+        (the SHA256 gate of :func:`g3o.validate.stage6_quote.make_quote_fn` applies).
+
+        ``x35_model`` names the model ``entail_fn`` calls; the request journal keys the X35
+        answers (and the quote-step answers built on them) on it. The returned step is
+        marked bound to this instrument, which ``run_stage6_v27`` requires."""
         from g3o.validate import stage6_quote
 
-        return stage6_quote.make_quote_fn(extract_fn, entail_fn,
-                                          configure_job=self.stage6_quote_job)
+        if not isinstance(x35_model, str) or not x35_model.strip():
+            raise ValueError("x35_model must be explicitly supplied")
+        step = stage6_quote.make_quote_fn(extract_fn, entail_fn, configure_job=self.stage6_quote_job)
+        return replace(step, x35_model=x35_model, bound_instrument_id=self.instrument_id)
 
     def pass1_job(self, page: request_v27.Pass1Page, plan: request_v27.RequestPlan) -> ExtractorJob:
         return self._configure(request_v27.build_job(page, plan, system=self.pass1_system), self.pass1_system)
@@ -154,6 +160,7 @@ def bind_runtime(run_dir: Path, settings: RuntimeSettings) -> BoundRuntime:
             "max_tokens": settings.extractor_max_tokens,
             "pass1_schema_sha256": sha256_text(canonical_json(request_v27.output_schema())),
             "pass2_schema_sha256": sha256_text(canonical_json(pass2_support.output_schema())),
+            "stage6_quote_schema_sha256": sha256_text(canonical_json(stage6_quote.output_schema())),
             "reference_year": settings.reference_year, "reserved_tokens": settings.reserved_tokens,
             "max_split_depth": page_chunks.DEFAULT_MAX_SPLIT_DEPTH,
             "matcher_word_rule_cutoff": support_check.WORD_RULE_CUTOFF,

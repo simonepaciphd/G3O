@@ -16,7 +16,7 @@ import pytest
 
 from g3o.classify.jev_activity_code import GATE_RULE
 from g3o.common import attrition
-from g3o.common.instrument import sha256_text
+from g3o.common.instrument import canonical_json, sha256_text
 from g3o.common.jev_client import JevAnswer, JevResult
 from g3o.common.paths import institution_dir
 from g3o.common.support_check import CodeEvidence, PageSources, check_code
@@ -37,10 +37,15 @@ def _answer(state, questions):
                      "m", "rid-1", 5, 1)
 
 
+def _unbound(quote_fn):
+    """Offline fakes opt out of the bound-quote-step check; a bound step is checked for real."""
+    return not getattr(quote_fn, "bound_instrument_id", None)
+
+
 def _run(run_dir, bound, instrument, insts, quote_fn, *, config=None, jev=None):
     jev = jev or e.FakeJev(e.RELATIONS, e._pooled_answers())
     return rt.run_stage6_v27(run_dir, insts, ask_fn=jev, quote_fn=quote_fn, config=config or bound.stage6_config(),
-                             instrument=instrument, now=e.CLOCK)
+                             instrument=instrument, now=e.CLOCK, test_only_unbound_quote_fn=_unbound(quote_fn))
 
 
 def _held(run_dir, inst=A):
@@ -238,10 +243,10 @@ def test_extractor_success_then_x35_failure_is_journaled_and_not_repaid_on_resum
     run_dir, bound, instrument = e._setup(tmp_path)
     insts = e._institutions(run_dir, bound, instrument)
     ext1, ent1 = FakeExtractor(), FlakyEntail(fail_at=1)
-    first = _run(run_dir, bound, instrument, insts[:1], bound.stage6_quote_fn(ext1, ent1))
+    first = _run(run_dir, bound, instrument, insts[:1], bound.stage6_quote_fn(ext1, ent1, x35_model="fake-x35"))
     assert first.held == [A] and len(ext1.jobs) == 1
     ext2, ent2 = FakeExtractor(), FakeEntail()
-    second = _run(run_dir, bound, instrument, insts[:1], bound.stage6_quote_fn(ext2, ent2))
+    second = _run(run_dir, bound, instrument, insts[:1], bound.stage6_quote_fn(ext2, ent2, x35_model="fake-x35"))
     assert second.written == [A]
     assert ext1.jobs[0].custom_id not in {j.custom_id for j in ext2.jobs}  # the paid copy was replayed
     usage = second.usage[A]
@@ -281,7 +286,7 @@ def test_stage6_quote_job_is_configured_by_the_bound_instrument(tmp_path):
     ext = FakeExtractor()
     insts = e._institutions(run_dir, bound, instrument)
     assert _run(run_dir, bound, instrument, insts[:1],
-                bound.stage6_quote_fn(ext, FakeEntail())).written == [A]
+                bound.stage6_quote_fn(ext, FakeEntail(), x35_model="fake-x35")).written == [A]
     assert ext.jobs
     for job in ext.jobs:
         assert job.params["model"] == payload["extractor_model_id"] == e.SETTINGS.extractor_model
@@ -702,3 +707,52 @@ def test_journal_never_replays_a_response_missing_an_asked_answer(tmp_path):
     again.ask(partial)({"s": 1}, {"Q": {}, "R": {}})
     assert len(calls) == 2 and again.replayed == 0
     assert again.usage()["jev_incomplete"] == 2 and again.usage()["jev_responses"] == 0
+
+
+# --- QA round 2, LOW-F: the quote step is bound to the instrument; schema pinned; X35 model keyed
+
+
+def test_quote_output_schema_is_pinned_in_the_instrument(tmp_path):
+    _, _, instrument = e._setup(tmp_path)
+    conf = instrument["payload"]["extractor_configuration"]
+    assert conf["stage6_quote_schema_sha256"] == sha256_text(canonical_json(sq.output_schema()))
+
+
+def test_unbound_quote_fn_is_refused_unless_the_test_only_flag_is_set(tmp_path):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    jev = e.FakeJev(e.RELATIONS, e._pooled_answers())
+    other = replace(bound.stage6_quote_fn(FakeExtractor(), FakeEntail(), x35_model="fake-x35"),
+                    bound_instrument_id="0" * 64)
+    unbound = sq.make_quote_fn(FakeExtractor(), FakeEntail())  # pinned text, but not bound
+    for fn in (e.FakeQuotes(), unbound, other):
+        with pytest.raises(ValueError, match="not bound to this instrument"):
+            rt.run_stage6_v27(run_dir, [a], ask_fn=jev, quote_fn=fn, config=bound.stage6_config(),
+                              instrument=instrument, now=e.CLOCK)
+    assert not jev.calls
+    with pytest.raises(ValueError, match="x35_model"):
+        bound.stage6_quote_fn(FakeExtractor(), FakeEntail(), x35_model=" ")
+    metrics = rt.run_stage6_v27(run_dir, [a], ask_fn=jev, config=bound.stage6_config(), instrument=instrument,
+                                now=e.CLOCK, quote_fn=bound.stage6_quote_fn(FakeExtractor(), FakeEntail(),
+                                                                           x35_model="fake-x35"))
+    assert metrics.written == [A]
+
+
+def test_x35_answers_are_not_replayed_under_another_x35_model(tmp_path):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    first = FakeEntail()
+    _run(run_dir, bound, instrument, [a], bound.stage6_quote_fn(FakeExtractor(), first, x35_model="x35-a"),
+         jev=e.FakeJev(e.RELATIONS, {}))  # held or written: the X35 answers are journaled
+    assert first.calls
+    for name in ("6_validate.json", "6_storage.json", "6_support_provenance.json"):
+        (institution_dir(run_dir, A) / name).unlink(missing_ok=True)
+    same, other = FakeEntail(), FakeEntail()
+    _run(run_dir, bound, instrument, [a], bound.stage6_quote_fn(FakeExtractor(), same, x35_model="x35-a"),
+         jev=e.FakeJev(e.RELATIONS, {}))
+    assert not same.calls  # replayed under the same X35 model
+    for name in ("6_validate.json", "6_storage.json", "6_support_provenance.json"):
+        (institution_dir(run_dir, A) / name).unlink(missing_ok=True)
+    _run(run_dir, bound, instrument, [a], bound.stage6_quote_fn(FakeExtractor(), other, x35_model="x35-b"),
+         jev=e.FakeJev(e.RELATIONS, {}))
+    assert len(other.calls) == len(first.calls)  # another X35 model: asked again

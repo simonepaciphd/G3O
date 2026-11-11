@@ -401,7 +401,7 @@ def _full(run_dir, bound, instrument, world, insts, jev=None):
     ready, metrics = _perpage(run_dir, bound, instrument, world, insts, jev)
     ready = _with_merged("INST-0000001", ready)
     s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=jev, quote_fn=FakeQuotes(), config=bound.stage6_config(),
-                            instrument=instrument, now=CLOCK)
+                            instrument=instrument, now=CLOCK, test_only_unbound_quote_fn=True)
     return jev, ready, metrics, s6m
 
 
@@ -700,7 +700,7 @@ def test_y2_reviewed_page_with_no_activity_gets_a_page_level_na_source_row(tmp_p
     na = [n for n in row["item_support"] if n["item_id"] == "core.evaluation_documented"]
     assert na and all(n["support_status"] == "set_by_rule" and n["support_rule_name"] == pp.NA_RULE for n in na)
     s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=jev, quote_fn=FakeQuotes(), config=bound.stage6_config(),
-                            instrument=instrument, now=CLOCK)
+                            instrument=instrument, now=CLOCK, test_only_unbound_quote_fn=True)
     assert s6m.written == ["INST-0000009"]
     stored = _storage(run_dir, "INST-0000009")["sources"][n1.source_ids[0]]
     assert stored["activity_id"] == "_NA_" and stored["observation_ids"] == []
@@ -729,7 +729,7 @@ def test_rcd031_a1_pooled_answer_downgraded_for_no_copy_still_stores(tmp_path):
                 return s6.Stage6Quote(None, None, None, {"fake": True})
             return super().__call__(req)
     s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=jev, quote_fn=NoCopyForPooled(), config=bound.stage6_config(),
-                            instrument=instrument, now=CLOCK)
+                            instrument=instrument, now=CLOCK, test_only_unbound_quote_fn=True)
     assert s6m.written == ["INST-0000001"] and not s6m.failed
     merged = next(x for x in _storage(run_dir, "INST-0000001")["activities"].values()
                   if x["observation_ids"] == ["p1.a1", "p2.a1"])
