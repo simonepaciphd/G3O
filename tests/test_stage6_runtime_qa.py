@@ -586,3 +586,63 @@ def test_x1_merged_row_values_reach_storage(tmp_path):
         for entry in merged["values"][item] if isinstance(merged["values"][item], list) else ():
             assert any(n["item_id"] == item and n["value_json"] == entry and n["observation_id"] in rows
                        for n in merged["item_support"])
+
+
+# --- QA round 2, HIGH-A: an unconfirmed merged group follows X3 a (i); executor errors are per institution
+
+
+def _unconfirmed_merged(run_dir, bound, instrument):
+    x = e.Builder(run_dir, bound, instrument, A)
+    x.page("p1", [e.Q1])
+    x.page("p2", [e.Q2])
+    sids = [x.observation(oid, pid, name="Copilot drafting", activity_type="internal_operational", tool="Copilot",
+                          quote=q, verdict="ambiguous_attribution")
+            for oid, pid, q in (("o1", "p1", e.Q1), ("o2", "p2", e.Q2))]
+    return x.institution({("o1", "o2"): _merge_input(x.inputs["o1"])}), sids
+
+
+def test_unconfirmed_merged_group_is_no_activity_row_and_publishes(tmp_path):
+    # X3 a (i): a merged group with no supported observation on a confirmed page is not pooled,
+    # gets no activity row, its source claims are `_NA_` (observation ids kept), its relations unstored
+    run_dir, bound, instrument = e._setup(tmp_path)
+    inst, sids = _unconfirmed_merged(run_dir, bound, instrument)
+    jev = e.FakeJev(e.RELATIONS, e._pooled_answers())
+    metrics = _run(run_dir, bound, instrument, [inst], e.FakeQuotes(), jev=jev)
+    assert metrics.written == [A] and not metrics.failed and not metrics.held
+    assert all(s6.RELATION_ITEM in q for q in jev.calls)  # relations asked; nothing pooled
+    storage = _storage(run_dir)
+    assert storage["activities"] == {}
+    for sid, oid in zip(sids, ("o1", "o2"), strict=True):
+        assert storage["sources"][sid]["activity_id"] == "_NA_"
+        assert storage["sources"][sid]["observation_ids"] == [oid]
+
+
+def test_executor_error_holds_that_institution_and_later_institutions_continue(tmp_path, monkeypatch):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    real = rt.run_stage6
+
+    def flaky(**kw):
+        if kw["institution"].endswith(A):
+            raise rt.ConsolidationError("simulated executor refusal")
+        return real(**kw)
+    monkeypatch.setattr(rt, "run_stage6", flaky)
+    metrics = _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+    assert metrics.failed == [A] and metrics.written == [B]
+    held = _held(run_dir)
+    assert held["reasons"] == [rt.EXECUTOR_FAILED]
+    assert "ConsolidationError: simulated executor refusal" in held["error"]
+    assert _ledger(run_dir) == [rt.EXECUTOR_FAILED]
+    assert A in metrics.usage  # the journal is still accounted
+
+
+def test_executor_stop_errors_still_stop_the_stage(tmp_path, monkeypatch):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+
+    def stopped(**kw):
+        raise rt.JevAccountError("account stopped")
+    monkeypatch.setattr(rt, "run_stage6", stopped)
+    with pytest.raises(rt.JevAccountError):
+        _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+

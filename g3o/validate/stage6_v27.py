@@ -603,6 +603,17 @@ def dedupe_pooled_quotes(quotes: Sequence[InputQuote]) -> list[InputQuote]:
     return out
 
 
+def pool_eligible(group: Sequence[str], observations: Sequence[ActivityObservation],
+                  pages: Sequence[ReviewedPage]) -> tuple[str, ...]:
+    """The group's pooled observations: supported, on a confirmed page (r2#51; RC-D-029 X3 a i).
+
+    A group with none is not pooled and is no activity row; its observations keep
+    their relations only (their source claims are ``_NA_``)."""
+    page_map = {p.page_id: p for p in pages}
+    obs = {o.observation_id: o for o in observations}
+    return tuple(k for k in group if obs[k].supported and _positive(page_map[obs[k].page_id]))
+
+
 def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[ActivityObservation],
                   pages: Sequence[ReviewedPage], quotes: Sequence[InputQuote], ask_fn: AskFn,
                   quote_fn: QuoteFn | None, config: Stage6Config, *,
@@ -614,11 +625,12 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
     qsv = qset["question_set_version"]
     if qset["pooled"]["question_ids"] != [q["question_id"] for q in aset["questions"]]:
         raise ValueError("pooled membership differs from the activity set")
-    page_map = {p.page_id: p for p in pages}
     obs = {o.observation_id: o for o in observations}
-    eligible = tuple(k for k in group if obs[k].supported and _positive(page_map[obs[k].page_id]))
+    eligible = pool_eligible(group, observations, pages)
+    if not eligible:  # run_stage6 never pools such a group (X3 a i)
+        raise ConsolidationError("group has no supported observation on a confirmed page: nothing to pool")
     selected = dedupe_pooled_quotes([q for q in quotes if q.observation_id in eligible])
-    if not eligible or any(not any(q.observation_id == k for q in selected) for k in eligible):
+    if any(not any(q.observation_id == k for q in selected) for k in eligible):
         raise ConsolidationError("eligible pooled observation has no actual support quote")
     if len({q.support_id for q in selected}) != len(selected):
         raise ConsolidationError("duplicate pooled support identity")
@@ -864,7 +876,9 @@ def run_stage6(*, institution: str, country: str | None, pages: Sequence[Reviewe
     plan = relation_plan(observations, pages, decisions)
     pooled: dict[tuple[str, ...], PooledActivity] = {}
     if plan.ready and not held:
-        for n, group in enumerate(g for g in plan.groups if len(g) > 1):
+        # X3 a (i): a merged group with no supported observation on a confirmed page is not pooled.
+        merged_groups = [g for g in plan.groups if len(g) > 1 and pool_eligible(g, observations, pages)]
+        for n, group in enumerate(merged_groups):
             pooled[group] = pool_activity(f"pool{n + 1:03d}", group, observations, pages, quotes, ask_fn,
                                           quote_fn, config, qset=qset)
             held.extend(pooled[group].held)
@@ -921,7 +935,7 @@ __all__ = [
     "QUOTE_STEP_ABSENT", "QUOTE_STEP_FAILED", "RELATION_ITEM", "RELATION_OVER_BUDGET", "Held", "InputQuote",
     "ObservationRecord", "PooledActivity", "QuoteFn", "RelationOutcome", "Stage6Config", "Stage6Quote",
     "Stage6QuoteNotApproved", "Stage6QuoteRequest", "Stage6Result", "code_relation", "consolidated_response", "cross_page_pairs",
-    "permanent_pilot_override", "pool_activity",
+    "permanent_pilot_override", "pool_activity", "pool_eligible",
     "pooled_state", "prefilter_distinct", "record_state", "relation_state", "run_stage6", "stated_numbers",
     "source_claim_confidence", "source_claim_records", "write_stage6_outputs",
 ]

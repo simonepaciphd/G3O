@@ -65,8 +65,9 @@ from g3o.classify.jev_activity_code import NOT_COVERED
 from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE
 from g3o.classify.questions.v27 import load_set
 from g3o.common import attrition
+from g3o.common.cost_monitor import BudgetExceededError, UnpricedModelError
 from g3o.common.instrument import canonical_json
-from g3o.common.jev_client import JevAnswer, JevResult
+from g3o.common.jev_client import JevAccountError, JevAnswer, JevResult
 from g3o.common.jev_record import CoderRecord
 from g3o.common.paths import institution_dir
 from g3o.common.source_fields import aggregation_value, default_vocab
@@ -75,6 +76,7 @@ from g3o.common.support_check import (
     CodeEvidence,
     Entailment,
     PageSources,
+    SupportGateError,
     SupportResult,
     check_code,
 )
@@ -99,7 +101,6 @@ from g3o.validate.consolidate_v27 import (
     ConsolidationError,
     RelationDecision,
     ReviewedPage,
-    _positive,
     outcome_values,
     summary_values,
 )
@@ -111,9 +112,11 @@ from g3o.validate.stage6_v27 import (
     QuoteFn,
     Stage6Config,
     Stage6Quote,
+    Stage6QuoteNotApproved,
     Stage6QuoteRequest,
     Stage6Result,
     observation_pool_order,
+    pool_eligible,
     run_stage6,
     write_stage6_outputs,
 )
@@ -125,6 +128,10 @@ HELD_FILE = "held.json"
 HELD_REASON = "stage6_held"  # attrition reason ``stage6_held:<hold reason>``, one record per hold reason
 HELD_RELEASED = "stage6_held_released"  # appended when a held institution is later published
 ENVELOPE_FAILED = "stage6_envelope_failed"  # the storage envelope / artifacts of one institution failed
+EXECUTOR_FAILED = "stage6_executor_failed"  # the T-026 executor refused or failed for one institution
+#: Errors that stop the whole stage (an account stop, an unapproved quote prompt, a support-gate
+#: refusal, a spend stop); every other executor error stops its institution only.
+STAGE_STOPS = (JevAccountError, Stage6QuoteNotApproved, SupportGateError, BudgetExceededError, UnpricedModelError)
 ARTIFACTS_UNREADABLE = "stage6_artifacts_unreadable"  # existing Stage 6 artifacts fail to reload
 MISSING_RELATION = "missing_relation_decision"
 CONFLICTING_GROUPS = "conflicting_relation_groups"
@@ -579,12 +586,10 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
     """The storage envelope and provenance records of one ready Stage 6 result."""
     if not result.ready:
         raise ConsolidationError("Stage 6 result is not ready; nothing is published")
-    pages = {p.page_id: p for p in inst.pages}
-    obs = {o.observation_id: o for o in inst.observations}
     quotes = {q.support_id: q for q in inst.quotes}
     # Published activities: groups with at least one supported observation on a confirmed page
     # (the pooled-eligibility rule of T-026); other observations keep their relations only.
-    published = [g for g in result.groups if any(obs[k].supported and _positive(pages[obs[k].page_id]) for k in g)]
+    published = [g for g in result.groups if pool_eligible(g, inst.observations, inst.pages)]
     final_of = {oid: f"A{n + 1}" for n, g in enumerate(published) for oid in g}
     out = _Nodes()
     for group in published:
@@ -708,7 +713,8 @@ def _hold(run_dir: Path, inst_dir: Path, institution_id: str, reasons: Sequence[
     write_atomic(path, canonical_json({"institution_id": institution_id, "reasons": list(reasons), **doc})
                  .encode("utf-8"))
     for reason in reasons:
-        code = reason if reason in (ENVELOPE_FAILED, ARTIFACTS_UNREADABLE) else f"{HELD_REASON}:{reason}"
+        code = (reason if reason in (ENVELOPE_FAILED, ARTIFACTS_UNREADABLE, EXECUTOR_FAILED)
+                else f"{HELD_REASON}:{reason}")
         attrition.record(run_dir, institution_id=institution_id, stage=STAGE, reason=code,
                          detail=(detail or {}).get(reason))
 
@@ -720,10 +726,11 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 
     Provider exceptions that stop the stage (``JevAccountError``,
     ``Stage6QuoteNotApproved``, budget stops) propagate; what was recorded
-    before them is replayed by the next run. An error building or writing one
-    institution's artifacts, or existing artifacts that fail to reload, is
-    recorded for that institution (``held.json``, attrition, ``metrics.failed``)
-    and the stage continues with the next one.
+    before them is replayed by the next run. Any other error of the executor for
+    one institution (:data:`EXECUTOR_FAILED`), an error building or writing its
+    artifacts, or existing artifacts that fail to reload, is recorded for that
+    institution (``held.json``, attrition, ``metrics.failed``) and the stage
+    continues with the next one.
     """
     if config.setup_pointer != instrument["instrument_id"]:
         raise ValueError("Stage 6 configuration is bound to a different instrument")
@@ -749,6 +756,14 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
                                 pages=inst.pages, observations=inst.observations, records=inst.records,
                                 within_page=inst.within_page, quotes=inst.quotes, ask_fn=journal.ask(ask_fn),
                                 quote_fn=journal.quote(quote_fn), config=config)
+        except STAGE_STOPS:
+            raise
+        except Exception as exc:  # noqa: BLE001 - one institution's executor error stops that institution only
+            error = f"{type(exc).__name__}: {exc}"
+            _hold(run_dir, inst_dir, inst.institution_id, [EXECUTOR_FAILED], {"error": error},
+                  {EXECUTOR_FAILED: error})
+            metrics.failed.append(inst.institution_id)
+            continue
         finally:
             metrics.live_requests += journal.live
             metrics.replayed_requests += journal.replayed
@@ -788,7 +803,7 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 
 
 __all__ = [
-    "ENVELOPE_FAILED", "HELD_REASON", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
+    "ENVELOPE_FAILED", "EXECUTOR_FAILED", "HELD_REASON", "STAGE_STOPS", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
     "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_REFUSED_R1", "MERGE_UNION", "MERGE_UNRULED",
     "Stage6Metrics", "build_envelope", "hold_reasons", "merge_values", "run_stage6_v27",
 ]
