@@ -52,7 +52,9 @@ Binding (QA3 F3). The adapter declares the extractor model and the X35 model it
 runs on; both must equal the instrument's ``extractor_configuration``
 (``model``, ``x35_model``; RC-D-033 C1 a) and the bound runtime's settings, and
 the pass-1/pass-2 system prompts must hash to the instrument's
-``prompt_hashes``. :func:`~g3o.run.presweep.stage_perpage_v27.run_perpage_v27`
+``prompt_hashes`` and to the PI-approved pins :data:`PASS1_SYSTEM_SHA256` /
+:data:`PASS2_SYSTEM_SHA256` (RC-D-021 P-1 a, P-2 a); any other text is refused,
+as the Stage 6 quote step refuses unapproved wording (RC-D-029 Q3 a). :func:`~g3o.run.presweep.stage_perpage_v27.run_perpage_v27`
 refuses providers not bound to its instrument, and per institution wraps both
 calls in its request journal (:meth:`ExtractorPerPageProviders.with_seams`), so
 extractor tokens and X35 calls reach ``PerPageMetrics.usage`` and a resumed run
@@ -90,6 +92,22 @@ from g3o.run.presweep.stage_perpage_v27 import ACTIVITY_DIR, PerPageProviders
 ExtractFn = Callable[[ExtractorJob], ExtractorResult]
 EntailFn = Callable[[str, str], Entailment]
 ACTIVITY_NAME = "core.activity_name"
+
+#: SHA256 (UTF-8) of the PI-approved pass-1 system prompt,
+#: ``request_v27.build_system_prompt()`` (RC-D-021 P-1 a).
+PASS1_SYSTEM_SHA256 = "2ce40a562672a2079204bc57047fa52a6604bf5c6fddc4e5e4622d29e5741ab7"
+#: SHA256 (UTF-8) of the PI-approved pass-2 system prompt,
+#: ``pass2_support.build_system_prompt()`` (RC-D-021 P-2 a).
+PASS2_SYSTEM_SHA256 = "fdcd47f2fee649bd82de4a664bd5af4b28c3a73b481a036a50fb52bd1525d044"
+_APPROVED = {"pass1": ("P-1", PASS1_SYSTEM_SHA256), "pass2": ("P-2", PASS2_SYSTEM_SHA256)}
+
+
+def require_approved_system(name: str, system: str) -> None:
+    """Refuse a pass-1/pass-2 system prompt whose UTF-8 SHA256 is not the approved pin."""
+    row, pinned = _APPROVED[name]
+    if not isinstance(system, str) or sha256_text(system) != pinned:
+        raise ValueError(f"{name} prompt differs from the PI-approved text (RC-D-021 {row}, SHA256 "
+                         f"{pinned}): no extractor call is made with unapproved wording")
 
 
 def _job_key(job: ExtractorJob) -> str:
@@ -286,7 +304,8 @@ def build_perpage_providers(bound: Any, instrument: Mapping[str, Any], run_dir: 
     Every argument is required; nothing defaults to a client. ``extractor_model`` and
     ``x35_model`` name the models the two calls run on and must equal the instrument's
     pinned ``extractor_configuration`` (and the bound settings); any other is refused, as
-    are system prompts that differ from the instrument's ``prompt_hashes``.
+    are system prompts that differ from the instrument's ``prompt_hashes`` or from the
+    PI-approved pins (RC-D-021 P-1 a, P-2 a).
     """
     if not callable(extract_fn) or not callable(entail_fn):
         raise ValueError("extract_fn and entail_fn must be supplied")
@@ -303,10 +322,12 @@ def build_perpage_providers(bound: Any, instrument: Mapping[str, Any], run_dir: 
             raise ValueError(f"{name} differs from the one pinned in the instrument")
     hashes = payload.get("prompt_hashes", {})
     for name, system in (("pass1", bound.pass1_system), ("pass2", bound.pass2_system)):
+        require_approved_system(name, system)
         if not system or sha256_text(system) != hashes.get(name):
             raise ValueError(f"{name} prompt differs from the one pinned in the instrument")
     return _providers(_Adapter(bound, run_dir, extract_fn, entail_fn), bound.instrument_id, extractor_model,
                       x35_model)
 
 
-__all__ = ["ExtractorPerPageProviders", "build_perpage_providers"]
+__all__ = ["PASS1_SYSTEM_SHA256", "PASS2_SYSTEM_SHA256", "ExtractorPerPageProviders",
+           "build_perpage_providers", "require_approved_system"]

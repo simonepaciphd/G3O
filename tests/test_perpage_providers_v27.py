@@ -329,3 +329,44 @@ def test_failed_extractor_response_raises_and_is_asked_again(tmp_path):
     assert [i.institution_id for i in ready] == ["INST-0000002"]
     assert extract.jobs[0].params == failing.jobs[0].params  # asked again, live
     assert metrics.usage["INST-0000002"]["extractor_calls"] == len(extract.jobs) + 1  # the failed one counted
+
+
+# ---------------------------------------------------------------------------
+# PI-approved pass-1 / pass-2 system prompts (RC-D-021 P-1 a, P-2 a)
+# ---------------------------------------------------------------------------
+
+
+def test_approved_pass_prompts_hash_to_their_pins_and_are_accepted(tmp_path):
+    from g3o.common.instrument import sha256_text
+    from g3o.extract import pass2_support, request_v27
+
+    assert sha256_text(request_v27.build_system_prompt()) == ppv.PASS1_SYSTEM_SHA256
+    assert sha256_text(pass2_support.build_system_prompt()) == ppv.PASS2_SYSTEM_SHA256
+    ppv.require_approved_system("pass1", request_v27.build_system_prompt())
+    ppv.require_approved_system("pass2", pass2_support.build_system_prompt())
+    run_dir, bound, instrument, world, _ = _world(tmp_path)
+    assert (sha256_text(bound.pass1_system), sha256_text(bound.pass2_system)) == (
+        ppv.PASS1_SYSTEM_SHA256, ppv.PASS2_SYSTEM_SHA256)
+    assert _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()) is not None
+
+
+@pytest.mark.parametrize("name", ["pass1", "pass2"])
+def test_altered_pass_prompt_is_refused_even_when_the_instrument_pins_it(tmp_path, name):
+    from dataclasses import replace
+
+    from g3o.common.instrument import sha256_text
+
+    run_dir, bound, instrument, world, _ = _world(tmp_path)
+    field = f"{name}_system"
+    altered = getattr(bound, field).replace("the", "a", 1)
+    assert altered != getattr(bound, field)
+    with pytest.raises(ValueError, match="PI-approved"):
+        ppv.require_approved_system(name, altered)
+    # An instrument built over the altered text would pass its own prompt_hashes check.
+    payload = {**instrument["payload"],
+               "prompt_hashes": {**instrument["payload"]["prompt_hashes"], name: sha256_text(altered)}}
+    extract = FakeExtractor(world)
+    with pytest.raises(ValueError, match=f"{name} prompt differs from the PI-approved text"):
+        _providers(run_dir, replace(bound, **{field: altered}), {**instrument, "payload": payload},
+                   extract, FakeEntail())
+    assert not extract.jobs
