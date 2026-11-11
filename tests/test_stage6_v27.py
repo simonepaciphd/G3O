@@ -727,3 +727,26 @@ def test_z1_returned_answer_failing_checks_still_combines_as_unknown():
     o = pooled.outcomes["core.action_type"]
     assert o.state == "combined" and o.value == "unknown" and o.failed
     assert s6.POOLED_REQUEST_FAILED not in {h.reason for h in pooled.held}
+
+
+ROLE_Q = "core.observed_actor_relationship#searched_institution_role"
+REL_PART_Q = "core.observed_actor_relationship"
+
+
+@pytest.mark.parametrize("relationship,gated", [("unresolved", True), ("other", False)])
+def test_z2_role_part_gate_applied_after_the_pooled_relationship_answer(relationship, gated):
+    pages, obs, recs, quotes, _ = merged()
+    jev = FakeJev({("Copilot pilot", "Copilot pilot"): ("same_activity", .95)},
+                  answers={REL_PART_Q: relationship, ROLE_Q: "beneficiary"})
+    pooled = s6.pool_activity("pool001", ("o1", "o2"), obs, pages, quotes, jev, FakeQuotes(), CONFIG)
+    role = pooled.outcomes[ROLE_Q]
+    assert any(ROLE_Q in c[1] for c in jev.calls if REL_Q not in c[1])  # asked in the same round
+    if gated:
+        assert (role.state, role.value) == ("gated_out", "not_asked")
+        assert role.rule_reference.endswith("core.observed_actor_relationship")
+        mech = [r for r in pooled.records if r.coder_type == "mechanical" and r.question_id == ROLE_Q]
+        assert len(mech) == 1 and mech[0].chosen_value == "not_asked"
+        raw = [r for r in pooled.records if r.coder_type == "classifier" and r.question_id == ROLE_Q]
+        assert raw and raw[0].chosen_value == "beneficiary"  # raw answer kept, unpublished
+    else:
+        assert (role.state, role.value) == ("combined", "beneficiary")

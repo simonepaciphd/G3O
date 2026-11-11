@@ -487,3 +487,20 @@ def test_z1_failed_pooled_request_holds_institution_then_retry_publishes(tmp_pat
     metrics = _run(run_dir, bound, instrument, [a], e.FakeQuotes())
     assert metrics.written == [A]
     assert rt.HELD_RELEASED in _ledger(run_dir)
+
+
+# --- RC-D-030 Z2 a: pooled role-part gate reaches storage --------------------------------------
+
+
+@pytest.mark.parametrize("relationship,role", [("unresolved", "not_asked"), ("other", "beneficiary")])
+def test_z2_pooled_role_part_gate_stores(tmp_path, relationship, role):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    answers = {**e._pooled_answers(), "core.observed_actor_relationship": relationship,
+               "core.observed_actor_relationship#searched_institution_role": "beneficiary"}
+    metrics = _run(run_dir, bound, instrument, [a], e.FakeQuotes(), jev=e.FakeJev(e.RELATIONS, answers))
+    assert metrics.written == [A], _held(run_dir) if metrics.held or metrics.failed else None
+    storage = json.loads((institution_dir(run_dir, A) / "6_storage.json").read_text(encoding="utf-8"))
+    merged = next(x for x in storage["activities"].values() if x["observation_ids"] == ["o1", "o2"])
+    value = merged["values"]["core.observed_actor_relationship"]
+    assert value["relationship"] == relationship and value["searched_institution_role"] == role

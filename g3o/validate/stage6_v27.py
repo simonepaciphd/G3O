@@ -43,7 +43,10 @@ Rules, as the signed codebook r15 and SPEC v001.28 state them:
   whose pooled request parts failed (no answer returned: request error, no
   request id, answer missing) is held (``pooled_request_part_failed``), not
   combined; it is asked again on the next run and never published. Answers
-  returned but failing their checks still combine as ``unknown``. RC-D-028 2 a: the ``deployment_scale_unit``
+  returned but failing their checks still combine as ``unknown``. RC-D-030 Z2 a:
+  the part gate on ``core.observed_actor_relationship#searched_institution_role``
+  is applied after the pooled answer to its gating item, as T-023 applies it
+  after combining (closed: the signed gated-out value by rule; raw answers kept). RC-D-028 2 a: the ``deployment_scale_unit``
   gate (``any stated``) is open when any pooled observation states a number,
   and the request whose question shows it carries ``stated_number`` (the
   RC-D-021 W-06 field); several different stated numbers hold that question
@@ -73,11 +76,15 @@ from typing import Any
 from g3o.classify.jev_activity_code import (
     GATE_RULE,
     NOT_COVERED,
+    ROLE_PART_FIELD,
     UNKNOWN,
     ItemOutcome,
     PartCombiner,
     PartVote,
+    _combine,
+    _first_part_id,
     _gate_kind,
+    _gated,
     default_labels,
     gate_open,
     gated_out_value,
@@ -720,6 +727,12 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
                 final[qid] = ItemOutcome(qid, q["item_id"], q.get("part"), "pending", None,
                                          note=pending[qid])
                 continue
+            if q.get("part") == ROLE_PART_FIELD:
+                # codebook long_page_rule role_part, as T-023 combines it: the role comes from the
+                # part that produced the relationship (the item-level combiner checks role values
+                # against the relationship part's codes and refuses every real role).
+                final[qid] = _combine(q, votes[qid], config.combiner, final, by_id)
+                continue
             try:
                 c = config.combiner.combine(q["item_id"], votes[qid])
             except ValueError as exc:
@@ -727,6 +740,23 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
                 continue
             final[qid] = ItemOutcome(qid, q["item_id"], q.get("part"), "combined", c.value, bool(c.failed),
                                      c.cause, c.part_id, c.probability)
+        # RC-D-030 Z2 a: same-round part gates (the role part of observed_actor_relationship) are
+        # applied after the pooled answer to their gating item, with T-023's gate semantics.
+        for q in asked:
+            qid = q["question_id"]
+            if _gate_kind(q, by_id) != "part" or final[qid].state != "combined":
+                continue
+            open_ = gate_open(q, final, {}, by_id)
+            if open_ is None:
+                gate_state = final[_first_part_id(q, by_id)].state
+                final[qid] = (ItemOutcome(qid, q["item_id"], q.get("part"), "pending", None,
+                                          note="gate item pending") if gate_state == "pending"
+                              else ItemOutcome(qid, q["item_id"], q.get("part"), "stopped", None,
+                                               error="relationship stopped"))
+            elif not open_:
+                final[qid] = _gated(q)
+                records.append(_mechanical(q["item_id"], qid, str(final[qid].value), final[qid].rule_reference,
+                                           config, qsv, part=q.get("part")))
     permanent_pilot_override(final, by_id, part_status)
     return PooledActivity(pool_id, eligible, final, tuple(records), tuple(support), parts_by_round,
                           tuple(held), qsv,
