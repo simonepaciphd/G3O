@@ -44,7 +44,12 @@ def test_signed_list_is_the_two_kept_flags_alphabetical():
 
 def test_a61_stage_ambiguous_when_answers_differ_before_combining():
     assert uf.stage_ambiguous(["pilot", "production"])
-    assert uf.stage_ambiguous(["pilot", "not_documented"])  # literal: any two different answers
+    # Ruling 1 b (2026-11-11): missing answers are ignored; only conflicting stated stages flag.
+    assert uf.STAGE_MISSING == {"not_asked", "not_documented", "unknown", "_NA_"}
+    for missing in sorted(uf.STAGE_MISSING):
+        assert not uf.stage_ambiguous(["pilot", missing])
+    assert not uf.stage_ambiguous(["not_documented", "unknown"])
+    assert uf.stage_ambiguous(["pilot", "unknown", "production"])
     assert not uf.stage_ambiguous(["pilot", "pilot"])
     assert not uf.stage_ambiguous(["pilot", NC, NC])  # the temporary part answer never votes
     assert not uf.stage_ambiguous(["pilot"]) and not uf.stage_ambiguous([])
@@ -129,6 +134,13 @@ def test_perpage_parts_that_differ_flag_the_stage_nodes_and_the_row(tmp_path):
 
 def test_perpage_same_answer_and_not_covered_parts_set_no_flag(tmp_path):
     row = _perpage_b2(tmp_path, {"1": "pilot", "2": "pilot", "3": NC})
+    assert row["values"]["core.uncertainty_flags"] == []
+    assert all(n["uncertainty_flags"] == [] for n in row["item_support"])
+
+
+def test_perpage_stated_and_missing_parts_set_no_flag(tmp_path):
+    """Ruling 1 b: a stated stage beside a missing answer is not a conflict."""
+    row = _perpage_b2(tmp_path, {"1": "pilot", "2": "not_documented", "3": NC})
     assert row["values"]["core.uncertainty_flags"] == []
     assert all(n["uncertainty_flags"] == [] for n in row["item_support"])
 

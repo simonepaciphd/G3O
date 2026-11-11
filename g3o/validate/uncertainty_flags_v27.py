@@ -11,6 +11,9 @@ Triggers (PI rulings 2026-11-11, A6.1-A6.4, all option a):
 
 - **A6.1** ``stage_ambiguous``: the ``core.adoption_stage`` answers differ across
   parts or pooled observations before combining (:func:`stage_ambiguous`).
+  Missing answers (the item's signed missing tokens, :data:`STAGE_MISSING`) are
+  ignored: the flag fires only on conflicting stated stages (PI ruling 1 b on
+  the build questions, 2026-11-11).
 - **A6.2** ``identity_unresolved``: a Stage 6 relation
   (``core.activity_relation_cross_page``) is ``unresolved``. The within-page
   relation (``core.activity_segment``, a pass-2 per-page item) is not a Stage 6
@@ -35,6 +38,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
 from g3o.common.part_combine import NOT_COVERED
+from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import SupportResult
 from g3o.persist.stage6_adapters import MissingUpstreamError
 
@@ -43,6 +47,8 @@ IDENTITY_UNRESOLVED = "identity_unresolved"
 #: The signed v2.7 list, alphabetical.
 SIGNED_FLAGS: tuple[str, ...] = (IDENTITY_UNRESOLVED, STAGE_AMBIGUOUS)
 STAGE_ITEM = "core.adoption_stage"
+#: The adoption stage's signed missing tokens; never a stated stage (ruling 1 b).
+STAGE_MISSING: frozenset[str] = frozenset(FIELDS[STAGE_ITEM]["missing_tokens"])
 STAGE6_RELATION_ITEM = "core.activity_relation_cross_page"
 UNRESOLVED = "unresolved"
 ITEM = "core.uncertainty_flags"
@@ -58,8 +64,12 @@ def check_pipeline(pipeline: str) -> None:
 
 
 def stage_ambiguous(answers: Iterable[str]) -> bool:
-    """A6.1 a: the adoption-stage answers before combining are not all the same."""
-    return len({a for a in answers if a != NOT_COVERED}) > 1
+    """A6.1 a: the stated adoption-stage answers before combining are not all the same.
+
+    "Not covered by this part" never votes (R-044), and missing answers are
+    ignored (ruling 1 b): ``pilot`` beside ``not_documented`` is not ambiguous.
+    """
+    return len({a for a in answers if a != NOT_COVERED and a not in STAGE_MISSING}) > 1
 
 
 def code_flags(sr: SupportResult, *, stage_answers: Sequence[str] = ()) -> list[str]:
@@ -99,6 +109,6 @@ def classifier_answers(records: Iterable[Any], item_id: str = STAGE_ITEM) -> lis
 
 __all__ = [
     "AI_TEXT_FLAGS_PRODUCER", "IDENTITY_UNRESOLVED", "ITEM", "SIGNED_FLAGS", "STAGE6_RELATION_ITEM", "STAGE_AMBIGUOUS",
-    "STAGE_ITEM", "UNRESOLVED", "check_pipeline", "classifier_answers", "code_flags", "row_flags",
+    "STAGE_ITEM", "STAGE_MISSING", "UNRESOLVED", "check_pipeline", "classifier_answers", "code_flags", "row_flags",
     "stage_ambiguous", "union_flags",
 ]
