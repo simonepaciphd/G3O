@@ -652,3 +652,21 @@ def test_y5_within_page_decision_rule():
     assert pp.within_page_decision(pair(["governs", "same_activity"]), both) is None
     assert pp.within_page_decision(pair(["unknown"]), both) is None  # no part chose it
     assert pp.within_page_decision(pair(None, "stopped"), both) is None
+
+
+def test_y3_uncarried_combined_value_is_a_per_institution_hold(tmp_path):
+    """Y3 b: every part of b2 gives the temporary answer to adoption_stage, so the combined value
+    (not documented) is carried by no part node: INST-0000002 is held, not a crash; others go on."""
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    answers = {**ANSWERS, "core.adoption_stage": _by_name({"Copilot drafting": "pilot",
+                                                            "Eval bot": {"1": NC, "2": NC, "3": NC}})}
+    ready, metrics = _perpage(run_dir, bound, instrument, world, insts, FakeJev(answers, RELATIONS, _fail_verdict))
+    assert metrics.held == ["INST-0000002"]
+    assert [i.institution_id for i in ready] == ["INST-0000001", "INST-0000003"]
+    held = json.loads((institution_dir(run_dir, "INST-0000002") / pp.WORK_DIR / pp.HELD_FILE)
+                      .read_text(encoding="utf-8"))
+    (hold,) = held["held"]
+    assert hold["page_id"] == "b2" and hold["stage"] == pp.UNCARRIED_STAGE
+    assert any(i.startswith("core.adoption_stage/") for i in hold["items"])
+    assert any(r["reason"] == pp.HELD_REASON and r["detail"] == f"b2:{pp.UNCARRIED_STAGE}"
+               for r in attrition.read_records(run_dir))

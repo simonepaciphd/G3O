@@ -59,8 +59,10 @@ Rules carried here, not decided here:
 - **Combined values.** A final classifier value must be carried by a support
   node of one of its parts (the original code or its downgrade replacement);
   gate and rule values get ``set_by_rule`` nodes with mechanical records. A
-  combined value no part node carries refuses (no signed rule for a
-  combined-value node).
+  combined value no part node carries (e.g. ``unknown`` from failed votes) is
+  refused as a per-institution hold (RC-D-030 Y3 b): ``perpage_v27/held.json``
+  names the page and values (stage ``combined_value_uncarried``), the
+  attrition ledger records it, and nothing of the institution reaches Stage 6.
 """
 from __future__ import annotations
 
@@ -151,7 +153,15 @@ NO_OBSERVATION_SOURCE = ("source row of a reviewed page with no activity observa
 VALUES_PRODUCER = "T-015 / T-022 / T-024 row values with no producer on this branch"
 ARTIFACT_PRODUCER = "T-014/T-020 stored page artifact and its segment layout"
 FOLLOW_PRODUCER = "T-025 follow provenance (followed / attempted page)"
-COMBINED_NODE_RULE = "signed rule for a combined value no part support node carries"
+UNCARRIED_STAGE = "combined_value_uncarried"  # RC-D-030 Y3 b: per-institution hold
+
+
+class UncarriedCombinedValue(ConsolidationError):
+    """A final value no part support node carries (RC-D-030 Y3 b): the institution is held."""
+
+    def __init__(self, page_id: str, values: Sequence[str]) -> None:
+        super().__init__(f"no part support node carries {list(values)} on page {page_id}")
+        self.page_id, self.values = page_id, list(values)
 
 
 # ---------------------------------------------------------------------------
@@ -588,7 +598,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         for doc in (a_row.doc(), src):
             missing = _carried(doc)
             if missing:
-                raise ConsolidationError(f"no part support node carries {missing} ({COMBINED_NODE_RULE})")
+                raise UncarriedCombinedValue(page.page_id, missing)
     for pair in pairs:  # within-page decisions; nodes on the earlier (lhs) observation's row
         lhs, rhs = pair.activity_id, pair.linked_activity
         if lhs not in acts or rhs not in acts:
@@ -801,17 +811,29 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             continue
         products: list[PageProduct | ReviewedPage] = []
         next_source = 1
+        uncarried: UncarriedCombinedValue | None = None
         for order, st in enumerate(states):
             if st.failure is not None:
                 products.append(failed_page(st.spec, st.failure))
                 continue
-            products.append(produce_page(
-                run_dir=run_dir, run_id=inst.run_id, institution_uid=inst.institution_uid, spec=st.spec,
-                page_order=order, first_source=next_source, page_round=st.page_round, activity_input=st.activity_input,
-                activity_round=st.activity_round, pairs=st.pairs, pair_support=st.pair_support,
-                page_config=page_config, activity_config=activity_config, instrument=instrument,
-                uncertainty_flags=inst.upstream.uncertainty_flags))
+            try:
+                products.append(produce_page(
+                    run_dir=run_dir, run_id=inst.run_id, institution_uid=inst.institution_uid, spec=st.spec,
+                    page_order=order, first_source=next_source, page_round=st.page_round,
+                    activity_input=st.activity_input, activity_round=st.activity_round, pairs=st.pairs,
+                    pair_support=st.pair_support, page_config=page_config, activity_config=activity_config,
+                    instrument=instrument, uncertainty_flags=inst.upstream.uncertainty_flags))
+            except UncarriedCombinedValue as exc:  # Y3 b: refused as a per-institution hold
+                uncarried = exc
+                break
             next_source += len(products[-1].sources)
+        if uncarried is not None:
+            hold = {"page_id": uncarried.page_id, "stage": UNCARRIED_STAGE, "items": sorted(uncarried.values)}
+            _atomic_write(held_path, canonical_json({"institution_id": inst.institution_id, "held": [hold]}))
+            attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_REASON,
+                             detail=f"{uncarried.page_id}:{UNCARRIED_STAGE}")
+            metrics.held.append(inst.institution_id)
+            continue
         if held_path.exists():
             held_path.unlink()
         ready.append(_institution(inst, products))
@@ -845,7 +867,7 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 
 __all__ = [
-    "HELD_REASON", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
+    "HELD_REASON", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]
