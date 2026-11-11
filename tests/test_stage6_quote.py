@@ -154,6 +154,21 @@ def test_relation_x35_names_the_record_the_quote_was_copied_from(pick, named):
     assert result.relation_outcomes[0].support_inputs == (quotes[0 if pick == "Q1" else 1].support_id,)
 
 
+def test_extractor_is_shown_the_answer_code_and_no_source_type_or_date():
+    # RC-D-029 W5 a: as in pass 2, the answer code; the quotes carry no source type or date
+    extractor = FakeExtractor()
+    pages, obs, recs, quotes = two_pages()
+    run(pages, obs, recs, quotes, FakeJev(SAME, {"core.action_type": "deployment"}), quote_fn(extractor))
+    assert extractor.jobs
+    for job in extractor.jobs:
+        user = job.params["messages"][0]["content"]
+        rows = json.loads(user.split("QUOTES:\n", 1)[1].split("\n\nTASK:", 1)[0])
+        task = json.loads(user.split("TASK:\n", 1)[1])
+        assert all(set(r) <= {"quote_id", "record", "text"} for r in rows)
+        assert set(task) == {"question", "answer"} and " " not in task["answer"]  # a code, not a label
+        assert quotes[0].source_type_label not in user and quotes[0].source_publication_date not in user
+
+
 def test_relation_copy_naming_no_shown_quote_is_no_supporting_text():
     pages, obs, recs, quotes = two_pages()
     result = run(pages, obs, recs, quotes, FakeJev(SAME),

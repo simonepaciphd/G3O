@@ -473,7 +473,10 @@ def _relation_nodes(inst: Stage6Institution, result: Stage6Result, final_of: Map
         copied = outcome.support_inputs[0] if outcome.support_inputs else None
         candidates = [*by_obs[outcome.lhs].quotes, *by_obs[outcome.rhs].quotes]
         shown = [InputSupport(q.support_id, q.source_id, q.sources, inst.artifacts[q.source_id]) for q in candidates]
-        quoted = sr.supporting_text is not None
+        # A quote copied from outside the request part (no copied input) is no supporting text
+        # (R-044; RC-D-029 X3 a iii): the node is placed as an unquoted relation's, and the
+        # rejected copy is kept in its provenance companion only.
+        quoted = sr.supporting_text is not None and copied is not None
         nodes = combined_support_nodes(sr, run_id=inst.run_id, institution_uid=inst.institution_uid,
                                        chunk_id=rec.chunk_id, shown=shown,
                                        observation_id=None if quoted else outcome.lhs,
@@ -560,8 +563,12 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
                                 institution_id=inst.institution_id, instrument=instrument,
                                 evidence_channel=EVIDENCE_CHANNEL, activities=activities, sources=sources,
                                 summary=summary, artifact_root=artifact_root)
+    # Observations of unpublished groups (X3 a i) keep their relations only: their activity
+    # fragments are not stored, so neither are those fragments' provenance companions.
+    unstored = {n["support_id"] for k, o in inst.observation_inputs.items() if k not in final_of
+                for n in o.row["item_support"]}
     provenance: dict[str, dict[str, Any]] = {}
-    for record in [*map(dict, inst.provenance), *out.provenance]:
+    for record in [*(dict(r) for r in inst.provenance if r["support_id"] not in unstored), *out.provenance]:
         if provenance.setdefault(record["support_id"], record) != record:  # one node, one companion
             raise ConsolidationError(f"conflicting provenance for support {record['support_id']}")
     return envelope, list(provenance.values())

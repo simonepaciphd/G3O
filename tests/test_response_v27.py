@@ -235,6 +235,25 @@ def test_qc_reloads_v27_values_from_storage(tmp_path):
     assert dict(qc["top_tools"]) == {'Tool; "Alpha"': 1, "Tool beta": 1}
 
 
+def test_qc_keyword_screens_read_v27_storage_snippets_and_stages(tmp_path):
+    # RC-D-029 V4 a: the two audit-only screens run on v2.7 storage values
+    from g3o.validate.qc import qc_per_institution_v27
+
+    data, *_ = fixture_bundle(tmp_path)
+    response = _response(data)
+    linked = {s.activity_id for s in response.sources if s.activity_id != "_NA_"}
+    qc = qc_per_institution_v27(response, data)
+    assert set(qc["weak_generative_signal_activities"]) == linked  # fixture snippets name no GenAI term
+    assert qc["speculative_adoption_activities"] == []
+    for s in data["sources"].values():
+        s["values"]["core.source_snippet"] = "The ministry is exploring a generative AI assistant."
+    for a in data["activities"].values():
+        a["values"]["core.adoption_stage"] = "announced"
+    qc = qc_per_institution_v27(response, data)
+    assert qc["weak_generative_signal_activities"] == []
+    assert set(qc["speculative_adoption_activities"]) == linked
+
+
 def test_qc_counts_unbound_v27_as_parse_failure(tmp_path):
     data, *_ = fixture_bundle(tmp_path)
     relinked = build_response_v27(institution=IDENTITY, metadata=META, activity_ids=["A1", "A2"],

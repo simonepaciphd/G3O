@@ -372,3 +372,94 @@ def test_gated_out_mechanical_records_carry_the_item_part_of_their_rule_node(tmp
     rec = s6._mechanical("core.observed_actor_relationship", "q", "not_asked", "r", bound.stage6_config(), "qsv",
                          part="searched_institution_role")
     assert rec.item_part == "searched_institution_role"
+
+
+# --- RC-D-029 item 7: X2-X4 coverage (already as built; pinned here) ---------------------------
+
+
+def _storage(run_dir, inst=A):
+    return json.loads((institution_dir(run_dir, inst) / "6_storage.json").read_text(encoding="utf-8"))
+
+
+def test_pooled_evaluation_answers_stay_in_provenance_only(tmp_path):
+    # X2 a: pooled answers to items the activities table does not hold stay in coder/support provenance
+    run_dir, bound, instrument = e._setup(tmp_path)
+    insts = e._institutions(run_dir, bound, instrument)
+    assert _run(run_dir, bound, instrument, insts[:1], e.FakeQuotes()).written == [A]
+    merged = next(a for a in _storage(run_dir)["activities"].values() if a["observation_ids"] == ["o1", "o2"])
+    pooled_eval = {c["item_id"] for c in merged["coder_records"] if c["item_id"].startswith("core.evaluation_")}
+    assert "core.evaluation_documented" in pooled_eval
+    assert not [k for k in merged["values"] if k.startswith("core.evaluation_")]
+
+
+def test_unconfirmed_group_is_not_an_activity_row_and_its_relations_are_not_stored(tmp_path):
+    # X3 a (i): activity rows only for groups with >=1 supported observation on a confirmed page;
+    # the others' source claims are `_NA_` and relations touching them are not stored
+    run_dir, bound, instrument = e._setup(tmp_path)
+    extra = e.Builder(run_dir, bound, instrument, A)
+    extra.page("p1", [e.Q1])
+    extra.page("p2", [e.Q2])
+    for oid, pid, quote in (("o1", "p1", e.Q1), ("o2", "p2", e.Q2)):
+        extra.observation(oid, pid, name="Copilot drafting", activity_type="internal_operational", tool="Copilot",
+                          quote=quote)
+    extra.page("p9", ["A vendor mentions an unnamed assistant."])
+    sid = extra.observation("o9", "p9", name="Unnamed assistant", activity_type="pilot_experiment", tool="Gizmo",
+                            quote="A vendor mentions an unnamed assistant.", verdict="ambiguous_attribution")
+    inst = extra.institution({("o1", "o2"): dict(extra.inputs["o1"].row["values"])})
+    assert _run(run_dir, bound, instrument, [inst], e.FakeQuotes()).written == [A]
+    storage = _storage(run_dir)
+    acts = storage["activities"]
+    assert all("o9" not in act["observation_ids"] for act in acts.values())
+    assert storage["sources"][sid]["activity_id"] == "_NA_"
+    rels = [r for act in acts.values() for r in act["activity_relations"]]
+    assert rels and all("o9" not in (r["lhs_observation_id"], r["rhs_observation_id"]) for r in rels)
+
+
+@pytest.mark.parametrize("groups, expected", [({"S1": "g1", "S2": "g2"}, "high"), ({"S1": "g1", "S2": "g1"}, "medium")])
+def test_activity_confidence_reads_every_source_claim_of_the_activity(tmp_path, groups, expected):
+    # X3 a (ii): two medium claims; independent -> high, one group -> medium (both claims counted)
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    for sid in ("S1", "S2"):
+        a.sources[sid]["values"]["core.confidence"] = "medium"
+    a = replace(a, independence_groups={**a.independence_groups, **groups})
+    assert _run(run_dir, bound, instrument, [a], e.FakeQuotes()).written == [A]
+    merged = next(x for x in _storage(run_dir)["activities"].values() if x["observation_ids"] == ["o1", "o2"])
+    assert merged["values"]["core.n_sources"] == 2 and merged["values"]["core.confidence"] == expected
+
+
+class OutsideQuotes(e.FakeQuotes):
+    """Copies a shown quote's words but names an input that was not shown in the request part."""
+
+    def __call__(self, req):
+        self.calls += 1
+        return s6.Stage6Quote(req.candidates[0].quote_text, "not-shown-here", e.TRUE, {"fake": True})
+
+
+def test_quote_copied_from_outside_its_part_is_stored_without_text_and_kept_in_provenance(tmp_path):
+    # X3 a (iii)
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    assert _run(run_dir, bound, instrument, [a], OutsideQuotes()).written == [A]
+    storage = _storage(run_dir)
+    assert sorted(tuple(x["observation_ids"]) for x in storage["activities"].values()) == [("o1",), ("o2",), ("o3",),
+                                                                                              ("o4",)]
+    prov = json.loads((institution_dir(run_dir, A) / adapters.PROVENANCE_ARTIFACT).read_text(encoding="utf-8"))
+    rejected = [r for r in prov["records"] if r.get("rejected_quote")]
+    assert rejected and all(r["rejected_quote"] == e.Q1 for r in rejected)
+    nodes = {n["support_id"]: n for x in storage["activities"].values() for n in x["item_support"]}
+    for r in rejected:
+        assert nodes[r["support_id"]]["supporting_text"] == ""
+
+
+@pytest.mark.parametrize("field, match", [("independence_groups", "independence"),
+                                          ("uncertainty_flags", "uncertainty")])
+def test_absent_independence_groups_or_uncertainty_flags_refuse(tmp_path, field, match):
+    # X4 a: explicit inputs, refused when absent (no producer yet)
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    metrics = _run(run_dir, bound, instrument, [replace(a, **{field: None})], e.FakeQuotes())
+    assert metrics.failed == [A] and not metrics.written
+    held = _held(run_dir)
+    assert held["reasons"] == [rt.ENVELOPE_FAILED] and "MissingUpstreamError" in held["error"]
+    assert match in held["error"].lower()
