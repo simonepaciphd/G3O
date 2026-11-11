@@ -86,10 +86,11 @@ def refuse_v27_budget_settings(config: Any) -> None:
     hunks are owed). ``budget_usd``, ``projection_safety_factor``,
     ``preflight_estimate_usd`` and ``cost_monitor_dry_run`` stay valid: they act
     on Stages 1-4, which a v2.7 run executes and which are priced (the preflight
-    prices only those stages on a v2.7 run). What is refused is a per-stage
-    preflight estimate for any other stage — a figure for a stage the v2.7 run
-    either does not run (v2.5 ``extract`` / ``validate``) or cannot price — since
-    a projection built on it would be compared with spend that never accrues.
+    prices only those stages on a v2.7 run). ``preflight_stage_estimates`` is
+    checked against a positive allowlist, :data:`V27_PRICED_STAGES`: any other
+    key is refused — a v2.5 ``extract`` / ``validate`` figure, a v2.7 stage, and
+    also a Stage 1-4 or unknown name that v2.5 would ignore, since no stage
+    outside the allowlist records an LLM cost a projection could compare it with.
     Called by :meth:`PresweepConfig.__post_init__` and again on entry to
     ``run_presweep`` (the config is a mutable dataclass; the CLI sets the
     preflight fields after construction). A no-op on a v2.5 config.

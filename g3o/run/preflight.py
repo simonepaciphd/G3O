@@ -198,6 +198,16 @@ def _project_chunks(n_jobs: int, per_job_bytes: int) -> dict[str, Any]:
     }
 
 
+def _mark_v27_preview(preview: dict[str, Any]) -> None:
+    """Label a v2.7 run's cost preview as covering Stages 2/3 (+ metered APIs) only (PI ruling 1 a)."""
+    preview["v27_unpriced_stages"] = ["perpage_v27", "stage6_v27"]
+    preview["note"] += (
+        " pipeline_version='v2.7': Stages 2 and 3 and the metered APIs only. The "
+        "v2.7 per-page stage and v2.7 Stage 6 have no pricing yet and are not in "
+        "this figure, nor in the ceiling it is compared with (PI ruling 1 a)."
+    )
+
+
 def _unpriced_cost_preview(
     model: str,
     *,
@@ -407,6 +417,8 @@ def run_preflight(
             total_out_tokens=total_out_tokens,
             output_tokens_per_job=a.output_tokens_per_job,
         )
+        if v27:
+            _mark_v27_preview(summary["cost_preview"])
         summary["cost_ceiling_usd"] = None
         return summary
 
@@ -502,12 +514,7 @@ def run_preflight(
         ),
     }
     if v27:
-        summary["cost_preview"]["v27_unpriced_stages"] = ["perpage_v27", "stage6_v27"]
-        summary["cost_preview"]["note"] += (
-            " pipeline_version='v2.7': Stages 2 and 3 and the metered APIs only. The "
-            "v2.7 per-page stage and v2.7 Stage 6 have no pricing yet and are not in "
-            "this figure, nor in the ceiling it is compared with (PI ruling 1 a)."
-        )
+        _mark_v27_preview(summary["cost_preview"])
     summary["cost_ceiling_usd"] = cost_ceiling_usd
     if cost_ceiling_usd is not None:
         over = total_usd > cost_ceiling_usd

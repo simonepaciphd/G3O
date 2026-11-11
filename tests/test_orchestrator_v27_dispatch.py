@@ -656,3 +656,37 @@ def test_run_presweep_v27_budget_leaves_the_unpriced_v27_stages_outside_it(tmp_p
     assert report["data_missing_stages"] == []
     assert report[orch.V27_BUDGET_SCOPE_KEY] == orch.V27_BUDGET_SCOPE
     assert report[orch.V27_USAGE_KEY][orch.V27_PERPAGE_SPAN]["input_tokens"] > 0  # used, and not in total_usd
+
+
+def test_run_presweep_v27_budget_ignores_the_unused_run_wide_model(tmp_path, monkeypatch):
+    """Review of 1 a (MEDIUM): on v2.7 the run-wide model only backs the v2.5 extract/validate stages it
+    does not run, so an unpriced one must not refuse a Stage 1-4 budget; the preflight agrees."""
+    from g3o.run.preflight import run_preflight
+
+    _refuse_clients(monkeypatch)
+    monkeypatch.setattr(serper_client, "_live_mode", False, raising=False)
+    _stub_stages_1_to_4(monkeypatch, {})
+    _stub_priced_stages_done(monkeypatch)
+    config = _v27_presweep_config(tmp_path, budget_usd=5.0, model="nonexistent-x")
+    creds = Credentials(openai_api_key="sk-test", serper_api_key="s", typesafe_api_key="t")
+    assert run_preflight(config, cost_ceiling_usd=5.0, credentials=creds)["cost_ceiling_exceeded"] is False
+    run_dir = config.runs_dir / config.run_id
+    _, _, _, world, _ = _world(run_dir.parent, config.run_id)
+    summary = orch.run_presweep(config, credentials=creds, v27=_dispatch(world, inputs=WorldInputs(world)))
+    assert summary["n_stage6_written"] == 3
+    report = json.loads((run_dir / "_cost_report.json").read_text(encoding="utf-8"))
+    assert report["budget_usd"] == 5.0 and report["budget_exceeded"] is False
+
+
+def test_v27_unpriced_preflight_preview_is_labelled(tmp_path):
+    """Review of 1 a (LOW 2): the no-ceiling unpriced preview also says it leaves out the v2.7 stages."""
+    from g3o.run.preflight import run_preflight
+
+    master = _write_master(tmp_path / "master.csv")
+    creds = Credentials(openai_api_key="sk-test", serper_api_key="s", typesafe_api_key="t")
+    preview = run_preflight(_v27_config(tmp_path, master_csv=master, sample_size=1,
+                                        classify_official_site_model="nonexistent-x"),
+                            credentials=creds)["cost_preview"]
+    assert preview["pricing"]["priced"] is False
+    assert preview["v27_unpriced_stages"] == [orch.V27_PERPAGE_SPAN, orch.V27_STAGE6_SPAN]
+    assert "ruling 1 a" in preview["note"]

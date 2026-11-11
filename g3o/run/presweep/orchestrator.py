@@ -24,7 +24,12 @@ from g3o.common.paths import require_layout
 from g3o.common.run_state import state_dir
 from g3o.discovery.serper_client import SerperOptions, set_live_mode
 from g3o.report.run_summary import render_run_summary_text, write_run_summary
-from g3o.run.presweep.config import PIPELINE_V27, PresweepConfig, refuse_v27_budget_settings
+from g3o.run.presweep.config import (
+    PIPELINE_V27,
+    V27_PRICED_STAGES,
+    PresweepConfig,
+    refuse_v27_budget_settings,
+)
 from g3o.run.presweep.planning import (
     plan_run,
     record_run_pipeline,
@@ -568,14 +573,22 @@ def run_presweep(
     # Per-stage model overrides (review 2026-09-23: jev integration): each
     # stage's tokens are priced off its own model's rate row, not the run-wide
     # default. Stages not in the map fall back to ``config.model``.
+    # A v2.7 run (PI ruling 1 a) prices only the Stage 2/3 LLM stages it runs:
+    # its run-wide ``model`` is only the fallback of the v2.5 extract/validate
+    # stages it does not run, so it must not decide whether its budget is
+    # priceable (independent review of 1 a, MEDIUM). Its fallback rate row is
+    # the Stage 2 model's, as in the v2.7 preflight.
+    v27_run = config.pipeline_version == PIPELINE_V27
     stage_models = {
         stage: config.model_for_stage(stage)
         for stage in (
-            "classify_official_site",
-            STAGE_2_FALLBACK,
-            "classify_triage",
-            "extract",
-            "validate",
+            V27_PRICED_STAGES if v27_run else (
+                "classify_official_site",
+                STAGE_2_FALLBACK,
+                "classify_triage",
+                "extract",
+                "validate",
+            )
         )
     }
     monitor = CostMonitor(
@@ -583,7 +596,7 @@ def run_presweep(
         # The model this run submits selects its own rate row (review F2). Without
         # it the monitor priced every model as gpt-5-nano, so the budget it was
         # enforcing was not the budget of the run it was watching.
-        model=config.model,
+        model=config.model_for_stage("classify_official_site") if v27_run else config.model,
         preflight_stage_estimates=config.preflight_stage_estimates,
         stage_models=stage_models,
     )
