@@ -44,9 +44,13 @@ Rules carried here, not decided here:
   non-classifier row values (T-015 source fields, T-022 quote-step values,
   T-024 derived values) and the quote-step codes' support, the stored page
   artifact layout (T-014/T-020), T-025 follow provenance, uncertainty
-  flags, independence groups and merged activities' non-pooled values. A reviewed page with no activity
-  observation refuses (the 2.7 storage needs a source row's observation ids;
-  no signed rule names them).
+  flags, independence groups and merged activities' non-pooled values.
+- **Reviewed page with no activity (RC-D-030 Y2 a).** It gets one page-level
+  source row: ``activity_id`` ``_NA_``, empty ``observation_ids``, its
+  page-level values and nodes (support nodes with no observation), the
+  upstream source values and codes keyed :data:`NO_ACTIVITY`, and ``_NA_``
+  set by rule (``vocabularies/missing/na_label``) on the activity-question
+  items the sources table holds.
 - **Supported observation (RC-D-030 Y1 b).** ``ActivityObservation.supported`` is
   derived here (:func:`observation_supported`): the observation's final
   ``core.activity_type`` and ``core.action_type`` are both supported (support
@@ -148,8 +152,10 @@ T015_CLASSIFIER = "core.source_type"  # a classifier item T-015 owns: an upstrea
 
 #: RC-D-030 Y1 b: an observation is supported when both of these final values are supported.
 SUPPORTED_ITEMS = ("core.activity_type", "core.action_type")
-NO_OBSERVATION_SOURCE = ("source row of a reviewed page with no activity observation "
-                         "(2.7 storage needs observation_ids; no signed rule)")
+#: RC-D-030 Y2 a: upstream key (source values, codes) of a no-activity page's page-level source row.
+NO_ACTIVITY = "_NA_"
+#: Signed slot of the rule "store `_NA_` on items of a row that has no activity" (R-045, all-01 b).
+NA_RULE = "vocabularies/missing/na_label"
 VALUES_PRODUCER = "T-015 / T-022 / T-024 row values with no producer on this branch"
 ARTIFACT_PRODUCER = "T-014/T-020 stored page artifact and its segment layout"
 FOLLOW_PRODUCER = "T-025 follow provenance (followed / attempted page)"
@@ -237,7 +243,8 @@ class PageUpstream:
     artifact (each part ``chunk_id`` and ``<page>#chrome``). ``activity_values``
     / ``source_values`` hold, per T-022 activity id, the non-classifier items of
     the activities / sources table rows; ``codes`` the support results and
-    coder records of the quote-step values among them. ``ActivityObservation.supported``
+    coder records of the quote-step values among them. A page with no activity
+    keys its page-level source row's values and codes :data:`NO_ACTIVITY`. ``ActivityObservation.supported``
     is derived by the producer (RC-D-030 Y1 b), not an input.
     """
 
@@ -456,6 +463,12 @@ def within_page_decision(pair: PairResult, answered: Sequence[tuple[CoderRecord,
     return relation, probability, status
 
 
+def _activity_source_items(config: ActivityCoderConfig) -> list[str]:
+    """Sources-table items asked by the activity question set (the evaluation items), in set order."""
+    qset = config.question_set if config.question_set is not None else jac.load_set("activity")
+    return list(dict.fromkeys(q["item_id"] for q in qset["questions"] if q["item_id"] in SOURCE_ITEMS))
+
+
 def failed_page(spec: PageSpec, reason: str) -> ReviewedPage:
     """An attempted page T-021 could not code (no artifact): unreviewed, failed, reason kept."""
     if spec.upstream.followed is None:
@@ -484,17 +497,17 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
     sources = PageSources(page.page_id, {c.chunk_id: c.text for c in result.chunks}, contact_text(page))
     acts = {} if activity_round is None else {a.activity_id: a for a in activity_round.result.activities}
     finals = {} if activity_round is None else {f.activity_id: f for f in activity_round.final}
-    if not acts:
-        raise MissingUpstreamError(NO_OBSERVATION_SOURCE, [page.page_id])
-    for name, value in (("activity_values", up.activity_values), ("source_values", up.source_values),
-                        ("codes", up.codes)):
-        if value is None or set(acts) - set(value):
+    keys = list(acts) or [NO_ACTIVITY]  # source-row units: one per activity, or the page (Y2 a)
+    for name, value, need in (("activity_values", up.activity_values, list(acts)),
+                              ("source_values", up.source_values, keys), ("codes", up.codes, keys)):
+        if need and (value is None or set(need) - set(value)):
             raise MissingUpstreamError(f"{VALUES_PRODUCER} ({name})",
-                                       sorted(set(acts) - set(value or {})) or [page.page_id])
+                                       sorted(set(need) - set(value or {})) or [page.page_id])
     if uncertainty_flags is None:
         raise MissingUpstreamError("T-024 derived-field producer (core.uncertainty_flags)", [page.page_id])
     labels = activity_config.labels if activity_config.labels is not None else jac.default_labels()
-    qsv_page, qsv_act = result.question_set_version, activity_round.result.question_set_version
+    qsv_page = result.question_set_version
+    qsv_act = None if activity_round is None else activity_round.result.question_set_version
     out = PageProduct(page=None)  # type: ignore[arg-type]
 
     def emit(sr: SupportResult, rec: CoderRecord, ctx: SupportContext, artifact: PageArtifact) -> Any:
@@ -507,7 +520,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                 [c for c in (projection, final_projection) if c is not None], nodes.provenance)
 
     page_support = _index(page_round.support)
-    act_support = _index(activity_round.support)
+    act_support = _index(() if activity_round is None else activity_round.support)
     pair_index = _index(pair_support)
 
     def page_codes() -> list[tuple[SupportResult, CoderRecord]]:
@@ -552,20 +565,25 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
     page_nodes: list[dict[str, Any]] = []
     page_coders: list[dict[str, Any]] = []
     oids = {aid: observation_id(page.page_id, aid) for aid in acts}
-    sids = {aid: source_id(first_source + n) for n, aid in enumerate(acts)}
-    artifacts = {aid: PageArtifact(sids[aid], up.artifact_path, text, dict(up.segments)) for aid in acts}
-    spans = {s.activity_id: s for s in activity_input.spans}
-    for aid in acts:
-        oid, sid, artifact = oids[aid], sids[aid], artifacts[aid]
+    sids = {aid: source_id(first_source + n) for n, aid in enumerate(keys)}
+    artifacts = {aid: PageArtifact(sids[aid], up.artifact_path, text, dict(up.segments)) for aid in keys}
+    spans = {} if activity_input is None else {s.activity_id: s for s in activity_input.spans}
+    for aid in keys:
+        oid, sid, artifact = oids.get(aid), sids[aid], artifacts[aid]
         ctx = SupportContext(run_id, institution_uid, oid, sid, None)
-        act_values = outcome_values(finals[aid].outcomes)
         a_row = _Row(lambda sr, rec, c, a=artifact: emit(sr, rec, c, a))
         s_row = _Row(lambda sr, rec, c, a=artifact: emit(sr, rec, c, a))
+        if oid is None:  # Y2 a: activity-question items of the sources table take _NA_ by rule
+            act_values = {i: NO_ACTIVITY for i in _activity_source_items(activity_config)}
+        else:
+            act_values = outcome_values(finals[aid].outcomes)
         produced_a = {k: v for k, v in act_values.items() if k in ACTIVITY_ITEMS}
         produced_s = {**{k: v for k, v in page_values.items() if k in SOURCE_ITEMS},
                       **{k: v for k, v in act_values.items() if k in SOURCE_ITEMS}}
-        for produced, given, table, row in ((produced_a, up.activity_values[aid], ACTIVITY_ITEMS, a_row),
-                                            (produced_s, up.source_values[aid], SOURCE_ITEMS, s_row)):
+        units = [(produced_s, up.source_values[aid], SOURCE_ITEMS, s_row)]
+        if oid is not None:
+            units.insert(0, (produced_a, up.activity_values[aid], ACTIVITY_ITEMS, a_row))
+        for produced, given, table, row in units:
             clash = sorted(set(produced) & set(given))
             if clash:
                 raise ValueError(f"upstream values overwrite produced classifier values: {clash}")
@@ -579,23 +597,35 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                 raise MissingUpstreamError(VALUES_PRODUCER, missing)
         for sr, rec in page_list:
             added = s_row.add(sr, rec, ctx)
-            if aid == next(iter(acts)):
+            if aid == keys[0]:
                 page_nodes.extend(added["nodes"])
-        for sr, rec in activity_codes(aid):
-            (s_row if rec.item_id in SOURCE_ITEMS else a_row).add(sr, rec, ctx)
+        if oid is not None:
+            for sr, rec in activity_codes(aid):
+                (s_row if rec.item_id in SOURCE_ITEMS else a_row).add(sr, rec, ctx)
+        else:
+            for item, value in act_values.items():
+                rec = _mechanical(item, None, None, value, NA_RULE, coder_version=page_config.coder_version,
+                                  qsv=qsv_page, setup_pointer=page_config.setup_pointer)
+                s_row.add(_rule_support(rec, None, sources), rec, ctx)
         for sr, rec in up.codes[aid]:
             if FIELDS[rec.item_id]["coder"] != "quote_step" and rec.item_id != T015_CLASSIFIER:
                 raise ValueError(f"upstream code for {rec.item_id} is not a quote-step or T-015 value")
+            if oid is None and rec.item_id not in SOURCE_ITEMS:
+                raise ValueError(f"upstream code for {rec.item_id} on a page with no activity")
             (a_row if rec.item_id in ACTIVITY_ITEMS else s_row).add(sr, rec, ctx)
-        if aid == next(iter(acts)):
+        if aid == keys[0]:
             page_ids = {n["support_id"] for n in page_nodes}
             page_coders = [c for c in s_row.coder_records if c["support_id"] in page_ids]
-        out.observation_inputs[oid] = ObservationInput(oid, sid, a_row.doc())
         out.artifacts[sid] = artifact
         src = s_row.doc()
-        src.update(observation_ids=[oid], page_artifact_path=up.artifact_path, page_content_sha256=sha256_text(text))
+        src.update(observation_ids=[] if oid is None else [oid], page_artifact_path=up.artifact_path,
+                   page_content_sha256=sha256_text(text))
         out.sources[sid] = src
-        for doc in (a_row.doc(), src):
+        docs = [src]
+        if oid is not None:
+            out.observation_inputs[oid] = ObservationInput(oid, sid, a_row.doc())
+            docs.insert(0, a_row.doc())
+        for doc in docs:
             missing = _carried(doc)
             if missing:
                 raise UncarriedCombinedValue(page.page_id, missing)
@@ -637,7 +667,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
     else:
         verdict_status = "set_by_rule"
     out.page = ReviewedPage(page.page_id, PIPELINE, verdict.value, verdict.probability, verdict_status, True, False,
-                            up.followed, tuple(sids[a] for a in acts), tuple(page_coders), tuple(page_nodes))
+                            up.followed, tuple(sids[a] for a in keys), tuple(page_coders), tuple(page_nodes))
     for aid in acts:
         oid, sid, artifact = oids[aid], sids[aid], artifacts[aid]
         frag = out.observation_inputs[oid].row
@@ -867,7 +897,7 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 
 __all__ = [
-    "HELD_REASON", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
+    "HELD_REASON", "NO_ACTIVITY", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]

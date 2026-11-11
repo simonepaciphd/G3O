@@ -148,6 +148,9 @@ def test_public_projection_hides_internal_extracted_fields(tmp_path):
     (lambda d: d["summary"]["values"]["core.review_depth"]["web_extract"]["n_pages_by_verdict"].pop("event_only"), "nine verdict"),
     (lambda d: d.update(evidence_channel="text_detection"), "canonical evidence"),
     (lambda d: d.update(codebook_release="v2.7"), "unsupported"),
+    # RC-D-030 Y2 a: only a page-level _NA_ source row may have no observation
+    (lambda d: d["sources"]["S1"].update(observation_ids=[]), "retain original observations"),
+    (lambda d: d["activities"]["A1"].update(observation_ids=[]), "retain original observations"),
 ])
 def test_incomplete_or_incompatible_new_storage_refuses(tmp_path, damage, match):
     data, record, _, _ = fixture_bundle(tmp_path)

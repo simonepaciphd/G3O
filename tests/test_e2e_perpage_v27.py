@@ -222,6 +222,16 @@ class World:
                  self._code(pid, aid, "core.source_publication_date", "not_documented", None),
                  self._code(pid, aid, "core.source_snippet", sv["core.source_snippet"], None)]
             a_vals[aid], s_vals[aid], codes[aid] = av, sv, c
+        if not page.activities:  # RC-D-030 Y2 a: the page-level source row's upstream values and codes
+            sv = {k: v for k, v in _values("sources").items()
+                  if k in pp.SOURCE_ITEMS and (FIELDS[k]["coder"] != "classifier" or k == "core.source_type")}
+            sv.update({"core.source_url": page.url, "core.source_title": f"Page {pid}",
+                       "core.content_contact_emails": [], "core.source_publication_date": "not_documented"})
+            s_vals[pp.NO_ACTIVITY] = sv
+            codes[pp.NO_ACTIVITY] = [
+                self._code(pid, None, "core.source_type", sv["core.source_type"], page.text.split(SEP)[0]),
+                self._code(pid, None, "core.source_publication_date", "not_documented", None),
+                self._code(pid, None, "core.source_snippet", sv["core.source_snippet"], None)]
         return pp.PageUpstream(artifact.as_posix(), segments, False, a_vals, s_vals, codes)
 
     def institution(self, inst, merged=None):
@@ -557,11 +567,6 @@ def test_perpage_refuses_absent_upstream(tmp_path):
     broken = replace(a, pages=[spec, *a.pages[1:]])
     with pytest.raises(pp.MissingUpstreamError, match="follow"):
         _perpage(run_dir, bound, instrument, world, [broken], FakeJev(ANSWERS, RELATIONS))
-    no_acts = Page("INST-0000009", "n1", ["The council does not use generative AI."])
-    world.pages["n1"] = no_acts
-    with pytest.raises(pp.MissingUpstreamError, match="no activity observation"):
-        _perpage(run_dir, bound, instrument, world, [world.institution("INST-0000009")],
-                 FakeJev({**ANSWERS, jpc.VERDICT: "no_genai"}, RELATIONS))
 
 
 def test_cost_stop_is_not_a_page_failure_and_resumes(tmp_path):
@@ -670,3 +675,36 @@ def test_y3_uncarried_combined_value_is_a_per_institution_hold(tmp_path):
     assert any(i.startswith("core.adoption_stage/") for i in hold["items"])
     assert any(r["reason"] == pp.HELD_REASON and r["detail"] == f"b2:{pp.UNCARRIED_STAGE}"
                for r in attrition.read_records(run_dir))
+
+
+def test_y2_reviewed_page_with_no_activity_gets_a_page_level_na_source_row(tmp_path):
+    """Y2 a: a reviewed page with no activity -> one source row, activity_id _NA_, empty observation_ids,
+    through Stage 6 storage and the final CSVs; the activity-question source items are _NA_ by rule."""
+    run_dir, bound, instrument, world, _ = _setup(tmp_path)
+    world.pages["n1"] = Page("INST-0000009", "n1", ["The council does not use generative AI."])
+    world.pages["n2"] = Page("INST-0000009", "n2", [P1], [("a1", "Copilot drafting", "Copilot", P1, None)])
+    inst = world.institution("INST-0000009")
+    verdict = lambda st: "no_genai" if "generative AI" in st.get("page_text", "") else "confirms_activity"  # noqa: E731
+    jev = FakeJev({**ANSWERS, jpc.VERDICT: verdict}, RELATIONS)
+    ready, metrics = _perpage(run_dir, bound, instrument, world, [inst], jev)
+    assert metrics.ready == ["INST-0000009"]
+    (st,) = ready
+    n1 = next(p for p in st.pages if p.page_id == "n1")
+    assert n1.reviewed and n1.page_verdict == "no_genai" and len(n1.source_ids) == 1
+    row = st.sources[n1.source_ids[0]]
+    assert row["observation_ids"] == []
+    assert all(n["observation_id"] is None and n["source_id"] == n1.source_ids[0] for n in row["item_support"])
+    assert row["values"]["core.evaluation_documented"] == pp.NO_ACTIVITY
+    na = [n for n in row["item_support"] if n["item_id"] == "core.evaluation_documented"]
+    assert na and all(n["support_status"] == "set_by_rule" and n["support_rule_name"] == pp.NA_RULE for n in na)
+    s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=jev, quote_fn=FakeQuotes(), config=bound.stage6_config(),
+                            instrument=instrument, now=CLOCK)
+    assert s6m.written == ["INST-0000009"]
+    stored = _storage(run_dir, "INST-0000009")["sources"][n1.source_ids[0]]
+    assert stored["activity_id"] == "_NA_" and stored["observation_ids"] == []
+    result, rows = _csvs(run_dir, [inst])
+    assert result["integrity"]["is_valid"]
+    n1_rows = [r for r in rows["activity_sources"] if r["source_url"].endswith("/n1")]
+    assert len(n1_rows) == 1 and n1_rows[0]["activity_id"] == "_NA_"
+    assert json.loads(n1_rows[0]["observation_ids_json"]) == []
+

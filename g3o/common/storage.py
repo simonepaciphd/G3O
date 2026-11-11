@@ -269,7 +269,10 @@ class StorageEnvelope:
                 row["values"][item_id] = normalize_contact_emails(value)
         if table != "summary":
             _strings(row["observation_ids"], "observation_ids")
-            if not row["observation_ids"]:
+            # RC-D-030 Y2 a: the page-level source row of a reviewed page with no activity
+            # (activity_id _NA_) has no observation; every other row keeps its observations.
+            page_level = table == "sources" and row["activity_id"] == "_NA_"
+            if not row["observation_ids"] and not page_level:
                 raise ValueError("2.7 source/activity rows must retain original observations")
         if table == "sources":
             path = Path(row["page_artifact_path"])
@@ -455,7 +458,10 @@ class StorageEnvelope:
                 raise ValueError("combined support input does not resolve")
             sid, oid = record["source_id"], record["observation_id"]
             if sid is not None:
-                if sid not in sources or oid not in sources[sid]["observation_ids"]:
+                # RC-D-030 Y2 a: a page-level _NA_ source row's supports carry no observation.
+                page_level = (sid in sources and oid is None and sources[sid]["activity_id"] == "_NA_"
+                              and not sources[sid]["observation_ids"])
+                if sid not in sources or (oid not in sources[sid]["observation_ids"] and not page_level):
                     raise ValueError("support source/observation endpoint does not resolve")
                 source = sources[sid]
                 if record["page_content_sha256"] != source["page_content_sha256"]:
