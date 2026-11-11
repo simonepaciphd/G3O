@@ -140,6 +140,20 @@ def test_relation_quote_copied_verbatim_then_x35_merges():
     assert window == "Intro. " + quotes[0].quote_text + " End."  # quote +/- 200 chars, clipped to the part
 
 
+@pytest.mark.parametrize("pick, named", [("Q1", "Copilot pilot"), ("Q2", "Copilot drafting")])
+def test_relation_x35_names_the_record_the_quote_was_copied_from(pick, named):
+    # RC-D-029 W4 b
+    extractor, entail = FakeExtractor(pick=pick), FakeEntail()
+    pages, obs, recs, quotes = two_pages(name_b="Copilot drafting")
+    jev = FakeJev({("Copilot pilot", "Copilot drafting"): ("same_activity", .95)})
+    result = run(pages, obs, recs, quotes, jev, quote_fn(extractor, entail))
+    other = ({"Copilot pilot", "Copilot drafting"} - {named}).pop()
+    question, _ = entail.calls[0]
+    assert f'"{named}"' in question and f'"{other}"' not in question
+    assert result.relation_outcomes[0].support[0].support_status == "supported"
+    assert result.relation_outcomes[0].support_inputs == (quotes[0 if pick == "Q1" else 1].support_id,)
+
+
 def test_relation_copy_naming_no_shown_quote_is_no_supporting_text():
     pages, obs, recs, quotes = two_pages()
     result = run(pages, obs, recs, quotes, FakeJev(SAME),

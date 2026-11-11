@@ -220,6 +220,9 @@ class Stage6QuoteRequest:
     #: observation's name (provisional reading, reported to the integrator)
     activity_name: str | None = None
     first_observation_id: str | None = None  # relation: which candidates are the first record's
+    #: relation: the second record's name. X35 names the record the quote was copied from
+    #: (RC-D-029 W4 b): ``activity_name`` for a first-record quote, this for a second-record one.
+    second_activity_name: str | None = None
 
 
 @dataclass(frozen=True)
@@ -358,7 +361,8 @@ def _request(ask_fn: AskFn, state: dict[str, Any], questions: dict[str, dict[str
 def _support(kind: str, key: str, part_id: str, q: Mapping[str, Any], rec: CoderRecord,
              candidates: Sequence[InputQuote], quote_fn: QuoteFn | None, *,
              activity_id: str | None, linked: str | None, activity_name: str | None = None,
-             first_observation_id: str | None = None) -> tuple[SupportResult, str | None] | Held:
+             first_observation_id: str | None = None,
+             second_activity_name: str | None = None) -> tuple[SupportResult, str | None] | Held:
     """T-024 check of one Stage 6 answer; the quote must come from a candidate of this part.
 
     Returns the support result and the input support id the quote step copied
@@ -378,7 +382,8 @@ def _support(kind: str, key: str, part_id: str, q: Mapping[str, Any], rec: Coder
         return Held(QUOTE_STEP_ABSENT, hold_key)
     request = Stage6QuoteRequest(kind, key, part_id, q["question_id"], q["item_id"], value, tuple(candidates),
                                  part=q.get("part"), question_text=q.get("instructions"),
-                                 activity_name=activity_name, first_observation_id=first_observation_id)
+                                 activity_name=activity_name, first_observation_id=first_observation_id,
+                                 second_activity_name=second_activity_name)
     try:
         answer = quote_fn(request)
     except (JevAccountError, Stage6QuoteNotApproved, SupportGateError):
@@ -456,10 +461,11 @@ def code_relation(first: ObservationRecord, second: ObservationRecord, ask_fn: A
     rec = _record(result, q, part_id, config, qsv, first.observation_id)
     if rec.chosen_value == NOT_COVERED:
         raise ConsolidationError("a single-part relation request returned the temporary part answer")
-    name = first.values.get("core.activity_name")
+    name, second_name = (r.values.get("core.activity_name") for r in (first, second))
     checked = _support("relation", key, part_id, q, rec, (*first.quotes, *second.quotes), quote_fn,
                        activity_id=first.observation_id, linked=second.observation_id,
-                       activity_name=name if _real(name) else None, first_observation_id=first.observation_id)
+                       activity_name=name if _real(name) else None, first_observation_id=first.observation_id,
+                       second_activity_name=second_name if _real(second_name) else None)
     if isinstance(checked, Held):
         return RelationOutcome(first.observation_id, second.observation_id, None, (rec,), (), (checked,))
     checked, copied = checked

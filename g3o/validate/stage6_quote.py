@@ -190,8 +190,10 @@ def entailment_for(req: Stage6QuoteRequest, quote: str, source: InputQuote, enta
     text = _source_text(rules.items[req.item_id], source)
     if text is None or not match_quote(quote, text).matched:
         return None, {}
-    question = entailment_question(req.item_id, req.value, part=req.part, activity_name=req.activity_name,
-                                   rules=rules)
+    name = req.activity_name
+    if req.kind == "relation" and source.observation_id != req.first_observation_id:
+        name = req.second_activity_name  # RC-D-029 W4 b: the record the quote was copied from
+    question = entailment_question(req.item_id, req.value, part=req.part, activity_name=name, rules=rules)
     window, located = entailment_window(quote, text)
     return entail_fn(question, window), {"x35_question": question, "x35_window_located": located}
 
