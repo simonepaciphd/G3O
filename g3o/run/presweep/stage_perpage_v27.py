@@ -54,8 +54,9 @@ Rules carried here, not decided here:
   :class:`InstitutionUpstream`) and refuse when absent
   (:class:`~g3o.persist.stage6_adapters.MissingUpstreamError`): the
   non-classifier row values (T-015 source fields, T-022 quote-step values,
-  T-024 derived values) and the quote-step codes' support, the stored page
-  artifact layout (T-014/T-020), T-025 follow provenance, uncertainty
+  T-024 derived values) and the quote-step codes' support, an injected stored
+  page artifact layout (absent: written by :mod:`g3o.persist.page_artifact`,
+  PI ruling A5.1 a), T-025 follow provenance, uncertainty
   flags, independence groups and the merged-activity values RC-D-030 X1 a
   leaves without a rule computable from the merged row
   (:data:`~g3o.run.presweep.stage_validate_v27.MERGE_INPUT_ITEMS`).
@@ -133,6 +134,7 @@ from g3o.common.support_check import (
     check_code,
 )
 from g3o.extract.batch import url_hash
+from g3o.persist.page_artifact import write_page_artifact
 from g3o.persist.stage6_adapters import (
     MissingUpstreamError,
     PageArtifact,
@@ -267,7 +269,9 @@ class PageUpstream:
     """Explicit per-page inputs whose producers are absent here (refuse when missing).
 
     ``artifact_path`` (run-relative) and ``segments`` locate the stored page
-    artifact (each part ``chunk_id`` and ``<page>#chrome``). ``activity_values``
+    artifact (each part ``chunk_id`` and ``<page>#chrome``). Both ``None``: the
+    producer writes it (:mod:`g3o.persist.page_artifact`, PI ruling A5.1 a);
+    only one of them given is refused. ``activity_values``
     / ``source_values`` hold, per T-022 activity id, the non-classifier items of
     the activities / sources table rows; ``codes`` the support results and
     coder records of the quote-step values among them. A page with no activity
@@ -517,10 +521,17 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         raise ConsolidationError("page has pending questions; nothing is produced")
     if up.followed is None:
         raise MissingUpstreamError(FOLLOW_PRODUCER, [page.page_id])
-    if up.artifact_path is None or up.segments is None:
+    if (up.artifact_path is None) != (up.segments is None):  # half an injected layout: a wiring gap
         raise MissingUpstreamError(ARTIFACT_PRODUCER, [page.page_id])
-    text = (run_dir / up.artifact_path).read_bytes().decode("utf-8")
     result = page_round.result
+    if up.artifact_path is None:  # A5.1 a: produce the stored page artifact (main, separator, chrome)
+        stored = write_page_artifact(run_dir, institution_id=page.institution_id, url=page.url,
+                                     page_id=page.page_id, main_text=page.text, chunks=result.chunks,
+                                     chrome_text=contact_text(page))
+        artifact_path, segments = stored.path, stored.segments
+    else:  # injected layout (PageUpstream seam, PI ruling D1 a)
+        artifact_path, segments = up.artifact_path, up.segments
+    text = (run_dir / artifact_path).read_bytes().decode("utf-8")
     sources = PageSources(page.page_id, {c.chunk_id: c.text for c in result.chunks}, contact_text(page))
     acts = {} if activity_round is None else {a.activity_id: a for a in activity_round.result.activities}
     finals = {} if activity_round is None else {f.activity_id: f for f in activity_round.final}
@@ -593,7 +604,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
     page_coders: list[dict[str, Any]] = []
     oids = {aid: observation_id(page.page_id, aid) for aid in acts}
     sids = {aid: source_id(first_source + n) for n, aid in enumerate(keys)}
-    artifacts = {aid: PageArtifact(sids[aid], up.artifact_path, text, dict(up.segments)) for aid in keys}
+    artifacts = {aid: PageArtifact(sids[aid], artifact_path, text, dict(segments)) for aid in keys}
     spans = {} if activity_input is None else {s.activity_id: s for s in activity_input.spans}
     for aid in keys:
         oid, sid, artifact = oids.get(aid), sids[aid], artifacts[aid]
@@ -645,7 +656,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
             page_coders = [c for c in s_row.coder_records if c["support_id"] in page_ids]
         out.artifacts[sid] = artifact
         src = s_row.doc()
-        src.update(observation_ids=[] if oid is None else [oid], page_artifact_path=up.artifact_path,
+        src.update(observation_ids=[] if oid is None else [oid], page_artifact_path=artifact_path,
                    page_content_sha256=sha256_text(text))
         out.sources[sid] = src
         docs = [src]
