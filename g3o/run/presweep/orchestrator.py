@@ -7,6 +7,8 @@ import gc
 import json
 import logging
 import sys
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -22,8 +24,12 @@ from g3o.common.paths import require_layout
 from g3o.common.run_state import state_dir
 from g3o.discovery.serper_client import SerperOptions, set_live_mode
 from g3o.report.run_summary import render_run_summary_text, write_run_summary
-from g3o.run.presweep.config import PresweepConfig
-from g3o.run.presweep.planning import plan_run, update_manifest_llm_provenance
+from g3o.run.presweep.config import PIPELINE_V27, PresweepConfig
+from g3o.run.presweep.planning import (
+    plan_run,
+    record_run_pipeline,
+    update_manifest_llm_provenance,
+)
 from g3o.run.presweep.records import institution_record
 from g3o.run.presweep.stage_classify import (
     STAGE_2_FALLBACK,
@@ -264,11 +270,140 @@ def _record_and_track_stage_budget(
         budget_exceeded_stages.append(stage_name)
 
 
+# ---------------------------------------------------------------------------
+# v2.7 run mode (T-030): not production ready, off by default.
+#
+# Selected by ``config.pipeline_version == "v2.7"`` (which the config refuses
+# without ``v27_not_production_ready_opt_in=True``). After Stage 4 scrape the
+# v2.5 Stage 5 extract / Stage 6 validate are replaced by the sequence the v2.7
+# modules define: instrument binding (``bind_runtime``), the per-page stage
+# (``run_perpage_v27``, providers from ``build_perpage_providers``) and v2.7
+# Stage 6 (``run_stage6_v27``, quote step from ``BoundRuntime.stage6_quote_fn``),
+# which write the per-institution Stage 6 artifacts. Every provider call is
+# injected (:class:`V27Dispatch`); nothing here builds a client. The v2.7
+# modules are imported only on this path, so a v2.5 run imports nothing new.
+# ---------------------------------------------------------------------------
+
+#: Telemetry span names of the two v2.7 stages (the per-page one is
+#: ``stage_perpage_v27.STAGE``; Stage 6 is named apart from the v2.5 ``validate``).
+V27_PERPAGE_SPAN = "perpage_v27"
+V27_STAGE6_SPAN = "stage6_v27"
+
+
+@dataclass(frozen=True)
+class V27Dispatch:
+    """The injected inputs of a v2.7 run. Every field is required; none has a default.
+
+    - ``settings``: the :class:`~g3o.run.presweep.instrument_binding.RuntimeSettings`
+      bound into the run's instrument (models, approval reference, ...).
+    - ``jev_ask_fn(state, questions) -> JevResult``: the jev call of the per-page
+      stage and of Stage 6.
+    - ``extract_fn(job) -> ExtractorResult``: the extractor call (T-022 pass 1,
+      T-032 pass 2, the Stage 6 quote step).
+    - ``entail_fn(question, text) -> Entailment``: the X35 call. Its only non-fake
+      entry, :func:`g3o.common.support_check.run_entailment`, still refuses, so a
+      real run stops at the first X35 check (``SupportGateError``).
+    - ``perpage_inputs(run_dir, sample, scraped, bound, instrument)``: the
+      :class:`~g3o.run.presweep.stage_perpage_v27.PerPageInstitution` inputs for the
+      scraped pages. No producer of these exists in the pipeline (the
+      ``PageInput`` built from a stored page, the explicit ``PageUpstream`` /
+      ``InstitutionUpstream`` values), so the caller supplies them; a missing
+      upstream value still raises ``MissingUpstreamError`` in the per-page stage.
+    """
+
+    settings: Any
+    jev_ask_fn: Callable[..., Any]
+    extract_fn: Callable[..., Any]
+    entail_fn: Callable[..., Any]
+    perpage_inputs: Callable[..., Sequence[Any]]
+
+
+def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
+    """Refuse a v2.7 run whose injected calls or inputs are absent, before any work."""
+    if not isinstance(v27, V27Dispatch):
+        raise ValueError(
+            "pipeline_version='v2.7' needs the injected calls (V27Dispatch: jev_ask_fn, "
+            "extract_fn, entail_fn, perpage_inputs, settings); there is no default client"
+        )
+    missing = [name for name in ("jev_ask_fn", "extract_fn", "entail_fn", "perpage_inputs")
+               if not callable(getattr(v27, name))]
+    if missing:
+        raise ValueError(f"v2.7 dispatch: {', '.join(missing)} must be supplied as callables; "
+                         "there is no default client")
+    from g3o.run.presweep.instrument_binding import RuntimeSettings
+
+    if not isinstance(v27.settings, RuntimeSettings):
+        raise ValueError("v2.7 dispatch: settings must be an explicit RuntimeSettings")
+    return v27
+
+
+def run_v27_dispatch(
+    run_dir: Path,
+    sample: list[dict[str, Any]],
+    scraped: Any,
+    v27: V27Dispatch,
+    *,
+    telemetry: RunTelemetry | None = None,
+) -> dict[str, Any]:
+    """Bind the instrument, run the v2.7 per-page stage and v2.7 Stage 6.
+
+    Returns the summary counts. Stage stops of either stage
+    (``SupportGateError``, ``MissingUpstreamError`` in the per-page stage,
+    ``JevAccountError``, ...) propagate unchanged. Within-stage budget checks are
+    not wired here (no ``cost_check_callback``): the cost monitor has no v2.7
+    stage pricing yet.
+    """
+    v27 = _require_v27_dispatch(v27)
+    from g3o.common.instrument import load_instrument
+    from g3o.run.presweep.instrument_binding import bind_runtime
+    from g3o.run.presweep.perpage_providers_v27 import build_perpage_providers
+    from g3o.run.presweep.stage_perpage_v27 import run_perpage_v27
+    from g3o.run.presweep.stage_validate_v27 import run_stage6_v27
+
+    tel = telemetry if telemetry is not None else NO_TELEMETRY
+    settings = v27.settings
+    bound = bind_runtime(run_dir, settings)
+    instrument = load_instrument(run_dir / "final" / "instruments", bound.instrument_id)
+    record_run_pipeline(run_dir, pipeline_version=PIPELINE_V27, instrument_id=bound.instrument_id)
+    providers = build_perpage_providers(
+        bound, instrument, run_dir,
+        extract_fn=v27.extract_fn, entail_fn=v27.entail_fn,
+        extractor_model=settings.extractor_model, x35_model=settings.x35_model,
+    )
+    institutions = list(v27.perpage_inputs(run_dir, sample, scraped, bound, instrument))
+    out: dict[str, Any] = {"pipeline_version": PIPELINE_V27, "instrument_id": bound.instrument_id}
+
+    span = tel.stage_start(V27_PERPAGE_SPAN, counts_in=sum(len(i.pages) for i in institutions))
+    ready, pm = run_perpage_v27(
+        run_dir, institutions, ask_fn=v27.jev_ask_fn, providers=providers,
+        page_config=bound.page_config, activity_config=bound.activity_config,
+        instrument=instrument,
+    )
+    out["n_perpage_ready"] = len(pm.ready)
+    out["n_perpage_held"] = len(pm.held)
+    out["n_perpage_failed_pages"] = len(pm.failed_pages)
+    tel.stage_end(span, counts_out=len(ready))
+
+    quote_fn = bound.stage6_quote_fn(v27.extract_fn, v27.entail_fn, x35_model=settings.x35_model)
+    span = tel.stage_start(V27_STAGE6_SPAN, counts_in=len(ready))
+    s6m = run_stage6_v27(
+        run_dir, ready, ask_fn=v27.jev_ask_fn, quote_fn=quote_fn,
+        config=bound.stage6_config(), instrument=instrument,
+    )
+    out["n_stage6_written"] = len(s6m.written)
+    out["n_stage6_held"] = len(s6m.held)
+    out["n_stage6_failed"] = len(s6m.failed)
+    out["n_stage6_skipped"] = len(s6m.skipped)
+    tel.stage_end(span, counts_out=len(s6m.written))
+    return out
+
+
 def run_presweep(
     config: PresweepConfig,
     *,
     credentials: Credentials | None = None,
     telemetry: RunTelemetry | None = None,
+    v27: V27Dispatch | None = None,
 ) -> dict[str, Any]:
     """End-to-end pre-sweep runner.
 
@@ -295,7 +430,17 @@ def run_presweep(
     runs in one process can spend two different keys. Resolution happens for a
     dry run too (it costs nothing and records nothing), which is what lets PR C
     write the manifest's credential fingerprints on every run, not just live ones.
+
+    Run mode (T-030): ``config.pipeline_version="v2.7"`` (not production ready,
+    opt-in) replaces Stages 5/6 with :func:`run_v27_dispatch` and requires
+    ``v27`` (the injected calls); without it the run is refused here, before any
+    planning or spend. ``v27`` is refused on a v2.5 run.
     """
+    if config.pipeline_version == PIPELINE_V27:
+        v27 = _require_v27_dispatch(v27)
+    elif v27 is not None:
+        raise ValueError("v27 dispatch inputs were supplied but pipeline_version is "
+                         f"{config.pipeline_version!r}")
     resolved = resolve(credentials)
     tel = telemetry if telemetry is not None else NO_TELEMETRY
     if not config.dry_run:
@@ -784,6 +929,16 @@ def run_presweep(
         _metered_guard("scrape")
         if config.stop_after == "scrape":
             return _finish("stop_after")
+
+        if config.pipeline_version == PIPELINE_V27:
+            # v2.7 (T-030): instead of Stage 5 extract / Stage 6 validate. The
+            # config admits only stop_after="validate" here.
+            _return_freed_memory()
+            assert v27 is not None  # checked on entry
+            summary.update(
+                run_v27_dispatch(plan.run_dir, plan.sample, scraped, v27, telemetry=tel)
+            )
+            return _finish()
 
         # Stage 4's fetched HTML is freed by now, but it sat on the glibc heap of
         # twelve worker threads; trim before Stage 5 loads its capped page texts

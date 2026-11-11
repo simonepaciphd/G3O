@@ -57,6 +57,18 @@ STAGES: tuple[str, ...] = (
     "extract",
     "validate",
 )
+#: Run modes of :func:`g3o.run.presweep.orchestrator.run_presweep` (T-030).
+#: ``v2.5`` (the default) runs Stage 5 extract and Stage 6 validate exactly as
+#: before. ``v2.7`` replaces them, after Stage 4 scrape, with instrument binding,
+#: the v2.7 per-page stage and v2.7 Stage 6; it is NOT production ready and is
+#: refused unless :attr:`PresweepConfig.v27_not_production_ready_opt_in` is set.
+PIPELINE_V25 = "v2.5"
+PIPELINE_V27 = "v2.7"
+PIPELINE_VERSIONS: tuple[str, ...] = (PIPELINE_V25, PIPELINE_V27)
+#: ``stop_after`` values a v2.7 run accepts: any stage up to scrape (the shared
+#: v2.5 stages) or ``validate`` (through v2.7 Stage 6). ``extract`` names a v2.5
+#: stage the v2.7 run does not have, so it is refused rather than reinterpreted.
+V27_STOP_AFTER: tuple[str, ...] = STAGES[: STAGES.index("scrape") + 1] + ("validate",)
 StageName = Literal[
     "discovery_general",
     "classify_official_site",
@@ -354,6 +366,14 @@ class PresweepConfig:
     # Non-blocking: stages aren't comparable (extract dominates), so an arbitrary
     # default factor can trigger false aborts. Operators must opt in.
     projection_safety_factor: float | None = None
+    # Run mode (T-030). Off by default: ``v2.5`` is the unchanged pipeline, and
+    # the config snapshot leaves both fields out while they hold their defaults,
+    # so a v2.5 manifest and its config_hash are byte-identical to before.
+    pipeline_version: Literal["v2.5", "v2.7"] = PIPELINE_V25
+    # Second, explicit opt-in for ``pipeline_version="v2.7"``, which is not
+    # production ready (upstream producers are absent and the X35 entry still
+    # refuses). Refused when set on a v2.5 run.
+    v27_not_production_ready_opt_in: bool = False
 
     def __post_init__(self) -> None:
         """Reject a language this run could not actually query (A7, 2026-08-02).
@@ -368,6 +388,27 @@ class PresweepConfig:
         construction: a language that cannot be queried cannot be configured,
         so the provenance column can no longer claim one that never ran.
         """
+        if self.pipeline_version not in PIPELINE_VERSIONS:
+            raise ValueError(
+                f"pipeline_version must be one of {PIPELINE_VERSIONS}, got "
+                f"{self.pipeline_version!r}"
+            )
+        if self.pipeline_version == PIPELINE_V27:
+            if self.v27_not_production_ready_opt_in is not True:
+                raise ValueError(
+                    "pipeline_version='v2.7' is not production ready and is refused "
+                    "without v27_not_production_ready_opt_in=True"
+                )
+            if self.stop_after not in V27_STOP_AFTER:
+                raise ValueError(
+                    f"pipeline_version='v2.7' has no {self.stop_after!r} stage: "
+                    f"stop_after must be one of {V27_STOP_AFTER}"
+                )
+        elif self.v27_not_production_ready_opt_in:
+            raise ValueError(
+                "v27_not_production_ready_opt_in is set but pipeline_version is "
+                f"{self.pipeline_version!r}; it only opts in to 'v2.7'"
+            )
         # Validate budget_usd is positive (fix: previously accepted zero, which would always abort)
         if self.budget_usd is not None and self.budget_usd <= 0:
             raise ValueError(

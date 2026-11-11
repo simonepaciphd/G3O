@@ -20,7 +20,7 @@ from g3o.discovery.query_builder import (
     evidence_terms_roster_hash,
     genai_terms_roster_hash,
 )
-from g3o.run.presweep.config import STAGES, PresweepConfig
+from g3o.run.presweep.config import PIPELINE_V25, STAGES, PresweepConfig
 from g3o.run.presweep.official_sites import apply_to_rows, load_bypass_map
 from g3o.run.presweep.records import (
     _read_master,
@@ -148,6 +148,12 @@ def config_snapshot(
         config_dict["institution_search_languages"] = (
             f"per-institution: language policy {config.language_policy}"
         )
+    # Run mode (T-030). Left out while it holds the v2.5 default so a v2.5
+    # snapshot -- and so the manifest and config_hash computed over it -- is the
+    # same bytes as before the field existed; a v2.7 run records both keys.
+    if config.pipeline_version == PIPELINE_V25 and not config.v27_not_production_ready_opt_in:
+        del config_dict["pipeline_version"]
+        del config_dict["v27_not_production_ready_opt_in"]
     return config_dict
 
 
@@ -247,6 +253,38 @@ def _write_manifest_atomic(path: Path, manifest: dict[str, Any]) -> None:
     tmp = path.with_name(f"{path.name}.tmp.{os.getpid()}.{threading.get_ident()}")
     tmp.write_text(payload, encoding="utf-8")
     os.replace(tmp, path)
+
+
+#: Manifest key of a v2.7 run's mode and bound instrument (T-030). Absent on a
+#: v2.5 run, whose manifest is unchanged.
+RUN_PIPELINE_KEY = "run_pipeline"
+
+
+def record_run_pipeline(run_dir: Path, *, pipeline_version: str, instrument_id: str) -> dict[str, Any]:
+    """Record a v2.7 run's mode and bound instrument id in ``manifest.json``.
+
+    Written after :func:`g3o.run.presweep.instrument_binding.bind_runtime`, the
+    first point the instrument id is known, and before any v2.7 stage runs.
+    Also sets the existing ``storage_contract.codebook_release`` to ``"2.7"``,
+    which is what :func:`g3o.persist.writer.write_run_csvs` reads to treat the
+    run's Stage 6 outputs as 2.7 storage. A manifest that already records a
+    different instrument or contract is refused (a resume under another setup).
+    """
+    path = run_dir / "manifest.json"
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    block = {"pipeline_version": pipeline_version, "instrument_id": instrument_id}
+    previous = manifest.get(RUN_PIPELINE_KEY)
+    if previous is not None and previous != block:
+        raise ValueError(
+            f"manifest records {RUN_PIPELINE_KEY}={previous!r}, this run binds {block!r}"
+        )
+    contract = manifest.get("storage_contract")
+    if contract is not None and contract.get("codebook_release") != "2.7":
+        raise ValueError(f"manifest records storage_contract={contract!r}, not codebook release 2.7")
+    manifest[RUN_PIPELINE_KEY] = block
+    manifest["storage_contract"] = {**(contract or {}), "codebook_release": "2.7"}
+    _write_manifest_atomic(path, manifest)
+    return block
 
 
 def write_run_layout(
@@ -561,6 +599,15 @@ def _assert_manifest_matches_on_resume(
         new_cfg.get("scrape_unlocker_on_block")
         or new_cfg.get("scrape_unlocker_on_empty")
     )
+    # Run mode (T-030): an absent key is the v2.5 default (the snapshot leaves it
+    # out), so a v2.5 run resumed as v2.7, or the reverse, is refused here: its
+    # pages would be coded by two different pipelines.
+    old_mode = old_cfg.get("pipeline_version", PIPELINE_V25)
+    new_mode = new_cfg.get("pipeline_version", PIPELINE_V25)
+    if old_mode != new_mode:
+        diffs.append(
+            f"config.pipeline_version: {old_mode!r} (manifest) != {new_mode!r} (this run)"
+        )
     for key in _GUARDED_CONFIG_KEYS:
         if key not in old_cfg and key in _ABSENT_TOLERATED_CONFIG_KEYS:
             if key.startswith("official_sites") and official_sites_active:
