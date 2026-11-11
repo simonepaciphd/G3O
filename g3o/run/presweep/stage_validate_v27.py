@@ -748,11 +748,16 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 
     Provider exceptions that stop the stage (``JevAccountError``,
     ``Stage6QuoteNotApproved``, budget stops) propagate; what was recorded
-    before them is replayed by the next run. Any other error of the executor for
-    one institution (:data:`EXECUTOR_FAILED`), an error building or writing its
-    artifacts, or existing artifacts that fail to reload, is recorded for that
-    institution (``held.json``, attrition, ``metrics.failed``) and the stage
-    continues with the next one.
+    before them is replayed by the next run. An executor refusal for one
+    institution (:data:`EXECUTOR_FAILED`: ``ConsolidationError``, ``ValueError``
+    or ``RuntimeError``, as in the per-page stage), an error building or writing
+    its artifacts, or existing artifacts that fail to reload, is recorded for
+    that institution (``held.json``, attrition, ``metrics.failed``) and the stage
+    continues with the next one. Any other executor exception (a programming
+    error such as ``TypeError``, ``KeyError`` or ``AttributeError``) stops the
+    stage. ``MissingUpstreamError`` (a ``ValueError``) is held per institution
+    here, unlike the per-page stage where it stops the stage (RC-D-033 C2 a);
+    its Stage 6 treatment awaits a PI ruling.
 
     ``quote_fn`` must come from :meth:`~g3o.run.presweep.instrument_binding.BoundRuntime.stage6_quote_fn`
     for this instrument, on its pinned X35 model (or be ``None``: every answer needing a quote is held);
@@ -790,7 +795,7 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
                                 quote_fn=journal.quote(quote_fn), config=config)
         except STAGE_STOPS:
             raise
-        except Exception as exc:  # noqa: BLE001 - one institution's executor error stops that institution only
+        except (ConsolidationError, ValueError, RuntimeError) as exc:  # this institution only
             error = f"{type(exc).__name__}: {exc}"
             _hold(run_dir, inst_dir, inst.institution_id, [EXECUTOR_FAILED], {"error": error},
                   {EXECUTOR_FAILED: error})

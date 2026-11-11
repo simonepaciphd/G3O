@@ -694,6 +694,37 @@ def test_executor_stop_errors_still_stop_the_stage(tmp_path, monkeypatch):
         _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
 
 
+@pytest.mark.parametrize("error", [TypeError, KeyError, AttributeError])
+def test_executor_programming_error_stops_the_stage_and_is_not_held(tmp_path, monkeypatch, error):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+
+    def broken(**kw):
+        raise error("simulated programming error")
+    monkeypatch.setattr(rt, "run_stage6", broken)
+    with pytest.raises(error):
+        _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+    assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
+
+
+def test_executor_missing_upstream_is_still_held_per_institution(tmp_path, monkeypatch):
+    # Stage 6 keeps holding MissingUpstreamError per institution; its treatment awaits a PI ruling.
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    real = rt.run_stage6
+
+    def missing(**kw):
+        if kw["institution"].endswith(A):
+            raise rt.MissingUpstreamError("simulated producer", ["x"])
+        return real(**kw)
+    monkeypatch.setattr(rt, "run_stage6", missing)
+    assert rt.MissingUpstreamError not in rt.STAGE_STOPS
+    metrics = _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+    assert metrics.failed == [A] and metrics.written == [B]
+    held = _held(run_dir)
+    assert held["reasons"] == [rt.EXECUTOR_FAILED] and "MissingUpstreamError" in held["error"]
+
+
 # --- QA round 2, MEDIUM-B: Z1 b retry is live; a response missing an asked answer is never replayed
 
 
