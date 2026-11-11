@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -554,15 +555,34 @@ def write_stage6_artifacts(inst_dir: Path, envelope: StorageEnvelope,
     return validate_path, storage_path, provenance_path
 
 
+#: bounded retry of ``os.replace`` on a transient Windows ``PermissionError`` (WinError 5:
+#: an indexer or antivirus briefly holding the file); a no-op on POSIX
+REPLACE_ATTEMPTS = 5
+REPLACE_BACKOFF_S = 0.05
+
+
+def replace_with_retry(tmp: Path, path: Path) -> None:
+    """``os.replace`` retried on ``PermissionError`` only; the last error is re-raised."""
+    for attempt in range(REPLACE_ATTEMPTS):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt == REPLACE_ATTEMPTS - 1:
+                raise
+            time.sleep(REPLACE_BACKOFF_S * (attempt + 1))
+
+
 def write_atomic(path: Path, data: bytes) -> None:
-    """Write ``data`` to ``path`` through a fsynced sibling temp file and ``os.replace``."""
+    """Write ``data`` to ``path`` through a fsynced sibling temp file and ``os.replace``
+    (retried on a transient ``PermissionError``, :func:`replace_with_retry`)."""
     tmp = path.with_name(path.name + ".tmp")
     try:
         with tmp.open("wb") as stream:
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(tmp, path)
+        replace_with_retry(tmp, path)
     finally:
         if tmp.exists():
             tmp.unlink()
