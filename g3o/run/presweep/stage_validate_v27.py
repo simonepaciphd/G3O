@@ -19,8 +19,11 @@ Rules carried here, not decided here:
   is appended and fsynced to ``stage6_v27/journal.jsonl`` before it is used,
   keyed by the SHA256 of the canonical request and its occurrence number. A
   re-run replays recorded responses instead of calling again, so completed
-  requests are not repeated; failed requests are not recorded and are asked
-  again. A torn final journal line (an interruption while writing) is dropped.
+  requests are not repeated. Failed requests are never replayed and are asked
+  again: an exception is not recorded; a billed response with no request id, or
+  with a request id but without the answer to a question it was asked
+  (RC-D-030 Z1 b, ``jev_answer_missing`` / ``pooled_request_part_failed``), is
+  journaled for accounting only. A torn final journal line (an interruption while writing) is dropped.
   An interruption inside a provider call cannot be exactly once.
 - **Accounting.** Token counts of every recorded jev response are kept in the
   journal, so a partial (interrupted) run's usage is recoverable from disk.
@@ -202,7 +205,9 @@ def _quote_from_json(doc: Mapping[str, Any]) -> Stage6Quote:
 REPLAYED_KINDS = frozenset({"jev", "quote", "extract", "x35"})
 #: Entry kinds kept for accounting only: billed or attempted calls that did not complete.
 #: They are never replayed; the request is asked again (a failed request, PI 2026-11-08 2.17).
-ACCOUNTING_KINDS = frozenset({"jev_unidentified", "extract_failed", "x35_failed"})
+#: ``jev_incomplete``: a response with a request id that lacks the answer to a question it was
+#: asked (RC-D-030 Z1 b: the question is held and asked again on the next run, never replayed).
+ACCOUNTING_KINDS = frozenset({"jev_unidentified", "jev_incomplete", "extract_failed", "x35_failed"})
 
 
 def _tokens(usage: Mapping[str, Any] | None, name: str) -> int:
@@ -291,10 +296,14 @@ class RequestJournal:
             start = time.monotonic()
             result = ask_fn(state, questions)  # an exception is not recorded: asked again on resume
             self.live += 1
-            if isinstance(result.request_id, str) and result.request_id.strip():
-                self._append(slot, _jev_to_json(result), _elapsed_ms(start))
-            else:  # billed but unidentified: a failed request (asked again), still accounted
+            if not (isinstance(result.request_id, str) and result.request_id.strip()):
+                # billed but unidentified: a failed request (asked again), still accounted
                 self._append(self._slot("jev_unidentified", request), _jev_to_json(result), _elapsed_ms(start))
+            elif set(questions) - set(result.answers):
+                # an asked answer is missing: that question is held and asked again next run (Z1 b)
+                self._append(self._slot("jev_incomplete", request), _jev_to_json(result), _elapsed_ms(start))
+            else:
+                self._append(slot, _jev_to_json(result), _elapsed_ms(start))
             return result
         return wrapped
 
@@ -357,8 +366,8 @@ class RequestJournal:
     def usage(self) -> dict[str, int]:
         """Totals of every journaled call (this and earlier, interrupted runs).
 
-        ``input_tokens`` / ``output_tokens`` are jev tokens (identified and
-        unidentified responses); ``extractor_*`` are the quote step's extractor
+        ``input_tokens`` / ``output_tokens`` are jev tokens (complete, unidentified
+        and incomplete responses); ``extractor_*`` are the quote step's extractor
         calls (successful and failed results); ``x35_calls`` / ``x35_failed``
         count X35 calls (their client reports no tokens here); ``request_ms`` is
         the summed call time. A quote step without seams is counted only as
@@ -370,12 +379,12 @@ class RequestJournal:
         def accounted(kind: str) -> list[dict[str, Any]]:
             return [e["response"] for e in self._accounting if e["kind"] == kind]
 
-        jev, unidentified = recorded("jev"), accounted("jev_unidentified")
+        jev, unidentified, incomplete = recorded("jev"), accounted("jev_unidentified"), accounted("jev_incomplete")
         extract = [*recorded("extract"), *accounted("extract_failed")]
-        return {"jev_responses": len(jev), "jev_unidentified": len(unidentified),
+        return {"jev_responses": len(jev), "jev_unidentified": len(unidentified), "jev_incomplete": len(incomplete),
                 "quote_responses": len(recorded("quote")),
-                "input_tokens": sum(r["input_tokens"] for r in (*jev, *unidentified)),
-                "output_tokens": sum(r["output_tokens"] for r in (*jev, *unidentified)),
+                "input_tokens": sum(r["input_tokens"] for r in (*jev, *unidentified, *incomplete)),
+                "output_tokens": sum(r["output_tokens"] for r in (*jev, *unidentified, *incomplete)),
                 "extractor_calls": len(extract),
                 "extractor_input_tokens": sum(_tokens(r.get("usage"), "input_tokens") for r in extract),
                 "extractor_output_tokens": sum(_tokens(r.get("usage"), "output_tokens") for r in extract),

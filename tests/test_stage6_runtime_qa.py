@@ -646,3 +646,59 @@ def test_executor_stop_errors_still_stop_the_stage(tmp_path, monkeypatch):
     with pytest.raises(rt.JevAccountError):
         _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
 
+
+# --- QA round 2, MEDIUM-B: Z1 b retry is live; a response missing an asked answer is never replayed
+
+
+class MissingOnce(e.FakeJev):
+    """Omits the answer to ``omit`` (the request id is still returned): a billed, incomplete response."""
+
+    def __init__(self, relations, answers, omit):
+        super().__init__(relations, answers)
+        self.omit = omit
+
+    def __call__(self, state, questions):
+        r = super().__call__(state, questions)
+        if self.omit in r.answers:
+            answers = {k: v for k, v in r.answers.items() if k != self.omit}
+            return JevResult(answers, r.response_model, r.request_id, r.input_tokens, r.output_tokens)
+        return r
+
+
+def _qid(item):
+    from g3o.classify.questions.v27 import load_set
+    return next(q["question_id"] for q in load_set("activity")["questions"] if q["item_id"] == item)
+
+
+@pytest.mark.parametrize("omit", ["pooled", "relation"])
+def test_z1_answer_missing_is_retried_live_on_the_next_run_and_publishes(tmp_path, omit):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    qid = _qid("core.adoption_stage") if omit == "pooled" else s6.RELATION_ITEM
+    first = _run(run_dir, bound, instrument, [a], e.FakeQuotes(),
+                 jev=MissingOnce(e.RELATIONS, e._pooled_answers(), qid))
+    assert first.held == [A] and not first.written
+    reason = s6.POOLED_REQUEST_FAILED if omit == "pooled" else s6.ANSWER_MISSING
+    assert reason in _held(run_dir)["reasons"]
+    usage = rt.RequestJournal(institution_dir(run_dir, A) / rt.WORK_DIR / rt.JOURNAL).usage()
+    assert usage["jev_incomplete"] >= 1 and usage["input_tokens"] > 0  # billed: accounted, not replayable
+    jev2 = e.FakeJev(e.RELATIONS, e._pooled_answers())
+    second = _run(run_dir, bound, instrument, [a], e.FakeQuotes(), jev=jev2)
+    assert second.written == [A], _held(run_dir)
+    assert any(qid in q for q in jev2.calls)  # the held question was asked again, live
+    assert rt.HELD_RELEASED in _ledger(run_dir)
+
+
+def test_journal_never_replays_a_response_missing_an_asked_answer(tmp_path):
+    path, calls = tmp_path / "journal.jsonl", []
+
+    def partial(state, questions):
+        calls.append(state)
+        return _answer(state, {})  # answers "Q" only
+
+    journal = rt.RequestJournal(path)
+    journal.ask(partial)({"s": 1}, {"Q": {}, "R": {}})
+    again = rt.RequestJournal(path)
+    again.ask(partial)({"s": 1}, {"Q": {}, "R": {}})
+    assert len(calls) == 2 and again.replayed == 0
+    assert again.usage()["jev_incomplete"] == 2 and again.usage()["jev_responses"] == 0
