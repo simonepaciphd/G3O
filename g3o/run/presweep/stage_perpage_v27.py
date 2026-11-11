@@ -43,13 +43,16 @@ Rules carried here, not decided here:
   (:class:`~g3o.persist.stage6_adapters.MissingUpstreamError`): the
   non-classifier row values (T-015 source fields, T-022 quote-step values,
   T-024 derived values) and the quote-step codes' support, the stored page
-  artifact layout (T-014/T-020), whether an observation is ``supported``,
-  T-025 follow provenance, uncertainty flags, independence groups, merged
+  artifact layout (T-014/T-020), T-025 follow provenance, uncertainty flags, independence groups, merged
   activities' non-pooled values, and the mapping of a finalized T-023 pair
   (a combined value list with no deciding part or probability) to one
   within-page relation decision. A reviewed page with no activity
   observation refuses (the 2.7 storage needs a source row's observation ids;
   no signed rule names them).
+- **Supported observation (RC-D-030 Y1 b).** ``ActivityObservation.supported`` is
+  derived here (:func:`observation_supported`): the observation's final
+  ``core.activity_type`` and ``core.action_type`` are both supported (support
+  status ``supported`` at the deciding part).
 - **Combined values.** A final classifier value must be carried by a support
   node of one of its parts (the original code or its downgrade replacement);
   gate and rule values get ``set_by_rule`` nodes with mechanical records. A
@@ -138,7 +141,8 @@ SOURCE_ITEMS = frozenset(table_fields("sources")) - set(METADATA_ITEMS)
 PRODUCED_CODERS = frozenset({"classifier"})
 T015_CLASSIFIER = "core.source_type"  # a classifier item T-015 owns: an upstream value and code
 
-SUPPORTED_PRODUCER = "rule for ActivityObservation.supported (no signed definition; explicit input)"
+#: RC-D-030 Y1 b: an observation is supported when both of these final values are supported.
+SUPPORTED_ITEMS = ("core.activity_type", "core.action_type")
 NO_OBSERVATION_SOURCE = ("source row of a reviewed page with no activity observation "
                          "(2.7 storage needs observation_ids; no signed rule)")
 VALUES_PRODUCER = "T-015 / T-022 / T-024 row values with no producer on this branch"
@@ -222,8 +226,8 @@ class PageUpstream:
     artifact (each part ``chunk_id`` and ``<page>#chrome``). ``activity_values``
     / ``source_values`` hold, per T-022 activity id, the non-classifier items of
     the activities / sources table rows; ``codes`` the support results and
-    coder records of the quote-step values among them. ``supported`` is
-    ``ActivityObservation.supported`` per activity.
+    coder records of the quote-step values among them. ``ActivityObservation.supported``
+    is derived by the producer (RC-D-030 Y1 b), not an input.
     """
 
     artifact_path: str | None = None
@@ -232,7 +236,6 @@ class PageUpstream:
     activity_values: Mapping[str, Mapping[str, Any]] | None = None
     source_values: Mapping[str, Mapping[str, Any]] | None = None
     codes: Mapping[str, Sequence[tuple[SupportResult, CoderRecord]]] | None = None
-    supported: Mapping[str, bool] | None = None
 
 
 @dataclass(frozen=True)
@@ -403,6 +406,24 @@ def _passage_order(artifact: PageArtifact, sr: SupportResult) -> int:
     return start + found[0]
 
 
+def observation_supported(aid: str, outcomes: Mapping[str, Any],
+                          support: Mapping[tuple[Any, ...], SupportResult]) -> bool:
+    """RC-D-030 Y1 b: the final ``activity_type`` and ``action_type`` are both supported.
+
+    A value is supported when its final outcome was combined from the parts without
+    failing and the support result at its deciding part has status ``supported``; a
+    gated, rule-set, failed (downgraded) or missing value is not.
+    """
+    for item in SUPPORTED_ITEMS:
+        o = next((o for o in outcomes.values() if o.item_id == item and o.part is None), None)
+        if o is None or o.state != "combined" or o.failed or o.part_id is None:
+            return False
+        sr = support.get((aid, item, None, o.part_id, None))
+        if sr is None or sr.support_status != "supported" or sr.value != o.value:
+            return False
+    return True
+
+
 def failed_page(spec: PageSpec, reason: str) -> ReviewedPage:
     """An attempted page T-021 could not code (no artifact): unreviewed, failed, reason kept."""
     if spec.upstream.followed is None:
@@ -439,8 +460,6 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         if value is None or set(acts) - set(value):
             raise MissingUpstreamError(f"{VALUES_PRODUCER} ({name})",
                                        sorted(set(acts) - set(value or {})) or [page.page_id])
-    if up.supported is None or set(acts) - set(up.supported):
-        raise MissingUpstreamError(SUPPORTED_PRODUCER, sorted(set(acts) - set(up.supported or {})))
     if uncertainty_flags is None:
         raise MissingUpstreamError("T-024 derived-field producer (core.uncertainty_flags)", [page.page_id])
     labels = activity_config.labels if activity_config.labels is not None else jac.default_labels()
@@ -611,7 +630,8 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         out.quotes.extend(quotes)
         out.records.append(ObservationRecord(oid, page.page_id, dict(frag["values"]), page.url, tuple(quotes)))
         out.observations.append(ActivityObservation(
-            oid, page.page_id, finals[aid].outcomes, nano_values(spans[aid]), bool(up.supported[aid]),
+            oid, page.page_id, finals[aid].outcomes, nano_values(spans[aid]),
+            observation_supported(aid, finals[aid].outcomes, act_support),
             tuple(frag["coder_records"]), tuple(frag["item_support"])))
     return out
 
@@ -805,6 +825,6 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 __all__ = [
     "HELD_REASON", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
-    "PerPageProviders", "failed_page", "observation_id", "produce_page", "run_perpage_v27", "source_id",
+    "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page", "run_perpage_v27", "source_id",
     "support_from_dict", "support_to_dict",
 ]

@@ -10,7 +10,7 @@ Fakes (declared, never runtime defaults): the jev answers, the support
 provider (the real T-024 ``check_code`` over quotes the fake quote steps
 copy from the stored part text, with a fake X35 ``true``), the T-022 spans,
 and the explicit upstream values whose producers are absent (T-015 source
-fields, T-022 quote-step values, T-024 derived values, ``supported``,
+fields, T-022 quote-step values, T-024 derived values,
 follow provenance, independence groups, merged values, uncertainty flags).
 The page layout is fixed per paragraph by monkeypatching ``plan_layout``.
 """
@@ -215,7 +215,7 @@ class World:
         segments = {c.chunk_id: (c.start, c.end) for c in _chunks(pid, page.text)}
         if chrome:
             segments[f"{pid}#chrome"] = (len(page.text) + 1, len(stored))
-        a_vals, s_vals, codes, supported = {}, {}, {}, {}
+        a_vals, s_vals, codes = {}, {}, {}
         for aid, name, tool, first, _ in page.activities:
             av = {k: v for k, v in _values("activities").items()
                   if k in pp.ACTIVITY_ITEMS and FIELDS[k]["coder"] != "classifier"}
@@ -235,8 +235,8 @@ class World:
                  self._code(pid, aid, "core.source_type", sv["core.source_type"], sample),
                  self._code(pid, aid, "core.source_publication_date", "not_documented", None),
                  self._code(pid, aid, "core.source_snippet", sv["core.source_snippet"], None)]
-            a_vals[aid], s_vals[aid], codes[aid], supported[aid] = av, sv, c, True
-        return pp.PageUpstream(artifact.as_posix(), segments, False, a_vals, s_vals, codes, supported)
+            a_vals[aid], s_vals[aid], codes[aid] = av, sv, c
+        return pp.PageUpstream(artifact.as_posix(), segments, False, a_vals, s_vals, codes)
 
     def institution(self, inst, merged=None):
         pages = [p for p in self.pages.values() if p.inst == inst]
@@ -567,9 +567,9 @@ def test_perpage_refuses_absent_upstream(tmp_path):
     run_dir, bound, instrument, world, insts = _setup(tmp_path)
     a = next(i for i in insts if i.institution_id == "INST-0000001")
     from dataclasses import replace
-    spec = replace(a.pages[0], upstream=replace(a.pages[0].upstream, supported=None))
+    spec = replace(a.pages[0], upstream=replace(a.pages[0].upstream, followed=None))
     broken = replace(a, pages=[spec, *a.pages[1:]])
-    with pytest.raises(pp.MissingUpstreamError, match="supported"):
+    with pytest.raises(pp.MissingUpstreamError, match="follow"):
         _perpage(run_dir, bound, instrument, world, [broken], FakeJev(ANSWERS, RELATIONS))
     no_acts = Page("INST-0000009", "n1", ["The council does not use generative AI."])
     world.pages["n1"] = no_acts
@@ -593,3 +593,43 @@ def test_cost_stop_is_not_a_page_failure_and_resumes(tmp_path):
     assert not any(r["reason"] == pp.HELD_REASON for r in attrition.read_records(run_dir))
     ready, metrics = _perpage(run_dir, bound, instrument, world, c, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
     assert [i.institution_id for i in ready] == ["INST-0000003"] and metrics.failed_pages == ["c2"]
+
+
+# ---------------------------------------------------------------------------
+# RC-D-030 rulings
+# ---------------------------------------------------------------------------
+
+
+def test_y1_supported_is_derived_from_activity_and_action_type(tmp_path):
+    """Y1 b: supported = final activity_type and action_type both supported (no explicit input)."""
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    ready, _ = _perpage(run_dir, bound, instrument, world, insts[:2], FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    obs = {o.observation_id: o for i in ready for o in i.observations}
+    assert obs["p1.a1"].supported and obs["p3.a2"].supported and obs["b2.a1"].supported
+    assert not obs["b1.a1"].supported  # activity_type downgraded (no quote) -> unknown
+    assert "supported" not in {f.name for f in __import__("dataclasses").fields(pp.PageUpstream)}
+
+
+def test_y1_observation_supported_unit():
+    from g3o.classify.jev_activity_code import ItemOutcome
+    from g3o.common.support_check import SupportResult
+
+    def sr(item, status, value):
+        return SupportResult(item_id=item, part=None, activity_id="a1", chunk_id="c0", original_value=value,
+                             value=value, support_status=status, support_status_second_reason=None,
+                             support_rule_name=None, supporting_text="q" if status == "supported" else None,
+                             quote_chunk_id="c0", match=None, chosen_answer_probability=0.9, entailment=None)
+    out = {"t": ItemOutcome("t", "core.activity_type", None, "combined", "internal_operational", part_id="c0"),
+           "a": ItemOutcome("a", "core.action_type", None, "combined", "deployment", part_id="c0")}
+    support = {("a1", "core.activity_type", None, "c0", None): sr("core.activity_type", "supported",
+                                                                   "internal_operational"),
+               ("a1", "core.action_type", None, "c0", None): sr("core.action_type", "supported", "deployment")}
+    assert pp.observation_supported("a1", out, support)
+    low = dict(support)
+    low[("a1", "core.action_type", None, "c0", None)] = sr("core.action_type", "downgraded_low_confidence",
+                                                            "deployment")
+    assert not pp.observation_supported("a1", out, low)
+    gated = {**out, "a": ItemOutcome("a", "core.action_type", None, "gated_out", "not_asked")}
+    assert not pp.observation_supported("a1", gated, support)
+    failed = {**out, "t": ItemOutcome("t", "core.activity_type", None, "combined", "unknown", True, part_id="c0")}
+    assert not pp.observation_supported("a1", failed, support)
