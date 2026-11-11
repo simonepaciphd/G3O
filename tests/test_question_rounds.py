@@ -314,3 +314,95 @@ def test_activity_checkpoint_roundtrip_retains_pair_and_refuses_missing_position
     del raw["activities"][0]["part_indices"]
     with pytest.raises(ValueError, match="lacks original part_indices"):
         ac.PageActivityResult.from_dict(raw)
+
+class OverLimit(Exception):
+    """Offline stand-in for the provider's 400 ``max_tokens_exceeded`` rejection."""
+    status = 400
+    body = {"error_type": "max_tokens_exceeded"}
+
+
+def _over_limit(*_):
+    raise OverLimit("part exceeds the token limit")
+
+
+def _activity_check(_, records):
+    return [Support(r.item_id, r.chunk_id, part=r.item_part, activity_id=aid) for aid, r in records]
+
+
+def test_activity_over_limit_part_is_failed_vote_and_question_combines(rules):
+    # RC-D-024 item 9: not halved, recorded as failed part jev_request_failed, then combined.
+    inp, result, support, config, _ = activity_case(rules)
+    calls = []
+    def ask(state, questions):
+        calls.append((state["page_text"], tuple(questions)))
+        _over_limit()
+    done = complete_activity_rounds(inp, result, support, ask_fn=ask, config=config,
+                                    check_support=_activity_check)
+    assert done.complete
+    # One request per (activity part, newly opened question): no halving, no retry.
+    assert len(calls) == len(set(calls)) and all(len(q) == 1 for _, q in calls)
+    new = done.result.failures[len(result.failures):]
+    assert len(new) == len(calls)
+    assert {("a", ("core.model_origin",)), ("b", ("core.model_origin",))} <= {
+        (f.activity_id, f.question_ids) for f in new}
+    assert all(f.reason == ac.REQUEST_FAILED and f.chunk_id == "p:0" and f.linked_activity is None
+               and f.detail.startswith("over_limit") and "OverLimit" in f.detail for f in new)
+    finals = {a.activity_id: a.outcomes for a in done.final}
+    for a in done.result.activities:
+        for f in (f for f in new if f.activity_id == a.activity_id):
+            (qid,) = f.question_ids
+            for o in (a.outcomes[qid], finals[a.activity_id][qid]):
+                assert o.state == "combined" and o.failed and o.cause == ac.REQUEST_FAILED
+                assert not (o.note or "").startswith("extra_round_failed")
+
+
+def test_activity_other_extra_round_exception_is_still_held(rules):
+    inp, result, support, config, _ = activity_case(rules)
+    done = complete_activity_rounds(inp, result, support, config=config,
+                                    ask_fn=lambda *_: (_ for _ in ()).throw(RuntimeError("offline failure")),
+                                    check_support=_activity_check)
+    assert not done.complete
+    held = [a.outcomes["core.model_origin"] for a in done.result.activities
+            if a.outcomes.get("core.model_origin") is not None]
+    assert held and held[0].state == "pending" and held[0].note.startswith("extra_round_failed:")
+    assert done.result.failures[-1].reason == "extra_round_failed"
+
+
+def test_activity_resume_after_over_limit_sends_nothing_again(rules):
+    inp, result, support, config, _ = activity_case(rules)
+    saved = []
+    def checkpoint(updated, checked):
+        saved.append((ac.PageActivityResult.from_json(json.dumps(updated.to_dict())), checked))
+        raise KeyboardInterrupt  # interrupted right after the first over-limit vote is saved
+    calls = []
+    def ask(state, questions):
+        calls.append((state["page_text"], tuple(questions)))
+        _over_limit()
+    with pytest.raises(KeyboardInterrupt):
+        complete_activity_rounds(inp, result, support, ask_fn=ask, config=config,
+                                 check_support=_activity_check, checkpoint=checkpoint)
+    assert len(calls) == 1
+    first = calls[0]
+    resumed = complete_activity_rounds(inp, *saved[-1], ask_fn=ask, config=config,
+                                       check_support=_activity_check)
+    assert resumed.complete
+    assert first not in calls[1:]  # the over-limit part was not resent
+    assert len(calls) == len(set(calls))
+    uninterrupted = complete_activity_rounds(inp, result, support, ask_fn=_over_limit, config=config,
+                                             check_support=_activity_check)
+    assert resumed.final == uninterrupted.final
+    assert resumed.result == uninterrupted.result
+    again = complete_activity_rounds(inp, resumed.result, resumed.support, config=config,
+                                     ask_fn=lambda *_: pytest.fail("resume must send nothing"),
+                                     check_support=_activity_check)
+    assert again.final == resumed.final and again.result == resumed.result and again.rounds == 0
+
+
+def test_page_extra_round_over_limit_is_still_held(monkeypatch, rules):
+    page, result, support, config, _ = page_case(monkeypatch, rules)
+    done = complete_page_rounds(page, result, support, config=config, ask_fn=_over_limit,
+                                check_support=lambda *_: pytest.fail("no answer to check"))
+    assert not done.complete
+    assert done.final.items["core.disclosure_scope"].state == "pending"
+    assert done.result.items["core.disclosure_scope"].note.startswith("extra_round_failed:")
+    assert done.result.failures[-1]["reason"] == "extra_round_failed"

@@ -14,6 +14,14 @@ an interruption inside a provider call cannot provide an exactly-once guarantee.
 A request failure holds the question pending. ``complete`` is false whenever
 any question is pending or stopped: callers MUST refuse final publication.
 No new stopping policy or final negative is inferred from an exhausted request.
+
+Exception (RC-D-024 item 9, lane D reading 5): an activity part rejected as
+over the token limit in an extra round is not halved and not retried. It is
+recorded as a failed part vote (``PartFailure`` reason ``jev_request_failed``,
+over-limit detail), exactly as the first-round activity coder records a
+failed request, and the question is combined from its votes. A resume never
+sends that part again. Page questions in extra rounds are unchanged: any
+failure, over-limit included, still holds the question pending.
 """
 
 from __future__ import annotations
@@ -28,9 +36,11 @@ from g3o.common.cost_monitor import BudgetExceededError
 from g3o.common.jev_client import JevAccountError
 from g3o.common.jev_record import CoderRecord
 from g3o.common.part_combine import NOT_COVERED
+from g3o.validate.jev_validate import is_max_tokens_exceeded
 
 _PENDING = "extra_round_in_progress"
 _HELD = "extra_round_failed:"
+_OVER_LIMIT = "over_limit, not halved (RC-D-024 item 9): "
 Checkpoint = Callable[[Any, tuple[Any, ...]], None]
 
 
@@ -242,6 +252,8 @@ def complete_activity_rounds(inp: activity.ActivityPageInput, result: activity.P
             if any(r.coder_type == "classifier" and r.question_id == qid and r.chunk_id == chunk.chunk_id
                    for r in act.records):
                 continue
+            if any(_failed_vote(f, aid, qid, chunk.chunk_id) for f in result.failures):
+                continue  # over-limit failed part vote: final, never resent
             show_number = activity.NANO_STATE_FIELDS["stated_number"] in (q.get("shows_value_of") or ())
             state = activity.build_state(inp, chunk, index, sp, act.label, nano[aid], prior,
                                          setup.qset, show_number=show_number)
@@ -254,6 +266,12 @@ def complete_activity_rounds(inp: activity.ActivityPageInput, result: activity.P
             except (JevAccountError, BudgetExceededError):
                 raise
             except Exception as exc:
+                if is_max_tokens_exceeded(exc):
+                    result = replace(result, failures=result.failures + (
+                        activity.PartFailure(activity.REQUEST_FAILED, aid, chunk.chunk_id, q["round"],
+                                             (qid,), f"{_OVER_LIMIT}{type(exc).__name__}: {exc}"),))
+                    _save(checkpoint, result, support)
+                    continue
                 outcomes[qid] = replace(outcomes[qid], note=_HELD + str(exc))
                 act = replace(act, outcomes=dict(outcomes))
                 result = replace(_put_activity(result, pos, act), failures=result.failures + (
@@ -267,12 +285,24 @@ def complete_activity_rounds(inp: activity.ActivityPageInput, result: activity.P
             _save(checkpoint, result, support)
         indices = dict(zip(act.chunk_ids, act.part_indices, strict=True))
         records = [r for r in act.records if r.coder_type == "classifier" and r.question_id == qid]
-        outcomes[qid] = activity._combine(q, [activity._vote(r, indices[r.chunk_id]) for r in records],
-                                           config.combiner, final_outcomes, setup.by_id)
+        votes = [activity._vote(r, indices[r.chunk_id]) for r in records]
+        # Failed part votes, built as the first-round coder and finalize_activities build them.
+        seen = {v.part_id for v in votes}
+        for f in result.failures:
+            if f.activity_id == aid and qid in f.question_ids and f.chunk_id not in seen:
+                votes.append(activity.PartVote(f.chunk_id, indices[f.chunk_id], activity.UNKNOWN,
+                                               None, True, f.reason))
+                seen.add(f.chunk_id)
+        outcomes[qid] = activity._combine(q, votes, config.combiner, final_outcomes, setup.by_id)
         result = _put_activity(result, pos, replace(act, outcomes=dict(outcomes)))
         _save(checkpoint, result, support)
         rounds += 1
     raise ValueError("question graph did not make finite progress")
+
+
+def _failed_vote(f: activity.PartFailure, aid: str, qid: str, chunk_id: str) -> bool:
+    return (f.reason == activity.REQUEST_FAILED and f.activity_id == aid and f.chunk_id == chunk_id
+            and f.linked_activity is None and qid in f.question_ids)
 
 
 def _put_activity(result: activity.PageActivityResult, pos: int,
