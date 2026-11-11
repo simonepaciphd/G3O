@@ -581,6 +581,22 @@ def test_run_presweep_v25_default_never_reaches_the_v27_dispatch(tmp_path, monke
     assert orch.V27_USAGE_KEY not in report and orch.V27_USAGE_KEY not in summary
 
 
+def _stub_priced_stages_done(monkeypatch):
+    """The stubbed Stages 2 and 3 write the zero-usage ``.done`` marker a real no-batch stage writes, so
+    the cost monitor reads $0 for them rather than a missing record (which it treats as over budget)."""
+    from g3o.common.run_state import mark_done
+
+    for name in ("_run_classify_official_site", "_run_classify_triage"):
+        stub, stage = getattr(orch, name), name.removeprefix("_run_")
+
+        def done(run_dir, *a, _stub=stub, _stage=stage, **kw):
+            out = _stub(run_dir, *a, **kw)
+            mark_done(run_dir, _stage, no_batch=True)
+            return out
+
+        monkeypatch.setattr(orch, name, done)
+
+
 def _v27_presweep_config(tmp_path, **kw):
     return _v27_config(tmp_path, master_csv=_write_master(tmp_path / "master.csv"), sample_size=1,
                        dry_run=False, poll_interval=0, max_wait_per_stage=10,
@@ -596,6 +612,7 @@ def test_run_presweep_v27_enforces_the_budget_on_stages_1_to_4(tmp_path, monkeyp
     monkeypatch.setattr(serper_client, "_live_mode", False, raising=False)
     seen = {}
     _stub_stages_1_to_4(monkeypatch, seen)
+    _stub_priced_stages_done(monkeypatch)
     stub_scrape = orch._run_scrape
 
     def costly_scrape(*a, **kw):
@@ -607,12 +624,14 @@ def test_run_presweep_v27_enforces_the_budget_on_stages_1_to_4(tmp_path, monkeyp
     run_dir = config.runs_dir / config.run_id
     _, _, _, world, _ = _world(run_dir.parent, config.run_id)
     inputs = WorldInputs(world)
-    with pytest.raises(BudgetExceededError):
+    with pytest.raises(BudgetExceededError) as exc:
         orch.run_presweep(
             config, credentials=Credentials(openai_api_key="sk-test", serper_api_key="s", typesafe_api_key="t"),
             v27=_dispatch(world, inputs=inputs))
+    assert exc.value.stage == "scrape"  # the metered Unlocker spend, not a missing stage record
     assert inputs.calls == []  # no v2.7 stage ran
     report = json.loads((run_dir / "_cost_report.json").read_text(encoding="utf-8"))
+    assert report["data_missing_stages"] == []
     assert report["budget_usd"] == 1.0 and report["budget_exceeded"] is True
     assert report[orch.V27_BUDGET_SCOPE_KEY] == orch.V27_BUDGET_SCOPE and report[orch.V27_USAGE_KEY] is None
     assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in INSTS)
@@ -622,6 +641,7 @@ def test_run_presweep_v27_budget_leaves_the_unpriced_v27_stages_outside_it(tmp_p
     _refuse_clients(monkeypatch)
     monkeypatch.setattr(serper_client, "_live_mode", False, raising=False)
     _stub_stages_1_to_4(monkeypatch, {})
+    _stub_priced_stages_done(monkeypatch)
     config = _v27_presweep_config(tmp_path, budget_usd=5.0)
     run_dir = config.runs_dir / config.run_id
     _, _, _, world, _ = _world(run_dir.parent, config.run_id)
@@ -633,5 +653,6 @@ def test_run_presweep_v27_budget_leaves_the_unpriced_v27_stages_outside_it(tmp_p
     assert any("enforced on Stages 1-4 only" in r.getMessage() for r in caplog.records)
     report = json.loads((run_dir / "_cost_report.json").read_text(encoding="utf-8"))
     assert report["budget_usd"] == 5.0 and report["budget_exceeded"] is False
+    assert report["data_missing_stages"] == []
     assert report[orch.V27_BUDGET_SCOPE_KEY] == orch.V27_BUDGET_SCOPE
     assert report[orch.V27_USAGE_KEY][orch.V27_PERPAGE_SPAN]["input_tokens"] > 0  # used, and not in total_usd
