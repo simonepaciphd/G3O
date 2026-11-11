@@ -1,0 +1,435 @@
+{
+  "format": "plan-labels-v1",
+  "written_by": {
+    "harness": "claude-code",
+    "model": "claude-opus-5-5"
+  },
+  "date": "2026-11-10",
+  "sources": {
+    "SPEC.md": "546e72839ce939d4cf99a5da6bbf7d71fa92938af15d10ce04d67eb69beed5e9",
+    "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
+    "PLAN.md": "cc051e9d4a85fa0169183f2803906aa85e0ce80810ef8dfc83f19368f40fef5f"
+  },
+  "labels": {
+    "T-001": {
+      "label": "Count usable stored pages",
+      "plain": "Count available page text for documented and unclear institutions, and check storage capacity. These counts determine how much the back-fill must fetch again."
+    },
+    "T-002": {
+      "label": "Measure cost and runtime",
+      "plain": "Measure classifier and extractor calls, token use and runtime on a small sample, keeping the Haiku extraction steps. The link cap was set without its fan-out figures, so the written report is the remaining step."
+    },
+    "T-003": {
+      "label": "Calibrate supporting quote checks",
+      "plain": "Tune the quote matcher on pairs labelled by a paid jev fidelity score or the 80% word-presence rule. Simone set one pooled threshold (93, normalized token-set ratio) and a 200-character website quote display limit."
+    },
+    "T-010": {
+      "label": "Sign the shared codebook",
+      "plain": "Prepare the codebook and generated contract wording for Simone's signature. The signed file fixes the coding rules and their release version."
+    },
+    "T-011": {
+      "label": "Generate classifier question sets",
+      "plain": "Build versioned page, activity and consolidation questions from the signed codebook. Wording that is not verbatim goes to Simone in one approval packet before the integration merge."
+    },
+    "T-012": {
+      "label": "Update schemas and constants",
+      "plain": "Update generated field definitions, allowed values and version metadata, with compatibility checks for earlier formats. Assign each affected file to its owning task."
+    },
+    "T-013": {
+      "label": "Build codebook generation tools",
+      "plain": "Build the schema, loader and generators that turn the signed codebook into questions, prompts and documentation. Automated checks detect changes that break agreement with the codebook."
+    },
+    "T-014": {
+      "label": "Keep page context and links",
+      "plain": "Store page headers, footers and other surrounding text separately from the main text, along with web and email links. Newly fetched pages supply this context for contact details and follow-up searches."
+    },
+    "T-015": {
+      "label": "Code source level fields",
+      "plain": "Code each source's type, credibility, date, language and other source details. Use the shared rules for provenance and uncertainty."
+    },
+    "T-016": {
+      "label": "Recheck revised questionnaire items",
+      "plain": "A small paid pilot tested the revised questions before their wording was relied on. It is complete: Simone accepted the results and ruled out a re-test."
+    },
+    "T-020": {
+      "label": "Split and combine pages",
+      "plain": "Split long pages to fit the classifier's token limit. Combine their answers using each codebook item's rule and retain the originating chunk."
+    },
+    "T-021": {
+      "label": "Classify each source page",
+      "plain": "Run the first classifier pass on each page in the approved question order. Record answers and confidence, and identify pages needing further evidence."
+    },
+    "T-022": {
+      "label": "Extract page quotes and spans",
+      "plain": "Extract verbatim support, activity spans and permitted text fields from source pages, and select follow-up links. Span positions count from the start of the whole page, and the prompt wording joins the single approval packet."
+    },
+    "T-023": {
+      "label": "Classify activities within pages",
+      "plain": "Code each activity using its marked span within the source page. Apply the signed questions, activity conditions and round order."
+    },
+    "T-032": {
+      "label": "Extract activity supporting text",
+      "plain": "Extract verbatim support for positive or substantive activity codes, in one request per page. Keep each quote tied to the page chunk that produced the code; the prompt wording joins the single approval packet."
+    },
+    "T-024": {
+      "label": "Check support and confidence",
+      "plain": "Check each quote against its source text: it passes if the calibrated matcher or the 80% word-presence rule accepts it, then test whether it supports the coded value. Apply the approved confidence and downgrade rules once, after the first-pass coding rounds."
+    },
+    "T-025": {
+      "label": "Follow missing evidence links",
+      "plain": "Fetch selected links from incomplete pages, up to three hops and ten followed links per institution. Record how each source was found and when a limit or failure stops further fetching."
+    },
+    "T-026": {
+      "label": "Consolidate evidence and verdicts",
+      "plain": "Combine page and activity records under the signed relationship and verdict rules. Preserve unresolved relationships and record the evidence behind each institution result."
+    },
+    "T-027": {
+      "label": "Record automated coding answers",
+      "plain": "Record each automated answer with its available probabilities, request details, question version and run setup. When a classifier omits the chosen-answer probability, preserve the returned code and omission in provenance, apply the existing downgrade rules and record the cause."
+    },
+    "T-028": {
+      "label": "Write the new output rows",
+      "plain": "Write the published fields, full supporting quotes and version metadata to CSV. Preserve the agreed handling of legacy fields, source text and support status."
+    },
+    "T-030": {
+      "label": "Integrate the new run",
+      "plain": "Connect the new coding stages to the pipeline's orchestration and configuration. Verify the new-run path with simulated service responses."
+    },
+    "T-029": {
+      "label": "Build the back-fill command",
+      "plain": "Reclassify a fixed institution list from all stored pages of each latest run, fetching pages again where required. Give every institution a recorded outcome under a fresh release identifier."
+    },
+    "T-034": {
+      "label": "Correct transferred activity ownership",
+      "plain": "Code the 114 reviewed transfer activities under their 45 verified owners. Keep corrections linked to the original observations without adding search records or changing denominators."
+    },
+    "T-035": {
+      "label": "Integrate all processing paths",
+      "plain": "Integrate the back-fill and ownership-transfer paths with the new-run pipeline. Check all three paths and regenerate the approved version records once."
+    },
+    "T-031": {
+      "label": "Review the integrated implementation",
+      "plain": "An independent reviewer checks the integrated code and contract against the specification. The review covers new runs, back-fill and ownership transfers."
+    },
+    "T-040": {
+      "label": "Build labelled test cases",
+      "plain": "Create synthetic cases for pipeline mechanics and real-page cases for coding rules and verdicts, at least three per check. An agent labels the real-page expectations and jev scores them."
+    },
+    "T-041": {
+      "label": "Run paid integration checks",
+      "plain": "Run the labelled cases through all processing paths, plus a small back-fill using real observation identifiers. Simone runs the paid command and rules on failures."
+    },
+    "T-050": {
+      "label": "Agree the publication interface",
+      "plain": "Specify the public fields and display rules for Colin. Check implementation conformance, obtain authorization to send, and secure Colin's acceptance."
+    },
+    "T-051": {
+      "label": "Add the database structure",
+      "plain": "Prepare reversible database changes for correction records, version metadata and new coding fields. Keep original observations intact and support the agreed publication interface."
+    },
+    "T-052": {
+      "label": "Update ingestion and API",
+      "plain": "Load the new output format and serve the agreed fields, history and full supporting text. Keep new rows hidden until release and refresh public aggregates."
+    },
+    "T-053": {
+      "label": "Update the public website",
+      "plain": "Display each institution's latest row with its version, applicable fields and supporting text. Apply the approved display rules for older rows and translated text."
+    },
+    "T-054": {
+      "label": "Rehearse loading and rollback",
+      "plain": "Test migration, loading, visibility and rollback on a disposable copy of the live database. Verify correction links and confirm that original values remain unchanged."
+    },
+    "T-055": {
+      "label": "Prepare the live backend",
+      "plain": "Apply the reviewed database changes and deploy ingestion before the new pipeline goes live. Check that old runs still publish and new-format rows remain hidden."
+    },
+    "T-060": {
+      "label": "Coordinate the procurement update",
+      "plain": "Prepare the shared-codebook changes for the procurement integrator and obtain the required acceptance before deployment. Simone approves the message and the changes to that sibling plan."
+    },
+    "T-061": {
+      "label": "Notify the validation owner",
+      "plain": "Tell the validation integrator which contract and version inputs change and when. Obtain acknowledgement and a statement on whether the changes break locked inputs."
+    },
+    "T-062": {
+      "label": "Coordinate AI-text adoption",
+      "plain": "Prepare the AI-text-detection handoff for adoption of the shared codebook after deployment. Send it only after Simone approves the text."
+    },
+    "T-063": {
+      "label": "Request calendar conversion rules",
+      "plain": "Superseded (RC-D-020): the request to the multilingual subproject is not sent, because the calendar and fiscal-year conversion rule was built in this plan (T-064)."
+    },
+    "T-064": {
+      "label": "Convert calendar and fiscal years",
+      "plain": "Turn fiscal-year labels, other calendars (Japanese era, Buddhist Era, ROC) and year ranges into candidate calendar years for the year items, with two-digit years read by a sliding pivot. Built, tested and measured on the stored pages."
+    },
+    "T-065": {
+      "label": "Route PDF and Word files",
+      "plain": "Recognise PDF and Word files served as web pages and send them to a text extractor instead of storing garbled text. Already-stored garbled pages stay not assessable."
+    },
+    "T-071": {
+      "label": "Deploy the revised pipeline",
+      "plain": "Merge and deploy the reviewed pipeline after wave 5 is published and the required gates pass. Check the deployed version, credentials and available storage."
+    },
+    "T-070": {
+      "label": "Freeze the back-fill population",
+      "plain": "Fix the institution list at the approved freeze date. Include documented and unclear institutions plus the verified owners of transferred activities."
+    },
+    "T-072": {
+      "label": "Test a small back-fill",
+      "plain": "Run a varied sample through the back-fill and inspect its correction files. Use the results to project full-run cost and runtime for Simone's review."
+    },
+    "T-073": {
+      "label": "Run the full back-fill",
+      "plain": "Process the frozen institution set and record a result or named failure for each institution. Report progress and cost by batch."
+    },
+    "T-074": {
+      "label": "Load and reconcile corrections",
+      "plain": "Load the back-fill under a fresh release identifier after taking a database snapshot. Keep the rows hidden and reconcile the loaded results and refreshed aggregates."
+    },
+    "T-080": {
+      "label": "Draw the quality sample",
+      "plain": "Draw 400 institutions across the agreed four groups, plus a separate transfer-owner sample. Select the second-reader subset and record the sampling seeds."
+    },
+    "T-081": {
+      "label": "Read the sample independently",
+      "plain": "Have agents read sampled source pages without seeing the pipeline's codes. Record page and institution verdicts with enough detail to trace each judgment."
+    },
+    "T-082": {
+      "label": "Compile the quality evidence",
+      "plain": "Compare independent reads with pipeline verdicts and assemble support, confidence and traceability checks. Report agreement as agreement and identify disagreements for Simone's audit."
+    },
+    "T-083": {
+      "label": "Simone audits the results",
+      "plain": "Simone reviews every disagreement and 25 randomly selected cases. Her signed audit is required before the release decision."
+    },
+    "T-090": {
+      "label": "Document the revised methods",
+      "plain": "Generate the data dictionary and update the methods note, version history and related documentation. Simone approves the public wording."
+    },
+    "T-095": {
+      "label": "Approve and publish results",
+      "plain": "After the audit, Simone decides whether to release the new data. Publish through the API and website and check the released outputs."
+    },
+    "T-096": {
+      "label": "Check reproduction and traceability",
+      "plain": "Rerun the documented pipeline for 20 sampled institutions against an approved agreement criterion. Trace published codes to their pages, quotes, requests and versions."
+    },
+    "T-097": {
+      "label": "Maintain the governed plan",
+      "plain": "Receive task reports, prepare changes for Simone and maintain approved plan updates and completion records. On 2026-12-01, check the publication window and remind Simone to set dates for the next one."
+    },
+    "D-001": {
+      "label": "Shared signed codebook release",
+      "plain": "A machine-readable codebook holds the approved coding rules. Its generators produce matching questions, prompts, schemas and documentation."
+    },
+    "D-002": {
+      "label": "Revised production pipeline",
+      "plain": "A production pipeline produces the new codebook's output for future runs and back-fill. It implements the approved coding, support and provenance rules."
+    },
+    "D-003": {
+      "label": "Reclassified historical observations",
+      "plain": "A back-fill release reclassifies documented and unclear institutions. Corrections remain linked to the original observations."
+    },
+    "D-004": {
+      "label": "Published versioned research data",
+      "plain": "The database, API and website publish the new fields and supporting text with their codebook version. The website shows the latest institution row while the backend retains run history."
+    },
+    "D-005": {
+      "label": "Quality evidence and audit",
+      "plain": "A packet combines independent agent reads, confidence checks and Simone's audit. It supplies the evidence for the release decision."
+    },
+    "D-006": {
+      "label": "Updated definitions and methods",
+      "plain": "The generated data dictionary, contract history and methods note document the new fields and coding rules. They explain version differences and how evidence is handled."
+    },
+    "D-007": {
+      "label": "API and website handoff",
+      "plain": "An interface specification tells Colin which fields and versions to publish and how to display mixed versions. It covers supporting text, source labels and the agreed privacy and translation rules."
+    },
+    "D-008": {
+      "label": "Procurement codebook adoption",
+      "plain": "A handoff coordinates the procurement pipeline's adoption of the shared codebook for its covered items. Changes to that locked plan require Simone's ruling there."
+    },
+    "D-009": {
+      "label": "AI-text codebook adoption",
+      "plain": "A handoff coordinates the AI-text pipeline's move to a pinned shared-codebook release after deployment. It identifies the affected cue and pilot specifications."
+    },
+    "D-010": {
+      "label": "Calendar rule coordination",
+      "plain": "A handoff asks the multilingual subproject for the calendar and fiscal-year conversion rules the pipeline needs. It also records ownership of shared language coverage."
+    },
+    "RS-001": {
+      "label": "Project asset registry",
+      "plain": "The native writer's inventory records project assets and their locations. It is a reference for finding existing work."
+    },
+    "RS-002": {
+      "label": "Approved plan and rulings",
+      "plain": "The planning files hold the approved specification, interview decisions and review record. They define the scope for this work."
+    },
+    "RS-003": {
+      "label": "Unclear screening handoff",
+      "plain": "The earlier screening handoff records rulings, verified counts and the new-field footprint. It supplies inputs to the reclassification plan."
+    },
+    "RS-004": {
+      "label": "Stored page counting scripts",
+      "plain": "Existing scripts enumerate stored runs, count pages and repeat the unclear-screen pilot. They provide a starting point for availability and sizing checks."
+    },
+    "RS-005": {
+      "label": "Unclear screening pilot results",
+      "plain": "Stored counts and pilot answers describe the unclear set and its sampled pages. They provide evidence for planning and test-case selection."
+    },
+    "RS-006": {
+      "label": "Remote institution screening records",
+      "plain": "Remote scratch records identify each institution's latest run and text or ambiguity flags. Their continued availability needs verification."
+    },
+    "RS-007": {
+      "label": "Remote stored pages and outputs",
+      "plain": "The pipeline's stored page text and final CSVs are the inputs for historical reclassification. Reading them requires authorized server access."
+    },
+    "RS-008": {
+      "label": "Local stored page corpus",
+      "plain": "A local copy of one run's scraped pages supports offline checks. It supplies source text without a fresh scrape."
+    },
+    "RS-009": {
+      "label": "Earlier classifier comparison corpus",
+      "plain": "The earlier comparison package contains page archives and classifier agreement results. It supports offline testing and comparison without establishing accuracy."
+    },
+    "RS-010": {
+      "label": "Current contracts and schemas",
+      "plain": "The existing production contracts, schemas and version checks define the starting format. Changes to their coding rules require Simone's approval."
+    },
+    "RS-011": {
+      "label": "Earlier evidence review implementation",
+      "plain": "The archived implementation contains prior coding rules, quote checks and test cases. It serves as a reference for the revised pipeline."
+    },
+    "RS-012": {
+      "label": "Classifier client and runner",
+      "plain": "The existing classifier client exposes answer confidence, probabilities and request metadata. The stage runner supplies the current integration pattern."
+    },
+    "RS-013": {
+      "label": "Existing classification stage code",
+      "plain": "Current classification stages write answer metadata to institution files. They provide precedents for question versioning and classifier records."
+    },
+    "RS-014": {
+      "label": "Existing validation stage code",
+      "plain": "The current validation stage includes page splitting and answer handling. Its missing metadata and split limitations identify work for the replacement."
+    },
+    "RS-015": {
+      "label": "Existing extraction client code",
+      "plain": "The current extraction and batch modules implement the older model path. The new extractor requires an Anthropic client and revised extraction behavior."
+    },
+    "RS-016": {
+      "label": "Existing scraping and fetching",
+      "plain": "Current scraper modules handle fetching, rendering and page parsing. Their treatment of surrounding text and links defines the changes needed for follow-up evidence."
+    },
+    "RS-017": {
+      "label": "Existing pipeline orchestration code",
+      "plain": "The current orchestration code controls runs, sampling and resume behavior. It is the starting point for a fixed-list back-fill entry."
+    },
+    "RS-018": {
+      "label": "Current output and documentation",
+      "plain": "The CSV writer, schema and operational documents describe the existing output path. They need alignment with the revised codebook."
+    },
+    "RS-019": {
+      "label": "Existing pipeline test suite",
+      "plain": "Current unit and integration tests provide a base for checking the revised pipeline. New cases are needed for the added coding and processing behavior."
+    },
+    "RS-020": {
+      "label": "Current API backend code",
+      "plain": "The backend schema, ingestion tools and API implement the current publication format. They are the starting point for correction records and new public fields."
+    },
+    "RS-021": {
+      "label": "Publication wave visibility rules",
+      "plain": "Wave-window configuration controls which ordinary runs are visible. The live window must be checked before relying on recorded dates."
+    },
+    "RS-022": {
+      "label": "Current website publication surfaces",
+      "plain": "The institution and comparison pages, data access and vocabulary code form the website publication surfaces. Colin owns their updates."
+    },
+    "RS-023": {
+      "label": "Existing public API contract",
+      "plain": "The existing contract and frontend tracker provide the starting point for Colin's handoff. The generated data dictionary becomes the source of published definitions."
+    },
+    "RS-024": {
+      "label": "Archived index coding proposal",
+      "plain": "The signed earlier proposal and pilot preserve the history of index coding rules. Current wording comes from the re-signed codebook and signature record."
+    },
+    "RS-025": {
+      "label": "Documented institution evidence sample",
+      "plain": "The documented-institution list and detail sample provide identifiers, institution characteristics and evidence counts. They support back-fill preparation and quality sampling."
+    },
+    "RS-026": {
+      "label": "Reviewed activity ownership package",
+      "plain": "The review package contains the authoritative 114 transfer activities and their 45 verified owners. It supplies the ownership corrections for back-fill."
+    },
+    "RS-027": {
+      "label": "Incomplete combined review record",
+      "plain": "The earlier review records show partial coverage and handoff notes. They document remaining review work without supplying a completed row comparison."
+    },
+    "RS-028": {
+      "label": "Earlier attribution correction tools",
+      "plain": "Registered scripts describe a prior attribution-correction package. Their listed worktree is absent, so the resource remains unverified."
+    },
+    "RS-029": {
+      "label": "Procurement pipeline and plan",
+      "plain": "The procurement pipeline and its locked plan define the sibling update needed for shared coding. Their integrator owns changes in that project."
+    },
+    "RS-030": {
+      "label": "Live published database and API",
+      "plain": "The live backend serves published verdicts and coverage counts. Authorized read-only queries can establish the population at the freeze date."
+    },
+    "RS-031": {
+      "label": "Classifier and extractor services",
+      "plain": "TypeSafe supplies the classifier and Anthropic supplies the extractor. Paid calls require the stated approval and Simone-run process."
+    },
+    "RS-032": {
+      "label": "Wave five pipeline run",
+      "plain": "The named wave-five run is an external input to deployment timing. Its publication must be confirmed before the revised pipeline deploys."
+    },
+    "RS-033": {
+      "label": "Locked validation project plan",
+      "plain": "The sibling validation plan relies on the current contract surface. Its owner must assess how the new release affects those locked inputs."
+    },
+    "RS-034": {
+      "label": "Existing comparison and rehearsal tools",
+      "plain": "Run comparison and database rehearsal utilities provide existing patterns for checks. They can support verification of the revised outputs and loading process."
+    },
+    "RS-035": {
+      "label": "Retired pilot test artifacts",
+      "plain": "Earlier test runs and pilot data are retained as historical resources. The plan bars them from use as evidence."
+    },
+    "RS-036": {
+      "label": "Harvested unclear institution sample",
+      "plain": "The public-API harvest records the unclear population and an 800-institution detail sample. It supplies population counts and evidence characteristics for planning."
+    },
+    "RS-037": {
+      "label": "Anthropic extractor access",
+      "plain": "The project's Anthropic organization and key provide extractor access. Deployment and rate-limit checks remain assigned to their respective tasks."
+    },
+    "RS-038": {
+      "label": "AI-text pipeline and specifications",
+      "plain": "The AI-text repository contains the cue and pilot specifications targeted by the shared-codebook handoff. Its owner controls changes there."
+    },
+    "RS-039": {
+      "label": "Codebook review and rulings",
+      "plain": "The first two codebook review rounds and Simone's recorded replies supply the settled item choices. They are inputs to the signed codebook."
+    },
+    "RS-040": {
+      "label": "Multilingual pipeline ownership",
+      "plain": "The multilingual subproject owns the shared calendar-conversion rule and language coverage. The handoff requests the rules needed by the year method."
+    },
+    "T-066": {
+      "label": "Cap unlocker downloads",
+      "plain": "Stop reading a page fetched through the unlocker once it passes 32 MB, the same limit direct fetches use, so one huge page cannot exhaust the server memory."
+    },
+    "T-075": {
+      "label": "Run wave 6",
+      "plain": "Run the sixth batch of the first sweep on the revised pipeline right after it is deployed, after a 20-institution smoke run and a cost check against the remaining budget."
+    },
+    "T-076": {
+      "label": "Run wave 7",
+      "plain": "Run the seventh and last batch of the first sweep after wave 6, with its own cost check, stopping if the $3,500 budget is reached."
+    }
+  }
+}

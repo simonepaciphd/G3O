@@ -1,0 +1,31 @@
+{
+ "format": "g3o-approved-delta-application-v1",
+ "delta": "RC-D-030",
+ "approval": "Simone Paci, 2026-11-10 chat: 28 LOCK",
+ "recorded_at": "2026-11-11T00:48:03.751543+00:00",
+ "baseline": "RC-BL-001 retained",
+ "SPEC_version": "v001.29",
+ "RESOURCES_version": "unchanged by RC-D-030",
+ "preimages": "archive/2026-11-10-before-rcd030",
+ "superseded_lock": "archive/records/Delta-Lock-RC-D-026-2026-11-10.json",
+ "artifacts": {
+  "SPEC.md": "49256734ba47b771321ae52c30ed34c2038a30fc330f7af577035e3777558463",
+  "PLAN.md": "60d2b8ee04d55ad2901885f841f73846f0327070f0b7631feeb4ce21cb01f705",
+  "RESOURCES.md": "006c755dea855ddb0309c2b70c9ae4739b55055b8324da3391023bbe2817e9e9",
+  "CHANGELOG.md": "eb2c25e2a90fd97c440b658dd8bb46b4b08b2206aff0cc837275ab9d38a97d37",
+  "Plan-Labels.json": "40e8cccd75773aae39c763aef84a319a437e0856f9465e85ec69354bdc71022b",
+  "page/Plan-Visual.html": "9ee391bef588bf7ca45f6610fc9dc429c3770634fc22f1cfdf60b32efc171d5a",
+  "deltas/RC-D-029.md": "8c28f8e6173aa7c94a0ebf6ec14277e4e5e5d57c699088b75aeb6928b8294756",
+  "deltas/RC-D-030.md": "c407de8f2abe997e1bc753517e5c81eed83d5a24a54b271ed4c5fbd82d2ef349"
+ },
+ "checks": {
+  "plan_viewer": "0 errors; 10 existing untyped warnings",
+  "signed_codebook": "ca1bf616d596213dad7064bd24921928186bce42d912a7b54e5723f41fc73d3a (r15, unchanged)",
+  "stage6_quote_instruction": "898194903d3a0c733bb4f59d9b420423388afda48eb740e666de578320f04483 (RC-D-029, reclass/t030-runtime-20261110 9b74cb1)"
+ },
+ "pending": [
+  "RC-D-030 build (X1, Y1-Y5, Z1, Z2) on reclass/t030-runtime-20261110",
+  "Independent QA of the integrated T-030 line",
+  "Owner-run publication of branches; no push/merge/paid calls by agent"
+ ]
+}
