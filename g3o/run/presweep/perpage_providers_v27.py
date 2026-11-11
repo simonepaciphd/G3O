@@ -78,8 +78,8 @@ from g3o.common import support_check as sc
 from g3o.common.artifact_io import read_artifact
 from g3o.common.instrument import canonical_json, sha256_text
 from g3o.common.jev_record import CoderRecord
-from g3o.common.paths import institution_dir
 from g3o.common.part_combine import NOT_COVERED
+from g3o.common.paths import institution_dir
 from g3o.common.support_check import CodeEvidence, Entailment, PageSources, SupportResult
 from g3o.extract import pass2_support, request_v27
 from g3o.extract.anthropic_client import ExtractorJob, ExtractorResult
