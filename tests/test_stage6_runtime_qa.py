@@ -51,6 +51,11 @@ def _ledger(run_dir, inst=A):
     return [r["reason"] for r in attrition.read_records(run_dir) if r["institution_id"] == inst]
 
 
+def _merge_input(obs_input):
+    """Declared fixture: the merged values with no rule computable from the merged row (RC-D-030 X1)."""
+    return {k: v for k, v in obs_input.row["values"].items() if k in rt.MERGE_INPUT_ITEMS}
+
+
 class LastQuotes(e.FakeQuotes):
     """Copies the LAST shown input verbatim (a quote copied from a non-first candidate)."""
 
@@ -177,7 +182,7 @@ def _same_page_pool(run_dir, bound, instrument):
     a.observation("o2", "p1", name="Resident chatbot", activity_type="public_facing_service", tool="Binbot",
                   quote=e.Q4)
     a.within_pair("o1", "o2", "same_activity", "p1", e.Q4)
-    return a, a.institution({("o1", "o2"): dict(a.inputs["o1"].row["values"])})
+    return a, a.institution({("o1", "o2"): _merge_input(a.inputs["o1"])})
 
 
 def test_pooled_quote_copied_from_a_non_first_candidate_names_that_candidate(tmp_path):
@@ -405,7 +410,7 @@ def test_unconfirmed_group_is_not_an_activity_row_and_its_relations_are_not_stor
     extra.page("p9", ["A vendor mentions an unnamed assistant."])
     sid = extra.observation("o9", "p9", name="Unnamed assistant", activity_type="pilot_experiment", tool="Gizmo",
                             quote="A vendor mentions an unnamed assistant.", verdict="ambiguous_attribution")
-    inst = extra.institution({("o1", "o2"): dict(extra.inputs["o1"].row["values"])})
+    inst = extra.institution({("o1", "o2"): _merge_input(extra.inputs["o1"])})
     assert _run(run_dir, bound, instrument, [inst], e.FakeQuotes()).written == [A]
     storage = _storage(run_dir)
     acts = storage["activities"]
@@ -504,3 +509,80 @@ def test_z2_pooled_role_part_gate_stores(tmp_path, relationship, role):
     merged = next(x for x in storage["activities"].values() if x["observation_ids"] == ["o1", "o2"])
     value = merged["values"]["core.observed_actor_relationship"]
     assert value["relationship"] == relationship and value["searched_institution_role"] == role
+
+
+# --- RC-D-030 X1 a: merge rule for a merged activity's non-pooled values ------------------------
+
+
+def _merge_inst(rows, confidence):
+    from types import SimpleNamespace
+    inputs = {k: rt.ObservationInput(k, f"S-{k}", {"values": v}) for k, v in rows.items()}
+    sources = {f"S-{k}": {"values": {"core.confidence": confidence[k]}} for k in rows}
+    return SimpleNamespace(observation_inputs=inputs, sources=sources)
+
+
+def _row(**over):
+    base = {"core.tool_name": [], "core.model_name": "not_documented", "core.reported_outcomes": [],
+            "core.reported_incidents": "not_asked", "core.activity_name": "not_documented",
+            "core.contracting_party": "not_documented", "core.observed_actor_name": "not_documented"}
+    return {**base, **over}
+
+
+def test_x1_r2_union_drops_trim_casefold_duplicates_keeping_first_spelling_in_pool_order():
+    inst = _merge_inst({"o1": _row(**{"core.tool_name": ["Copilot ", "ChatGPT"]}),
+                        "o2": _row(**{"core.tool_name": ["copilot", "Gemini", "chatgpt"]})},
+                       {"o1": "low", "o2": "high"})
+    out = rt.merge_values(inst, ["o2", "o1"])
+    assert out["core.tool_name"] == ["copilot", "Gemini", "chatgpt"]
+    out = rt.merge_values(inst, ["o1", "o2"])
+    assert out["core.tool_name"] == ["Copilot ", "ChatGPT", "Gemini"]
+    assert out["core.model_name"] == "not_documented"  # no entries, same token everywhere
+    assert out["core.reported_outcomes"] == []
+
+
+def test_x1_r2_no_entries_and_differing_values_is_refused():
+    inst = _merge_inst({"o1": _row(), "o2": _row(**{"core.reported_outcomes": "not_documented"})},
+                       {"o1": "low", "o2": "low"})
+    with pytest.raises(rt.ConsolidationError, match="core.reported_outcomes"):
+        rt.merge_values(inst, ["o1", "o2"])
+
+
+def test_x1_r3_most_credible_source_wins_ties_by_pool_order_empty_never_wins():
+    rows = {"o1": _row(**{"core.activity_name": "Drafting pilot", "core.contracting_party": "Acme"}),
+            "o2": _row(**{"core.activity_name": "Copilot drafting"}),
+            "o3": _row(**{"core.activity_name": "Copilot rollout", "core.observed_actor_name": "IT unit"})}
+    inst = _merge_inst(rows, {"o1": "unknown", "o2": "medium", "o3": "medium"})
+    out = rt.merge_values(inst, ["o1", "o2", "o3"])
+    assert out["core.activity_name"] == "Copilot drafting"  # medium beats unknown (= low); o2 before o3
+    assert out["core.contracting_party"] == "Acme"  # only real value, though least credible
+    assert out["core.observed_actor_name"] == "IT unit"
+    out = rt.merge_values(inst, ["o3", "o2", "o1"])
+    assert out["core.activity_name"] == "Copilot rollout"  # tie at medium: pool order decides
+
+
+def test_x1_merged_input_is_narrowed_to_the_refused_and_unruled_items(tmp_path):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    group = next(iter(a.merged_values))
+    full = dict(a.observation_inputs["o1"].row["values"])  # names items merged by rule: refused
+    metrics = _run(run_dir, bound, instrument, [replace(a, merged_values={group: full})], e.FakeQuotes())
+    assert metrics.failed == [A] and "merged by rule or pooled" in _held(run_dir)["error"]
+    assert set(rt.MERGE_INPUT_ITEMS) == {*rt.MERGE_REFUSED_R1, *rt.MERGE_UNRULED}
+    assert "core.evidence_channel" not in rt.MERGE_INPUT_ITEMS
+
+
+def test_x1_merged_row_values_reach_storage(tmp_path):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    rows = {k: dict(a.observation_inputs[k].row) for k in ("o1", "o2")}
+    metrics = _run(run_dir, bound, instrument, [a], e.FakeQuotes())
+    assert metrics.written == [A]
+    storage = json.loads((institution_dir(run_dir, A) / "6_storage.json").read_text(encoding="utf-8"))
+    merged = next(x for x in storage["activities"].values() if x["observation_ids"] == ["o1", "o2"])
+    order = s6.observation_pool_order(a.quotes, ["o1", "o2"])
+    expect = rt.merge_values(a, order)
+    assert {k: merged["values"][k] for k in expect} == expect
+    for item in rt.MERGE_UNION:  # each entry keeps its own observation's support node
+        for entry in merged["values"][item] if isinstance(merged["values"][item], list) else ():
+            assert any(n["item_id"] == item and n["value_json"] == entry and n["observation_id"] in rows
+                       for n in merged["item_support"])

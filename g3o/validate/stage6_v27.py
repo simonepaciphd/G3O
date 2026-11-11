@@ -576,6 +576,19 @@ def stated_numbers(eligible: Sequence[str], observations: Mapping[str, ActivityO
     return tuple(out)
 
 
+def observation_pool_order(quotes: Sequence[InputQuote], observation_ids: Sequence[str]) -> list[str]:
+    """The pooled observations in pool order (R-044: source date, then page order), each at its
+    first quote; the order pooled ``stated_number`` lists and the merge rule (RC-D-030 X1) use."""
+    wanted = set(observation_ids)
+    selected = [q for q in quotes if q.observation_id in wanted]
+    by_entry = {q.support_id: q for q in selected}
+    entries = [PoolEntry(q.support_id, "", q.pool_date, q.page_order * 100_000 + q.passage_order) for q in selected]
+    order = list(dict.fromkeys(by_entry[e.entry_id].observation_id for e in _pool_order(entries, "error")))
+    if set(order) != wanted:
+        raise ConsolidationError("pooled observation has no input quote to order it by")
+    return order
+
+
 def dedupe_pooled_quotes(quotes: Sequence[InputQuote]) -> list[InputQuote]:
     """RC-D-030 Y4 b: within each observation, input quotes of identical text are pooled once
     (the first in input order: the observation's passage order). Equal text in different
@@ -615,7 +628,7 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
     entries = [PoolEntry(q.support_id, json.dumps(_quote_row(q), ensure_ascii=False, sort_keys=True),
                          q.pool_date, q.page_order * 100_000 + q.passage_order) for q in selected]
     # RC-D-029 W1 a: distinct number words in pool order (an observation at its first quote).
-    in_pool_order = list(dict.fromkeys(by_entry[e.entry_id].observation_id for e in _pool_order(entries, "error")))
+    in_pool_order = observation_pool_order(selected, eligible)
     numbers = stated_numbers(in_pool_order, obs)
     shown_number: str | list[str] | None = (numbers[0] if len(numbers) == 1 else list(numbers) if numbers
                                             else None)
@@ -903,7 +916,7 @@ def write_stage6_outputs(inst_dir: Path, *, envelope: StorageEnvelope, instituti
 
 
 __all__ = [
-    "CODER_VERSION", "NUMBER_ITEM", "dedupe_pooled_quotes", "PERMANENT_PILOT_RULE", "POOLED_NANO_GATE",
+    "CODER_VERSION", "NUMBER_ITEM", "dedupe_pooled_quotes", "observation_pool_order", "PERMANENT_PILOT_RULE", "POOLED_NANO_GATE",
     "POOLED_REQUEST_FAILED", "PREFILTER_RULE",
     "QUOTE_STEP_ABSENT", "QUOTE_STEP_FAILED", "RELATION_ITEM", "RELATION_OVER_BUDGET", "Held", "InputQuote",
     "ObservationRecord", "PooledActivity", "QuoteFn", "RelationOutcome", "Stage6Config", "Stage6Quote",

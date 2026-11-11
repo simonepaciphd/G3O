@@ -369,10 +369,12 @@ def _setup(tmp_path, name="run"):
 
 
 def _with_merged(inst, ready):
-    """Merged activity non-pooled values: a declared fixture (no signed merge rule)."""
+    """Merged values with no rule computable from the merged row (RC-D-030 X1 R1 refused / unruled):
+    a declared fixture."""
     st = next(i for i in ready if i.institution_id == inst)
     o1, o2 = pp.observation_id("p1", "a1"), pp.observation_id("p2", "a1")
-    merged = {(o1, o2): dict(st.observation_inputs[o1].row["values"])}
+    merged = {(o1, o2): {k: v for k, v in st.observation_inputs[o1].row["values"].items()
+                         if k in rt.MERGE_INPUT_ITEMS}}
     from dataclasses import replace
     return [replace(i, merged_values=merged) if i.institution_id == inst else i for i in ready]
 

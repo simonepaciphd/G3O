@@ -30,10 +30,24 @@ Rules carried here, not decided here:
   relation answers name the stored input supports they were built from);
   rule-set values (gate closed, relation pre-filter, permanent_pilot
   override) get ``set_by_rule`` nodes with their mechanical coder records.
+- **Merged activities' non-pooled values (RC-D-030 X1 a; :func:`merge_values`).**
+  Over the pooled (confirmed) observations in pool order: the list quote-step
+  items (R2: ``tool_name``, ``model_name``, ``reported_outcomes``,
+  ``reported_incidents``) are the union of the observations' entries, exact
+  duplicates dropped after whitespace trim and case fold (the first-seen
+  spelling kept, so its own support node carries it); the single-text
+  quote-step items (R3: ``activity_name``, ``contracting_party``,
+  ``observed_actor_name``) come from the observation whose source has the
+  highest T-015 source confidence (high > medium > low; ``unknown`` counts as
+  low, C8 b), ties by pool order, a missing token never winning over a real
+  value. Every observation's nodes stay on the merged row.
 - **Values with no producer here** are explicit inputs and refuse when absent
-  (:class:`~g3o.persist.stage6_adapters.MissingUpstreamError`): merged
-  activities' non-pooled values (quote-step and derived items; no signed
-  merge rule), source independence groups, and uncertainty flags.
+  (:class:`~g3o.persist.stage6_adapters.MissingUpstreamError`): the merged
+  values R1 asks to re-derive but whose signed rule needs inputs the merged
+  row does not hold (:data:`MERGE_REFUSED_R1`; ``evidence_channel`` is the
+  row metadata :data:`EVIDENCE_CHANNEL`, not a row value), the merged values
+  no ruling covers (:data:`MERGE_UNRULED`), source independence groups, and
+  uncertainty flags.
 """
 from __future__ import annotations
 
@@ -49,12 +63,14 @@ from typing import Any
 
 from g3o.classify.jev_activity_code import NOT_COVERED
 from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE
+from g3o.classify.questions.v27 import load_set
 from g3o.common import attrition
 from g3o.common.instrument import canonical_json
 from g3o.common.jev_client import JevAnswer, JevResult
 from g3o.common.jev_record import CoderRecord
 from g3o.common.paths import institution_dir
-from g3o.common.storage import table_fields
+from g3o.common.source_fields import aggregation_value, default_vocab
+from g3o.common.storage import METADATA_ITEMS, table_fields
 from g3o.common.support_check import (
     CodeEvidence,
     Entailment,
@@ -78,6 +94,7 @@ from g3o.persist.stage6_adapters import (
     write_atomic,
 )
 from g3o.validate.consolidate_v27 import (
+    MISSING,
     ActivityObservation,
     ConsolidationError,
     RelationDecision,
@@ -96,6 +113,7 @@ from g3o.validate.stage6_v27 import (
     Stage6Quote,
     Stage6QuoteRequest,
     Stage6Result,
+    observation_pool_order,
     run_stage6,
     write_stage6_outputs,
 )
@@ -116,8 +134,31 @@ NOT_READY = "stage6_not_ready"  # defensive: not ready for no reason named above
 EVIDENCE_CHANNEL = "web_extract"
 ACTIVITY_ITEMS = frozenset(table_fields("activities"))
 
-MERGED_VALUES_PRODUCER = ("merge rule for a merged activity's non-pooled values (quote-step and derived "
-                          "items; no signed rule)")
+#: RC-D-030 X1 a R2 / R3: merged by rule here.
+MERGE_UNION = ("core.tool_name", "core.model_name", "core.reported_outcomes", "core.reported_incidents")
+MERGE_CREDIBLE = ("core.activity_name", "core.contracting_party", "core.observed_actor_name")
+#: X1 a R1 items whose signed rule reads inputs the merged row does not hold (refused, explicit input):
+#: developer/developer_basis (the page's stated vendor or a product lookup), stage_as_of/_basis (the
+#: source's supported publication date, the page's latest stated date, the access date), unit_credit
+#: (no derivation rule text beyond the column's purpose), vendor_claim_only (the sources' type),
+#: cx_display_rollup (supported positives with their support, source and observation ids; no item list),
+#: date_upper_bound (the source date's origin). evidence_channel is row metadata, not a value.
+MERGE_REFUSED_R1 = ("core.developer", "core.developer_basis", "core.stage_as_of", "core.stage_as_of_basis",
+                    "core.unit_credit", "core.vendor_claim_only", "core.cx_display_rollup", "core.date_upper_bound")
+#: Non-pooled activity items X1 a does not name (explicit input).
+MERGE_UNRULED = ("core.deployment_scale_number", "core.uncertainty_flags")
+MERGE_INPUT_ITEMS = frozenset(MERGE_REFUSED_R1 + MERGE_UNRULED)
+MERGED_VALUES_PRODUCER = ("merged-activity values with no rule computable from the merged row (RC-D-030 X1 a "
+                          "R1 refused, or unruled): " + ", ".join(MERGE_REFUSED_R1 + MERGE_UNRULED))
+
+
+def _non_pooled_items() -> frozenset[str]:
+    pooled = {q["item_id"] for q in load_set("activity")["questions"]}
+    return ACTIVITY_ITEMS - pooled - set(METADATA_ITEMS) - {"core.n_sources", "core.confidence"}
+
+
+if _non_pooled_items() != MERGE_INPUT_ITEMS | set(MERGE_UNION) | set(MERGE_CREDIBLE):  # pragma: no cover
+    raise RuntimeError("the merged-activity item split no longer matches the activities table")
 INDEPENDENCE_PRODUCER = "near-duplicate / syndication grouping (P15) for source independence groups"
 UNCERTAINTY_PRODUCER = "T-024 derived-field producer (core.uncertainty_flags for Stage 6 answers)"
 
@@ -490,6 +531,49 @@ def _relation_nodes(inst: Stage6Institution, result: Stage6Result, final_of: Map
     return ids
 
 
+def _real(value: Any) -> bool:
+    return isinstance(value, str) and value not in MISSING and bool(value.strip())
+
+
+def _credibility_rank(inst: Stage6Institution, oid: str) -> int:
+    """T-015 source confidence of the observation's source claim; ``unknown`` counts as low (C8 b)."""
+    row = inst.sources[inst.observation_inputs[oid].source_id]
+    grades = default_vocab().credibility_values  # signed order: high, medium, low
+    value = aggregation_value(row["values"]["core.confidence"])
+    if value not in grades:
+        raise ConsolidationError(f"source confidence {value!r} of {oid} has no credibility rank")
+    return grades.index(value)
+
+
+def merge_values(inst: Stage6Institution, order: Sequence[str]) -> dict[str, Any]:
+    """RC-D-030 X1 a R2 / R3 values of a merged activity from its pooled observations in pool order."""
+    rows = {k: inst.observation_inputs[k].row["values"] for k in order}
+    out: dict[str, Any] = {}
+    for item in MERGE_UNION:  # R2: union, trim + case-fold duplicates dropped, first spelling kept
+        entries: list[str] = []
+        seen: set[str] = set()
+        for k in order:
+            value = rows[k][item]
+            for entry in value if isinstance(value, list) else ():
+                key = entry.strip().casefold() if isinstance(entry, str) else None
+                if key and key not in seen:
+                    seen.add(key)
+                    entries.append(entry)
+        if entries:
+            out[item] = entries
+            continue
+        distinct = {canonical_json(rows[k][item]) for k in order}
+        if len(distinct) != 1:  # e.g. [] beside not_documented: no ruled form
+            raise ConsolidationError(f"merged {item}: no entry in any observation and the observations' "
+                                     f"values differ {sorted(distinct)}; no signed rule")
+        out[item] = rows[order[0]][item]
+    ranked = sorted(order, key=lambda k: _credibility_rank(inst, k))  # stable: ties keep pool order
+    for item in MERGE_CREDIBLE:  # R3: most credible source, a real value over a missing token
+        pick = next((k for k in ranked if _real(rows[k][item])), ranked[0])
+        out[item] = rows[pick][item]
+    return out
+
+
 def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6Config, instrument: dict[str, Any],
                    artifact_root: Path) -> tuple[Any, list[dict[str, Any]]]:
     """The storage envelope and provenance records of one ready Stage 6 result."""
@@ -523,10 +607,17 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
         else:
             if inst.merged_values is None or group not in inst.merged_values:
                 raise MissingUpstreamError(MERGED_VALUES_PRODUCER, [aid])
-            pooled_values = outcome_values(result.pooled[group].outcomes)
+            given = dict(inst.merged_values[group])
+            if set(given) != MERGE_INPUT_ITEMS:
+                extra, absent = sorted(set(given) - MERGE_INPUT_ITEMS), sorted(MERGE_INPUT_ITEMS - set(given))
+                if extra:
+                    raise ValueError(f"merged-value input names items merged by rule or pooled: {extra}")
+                raise MissingUpstreamError(MERGED_VALUES_PRODUCER, absent)
+            pooled = result.pooled[group]
+            pooled_values = outcome_values(pooled.outcomes)
             # Pooled answers to items the activities table does not hold (the evaluation items,
             # stored per source claim in D-007) stay in the row's support/coder provenance only.
-            values = {**inst.merged_values[group],
+            values = {**given, **merge_values(inst, observation_pool_order(inst.quotes, pooled.observation_ids)),
                       **{k: v for k, v in pooled_values.items() if k in ACTIVITY_ITEMS}}
         support: dict[str, dict[str, Any]] = {}
         for node in [*(s for f in fragments for s in f["item_support"]), *out.supports.get(aid, [])]:
@@ -698,5 +789,6 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 
 __all__ = [
     "ENVELOPE_FAILED", "HELD_REASON", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
-    "Stage6Metrics", "build_envelope", "hold_reasons", "run_stage6_v27",
+    "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_REFUSED_R1", "MERGE_UNION", "MERGE_UNRULED",
+    "Stage6Metrics", "build_envelope", "hold_reasons", "merge_values", "run_stage6_v27",
 ]

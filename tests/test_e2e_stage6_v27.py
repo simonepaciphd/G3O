@@ -224,7 +224,8 @@ def _institutions(run_dir, bound, instrument):
     a.observation("o3", "p3", name="Chatbot policy", activity_type="policy_guidance", tool="Policy", quote=Q3)
     a.observation("o4", "p3", name="Resident chatbot", activity_type="public_facing_service", tool="Binbot", quote=Q4)
     a.within_pair("o3", "o4", "governs", "p3", Q3)
-    merged = {("o1", "o2"): dict(a.inputs["o1"].row["values"])}  # declared fixture: merge rule is unruled
+    # declared fixture: only the merged values with no rule computable from the merged row (RC-D-030 X1)
+    merged = {("o1", "o2"): {k: v for k, v in a.inputs["o1"].row["values"].items() if k in rt.MERGE_INPUT_ITEMS}}
     b = Builder(run_dir, bound, instrument, "INST-0000002")
     b.page("q1", ["The council does not use generative AI."])
     b.observation("n1", "q1", name="Copilot drafting", activity_type="internal_operational", tool="Copilot",

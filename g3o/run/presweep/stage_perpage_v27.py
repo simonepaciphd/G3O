@@ -44,7 +44,9 @@ Rules carried here, not decided here:
   non-classifier row values (T-015 source fields, T-022 quote-step values,
   T-024 derived values) and the quote-step codes' support, the stored page
   artifact layout (T-014/T-020), T-025 follow provenance, uncertainty
-  flags, independence groups and merged activities' non-pooled values.
+  flags, independence groups and the merged-activity values RC-D-030 X1 a
+  leaves without a rule computable from the merged row
+  (:data:`~g3o.run.presweep.stage_validate_v27.MERGE_INPUT_ITEMS`).
 - **Reviewed page with no activity (RC-D-030 Y2 a).** It gets one page-level
   source row: ``activity_id`` ``_NA_``, empty ``observation_ids``, its
   page-level values and nodes (support nodes with no observation), the
