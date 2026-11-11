@@ -125,5 +125,6 @@ def test_archive_host_list_version_is_recorded_in_the_instrument(tmp_path):
     bound = binding.bind_runtime(tmp_path, settings())
     payload = load_instrument(tmp_path / "final" / "instruments", bound.instrument_id)["payload"]
     recorded = payload["extractor_configuration"]["archive_host_list"]
-    assert recorded == {"version": "g3o.archive_hosts.v1", "sha256": archive_hosts.ARCHIVE_HOST_LIST_SHA256,
-                        "hosts": sorted(archive_hosts.ARCHIVE_HOSTS)}
+    assert recorded == archive_hosts.setup_record()
+    assert recorded["version"] == "g3o.archive_hosts.v2" and recorded["strip_www"] is True
+    assert recorded["path_prefixes"] == {"archive.org": ["/details/"]} and "archive.fo" in recorded["hosts"]
