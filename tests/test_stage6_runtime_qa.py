@@ -558,15 +558,40 @@ def test_rcd032_b3_r2_no_entries_and_differing_values_take_the_most_credible_obs
 
 
 def test_rcd032_b2_scale_number_follows_r3():
-    inst = _merge_inst({"o1": _row(), "o2": _row(**{"core.deployment_scale_number": "about 200"}),
-                        "o3": _row(**{"core.deployment_scale_number": "50"})},
+    from g3o.common.storage_fields import FIELDS
+    schema = FIELDS["core.deployment_scale_number"]["schema"]  # signed: a number or a missing token
+    assert schema["anyOf"][0] == {"type": "number"}
+    tokens = schema["anyOf"][1]["enum"]
+    inst = _merge_inst({"o1": _row(), "o2": _row(**{"core.deployment_scale_number": 200}),
+                        "o3": _row(**{"core.deployment_scale_number": 50})},
                        {"o1": "high", "o2": "low", "o3": "medium"})
-    assert rt.merge_values(inst, ["o1", "o2", "o3"])["core.deployment_scale_number"] == "50"  # medium > low
-    inst = _merge_inst({"o1": _row(), "o2": _row(**{"core.deployment_scale_number": "about 200"})},
+    for row in inst.observation_inputs.values():
+        v = row.row["values"]["core.deployment_scale_number"]
+        assert (isinstance(v, int | float) and not isinstance(v, bool)) or v in tokens
+    assert rt.merge_values(inst, ["o1", "o2", "o3"])["core.deployment_scale_number"] == 50  # medium > low
+    # a higher-credibility missing token never wins over a lower-credibility number
+    inst = _merge_inst({"o1": _row(), "o2": _row(**{"core.deployment_scale_number": 200})},
                        {"o1": "high", "o2": "low"})
-    assert rt.merge_values(inst, ["o1", "o2"])["core.deployment_scale_number"] == "about 200"  # real beats missing
+    assert rt.merge_values(inst, ["o1", "o2"])["core.deployment_scale_number"] == 200
+    inst = _merge_inst({"o1": _row(**{"core.deployment_scale_number": 0}),
+                        "o2": _row(**{"core.deployment_scale_number": 7.5})}, {"o1": "low", "o2": "high"})
+    assert rt.merge_values(inst, ["o1", "o2"])["core.deployment_scale_number"] == 7.5  # both real: credibility
+    inst = _merge_inst({"o1": _row(), "o2": _row(**{"core.deployment_scale_number": "unknown"})},
+                       {"o1": "low", "o2": "high"})
+    assert rt.merge_values(inst, ["o1", "o2"])["core.deployment_scale_number"] == "unknown"  # all missing: R3 first
+    inst = _merge_inst({"o1": _row(), "o2": _row(**{"core.deployment_scale_number": "about 200"})},
+                       {"o1": "high", "o2": "low"})  # lexical number text (what storage validates) is real too
+    assert rt.merge_values(inst, ["o1", "o2"])["core.deployment_scale_number"] == "about 200"
     assert "core.deployment_scale_number" in rt.MERGE_CREDIBLE
     assert rt.MERGE_UNRULED == ("core.uncertainty_flags",)
+
+
+def test_r3_blank_text_is_missing_and_a_zero_number_is_real():
+    inst = _merge_inst({"o1": _row(**{"core.activity_name": "  ", "core.deployment_scale_number": "_NA_"}),
+                        "o2": _row(**{"core.activity_name": "Copilot", "core.deployment_scale_number": 0})},
+                       {"o1": "high", "o2": "low"})
+    out = rt.merge_values(inst, ["o1", "o2"])
+    assert out["core.activity_name"] == "Copilot" and out["core.deployment_scale_number"] == 0
 
 
 def test_x1_r3_most_credible_source_wins_ties_by_pool_order_empty_never_wins():

@@ -79,6 +79,7 @@ from g3o.common.jev_record import CoderRecord
 from g3o.common.paths import institution_dir
 from g3o.common.source_fields import aggregation_value, default_vocab
 from g3o.common.storage import METADATA_ITEMS, table_fields
+from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import (
     CodeEvidence,
     Entailment,
@@ -103,7 +104,6 @@ from g3o.persist.stage6_adapters import (
     write_atomic,
 )
 from g3o.validate.consolidate_v27 import (
-    MISSING,
     ActivityObservation,
     ConsolidationError,
     RelationDecision,
@@ -554,8 +554,15 @@ def _relation_nodes(inst: Stage6Institution, result: Stage6Result, final_of: Map
     return ids
 
 
-def _real(value: Any) -> bool:
-    return isinstance(value, str) and value not in MISSING and bool(value.strip())
+def _real(item: str, value: Any) -> bool:
+    """A real value of ``item`` (R3): not one of that item's missing tokens and not a blank string.
+
+    Numbers are real (``core.deployment_scale_number`` is a JSON number or a missing token).
+    """
+    tokens = FIELDS[item]["missing_tokens"]
+    if isinstance(value, str):
+        return value not in (tokens if isinstance(tokens, list) else ()) and bool(value.strip())
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
 def _credibility_rank(inst: Stage6Institution, oid: str) -> int:
@@ -590,7 +597,7 @@ def merge_values(inst: Stage6Institution, order: Sequence[str]) -> dict[str, Any
         # not_documented; RC-D-032 B3 a: the highest-credibility observation's value, R3 order.
         out[item] = rows[ranked[0]][item]
     for item in MERGE_CREDIBLE:  # R3: most credible source, a real value over a missing token
-        pick = next((k for k in ranked if _real(rows[k][item])), ranked[0])
+        pick = next((k for k in ranked if _real(item, rows[k][item])), ranked[0])
         out[item] = rows[pick][item]
     return out
 
