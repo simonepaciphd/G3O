@@ -125,7 +125,7 @@ def bind_runtime(run_dir: Path, settings: RuntimeSettings) -> BoundRuntime:
     """
     cb = load_codebook()
     if cb.sha256 != CODEBOOK_SHA256:
-        raise ValueError("runtime codebook differs from signed r13")
+        raise ValueError("runtime codebook differs from signed r15")
     installed_matcher = version("rapidfuzz")
     if installed_matcher != support_check.PINNED_RAPIDFUZZ:
         raise ValueError("runtime matcher differs from approved RapidFuzz version")

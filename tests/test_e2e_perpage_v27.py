@@ -567,8 +567,12 @@ def test_perpage_refuses_absent_upstream(tmp_path):
     from dataclasses import replace
     spec = replace(a.pages[0], upstream=replace(a.pages[0].upstream, followed=None))
     broken = replace(a, pages=[spec, *a.pages[1:]])
-    with pytest.raises(pp.MissingUpstreamError, match="follow"):
-        _perpage(run_dir, bound, instrument, world, [broken], FakeJev(ANSWERS, RELATIONS))
+    # QA round 2 LOW-G: an absent upstream refuses that institution only (held, attrition)
+    ready, metrics = _perpage(run_dir, bound, instrument, world, [broken], FakeJev(ANSWERS, RELATIONS))
+    assert not ready and metrics.held == ["INST-0000001"]
+    (hold,) = _held_doc(run_dir, "INST-0000001")["held"]
+    assert hold["stage"] == pp.PRODUCER_FAILED and "MissingUpstreamError" in hold["error"]
+    assert "follow" in hold["error"]
 
 
 def test_cost_stop_is_not_a_page_failure_and_resumes(tmp_path):
@@ -749,3 +753,81 @@ def test_rcd031_a1_only_pooled_originals_may_name_inputs():
     assert not pooled_original({**pooled, "source_id": "S1"})
     assert not pooled_original({**pooled, "observation_id": "p1.a1"})
     assert not pooled_original({**pooled, "item_id": "core.activity_relation_cross_page"})
+
+
+# ---------------------------------------------------------------------------
+# QA round 2, LOW-G: per-institution containment, released holds, pairs checkpoint check
+# ---------------------------------------------------------------------------
+
+
+def _held_doc(run_dir, inst):
+    return json.loads((institution_dir(run_dir, inst) / pp.WORK_DIR / pp.HELD_FILE).read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("error", [pp.ConsolidationError("simulated producer refusal"),
+                                   ValueError("simulated value error"), RuntimeError("simulated runtime error")])
+def test_producer_error_is_a_per_institution_hold_and_later_institutions_continue(tmp_path, monkeypatch, error):
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    real = pp.produce_page
+
+    def flaky(**kw):
+        if kw["spec"].page.institution_id == "INST-0000001":
+            raise error
+        return real(**kw)
+    monkeypatch.setattr(pp, "produce_page", flaky)
+    ready, metrics = _perpage(run_dir, bound, instrument, world, insts, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert metrics.held == ["INST-0000001"]
+    assert [i.institution_id for i in ready] == ["INST-0000002", "INST-0000003"]
+    (hold,) = _held_doc(run_dir, "INST-0000001")["held"]
+    assert hold["stage"] == pp.PRODUCER_FAILED and f"{type(error).__name__}: {error}" == hold["error"]
+    assert any(r["institution_id"] == "INST-0000001" and r["reason"] == pp.HELD_REASON
+               and r["detail"] == f"{hold['page_id']}:{pp.PRODUCER_FAILED}" for r in attrition.read_records(run_dir))
+
+
+def test_failure_reason_error_is_a_per_institution_hold(tmp_path, monkeypatch):
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+
+    def missing(run_dir, page):
+        raise RuntimeError(f"page {page.page_id} has neither a page-code artifact nor a recorded failure")
+    monkeypatch.setattr(pp, "_failure_reason", missing)
+    ready, metrics = _perpage(run_dir, bound, instrument, world, insts, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert metrics.held == ["INST-0000003"]  # c2 is the uncoded page
+    assert [i.institution_id for i in ready] == ["INST-0000001", "INST-0000002"]
+    (hold,) = _held_doc(run_dir, "INST-0000003")["held"]
+    assert hold["page_id"] == "c2" and hold["stage"] == pp.PRODUCER_FAILED and "RuntimeError" in hold["error"]
+
+
+def test_producer_stop_errors_still_stop_the_stage(tmp_path, monkeypatch):
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+
+    def stopped(**kw):
+        raise JevAccountError("account stopped")
+    monkeypatch.setattr(pp, "produce_page", stopped)
+    with pytest.raises(JevAccountError):
+        _perpage(run_dir, bound, instrument, world, insts, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+
+
+def test_cleared_perpage_hold_writes_a_released_attrition_record(tmp_path):
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    b = [i for i in insts if i.institution_id == "INST-0000002"]
+
+    def fail_origin(state, questions, n):
+        return RuntimeError("extra round down") if list(questions) == ["core.model_origin"] else None
+    _perpage(run_dir, bound, instrument, world, b, FakeJev(ANSWERS, RELATIONS, fail_origin))
+    ready, _ = _perpage(run_dir, bound, instrument, world, b, FakeJev(ANSWERS, RELATIONS))
+    assert [i.institution_id for i in ready] == ["INST-0000002"]
+    ledger = [r for r in attrition.read_records(run_dir) if r["institution_id"] == "INST-0000002"]
+    assert [r["reason"] for r in ledger] == [pp.HELD_REASON, pp.HELD_RELEASED]
+    assert ledger[-1]["detail"] == ledger[0]["detail"]  # names what was held
+
+
+@pytest.mark.parametrize("damage", [{"kind": "page"}, {"format": "another-format"}])
+def test_pairs_checkpoint_of_another_kind_or_format_is_refused(tmp_path, damage):
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    _perpage(run_dir, bound, instrument, world, insts, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    paths = list(run_dir.rglob("pairs.json"))
+    assert paths
+    doc = json.loads(paths[0].read_text(encoding="utf-8"))
+    paths[0].write_text(canonical_json({**doc, **damage}), encoding="utf-8")
+    with pytest.raises(ValueError, match="unsupported per-page checkpoint"):
+        _perpage(run_dir, bound, instrument, world, insts, FakeJev(ANSWERS, RELATIONS, _fail_verdict))

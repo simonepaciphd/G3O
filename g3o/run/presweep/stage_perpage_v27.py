@@ -34,7 +34,11 @@ Rules carried here, not decided here:
   round that failed, a gate awaiting it) holds its whole institution: the
   holds go to ``perpage_v27/held.json`` and the attrition ledger, nothing is
   passed to Stage 6, and pending values are never published or turned into
-  negatives.
+  negatives. A per-page producer error for one page (:data:`PRODUCER_FAILED`:
+  a refusal, an absent upstream value, a page with neither a page-code
+  artifact nor a recorded failure) holds that institution the same way and the
+  stage goes on; stage stops (:data:`STAGE_STOPS`) still propagate. When a
+  held institution is later ready, :data:`HELD_RELEASED` is recorded.
 - **Provider seams.** The support check (T-022 pass-1 quotes, T-032 pass-2
   quotes, X35 entailment and the T-024 check) and the T-022 activity spans are
   injected (:class:`PerPageProviders`); this module does not call them itself.
@@ -100,7 +104,9 @@ from g3o.classify.question_rounds import (
 )
 from g3o.common import attrition
 from g3o.common.artifact_io import artifact_exists, read_artifact
+from g3o.common.cost_monitor import BudgetExceededError, UnpricedModelError
 from g3o.common.instrument import canonical_json, sha256_text
+from g3o.common.jev_client import JevAccountError
 from g3o.common.jev_record import CoderRecord
 from g3o.common.part_combine import NOT_COVERED
 from g3o.common.paths import institution_dir
@@ -111,6 +117,7 @@ from g3o.common.support_check import (
     Entailment,
     PageSources,
     QuoteMatch,
+    SupportGateError,
     SupportResult,
     _locate,
     _locate_by_words,
@@ -135,13 +142,14 @@ from g3o.validate.consolidate_v27 import (
     ReviewedPage,
     outcome_values,
 )
-from g3o.validate.stage6_v27 import InputQuote, ObservationRecord
+from g3o.validate.stage6_v27 import InputQuote, ObservationRecord, Stage6QuoteNotApproved
 
 STAGE = "perpage_v27"
 WORK_DIR = "perpage_v27"
 JOURNAL = "journal.jsonl"
 HELD_FILE = "held.json"
 HELD_REASON = "perpage_held"
+HELD_RELEASED = "perpage_held_released"  # appended when a held institution's per-page hold clears
 ACTIVITY_DIR = "activity_code_v27"
 CHECKPOINT_FORMAT = "g3o-perpage-checkpoint-v1"
 PIPELINE = "web_extract"
@@ -162,6 +170,11 @@ VALUES_PRODUCER = "T-015 / T-022 / T-024 row values with no producer on this bra
 ARTIFACT_PRODUCER = "T-014/T-020 stored page artifact and its segment layout"
 FOLLOW_PRODUCER = "T-025 follow provenance (followed / attempted page)"
 UNCARRIED_STAGE = "combined_value_uncarried"  # RC-D-030 Y3 b: per-institution hold
+#: a per-page producer refused or failed for one page (held.json names the error): per-institution hold
+PRODUCER_FAILED = "page_producer_failed"
+#: Errors that stop the whole stage; every other producer error holds its institution only.
+STAGE_STOPS = (JevAccountError, stage_page_code.StageStopped, SupportGateError, Stage6QuoteNotApproved,
+               BudgetExceededError, UnpricedModelError)
 
 
 class UncarriedCombinedValue(ConsolidationError):
@@ -782,6 +795,8 @@ def _rounds_for_page(run_dir: Path, st: _PageState, ask: Any, providers: PerPage
         pair_path = pdir / "pairs.json"
         if pair_path.exists():
             doc = json.loads(pair_path.read_bytes().decode("utf-8"))
+            if doc.get("format") != CHECKPOINT_FORMAT or doc.get("kind") != "pairs":
+                raise ValueError(f"unsupported per-page checkpoint: {pair_path}")
             st.pair_support = tuple(support_from_dict(s) for s in doc["support"])
         else:
             st.pair_support = tuple(providers.pair_support(inp, result_now))
@@ -816,6 +831,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
         journal = RequestJournal(inst_dir / WORK_DIR / JOURNAL, setup)
         ask = journal.ask(ask_fn)
         states = [_PageState(spec) for spec in inst.pages]
+        broken: dict[str, Any] | None = None  # a producer error for one page: this institution is held
         try:
             coded = stage_page_code.run_page_code_stage(run_dir, [s.spec.page for s in states], ask_fn=ask,
                                                         config=page_config, concurrency=1,
@@ -825,7 +841,13 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             for st in states:
                 page = st.spec.page
                 if not artifact_exists(stage_page_code.artifact_path(run_dir, page.institution_id, page.url)):
-                    st.failure = _failure_reason(run_dir, page)
+                    try:
+                        st.failure = _failure_reason(run_dir, page)
+                    except STAGE_STOPS:
+                        raise
+                    except (ConsolidationError, ValueError, RuntimeError) as exc:
+                        broken = _producer_hold(page.page_id, exc)
+                        break
                     metrics.failed_pages.append(page.page_id)
                     continue
                 _rounds_for_page(run_dir, st, ask, providers, page_config, activity_config, metrics)
@@ -834,7 +856,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             metrics.replayed_requests += journal.replayed
             metrics.usage[inst.institution_id] = journal.usage()
         held_path = inst_dir / WORK_DIR / HELD_FILE
-        holds = [h for st in states for h in st.holds]
+        holds = [broken] if broken is not None else [h for st in states for h in st.holds]
         if holds:
             _atomic_write(held_path, canonical_json({"institution_id": inst.institution_id, "held": holds}))
             attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_REASON,
@@ -845,10 +867,10 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
         next_source = 1
         uncarried: UncarriedCombinedValue | None = None
         for order, st in enumerate(states):
-            if st.failure is not None:
-                products.append(failed_page(st.spec, st.failure))
-                continue
             try:
+                if st.failure is not None:
+                    products.append(failed_page(st.spec, st.failure))
+                    continue
                 products.append(produce_page(
                     run_dir=run_dir, run_id=inst.run_id, institution_uid=inst.institution_uid, spec=st.spec,
                     page_order=order, first_source=next_source, page_round=st.page_round,
@@ -858,19 +880,32 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
             except UncarriedCombinedValue as exc:  # Y3 b: refused as a per-institution hold
                 uncarried = exc
                 break
+            except STAGE_STOPS:
+                raise
+            except (ConsolidationError, ValueError, RuntimeError) as exc:  # this institution only
+                broken = _producer_hold(st.spec.page.page_id, exc)
+                break
             next_source += len(products[-1].sources)
-        if uncarried is not None:
-            hold = {"page_id": uncarried.page_id, "stage": UNCARRIED_STAGE, "items": sorted(uncarried.values)}
+        if uncarried is not None or broken is not None:
+            hold = broken if broken is not None else {
+                "page_id": uncarried.page_id, "stage": UNCARRIED_STAGE, "items": sorted(uncarried.values)}
             _atomic_write(held_path, canonical_json({"institution_id": inst.institution_id, "held": [hold]}))
             attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_REASON,
-                             detail=f"{uncarried.page_id}:{UNCARRIED_STAGE}")
+                             detail=f"{hold['page_id']}:{hold['stage']}")
             metrics.held.append(inst.institution_id)
             continue
         if held_path.exists():
+            previous = json.loads(held_path.read_bytes().decode("utf-8")).get("held", [])
+            attrition.record(run_dir, institution_id=inst.institution_id, stage=STAGE, reason=HELD_RELEASED,
+                             detail=", ".join(f"{h['page_id']}:{h['stage']}" for h in previous))
             held_path.unlink()
         ready.append(_institution(inst, products))
         metrics.ready.append(inst.institution_id)
     return ready, metrics
+
+
+def _producer_hold(page_id: str, exc: BaseException) -> dict[str, Any]:
+    return {"page_id": page_id, "stage": PRODUCER_FAILED, "error": f"{type(exc).__name__}: {exc}"}
 
 
 def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | ReviewedPage]) -> Stage6Institution:
@@ -899,7 +934,7 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 
 __all__ = [
-    "HELD_REASON", "NO_ACTIVITY", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
+    "HELD_REASON", "HELD_RELEASED", "NO_ACTIVITY", "PRODUCER_FAILED", "STAGE_STOPS", "UNCARRIED_STAGE", "UncarriedCombinedValue", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
     "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
     "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]
