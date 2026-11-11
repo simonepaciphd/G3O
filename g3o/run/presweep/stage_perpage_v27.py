@@ -43,16 +43,19 @@ Rules carried here, not decided here:
   (:class:`~g3o.persist.stage6_adapters.MissingUpstreamError`): the
   non-classifier row values (T-015 source fields, T-022 quote-step values,
   T-024 derived values) and the quote-step codes' support, the stored page
-  artifact layout (T-014/T-020), T-025 follow provenance, uncertainty flags, independence groups, merged
-  activities' non-pooled values, and the mapping of a finalized T-023 pair
-  (a combined value list with no deciding part or probability) to one
-  within-page relation decision. A reviewed page with no activity
+  artifact layout (T-014/T-020), T-025 follow provenance, uncertainty
+  flags, independence groups and merged activities' non-pooled values. A reviewed page with no activity
   observation refuses (the 2.7 storage needs a source row's observation ids;
   no signed rule names them).
 - **Supported observation (RC-D-030 Y1 b).** ``ActivityObservation.supported`` is
   derived here (:func:`observation_supported`): the observation's final
   ``core.activity_type`` and ``core.action_type`` are both supported (support
   status ``supported`` at the deciding part).
+- **Within-page decisions (RC-D-030 Y5 a).** A finalized T-023 pair whose
+  combined value is one relation decides that relation, with the lowest
+  chosen probability among the parts that chose it, supported only if all of
+  those parts are (:func:`within_page_decision`); more than one value, or none
+  a part chose, gives no decision and Stage 6 holds the pair.
 - **Combined values.** A final classifier value must be carried by a support
   node of one of its parts (the original code or its downgrade replacement);
   gate and rule values get ``set_by_rule`` nodes with mechanical records. A
@@ -148,8 +151,6 @@ NO_OBSERVATION_SOURCE = ("source row of a reviewed page with no activity observa
 VALUES_PRODUCER = "T-015 / T-022 / T-024 row values with no producer on this branch"
 ARTIFACT_PRODUCER = "T-014/T-020 stored page artifact and its segment layout"
 FOLLOW_PRODUCER = "T-025 follow provenance (followed / attempted page)"
-PAIR_DECISION_PRODUCER = ("rule mapping a finalized T-023 pair outcome (value list, no deciding part or "
-                          "probability) to one within-page RelationDecision")
 COMBINED_NODE_RULE = "signed rule for a combined value no part support node carries"
 
 
@@ -244,18 +245,11 @@ class PageSpec:
     upstream: PageUpstream
 
 
-#: Finalized T-023 pair + its checked pair supports -> (relation, chosen probability, support status), or
-#: None for no decision. The combined pair outcome is a value list with no deciding part or probability, so
-#: the mapping to one RelationDecision has no signed rule here: an explicit input.
-PairDecisionFn = Callable[[PairResult, Sequence[SupportResult]], tuple[str, float | None, str] | None]
-
-
 @dataclass(frozen=True)
 class InstitutionUpstream:
     independence_groups: Mapping[str, str] | None = None  # source id -> group (P15 producer absent)
     merged_values: Mapping[tuple[str, ...], Mapping[str, Any]] | None = None
     uncertainty_flags: Callable[[SupportResult], Sequence[str] | None] | None = None
-    pair_decision: PairDecisionFn | None = None
 
 
 @dataclass(frozen=True)
@@ -424,6 +418,34 @@ def observation_supported(aid: str, outcomes: Mapping[str, Any],
     return True
 
 
+def within_page_decision(pair: PairResult, answered: Sequence[tuple[CoderRecord, SupportResult]]
+                         ) -> tuple[str, float | None, str] | None:
+    """RC-D-030 Y5 a: a finalized T-023 pair -> ``(relation, probability, support status)`` or None.
+
+    ``answered`` pairs each answered part record (not the temporary part answer)
+    with its checked support, in part order. One relation in the combined value:
+    that relation, the lowest chosen probability among the parts that chose it
+    (None when one of them has none), ``supported`` only if all of those parts
+    are (else the first other status). More than one value, a value outside the
+    relation vocabulary, an unfinished outcome, or a value no part chose (e.g.
+    ``unknown`` from failed votes): None, so the pair is held.
+    """
+    if pair.outcome.state != "combined":
+        return None
+    raw = pair.outcome.value
+    values = list(dict.fromkeys(raw if isinstance(raw, (list, tuple)) else [raw]))
+    if len(values) != 1 or values[0] not in RELATIONS:
+        return None
+    relation = values[0]
+    chose = [(rec, sr) for rec, sr in answered if rec.chosen_value == relation]
+    if not chose:
+        return None
+    probs = [rec.chosen_answer_probability for rec, _ in chose]
+    probability = None if any(p is None for p in probs) else min(probs)
+    status = next((sr.support_status for _, sr in chose if sr.support_status != "supported"), "supported")
+    return relation, probability, status
+
+
 def failed_page(spec: PageSpec, reason: str) -> ReviewedPage:
     """An attempted page T-021 could not code (no artifact): unreviewed, failed, reason kept."""
     if spec.upstream.followed is None:
@@ -438,8 +460,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                  activity_round: ActivityRoundResult | None, pairs: Sequence[PairResult],
                  pair_support: Sequence[SupportResult], page_config: PageCoderConfig,
                  activity_config: ActivityCoderConfig, instrument: dict[str, Any],
-                 uncertainty_flags: Callable[[SupportResult], Sequence[str] | None] | None,
-                 pair_decision: PairDecisionFn | None = None) -> PageProduct:
+                 uncertainty_flags: Callable[[SupportResult], Sequence[str] | None] | None) -> PageProduct:
     """Final per-page values and their support -> the Stage 6 per-page inputs of one coded page."""
     page, up = spec.page, spec.upstream
     if not (page_round.complete and (activity_round is None or activity_round.complete)):
@@ -575,6 +596,7 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         frag = out.observation_inputs[oids[lhs]].row
         ctx = SupportContext(run_id, institution_uid, oids[lhs], sids[lhs], None)
         checked: list[tuple[SupportResult, list[str]]] = []
+        answered: list[tuple[CoderRecord, SupportResult]] = []
         records: list[dict[str, Any]] = []
         for rec in pair.records:
             if rec.chosen_value == NOT_COVERED:
@@ -586,9 +608,8 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
             frag["coder_records"].extend(projections)
             records.extend(projections)
             checked.append((sr, [n["support_id"] for n in nodes]))
-        if pair_decision is None:
-            raise MissingUpstreamError(PAIR_DECISION_PRODUCER, [f"{oids[lhs]}|{oids[rhs]}"])
-        decided = pair_decision(pair, [sr for sr, _ in checked]) if pair.outcome.state == "combined" else None
+            answered.append((rec, sr))
+        decided = within_page_decision(pair, answered)
         if decided is None:
             continue  # no decision: Stage 6 holds the institution on the missing pair
         relation, probability, status = decided
@@ -789,7 +810,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                 page_order=order, first_source=next_source, page_round=st.page_round, activity_input=st.activity_input,
                 activity_round=st.activity_round, pairs=st.pairs, pair_support=st.pair_support,
                 page_config=page_config, activity_config=activity_config, instrument=instrument,
-                uncertainty_flags=inst.upstream.uncertainty_flags, pair_decision=inst.upstream.pair_decision))
+                uncertainty_flags=inst.upstream.uncertainty_flags))
             next_source += len(products[-1].sources)
         if held_path.exists():
             held_path.unlink()
@@ -825,6 +846,6 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
 
 __all__ = [
     "HELD_REASON", "InstitutionUpstream", "PageSpec", "PageUpstream", "PerPageInstitution", "PerPageMetrics",
-    "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page", "run_perpage_v27", "source_id",
-    "support_from_dict", "support_to_dict",
+    "PerPageProviders", "failed_page", "observation_id", "observation_supported", "produce_page",
+    "run_perpage_v27", "source_id", "support_from_dict", "support_to_dict", "within_page_decision",
 ]

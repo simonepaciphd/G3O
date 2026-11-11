@@ -110,20 +110,6 @@ class OwnGroup(dict):
         return key
 
 
-def pair_decision(pair, support):
-    """Declared fixture (proposed option a, unruled): one relation in the combined list -> that relation,
-    the lowest chosen probability among the parts that chose it, supported only if all of them are."""
-    value = pair.outcome.value
-    values = list(value) if isinstance(value, (list, tuple)) else [value]
-    if len(values) != 1:
-        return None
-    chose = [sr for sr in support if sr.original_value == values[0]]
-    probs = [sr.chosen_answer_probability for sr in chose]
-    status = "supported" if chose and all(sr.support_status == "supported" for sr in chose) else (
-        chose[0].support_status if chose else "not_asked")
-    return values[0], (min(probs) if probs and None not in probs else None), status
-
-
 def _no_quote_value(item, value):
     return value == "no" or value in FIELDS[item]["missing_tokens"] or str(value).startswith("none")
 
@@ -243,7 +229,7 @@ class World:
         identity = {"institution_id": inst, "institution_name": f"Council {inst}", "country": "Australia",
                     "branch_of_government": "executive", "level_of_government": "local",
                     "institution_search_languages": "en"}
-        up = pp.InstitutionUpstream(OwnGroup(), merged, lambda sr: [], pair_decision)
+        up = pp.InstitutionUpstream(OwnGroup(), merged, lambda sr: [])
         return pp.PerPageInstitution(RUN_ID, uid_for(inst), identity, "AU",
                                      [pp.PageSpec(p.input, self.upstream(p.pid)) for p in pages], up)
 
@@ -633,3 +619,36 @@ def test_y1_observation_supported_unit():
     assert not pp.observation_supported("a1", gated, support)
     failed = {**out, "t": ItemOutcome("t", "core.activity_type", None, "combined", "unknown", True, part_id="c0")}
     assert not pp.observation_supported("a1", failed, support)
+
+
+def test_y5_within_page_decision_rule():
+    """Y5 a: one relation -> it (lowest probability of the parts choosing it; supported only if all are);
+    more than one value, or a value no part chose -> no decision (Stage 6 holds the pair)."""
+    from g3o.classify.jev_activity_code import ItemOutcome, PairResult
+    from g3o.common.support_check import SupportResult
+
+    def rec(value, p):
+        res = JevResult({"q": JevAnswer("q", "choice", choice=value, confidence=p, probabilities={value: p})},
+                        "m", "r", 1, 1)
+        return CoderRecord.from_jev(res, question_id="q", item_id="core.activity_segment", item_part=None,
+                                    support_id=None, observation_id=None, chunk_id="c", coder_version="v",
+                                    configured_model="m", question_set_version=QSV, setup_pointer="a" * 64,
+                                    classifier_rule=None)
+
+    def sr(value, status):
+        return SupportResult(item_id="core.activity_segment", part=None, activity_id="a1", chunk_id="c",
+                             original_value=value, value=value, support_status=status,
+                             support_status_second_reason=None, support_rule_name=None, supporting_text=None,
+                             quote_chunk_id=None, match=None, chosen_answer_probability=None, entailment=None)
+
+    def pair(value, state="combined"):
+        return PairResult("a1", "a2", ("c0", "c1"), (1, 2),
+                          ItemOutcome("q", "core.activity_segment", None, state, value), ())
+    both = [(rec("governs", 0.95), sr("governs", "supported")), (rec("governs", 0.85), sr("governs", "supported"))]
+    assert pp.within_page_decision(pair(["governs"]), both) == ("governs", 0.85, "supported")
+    assert pp.within_page_decision(pair("governs"), both) == ("governs", 0.85, "supported")
+    mixed = [both[0], (rec("governs", 0.9), sr("governs", "downgraded_no_quote"))]
+    assert pp.within_page_decision(pair(["governs"]), mixed) == ("governs", 0.9, "downgraded_no_quote")
+    assert pp.within_page_decision(pair(["governs", "same_activity"]), both) is None
+    assert pp.within_page_decision(pair(["unknown"]), both) is None  # no part chose it
+    assert pp.within_page_decision(pair(None, "stopped"), both) is None
