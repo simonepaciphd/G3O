@@ -35,9 +35,11 @@ Rules carried here, not decided here:
   holds go to ``perpage_v27/held.json`` and the attrition ledger, nothing is
   passed to Stage 6, and pending values are never published or turned into
   negatives. A per-page producer error for one page (:data:`PRODUCER_FAILED`:
-  a refusal, an absent upstream value, a page with neither a page-code
-  artifact nor a recorded failure) holds that institution the same way and the
-  stage goes on; stage stops (:data:`STAGE_STOPS`) still propagate. When a
+  a refusal, a page with neither a page-code artifact nor a recorded failure)
+  holds that institution the same way and the stage goes on; stage stops
+  (:data:`STAGE_STOPS`) still propagate. An absent upstream value
+  (``MissingUpstreamError``) is a wiring gap, not institution data: it stops
+  the stage loudly (RC-D-033 C2 a). When a
   held institution is later ready, :data:`HELD_RELEASED` is recorded.
 - **Provider seams.** The support check (T-022 pass-1 quotes, T-032 pass-2
   quotes, X35 entailment and the T-024 check) and the T-022 activity spans are
@@ -110,6 +112,7 @@ from g3o.common.jev_client import JevAccountError
 from g3o.common.jev_record import CoderRecord
 from g3o.common.part_combine import NOT_COVERED
 from g3o.common.paths import institution_dir
+from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
 from g3o.common.storage import METADATA_ITEMS, table_fields
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import (
@@ -173,8 +176,10 @@ UNCARRIED_STAGE = "combined_value_uncarried"  # RC-D-030 Y3 b: per-institution h
 #: a per-page producer refused or failed for one page (held.json names the error): per-institution hold
 PRODUCER_FAILED = "page_producer_failed"
 #: Errors that stop the whole stage; every other producer error holds its institution only.
+#: Both ``MissingUpstreamError`` classes subclass ``ValueError``; they are listed here so the
+#: per-institution ``ValueError`` handlers never swallow a wiring gap (RC-D-033 C2 a).
 STAGE_STOPS = (JevAccountError, stage_page_code.StageStopped, SupportGateError, Stage6QuoteNotApproved,
-               BudgetExceededError, UnpricedModelError)
+               BudgetExceededError, UnpricedModelError, MissingUpstreamError, SourceFieldsMissingUpstreamError)
 
 
 class UncarriedCombinedValue(ConsolidationError):

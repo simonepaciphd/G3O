@@ -568,12 +568,11 @@ def test_perpage_refuses_absent_upstream(tmp_path):
     from dataclasses import replace
     spec = replace(a.pages[0], upstream=replace(a.pages[0].upstream, followed=None))
     broken = replace(a, pages=[spec, *a.pages[1:]])
-    # QA round 2 LOW-G: an absent upstream refuses that institution only (held, attrition)
-    ready, metrics = _perpage(run_dir, bound, instrument, world, [broken], FakeJev(ANSWERS, RELATIONS))
-    assert not ready and metrics.held == ["INST-0000001"]
-    (hold,) = _held_doc(run_dir, "INST-0000001")["held"]
-    assert hold["stage"] == pp.PRODUCER_FAILED and "MissingUpstreamError" in hold["error"]
-    assert "follow" in hold["error"]
+    # RC-D-033 C2 a: an absent upstream is a wiring gap; it stops the stage loudly
+    with pytest.raises(pp.MissingUpstreamError, match="follow"):
+        _perpage(run_dir, bound, instrument, world, [broken], FakeJev(ANSWERS, RELATIONS))
+    assert not (institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.HELD_FILE).exists()
+    assert not any(r["reason"] == pp.HELD_REASON for r in attrition.read_records(run_dir))
 
 
 def test_cost_stop_is_not_a_page_failure_and_resumes(tmp_path):
@@ -783,6 +782,22 @@ def test_producer_error_is_a_per_institution_hold_and_later_institutions_continu
     assert hold["stage"] == pp.PRODUCER_FAILED and f"{type(error).__name__}: {error}" == hold["error"]
     assert any(r["institution_id"] == "INST-0000001" and r["reason"] == pp.HELD_REASON
                and r["detail"] == f"{hold['page_id']}:{pp.PRODUCER_FAILED}" for r in attrition.read_records(run_dir))
+
+
+@pytest.mark.parametrize("error", [
+    pp.MissingUpstreamError("simulated absent producer", ["p1"]),
+    pp.SourceFieldsMissingUpstreamError("simulated absent source-field producer", ["p1"])])
+@pytest.mark.parametrize("seam", ["produce_page", "_failure_reason"])
+def test_missing_upstream_from_a_producer_stops_the_stage(tmp_path, monkeypatch, error, seam):
+    """RC-D-033 C2 a: MissingUpstreamError (a ValueError) is re-raised, never a per-institution hold."""
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+
+    def missing(*args, **kw):
+        raise error
+    monkeypatch.setattr(pp, seam, missing)
+    with pytest.raises(type(error), match="simulated absent"):
+        _perpage(run_dir, bound, instrument, world, insts, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
+    assert not any(r["reason"] == pp.HELD_REASON for r in attrition.read_records(run_dir))
 
 
 def test_failure_reason_error_is_a_per_institution_hold(tmp_path, monkeypatch):
