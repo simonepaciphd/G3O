@@ -47,6 +47,9 @@ Rules carried here, not decided here:
 - **Provider seams.** The support check (T-022 pass-1 quotes, T-032 pass-2
   quotes, X35 entailment and the T-024 check) and the T-022 activity spans are
   injected (:class:`PerPageProviders`); this module does not call them itself.
+  :func:`g3o.run.presweep.perpage_providers_v27.build_perpage_providers` builds
+  them over injected extractor and X35 calls, bound to the instrument's pinned
+  models (refused otherwise); those calls are journaled per institution.
 - **Values with no producer here** are explicit inputs (:class:`PageUpstream`,
   :class:`InstitutionUpstream`) and refuse when absent
   (:class:`~g3o.persist.stage6_adapters.MissingUpstreamError`): the
@@ -819,15 +822,30 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                     providers: PerPageProviders, page_config: PageCoderConfig,
                     activity_config: ActivityCoderConfig, instrument: dict[str, Any],
                     cost_check_callback: Callable[[str, dict[str, int]], bool] | None = None,
+                    test_only_unbound_providers: bool = False,
                     ) -> tuple[list[Stage6Institution], PerPageMetrics]:
     """Code, re-gate and produce every page; return the institutions ready for Stage 6.
 
     ``JevAccountError`` / budget stops propagate after the journal and
     checkpoints hold what finished; the next run resumes from them.
+
+    ``providers`` must come from
+    :func:`~g3o.run.presweep.perpage_providers_v27.build_perpage_providers` for this
+    instrument, declaring its pinned extractor and X35 models (QA3 F3); their extractor
+    and X35 calls are journaled per institution. ``test_only_unbound_providers`` lifts
+    that check for offline fakes in tests only.
     """
     if page_config.setup_pointer != instrument["instrument_id"] or \
             activity_config.setup_pointer != instrument["instrument_id"]:
         raise ValueError("per-page coder configuration is bound to a different instrument")
+    cfg = instrument["payload"]["extractor_configuration"]
+    if not test_only_unbound_providers and not (
+            getattr(providers, "bound_instrument_id", None) == instrument["instrument_id"]
+            and getattr(providers, "extractor_model", None) == cfg.get("model")
+            and getattr(providers, "x35_model", None) and providers.x35_model == cfg.get("x35_model")
+            and hasattr(providers, "with_seams")):
+        raise ValueError("per-page providers are not bound to this instrument (or their extractor / X35 model "
+                         "differs from the pinned one): build them with build_perpage_providers")
     metrics = PerPageMetrics()
     ready: list[Stage6Institution] = []
     # The journal key binds the setup: a response recorded under another setup is never replayed.
@@ -839,6 +857,9 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
         inst_dir = institution_dir(run_dir, inst.institution_id)
         journal = RequestJournal(inst_dir / WORK_DIR / JOURNAL, setup)
         ask = journal.ask(ask_fn)
+        inst_providers = providers
+        if hasattr(providers, "with_seams"):  # extractor and X35 calls journaled (usage, durable resume)
+            inst_providers = providers.with_seams(*journal.seams(providers.journal_prompt))
         states = [_PageState(spec) for spec in inst.pages]
         broken: dict[str, Any] | None = None  # a producer error for one page: this institution is held
         try:
@@ -859,7 +880,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                         break
                     metrics.failed_pages.append(page.page_id)
                     continue
-                _rounds_for_page(run_dir, st, ask, providers, page_config, activity_config, metrics)
+                _rounds_for_page(run_dir, st, ask, inst_providers, page_config, activity_config, metrics)
         finally:
             metrics.live_requests += journal.live
             metrics.replayed_requests += journal.replayed

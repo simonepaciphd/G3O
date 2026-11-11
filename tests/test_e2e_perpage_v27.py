@@ -393,7 +393,7 @@ class FakeQuotes:
 def _perpage(run_dir, bound, instrument, world, insts, jev):
     return pp.run_perpage_v27(run_dir, insts, ask_fn=jev, providers=world.providers(),
                               page_config=bound.page_config, activity_config=bound.activity_config,
-                              instrument=instrument)
+                              instrument=instrument, test_only_unbound_providers=True)
 
 
 def _full(run_dir, bound, instrument, world, insts, jev=None):
@@ -632,7 +632,7 @@ def test_cost_stop_is_not_a_page_failure_and_resumes(tmp_path):
     with pytest.raises(stage_page_code.StageStopped):
         pp.run_perpage_v27(run_dir, c, ask_fn=FakeJev(ANSWERS, RELATIONS, _fail_verdict), providers=world.providers(),
                            page_config=bound.page_config, activity_config=bound.activity_config,
-                           instrument=instrument, cost_check_callback=budget)
+                           instrument=instrument, cost_check_callback=budget, test_only_unbound_providers=True)
     assert not any(r["reason"] == pp.HELD_REASON for r in attrition.read_records(run_dir))
     ready, metrics = _perpage(run_dir, bound, instrument, world, c, FakeJev(ANSWERS, RELATIONS, _fail_verdict))
     assert [i.institution_id for i in ready] == ["INST-0000003"] and metrics.failed_pages == ["c2"]

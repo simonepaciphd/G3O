@@ -359,6 +359,13 @@ class RequestJournal:
             return answer
         return wrapped
 
+    def seams(self, prompt: Mapping[str, Any]) -> tuple[Any, Any]:
+        """Wrappers that journal an extractor call and an X35 call under ``prompt`` (an extra key
+        part, e.g. the models they run on): ``(wrap_extract, wrap_entail)``. Used by the per-page
+        providers (:meth:`~g3o.run.presweep.perpage_providers_v27.ExtractorPerPageProviders.with_seams`)."""
+        prompt = dict(prompt)
+        return (lambda f: self._extract(f, prompt)), (lambda f: self._entail(f, prompt))
+
     def quote(self, quote_fn: QuoteFn | None) -> QuoteFn | None:
         if quote_fn is None:
             return None
