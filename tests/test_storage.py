@@ -484,3 +484,66 @@ def test_rcd011_unavailable_legacy_email_remains_null():
     assert row["content_contact_emails_json"] is None
     assert row["contact_email_domain_counts_json"] is None
     assert public_projection("sources", row)["contact_email_domain_counts_json"] is None
+
+
+# --- RC-D-030 Y2 a, narrowed (QA round 2 LOW-D): the page-level `_NA_` source row -------------------
+
+
+def _page_level_row(tmp_path, data, sid, *, page="page3.txt", url="https://example.gov/no-activity-page"):
+    """A copy of S1 as the page-level source row of a reviewed page with no activity."""
+    import copy
+
+    row = copy.deepcopy(data["sources"]["S1"])
+    text = (tmp_path / "page.txt").read_bytes()
+    (tmp_path / page).write_bytes(text)
+    row.update(activity_id="_NA_", observation_ids=[], page_artifact_path=page)
+    row["values"]["core.source_url"] = url
+    ids = {}
+    for support in row["item_support"]:
+        old = support["support_id"]
+        support.update(source_id=sid, observation_id=None)
+        support["support_id"] = support_id("R1", data["institution_uid"], support)
+        ids[old] = support["support_id"]
+    for coder in row["coder_records"]:
+        coder.update(support_id=ids[coder["support_id"]], observation_id=None)
+    data["sources"][sid] = row
+    return row
+
+
+def _count_page(data, n=1):
+    depth = data["summary"]["values"]["core.review_depth"]["web_extract"]
+    depth["n_pages_reviewed"] += n
+    depth["n_pages_by_verdict"]["confirms_activity"] += n
+
+
+def test_page_level_na_source_row_of_its_own_page_is_accepted(tmp_path):
+    data, record, _, _ = fixture_bundle(tmp_path)
+    _page_level_row(tmp_path, data, "S3")
+    _count_page(data)
+    StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_page_level_na_source_row_on_a_page_with_another_source_row_refuses(tmp_path):
+    data, record, _, _ = fixture_bundle(tmp_path)  # S1, S2 (activities) are on page.txt
+    _page_level_row(tmp_path, data, "S3", page="page.txt", url=data["sources"]["S1"]["values"]["core.source_url"])
+    with pytest.raises(ValueError, match="page-level"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_two_page_level_na_source_rows_on_one_page_refuse(tmp_path):
+    data, record, _, _ = fixture_bundle(tmp_path)
+    _page_level_row(tmp_path, data, "S3")
+    _page_level_row(tmp_path, data, "S4")
+    _count_page(data)
+    with pytest.raises(ValueError, match="page-level"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_na_source_row_of_an_unpublished_observation_keeps_its_observation_ids(tmp_path):
+    # X3 a (i) `_NA_` rows keep their observation ids; their supports cannot drop the observation
+    data, record, _, _ = fixture_bundle(tmp_path)
+    row = _page_level_row(tmp_path, data, "S3")
+    row["observation_ids"] = ["O9"]
+    _count_page(data)
+    with pytest.raises(ValueError, match="endpoint does not resolve"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)

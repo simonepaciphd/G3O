@@ -396,6 +396,17 @@ class StorageEnvelope:
                     raise ValueError("source observation is absent from its final activity")
             self.pages[sid] = (row["_page_path"], row["values"]["core.source_url"],
                                row["values"]["core.source_access_date"], row["page_content_sha256"])
+        # RC-D-030 Y2 a, the ruled case only: a source row with no observation is the page-level
+        # row of a reviewed page with no activity, so it is the only source row of its page (same
+        # stored artifact or same URL); X3 a (i) `_NA_` rows keep their observation ids.
+        for sid, row in sources.items():
+            if row["observation_ids"]:
+                continue
+            path, url = self.pages[sid][:2]
+            if any(other != sid and (self.pages[other][0] == path or self.pages[other][1] == url)
+                   for other in sources):
+                raise ValueError("a page-level _NA_ source row (no observation) must be the only source row "
+                                 "of its page")
         for aid, row in activities.items():
             actual = sum(source["activity_id"] == aid for source in sources.values())
             if row["values"]["core.n_sources"] != actual:
