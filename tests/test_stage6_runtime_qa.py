@@ -756,3 +756,49 @@ def test_x35_answers_are_not_replayed_under_another_x35_model(tmp_path):
     _run(run_dir, bound, instrument, [a], bound.stage6_quote_fn(FakeExtractor(), other, x35_model="x35-b"),
          jev=e.FakeJev(e.RELATIONS, {}))
     assert len(other.calls) == len(first.calls)  # another X35 model: asked again
+
+
+# --- RC-D-032 B5 a: a copied relation (X30) original may source a final downgrade node ------------
+
+
+class LowRelation(e.FakeJev):
+    """The cross-page relation is answered below the 0.8 bar (downgraded for low confidence)."""
+
+    def __call__(self, state, questions):
+        r = super().__call__(state, questions)
+        if s6.RELATION_ITEM not in r.answers:
+            return r
+        a = r.answers[s6.RELATION_ITEM]
+        low = JevAnswer(a.question_id, "choice", choice=a.choice, confidence=0.5, probabilities={a.choice: 0.5})
+        return JevResult({**r.answers, s6.RELATION_ITEM: low}, r.response_model, r.request_id, r.input_tokens,
+                         r.output_tokens)
+
+
+def test_rcd032_b5_relation_quote_copied_then_downgraded_for_low_confidence_stores(tmp_path):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    metrics = _run(run_dir, bound, instrument, [a], e.FakeQuotes(), jev=LowRelation(e.RELATIONS, e._pooled_answers()))
+    assert metrics.written == [A], _held(run_dir)
+    storage = _storage(run_dir)
+    nodes = {n["support_id"]: n for x in storage["activities"].values() for n in x["item_support"]}
+    finals = [n for n in nodes.values() if n["item_id"] == s6.RELATION_ITEM
+              and n["support_status"] == "downgraded_low_confidence" and n["passage"].get("downgrade_of")]
+    assert finals
+    for final in finals:
+        (original_id,) = final["input_support_ids"]
+        original = nodes[original_id]
+        assert original["supporting_text"] and len(original["input_support_ids"]) == 1  # names its copied input
+    assert sorted(tuple(x["observation_ids"]) for x in storage["activities"].values()) == [("o1",), ("o2",), ("o3",),
+                                                                                              ("o4",)]
+
+
+def test_rcd032_b5_only_copied_relation_originals_may_name_inputs():
+    from g3o.common.jev_record import downgrade_source_original
+    rel = {"source_id": None, "observation_id": None, "item_id": s6.RELATION_ITEM, "input_support_ids": ["x"],
+           "supporting_text": "copied words", "passage": {"quote_source_id": "S1"}}
+    assert downgrade_source_original(rel)
+    assert not downgrade_source_original({**rel, "input_support_ids": ["x", "y"]})  # not one copied input
+    assert not downgrade_source_original({**rel, "supporting_text": ""})
+    assert not downgrade_source_original({**rel, "passage": {"quote_source_id": None}})
+    assert not downgrade_source_original({**rel, "observation_id": "o1"})
+    assert not downgrade_source_original({**rel, "source_id": "S1"})

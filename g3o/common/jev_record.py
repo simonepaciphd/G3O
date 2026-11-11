@@ -368,13 +368,14 @@ def _downgrade_final(support: dict[str, Any], linked: Sequence[dict[str, Any]]) 
     for prior in inputs:
         original = by_id.get(prior)
         if (original is None or any(original.get(k) != support.get(k) for k in context)
-                or (original.get("input_support_ids") and not pooled_original(original))
+                or (original.get("input_support_ids") and not downgrade_source_original(original))
                 or original.get("value_json") == support.get("value_json")):
             return False
     return True
 
 
-#: The X30 cross-page relation item: its Stage 6 nodes are not pooled (RC-D-031 A1 covers pooled only).
+#: The X30 cross-page relation item: its Stage 6 nodes are not pooled (RC-D-031 A1 covers pooled
+#: originals; RC-D-032 B5 a adds copied relation originals, :func:`relation_copied_original`).
 _RELATION_ITEM = "core.activity_relation_cross_page"
 
 
@@ -384,6 +385,25 @@ def pooled_original(support: dict[str, Any]) -> bool:
     original may be the source of a FINAL downgrade node."""
     return (support.get("source_id") is None and support.get("observation_id") is None
             and support.get("item_id") != _RELATION_ITEM and bool(support.get("input_support_ids")))
+
+
+def relation_copied_original(support: dict[str, Any]) -> bool:
+    """RC-D-032 B5 a: a cross-page relation (X30) ORIGINAL whose quote was copied from one
+    shown input: it names exactly that input (``input_support_ids``), keeps the copied text,
+    and has no source claim or observation of its own. Such an original may be the source
+    of a FINAL downgrade node (e.g. downgraded for low confidence)."""
+    inputs = support.get("input_support_ids")
+    passage = support.get("passage")
+    return (support.get("item_id") == _RELATION_ITEM and support.get("source_id") is None
+            and support.get("observation_id") is None and isinstance(inputs, list) and len(inputs) == 1
+            and bool(support.get("supporting_text"))
+            and isinstance(passage, dict) and passage.get("quote_source_id") is not None)
+
+
+def downgrade_source_original(support: dict[str, Any]) -> bool:
+    """An ORIGINAL that names inputs and may still source a FINAL downgrade node:
+    pooled (RC-D-031 A1 a) or a copied relation original (RC-D-032 B5 a)."""
+    return pooled_original(support) or relation_copied_original(support)
 
 
 def records_to_json(records: list[CoderRecord]) -> str:

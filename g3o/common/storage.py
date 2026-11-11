@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from g3o.common.instrument import canonical_json, load_instrument, sha256_text, validate_instrument
-from g3o.common.jev_record import pooled_original
+from g3o.common.jev_record import downgrade_source_original
 from g3o.common.storage_fields import FIELDS
 from g3o.common.support_check import match_quote
 
@@ -512,9 +512,10 @@ class StorageEnvelope:
             context = ("item_id", "item_part", "observation_id", "source_id", "chunk_id", "support_status")
             for prior in inputs:
                 original = self.supports[prior]
-                # RC-D-031 A1 a: a pooled original names its shown inputs and may still be the source.
+                # RC-D-031 A1 a / RC-D-032 B5 a: a pooled original (its shown inputs) or a copied
+                # relation original (its one copied input) names inputs and may still be the source.
                 if (any(original[k] != support[k] for k in context)
-                        or (original["input_support_ids"] and not pooled_original(original))
+                        or (original["input_support_ids"] and not downgrade_source_original(original))
                         or original["value_json"] == support["value_json"] or prior not in classifier_backed):
                     return False
             return True
