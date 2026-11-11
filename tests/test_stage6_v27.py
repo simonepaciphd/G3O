@@ -292,14 +292,45 @@ def test_pooled_scale_unit_asked_with_stated_number_when_any_observation_states_
     assert [s["stated_number"] for s in _unit_states(jev2)] == ["1,200"]
 
 
-def test_pooled_different_stated_numbers_hold_the_unit_question():
+def test_pooled_different_stated_numbers_are_shown_as_a_list_in_pool_order():
+    # RC-D-029 W1 a: the distinct number words as a list, pool order; W2 a: last field
     pages, obs, recs, quotes, jev = merged()
     obs = [observation("o1", "p1", number="1,200"), observation("o2", "p2", number="300")]
     result = run(pages, obs, recs, quotes, jev, FakeQuotes())
     pooled = result.pooled[("o1", "o2")]
-    assert [h.reason for h in pooled.held] == [s6.POOLED_STATED_NUMBERS_DIFFER]
-    assert pooled.outcomes[UNIT_Q].state == "pending" and not _unit_states(jev)
-    assert not result.ready
+    states = _unit_states(jev)
+    assert len(states) == 1 and states[0]["stated_number"] == ["1,200", "300"]
+    assert list(states[0])[-1] == "stated_number"
+    assert all("stated_number" not in c[0] for c in jev.calls if UNIT_Q not in c[1])
+    assert not pooled.held and pooled.outcomes[UNIT_Q].state == "combined" and result.ready
+    # pool order is source date, not group order: o2's quote dated earlier comes first
+    quotes = [quotes[0], replace(quotes[1], source_publication_date="2025-01-01")]
+    jev2 = merged()[4]
+    run(pages, obs, recs, quotes, jev2, FakeQuotes())
+    assert [s["stated_number"] for s in _unit_states(jev2)] == [["300", "1,200"]]
+    # a repeated number word appears once
+    obs3 = [observation("o1", "p1", number="300"), observation("o2", "p2", number="1,200"),
+            observation("o3", "p3", number="300")]
+    assert s6.stated_numbers(["o1", "o2", "o3"], {o.observation_id: o for o in obs3}) == ("300", "1,200")
+
+
+def test_pooled_stated_number_list_is_in_the_token_measure(monkeypatch):
+    # the request measure serializes the state with the list form (upper bound, W1 a)
+    pages, obs, recs, quotes, jev = merged()
+    obs = [observation("o1", "p1", number="1,200"), observation("o2", "p2", number="300")]
+    seen = []
+    real = s6.prepare_pool_requests
+
+    def spy(pool_id, entries, *, serialize_request, **kw):
+        def wrapped(part):
+            text = serialize_request(part)
+            seen.append(json.loads(text))
+            return text
+        return real(pool_id, entries, serialize_request=wrapped, **kw)
+
+    monkeypatch.setattr(s6, "prepare_pool_requests", spy)
+    run(pages, obs, recs, quotes, jev, FakeQuotes())
+    assert seen and all(s["stated_number"] == ["1,200", "300"] for s in seen)
 
 
 def test_pooled_stated_number_of_unconfirmed_observation_is_not_used():

@@ -86,6 +86,7 @@ from g3o.common.page_chunks import (
     PoolEntry,
     PoolPart,
     TokenEstimator,
+    _pool_order,  # the pool's own order (source date, then page position)
     prepare_pool_requests,
 )
 from g3o.common.response_v27 import (
@@ -129,7 +130,6 @@ QUOTE_STEP_ABSENT = "stage6_quote_step_absent"
 QUOTE_STEP_FAILED = "stage6_quote_step_failed"
 RELATION_OVER_BUDGET = "relation_request_over_budget_split_marker_unapproved"
 POOLED_NANO_GATE = "pooled_nano_gate_unruled"
-POOLED_STATED_NUMBERS_DIFFER = "pooled_stated_numbers_differ_form_unruled"
 REQUEST_FAILED = "jev_request_failed"
 MISSING_REQUEST_ID = "jev_missing_request_id"
 ANSWER_MISSING = "jev_answer_missing"
@@ -519,9 +519,12 @@ def _quote_row(q: InputQuote) -> dict[str, Any]:
 
 
 def pooled_state(part: PoolPart, n_parts: int, by_entry: Mapping[str, InputQuote],
-                 qset: Mapping[str, Any], *, stated_number: str | None = None) -> dict[str, Any]:
+                 qset: Mapping[str, Any], *, stated_number: str | list[str] | None = None) -> dict[str, Any]:
     """``pooled.state``: pool_note, supporting quotes (pool order), page_part marker, then
-    ``stated_number`` (RC-D-028 2 a; RC-D-021 W-06 name) when a question of the request shows it."""
+    ``stated_number`` (RC-D-028 2 a; RC-D-021 W-06 name; last field, RC-D-029 W2 a) when a
+    question of the request shows it: the number words, as the per-page state shows them,
+    or, when the confirmed observations state different numbers, the distinct number words
+    as a JSON list in pool order (RC-D-029 W1 a)."""
     st = qset["pooled"]["state"]
     if [f["name"] for f in st["quote_fields"]] != ["quote_text", "source_type", "source_publication_date",
                                                    "page_url"]:
@@ -538,7 +541,8 @@ def pooled_state(part: PoolPart, n_parts: int, by_entry: Mapping[str, InputQuote
 
 
 def stated_numbers(eligible: Sequence[str], observations: Mapping[str, ActivityObservation]) -> tuple[str, ...]:
-    """The extractor's number words of the pooled (confirmed) observations, distinct, group order.
+    """The extractor's number words of the pooled (confirmed) observations, distinct, in the
+    order of ``eligible`` (the caller passes pool order, RC-D-029 W1 a; W3 a: confirmed only).
 
     Read from each observation's extracted fields (``core.deployment_scale_number``, the
     T-022 field the per-page state shows as ``stated_number``); missing values left out.
@@ -570,13 +574,16 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
         raise ConsolidationError("eligible pooled observation has no actual support quote")
     if len({q.support_id for q in selected}) != len(selected):
         raise ConsolidationError("duplicate pooled support identity")
-    numbers = stated_numbers(eligible, obs)
     name = next((obs[k].fields.get("core.activity_name") for k in eligible
                  if _real(obs[k].fields.get("core.activity_name"))), None)
-    shown_number = numbers[0] if len(numbers) == 1 else None
     by_entry = {q.support_id: q for q in selected}
     entries = [PoolEntry(q.support_id, json.dumps(_quote_row(q), ensure_ascii=False, sort_keys=True),
                          q.pool_date, q.page_order * 100_000 + q.passage_order) for q in selected]
+    # RC-D-029 W1 a: distinct number words in pool order (an observation at its first quote).
+    in_pool_order = list(dict.fromkeys(by_entry[e.entry_id].observation_id for e in _pool_order(entries, "error")))
+    numbers = stated_numbers(in_pool_order, obs)
+    shown_number: str | list[str] | None = (numbers[0] if len(numbers) == 1 else list(numbers) if numbers
+                                            else None)
     questions = [q for q in aset["questions"]]
     by_id = {q["question_id"]: q for q in questions}
     final: dict[str, ItemOutcome] = {}
@@ -592,7 +599,7 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
     # ("i of n", part note only when n > 1) is never larger. The activity-set
     # questions are not in the measure: round 3 alone estimates above 32k.
 
-    def serialize(part: PoolPart) -> str:  # with the stated number when one exists (upper bound)
+    def serialize(part: PoolPart) -> str:  # with the stated number(s) when any exist (upper bound)
         return json.dumps(pooled_state(part, MEASURE_PARTS, by_entry, qset, stated_number=shown_number),
                           ensure_ascii=False, sort_keys=True)
 
@@ -615,13 +622,6 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
                                                           "gated_out", value, rule_reference=GATE_RULE + NUMBER_ITEM)
                     records.append(_mechanical(q["item_id"], q["question_id"], value, GATE_RULE + NUMBER_ITEM,
                                                config, qsv, part=q.get("part")))
-                    continue
-                if NUMBER_ITEM in (q.get("shows_value_of") or ()) and shown_number is None:
-                    # several different stated numbers: the form of stated_number is not ruled (report)
-                    held.append(Held(POOLED_STATED_NUMBERS_DIFFER, f"{pool_id}:{q['question_id']}",
-                                     " | ".join(numbers)))
-                    final[q["question_id"]] = ItemOutcome(q["question_id"], q["item_id"], q.get("part"), "pending",
-                                                          None, note=POOLED_STATED_NUMBERS_DIFFER)
                     continue
             if kind == "item":
                 open_ = gate_open(q, final, {}, by_id)
@@ -841,7 +841,7 @@ def write_stage6_outputs(inst_dir: Path, *, envelope: StorageEnvelope, instituti
 
 
 __all__ = [
-    "CODER_VERSION", "NUMBER_ITEM", "PERMANENT_PILOT_RULE", "POOLED_NANO_GATE", "POOLED_STATED_NUMBERS_DIFFER",
+    "CODER_VERSION", "NUMBER_ITEM", "PERMANENT_PILOT_RULE", "POOLED_NANO_GATE",
     "PREFILTER_RULE",
     "QUOTE_STEP_ABSENT", "QUOTE_STEP_FAILED", "RELATION_ITEM", "RELATION_OVER_BUDGET", "Held", "InputQuote",
     "ObservationRecord", "PooledActivity", "QuoteFn", "RelationOutcome", "Stage6Config", "Stage6Quote",
