@@ -135,6 +135,19 @@ def test_share_must_exceed_half_strictly(monkeypatch):
     assert lid.identify(text).tag == "en"  # spans of one language are summed: 210 / 400
 
 
+def test_share_counts_letters_only(monkeypatch):
+    """Ruling 23 b: whitespace, digits and punctuation count in neither numerator nor denominator."""
+    en, fr = lingua.Language.ENGLISH, lingua.Language.FRENCH
+    # 100 English letters padded with 200 spaces/digits, then 150 French letters: by characters
+    # English would lead (300/450 > 0.5); by letters French does (150/250 > 0.5).
+    text = "a" * 100 + " 1" * 100 + "b" * 150
+    _fake(monkeypatch, [_Span(en, 0, 300), _Span(fr, 300, 450)])
+    res = lid.identify(text)
+    assert res.tag == "fr" and res.shares[0] == ("fr", 150 / 250)
+    assert lid.configuration()["share_unit"] == "letters of main text (str.isalpha)"
+    assert lid.LANGUAGE_ID_VERSION == "g3o.common.language_id.v2"
+
+
 def test_bilingual_page_is_mul():
     assert lid.identify(EN + FR + EN + FR + DE + DE).tag == "mul"
 

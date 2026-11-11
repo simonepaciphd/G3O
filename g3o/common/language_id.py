@@ -29,15 +29,17 @@ binds it through ``extractor_configuration``):
   exactly as stored (no normalisation). Each result is a span
   ``[start_index, end_index)`` in characters (Python code points) with one
   language.
-- **Share:** the characters of each language's spans, summed; the leading
-  language is the one with the most characters (ties ordered by tag; two
-  tied languages cannot both exceed 0.5, so a tie at the top is always ``mul``).
-  share = leading characters / ``len(text)``. Characters no span covers (e.g.
-  digits or symbols lingua attributes to no language) stay in the
-  denominator: they are main text that no language accounts for.
-- **Decision:** ``len(text) < MIN_MAIN_TEXT_CHARS`` -> ``unknown``; no span at
-  all (no language identified, e.g. a script lingua does not model) ->
-  ``unknown``; share > :data:`MUL_SHARE` (strictly) -> the leading language's
+- **Share (letters only; PI ruling 23 b on the build questions, 2026-11-11):**
+  the letters (``str.isalpha``) inside each language's spans, summed; the
+  leading language is the one with the most letters (ties ordered by tag; two
+  tied languages cannot both exceed 0.5, so a tie at the top is always
+  ``mul``). share = leading letters / all letters of the main text. Whitespace,
+  digits, punctuation and symbols count in neither; letters no span covers
+  stay in the denominator: they are main text that no language accounts for.
+- **Decision:** ``len(text) < MIN_MAIN_TEXT_CHARS`` -> ``unknown`` (the
+  minimum length counts all characters, as signed: ruling 21); no span at
+  all, or no letters (no language identified, e.g. a script lingua does not
+  model) -> ``unknown``; share > :data:`MUL_SHARE` (strictly) -> the leading language's
   tag; otherwise ``mul``.
 
 Tag grammar: ``institution_search_languages`` stores lowercase ISO 639-1
@@ -61,7 +63,7 @@ from typing import Any
 LIBRARY = "lingua-language-detector"
 #: PI ruling 2 b (2026-11-11). Change only with a new ruling.
 PINNED_LINGUA = "2.2.0"
-LANGUAGE_ID_VERSION = "g3o.common.language_id.v1"
+LANGUAGE_ID_VERSION = "g3o.common.language_id.v2"  # v2: letters-only share (ruling 23 b)
 
 #: Minimum main-text length, in characters (``len(RenderedPage.text)``), below
 #: which no language is coded and the value is ``unknown`` (A3.2 a; shown to the PI).
@@ -148,7 +150,7 @@ def configuration() -> dict[str, Any]:
         "preloaded_models": False,
         "detection": "detect_multiple_languages_of",
         "text": "main",
-        "share_unit": "characters of main text (len)",
+        "share_unit": "letters of main text (str.isalpha)",
         "mul_share": MUL_SHARE,
         "mul_share_comparison": "strictly_greater",
         "min_main_text_chars": MIN_MAIN_TEXT_CHARS,
@@ -176,18 +178,20 @@ def identify(main_text: str) -> LanguageId:
     n = len(main_text)
     if n < MIN_MAIN_TEXT_CHARS:
         return LanguageId(UNKNOWN, "below_min_length", n, ())
+    letters = sum(1 for ch in main_text if ch.isalpha())
     chars: dict[str, int] = {}
     for span in _detector().detect_multiple_languages_of(main_text):
         tag = language_tag(span.language)
-        width = span.end_index - span.start_index
-        if width < 0 or span.start_index < 0 or span.end_index > n:
+        if span.end_index < span.start_index or span.start_index < 0 or span.end_index > n:
             raise LanguageIdError(f"lingua span out of range: {span!r} on {n} characters")
+        width = sum(1 for ch in main_text[span.start_index:span.end_index] if ch.isalpha())
         chars[tag] = chars.get(tag, 0) + width
-    if not chars:
+    chars = {t: c for t, c in chars.items() if c}
+    if not chars or not letters:
         return LanguageId(UNKNOWN, "no_language_identified", n, ())
-    shares = tuple(sorted(((t, c / n) for t, c in chars.items()), key=lambda x: (-x[1], x[0])))
+    shares = tuple(sorted(((t, c / letters) for t, c in chars.items()), key=lambda x: (-x[1], x[0])))
     lead = shares[0][0]
-    if chars[lead] > MUL_SHARE * n:  # integer characters vs the share, no float division
+    if chars[lead] > MUL_SHARE * letters:  # integer letters vs the share, no float division
         return LanguageId(lead, "language", n, shares)
     return LanguageId(MUL, "mul", n, shares)
 
