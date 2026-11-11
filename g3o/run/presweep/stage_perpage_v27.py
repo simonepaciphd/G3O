@@ -80,6 +80,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
@@ -217,6 +218,24 @@ def support_from_dict(doc: Mapping[str, Any]) -> SupportResult:
 # ---------------------------------------------------------------------------
 
 
+#: bounded retry of ``os.replace`` on a transient Windows ``PermissionError`` (WinError 5:
+#: an indexer or antivirus briefly holding the file); a no-op on POSIX
+REPLACE_ATTEMPTS = 5
+REPLACE_BACKOFF_S = 0.05
+
+
+def _replace_with_retry(tmp: Path, path: Path) -> None:
+    """``os.replace`` retried on ``PermissionError`` only; the last error is re-raised."""
+    for attempt in range(REPLACE_ATTEMPTS):
+        try:
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt == REPLACE_ATTEMPTS - 1:
+                raise
+            time.sleep(REPLACE_BACKOFF_S * (attempt + 1))
+
+
 def _atomic_write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
@@ -224,7 +243,7 @@ def _atomic_write(path: Path, text: str) -> None:
         stream.write(text.encode("utf-8"))
         stream.flush()
         os.fsync(stream.fileno())
-    os.replace(tmp, path)
+    _replace_with_retry(tmp, path)
 
 
 class Checkpoint:
