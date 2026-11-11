@@ -116,3 +116,28 @@ def test_x35_model_is_pinned_in_the_instrument_and_a_different_one_is_refused(tm
     with pytest.raises(TypeError):
         binding.RuntimeSettings(jev_model="j", extractor_model="e", extractor_effort="low", extractor_max_tokens=1,
                                 reserved_tokens=0, reference_year=2026, approval_reference="a")
+
+
+def test_language_id_pin_is_recorded_in_the_instrument(tmp_path):
+    from importlib.metadata import version
+
+    from g3o.common import language_id
+
+    bound = binding.bind_runtime(tmp_path, settings())
+    payload = load_instrument(tmp_path / "final" / "instruments", bound.instrument_id)["payload"]
+    lid = payload["extractor_configuration"]["language_id"]
+    assert lid == language_id.configuration()
+    assert lid["library"] == "lingua-language-detector"
+    assert lid["library_version"] == version("lingua-language-detector") == "2.2.0"
+    assert lid["version"] == language_id.LANGUAGE_ID_VERSION
+    assert lid["min_main_text_chars"] == language_id.MIN_MAIN_TEXT_CHARS
+    assert lid["mul_share"] == 0.5 and lid["mul_share_comparison"] == "strictly_greater"
+
+
+def test_unpinned_installed_lingua_refuses_before_writing(tmp_path, monkeypatch):
+    real = binding.version
+    monkeypatch.setattr(binding, "version",
+                        lambda name: "2.1.1" if name == "lingua-language-detector" else real(name))
+    with pytest.raises(ValueError, match="lingua"):
+        binding.bind_runtime(tmp_path, settings())
+    assert not list(tmp_path.iterdir())
