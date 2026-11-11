@@ -899,3 +899,37 @@ def test_rcd032_b5_only_copied_relation_originals_may_name_inputs():
     assert not downgrade_source_original({**rel, "passage": {"quote_source_id": None}})
     assert not downgrade_source_original({**rel, "observation_id": "o1"})
     assert not downgrade_source_original({**rel, "source_id": "S1"})
+
+
+# --- QA round 3, F5: a relation quote whose segment is not in the named input (RC-D-029 X3 a iii)
+
+
+def _segment_outside_input(inst, oid):
+    """The named input's quote segment is held by none of its stored parts (the quote step names
+    the input, but the segment it was matched on is outside it)."""
+    def moved(q):
+        return replace(q, quote_chunk_id=q.producing_chunk_id + "#outside") if q.observation_id == oid else q
+    records = [replace(r, quotes=tuple(moved(q) for q in r.quotes)) for r in inst.records]
+    return replace(inst, quotes=[moved(q) for q in inst.quotes], records=records)
+
+
+def test_f5_relation_quote_outside_its_named_input_is_stored_with_no_supporting_text(tmp_path):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    a = _segment_outside_input(a, "o1")  # FakeQuotes copies o1's quote for the (o1, o2) relation
+    metrics = _run(run_dir, bound, instrument, [a], e.FakeQuotes())
+    assert metrics.written == [A], _held(run_dir)
+    storage = _storage(run_dir)
+    nodes = {n["support_id"]: n for x in storage["activities"].values() for n in x["item_support"]}
+    rel = [n for n in nodes.values() if n["item_id"] == s6.RELATION_ITEM and not n["passage"].get("downgrade_of")]
+    assert rel
+    original = next(n for n in rel if n["observation_id"] == "o1")
+    # X3 a iii: no supporting text, placed as an unquoted relation's original (names no inputs)
+    assert original["supporting_text"] == "" and original["input_support_ids"] == []
+    assert original["support_status"] != "supported"
+    finals = [n for n in nodes.values() if n["passage"].get("downgrade_of") == original["support_id"]]
+    assert finals  # the downgrade final is stored from it
+    provenance = json.loads((institution_dir(run_dir, A) / "6_support_provenance.json").read_text(encoding="utf-8"))
+    records = provenance["records"] if isinstance(provenance, dict) else provenance
+    companion = next(r for r in records if r["support_id"] == original["support_id"])
+    assert companion["rejected_quote"]  # the rejected copy is kept in provenance only

@@ -551,11 +551,15 @@ def _relation_nodes(inst: Stage6Institution, result: Stage6Result, final_of: Map
         # (R-044; RC-D-029 X3 a iii): the node is placed as an unquoted relation's, and the
         # rejected copy is kept in its provenance companion only.
         quoted = sr.supporting_text is not None and copied is not None
-        nodes = combined_support_nodes(sr, run_id=inst.run_id, institution_uid=inst.institution_uid,
-                                       chunk_id=rec.chunk_id, shown=shown,
-                                       observation_id=None if quoted else outcome.lhs,
-                                       uncertainty_flags=_flags(inst, sr), instrument=instrument,
-                                       input_support_id=copied)
+
+        node_args = dict(run_id=inst.run_id, institution_uid=inst.institution_uid, chunk_id=rec.chunk_id,
+                         shown=shown, uncertainty_flags=_flags(inst, sr), instrument=instrument,
+                         input_support_id=copied)
+        nodes = combined_support_nodes(sr, observation_id=None if quoted else outcome.lhs, **node_args)
+        if quoted and not nodes.original["supporting_text"]:
+            # The quote step named an input, but the quote's segment is not in it: the adapter
+            # rejected the copy (no supporting text). Same placement as above (X3 a iii).
+            nodes = combined_support_nodes(sr, observation_id=outcome.lhs, **node_args)
         # The node lives with the record whose quote was copied (the quote step's own answer).
         inputs = nodes.original["input_support_ids"]
         home = quotes[copied].observation_id if copied is not None and inputs == [copied] else outcome.lhs
