@@ -530,6 +530,24 @@ def test_page_level_na_source_row_on_a_page_with_another_source_row_refuses(tmp_
         StorageEnvelope(data, record, artifact_root=tmp_path)
 
 
+def test_page_level_na_source_row_sharing_only_the_stored_artifact_refuses(tmp_path):
+    data, record, _, _ = fixture_bundle(tmp_path)  # same page artifact as S1/S2, its own URL
+    _page_level_row(tmp_path, data, "S3", page="page.txt")
+    assert data["sources"]["S3"]["values"]["core.source_url"] != data["sources"]["S1"]["values"]["core.source_url"]
+    _count_page(data)
+    with pytest.raises(ValueError, match="page-level"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
+def test_page_level_na_source_row_sharing_only_the_url_refuses(tmp_path):
+    data, record, _, _ = fixture_bundle(tmp_path)  # its own stored artifact, S1's URL
+    _page_level_row(tmp_path, data, "S3", url=data["sources"]["S1"]["values"]["core.source_url"])
+    assert data["sources"]["S3"]["page_artifact_path"] != data["sources"]["S1"]["page_artifact_path"]
+    _count_page(data)
+    with pytest.raises(ValueError, match="page-level"):
+        StorageEnvelope(data, record, artifact_root=tmp_path)
+
+
 def test_two_page_level_na_source_rows_on_one_page_refuse(tmp_path):
     data, record, _, _ = fixture_bundle(tmp_path)
     _page_level_row(tmp_path, data, "S3")
