@@ -685,3 +685,21 @@ def test_5f_budget_is_measured_on_the_request_state_not_the_questions():
     pooled = s6.pool_activity("pool001", ("o1", "o2"), obs, pages, quotes, merged()[4], FakeQuotes(),
                               replace(CONFIG, limit_tokens=limit))
     assert all(len(p) == 1 for p in pooled.parts.values())  # state fits: one part, questions not counted
+
+
+# --- RC-D-030 ---------------------------------------------------------------
+
+
+def test_y4_pooled_quotes_of_identical_text_are_shown_once_per_observation():
+    pages, obs, recs, quotes, jev = merged()
+    dup_same = replace(quotes[0], support_id="sup-o1-dup", passage_order=5)
+    dup_other = replace(quotes[1], support_id="sup-o2-dup", observation_id="o2", quote_text=quotes[0].quote_text,
+                        passage_order=6)
+    pooled = s6.pool_activity("pool001", ("o1", "o2"), obs, pages, [*quotes, dup_same, dup_other], jev,
+                              FakeQuotes(), CONFIG)
+    shown = {i for ids in pooled.part_inputs.values() for i in ids}
+    assert "sup-o1-dup" not in shown  # same text, same observation: once
+    assert {quotes[0].support_id, quotes[1].support_id, "sup-o2-dup"} <= shown  # other observation: kept
+    state = next(c[0] for c in jev.calls if REL_Q not in c[1])
+    texts = [r["quote_text"] for r in state["supporting_quotes"]]
+    assert texts.count(quotes[0].quote_text) == 2

@@ -45,7 +45,9 @@ Rules, as the signed codebook r15 and SPEC v001.28 state them:
   RC-D-021 W-06 field); several different stated numbers hold that question
   (the field's form for them is not ruled). RC-D-028 3 a: a quote whose source
   type has no signed label (automatically typed official / archive, missing
-  type) has no ``source_type`` field, as for missing values.
+  type) has no ``source_type`` field, as for missing values. RC-D-030 Y4 b:
+  an observation's input quotes with identical text are shown once (the
+  first, in its passage order; :func:`dedupe_pooled_quotes`).
 - **Source confidence (RC-D-025 A1, C7 a, P10-P12).** Which support records
   belong to a source claim is T-026's call (P12):
   :func:`source_claim_records` - the page-level records of the source's page
@@ -561,6 +563,20 @@ def stated_numbers(eligible: Sequence[str], observations: Mapping[str, ActivityO
     return tuple(out)
 
 
+def dedupe_pooled_quotes(quotes: Sequence[InputQuote]) -> list[InputQuote]:
+    """RC-D-030 Y4 b: within each observation, input quotes of identical text are pooled once
+    (the first in input order: the observation's passage order). Equal text in different
+    observations is kept: each observation is its own evidence."""
+    seen: set[tuple[str, str]] = set()
+    out: list[InputQuote] = []
+    for q in quotes:
+        key = (q.observation_id, q.quote_text)
+        if key not in seen:
+            seen.add(key)
+            out.append(q)
+    return out
+
+
 def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[ActivityObservation],
                   pages: Sequence[ReviewedPage], quotes: Sequence[InputQuote], ask_fn: AskFn,
                   quote_fn: QuoteFn | None, config: Stage6Config, *,
@@ -575,7 +591,7 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
     page_map = {p.page_id: p for p in pages}
     obs = {o.observation_id: o for o in observations}
     eligible = tuple(k for k in group if obs[k].supported and _positive(page_map[obs[k].page_id]))
-    selected = [q for q in quotes if q.observation_id in eligible]
+    selected = dedupe_pooled_quotes([q for q in quotes if q.observation_id in eligible])
     if not eligible or any(not any(q.observation_id == k for q in selected) for k in eligible):
         raise ConsolidationError("eligible pooled observation has no actual support quote")
     if len({q.support_id for q in selected}) != len(selected):
@@ -847,7 +863,7 @@ def write_stage6_outputs(inst_dir: Path, *, envelope: StorageEnvelope, instituti
 
 
 __all__ = [
-    "CODER_VERSION", "NUMBER_ITEM", "PERMANENT_PILOT_RULE", "POOLED_NANO_GATE",
+    "CODER_VERSION", "NUMBER_ITEM", "dedupe_pooled_quotes", "PERMANENT_PILOT_RULE", "POOLED_NANO_GATE",
     "PREFILTER_RULE",
     "QUOTE_STEP_ABSENT", "QUOTE_STEP_FAILED", "RELATION_ITEM", "RELATION_OVER_BUDGET", "Held", "InputQuote",
     "ObservationRecord", "PooledActivity", "QuoteFn", "RelationOutcome", "Stage6Config", "Stage6Quote",
