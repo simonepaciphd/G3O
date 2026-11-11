@@ -546,11 +546,15 @@ def test_x1_r2_union_drops_trim_casefold_duplicates_keeping_first_spelling_in_po
     assert out["core.reported_outcomes"] == []
 
 
-def test_x1_r2_no_entries_and_differing_values_is_refused():
-    inst = _merge_inst({"o1": _row(), "o2": _row(**{"core.reported_outcomes": "not_documented"})},
-                       {"o1": "low", "o2": "low"})
-    with pytest.raises(rt.ConsolidationError, match="core.reported_outcomes"):
-        rt.merge_values(inst, ["o1", "o2"])
+def test_rcd032_b3_r2_no_entries_and_differing_values_take_the_most_credible_observations_value():
+    rows = {"o1": _row(), "o2": _row(**{"core.reported_outcomes": "not_documented"})}
+    assert rt.merge_values(_merge_inst(rows, {"o1": "low", "o2": "high"}), ["o1", "o2"])[
+        "core.reported_outcomes"] == "not_documented"
+    assert rt.merge_values(_merge_inst(rows, {"o1": "high", "o2": "unknown"}), ["o1", "o2"])[
+        "core.reported_outcomes"] == []
+    tie = _merge_inst(rows, {"o1": "medium", "o2": "medium"})  # tie: pool order
+    assert rt.merge_values(tie, ["o2", "o1"])["core.reported_outcomes"] == "not_documented"
+    assert rt.merge_values(tie, ["o1", "o2"])["core.reported_outcomes"] == []
 
 
 def test_rcd032_b2_scale_number_follows_r3():

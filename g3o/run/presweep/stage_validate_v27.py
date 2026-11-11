@@ -44,7 +44,9 @@ Rules carried here, not decided here:
   from the observation whose source has the
   highest T-015 source confidence (high > medium > low; ``unknown`` counts as
   low, C8 b), ties by pool order, a missing token never winning over a real
-  value. Every observation's nodes stay on the merged row.
+  value. An R2 item with no entry in any observation takes the value of the
+  first observation in that R3 order (RC-D-032 B3 a; e.g. ``[]`` beside
+  ``not_documented``). Every observation's nodes stay on the merged row.
 - **Values with no producer here** are explicit inputs and refuse when absent
   (:class:`~g3o.persist.stage6_adapters.MissingUpstreamError`): the merged
   values R1 asks to re-derive but whose signed rule needs inputs the merged
@@ -570,6 +572,7 @@ def merge_values(inst: Stage6Institution, order: Sequence[str]) -> dict[str, Any
     """RC-D-030 X1 a R2 / R3 values of a merged activity from its pooled observations in pool order."""
     rows = {k: inst.observation_inputs[k].row["values"] for k in order}
     out: dict[str, Any] = {}
+    ranked = sorted(order, key=lambda k: _credibility_rank(inst, k))  # stable: ties keep pool order
     for item in MERGE_UNION:  # R2: union, trim + case-fold duplicates dropped, first spelling kept
         entries: list[str] = []
         seen: set[str] = set()
@@ -583,12 +586,9 @@ def merge_values(inst: Stage6Institution, order: Sequence[str]) -> dict[str, Any
         if entries:
             out[item] = entries
             continue
-        distinct = {canonical_json(rows[k][item]) for k in order}
-        if len(distinct) != 1:  # e.g. [] beside not_documented: no ruled form
-            raise ConsolidationError(f"merged {item}: no entry in any observation and the observations' "
-                                     f"values differ {sorted(distinct)}; no signed rule")
-        out[item] = rows[order[0]][item]
-    ranked = sorted(order, key=lambda k: _credibility_rank(inst, k))  # stable: ties keep pool order
+        # No entry anywhere: the observations' (missing) values may still differ, e.g. [] beside
+        # not_documented; RC-D-032 B3 a: the highest-credibility observation's value, R3 order.
+        out[item] = rows[ranked[0]][item]
     for item in MERGE_CREDIBLE:  # R3: most credible source, a real value over a missing token
         pick = next((k for k in ranked if _real(rows[k][item])), ranked[0])
         out[item] = rows[pick][item]
