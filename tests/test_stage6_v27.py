@@ -750,3 +750,22 @@ def test_z2_role_part_gate_applied_after_the_pooled_relationship_answer(relation
         assert raw and raw[0].chosen_value == "beneficiary"  # raw answer kept, unpublished
     else:
         assert (role.state, role.value) == ("combined", "beneficiary")
+
+
+def test_role_part_is_pending_while_its_relationship_part_is_pending():
+    # QA round 2 LOW-E: the relationship part's pooled request failed (held, Z1 b) -> the role
+    # part waits on it: pending, not stopped
+    pages, obs, recs, quotes, _ = merged()
+    jev = FakeJev({("Copilot pilot", "Copilot pilot"): ("same_activity", .95)},
+                  answers={REL_PART_Q: "other", ROLE_Q: "beneficiary"})
+
+    def failing(state, questions):
+        if REL_Q not in questions and REL_PART_Q in questions:
+            r = jev(state, questions)
+            return JevResult({k: v for k, v in r.answers.items() if k != REL_PART_Q}, r.response_model,
+                             r.request_id, r.input_tokens, r.output_tokens)
+        return jev(state, questions)
+    pooled = s6.pool_activity("pool001", ("o1", "o2"), obs, pages, quotes, failing, FakeQuotes(), CONFIG)
+    assert pooled.outcomes[REL_PART_Q].state == "pending"
+    role = pooled.outcomes[ROLE_Q]
+    assert role.state == "pending" and role.value is None and role.error is None

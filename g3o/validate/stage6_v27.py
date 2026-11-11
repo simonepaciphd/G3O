@@ -746,13 +746,19 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
                 votes[qid].append(PartVote(part.part_id, part.index, rec.chosen_value,
                                            rec.chosen_answer_probability, failed=bool(rec.downgraded) or down,
                                            cause=rec.downgrade_cause or (checked.support_status if down else None)))
-        for q in asked:
+        # Role parts last: they read their relationship part's outcome of this round.
+        for q in sorted(asked, key=lambda x: x.get("part") == ROLE_PART_FIELD):
             qid = q["question_id"]
             if qid in pending:
                 final[qid] = ItemOutcome(qid, q["item_id"], q.get("part"), "pending", None,
                                          note=pending[qid])
                 continue
             if q.get("part") == ROLE_PART_FIELD:
+                relationship = final.get(_first_part_id(q, by_id))
+                if relationship is not None and relationship.state == "pending":
+                    final[qid] = ItemOutcome(qid, q["item_id"], q.get("part"), "pending", None,
+                                             note="relationship part pending")
+                    continue
                 # codebook long_page_rule role_part, as T-023 combines it: the role comes from the
                 # part that produced the relationship (the item-level combiner checks role values
                 # against the relationship part's codes and refuses every real role).
