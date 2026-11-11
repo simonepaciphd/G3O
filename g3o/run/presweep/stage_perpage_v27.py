@@ -56,7 +56,7 @@ Rules carried here, not decided here:
   non-classifier row values (T-015 source fields, T-022 quote-step values,
   T-024 derived values) and the quote-step codes' support, the stored page
   artifact layout (T-014/T-020), T-025 follow provenance, uncertainty
-  flags, independence groups and the merged-activity values RC-D-030 X1 a
+  flags, independence groups (produced in Stage 6 when not injected, A7) and the merged-activity values RC-D-030 X1 a
   leaves without a rule computable from the merged row
   (:data:`~g3o.run.presweep.stage_validate_v27.MERGE_INPUT_ITEMS`).
 - **Reviewed page with no activity (RC-D-030 Y2 a).** It gets one page-level
@@ -291,7 +291,7 @@ class PageSpec:
 
 @dataclass(frozen=True)
 class InstitutionUpstream:
-    independence_groups: Mapping[str, str] | None = None  # source id -> group (P15 producer absent)
+    independence_groups: Mapping[str, str] | None = None  # source id -> group; None: produced in Stage 6 (A7)
     merged_values: Mapping[tuple[str, ...], Mapping[str, Any]] | None = None
     uncertainty_flags: Callable[[SupportResult], Sequence[str] | None] | None = None
 

@@ -438,6 +438,34 @@ def test_activity_confidence_reads_every_source_claim_of_the_activity(tmp_path, 
     assert merged["values"]["core.n_sources"] == 2 and merged["values"]["core.confidence"] == expected
 
 
+@pytest.mark.parametrize("same, expected", [(False, "high"), (True, "medium")])
+def test_independence_groups_produced_from_source_rows_when_not_injected(tmp_path, same, expected):
+    # PI A7.1 b / A7.2 a: no injected groups -> produced from syndication group + normalised URL
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    for sid in a.sources:
+        a.sources[sid]["values"]["core.syndication_group"] = f"sg-{sid}"
+    for sid in ("S1", "S2"):
+        a.sources[sid]["values"]["core.confidence"] = "medium"
+    if same:
+        a.sources["S2"]["values"]["core.syndication_group"] = "sg-S1"
+    a = replace(a, independence_groups=None)
+    assert _run(run_dir, bound, instrument, [a], e.FakeQuotes()).written == [A]
+    merged = next(x for x in _storage(run_dir)["activities"].values() if x["observation_ids"] == ["o1", "o2"])
+    assert merged["values"]["core.n_sources"] == 2 and merged["values"]["core.confidence"] == expected
+
+
+def test_independence_groups_refused_when_a_syndication_group_is_missing(tmp_path):
+    # A7.2 a: no URL-only fallback; the fixture rows' syndication group is a missing token
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, _ = e._institutions(run_dir, bound, instrument)
+    assert a.sources["S1"]["values"]["core.syndication_group"] == "not_documented"
+    metrics = _run(run_dir, bound, instrument, [replace(a, independence_groups=None)], e.FakeQuotes())
+    assert metrics.failed == [A] and not metrics.written
+    held = _held(run_dir)
+    assert "MissingUpstreamError" in held["error"] and "core.syndication_group" in held["error"]
+
+
 class OutsideQuotes(e.FakeQuotes):
     """Copies a shown quote's words but names an input that was not shown in the request part."""
 

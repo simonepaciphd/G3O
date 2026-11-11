@@ -54,8 +54,12 @@ Rules carried here, not decided here:
   row does not hold (:data:`MERGE_REFUSED_R1`; ``evidence_channel`` is the
   row metadata :data:`EVIDENCE_CHANNEL`, not a row value), the merged values
   no ruling covers (:data:`MERGE_UNRULED`: ``uncertainty_flags``, waiting for
-  T-024, RC-D-032 B2 a / X4 a), source independence groups, and uncertainty
-  flags. RC-D-032 B1 a keeps the R1 refusal until per-source producers exist.
+  T-024, RC-D-032 B2 a / X4 a), and uncertainty flags. RC-D-032 B1 a keeps
+  the R1 refusal until per-source producers exist.
+- **Source independence groups** (PI A7.1 b, A7.2 a, 2026-11-11) are injected
+  or else produced from the source rows (:func:`independence_groups_of`: same
+  syndication group or same normalised URL, transitive closure); a source with
+  no syndication group or URL is refused (no URL-only fallback).
 """
 from __future__ import annotations
 
@@ -78,6 +82,8 @@ from g3o.common.instrument import canonical_json
 from g3o.common.jev_client import JevAccountError, JevAnswer, JevResult
 from g3o.common.jev_record import CoderRecord
 from g3o.common.paths import institution_dir
+from g3o.common.independence import independence_groups_for_sources
+from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
 from g3o.common.source_fields import aggregation_value, default_vocab
 from g3o.common.storage import METADATA_ITEMS, table_fields
 from g3o.common.storage_fields import FIELDS
@@ -623,6 +629,24 @@ def merge_values(inst: Stage6Institution, order: Sequence[str]) -> dict[str, Any
     return out
 
 
+def independence_groups_of(inst: Stage6Institution) -> Mapping[str, str]:
+    """Source independence groups for ``core.confidence`` (PI A7.1 b, A7.2 a, 2026-11-11).
+
+    An injected ``Stage6Institution.independence_groups`` is used as given (the
+    seam's contract is unchanged). Otherwise the groups are produced from the
+    institution's source rows by :func:`g3o.common.independence.independence_groups_for_sources`
+    (same syndication group or same normalised URL, transitive closure), which
+    refuses with ``MissingUpstreamError`` when a source's syndication group or
+    URL is not available (A7.2 a: no URL-only fallback).
+    """
+    if inst.independence_groups is not None:
+        return inst.independence_groups
+    try:
+        return independence_groups_for_sources(inst.sources)
+    except SourceFieldsMissingUpstreamError as exc:
+        raise MissingUpstreamError(f"{INDEPENDENCE_PRODUCER}; {exc.producer}", exc.missing) from exc
+
+
 def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6Config, instrument: dict[str, Any],
                    artifact_root: Path) -> tuple[Any, list[dict[str, Any]]]:
     """The storage envelope and provenance records of one ready Stage 6 result."""
@@ -646,6 +670,7 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
             raise ConsolidationError(f"source claim {sid} spans several final activities")
         sources[sid] = {**dict(row), "activity_id": finals.pop() if finals else "_NA_"}
     activities: dict[str, dict[str, Any]] = {}
+    groups: Mapping[str, str] | None = None  # independence groups, computed on first use (A7)
     for group in published:
         aid = final_of[group[0]]
         fragments = [inst.observation_inputs[k].row for k in group]
@@ -672,10 +697,10 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
         coders = [*(c for f in fragments for c in f["coder_records"]), *out.coders.get(aid, [])]
         claims = sorted(s for s, row in sources.items() if row["activity_id"] == aid)
         values["core.n_sources"] = len(claims)
-        if inst.independence_groups is None:
-            raise MissingUpstreamError(INDEPENDENCE_PRODUCER, claims)
+        if groups is None:
+            groups = independence_groups_of(inst)
         values["core.confidence"] = activity_confidence_value(
-            claims, {s: sources[s]["values"]["core.confidence"] for s in claims}, inst.independence_groups)
+            claims, {s: sources[s]["values"]["core.confidence"] for s in claims}, groups)
         activities[aid] = {"values": values, "item_support": list(support.values()), "coder_records": coders,
                            "observation_ids": list(group), "activity_relations": []}
     obs_sources: dict[str, list[str]] = {}
@@ -863,5 +888,5 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
 __all__ = [
     "ENVELOPE_FAILED", "EXECUTOR_FAILED", "HELD_REASON", "STAGE_STOPS", "HELD_RELEASED", "ObservationInput", "RequestJournal", "Stage6Institution",
     "MERGE_CREDIBLE", "MERGE_INPUT_ITEMS", "MERGE_REFUSED_R1", "MERGE_UNION", "MERGE_UNRULED",
-    "Stage6Metrics", "build_envelope", "hold_reasons", "merge_values", "run_stage6_v27",
+    "Stage6Metrics", "build_envelope", "hold_reasons", "independence_groups_of", "merge_values", "run_stage6_v27",
 ]
