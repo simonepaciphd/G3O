@@ -40,7 +40,8 @@ Rules carried here, not decided here:
   duplicates dropped after whitespace trim and case fold (the first-seen
   spelling kept, so its own support node carries it); the single-text
   quote-step items (R3: ``activity_name``, ``contracting_party``,
-  ``observed_actor_name``) come from the observation whose source has the
+  ``observed_actor_name``; and ``deployment_scale_number``, RC-D-032 B2 a) come
+  from the observation whose source has the
   highest T-015 source confidence (high > medium > low; ``unknown`` counts as
   low, C8 b), ties by pool order, a missing token never winning over a real
   value. Every observation's nodes stay on the merged row.
@@ -49,8 +50,9 @@ Rules carried here, not decided here:
   values R1 asks to re-derive but whose signed rule needs inputs the merged
   row does not hold (:data:`MERGE_REFUSED_R1`; ``evidence_channel`` is the
   row metadata :data:`EVIDENCE_CHANNEL`, not a row value), the merged values
-  no ruling covers (:data:`MERGE_UNRULED`), source independence groups, and
-  uncertainty flags.
+  no ruling covers (:data:`MERGE_UNRULED`: ``uncertainty_flags``, waiting for
+  T-024, RC-D-032 B2 a / X4 a), source independence groups, and uncertainty
+  flags. RC-D-032 B1 a keeps the R1 refusal until per-source producers exist.
 """
 from __future__ import annotations
 
@@ -145,9 +147,10 @@ NOT_READY = "stage6_not_ready"  # defensive: not ready for no reason named above
 EVIDENCE_CHANNEL = "web_extract"
 ACTIVITY_ITEMS = frozenset(table_fields("activities"))
 
-#: RC-D-030 X1 a R2 / R3: merged by rule here.
+#: RC-D-030 X1 a R2 / R3 (RC-D-032 B2 a adds the scale number to R3): merged by rule here.
 MERGE_UNION = ("core.tool_name", "core.model_name", "core.reported_outcomes", "core.reported_incidents")
-MERGE_CREDIBLE = ("core.activity_name", "core.contracting_party", "core.observed_actor_name")
+MERGE_CREDIBLE = ("core.activity_name", "core.contracting_party", "core.observed_actor_name",
+                  "core.deployment_scale_number")
 #: X1 a R1 items whose signed rule reads inputs the merged row does not hold (refused, explicit input):
 #: developer/developer_basis (the page's stated vendor or a product lookup), stage_as_of/_basis (the
 #: source's supported publication date, the page's latest stated date, the access date), unit_credit
@@ -156,8 +159,8 @@ MERGE_CREDIBLE = ("core.activity_name", "core.contracting_party", "core.observed
 #: date_upper_bound (the source date's origin). evidence_channel is row metadata, not a value.
 MERGE_REFUSED_R1 = ("core.developer", "core.developer_basis", "core.stage_as_of", "core.stage_as_of_basis",
                     "core.unit_credit", "core.vendor_claim_only", "core.cx_display_rollup", "core.date_upper_bound")
-#: Non-pooled activity items X1 a does not name (explicit input).
-MERGE_UNRULED = ("core.deployment_scale_number", "core.uncertainty_flags")
+#: Non-pooled activity items no merge rule covers (explicit input; RC-D-032 B2 a: flags wait for T-024).
+MERGE_UNRULED = ("core.uncertainty_flags",)
 MERGE_INPUT_ITEMS = frozenset(MERGE_REFUSED_R1 + MERGE_UNRULED)
 MERGED_VALUES_PRODUCER = ("merged-activity values with no rule computable from the merged row (RC-D-030 X1 a "
                           "R1 refused, or unruled): " + ", ".join(MERGE_REFUSED_R1 + MERGE_UNRULED))

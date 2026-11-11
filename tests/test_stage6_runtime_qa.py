@@ -529,7 +529,8 @@ def _merge_inst(rows, confidence):
 def _row(**over):
     base = {"core.tool_name": [], "core.model_name": "not_documented", "core.reported_outcomes": [],
             "core.reported_incidents": "not_asked", "core.activity_name": "not_documented",
-            "core.contracting_party": "not_documented", "core.observed_actor_name": "not_documented"}
+            "core.contracting_party": "not_documented", "core.observed_actor_name": "not_documented",
+            "core.deployment_scale_number": "not_documented"}
     return {**base, **over}
 
 
@@ -550,6 +551,18 @@ def test_x1_r2_no_entries_and_differing_values_is_refused():
                        {"o1": "low", "o2": "low"})
     with pytest.raises(rt.ConsolidationError, match="core.reported_outcomes"):
         rt.merge_values(inst, ["o1", "o2"])
+
+
+def test_rcd032_b2_scale_number_follows_r3():
+    inst = _merge_inst({"o1": _row(), "o2": _row(**{"core.deployment_scale_number": "about 200"}),
+                        "o3": _row(**{"core.deployment_scale_number": "50"})},
+                       {"o1": "high", "o2": "low", "o3": "medium"})
+    assert rt.merge_values(inst, ["o1", "o2", "o3"])["core.deployment_scale_number"] == "50"  # medium > low
+    inst = _merge_inst({"o1": _row(), "o2": _row(**{"core.deployment_scale_number": "about 200"})},
+                       {"o1": "high", "o2": "low"})
+    assert rt.merge_values(inst, ["o1", "o2"])["core.deployment_scale_number"] == "about 200"  # real beats missing
+    assert "core.deployment_scale_number" in rt.MERGE_CREDIBLE
+    assert rt.MERGE_UNRULED == ("core.uncertainty_flags",)
 
 
 def test_x1_r3_most_credible_source_wins_ties_by_pool_order_empty_never_wins():
