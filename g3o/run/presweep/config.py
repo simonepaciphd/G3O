@@ -69,6 +69,35 @@ PIPELINE_VERSIONS: tuple[str, ...] = (PIPELINE_V25, PIPELINE_V27)
 #: v2.5 stages) or ``validate`` (through v2.7 Stage 6). ``extract`` names a v2.5
 #: stage the v2.7 run does not have, so it is refused rather than reinterpreted.
 V27_STOP_AFTER: tuple[str, ...] = STAGES[: STAGES.index("scrape") + 1] + ("validate",)
+#: Cost settings a v2.7 config refuses (T-030 QA4 M1); see :func:`refuse_v27_budget_settings`.
+V27_REFUSED_COST_SETTINGS: tuple[str, ...] = (
+    "budget_usd", "projection_safety_factor", "preflight_stage_estimates", "preflight_estimate_usd",
+)
+
+
+def refuse_v27_budget_settings(config: Any) -> None:
+    """Refuse a v2.7 config that sets a budget or another cost-monitoring setting.
+
+    The cost monitor has no v2.7 stage pricing yet (the RC-D-021 cost_monitor
+    hunks are owed), so no budget, projection or preflight figure can be enforced
+    on, or compared with, the v2.7 stages; a setting that implies one would be is
+    refused rather than left silently unenforced. Called by
+    :meth:`PresweepConfig.__post_init__` and again on entry to ``run_presweep``
+    (the config is a mutable dataclass; the CLI sets the preflight fields after
+    construction). A no-op on a v2.5 config.
+    """
+    if getattr(config, "pipeline_version", None) != PIPELINE_V27:
+        return
+    found = [name for name in V27_REFUSED_COST_SETTINGS if getattr(config, name) is not None]
+    if config.cost_monitor_dry_run:
+        found.append("cost_monitor_dry_run")
+    if found:
+        raise ValueError(
+            f"pipeline_version='v2.7' refuses {', '.join(found)}: v2.7 has no stage pricing yet "
+            "(the RC-D-021 cost_monitor hunks are owed), so no budget can be enforced on its stages"
+        )
+
+
 StageName = Literal[
     "discovery_general",
     "classify_official_site",
@@ -404,6 +433,7 @@ class PresweepConfig:
                     f"pipeline_version='v2.7' has no {self.stop_after!r} stage: "
                     f"stop_after must be one of {V27_STOP_AFTER}"
                 )
+            refuse_v27_budget_settings(self)
         elif self.v27_not_production_ready_opt_in:
             raise ValueError(
                 "v27_not_production_ready_opt_in is set but pipeline_version is "

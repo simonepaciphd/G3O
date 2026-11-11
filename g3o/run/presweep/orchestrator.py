@@ -24,7 +24,7 @@ from g3o.common.paths import require_layout
 from g3o.common.run_state import state_dir
 from g3o.discovery.serper_client import SerperOptions, set_live_mode
 from g3o.report.run_summary import render_run_summary_text, write_run_summary
-from g3o.run.presweep.config import PIPELINE_V27, PresweepConfig
+from g3o.run.presweep.config import PIPELINE_V27, PresweepConfig, refuse_v27_budget_settings
 from g3o.run.presweep.planning import (
     plan_run,
     record_run_pipeline,
@@ -337,6 +337,26 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
     return v27
 
 
+#: Summary / cost-report key of the v2.7 stages' raw usage (T-030 QA4 M1).
+V27_USAGE_KEY = "v27_unpriced_usage"
+
+
+def _usage_totals(metrics: Any) -> dict[str, int]:
+    """One v2.7 stage's raw usage: its per-institution journal totals summed, no prices.
+
+    Each institution's totals are its request journal's (``RequestJournal.usage``:
+    jev and extractor tokens, call counts, X35 calls, summed call time), and so
+    include the calls an earlier, interrupted session journaled for it. An
+    institution this invocation skipped (committed Stage 6 artifacts) has none.
+    """
+    totals: dict[str, int] = {}
+    for per_inst in metrics.usage.values():
+        for key, value in per_inst.items():
+            totals[key] = totals.get(key, 0) + int(value)
+    return {"n_institutions": len(metrics.usage), "live_requests": metrics.live_requests,
+            "replayed_requests": metrics.replayed_requests, **dict(sorted(totals.items()))}
+
+
 def run_v27_dispatch(
     run_dir: Path,
     sample: list[dict[str, Any]],
@@ -344,14 +364,19 @@ def run_v27_dispatch(
     v27: V27Dispatch,
     *,
     telemetry: RunTelemetry | None = None,
+    into: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Bind the instrument, run the v2.7 per-page stage and v2.7 Stage 6.
 
-    Returns the summary counts. Stage stops of either stage
-    (``SupportGateError``, ``MissingUpstreamError`` in the per-page stage,
+    Returns the summary counts, written into ``into`` when given (as each stage
+    finishes, so a Stage 6 stop keeps the per-page figures). Stage stops of either
+    stage (``SupportGateError``, ``MissingUpstreamError`` in the per-page stage,
     ``JevAccountError``, ...) propagate unchanged. Within-stage budget checks are
     not wired here (no ``cost_check_callback``): the cost monitor has no v2.7
-    stage pricing yet.
+    stage pricing yet, so the config refuses every budget setting on a v2.7 run.
+    The two stages' raw token and call counts go under :data:`V27_USAGE_KEY`
+    (``{"perpage_v27": ..., "stage6_v27": ...}``), unpriced; a stage that stops
+    records none there (its journals on disk keep them).
     """
     v27 = _require_v27_dispatch(v27)
     from g3o.common.instrument import load_instrument
@@ -371,7 +396,9 @@ def run_v27_dispatch(
         extractor_model=settings.extractor_model, x35_model=settings.x35_model,
     )
     institutions = list(v27.perpage_inputs(run_dir, sample, scraped, bound, instrument))
-    out: dict[str, Any] = {"pipeline_version": PIPELINE_V27, "instrument_id": bound.instrument_id}
+    out: dict[str, Any] = into if into is not None else {}
+    out.update({"pipeline_version": PIPELINE_V27, "instrument_id": bound.instrument_id})
+    usage: dict[str, dict[str, int]] = {}
 
     span = tel.stage_start(V27_PERPAGE_SPAN, counts_in=sum(len(i.pages) for i in institutions))
     ready, pm = run_perpage_v27(
@@ -382,6 +409,8 @@ def run_v27_dispatch(
     out["n_perpage_ready"] = len(pm.ready)
     out["n_perpage_held"] = len(pm.held)
     out["n_perpage_failed_pages"] = len(pm.failed_pages)
+    usage[V27_PERPAGE_SPAN] = _usage_totals(pm)
+    out[V27_USAGE_KEY] = usage
     tel.stage_end(span, counts_out=len(ready))
 
     quote_fn = bound.stage6_quote_fn(v27.extract_fn, v27.entail_fn, x35_model=settings.x35_model)
@@ -394,6 +423,7 @@ def run_v27_dispatch(
     out["n_stage6_held"] = len(s6m.held)
     out["n_stage6_failed"] = len(s6m.failed)
     out["n_stage6_skipped"] = len(s6m.skipped)
+    usage[V27_STAGE6_SPAN] = _usage_totals(s6m)
     tel.stage_end(span, counts_out=len(s6m.written))
     return out
 
@@ -437,6 +467,7 @@ def run_presweep(
     planning or spend. ``v27`` is refused on a v2.5 run.
     """
     if config.pipeline_version == PIPELINE_V27:
+        refuse_v27_budget_settings(config)
         v27 = _require_v27_dispatch(v27)
     elif v27 is not None:
         raise ValueError("v27 dispatch inputs were supplied but pipeline_version is "
@@ -935,9 +966,7 @@ def run_presweep(
             # config admits only stop_after="validate" here.
             _return_freed_memory()
             assert v27 is not None  # checked on entry
-            summary.update(
-                run_v27_dispatch(plan.run_dir, plan.sample, scraped, v27, telemetry=tel)
-            )
+            run_v27_dispatch(plan.run_dir, plan.sample, scraped, v27, telemetry=tel, into=summary)
             return _finish()
 
         # Stage 4's fetched HTML is freed by now, but it sat on the glibc heap of
@@ -1068,6 +1097,11 @@ def run_presweep(
             # and budget_exceeded_stages will contain all stages up to and including
             # the abort stage.
             cost_report["budget_exceeded_stages"] = budget_exceeded_stages
+            if config.pipeline_version == PIPELINE_V27:
+                # T-030 QA4 M1: the v2.7 stages' raw token/call counts, unpriced.
+                # They are NOT in total_usd / llm_total_usd (no v2.7 stage
+                # pricing yet); None when no v2.7 stage finished.
+                cost_report[V27_USAGE_KEY] = summary.get(V27_USAGE_KEY)
             # Include preflight vs actual comparison if preflight was run
             if config.preflight_estimate_usd is not None and cost_report["total_usd"] is not None:
                 actual_usd = cost_report["total_usd"]

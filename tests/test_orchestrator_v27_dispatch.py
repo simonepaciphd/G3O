@@ -148,6 +148,27 @@ def test_v27_refuses_a_v25_only_stop_after(tmp_path, stop_after):
     assert _v27_config(tmp_path, stop_after="scrape").stop_after == "scrape"
 
 
+@pytest.mark.parametrize("setting", [{"budget_usd": 5.0}, {"projection_safety_factor": 1.5},
+                                     {"preflight_stage_estimates": {"extract": 1.0}},
+                                     {"preflight_estimate_usd": 2.0}, {"cost_monitor_dry_run": True}])
+def test_v27_refuses_budget_settings(tmp_path, setting):
+    """QA4 M1: no v2.7 stage pricing exists, so a setting implying budget enforcement is refused."""
+    with pytest.raises(ValueError, match="v2.7 has no stage pricing yet") as err:
+        _v27_config(tmp_path, **setting)
+    assert next(iter(setting)) in str(err.value) and "RC-D-021" in str(err.value)
+    # The same settings stay valid on v2.5.
+    PresweepConfig(run_id="r", runs_dir=tmp_path, master_csv=tmp_path / "m.csv", **setting)
+
+
+def test_run_presweep_rechecks_budget_settings_set_after_construction(tmp_path):
+    config = _v27_config(tmp_path)
+    config.preflight_estimate_usd = 3.0  # as the CLI sets it, after construction
+    with pytest.raises(ValueError, match="v2.7 has no stage pricing yet"):
+        orch.run_presweep(config, v27=orch.V27Dispatch(SETTINGS, FakeJev(), lambda j: None, FakeEntail(),
+                                                   lambda *a: []))
+    assert not (tmp_path / "runs").exists()
+
+
 def test_resume_across_run_modes_is_refused(tmp_path):
     run_dir = tmp_path / "run"
     state_dir(run_dir).mkdir(parents=True)
@@ -206,9 +227,21 @@ def test_v27_dispatch_runs_through_stage6_and_writes_the_outputs(tmp_path):
     inputs = WorldInputs(world)
     out = orch.run_v27_dispatch(run_dir, ["sample"], "scraped", _dispatch(world, extract=extract, entail=entail,
                                                                           inputs=inputs))
+    usage = out.pop(orch.V27_USAGE_KEY)
     assert out == {"pipeline_version": PIPELINE_V27, "instrument_id": bound.instrument_id,
                    "n_perpage_ready": 3, "n_perpage_held": 0, "n_perpage_failed_pages": 1,
                    "n_stage6_written": 3, "n_stage6_held": 0, "n_stage6_failed": 0, "n_stage6_skipped": 0}
+    # Raw usage of both v2.7 stages (QA4 M1): summed journal totals, no prices.
+    assert set(usage) == {orch.V27_PERPAGE_SPAN, orch.V27_STAGE6_SPAN}
+    perpage, stage6 = usage[orch.V27_PERPAGE_SPAN], usage[orch.V27_STAGE6_SPAN]
+    assert perpage["n_institutions"] == 3 and stage6["n_institutions"] == 3
+    assert perpage["jev_responses"] > 0 and perpage["input_tokens"] > 0
+    n_s6_quote = sum(1 for j in extract.jobs if j.metadata["stage"] == STAGE6_QUOTE)
+    assert perpage["extractor_calls"] == len(extract.jobs) - n_s6_quote
+    assert perpage["extractor_input_tokens"] == 100 * perpage["extractor_calls"]
+    assert stage6["quote_responses"] > 0 and stage6["jev_responses"] > 0
+    assert perpage["x35_calls"] + stage6["x35_calls"] == len(entail.calls)
+    assert not any("usd" in key for stage in usage.values() for key in stage)
     # The hand-off got the run's sample, scraped pages and the bound instrument.
     assert inputs.calls == [(run_dir, ["sample"], "scraped", bound.instrument_id, bound.instrument_id)]
     for inst in INSTS:
@@ -356,6 +389,15 @@ def test_run_presweep_v27_dispatches_after_scrape_with_no_client(tmp_path, monke
     assert summary["pipeline_version"] == PIPELINE_V27 and summary["instrument_id"] == bound.instrument_id
     assert summary["n_stage6_written"] == 3 and summary["n_perpage_held"] == 0
     assert "n_extracted" not in summary and "n_consolidated" not in summary
+    # QA4 M1: the v2.7 stages' raw usage reaches the summary and the persisted cost report,
+    # unpriced and outside total_usd.
+    usage = summary[orch.V27_USAGE_KEY]
+    assert set(usage) == {orch.V27_PERPAGE_SPAN, orch.V27_STAGE6_SPAN}
+    assert usage[orch.V27_PERPAGE_SPAN]["input_tokens"] > 0
+    report = json.loads((run_dir / "_cost_report.json").read_text(encoding="utf-8"))
+    assert report[orch.V27_USAGE_KEY] == usage and summary["_cost_report"][orch.V27_USAGE_KEY] == usage
+    assert report["budget_usd"] is None and report["total_prompt_tokens"] == 0
+    assert {s["stage"] for s in report["stages"]}.isdisjoint({orch.V27_PERPAGE_SPAN, orch.V27_STAGE6_SPAN})
     (_, sample, scraped, _, _), = inputs.calls
     assert scraped is seen["scraped"] and [synth_institution_id(r) for r in sample] == \
         json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))["institutions"]
@@ -388,3 +430,5 @@ def test_run_presweep_v25_default_never_reaches_the_v27_dispatch(tmp_path, monke
     manifest = json.loads((tmp_path / "runs" / "v25" / "manifest.json").read_text(encoding="utf-8"))
     assert planning.RUN_PIPELINE_KEY not in manifest and "storage_contract" not in manifest
     assert "pipeline_version" not in manifest["config"]
+    report = json.loads((tmp_path / "runs" / "v25" / "_cost_report.json").read_text(encoding="utf-8"))
+    assert orch.V27_USAGE_KEY not in report and orch.V27_USAGE_KEY not in summary
