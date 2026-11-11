@@ -48,7 +48,7 @@ from g3o.run.orchestrate.status import (
     utc_now_iso,
     write_json_atomic,
 )
-from g3o.run.presweep.config import PresweepConfig
+from g3o.run.presweep.config import PIPELINE_V25, PresweepConfig
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +87,11 @@ def config_to_mapping(config: PresweepConfig) -> dict[str, Any]:
     (:data:`g3o.run.telemetry.CONFIG_HASH_EXCLUDES` — they are *where* a run ran,
     not *what* it ran), so a config submitted by path A and by path B hashes
     identically and the run record cannot drift because of this call.
+
+    The two run-mode fields (T-030) are left out while they hold their v2.5
+    defaults, exactly as :func:`g3o.run.presweep.planning.config_snapshot` leaves
+    them out, so a v2.5 submit writes the same keys as before they existed; the
+    rebuilt config takes the defaults back.
     """
     out: dict[str, Any] = {}
     for f in fields(config):
@@ -101,6 +106,9 @@ def config_to_mapping(config: PresweepConfig) -> dict[str, Any]:
             out[f.name] = dict(value)
         else:
             out[f.name] = value
+    if config.pipeline_version == PIPELINE_V25 and not config.v27_not_production_ready_opt_in:
+        del out["pipeline_version"]
+        del out["v27_not_production_ready_opt_in"]
     return out
 
 

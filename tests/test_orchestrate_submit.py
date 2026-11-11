@@ -86,6 +86,22 @@ def test_config_round_trips_through_json(config: PresweepConfig) -> None:
     assert rebuilt.master_csv.resolve() == config.master_csv.resolve()
 
 
+def test_a_v25_mapping_keeps_the_pre_run_mode_key_set(config: PresweepConfig) -> None:
+    """T-030 QA4 L1: a v2.5 submit writes exactly the keys it wrote before the two run-mode
+    fields existed (as ``planning.config_snapshot`` does); a v2.7 one records both."""
+    from dataclasses import fields as dc_fields, replace as dc_replace
+
+    run_mode = {"pipeline_version", "v27_not_production_ready_opt_in"}
+    mapping = sub.config_to_mapping(config)
+    assert set(mapping) == {f.name for f in dc_fields(PresweepConfig)} - run_mode
+    rebuilt = sub.config_from_mapping(json.loads(json.dumps(mapping)))
+    assert rebuilt.pipeline_version == "v2.5" and rebuilt.v27_not_production_ready_opt_in is False
+    v27 = sub.config_to_mapping(dc_replace(config, pipeline_version="v2.7", v27_not_production_ready_opt_in=True,
+                                           stop_after="validate"))
+    assert v27["pipeline_version"] == "v2.7" and v27["v27_not_production_ready_opt_in"] is True
+    assert set(v27) - set(mapping) == run_mode
+
+
 def test_paths_are_absolute_so_a_detached_child_is_cwd_independent(
     config: PresweepConfig, tmp_path: Path, monkeypatch
 ) -> None:
