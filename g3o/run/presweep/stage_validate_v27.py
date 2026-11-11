@@ -22,8 +22,9 @@ Rules carried here, not decided here:
   requests are not repeated. Failed requests are never replayed and are asked
   again: an exception is not recorded; a billed response with no request id, or
   with a request id but without the answer to a question it was asked
-  (RC-D-030 Z1 b, ``jev_answer_missing`` / ``pooled_request_part_failed``), is
-  journaled for accounting only. A torn final journal line (an interruption while writing) is dropped.
+  (RC-D-030 Z1 b, ``jev_answer_missing`` / ``pooled_request_part_failed``; a
+  Stage 6 rule, ``RequestJournal(retry_incomplete=True)``), is journaled for
+  accounting only. A torn final journal line (an interruption while writing) is dropped.
   An interruption inside a provider call cannot be exactly once.
 - **Accounting.** Token counts of every recorded jev response are kept in the
   journal, so a partial (interrupted) run's usage is recoverable from disk.
@@ -212,7 +213,8 @@ REPLAYED_KINDS = frozenset({"jev", "quote", "extract", "x35"})
 #: Entry kinds kept for accounting only: billed or attempted calls that did not complete.
 #: They are never replayed; the request is asked again (a failed request, PI 2026-11-08 2.17).
 #: ``jev_incomplete``: a response with a request id that lacks the answer to a question it was
-#: asked (RC-D-030 Z1 b: the question is held and asked again on the next run, never replayed).
+#: asked (RC-D-030 Z1 b, a pooled Stage 6 rule: the question is held and asked again on the next
+#: run, never replayed). Only a journal built with ``retry_incomplete=True`` (Stage 6) writes it.
 ACCOUNTING_KINDS = frozenset({"jev_unidentified", "jev_incomplete", "extract_failed", "x35_failed"})
 
 
@@ -233,11 +235,19 @@ class RequestJournal:
     quote-prompt version) is never replayed. Every entry carries the call's
     ``elapsed_ms``. A record missing only its trailing newline is terminated, and
     a torn final record is dropped, by an atomic rewrite before anything is appended.
+
+    ``retry_incomplete`` (Stage 6 only; RC-D-030 Z1 b): a jev response with a request
+    id but without the answer to a question it was asked is journaled ``jev_incomplete``
+    (accounting only, never replayed), so the next run asks it again. Off (the per-page
+    stage), such a response is a completed response and is replayed on resume, where the
+    missing answer is a failed part vote exactly as in an uninterrupted run.
     """
 
-    def __init__(self, path: Path, setup: Mapping[str, Any] | None = None) -> None:
+    def __init__(self, path: Path, setup: Mapping[str, Any] | None = None, *,
+                 retry_incomplete: bool = False) -> None:
         self.path = path
         self.setup = dict(setup or {})
+        self.retry_incomplete = retry_incomplete
         self._recorded: dict[tuple[str, str, int], dict[str, Any]] = {}
         self._accounting: list[dict[str, Any]] = []
         self._elapsed: list[int] = []
@@ -305,7 +315,7 @@ class RequestJournal:
             if not (isinstance(result.request_id, str) and result.request_id.strip()):
                 # billed but unidentified: a failed request (asked again), still accounted
                 self._append(self._slot("jev_unidentified", request), _jev_to_json(result), _elapsed_ms(start))
-            elif set(questions) - set(result.answers):
+            elif self.retry_incomplete and set(questions) - set(result.answers):
                 # an asked answer is missing: that question is held and asked again next run (Z1 b)
                 self._append(self._slot("jev_incomplete", request), _jev_to_json(result), _elapsed_ms(start))
             else:
@@ -787,7 +797,7 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
         if done:
             metrics.skipped.append(inst.institution_id)
             continue
-        journal = RequestJournal(inst_dir / WORK_DIR / JOURNAL, setup)
+        journal = RequestJournal(inst_dir / WORK_DIR / JOURNAL, setup, retry_incomplete=True)
         try:
             result = run_stage6(institution=str(inst.institution["institution_name"]), country=inst.country,
                                 pages=inst.pages, observations=inst.observations, records=inst.records,

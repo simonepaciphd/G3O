@@ -562,6 +562,52 @@ def test_e2e_interruption_resume_matches_uninterrupted_run(tmp_path, stop_at):
                     == (institution_dir(ref_dir, inst) / name).read_bytes().replace(b"reference", b"interrupted"))
 
 
+class OmitVerdictJev(FakeJev):
+    """Returns a billed response (request id set) without the verdict answer for one part."""
+
+    OMIT_TEXT = "Council information."
+
+    def __call__(self, state, questions):
+        result = super().__call__(state, questions)
+        if jpc.VERDICT in result.answers and state.get("page_text", "").strip() == self.OMIT_TEXT:
+            self.omitted = len(self.calls)
+            answers = {k: v for k, v in result.answers.items() if k != jpc.VERDICT}
+            return JevResult(answers, result.response_model, result.request_id, result.input_tokens,
+                             result.output_tokens)
+        return result
+
+
+def test_perpage_incomplete_response_is_replayed_on_resume_like_an_uninterrupted_run(tmp_path):
+    # The RC-D-030 Z1 b no-replay rule is Stage 6's; per page, a missing answer is a failed part
+    # vote, and an interrupted-and-resumed run neither re-asks (re-bills) it nor differs.
+    ref_dir, ref_bound, ref_instrument, ref_world, ref = _setup(tmp_path, "reference")
+    ref_jev = OmitVerdictJev(ANSWERS, RELATIONS, _fail_verdict)
+    _full(ref_dir, ref_bound, ref_instrument, ref_world, ref, ref_jev)
+    stop_at = ref_jev.omitted + 5  # past the omitted request, still inside INST-0000001
+    assert stop_at < 80  # the interruption lands in the per-page stage
+
+    run_dir, bound, instrument, world, insts = _setup(tmp_path, "interrupted")
+
+    def stop(state, questions, n):
+        if n == stop_at:
+            return JevAccountError("simulated interruption: account stopped")
+        return _fail_verdict(state, questions, n)
+    first = OmitVerdictJev(ANSWERS, RELATIONS, stop)
+    with pytest.raises(JevAccountError):
+        _full(run_dir, bound, instrument, world, insts, first)
+    journal = rt.RequestJournal(institution_dir(run_dir, "INST-0000001") / pp.WORK_DIR / pp.JOURNAL)
+    assert journal.usage()["jev_incomplete"] == 0  # a completed response here, replayable
+    jev = OmitVerdictJev(ANSWERS, RELATIONS, _fail_verdict)
+    _full(run_dir, bound, instrument, world, insts, jev)
+    key = canonical_json
+    assert sorted(map(key, first.answered + jev.answered)) == sorted(map(key, ref_jev.answered))
+    assert not hasattr(jev, "omitted")  # the incomplete request was replayed, not asked again
+    for inst in ("INST-0000001", "INST-0000002", "INST-0000003"):
+        for name in ("6_storage.json", "6_validate.json", "6_support_provenance.json"):
+            assert ((institution_dir(run_dir, inst) / name).read_bytes()
+                    == (institution_dir(ref_dir, inst) / name).read_bytes().replace(b"reference", b"interrupted"))
+
+
 def test_perpage_refuses_absent_upstream(tmp_path):
     run_dir, bound, instrument, world, insts = _setup(tmp_path)
     a = next(i for i in insts if i.institution_id == "INST-0000001")

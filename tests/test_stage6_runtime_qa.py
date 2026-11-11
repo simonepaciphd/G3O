@@ -774,12 +774,27 @@ def test_journal_never_replays_a_response_missing_an_asked_answer(tmp_path):
         calls.append(state)
         return _answer(state, {})  # answers "Q" only
 
-    journal = rt.RequestJournal(path)
+    journal = rt.RequestJournal(path, retry_incomplete=True)
     journal.ask(partial)({"s": 1}, {"Q": {}, "R": {}})
-    again = rt.RequestJournal(path)
+    again = rt.RequestJournal(path, retry_incomplete=True)
     again.ask(partial)({"s": 1}, {"Q": {}, "R": {}})
     assert len(calls) == 2 and again.replayed == 0
     assert again.usage()["jev_incomplete"] == 2 and again.usage()["jev_responses"] == 0
+
+
+def test_journal_replays_a_response_missing_an_asked_answer_unless_opted_in(tmp_path):
+    # The Z1 b no-replay rule is Stage 6's; the shared journal's default (per-page) replays it.
+    path, calls = tmp_path / "journal.jsonl", []
+
+    def partial(state, questions):
+        calls.append(state)
+        return _answer(state, {})  # answers "Q" only
+
+    first = rt.RequestJournal(path).ask(partial)({"s": 1}, {"Q": {}, "R": {}})
+    again = rt.RequestJournal(path)
+    replayed = again.ask(partial)({"s": 1}, {"Q": {}, "R": {}})
+    assert len(calls) == 1 and again.replayed == 1 and replayed == first
+    assert again.usage()["jev_incomplete"] == 0 and again.usage()["jev_responses"] == 1
 
 
 # --- QA round 2, LOW-F: the quote step is bound to the instrument; schema pinned; X35 model keyed

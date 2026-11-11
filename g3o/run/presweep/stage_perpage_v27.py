@@ -28,7 +28,10 @@ Rules carried here, not decided here:
   journal key binds the coder setup (setup pointer, configured models, coder
   versions). A re-run loads the checkpoint and asks only what is missing;
   failed requests are never replayed and are asked again (an unidentified,
-  billed jev response is kept for accounting only). Support results are serialized whole
+  billed jev response is kept for accounting only). A response with a request id
+  that lacks an asked answer is a completed response here and is replayed on
+  resume: its missing answer is a failed part vote, exactly as in an uninterrupted
+  run (the Stage 6 Z1 b no-replay rule is not applied to this stage). Support results are serialized whole
   (:func:`support_to_dict`), so a resumed check is never re-run.
 - **Publication.** A page with any pending or stopped question (an extra
   round that failed, a gate awaiting it) holds its whole institution: the
