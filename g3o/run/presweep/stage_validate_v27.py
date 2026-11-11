@@ -748,16 +748,17 @@ def run_stage6_v27(run_dir: Path, institutions: Iterable[Stage6Institution], *, 
     continues with the next one.
 
     ``quote_fn`` must come from :meth:`~g3o.run.presweep.instrument_binding.BoundRuntime.stage6_quote_fn`
-    for this instrument (or be ``None``: every answer needing a quote is held);
+    for this instrument, on its pinned X35 model (or be ``None``: every answer needing a quote is held);
     ``test_only_unbound_quote_fn`` lifts that check for offline fakes in tests only.
     """
     if config.setup_pointer != instrument["instrument_id"]:
         raise ValueError("Stage 6 configuration is bound to a different instrument")
     if quote_fn is not None and not test_only_unbound_quote_fn and not (
             isinstance(quote_fn, Stage6QuoteStep) and quote_fn.bound_instrument_id == instrument["instrument_id"]
-            and quote_fn.x35_model):
-        raise ValueError("Stage 6 quote step is not bound to this instrument: build it with "
-                         "BoundRuntime.stage6_quote_fn")
+            and quote_fn.x35_model
+            and quote_fn.x35_model == instrument["payload"]["extractor_configuration"].get("x35_model")):
+        raise ValueError("Stage 6 quote step is not bound to this instrument (or its X35 model differs from "
+                         "the pinned one): build it with BoundRuntime.stage6_quote_fn")
     clock = now or (lambda: datetime.now(timezone.utc))
     metrics = Stage6Metrics()
     setup = {"setup_pointer": config.setup_pointer, "configured_model": config.configured_model,

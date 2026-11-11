@@ -17,6 +17,7 @@ def settings():
         jev_model="explicit-test-jev", extractor_model="explicit-test-extractor",
         extractor_effort="medium", extractor_max_tokens=1234, reserved_tokens=25,
         reference_year=2026, approval_reference="Offline test of the signed builders; no live approval",
+        x35_model="explicit-test-x35",
     )
 
 
@@ -46,7 +47,7 @@ def test_real_jobs_and_coders_use_same_instrument_settings(tmp_path):
 @pytest.mark.parametrize("change", [
     {"jev_model": "other"}, {"extractor_model": "other"}, {"extractor_effort": "high"},
     {"extractor_max_tokens": 2345}, {"reserved_tokens": 30}, {"reference_year": 2027},
-    {"approval_reference": "Different approval"},
+    {"approval_reference": "Different approval"}, {"x35_model": "other"},
 ])
 def test_resume_refuses_changed_configuration_before_publishing(tmp_path, change):
     binding.bind_runtime(tmp_path, settings())
@@ -95,3 +96,23 @@ def test_codebook_mismatch_names_the_signed_r15_release(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="signed r15"):
         binding.bind_runtime(tmp_path, settings())
     assert not list(tmp_path.iterdir())
+
+
+def test_x35_model_is_pinned_in_the_instrument_and_a_different_one_is_refused(tmp_path):
+    """RC-D-033 C1 a: the X35 model is in the payload (bound by the setup pointer); a runtime
+    X35 model other than the pinned one is refused, and an absent one cannot be bound."""
+    from tests.test_stage6_quote import FakeEntail, FakeExtractor
+
+    bound = binding.bind_runtime(tmp_path, settings())
+    payload = load_instrument(tmp_path / "final" / "instruments", bound.instrument_id)["payload"]
+    assert payload["extractor_configuration"]["x35_model"] == "explicit-test-x35"
+    step = bound.stage6_quote_fn(FakeExtractor(), FakeEntail(), x35_model="explicit-test-x35")
+    assert step.x35_model == "explicit-test-x35" and step.bound_instrument_id == bound.instrument_id
+    with pytest.raises(ValueError, match="pinned in the instrument"):
+        bound.stage6_quote_fn(FakeExtractor(), FakeEntail(), x35_model="another-x35")
+    for absent in ("", "  "):
+        with pytest.raises(ValueError, match="x35_model must be explicitly supplied"):
+            replace(settings(), x35_model=absent)
+    with pytest.raises(TypeError):
+        binding.RuntimeSettings(jev_model="j", extractor_model="e", extractor_effort="low", extractor_max_tokens=1,
+                                reserved_tokens=0, reference_year=2026, approval_reference="a")

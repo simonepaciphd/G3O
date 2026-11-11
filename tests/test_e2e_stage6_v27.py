@@ -46,7 +46,8 @@ TRUE = Entailment("true", 0.95)
 CLOCK = lambda: datetime(2026, 11, 10, 12, 0, tzinfo=timezone.utc)  # noqa: E731
 SETTINGS = RuntimeSettings(jev_model="fake-jev", extractor_model="fake-extractor", extractor_effort="low",
                            extractor_max_tokens=1000, reserved_tokens=0, reference_year=2026,
-                           approval_reference="T-030 offline e2e fixture; no provider execution")
+                           approval_reference="T-030 offline e2e fixture; no provider execution",
+                           x35_model="fake-x35")
 
 
 def _exempt(item, value):

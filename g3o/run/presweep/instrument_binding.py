@@ -33,9 +33,12 @@ class RuntimeSettings:
     reserved_tokens: int
     reference_year: int
     approval_reference: str
+    #: the model the Stage 6 X35 entailment calls run on; pinned in the instrument's
+    #: ``extractor_configuration`` and so bound by the setup pointer (RC-D-033 C1 a)
+    x35_model: str
 
     def __post_init__(self) -> None:
-        for name in ("jev_model", "extractor_model", "extractor_effort", "approval_reference"):
+        for name in ("jev_model", "extractor_model", "extractor_effort", "approval_reference", "x35_model"):
             if not isinstance(getattr(self, name), str) or not getattr(self, name).strip():
                 raise ValueError(f"{name} must be explicitly supplied")
         if type(self.extractor_max_tokens) is not int or self.extractor_max_tokens <= 0:
@@ -99,13 +102,17 @@ class BoundRuntime:
         """The Stage 6 ``quote_fn`` bound to this instrument, with the pinned approved instruction
         (the SHA256 gate of :func:`g3o.validate.stage6_quote.make_quote_fn` applies).
 
-        ``x35_model`` names the model ``entail_fn`` calls; the request journal keys the X35
-        answers (and the quote-step answers built on them) on it. The returned step is
+        ``x35_model`` names the model ``entail_fn`` calls. It must equal the X35 model pinned
+        in this instrument (``RuntimeSettings.x35_model``, RC-D-033 C1 a); any other model is
+        refused, as the extractor runs only on its pinned settings. The request journal keys
+        the X35 answers (and the quote-step answers built on them) on it. The returned step is
         marked bound to this instrument, which ``run_stage6_v27`` requires."""
         from g3o.validate import stage6_quote
 
         if not isinstance(x35_model, str) or not x35_model.strip():
             raise ValueError("x35_model must be explicitly supplied")
+        if x35_model != self.settings.x35_model:
+            raise ValueError("x35_model differs from the X35 model pinned in the instrument")
         step = stage6_quote.make_quote_fn(extract_fn, entail_fn, configure_job=self.stage6_quote_job)
         return replace(step, x35_model=x35_model, bound_instrument_id=self.instrument_id)
 
@@ -161,6 +168,7 @@ def bind_runtime(run_dir: Path, settings: RuntimeSettings) -> BoundRuntime:
             "pass1_schema_sha256": sha256_text(canonical_json(request_v27.output_schema())),
             "pass2_schema_sha256": sha256_text(canonical_json(pass2_support.output_schema())),
             "stage6_quote_schema_sha256": sha256_text(canonical_json(stage6_quote.output_schema())),
+            "x35_model": settings.x35_model,  # RC-D-033 C1 a
             "reference_year": settings.reference_year, "reserved_tokens": settings.reserved_tokens,
             "max_split_depth": page_chunks.DEFAULT_MAX_SPLIT_DEPTH,
             "matcher_word_rule_cutoff": support_check.WORD_RULE_CUTOFF,

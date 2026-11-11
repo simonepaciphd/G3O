@@ -759,19 +759,28 @@ def test_x35_answers_are_not_replayed_under_another_x35_model(tmp_path):
     run_dir, bound, instrument = e._setup(tmp_path)
     a, _ = e._institutions(run_dir, bound, instrument)
     first = FakeEntail()
-    _run(run_dir, bound, instrument, [a], bound.stage6_quote_fn(FakeExtractor(), first, x35_model="x35-a"),
+    _run(run_dir, bound, instrument, [a], bound.stage6_quote_fn(FakeExtractor(), first, x35_model="fake-x35"),
          jev=e.FakeJev(e.RELATIONS, {}))  # held or written: the X35 answers are journaled
     assert first.calls
     for name in ("6_validate.json", "6_storage.json", "6_support_provenance.json"):
         (institution_dir(run_dir, A) / name).unlink(missing_ok=True)
     same, other = FakeEntail(), FakeEntail()
-    _run(run_dir, bound, instrument, [a], bound.stage6_quote_fn(FakeExtractor(), same, x35_model="x35-a"),
+    _run(run_dir, bound, instrument, [a], bound.stage6_quote_fn(FakeExtractor(), same, x35_model="fake-x35"),
          jev=e.FakeJev(e.RELATIONS, {}))
     assert not same.calls  # replayed under the same X35 model
     for name in ("6_validate.json", "6_storage.json", "6_support_provenance.json"):
         (institution_dir(run_dir, A) / name).unlink(missing_ok=True)
-    _run(run_dir, bound, instrument, [a], bound.stage6_quote_fn(FakeExtractor(), other, x35_model="x35-b"),
-         jev=e.FakeJev(e.RELATIONS, {}))
+    with pytest.raises(ValueError, match="pinned in the instrument"):  # RC-D-033 C1 a
+        bound.stage6_quote_fn(FakeExtractor(), other, x35_model="x35-b")
+    swapped = replace(bound.stage6_quote_fn(FakeExtractor(), other, x35_model="fake-x35"), x35_model="x35-b")
+    with pytest.raises(ValueError, match="X35 model differs"):
+        rt.run_stage6_v27(run_dir, [a], ask_fn=e.FakeJev(e.RELATIONS, {}), quote_fn=swapped,
+                          config=bound.stage6_config(), instrument=instrument, now=e.CLOCK)
+    assert not other.calls
+    # the journal still keys on the X35 model (defence in depth): a test-only step on another model asks again
+    rt.run_stage6_v27(run_dir, [a], ask_fn=e.FakeJev(e.RELATIONS, {}), quote_fn=swapped,
+                      config=bound.stage6_config(), instrument=instrument, now=e.CLOCK,
+                      test_only_unbound_quote_fn=True)
     assert len(other.calls) == len(first.calls)  # another X35 model: asked again
 
 
