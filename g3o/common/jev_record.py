@@ -368,9 +368,22 @@ def _downgrade_final(support: dict[str, Any], linked: Sequence[dict[str, Any]]) 
     for prior in inputs:
         original = by_id.get(prior)
         if (original is None or any(original.get(k) != support.get(k) for k in context)
-                or original.get("input_support_ids") or original.get("value_json") == support.get("value_json")):
+                or (original.get("input_support_ids") and not pooled_original(original))
+                or original.get("value_json") == support.get("value_json")):
             return False
     return True
+
+
+#: The X30 cross-page relation item: its Stage 6 nodes are not pooled (RC-D-031 A1 covers pooled only).
+_RELATION_ITEM = "core.activity_relation_cross_page"
+
+
+def pooled_original(support: dict[str, Any]) -> bool:
+    """RC-D-031 A1 a: a pooled Stage 6 ORIGINAL node, which names its shown inputs
+    (``input_support_ids``) and has no source claim or observation of its own. Such an
+    original may be the source of a FINAL downgrade node."""
+    return (support.get("source_id") is None and support.get("observation_id") is None
+            and support.get("item_id") != _RELATION_ITEM and bool(support.get("input_support_ids")))
 
 
 def records_to_json(records: list[CoderRecord]) -> str:

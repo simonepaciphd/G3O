@@ -708,3 +708,42 @@ def test_y2_reviewed_page_with_no_activity_gets_a_page_level_na_source_row(tmp_p
     assert len(n1_rows) == 1 and n1_rows[0]["activity_id"] == "_NA_"
     assert json.loads(n1_rows[0]["observation_ids_json"]) == []
 
+
+
+def test_rcd031_a1_pooled_answer_downgraded_for_no_copy_still_stores(tmp_path):
+    """RC-D-031 A1 a: the quote step returns no copy for the pooled requests -> the pooled positive
+    answers are downgraded (no quote) -> the final downgrade node's source is the pooled original,
+    which names its shown inputs; the envelope builds and is stored."""
+    run_dir, bound, instrument, world, insts = _setup(tmp_path)
+    a = [i for i in insts if i.institution_id == "INST-0000001"]
+    jev = FakeJev(ANSWERS, RELATIONS, _fail_verdict)
+    ready, _ = _perpage(run_dir, bound, instrument, world, a, jev)
+    ready = _with_merged("INST-0000001", ready)
+
+    class NoCopyForPooled(FakeQuotes):
+        def __call__(self, req):
+            if req.kind == "pooled":
+                self.calls += 1
+                return s6.Stage6Quote(None, None, None, {"fake": True})
+            return super().__call__(req)
+    s6m = rt.run_stage6_v27(run_dir, ready, ask_fn=jev, quote_fn=NoCopyForPooled(), config=bound.stage6_config(),
+                            instrument=instrument, now=CLOCK)
+    assert s6m.written == ["INST-0000001"] and not s6m.failed
+    merged = next(x for x in _storage(run_dir, "INST-0000001")["activities"].values()
+                  if x["observation_ids"] == ["p1.a1", "p2.a1"])
+    pooled = {s["support_id"]: s for s in merged["item_support"] if s["source_id"] is None
+              and s["observation_id"] is None}
+    finals = [s for s in pooled.values() if s["passage"].get("downgrade_of")]
+    assert finals and all(pooled[f["input_support_ids"][0]]["input_support_ids"] for f in finals)
+    assert all(f["support_status"] == "downgraded_no_quote" for f in finals)
+
+
+def test_rcd031_a1_only_pooled_originals_may_name_inputs():
+    from g3o.common.jev_record import pooled_original
+    pooled = {"source_id": None, "observation_id": None, "item_id": "core.adoption_stage",
+              "input_support_ids": ["x"]}
+    assert pooled_original(pooled)
+    assert not pooled_original({**pooled, "input_support_ids": []})
+    assert not pooled_original({**pooled, "source_id": "S1"})
+    assert not pooled_original({**pooled, "observation_id": "p1.a1"})
+    assert not pooled_original({**pooled, "item_id": "core.activity_relation_cross_page"})
