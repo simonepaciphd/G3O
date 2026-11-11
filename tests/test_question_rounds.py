@@ -398,6 +398,29 @@ def test_activity_resume_after_over_limit_sends_nothing_again(rules):
     assert again.final == resumed.final and again.result == resumed.result and again.rounds == 0
 
 
+def test_activity_transient_hold_then_over_limit_on_resume_is_a_request_failed_vote(rules):
+    """QA4 L3: a part first held by a transient failure (``extra_round_failed``) and rejected as
+    over the limit on resume votes with cause ``jev_request_failed``, not the earlier hold's."""
+    inp, result, support, config, _ = activity_case(rules)
+    held = complete_activity_rounds(inp, result, support, config=config,
+                                    ask_fn=lambda *_: (_ for _ in ()).throw(RuntimeError("transient")),
+                                    check_support=_activity_check)
+    assert not held.complete and held.result.failures[-1].reason == "extra_round_failed"
+    held_key = (held.result.failures[-1].activity_id, held.result.failures[-1].question_ids,
+                held.result.failures[-1].chunk_id)
+    done = complete_activity_rounds(inp, held.result, held.support, ask_fn=_over_limit, config=config,
+                                    check_support=_activity_check)
+    assert done.complete
+    # The transient failure stays in the history; the over-limit one is recorded after it.
+    keys = [(f.activity_id, f.question_ids, f.chunk_id, f.reason) for f in done.result.failures]
+    assert (*held_key, "extra_round_failed") in keys and (*held_key, ac.REQUEST_FAILED) in keys
+    aid, (qid,), _ = held_key
+    finals = {a.activity_id: a.outcomes for a in done.final}
+    act = next(a for a in done.result.activities if a.activity_id == aid)
+    for o in (act.outcomes[qid], finals[aid][qid]):
+        assert o.state == "combined" and o.failed and o.cause == ac.REQUEST_FAILED
+
+
 def test_page_extra_round_over_limit_is_still_held(monkeypatch, rules):
     page, result, support, config, _ = page_case(monkeypatch, rules)
     done = complete_page_rounds(page, result, support, config=config, ask_fn=_over_limit,

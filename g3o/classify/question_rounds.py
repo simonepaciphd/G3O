@@ -275,7 +275,7 @@ def complete_activity_rounds(inp: activity.ActivityPageInput, result: activity.P
                 outcomes[qid] = replace(outcomes[qid], note=_HELD + str(exc))
                 act = replace(act, outcomes=dict(outcomes))
                 result = replace(_put_activity(result, pos, act), failures=result.failures + (
-                    activity.PartFailure("extra_round_failed", aid, chunk.chunk_id, q["round"],
+                    activity.PartFailure(activity.EXTRA_ROUND_FAILED, aid, chunk.chunk_id, q["round"],
                                          (qid,), f"{type(exc).__name__}: {exc}"),))
                 _save(checkpoint, result, support)
                 return ActivityRoundResult(result, activity.finalize_activities(result, support, config, nano),
@@ -286,10 +286,12 @@ def complete_activity_rounds(inp: activity.ActivityPageInput, result: activity.P
         indices = dict(zip(act.chunk_ids, act.part_indices, strict=True))
         records = [r for r in act.records if r.coder_type == "classifier" and r.question_id == qid]
         votes = [activity._vote(r, indices[r.chunk_id]) for r in records]
-        # Failed part votes, built as the first-round coder and finalize_activities build them.
+        # Failed part votes, built as the first-round coder and finalize_activities build them,
+        # from the over-limit REQUEST_FAILED failures only: an earlier extra_round_failed hold on
+        # the same part (a transient failure before a resume) is history, not this part's vote.
         seen = {v.part_id for v in votes}
         for f in result.failures:
-            if f.activity_id == aid and qid in f.question_ids and f.chunk_id not in seen:
+            if _failed_vote(f, aid, qid, f.chunk_id) and f.chunk_id not in seen:
                 votes.append(activity.PartVote(f.chunk_id, indices[f.chunk_id], activity.UNKNOWN,
                                                None, True, f.reason))
                 seen.add(f.chunk_id)

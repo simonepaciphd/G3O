@@ -85,6 +85,9 @@ GATE_RULE = "gated_out:"
 MISSING_REQUEST_ID = "jev_missing_request_id"
 REQUEST_FAILED = "jev_request_failed"
 ANSWER_MISSING = "jev_answer_missing"
+#: Reason of the failure an RC-D-024 extra round records when it holds a question pending
+#: (``question_rounds``). A hold, never a vote: on resume the part is asked again.
+EXTRA_ROUND_FAILED = "extra_round_failed"
 SPAN_UNRESOLVED = "activity_span_unresolved"
 PAIR_QUESTION_MISSING = "pair_question_missing"
 PAIR_DIRECTION_TIE = "pair_direction_tie"
@@ -945,9 +948,12 @@ def finalize_activities(result: PageActivityResult, support: Sequence[Any], conf
                                        cause=rec.downgrade_cause if bar else (st if down else None)))
                 # Retain the failure history, but a resumed answer replaces its
                 # failed vote. Each current part contributes at most one vote.
+                # An extra-round hold is not a vote (T-030 QA4 L3): a combined
+                # question's held part was answered or failed again on resume. No
+                # first-round failure carries that reason.
                 seen = {vote.part_id for vote in votes}
                 for f in fails:
-                    if qid in f.question_ids and f.chunk_id not in seen:
+                    if qid in f.question_ids and f.chunk_id not in seen and f.reason != EXTRA_ROUND_FAILED:
                         votes.append(PartVote(f.chunk_id, index[f.chunk_id], UNKNOWN, None, True, f.reason))
                         seen.add(f.chunk_id)
                 final[qid] = _combine(q, votes, config.combiner, final, s.by_id)
