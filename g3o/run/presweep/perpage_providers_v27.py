@@ -296,19 +296,17 @@ def _providers(adapter: _Adapter, instrument_id: str, extractor_model: str,
                                      adapter.pair_support, instrument_id, extractor_model, x35_model, adapter)
 
 
-def build_perpage_providers(bound: Any, instrument: Mapping[str, Any], run_dir: Path, *,
-                            extract_fn: ExtractFn, entail_fn: EntailFn, extractor_model: str,
-                            x35_model: str) -> ExtractorPerPageProviders:
-    """Per-page providers over the injected ``extract_fn`` / ``entail_fn``, bound to ``instrument``.
+def check_binding(bound: Any, instrument: Mapping[str, Any], *, extractor_model: str,
+                  x35_model: str) -> None:
+    """Refuse a per-page binding :func:`build_perpage_providers` would refuse; builds nothing.
 
-    Every argument is required; nothing defaults to a client. ``extractor_model`` and
-    ``x35_model`` name the models the two calls run on and must equal the instrument's
-    pinned ``extractor_configuration`` (and the bound settings); any other is refused, as
-    are system prompts that differ from the instrument's ``prompt_hashes`` or from the
-    PI-approved pins (RC-D-021 P-1 a, P-2 a).
+    ``extractor_model`` and ``x35_model`` must equal the instrument's pinned
+    ``extractor_configuration`` and the bound settings; the pass-1/pass-2 system
+    prompts must hash to the PI-approved pins (RC-D-021 P-1 a, P-2 a) and to the
+    instrument's ``prompt_hashes``. Needs no run directory, so a run can call it on
+    :func:`~g3o.run.presweep.instrument_binding.check_runtime`'s record before any
+    work (T-030 QA4 M2); :func:`build_perpage_providers` calls it again.
     """
-    if not callable(extract_fn) or not callable(entail_fn):
-        raise ValueError("extract_fn and entail_fn must be supplied")
     if instrument.get("instrument_id") != bound.instrument_id:
         raise ValueError("bound runtime and instrument differ")
     payload = instrument["payload"]
@@ -325,9 +323,25 @@ def build_perpage_providers(bound: Any, instrument: Mapping[str, Any], run_dir: 
         require_approved_system(name, system)
         if not system or sha256_text(system) != hashes.get(name):
             raise ValueError(f"{name} prompt differs from the one pinned in the instrument")
+
+
+def build_perpage_providers(bound: Any, instrument: Mapping[str, Any], run_dir: Path, *,
+                            extract_fn: ExtractFn, entail_fn: EntailFn, extractor_model: str,
+                            x35_model: str) -> ExtractorPerPageProviders:
+    """Per-page providers over the injected ``extract_fn`` / ``entail_fn``, bound to ``instrument``.
+
+    Every argument is required; nothing defaults to a client. ``extractor_model`` and
+    ``x35_model`` name the models the two calls run on and must equal the instrument's
+    pinned ``extractor_configuration`` (and the bound settings); any other is refused, as
+    are system prompts that differ from the instrument's ``prompt_hashes`` or from the
+    PI-approved pins (RC-D-021 P-1 a, P-2 a). See :func:`check_binding`.
+    """
+    if not callable(extract_fn) or not callable(entail_fn):
+        raise ValueError("extract_fn and entail_fn must be supplied")
+    check_binding(bound, instrument, extractor_model=extractor_model, x35_model=x35_model)
     return _providers(_Adapter(bound, run_dir, extract_fn, entail_fn), bound.instrument_id, extractor_model,
                       x35_model)
 
 
 __all__ = ["PASS1_SYSTEM_SHA256", "PASS2_SYSTEM_SHA256", "ExtractorPerPageProviders",
-           "build_perpage_providers", "require_approved_system"]
+           "build_perpage_providers", "check_binding", "require_approved_system"]

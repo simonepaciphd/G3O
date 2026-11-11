@@ -301,8 +301,10 @@ class V27Dispatch:
     - ``extract_fn(job) -> ExtractorResult``: the extractor call (T-022 pass 1,
       T-032 pass 2, the Stage 6 quote step).
     - ``entail_fn(question, text) -> Entailment``: the X35 call. Its only non-fake
-      entry, :func:`g3o.common.support_check.run_entailment`, still refuses, so a
-      real run stops at the first X35 check (``SupportGateError``).
+      entry, :func:`g3o.common.support_check.run_entailment`, still refuses, so it
+      is refused on entry, before any work (no approved X35 binding exists); any
+      other callable that refuses stops the stage at its first X35 check
+      (``SupportGateError``).
     - ``perpage_inputs(run_dir, sample, scraped, bound, instrument)``: the
       :class:`~g3o.run.presweep.stage_perpage_v27.PerPageInstitution` inputs for the
       scraped pages. No producer of these exists in the pipeline (the
@@ -319,7 +321,23 @@ class V27Dispatch:
 
 
 def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
-    """Refuse a v2.7 run whose injected calls or inputs are absent, before any work."""
+    """Refuse a v2.7 run whose injected calls or inputs are absent or unbindable, before any work.
+
+    Called on entry to ``run_presweep`` (before planning, so before any Stage 1-4
+    spend) and again on entry to :func:`run_v27_dispatch`. Beyond the presence
+    checks it refuses (T-030 QA4 M2):
+
+    - ``entail_fn`` being :func:`g3o.common.support_check.run_entailment`, which
+      refuses every real X35 call (no approved X35 binding exists yet);
+    - every check that needs no run directory: the codebook SHA, matcher pin and
+      estimator checks of ``bind_runtime`` (through its non-writing half,
+      ``instrument_binding.check_runtime``), the P-1/P-2 prompt pins and the
+      extractor / X35 model checks of the per-page providers
+      (``perpage_providers_v27.check_binding``), and the Stage 6 quote step's
+      instruction pin and X35 model (``BoundRuntime.stage6_quote_fn``).
+
+    Nothing here writes. Every later check still runs where it did.
+    """
     if not isinstance(v27, V27Dispatch):
         raise ValueError(
             "pipeline_version='v2.7' needs the injected calls (V27Dispatch: jev_ask_fn, "
@@ -334,6 +352,23 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
 
     if not isinstance(v27.settings, RuntimeSettings):
         raise ValueError("v2.7 dispatch: settings must be an explicit RuntimeSettings")
+    from g3o.common import support_check
+
+    # Lift together with the TODO in support_check.run_entailment, once an approved X35
+    # binding replaces its refusal.
+    if v27.entail_fn is support_check.run_entailment:
+        raise ValueError(
+            "v2.7 dispatch: entail_fn is support_check.run_entailment, which refuses every real "
+            "X35 call: no approved X35 binding exists (T-030/T-035), so the run is refused before "
+            "any work"
+        )
+    from g3o.run.presweep.instrument_binding import check_runtime
+    from g3o.run.presweep.perpage_providers_v27 import check_binding
+
+    settings = v27.settings
+    bound, record = check_runtime(settings)
+    check_binding(bound, record, extractor_model=settings.extractor_model, x35_model=settings.x35_model)
+    bound.stage6_quote_fn(v27.extract_fn, v27.entail_fn, x35_model=settings.x35_model)
     return v27
 
 
@@ -389,12 +424,14 @@ def run_v27_dispatch(
     settings = v27.settings
     bound = bind_runtime(run_dir, settings)
     instrument = load_instrument(run_dir / "final" / "instruments", bound.instrument_id)
-    record_run_pipeline(run_dir, pipeline_version=PIPELINE_V27, instrument_id=bound.instrument_id)
     providers = build_perpage_providers(
         bound, instrument, run_dir,
         extract_fn=v27.extract_fn, entail_fn=v27.entail_fn,
         extractor_model=settings.extractor_model, x35_model=settings.x35_model,
     )
+    # Only once the providers are built (QA4 M2 c): a run refused above leaves no 2.7
+    # run_pipeline block (nor storage_contract) in its manifest.
+    record_run_pipeline(run_dir, pipeline_version=PIPELINE_V27, instrument_id=bound.instrument_id)
     institutions = list(v27.perpage_inputs(run_dir, sample, scraped, bound, instrument))
     out: dict[str, Any] = into if into is not None else {}
     out.update({"pipeline_version": PIPELINE_V27, "instrument_id": bound.instrument_id})

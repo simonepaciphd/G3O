@@ -208,6 +208,85 @@ def test_v27_dispatch_missing_one_call_is_refused_before_any_work(tmp_path, miss
     assert not (tmp_path / "x").exists()
 
 
+def _stub_dispatch(**overrides):
+    fields = dict(settings=SETTINGS, jev_ask_fn=FakeJev(), extract_fn=lambda j: None, entail_fn=FakeEntail(),
+                  perpage_inputs=lambda *a: [])
+    fields.update(overrides)
+    return orch.V27Dispatch(**fields)
+
+
+def _no_planning(monkeypatch):
+    def refuse(*_a, **_k):
+        raise AssertionError("planning ran before the v2.7 refusal")
+
+    monkeypatch.setattr(orch, "plan_run", refuse)
+
+
+def test_the_refusing_x35_entry_is_refused_before_the_run_dir_exists(tmp_path, monkeypatch):
+    """QA4 M2 a: support_check.run_entailment refuses every real call, so a run naming it is
+    refused on entry, before planning and before any Stage 1-4 spend."""
+    _no_planning(monkeypatch)
+    v27 = _stub_dispatch(entail_fn=support_check.run_entailment)
+    with pytest.raises(ValueError, match="no approved X35 binding exists"):
+        orch.run_presweep(_v27_config(tmp_path), v27=v27)
+    assert not (tmp_path / "runs").exists()
+    with pytest.raises(ValueError, match="no approved X35 binding exists"):
+        orch.run_v27_dispatch(tmp_path / "x", [], None, v27)
+    assert not (tmp_path / "x").exists()
+
+
+@pytest.mark.parametrize("pin", ["pass1", "pass2"])
+def test_a_prompt_pin_mismatch_is_refused_before_planning(tmp_path, monkeypatch, pin):
+    """QA4 M2 b: the P-1/P-2 prompt pins are checked before any planning."""
+    from g3o.run.presweep import perpage_providers_v27 as ppv
+
+    _no_planning(monkeypatch)
+    row = ppv._APPROVED[pin][0]
+    monkeypatch.setitem(ppv._APPROVED, pin, (row, "0" * 64))
+    with pytest.raises(ValueError, match=f"{pin} prompt differs from the PI-approved text .RC-D-021 {row}"):
+        orch.run_presweep(_v27_config(tmp_path), v27=_stub_dispatch())
+    assert not (tmp_path / "runs").exists()
+
+
+def test_runtime_pins_and_models_are_refused_before_planning(tmp_path, monkeypatch):
+    """QA4 M2 b: bind_runtime's codebook SHA / matcher pin checks (its non-writing half) and the
+    Stage 6 quote step's X35 model check run before planning."""
+    from g3o.run.presweep import instrument_binding as binding
+
+    _no_planning(monkeypatch)
+    with monkeypatch.context() as m:
+        m.setattr(binding, "CODEBOOK_SHA256", "0" * 64)
+        with pytest.raises(ValueError, match="signed r15"):
+            orch.run_presweep(_v27_config(tmp_path), v27=_stub_dispatch())
+    with monkeypatch.context() as m:
+        m.setattr(binding, "version", lambda _: "0.0")
+        with pytest.raises(ValueError, match="RapidFuzz"):
+            orch.run_presweep(_v27_config(tmp_path), v27=_stub_dispatch())
+    with monkeypatch.context() as m:
+        m.setattr(binding.BoundRuntime, "stage6_quote_fn", lambda self, *a, **k: (_ for _ in ()).throw(
+            ValueError("x35_model differs from the X35 model pinned in the instrument")))
+        with pytest.raises(ValueError, match="x35_model differs"):
+            orch.run_presweep(_v27_config(tmp_path), v27=_stub_dispatch())
+    assert not (tmp_path / "runs").exists()
+
+
+def test_a_refusal_at_provider_build_leaves_no_run_pipeline_block(tmp_path, monkeypatch):
+    """QA4 M2 c: run_pipeline (and the 2.7 storage_contract) are recorded only after the per-page
+    providers are built, so a run refused there leaves its manifest without them."""
+    from g3o.run.presweep import perpage_providers_v27 as ppv
+
+    run_dir, bound, instrument, world = _world_run(tmp_path)
+
+    def refuse(*_a, **_k):
+        raise ValueError("refused at provider build")
+
+    monkeypatch.setattr(ppv, "build_perpage_providers", refuse)
+    with pytest.raises(ValueError, match="refused at provider build"):
+        orch.run_v27_dispatch(run_dir, [], None, _dispatch(world))
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert planning.RUN_PIPELINE_KEY not in manifest and "storage_contract" not in manifest
+
+
 def test_v27_inputs_on_a_v25_run_are_refused(tmp_path):
     config = PresweepConfig(run_id="r", runs_dir=tmp_path / "runs", master_csv=tmp_path / "m.csv")
     v27 = orch.V27Dispatch(SETTINGS, FakeJev(), lambda j: None, FakeEntail(), lambda *a: [])
@@ -284,10 +363,16 @@ def test_v27_dispatch_without_merged_values_holds_that_institution_at_stage6(tmp
     assert not (institution_dir(run_dir, INSTS[0]) / "6_storage.json").exists()
 
 
-def test_v27_dispatch_stops_at_the_first_x35_check_with_the_real_entry(tmp_path):
+def test_v27_dispatch_stops_at_the_first_x35_check_on_a_refusing_entry(tmp_path):
+    """The bare support_check.run_entailment is refused on entry (QA4 M2 a); a callable that passes
+    through to it still refuses at the stage, and that stage stop propagates unchanged."""
     run_dir, bound, instrument, world = _world_run(tmp_path)
+
+    def through(*a, **k):
+        return support_check.run_entailment(*a, **k)
+
     with pytest.raises(SupportGateError):
-        orch.run_v27_dispatch(run_dir, [], None, _dispatch(world, entail=support_check.run_entailment))
+        orch.run_v27_dispatch(run_dir, [], None, _dispatch(world, entail=through))
     assert not any((institution_dir(run_dir, i) / "6_storage.json").exists() for i in INSTS)
     assert not any(r["reason"] == pp.HELD_REASON for r in attrition.read_records(run_dir))
 

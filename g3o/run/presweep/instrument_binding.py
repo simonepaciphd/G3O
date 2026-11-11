@@ -123,12 +123,11 @@ class BoundRuntime:
         return self._configure(pass2_support.build_job(page, plan, system=self.pass2_system), self.pass2_system)
 
 
-def bind_runtime(run_dir: Path, settings: RuntimeSettings) -> BoundRuntime:
-    """Bind before producing rows; reject a changed setup on resume.
+def _prepare(settings: RuntimeSettings) -> tuple[dict[str, Any], dict[str, Any], BoundRuntime]:
+    """Every check and object of :func:`bind_runtime` that needs no run directory; writes nothing.
 
-    A crash after writing the instrument and before writing the binding marker
-    is safe to resume. Both files are immutable/exclusive and byte-verified.
-    The presweep entry point still needs to consume this binding (T-030).
+    Returns the instrument payload, its record (as ``load_instrument`` returns it) and the
+    bound runtime built on it.
     """
     cb = load_codebook()
     if cb.sha256 != CODEBOOK_SHA256:
@@ -184,10 +183,6 @@ def bind_runtime(run_dir: Path, settings: RuntimeSettings) -> BoundRuntime:
         "instrument_approval_reference": settings.approval_reference,
     }
     record = build_instrument(payload)
-    marker = run_dir / "instrument-binding.json"
-    marker_raw = (canonical_json({"instrument_id": record["instrument_id"]}) + "\n").encode("utf-8")
-    if marker.exists() and marker.read_bytes() != marker_raw:
-        raise ValueError("resume instrument differs from the executed configuration or source")
     # Validate/construct every runtime object before publishing the binding.
     rules = load_classifier_rules(cb.raw, expected_sha256=cb.sha256)
     bound = BoundRuntime(
@@ -198,6 +193,32 @@ def bind_runtime(run_dir: Path, settings: RuntimeSettings) -> BoundRuntime:
                             part_combine_adapter(cb), settings.reference_year),
         pass1_system, pass2_system, stage6_quote_system,
     )
+    return payload, record, bound
+
+
+def check_runtime(settings: RuntimeSettings) -> tuple[BoundRuntime, dict[str, Any]]:
+    """The non-writing half of :func:`bind_runtime`, for a refusal before any run work (T-030 QA4 M2).
+
+    Runs the codebook SHA, matcher pin and estimator checks and builds the instrument record
+    and bound runtime exactly as :func:`bind_runtime` does, with no run directory and without
+    writing anything. Returns ``(bound, record)``. :func:`bind_runtime` repeats all of it.
+    """
+    _, record, bound = _prepare(settings)
+    return bound, record
+
+
+def bind_runtime(run_dir: Path, settings: RuntimeSettings) -> BoundRuntime:
+    """Bind before producing rows; reject a changed setup on resume.
+
+    A crash after writing the instrument and before writing the binding marker
+    is safe to resume. Both files are immutable/exclusive and byte-verified.
+    Consumed by the presweep v2.7 run mode (``orchestrator.run_v27_dispatch``).
+    """
+    payload, record, bound = _prepare(settings)
+    marker = run_dir / "instrument-binding.json"
+    marker_raw = (canonical_json({"instrument_id": record["instrument_id"]}) + "\n").encode("utf-8")
+    if marker.exists() and marker.read_bytes() != marker_raw:
+        raise ValueError("resume instrument differs from the executed configuration or source")
     write_instrument(run_dir / "final" / "instruments", payload)
     try:
         with marker.open("xb") as stream:
