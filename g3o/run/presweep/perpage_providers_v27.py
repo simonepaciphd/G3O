@@ -24,8 +24,10 @@ The seams:
   :func:`~g3o.common.support_check.check_code`. The first call for a page asks
   every pass-1 code: that is T-022's one page request, whose activity spans
   ``activity_input`` uses. A later call (an RC-D-024 extra round) asks only the
-  new codes, with the plan ``select_requests`` builds for them (unchanged: on
-  an R-003 page it asks spans again; they are not used).
+  quote tasks of the new codes (C1 a, PI 2026-11-11:
+  :func:`~g3o.extract.request_v27.quote_tasks_only`): no link, span or date
+  task, since those come from the stored page request; an extra round whose new
+  codes need no quote makes no call.
 - ``activity_input`` - the spans of that page request. On resume (the page
   checkpoint holds the support, so ``page_support`` is not called again) the
   page request is rebuilt from the stored T-021 artifact; the per-page journal
@@ -168,8 +170,10 @@ class _Adapter:
 
     # --- pass 1 --------------------------------------------------------------
 
-    def _pass1(self, p1: Any) -> tuple[Any, Pass1Extraction | None]:
+    def _pass1(self, p1: Any, *, extra_round: bool = False) -> tuple[Any, Pass1Extraction | None]:
         plan = request_v27.select_requests(p1)
+        if extra_round:  # C1 a: only the quote tasks of the newly eligible codes
+            plan = request_v27.quote_tasks_only(plan)
         if not plan.needs_request:
             return plan, None
         ext = parse_pass1_result(self._call(self.bound.pass1_job(p1, plan)), p1, plan)
@@ -182,8 +186,11 @@ class _Adapter:
         wanted = {(r.item_id, r.chunk_id, r.chosen_value) for r in records}
         codes = tuple(c for c in full.codes if (c.item_id, c.chunk_id, c.value) in wanted)
         p1 = replace(full, codes=codes)
-        plan, ext = self._pass1(p1)
-        if codes == full.codes:  # every pass-1 code: T-022's page request (its spans feed activity_input)
+        # every pass-1 code: T-022's page request (its spans feed activity_input); fewer codes: an
+        # RC-D-024 extra round, which asks only their quotes (C1 a)
+        first = codes == full.codes
+        plan, ext = self._pass1(p1, extra_round=not first)
+        if first:
             self._page_request.setdefault(page.page_id, ext)
         quotes = sc.pass1_quotes(plan, ext) if ext is not None else {}
         sources = PageSources.from_page(p1)

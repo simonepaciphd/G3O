@@ -16,6 +16,7 @@ import pytest
 
 from g3o.classify import jev_page_code as jpc
 from g3o.common import attrition, support_check
+from g3o.common.part_combine import NOT_COVERED
 from g3o.common.paths import institution_dir
 from g3o.common.support_check import SupportGateError
 from g3o.extract.anthropic_client import ExtractorResult
@@ -370,3 +371,67 @@ def test_altered_pass_prompt_is_refused_even_when_the_instrument_pins_it(tmp_pat
         _providers(run_dir, replace(bound, **{field: altered}), {**instrument, "payload": payload},
                    extract, FakeEntail())
     assert not extract.jobs
+
+
+def _tasks(job):
+    return json.loads(job.params["messages"][0]["content"].split("\nTASKS:\n", 1)[1])
+
+
+def test_extra_round_pass1_request_asks_only_the_new_quote_tasks(tmp_path):
+    """C1 a (PI 2026-11-11): an RC-D-024 extra round on an R-003 page sends only the quote tasks of
+    the newly eligible codes (no link, span or date task); its quote-only answer is consumed, and
+    the spans ``activity_input`` reads are the first-round page request's. The first-round request
+    is the one the unchanged T-022 plan builds."""
+    from dataclasses import replace as dc_replace
+
+    from g3o.classify.jev_page_code import PageCodeResult, to_pass1_page
+    from g3o.classify.question_rounds import PageRoundResult
+    from g3o.common.artifact_io import read_artifact
+    from g3o.extract import request_v27
+    from g3o.run.presweep import stage_page_code
+
+    run_dir, bound, instrument, world, insts = _world(tmp_path)
+    a = [i for i in insts if i.institution_id == "INST-0000001"]
+    _run(run_dir, bound, instrument, a, _providers(run_dir, bound, instrument, FakeExtractor(world), FakeEntail()),
+         FakeJev(ANSWERS, RELATIONS))
+    page = world.pages["p1"].input
+    result = PageCodeResult.from_json(read_artifact(stage_page_code.artifact_path(run_dir, page.institution_id,
+                                                                                  page.url)))
+    assert result.verdict.value in request_v27.R003_VERDICTS and not page.has_metadata_date
+    records = [r for r in result.records if r.coder_type == "classifier" and r.chosen_value != NOT_COVERED]
+    new = [r for r in records if r.item_id == "core.disclosure_form"]
+    assert new and len(new) < len(records)
+
+    extract = FakeExtractor(world)
+    providers = _providers(run_dir, bound, instrument, extract, FakeEntail())
+    first = providers.page_support(page, result, records)
+    assert len(extract.jobs) == 1
+    full = to_pass1_page(result, page)
+    assert extract.jobs[0].params == bound.pass1_job(full, request_v27.select_requests(full)).params
+    t1 = _tasks(extract.jobs[0])
+    assert t1["activity_task"] is not None and t1["date_task"] is True
+    assert len(t1["quote_tasks"]) > len(new)
+    assert len(first) == len(records)
+
+    extra = providers.page_support(page, result, new)  # the extra round's newly eligible codes
+    assert len(extract.jobs) == 2
+    t2 = _tasks(extract.jobs[1])
+    assert t2 == {"quote_tasks": [{"task_id": f"q{n:03d}", "part_id": r.chunk_id,
+                                   "question": request_v27.default_rules().questions[r.item_id],
+                                   "answer": r.chosen_value, "chrome_allowed": False}
+                                  for n, r in enumerate(new, start=1)],
+                  "link_task": False, "activity_task": None, "date_task": False}
+    assert extract.jobs[1].params["system"] == bound.pass1_system  # the pinned system prompt, unchanged
+    assert [(s.item_id, s.chunk_id) for s in extra] == [(r.item_id, r.chunk_id) for r in new]
+    assert all(s.supporting_text for s in extra)  # the quote-only answer was consumed
+
+    inp = providers.activity_input(page, PageRoundResult(result, jpc.finalize_page(result, first + extra,
+                                                                                   bound.page_config),
+                                                         tuple(first) + tuple(extra), 1))
+    assert [s.activity_id for s in inp.spans] == [aid("p1")]  # the first-round spans
+    assert len(extract.jobs) == 2
+
+    # An extra round whose new codes need no quote makes no call (an R-003 page used to ask spans again).
+    none_needed = [dc_replace(new[0], chosen_value=next(iter(request_v27.default_rules().no_support_values)))]
+    providers.page_support(page, result, none_needed)
+    assert len(extract.jobs) == 2
