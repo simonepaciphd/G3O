@@ -17,6 +17,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Literal
 
+from bs4 import BeautifulSoup
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -26,6 +27,7 @@ from pydantic import (
 )
 
 from g3o.common import config
+from g3o.common.date_signals import html_date_candidates
 from g3o.scrape import egress
 
 logger = logging.getLogger(__name__)
@@ -112,10 +114,12 @@ class RenderedPage(BaseModel):
     )
     # P15 A1 (PI 2026-11-11 A1.1 a): published-date metadata candidates, same
     # convention as the T-014 fields. Measured on the HTML and unlocker-HTML
-    # paths (meta / JSON-LD / microdata) and the PDF paths (CreationDate).
-    # ``None`` = not measured: render and DOCX pages, a PDF read without
-    # pdfplumber, and every record stored before the change (A1.3 a, no
-    # re-fetch). ``[]`` = measured, none on the page.
+    # paths (meta / JSON-LD / microdata), the render path (the rendered DOM
+    # HTML of the same page load, PI ruling R3 b 2026-11-12; the HTML itself
+    # is not stored) and the PDF paths (CreationDate). ``None`` = not
+    # measured: DOCX pages, a PDF read without pdfplumber, a render whose DOM
+    # HTML could not be read, and every record stored before the change
+    # (A1.3 a, no re-fetch). ``[]`` = measured, none on the page.
     metadata_dates: list[dict[str, Any]] | None = Field(
         default=None,
         description="Published-date candidates {tag, found_as, raw, value} "
@@ -126,9 +130,10 @@ class RenderedPage(BaseModel):
     def _omit_unmeasured(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         """Leave unmeasured (``None``) T-014 fields out of the serialised record.
 
-        Keeps a render, PDF or pre-change page byte-identical to its
-        serialisation before T-014, so persisted artifacts, the page cache and
-        anything hashed from them do not change for pages without the fields.
+        Keeps a page without the fields (a pre-change record; a PDF or render
+        page with none measured) byte-identical to its serialisation before
+        T-014, so persisted artifacts, the page cache and anything hashed from
+        them do not change for pages without the fields.
         """
         data = handler(self)
         for name in _OPTIONAL_PAGE_FIELDS:
@@ -147,14 +152,35 @@ def _import_sync_playwright():
     return sync_playwright
 
 
+def _rendered_date_candidates(page: object) -> list[dict[str, Any]] | None:
+    """P15 A1 date candidates of the rendered DOM (PI ruling R3 b, 2026-11-12).
+
+    Reads the serialised DOM of the already-loaded page (playwright
+    ``page.content()``: no navigation, no request) and runs
+    :func:`g3o.common.date_signals.html_date_candidates` on it, as the HTML
+    path does. Only the candidates are kept, never the HTML. ``None`` (not
+    measured) when the DOM cannot be read or parsed; the render itself still
+    succeeds.
+    """
+    try:
+        html = page.content()  # type: ignore[attr-defined]
+        if not isinstance(html, str):
+            raise TypeError(f"page.content() returned {type(html).__name__}, not str")
+        return html_date_candidates(BeautifulSoup(html, "html.parser"))
+    except Exception as exc:
+        logger.warning("render: rendered HTML not read, metadata dates not measured: %s", exc)
+        return None
+
+
 def _drive_page(
     page: object, url: str, *, timeout: int, wait_for: str | None
-) -> tuple[str, str, str | None, int | None]:
-    """Navigate ``page`` to ``url`` and read out (text, title, final_url, status).
+) -> tuple[str, str, str | None, int | None, list[dict[str, Any]] | None]:
+    """Navigate ``page`` to ``url`` and read out (text, title, final_url, status, metadata_dates).
 
     The single point that drives a playwright page, shared by the ephemeral
     per-call browser path and the reusable :class:`RenderSession` path so both
-    behave identically.
+    behave identically. ``metadata_dates`` is measured on the same page load
+    (:func:`_rendered_date_candidates`).
     """
     response = page.goto(url, timeout=timeout, wait_until="domcontentloaded")
     if wait_for:
@@ -166,10 +192,11 @@ def _drive_page(
             # networkidle is best-effort; some pages keep long-poll connections open.
             pass
     text = page.inner_text("body")
+    metadata_dates = _rendered_date_candidates(page)
     title = page.title()
     final_url = page.url
     status = response.status if response is not None else None
-    return text, title, final_url, status
+    return text, title, final_url, status, metadata_dates
 
 
 class RenderSession:
@@ -328,7 +355,7 @@ def render_url(
     if session is not None:
         page = session.new_page()
         try:
-            text, title, final_url, status = _drive_page(
+            text, title, final_url, status, metadata_dates = _drive_page(
                 page, url, timeout=timeout, wait_for=wait_for
             )
         finally:
@@ -349,7 +376,7 @@ def render_url(
             try:
                 context = browser.new_context()
                 page = context.new_page()
-                text, title, final_url, status = _drive_page(
+                text, title, final_url, status, metadata_dates = _drive_page(
                     page, url, timeout=timeout, wait_for=wait_for
                 )
             finally:
@@ -360,6 +387,7 @@ def render_url(
         text=text,
         title=title,
         content_type="render",
+        metadata_dates=metadata_dates,
         fetch_metadata=FetchMetadata(
             access_date=utc_today_iso(),
             http_status=status,

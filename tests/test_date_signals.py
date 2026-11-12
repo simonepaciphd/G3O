@@ -441,7 +441,7 @@ def test_pdf_without_pdfplumber_is_not_measured(_tmp_cache, monkeypatch):
     assert _scrape("https://council.example/p.pdf").metadata_dates is None
 
 
-def test_render_page_is_not_measured():
+def test_render_page_built_without_candidates_defaults_to_not_measured():
     page = RenderedPage(url="https://x.example/", text="t", title="", content_type="render",
                         fetch_metadata=FetchMetadata(access_date="2026-11-11", fetch_method="render"))
     assert page.metadata_dates is None
@@ -495,5 +495,41 @@ def test_r20_url_date_on_the_path_only():
     assert ds.normalise_pdf("20240312") == ds.normalise_pdf("D:20240312") == "2024-03-12"
 
 
-def test_producer_version_is_v2():
-    assert ds.PRODUCER_VERSION == "g3o.common.date_signals.v2"
+def test_producer_version_is_v3():
+    assert ds.PRODUCER_VERSION == "g3o.common.date_signals.v3"
+
+
+# ---------------------------------------------------------------------------
+# 2026-11-12 rulings: R3 b (render pages measured), R4 a (strict window),
+# procedural (out-of-window values in detail)
+# ---------------------------------------------------------------------------
+
+
+def test_out_of_window_values_are_listed_sorted_in_detail():
+    cands = [{"tag": ds.TAG_DC, "found_as": "meta", "raw": "2030-01-01", "value": "2030-01-01"},
+             {"tag": ds.TAG_PDF, "found_as": "pdf", "raw": "D:16010101", "value": "1601-01-01"},
+             {"tag": ds.TAG_SCHEMA, "found_as": "json-ld", "raw": "2024-03-12", "value": "2024-03-12"}]
+    d = sf.page_publication_date(cands, "https://x.example/1989/12/x/", None, SOURCES, access_date=ACC)
+    assert d.value == "2024-03-12"
+    assert d.detail["out_of_window"] == ["1601-01-01", "1989-12", "2030-01-01"]
+
+
+def test_no_out_of_window_key_when_all_in_window():
+    cands = [{"tag": ds.TAG_DC, "found_as": "meta", "raw": "2024-03-12", "value": "2024-03-12"}]
+    d = sf.page_publication_date(cands, "https://x.example/a", None, SOURCES, access_date=ACC)
+    assert "out_of_window" not in d.detail
+    assert "out_of_window" not in sf.publication_date([], None, SOURCES).detail
+
+
+def test_r4a_window_upper_bound_is_the_utc_access_date_strictly():
+    acc = ds.date(2026, 11, 11)
+    assert ds.in_window("2026-11-11", acc) and not ds.in_window("2026-11-12", acc)
+    assert ds.in_window("2026-11", acc) and not ds.in_window("2026-12", acc)
+
+
+def test_old_render_record_without_candidates_still_loads():
+    rec = {**OLD_RECORD, "content_type": "render",
+           "fetch_metadata": {**OLD_RECORD["fetch_metadata"], "fetch_method": "render"}}
+    page = RenderedPage.model_validate_json(json.dumps(rec))
+    assert page.metadata_dates is None
+    assert "metadata_dates" not in json.loads(page.model_dump_json())

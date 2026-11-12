@@ -4,8 +4,7 @@ Codebook r15 ``core.source_publication_date`` rules/0: "Take dates from HTML
 metadata / PDF properties / URL patterns deterministically; if absent, the
 extractor returns a date with its verbatim quote, validated by R-042."
 
-PI rulings 2026-11-11 (``agent-workspace/2026-11-10-build/QUESTIONS-overnight.md``
-A1, ``RULINGS-builds-2026-11-11.md``):
+PI rulings 2026-11-11 (A1 build questions, rulings A1.1-A1.3):
 
 - A1.1 a: published-date signals only -- ``citation_publication_date``,
   schema.org ``datePublished``, ``article:published_time``,
@@ -47,16 +46,24 @@ v2 (PI rulings 16-20 on the A1 build questions, 2026-11-11):
 - 17 b: JSON-LD ``datePublished`` only from top-level nodes and nodes directly
   under ``@graph`` (:func:`_jsonld_values`); nested nodes (comments, the
   containing site, related items) are not read.
-- 18 b: a date before :data:`EARLIEST_DATE` or after the page's access date is
-  not a candidate (:func:`in_window`); the stored candidate keeps its raw and
-  normalised value, and :func:`page_date_inputs` leaves it out of selection
-  and lists it in ``PageDateInputs.out_of_window``. A partial date is out of
+- 18 b (kept strict, PI ruling R4 a, 2026-11-12): a date before
+  :data:`EARLIEST_DATE` or strictly after the page's access date (the UTC
+  ``fetch_metadata.access_date``) is not a candidate (:func:`in_window`); the
+  stored candidate keeps its raw and normalised value, and
+  :func:`page_date_inputs` leaves it out of selection and lists it in
+  ``PageDateInputs.out_of_window``, which the result's ``detail`` carries as
+  ``out_of_window`` (procedural ruling, 2026-11-12). A partial date is out of
   window only if its whole period is (``2024`` is in window on 2024-05-01).
 - 20: the URL date is matched on the path only (:func:`url_dates`); ``D:``
   stays optional on PDF dates.
 - 16 b (selection, :func:`g3o.common.source_fields.select_deterministic_date`):
   within one tag, a date that is a prefix of a more precise one is consistent;
   the most precise is taken.
+
+v3 (PI ruling R3 b, 2026-11-12): rendered pages are measured too. The render
+path reads the rendered DOM HTML from the same page load and runs
+:func:`html_date_candidates` on it (:mod:`g3o.scrape.render`); before v3 a
+rendered page was not measured.
 """
 
 from __future__ import annotations
@@ -70,7 +77,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 #: Version of the measurement + normalisation + URL test (pinned; bump on any change).
-PRODUCER_VERSION = "g3o.common.date_signals.v2"  # v2: rulings 16-20 (2026-11-11)
+PRODUCER_VERSION = "g3o.common.date_signals.v3"  # v3: R3 b render pages measured (2026-11-12)
 
 #: Ruling 18 b: no candidate date before this day (before the web and PDF existed).
 EARLIEST_DATE = date(1990, 1, 1)
@@ -304,7 +311,13 @@ def _period(value: str) -> tuple[date, date]:
 
 
 def in_window(value: str, access_date: date) -> bool:
-    """Ruling 18 b: the date's period overlaps [:data:`EARLIEST_DATE`, ``access_date``]."""
+    """Ruling 18 b (strict, R4 a): the date's period overlaps [:data:`EARLIEST_DATE`, ``access_date``].
+
+    ``access_date`` is the page's UTC access date (``fetch_metadata.access_date``,
+    :func:`g3o.scrape.render.utc_today_iso`). The upper bound is strict: a
+    period that starts after the access date is out of window; no grace day
+    is added for time zones ahead of UTC.
+    """
     first, last = _period(value)
     return last >= EARLIEST_DATE and first <= access_date
 
@@ -338,8 +351,8 @@ def page_date_inputs(candidates: Sequence[Mapping[str, Any]] | None, url: str | 
                      access_date: Any) -> PageDateInputs:
     """Stored candidates (``RenderedPage.metadata_dates``) + supplied URL -> MetadataDate entries.
 
-    ``access_date``: the page's ``fetch_metadata.access_date`` (``YYYY-MM-DD``),
-    the upper bound of ruling 18 b's window.
+    ``access_date``: the page's UTC ``fetch_metadata.access_date``
+    (``YYYY-MM-DD``), the strict upper bound of ruling 18 b's window.
     """
     from g3o.common.source_fields import MetadataDate  # local: source_fields imports this module
 

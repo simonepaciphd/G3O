@@ -628,7 +628,8 @@ def has_deterministic_date(metadata_dates: Sequence[MetadataDate] | None) -> boo
 
 
 def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: Any, sources: PageSources | None,
-                     *, metadata_measured: bool = True, vocab: SourceVocab | None = None) -> FieldValue:
+                     *, metadata_measured: bool = True, out_of_window: Sequence[str] = (),
+                     vocab: SourceVocab | None = None) -> FieldValue:
     """Metadata first, then the quote step's date checked under R-042 (items/core.source_publication_date/rules/0).
 
     ``metadata_dates``: None = neither the metadata measurement nor the URL
@@ -640,6 +641,9 @@ def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: 
     ``Pass1Extraction.publication_date`` (a ``FieldValue`` with ``value``,
     ``chunk_id``, ``supporting_text``) or None. A quote-step date that fails
     the check takes ``unknown`` (``downgrade_target``). Neither: ``not_documented``.
+    ``out_of_window``: candidate values left out of selection by ruling 18 b
+    (``PageDateInputs.out_of_window``); when non-empty the result's ``detail``
+    lists them, sorted, as ``out_of_window``.
     """
     v = vocab or default_vocab()
     if metadata_dates is None:
@@ -649,6 +653,8 @@ def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: 
     chosen, detail = select_deterministic_date(metadata_dates)
     detail = {"date_producer": date_signals.PRODUCER_VERSION,
               "metadata": "measured" if metadata_measured else date_signals.NOT_MEASURED, **detail}
+    if out_of_window:
+        detail["out_of_window"] = sorted(out_of_window)
     if chosen is not None:
         origin = chosen.origin
         label = f"{origin} {chosen.tag}" if chosen.tag else origin
@@ -687,11 +693,13 @@ def page_publication_date(metadata_candidates: Sequence[Mapping[str, Any]] | Non
     """:func:`publication_date` for one stored page: its ``metadata_dates`` and supplied URL.
 
     A page stored before the capture (``metadata_dates`` None) runs the URL
-    test only and records ``metadata: not_measured`` (A1.3 a).
+    test only and records ``metadata: not_measured`` (A1.3 a). Candidates
+    outside ruling 18 b's window are listed in ``detail["out_of_window"]``.
     """
     inputs = date_signals.page_date_inputs(metadata_candidates, url, access_date=access_date)
     return publication_date(inputs.metadata_dates, quote_date, sources,
-                            metadata_measured=inputs.metadata_measured, vocab=vocab)
+                            metadata_measured=inputs.metadata_measured,
+                            out_of_window=inputs.out_of_window, vocab=vocab)
 
 
 def date_upper_bound(date: FieldValue, *, vocab: SourceVocab | None = None) -> FieldValue:
