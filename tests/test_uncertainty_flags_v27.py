@@ -81,10 +81,21 @@ def test_a64_union_alphabetical_and_outside_flags_refused():
     assert uf.union_flags([["stage_ambiguous"], [], ["identity_unresolved", "stage_ambiguous"]]) == [
         "identity_unresolved", "stage_ambiguous"]
     assert uf.union_flags([]) == []
-    nodes = [{"uncertainty_flags": ["stage_ambiguous"]}, {"uncertainty_flags": ["identity_unresolved"]}]
-    assert uf.row_flags(nodes) == uf.row_flags(list(reversed(nodes))) == ["identity_unresolved", "stage_ambiguous"]
+    nodes = [{"uncertainty_flags": ["stage_ambiguous"]}, {"uncertainty_flags": []}]
+    assert uf.row_flags(nodes) == uf.row_flags(list(reversed(nodes))) == ["stage_ambiguous"]
     with pytest.raises(ValueError, match="outside the signed"):
         uf.union_flags([["vendor_undisclosed"]])  # a v2.5 flag is not in the v2.7 list
+
+
+def test_r1a_identity_unresolved_row_flag_follows_the_filed_relation_not_the_node():
+    """R1 a: a stored relation node's identity_unresolved is not a row flag by itself; the row
+    holding the unresolved cross-page relation (its lhs) carries it, with or without the node."""
+    rel = {"uncertainty_flags": ["identity_unresolved"]}
+    stage = {"uncertainty_flags": ["stage_ambiguous"]}
+    assert uf.row_flags([rel]) == []  # node stored here, relation filed elsewhere
+    assert uf.row_flags([rel, stage]) == ["stage_ambiguous"]
+    assert uf.row_flags([], unresolved_relation=True) == ["identity_unresolved"]  # node stored elsewhere
+    assert uf.row_flags([rel, stage], unresolved_relation=True) == ["identity_unresolved", "stage_ambiguous"]
 
 
 def test_unruled_ai_text_flags_stay_refused():
@@ -208,7 +219,62 @@ def test_stage6_unresolved_relation_flags_its_node_and_the_activity_holding_it(t
     assert set(acts) == {("o1",), ("o2",)}  # unresolved never merges
     rel = [n for n in acts[("o1",)]["item_support"] if n["item_id"] == uf.STAGE6_RELATION_ITEM]
     assert rel and all(n["uncertainty_flags"] == ["identity_unresolved"] for n in rel)
+    assert all(n["input_support_ids"] == [] for n in rel)  # signed: unresolved needs no quote
     assert acts[("o1",)]["values"]["core.uncertainty_flags"] == ["identity_unresolved"]
     assert all(n["uncertainty_flags"] == [] for n in acts[("o1",)]["item_support"]
                if n["item_id"] != uf.STAGE6_RELATION_ITEM)
     assert acts[("o2",)]["values"]["core.uncertainty_flags"] == []  # the node lives on the lhs row only
+
+
+class _LastQuotes(e.FakeQuotes):
+    """Copies the LAST shown input verbatim: a relation quote copied from the right-hand record."""
+
+    def __call__(self, req):
+        self.calls += 1
+        last = req.candidates[-1]
+        return e.s6.Stage6Quote(last.quote_text, last.support_id, e.TRUE, {"fake": True})
+
+
+def _quoted_unresolved(monkeypatch):
+    """Make an ``unresolved`` relation answer go through the quote step.
+
+    Under the signed codebook ``unresolved`` needs no quote (support ``not_required``; the quote step
+    is never called), so its node always sits on the lhs. To exercise R1 a for a quoted relation, the
+    check runs as for a quoted relation value (``governs``) and keeps the answer ``unresolved``.
+    """
+    real = e.s6.check_code
+
+    def check(ev, sources):
+        if ev.item_id == uf.STAGE6_RELATION_ITEM and ev.value == uf.UNRESOLVED:
+            sr = real(replace(ev, value="governs"), sources)
+            return replace(sr, value=uf.UNRESOLVED, original_value=uf.UNRESOLVED)
+        return real(ev, sources)
+
+    monkeypatch.setattr(e.s6, "check_code", check)
+
+
+def test_stage6_r1a_flag_on_the_lhs_row_when_the_relation_quote_comes_from_the_rhs(tmp_path, monkeypatch):
+    """R1 a: the quote is copied from o2 (rhs), so W4 b stores the relation node on o2's row with its
+    own flag (A6.3 a); the row flag goes on o1's row, where the relation is filed, and only there."""
+    _quoted_unresolved(monkeypatch)
+    run_dir, bound, instrument = e._setup(tmp_path)
+    b = e.Builder(run_dir, bound, instrument, "INST-0000001")
+    b.page("p1", [e.Q1])
+    b.page("p2", [e.Q2])
+    b.observation("o1", "p1", name="Copilot drafting", activity_type="internal_operational", tool="Copilot", quote=e.Q1)
+    b.observation("o2", "p2", name="Copilot letters", activity_type="internal_operational", tool="Copilot", quote=e.Q2)
+    jev = e.FakeJev({("Copilot drafting", "Copilot letters"): "unresolved"}, {})
+    quotes = _LastQuotes()
+    _, metrics = e._run(run_dir, bound, instrument, [b.institution()], quotes, jev=jev)
+    assert metrics.written == ["INST-0000001"], metrics
+    assert quotes.calls == 1
+    acts = {tuple(a["observation_ids"]): a for a in _storage(run_dir)["activities"].values()}
+    assert set(acts) == {("o1",), ("o2",)}
+    lhs, rhs = acts[("o1",)], acts[("o2",)]
+    rel = [n for n in rhs["item_support"] if n["item_id"] == uf.STAGE6_RELATION_ITEM]
+    assert rel and any(n["supporting_text"] == e.Q2 for n in rel)  # W4 b: stored with the copied record
+    assert all(n["uncertainty_flags"] == ["identity_unresolved"] for n in rel)  # the node keeps its flag
+    assert not [n for n in lhs["item_support"] if n["item_id"] == uf.STAGE6_RELATION_ITEM]
+    assert [r["relation"] for r in lhs["activity_relations"]] == ["unresolved"] and not rhs["activity_relations"]
+    assert lhs["values"]["core.uncertainty_flags"] == ["identity_unresolved"]  # filed here (R1 a)
+    assert rhs["values"]["core.uncertainty_flags"] == []

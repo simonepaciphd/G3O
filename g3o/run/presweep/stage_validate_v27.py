@@ -61,7 +61,11 @@ Rules carried here, not decided here:
   when the pool parts' answers and the pooled observations' values differ, a
   cross-page relation node ``identity_unresolved`` when it is ``unresolved``.
   Every published activity's ``core.uncertainty_flags`` (:data:`MERGE_DERIVED`)
-  is the union, alphabetical, of the flags its stored nodes carry.
+  is the union, alphabetical, of the flags its stored nodes carry (ruling 11),
+  except ``identity_unresolved`` (PI ruling R1 a, 2026-11-12): that row flag
+  goes on the left-hand activity of an unresolved cross-page relation, where
+  the relation is filed, and only there, wherever the relation's node is stored
+  (W4 b placement unchanged; the node keeps its own flag, A6.3 a).
 """
 from __future__ import annotations
 
@@ -557,9 +561,12 @@ def _pool_nodes(inst: Stage6Institution, aid: str, pooled: PooledActivity, quote
 
 def _relation_nodes(inst: Stage6Institution, result: Stage6Result, final_of: Mapping[str, str],
                     quotes: Mapping[str, InputQuote], instrument: dict[str, Any], out: _Nodes
-                    ) -> dict[tuple[str, str], list[str]]:
+                    ) -> tuple[dict[tuple[str, str], list[str]], set[tuple[str, str]]]:
+    """Store the cross-page relation nodes; return their support ids per (lhs, rhs) and the
+    (lhs, rhs) pairs whose node carries ``identity_unresolved`` (for the R1 a row flag)."""
     by_obs = {r.observation_id: r for r in inst.records}
     ids: dict[tuple[str, str], list[str]] = {}
+    unresolved: set[tuple[str, str]] = set()
     for outcome in result.relation_outcomes:
         if outcome.decision is None or not (outcome.lhs in final_of and outcome.rhs in final_of):
             continue
@@ -585,7 +592,9 @@ def _relation_nodes(inst: Stage6Institution, result: Stage6Result, final_of: Map
         home = quotes[copied].observation_id if copied is not None and inputs == [copied] else outcome.lhs
         out.add(final_of[home], nodes, rec, instrument)
         ids[(outcome.lhs, outcome.rhs)] = [n["support_id"] for n in (nodes.original, nodes.final) if n is not None]
-    return ids
+        if uf.IDENTITY_UNRESOLVED in node_args["uncertainty_flags"]:
+            unresolved.add((outcome.lhs, outcome.rhs))
+    return ids, unresolved
 
 
 def _real(item: str, value: Any) -> bool:
@@ -650,7 +659,11 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
     for group in published:
         if group in result.pooled:
             _pool_nodes(inst, final_of[group[0]], result.pooled[group], quotes, config, instrument, out)
-    relation_ids = _relation_nodes(inst, result, final_of, quotes, instrument, out)
+    relation_ids, unresolved_pairs = _relation_nodes(inst, result, final_of, quotes, instrument, out)
+    # R1 a: the final activities an unresolved cross-page relation is filed on (its lhs; the
+    # filing loop below files each cross-page decision under final_of[decision.lhs]).
+    unresolved_on = {final_of[d.lhs] for d in result.relations
+                     if d.scope == "cross_page" and (d.lhs, d.rhs) in unresolved_pairs}
 
     sources: dict[str, dict[str, Any]] = {}
     for sid, row in inst.sources.items():
@@ -683,7 +696,10 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
         for node in [*(s for f in fragments for s in f["item_support"]), *out.supports.get(aid, [])]:
             support.setdefault(node["support_id"], node)
         coders = [*(c for f in fragments for c in f["coder_records"]), *out.coders.get(aid, [])]
-        values[uf.ITEM] = uf.row_flags(support.values())  # A6.3 a / A6.4 a
+        # Ruling 11 / A6.4 a: union of the row's node flags, except identity_unresolved, which is
+        # set iff an unresolved cross-page relation is filed on this row (R1 a), even when that
+        # relation's node is stored on the right-hand activity (W4 b).
+        values[uf.ITEM] = uf.row_flags(support.values(), unresolved_relation=aid in unresolved_on)
         claims = sorted(s for s, row in sources.items() if row["activity_id"] == aid)
         values["core.n_sources"] = len(claims)
         if inst.independence_groups is None:

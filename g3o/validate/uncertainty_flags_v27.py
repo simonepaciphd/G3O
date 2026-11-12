@@ -26,8 +26,19 @@ Implementation reading (not a separate ruling; reported with the build): an
 "answer" is a classifier's chosen value as jev returned it (before the
 check-then-combine downgrade), the temporary part answer "not covered by this
 part" excluded (it never votes, R-044); a pooled observation's answer is its
-final per-page ``core.adoption_stage`` value. An activity row's value is the
-union of the flags its stored support nodes carry.
+final per-page ``core.adoption_stage`` value.
+
+Row value (:func:`row_flags`): an activity row's ``core.uncertainty_flags`` is
+the union of the flags its stored support nodes carry (ruling 11), with one
+exception (PI ruling R1 a, 2026-11-12): ``identity_unresolved`` is a row flag
+of the left-hand activity of an unresolved cross-page relation, where the
+relation is filed, wherever that relation's support node is stored (W4 b: with
+the record whose quote was copied, which may be the right-hand one). So a row's
+value is the union of its own nodes' flags without ``identity_unresolved``, plus
+``identity_unresolved`` iff an unresolved cross-page relation is filed on that
+row. Node flags are unchanged (A6.3 a): the relation node keeps
+``identity_unresolved`` wherever it is stored. Per-page rows hold no cross-page
+relation, so there the value is the plain union.
 
 Still refused: the AI-text flags r2#39 folds into the list have no signed names
 or triggers; :func:`check_pipeline` refuses the ``ai_text`` pipeline.
@@ -96,9 +107,15 @@ def union_flags(lists: Iterable[Iterable[str]]) -> list[str]:
     return sorted(out)
 
 
-def row_flags(nodes: Iterable[Mapping[str, Any]]) -> list[str]:
-    """An activity row's value: the union of the flags its stored support nodes carry."""
-    return union_flags(n["uncertainty_flags"] for n in nodes)
+def row_flags(nodes: Iterable[Mapping[str, Any]], *, unresolved_relation: bool = False) -> list[str]:
+    """An activity row's value (ruling 11 with the R1 a exception; see the module docstring).
+
+    The union of the flags its stored support nodes carry, ``identity_unresolved``
+    excluded, plus ``identity_unresolved`` iff ``unresolved_relation``: an
+    unresolved cross-page relation is filed on this row (its left-hand activity).
+    """
+    own = [f for f in union_flags(n["uncertainty_flags"] for n in nodes) if f != IDENTITY_UNRESOLVED]
+    return union_flags([own, [IDENTITY_UNRESOLVED] if unresolved_relation else []])
 
 
 def classifier_answers(records: Iterable[Any], item_id: str = STAGE_ITEM) -> list[str]:

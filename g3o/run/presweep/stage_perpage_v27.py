@@ -514,7 +514,9 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
 
     Uncertainty flags (PI A6.1 a / A6.3 a): each node carries its own code's flags
     (:func:`g3o.validate.uncertainty_flags_v27.code_flags`); an observation row's
-    ``core.uncertainty_flags`` is the union of its nodes' flags.
+    ``core.uncertainty_flags`` is the union of its nodes' flags (ruling 11; a page
+    holds no cross-page relation, so the R1 a ``identity_unresolved`` exception of
+    :func:`~g3o.validate.uncertainty_flags_v27.row_flags` never applies here).
     """
     page, up = spec.page, spec.upstream
     if not (page_round.complete and (activity_round is None or activity_round.complete)):
