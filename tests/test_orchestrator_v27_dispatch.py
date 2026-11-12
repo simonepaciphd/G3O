@@ -11,7 +11,8 @@ value); the run manifest's run mode and instrument id; the whole
 monkeypatched to raise.
 
 Every provider call is a fake. The scraped-pages -> ``PerPageInstitution``
-hand-off has no producer in the pipeline; the fixture world supplies it.
+hand-off is injected here (the fixture world supplies it); the default builder
+(PI ruling D1 a) is tested in ``test_perpage_inputs_v27``.
 """
 from __future__ import annotations
 
@@ -193,7 +194,7 @@ def test_run_presweep_v27_without_injected_calls_is_refused_before_any_work(tmp_
     assert not (tmp_path / "runs").exists()
 
 
-@pytest.mark.parametrize("missing", ["jev_ask_fn", "extract_fn", "entail_fn", "perpage_inputs"])
+@pytest.mark.parametrize("missing", ["jev_ask_fn", "extract_fn", "entail_fn"])
 def test_v27_dispatch_missing_one_call_is_refused_before_any_work(tmp_path, missing):
     config = _v27_config(tmp_path)
     v27 = orch.V27Dispatch(settings=SETTINGS, jev_ask_fn=FakeJev(), extract_fn=lambda j: None,
@@ -207,6 +208,16 @@ def test_v27_dispatch_missing_one_call_is_refused_before_any_work(tmp_path, miss
     with pytest.raises(ValueError, match=f"{missing} must be supplied"):
         orch.run_v27_dispatch(tmp_path / "x", [], None, replace(v27, **{missing: None}))
     assert not (tmp_path / "x").exists()
+
+
+def test_v27_dispatch_perpage_inputs_defaults_to_the_builder_and_refuses_a_non_callable(tmp_path):
+    """D1 a: ``perpage_inputs`` None selects the default builder; anything else must be callable."""
+    v27 = orch.V27Dispatch(settings=SETTINGS, jev_ask_fn=FakeJev(), extract_fn=lambda j: None,
+                           entail_fn=FakeEntail())
+    assert v27.perpage_inputs is None
+    with pytest.raises(ValueError, match="perpage_inputs must be a callable, or None"):
+        orch.run_presweep(_v27_config(tmp_path), v27=replace(v27, perpage_inputs="builder"))
+    assert not (tmp_path / "runs").exists()
 
 
 def _stub_dispatch(**overrides):

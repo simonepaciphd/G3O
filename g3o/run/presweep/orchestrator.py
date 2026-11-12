@@ -292,7 +292,7 @@ V27_STAGE6_SPAN = "stage6_v27"
 
 @dataclass(frozen=True)
 class V27Dispatch:
-    """The injected inputs of a v2.7 run. Every field is required; none has a default.
+    """The injected inputs of a v2.7 run. Every field but ``perpage_inputs`` is required.
 
     - ``settings``: the :class:`~g3o.run.presweep.instrument_binding.RuntimeSettings`
       bound into the run's instrument (models, approval reference, ...).
@@ -307,17 +307,20 @@ class V27Dispatch:
       (``SupportGateError``).
     - ``perpage_inputs(run_dir, sample, scraped, bound, instrument)``: the
       :class:`~g3o.run.presweep.stage_perpage_v27.PerPageInstitution` inputs for the
-      scraped pages. No producer of these exists in the pipeline (the
-      ``PageInput`` built from a stored page, the explicit ``PageUpstream`` /
-      ``InstitutionUpstream`` values), so the caller supplies them; a missing
-      upstream value still raises ``MissingUpstreamError`` in the per-page stage.
+      scraped pages. ``None`` (the default, PI ruling D1 a): built from the stored
+      scrape artifacts by
+      :func:`g3o.run.presweep.perpage_inputs_v27.default_perpage_inputs`, which
+      still refuses (``MissingUpstreamError``, before any jev call) the values no
+      producer supplies yet (T-025 ``followed``, the T-015/T-022/T-024 row values).
+      An injected callable wins (the D1 a seam, kept for tests); a missing upstream
+      value it leaves out still raises ``MissingUpstreamError`` in the per-page stage.
     """
 
     settings: Any
     jev_ask_fn: Callable[..., Any]
     extract_fn: Callable[..., Any]
     entail_fn: Callable[..., Any]
-    perpage_inputs: Callable[..., Sequence[Any]]
+    perpage_inputs: Callable[..., Sequence[Any]] | None = None
 
 
 def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
@@ -341,13 +344,16 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
     if not isinstance(v27, V27Dispatch):
         raise ValueError(
             "pipeline_version='v2.7' needs the injected calls (V27Dispatch: jev_ask_fn, "
-            "extract_fn, entail_fn, perpage_inputs, settings); there is no default client"
+            "extract_fn, entail_fn, settings); there is no default client"
         )
-    missing = [name for name in ("jev_ask_fn", "extract_fn", "entail_fn", "perpage_inputs")
+    missing = [name for name in ("jev_ask_fn", "extract_fn", "entail_fn")
                if not callable(getattr(v27, name))]
     if missing:
         raise ValueError(f"v2.7 dispatch: {', '.join(missing)} must be supplied as callables; "
                          "there is no default client")
+    if v27.perpage_inputs is not None and not callable(v27.perpage_inputs):
+        raise ValueError("v2.7 dispatch: perpage_inputs must be a callable, or None for the default "
+                         "builder (D1 a)")
     from g3o.run.presweep.instrument_binding import RuntimeSettings
 
     if not isinstance(v27.settings, RuntimeSettings):
@@ -432,7 +438,12 @@ def run_v27_dispatch(
     # Only once the providers are built (QA4 M2 c): a run refused above leaves no 2.7
     # run_pipeline block (nor storage_contract) in its manifest.
     record_run_pipeline(run_dir, pipeline_version=PIPELINE_V27, instrument_id=bound.instrument_id)
-    institutions = list(v27.perpage_inputs(run_dir, sample, scraped, bound, instrument))
+    build_inputs = v27.perpage_inputs
+    if build_inputs is None:  # D1 a: the default builder over the stored scrape artifacts
+        from g3o.run.presweep.perpage_inputs_v27 import default_perpage_inputs
+
+        build_inputs = default_perpage_inputs
+    institutions = list(build_inputs(run_dir, sample, scraped, bound, instrument))
     out: dict[str, Any] = into if into is not None else {}
     out.update({"pipeline_version": PIPELINE_V27, "instrument_id": bound.instrument_id})
     usage: dict[str, dict[str, int]] = {}

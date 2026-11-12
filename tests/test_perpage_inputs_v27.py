@@ -1,0 +1,247 @@
+"""T-030 default v2.7 per-page inputs from stored scrape artifacts (PI ruling D1 a).
+
+A fixture run dir with two institutions and stored ``RenderedPage`` artifacts
+(HTML with metadata dates, a URL date, an archive-host URL, a short page,
+near-duplicate pages, the same text at a second institution). Checks
+``page_id = url_hash(url)``, fields verbatim from the page and master row, each
+A-producer value, syndication groups scoped to the institution, and the
+refusals kept for values no producer supplies (``followed``, the row values,
+``merged_values``; ``discovery_path`` / ``text_source`` unruled). One dispatch
+test runs ``run_v27_dispatch`` with the default builder and fake calls: it
+refuses before any jev or extractor call. No network: lingua runs locally.
+"""
+from __future__ import annotations
+
+import json
+from dataclasses import replace
+
+import pytest
+
+from g3o.common import date_signals, language_id
+from g3o.common import source_fields as sf
+from g3o.common.paths import institution_dir
+from g3o.extract.batch import url_hash
+from g3o.persist.stage6_adapters import MissingUpstreamError
+from g3o.run.presweep import orchestrator as orch
+from g3o.run.presweep import perpage_inputs_v27 as pin
+from g3o.run.presweep import stage_perpage_v27 as pp
+from g3o.run.presweep.config import PIPELINE_V27
+from g3o.run.presweep.records import institution_record
+from g3o.scrape.render import FetchMetadata, RenderedPage
+from tests._layout import uid_for, write_manifest
+
+RUN_ID = "R-T030-INPUTS"
+ACCESS = "2026-11-10"
+I1, I2, I3 = "INST-0000001", "INST-0000002", "INST-0000003"
+
+ROWS = [
+    {"master_row_id": "1", "institution_name": "Council One", "country": "Australia", "government_level": "local",
+     "branch": "executive", "institution_type": "council", "website": "https://one.example.gov/"},
+    {"master_row_id": "2", "institution_name": "Ministerio Dos", "country": "Uruguay",
+     "government_level": "national", "branch": "executive", "institution_type": "ministry", "website": ""},
+    {"master_row_id": "3", "institution_name": "Agency Three", "country": "Australia",
+     "government_level": "national", "branch": "executive", "institution_type": "agency", "website": ""},
+]
+
+EN = ("The council announced today that it will begin a pilot of a generative artificial intelligence "
+      "assistant to help residents find information about waste collection, permits and local services. "
+      "Staff will review every answer before it is published, and the pilot will run for six months while "
+      "the council measures accuracy, cost and resident satisfaction across all of its service areas.")
+EN_DUP = EN + " Further details follow."
+
+
+def _page(url, text, *, title="", metadata_dates=None, chrome=None, links=None, emails=None, method="html"):
+    return RenderedPage(url=url, text=text, title=title, content_type="html" if method == "html" else "render",
+                        fetch_metadata=FetchMetadata(access_date=ACCESS, fetch_method=method),
+                        chrome_text=chrome, links=links, email_links=emails, metadata_dates=metadata_dates)
+
+
+META = [{"tag": date_signals.TAG_SCHEMA, "found_as": "json-ld", "raw": "2025-03-12T10:00:00Z",
+         "value": "2025-03-12"}]
+LINKS = [{"href": "https://one.example.gov/ai", "text": "AI pilot"}]
+
+P_META = _page("https://one.example.gov/news/ai-pilot", EN, title="AI pilot", metadata_dates=META,
+               chrome="Contact us: info@one.example.gov", links=LINKS, emails=["info@one.example.gov"])
+P_URL = _page("https://one.example.gov/news/2024/05/20/budget", "Budget papers for the coming year. " * 12,
+              title="Budget", metadata_dates=[], chrome="", links=[], emails=[])
+P_DUP = _page("https://one.example.gov/media/ai-pilot-release", EN_DUP, title="Release", metadata_dates=[])
+P_ARCHIVE = _page("https://web.archive.org/web/2024/https://dos.example.gub.uy/ia", EN, title="Archivo",
+                  metadata_dates=None, method="render")
+P_SHORT = _page("https://dos.example.gub.uy/contacto", "Contacto.", title="Contacto", metadata_dates=[])
+
+SCRAPED = {I1: [P_META, P_URL, P_DUP], I2: [P_ARCHIVE, P_SHORT], I3: []}
+
+
+def _run_dir(tmp_path, *, languages="en", manifest=None):
+    run_dir = tmp_path / "run"
+    write_manifest(run_dir, manifest or {"run_id": RUN_ID, "institutions": [I1, I2, I3],
+                                         "config": {"pipeline_version": PIPELINE_V27}})
+    for row in ROWS:
+        rec = institution_record(row)
+        d = institution_dir(run_dir, rec["institution_id"])
+        d.mkdir(parents=True, exist_ok=True)
+        rec["institution_search_languages"] = languages
+        (d / "institution.json").write_text(json.dumps(rec), encoding="utf-8")
+    return run_dir
+
+
+def _built(tmp_path):
+    insts = pin.build_perpage_inputs(_run_dir(tmp_path), ROWS, SCRAPED)
+    return {i.institution_id: i for i in insts}
+
+
+def _spec(inst, page):
+    return next(s for s in inst.pages if s.page.page_id == url_hash(page.url))
+
+
+def test_page_input_fields_verbatim_and_page_id_is_url_hash(tmp_path):
+    insts = _built(tmp_path)
+    assert list(insts) == [I1, I2]  # I3 has no stored page: nothing to code
+    one = insts[I1]
+    assert [s.page.page_id for s in one.pages] == [url_hash(p.url) for p in SCRAPED[I1]]  # Stage 4 order
+    page = _spec(one, P_META).page
+    assert page.page_id == url_hash(P_META.url)
+    assert (page.url, page.title, page.text, page.chrome_text) == (P_META.url, P_META.title, P_META.text,
+                                                                   P_META.chrome_text)
+    assert page.links == tuple(LINKS) and page.email_links == ("info@one.example.gov",)
+    assert (page.institution_id, page.institution, page.country, page.level_of_government) == \
+        (I1, "Council One", "Australia", "local")
+    archive = _spec(insts[I2], P_ARCHIVE).page
+    assert archive.chrome_text is None and archive.links is None and archive.email_links is None  # not measured
+    assert _spec(one, P_URL).page.links == () and _spec(one, P_URL).page.chrome_text == ""
+
+
+def test_institution_identity_uid_and_run_id(tmp_path):
+    one = _built(tmp_path)[I1]
+    assert one.run_id == RUN_ID and one.institution_uid == uid_for(I1)
+    assert one.institution == {"institution_id": I1, "institution_name": "Council One", "country": "Australia",
+                               "branch_of_government": "executive", "level_of_government": "local",
+                               "institution_search_languages": "en"}
+    assert one.country == "Australia"
+    assert one.upstream == pp.InstitutionUpstream(independence_groups=None, merged_values=None)
+
+
+def test_a1_dates_with_the_recorded_access_date(tmp_path):
+    insts = _built(tmp_path)
+    meta, url = _spec(insts[I1], P_META), _spec(insts[I1], P_URL)
+    assert meta.page.has_metadata_date and url.page.has_metadata_date
+    assert meta.upstream.page_fields.publication_date.value == "2025-03-12"
+    assert meta.upstream.page_fields.publication_date.date_origin == "metadata"
+    assert url.upstream.page_fields.publication_date.value == "2024-05-20"
+    assert url.upstream.page_fields.publication_date.date_origin == "web_address"
+    for spec in (meta, url, _spec(insts[I2], P_ARCHIVE)):
+        assert spec.upstream.page_fields.access_date.value == ACCESS
+        assert spec.upstream.page_fields.url.value == spec.page.url
+    # No metadata/URL date: the T-022 quote step owns the date; nothing is set (never not_documented here).
+    for page in (P_ARCHIVE, P_SHORT):
+        spec = _spec(insts[I2], page)
+        assert spec.page.has_metadata_date is False and spec.upstream.page_fields.publication_date is None
+
+
+def test_a1_access_date_bounds_the_window(tmp_path):
+    late = _page("https://one.example.gov/news/2027/01/02/x", EN, metadata_dates=[])
+    insts = {i.institution_id: i for i in pin.build_perpage_inputs(_run_dir(tmp_path), ROWS[:1], {I1: [late]})}
+    spec = insts[I1].pages[0]
+    assert spec.page.has_metadata_date is False and spec.upstream.page_fields.publication_date is None
+
+
+def test_a2_archive_address_and_a3_language(tmp_path):
+    insts = _built(tmp_path)
+    assert _spec(insts[I2], P_ARCHIVE).upstream.page_fields.archive_address is True
+    assert _spec(insts[I1], P_META).upstream.page_fields.archive_address is False
+    meta = _spec(insts[I1], P_META).upstream.page_fields.language
+    assert meta.value == sf.source_language(EN).value and meta.value not in (language_id.UNKNOWN, language_id.MUL)
+    assert _spec(insts[I2], P_SHORT).upstream.page_fields.language.value == language_id.UNKNOWN
+
+
+def test_a4_syndication_groups_are_scoped_to_the_institution(tmp_path):
+    insts = _built(tmp_path)
+    g = {p.url: _spec(insts[I1], p).upstream.page_fields.syndication_group for p in SCRAPED[I1]}
+    assert g[P_META.url].value == g[P_DUP.url].value != g[P_URL.url].value
+    assert set(g[P_META.url].detail["members"]) == {url_hash(P_META.url), url_hash(P_DUP.url)}
+    archive = _spec(insts[I2], P_ARCHIVE).upstream.page_fields.syndication_group
+    assert archive.value != g[P_META.url].value  # same text, other institution: never one group
+    assert archive.detail["institution_id"] == I2 and archive.detail["members"] == [url_hash(P_ARCHIVE.url)]
+    assert _spec(insts[I2], P_SHORT).upstream.page_fields.syndication_group.detail["short_page"] is True
+
+
+def test_unproduced_values_still_refuse(tmp_path):
+    insts = _built(tmp_path)
+    for inst in insts.values():
+        for spec in inst.pages:
+            up = spec.upstream
+            assert (up.artifact_path, up.segments) == (None, None)  # A5 writes the artifact in the stage
+            assert (up.followed, up.activity_values, up.source_values, up.codes) == (None, None, None, None)
+    with pytest.raises(MissingUpstreamError, match="T-025 follow provenance") as exc:
+        pin.require_complete(list(insts.values()))
+    assert f"{I1}/{url_hash(P_META.url)}" in exc.value.missing
+    followed = [replace(i, pages=[replace(s, upstream=replace(s.upstream, followed=False)) for s in i.pages])
+                for i in insts.values()]
+    with pytest.raises(MissingUpstreamError, match=r"row values .*\(source_values, codes\)"):
+        pin.require_complete(followed)
+    # The per-page stage's own refusal is unchanged: failed_page still refuses a page with no follow value.
+    with pytest.raises(MissingUpstreamError, match="T-025 follow provenance"):
+        pp.failed_page(insts[I1].pages[0], "jev_request_failed")
+    with pytest.raises(sf.UnruledError):
+        sf.discovery_path()
+    with pytest.raises(sf.UnruledError):
+        sf.text_source()
+    with pytest.raises(MissingUpstreamError, match="T-025 follow provenance"):
+        pin.default_perpage_inputs(_run_dir(tmp_path / "again"), ROWS, SCRAPED, None, None)
+
+
+def test_identity_drift_duplicate_url_and_missing_uid_are_refused(tmp_path):
+    run_dir = _run_dir(tmp_path)
+    path = institution_dir(run_dir, I1) / "institution.json"
+    rec = json.loads(path.read_text(encoding="utf-8"))
+    path.write_text(json.dumps({**rec, "institution_name": "Other"}), encoding="utf-8")
+    with pytest.raises(ValueError, match=r"differs from the master row on \['institution_name'\]"):
+        pin.build_perpage_inputs(run_dir, ROWS[:1], SCRAPED)
+    path.write_text(json.dumps({k: v for k, v in rec.items() if k != "institution_search_languages"}),
+                    encoding="utf-8")
+    with pytest.raises(MissingUpstreamError, match="institution_search_languages"):
+        pin.build_perpage_inputs(run_dir, ROWS[:1], SCRAPED)
+    with pytest.raises(ValueError, match="share a URL"):
+        pin.build_perpage_inputs(_run_dir(tmp_path / "dup"), ROWS[:1], {I1: [P_META, P_META]})
+    run_dir = _run_dir(tmp_path / "uids", manifest={"run_id": RUN_ID, "institutions": [I1],
+                                                    "institution_uids": {I2: uid_for(I2)}})
+    with pytest.raises(MissingUpstreamError, match="institution_uids"):
+        pin.build_perpage_inputs(run_dir, ROWS[:1], SCRAPED)
+
+
+# ---------------------------------------------------------------------------
+# Dispatch with the default builder (fake calls; mirrors test_orchestrator_v27_dispatch)
+# ---------------------------------------------------------------------------
+
+
+def test_v27_dispatch_default_builder_refuses_before_any_call(tmp_path, monkeypatch):
+    from tests.test_e2e_perpage_v27 import SETTINGS, FakeJev
+    from tests.test_perpage_providers_v27 import FakeEntail, FakeExtractor, _world
+
+    run_dir, _bound, _instrument, world, _ = _world(tmp_path)
+    write_manifest(run_dir, {"run_id": RUN_ID, "institutions": [I1, I2],
+                             "config": {"pipeline_version": PIPELINE_V27}})
+    for row in ROWS[:2]:
+        rec = institution_record(row)
+        d = institution_dir(run_dir, rec["institution_id"])
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "institution.json").write_text(json.dumps({**rec, "institution_search_languages": "en"}),
+                                            encoding="utf-8")
+    jev, extract, entail = FakeJev(), FakeExtractor(world), FakeEntail()
+    v27 = orch.V27Dispatch(settings=SETTINGS, jev_ask_fn=jev, extract_fn=extract, entail_fn=entail)
+    assert v27.perpage_inputs is None
+    seen = []
+    real = pin.build_perpage_inputs
+
+    def spy(*args):
+        out = real(*args)
+        seen.extend(out)
+        return out
+
+    monkeypatch.setattr(pin, "build_perpage_inputs", spy)
+    with pytest.raises(MissingUpstreamError, match="T-025 follow provenance"):
+        orch.run_v27_dispatch(run_dir, ROWS[:2], SCRAPED, v27)
+    assert [i.institution_id for i in seen] == [I1, I2]
+    assert [s.page.page_id for s in seen[0].pages] == [url_hash(p.url) for p in SCRAPED[I1]]
+    assert jev.calls == [] and extract.jobs == [] and entail.calls == []
+    assert not (institution_dir(run_dir, I1) / pp.WORK_DIR).exists()

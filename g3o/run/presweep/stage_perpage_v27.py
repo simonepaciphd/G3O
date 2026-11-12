@@ -278,6 +278,13 @@ class PageUpstream:
     coder records of the quote-step values among them. A page with no activity
     keys its page-level source row's values and codes :data:`NO_ACTIVITY`. ``ActivityObservation.supported``
     is derived by the producer (RC-D-030 Y1 b), not an input.
+
+    ``page_fields`` (T-030, PI ruling D1 a): the page-level source values the
+    stored page fixes before coding
+    (:class:`g3o.run.presweep.perpage_inputs_v27.PageSourceFields`: X28 URL and
+    access date, A1 deterministic date, A2 archive test, A3 language, A4
+    syndication group). Carried, not read here: ``source_values`` still holds
+    every source-row value.
     """
 
     artifact_path: str | None = None
@@ -286,6 +293,7 @@ class PageUpstream:
     activity_values: Mapping[str, Mapping[str, Any]] | None = None
     source_values: Mapping[str, Mapping[str, Any]] | None = None
     codes: Mapping[str, Sequence[tuple[SupportResult, CoderRecord]]] | None = None
+    page_fields: Any = None
 
 
 @dataclass(frozen=True)
