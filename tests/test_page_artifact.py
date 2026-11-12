@@ -99,6 +99,15 @@ def test_chrome_not_measured_vs_measured_empty(tmp_path):
         PageArtifact("S1", none.path, MAIN, dict(none.segments)).span(f"{PID}#chrome")
 
 
+def test_separator_at_the_end_of_main_text_is_the_documented_ambiguity():
+    """Ruling 9: accepted and documented, not escaped -- same bytes, different segments."""
+    tail, tail_segments = pa.build_page_artifact("p", "X" + pa.CHROME_SEPARATOR, [], None)
+    empty, empty_segments = pa.build_page_artifact("p", "X", [], "")
+    assert tail == empty  # same file bytes, so the same page_content_sha256
+    assert "p#chrome" not in tail_segments and empty_segments["p#chrome"] == (len(empty), len(empty))
+    assert "ruling 9" in pa.__doc__
+
+
 def test_non_ascii_offsets_are_code_points(tmp_path):
     text = "Città di Roma — intelligenza artificiale.\n\nКиев 東京 ✓ chatbot."
     stored = _write(tmp_path, text, "Pié di pagina")

@@ -36,6 +36,14 @@ Pinned layout (:data:`PAGE_ARTIFACT_FORMAT`):
   re-run that would write identical bytes leaves the file as it is (resume);
   different bytes at the same path are refused (:class:`PageArtifactConflict`),
   never overwritten.
+- **Known ambiguity (accepted; PI ruling 9 on the build questions,
+  2026-11-11).** A main text that itself ends with :data:`CHROME_SEPARATOR`
+  and has no measured chrome writes the same bytes, and so the same
+  ``page_content_sha256``, as the main text without it plus measured, empty
+  chrome. The segments still tell them apart (no ``#chrome`` segment vs an
+  empty one at the end of the file). The case is theoretical: the separator
+  is a fixed marker string no scraped page is expected to end with. It is
+  documented here and pinned by a test, not escaped.
 """
 from __future__ import annotations
 
