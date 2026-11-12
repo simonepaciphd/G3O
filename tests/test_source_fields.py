@@ -347,13 +347,23 @@ def test_review_state():
 
 def test_unproduced_items_refuse():
     with pytest.raises(sf.MissingUpstreamError):
-        sf.source_language(PAGE_TEXT)
-    with pytest.raises(sf.MissingUpstreamError):
         sf.syndication_group(None)
     with pytest.raises(sf.UnruledError):
         sf.discovery_path("searched")
     with pytest.raises(sf.UnruledError):
         sf.text_source("stored")
+
+
+def test_source_language_from_main_text():
+    text = ("The Ministry of Finance announced today that it will pilot a generative AI assistant "
+            "for answering citizen questions about tax filing. The pilot will run for six months in "
+            "three regional offices, and the results will be published in the annual report.")
+    f = sf.source_language(text)
+    assert (f.item_id, f.value, f.coder) == (sf.LANGUAGE, "en", "mechanical")
+    assert "lingua-language-detector==2.2.0" in f.basis and f.detail["reason"] == "language"
+    assert sf.source_language("Short page.").value == "unknown"
+    with pytest.raises(sf.MissingUpstreamError):
+        sf.source_language(None)
 
 
 # ---------------------------------------------------------------------------

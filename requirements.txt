@@ -22,3 +22,7 @@ openai>=1.30,<3
 anthropic==2.3.0
 pydantic>=2.5
 pyyaml>=6.0
+
+# Language ID for source_language (X27; PI rulings A3.1 a and 2 b, 2026-11-11).
+# Exact pin, as in pyproject.toml; needs Python >= 3.12.
+lingua-language-detector==2.2.0

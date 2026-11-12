@@ -44,11 +44,13 @@ Producers and their signed rules:
   exact host equality (RC-D-025 P13).
 - ``core.page_review_state`` (X39): the caller's fetch/follow state, checked
   against the signed codes.
-- ``core.source_language`` (X27), ``core.syndication_group`` (X38),
-  ``core.discovery_path``, ``core.text_source``: no producer or no signed
-  spelling/parameter exists; each refuses explicitly (RC-D-025 P15). The
-  archive-address test of ``core.source_type`` rules/0 uses the versioned host
-  list of :mod:`g3o.common.archive_hosts` (PI ruling A2.1 a, 2026-11-11):
+- ``core.source_language`` (X27): pinned lingua on the stored main text,
+  :mod:`g3o.common.language_id` (PI rulings A3.1 a, A3.2 a, 2 b, 2026-11-11).
+- ``core.syndication_group`` (X38), ``core.discovery_path``,
+  ``core.text_source``: no producer or no signed spelling/parameter exists;
+  each refuses explicitly (RC-D-025 P15). The archive-address test of
+  ``core.source_type`` rules/0 uses the versioned host list of
+  :mod:`g3o.common.archive_hosts` (PI ruling A2.1 a, 2026-11-11):
   :func:`source_archive_address`.
 
 Source confidence: the signed r14 rule ``items/core.confidence/rules/1``
@@ -73,7 +75,7 @@ from functools import lru_cache
 from typing import Any
 
 from g3o.codebook.loader import Codebook, load_codebook
-from g3o.common import date_signals
+from g3o.common import date_signals, language_id
 from g3o.common.archive_hosts import is_archive_address
 from g3o.common.support_check import (
     PAGE_VERDICT,
@@ -393,11 +395,35 @@ def page_review_state(state: str | None, *, vocab: SourceVocab | None = None) ->
 # ---------------------------------------------------------------------------
 
 
-def source_language(*_: Any, **__: Any) -> FieldValue:
-    """X27 needs a pinned local language-ID library and the ``mul`` share; neither exists."""
-    raise MissingUpstreamError(
-        "pinned local language-ID library (none installed or pinned) and the signed `mul` share "
-        "(items/core.source_language/rules/0 says 'a set share'; no value is signed)", [LANGUAGE])
+def source_language(main_text: str | None, *, vocab: SourceVocab | None = None) -> FieldValue:
+    """X27 from the stored **main** text (``RenderedPage.text``; chrome is never passed here).
+
+    ``items/core.source_language/rules/0`` with PI rulings A3.1 a / A3.2 a / 2 b
+    (2026-11-11): pinned lingua on the main text; the leading language's share
+    of characters > 0.5 gives its tag, else ``mul``; under
+    :data:`g3o.common.language_id.MIN_MAIN_TEXT_CHARS`, or with no language
+    identified, ``unknown``. See :mod:`g3o.common.language_id`.
+    """
+    v = vocab or default_vocab()
+    if main_text is None:
+        raise MissingUpstreamError("stored main text (RenderedPage.text)", [LANGUAGE])
+    res = language_id.identify(main_text)
+    if res.tag == language_id.UNKNOWN and res.tag not in v.missing_tokens(LANGUAGE):
+        raise ValueError(f"{res.tag!r} is not a signed missing token of {LANGUAGE}")
+    basis = (f"items/core.source_language/rules/0: {language_id.LANGUAGE_ID_VERSION} "
+             f"({language_id.LIBRARY}=={language_id.PINNED_LINGUA}); {res.reason}")
+    detail = {"reason": res.reason, "text_chars": res.text_chars,
+              "shares": [[t, sh] for t, sh in res.shares],
+              "language_id_version": language_id.LANGUAGE_ID_VERSION}
+    return _fv(LANGUAGE, res.tag, basis, v, detail=detail)
+
+
+def source_language_of_page(page: Any, *, vocab: SourceVocab | None = None) -> FieldValue:
+    """:func:`source_language` of a page record's ``text`` (``RenderedPage`` / ``PageInput``).
+
+    Reads ``page.text`` only; ``page.chrome_text`` is never read (A3.2 a: main text).
+    """
+    return source_language(page.text, vocab=vocab)
 
 
 def syndication_group(group_id: str | None, *, vocab: SourceVocab | None = None) -> FieldValue:
@@ -1043,6 +1069,7 @@ __all__ = [
     "publication_date", "residual_question_set", "select_deterministic_date", "route_source_type", "signed_credibility_map",
     "source_archive_address",
     "source_access_date", "source_confidence_rule", "source_credibility", "source_language",
+    "source_language_of_page",
     "source_on_official_domain", "source_snippet", "source_title", "source_type_evidence", "source_type_label",
     "source_url", "source_values", "syndication_group", "text_source", "vocab_from_codebook",
 ]

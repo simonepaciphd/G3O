@@ -16,7 +16,7 @@ from g3o.classify.jev_activity_code import ActivityCoderConfig, part_combine_ada
 from g3o.classify.jev_page_code import PageCoderConfig
 from g3o.classify.questions.v27 import JEV_QUESTION_SET_VERSION, load_set
 from g3o.codebook.loader import load_codebook
-from g3o.common import archive_hosts, page_chunks, support_check
+from g3o.common import archive_hosts, language_id, page_chunks, support_check
 from g3o.common.instrument import build_instrument, canonical_json, sha256_text, write_instrument
 from g3o.common.jev_record import load_classifier_rules
 from g3o.common.storage_fields import CODEBOOK_SHA256, FIELDS
@@ -135,6 +135,9 @@ def _prepare(settings: RuntimeSettings) -> tuple[dict[str, Any], dict[str, Any],
     installed_matcher = version("rapidfuzz")
     if installed_matcher != support_check.PINNED_RAPIDFUZZ:
         raise ValueError("runtime matcher differs from approved RapidFuzz version")
+    installed_language_id = version(language_id.LIBRARY)
+    if installed_language_id != language_id.PINNED_LINGUA:
+        raise ValueError("runtime language-ID library differs from the pinned lingua version (PI 2 b)")
     estimator = page_chunks.TokenEstimator()
     estimator.assert_approved()
     pass1_system = request_v27.build_system_prompt(cb)
@@ -174,6 +177,8 @@ def _prepare(settings: RuntimeSettings) -> tuple[dict[str, Any], dict[str, Any],
             "matcher_decision": support_check.MATCH_DECISION,
             # core.source_type rules/0 archive-address test (PI ruling A2.1 a, 2026-11-11)
             "archive_host_list": archive_hosts.setup_record(),
+            # X27 source_language producer (PI A3.1 a, A3.2 a, 2 b; 2026-11-11)
+            "language_id": language_id.configuration(),
         },
         "chunker_version": "page_chunks-sha256:" + chunker_hash,
         "estimator_version": "estimator-sha256:" + sha256_text(canonical_json(asdict(estimator))),
