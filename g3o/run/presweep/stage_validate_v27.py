@@ -78,11 +78,11 @@ from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE
 from g3o.classify.questions.v27 import load_set
 from g3o.common import attrition
 from g3o.common.cost_monitor import BudgetExceededError, UnpricedModelError
+from g3o.common.independence import independence_groups_for_sources
 from g3o.common.instrument import canonical_json
 from g3o.common.jev_client import JevAccountError, JevAnswer, JevResult
 from g3o.common.jev_record import CoderRecord
 from g3o.common.paths import institution_dir
-from g3o.common.independence import independence_groups_for_sources
 from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
 from g3o.common.source_fields import aggregation_value, default_vocab
 from g3o.common.storage import METADATA_ITEMS, table_fields
@@ -638,6 +638,11 @@ def independence_groups_of(inst: Stage6Institution) -> Mapping[str, str]:
     (same syndication group or same normalised URL, transitive closure), which
     refuses with ``MissingUpstreamError`` when a source's syndication group or
     URL is not available (A7.2 a: no URL-only fallback).
+
+    PI rulings A7 12 a, 13 a, 14 (2026-11-11): the groups span all of the
+    institution's source rows, including sources no published activity cites;
+    one source without a syndication group holds the whole institution; an
+    injected mapping wins over the producer.
     """
     if inst.independence_groups is not None:
         return inst.independence_groups
@@ -669,8 +674,12 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
         if len(finals) > 1:
             raise ConsolidationError(f"source claim {sid} spans several final activities")
         sources[sid] = {**dict(row), "activity_id": finals.pop() if finals else "_NA_"}
+    # Independence groups (A7) are computed once, before any activity, over all of the
+    # institution's source rows (PI ruling A7 12 a), so one source without a syndication
+    # group holds the whole institution (13 a) even when no activity is published.
+    # An injected mapping is used as given (14).
+    groups = independence_groups_of(inst)
     activities: dict[str, dict[str, Any]] = {}
-    groups: Mapping[str, str] | None = None  # independence groups, computed on first use (A7)
     for group in published:
         aid = final_of[group[0]]
         fragments = [inst.observation_inputs[k].row for k in group]
@@ -697,8 +706,6 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
         coders = [*(c for f in fragments for c in f["coder_records"]), *out.coders.get(aid, [])]
         claims = sorted(s for s, row in sources.items() if row["activity_id"] == aid)
         values["core.n_sources"] = len(claims)
-        if groups is None:
-            groups = independence_groups_of(inst)
         values["core.confidence"] = activity_confidence_value(
             claims, {s: sources[s]["values"]["core.confidence"] for s in claims}, groups)
         activities[aid] = {"values": values, "item_support": list(support.values()), "coder_records": coders,

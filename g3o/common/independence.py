@@ -6,7 +6,7 @@ that are not copies of each other agree". The consumer is
 :func:`g3o.validate.consolidate_v27.activity_confidence`, which counts distinct
 independence-group ids among the medium sources.
 
-PI rulings (``agent-workspace/2026-11-10-build/QUESTIONS-overnight.md`` A7):
+PI rulings (2026-11-11):
 
 - **A7.1 b: what counts as a copy.** Two sources are copies iff they share a
   ``core.syndication_group`` id (the P15 near-duplicate grouping,
@@ -44,7 +44,13 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
-from g3o.common.source_fields import SYNDICATION, URL, MissingUpstreamError, SourceVocab, default_vocab
+from g3o.common.source_fields import (
+    SYNDICATION,
+    URL,
+    MissingUpstreamError,
+    SourceVocab,
+    default_vocab,
+)
 
 INDEPENDENCE_VERSION = "g3o.common.independence.v1"
 RULING = "PI A7.1 b + A7.2 a (2026-11-11); codebook items/core.confidence/rules/0"
