@@ -74,6 +74,16 @@ IDENTITY_COLUMNS = ("institution_id", "institution_name", "country", "branch_of_
                     "level_of_government", "institution_search_languages")
 INSTITUTION_FILE = "institution.json"
 
+#: The producers the default builder still lacks (PI ruling 36 a): while this is
+#: non-empty, ``orchestrator._require_v27_dispatch`` refuses a v2.7 run on the
+#: default builder at entry, before any Stage 1-4 spend. Remove each entry when
+#: its producer is wired into :func:`build_perpage_inputs`; once empty, the entry
+#: refusal is gone and :func:`require_complete` remains the per-value guard.
+MISSING_PRODUCERS: tuple[str, ...] = (
+    pp.FOLLOW_PRODUCER,
+    f"{pp.VALUES_PRODUCER} (activity_values, source_values, codes)",
+)
+
 
 @dataclass(frozen=True)
 class PageSourceFields:
@@ -207,5 +217,5 @@ def default_perpage_inputs(run_dir: Path, sample: Sequence[Mapping[str, Any]], s
     return institutions
 
 
-__all__ = ["IDENTITY_COLUMNS", "PageSourceFields", "build_perpage_inputs", "default_perpage_inputs",
+__all__ = ["IDENTITY_COLUMNS", "MISSING_PRODUCERS", "PageSourceFields", "build_perpage_inputs", "default_perpage_inputs",
            "page_input", "page_source_fields", "require_complete"]

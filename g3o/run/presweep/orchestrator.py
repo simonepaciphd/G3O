@@ -312,7 +312,8 @@ class V27Dispatch:
       :func:`g3o.run.presweep.perpage_inputs_v27.default_perpage_inputs`, which
       still refuses (``MissingUpstreamError``, before any jev call) the values no
       producer supplies yet (T-025 ``followed``, the T-015/T-022/T-024 row values).
-      An injected callable wins (the D1 a seam, kept for tests); a missing upstream
+      While those producers are missing (``perpage_inputs_v27.MISSING_PRODUCERS``)
+      a run on the default is refused at entry (PI ruling 36 a). An injected callable wins (the D1 a seam, kept for tests); a missing upstream
       value it leaves out still raises ``MissingUpstreamError`` in the per-page stage.
     """
 
@@ -337,7 +338,12 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
       ``instrument_binding.check_runtime``), the P-1/P-2 prompt pins and the
       extractor / X35 model checks of the per-page providers
       (``perpage_providers_v27.check_binding``), and the Stage 6 quote step's
-      instruction pin and X35 model (``BoundRuntime.stage6_quote_fn``).
+      instruction pin and X35 model (``BoundRuntime.stage6_quote_fn``);
+    - a run on the default per-page builder (``perpage_inputs`` None) while
+      :data:`g3o.run.presweep.perpage_inputs_v27.MISSING_PRODUCERS` is non-empty
+      (PI ruling 36 a: T-025 ``followed`` and the T-015/T-022/T-024 row values have
+      no producer yet, so the builder could only refuse after Stages 1-4 had
+      spent). An injected ``perpage_inputs`` is not refused here.
 
     Nothing here writes. Every later check still runs where it did.
     """
@@ -375,6 +381,16 @@ def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
     bound, record = check_runtime(settings)
     check_binding(bound, record, extractor_model=settings.extractor_model, x35_model=settings.x35_model)
     bound.stage6_quote_fn(v27.extract_fn, v27.entail_fn, x35_model=settings.x35_model)
+    if v27.perpage_inputs is None:
+        from g3o.persist.stage6_adapters import MissingUpstreamError
+        from g3o.run.presweep.perpage_inputs_v27 import MISSING_PRODUCERS
+
+        if MISSING_PRODUCERS:  # ruling 36 a
+            raise MissingUpstreamError(
+                "the default v2.7 per-page builder (ruling 36 a: a v2.7 run on it is refused at "
+                "entry, before any Stage 1-4 spend, while these producers are missing)",
+                MISSING_PRODUCERS,
+            )
     return v27
 
 

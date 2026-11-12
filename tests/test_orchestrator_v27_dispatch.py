@@ -220,6 +220,62 @@ def test_v27_dispatch_perpage_inputs_defaults_to_the_builder_and_refuses_a_non_c
     assert not (tmp_path / "runs").exists()
 
 
+def _refuse_stages_1_to_4(monkeypatch):
+    def refuse(*_a, **_k):
+        raise AssertionError("a Stage 1-4 runner was called before the v2.7 entry refusal")
+
+    for name in ("_run_discovery_general", "_run_classify_official_site", "_run_discovery_site_restricted",
+                 "_run_filter_eligibility", "_run_classify_triage", "_run_scrape", "_run_extract",
+                 "_run_validate"):
+        monkeypatch.setattr(orch, name, refuse)
+
+
+def test_default_builder_run_is_refused_at_entry_while_producers_are_missing(tmp_path, monkeypatch):
+    """Ruling 36 a: with no injected ``perpage_inputs`` the run is refused on entry, naming the missing
+    producers, before planning, any Stage 1-4 runner, any provider build or any manifest write."""
+    from g3o.persist.stage6_adapters import MissingUpstreamError
+    from g3o.run.presweep import perpage_inputs_v27 as pin
+    from g3o.run.presweep import perpage_providers_v27 as ppv
+
+    assert pin.MISSING_PRODUCERS  # T-025 / T-015 / T-022 / T-024 not wired on this branch
+    _no_planning(monkeypatch)
+    _refuse_stages_1_to_4(monkeypatch)
+    _refuse_clients(monkeypatch)
+
+    def no_providers(*_a, **_k):
+        raise AssertionError("per-page providers were built before the v2.7 entry refusal")
+
+    monkeypatch.setattr(ppv, "build_perpage_providers", no_providers)
+    jev, extract, entail = FakeJev(), FakeExtractor(None), FakeEntail()
+    v27 = orch.V27Dispatch(settings=SETTINGS, jev_ask_fn=jev, extract_fn=extract, entail_fn=entail)
+    with pytest.raises(MissingUpstreamError, match="ruling 36 a") as exc:
+        orch.run_presweep(_v27_config(tmp_path), v27=v27)
+    assert exc.value.missing == pin.MISSING_PRODUCERS
+    assert "T-025 follow provenance" in str(exc.value) and "T-015 / T-022 / T-024" in str(exc.value)
+    assert not (tmp_path / "runs").exists()
+    # run_v27_dispatch itself refuses the same way, on an existing run directory, before binding.
+    run_dir, _bound, _instrument, _world_ = _world_run(tmp_path / "w")
+    before = (run_dir / "manifest.json").read_text(encoding="utf-8")
+    with pytest.raises(MissingUpstreamError, match="ruling 36 a"):
+        orch.run_v27_dispatch(run_dir, [], {}, v27)
+    manifest = json.loads((run_dir / "manifest.json").read_text(encoding="utf-8"))
+    assert (run_dir / "manifest.json").read_text(encoding="utf-8") == before
+    assert planning.RUN_PIPELINE_KEY not in manifest and "storage_contract" not in manifest
+    assert jev.calls == [] and extract.jobs == [] and entail.calls == []
+    # An injected perpage_inputs passes entry.
+    assert orch._require_v27_dispatch(replace(v27, perpage_inputs=lambda *a: [])).perpage_inputs is not None
+
+
+def test_default_builder_entry_refusal_lifts_once_the_producers_exist(tmp_path, monkeypatch):
+    """Ruling 36 a: the refusal is keyed on ``MISSING_PRODUCERS``, not hard-coded."""
+    from g3o.run.presweep import perpage_inputs_v27 as pin
+
+    monkeypatch.setattr(pin, "MISSING_PRODUCERS", ())
+    v27 = orch.V27Dispatch(settings=SETTINGS, jev_ask_fn=FakeJev(), extract_fn=lambda j: None,
+                           entail_fn=FakeEntail())
+    assert orch._require_v27_dispatch(v27) is v27
+
+
 def _stub_dispatch(**overrides):
     fields = dict(settings=SETTINGS, jev_ask_fn=FakeJev(), extract_fn=lambda j: None, entail_fn=FakeEntail(),
                   perpage_inputs=lambda *a: [])

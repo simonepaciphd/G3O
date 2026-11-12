@@ -230,6 +230,10 @@ def test_v27_dispatch_default_builder_refuses_before_any_call(tmp_path, monkeypa
     jev, extract, entail = FakeJev(), FakeExtractor(world), FakeEntail()
     v27 = orch.V27Dispatch(settings=SETTINGS, jev_ask_fn=jev, extract_fn=extract, entail_fn=entail)
     assert v27.perpage_inputs is None
+    with pytest.raises(MissingUpstreamError, match="ruling 36 a"):  # refused at entry while producers are missing
+        orch.run_v27_dispatch(run_dir, ROWS[:2], SCRAPED, v27)
+    # Once the producers exist the entry refusal lifts; the builder's own guard still refuses.
+    monkeypatch.setattr(pin, "MISSING_PRODUCERS", ())
     seen = []
     real = pin.build_perpage_inputs
 
