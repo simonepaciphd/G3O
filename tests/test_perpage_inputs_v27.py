@@ -178,8 +178,29 @@ def test_unproduced_values_still_refuse(tmp_path):
     assert f"{I1}/{url_hash(P_META.url)}" in exc.value.missing
     followed = [replace(i, pages=[replace(s, upstream=replace(s.upstream, followed=False)) for s in i.pages])
                 for i in insts.values()]
-    with pytest.raises(MissingUpstreamError, match=r"row values .*\(source_values, codes\)"):
+    with pytest.raises(MissingUpstreamError, match=r"row values .*\(activity_values, source_values, codes\)"):
         pin.require_complete(followed)
+
+
+@pytest.mark.parametrize("absent", ["activity_values", "source_values", "codes"])
+def test_require_complete_refuses_each_none_row_value(tmp_path, absent):
+    """Review fix (LOW): activity_values is pre-checked with source_values and codes (None only;
+    key coverage stays with produce_page, after coding)."""
+    insts = _built(tmp_path)
+    full = dict(followed=False, activity_values={}, source_values={}, codes={})
+    complete = [replace(i, pages=[replace(s, upstream=replace(s.upstream, **full)) for s in i.pages])
+                for i in insts.values()]
+    assert pin.require_complete(complete) == 5  # empty mappings pass: coverage is not checked here
+    one = complete[0]
+    first = replace(one.pages[0], upstream=replace(one.pages[0].upstream, **{absent: None}))
+    broken = [replace(one, pages=[first, *one.pages[1:]]), *complete[1:]]
+    with pytest.raises(MissingUpstreamError, match="row values") as exc:
+        pin.require_complete(broken)
+    assert exc.value.missing == (f"{I1}/{first.page.page_id}",)
+
+
+def test_unproduced_values_refusals_in_the_stage(tmp_path):
+    insts = _built(tmp_path)
     # The per-page stage's own refusal is unchanged: failed_page still refuses a page with no follow value.
     with pytest.raises(MissingUpstreamError, match="T-025 follow provenance"):
         pp.failed_page(insts[I1].pages[0], "jev_request_failed")

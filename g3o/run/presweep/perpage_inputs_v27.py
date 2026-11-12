@@ -216,6 +216,11 @@ def require_complete(institutions: Iterable[pp.PerPageInstitution]) -> int:
     The per-page stage refuses these only after coding a page (``failed_page`` /
     ``produce_page``); refusing here keeps the same refusal and spends nothing.
     One pass that keeps only page keys, never page text. Returns the page count.
+
+    A None-only pre-check: ``followed``, ``activity_values``, ``source_values``
+    and ``codes`` must not be ``None``. Which keys they must cover (one per coded
+    activity, or :data:`~g3o.run.presweep.stage_perpage_v27.NO_ACTIVITY`) is known
+    only after coding, so key coverage is still checked by ``produce_page``.
     """
     follow, values = [], []
     n_pages = 0
@@ -223,14 +228,15 @@ def require_complete(institutions: Iterable[pp.PerPageInstitution]) -> int:
         for spec in inst.pages:
             n_pages += 1
             key = f"{inst.institution_id}/{spec.page.page_id}"
-            if spec.upstream.followed is None:
+            up = spec.upstream
+            if up.followed is None:
                 follow.append(key)
-            if spec.upstream.source_values is None or spec.upstream.codes is None:
+            if up.activity_values is None or up.source_values is None or up.codes is None:
                 values.append(key)
     if follow:
         raise MissingUpstreamError(pp.FOLLOW_PRODUCER, follow)
     if values:
-        raise MissingUpstreamError(f"{pp.VALUES_PRODUCER} (source_values, codes)", values)
+        raise MissingUpstreamError(f"{pp.VALUES_PRODUCER} (activity_values, source_values, codes)", values)
     return n_pages
 
 
