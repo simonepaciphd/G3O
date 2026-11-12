@@ -581,8 +581,10 @@ def select_deterministic_date(metadata_dates: Sequence[MetadataDate]
     values: "treated as absent" -- metadata gives no date and no lower tag is
     consulted (a lower tag is not a "higher tag settling it"); fall through
     to the URL step. URL: one distinct value used; several distinct: treated
-    as absent (quote step). Distinct means distinct normalised strings
-    (``2024-03`` and ``2024-03-12`` disagree).
+    as absent (quote step). Within one tag, a value that is a prefix of the
+    most precise one is consistent with it and the most precise is taken
+    (ruling 16 b: ``2024-03`` with ``2024-03-12`` gives ``2024-03-12``); any
+    other difference (``2024-03-12`` vs ``2024-03-14``) is a disagreement.
     Returns the chosen entry (None = neither step gave a date) and a detail
     mapping recording any disagreement.
     """
@@ -605,8 +607,11 @@ def select_deterministic_date(metadata_dates: Sequence[MetadataDate]
         if not entries:
             continue
         values = sorted({m.value for m in entries})
-        if len(values) == 1:
-            return entries[0], detail
+        # Ruling 16 b: a value that is a prefix of the most precise one (2024-03 of
+        # 2024-03-12) is consistent with it; the most precise is taken.
+        best = max(values, key=len)
+        if all(v == best or best.startswith(v + "-") for v in values):
+            return next(m for m in entries if m.value == best), detail
         detail["metadata_disagreed"] = {"tag": tag, "values": values}
         break
     values = sorted({m.value for m in web})
@@ -665,24 +670,26 @@ def publication_date(metadata_dates: Sequence[MetadataDate] | None, quote_date: 
                detail=detail)
 
 
-def page_has_metadata_date(metadata_candidates: Sequence[Mapping[str, Any]] | None, url: str | None) -> bool:
+def page_has_metadata_date(metadata_candidates: Sequence[Mapping[str, Any]] | None, url: str | None, *,
+                           access_date: Any) -> bool:
     """``PageInput.has_metadata_date`` for one stored page (``RenderedPage.metadata_dates``, ``url``).
 
     True when the signed selection gives a metadata or URL date, so the
     T-022 request plan asks no quote-step date task for the page.
     """
-    return has_deterministic_date(date_signals.page_date_inputs(metadata_candidates, url).metadata_dates)
+    inputs = date_signals.page_date_inputs(metadata_candidates, url, access_date=access_date)
+    return has_deterministic_date(inputs.metadata_dates)
 
 
 def page_publication_date(metadata_candidates: Sequence[Mapping[str, Any]] | None, url: str | None,
-                          quote_date: Any, sources: PageSources | None, *,
+                          quote_date: Any, sources: PageSources | None, *, access_date: Any,
                           vocab: SourceVocab | None = None) -> FieldValue:
     """:func:`publication_date` for one stored page: its ``metadata_dates`` and supplied URL.
 
     A page stored before the capture (``metadata_dates`` None) runs the URL
     test only and records ``metadata: not_measured`` (A1.3 a).
     """
-    inputs = date_signals.page_date_inputs(metadata_candidates, url)
+    inputs = date_signals.page_date_inputs(metadata_candidates, url, access_date=access_date)
     return publication_date(inputs.metadata_dates, quote_date, sources,
                             metadata_measured=inputs.metadata_measured, vocab=vocab)
 

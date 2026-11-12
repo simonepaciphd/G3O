@@ -41,6 +41,22 @@ Normalisation (conservative; no locale or free-text dates):
 The date is taken as written, in the stated offset; it is never converted to
 UTC. Time and offset are validated (ranges) and dropped. The calendar date
 must exist (``datetime.date``); the precision is the precision written.
+
+v2 (PI rulings 16-20 on the A1 build questions, 2026-11-11):
+
+- 17 b: JSON-LD ``datePublished`` only from top-level nodes and nodes directly
+  under ``@graph`` (:func:`_jsonld_values`); nested nodes (comments, the
+  containing site, related items) are not read.
+- 18 b: a date before :data:`EARLIEST_DATE` or after the page's access date is
+  not a candidate (:func:`in_window`); the stored candidate keeps its raw and
+  normalised value, and :func:`page_date_inputs` leaves it out of selection
+  and lists it in ``PageDateInputs.out_of_window``. A partial date is out of
+  window only if its whole period is (``2024`` is in window on 2024-05-01).
+- 20: the URL date is matched on the path only (:func:`url_dates`); ``D:``
+  stays optional on PDF dates.
+- 16 b (selection, :func:`g3o.common.source_fields.select_deterministic_date`):
+  within one tag, a date that is a prefix of a more precise one is consistent;
+  the most precise is taken.
 """
 
 from __future__ import annotations
@@ -49,11 +65,15 @@ import json
 import re
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
+from urllib.parse import urlsplit
 
 #: Version of the measurement + normalisation + URL test (pinned; bump on any change).
-PRODUCER_VERSION = "g3o.common.date_signals.v1"
+PRODUCER_VERSION = "g3o.common.date_signals.v2"  # v2: rulings 16-20 (2026-11-11)
+
+#: Ruling 18 b: no candidate date before this day (before the web and PDF existed).
+EARLIEST_DATE = date(1990, 1, 1)
 
 TAG_CITATION = "citation_publication_date"
 TAG_SCHEMA = "schema.org datePublished"
@@ -145,19 +165,26 @@ def _attr(tag: Any, name: str) -> str | None:
     return val
 
 
-def _jsonld_values(node: Any) -> Iterator[Any]:
-    """Every ``datePublished`` value in a JSON-LD document, depth-first, in order."""
-    if isinstance(node, Mapping):
-        for key, val in node.items():
-            if key == "datePublished":
-                vals = val if isinstance(val, list) else [val]
-                for v in vals:
-                    yield v.get("@value") if isinstance(v, Mapping) else v
-            else:
-                yield from _jsonld_values(val)
-    elif isinstance(node, list):
-        for item in node:
-            yield from _jsonld_values(item)
+def _jsonld_values(doc: Any) -> Iterator[Any]:
+    """``datePublished`` values of a JSON-LD document's top-level nodes and the nodes directly
+    under their ``@graph`` (ruling 17 b), in document order. Nested nodes are not read."""
+    tops = doc if isinstance(doc, list) else [doc]
+    nodes: list[Any] = []
+    for top in tops:
+        if not isinstance(top, Mapping):
+            continue
+        nodes.append(top)
+        graph = top.get("@graph")
+        if isinstance(graph, list):
+            nodes.extend(g for g in graph if isinstance(g, Mapping))
+        elif isinstance(graph, Mapping):
+            nodes.append(graph)
+    for node in nodes:
+        if "datePublished" not in node:
+            continue
+        val = node["datePublished"]
+        for v in val if isinstance(val, list) else [val]:
+            yield v.get("@value") if isinstance(v, Mapping) else v
 
 
 _SCHEMA_TYPE = re.compile(r"^https?://(www\.)?schema\.org/", re.IGNORECASE)
@@ -233,12 +260,18 @@ _URL_DATE = re.compile(r"/(?P<y>[0-9]{4})/(?P<m>[0-9]{2})(?:/(?P<d>[0-9]{2}))?(?
 
 
 def url_dates(url: str) -> list[str]:
-    """Every valid ``/YYYY/MM(/DD)/`` date in the URL, in order (duplicates kept).
+    """Every valid ``/YYYY/MM(/DD)/`` date in the URL's path, in order (duplicates kept).
 
-    A match whose month or day is not a real calendar date is not a match.
+    Only the path is searched (ruling 20): a date in the query or fragment is
+    usually a filter or cache-buster. A match whose month or day is not a real
+    calendar date is not a match.
     """
+    try:
+        path = urlsplit(url).path
+    except ValueError:
+        return []
     out: list[str] = []
-    for m in _URL_DATE.finditer(url):
+    for m in _URL_DATE.finditer(path):
         y, mo, d = m.group("y"), m.group("m"), m.group("d")
         try:
             if d is not None:
@@ -257,6 +290,36 @@ def url_dates(url: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
+def _period(value: str) -> tuple[date, date]:
+    """First and last day of a ``YYYY`` / ``YYYY-MM`` / ``YYYY-MM-DD`` value."""
+    parts = [int(p) for p in value.split("-")]
+    if len(parts) == 3:
+        d = date(*parts)
+        return d, d
+    if len(parts) == 2:
+        y, m = parts
+        nxt = date(y + (m == 12), m % 12 + 1, 1)
+        return date(y, m, 1), nxt - timedelta(days=1)
+    return date(parts[0], 1, 1), date(parts[0], 12, 31)
+
+
+def in_window(value: str, access_date: date) -> bool:
+    """Ruling 18 b: the date's period overlaps [:data:`EARLIEST_DATE`, ``access_date``]."""
+    first, last = _period(value)
+    return last >= EARLIEST_DATE and first <= access_date
+
+
+def _access(access_date: Any) -> date:
+    if isinstance(access_date, date):
+        return access_date
+    if isinstance(access_date, str):
+        try:
+            return date.fromisoformat(access_date.strip()[:10])
+        except ValueError:
+            pass
+    raise ValueError(f"access_date must be the page's YYYY-MM-DD access date, got {access_date!r}")
+
+
 @dataclass(frozen=True)
 class PageDateInputs:
     """What :func:`g3o.common.source_fields.publication_date` takes for one page.
@@ -268,11 +331,20 @@ class PageDateInputs:
 
     metadata_dates: tuple[Any, ...] | None  # MetadataDate entries
     metadata_measured: bool
+    out_of_window: tuple[str, ...] = ()  # ruling 18 b: candidate values left out of selection
 
 
-def page_date_inputs(candidates: Sequence[Mapping[str, Any]] | None, url: str | None) -> PageDateInputs:
-    """Stored candidates (``RenderedPage.metadata_dates``) + supplied URL -> MetadataDate entries."""
+def page_date_inputs(candidates: Sequence[Mapping[str, Any]] | None, url: str | None, *,
+                     access_date: Any) -> PageDateInputs:
+    """Stored candidates (``RenderedPage.metadata_dates``) + supplied URL -> MetadataDate entries.
+
+    ``access_date``: the page's ``fetch_metadata.access_date`` (``YYYY-MM-DD``),
+    the upper bound of ruling 18 b's window.
+    """
     from g3o.common.source_fields import MetadataDate  # local: source_fields imports this module
+
+    accessed = _access(access_date)
+    out: list[str] = []
 
     has_url = isinstance(url, str) and bool(url.strip())
     if candidates is None and not has_url:
@@ -283,15 +355,21 @@ def page_date_inputs(candidates: Sequence[Mapping[str, Any]] | None, url: str | 
             raise ValueError(f"stored date candidate tag {c.get('tag')!r} is not a signed A1.1 a signal")
         if c.get("value") is None:
             continue
+        if not in_window(c["value"], accessed):
+            out.append(c["value"])
+            continue
         dates.append(MetadataDate(c["value"], "metadata", f"{c['found_as']}: {c['raw']}", tag=c["tag"]))
     if has_url:
         for value in url_dates(url):  # type: ignore[arg-type]
+            if not in_window(value, accessed):
+                out.append(value)
+                continue
             dates.append(MetadataDate(value, "web_address", f"URL pattern /YYYY/MM(/DD)/ -> {value}"))
-    return PageDateInputs(tuple(dates), candidates is not None)
+    return PageDateInputs(tuple(dates), candidates is not None, tuple(out))
 
 
 __all__ = [
-    "NOT_MEASURED", "PRODUCER_VERSION", "TAG_CITATION", "TAG_DC", "TAG_OPENGRAPH", "TAG_ORDER", "TAG_PDF",
+    "EARLIEST_DATE", "NOT_MEASURED", "in_window", "PRODUCER_VERSION", "TAG_CITATION", "TAG_DC", "TAG_OPENGRAPH", "TAG_ORDER", "TAG_PDF",
     "TAG_SCHEMA", "PageDateInputs", "html_date_candidates", "normalise_iso", "normalise_pdf",
     "page_date_inputs", "pdf_date_candidates", "url_dates",
 ]

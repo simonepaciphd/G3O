@@ -25,6 +25,8 @@ P1 = "inst1:u1#p001"
 SOURCES = PageSources("inst1:u1", {P1: "The council published its annual report on 12 March 2024."})
 needs_pdfplumber = pytest.mark.skipif(not pdf_mod.PDF_SUPPORT, reason="pdfplumber missing")
 
+ACC = "2026-11-11"  # the access date the tests use (ruling 18 b upper bound)
+
 
 def _soup(html: str) -> BeautifulSoup:
     return BeautifulSoup(html, "html.parser")
@@ -142,7 +144,7 @@ def test_schema_org_microdata():
 def test_unparseable_value_is_kept_but_not_a_candidate():
     c = ds.html_date_candidates(_soup('<meta name="citation_publication_date" content="12/03/2024">'))
     assert c[0]["raw"] == "12/03/2024" and c[0]["value"] is None
-    inputs = ds.page_date_inputs(c, "https://x.example/a")
+    inputs = ds.page_date_inputs(c, "https://x.example/a", access_date=ACC)
     assert inputs.metadata_dates == () and inputs.metadata_measured
 
 
@@ -192,9 +194,10 @@ def test_higher_tag_settles_lower_disagreement():
     assert d.value == "2022-05" and "metadata_disagreed" not in d.detail
 
 
-def test_precision_difference_counts_as_disagreement():
+def test_precision_difference_is_consistent_r16():
+    """Ruling 16 b: 2024-03 is a prefix of 2024-03-12, so they agree and the more precise is used."""
     d = sf.publication_date([_md("2024-03", ds.TAG_DC), _md("2024-03-12", ds.TAG_DC)], None, SOURCES)
-    assert d.value == "not_documented" and d.detail["metadata_disagreed"]["tag"] == ds.TAG_DC
+    assert d.value == "2024-03-12" and "metadata_disagreed" not in d.detail
 
 
 def test_metadata_disagreement_with_no_url_goes_to_quote_step():
@@ -230,29 +233,29 @@ def test_url_dates(url, want):
 
 
 def test_single_url_date_used():
-    inputs = ds.page_date_inputs([], "https://x.example/news/2024/03/12/ai-pilot")
+    inputs = ds.page_date_inputs([], "https://x.example/news/2024/03/12/ai-pilot", access_date=ACC)
     d = sf.publication_date(inputs.metadata_dates, None, SOURCES)
     assert (d.value, d.date_origin, d.provenance) == ("2024-03-12", "web_address", "from_metadata")
 
 
 def test_repeated_identical_url_date_used():
-    d = sf.page_publication_date([], "https://x.example/2024/03/x/2024/03/y", None, SOURCES)
+    d = sf.page_publication_date([], "https://x.example/2024/03/x/2024/03/y", None, SOURCES, access_date=ACC)
     assert d.value == "2024-03"
 
 
 def test_several_distinct_url_dates_are_absent():
     q = ExtractedField(sf.DATE, "2024-03-12", P1, "published its annual report on 12 March 2024")
-    d = sf.page_publication_date([], "https://x.example/a/2024/03/b/2023/05/c", q, SOURCES)
+    d = sf.page_publication_date([], "https://x.example/a/2024/03/b/2023/05/c", q, SOURCES, access_date=ACC)
     assert (d.value, d.date_origin) == ("2024-03-12", "page_text_quote")
     assert d.detail["web_address_disagreed"] == ["2023-05", "2024-03"]
-    assert not sf.page_has_metadata_date([], "https://x.example/a/2024/03/b/2023/05/c")
+    assert not sf.page_has_metadata_date([], "https://x.example/a/2024/03/b/2023/05/c", access_date=ACC)
 
 
 def test_metadata_beats_url():
     cands = ds.html_date_candidates(_soup('<meta property="article:published_time" content="2022-01-05">'))
-    d = sf.page_publication_date(cands, "https://x.example/2024/03/x", None, SOURCES)
+    d = sf.page_publication_date(cands, "https://x.example/2024/03/x", None, SOURCES, access_date=ACC)
     assert (d.value, d.date_origin) == ("2022-01-05", "metadata")
-    assert sf.page_has_metadata_date(cands, "https://x.example/none")
+    assert sf.page_has_metadata_date(cands, "https://x.example/none", access_date=ACC)
 
 
 # ---------------------------------------------------------------------------
@@ -261,29 +264,29 @@ def test_metadata_beats_url():
 
 
 def test_not_measured_runs_url_test():
-    d = sf.page_publication_date(None, "https://x.example/2024/03/x", None, SOURCES)
+    d = sf.page_publication_date(None, "https://x.example/2024/03/x", None, SOURCES, access_date=ACC)
     assert (d.value, d.date_origin) == ("2024-03", "web_address")
     assert d.detail["metadata"] == ds.NOT_MEASURED == "not_measured"
-    assert sf.page_has_metadata_date(None, "https://x.example/2024/03/x")
+    assert sf.page_has_metadata_date(None, "https://x.example/2024/03/x", access_date=ACC)
 
 
 def test_not_measured_without_url_date_goes_to_quote_step():
     q = ExtractedField(sf.DATE, "2024-03-12", P1, "published its annual report on 12 March 2024")
-    d = sf.page_publication_date(None, "https://x.example/about", q, SOURCES)
+    d = sf.page_publication_date(None, "https://x.example/about", q, SOURCES, access_date=ACC)
     assert (d.value, d.date_origin, d.detail["metadata"]) == ("2024-03-12", "page_text_quote", "not_measured")
-    assert sf.page_publication_date(None, "https://x.example/about", None, SOURCES).value == "not_documented"
-    assert not sf.page_has_metadata_date(None, "https://x.example/about")
+    assert sf.page_publication_date(None, "https://x.example/about", None, SOURCES, access_date=ACC).value == "not_documented"
+    assert not sf.page_has_metadata_date(None, "https://x.example/about", access_date=ACC)
 
 
 def test_measured_is_recorded():
-    assert sf.page_publication_date([], "https://x.example/a", None, SOURCES).detail["metadata"] == "measured"
+    assert sf.page_publication_date([], "https://x.example/a", None, SOURCES, access_date=ACC).detail["metadata"] == "measured"
 
 
 def test_neither_step_ran_refuses():
     with pytest.raises(sf.MissingUpstreamError):
-        sf.page_publication_date(None, None, None, SOURCES)
+        sf.page_publication_date(None, None, None, SOURCES, access_date=ACC)
     with pytest.raises(sf.MissingUpstreamError):
-        sf.page_publication_date(None, "  ", None, SOURCES)
+        sf.page_publication_date(None, "  ", None, SOURCES, access_date=ACC)
 
 
 def test_not_measured_with_metadata_entries_is_inconsistent():
@@ -307,7 +310,7 @@ def test_old_json_loads_as_not_measured():
     page = RenderedPage.model_validate_json(json.dumps(OLD_RECORD))
     assert page.metadata_dates is None
     assert "metadata_dates" not in json.loads(page.model_dump_json())
-    d = sf.page_publication_date(page.metadata_dates, page.url, None, SOURCES)
+    d = sf.page_publication_date(page.metadata_dates, page.url, None, SOURCES, access_date=ACC)
     assert (d.value, d.detail["metadata"]) == ("2024-03", "not_measured")
 
 
@@ -391,7 +394,7 @@ def test_html_path_captures(_tmp_cache, monkeypatch):
     _serve(monkeypatch, HTML_PAGE)
     page = _scrape("https://agency.example/about")
     assert _tags(page.metadata_dates) == [(ds.TAG_DC, "2023-11-02"), (ds.TAG_SCHEMA, "2023-11-01")]
-    d = sf.page_publication_date(page.metadata_dates, page.url, None, SOURCES)
+    d = sf.page_publication_date(page.metadata_dates, page.url, None, SOURCES, access_date=ACC)
     assert (d.value, d.date_origin) == ("2023-11-01", "metadata")  # schema.org outranks DC
     cached = fetcher._load(page.url)
     assert cached is not None and cached.metadata_dates == page.metadata_dates
@@ -414,7 +417,7 @@ def test_pdf_creation_date(_tmp_cache, monkeypatch):
     assert page.content_type == "pdf" and page.title == "AI policy"
     assert page.metadata_dates == [{"tag": ds.TAG_PDF, "found_as": "pdf info",
                                     "raw": "D:20240312101500+01'00'", "value": "2024-03-12"}]
-    d = sf.page_publication_date(page.metadata_dates, page.url, None, SOURCES)
+    d = sf.page_publication_date(page.metadata_dates, page.url, None, SOURCES, access_date=ACC)
     assert (d.value, d.date_origin) == ("2024-03-12", "metadata") and ds.TAG_PDF in d.basis
 
 
@@ -442,3 +445,55 @@ def test_render_page_is_not_measured():
     page = RenderedPage(url="https://x.example/", text="t", title="", content_type="render",
                         fetch_metadata=FetchMetadata(access_date="2026-11-11", fetch_method="render"))
     assert page.metadata_dates is None
+
+
+
+# ---------------------------------------------------------------------------
+# v2: PI rulings 16-20 on the A1 build questions (2026-11-11)
+# ---------------------------------------------------------------------------
+
+
+def test_r16_prefix_dates_in_one_tag_are_consistent_and_the_most_precise_wins():
+    pick = sf.select_deterministic_date
+    chosen, detail = pick([_md("2024-03", ds.TAG_DC), _md("2024-03-12", ds.TAG_DC), _md("2024", ds.TAG_DC)])
+    assert chosen.value == "2024-03-12" and detail == {}
+    chosen, detail = pick([_md("2024-03-12", ds.TAG_DC), _md("2024-03-14", ds.TAG_DC)])
+    assert chosen is None and detail["metadata_disagreed"]["values"] == ["2024-03-12", "2024-03-14"]
+    chosen, _ = pick([_md("2024-02", ds.TAG_DC), _md("2024-03-12", ds.TAG_DC)])
+    assert chosen is None  # not a prefix: still a disagreement
+
+
+def test_r17_jsonld_reads_top_level_and_graph_nodes_only():
+    doc = {"@context": "https://schema.org", "@graph": [
+        {"@type": "Article", "datePublished": "2024-03-12",
+         "comment": [{"@type": "Comment", "datePublished": "2025-01-01"}],
+         "isPartOf": {"@type": "WebSite", "datePublished": "2010-01-01"}}]}
+    html = f'<script type="application/ld+json">{json.dumps(doc)}</script>'
+    assert _tags(ds.html_date_candidates(_soup(html))) == [(ds.TAG_SCHEMA, "2024-03-12")]
+    top = [{"@type": "NewsArticle", "datePublished": "2023-05-01", "author": {"datePublished": "1999-01-01"}}]
+    html = f'<script type="application/ld+json">{json.dumps(top)}</script>'
+    assert _tags(ds.html_date_candidates(_soup(html))) == [(ds.TAG_SCHEMA, "2023-05-01")]
+
+
+def test_r18_dates_outside_1990_to_access_date_are_not_candidates():
+    cands = [{"tag": ds.TAG_PDF, "found_as": "pdf", "raw": "D:16010101", "value": "1601-01-01"},
+             {"tag": ds.TAG_DC, "found_as": "meta", "raw": "2030-01-01", "value": "2030-01-01"}]
+    inputs = ds.page_date_inputs(cands, "https://x.example/1989/12/x/", access_date="2026-11-11")
+    assert inputs.metadata_dates == () and set(inputs.out_of_window) == {"1601-01-01", "2030-01-01", "1989-12"}
+    assert ds.in_window("2026", ds.date(2026, 5, 1)) and ds.in_window("1990-01", ds.date(2026, 5, 1))
+    assert not ds.in_window("1989", ds.date(2026, 5, 1)) and not ds.in_window("2026-05-02", ds.date(2026, 5, 1))
+    d = sf.page_publication_date(cands, "https://x.example/about", None, SOURCES, access_date=ACC)
+    assert d.value == "not_documented"
+    with pytest.raises(ValueError, match="access_date"):
+        ds.page_date_inputs([], "https://x.example/a", access_date=None)
+
+
+def test_r20_url_date_on_the_path_only():
+    assert ds.url_dates("https://x.example/a?from=/2024/03/12/x") == []
+    assert ds.url_dates("https://x.example/a#/2024/03/x/") == []
+    assert ds.url_dates("https://x.example/2024/03/x?y=1") == ["2024-03"]
+    assert ds.normalise_pdf("20240312") == ds.normalise_pdf("D:20240312") == "2024-03-12"
+
+
+def test_producer_version_is_v2():
+    assert ds.PRODUCER_VERSION == "g3o.common.date_signals.v2"
