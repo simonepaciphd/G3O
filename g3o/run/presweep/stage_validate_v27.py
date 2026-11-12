@@ -53,9 +53,19 @@ Rules carried here, not decided here:
   values R1 asks to re-derive but whose signed rule needs inputs the merged
   row does not hold (:data:`MERGE_REFUSED_R1`; ``evidence_channel`` is the
   row metadata :data:`EVIDENCE_CHANNEL`, not a row value), the merged values
-  no ruling covers (:data:`MERGE_UNRULED`: ``uncertainty_flags``, waiting for
-  T-024, RC-D-032 B2 a / X4 a), source independence groups, and uncertainty
-  flags. RC-D-032 B1 a keeps the R1 refusal until per-source producers exist.
+  no ruling covers (:data:`MERGE_UNRULED`, now empty), and source independence
+  groups. RC-D-032 B1 a keeps the R1 refusal until per-source producers exist.
+- **Uncertainty flags (PI A6.1-A6.4 a, 2026-11-11;**
+  :mod:`g3o.validate.uncertainty_flags_v27`**).** Each Stage 6 node carries its
+  own code's flags: a pooled ``core.adoption_stage`` node ``stage_ambiguous``
+  when the pool parts' answers and the pooled observations' values differ, a
+  cross-page relation node ``identity_unresolved`` when it is ``unresolved``.
+  Every published activity's ``core.uncertainty_flags`` (:data:`MERGE_DERIVED`)
+  is the union, alphabetical, of the flags its stored nodes carry (ruling 11),
+  except ``identity_unresolved`` (PI ruling R1 a, 2026-11-12): that row flag
+  goes on the left-hand activity of an unresolved cross-page relation, where
+  the relation is filed, and only there, wherever the relation's node is stored
+  (W4 b placement unchanged; the node keeps its own flag, A6.3 a).
 """
 from __future__ import annotations
 
@@ -104,6 +114,7 @@ from g3o.persist.stage6_adapters import (
     load_support_provenance,
     write_atomic,
 )
+from g3o.validate import uncertainty_flags_v27 as uf
 from g3o.validate.consolidate_v27 import (
     ActivityObservation,
     ConsolidationError,
@@ -162,8 +173,10 @@ MERGE_CREDIBLE = ("core.activity_name", "core.contracting_party", "core.observed
 #: date_upper_bound (the source date's origin). evidence_channel is row metadata, not a value.
 MERGE_REFUSED_R1 = ("core.developer", "core.developer_basis", "core.stage_as_of", "core.stage_as_of_basis",
                     "core.unit_credit", "core.vendor_claim_only", "core.cx_display_rollup", "core.date_upper_bound")
-#: Non-pooled activity items no merge rule covers (explicit input; RC-D-032 B2 a: flags wait for T-024).
-MERGE_UNRULED = ("core.uncertainty_flags",)
+#: Non-pooled activity items no merge rule covers (explicit input). Empty since A6 (2026-11-11).
+MERGE_UNRULED: tuple[str, ...] = ()
+#: Derived here from the row's stored nodes (A6.4 a: union, alphabetical).
+MERGE_DERIVED = (uf.ITEM,)
 MERGE_INPUT_ITEMS = frozenset(MERGE_REFUSED_R1 + MERGE_UNRULED)
 MERGED_VALUES_PRODUCER = ("merged-activity values with no rule computable from the merged row (RC-D-030 X1 a "
                           "R1 refused, or unruled): " + ", ".join(MERGE_REFUSED_R1 + MERGE_UNRULED))
@@ -174,10 +187,10 @@ def _non_pooled_items() -> frozenset[str]:
     return ACTIVITY_ITEMS - pooled - set(METADATA_ITEMS) - {"core.n_sources", "core.confidence"}
 
 
-if _non_pooled_items() != MERGE_INPUT_ITEMS | set(MERGE_UNION) | set(MERGE_CREDIBLE):  # pragma: no cover
+if _non_pooled_items() != (MERGE_INPUT_ITEMS | set(MERGE_UNION) | set(MERGE_CREDIBLE)
+                           | set(MERGE_DERIVED)):  # pragma: no cover
     raise RuntimeError("the merged-activity item split no longer matches the activities table")
 INDEPENDENCE_PRODUCER = "near-duplicate / syndication grouping (P15) for source independence groups"
-UNCERTAINTY_PRODUCER = "T-024 derived-field producer (core.uncertainty_flags for Stage 6 answers)"
 
 
 # ---------------------------------------------------------------------------
@@ -452,7 +465,6 @@ class Stage6Institution:
     provenance: Sequence[Mapping[str, Any]]  # companions of the per-page quote supports
     independence_groups: Mapping[str, str] | None = None
     merged_values: Mapping[tuple[str, ...], Mapping[str, Any]] | None = None
-    uncertainty_flags: Callable[[SupportResult], Sequence[str] | None] | None = None
 
     @property
     def institution_id(self) -> str:
@@ -490,8 +502,10 @@ class _Nodes:
         self.provenance.append(nodes.provenance)
 
 
-def _flags(inst: Stage6Institution, sr: SupportResult) -> Sequence[str] | None:
-    return None if inst.uncertainty_flags is None else inst.uncertainty_flags(sr)
+def pooled_stage_answers(inst: Stage6Institution, pooled: PooledActivity) -> list[str]:
+    """A6.1 a: the pooled observations' adoption-stage values and the pool parts' answers, before combining."""
+    return [*(str(inst.observation_inputs[k].row["values"][uf.STAGE_ITEM]) for k in pooled.observation_ids),
+            *uf.classifier_answers(pooled.records)]
 
 
 def _rule_result(item: str, part: str | None, value: str, rule: str) -> SupportResult:
@@ -515,6 +529,7 @@ def _pool_nodes(inst: Stage6Institution, aid: str, pooled: PooledActivity, quote
                 for i in ids]
 
     every = sorted({i for ids in pooled.part_inputs.values() for i in ids})
+    stage_answers = pooled_stage_answers(inst, pooled)
     answered = [r for r in pooled.records if r.coder_type == "classifier" and r.chosen_value != NOT_COVERED]
     if len(answered) != len(pooled.support):
         raise ConsolidationError("pooled answers and support checks do not pair one to one")
@@ -523,7 +538,8 @@ def _pool_nodes(inst: Stage6Institution, aid: str, pooled: PooledActivity, quote
     for rec, sr, copied in zip(answered, pooled.support, pooled.support_inputs, strict=True):
         nodes = combined_support_nodes(sr, run_id=inst.run_id, institution_uid=inst.institution_uid,
                                        chunk_id=rec.chunk_id, shown=shown(pooled.part_inputs[rec.chunk_id]),
-                                       observation_id=None, uncertainty_flags=_flags(inst, sr),
+                                       observation_id=None,
+                                       uncertainty_flags=uf.code_flags(sr, stage_answers=stage_answers),
                                        instrument=instrument, input_support_id=copied)
         out.add(aid, nodes, rec, instrument)
     mechanical = {r.question_id: r for r in pooled.records if r.coder_type == "mechanical"}
@@ -537,16 +553,20 @@ def _pool_nodes(inst: Stage6Institution, aid: str, pooled: PooledActivity, quote
             continue
         sr = _rule_result(outcome.item_id, outcome.part, str(outcome.value), rec.rule_reference)
         nodes = combined_support_nodes(sr, run_id=inst.run_id, institution_uid=inst.institution_uid, chunk_id=None,
-                                       shown=shown(every), observation_id=None, uncertainty_flags=_flags(inst, sr),
+                                       shown=shown(every), observation_id=None,
+                                       uncertainty_flags=uf.code_flags(sr, stage_answers=stage_answers),
                                        instrument=instrument)
         out.add(aid, nodes, rec, instrument)
 
 
 def _relation_nodes(inst: Stage6Institution, result: Stage6Result, final_of: Mapping[str, str],
                     quotes: Mapping[str, InputQuote], instrument: dict[str, Any], out: _Nodes
-                    ) -> dict[tuple[str, str], list[str]]:
+                    ) -> tuple[dict[tuple[str, str], list[str]], set[tuple[str, str]]]:
+    """Store the cross-page relation nodes; return their support ids per (lhs, rhs) and the
+    (lhs, rhs) pairs whose node carries ``identity_unresolved`` (for the R1 a row flag)."""
     by_obs = {r.observation_id: r for r in inst.records}
     ids: dict[tuple[str, str], list[str]] = {}
+    unresolved: set[tuple[str, str]] = set()
     for outcome in result.relation_outcomes:
         if outcome.decision is None or not (outcome.lhs in final_of and outcome.rhs in final_of):
             continue
@@ -560,7 +580,7 @@ def _relation_nodes(inst: Stage6Institution, result: Stage6Result, final_of: Map
         quoted = sr.supporting_text is not None and copied is not None
 
         node_args = dict(run_id=inst.run_id, institution_uid=inst.institution_uid, chunk_id=rec.chunk_id,
-                         shown=shown, uncertainty_flags=_flags(inst, sr), instrument=instrument,
+                         shown=shown, uncertainty_flags=uf.code_flags(sr), instrument=instrument,
                          input_support_id=copied)
         nodes = combined_support_nodes(sr, observation_id=None if quoted else outcome.lhs, **node_args)
         if quoted and not nodes.original["supporting_text"]:
@@ -572,7 +592,9 @@ def _relation_nodes(inst: Stage6Institution, result: Stage6Result, final_of: Map
         home = quotes[copied].observation_id if copied is not None and inputs == [copied] else outcome.lhs
         out.add(final_of[home], nodes, rec, instrument)
         ids[(outcome.lhs, outcome.rhs)] = [n["support_id"] for n in (nodes.original, nodes.final) if n is not None]
-    return ids
+        if uf.IDENTITY_UNRESOLVED in node_args["uncertainty_flags"]:
+            unresolved.add((outcome.lhs, outcome.rhs))
+    return ids, unresolved
 
 
 def _real(item: str, value: Any) -> bool:
@@ -637,7 +659,11 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
     for group in published:
         if group in result.pooled:
             _pool_nodes(inst, final_of[group[0]], result.pooled[group], quotes, config, instrument, out)
-    relation_ids = _relation_nodes(inst, result, final_of, quotes, instrument, out)
+    relation_ids, unresolved_pairs = _relation_nodes(inst, result, final_of, quotes, instrument, out)
+    # R1 a: the final activities an unresolved cross-page relation is filed on (its lhs; the
+    # filing loop below files each cross-page decision under final_of[decision.lhs]).
+    unresolved_on = {final_of[d.lhs] for d in result.relations
+                     if d.scope == "cross_page" and (d.lhs, d.rhs) in unresolved_pairs}
 
     sources: dict[str, dict[str, Any]] = {}
     for sid, row in inst.sources.items():
@@ -670,6 +696,10 @@ def build_envelope(inst: Stage6Institution, result: Stage6Result, config: Stage6
         for node in [*(s for f in fragments for s in f["item_support"]), *out.supports.get(aid, [])]:
             support.setdefault(node["support_id"], node)
         coders = [*(c for f in fragments for c in f["coder_records"]), *out.coders.get(aid, [])]
+        # Ruling 11 / A6.4 a: union of the row's node flags, except identity_unresolved, which is
+        # set iff an unresolved cross-page relation is filed on this row (R1 a), even when that
+        # relation's node is stored on the right-hand activity (W4 b).
+        values[uf.ITEM] = uf.row_flags(support.values(), unresolved_relation=aid in unresolved_on)
         claims = sorted(s for s, row in sources.items() if row["activity_id"] == aid)
         values["core.n_sources"] = len(claims)
         if inst.independence_groups is None:

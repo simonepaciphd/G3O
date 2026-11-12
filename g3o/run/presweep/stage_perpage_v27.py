@@ -56,8 +56,8 @@ Rules carried here, not decided here:
   non-classifier row values (T-015 source fields, T-022 quote-step values,
   T-024 derived values) and the quote-step codes' support, an injected stored
   page artifact layout (absent: written by :mod:`g3o.persist.page_artifact`,
-  PI ruling A5.1 a), T-025 follow provenance, uncertainty
-  flags, independence groups and the merged-activity values RC-D-030 X1 a
+  PI ruling A5.1 a), T-025 follow provenance, independence
+  groups and the merged-activity values RC-D-030 X1 a
   leaves without a rule computable from the merged row
   (:data:`~g3o.run.presweep.stage_validate_v27.MERGE_INPUT_ITEMS`).
 - **Reviewed page with no activity (RC-D-030 Y2 a).** It gets one page-level
@@ -145,6 +145,7 @@ from g3o.persist.stage6_adapters import (
 )
 from g3o.run.presweep import stage_activity_code, stage_page_code
 from g3o.run.presweep.stage_validate_v27 import ObservationInput, RequestJournal, Stage6Institution
+from g3o.validate import uncertainty_flags_v27 as uf
 from g3o.validate.consolidate_v27 import (
     MISSING,
     RELATIONS,
@@ -297,7 +298,6 @@ class PageSpec:
 class InstitutionUpstream:
     independence_groups: Mapping[str, str] | None = None  # source id -> group (P15 producer absent)
     merged_values: Mapping[tuple[str, ...], Mapping[str, Any]] | None = None
-    uncertainty_flags: Callable[[SupportResult], Sequence[str] | None] | None = None
 
 
 @dataclass(frozen=True)
@@ -513,9 +513,15 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
                  page_round: PageRoundResult, activity_input: ActivityPageInput | None,
                  activity_round: ActivityRoundResult | None, pairs: Sequence[PairResult],
                  pair_support: Sequence[SupportResult], page_config: PageCoderConfig,
-                 activity_config: ActivityCoderConfig, instrument: dict[str, Any],
-                 uncertainty_flags: Callable[[SupportResult], Sequence[str] | None] | None) -> PageProduct:
-    """Final per-page values and their support -> the Stage 6 per-page inputs of one coded page."""
+                 activity_config: ActivityCoderConfig, instrument: dict[str, Any]) -> PageProduct:
+    """Final per-page values and their support -> the Stage 6 per-page inputs of one coded page.
+
+    Uncertainty flags (PI A6.1 a / A6.3 a): each node carries its own code's flags
+    (:func:`g3o.validate.uncertainty_flags_v27.code_flags`); an observation row's
+    ``core.uncertainty_flags`` is the union of its nodes' flags (ruling 11; a page
+    holds no cross-page relation, so the R1 a ``identity_unresolved`` exception of
+    :func:`~g3o.validate.uncertainty_flags_v27.row_flags` never applies here).
+    """
     page, up = spec.page, spec.upstream
     if not (page_round.complete and (activity_round is None or activity_round.complete)):
         raise ConsolidationError("page has pending questions; nothing is produced")
@@ -541,15 +547,19 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         if need and (value is None or set(need) - set(value)):
             raise MissingUpstreamError(f"{VALUES_PRODUCER} ({name})",
                                        sorted(set(need) - set(value or {})) or [page.page_id])
-    if uncertainty_flags is None:
-        raise MissingUpstreamError("T-024 derived-field producer (core.uncertainty_flags)", [page.page_id])
+    uf.check_pipeline(PIPELINE)
+    given_flags = sorted(aid for aid in acts if uf.ITEM in up.activity_values[aid])
+    if given_flags:
+        raise ValueError(f"upstream values overwrite the produced {uf.ITEM} (A6): {given_flags}")
+    # A6.1 a: the adoption-stage answers of each activity's parts, before combining.
+    stage_answers = {aid: uf.classifier_answers(a.records) for aid, a in acts.items()}
     labels = activity_config.labels if activity_config.labels is not None else jac.default_labels()
     qsv_page = result.question_set_version
     qsv_act = None if activity_round is None else activity_round.result.question_set_version
     out = PageProduct(page=None)  # type: ignore[arg-type]
 
     def emit(sr: SupportResult, rec: CoderRecord, ctx: SupportContext, artifact: PageArtifact) -> Any:
-        flags = uncertainty_flags(sr)
+        flags = uf.code_flags(sr, stage_answers=stage_answers.get(sr.activity_id, ()))
         nodes = support_nodes(sr, sources, artifact, replace(ctx, uncertainty_flags=flags), instrument)
         rec = replace(rec, support_id=nodes.original["support_id"], observation_id=nodes.original["observation_id"])
         projection, final_projection, _ = coder_nodes(rec, nodes, instrument)
@@ -616,6 +626,8 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         else:
             act_values = outcome_values(finals[aid].outcomes)
         produced_a = {k: v for k, v in act_values.items() if k in ACTIVITY_ITEMS}
+        if oid is not None:  # checked against the row's nodes once they are all added
+            produced_a[uf.ITEM] = [uf.STAGE_AMBIGUOUS] if uf.stage_ambiguous(stage_answers[aid]) else []
         produced_s = {**{k: v for k, v in page_values.items() if k in SOURCE_ITEMS},
                       **{k: v for k, v in act_values.items() if k in SOURCE_ITEMS}}
         units = [(produced_s, up.source_values[aid], SOURCE_ITEMS, s_row)]
@@ -661,6 +673,8 @@ def produce_page(*, run_dir: Path, run_id: str, institution_uid: str, spec: Page
         out.sources[sid] = src
         docs = [src]
         if oid is not None:
+            if a_row.values[uf.ITEM] != uf.row_flags(a_row.item_support):
+                raise ConsolidationError(f"{uf.ITEM} of {oid} differs from its nodes' flags")
             out.observation_inputs[oid] = ObservationInput(oid, sid, a_row.doc())
             docs.insert(0, a_row.doc())
         for doc in docs:
@@ -917,7 +931,7 @@ def run_perpage_v27(run_dir: Path, institutions: Iterable[PerPageInstitution], *
                     page_order=order, first_source=next_source, page_round=st.page_round,
                     activity_input=st.activity_input, activity_round=st.activity_round, pairs=st.pairs,
                     pair_support=st.pair_support, page_config=page_config, activity_config=activity_config,
-                    instrument=instrument, uncertainty_flags=inst.upstream.uncertainty_flags))
+                    instrument=instrument))
             except UncarriedCombinedValue as exc:  # Y3 b: refused as a per-institution hold
                 uncarried = exc
                 break
@@ -970,8 +984,7 @@ def _institution(inst: PerPageInstitution, products: Sequence[PageProduct | Revi
     up = inst.upstream
     return Stage6Institution(inst.run_id, inst.institution_uid, inst.institution, inst.country, pages,
                              observations, records, within, quotes, inputs, sources, artifacts, provenance,
-                             independence_groups=up.independence_groups, merged_values=up.merged_values,
-                             uncertainty_flags=up.uncertainty_flags)
+                             independence_groups=up.independence_groups, merged_values=up.merged_values)
 
 
 __all__ = [

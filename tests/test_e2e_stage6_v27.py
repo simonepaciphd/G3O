@@ -160,8 +160,7 @@ class Builder:
         return rt.Stage6Institution(
             RUN_ID, self.uid, identity, "AU", self.pages, self.observations, self.records, self.within, self.quotes,
             self.inputs, self.sources, self.artifacts, self.provenance,
-            independence_groups={sid: sid for sid in self.sources}, merged_values=merged,
-            uncertainty_flags=lambda sr: [])
+            independence_groups={sid: sid for sid in self.sources}, merged_values=merged)
 
 
 class FakeJev:

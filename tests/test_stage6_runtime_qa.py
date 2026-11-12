@@ -462,10 +462,9 @@ def test_quote_copied_from_outside_its_part_is_stored_without_text_and_kept_in_p
         assert nodes[r["support_id"]]["supporting_text"] == ""
 
 
-@pytest.mark.parametrize("field, match", [("independence_groups", "independence"),
-                                          ("uncertainty_flags", "uncertainty")])
-def test_absent_independence_groups_or_uncertainty_flags_refuse(tmp_path, field, match):
-    # X4 a: explicit inputs, refused when absent (no producer yet)
+@pytest.mark.parametrize("field, match", [("independence_groups", "independence")])
+def test_absent_independence_groups_refuse(tmp_path, field, match):
+    # X4 a: explicit inputs, refused when absent (no producer yet); uncertainty flags are produced (A6)
     run_dir, bound, instrument = e._setup(tmp_path)
     a, _ = e._institutions(run_dir, bound, instrument)
     metrics = _run(run_dir, bound, instrument, [replace(a, **{field: None})], e.FakeQuotes())
@@ -583,7 +582,7 @@ def test_rcd032_b2_scale_number_follows_r3():
                        {"o1": "high", "o2": "low"})  # lexical number text (what storage validates) is real too
     assert rt.merge_values(inst, ["o1", "o2"])["core.deployment_scale_number"] == "about 200"
     assert "core.deployment_scale_number" in rt.MERGE_CREDIBLE
-    assert rt.MERGE_UNRULED == ("core.uncertainty_flags",)
+    assert rt.MERGE_UNRULED == () and rt.MERGE_DERIVED == ("core.uncertainty_flags",)
 
 
 def test_r3_blank_text_is_missing_and_a_zero_number_is_real():
