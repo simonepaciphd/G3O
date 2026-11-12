@@ -26,7 +26,8 @@ Rules, as the signed codebook r15 and SPEC v001.28 state them:
   ``quote_fn``; :mod:`g3o.validate.stage6_quote` builds it (the C-001
   extractor copies from the input quotes shown, then the X35 check). With
   ``quote_fn=None`` every check that needs a quote stays PENDING; a failed
-  quote request holds that answer. Pending work is never published.
+  quote request holds that answer (a stage stop or a missing upstream input
+  stops the stage instead, B1 a). Pending work is never published.
 - **Merging (R-005).** Only explicit, supported ``same_activity`` /
   ``shared_participation`` relations at >= 0.8 merge
   (:func:`~g3o.validate.consolidate_v27.relation_plan`). A pending relation is
@@ -92,6 +93,7 @@ from g3o.classify.jev_activity_code import (
 )
 from g3o.classify.permanent_pilot import PERMANENT_PILOT_RULE, apply_permanent_pilot_override
 from g3o.classify.questions.v27 import choice_request, load_set
+from g3o.common.cost_monitor import BudgetExceededError, UnpricedModelError
 from g3o.common.jev_client import JevAccountError, JevResult
 from g3o.common.jev_record import ClassifierRule, CoderRecord
 from g3o.common.page_chunks import (
@@ -109,6 +111,7 @@ from g3o.common.response_v27 import (
     check_storage_binding,
     response_from_storage,
 )
+from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
 from g3o.common.source_fields import PendingCheck, SourceConfidence, source_confidence_rule
 from g3o.common.storage import StorageEnvelope
 from g3o.common.support_check import (
@@ -122,7 +125,7 @@ from g3o.common.support_check import (
     check_code,
 )
 from g3o.extract.years import extract_year_candidates
-from g3o.persist.stage6_adapters import write_stage6_artifacts
+from g3o.persist.stage6_adapters import MissingUpstreamError, write_stage6_artifacts
 from g3o.validate.consolidate_v27 import (
     MISSING,
     ActivityObservation,
@@ -254,6 +257,16 @@ class Stage6QuoteNotApproved(RuntimeError):
     """The quote-step instruction is not the PI-approved, SHA256-pinned text: no paid call is made."""
 
 
+#: Errors that stop the whole Stage 6 stage wherever they arise (an account stop, an unapproved
+#: quote prompt, a support-gate refusal, a spend stop). Never held per part or per answer.
+STAGE6_STOPS = (JevAccountError, Stage6QuoteNotApproved, SupportGateError, BudgetExceededError, UnpricedModelError)
+#: Both ``MissingUpstreamError`` classes (each a ``ValueError``, neither a subclass of the other).
+MISSING_UPSTREAM = (MissingUpstreamError, SourceFieldsMissingUpstreamError)
+#: PI ruling B1 a: inside the executor a missing upstream input stops the stage, as the stage
+#: stops do. ``ask_fn``, ``quote_fn`` and the combiner re-raise these instead of holding.
+EXECUTOR_STOPS = STAGE6_STOPS + MISSING_UPSTREAM
+
+
 QuoteFn = Callable[[Stage6QuoteRequest], Stage6Quote]
 
 
@@ -364,7 +377,7 @@ def _request(ask_fn: AskFn, state: dict[str, Any], questions: dict[str, dict[str
              ) -> tuple[JevResult | None, str | None, str | None]:
     try:
         result = ask_fn(state, questions)
-    except JevAccountError:
+    except EXECUTOR_STOPS:  # B1 a: stage stops and missing upstream inputs are not held per part
         raise
     except Exception as exc:  # noqa: BLE001 - a failed request fails this part only
         return None, REQUEST_FAILED, f"{type(exc).__name__}: {exc}"
@@ -401,7 +414,7 @@ def _support(kind: str, key: str, part_id: str, q: Mapping[str, Any], rec: Coder
                                  second_activity_name=second_activity_name)
     try:
         answer = quote_fn(request)
-    except (JevAccountError, Stage6QuoteNotApproved, SupportGateError):
+    except EXECUTOR_STOPS:  # B1 a: stage stops and missing upstream inputs are not held per answer
         raise
     except Exception as exc:  # noqa: BLE001 - a failed quote request holds this answer only
         return Held(QUOTE_STEP_FAILED, hold_key, f"{type(exc).__name__}: {exc}")
@@ -766,6 +779,8 @@ def pool_activity(pool_id: str, group: Sequence[str], observations: Sequence[Act
                 continue
             try:
                 c = config.combiner.combine(q["item_id"], votes[qid])
+            except EXECUTOR_STOPS:  # B1 a: a missing upstream input (or a stage stop) is not this item's refusal
+                raise
             except ValueError as exc:
                 final[qid] = ItemOutcome(qid, q["item_id"], q.get("part"), "stopped", None, error=str(exc))
                 continue
@@ -864,7 +879,13 @@ def run_stage6(*, institution: str, country: str | None, pages: Sequence[Reviewe
                observations: Sequence[ActivityObservation], records: Sequence[ObservationRecord],
                within_page: Sequence[RelationDecision], quotes: Sequence[InputQuote],
                ask_fn: AskFn, quote_fn: QuoteFn | None, config: Stage6Config) -> Stage6Result:
-    """Relations, then the merge plan, then pooled reclassification of each merged group."""
+    """Relations, then the merge plan, then pooled reclassification of each merged group.
+
+    A failed jev request fails its part, a failed quote request holds its answer and a combiner
+    refusal stops its pooled question, except for :data:`EXECUTOR_STOPS`: a stage stop
+    (:data:`STAGE6_STOPS`) or either ``MissingUpstreamError`` class (PI ruling B1 a) raised by
+    ``ask_fn``, ``quote_fn`` or the combiner propagates and stops the stage.
+    """
     qset = load_set("institution")
     by_obs = {r.observation_id: r for r in records}
     if set(by_obs) != {o.observation_id for o in observations} or len(by_obs) != len(records):
@@ -936,7 +957,7 @@ def write_stage6_outputs(inst_dir: Path, *, envelope: StorageEnvelope, instituti
 
 
 __all__ = [
-    "CODER_VERSION", "NUMBER_ITEM", "dedupe_pooled_quotes", "observation_pool_order", "PERMANENT_PILOT_RULE", "POOLED_NANO_GATE",
+    "CODER_VERSION", "EXECUTOR_STOPS", "MISSING_UPSTREAM", "NUMBER_ITEM", "STAGE6_STOPS", "dedupe_pooled_quotes", "observation_pool_order", "PERMANENT_PILOT_RULE", "POOLED_NANO_GATE",
     "POOLED_REQUEST_FAILED", "PREFILTER_RULE",
     "QUOTE_STEP_ABSENT", "QUOTE_STEP_FAILED", "RELATION_ITEM", "RELATION_OVER_BUDGET", "Held", "InputQuote",
     "ObservationRecord", "PooledActivity", "QuoteFn", "RelationOutcome", "Stage6Config", "Stage6Quote",

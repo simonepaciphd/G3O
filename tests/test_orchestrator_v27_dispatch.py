@@ -483,7 +483,8 @@ def test_v27_dispatch_runs_through_stage6_and_writes_the_outputs(tmp_path):
 
 def test_v27_dispatch_without_merged_values_holds_that_institution_at_stage6(tmp_path):
     """The merged-activity values have no producer (RC-D-030 X1 a): absent, Stage 6 holds the merging
-    institution (MissingUpstreamError is per-institution in Stage 6) and writes the others."""
+    institution (MissingUpstreamError from the Stage 6 envelope build is per-institution, B1 a) and
+    writes the others."""
     run_dir, bound, instrument, world = _world_run(tmp_path)
     out = orch.run_v27_dispatch(run_dir, [], None, _dispatch(world, inputs=WorldInputs(world, merged=False)))
     assert (out["n_stage6_written"], out["n_stage6_failed"]) == (2, 1)

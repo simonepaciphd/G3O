@@ -16,11 +16,13 @@ import pytest
 
 from g3o.classify.jev_activity_code import GATE_RULE
 from g3o.common import attrition
+from g3o.common.cost_monitor import BudgetExceededError
 from g3o.common.independence import group_id as independence_group_id
 from g3o.common.instrument import canonical_json, sha256_text
-from g3o.common.jev_client import JevAnswer, JevResult
+from g3o.common.jev_client import JevAccountError, JevAnswer, JevResult
 from g3o.common.paths import institution_dir
-from g3o.common.support_check import CodeEvidence, PageSources, check_code
+from g3o.common.source_fields import MissingUpstreamError as SourceFieldsMissingUpstreamError
+from g3o.common.support_check import CodeEvidence, PageSources, SupportGateError, check_code
 from g3o.extract.anthropic_client import ExtractorResult
 from g3o.persist import stage6_adapters as adapters
 from g3o.persist.stage6_adapters import InputSupport, PageArtifact, combined_support_nodes
@@ -777,9 +779,9 @@ def test_executor_stop_errors_still_stop_the_stage(tmp_path, monkeypatch):
     a, b = e._institutions(run_dir, bound, instrument)
 
     def stopped(**kw):
-        raise rt.JevAccountError("account stopped")
+        raise JevAccountError("account stopped")
     monkeypatch.setattr(rt, "run_stage6", stopped)
-    with pytest.raises(rt.JevAccountError):
+    with pytest.raises(JevAccountError):
         _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
 
 
@@ -796,22 +798,189 @@ def test_executor_programming_error_stops_the_stage_and_is_not_held(tmp_path, mo
     assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
 
 
-def test_executor_missing_upstream_is_still_held_per_institution(tmp_path, monkeypatch):
-    # Stage 6 keeps holding MissingUpstreamError per institution; its treatment awaits a PI ruling.
+MISSING_CLASSES = [rt.MissingUpstreamError, SourceFieldsMissingUpstreamError]
+
+
+@pytest.mark.parametrize("error", MISSING_CLASSES)
+def test_executor_missing_upstream_stops_the_stage(tmp_path, monkeypatch, error):
+    # B1 a: inside the executor either MissingUpstreamError class is a wiring gap and stops the stage
+    assert not any(issubclass(x, y) for x in MISSING_CLASSES for y in MISSING_CLASSES if x is not y)
     run_dir, bound, instrument = e._setup(tmp_path)
     a, b = e._institutions(run_dir, bound, instrument)
-    real = rt.run_stage6
 
     def missing(**kw):
-        if kw["institution"].endswith(A):
-            raise rt.MissingUpstreamError("simulated producer", ["x"])
-        return real(**kw)
+        raise error("simulated producer", ["x"])
     monkeypatch.setattr(rt, "run_stage6", missing)
-    assert rt.MissingUpstreamError not in rt.STAGE_STOPS
+    with pytest.raises(error, match="simulated producer"):
+        _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+    assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
+    assert not (institution_dir(run_dir, B) / "6_storage.json").exists()
+    assert _ledger(run_dir) == []
+
+
+@pytest.mark.parametrize("error", MISSING_CLASSES)
+def test_envelope_missing_upstream_still_holds_only_its_institution(tmp_path, monkeypatch, error):
+    # B1 a: build_envelope's MissingUpstreamError (e.g. the R1 refusals) stays an ENVELOPE_FAILED hold
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    real = rt.build_envelope
+
+    def missing(inst, *args, **kw):
+        if inst.institution_id == A:
+            raise error("simulated producer", ["x"])
+        return real(inst, *args, **kw)
+    monkeypatch.setattr(rt, "build_envelope", missing)
     metrics = _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
     assert metrics.failed == [A] and metrics.written == [B]
     held = _held(run_dir)
-    assert held["reasons"] == [rt.EXECUTOR_FAILED] and "MissingUpstreamError" in held["error"]
+    assert held["reasons"] == [rt.ENVELOPE_FAILED] and "MissingUpstreamError" in held["error"]
+    assert _ledger(run_dir) == [rt.ENVELOPE_FAILED]
+
+
+@pytest.mark.parametrize("target", ["build_envelope", "write_stage6_outputs"])
+@pytest.mark.parametrize("error", [TypeError, KeyError, AttributeError])
+def test_envelope_programming_error_stops_the_stage_and_is_not_held(tmp_path, monkeypatch, target, error):
+    # B3: the envelope/artifact block no longer swallows programming errors
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+
+    def broken(*args, **kw):
+        raise error("simulated programming error")
+    monkeypatch.setattr(rt, target, broken)
+    with pytest.raises(error):
+        _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+    assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
+    assert _ledger(run_dir) == []
+
+
+def test_envelope_stage_stop_propagates(tmp_path, monkeypatch):
+    # B3: a stage stop raised while building the envelope is no longer held per institution
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+
+    def gated(*args, **kw):
+        raise SupportGateError("simulated gate")
+    monkeypatch.setattr(rt, "build_envelope", gated)
+    with pytest.raises(SupportGateError):
+        _run(run_dir, bound, instrument, [a, b], e.FakeQuotes())
+    assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
+
+
+
+# --- B1 a review: inside the real executor, ask_fn / quote_fn / the combiner do not hold stops ----
+
+
+def _stop_error(error):
+    if error is BudgetExceededError:
+        return error(2.0, 1.0, "stage6")
+    if error in MISSING_CLASSES:
+        return error("simulated producer", ["x"])
+    return error("simulated failure")
+
+
+class RaisingJev(e.FakeJev):
+    """The declared fake jev, raising ``error`` on its first call."""
+
+    def __init__(self, error):
+        super().__init__(e.RELATIONS, e._pooled_answers())
+        self.error = error
+
+    def __call__(self, state, questions):
+        if not self.calls:
+            self.calls.append(questions)
+            raise _stop_error(self.error)
+        return super().__call__(state, questions)
+
+
+class RaisingQuotes(e.FakeQuotes):
+    """The declared fake quote step, raising ``error`` on its first call."""
+
+    def __init__(self, error):
+        super().__init__()
+        self.error = error
+
+    def __call__(self, req):
+        if not self.calls:
+            self.calls += 1
+            raise _stop_error(self.error)
+        return super().__call__(req)
+
+
+class RaisingCombiner(RefusingCombiner):
+    def __init__(self, inner, item, error):
+        super().__init__(inner, item)
+        self.error = error
+
+    def combine(self, item_id, answers, *, reference=None):
+        if item_id == self.item:
+            raise _stop_error(self.error)
+        return self.inner.combine(item_id, answers, reference=reference)
+
+
+def _assert_stopped(run_dir):
+    assert not (institution_dir(run_dir, A) / rt.WORK_DIR / rt.HELD_FILE).exists()
+    assert not (institution_dir(run_dir, B) / "6_storage.json").exists()
+    assert _ledger(run_dir) == [] and _ledger(run_dir, B) == []
+
+
+def test_executor_stop_tuple_is_the_stage_stop_tuple():
+    assert rt.STAGE_STOPS is s6.STAGE6_STOPS and rt.MISSING_UPSTREAM is s6.MISSING_UPSTREAM
+    assert set(s6.EXECUTOR_STOPS) == {*rt.STAGE_STOPS, *MISSING_CLASSES}
+
+
+@pytest.mark.parametrize("error", [*MISSING_CLASSES, BudgetExceededError])
+def test_stop_from_ask_fn_stops_the_stage(tmp_path, error):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    jev = RaisingJev(error)
+    with pytest.raises(error):
+        _run(run_dir, bound, instrument, [a, b], e.FakeQuotes(), jev=jev)
+    assert len(jev.calls) == 1
+    _assert_stopped(run_dir)
+
+
+@pytest.mark.parametrize("error", [*MISSING_CLASSES, BudgetExceededError])
+def test_stop_from_quote_fn_stops_the_stage(tmp_path, error):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    quotes = RaisingQuotes(error)
+    with pytest.raises(error):
+        _run(run_dir, bound, instrument, [a, b], quotes)
+    assert quotes.calls == 1
+    _assert_stopped(run_dir)
+
+
+@pytest.mark.parametrize("error", MISSING_CLASSES)
+def test_missing_upstream_from_the_combiner_stops_the_stage(tmp_path, error):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a, b = e._institutions(run_dir, bound, instrument)
+    config = bound.stage6_config()
+    config = replace(config, combiner=RaisingCombiner(config.combiner, "core.activity_type", error))
+    with pytest.raises(error, match="simulated producer"):
+        _run(run_dir, bound, instrument, [a, b], e.FakeQuotes(), config=config)
+    _assert_stopped(run_dir)
+
+
+def test_ordinary_ask_fn_error_still_holds_the_part(tmp_path):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a = e._institutions(run_dir, bound, instrument)[0]
+    metrics = _run(run_dir, bound, instrument, [a], e.FakeQuotes(), jev=RaisingJev(RuntimeError))
+    assert metrics.held == [A] and not metrics.written and not metrics.failed
+    held = _held(run_dir)
+    assert s6.REQUEST_FAILED in {h["reason"] for h in held["held"]}
+    assert any("RuntimeError: simulated failure" in (h["detail"] or "") for h in held["held"])
+
+
+def test_ordinary_quote_fn_error_still_holds_the_answer(tmp_path):
+    run_dir, bound, instrument = e._setup(tmp_path)
+    a = e._institutions(run_dir, bound, instrument)[0]
+    metrics = _run(run_dir, bound, instrument, [a], RaisingQuotes(RuntimeError))
+    assert metrics.held == [A] and not metrics.written and not metrics.failed
+    held = _held(run_dir)
+    # the held relation answer also leaves its pair undecided
+    assert held["reasons"] == sorted([rt.MISSING_RELATION, s6.QUOTE_STEP_FAILED])
+    assert [(h["reason"], h["detail"]) for h in held["held"]] == [
+        (s6.QUOTE_STEP_FAILED, "RuntimeError: simulated failure")]
 
 
 # --- QA round 2, MEDIUM-B: Z1 b retry is live; a response missing an asked answer is never replayed
