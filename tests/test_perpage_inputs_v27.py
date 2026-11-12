@@ -13,6 +13,7 @@ refuses before any jev or extractor call. No network: lingua runs locally.
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import replace
 
 import pytest
@@ -195,18 +196,57 @@ def test_identity_drift_duplicate_url_and_missing_uid_are_refused(tmp_path):
     path = institution_dir(run_dir, I1) / "institution.json"
     rec = json.loads(path.read_text(encoding="utf-8"))
     path.write_text(json.dumps({**rec, "institution_name": "Other"}), encoding="utf-8")
+    # The builder is lazy: each refusal comes when the institution is reached (the check pass).
     with pytest.raises(ValueError, match=r"differs from the master row on \['institution_name'\]"):
-        pin.build_perpage_inputs(run_dir, ROWS[:1], SCRAPED)
+        list(pin.build_perpage_inputs(run_dir, ROWS[:1], SCRAPED))
     path.write_text(json.dumps({k: v for k, v in rec.items() if k != "institution_search_languages"}),
                     encoding="utf-8")
     with pytest.raises(MissingUpstreamError, match="institution_search_languages"):
-        pin.build_perpage_inputs(run_dir, ROWS[:1], SCRAPED)
+        list(pin.build_perpage_inputs(run_dir, ROWS[:1], SCRAPED))
     with pytest.raises(ValueError, match="share a URL"):
-        pin.build_perpage_inputs(_run_dir(tmp_path / "dup"), ROWS[:1], {I1: [P_META, P_META]})
+        list(pin.build_perpage_inputs(_run_dir(tmp_path / "dup"), ROWS[:1], {I1: [P_META, P_META]}))
     run_dir = _run_dir(tmp_path / "uids", manifest={"run_id": RUN_ID, "institutions": [I1],
                                                     "institution_uids": {I2: uid_for(I2)}})
     with pytest.raises(MissingUpstreamError, match="institution_uids"):
-        pin.build_perpage_inputs(run_dir, ROWS[:1], SCRAPED)
+        list(pin.build_perpage_inputs(run_dir, ROWS[:1], SCRAPED))
+
+
+class RecordingScraped(Mapping):
+    """A ``ScrapedPages`` stand-in that records each institution read (pages parsed on access)."""
+
+    def __init__(self, pages):
+        self.pages, self.reads = pages, []
+
+    def __getitem__(self, inst_id):
+        self.reads.append(inst_id)
+        return list(self.pages[inst_id])
+
+    def __iter__(self):
+        return iter(self.pages)
+
+    def __len__(self):
+        return len(self.pages)
+
+
+def test_builder_is_lazy_one_institution_at_a_time_and_re_iterable(tmp_path):
+    """Review fix (memory): no page is read when the builder is called; iteration reads one
+    institution's pages per step; a second pass reads them again (nothing is held)."""
+    scraped = RecordingScraped(SCRAPED)
+    built = pin.build_perpage_inputs(_run_dir(tmp_path), ROWS, scraped)
+    assert not isinstance(built, list) and scraped.reads == []
+    it = iter(built)
+    assert next(it).institution_id == I1 and scraped.reads == [I1]
+    assert next(it).institution_id == I2 and scraped.reads == [I1, I2]
+    with pytest.raises(StopIteration):
+        next(it)
+    assert scraped.reads == [I1, I2, I3]
+    assert [i.institution_id for i in built] == [I1, I2]  # re-iterable: a fresh pass
+    assert scraped.reads == [I1, I2, I3] * 2
+    # The completeness check is one pass that keeps no institution (returns the page count).
+    complete = [replace(i, pages=[replace(s, upstream=replace(s.upstream, followed=False, activity_values={},
+                                                              source_values={}, codes={})) for s in i.pages])
+                for i in built]
+    assert pin.require_complete(iter(complete)) == len(SCRAPED[I1]) + len(SCRAPED[I2])
 
 
 # ---------------------------------------------------------------------------
@@ -234,18 +274,11 @@ def test_v27_dispatch_default_builder_refuses_before_any_call(tmp_path, monkeypa
         orch.run_v27_dispatch(run_dir, ROWS[:2], SCRAPED, v27)
     # Once the producers exist the entry refusal lifts; the builder's own guard still refuses.
     monkeypatch.setattr(pin, "MISSING_PRODUCERS", ())
-    seen = []
-    real = pin.build_perpage_inputs
-
-    def spy(*args):
-        out = real(*args)
-        seen.extend(out)
-        return out
-
-    monkeypatch.setattr(pin, "build_perpage_inputs", spy)
-    with pytest.raises(MissingUpstreamError, match="T-025 follow provenance"):
-        orch.run_v27_dispatch(run_dir, ROWS[:2], SCRAPED, v27)
-    assert [i.institution_id for i in seen] == [I1, I2]
-    assert [s.page.page_id for s in seen[0].pages] == [url_hash(p.url) for p in SCRAPED[I1]]
+    scraped = RecordingScraped(SCRAPED)
+    with pytest.raises(MissingUpstreamError, match="T-025 follow provenance") as exc:
+        orch.run_v27_dispatch(run_dir, ROWS[:2], scraped, v27)
+    # The refusal comes from the first (check) pass over the lazy inputs: each institution read once.
+    assert scraped.reads == [I1, I2]
+    assert exc.value.missing == tuple(f"{i}/{url_hash(p.url)}" for i in (I1, I2) for p in SCRAPED[i])
     assert jev.calls == [] and extract.jobs == [] and entail.calls == []
     assert not (institution_dir(run_dir, I1) / pp.WORK_DIR).exists()

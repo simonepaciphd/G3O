@@ -55,7 +55,7 @@ run on these inputs stops before spending on coding it could never finish.
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -153,51 +153,75 @@ def _identity(run_dir: Path, row: Mapping[str, Any], inst_id: str) -> dict[str, 
     return {c: stored[c] for c in IDENTITY_COLUMNS}
 
 
+class PerPageInputs(Iterable[pp.PerPageInstitution]):
+    """The default builder's output: lazy and re-iterable, one institution at a time.
+
+    Each iteration walks the sample afresh and reads one institution's stored
+    pages from ``scraped`` only when that institution is reached, so (as
+    :class:`~g3o.run.presweep.stage_scrape.ScrapedPages` intends) only one
+    institution's page text is live at a time. Re-iterable so a cheap first pass
+    (:func:`require_complete`, which keeps no page text) can refuse incomplete
+    inputs, and every builder error, before the per-page stage's first paid call;
+    the second pass then feeds the stage. Each pass re-reads the artifacts.
+    """
+
+    def __init__(self, run_dir: Path, sample: Sequence[Mapping[str, Any]], scraped: Mapping[str, Any],
+                 run_id: str, uids: Mapping[str, str]) -> None:
+        self._run_dir, self._sample, self._scraped = run_dir, sample, scraped
+        self._run_id, self._uids = run_id, uids
+
+    def __iter__(self) -> Iterator[pp.PerPageInstitution]:
+        run_dir, uids = self._run_dir, self._uids
+        for row in self._sample:
+            inst_id = institution_record(dict(row))["institution_id"]
+            pages = list(self._scraped.get(inst_id) or ())  # ScrapedPages parses on access: read once
+            if not pages:
+                continue
+            if inst_id not in uids:
+                raise MissingUpstreamError("run manifest (institution_uids)", [inst_id])
+            inputs = [page_input(p, row, institution_id=inst_id) for p in pages]
+            ids = [i.page_id for i in inputs]
+            if len(set(ids)) != len(ids):
+                raise ValueError(f"{inst_id}: two stored pages share a URL (page_id = url_hash(url))")
+            grouping = group_rendered_pages(dict(zip(ids, pages, strict=True)), institution_id=inst_id)
+            specs = [pp.PageSpec(i, pp.PageUpstream(page_fields=page_source_fields(p, grouping, i.page_id)))
+                     for i, p in zip(inputs, pages, strict=True)]
+            identity = _identity(run_dir, row, inst_id)
+            yield pp.PerPageInstitution(self._run_id, uids[inst_id], identity, identity["country"], specs,
+                                        pp.InstitutionUpstream(independence_groups=None, merged_values=None))
+
+
 def build_perpage_inputs(run_dir: Path, sample: Sequence[Mapping[str, Any]], scraped: Mapping[str, Any],
-                         bound: Any = None, instrument: Any = None) -> list[pp.PerPageInstitution]:
-    """Every scraped institution's :class:`~g3o.run.presweep.stage_perpage_v27.PerPageInstitution`.
+                         bound: Any = None, instrument: Any = None) -> PerPageInputs:
+    """Every scraped institution's :class:`~g3o.run.presweep.stage_perpage_v27.PerPageInstitution`, lazily.
 
     Builds what D1 a and the A producers settle and leaves every other upstream
     value ``None`` (refused downstream). An institution with no stored page is
-    not built (nothing to code). ``bound`` / ``instrument`` are accepted for the
-    ``perpage_inputs`` signature and not read.
+    not built (nothing to code). The run manifest (``run_id``, ``institution_uids``)
+    is read here; each institution's pages only when :class:`PerPageInputs` is
+    iterated. ``bound`` / ``instrument`` are accepted for the ``perpage_inputs``
+    signature and not read.
     """
     del bound, instrument
     manifest = json.loads((run_dir / MANIFEST_NAME).read_text(encoding="utf-8"))
     run_id = manifest.get("run_id")
     if not run_id:
         raise MissingUpstreamError("run manifest (run_id)", [str(run_dir)])
-    uids = institution_uid_map(run_dir)
-    out: list[pp.PerPageInstitution] = []
-    for row in sample:
-        inst_id = institution_record(dict(row))["institution_id"]
-        pages = list(scraped.get(inst_id) or ())  # ScrapedPages parses on access: read once
-        if not pages:
-            continue
-        if inst_id not in uids:
-            raise MissingUpstreamError("run manifest (institution_uids)", [inst_id])
-        inputs = [page_input(p, row, institution_id=inst_id) for p in pages]
-        ids = [i.page_id for i in inputs]
-        if len(set(ids)) != len(ids):
-            raise ValueError(f"{inst_id}: two stored pages share a URL (page_id = url_hash(url))")
-        grouping = group_rendered_pages(dict(zip(ids, pages, strict=True)), institution_id=inst_id)
-        specs = [pp.PageSpec(i, pp.PageUpstream(page_fields=page_source_fields(p, grouping, i.page_id)))
-                 for i, p in zip(inputs, pages, strict=True)]
-        identity = _identity(run_dir, row, inst_id)
-        out.append(pp.PerPageInstitution(str(run_id), uids[inst_id], identity, identity["country"], specs,
-                                         pp.InstitutionUpstream(independence_groups=None, merged_values=None)))
-    return out
+    return PerPageInputs(run_dir, sample, scraped, str(run_id), institution_uid_map(run_dir))
 
 
-def require_complete(institutions: Sequence[pp.PerPageInstitution]) -> None:
+def require_complete(institutions: Iterable[pp.PerPageInstitution]) -> int:
     """Raise the per-page stage's ``MissingUpstreamError`` for values no producer supplies yet.
 
     The per-page stage refuses these only after coding a page (``failed_page`` /
     ``produce_page``); refusing here keeps the same refusal and spends nothing.
+    One pass that keeps only page keys, never page text. Returns the page count.
     """
     follow, values = [], []
+    n_pages = 0
     for inst in institutions:
         for spec in inst.pages:
+            n_pages += 1
             key = f"{inst.institution_id}/{spec.page.page_id}"
             if spec.upstream.followed is None:
                 follow.append(key)
@@ -207,15 +231,21 @@ def require_complete(institutions: Sequence[pp.PerPageInstitution]) -> None:
         raise MissingUpstreamError(pp.FOLLOW_PRODUCER, follow)
     if values:
         raise MissingUpstreamError(f"{pp.VALUES_PRODUCER} (source_values, codes)", values)
+    return n_pages
 
 
 def default_perpage_inputs(run_dir: Path, sample: Sequence[Mapping[str, Any]], scraped: Mapping[str, Any],
-                           bound: Any, instrument: Any) -> list[pp.PerPageInstitution]:
-    """The v2.7 dispatch's default ``perpage_inputs`` (D1 a): build, then refuse what is still missing."""
+                           bound: Any, instrument: Any) -> PerPageInputs:
+    """The v2.7 dispatch's default ``perpage_inputs`` (D1 a): build lazily, then refuse what is still missing.
+
+    The check is a first pass over the lazy inputs (no page text kept), so a
+    refusal comes before any paid call; the caller iterates again to code.
+    """
     institutions = build_perpage_inputs(run_dir, sample, scraped, bound, instrument)
     require_complete(institutions)
     return institutions
 
 
-__all__ = ["IDENTITY_COLUMNS", "MISSING_PRODUCERS", "PageSourceFields", "build_perpage_inputs", "default_perpage_inputs",
+__all__ = ["IDENTITY_COLUMNS", "MISSING_PRODUCERS", "PageSourceFields", "PerPageInputs", "build_perpage_inputs",
+           "default_perpage_inputs",
            "page_input", "page_source_fields", "require_complete"]

@@ -7,7 +7,7 @@ import gc
 import json
 import logging
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -321,7 +321,7 @@ class V27Dispatch:
     jev_ask_fn: Callable[..., Any]
     extract_fn: Callable[..., Any]
     entail_fn: Callable[..., Any]
-    perpage_inputs: Callable[..., Sequence[Any]] | None = None
+    perpage_inputs: Callable[..., Iterable[Any]] | None = None
 
 
 def _require_v27_dispatch(v27: V27Dispatch | None) -> V27Dispatch:
@@ -459,7 +459,12 @@ def run_v27_dispatch(
         from g3o.run.presweep.perpage_inputs_v27 import default_perpage_inputs
 
         build_inputs = default_perpage_inputs
-    institutions = list(build_inputs(run_dir, sample, scraped, bound, instrument))
+    # Not materialised: the default builder's PerPageInputs is lazy and re-iterable (one
+    # institution's page text live at a time, as ScrapedPages intends). Only a one-shot
+    # iterator, which cannot be walked twice, is held as a list.
+    institutions = build_inputs(run_dir, sample, scraped, bound, instrument)
+    if isinstance(institutions, Iterator):
+        institutions = list(institutions)
     out: dict[str, Any] = into if into is not None else {}
     out.update({"pipeline_version": PIPELINE_V27, "instrument_id": bound.instrument_id})
     usage: dict[str, dict[str, int]] = {}
